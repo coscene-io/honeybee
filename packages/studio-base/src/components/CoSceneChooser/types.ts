@@ -8,9 +8,9 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 
 // Chooser mode definitions
 export type ChooserMode =
@@ -45,6 +45,7 @@ export interface BaseChooserProps {
   defaultRecordDisplayName?: string;
   defaultProject?: Project;
   createRecordConfirmText?: string;
+  disableProjectSelect?: boolean;
 }
 
 // Base dialog properties
@@ -66,9 +67,15 @@ export type ChooserDialogProps = BaseDialogProps & {
         maxFilesNumber?: undefined;
       }
     | {
-        mode: "select-files-from-record" | "select-files-from-project";
+        mode: "select-files-from-project";
         onConfirm: (files: SelectedFile[]) => void;
         maxFilesNumber?: number;
+      }
+    | {
+        mode: "select-files-from-record";
+        onConfirm: (files: SelectedFile[]) => void;
+        maxFilesNumber?: number;
+        disableProjectSelect?: boolean;
       }
   );
 
@@ -84,4 +91,5 @@ export interface CustomBreadcrumbsProps {
   currentFolderPath?: readonly string[];
   onNavigateToFolder?: (path: readonly string[]) => void;
   listType: ListType;
+  disableProjectSelect?: boolean;
 }

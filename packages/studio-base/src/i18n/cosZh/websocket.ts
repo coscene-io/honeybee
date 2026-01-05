@@ -28,12 +28,14 @@ export const cosWebsocket: Partial<TypeOptions["resources"]["cosWebsocket"]> = {
   exitAndClosePage: "退出并关闭页面",
   lanAvailable: "有局域网可用",
   lanConnectionPrompt: "检测到你与当前设备处于同一局域网，可使用局域网连接设备，提高网络速度",
+  lanConnectionPromptAutoConnect: "检测到你与当前设备处于同一局域网，已自动切换到局域网连接",
   switchNow: "立即切换",
   keepCurrent: "保持现状",
-  // 切换为回放模式
   switchToPlayback: "切换为回放模式",
   switchToPlaybackDesc:
     "回放已播的数据，最多可回放 {{duration}} 的数据，想要回放更多时间？<ToSettings>前往设置</ToSettings>",
   switchToRealTime: "切换为实时模式",
   realTimeVizPlayback: "实时可视化回放",
+  switchToRealTimeFromPlayback: "退出回放，查看实时视图",
+  noCacheSetPrompt: "目前暂未设置缓存时长，<ToSettings>前往设置</ToSettings>",
 };

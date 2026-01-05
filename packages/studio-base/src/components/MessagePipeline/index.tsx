@@ -19,13 +19,11 @@ import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CurrentLayoutContext, {
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useS3FileService } from "@foxglove/studio-base/context/S3FileServiceContext";
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
   Player,
@@ -105,7 +103,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
 
   const urdfStorage = useUrdfStorage();
 
-  const consoleApi = useConsoleApi();
+  const s3FileService = useS3FileService();
 
   // We make a new store when the player changes. This throws away any state from the previous store
   // and re-creates the pipeline functions and references. We make a new store to avoid holding onto
@@ -119,9 +117,9 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
       promisesToWaitForRef,
       initialPlayer: player,
       urdfStorage,
-      consoleApi,
+      s3FileService,
     });
-  }, [player, urdfStorage, consoleApi]);
+  }, [player, urdfStorage, s3FileService]);
 
   const subscriptions = useStore(store, selectSubscriptions);
 
@@ -146,9 +144,6 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     debouncedPlayerSetSubscriptions(subscriptions);
   }, [debouncedPlayerSetSubscriptions, subscriptions]);
 
-  // Slow down the message pipeline framerate to the given FPS if it is set to less than 60
-  const [messageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
-
   // Tell listener the layout has completed
   const renderDone = useStore(store, selectRenderDone);
   useLayoutEffect(() => {
@@ -156,7 +151,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   }, [renderDone]);
 
   const msPerFrameRef = useRef<number>(16);
-  msPerFrameRef.current = 1000 / (messageRate ?? 60);
+  msPerFrameRef.current = 1000 / 60;
 
   // To avoid re-rendering the MessagePipelineProvider and all children when global variables change
   // we register a listener directly on the context to track updates to global variables.
@@ -190,7 +185,6 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   }, [currentLayoutContext, player]);
 
   useEffect(() => {
-    // console.log("use effect");
     const dispatch = store.getState().dispatch;
     if (!player) {
       // When there is no player, set the player state to the default to go back to a state where we
@@ -211,7 +205,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     player.setListener(listener);
     return () => {
       cleanupListener();
-      player.close();
+      void player.close();
       dispatch({
         type: "update-player-state",
         playerState: defaultPlayerState(),

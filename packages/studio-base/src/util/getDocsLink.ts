@@ -6,36 +6,45 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import i18next from "i18next";
 
-import { APP_CONFIG } from "./appConfig";
+import { getAppConfig } from "./appConfig";
 
 export function getDocsLink(path?: string): string {
   const lang = i18next.language === "zh" ? "zh" : "en";
 
-  const env = APP_CONFIG.VITE_APP_PROJECT_ENV;
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+  let url = appConfig.DOC_BASE_URL ?? "";
 
   const langPrefix = env === "aws" || env === "gcp" || lang === "zh" ? "" : lang;
-
-  if (!path) {
-    return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}`;
+  if (langPrefix) {
+    url += `/${langPrefix}`;
   }
-
-  return `${APP_CONFIG.DOC_BASE_URL}/${langPrefix}/docs${path}`;
+  if (path) {
+    url += "/docs";
+    if (!path.startsWith("/")) {
+      url += "/";
+    }
+    url += path;
+  }
+  return url;
 }
 
 export function getLegalDocsLink(type: "terms" | "privacy" | "security"): string {
+  const appConfig = getAppConfig();
+
   const TERMS_DOC_URL = {
-    en: `${APP_CONFIG.DOC_BASE_URL}/legal/terms/en/terms.html`,
-    zh: `${APP_CONFIG.DOC_BASE_URL}/legal/terms/zh/terms.html`,
+    en: `${appConfig.DOC_BASE_URL}/legal/terms/en/terms.html`,
+    zh: `${appConfig.DOC_BASE_URL}/legal/terms/zh/terms.html`,
   };
 
   const PRIVACY_DOC_URL = {
-    en: `${APP_CONFIG.DOC_BASE_URL}/legal/privacy/en/privacy.html`,
-    zh: `${APP_CONFIG.DOC_BASE_URL}/legal/privacy/zh/privacy.html`,
+    en: `${appConfig.DOC_BASE_URL}/legal/privacy/en/privacy.html`,
+    zh: `${appConfig.DOC_BASE_URL}/legal/privacy/zh/privacy.html`,
   };
 
   const SECURITY_DOC_URL = {
-    en: `${APP_CONFIG.DOC_BASE_URL}/security/security-white-paper/en/security-white-paper.html`,
-    zh: `${APP_CONFIG.DOC_BASE_URL}/security/security-white-paper/zh/security-white-paper.html`,
+    en: `${appConfig.DOC_BASE_URL}/security/security-white-paper/en/security-white-paper.html`,
+    zh: `${appConfig.DOC_BASE_URL}/security/security-white-paper/zh/security-white-paper.html`,
   };
 
   const lang = i18next.language === "zh" ? "zh" : "en";

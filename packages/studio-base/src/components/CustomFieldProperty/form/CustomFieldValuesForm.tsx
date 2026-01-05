@@ -5,8 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { Property } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { create } from "@bufbuild/protobuf";
+import type { Property } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import {
+  CustomFieldValueSchema,
+  CustomFieldValue,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import _cloneDeep from "lodash-es/cloneDeep";
 import type { UseFormReturn } from "react-hook-form";
 import { Controller } from "react-hook-form";
@@ -69,7 +73,7 @@ function CustomFieldValuesFormItem({
       }}
       render={({ field }) => {
         const customFieldValue =
-          field.value ?? new CustomFieldValue({ property, value: { case: undefined } });
+          field.value ?? create(CustomFieldValueSchema, { property, value: { case: undefined } });
 
         return (
           <CustomFieldValueField

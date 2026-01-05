@@ -43,6 +43,8 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     throw new Error("missing #root element");
   }
 
+  const root = createRoot(rootEl);
+
   const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)\./);
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;
   const isChrome = chromeVersion !== 0;
@@ -81,7 +83,6 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
   );
 
-  const root = createRoot(rootEl);
   root.render(
     <StrictMode>
       <LogAfterRender>

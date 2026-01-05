@@ -72,12 +72,13 @@
  * ```
  */
 
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/services/project_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { ListFilesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/file_pb";
+import { create } from "@bufbuild/protobuf";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { ListUserProjectsResponseSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { ListRecordsResponseSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
+import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { ListFilesResponseSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -170,6 +171,7 @@ export function ChooserComponent({
   defaultRecordDisplayName,
   defaultProject,
   createRecordConfirmText,
+  disableProjectSelect,
 }: BaseChooserProps): React.JSX.Element {
   const { t } = useTranslation("cosGeneral");
   const userInfo = useCurrentUser(selectUser);
@@ -249,7 +251,7 @@ export function ChooserComponent({
   const [projects, syncProjects] = useAsyncFn(async () => {
     const userId = userInfo?.userId;
     if (!userId || listType !== "projects") {
-      return new ListUserProjectsResponse();
+      return create(ListUserProjectsResponseSchema);
     }
 
     const filter = CosQuery.Companion.empty();
@@ -258,6 +260,8 @@ export function ChooserComponent({
       [BinaryOperator.HAS],
       [projectsPagination.debouncedFilter],
     );
+
+    filter.setField(QueryFields.IS_ARCHIVED, [BinaryOperator.EQ], ["false"]);
 
     try {
       return await consoleApi.listUserProjects({
@@ -268,7 +272,7 @@ export function ChooserComponent({
       });
     } catch (error) {
       console.error("Failed to load projects:", error);
-      return new ListUserProjectsResponse();
+      return create(ListUserProjectsResponseSchema);
     }
   }, [
     consoleApi,
@@ -281,7 +285,7 @@ export function ChooserComponent({
 
   const [records, syncRecords] = useAsyncFn(async () => {
     if (!project || listType !== "records") {
-      return new ListRecordsResponse();
+      return create(ListRecordsResponseSchema);
     }
 
     const filter = CosQuery.Companion.empty();
@@ -304,7 +308,7 @@ export function ChooserComponent({
 
   const [filesList, syncFilesList] = useAsyncFn(async () => {
     if (listType !== "files") {
-      return new ListFilesResponse();
+      return create(ListFilesResponseSchema);
     }
 
     const filter = CosQuery.Companion.empty();
@@ -338,7 +342,7 @@ export function ChooserComponent({
       });
     }
 
-    return new ListFilesResponse();
+    return create(ListFilesResponseSchema);
   }, [
     consoleApi,
     filesPagination.debouncedFilter,
@@ -460,6 +464,7 @@ export function ChooserComponent({
         currentFolderPath={currentFolderPath}
         onNavigateToFolder={setCurrentFolderPath}
         listType={listType}
+        disableProjectSelect={disableProjectSelect}
       />
       {showSearchField && (
         <TextField

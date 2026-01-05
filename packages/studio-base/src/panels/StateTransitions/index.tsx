@@ -14,113 +14,88 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { ChartOptions, ScaleOptions } from "chart.js";
-import * as _ from "lodash-es";
-import * as R from "ramda";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useResizeDetector } from "react-resize-detector";
+import { Button, Fade, Tooltip } from "@mui/material";
+import Hammer from "hammerjs";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMountedState } from "react-use";
 import { makeStyles } from "tss-react/mui";
+import { v4 as uuidv4 } from "uuid";
 
+import { debouncePromise } from "@foxglove/den/async";
 import { filterMap } from "@foxglove/den/collection";
-import { add as addTimes, fromSec, subtract as subtractTimes, toSec } from "@foxglove/rostime";
+import { useRethrow } from "@foxglove/hooks";
+import { parseMessagePath, MessagePathPart } from "@foxglove/message-path";
+import { add as addTimes, fromSec } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
-import { useBlocksSubscriptions } from "@foxglove/studio-base/PanelAPI";
-import {
-  MessageAndData,
-  MessageDataItemsByPath,
-  useDecodeMessagePathsForMessagesByTopic,
-} from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
-import useMessagesByPath from "@foxglove/studio-base/components/MessagePathSyntax/useMessagesByPath";
+import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import {
   MessagePipelineContext,
   useMessagePipeline,
   useMessagePipelineGetter,
+  useMessagePipelineSubscribe,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
-import TimeBasedChart from "@foxglove/studio-base/components/TimeBasedChart";
-import { ChartDatasets } from "@foxglove/studio-base/components/TimeBasedChart/types";
+import TimeBasedChartTooltipContent, {
+  TimeBasedChartTooltipData,
+} from "@foxglove/studio-base/components/TimeBasedChart/TimeBasedChartTooltipContent";
+import {
+  TimelineInteractionStateStore,
+  useClearHoverValue,
+  useSetHoverValue,
+  useTimelineInteractionState,
+} from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { PathLegend } from "@foxglove/studio-base/panels/StateTransitions/PathLegend";
-import { subscribePayloadFromMessagePath } from "@foxglove/studio-base/players/subscribePayloadFromMessagePath";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
-import { OnClickArg as OnChartClickArgs } from "@foxglove/studio-base/src/components/Chart";
-import { Bounds } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
-import { fontMonospace } from "@foxglove/theme";
 
-import { messagesToDataset } from "./messagesToDataset";
+import { StateTransitionsCoordinator } from "./StateTransitionsCoordinator";
+import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
+import { VerticalBars } from "./VerticalBars";
 import { PathState, useStateTransitionsPanelSettings } from "./settings";
+import { DEFAULT_PATH } from "./shared";
 import { StateTransitionConfig } from "./types";
-
-const fontSize = 10;
-const fontWeight = "bold";
-const EMPTY_ITEMS_BY_PATH: MessageDataItemsByPath = {};
 
 const useStyles = makeStyles()((theme) => ({
   chartWrapper: {
     position: "relative",
     marginTop: theme.spacing(0.5),
+    width: "100%",
+    overflow: "hidden",
+  },
+  canvasDiv: {
+    width: "100%",
     height: "100%",
+    overflow: "hidden",
+    cursor: "crosshair",
+    position: "relative",
+  },
+  resetZoomButton: {
+    pointerEvents: "none",
+    position: "absolute",
+    display: "flex",
+    justifyContent: "flex-end",
+    paddingInline: theme.spacing(1),
+    right: 0,
+    left: 0,
+    bottom: 0,
+    width: "100%",
+    paddingBottom: theme.spacing(2),
+    "& button": {
+      pointerEvents: "auto",
+    },
+  },
+  tooltip: {
+    maxWidth: "none",
   },
 }));
 
-const plugins: ChartOptions["plugins"] = {
-  datalabels: {
-    display: "auto",
-    anchor: "center",
-    align: -45,
-    offset: 0,
-    clip: true,
-    font: {
-      family: fontMonospace,
-      size: fontSize,
-      weight: fontWeight,
-    },
-  },
-  zoom: {
-    zoom: {
-      enabled: true,
-      mode: "x",
-      sensitivity: 3,
-      speed: 0.1,
-    },
-    pan: {
-      mode: "x",
-      enabled: true,
-      speed: 20,
-      threshold: 10,
-    },
-  },
-};
-
-function selectCurrentTime(ctx: MessagePipelineContext) {
-  return ctx.playerState.activeData?.currentTime;
-}
-
-function selectStartTime(ctx: MessagePipelineContext) {
-  return ctx.playerState.activeData?.startTime;
-}
-
-function selectEndTime(ctx: MessagePipelineContext) {
-  return ctx.playerState.activeData?.endTime;
-}
-
-function datasetContainsArray(dataset: Immutable<(MessageAndData[] | undefined)[]>) {
-  // We need to detect when the path produces more than one data point,
-  // since that is invalid input
-  const dataCounts = R.pipe(
-    R.chain((data: Immutable<MessageAndData[] | undefined>): number[] => {
-      if (data == undefined) {
-        return [];
-      }
-      return data.map((message) => message.queriedData.length);
-    }),
-    R.uniq,
-  )(dataset);
-  return dataCounts.length > 0 && dataCounts.every((numPoints) => numPoints > 1);
-}
+const selectGlobalBounds = (store: TimelineInteractionStateStore) => store.globalBounds;
+const selectSetGlobalBounds = (store: TimelineInteractionStateStore) => store.setGlobalBounds;
 
 type Props = {
   config: StateTransitionConfig;
@@ -130,12 +105,50 @@ type Props = {
 function StateTransitions(props: Props) {
   const { config, saveConfig } = props;
   const { paths } = config;
-  const { classes } = useStyles();
-
-  const pathStrings = useMemo(() => paths.map(({ value }) => value), [paths]);
+  const { classes, theme } = useStyles();
 
   const { setMessagePathDropConfig } = usePanelContext();
   const [focusedPath, setFocusedPath] = useState<undefined | string[]>(undefined);
+  const [pathState, setPathState] = useState<PathState[]>([]);
+
+  const [subscriberId] = useState(() => uuidv4());
+  const [canvasDiv, setCanvasDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
+  const [renderer, setRenderer] = useState<StateTransitionsRenderer | undefined>(undefined);
+  const [coordinator, setCoordinator] = useState<StateTransitionsCoordinator | undefined>(
+    undefined,
+  );
+  const [canReset, setCanReset] = useState(false);
+
+  // Tooltip state
+  const [activeTooltip, setActiveTooltip] = useState<{
+    x: number;
+    y: number;
+    data: TimeBasedChartTooltipData[];
+  }>();
+  const mouseYRef = useRef<number | undefined>(undefined);
+
+  const isMounted = useMountedState();
+  const draggingRef = useRef(false);
+
+  const { globalVariables } = useGlobalVariables();
+
+  // Get setSubscriptions from MessagePipeline
+  const setSubscriptions = useMessagePipeline(
+    useCallback(
+      ({ setSubscriptions: pipelineSetSubscriptions }: MessagePipelineContext) =>
+        pipelineSetSubscriptions,
+      [],
+    ),
+  );
+  const subscribeMessagePipeline = useMessagePipelineSubscribe();
+  const getMessagePipelineState = useMessagePipelineGetter();
+
+  // Crash the panel when a worker fails to load or encounters an error
+  const handleWorkerError = useRethrow(
+    useCallback((_err: Event) => {
+      throw new Error(`Error encountered in StateTransitions worker`);
+    }, []),
+  );
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -161,40 +174,7 @@ function StateTransitions(props: Props) {
     });
   }, [saveConfig, setMessagePathDropConfig]);
 
-  const startTime = useMessagePipeline(selectStartTime);
-  const currentTime = useMessagePipeline(selectCurrentTime);
-  const currentTimeSinceStart = useMemo(
-    () => (currentTime && startTime ? toSec(subtractTimes(currentTime, startTime)) : undefined),
-    [currentTime, startTime],
-  );
-  const endTime = useMessagePipeline(selectEndTime);
-  const endTimeSinceStart = useMemo(
-    () => (endTime && startTime ? toSec(subtractTimes(endTime, startTime)) : undefined),
-    [endTime, startTime],
-  );
-  const itemsByPath = useMessagesByPath(pathStrings);
-
-  const decodeMessagePathsForMessagesByTopic = useDecodeMessagePathsForMessagesByTopic(pathStrings);
-
-  const subscriptions: SubscribePayload[] = useMemo(
-    () =>
-      filterMap(paths, (path) => {
-        const payload = subscribePayloadFromMessagePath(path.value, "full");
-        // Include the header in case we are ordering by header stamp.
-        if (path.timestampMethod === "headerStamp" && payload?.fields != undefined) {
-          payload.fields.push("header");
-        }
-        return payload;
-      }),
-    [paths],
-  );
-
-  const blocks = useBlocksSubscriptions(subscriptions);
-  const decodedBlocks = useMemo(
-    () => blocks.map(decodeMessagePathsForMessagesByTopic),
-    [blocks, decodeMessagePathsForMessagesByTopic],
-  );
-
+  // Calculate chart height based on number of paths
   const { height, heightPerTopic } = useMemo(() => {
     const onlyTopicsHeight = paths.length * 64;
     const xAxisHeight = 30;
@@ -204,234 +184,460 @@ function StateTransitions(props: Props) {
     };
   }, [paths.length]);
 
-  // If our blocks data covers all paths in the chart then ignore the data in itemsByPath
-  // since it's not needed to render the chart and would just cause unnecessary re-renders
-  // if included in the dataset.
-  const newItemsByPath = useMemo(() => {
-    const newItemsNotInBlocks = _.pickBy(
-      itemsByPath,
-      (_items, path) => !decodedBlocks.some((block) => block[path]),
-    );
-    return _.isEmpty(newItemsNotInBlocks) ? EMPTY_ITEMS_BY_PATH : newItemsNotInBlocks;
-  }, [decodedBlocks, itemsByPath]);
-
-  const showPoints = config.showPoints === true;
-
-  const { pathState, data, minY } = useMemo(() => {
-    // ignore all data when we don't have a start time
-    if (!startTime) {
-      return {
-        datasets: [],
-        minY: undefined,
-        pathState: [],
-      };
+  // Create renderer
+  useEffect(() => {
+    if (!canvasDiv) {
+      return;
     }
 
-    let outMinY: number | undefined;
-    const outDatasets: ChartDatasets = [];
-    const outPathState: PathState[] = [];
+    const clientRect = canvasDiv.getBoundingClientRect();
 
-    paths.forEach((path, pathIndex) => {
-      // y axis values are set based on the path we are rendering
-      // negative makes each path render below the previous
-      const y = (pathIndex + 1) * 6 * -3;
-      outMinY = Math.min(outMinY ?? y, y - 5);
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.position = "absolute";
+    canvas.width = clientRect.width;
+    canvas.height = clientRect.height;
+    canvasDiv.appendChild(canvas);
 
-      const blocksForPath = decodedBlocks.map((decodedBlock) => decodedBlock[path.value]);
+    const offscreenCanvas = canvas.transferControlToOffscreen();
+    const newRenderer = new StateTransitionsRenderer(offscreenCanvas, theme, { handleWorkerError });
+    setRenderer(newRenderer);
 
-      const newBlockDataSet = messagesToDataset({
-        blocks: blocksForPath,
-        path,
-        pathIndex,
-        startTime,
-        y,
-        showPoints,
-      });
+    return () => {
+      newRenderer.destroy();
+      canvasDiv.removeChild(canvas);
+    };
+  }, [canvasDiv, theme, handleWorkerError]);
 
-      // We have already filtered out paths we can find in blocks so anything left here
-      // should be included in the dataset.
-      const items = newItemsByPath[path.value];
+  // Create coordinator
+  useEffect(() => {
+    if (!renderer) {
+      return;
+    }
 
-      // We need to detect when the path produces more than one data point,
-      // since that is invalid input
-      const isArray = datasetContainsArray([...blocksForPath, items]);
+    const newCoordinator = new StateTransitionsCoordinator(renderer);
+    setCoordinator(newCoordinator);
 
-      outPathState.push({
-        path,
-        isArray,
-      });
-      outDatasets.push(newBlockDataSet);
-
-      if (items == undefined) {
-        return;
-      }
-      const newPathDataSet = messagesToDataset({
-        blocks: [items],
-        path,
-        pathIndex,
-        startTime,
-        y,
-        showPoints,
-      });
-      outDatasets.push(newPathDataSet);
+    newCoordinator.on("viewportChange", setCanReset);
+    newCoordinator.on("pathStateChanged", (state) => {
+      setPathState(state);
     });
 
-    return {
-      data: { datasets: outDatasets },
-      minY: outMinY,
-      pathState: outPathState,
-    };
-  }, [decodedBlocks, newItemsByPath, paths, startTime, showPoints]);
-
-  const yScale = useMemo<ScaleOptions<"linear">>(() => {
-    return {
-      ticks: {
-        // Hide all y-axis ticks since each bar on the y-axis is just a separate path.
-        display: false,
-      },
-      grid: {
-        display: false,
-      },
-      type: "linear",
-      min: minY,
-      max: -3,
-    };
-  }, [minY]);
-
-  const xScale = useMemo<ScaleOptions<"linear">>(() => {
-    return {
-      type: "linear",
-      border: {
-        display: false,
-      },
-    };
-  }, []);
-
-  // Compute the fixed bounds (either via min/max x-axis config or end time since start).
-  //
-  // For recordings, the bounds are actually fixed but for live connections the "endTimeSinceStart"
-  // will increase and these bounds are not technically fixed. But in those instances there is also
-  // new data coming in when the bounds are changing.
-  //
-  // We need to keep the fixedBounds reference stable (if it can be stable) for the databounds memo
-  // below, otherwise playing through a recording will update the currentTimeSince start and return
-  // a new fixedBounds reference which causes expensive downstream rendering.
-  const fixedBounds = useMemo(() => {
-    if (endTimeSinceStart == undefined) {
-      return undefined;
-    }
-
-    if (config.xAxisMinValue != undefined || config.xAxisMaxValue != undefined) {
-      return {
-        x: {
-          min: config.xAxisMinValue ?? 0,
-          max: config.xAxisMaxValue ?? endTimeSinceStart,
-        },
-        y: { min: Number.MIN_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER },
-      };
-    }
-
-    // If we have no configured xAxis min/max or range, then we set the x axis max to end time
-    // This will mirror the plot behavior of showing the full x-axis for data time range rather
-    // than constantly adjusting the end time to the latest loaded state transition while data
-    // is loading.
-    return {
-      x: { min: 0, max: endTimeSinceStart },
-      y: { min: Number.MIN_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER },
-    };
-  }, [config.xAxisMaxValue, config.xAxisMinValue, endTimeSinceStart]);
-
-  // Compute the data bounds. The bounds are either a fixed amount of lookback from the current time
-  // or they are fixed bounds with a specific range.
-  const databounds: undefined | Bounds = useMemo(() => {
-    if (config.xAxisRange != undefined && currentTimeSinceStart != undefined) {
-      return {
-        x: { min: currentTimeSinceStart - config.xAxisRange, max: currentTimeSinceStart },
-        y: { min: Number.MIN_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER },
-      };
-    }
-
-    return fixedBounds;
-  }, [config.xAxisRange, currentTimeSinceStart, fixedBounds]);
-
-  // Use a debounce and 0 refresh rate to avoid triggering a resize observation while handling
-  // an existing resize observation.
-  // https://github.com/maslianok/react-resize-detector/issues/45
-  const { width, ref: sizeRef } = useResizeDetector<HTMLDivElement>({
-    handleHeight: false,
-    refreshRate: 0,
-    refreshMode: "debounce",
-  });
-
-  // Disable the wheel event for the chart wrapper div (which is where we use sizeRef)
-  //
-  // The chart component uses wheel events for zoom and pan. After adding more series, the logic
-  // expands the chart element beyond the visible area of the panel. When this happens, scrolling on
-  // the chart also scrolls the chart wrapper div and results in zooming that chart AND scrolling
-  // the panel. This behavior is undesirable.
-  //
-  // This effect registers a wheel event handler for the wrapper div to prevent scrolling. To scroll
-  // the panel the user will use the scrollbar.
-  useEffect(() => {
-    const el = sizeRef.current;
-    const handler = (ev: WheelEvent) => {
-      ev.preventDefault();
-    };
-
-    el?.addEventListener("wheel", handler);
     return () => {
-      el?.removeEventListener("wheel", handler);
+      newCoordinator.off("viewportChange", setCanReset);
+      newCoordinator.off("pathStateChanged", setPathState);
+      newCoordinator.destroy();
     };
-  }, [sizeRef]);
+  }, [renderer]);
 
+  // Handle config changes
+  useEffect(() => {
+    coordinator?.handleConfig(config, globalVariables);
+  }, [coordinator, config, globalVariables]);
+
+  // Subscribe to player state updates
+  useEffect(() => {
+    if (!coordinator) {
+      return;
+    }
+
+    const unsub = subscribeMessagePipeline((state) => {
+      coordinator.handlePlayerState(state.playerState);
+    });
+
+    // Feed the latest state into the coordinator
+    coordinator.handlePlayerState(getMessagePipelineState().playerState);
+
+    return unsub;
+  }, [coordinator, getMessagePipelineState, subscribeMessagePipeline]);
+
+  // Set up message subscriptions
+  useEffect(() => {
+    const subscriptions = filterMap(paths, (path): SubscribePayload | undefined => {
+      const parsed = parseMessagePath(path.value);
+      if (!parsed) {
+        return;
+      }
+
+      // Fill in global variables before subscribing
+      const filledInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
+
+      // Get the first field name from the message path for field-level subscription
+      type NamePart = MessagePathPart & { type: "name" };
+      const firstField = filledInPath.messagePath.find(
+        (element): element is NamePart => element.type === "name",
+      );
+
+      const fields: string[] = firstField ? [firstField.name] : [];
+
+      // Include the header in case we are ordering by header stamp.
+      if (path.timestampMethod === "headerStamp") {
+        fields.push("header");
+      }
+
+      return {
+        topic: filledInPath.topicName,
+        preloadType: "full",
+        fields: fields.length > 0 ? fields : undefined,
+      };
+    });
+
+    setSubscriptions(subscriberId, subscriptions);
+  }, [paths, setSubscriptions, subscriberId, globalVariables]);
+
+  // Unsubscribe on unmount
+  useEffect(() => {
+    return () => {
+      setSubscriptions(subscriberId, []);
+    };
+  }, [subscriberId, setSubscriptions]);
+
+  // Handle size changes
+  useEffect(() => {
+    if (!canvasDiv || !coordinator) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (entry) {
+        coordinator.setSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    resizeObserver.observe(canvasDiv);
+
+    // Initial size
+    const clientRect = canvasDiv.getBoundingClientRect();
+    coordinator.setSize({
+      width: clientRect.width,
+      height: clientRect.height,
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [canvasDiv, coordinator]);
+
+  // Global bounds synchronization
+  const globalBounds = useTimelineInteractionState(selectGlobalBounds);
+  const setGlobalBounds = useTimelineInteractionState(selectSetGlobalBounds);
+
+  useEffect(() => {
+    if (!config.isSynced || globalBounds?.sourceId === subscriberId) {
+      return;
+    }
+    coordinator?.setGlobalBounds(globalBounds);
+  }, [coordinator, globalBounds, config.isSynced, subscriberId]);
+
+  useEffect(() => {
+    if (!coordinator || !config.isSynced) {
+      return;
+    }
+
+    const handler = (bounds: Immutable<Bounds1D>) => {
+      setGlobalBounds({
+        min: bounds.min,
+        max: bounds.max,
+        sourceId: subscriberId,
+        userInteraction: true,
+      });
+    };
+    coordinator.on("timeseriesBounds", handler);
+    return () => {
+      coordinator.off("timeseriesBounds", handler);
+    };
+  }, [coordinator, setGlobalBounds, config.isSynced, subscriberId]);
+
+  // Wheel event
+  const onWheel = useCallback(
+    (event: React.WheelEvent<HTMLElement>) => {
+      if (!coordinator) {
+        return;
+      }
+
+      const boundingRect = event.currentTarget.getBoundingClientRect();
+      coordinator.addInteractionEvent({
+        type: "wheel",
+        cancelable: false,
+        deltaY: event.deltaY,
+        deltaX: event.deltaX,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        boundingClientRect: boundingRect.toJSON(),
+      });
+    },
+    [coordinator],
+  );
+
+  // Pan events
+  useEffect(() => {
+    if (!canvasDiv || !coordinator) {
+      return;
+    }
+
+    const hammerManager = new Hammer.Manager(canvasDiv);
+    const threshold = 10;
+    hammerManager.add(new Hammer.Pan({ threshold }));
+
+    hammerManager.on("panstart", (event) => {
+      draggingRef.current = true;
+      const boundingRect = event.target.getBoundingClientRect();
+      coordinator.addInteractionEvent({
+        type: "panstart",
+        cancelable: false,
+        deltaY: event.deltaY,
+        deltaX: event.deltaX,
+        center: {
+          x: event.center.x,
+          y: event.center.y,
+        },
+        boundingClientRect: boundingRect.toJSON(),
+      });
+    });
+
+    hammerManager.on("panmove", (event) => {
+      const boundingRect = event.target.getBoundingClientRect();
+      coordinator.addInteractionEvent({
+        type: "panmove",
+        cancelable: false,
+        deltaY: event.deltaY,
+        deltaX: event.deltaX,
+        boundingClientRect: boundingRect.toJSON(),
+      });
+    });
+
+    hammerManager.on("panend", (event) => {
+      const boundingRect = event.target.getBoundingClientRect();
+      coordinator.addInteractionEvent({
+        type: "panend",
+        cancelable: false,
+        deltaY: event.deltaY,
+        deltaX: event.deltaX,
+        boundingClientRect: boundingRect.toJSON(),
+      });
+
+      setTimeout(() => {
+        draggingRef.current = false;
+      }, 0);
+    });
+
+    return () => {
+      hammerManager.destroy();
+    };
+  }, [canvasDiv, coordinator]);
+
+  // Click to seek
   const messagePipeline = useMessagePipelineGetter();
   const onClick = useCallback(
-    ({ x: seekSeconds }: OnChartClickArgs) => {
+    (event: React.MouseEvent<HTMLElement>): void => {
+      if (draggingRef.current || !coordinator) {
+        return;
+      }
+
       const {
         seekPlayback,
         playerState: { activeData: { startTime: start } = {} },
       } = messagePipeline();
-      if (!seekPlayback || seekSeconds == undefined || start == undefined) {
+
+      if (!seekPlayback || !start) {
         return;
       }
-      const seekTime = addTimes(start, fromSec(seekSeconds));
-      seekPlayback(seekTime);
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+
+      const seekSeconds = coordinator.getXValueAtPixel(mouseX);
+      if (seekSeconds >= 0) {
+        seekPlayback(addTimes(start, fromSec(seekSeconds)));
+      }
     },
-    [messagePipeline],
+    [coordinator, messagePipeline],
   );
 
+  // Reset view
+  const onResetView = useCallback(() => {
+    if (!coordinator) {
+      return;
+    }
+
+    coordinator.resetBounds();
+
+    if (config.isSynced) {
+      setGlobalBounds(undefined);
+    }
+  }, [coordinator, setGlobalBounds, config.isSynced]);
+
+  // Hover value
+  const setHoverValue = useSetHoverValue();
+  const clearHoverValue = useClearHoverValue();
+
+  const updateTooltip = useCallback(
+    async (canvasX: number, canvasY: number, boundingRect: DOMRect) => {
+      if (!coordinator || !isMounted()) {
+        setActiveTooltip(undefined);
+        return;
+      }
+
+      // Update hover value for vertical bar
+      const seconds = coordinator.getXValueAtPixel(canvasX);
+      if (seconds >= 0) {
+        setHoverValue({
+          componentId: subscriberId,
+          value: seconds,
+          type: "PLAYBACK_SECONDS",
+        });
+      }
+
+      // Get elements at pixel for tooltip
+      const elements = await coordinator.getElementsAtPixel({ x: canvasX, y: canvasY });
+
+      if (elements.length === 0 || mouseYRef.current == undefined) {
+        setActiveTooltip(undefined);
+        return;
+      }
+
+      const tooltipItems: TimeBasedChartTooltipData[] = [];
+
+      for (const element of elements) {
+        const { data: datum, configIndex } = element;
+        const { value, constantName, states } = datum;
+        if (value == undefined && states == undefined) {
+          continue;
+        }
+
+        tooltipItems.push({
+          configIndex,
+          value: value ?? (states ?? []).join(", "),
+          constantName,
+        });
+      }
+
+      if (tooltipItems.length === 0) {
+        setActiveTooltip(undefined);
+        return;
+      }
+
+      setActiveTooltip({
+        x: boundingRect.left + canvasX,
+        y: boundingRect.top + mouseYRef.current,
+        data: tooltipItems,
+      });
+    },
+    [coordinator, isMounted, setHoverValue, subscriberId],
+  );
+
+  const debouncedUpdateTooltip = useMemo(() => debouncePromise(updateTooltip), [updateTooltip]);
+
+  const onMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      const boundingRect = event.currentTarget.getBoundingClientRect();
+      const canvasX = event.clientX - boundingRect.left;
+      const canvasY = event.clientY - boundingRect.top;
+      mouseYRef.current = canvasY;
+      debouncedUpdateTooltip(canvasX, canvasY, boundingRect);
+    },
+    [debouncedUpdateTooltip],
+  );
+
+  const onMouseOut = useCallback(() => {
+    clearHoverValue(subscriberId);
+    setActiveTooltip(undefined);
+    mouseYRef.current = undefined;
+  }, [clearHoverValue, subscriberId]);
+
   useStateTransitionsPanelSettings(config, saveConfig, pathState, focusedPath);
+
+  useEffect(() => {
+    if (config.paths.length === 0) {
+      saveConfig((prevConfig) => {
+        if (prevConfig.paths.length > 0) {
+          return prevConfig;
+        }
+        return {
+          ...prevConfig,
+          paths: [{ ...DEFAULT_PATH }],
+        };
+      });
+    }
+  }, [config.paths.length, saveConfig]);
+
+  // Labels for tooltip (path label or value for each config index)
+  const labelsByConfigIndex = useMemo(() => {
+    const labels: Record<string, string | undefined> = {};
+    paths.forEach((path, index) => {
+      labels[index] = path.label ?? path.value;
+    });
+    return labels;
+  }, [paths]);
+
+  // Tooltip content
+  const tooltipContent = useMemo(() => {
+    if (!activeTooltip) {
+      return undefined;
+    }
+    return (
+      <TimeBasedChartTooltipContent
+        content={activeTooltip.data}
+        multiDataset={paths.length > 1}
+        labelsByConfigIndex={labelsByConfigIndex}
+      />
+    );
+  }, [activeTooltip, paths.length, labelsByConfigIndex]);
 
   return (
     <Stack flexGrow={1} overflow="hidden" style={{ zIndex: 0 }}>
       <PanelToolbar />
       <Stack fullWidth fullHeight flex="auto" overflowX="hidden" overflowY="auto">
-        <div className={classes.chartWrapper} ref={sizeRef}>
-          <TimeBasedChart
-            zoom
-            isSynced={config.isSynced}
-            showXAxisLabels
-            width={width ?? 0}
-            height={height}
-            data={data}
-            dataBounds={databounds}
-            resetButtonPaddingBottom={2}
-            type="scatter"
-            xAxes={xScale}
-            xAxisIsPlaybackTime
-            yAxes={yScale}
-            plugins={plugins}
-            interactionMode="lastX"
-            onClick={onClick}
-            currentTime={currentTimeSinceStart}
-          />
-          <PathLegend
-            paths={paths}
-            heightPerTopic={heightPerTopic}
-            setFocusedPath={setFocusedPath}
-            saveConfig={saveConfig}
-          />
-        </div>
+        <Tooltip
+          arrow={false}
+          classes={{ tooltip: classes.tooltip }}
+          open={activeTooltip != undefined}
+          placement="right"
+          title={tooltipContent ?? <></>}
+          disableInteractive
+          followCursor
+          slots={{
+            transition: Fade,
+          }}
+          slotProps={{
+            transition: { timeout: 0 },
+          }}
+        >
+          <div className={classes.chartWrapper} style={{ minHeight: height }}>
+            <div
+              className={classes.canvasDiv}
+              ref={setCanvasDiv}
+              onWheel={onWheel}
+              onMouseMove={onMouseMove}
+              onMouseOut={onMouseOut}
+              onClick={onClick}
+              onDoubleClick={onResetView}
+            />
+            <VerticalBars coordinator={coordinator} hoverComponentId={subscriberId} />
+            {canReset && (
+              <div className={classes.resetZoomButton}>
+                <Button
+                  variant="contained"
+                  color="inherit"
+                  title="(shortcut: double-click)"
+                  onClick={onResetView}
+                >
+                  Reset view
+                </Button>
+              </div>
+            )}
+            <PathLegend
+              paths={paths}
+              heightPerTopic={heightPerTopic}
+              setFocusedPath={setFocusedPath}
+              saveConfig={saveConfig}
+            />
+          </div>
+        </Tooltip>
       </Stack>
     </Stack>
   );
@@ -440,6 +646,7 @@ function StateTransitions(props: Props) {
 const defaultConfig: StateTransitionConfig = {
   paths: [],
   isSynced: true,
+  showPoints: false,
 };
 export default Panel(
   Object.assign(StateTransitions, {

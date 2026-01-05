@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from "react";
 
+import { Time } from "@foxglove/rostime";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
@@ -22,6 +23,9 @@ export type DataSourceFactoryInitializeArgs = {
   params?: Record<string, string | undefined>;
   consoleApi?: ConsoleApi;
   confirm?: confirmTypes;
+  requestWindow?: Time;
+  readAheadDuration?: Time;
+  autoConnectToLan?: boolean;
 } & PersistentCacheSourceInitializeArgs;
 
 export type DataSourceFactoryType = "file" | "connection" | "sample" | "persistent-cache";

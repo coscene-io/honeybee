@@ -17,6 +17,7 @@
 
 import { Badge, Button, Divider, Paper, Tab, Tabs, badgeClasses, tabClasses } from "@mui/material";
 import { ReactElement, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -91,6 +92,7 @@ const BottomBar = ({
 }: Props): ReactElement => {
   const { classes } = useStyles();
   const [bottomBarDisplay, setBottomBarDisplay] = useState<BottomBarModes>("diagnostics");
+  const { t } = useTranslation("userScriptEditor");
 
   const { clearUserScriptLogs } = useUserScriptState(selectUserScriptActions);
 
@@ -127,7 +129,7 @@ const BottomBar = ({
                   invisible={diagnostics.length === 0}
                   className={classes.badge}
                 >
-                  Problems
+                  {t("alertsTab")}
                 </Badge>
               }
               value="diagnostics"
@@ -144,7 +146,7 @@ const BottomBar = ({
                   badgeContent={logs.length}
                   invisible={logs.length === 0}
                 >
-                  Logs
+                  {t("logsTab")}
                 </Badge>
               }
               value="logs"
@@ -168,7 +170,7 @@ const BottomBar = ({
                   }
                 }}
               >
-                Clear logs
+                {t("clearLogs")}
               </Button>
             )}
             <Button
@@ -176,7 +178,7 @@ const BottomBar = ({
               color="primary"
               variant="contained"
               disabled={isSaved}
-              title="Ctrl/Cmd + S"
+              title={t("saveShortcutHint")}
               onClick={() => {
                 if (scriptId != undefined) {
                   save();
@@ -184,7 +186,7 @@ const BottomBar = ({
                 }
               }}
             >
-              {isSaved ? "Saved" : "Save"}
+              {isSaved ? t("saved") : t("save")}
             </Button>
           </Stack>
         </Stack>

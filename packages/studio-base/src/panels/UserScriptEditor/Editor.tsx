@@ -21,12 +21,14 @@ import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api";
 // @ts-expect-error StandaloneService does not have type information in the monaco-editor package
 import { StandaloneServices } from "monaco-editor/esm/vs/editor/standalone/browser/standaloneServices";
 import * as path from "path";
-import { ReactElement, useCallback, useEffect, useRef } from "react";
+import React, { Suspense, ReactElement, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import MonacoEditor, { EditorDidMount, EditorWillMount } from "react-monaco-editor";
-import { useResizeDetector } from "react-resize-detector";
+import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
 import { ModuleResolutionKind } from "typescript";
 
+import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
 import { Script } from "@foxglove/studio-base/panels/UserScriptEditor/script";
 import { getUserScriptProjectConfig } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/projectConfig";
@@ -90,6 +92,7 @@ const Editor = ({
   rosLib,
   typesLib,
 }: Props): ReactElement | ReactNull => {
+  const { t } = useTranslation("userScriptEditor");
   const editorRef = React.useRef<CodeEditor>(ReactNull);
   const autoFormatOnSaveRef = React.useRef(autoFormatOnSave);
   autoFormatOnSaveRef.current = autoFormatOnSave;
@@ -223,7 +226,8 @@ const Editor = ({
                 text: await getPrettifiedCode(model.getValue()),
               },
             ];
-          } catch {
+          } catch (err: unknown) {
+            console.error(err);
             return [];
           }
         },
@@ -304,20 +308,23 @@ const Editor = ({
 
   const saveCodeRef = useRef(saveCode);
   saveCodeRef.current = saveCode;
-  const didMount = React.useCallback<EditorDidMount>((editor) => {
-    editorRef.current = editor;
-    editor.addAction({
-      id: "ctrl-s",
-      label: "Save current node",
-      keybindings: [monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS],
+  const didMount = React.useCallback<EditorDidMount>(
+    (editor) => {
+      editorRef.current = editor;
+      editor.addAction({
+        id: "ctrl-s",
+        label: t("saveCurrentNode"),
+        keybindings: [monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS],
 
-      // Because this didMount function only runs once, we need to store the saveCode function in a
-      // ref so the command can always access the latest version.
-      run: async () => {
-        await saveCodeRef.current();
-      },
-    });
-  }, []);
+        // Because this didMount function only runs once, we need to store the saveCode function in a
+        // ref so the command can always access the latest version.
+        run: async () => {
+          await saveCodeRef.current();
+        },
+      });
+    },
+    [t],
+  );
 
   // Refer to setScriptCode by reference so that the onChange callback isn't invalidated
   // on every edit.
@@ -329,16 +336,12 @@ const Editor = ({
     [latestSetScriptCode],
   );
 
-  const onResize = useCallback(
-    // eslint-disable-next-line no-restricted-syntax
-    ({ width, height }: { width: number | null; height: number | null }) => {
-      // eslint-disable-next-line no-restricted-syntax
-      if (width != null && height != null) {
-        editorRef.current?.layout({ width, height });
-      }
-    },
-    [],
-  );
+  const onResize = useCallback(({ width, height }: ResizePayload) => {
+    if (width == undefined) {
+      return;
+    }
+    editorRef.current?.layout({ width, height });
+  }, []);
 
   // monaco editor builtin auto layout uses an interval to adjust size to the parent component
   // instead we use a resize observer and tell the editor to update the layout
@@ -356,16 +359,23 @@ const Editor = ({
     return ReactNull;
   }
 
+  // The ErrorBoundary is required to properly capture runtime errors from Monaco Editor.
+  // Without it, TypeScript or Monaco-related errors (e.g., type mismatches or input availability issues)
+  // may not appear in the "Problems" tab. Do not remove this wrapper.
   return (
     <div ref={sizeRef} style={{ width: "100%", height: "100%" }}>
-      <MonacoEditor
-        language="typescript"
-        theme={editorTheme}
-        editorWillMount={willMount}
-        editorDidMount={didMount}
-        options={options}
-        onChange={onChange}
-      />
+      <ErrorBoundary>
+        <Suspense fallback={<p>{t("loadingEditor")}</p>}>
+          <MonacoEditor
+            language="typescript"
+            theme={editorTheme}
+            editorWillMount={willMount}
+            editorDidMount={didMount}
+            options={options}
+            onChange={onChange}
+          />
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 };

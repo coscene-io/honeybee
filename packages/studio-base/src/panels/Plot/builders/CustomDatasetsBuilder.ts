@@ -8,12 +8,12 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { PlayerState } from "@foxglove/studio-base/players/types";
-import { extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
 import {
@@ -30,6 +30,8 @@ import {
 } from "./IDatasetsBuilder";
 import { getChartValue, isChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
+
+const log = Logger.getLogger(__filename);
 
 type CustomDatasetsSeriesItem = {
   config: Immutable<SeriesItem>;
@@ -66,9 +68,11 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       new URL("./CustomDatasetsBuilderImpl.worker", import.meta.url),
     );
     worker.onerror = (event) => {
+      log.error("[CustomDatasetsBuilder] Worker error:", event);
       handleWorkerError?.(event);
     };
     worker.onmessageerror = (event) => {
+      log.error("[CustomDatasetsBuilder] Worker message error:", event);
       handleWorkerError?.(event);
     };
     const { remote, dispose } =

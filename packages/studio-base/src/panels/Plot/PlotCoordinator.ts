@@ -15,11 +15,10 @@ import { Immutable, Time } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { TimestampDatasetsBuilder } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilder";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
-import { Bounds } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, Bounds } from "@foxglove/studio-base/types/Bounds";
 import delay from "@foxglove/studio-base/util/delay";
 import { getContrastColor, getLineColor } from "@foxglove/studio-base/util/plotColors";
 
@@ -109,11 +108,11 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     this.#datasetsBuilder = builder;
   }
 
-  /** Stop the coordinator from sending any future updates to the renderer. */
+  /** Stop the coordinator from sending any future updates to the renderer.
+   *  Don't destroy datasetsBuilder, let Plot.tsx manager it
+   */
   public destroy(): void {
     this.#destroyed = true;
-    // Explicitly destroy datasets builder if it supports explicit cleanup
-    this.#datasetsBuilder.destroy?.();
   }
 
   public isDestroyed(): boolean {
@@ -390,15 +389,17 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       if (fullRange) {
         const { min, max } = fullRange;
 
-        return {
-          min:
-            this.#followRange != undefined &&
-            this.#followRange > 0 &&
-            this.#currentSeconds != undefined
-              ? this.#currentSeconds - this.#followRange
-              : min,
-          max: this.#currentSeconds ?? max,
-        };
+        if (max - min > 0) {
+          return {
+            min:
+              this.#followRange != undefined &&
+              this.#followRange > 0 &&
+              this.#currentSeconds != undefined
+                ? this.#currentSeconds - this.#followRange
+                : min,
+            max: this.#currentSeconds ?? max,
+          };
+        }
       }
     }
 

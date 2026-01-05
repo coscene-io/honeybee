@@ -5,12 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 // 外部传入的初始化配置数据
-import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
+import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
+import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { CustomFieldSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { JobRun } from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { StoreApi, useStore } from "zustand";
@@ -35,6 +35,9 @@ export type ExternalInitConfig = {
   taskId?: string;
   // if has targetFileName, set seek to the target file
   targetFileName?: string;
+  // Current organization slug, if the data is from a public project,
+  // this is the data publisher's organization slug
+  organizationSlug?: string;
 };
 
 export type DataSource = {
@@ -72,6 +75,8 @@ export type CoreDataStore = {
    */
   externalInitConfig?: ExternalInitConfig;
 
+  isReadyForSyncLayout?: boolean;
+
   dataSource?: DataSource;
 
   organization: AsyncState<Organization>;
@@ -87,6 +92,9 @@ export type CoreDataStore = {
   coordinatorConfig?: CoordinatorConfig;
   colinkApi?: ReturnType<typeof DevicesApiFactory>;
 
+  // different project in different warehouse, need to dynamically adjust baseUrl according to the current project
+  baseUrl?: string;
+
   reloadRecordTrigger: number;
   reloadProjectTrigger: number;
   reloadDeviceTrigger: number;
@@ -100,6 +108,7 @@ export type CoreDataStore = {
   // @deprecated don't use this function, use useSetExternalInitConfig in CoreDataSyncAdapter instead
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
 
+  setIsReadyForSyncLayout: (options: { isReadyForSyncLayout: boolean }) => void;
   setDataSource: (dataSource: DataSource | undefined) => void;
   setRecord: (record: AsyncState<Record>) => void;
   setDevice: (device: AsyncState<Device>) => void;
@@ -110,6 +119,8 @@ export type CoreDataStore = {
   setCoordinatorConfig: (coordinatorConfig: CoordinatorConfig) => void;
   setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => void;
   setOrganization: (organization: AsyncState<Organization>) => void;
+
+  setBaseUrl: (baseUrl: string) => void;
 
   refreshProject: () => void;
   refreshDevice: () => void;
@@ -125,7 +136,6 @@ export type CoreDataStore = {
     event: "ENABLE" | "DISABLE";
     playlist: "ENABLE" | "DISABLE";
     task: "ENABLE" | "DISABLE";
-    uploadLocalFile: "ENABLE" | "DISABLE";
     layoutSync: "ENABLE" | "DISABLE";
     recordInfo: "ENABLE" | "DISABLE";
   };

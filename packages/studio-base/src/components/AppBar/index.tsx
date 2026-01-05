@@ -16,13 +16,14 @@ import {
   Desktop24Regular,
 } from "@fluentui/react-icons";
 import PersonIcon from "@mui/icons-material/Person";
-import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography } from "@mui/material";
+import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography, Divider } from "@mui/material";
 import { useCallback, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
-import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
+import { AppBarProject } from "@foxglove/studio-base/components/AppBar/AppBarProject";
+import { CoSceneLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/CoSceneLayoutButton";
 import { CoSceneLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
@@ -107,13 +108,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     startInner: {
       display: "flex",
       alignItems: "center",
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
-    },
-    middle: {
-      gridArea: "middle",
-      justifySelf: "center",
-      overflow: "hidden",
-      maxWidth: "100%",
+      gap: theme.spacing(1),
       ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
     },
     end: {
@@ -178,6 +173,7 @@ const selectLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.l
 const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 
 const selectUser = (store: UserStore) => store.user;
+const selectLoginStatus = (state: UserStore) => state.loginStatus;
 
 export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
@@ -194,6 +190,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const { classes, cx, theme } = useStyles({ debugDragRegion });
   const { currentUser } = useCurrentUser();
   const { t } = useTranslation("appBar");
+
+  const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
 
   const { appBarLayoutButton } = useAppContext();
 
@@ -298,35 +296,48 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   setAppMenuEl(undefined);
                 }}
               />
-              <AppBarIconButton
-                className={cx({ "Mui-selected": panelMenuOpen })}
-                color="inherit"
-                disabled={!hasCurrentLayout}
-                id="add-panel-button"
-                data-tourid="add-panel-button"
-                title={t("addPanel")}
-                aria-label="Add panel button"
-                aria-controls={panelMenuOpen ? "add-panel-menu" : undefined}
-                aria-haspopup="true"
-                aria-expanded={panelMenuOpen ? "true" : undefined}
-                onClick={(event) => {
-                  setPanelAnchorEl(event.currentTarget);
-                }}
-              >
-                <SlideAdd24Regular color={theme.palette.appBar.icon} />
-              </AppBarIconButton>
+              <Divider
+                orientation="vertical"
+                flexItem
+                style={{ marginTop: 14, marginBottom: 14 }}
+              />
+              {isDesktopApp() && loginStatus === "alreadyLogin" && (
+                <>
+                  <AppBarProject />
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    style={{ marginTop: 14, marginBottom: 14 }}
+                  />
+                </>
+              )}
+              <DataSource />
             </div>
-          </div>
-
-          <div className={classes.middle}>
-            <DataSource />
           </div>
 
           <div className={classes.end}>
             <div className={classes.endInner}>
               {appBarLayoutButton}
+              {/* <CoSceneLayoutButtonOld /> */}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
+                <AppBarIconButton
+                  className={cx({ "Mui-selected": panelMenuOpen })}
+                  color="inherit"
+                  disabled={!hasCurrentLayout}
+                  id="add-panel-button"
+                  data-tourid="add-panel-button"
+                  title={t("addPanel")}
+                  aria-label="Add panel button"
+                  aria-controls={panelMenuOpen ? "add-panel-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={panelMenuOpen ? "true" : undefined}
+                  onClick={(event) => {
+                    setPanelAnchorEl(event.currentTarget);
+                  }}
+                >
+                  <SlideAdd24Regular color={theme.palette.appBar.icon} />
+                </AppBarIconButton>
                 {checkSupportCoStudioDownload() && (
                   <AppBarIconButton
                     title={t("openInCoStudio")}

@@ -22,6 +22,7 @@ import {
   toRFC3339String,
 } from "@foxglove/rostime";
 import { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
+import { getReadAheadDurationDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { DeserializedSourceWrapper } from "@foxglove/studio-base/players/IterablePlayer/DeserializedSourceWrapper";
 import { freezeMetadata } from "@foxglove/studio-base/players/IterablePlayer/freezeMetadata";
 import NoopMetricsCollector from "@foxglove/studio-base/players/NoopMetricsCollector";
@@ -50,6 +51,7 @@ import { BufferedIterableSource } from "./BufferedIterableSource";
 import { DeserializingIterableSource } from "./DeserializingIterableSource";
 import {
   IDeserializedIterableSource,
+  IIterableSource,
   ISerializedIterableSource,
   IteratorResult,
 } from "./IIterableSource";
@@ -165,6 +167,7 @@ export class IterablePlayer implements Player {
   #publishedTopics = new Map<string, Set<string>>();
   #seekTarget?: Time;
   #presence = PlayerPresence.INITIALIZING;
+  #seekStartTime?: number;
 
   // To keep reference equality for downstream user memoization cache the currentTime provided in the last activeData update
   // See additional comments below where _currentTime is set
@@ -176,7 +179,7 @@ export class IterablePlayer implements Player {
   #iterableSource: IDeserializedIterableSource | ISerializedIterableSource;
 
   // Buffered source used for playback.
-  #bufferedSource: IDeserializedIterableSource;
+  #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -193,6 +196,7 @@ export class IterablePlayer implements Player {
   #queueEmitState: ReturnType<typeof debouncePromise>;
 
   readonly #sourceId: string;
+  #urlState?: PlayerState["urlState"];
 
   #metadata: readonly Metadata[] = Object.freeze([]);
 
@@ -210,22 +214,24 @@ export class IterablePlayer implements Player {
       name,
       enablePreload,
       sourceId,
-      readAheadDuration = { sec: 10, nsec: 0 },
+      readAheadDuration = getReadAheadDurationDefaultTime(),
     } = options;
 
     this.#iterableSource = source;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source);
-      this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
+      const slicingSource = new DeserializedSourceWrapper(source);
+      this.#bufferImpl = new BufferedIterableSource(slicingSource, {
+        readAheadDuration,
+      });
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;
-      const bufferInterface = new BufferedIterableSource(source, {
+      const deserializingSource = new DeserializingIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(deserializingSource, {
         readAheadDuration,
         maxCacheSizeBytes: 600 * MEGABYTE_IN_BYTES,
       });
-      this.#bufferImpl = bufferInterface;
-      this.#bufferedSource = new DeserializingIterableSource(bufferInterface);
     }
+    this.#bufferedSource = this.#bufferImpl;
 
     this.#name = name;
     this.#urlParams = urlParams;
@@ -241,6 +247,18 @@ export class IterablePlayer implements Player {
     // Wrap emitStateImpl in a debouncePromise for our states to call. Since we can emit from states
     // or from block loading updates we use debouncePromise to guard against concurrent emits.
     this.#queueEmitState = debouncePromise(this.#emitStateImpl.bind(this));
+  }
+
+  #getUrlState(): PlayerState["urlState"] {
+    const nextUrlState: PlayerState["urlState"] = {
+      sourceId: this.#sourceId,
+      parameters: this.#urlParams,
+    };
+
+    if (!this.#urlState || !_.isEqual(this.#urlState, nextUrlState)) {
+      this.#urlState = nextUrlState;
+    }
+    return this.#urlState;
   }
 
   public setListener(listener: (playerState: PlayerState) => Promise<void>): void {
@@ -345,6 +363,7 @@ export class IterablePlayer implements Player {
 
     this.#metricsCollector.seek(targetTime);
     this.#seekTarget = targetTime;
+    this.#seekStartTime = Date.now();
     this.#untilTime = undefined;
     this.#lastTickMillis = undefined;
     this.#lastRangeMillis = undefined;
@@ -412,7 +431,7 @@ export class IterablePlayer implements Player {
     throw new Error("Service calls are not supported by this data source");
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     try {
       void this.#iterableSource.terminate?.();
     } catch (e) {
@@ -587,13 +606,14 @@ export class IterablePlayer implements Player {
       if (this.#enablePreload) {
         // --- setup block loader which loads messages for _full_ subscriptions in the "background"
         try {
-          let blockLoaderSource;
+          let blockLoaderSource: IDeserializedIterableSource;
           if (this.#iterableSource.sourceType === "deserialized") {
-            blockLoaderSource = this.#iterableSource;
+            // Wrap the source with DeserializedSourceWrapper to support field slicing
+            blockLoaderSource = new DeserializedSourceWrapper(this.#iterableSource);
           } else {
             blockLoaderSource = new DeserializingIterableSource(this.#iterableSource);
             // We must not call initialize() here, as the #iterableSource was already initialized above.
-            blockLoaderSource.initializeDeserializers(initResult);
+            blockLoaderSource.initializeDeserializers?.(initResult);
           }
 
           this.#blockLoader = new BlockLoader({
@@ -753,6 +773,12 @@ export class IterablePlayer implements Player {
       this.#currentTime = targetTime;
       this.#lastSeekEmitTime = Date.now();
       this.#presence = PlayerPresence.PRESENT;
+
+      if (this.#seekStartTime != undefined) {
+        this.#metricsCollector.recordSeekLatency(Date.now() - this.#seekStartTime);
+        this.#seekStartTime = undefined;
+      }
+
       this.#queueEmitState();
       await this.#resetPlaybackIterator();
       this.#setState(this.#isPlaying ? "play" : "idle");
@@ -788,10 +814,7 @@ export class IterablePlayer implements Player {
         playerId: this.#id,
         activeData: undefined,
         problems: this.#problemManager.problems(),
-        urlState: {
-          sourceId: this.#sourceId,
-          parameters: this.#urlParams,
-        },
+        urlState: this.#getUrlState(),
       });
       return;
     }
@@ -830,10 +853,7 @@ export class IterablePlayer implements Player {
       playerId: this.#id,
       problems: this.#problemManager.problems(),
       activeData,
-      urlState: {
-        sourceId: this.#sourceId,
-        parameters: this.#urlParams,
-      },
+      urlState: this.#getUrlState(),
     };
 
     await this.#listener(data);
@@ -936,8 +956,10 @@ export class IterablePlayer implements Player {
     // If we take too long to read the tick data, we set the player into a BUFFERING presence. This
     // indicates that the player is waiting to load more data. When the tick finally finishes, we
     // clear this timeout.
+    let stallStartTime: number | undefined;
     const tickTimeout = setTimeout(() => {
       this.#presence = PlayerPresence.BUFFERING;
+      stallStartTime = Date.now();
       this.#queueEmitState();
     }, 500);
 
@@ -976,6 +998,9 @@ export class IterablePlayer implements Player {
       }
     } finally {
       clearTimeout(tickTimeout);
+      if (stallStartTime != undefined) {
+        this.#metricsCollector.recordStallDuration(Date.now() - stallStartTime);
+      }
     }
 
     // Set the presence back to PRESENT since we are no longer buffering
@@ -1126,8 +1151,9 @@ export class IterablePlayer implements Player {
     this.#isPlaying = false;
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;
+    // Note: #bufferedSource and #bufferImpl are the same object now,
+    // so we only need to terminate once
     await this.#bufferImpl.terminate();
-    await this.#bufferedSource.terminate?.();
     await this.#playbackIterator?.return?.();
     this.#playbackIterator = undefined;
     await this.#iterableSource.terminate?.();

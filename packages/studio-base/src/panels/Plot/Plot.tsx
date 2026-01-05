@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ErrorIcon from "@mui/icons-material/Error";
 import { Button, Tooltip, Fade, buttonClasses, useTheme } from "@mui/material";
 import Hammer from "hammerjs";
 import * as _ from "lodash-es";
@@ -38,23 +37,21 @@ import {
 import PanelToolbar, {
   PANEL_TOOLBAR_MIN_HEIGHT,
 } from "@foxglove/studio-base/components/PanelToolbar";
-import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TimeBasedChartTooltipContent, {
   TimeBasedChartTooltipData,
 } from "@foxglove/studio-base/components/TimeBasedChart/TimeBasedChartTooltipContent";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   TimelineInteractionStateStore,
   useClearHoverValue,
   useSetHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { VerticalBars } from "@foxglove/studio-base/panels/Plot/VerticalBars";
 import { SubscribePayload } from "@foxglove/studio-base/players/types";
+import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
 import { getLineColor } from "@foxglove/studio-base/util/plotColors";
@@ -69,7 +66,7 @@ import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
 import { isReferenceLinePlotPathType, PlotConfig } from "./config";
 import { downloadCSV } from "./csv";
-import { usePlotPanelSettings } from "./settings";
+import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
 import { pathToSubscribePayload } from "./subscription";
 
 export const defaultSidebarDimension = 240;
@@ -131,9 +128,6 @@ export function Plot(props: Props): React.JSX.Element {
     [PANEL_TITLE_CONFIG_KEY]: customTitle,
   } = config;
 
-  const { openPanelSettings } = useWorkspaceActions();
-  const { id: panelId } = usePanelContext();
-  const { setSelectedPanelIds } = useSelectedPanels();
   const { topics } = useDataSourceInfo();
 
   const { classes } = useStyles();
@@ -143,7 +137,7 @@ export function Plot(props: Props): React.JSX.Element {
   const { setMessagePathDropConfig } = usePanelContext();
   const draggingRef = useRef(false);
 
-  const [hasTooManyMessages, setHasTooManyMessages] = useState(false);
+  const [isDisabledFullTimestamp, setIsDisabledFullTimestamp] = useState(false);
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -175,6 +169,7 @@ export function Plot(props: Props): React.JSX.Element {
   const [canvasDiv, setCanvasDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
   const [renderer, setRenderer] = useState<OffscreenCanvasRenderer | undefined>(undefined);
   const [coordinator, setCoordinator] = useState<PlotCoordinator | undefined>(undefined);
+  const { formatTime } = useAppTimeFormat();
 
   // When true the user can reset the plot back to the original view
   const [canReset, setCanReset] = useState(false);
@@ -185,7 +180,26 @@ export function Plot(props: Props): React.JSX.Element {
     data: TimeBasedChartTooltipData[];
   }>();
 
-  usePlotPanelSettings(config, saveConfig, focusedPath);
+  usePlotPanelSettings(
+    config,
+    saveConfig,
+    focusedPath,
+    isDisabledFullTimestamp ? "disabled" : "enabled",
+  );
+
+  useEffect(() => {
+    if (config.paths.length === 0) {
+      saveConfig((prevConfig) => {
+        if (prevConfig.paths.length > 0) {
+          return prevConfig;
+        }
+        return {
+          ...prevConfig,
+          paths: [{ ...DEFAULT_PATH }],
+        };
+      });
+    }
+  }, [config.paths.length, saveConfig]);
 
   const setHoverValue = useSetHoverValue();
   const clearHoverValue = useClearHoverValue();
@@ -395,11 +409,6 @@ export function Plot(props: Props): React.JSX.Element {
     return () => {
       resizeObserver.disconnect();
       plotCoordinator.destroy();
-      // Also explicitly destroy renderer if it hasn't been destroyed yet
-      if (!renderer.isDestroyed()) {
-        renderer.destroy();
-      }
-
       // Debug logging to verify cleanup
       if (process.env.NODE_ENV === "development") {
         console.debug("[Plot] Cleanup completed - coordinator and renderer destroyed");
@@ -447,6 +456,22 @@ export function Plot(props: Props): React.JSX.Element {
         return;
       }
 
+      // Get absolute time for timestamp-based charts
+      let absoluteTimeString: string | undefined = undefined;
+      if ((xAxisMode === "timestamp" || xAxisMode === "partialTimestamp") && coordinator) {
+        const {
+          playerState: { activeData: { startTime: start } = {} },
+        } = getMessagePipelineState();
+
+        if (start) {
+          const seconds = coordinator.getXValueAtPixel(args.canvasX);
+          if (seconds >= 0) {
+            const absoluteTime = addTimes(start, fromSec(seconds));
+            absoluteTimeString = formatTime(absoluteTime);
+          }
+        }
+      }
+
       const tooltipItems: TimeBasedChartTooltipData[] = [];
 
       for (const element of elements) {
@@ -456,6 +481,7 @@ export function Plot(props: Props): React.JSX.Element {
         tooltipItems.push({
           configIndex: element.configIndex,
           value: tooltipValue,
+          absoluteTime: absoluteTimeString,
         });
       }
 
@@ -470,7 +496,7 @@ export function Plot(props: Props): React.JSX.Element {
         data: tooltipItems,
       });
     });
-  }, [renderer, isMounted]);
+  }, [renderer, isMounted, xAxisMode, coordinator, getMessagePipelineState, formatTime]);
 
   // Extract the bounding client rect from currentTarget before calling the debounced function
   // because react re-uses the SyntheticEvent objects.
@@ -609,38 +635,40 @@ export function Plot(props: Props): React.JSX.Element {
         ? "partial"
         : "full";
 
-    if (preloadType === "full") {
-      let maxMessageCount = 0;
+    let maxMessageCount = 0;
 
-      for (const item of series) {
-        if (isReferenceLinePlotPathType(item)) {
-          return;
-        }
-
-        const parsed = parseMessagePath(item.value);
-        if (!parsed) {
-          return;
-        }
-
-        const variablesInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
-
-        const targetTopic = topics.find((topic) => topic.name === variablesInPath.topicName);
-        if (!targetTopic) {
-          return;
-        }
-
-        maxMessageCount = Math.max(maxMessageCount, targetTopic.messageCount ?? 0);
+    for (const item of series) {
+      if (isReferenceLinePlotPathType(item)) {
+        continue;
       }
 
-      // if the number of messages in the topic is greater than the max, set the xAxis to partialTimestamp
-      if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
-        // notify the user that the xAxis has been set to partialTimestamp
-        setHasTooManyMessages(true);
-      } else {
-        setHasTooManyMessages(false);
+      const parsed = parseMessagePath(item.value);
+      if (!parsed) {
+        continue;
+      }
+
+      const variablesInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
+
+      const targetTopic = topics.find((topic) => topic.name === variablesInPath.topicName);
+      if (!targetTopic) {
+        continue;
+      }
+
+      maxMessageCount += targetTopic.messageCount ?? 0;
+    }
+
+    // 消息数量超过阈值，先切换 x 轴模式再返回，避免发送全量订阅请求
+    if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
+      setIsDisabledFullTimestamp(true);
+      if (xAxisMode === "timestamp") {
+        saveConfig((prevConfig) => ({
+          ...prevConfig,
+          xAxisVal: "partialTimestamp",
+        }));
+        return;
       }
     } else {
-      setHasTooManyMessages(false);
+      setIsDisabledFullTimestamp(false);
     }
 
     const subscriptions = filterMap(series, (item): SubscribePayload | undefined => {
@@ -777,42 +805,6 @@ export function Plot(props: Props): React.JSX.Element {
     };
   }, [coordinator]);
 
-  const additionalIcons = (
-    <Tooltip
-      placement="left"
-      title={
-        <span>
-          {t("tooManyMessages")}
-          <Button
-            variant="text"
-            color="info"
-            size="small"
-            onClick={() => {
-              saveConfig({
-                ...config,
-                xAxisVal: "partialTimestamp",
-              });
-            }}
-          >
-            {t("switchImmediately")}
-          </Button>
-        </span>
-      }
-    >
-      <ToolbarIconButton>
-        <ErrorIcon
-          fontSize="inherit"
-          color="error"
-          onClick={() => {
-            setSelectedPanelIds([panelId]);
-            openPanelSettings();
-            setFocusedPath(["xAxis"]);
-          }}
-        />
-      </ToolbarIconButton>
-    </Tooltip>
-  );
-
   return (
     <Stack
       flex="auto"
@@ -821,7 +813,7 @@ export function Plot(props: Props): React.JSX.Element {
       overflow="hidden"
       position="relative"
     >
-      <PanelToolbar additionalIcons={hasTooManyMessages ? additionalIcons : undefined} />
+      <PanelToolbar />
       <Stack
         direction={legendDisplay === "top" ? "column" : "row"}
         flex="auto"

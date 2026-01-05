@@ -5,26 +5,58 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ReactRefreshPlugin from "@pmmmwh/react-refresh-webpack-plugin";
-import { ESBuildMinifyPlugin } from "esbuild-loader";
-import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
-import HtmlWebpackPlugin from "html-webpack-plugin";
+import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
+import ReactRefreshPlugin from "@rspack/plugin-react-refresh";
 import path from "path";
-import ReactRefreshTypescript from "react-refresh-typescript";
-import { Configuration, ProvidePlugin } from "webpack";
+import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
-import "webpack-dev-server";
 
 export const webpackQuicklookConfig =
   (params: WebpackConfigParams) =>
   (_env: unknown, argv: WebpackArgv): Configuration => {
     const isDev = argv.mode === "development";
-    const isServe = argv.env?.WEBPACK_SERVE ?? false;
+    const isServe = argv.env?.WEBPACK_SERVE === "true";
 
     const allowUnusedVariables = isDev && isServe;
+
+    const plugins: RspackPluginInstance[] = [
+      new TsCheckerRspackPlugin({
+        typescript: {
+          configOverwrite: {
+            compilerOptions: {
+              noUnusedLocals: !allowUnusedVariables,
+              noUnusedParameters: !allowUnusedVariables,
+            },
+          },
+          memoryLimit: 4096, // 增加内存限制到 4GB
+        },
+      }),
+      new rspack.HtmlRspackPlugin({
+        templateContent: `
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"></head>
+  <body>
+  <script>
+    global = globalThis;
+  </script>
+    <div id="root"></div>
+  </body>
+</html>
+`,
+      }),
+      new rspack.ProvidePlugin({
+        // the buffer module exposes the Buffer class as a property
+        Buffer: ["buffer", "Buffer"],
+      }),
+    ];
+
+    if (isServe) {
+      plugins.push(new ReactRefreshPlugin());
+    }
 
     return {
       name: "quicklook",
@@ -32,12 +64,18 @@ export const webpackQuicklookConfig =
       context: params.quicklookContext,
       entry: params.quicklookEntrypoint,
       target: "web",
-      devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
+      devtool: isDev
+        ? "eval-cheap-module-source-map"
+        : (params.prodSourceMap as Configuration["devtool"]),
 
       output: {
-        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         publicPath: isServe ? "/quicklook/" : "",
         path: path.join(params.outputPath, "quicklook"),
+      },
+
+      node: {
+        __filename: true,
+        __dirname: true,
       },
 
       module: {
@@ -48,20 +86,27 @@ export const webpackQuicklookConfig =
             test: /\.tsx?$/,
             exclude: /node_modules/,
             use: {
-              loader: "ts-loader",
+              loader: "builtin:swc-loader",
               options: {
-                transpileOnly: true,
-                // https://github.com/TypeStrong/ts-loader#onlycompilebundledfiles
-                // avoid looking at files which are not part of the bundle
-                onlyCompileBundledFiles: true,
-                projectReferences: true,
-                getCustomTransformers: () => ({
-                  before: [
-                    // only include refresh plugin when using webpack server
-                    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-                    ...(isServe ? [ReactRefreshTypescript()] : []),
-                  ],
-                }),
+                jsc: {
+                  parser: {
+                    syntax: "typescript",
+                    tsx: true,
+                  },
+                  transform: {
+                    react: {
+                      runtime: "automatic",
+                      development: isDev,
+                      refresh: isServe,
+                    },
+                  },
+                  externalHelpers: false,
+                },
+                env: {
+                  targets: {
+                    chrome: "87",
+                  },
+                },
               },
             },
           },
@@ -70,49 +115,9 @@ export const webpackQuicklookConfig =
 
       optimization: {
         removeAvailableModules: true,
-        minimizer: [
-          new ESBuildMinifyPlugin({
-            target: "es2022",
-            minify: true,
-          }),
-        ],
       },
 
-      plugins: [
-        new ForkTsCheckerWebpackPlugin({
-          typescript: {
-            configOverwrite: {
-              compilerOptions: {
-                // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-                noUnusedLocals: !allowUnusedVariables,
-                // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-                noUnusedParameters: !allowUnusedVariables,
-              },
-            },
-            memoryLimit: 4096, // 增加内存限制到 4GB
-          },
-        }),
-        new HtmlWebpackPlugin({
-          templateContent: `
-<!doctype html>
-<html>
-  <head><meta charset="utf-8"></head>
-  <script>
-    global = globalThis;
-  </script>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
-`,
-        }),
-        new ProvidePlugin({
-          // the buffer module exposes the Buffer class as a property
-          Buffer: ["buffer", "Buffer"],
-        }),
-        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        ...(isServe ? [new ReactRefreshPlugin()] : []),
-      ],
+      plugins,
 
       resolve: {
         extensions: [".js", ".ts", ".tsx", ".json"],

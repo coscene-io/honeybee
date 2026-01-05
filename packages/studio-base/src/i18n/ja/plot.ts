@@ -42,4 +42,7 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   xAxis: "X軸",
   yAxis: "Y軸",
   resetView: undefined,
+  enableAllSeries: "すべて有効にする",
+  disableAllSeries: "すべて無効にする",
+  toggleAllSeries: "すべて切り替え",
 };

@@ -5,11 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ListRecordsResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { ListRecordsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 import type {
   Property,
   CustomFieldValue,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import PlayCircleFilledWhiteOutlinedIcon from "@mui/icons-material/PlayCircleFilledWhiteOutlined";
 import {
@@ -49,7 +49,7 @@ import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskD
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -297,6 +297,7 @@ export default function RecordTable({
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
   const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
+  const domainConfig = getDomainConfig();
   const confirm = useConfirm();
   const selectVizTargetSource = useVizTargetSource();
 
@@ -395,10 +396,9 @@ export default function RecordTable({
               variant="body2"
               onClick={() => {
                 window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG.default
-                    ?.webDomain}/${organizationSlug}/${projectSlug}/records/${params.row.name
-                    .split("/")
-                    .pop()}`,
+                  `https://${
+                    domainConfig.webDomain
+                  }/${organizationSlug}/${projectSlug}/records/${params.row.name.split("/").pop()}`,
                   "_blank",
                 );
               }}
@@ -486,6 +486,7 @@ export default function RecordTable({
       classes.vizButton,
       classes.playButton,
       disableSwitchSource,
+      domainConfig.webDomain,
       organizationSlug,
       projectSlug,
       handleVizTargetRecord,

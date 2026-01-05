@@ -12,6 +12,10 @@ import { VecQueue } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { add as addTime, compare, clampTime } from "@foxglove/rostime";
 import { Time, MessageEvent } from "@foxglove/studio";
+import {
+  getReadAheadDurationDefaultTime,
+  getReadAheadDurationMinTime,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { Range } from "@foxglove/studio-base/util/ranges";
 
 import { CachingIterableSource } from "./CachingIterableSource";
@@ -25,8 +29,8 @@ import {
 
 const log = Log.getLogger(__filename);
 
-const DEFAULT_READ_AHEAD_DURATION = { sec: 10, nsec: 0 };
-const DEFAULT_MIN_READ_AHEAD_DURATION = { sec: 1, nsec: 0 };
+const DEFAULT_READ_AHEAD_DURATION = getReadAheadDurationDefaultTime();
+const DEFAULT_MIN_READ_AHEAD_DURATION = getReadAheadDurationMinTime();
 
 type Options = {
   // How far ahead to buffer
@@ -54,6 +58,7 @@ class BufferedIterableSource<MessageType = unknown>
   extends EventEmitter<EventTypes>
   implements IIterableSource<MessageType>
 {
+  public readonly sourceType: "serialized" | "deserialized";
   #source: CachingIterableSource<MessageType>;
 
   #readDone = false;
@@ -83,9 +88,13 @@ class BufferedIterableSource<MessageType = unknown>
   // The minimum duration to buffer before playback resumes
   #minReadAheadDuration: Time;
 
-  public constructor(source: IIterableSource<MessageType>, opt?: Options) {
+  public constructor(
+    source: IIterableSource<MessageType> & { sourceType?: "serialized" | "deserialized" },
+    opt?: Options,
+  ) {
     super();
 
+    this.sourceType = source.sourceType ?? "deserialized";
     this.#readAheadDuration = opt?.readAheadDuration ?? DEFAULT_READ_AHEAD_DURATION;
     this.#minReadAheadDuration = opt?.minReadAheadDuration ?? DEFAULT_MIN_READ_AHEAD_DURATION;
     this.#source = new CachingIterableSource<MessageType>(source, {

@@ -4,8 +4,13 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Timestamp, FieldMask } from "@bufbuild/protobuf";
-import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+
+import { create } from "@bufbuild/protobuf";
+import { FieldMaskSchema, timestampFromDate } from "@bufbuild/protobuf/wkt";
+import {
+  EventSchema,
+  Event,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import EastIcon from "@mui/icons-material/East";
 import {
   Button,
@@ -29,7 +34,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 import { CreateEventForm, CreateTaskForm } from "./types";
@@ -62,6 +67,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const [enabledCreateNewTask, setEnabledCreateNewTask] = useState(false);
 
   const consoleApi = useConsoleApi();
+  const domainConfig = getDomainConfig();
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);
@@ -71,7 +77,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   const projectName = `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}`;
   const recordName = `warehouses/${externalInitConfig?.warehouseId}/projects/${externalInitConfig?.projectId}/records/${externalInitConfig?.recordId}`;
-  const fieldConfigurationUrl = `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
+  const fieldConfigurationUrl = `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
 
@@ -126,59 +132,13 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const handleCreateTask = async (event: Event) => {
     const task = taskForm.getValues();
 
-    const description: string =
-      JSON.stringify({
-        root: {
-          children: [
-            {
-              children: [
-                {
-                  sourceName: event.name,
-                  sourceType: "moment",
-                  type: "source",
-                  version: 1,
-                },
-              ],
-              direction: "ltr",
-              format: "",
-              indent: 0,
-              type: "paragraph",
-              version: 1,
-            },
-            ...task.description.split("\n").map((text) => ({
-              children: [
-                {
-                  detail: 0,
-                  format: 0,
-                  mode: "normal",
-                  style: "",
-                  text,
-                  type: "text",
-                  version: 1,
-                },
-              ],
-              direction: "ltr",
-              format: "",
-              indent: 0,
-              type: "paragraph",
-              version: 1,
-            })),
-          ],
-          direction: "ltr",
-          format: "",
-          indent: 0,
-          type: "root",
-          version: 1,
-        },
-      }) ?? task.description;
-
     try {
       const newTask = await consoleApi.createTask({
         parent: projectName,
         task: {
           ...task,
           customFieldValues: convertCustomFieldValuesMapToArray(task.customFieldValues ?? {}),
-          description,
+          description: task.description,
         },
         event,
       });
@@ -245,10 +205,10 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         imageFiles = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
       }
 
-      const newEvent = new Event({
+      const newEvent = create(EventSchema, {
         name: toModifyEvent?.name ?? "",
         displayName: event.eventName,
-        triggerTime: Timestamp.fromDate(event.startTime),
+        triggerTime: timestampFromDate(event.startTime),
         duration:
           event.durationUnit === "sec"
             ? secondsToDuration(event.duration)
@@ -272,7 +232,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
         await consoleApi.updateEvent({
           event: newEvent,
-          updateMask: new FieldMask({ paths: maskArray }),
+          updateMask: create(FieldMaskSchema, { paths: maskArray }),
         });
         toast.success(t("editMomentSuccess"));
       } else {

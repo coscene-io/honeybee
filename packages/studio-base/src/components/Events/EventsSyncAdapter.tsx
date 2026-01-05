@@ -5,15 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { useEffect, useMemo, useState } from "react";
-import { useAsyncFn } from "react-use";
+import { create } from "@bufbuild/protobuf";
+import { FileSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAsyncFn, useLatest } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -23,7 +23,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import {
   CoScenePlaylistStore,
   usePlaylist,
-  BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
@@ -37,7 +36,6 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
@@ -57,8 +55,6 @@ const log = Logger.getLogger(__filename);
 
 async function positionEvents(
   events: EventList,
-  bagFiles: readonly BagFileInfo[],
-  timeMode: "relativeTime" | "absoluteTime",
   startTime: Time,
   endTime: Time,
   api: CoSceneConsoleApi,
@@ -73,26 +69,11 @@ async function positionEvents(
         throw new Error("Event does not have a trigger time");
       }
 
-      const bagFile = bagFiles.find((file) => {
-        if (!file.startTime || !file.endTime) {
-          return false;
-        }
-        if (file.name.includes(event.record)) {
-          return true;
-        }
-        return false;
-      });
-
-      let eventStartTime = fromNanoSec(
+      const eventStartTime = fromNanoSec(
         event.triggerTime.seconds * BigInt(1e9) + BigInt(event.triggerTime.nanos),
       );
 
-      let eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
-
-      if (timeMode === "relativeTime" && bagFile?.startTime != undefined) {
-        eventStartTime = subtract(eventStartTime, bagFile.startTime);
-        eventEndTime = subtract(eventEndTime, bagFile.startTime);
-      }
+      const eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
 
       const startTimeInSeconds = toSec(eventStartTime);
       const endTimeInSeconds = toSec(eventEndTime);
@@ -104,7 +85,7 @@ async function positionEvents(
       const imgFileName = event.files[0];
 
       if (imgFileName != undefined) {
-        const imgFile = new File({
+        const imgFile = create(FileSchema, {
           name: imgFileName,
         });
 
@@ -197,9 +178,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
-
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
@@ -317,14 +295,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
           const eventList = await consoleApi.getEvents({ fileList: getEventsRequest });
           setEvents({
             loading: false,
-            value: await positionEvents(
-              eventList,
-              bagFiles.value,
-              timeMode,
-              startTime,
-              endTime,
-              consoleApi,
-            ),
+            value: await positionEvents(eventList, startTime, endTime, consoleApi),
           });
         } catch (error) {
           log.error(error);
@@ -334,7 +305,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
     }
     // Don't listen to bagFiles.value, because if generating media, it will cause infinite re-render
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bagFiles.loading, startTime, endTime, consoleApi, timeMode, setEvents]);
+  }, [bagFiles.loading, startTime, endTime, consoleApi, setEvents]);
 
   useEffect(() => {
     syncEvents().catch((error: unknown) => {
@@ -358,26 +329,43 @@ export function EventsSyncAdapter(): React.JSX.Element {
     }
   }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
 
-  const { keyDownHandlers } = useMemo(
-    () => ({
-      keyDownHandlers: {
-        Digit1: (e: KeyboardEvent) => {
-          if (e.altKey && currentTime && startTime && endTime && eventMarks.length < 2) {
-            // Pause playback when the second marker is added
-            if (eventMarks.length === 1 && pause) {
-              pause();
-            }
+  const currentTimeRef = useLatest(currentTime);
+  const startTimeRef = useLatest(startTime);
+  const endTimeRef = useLatest(endTime);
+  const eventMarksRef = useLatest(eventMarks);
+  const pauseRef = useLatest(pause);
 
-            setEventMarks(
-              [...eventMarks, positionEventMark({ currentTime, startTime, endTime })].sort(
-                (a, b) => a.position - b.position,
-              ),
-            );
-          }
-        },
-      },
+  const handleDigit1 = useCallback(
+    (e: KeyboardEvent) => {
+      const current = currentTimeRef.current;
+      const start = startTimeRef.current;
+      const end = endTimeRef.current;
+      const marks = eventMarksRef.current;
+
+      if (!e.altKey || !current || !start || !end || marks.length >= 2) {
+        return;
+      }
+
+      // Pause playback when the second marker is added
+      if (marks.length === 1) {
+        pauseRef.current?.();
+      }
+
+      const nextMarks = [
+        ...marks,
+        positionEventMark({ currentTime: current, startTime: start, endTime: end }),
+      ].sort((a, b) => a.position - b.position);
+
+      setEventMarks(nextMarks);
+    },
+    [currentTimeRef, endTimeRef, eventMarksRef, pauseRef, setEventMarks, startTimeRef],
+  );
+
+  const keyDownHandlers = useMemo(
+    () => ({
+      Digit1: handleDigit1,
     }),
-    [currentTime, endTime, eventMarks, pause, setEventMarks, startTime],
+    [handleDigit1],
   );
 
   return <KeyListener global keyDownHandlers={keyDownHandlers} />;

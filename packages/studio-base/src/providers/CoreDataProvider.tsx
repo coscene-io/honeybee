@@ -8,12 +8,12 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
-import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { CustomFieldSchema } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { JobRun } from "@coscene-io/cosceneapis-es/coscene/matrix/v1alpha1/resources/job_run_pb";
+import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
+import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { CustomFieldSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { JobRun } from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/resources/job_run_pb";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -30,6 +30,7 @@ import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 const defaultCoreDataStore = {
   showtUrlKey: undefined,
   externalInitConfig: undefined,
+  isReadyForSyncLayout: undefined,
   dataSource: undefined,
 
   organization: { loading: true, value: undefined },
@@ -54,6 +55,11 @@ const defaultCoreDataStore = {
 };
 
 function CreateCoreDataStore() {
+  type EnableList = ReturnType<CoreDataStore["getEnableList"]>;
+
+  // Keep a cached enable list so selectors get a stable reference unless values change.
+  let cachedEnableList: EnableList | undefined;
+
   return createStore<CoreDataStore>((set, get) => ({
     ...defaultCoreDataStore,
 
@@ -62,6 +68,9 @@ function CreateCoreDataStore() {
     },
     setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => {
       set({ externalInitConfig });
+    },
+    setIsReadyForSyncLayout: ({ isReadyForSyncLayout }) => {
+      set({ isReadyForSyncLayout });
     },
     setDataSource: (dataSource: DataSource | undefined) => {
       set({ dataSource });
@@ -93,6 +102,9 @@ function CreateCoreDataStore() {
     setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => {
       set({ colinkApi });
     },
+    setBaseUrl: (baseUrl: string) => {
+      set({ baseUrl });
+    },
 
     refreshOrganization: () => {
       set({ reloadOrganizationTrigger: get().reloadOrganizationTrigger + 1 });
@@ -123,7 +135,7 @@ function CreateCoreDataStore() {
     getEnableList: () => {
       const { dataSource, project, externalInitConfig } = get();
 
-      return {
+      const next: EnableList = {
         event:
           dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
@@ -132,7 +144,6 @@ function CreateCoreDataStore() {
           dataSource?.type === "connection" && dataSource.id === "coscene-data-platform"
             ? "ENABLE"
             : "DISABLE",
-        uploadLocalFile: dataSource?.type === "file" ? "ENABLE" : "DISABLE",
         task: project.value != undefined ? "ENABLE" : "DISABLE",
         layoutSync:
           externalInitConfig?.warehouseId && externalInitConfig.projectId ? "ENABLE" : "DISABLE",
@@ -141,6 +152,20 @@ function CreateCoreDataStore() {
             ? "ENABLE"
             : "DISABLE",
       };
+
+      if (
+        cachedEnableList &&
+        cachedEnableList.event === next.event &&
+        cachedEnableList.playlist === next.playlist &&
+        cachedEnableList.task === next.task &&
+        cachedEnableList.layoutSync === next.layoutSync &&
+        cachedEnableList.recordInfo === next.recordInfo
+      ) {
+        return cachedEnableList;
+      }
+
+      cachedEnableList = next;
+      return next;
     },
   }));
 }

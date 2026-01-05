@@ -5,7 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Role } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/role_pb";
+import { create } from "@bufbuild/protobuf";
+import { RoleSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
 import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
 
@@ -21,7 +22,7 @@ import {
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
 
@@ -34,6 +35,8 @@ const selectSetUser = (store: UserStore) => store.setUser;
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function CoSceneCurrentUserSyncAdapter(): ReactNull {
+  const domainConfig = getDomainConfig();
+
   const loginStatus = useCurrentUser(selectLoginStatus);
   const currentUser = useCurrentUser(selectCurrentUser);
 
@@ -50,9 +53,9 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
 
       const orgRoles = await consoleApi.listUserRoles({ isProjectRole: false });
 
-      const projectRoleCode = projectRoles.userRoles[0] ?? new Role();
+      const projectRoleCode = projectRoles.userRoles[0] ?? create(RoleSchema);
 
-      const orgRolesCode = orgRoles.userRoles[0] ?? new Role();
+      const orgRolesCode = orgRoles.userRoles[0] ?? create(RoleSchema);
 
       setUserRole(
         OrganizationRoleWeight[orgRolesCode.code as OrganizationRoleEnum],
@@ -72,7 +75,7 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         email: userInfo.email,
         nickName: userInfo.nickname,
         phoneNumber: userInfo.phoneNumber,
-        targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
+        targetSite: `https://${domainConfig.webDomain}`,
         userId,
       } as User);
     }

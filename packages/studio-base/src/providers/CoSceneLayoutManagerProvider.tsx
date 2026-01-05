@@ -14,7 +14,6 @@ import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoScene
 import LayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useLayoutStorage } from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import LayoutManager from "@foxglove/studio-base/services/LayoutManager/CoSceneLayoutManager";
 import delay from "@foxglove/studio-base/util/delay";
 
@@ -23,21 +22,24 @@ const log = Logger.getLogger(__filename);
 const SYNC_INTERVAL_BASE_MS = 30_000;
 const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 
-const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
-const selectLoginStatus = (store: UserStore) => store.loginStatus;
+const selectUser = (store: UserStore) => store.user;
 
 export default function CoSceneLayoutManagerProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
-  const externalInitConfig = useCoreData(selectExternalInitConfig);
 
-  const currentUserLoginStatus = useCurrentUser(selectLoginStatus);
+  const currentUser = useCurrentUser(selectUser);
 
   const layoutManager = useMemo(
-    () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage }),
-    [layoutStorage, remoteLayoutStorage],
+    () =>
+      new LayoutManager({
+        local: layoutStorage,
+        remote: remoteLayoutStorage,
+        currentUser,
+      }),
+    [layoutStorage, remoteLayoutStorage, currentUser],
   );
 
   const { online = false } = useNetworkState();
@@ -48,18 +50,13 @@ export default function CoSceneLayoutManagerProvider({
   }, [layoutManager, online]);
 
   // Sync periodically when logged in, online, and the app is not hidden
-  const enableSyncing =
-    remoteLayoutStorage != undefined &&
-    online &&
-    visibilityState === "visible" &&
-    currentUserLoginStatus === "alreadyLogin" &&
-    externalInitConfig?.warehouseId != undefined;
-
+  const enableSyncing = remoteLayoutStorage != undefined && online && visibilityState === "visible";
   useEffect(() => {
     // if base info is loaded, resync layouts
     if (!enableSyncing) {
       return;
     }
+
     const controller = new AbortController();
     void (async () => {
       let failures = 0;

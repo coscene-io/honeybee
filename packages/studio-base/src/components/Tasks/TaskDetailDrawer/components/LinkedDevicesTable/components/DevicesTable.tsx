@@ -12,12 +12,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
-import { ListProjectDevicesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
+import { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
+import { ListProjectDevicesResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/device_pb";
 import type {
   Property,
   CustomFieldValue,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import PlayCircleFilledWhiteOutlinedIcon from "@mui/icons-material/PlayCircleFilledWhiteOutlined";
 import { Typography, Box, Button, Link, IconButton, Tooltip, alpha } from "@mui/material";
 import {
@@ -42,7 +42,7 @@ import { ConvertCustomFieldValue } from "@foxglove/studio-base/components/Custom
 import { useVizTargetSource } from "@foxglove/studio-base/components/Tasks/TaskDetailDrawer/useSelectSource";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 // 扩展Footer组件的props接口
 declare module "@mui/x-data-grid" {
@@ -232,6 +232,7 @@ export default function DevicesTable({
   const { classes } = useStyles();
   const { i18n, t } = useTranslation("task");
   const deviceCustomFieldSchema = useCoreData(selectDeviceCustomFieldSchema);
+  const domainConfig = getDomainConfig();
 
   const organization = useCoreData(selectOrganization);
   const project = useCoreData(selectProject);
@@ -334,8 +335,9 @@ export default function DevicesTable({
               variant="body2"
               onClick={() => {
                 window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG.default
-                    ?.webDomain}/${organizationSlug}/${projectSlug}/devices/project-devices/${params.row.name
+                  `https://${
+                    domainConfig.webDomain
+                  }/${organizationSlug}/${projectSlug}/devices/project-devices/${params.row.name
                     .split("/")
                     .pop()}`,
 
@@ -388,6 +390,7 @@ export default function DevicesTable({
     ],
     [
       t,
+      domainConfig.webDomain,
       classes.deviceId,
       classes.vizButton,
       classes.playButton,

@@ -14,6 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import i18next from "i18next";
 import * as _ from "lodash-es";
 
 import { ros1 } from "@foxglove/rosmsg-msgs-common";
@@ -22,6 +23,7 @@ import { diffLabels, DiffObject } from "@foxglove/studio-base/panels/RawMessages
 
 import type { NodeExpansion } from "./types";
 import { NodeState } from "./types";
+import { getAppConfig } from "../../util/appConfig";
 
 export const DATA_ARRAY_PREVIEW_LIMIT = 20;
 const ROS1_COMMON_MSG_PACKAGES = new Set(Object.keys(ros1).map((key) => key.split("/")[0]!));
@@ -129,10 +131,20 @@ export function getChangeCounts(
 }
 
 const foxgloveDocsLinksByDatatype = new Map<string, string>();
+
+const getBaseLink = () => {
+  const lang = i18next.language === "zh" ? "zh" : "en";
+
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+
+  const langPrefix = env === "aws" || env === "gcp" || lang === "zh" ? "" : lang;
+
+  return `${appConfig.DOC_BASE_URL}/${langPrefix}/docs/viz/message-schemas`;
+};
+
 for (const schema of Object.values(foxgloveMessageSchemas)) {
-  const url = `https://docs.foxglove.dev/docs/visualization/message-schemas/${_.kebabCase(
-    schema.name,
-  )}`;
+  const url = `${getBaseLink()}/${_.kebabCase(schema.name)}`;
   foxgloveDocsLinksByDatatype.set(`foxglove_msgs/${schema.name}`, url);
   foxgloveDocsLinksByDatatype.set(`foxglove_msgs/msg/${schema.name}`, url);
   foxgloveDocsLinksByDatatype.set(`foxglove.${schema.name}`, url);

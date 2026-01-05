@@ -5,8 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PartialMessage } from "@bufbuild/protobuf";
-import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { MessageInitShape } from "@bufbuild/protobuf";
+import { UpdateRecordRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 import { MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
 import { ReactElement, useCallback, useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
@@ -27,7 +27,7 @@ const selectRecord = (store: CoreDataStore) => store.record;
 export default function ProjectDeviceSelector({
   updateRecord,
 }: {
-  updateRecord: (payload: PartialMessage<UpdateRecordRequest>) => Promise<void>;
+  updateRecord: (payload: MessageInitShape<typeof UpdateRecordRequestSchema>) => Promise<void>;
 }): ReactElement {
   const consoleApi = useConsoleApi();
   const externalInitConfig = useCoreData(selectExternalInitConfig);

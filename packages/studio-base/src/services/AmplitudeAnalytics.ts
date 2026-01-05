@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { posthog } from "posthog-js";
 
 import Logger from "@foxglove/log";
@@ -13,7 +13,7 @@ import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
 
@@ -62,7 +62,10 @@ export class AmplitudeAnalytics implements IAnalytics {
       case AppEvent.PLAYER_INITIALIZING_TIME:
         posthog.capture(event, data);
         break;
-      case AppEvent.PLAYER_BUFFERING_TIME:
+      case AppEvent.PLAYER_SEEK_LATENCY:
+        posthog.capture(event, data);
+        break;
+      case AppEvent.PLAYER_STALL_DURATION:
         posthog.capture(event, data);
         break;
       default:
@@ -72,6 +75,8 @@ export class AmplitudeAnalytics implements IAnalytics {
   }
 
   public setUser(user: User, organization: Organization): void {
+    const appConfig = getAppConfig();
+
     // log this user
     posthog.identify(user.userId, {
       nick_name: user.nickName,
@@ -79,7 +84,7 @@ export class AmplitudeAnalytics implements IAnalytics {
       phone: user.phoneNumber,
       org_id: organization.name.split("/").pop(),
       org_display_name: organization.displayName,
-      environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
+      environment: appConfig.VITE_APP_PROJECT_ENV,
     });
 
     posthog.register({

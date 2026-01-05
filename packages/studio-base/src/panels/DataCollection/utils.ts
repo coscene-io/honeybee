@@ -4,16 +4,16 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Organization } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/organization_pb";
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_state_pb";
-import { Task } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
+import { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import dayjs from "dayjs";
 import { TFunction } from "i18next";
 
 import { PanelExtensionContext } from "@foxglove/studio";
 import { ConsoleApi } from "@foxglove/studio-base/index";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { LOG_TIMESTAMP_FORMAT } from "./constants";
 import {
@@ -54,10 +54,12 @@ export async function handleRecordLink({
   focusedTask?: Task;
   consoleApi: ConsoleApi;
 }): Promise<boolean> {
+  const domainConfig = getDomainConfig();
+
   if (task.tags.recordName != undefined && showRecordLink) {
     addLog(
       `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("saveToRecord")}：https://${
-        APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+        domainConfig.webDomain
       }/${targetOrg.slug}/${targetProject.slug}/records/${task.tags.recordName.split("/").pop()}`,
     );
 

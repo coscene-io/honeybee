@@ -23,7 +23,6 @@ export const appSettings = {
   layoutDebugging: "Layout debugging",
   layoutDebuggingDescription: "Show extra controls for developing and debugging layout storage.",
   light: "Light",
-  messageRate: "Message rate",
   newAppMenu: "Enable unified navigation",
   newAppMenuDescription: "Show the new menu and navigation.",
   noExperimentalFeatures: "Currently there are no experimental features.",
@@ -44,7 +43,6 @@ export const appSettings = {
   security: "Security",
   updates: "Updates",
   automaticallyInstallUpdates: "Automatically install updates",
-  addTopicPrefix: "Add topic prefix",
   tfCompatibilityMode: "TF compatibility mode",
   on: "On",
   off: "Off",
@@ -57,4 +55,24 @@ export const appSettings = {
   neverDisconnect: "Never disconnect",
   retentionWindowMs: "Real-time visualization cache duration",
   noCache: "No cache",
+  retentionWindowNextEffectiveNotice:
+    "Setting updated, will take effect on next connection <Link>Reconnect now</Link>",
+  retentionWindowDescription:
+    "Set the cache duration of the real-time visualization, for playback of real-time data",
+  requestWindow: "Data platform request window (s)",
+  requestWindowDescription:
+    "Controls how many seconds of data each data-platform request loads. Larger windows mean fewer API calls but slower seek response.",
+  requestWindowNextEffectiveNotice:
+    "Setting updated, will take effect the next time visualization starts. <Link>Refresh now</Link>",
+  readAheadDuration: "Read-ahead buffer (s)",
+  readAheadDurationDescription:
+    "Sets how many seconds of data the player preloads ahead of playback. Higher values smooth playback but use more memory.",
+  readAheadDurationNextEffectiveNotice:
+    "Setting updated, will take effect the next time visualization starts. <Link>Refresh now</Link>",
+  autoConnectToLan: "Real-time visualization auto connect to LAN",
+  autoConnectToLanDescription:
+    "When detected to be on the same LAN as the device, automatically connect to the LAN address, no need to manually confirm",
+  isRenderAllTabs: "Render all tabs",
+  isRenderAllTabsDescription:
+    "Whether to render all tabs, including unopened tabs, after enabling, the speed of opening the tab page will be improved, but more memory will be occupied",
 };

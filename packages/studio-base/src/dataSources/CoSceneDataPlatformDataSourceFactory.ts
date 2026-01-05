@@ -8,12 +8,16 @@
 import { t } from "i18next";
 
 import {
+  getReadAheadDurationDefaultTime,
+  getRequestWindowDefaultTime,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
+import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
@@ -25,19 +29,23 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public description = t("openDialog:coSceneDataPlatformDesc");
   public needLogin = true;
 
+  #domainConfig = getDomainConfig();
+
   public formConfig = {
     fields: [
       {
         id: "url",
         label: t("openDialog:dataPlatformUrl"),
-        placeholder: `https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}/viz?ds=coscene-data-platform&ds.key=example_key`,
+        placeholder: `https://${
+          this.#domainConfig.webDomain
+        }/viz?ds=coscene-data-platform&ds.key=example_key`,
         validate: (newValue: string): Error | undefined => {
           try {
             const url = new URL(newValue);
-            if (url.hostname !== APP_CONFIG.DOMAIN_CONFIG.default?.webDomain) {
+            if (url.hostname !== this.#domainConfig.webDomain) {
               return new Error(
                 t("openDialog:onlySupportDomain", {
-                  domain: APP_CONFIG.DOMAIN_CONFIG.default?.webDomain,
+                  domain: this.#domainConfig.webDomain,
                 }),
               );
             }
@@ -65,6 +73,8 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const consoleApi = args.consoleApi;
+    const requestWindow = args.requestWindow ?? getRequestWindowDefaultTime();
+    const readAheadDuration = args.readAheadDuration ?? getReadAheadDurationDefaultTime();
 
     if (!consoleApi) {
       console.error("coscene-data-platform initialize: consoleApi is undefined");
@@ -75,8 +85,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
-    const addTopicPrefix = consoleApi.getAddTopicPrefix();
-    const timeMode = consoleApi.getTimeMode();
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -92,11 +100,10 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         api: {
           baseUrl,
           bffUrl,
-          addTopicPrefix,
-          timeMode,
           auth,
         },
         params: { ...args.params, ...baseInfo },
+        requestWindow,
       },
     });
 
@@ -114,6 +121,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       source,
       sourceId: this.id,
       urlParams: definedParams,
+      readAheadDuration,
     });
   }
 }

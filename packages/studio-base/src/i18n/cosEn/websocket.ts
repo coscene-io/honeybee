@@ -29,6 +29,8 @@ export const cosWebsocket = {
   lanAvailable: "LAN Available",
   lanConnectionPrompt:
     "Detected that you and the current device are on the same LAN, you can use LAN connection to improve network speed",
+  lanConnectionPromptAutoConnect:
+    "Detected that you and the current device are on the same LAN, automatically switched to LAN connection",
   switchNow: "Switch Now",
   keepCurrent: "Keep Current",
   switchToPlayback: "Switch to playback mode",
@@ -36,4 +38,6 @@ export const cosWebsocket = {
     "Playback the data that has been played, up to {{duration}} of data. Want to play more time? <ToSettings>Go to Settings</ToSettings>",
   switchToRealTime: "Switch to real-time mode",
   realTimeVizPlayback: "Real-time visualisation playback",
+  switchToRealTimeFromPlayback: "Exit playback, view real-time view",
+  noCacheSetPrompt: "No cache duration set, <ToSettings>Go to Settings</ToSettings>",
 };

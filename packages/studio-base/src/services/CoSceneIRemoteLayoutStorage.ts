@@ -8,8 +8,8 @@
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
-  ISO8601Timestamp,
   LayoutPermission,
+  ISO8601Timestamp,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 /**
@@ -17,12 +17,17 @@ import {
  */
 export type RemoteLayout = {
   id: LayoutID;
+  parent: string;
+  folder: string;
   name: string;
   permission: LayoutPermission;
   data: LayoutData;
+
   savedAt: ISO8601Timestamp | undefined;
-  isProjectRecommended: boolean;
-  isRecordRecommended: boolean;
+  updatedAt: ISO8601Timestamp | undefined;
+
+  modifier: string | undefined;
+  modifierNickname: string | undefined;
 };
 
 export interface IRemoteLayoutStorage {
@@ -31,6 +36,8 @@ export interface IRemoteLayoutStorage {
    * layouts on disk.
    */
   readonly namespace: string;
+  readonly projectName: string | undefined;
+  readonly userName: string;
 
   getLayouts: () => Promise<readonly RemoteLayout[]>;
 
@@ -38,26 +45,20 @@ export interface IRemoteLayoutStorage {
 
   saveNewLayout: (params: {
     id: LayoutID | undefined;
+    parent: string;
+    folder: string;
     name: string;
     data: LayoutData;
     permission: LayoutPermission;
-    savedAt: ISO8601Timestamp;
-  }) => Promise<RemoteLayout>;
-
-  saveAsRecordDefaultLayout: (params: {
-    id: LayoutID | undefined;
-    name: string;
-    data: LayoutData;
-    permission: LayoutPermission;
-    savedAt: ISO8601Timestamp;
   }) => Promise<RemoteLayout>;
 
   updateLayout: (params: {
     id: LayoutID;
+    parent: string;
     name?: string;
+    folder?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
-    savedAt: ISO8601Timestamp;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;
 
   /** Returns true if the layout existed and was deleted, false if the layout did not exist. */

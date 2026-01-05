@@ -30,11 +30,11 @@ import {
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ShieldTwoToneIcon from "@mui/icons-material/ShieldTwoTone";
 import { IconButton, Tooltip, Typography, Link } from "@mui/material";
-import { useCallback, useMemo, useEffect } from "react";
+import { useCallback, useMemo, useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, compare } from "@foxglove/rostime";
+import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -49,6 +49,10 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -58,6 +62,7 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
+import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
 const useStyles = makeStyles()((theme) => ({
@@ -91,6 +96,7 @@ const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("cosEvent");
@@ -153,6 +159,7 @@ export default function PlaybackControls(props: {
   const record = useCoreData(selectRecord);
 
   const dataSource = useCoreData(selectDataSource);
+  const paid = useSubscriptionEntitlement(selectPaid);
   const { selectRecent } = usePlayerSelection();
 
   const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
@@ -194,10 +201,20 @@ export default function PlaybackControls(props: {
     }
   }, [isPlaying, pause, getTimeInfo, play, seek]);
 
+  // Track SeekStep editing state for KeyListener management
+  const [seekStepEditing, setSeekStepEditing] = useState(false);
+
+  // Default seek step control (ms) - get current value for seek actions
+  const [seekStepMs] = useAppConfigurationValue<number>(AppSetting.SEEK_STEP_MS);
+  const effectiveSeekMs =
+    seekStepMs != undefined && seekStepMs >= MIN_SEEK_STEP_MS && seekStepMs <= MAX_SEEK_STEP_MS
+      ? seekStepMs
+      : 100;
+
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
-      const { currentTime } = getTimeInfo();
-      if (!currentTime) {
+      const { currentTime, startTime: start, endTime: end } = getTimeInfo();
+      if (!currentTime || !start || !end) {
         return;
       }
 
@@ -210,15 +227,20 @@ export default function PlaybackControls(props: {
       //
       // i.e. Skipping coordinate frame messages may result in incorrectly rendered markers or
       // missing markers altogther.
-      const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev);
+      const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
+      const clampedTargetTime = clampTime(targetTime, start, end);
+
+      if (areEqual(clampedTargetTime, currentTime)) {
+        return;
+      }
 
       if (playUntil) {
-        playUntil(targetTime);
+        playUntil(clampedTargetTime);
       } else {
-        seek(targetTime);
+        seek(clampedTargetTime);
       }
     },
-    [getTimeInfo, playUntil, seek],
+    [getTimeInfo, playUntil, seek, effectiveSeekMs],
   );
 
   const seekBackwardAction = useCallback(
@@ -227,9 +249,9 @@ export default function PlaybackControls(props: {
       if (!currentTime) {
         return;
       }
-      seek(jumpSeek(DIRECTION.BACKWARD, currentTime, ev));
+      seek(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
     },
-    [getTimeInfo, seek],
+    [getTimeInfo, seek, effectiveSeekMs],
   );
 
   const keyDownHandlers = useMemo(
@@ -249,12 +271,13 @@ export default function PlaybackControls(props: {
 
   return (
     <>
-      <KeyListener global keyDownHandlers={keyDownHandlers} />
+      {!seekStepEditing && <KeyListener global keyDownHandlers={keyDownHandlers} />}
       <div className={classes.root}>
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {enableList.event === "ENABLE" &&
+            {paid &&
+              enableList.event === "ENABLE" &&
               consoleApi.createEvent.permission() &&
               projectIsArchived === false &&
               recordIsArchived === false && (
@@ -286,19 +309,21 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
-                <IconButton
-                  component="button"
-                  size="small"
-                  onClick={() => {
-                    if (dataSource.previousRecentId != undefined) {
-                      selectRecent(dataSource.previousRecentId);
-                    }
-                  }}
-                >
-                  <Typography variant="body2" marginLeft="4px">
-                    {t("switchToRealTime", { ns: "cosWebsocket" })}
-                  </Typography>
-                </IconButton>
+                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "cosWebsocket" })}>
+                  <IconButton
+                    component="button"
+                    size="small"
+                    onClick={() => {
+                      if (dataSource.previousRecentId != undefined) {
+                        selectRecent(dataSource.previousRecentId);
+                      }
+                    }}
+                  >
+                    <Typography variant="body2" marginLeft="4px">
+                      {t("switchToRealTime", { ns: "cosWebsocket" })}
+                    </Typography>
+                  </IconButton>
+                </Tooltip>
               )}
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
@@ -353,9 +378,10 @@ export default function PlaybackControls(props: {
               </>
             )}
 
+            <SeekStepControls disabled={disableControls} onEditingChange={setSeekStepEditing} />
             <HoverableIconButton
               size="small"
-              title="Loop playback"
+              title={t("loopPlayback", { ns: "cosGeneral" })}
               disabled={disableControls}
               color={repeatEnabled ? "primary" : "inherit"}
               onClick={toggleRepeat}
@@ -412,36 +438,56 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
 
           <Tooltip
             title={
-              <Trans
-                i18nKey="switchToPlaybackDesc"
-                ns="cosWebsocket"
-                values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
-                components={{
-                  ToSettings: (
-                    <Link
-                      href="#"
-                      onClick={() => {
-                        dialogActions.preferences.open("general");
-                      }}
-                    />
-                  ),
-                }}
-              />
+              retentionWindowMs === 0 ? (
+                <Trans
+                  i18nKey="noCacheSetPrompt"
+                  ns="cosWebsocket"
+                  components={{
+                    ToSettings: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          dialogActions.preferences.open("general");
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              ) : (
+                <Trans
+                  i18nKey="switchToPlaybackDesc"
+                  ns="cosWebsocket"
+                  values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
+                  components={{
+                    ToSettings: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          dialogActions.preferences.open("general");
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
             }
           >
-            <IconButton
-              component="button"
-              size="small"
-              onClick={() => {
-                selectSource("persistent-cache", {
-                  type: "persistent-cache",
-                });
-              }}
-            >
-              <Typography variant="body2" marginLeft="4px">
-                {t("switchToPlayback")}
-              </Typography>
-            </IconButton>
+            <span>
+              <IconButton
+                component="button"
+                size="small"
+                onClick={() => {
+                  selectSource("persistent-cache", {
+                    type: "persistent-cache",
+                  });
+                }}
+                disabled={retentionWindowMs === 0}
+              >
+                <Typography variant="body2" marginLeft="4px">
+                  {t("switchToPlayback")}
+                </Typography>
+              </IconButton>
+            </span>
           </Tooltip>
         </Stack>
       </Stack>

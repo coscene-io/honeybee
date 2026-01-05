@@ -34,15 +34,23 @@ const makeSeriesNode = memoizeWeak(
         ? [
             {
               type: "action",
+              id: "insert-series",
+              label: t("insertSeries"),
+              display: "hover",
+              icon: "Addchart",
+            },
+            {
+              type: "action",
               id: "delete-series",
               label: t("deleteSeries"),
-              display: "inline",
+              display: "hover",
               icon: "Clear",
             },
           ]
         : [],
       label: plotPathDisplayName(path, index, t),
       visible: path.enabled,
+      expansionState: path.expansionState ?? "expanded",
       fields: {
         value: {
           label: t("messagePath"),
@@ -100,6 +108,16 @@ const makeRootSeriesNode = memoizeWeak(
             makeSeriesNode(path, index, /*canDelete=*/ true, t),
           ]),
     );
+
+    // check if all series are enabled or disabled
+    // when paths is empty, treat the default displayed series as enabled
+    const hasEnabledSeries = paths.length === 0 ? true : paths.some((path) => path.enabled);
+    const hasDisabledSeries = paths.length === 0 ? false : paths.some((path) => !path.enabled);
+
+    const shouldShowDisableAll = hasEnabledSeries && !hasDisabledSeries;
+
+    const shouldCollapsedAll = paths.some((path) => path.expansionState !== "collapsed");
+
     return {
       label: t("series"),
       children,
@@ -111,12 +129,30 @@ const makeRootSeriesNode = memoizeWeak(
           display: "inline",
           icon: "Addchart",
         },
+        {
+          type: "action",
+          id: "toggle-all-series",
+          label: shouldShowDisableAll ? t("disableAllSeries") : t("enableAllSeries"),
+          display: "inline",
+          icon: shouldShowDisableAll ? "VisibilityOff" : "Visibility",
+        },
+        {
+          type: "action",
+          id: "collapse-all-series",
+          label: shouldCollapsedAll ? t("collapseAllSeries") : t("expandAllSeries"),
+          display: "inline",
+          icon: shouldCollapsedAll ? "KeyboardDoubleArrowUpIcon" : "KeyboardDoubleArrowDownIcon",
+        },
       ],
     };
   },
 );
 
-function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTreeNodes {
+function buildSettingsTree(
+  config: PlotConfig,
+  t: TFunction<"plot">,
+  fullTimestampStatus: "disabled" | "enabled" = "enabled",
+): SettingsTreeNodes {
   const maxYError =
     _.isNumber(config.minYValue) &&
     _.isNumber(config.maxYValue) &&
@@ -196,12 +232,17 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
           input: "select",
           value: config.xAxisVal,
           options: [
-            { label: t("fullTimestamp"), value: "timestamp" },
+            {
+              label: t("fullTimestamp"),
+              value: "timestamp",
+              disabled: fullTimestampStatus === "disabled",
+            },
             { label: t("partialTimestamp"), value: "partialTimestamp" },
             { label: t("index"), value: "index" },
             { label: t("currentPath"), value: "currentCustom" },
             { label: t("accumulatedPath"), value: "custom" },
           ],
+          help: fullTimestampStatus === "disabled" ? t("tooManyMessages") : undefined,
         },
         xAxisPath:
           config.xAxisVal === "currentCustom" || config.xAxisVal === "custom"
@@ -252,6 +293,7 @@ export function usePlotPanelSettings(
   config: PlotConfig,
   saveConfig: SaveConfig<PlotConfig>,
   focusedPath?: readonly string[],
+  fullTimestampStatus: "disabled" | "enabled" = "enabled",
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("plot");
@@ -294,9 +336,16 @@ export function usePlotPanelSettings(
           saveConfig(
             produce<PlotConfig>((draft) => {
               if (draft.paths.length === 0) {
-                draft.paths.push({ ...DEFAULT_PATH });
+                draft.paths.unshift({ ...DEFAULT_PATH });
               }
-              draft.paths.push({ ...DEFAULT_PATH });
+              draft.paths.unshift({ ...DEFAULT_PATH });
+            }),
+          );
+        } else if (action.payload.id === "insert-series") {
+          const index = action.payload.path[1];
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              draft.paths.splice(Number(index) + 1, 0, { ...DEFAULT_PATH });
             }),
           );
         } else if (action.payload.id === "delete-series") {
@@ -304,6 +353,35 @@ export function usePlotPanelSettings(
           saveConfig(
             produce<PlotConfig>((draft) => {
               draft.paths.splice(Number(index), 1);
+            }),
+          );
+        } else if (action.payload.id === "toggle-all-series") {
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              // if no paths exist, add the default path first
+              if (draft.paths.length === 0) {
+                draft.paths.unshift({ ...DEFAULT_PATH });
+              }
+
+              const hasEnabledSeries = draft.paths.some((path) => path.enabled);
+              const hasDisabledSeries = draft.paths.some((path) => !path.enabled);
+              const shouldDisableAll = hasEnabledSeries && !hasDisabledSeries;
+
+              for (const path of draft.paths) {
+                path.enabled = !shouldDisableAll;
+              }
+            }),
+          );
+        } else if (action.payload.id === "collapse-all-series") {
+          saveConfig(
+            produce<PlotConfig>((draft) => {
+              const shouldCollapsedAll = draft.paths.some(
+                (path) => path.expansionState !== "collapsed",
+              );
+
+              for (const path of draft.paths) {
+                path.expansionState = shouldCollapsedAll ? "collapsed" : "expanded";
+              }
             }),
           );
         }
@@ -316,7 +394,7 @@ export function usePlotPanelSettings(
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, t),
+      nodes: buildSettingsTree(config, t, fullTimestampStatus),
     });
   }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t]);
 }

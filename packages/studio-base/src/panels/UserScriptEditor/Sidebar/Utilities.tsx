@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { List, ListItem, ListItemButton, ListItemText } from "@mui/material";
+import { Trans, useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Script } from "@foxglove/studio-base/panels/UserScriptEditor/script";
@@ -24,16 +25,20 @@ export function Utilities({
   gotoUtils: (filePath: string) => void;
   script?: Script;
 }): React.JSX.Element {
+  const { t } = useTranslation("userScriptEditor");
   return (
     <Stack flex="auto" position="relative">
       <SidebarHeader
         onClose={onClose}
-        title="Utilities"
+        title={t("utilitiesHeader")}
         subheader={
-          <>
-            You can import any of these modules into your script using the following syntax:{" "}
-            <pre>{`import { ... } from "./pointClouds.ts".`}</pre>
-          </>
+          <Trans
+            ns="userScriptEditor"
+            i18nKey="utilitiesSubheader"
+            components={{
+              pre: <pre />,
+            }}
+          />
         }
       />
       <List dense>

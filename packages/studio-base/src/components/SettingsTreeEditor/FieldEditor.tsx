@@ -23,7 +23,6 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
 
 import { Immutable, SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
-import CoSceneDeduplicatedMessagePath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/MessagePathInput";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import CommonResourceSelecter from "@foxglove/studio-base/components/SettingsTreeEditor/inputs/CommonResourceSelecter";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -240,7 +239,7 @@ function FieldInput({
         <Tooltip
           arrow
           placement="right"
-          title={<Typography variant="subtitle2">{field.help}</Typography>}
+          title={field.help && <Typography variant="subtitle2">{field.help}</Typography>}
         >
           <ToggleButtonGroup
             className={classes.styledToggleButtonGroup}
@@ -317,23 +316,6 @@ function FieldInput({
           validTypes={field.validTypes}
         />
       );
-    case "deduplicatedMessagePath":
-      return (
-        <CoSceneDeduplicatedMessagePath
-          variant="filled"
-          path={field.value ?? ""}
-          disabled={field.disabled}
-          readOnly={field.readonly}
-          supportsMathModifiers={field.supportsMathModifiers}
-          onChange={(value) => {
-            actionHandler({
-              action: "update",
-              payload: { path, input: "deduplicatedMessagePath", value },
-            });
-          }}
-          validTypes={field.validTypes}
-        />
-      );
     case "select": {
       const selectedOptionIndex = // use findIndex instead of find to avoid confusing TypeScript with union of arrays
         field.options.findIndex((option) => option.value === field.value);
@@ -350,7 +332,7 @@ function FieldInput({
       }
 
       const hasError = !selectedOption && (!isEmpty || field.value != undefined);
-      return (
+      const selectElement = (
         <Select
           className={cx({ [classes.error]: hasError })}
           size="small"
@@ -408,6 +390,18 @@ function FieldInput({
             <MenuItem style={{ display: "none" }} value={INVALID_SENTINEL_VALUE} />
           )}
         </Select>
+      );
+
+      return field.help ? (
+        <Tooltip
+          arrow
+          placement="right"
+          title={<Typography variant="subtitle2">{field.help}</Typography>}
+        >
+          <div>{selectElement}</div>
+        </Tooltip>
+      ) : (
+        selectElement
       );
     }
 

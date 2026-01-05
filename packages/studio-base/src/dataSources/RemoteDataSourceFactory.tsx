@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Button } from "@mui/material";
+import { Link } from "@mui/material";
 import { t } from "i18next";
 import path from "path";
 
@@ -18,7 +18,7 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const initWorkers: Record<string, () => Worker> = {
   ".bag": () => {
@@ -82,13 +82,10 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public warning = (
     <>
       {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
-      <Button
-        href={`https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}`}
-        target="_blank"
-        variant="text"
-      >
+      &nbsp;
+      <Link href={`https://${getDomainConfig().webDomain}`} target="_blank">
         {t("openDialog:coSceneDataPlatform")}
-      </Button>
+      </Link>
       .
     </>
   );

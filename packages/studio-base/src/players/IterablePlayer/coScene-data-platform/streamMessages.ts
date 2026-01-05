@@ -12,8 +12,9 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
 import { fromNanoSec, Time, toMillis } from "@foxglove/rostime";
-import { MessageEvent } from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+
+import { IteratorResult } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
 
@@ -73,7 +74,11 @@ export async function* streamMessages({
    * parsedChannelsByTopic (thus mutating parsedChannelsByTopic).
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
-}): AsyncGenerator<MessageEvent[]> {
+}): AsyncGenerator<IteratorResult[]> {
+  // Local connection ID management for this streaming session
+  const connectionIdByTopic: Record<string, number> = {};
+  let nextConnectionId = 0;
+
   const controller = new AbortController();
   const abortHandler = () => {
     log.debug("Manual abort of streamMessages", params);
@@ -90,7 +95,13 @@ export async function* streamMessages({
   }
 
   let totalMessages = 0;
-  let messages: MessageEvent[] = [];
+  let results: IteratorResult[] = [];
+
+  // Limit batch size to avoid blocking consumer too long
+  const MAX_BATCH_SIZE = 500; // Yield every 500 messages
+  const MAX_BATCH_TIME_MS = 50; // Or every 50ms
+  let lastYieldTime = performance.now();
+
   const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
   const channelInfoById = new Map<
     number,
@@ -177,13 +188,49 @@ export async function* streamMessages({
         }
         const receiveTime = fromNanoSec(record.logTime);
         totalMessages++;
-        messages.push({
-          topic: info.channel.topic,
-          receiveTime,
-          message: info.parsedChannel.deserialize(record.data),
-          sizeInBytes: record.data.byteLength,
-          schemaName: info.schemaName,
-        });
+
+        try {
+          const deserializedMessage = info.parsedChannel.deserialize(record.data);
+          results.push({
+            type: "message-event",
+            msgEvent: {
+              topic: info.channel.topic,
+              receiveTime,
+              message: deserializedMessage,
+              sizeInBytes: record.data.byteLength,
+              schemaName: info.schemaName,
+            },
+          });
+        } catch (err) {
+          // Similar to DeserializingIterableSource error handling - create a problem for the main thread
+          console.error(`Failed to deserialize message on topic ${info.channel.topic}:`, err);
+          captureException(err, {
+            extra: {
+              topic: info.channel.topic,
+              channelId: record.channelId,
+              messageSize: record.data.byteLength,
+              schemaName: info.schemaName,
+            },
+          });
+
+          // Assign a unique connection ID for each topic in this streaming session
+          if (connectionIdByTopic[info.channel.topic] == undefined) {
+            connectionIdByTopic[info.channel.topic] = nextConnectionId++;
+          }
+          const connectionId = connectionIdByTopic[info.channel.topic]!;
+
+          results.push({
+            type: "problem",
+            connectionId,
+            problem: {
+              severity: "error",
+              message: `Failed to deserialize message on topic ${
+                info.channel.topic
+              }. ${err.toString()}`,
+              tip: `Check that your input file is not corrupted.`,
+            },
+          });
+        }
         return;
       }
     }
@@ -237,10 +284,22 @@ export async function* streamMessages({
             break;
           }
           processRecord(record);
+
+          // 只检查数量，避免频繁调用 performance.now()
+          if (results.length >= MAX_BATCH_SIZE) {
+            yield results;
+            results = [];
+            lastYieldTime = performance.now();
+          }
         }
-        if (messages.length > 0) {
-          yield messages;
-          messages = [];
+
+        // 处理完一个 chunk 后，检查时间或剩余数据
+        const now = performance.now();
+        const timeSinceLastYield = now - lastYieldTime;
+        if (results.length > 0 && timeSinceLastYield >= MAX_BATCH_TIME_MS) {
+          yield results;
+          results = [];
+          lastYieldTime = performance.now();
         }
 
         if (normalReturn) {
@@ -250,8 +309,21 @@ export async function* streamMessages({
       if (!reader.done()) {
         throw new Error("Incomplete mcap file");
       }
+
+      // Yield any remaining messages
+      if (results.length > 0) {
+        yield results;
+        results = [];
+      }
+
       normalReturn = true;
     } finally {
+      // Flush any remaining buffered messages before cleanup, even if aborted/errored
+      if (results.length > 0) {
+        yield results;
+        results = [];
+      }
+
       if (!normalReturn) {
         // If the caller called generator.return() in between body chunks, automatically cancel the request.
         log.debug("Automatic abort of streamMessages", params);
@@ -271,7 +343,7 @@ export async function* streamMessages({
 
   log.debug(
     "message",
-    messages,
+    results,
     "total message",
     totalMessages,
     "fetch time",

@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Device } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/device_pb";
+import { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { useCallback, useMemo } from "react";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -17,7 +17,7 @@ import {
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 export const REALTIME_VISUALIZATION_PORT = 21274;
@@ -58,6 +58,7 @@ export function useVizTargetSource(): (
 ) => Promise<void> {
   const { selectSource } = usePlayerSelection();
   const consoleApi = useConsoleApi();
+  const domainConfig = getDomainConfig();
   const currentUser = useCurrentUser(selectUser);
   const coordinatorConfig = useCoreData(selectCoordinatorConfig);
   const colinkApi = useCoreData(selectColinkApi);
@@ -121,8 +122,9 @@ export function useVizTargetSource(): (
 
         const fullName = targetDevice.displayName;
 
-        const deviceLink = `https://${APP_CONFIG.DOMAIN_CONFIG.default
-          ?.webDomain}/${organizationSlug}/${projectSlug}/devices/project-devices/${targetDevice.name
+        const deviceLink = `https://${
+          domainConfig.webDomain
+        }/${organizationSlug}/${projectSlug}/devices/project-devices/${targetDevice.name
           .split("/")
           .pop()}`;
 

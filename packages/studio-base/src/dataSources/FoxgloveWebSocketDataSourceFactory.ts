@@ -7,6 +7,7 @@
 
 import { t } from "i18next";
 
+import Logger from "@foxglove/log";
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
@@ -14,6 +15,8 @@ import {
 import FoxgloveWebSocketPlayer from "@foxglove/studio-base/players/FoxgloveWebSocketPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+const log = Logger.getLogger(__filename);
 
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-websocket";
@@ -69,12 +72,15 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
     const sessionId = args.sessionId;
+    const autoConnectToLan = args.autoConnectToLan ?? true;
     if (!url) {
       return;
     }
     if (!args.confirm) {
       throw new Error("WebSocketDataSourceFactory: confirm is undefined");
     }
+
+    log.debug(`Initializing WebSocketPlayer with url: ${url}, sessionId: ${sessionId}`);
 
     return new FoxgloveWebSocketPlayer({
       url,
@@ -86,8 +92,9 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
       username: this.#username,
       deviceName: this.#deviceName,
       authHeader: args.consoleApi?.getAuthHeader() ?? "",
-      retentionWindowMs: args.retentionWindowMs,
+      retentionWindowMs: args.retentionWindowMs ?? 30 * 1000, // 30 seconds default
       sessionId,
+      autoConnectToLan,
     });
   }
 }

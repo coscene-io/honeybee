@@ -5,8 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PartialMessage } from "@bufbuild/protobuf";
-import { UpdateRecordRequest } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/record_pb";
+import { MessageInitShape } from "@bufbuild/protobuf";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { UpdateRecordRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 import { FormLabel, Link, Avatar, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { ReactElement, useCallback, useEffect, useMemo } from "react";
@@ -20,21 +21,30 @@ import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/Rec
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectRefreshRecord = (store: CoreDataStore) => store.refreshRecord;
 const selectRecordCustomFieldSchema = (store: CoreDataStore) => store.recordCustomFieldSchema;
+const selectDeviceCustomFieldSchema = (store: CoreDataStore) => store.deviceCustomFieldSchema;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 const selectProject = (store: CoreDataStore) => store.project;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 const log = Logger.getLogger(__filename);
 
 export default function RecordInfo(): ReactElement {
   const consoleApi = useConsoleApi();
+  const paid = useSubscriptionEntitlement(selectPaid);
+
   const record = useCoreData(selectRecord);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const recordCustomFieldSchema = useCoreData(selectRecordCustomFieldSchema);
+  const deviceCustomFieldSchema = useCoreData(selectDeviceCustomFieldSchema);
   const organization = useCoreData(selectOrganization);
   const project = useCoreData(selectProject);
 
@@ -46,18 +56,13 @@ export default function RecordInfo(): ReactElement {
   const { t } = useTranslation("recordInfo");
 
   const [deviceInfo, getDeviceInfo] = useAsyncFn(async () => {
-    if (!record.value?.device?.name) {
+    if (!paid || !record.value?.device?.name) {
       return;
     }
-
     return await consoleApi.getDevice({
       deviceName: record.value.device.name,
     });
-  }, [consoleApi, record.value?.device?.name]);
-
-  const [deviceCustomFieldSchema, getDeviceCustomFieldSchema] = useAsyncFn(async () => {
-    return await consoleApi.getDeviceCustomFieldSchema();
-  }, [consoleApi]);
+  }, [consoleApi, record.value?.device?.name, paid]);
 
   const [creator, getCreator] = useAsyncFn(async () => {
     if (!record.value?.creator) {
@@ -82,20 +87,12 @@ export default function RecordInfo(): ReactElement {
   }, [consoleApi, externalInitConfig?.warehouseId, externalInitConfig?.projectId]);
 
   useEffect(() => {
-    if (record.value?.device?.name) {
+    if (paid && record.value?.device?.name) {
       getDeviceInfo().catch((error: unknown) => {
         log.error(error);
       });
     }
-  }, [record.value?.device?.name, getDeviceInfo]);
-
-  useEffect(() => {
-    if (record.value?.device?.name) {
-      getDeviceCustomFieldSchema().catch((error: unknown) => {
-        log.error(error);
-      });
-    }
-  }, [record.value?.device?.name, getDeviceCustomFieldSchema]);
+  }, [record.value?.device?.name, getDeviceInfo, paid]);
 
   useEffect(() => {
     if (record.value?.creator) {
@@ -114,7 +111,7 @@ export default function RecordInfo(): ReactElement {
   }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, getLabels]);
 
   const updateRecord = useCallback(
-    async (payload: PartialMessage<UpdateRecordRequest>) => {
+    async (payload: MessageInitShape<typeof UpdateRecordRequestSchema>) => {
       await consoleApi.updateRecord(payload);
 
       refreshRecord();
@@ -125,34 +122,36 @@ export default function RecordInfo(): ReactElement {
   return (
     <>
       <Stack flex="auto" overflowX="auto" gap={2} padding={1}>
-        <Stack gap={1}>
-          <Typography variant="h6" gutterBottom>
-            {t("deviceInfo")}
-          </Typography>
-          <Stack>
-            <ProjectDeviceSelector updateRecord={updateRecord} />
-          </Stack>
-          <Stack>
-            <FormLabel>{t("deviceId")}</FormLabel>
-            <Link
-              variant="body2"
-              underline="hover"
-              data-testid={deviceInfo.value?.serialNumber}
-              href={`/${organizationSlug}/${projectSlug}/${deviceInfo.value?.name}`}
-              target="_blank"
-            >
-              {deviceInfo.value?.serialNumber}
-            </Link>
-          </Stack>
+        {paid && (
+          <Stack gap={1}>
+            <Typography variant="h6" gutterBottom>
+              {t("deviceInfo")}
+            </Typography>
+            <Stack>
+              <ProjectDeviceSelector updateRecord={updateRecord} />
+            </Stack>
+            <Stack>
+              <FormLabel>{t("deviceId")}</FormLabel>
+              <Link
+                variant="body2"
+                underline="hover"
+                data-testid={deviceInfo.value?.serialNumber}
+                href={`/${organizationSlug}/${projectSlug}/${deviceInfo.value?.name}`}
+                target="_blank"
+              >
+                {deviceInfo.value?.serialNumber}
+              </Link>
+            </Stack>
 
-          <CustomFieldValuesFields
-            variant="secondary"
-            properties={deviceCustomFieldSchema.value?.properties ?? []}
-            customFieldValues={deviceInfo.value?.customFieldValues ?? []}
-            readonly
-            ignoreProperties
-          />
-        </Stack>
+            <CustomFieldValuesFields
+              variant="secondary"
+              properties={deviceCustomFieldSchema?.properties ?? []}
+              customFieldValues={deviceInfo.value?.customFieldValues ?? []}
+              readonly
+              ignoreProperties
+            />
+          </Stack>
+        )}
 
         <Stack gap={1}>
           <Typography variant="h6" gutterBottom>
@@ -192,7 +191,7 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           </Stack>
 
-          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
+          {paid && record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
             <CustomFieldValuesFields
               variant="secondary"
               properties={recordCustomFieldSchema.properties}
@@ -216,7 +215,7 @@ export default function RecordInfo(): ReactElement {
               <FormLabel>{t("createTime")}</FormLabel>
 
               <Stack direction="row" alignItems="center" gap={1}>
-                {dayjs(record.value.createTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
+                {dayjs(timestampDate(record.value.createTime)).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
           )}
@@ -226,7 +225,7 @@ export default function RecordInfo(): ReactElement {
               <FormLabel>{t("updateTime")}</FormLabel>
 
               <Stack direction="row" alignItems="center" gap={1}>
-                {dayjs(record.value.updateTime.toDate()).format("YYYY-MM-DD HH:mm:ss")}
+                {dayjs(timestampDate(record.value.updateTime)).format("YYYY-MM-DD HH:mm:ss")}
               </Stack>
             </Stack>
           )}

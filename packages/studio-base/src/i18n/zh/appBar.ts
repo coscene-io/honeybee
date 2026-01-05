@@ -43,7 +43,6 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
     "已将所有 media 文件生成，刷新页面即可播放全部文件 ({{count}}/{{count}})",
   mediaGenerationError: "播放列表中存在无法生成索引的文件，请检查文件内容",
   loadingTips: "正在全速加载播放数据，请稍候...",
-  layoutGuideliens: "新建「布局」自定义你的可视化视图，或直接使用组织共享布局",
   toSetupLayout: "前往设置布局",
   noMoreTips: "不再提示",
   loginSuccess: "登录成功",
@@ -79,5 +78,5 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   networkSpeed: "速度",
   droppedMessages: "丢弃消息",
   packetLoss: "包丢失率",
-  networkStatusHelp: "仅通过 coLink 连接，且 coBridge ≥ v1.2.0 版本可展示网络状态信息",
+  networkStatusHelp: "仅 coBridge ≥ v1.2.0 版本可展示网络状态信息",
 };

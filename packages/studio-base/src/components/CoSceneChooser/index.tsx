@@ -5,8 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Project } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { Record } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/record_pb";
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import CloseIcon from "@mui/icons-material/Close";
 import { Dialog, Typography, IconButton, Button } from "@mui/material";
 import { useCallback, useState, useMemo, useEffect } from "react";
@@ -52,6 +52,9 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     maxFilesNumber,
     defaultProject,
   } = props;
+
+  const disableProjectSelect =
+    mode === "select-files-from-record" ? props.disableProjectSelect : undefined;
 
   const { classes } = useStyles();
   const { t } = useTranslation("cosPlaylist");
@@ -172,6 +175,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
             mode={mode}
             checkFileSupportedFunc={checkFileSupportedFunc ?? checkBagFileSupported}
             defaultProject={defaultProject}
+            disableProjectSelect={disableProjectSelect}
           />
           {showFilesList && <FilesList files={selectedFiles} setFiles={setSelectedFiles} />}
         </Stack>

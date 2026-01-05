@@ -17,9 +17,13 @@ import TextMiddleTruncate from "@foxglove/studio-base/components/TextMiddleTrunc
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 const useStyles = makeStyles()((theme) => ({
@@ -173,6 +177,8 @@ function SidebarItems(): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("openDialog");
 
+  const domainConfig = getDomainConfig();
+
   const sidebarItems: SidebarItem[] = [
     {
       id: "new",
@@ -199,7 +205,7 @@ function SidebarItems(): React.JSX.Element {
       ),
       actions: (
         <Button
-          href={`https://${APP_CONFIG.DOMAIN_CONFIG.default?.webDomain}`}
+          href={`https://${domainConfig.webDomain}`}
           target="_blank"
           className={classes.button}
           variant="outlined"
@@ -233,6 +239,7 @@ function SidebarItems(): React.JSX.Element {
 
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectUser = (store: UserStore) => store.user;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 export default function Start(): React.JSX.Element {
   const { recentSources, selectRecent } = usePlayerSelection();
@@ -242,6 +249,10 @@ export default function Start(): React.JSX.Element {
   const { dialogActions } = useWorkspaceActions();
   const loginStatus = useCurrentUser(selectLoginStatus);
   const user = useCurrentUser(selectUser);
+
+  const domainConfig = getDomainConfig();
+
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const startItems = useMemo(() => {
     return [
@@ -284,10 +295,7 @@ export default function Start(): React.JSX.Element {
           {loginStatus === "alreadyLogin" ? (
             user?.nickName
           ) : (
-            <Link
-              href={`https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`}
-              target="_blank"
-            >
+            <Link href={`https://${domainConfig.webDomain}/studio/login`} target="_blank">
               {t("login")}
             </Link>
           )}
@@ -309,11 +317,13 @@ export default function Start(): React.JSX.Element {
             ))}
           </Stack>
           <Stack direction="row" gap={2} style={{ minWidth: 500, height: 500 }} fullWidth>
-            <Stack style={{ width: "350px" }}>
-              <TaskPanel />
-            </Stack>
+            {paid && (
+              <Stack style={{ width: "350px" }}>
+                <TaskPanel />
+              </Stack>
+            )}
             {recentSources.length > 0 && (
-              <Stack style={{ minWidth: 200 }}>
+              <Stack style={{ minWidth: 200, width: "100%" }}>
                 <Stack gap={1} fullHeight>
                   <Typography variant="h5" gutterBottom>
                     {t("recentDataSources")}

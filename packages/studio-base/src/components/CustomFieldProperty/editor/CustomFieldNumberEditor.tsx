@@ -5,8 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { CustomFieldValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import { NumberValue } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { create } from "@bufbuild/protobuf";
+import type { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { NumberValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { FilledInput } from "@mui/material";
 import { useEffect, useState } from "react";
 
@@ -35,7 +36,7 @@ export function CustomFieldNumberEditor({
     if (value) {
       customFieldValue.value = {
         case: "number",
-        value: new NumberValue({ value: Number(value) }),
+        value: create(NumberValueSchema, { value: Number(value) }),
       };
     } else {
       customFieldValue.value = {

@@ -8,6 +8,7 @@
 import { Add16Regular, Dismiss12Regular } from "@fluentui/react-icons";
 import { Button, ButtonGroup, Stack, buttonClasses } from "@mui/material";
 import { MouseEvent, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
@@ -72,6 +73,7 @@ export const PathLegend = React.memo(function PathLegend(props: {
   const { id: panelId } = usePanelContext();
   const { openPanelSettings } = useWorkspaceActions();
   const { classes } = useStyles();
+  const { t } = useTranslation("stateTransitions");
 
   const handleDeletePath = useCallback(
     (event: MouseEvent<HTMLButtonElement>, index: number) => {
@@ -110,8 +112,8 @@ export const PathLegend = React.memo(function PathLegend(props: {
               }}
             >
               {paths.length === 0
-                ? "Click to add a series"
-                : stateTransitionPathDisplayName(path, index)}
+                ? t("clickToAddSeries")
+                : stateTransitionPathDisplayName(path, index, t)}
             </Button>
             {paths.length > 0 && (
               <Button

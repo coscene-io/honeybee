@@ -5,10 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { useEffect } from "react";
 import { useAsync, useAsyncFn } from "react-use";
+import { AsyncState } from "react-use/lib/useAsync";
 
 import Logger from "@foxglove/log";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
@@ -17,15 +20,22 @@ import {
   useCoreData,
   CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectCoordinatorConfig = (state: CoreDataStore) => state.coordinatorConfig;
+const selectProject = (state: CoreDataStore) => state.project;
 
 const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
+const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 const selectSetShowtUrlKey = (state: CoreDataStore) => state.setShowtUrlKey;
 const selectSetRecord = (state: CoreDataStore) => state.setRecord;
 const selectSetDevice = (state: CoreDataStore) => state.setDevice;
@@ -36,6 +46,7 @@ const selectSetDeviceCustomFieldSchema = (state: CoreDataStore) => state.setDevi
 const selectSetCoordinatorConfig = (state: CoreDataStore) => state.setCoordinatorConfig;
 const selectSetColinkApi = (state: CoreDataStore) => state.setColinkApi;
 const selectSetOrganization = (state: CoreDataStore) => state.setOrganization;
+const selectSetBaseUrl = (state: CoreDataStore) => state.setBaseUrl;
 
 const selectReloadRecordTrigger = (state: CoreDataStore) => state.reloadRecordTrigger;
 const selectReloadProjectTrigger = (state: CoreDataStore) => state.reloadProjectTrigger;
@@ -49,13 +60,114 @@ const selectReloadOrganizationTrigger = (state: CoreDataStore) => state.reloadOr
 
 const selectLoginStatus = (state: UserStore) => state.loginStatus;
 const selectSetFocusedTask = (state: TaskStore) => state.setFocusedTask;
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 const log = Logger.getLogger(__filename);
+
+async function ensureProjectAndBaseUrl({
+  consoleApi,
+  project,
+  externalInitConfig,
+  setProject,
+  setBaseUrl,
+}: {
+  consoleApi: ReturnType<typeof useConsoleApi>;
+  project: AsyncState<Project>;
+  externalInitConfig: ExternalInitConfig;
+  setProject: CoreDataStore["setProject"];
+  setBaseUrl: CoreDataStore["setBaseUrl"];
+}): Promise<void> {
+  const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
+
+  const baseReady = project.value?.name === projectName && !!consoleApi.getBaseUrl();
+  if (baseReady) {
+    return;
+  }
+
+  setProject({ loading: false, value: undefined });
+
+  const targetProject = await consoleApi.getProject({ projectName });
+
+  setProject({ loading: false, value: targetProject });
+
+  const storageClusterId = targetProject.storageCluster;
+  const storageCluster = await consoleApi.getStorageCluster({ name: storageClusterId });
+  const honeybeeAddress = storageCluster.endpoints[0]?.honeybeeAddress;
+
+  if (honeybeeAddress) {
+    setBaseUrl(honeybeeAddress);
+    consoleApi.setBaseUrl(honeybeeAddress);
+  }
+}
+
+export function useSetExternalInitConfig(): (
+  externalInitConfig: ExternalInitConfig,
+) => Promise<void> {
+  const consoleApi = useConsoleApi();
+  const project = useCoreData(selectProject);
+  const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
+  const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
+  const setProject = useCoreData(selectSetProject);
+  const setBaseUrl = useCoreData(selectSetBaseUrl);
+  const setFocusedTask = useTasks(selectSetFocusedTask);
+  const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
+    AppSetting.LAST_EXTERNAL_INIT_CONFIG,
+  );
+
+  return async (externalInitConfig: ExternalInitConfig) => {
+    void setLastExternalInitConfig(JSON.stringify(externalInitConfig));
+
+    // set base info and init user permission List
+    await consoleApi.setApiBaseInfo({
+      projectId: externalInitConfig.projectId,
+      warehouseId: externalInitConfig.warehouseId,
+      recordId: externalInitConfig.recordId,
+    });
+
+    setExternalInitConfig(externalInitConfig);
+
+    // 设置 isReadyForSyncLayout 标志，表示可以开始同步 layout
+    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+
+    await ensureProjectAndBaseUrl({
+      consoleApi,
+      project,
+      externalInitConfig,
+      setProject,
+      setBaseUrl,
+    });
+
+    const taskName =
+      externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
+        ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
+        : undefined;
+
+    if (taskName) {
+      const task = await consoleApi.getTask({ taskName });
+      setFocusedTask(task);
+    }
+  };
+}
+
+export function useSetShowtUrlKey(): (showtUrlKey: string) => Promise<void> {
+  const consoleApi = useConsoleApi();
+  const setShowtUrlKey = useCoreData(selectSetShowtUrlKey);
+  const setExternalInitConfig = useSetExternalInitConfig();
+
+  return async (showtUrlKey: string) => {
+    const externalInitConfig = await consoleApi.getExternalInitConfig(showtUrlKey);
+
+    await setExternalInitConfig(externalInitConfig);
+
+    setShowtUrlKey(showtUrlKey);
+  };
+}
 
 export function CoreDataSyncAdapter(): ReactNull {
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const organization = useCoreData(selectOrganization);
   const coordinatorConfig = useCoreData(selectCoordinatorConfig);
+  const project = useCoreData(selectProject);
 
   const setOrganization = useCoreData(selectSetOrganization);
   const setRecord = useCoreData(selectSetRecord);
@@ -66,6 +178,7 @@ export function CoreDataSyncAdapter(): ReactNull {
   const setDeviceCustomFieldSchema = useCoreData(selectSetDeviceCustomFieldSchema);
   const setCoordinatorConfig = useCoreData(selectSetCoordinatorConfig);
   const setColinkApi = useCoreData(selectSetColinkApi);
+  const setBaseUrl = useCoreData(selectSetBaseUrl);
 
   const reloadRecordTrigger = useCoreData(selectReloadRecordTrigger);
   const reloadProjectTrigger = useCoreData(selectReloadProjectTrigger);
@@ -80,6 +193,8 @@ export function CoreDataSyncAdapter(): ReactNull {
   const reloadOrganizationTrigger = useCoreData(selectReloadOrganizationTrigger);
 
   const loginStatus = useCurrentUser(selectLoginStatus);
+
+  const paid = useSubscriptionEntitlement(selectPaid);
 
   const consoleApi = useConsoleApi();
 
@@ -104,13 +219,14 @@ export function CoreDataSyncAdapter(): ReactNull {
       return;
     }
 
-    setProject({ loading: false, value: undefined });
-
-    const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
-    const targetProject = await consoleApi.getProject({ projectName });
-
-    setProject({ loading: false, value: targetProject });
-  }, [externalInitConfig, setProject, consoleApi]);
+    await ensureProjectAndBaseUrl({
+      consoleApi,
+      project,
+      externalInitConfig,
+      setProject,
+      setBaseUrl,
+    });
+  }, [externalInitConfig, project, setProject, consoleApi, setBaseUrl]);
 
   useEffect(() => {
     if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
@@ -118,12 +234,11 @@ export function CoreDataSyncAdapter(): ReactNull {
         log.error(error);
       });
     }
-  }, [
-    syncProjects,
-    reloadProjectTrigger,
-    externalInitConfig?.warehouseId,
-    externalInitConfig?.projectId,
-  ]);
+    /** don't listen externalInitConfig, useSetExternalInitConfig will ensure project is initialized
+     *  here only as reloadProjectTrigger trigger
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadProjectTrigger]);
 
   // Record
   const [, syncRecord] = useAsyncFn(async () => {
@@ -201,20 +316,21 @@ export function CoreDataSyncAdapter(): ReactNull {
   // Device
   const [, syncDevice] = useAsyncFn(async () => {
     if (
+      paid &&
       externalInitConfig?.warehouseId &&
       externalInitConfig.projectId &&
       externalInitConfig.deviceId
     ) {
       setDevice({ loading: true, value: undefined });
-      const deviceName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/devices/${externalInitConfig.deviceId}`;
+      const deviceName = `devices/${externalInitConfig.deviceId}`;
       const targetDevice = await consoleApi.getDevice({ deviceName });
-
       setDevice({ loading: false, value: targetDevice });
     }
-  }, [externalInitConfig, setDevice, consoleApi]);
+  }, [externalInitConfig, setDevice, consoleApi, paid]);
 
   useEffect(() => {
     if (
+      paid &&
       externalInitConfig?.warehouseId &&
       externalInitConfig.projectId &&
       externalInitConfig.deviceId
@@ -229,11 +345,12 @@ export function CoreDataSyncAdapter(): ReactNull {
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
     externalInitConfig?.deviceId,
+    paid,
   ]);
 
   // RecordCustomFieldSchema
   const [, syncRecordCustomFieldSchema] = useAsyncFn(async () => {
-    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       const customFieldSchema = await consoleApi.getRecordCustomFieldSchema(
         `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
       );
@@ -244,10 +361,11 @@ export function CoreDataSyncAdapter(): ReactNull {
     externalInitConfig?.projectId,
     consoleApi,
     setRecordCustomFieldSchema,
+    paid,
   ]);
 
   useEffect(() => {
-    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       syncRecordCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
@@ -257,11 +375,12 @@ export function CoreDataSyncAdapter(): ReactNull {
     reloadRecordCustomFieldSchemaTrigger,
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
+    paid,
   ]);
 
   // DeviceCustomFieldSchema
   const [, syncDevideCustomFieldSchema] = useAsyncFn(async () => {
-    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       const customFieldSchema = await consoleApi.getDeviceCustomFieldSchema();
       setDeviceCustomFieldSchema(customFieldSchema);
     }
@@ -270,10 +389,11 @@ export function CoreDataSyncAdapter(): ReactNull {
     externalInitConfig?.projectId,
     consoleApi,
     setDeviceCustomFieldSchema,
+    paid,
   ]);
 
   useEffect(() => {
-    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       syncDevideCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
@@ -283,14 +403,17 @@ export function CoreDataSyncAdapter(): ReactNull {
     reloadDeviceCustomFieldSchemaTrigger,
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
+    paid,
   ]);
 
   // CoordinatorConfig
   useAsync(async () => {
     if (organization.value != undefined) {
+      const appConfig = getAppConfig();
+
       const coordinatorConfig: CoordinatorConfig = await consoleApi.getCoordinatorConfig({
         currentOrganizationId: organization.value.name.split("/").pop() ?? "",
-        coordinatorUrl: APP_CONFIG.COORDINATOR_URL,
+        coordinatorUrl: appConfig.COORDINATOR_URL ?? "",
       });
 
       setCoordinatorConfig(coordinatorConfig);
@@ -322,44 +445,4 @@ export function CoreDataSyncAdapter(): ReactNull {
   }, [coordinatorConfig, setColinkApi]);
 
   return ReactNull;
-}
-
-export function useSetExternalInitConfig(): (
-  externalInitConfig: ExternalInitConfig,
-) => Promise<void> {
-  const consoleApi = useConsoleApi();
-  const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
-  const setFocusedTask = useTasks(selectSetFocusedTask);
-
-  return async (externalInitConfig: ExternalInitConfig) => {
-    // set base info and init user permission List
-    await consoleApi.setApiBaseInfo({
-      projectId: externalInitConfig.projectId,
-      warehouseId: externalInitConfig.warehouseId,
-      recordId: externalInitConfig.recordId,
-    });
-
-    setExternalInitConfig(externalInitConfig);
-
-    if (externalInitConfig.taskId) {
-      const task = await consoleApi.getTask({
-        taskName: `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`,
-      });
-      setFocusedTask(task);
-    }
-  };
-}
-
-export function useSetShowtUrlKey(): (showtUrlKey: string) => Promise<void> {
-  const consoleApi = useConsoleApi();
-  const setShowtUrlKey = useCoreData(selectSetShowtUrlKey);
-  const setExternalInitConfig = useSetExternalInitConfig();
-
-  return async (showtUrlKey: string) => {
-    const externalInitConfig = await consoleApi.getExternalInitConfig(showtUrlKey);
-
-    await setExternalInitConfig(externalInitConfig);
-
-    setShowtUrlKey(showtUrlKey);
-  };
 }

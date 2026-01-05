@@ -7,7 +7,12 @@
 
 import Logger from "@foxglove/log";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { ILayoutStorage, Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import {
+  ILayoutStorageCache,
+  ISO8601Timestamp,
+  Layout,
+  LayoutHistory,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 
@@ -16,9 +21,11 @@ const log = Logger.getLogger(__filename);
  */
 export class NamespacedLayoutStorage {
   #migration: Promise<void>;
+
   public constructor(
-    private storage: ILayoutStorage,
+    private storage: ILayoutStorageCache,
     private namespace: string,
+    private parents: string[],
     {
       migrateUnnamespacedLayouts,
       importFromNamespace,
@@ -46,18 +53,39 @@ export class NamespacedLayoutStorage {
 
   public async list(): Promise<readonly Layout[]> {
     await this.#migration;
-    return await this.storage.list(this.namespace);
+    return await this.storage.list(this.namespace, this.parents);
   }
   public async get(id: LayoutID): Promise<Layout | undefined> {
     await this.#migration;
-    return await this.storage.get(this.namespace, id);
+    return await this.storage.get(this.namespace, this.parents, id);
   }
   public async put(layout: Layout): Promise<Layout> {
     await this.#migration;
-    return await this.storage.put(this.namespace, layout);
+    return await this.storage.put(this.namespace, this.parents, layout);
   }
   public async delete(id: LayoutID): Promise<void> {
     await this.#migration;
-    await this.storage.delete(this.namespace, id);
+    await this.storage.delete(this.namespace, this.parents, id);
+  }
+
+  public async putHistory({
+    id,
+    parent,
+  }: {
+    id: LayoutID;
+    parent: string;
+  }): Promise<LayoutHistory> {
+    await this.#migration;
+    const history: LayoutHistory = {
+      id,
+      parent,
+      savedAt: new Date().toISOString() as ISO8601Timestamp,
+    };
+    return await this.storage.putHistory(this.namespace, history);
+  }
+
+  public async getHistory(parent: string): Promise<Layout | undefined> {
+    await this.#migration;
+    return await this.storage.getHistory(this.namespace, parent);
   }
 }

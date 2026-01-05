@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Time, toMillis, fromMillis } from "@foxglove/rostime";
+import { Time, toSec, fromSec } from "@foxglove/rostime";
 
 const ARROW_SEEK_BIG_MS = 500;
 const ARROW_SEEK_DEFAULT_MS = 100;
@@ -28,13 +28,18 @@ export const jumpSeek = (
   directionSign: (typeof DIRECTION)[keyof typeof DIRECTION],
   currentTime: Time,
   modifierKeys?: { altKey: boolean; shiftKey: boolean },
+  defaultMsOverride?: number,
 ): Time => {
-  const timeMs = toMillis(currentTime);
+  const timeSec = toSec(currentTime);
+  const defaultMs =
+    defaultMsOverride != undefined && defaultMsOverride > 0
+      ? defaultMsOverride
+      : ARROW_SEEK_DEFAULT_MS;
   const deltaMs =
     modifierKeys?.altKey === true
       ? ARROW_SEEK_BIG_MS
       : modifierKeys?.shiftKey === true
       ? ARROW_SEEK_SMALL_MS
-      : ARROW_SEEK_DEFAULT_MS;
-  return fromMillis(timeMs + deltaMs * directionSign);
+      : defaultMs;
+  return fromSec(timeSec + (deltaMs / 1000) * directionSign);
 };

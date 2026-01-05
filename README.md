@@ -2,13 +2,29 @@
 
 Honeybee is an integrated visualization and diagnosis tool for robotics, available in browser or as a desktop app on Linux, Windows, and macOS.
 
+Honeybee helps robotics teams visualize, debug, and analyze logs and live telemetry through a rich set of panels and tools.
+
+![Honeybee](./resources/play-nuScene.gif)
+
+## Availability and Access
+
+- The source code of Honeybee is publicly available.
+- The application depends on private npm packages, so it cannot run out-of-the-box outside our organization.
+- To try Honeybee, visit our hosted version at [coscene.cn](https://coscene.cn/), or download the desktop app
+  - [Linux ARM64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-linux_arm64.deb)
+  - [Linux AMD64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-linux_amd64.deb)
+  - [Windows ARM64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-win_arm64.exe)
+  - [Windows AMD64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-win_x64.exe)
+  - [Mac Universal](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-mac_universal.dmg)
+- Internal contributors can follow the Initialization section below to set up the development environment.
+
 **Supported development environments:** Linux, Windows, macOS
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v20.0.0+
+- [Node.js](https://nodejs.org/en/) V22.12.0+
 - [Git LFS](https://git-lfs.github.com/)
-- [Visual Studio Code](https://code.visualstudio.com/) – Recommended
+- [Cursor](https://www.cursor.com/) / [Visual Studio Code](https://code.visualstudio.com/) – Recommended
 
 ## Initialization
 
@@ -42,8 +58,6 @@ Honeybee is an integrated visualization and diagnosis tool for robotics, availab
 
    # NOTE: yarn web:serve does not support connecting to the production endpoints
    ```
-
-A [Dockerfile](/Dockerfile) to self-host the browser app is also available.
 
 **Other useful commands:**
 

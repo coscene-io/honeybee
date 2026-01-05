@@ -31,7 +31,7 @@ export function Root(): React.JSX.Element {
       new MemoryAppConfiguration({
         defaults: {
           [AppSetting.LAUNCH_PREFERENCE]: LaunchPreferenceValue.WEB,
-          [AppSetting.MESSAGE_RATE]: 240,
+          // [AppSetting.MESSAGE_RATE]: 240,
         },
       }),
   );

@@ -7,6 +7,7 @@
 
 import { Dismiss20Filled } from "@fluentui/react-icons";
 import { CardHeader, CardHeaderProps, IconButton } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 export const SidebarHeader = ({
   title,
@@ -16,25 +17,27 @@ export const SidebarHeader = ({
   title: string;
   subheader?: CardHeaderProps["subheader"];
   onClose: () => void;
-}): React.JSX.Element => (
-  <CardHeader
-    title={title}
-    subheader={subheader}
-    action={
-      <IconButton size="small" onClick={onClose} title="Collapse">
-        <Dismiss20Filled />
-      </IconButton>
-    }
-    slotProps={{
-      title: {
-        variant: "subtitle1",
-        fontWeight: "600",
-      },
-
-      subheader: {
-        variant: "body2",
-        color: "text.secondary",
-      },
-    }}
-  />
-);
+}): React.JSX.Element => {
+  const { t } = useTranslation("userScriptEditor");
+  return (
+    <CardHeader
+      title={title}
+      slotProps={{
+        title: {
+          variant: "subtitle1",
+          fontWeight: "600",
+        },
+        subheader: {
+          variant: "body2",
+          color: "text.secondary",
+        },
+      }}
+      subheader={subheader}
+      action={
+        <IconButton size="small" onClick={onClose} title={t("collapse")} aria-label={t("collapse")}>
+          <Dismiss20Filled />
+        </IconButton>
+      }
+    />
+  );
+};

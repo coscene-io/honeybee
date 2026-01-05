@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { MessagePathDropConfig } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import type { MessagePathDropConfig } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { SaveConfig, PanelConfig, OpenSiblingPanel } from "@foxglove/studio-base/types/panels";
 
 export type PanelContextType<T> = {
@@ -33,6 +33,7 @@ export type PanelContextType<T> = {
   enterFullscreen: () => void;
   exitFullscreen: () => void;
   isFullscreen: boolean;
+  hasFullscreenDescendant: boolean;
 
   /** Used to adjust z-index settings on parent panels when children are fullscreen */
   // eslint-disable-next-line @foxglove/no-boolean-parameters

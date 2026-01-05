@@ -5,17 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CleanWebpackPlugin } from "clean-webpack-plugin";
-import CopyPlugin from "copy-webpack-plugin";
-import HtmlWebpackPlugin from "html-webpack-plugin";
+import { Compilation, Compiler, rspack, type Configuration } from "@rspack/core";
 import path from "path";
-import type { Configuration } from "webpack";
 
 import { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
-
-import "webpack-dev-server";
 
 export const webpackDevServerConfig =
   (params: WebpackConfigParams) =>
@@ -29,13 +24,14 @@ export const webpackDevServerConfig =
       : `${params.packageJson.productName} Dev`;
 
     return {
-      // Use empty entry to avoid webpack default fallback to /src
+      // Use empty entry to avoid rspack default fallback to /src
       entry: {},
 
-      // Output path must be specified here for HtmlWebpackPlugin within render config to work
+      // Output path must be specified here for HtmlRspackPlugin within render config to work
       output: {
         publicPath: "",
         path: params.outputPath,
+        clean: true,
       },
 
       devServer: {
@@ -43,7 +39,7 @@ export const webpackDevServerConfig =
           directory: params.outputPath,
         },
         devMiddleware: {
-          writeToDisk: (filePath) => {
+          writeToDisk: (filePath: string) => {
             // Electron needs to open the main thread source and preload source from disk
             // avoid writing the hot-update js and json files
             // allow writing package.json at root -> needed for electron to find entrypoint
@@ -54,14 +50,14 @@ export const webpackDevServerConfig =
         },
         client: {
           overlay: {
-            runtimeErrors: (error) => {
+            runtimeErrors: (error: Error) => {
               // Suppress overlays for importScript errors from terminated webworkers.
               //
               // When a webworker is terminated, any pending `importScript` calls are cancelled by the
               // browser. These appear in the devtools network tab as "(cancelled)" and bubble up to the
               // parent page as errors which trigger `window.onerror`.
               //
-              // webpack devserver attaches to the window error handler surface unhandled errors sent to
+              // rspack devserver attaches to the window error handler surface unhandled errors sent to
               // the page. However this kind of error is a false-positive for a worker that is
               // terminated because we do not care that its network requests were cancelled since the
               // worker itself is gone.
@@ -92,12 +88,6 @@ export const webpackDevServerConfig =
         allowedHosts: "all",
         proxy: [
           {
-            context: ["/v1/data"],
-            target: "https://viz.dev.coscene.cn",
-            secure: false,
-            changeOrigin: true,
-          },
-          {
             context: ["/bff"],
             target: "https://bff.dev.coscene.cn",
             secure: false,
@@ -106,25 +96,33 @@ export const webpackDevServerConfig =
         ],
       },
       plugins: [
-        new CleanWebpackPlugin(),
-        new CopyPlugin({
+        new rspack.CopyRspackPlugin({
           patterns: [{ from: path.resolve(__dirname, "public") }],
         }),
         // electron-packager needs a package.json file to indicate the entry script
-        // We purpose the htmlwebpackplugin to write the json rather than an html file
-        new HtmlWebpackPlugin({
-          filename: "package.json",
-          templateContent: JSON.stringify({
-            main: "main/main.js",
-            name: params.packageJson.name,
-            productName,
-            version: params.packageJson.version,
-            description: params.packageJson.description,
-            productDescription: params.packageJson.productDescription,
-            license: params.packageJson.license,
-            author: params.packageJson.author,
-          }),
-        }),
+        {
+          apply(compiler: Compiler) {
+            compiler.hooks.thisCompilation.tap(
+              "EmitPackageJsonPlugin",
+              (compilation: Compilation) => {
+                const pkg = {
+                  main: "main/main.js",
+                  name: params.packageJson.name,
+                  productName,
+                  version: params.packageJson.version,
+                  description: params.packageJson.description,
+                  productDescription: params.packageJson.productDescription,
+                  license: params.packageJson.license,
+                  author: params.packageJson.author,
+                };
+
+                const json = JSON.stringify(pkg, undefined, 2) ?? "";
+
+                compilation.emitAsset("package.json", new rspack.sources.RawSource(json));
+              },
+            );
+          },
+        },
       ],
     };
   };

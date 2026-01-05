@@ -4,12 +4,15 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { Timestamp } from "@bufbuild/protobuf";
-import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+
+import { create } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_category_pb";
 import {
   Task,
-  UploadTaskDetail,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/task_pb";
+  TaskSchema,
+  UploadTaskDetailSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import { Palette, Typography, Box } from "@mui/material";
 import dayjs from "dayjs";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, memo } from "react";
@@ -28,7 +31,7 @@ import {
   RecordLabelsInput,
 } from "@foxglove/studio-base/panels/DataCollection/components";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { useDataCollectionContext } from "./DataCollectionContext";
 import { LOG_TIMESTAMP_FORMAT, POLLING_TIMEOUT } from "./constants";
@@ -61,6 +64,7 @@ const log = Log.getLogger(__dirname);
 function DataCollectionContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
+  const domainConfig = getDomainConfig();
   const { context, setColorScheme } = props;
   const { userInfo, consoleApi, deviceLink } = useDataCollectionContext();
 
@@ -188,17 +192,17 @@ function DataCollectionContent(
           task_title = `${targetDevice.serialNumber}-${collectionStartTime}`;
         }
 
-        const newTask = new Task({
+        const newTask = create(TaskSchema, {
           assigner: `users/${userInfo.userId}`,
           category: TaskCategoryEnum_TaskCategory.UPLOAD,
           description: "",
           detail: {
             case: "uploadTaskDetail",
-            value: new UploadTaskDetail({
+            value: create(UploadTaskDetailSchema, {
               device: `devices/${deviceLink.split("/").pop()}`,
               scanFolders: files,
-              endTime: Timestamp.fromDate(new Date()),
-              startTime: Timestamp.fromDate(new Date()),
+              endTime: timestampFromDate(new Date()),
+              startTime: timestampFromDate(new Date()),
               labels: Array.from(new Set([...tags, ...labels])),
             }),
           },
@@ -216,7 +220,7 @@ function DataCollectionContent(
 
         addLog(
           `[${dayjs().format(LOG_TIMESTAMP_FORMAT)}] ${t("progressLink")}：https://${
-            APP_CONFIG.DOMAIN_CONFIG.default?.webDomain ?? ""
+            domainConfig.webDomain
           }/${targetOrg.slug}/${targetProject.slug}/devices/execution-history/${response.name
             .split("/")
             .pop()}`,
@@ -242,7 +246,15 @@ function DataCollectionContent(
         addLog(`[ERROR] ${t("uploadFileFail")}`);
       }
     },
-    [collectionStartTime, consoleApi, userInfo.userId, deviceLink, addLog, t],
+    [
+      collectionStartTime,
+      consoleApi,
+      userInfo.userId,
+      deviceLink,
+      addLog,
+      t,
+      domainConfig.webDomain,
+    ],
   );
 
   const callServiceClicked = useCallback(
@@ -408,7 +420,7 @@ function DataCollectionContent(
                 draft.currentFocusedTask = undefined;
               });
             }}
-            t={t}
+            label={t("projectName")}
           />
 
           <TaskRelationInput

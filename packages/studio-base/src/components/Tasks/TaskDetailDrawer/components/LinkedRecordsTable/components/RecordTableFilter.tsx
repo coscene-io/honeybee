@@ -5,7 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Label } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/resources/label_pb";
+import { create } from "@bufbuild/protobuf";
+import {
+  LabelSchema,
+  Label,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import {
@@ -108,12 +112,11 @@ export default function RecordTableFilter({
       projectId: externalInitConfig.projectId,
     });
 
-    return response.labels.map(
-      (label) =>
-        new Label({
-          ...label,
-          name: label.name.split("/").pop() ?? "",
-        }),
+    return response.labels.map((label) =>
+      create(LabelSchema, {
+        ...label,
+        name: label.name.split("/").pop() ?? "",
+      }),
     );
   }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, consoleApi]);
 

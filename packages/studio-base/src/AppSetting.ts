@@ -10,7 +10,6 @@ export enum AppSetting {
   COLOR_SCHEME = "colorScheme",
   TIMEZONE = "timezone",
   TIME_FORMAT = "time.format",
-  MESSAGE_RATE = "messageRate",
   UPDATES_ENABLED = "updates.enabled",
   LANGUAGE = "language",
 
@@ -35,15 +34,6 @@ export enum AppSetting {
   ENABLE_LAYOUT_DEBUGGING = "enableLayoutDebugging",
   ENABLE_MEMORY_USE_INDICATOR = "dev.memory-use-indicator",
 
-  // Topic Prefix
-  ADD_TOPIC_PREFIX = "addTopicPrefix",
-
-  // Time Mode
-  TIME_MODE = "timeMode",
-
-  // Playback Quality
-  PLAYBACK_QUALITY_LEVEL = "playbackQualityLevel",
-
   // TF Compatibility Mode
   TF_COMPATIBILITY_MODE = "tfCompatibilityMode",
 
@@ -52,4 +42,22 @@ export enum AppSetting {
 
   // Retention Window
   RETENTION_WINDOW_MS = "retentionWindowMs",
+
+  // Playback seek step (ms)
+  SEEK_STEP_MS = "seekStepMs",
+
+  REQUEST_WINDOW = "requestWindow",
+  READ_AHEAD_DURATION = "readAheadDuration",
+
+  // Remote Config
+  REMOTE_CONFIG_URL = "remoteConfigUrl",
+
+  // Auto Connect Lan
+  AUTO_CONNECT_LAN = "autoConnectLan",
+
+  // externalInitConfig
+  LAST_EXTERNAL_INIT_CONFIG = "lastExternalInitConfig",
+
+  // Is Render All Tabs
+  IS_RENDER_ALL_TABS = "isRenderAllTabs",
 }

@@ -5,8 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ListProjectDevicesResponse } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/services/device_pb";
-import { LinkTaskWrapper } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/services/task_pb";
+import { create } from "@bufbuild/protobuf";
+import {
+  ListProjectDevicesResponseSchema,
+  ListProjectDevicesResponse,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/device_pb";
+import {
+  LinkTaskWrapperSchema,
+  LinkTaskWrapper,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/task_pb";
 import { Button, Dialog, DialogTitle, DialogContent, DialogActions, Box } from "@mui/material";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
@@ -65,7 +72,7 @@ export default function LinkDevice({
   // 获取设备列表
   const [listDevicesState, getDevices] = useAsyncFn(async () => {
     if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
-      return new ListProjectDevicesResponse();
+      return create(ListProjectDevicesResponseSchema);
     }
 
     const response = await consoleApi.listProjectDevices({
@@ -111,12 +118,11 @@ export default function LinkDevice({
   }, []);
 
   const handleConfirm = useCallback(async () => {
-    const linkTasks: LinkTaskWrapper[] = selectedRowIds.map(
-      (id) =>
-        new LinkTaskWrapper({
-          task: taskName,
-          target: { value: id, case: "device" },
-        }),
+    const linkTasks: LinkTaskWrapper[] = selectedRowIds.map((id) =>
+      create(LinkTaskWrapperSchema, {
+        task: taskName,
+        target: { value: id, case: "device" },
+      }),
     );
 
     try {
@@ -146,7 +152,6 @@ export default function LinkDevice({
       <Button variant="contained" color="primary" onClick={handleOpenDialog}>
         {t("addLink")}
       </Button>
-
       <Dialog
         open={addDeviceDialogOpen}
         onClose={handleCloseDialog}
@@ -163,7 +168,9 @@ export default function LinkDevice({
           <DeviceTableFilter filter={filter} setFilter={setFilter} />
           <Box className={classes.tableContainer}>
             <DevicesTable
-              linkedDevicesResponse={listDevicesState.value ?? new ListProjectDevicesResponse()}
+              linkedDevicesResponse={
+                listDevicesState.value ?? create(ListProjectDevicesResponseSchema)
+              }
               pageSize={pageSize}
               currentPage={currentPage}
               setPageSize={setPageSize}

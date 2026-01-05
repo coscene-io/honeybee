@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import * as _ from "lodash-es";
 import { MutableRefObject } from "react";
 import shallowequal from "shallowequal";
@@ -18,7 +17,6 @@ import {
   makeSubscriptionMemoizer,
   mergeSubscriptions,
 } from "@foxglove/studio-base/components/MessagePipeline/subscriptions";
-import { ConsoleApi } from "@foxglove/studio-base/index";
 import {
   AdvertiseOptions,
   Player,
@@ -28,6 +26,7 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
+import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
@@ -102,12 +101,12 @@ export function createMessagePipelineStore({
   promisesToWaitForRef,
   initialPlayer,
   urdfStorage,
-  consoleApi,
+  s3FileService,
 }: {
   promisesToWaitForRef: MutableRefObject<FramePromise[]>;
   initialPlayer: Player | undefined;
   urdfStorage: IUrdfStorage;
-  consoleApi: ConsoleApi;
+  s3FileService: S3FileService;
 }): StoreApi<MessagePipelineInternalState> {
   return createStore((set, get) => ({
     player: initialPlayer,
@@ -183,11 +182,11 @@ export function createMessagePipelineStore({
         const { player, lastCapabilities } = get();
 
         const cachedFetchAsset = async (fileUri: string, opts?: { signal?: AbortSignal }) => {
-          const fetchedUrdfFile = fileUri.startsWith("s3://")
-            ? await builtinS3Fetch(fileUri, consoleApi, urdfStorage, opts)
-            : await builtinFetch(fileUri, urdfStorage, opts);
+          if (fileUri.startsWith("s3://")) {
+            return await builtinS3Fetch(fileUri, s3FileService, urdfStorage, opts);
+          }
 
-          return fetchedUrdfFile;
+          return await builtinFetch(fileUri, urdfStorage, opts);
         };
 
         if (protocol === "s3:") {
@@ -220,8 +219,8 @@ export function createMessagePipelineStore({
                 };
               }
 
-              if (urdfStorage.checkUriNeedsCache(uri)) {
-                await urdfStorage.set(uri, fetchedUrdfFile.etag ?? "", fetchedUrdfFile.data);
+              if (urdfStorage.checkUriNeedsCache(uri) && fetchedUrdfFile.etag) {
+                await urdfStorage.set(uri, fetchedUrdfFile.etag, fetchedUrdfFile.data);
               }
 
               return fetchedUrdfFile;
@@ -285,7 +284,7 @@ export function createMessagePipelineStore({
 
         if (player) {
           try {
-            player.close();
+            void player.close();
           } catch (error) {
             log.error("Error calling player.close():", error);
           }
@@ -563,58 +562,35 @@ async function builtinFetch(
   };
 }
 
-let s3Client: { key: string; client: S3Client } | undefined;
+/**
+ * Parse S3 URL to extract project and file key
+ * @param url S3 URL (s3://...)
+ * @returns project and fileKey
+ */
+function parseS3Url(url: string): { project: string; fileKey: string } {
+  const pkgPath = url.slice("s3://".length);
+  const project = pkgPath.split("/files/")[0] ?? "";
+  const fileKey = `project${pkgPath.split("project").pop()}`;
+  return { project, fileKey };
+}
 
 async function builtinS3Fetch(
   url: string,
-  consoleApi: ConsoleApi,
+  s3FileService: S3FileService,
   urdfStorage: IUrdfStorage,
   opts?: { signal?: AbortSignal },
 ) {
-  const pkgPath = url.slice("s3://".length);
+  const { project, fileKey } = parseS3Url(url);
 
-  const project = pkgPath.split("/files/")[0];
-  if (s3Client == undefined || s3Client.key !== project) {
-    const response = await consoleApi.generateSecurityToken({
-      project,
-      expireDuration: { seconds: BigInt(60 * 60 * 24 * 30) },
-    });
-
-    s3Client = {
-      key: project ?? "",
-      client: new S3Client({
-        region: "dev-cn-shanghai",
-        endpoint: `https://${response.endpoint}`,
-        forcePathStyle: true,
-        credentials: {
-          accessKeyId: response.accessKeyId,
-          secretAccessKey: response.accessKeySecret,
-          sessionToken: response.sessionToken,
-        },
-      }),
-    };
-  }
-
-  const fileKey = `project${pkgPath.split("project").pop()}`;
-
-  let fetchedEtag: string | undefined;
+  // Check cache using headObject
+  let fetchedLastModified: string | undefined;
   try {
-    const headCommand = new HeadObjectCommand({
-      Bucket: "default",
-      Key: fileKey,
-    });
-
-    const headResponse = await s3Client.client.send(headCommand, {
-      abortSignal: opts?.signal,
-    });
+    const headResponse = await s3FileService.headObject(project, fileKey, opts);
+    fetchedLastModified = headResponse.LastModified?.toISOString();
 
     const cachedEtag = await urdfStorage.getEtag(url);
-
-    fetchedEtag = headResponse.LastModified?.toISOString();
-
-    if (fetchedEtag && cachedEtag && fetchedEtag === cachedEtag) {
+    if (fetchedLastModified && cachedEtag && fetchedLastModified === cachedEtag) {
       const cachedFile = await urdfStorage.getFile(url);
-
       return {
         uri: url,
         data: cachedFile ?? new Uint8Array(),
@@ -622,33 +598,20 @@ async function builtinS3Fetch(
       };
     }
   } catch (e) {
-    console.error("get s3 file head error", e);
+    log.warn("Failed to check S3 object head, continuing with fetch", e);
   }
 
-  const command = new GetObjectCommand({
-    Bucket: "default",
-    Key: fileKey,
-  });
+  // Get object
+  const result = await s3FileService.getObject(project, fileKey, opts);
 
-  const response = await s3Client.client.send(command, {
-    abortSignal: opts?.signal,
-  });
-
-  if (!response.Body) {
-    throw new Error(`No body in S3 response for ${url}`);
-  }
-
-  const bodyBytes = await response.Body.transformToByteArray();
-
-  const data = new Uint8Array(bodyBytes);
-
-  if (fetchedEtag) {
-    await urdfStorage.set(url, fetchedEtag, data);
+  // Cache the fetched file
+  if (urdfStorage.checkUriNeedsCache(url) && fetchedLastModified) {
+    await urdfStorage.set(url, fetchedLastModified, result.data);
   }
 
   return {
     uri: url,
-    data,
-    mediaType: undefined,
+    data: result.data,
+    mediaType: result.mediaType,
   };
 }

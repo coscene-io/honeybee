@@ -260,7 +260,7 @@ type Props = {
   setCursor: (cursor: string) => void;
 };
 
-export function EventsOverlay(props: Props): React.JSX.Element | ReactNull {
+function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const { componentId, isDragging, setCursor } = props;
 
   const events = useEvents(selectEvents);
@@ -372,3 +372,5 @@ export function EventsOverlay(props: Props): React.JSX.Element | ReactNull {
     </div>
   );
 }
+
+export const EventsOverlay = React.memo(UnmemoizedEventsOverlay);

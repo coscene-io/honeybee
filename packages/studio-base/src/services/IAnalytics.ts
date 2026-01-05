@@ -44,6 +44,7 @@ enum AppEvent {
   LAYOUT_CREATE = "layout_created",
   LAYOUT_DUPLICATE = "layout_duplicated",
   LAYOUT_RENAME = "layout_renamed",
+  LAYOUT_MOVE = "layout_moved",
   LAYOUT_DELETE = "layout_deleted",
   LAYOUT_SELECT = "layout_selected",
   LAYOUT_IMPORT = "layout_imported",
@@ -84,7 +85,8 @@ enum AppEvent {
 
   // Player state events
   PLAYER_INITIALIZING_TIME = "player_initializing_time",
-  PLAYER_BUFFERING_TIME = "player_buffering_time",
+  PLAYER_SEEK_LATENCY = "player_seek_latency",
+  PLAYER_STALL_DURATION = "player_stall_duration",
 }
 
 interface IAnalytics {

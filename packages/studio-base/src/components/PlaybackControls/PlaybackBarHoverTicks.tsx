@@ -17,9 +17,10 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import HoverBar from "@foxglove/studio-base/components/TimeBasedChart/HoverBar";
 import { useHoverValue } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+
+import HoverBar from "./HoverBar";
 
 const useStyles = makeStyles()((theme) => ({
   tick: {
@@ -58,7 +59,7 @@ type Props = {
   componentId: string;
 };
 
-export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
+function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
   const { componentId } = props;
   const { classes } = useStyles();
 
@@ -132,3 +133,5 @@ export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
     </Stack>
   );
 }
+
+export const PlaybackBarHoverTicks = React.memo(UnmemoizedPlaybackBarHoverTicks);

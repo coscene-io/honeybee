@@ -32,7 +32,7 @@ import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectio
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import {
   downloadLatestStudio,
   getCoStudioVersion,
@@ -64,7 +64,8 @@ const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
 const selectResetCoreDataStore = (store: CoreDataStore) => store.resetCoreDataStore;
 
 function CoStudioEnvBadge() {
-  const projectEnv = APP_CONFIG.VITE_APP_PROJECT_ENV;
+  const appConfig = getAppConfig();
+  const projectEnv = appConfig.VITE_APP_PROJECT_ENV;
 
   switch (projectEnv) {
     case "aws":
@@ -93,8 +94,12 @@ export function UserMenu({
   const setUser = useCoSceneCurrentUser(selectSetUser);
   const resetCoreDataStore = useCoreData(selectResetCoreDataStore);
 
+  const domainConfig = getDomainConfig();
+
   useEffect(() => {
-    if (APP_CONFIG.COSTUDIO_DOWNLOAD_URL) {
+    const appConfig = getAppConfig();
+
+    if (appConfig.COSTUDIO_DOWNLOAD_URL) {
       void getCoStudioVersion().then((version) => {
         setLatestVersion(version);
       });
@@ -219,9 +224,7 @@ export function UserMenu({
           <MenuItem
             onClick={() => {
               if (isDesktop && loginStatus === "notLogin") {
-                window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`,
-                );
+                window.open(`https://${domainConfig.webDomain}/studio/login`);
               } else {
                 onSignoutClick();
               }

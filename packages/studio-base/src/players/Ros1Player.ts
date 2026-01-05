@@ -361,7 +361,7 @@ export default class Ros1Player implements Player {
     this.#emitState();
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     this.#closed = true;
     if (this.#rosNode) {
       this.#rosNode.shutdown();

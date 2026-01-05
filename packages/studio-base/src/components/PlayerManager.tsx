@@ -14,11 +14,19 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
+import { PlanFeatureEnum_PlanFeature } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/enums/plan_feature_pb";
 import { useSnackbar } from "notistack";
-import { PropsWithChildren, useCallback, useEffect, useMemo, useState, useContext } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useContext,
+  useLayoutEffect,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { useMountedState } from "react-use";
+import { useLatest, useMountedState } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { useWarnImmediateReRender } from "@foxglove/hooks";
@@ -28,10 +36,14 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useSetShowtUrlKey } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
-import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { ExtensionCatalogContext } from "@foxglove/studio-base/context/ExtensionCatalogContext";
+import { usePerformance } from "@foxglove/studio-base/context/PerformanceContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
@@ -39,21 +51,39 @@ import PlayerSelectionContext, {
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useEntitlementWithDialog } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
+import {
+  UserScriptStore,
+  useUserScriptState,
+} from "@foxglove/studio-base/context/UserScriptStateContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useIndexedDbRecents, { RecentRecord } from "@foxglove/studio-base/hooks/useIndexedDbRecents";
+import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
 import {
   TopicAliasFunctions,
   TopicAliasingPlayer,
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
+import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { UserScripts } from "@foxglove/studio-base/types/panels";
 
 const log = Logger.getLogger(__filename);
 
 type PlayerManagerProps = {
   playerSources: readonly IDataSourceFactory[];
 };
+
+const EMPTY_USER_NODES: UserScripts = Object.freeze({});
+const EMPTY_GLOBAL_VARIABLES: GlobalVariables = Object.freeze({});
+
+const userScriptsSelector = (state: LayoutState) =>
+  state.selectedLayout?.data?.userNodes ?? EMPTY_USER_NODES;
+const globalVariablesSelector = (state: LayoutState) =>
+  state.selectedLayout?.data?.globalVariables ?? EMPTY_GLOBAL_VARIABLES;
+
+const selectUserScriptActions = (store: UserScriptStore) => store.actions;
 
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 const selectSetDataSource = (store: CoreDataStore) => store.setDataSource;
@@ -125,11 +155,28 @@ function useBeforeConnectionSource(): (
   return beforeConnectionSource;
 }
 
+async function clearIdbCache(sessionId?: string) {
+  try {
+    const idbCache = new IndexedDbMessageStore({
+      sessionId,
+    });
+    // Ensure initialization completes to avoid racing init/close transactions
+    await idbCache.init();
+    if (sessionId != undefined) {
+      await idbCache.clear();
+    }
+    await idbCache.cleanupOldSessions();
+    await idbCache.close();
+  } catch (error) {
+    log.error("Failed to clear idb cache:", error);
+  }
+}
+
 export default function PlayerManager(
   props: PropsWithChildren<PlayerManagerProps>,
 ): React.JSX.Element {
   const { children, playerSources } = props;
-  // const perfRegistry = usePerformance();
+  const perfRegistry = usePerformance();
   const [currentSourceArgs, setCurrentSourceArgs] = useState<DataSourceArgs | undefined>();
   const [currentSourceId, setCurrentSourceId] = useState<string | undefined>();
   const analytics = useAnalytics();
@@ -143,7 +190,7 @@ export default function PlayerManager(
 
   useWarnImmediateReRender();
 
-  const { wrapPlayer } = useAppContext();
+  const userScriptActions = useUserScriptState(selectUserScriptActions);
 
   const isMounted = useMountedState();
 
@@ -158,10 +205,14 @@ export default function PlayerManager(
   );
 
   const [playerInstances, setPlayerInstances] = useState<
-    { topicAliasPlayer: TopicAliasingPlayer; player: Player } | undefined
+    { topicAliasPlayer: TopicAliasingPlayer; player: UserScriptPlayer } | undefined
   >();
 
   const { recents, addRecent } = useIndexedDbRecents();
+
+  const userScripts = useCurrentLayoutSelector(userScriptsSelector);
+  const globalVariables = useCurrentLayoutSelector(globalVariablesSelector);
+  const globalVariablesRef = useLatest(globalVariables);
 
   const constructPlayers = useCallback(
     (newPlayer: Player | undefined) => {
@@ -171,13 +222,25 @@ export default function PlayerManager(
       }
 
       const topicAliasingPlayer = new TopicAliasingPlayer(newPlayer);
-      const finalPlayer = wrapPlayer(topicAliasingPlayer);
+      const userScriptPlayer = new UserScriptPlayer(
+        topicAliasingPlayer,
+        userScriptActions,
+        perfRegistry,
+      );
+
+      userScriptPlayer.setGlobalVariables(globalVariablesRef.current);
+
       setPlayerInstances({
         topicAliasPlayer: topicAliasingPlayer,
-        player: finalPlayer,
+        player: userScriptPlayer,
       });
     },
-    [wrapPlayer],
+    [globalVariablesRef, perfRegistry, userScriptActions],
+  );
+
+  useLayoutEffect(
+    () => void playerInstances?.player.setUserScripts(userScripts),
+    [playerInstances?.player, userScripts],
   );
 
   // Update the alias functions when they change. We do not need to re-render the player manager
@@ -204,6 +267,7 @@ export default function PlayerManager(
   const projectState = useCoreData(selectProject);
   const jobRunState = useCoreData(selectJobRun);
   const dataSourceState = useCoreData(selectDataSource);
+  const setDataSource = useCoreData(selectSetDataSource);
 
   const recordDisplayName = useMemo(() => {
     return recordState.value?.title ?? "";
@@ -239,18 +303,15 @@ export default function PlayerManager(
 
   const [selectedSource, setSelectedSource] = useState<IDataSourceFactory | undefined>();
 
-  const setDataSource = useCoreData(selectSetDataSource);
-
-  const [addTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
-
-  const [timeModeSetting] = useAppConfigurationValue<string>(AppSetting.TIME_MODE);
-  const timeMode = timeModeSetting === "relativeTime" ? "relativeTime" : "absoluteTime";
-
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
+  const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+  const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
+  const [autoConnectToLan] = useAppConfigurationValue<boolean>(AppSetting.AUTO_CONNECT_LAN);
 
-  const [playbackQualityLevel] = useAppConfigurationValue<string>(
-    AppSetting.PLAYBACK_QUALITY_LEVEL,
-  );
+  const positiveRequestWindow =
+    requestWindow != undefined && requestWindow > 0 ? requestWindow : undefined;
+  const positiveReadAheadDuration =
+    readAheadDuration != undefined && readAheadDuration > 0 ? readAheadDuration : undefined;
 
   const [currentSourceParams, setCurrentSourceParams] = useState<
     { sourceId: string; args?: DataSourceArgs } | undefined
@@ -304,14 +365,17 @@ export default function PlayerManager(
         return;
       }
 
+      if (playerInstances) {
+        await playerInstances.player.close();
+      }
+
       setCurrentSourceArgs(args);
+
       try {
         switch (args.type) {
           case "connection": {
+            await clearIdbCache(dataSourceState?.sessionId);
             const params: Record<string, string | undefined> = {
-              addTopicPrefix,
-              timeMode,
-              playbackQualityLevel,
               ...args.params,
             };
 
@@ -328,28 +392,31 @@ export default function PlayerManager(
               metricsCollector,
               confirm,
               params: {
-                addTopicPrefix,
-                timeMode,
-                playbackQualityLevel,
                 ...args.params,
               },
               consoleApi,
               sessionId,
               retentionWindowMs,
+              requestWindow:
+                positiveRequestWindow != undefined
+                  ? { sec: positiveRequestWindow, nsec: 0 }
+                  : undefined,
+              readAheadDuration:
+                positiveReadAheadDuration != undefined
+                  ? { sec: positiveReadAheadDuration, nsec: 0 }
+                  : undefined,
+              autoConnectToLan,
             });
 
             constructPlayers(newPlayer);
 
-            let recentId = undefined;
-            if (args.params?.url || args.params?.key) {
-              recentId = addRecent({
-                type: "connection",
-                sourceId: foundSource.id,
-                title: args.params.url ?? t("onlineData"),
-                label: foundSource.displayName,
-                extra: args.params,
-              });
-            }
+            const recentId = addRecent({
+              type: "connection",
+              sourceId: foundSource.id,
+              title: args.params?.url ?? t("onlineData"),
+              label: foundSource.displayName,
+              extra: args.params,
+            });
 
             setDataSource({
               id: sourceId,
@@ -391,12 +458,12 @@ export default function PlayerManager(
           }
 
           case "file": {
+            void clearIdbCache(dataSourceState?.sessionId);
             setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;
             const files = args.files;
 
-            let recentId = undefined;
             // files we can try loading immediately
             // We do not add these to recents entries because putting File in indexedb results in
             // the entire file being stored in the database.
@@ -419,6 +486,8 @@ export default function PlayerManager(
               });
 
               constructPlayers(newPlayer);
+
+              setDataSource({ id: sourceId, type: "file" });
               return;
             } else if (handle) {
               const permission = await handle.queryPermission({ mode: "read" });
@@ -446,17 +515,16 @@ export default function PlayerManager(
               });
 
               constructPlayers(newPlayer);
-              recentId = addRecent({
+              const recentId = addRecent({
                 type: "file",
                 title: handle.name,
                 sourceId: foundSource.id,
                 handle,
               });
 
+              setDataSource({ id: sourceId, type: "file", recentId });
               return;
             }
-
-            setDataSource({ id: sourceId, type: "file", recentId });
           }
         }
 
@@ -468,20 +536,21 @@ export default function PlayerManager(
     [
       playerSources,
       metricsCollector,
+      playerInstances,
       constructPlayers,
       setDataSource,
       enqueueSnackbar,
-      addTopicPrefix,
-      timeMode,
-      playbackQualityLevel,
+      dataSourceState?.sessionId,
+      dataSourceState?.recentId,
       beforeConnectionSource,
       confirm,
       consoleApi,
       retentionWindowMs,
+      autoConnectToLan,
       addRecent,
       t,
-      dataSourceState?.sessionId,
-      dataSourceState?.recentId,
+      positiveRequestWindow,
+      positiveReadAheadDuration,
       setCurrentFile,
       isMounted,
     ],
@@ -504,7 +573,7 @@ export default function PlayerManager(
 
   /**
    *  in data platform, some value change need to reload current source
-   *  like addTopicPrefix, timeMode, playbackQualityLevel, tfCompatibilityMode
+   *  like  tfCompatibilityMode
    *  or add remove file
    *  And due to the storage mechanism of appconfig, it will not be updated immediately after modification.
    *  You need to manually call reloadCurrentSource and pass in the corresponding value.

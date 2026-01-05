@@ -25,7 +25,9 @@ import {
   Link,
   Typography,
 } from "@mui/material";
+import { TFunction } from "i18next";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   ImperativePanelHandle,
   PanelGroup,
@@ -54,6 +56,7 @@ import BottomBar from "@foxglove/studio-base/panels/UserScriptEditor/BottomBar";
 import { Sidebar } from "@foxglove/studio-base/panels/UserScriptEditor/Sidebar";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 import Config from "./Config";
 import { Script } from "./script";
@@ -130,13 +133,13 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function buildSettingsTree(config: Config): SettingsTreeNodes {
+function buildSettingsTree(config: Config, t: TFunction<"userScriptEditor">): SettingsTreeNodes {
   return {
     general: {
       fields: {
         autoFormatOnSave: {
           input: "boolean",
-          label: "Auto-format on save",
+          label: t("autoFormatOnSave"),
           value: config.autoFormatOnSave,
         },
       },
@@ -146,23 +149,27 @@ function buildSettingsTree(config: Config): SettingsTreeNodes {
 
 const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) => {
   const { classes } = useStyles();
+  const { t } = useTranslation("userScriptEditor");
   return (
     <EmptyState className={classes.emptyState}>
       <Container maxWidth="xs">
         <Stack justifyContent="center" alignItems="center" gap={1} fullHeight>
           <Typography variant="inherit" gutterBottom>
-            Welcome to User Scripts!
-            <br />
-            Get started by reading the{" "}
-            <Link
-              color="primary"
-              underline="hover"
-              href="https://foxglove.dev/docs/studio/panels/user-scripts"
-              target="_blank"
-            >
-              docs
-            </Link>
-            , or just create a new script.
+            <Trans
+              ns="userScriptEditor"
+              i18nKey="welcomeDescription"
+              components={{
+                br: <br />,
+                link: (
+                  <Link
+                    color="primary"
+                    underline="hover"
+                    href={getDocsLink("/viz/panel/user-scripts")}
+                    target="_blank"
+                  />
+                ),
+              }}
+            />
           </Typography>
           <Button
             color="inherit"
@@ -172,7 +179,7 @@ const WelcomeScreen = ({ addNewNode }: { addNewNode: (code?: string) => void }) 
             }}
             startIcon={<AddIcon />}
           >
-            New script
+            {t("newScript")}
           </Button>
         </Stack>
       </Container>
@@ -190,6 +197,7 @@ const selectState = (store: UserScriptStore) => store.state;
 function UserScriptEditor(props: Props) {
   const { config, saveConfig } = props;
   const { classes, theme } = useStyles();
+  const { t } = useTranslation("userScriptEditor");
   const { autoFormatOnSave = false, selectedNodeId, editorForStorybook } = config;
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
@@ -219,8 +227,8 @@ function UserScriptEditor(props: Props) {
   // We also update the input title when the script changes using a layout effect below.
   const [inputTitle, setInputTitle] = useState<string>(() => {
     return currentScript
-      ? currentScript.filePath + (currentScript.readOnly ? " (READONLY)" : "")
-      : "script name";
+      ? currentScript.filePath + (currentScript.readOnly ? t("readonlySuffix") : "")
+      : t("scriptNamePlaceholder");
   });
 
   const prefersDarkMode = theme.palette.mode === "dark";
@@ -242,9 +250,9 @@ function UserScriptEditor(props: Props) {
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSettingsTree(config),
+      nodes: buildSettingsTree(config, t),
     });
-  }, [actionHandler, config, updatePanelSettingsTree]);
+  }, [actionHandler, config, t, updatePanelSettingsTree]);
 
   useLayoutEffect(() => {
     if (selectedScript) {
@@ -259,10 +267,10 @@ function UserScriptEditor(props: Props) {
   useLayoutEffect(() => {
     setInputTitle(() => {
       return currentScript
-        ? currentScript.filePath + (currentScript.readOnly ? " (READONLY)" : "")
-        : "script name";
+        ? currentScript.filePath + (currentScript.readOnly ? t("readonlySuffix") : "")
+        : t("scriptNamePlaceholder");
     });
-  }, [currentScript]);
+  }, [currentScript, t]);
 
   const saveCurrentNode = useCallback(() => {
     if (
@@ -278,9 +286,9 @@ function UserScriptEditor(props: Props) {
   }, [currentScript, isCurrentScriptSelectedNode, selectedScript, selectedNodeId, setUserScripts]);
 
   const addNewNode = useCallback(
-    (code?: string) => {
+    (code?: string, scriptId?: string) => {
       saveCurrentNode();
-      const newScriptId = uuidv4();
+      const newScriptId = scriptId ?? uuidv4();
       const sourceCode = code ?? skeletonBody;
       setUserScripts({
         [newScriptId]: {
@@ -369,10 +377,12 @@ function UserScriptEditor(props: Props) {
           }}
           deleteScript={(scriptId) => {
             setUserScripts({ ...userScripts, [scriptId]: undefined });
-            saveConfig({
-              selectedNodeId:
-                Object.keys(userScripts).length > 1 ? Object.keys(userScripts)[0] : undefined,
-            });
+            if (scriptId === selectedNodeId) {
+              const ids = Object.keys(userScripts).filter((key) => key !== scriptId);
+              saveConfig({
+                selectedNodeId: ids.length > 1 ? ids[0] : undefined,
+              });
+            }
           }}
           selectedScriptId={selectedNodeId}
           userScripts={userScripts}
@@ -393,7 +403,7 @@ function UserScriptEditor(props: Props) {
           {scriptBackStack.length > 1 && (
             <Stack direction="row" alignItems="center" gap={1}>
               {scriptBackStack.length > 1 && (
-                <IconButton title="Go back" data-testid="go-back" size="small" onClick={goBack}>
+                <IconButton title={t("goBack")} data-testid="go-back" size="small" onClick={goBack}>
                   <ArrowBackIcon />
                 </IconButton>
               )}
@@ -403,7 +413,7 @@ function UserScriptEditor(props: Props) {
             </Stack>
           )}
 
-          <PanelGroup direction="vertical" units="percentages">
+          <PanelGroup direction="vertical">
             {selectedNodeId == undefined && <WelcomeScreen addNewNode={addNewNode} />}
             <ResizablePanel>
               <Suspense

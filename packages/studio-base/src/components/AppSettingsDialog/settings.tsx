@@ -5,6 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { JsonValue } from "@bufbuild/protobuf";
+import { fromJson, toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -20,24 +23,32 @@ import {
   FormLabel,
   Link,
   MenuItem,
-  Select,
   SelectChangeEvent,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   ToggleButtonGroupProps,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo } from "react";
+import { ChangeEvent, MouseEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
+import SmartSelect from "@foxglove/studio-base/components/SmartSelect";
 import Stack from "@foxglove/studio-base/components/Stack";
+import {
+  READ_AHEAD_DURATION_DEFAULT_SECONDS,
+  READ_AHEAD_DURATION_MIN_SECONDS,
+  REQUEST_WINDOW_DEFAULT_SECONDS,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
@@ -45,13 +56,12 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 const INFINITY_TIME = 1000 * 60 * 60 * 24 * 365 * 100;
-const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
 const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, INFINITY_TIME];
 const RETENTION_WINDOW_MS = [
   0,
@@ -63,17 +73,7 @@ const RETENTION_WINDOW_MS = [
   3 * 60 * 1000,
   5 * 60 * 1000,
 ];
-
-let LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
-  { key: "en", value: "English" },
-  { key: "zh", value: "中文" },
-  { key: "ja", value: "日本語" },
-];
-
-LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((language) =>
-  APP_CONFIG.LANGUAGE.options.includes(language.key),
-);
-
+const PERSONAL_INFO_CONFIG_ID = "personalInfo";
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
     "&.MuiOutlinedInput-input": {
@@ -307,32 +307,6 @@ export function LaunchDefault(): React.ReactElement {
   );
 }
 
-export function MessageFramerate(): React.ReactElement {
-  const { t } = useTranslation("appSettings");
-  const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
-  const options = useMemo(
-    () => MESSAGE_RATES.map((rate) => ({ key: rate, text: `${rate}`, data: rate })),
-    [],
-  );
-
-  return (
-    <Stack>
-      <FormLabel>{t("messageRate")} (Hz):</FormLabel>
-      <Select
-        value={messageRate ?? 60}
-        fullWidth
-        onChange={(event) => void setMessageRate(event.target.value)}
-      >
-        {options.map((option) => (
-          <MenuItem key={option.key} value={option.key}>
-            {option.text}
-          </MenuItem>
-        ))}
-      </Select>
-    </Stack>
-  );
-}
-
 export function AutoUpdate(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
@@ -380,11 +354,95 @@ export function RosPackagePath(): React.ReactElement {
   );
 }
 
+export function StudioRemoteConfigUrl(): React.ReactElement {
+  const [remoteConfigUrl, setRemoteConfigUrl] = useAppConfigurationValue<string>(
+    AppSetting.REMOTE_CONFIG_URL,
+  );
+  const { t } = useTranslation("cosSettings");
+
+  const initialValueRef = useRef(remoteConfigUrl ?? "");
+  const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;
+
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+
+  const placeholder =
+    env === "aws" || env === "gcp"
+      ? `${t("example")}: https://coscene.io/`
+      : `${t("example")}: https://coscene.cn/`;
+
+  const invalid = useMemo(() => {
+    const value = (remoteConfigUrl ?? "").trim();
+    if (value === "") {
+      return false;
+    }
+    const pattern = /^https:\/\/(?:[a-z0-9-]+\.)*coscene\.(?:io|cn)\/?$/i;
+    return !pattern.test(value);
+  }, [remoteConfigUrl]);
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("domain")} :
+          <Tooltip title={t("domainDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+
+      <TextField
+        fullWidth
+        placeholder={placeholder}
+        value={remoteConfigUrl ?? ""}
+        onChange={(event) => void setRemoteConfigUrl(event.target.value)}
+        error={invalid}
+        helperText={
+          invalid
+            ? t("invalidDomain")
+            : isChanged && (
+                <Trans
+                  t={t}
+                  i18nKey="willTakeEffectOnTheNextStartup"
+                  components={{
+                    Link: (
+                      <Link
+                        href="#"
+                        onClick={() => {
+                          window.location.reload();
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
+        }
+      />
+    </Stack>
+  );
+}
+
+const selectUser = (store: UserStore) => store.user;
+
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
 
   const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
   const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
+
+  const appConfig = getAppConfig();
+  const consoleApi = useConsoleApi();
+  const currentUser = useCurrentUser(selectUser);
+
+  const LANGUAGE_OPTIONS: { key: Language; value: string }[] = useMemo(
+    () =>
+      [
+        { key: "en", value: "English" },
+        { key: "zh", value: "中文" },
+        { key: "ja", value: "日本語" },
+      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key)),
+    [appConfig.LANGUAGE?.options],
+  ) as { key: Language; value: string }[];
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
@@ -395,9 +453,43 @@ export function LanguageSettings(): React.ReactElement {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });
+
+      // Only sync to config map if user is logged in and has permission
+      if (consoleApi.upsertOrgConfigMap.permission() && currentUser?.userId) {
+        const configName = `users/${currentUser.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+
+        const userConfig = await consoleApi.getOrgConfigMap({
+          name: configName,
+        });
+
+        const settings = {
+          ...(userConfig.value != undefined &&
+            (toJson(ValueSchema, userConfig.value) as
+              | {
+                  settings?: {
+                    language?: string;
+                  };
+                }
+              | undefined)),
+
+          settings: {
+            language: lang,
+          },
+        };
+
+        void consoleApi.upsertOrgConfigMap({
+          configMap: {
+            name: configName,
+            value:
+              Object.keys(settings).length > 0
+                ? fromJson(ValueSchema, settings as JsonValue)
+                : undefined,
+          },
+        });
+      }
     },
 
-    [i18n, setSelectedLanguage],
+    [consoleApi, currentUser?.userId, i18n, setSelectedLanguage],
   );
 
   const options: { key: string; text: string; data: string }[] = useMemo(
@@ -407,56 +499,19 @@ export function LanguageSettings(): React.ReactElement {
         text: language.value,
         data: language.key,
       })),
-    [],
+    [LANGUAGE_OPTIONS],
   );
 
   return (
     <Stack>
       <FormLabel>{t("language")}:</FormLabel>
-      <Select<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
+      <SmartSelect<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
             {option.text}
           </MenuItem>
         ))}
-      </Select>
-    </Stack>
-  );
-}
-
-export function AddTopicPrefix(): React.ReactElement {
-  const [addTopicPrefix, setAddTopicPrefix] = useAppConfigurationValue<string>(
-    AppSetting.ADD_TOPIC_PREFIX,
-  );
-  const { reloadCurrentSource } = usePlayerSelection();
-  const consoleApi = useConsoleApi();
-
-  const { t } = useTranslation("appSettings");
-
-  return (
-    <Stack>
-      <FormLabel>{t("addTopicPrefix")}:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={addTopicPrefix}
-        onChange={async (_, value?: string) => {
-          if (value != undefined) {
-            await setAddTopicPrefix(value);
-            consoleApi.setAddTopicPrefix(value === "true" ? "true" : "false");
-            await reloadCurrentSource({ addTopicPrefix: value === "true" ? "true" : "false" });
-          }
-        }}
-      >
-        <ToggleButton value="false" data-testid="timeformat-seconds">
-          {t("off")}
-        </ToggleButton>
-        <ToggleButton value="true" data-testid="timeformat-local">
-          {t("on")}
-        </ToggleButton>
-      </ToggleButtonGroup>
+      </SmartSelect>
     </Stack>
   );
 }
@@ -536,7 +591,7 @@ export function InactivityTimeout(): React.ReactElement {
           </Tooltip>
         </Stack>
       </FormLabel>
-      <Select
+      <SmartSelect
         value={timeoutMinutes ?? 30}
         fullWidth
         onChange={(event) => void setTimeoutMinutes(event.target.value)}
@@ -546,17 +601,23 @@ export function InactivityTimeout(): React.ReactElement {
             {option.text}
           </MenuItem>
         ))}
-      </Select>
+      </SmartSelect>
     </Stack>
   );
 }
+
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 export function RetentionWindowMs(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [retentionWindowMs, setRetentionWindowMs] = useAppConfigurationValue<number>(
     AppSetting.RETENTION_WINDOW_MS,
   );
+  const dataSource = useCoreData(selectDataSource);
+  const [showTips, setShowTips] = useState(false);
+  const { reloadCurrentSource } = usePlayerSelection();
 
+  const { theme } = useStyles();
   const getDurationText = useCallback(
     (ms: number) => {
       switch (ms) {
@@ -600,19 +661,258 @@ export function RetentionWindowMs(): React.ReactElement {
       <FormLabel>
         <Stack direction="row" alignItems="center" gap={0.5}>
           {t("retentionWindowMs")}:
+          <Tooltip title={t("retentionWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
         </Stack>
       </FormLabel>
-      <Select
+      <SmartSelect
         value={retentionWindowMs ?? 30 * 1000}
         fullWidth
-        onChange={(event) => void setRetentionWindowMs(event.target.value)}
+        onChange={(event) => {
+          void setRetentionWindowMs(event.target.value);
+          if (dataSource?.id === "coscene-websocket") {
+            setShowTips(true);
+          }
+        }}
       >
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
             {option.text}
           </MenuItem>
         ))}
-      </Select>
+      </SmartSelect>
+      {showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="retentionWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function RequestWindow(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [requestWindow, setRequestWindow] = useAppConfigurationValue<number>(
+    AppSetting.REQUEST_WINDOW,
+  );
+
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeRequestWindow = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setRequestWindow(undefined);
+      } else {
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setRequestWindow(nextValue);
+        }
+      }
+      setShowTips(true);
+    },
+    [setRequestWindow],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("requestWindow")}:
+          <Tooltip title={t("requestWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={requestWindow}
+        type="number"
+        placeholder={String(REQUEST_WINDOW_DEFAULT_SECONDS)}
+        onChange={onChangeRequestWindow}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="requestWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function ReadAheadDuration(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [readAheadDuration, setReadAheadDuration] = useAppConfigurationValue<number>(
+    AppSetting.READ_AHEAD_DURATION,
+  );
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeReadAheadDuration = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setReadAheadDuration(undefined);
+      } else {
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setReadAheadDuration(Math.max(nextValue, READ_AHEAD_DURATION_MIN_SECONDS));
+        }
+      }
+      setShowTips(true);
+    },
+    [setReadAheadDuration],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("readAheadDuration")}:
+          <Tooltip title={t("readAheadDurationDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={readAheadDuration}
+        type="number"
+        placeholder={String(READ_AHEAD_DURATION_DEFAULT_SECONDS)}
+        onChange={onChangeReadAheadDuration}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="readAheadDurationNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function AutoConnectToLan(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [autoConnectToLan = true, setAutoConnectToLan] = useAppConfigurationValue<boolean>(
+    AppSetting.AUTO_CONNECT_LAN,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("autoConnectToLan")} :
+          <Tooltip title={t("autoConnectToLanDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(autoConnectToLan)}
+        onChange={(_, value?: string) => {
+          void setAutoConnectToLan(value === "true");
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function IsRenderAllTabs(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [isRenderAllTabs = false, setIsRenderAllTabs] = useAppConfigurationValue<boolean>(
+    AppSetting.IS_RENDER_ALL_TABS,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("isRenderAllTabs")} :
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(isRenderAllTabs)}
+        onChange={(_, value?: string) => {
+          void setIsRenderAllTabs(value === "true");
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
     </Stack>
   );
 }

@@ -44,8 +44,6 @@ export const appBar = {
   mediaGenerationError:
     "There are files in the playlist that cannot be indexed, please check the file contents",
   loadingTips: "Loading playback data at full speed, please wait...",
-  layoutGuideliens:
-    "Create a new 'layout' to customize your visualization view, or use the organization's shared layout directly",
   toSetupLayout: "Go to Setup Layout",
   noMoreTips: "Do not show again",
   loginSuccess: "Login success",
@@ -81,6 +79,5 @@ export const appBar = {
   networkSpeed: "Speed",
   droppedMessages: "Dropped Messages",
   packetLoss: "Packet Loss",
-  networkStatusHelp:
-    "Only through coLink connection, and coBridge ≥ v1.2.0 can show network status information",
+  networkStatusHelp: "Only coBridge ≥ v1.2.0 can show network status information",
 };
