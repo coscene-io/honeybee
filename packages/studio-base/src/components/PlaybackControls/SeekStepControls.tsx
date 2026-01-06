@@ -151,7 +151,7 @@ export default function SeekStepControls({
   }
 
   return (
-    <Tooltip title={t("seekStep", { ns: "cosGeneral" })}>
+    <Tooltip title={t("seekStepDescription", { ns: "cosGeneral" })}>
       <Button
         className={classes.seekStepButton}
         size="small"
