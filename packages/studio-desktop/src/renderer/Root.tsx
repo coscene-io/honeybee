@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -242,7 +242,6 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      <Toaster />
     </>
   );
 }
