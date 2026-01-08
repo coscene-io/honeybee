@@ -61,6 +61,7 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
     onNavigateToFolder,
     listType,
     disableProjectSelect,
+    disableCreateRecord,
   }) => {
     const { t } = useTranslation("cosGeneral");
     const currentUser = useCurrentUser(selectUser);
@@ -262,7 +263,7 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
           >
             {t("selectRecord", { ns: "appBar" })}
           </Button>
-        ) : (
+        ) : disableCreateRecord !== true ? (
           <Button
             variant="text"
             onClick={() => {
@@ -271,11 +272,11 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
           >
             {t("createRecord", { ns: "appBar" })}
           </Button>
-        );
+        ) : undefined;
       }
 
       return undefined;
-    }, [mode, project, record, setRecordType, currentUser?.targetSite, t]);
+    }, [mode, project, record, setRecordType, currentUser?.targetSite, t, disableCreateRecord]);
 
     return (
       <Stack direction="row" alignItems="center" justifyContent="space-between">

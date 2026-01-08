@@ -404,6 +404,7 @@ export function Playlist(): React.JSX.Element {
         }}
         mode="select-files-from-record"
         disableProjectSelect
+        disableCreateRecord
       />
     </Stack>
   );
