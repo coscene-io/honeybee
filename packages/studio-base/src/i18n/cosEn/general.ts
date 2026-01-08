@@ -22,7 +22,7 @@ export const cosGeneral = {
   pause: "Pause",
   play: "Play",
   seekForward: "Seek forward",
-  seekStep: "Seek step",
+  seekStepDescription: "Step size: Controls the forward/backward playback interval when paused",
   loopPlayback: "Loop playback",
   invalidSeekStep: "Seek step must be >= 1e-6s and <= 1 hour. Reset to 0.1 s.",
   playbackSpeed: "Playback speed",

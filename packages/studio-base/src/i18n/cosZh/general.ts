@@ -24,7 +24,7 @@ export const cosGeneral: Partial<TypeOptions["resources"]["cosGeneral"]> = {
   pause: "暂停",
   play: "播放",
   seekForward: "前进",
-  seekStep: "步长",
+  seekStepDescription: "步长，暂停时，使用前进和后退按钮控制回放的进退时间",
   loopPlayback: "循环播放",
   invalidSeekStep: "步长需大于等于 1e-6 秒且小于等于 1 小时，已重置为 0.1 秒。",
   playbackSpeed: "播放速度",
