@@ -25,4 +25,10 @@ export const extensions = {
   noInstalledExtensions: "未安装扩展",
   organization: "组织",
   local: "本地",
+  back: "返回",
+  uninstall: "卸载",
+  readme: "自述文件",
+  changelog: "更新日志",
+  downloadDesktopApp: "请下载桌面应用以使用市场扩展。",
+  failedToDownloadExtension: "下载扩展 {{id}} 失败。{{message}}",
 };
