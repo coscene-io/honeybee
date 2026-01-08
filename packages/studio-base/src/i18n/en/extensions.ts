@@ -25,4 +25,10 @@ export const extensions = {
   noInstalledExtensions: "No installed extensions",
   organization: "Organization",
   local: "Local",
+  back: "Back",
+  uninstall: "Uninstall",
+  readme: "README",
+  changelog: "CHANGELOG",
+  downloadDesktopApp: "Download the desktop app to use marketplace extensions.",
+  failedToDownloadExtension: "Failed to download extension {{id}}. {{message}}",
 };
