@@ -236,7 +236,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("moment", { ns: "cosWorkspace" }),
           component: EventsList,
-          hidden: !paid || enableList.event === "DISABLE",
+          hidden: enableList.event === "DISABLE",
         },
       ],
       [
