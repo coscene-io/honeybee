@@ -186,7 +186,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
       );
 
-      let imageFiles = undefined;
+      let imageFiles = toModifyEvent?.files;
 
       if (event.imageFile) {
         const imgId = uuidv4();
