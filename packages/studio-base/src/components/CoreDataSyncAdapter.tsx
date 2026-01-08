@@ -350,7 +350,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   // RecordCustomFieldSchema
   const [, syncRecordCustomFieldSchema] = useAsyncFn(async () => {
-    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       const customFieldSchema = await consoleApi.getRecordCustomFieldSchema(
         `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
       );
@@ -361,11 +361,10 @@ export function CoreDataSyncAdapter(): ReactNull {
     externalInitConfig?.projectId,
     consoleApi,
     setRecordCustomFieldSchema,
-    paid,
   ]);
 
   useEffect(() => {
-    if (paid && externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       syncRecordCustomFieldSchema().catch((error: unknown) => {
         log.error(error);
       });
@@ -375,7 +374,6 @@ export function CoreDataSyncAdapter(): ReactNull {
     reloadRecordCustomFieldSchemaTrigger,
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
-    paid,
   ]);
 
   // DeviceCustomFieldSchema
