@@ -172,6 +172,7 @@ export function ChooserComponent({
   defaultProject,
   createRecordConfirmText,
   disableProjectSelect,
+  disableCreateRecord,
 }: BaseChooserProps): React.JSX.Element {
   const { t } = useTranslation("cosGeneral");
   const userInfo = useCurrentUser(selectUser);
@@ -465,6 +466,7 @@ export function ChooserComponent({
         onNavigateToFolder={setCurrentFolderPath}
         listType={listType}
         disableProjectSelect={disableProjectSelect}
+        disableCreateRecord={disableCreateRecord}
       />
       {showSearchField && (
         <TextField
