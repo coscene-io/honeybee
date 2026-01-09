@@ -191,7 +191,7 @@ export default function RecordInfo(): ReactElement {
             </Stack>
           </Stack>
 
-          {paid && record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
+          {record.value?.customFieldValues && recordCustomFieldSchema?.properties && (
             <CustomFieldValuesFields
               variant="secondary"
               properties={recordCustomFieldSchema.properties}
