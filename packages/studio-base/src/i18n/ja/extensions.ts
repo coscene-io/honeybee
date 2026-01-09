@@ -12,7 +12,7 @@ export const extensions = {
   installFromUrl: "URLからインストール",
   installExtensionFromUrl: "URLから拡張機能をインストール",
   extensionUrl: "拡張機能URL",
-  extensionUrlPlaceholder: "https://example.com/extension.foxe",
+  extensionUrlPlaceholder: "https://example.com/extension.coe",
   cancel: "キャンセル",
   installing: "インストール中...",
   install: "インストール",
