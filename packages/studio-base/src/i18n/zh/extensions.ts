@@ -12,7 +12,7 @@ export const extensions = {
   installFromUrl: "通过URL安装",
   installExtensionFromUrl: "通过URL安装扩展",
   extensionUrl: "扩展URL",
-  extensionUrlPlaceholder: "https://example.com/extension.foxe",
+  extensionUrlPlaceholder: "https://example.com/extension.coe",
   cancel: "取消",
   installing: "安装中...",
   install: "安装",
