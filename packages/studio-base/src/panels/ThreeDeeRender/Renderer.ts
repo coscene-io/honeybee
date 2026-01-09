@@ -122,6 +122,9 @@ const TF_OVERFLOW = "TF_OVERFLOW";
 const CYCLE_DETECTED = "CYCLE_DETECTED";
 const FOLLOW_FRAME_NOT_FOUND = "FOLLOW_FRAME_NOT_FOUND";
 const ADD_TRANSFORM_ERROR = "ADD_TRANSFORM_ERROR";
+const TF_STATS_STORAGE_KEY = "foxglove:tfStats";
+const TF_STATS_MIN_INTERVAL_MS = 2000;
+const TF_STATS_MIN_COUNT = 500;
 
 /**
  * in tf2, frameid can not start with "/", but in tf1, it can
@@ -129,6 +132,29 @@ const ADD_TRANSFORM_ERROR = "ADD_TRANSFORM_ERROR";
  * and we recommend to use tf compatibility mode
  */
 const TF_NAME_ERROR = "TF_NAME_ERROR";
+
+type TransformIngestStats = {
+  windowStartMs: number;
+  lastLogMs: number;
+  total: number;
+  poolHits: number;
+  poolMisses: number;
+  updated: number;
+  cycles: number;
+  capacityWarnings: number;
+};
+
+function shouldEnableTfStats(): boolean {
+  const globalFlag = (globalThis as { __FOXGLOVE_TF_STATS__?: boolean }).__FOXGLOVE_TF_STATS__;
+  if (globalFlag === true) {
+    return true;
+  }
+  try {
+    return localStorage.getItem(TF_STATS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 // An extensionId for creating the top-level settings nodes such as "Topics" and
 // "Custom Layers"
@@ -232,6 +258,18 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   });
   public transformTree = new TransformTree(this.#transformPool);
 
+  #tfStatsEnabled = false;
+  #tfStats: TransformIngestStats = {
+    windowStartMs: 0,
+    lastLogMs: 0,
+    total: 0,
+    poolHits: 0,
+    poolMisses: 0,
+    updated: 0,
+    cycles: 0,
+    capacityWarnings: 0,
+  };
+
   public coordinateFrameList: SelectEntry[] = [];
   public currentTime = 0n;
   public fixedFrameId: string | undefined;
@@ -274,6 +312,10 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.#fetchAsset = args.fetchAsset;
     this.testOptions = args.testOptions;
     this.debugPicking = args.testOptions.debugPicking ?? false;
+    this.#tfStatsEnabled = shouldEnableTfStats();
+    if (this.#tfStatsEnabled) {
+      this.#initTfStats();
+    }
 
     this.hud = new HUDItemManager(this.#onHUDItemsChange);
 
@@ -513,6 +555,9 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.#clearSubscriptionQueues();
     if (clearTransforms === true) {
       this.#clearTransformTree();
+      if (!resetAllFramesCursor) {
+        this.#resetTfStats("clearTransforms");
+      }
     }
     if (resetAllFramesCursor === true) {
       this.#resetAllFramesCursor();
@@ -554,12 +599,62 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   #resetAllFramesCursor() {
+    this.#resetTfStats("resetAllFramesCursor");
     this.#allFramesCursor = {
       index: -1,
       lastReadMessage: undefined,
       cursorTimeReached: undefined,
     };
     this.emit("resetAllFramesCursor", this);
+  }
+
+  #initTfStats(nowMs: number = performance.now()): void {
+    this.#tfStats.windowStartMs = nowMs;
+    this.#tfStats.lastLogMs = nowMs;
+    this.#tfStats.total = 0;
+    this.#tfStats.poolHits = 0;
+    this.#tfStats.poolMisses = 0;
+    this.#tfStats.updated = 0;
+    this.#tfStats.cycles = 0;
+    this.#tfStats.capacityWarnings = 0;
+  }
+
+  #maybeLogTfStats(reason: string): void {
+    if (!this.#tfStatsEnabled) {
+      return;
+    }
+    const stats = this.#tfStats;
+    if (stats.total < TF_STATS_MIN_COUNT) {
+      return;
+    }
+    const nowMs = performance.now();
+    const elapsedMs = nowMs - stats.windowStartMs;
+    if (elapsedMs < TF_STATS_MIN_INTERVAL_MS) {
+      return;
+    }
+    this.#logAndResetTfStats(reason, nowMs);
+  }
+
+  #resetTfStats(reason: string): void {
+    if (!this.#tfStatsEnabled) {
+      return;
+    }
+    this.#logAndResetTfStats(reason, performance.now());
+  }
+
+  #logAndResetTfStats(reason: string, nowMs: number): void {
+    const stats = this.#tfStats;
+    if (stats.total === 0) {
+      this.#initTfStats(nowMs);
+      return;
+    }
+    const elapsedMs = Math.max(1, nowMs - stats.windowStartMs);
+    const rate = Math.round((stats.total / elapsedMs) * 1000);
+    const missPercent = ((stats.poolMisses / stats.total) * 100).toFixed(1);
+    log.debug(
+      `TF stats (${reason}) total=${stats.total} rate=${rate}/s poolMiss=${stats.poolMisses} (${missPercent}%) updated=${stats.updated} cycles=${stats.cycles} capacity=${stats.capacityWarnings} window=${Math.round(elapsedMs)}ms`,
+    );
+    this.#initTfStats(nowMs);
   }
 
   /**
@@ -1096,13 +1191,30 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     tempQuat[2] = q.z;
     tempQuat[3] = q.w;
 
+    const trackStats = this.#tfStatsEnabled;
+    const stats = this.#tfStats;
+    let fromPool = false;
+    if (trackStats) {
+      fromPool = this.#transformPool.size() > 0;
+    }
     const transform = this.#transformPool.acquire();
+    if (trackStats) {
+      stats.total += 1;
+      if (fromPool) {
+        stats.poolHits += 1;
+      } else {
+        stats.poolMisses += 1;
+      }
+    }
     transform.setPositionRotation(tempVec3, tempQuat);
     const status = this.transformTree.addTransform(childFrameId, parentFrameId, stamp, transform);
 
     if (status === AddTransformResult.UPDATED) {
       this.coordinateFrameList = this.transformTree.frameList();
       this.emit("transformTreeUpdated", this);
+      if (trackStats) {
+        stats.updated += 1;
+      }
     }
 
     if (status === AddTransformResult.CYCLE_DETECTED) {
@@ -1118,6 +1230,9 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
           `Attempted to add cyclical transform: Frame "${parentFrameId}" cannot be the parent of frame "${childFrameId}". Transform message dropped.`,
         );
       }
+      if (trackStats) {
+        stats.cycles += 1;
+      }
     }
 
     // Check if the transform history for this frame is at capacity and show an error if so. This
@@ -1129,6 +1244,9 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         TF_OVERFLOW,
         `[Warning] Transform history is at capacity (${frame.maxCapacity}), old TFs will be dropped`,
       );
+      if (trackStats) {
+        stats.capacityWarnings += 1;
+      }
     }
   }
 
@@ -1235,6 +1353,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         }
       }
     }
+    this.#maybeLogTfStats("subscriptions");
   }
 
   #updateFixedFrameId(): void {

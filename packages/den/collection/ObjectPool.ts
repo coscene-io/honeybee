@@ -42,6 +42,11 @@ export class ObjectPool<T> {
     return this.#objects.pop() ?? this.#init();
   }
 
+  /** Number of objects currently available in the pool. */
+  public size(): number {
+    return this.#objects.length;
+  }
+
   /** Release a object back to the pool to be reused.
    * If the maxCapacity is defined and has been reached it will be dropped.
    */
