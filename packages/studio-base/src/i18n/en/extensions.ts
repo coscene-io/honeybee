@@ -12,7 +12,7 @@ export const extensions = {
   installFromUrl: "Install from URL",
   installExtensionFromUrl: "Install Extension from URL",
   extensionUrl: "Extension URL",
-  extensionUrlPlaceholder: "https://example.com/extension.foxe",
+  extensionUrlPlaceholder: "https://example.com/extension.coe",
   cancel: "Cancel",
   installing: "Installing...",
   install: "Install",
