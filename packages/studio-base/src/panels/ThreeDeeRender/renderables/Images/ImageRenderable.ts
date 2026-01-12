@@ -155,6 +155,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   public override dispose(): void {
     this.#disposed = true;
+    this.#decodedFrame?.close();
     this.userData.texture?.dispose();
     this.userData.material?.dispose();
     this.userData.geometry?.dispose();
@@ -265,6 +266,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         }
         // prevent displaying an image older than the one currently displayed
         if (this.#displayedImageSequenceNumber > seq) {
+          if (result instanceof VideoFrame) {
+            result.close();
+          }
           return;
         }
         // cap at 60 fps
@@ -275,9 +279,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           return;
         }
         this.#lastRenderImage = Date.now();
-        if (this.#decodedFrame?.getType() === "video") {
-          this.#decodedFrame.close();
-        }
+        // Close the previous decoded frame to free memory
+        this.#decodedFrame?.close();
 
         this.#displayedImageSequenceNumber = seq;
         this.#decodedFrame = new DecodedFrame(result);
