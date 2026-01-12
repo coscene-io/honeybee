@@ -122,7 +122,6 @@ const TF_OVERFLOW = "TF_OVERFLOW";
 const CYCLE_DETECTED = "CYCLE_DETECTED";
 const FOLLOW_FRAME_NOT_FOUND = "FOLLOW_FRAME_NOT_FOUND";
 const ADD_TRANSFORM_ERROR = "ADD_TRANSFORM_ERROR";
-const TF_STATS_STORAGE_KEY = "foxglove:tfStats";
 const TF_STATS_MIN_INTERVAL_MS = 2000;
 const TF_STATS_MIN_COUNT = 500;
 
@@ -143,18 +142,6 @@ type TransformIngestStats = {
   cycles: number;
   capacityWarnings: number;
 };
-
-function shouldEnableTfStats(): boolean {
-  const globalFlag = (globalThis as { __FOXGLOVE_TF_STATS__?: boolean }).__FOXGLOVE_TF_STATS__;
-  if (globalFlag === true) {
-    return true;
-  }
-  try {
-    return localStorage.getItem(TF_STATS_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
 
 // An extensionId for creating the top-level settings nodes such as "Topics" and
 // "Custom Layers"
@@ -179,6 +166,7 @@ Object.defineProperty(LabelMaterial.prototype, "vertexShaderKey", {
   enumerable: true,
   configurable: true,
 });
+
 Object.defineProperty(LabelMaterial.prototype, "fragmentShaderKey", {
   get() {
     // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
@@ -312,10 +300,8 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.#fetchAsset = args.fetchAsset;
     this.testOptions = args.testOptions;
     this.debugPicking = args.testOptions.debugPicking ?? false;
-    this.#tfStatsEnabled = shouldEnableTfStats();
-    if (this.#tfStatsEnabled) {
-      this.#initTfStats();
-    }
+    // test tf stats
+    this.#initTfStats();
 
     this.hud = new HUDItemManager(this.#onHUDItemsChange);
 
@@ -555,7 +541,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.#clearSubscriptionQueues();
     if (clearTransforms === true) {
       this.#clearTransformTree();
-      if (!resetAllFramesCursor) {
+      if (resetAllFramesCursor === true) {
         this.#resetTfStats("clearTransforms");
       }
     }
@@ -652,7 +638,11 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     const rate = Math.round((stats.total / elapsedMs) * 1000);
     const missPercent = ((stats.poolMisses / stats.total) * 100).toFixed(1);
     log.debug(
-      `TF stats (${reason}) total=${stats.total} rate=${rate}/s poolMiss=${stats.poolMisses} (${missPercent}%) updated=${stats.updated} cycles=${stats.cycles} capacity=${stats.capacityWarnings} window=${Math.round(elapsedMs)}ms`,
+      `TF stats (${reason}) total=${stats.total} rate=${rate}/s poolMiss=${
+        stats.poolMisses
+      } (${missPercent}%) updated=${stats.updated} cycles=${stats.cycles} capacity=${
+        stats.capacityWarnings
+      } window=${Math.round(elapsedMs)}ms`,
     );
     this.#initTfStats(nowMs);
   }
