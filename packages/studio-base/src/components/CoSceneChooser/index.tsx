@@ -60,7 +60,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     mode === "select-files-from-record" ? props.disableCreateRecord : undefined;
 
   const { classes } = useStyles();
-  const { t } = useTranslation("cosPlaylist");
+  const { t } = useTranslation("playList");
 
   const [targetRecord, setTargetRecord] = useState<Record | undefined>(undefined);
   const [targetProject, setTargetProject] = useState<Project | undefined>(undefined);
@@ -86,7 +86,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
   // Handle file number limit
   useEffect(() => {
     if (maxFilesNumber != undefined && selectedFiles.length > maxFilesNumber) {
-      toast.error(t("maxFilesNumber", { maxFilesNumber, ns: "cosEvent" }));
+      toast.error(t("maxFilesNumber", { maxFilesNumber, ns: "event" }));
       setSelectedFiles((prev) => prev.slice(0, maxFilesNumber));
     }
   }, [maxFilesNumber, selectedFiles.length, t]);
@@ -186,7 +186,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
 
         <Stack direction="row" justifyContent="flex-end" paddingTop={2} gap={1}>
           <Button variant="outlined" size="large" color="inherit" onClick={handleModalClose}>
-            {t("cancel", { ns: "cosGeneral" })}
+            {t("cancel", { ns: "general" })}
           </Button>
           <Button
             onClick={handleConfirm}
@@ -194,7 +194,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
             size="large"
             disabled={isConfirmDisabled}
           >
-            {t("ok", { ns: "cosGeneral" })}
+            {t("ok", { ns: "general" })}
           </Button>
         </Stack>
       </Stack>

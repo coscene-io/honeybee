@@ -7,7 +7,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosGuide: Partial<TypeOptions["resources"]["cosGuide"]> = {
+export const guide: Partial<TypeOptions["resources"]["guide"]> = {
   playbackRecord: "播放记录",
   clickToStartPlaying: "点击开始播放",
   threeDeeView: "三维视图",
@@ -23,11 +23,11 @@ export const cosGuide: Partial<TypeOptions["resources"]["cosGuide"]> = {
   originalMessage: "原始消息",
   originalMessageDesc: "机器原始数据",
   createMoment: "创建一刻",
-  createMomentDesc: "点击创建“一刻”，标记发生故障的关键帧",
+  createMomentDesc: '点击创建"一刻"，标记发生故障的关键帧',
   createMomentFormDesc: "在弹窗中填写一刻的名称、持续时间、描述等信息，即可完成一刻的创建",
   createTask: "创建任务",
   createTaskDesc:
-    "在弹窗中填写任务的名称、描述、经办人等信息，即完成任务的创建；默认“经办人”为您自己",
+    '在弹窗中填写任务的名称、描述、经办人等信息，即完成任务的创建；默认"经办人"为您自己',
   previousStep: "上一步",
   nextStep: "下一步",
   skipAll: "跳过全部",

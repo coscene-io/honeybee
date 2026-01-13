@@ -47,7 +47,7 @@ export default function SeekStepControls({
   onEditingChange,
 }: SeekStepControlsProps): React.JSX.Element {
   const { classes } = useStyles();
-  const { t } = useTranslation(["cosGeneral", "general"]);
+  const { t } = useTranslation(["general", "general"]);
 
   // Seek step configuration
   const [seekStepMs, setSeekStepMs] = useAppConfigurationValue<number>(AppSetting.SEEK_STEP_MS);
@@ -151,7 +151,7 @@ export default function SeekStepControls({
   }
 
   return (
-    <Tooltip title={t("seekStepDescription", { ns: "cosGeneral" })}>
+    <Tooltip title={t("seekStepDescription", { ns: "general" })}>
       <Button
         className={classes.seekStepButton}
         size="small"

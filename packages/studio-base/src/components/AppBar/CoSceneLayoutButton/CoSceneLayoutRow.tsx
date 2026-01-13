@@ -156,7 +156,7 @@ export default React.memo(function LayoutRow({
   const isMounted = useMountedState();
   const confirm = useConfirm();
   const layoutManager = useLayoutManager();
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -201,7 +201,7 @@ export default React.memo(function LayoutRow({
           }),
       prompt: t("revertLayoutsPrompt"),
       ok: t("revertLayoutsConfim"),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "general" }),
       variant: "danger",
     });
     if (response !== "ok") {
@@ -288,8 +288,8 @@ export default React.memo(function LayoutRow({
     void confirm({
       title,
       prompt,
-      ok: t("delete", { ns: "cosGeneral" }),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      ok: t("delete", { ns: "general" }),
+      cancel: t("cancel", { ns: "general" }),
       variant: "danger",
     }).then((response) => {
       if (response === "ok" && isMounted()) {

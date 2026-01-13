@@ -63,7 +63,7 @@ export const CustomBreadcrumbs = memo<CustomBreadcrumbsProps>(
     disableProjectSelect,
     disableCreateRecord,
   }) => {
-    const { t } = useTranslation("cosGeneral");
+    const { t } = useTranslation("general");
     const currentUser = useCurrentUser(selectUser);
 
     // Check if project navigation should be disabled

@@ -95,7 +95,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const menuOpen = useWorkspaceStore(selectLayoutMenuOpen);
   const { classes, cx } = useStyles();
   const anchorEl = useRef<HTMLButtonElement>(ReactNull);
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const [searchQuery, setSearchQuery] = useState("");
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
@@ -444,10 +444,10 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           title: `${t("update")} " ${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
-            ns: "cosGeneral",
+            ns: "general",
           }),
           cancel: t("cancel", {
-            ns: "cosGeneral",
+            ns: "general",
           }),
         });
         if (response !== "ok") {

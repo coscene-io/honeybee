@@ -174,7 +174,7 @@ export function ChooserComponent({
   disableProjectSelect,
   disableCreateRecord,
 }: BaseChooserProps): React.JSX.Element {
-  const { t } = useTranslation("cosGeneral");
+  const { t } = useTranslation("general");
   const userInfo = useCurrentUser(selectUser);
   const consoleApi = useConsoleApi();
 

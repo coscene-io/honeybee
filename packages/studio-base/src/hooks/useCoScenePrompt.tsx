@@ -41,7 +41,7 @@ function ModalPrompt({
   transformer,
 }: ModalPromptProps) {
   const [value, setValue] = useState(initialValue ?? "");
-  const { t } = useTranslation("cosGeneral");
+  const { t } = useTranslation("general");
   const errorMessage = useMemo<string | undefined>(() => {
     if (value === "") {
       return undefined;

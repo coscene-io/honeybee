@@ -116,7 +116,7 @@ function FieldInput({
   path: readonly string[];
 }): React.JSX.Element {
   const { classes, cx } = useStyles();
-  const { t } = useTranslation("cosSettings");
+  const { t } = useTranslation("settings");
 
   switch (field.input) {
     case "autocomplete":

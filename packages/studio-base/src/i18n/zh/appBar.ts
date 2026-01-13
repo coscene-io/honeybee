@@ -10,7 +10,6 @@ import { TypeOptions } from "i18next";
 export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   about: "关于",
   addPanel: "添加面板",
-  documentation: "文档",
   exploreSampleData: "探索样本数据",
   exportLayoutToFile: "导出布局到文件……",
   extensions: "扩展",
@@ -26,7 +25,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   openConnection: "打开连接……",
   openLocalFile: "打开本地文件……",
   recentDataSources: "最近使用的数据源",
-  settings: "设置",
+  visualizationSettings: "可视化设置",
   showLeftSidebar: "显示左侧边栏",
   showRightSidebar: "显示右侧边栏",
   signIn: "登录",
@@ -79,4 +78,15 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   droppedMessages: "丢弃消息",
   packetLoss: "包丢失率",
   networkStatusHelp: "仅 coBridge ≥ v1.2.0 版本可展示网络状态信息",
+  // From cosZh
+  settings: "设置",
+  documentation: "文档",
+  login: "登录",
+  signOutConfirmTitle: "确定要登出吗",
+  signOutConfirmOk: "登出",
+  signOutConfirmCancel: "取消",
+  menu: "菜单",
+  signoutSuccess: "登出成功",
+  downloadLatestStudio: "下载 coStudio",
+  userFeedback: "用户反馈",
 };

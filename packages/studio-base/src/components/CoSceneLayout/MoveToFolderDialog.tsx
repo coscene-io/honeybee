@@ -45,7 +45,7 @@ export function MoveToFolderDialog({
   onClose,
   onMoveLayout,
 }: MoveToFolderDialogProps): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const { classes } = useStyles();
 
   const isProject = layoutIsProject(layout);
@@ -131,7 +131,7 @@ export function MoveToFolderDialog({
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>
-          {t("cancel", { ns: "cosGeneral" })}
+          {t("cancel", { ns: "general" })}
         </Button>
         <Button
           disabled={
@@ -141,7 +141,7 @@ export function MoveToFolderDialog({
           variant="contained"
           onClick={onSubmit}
         >
-          {t("ok", { ns: "cosGeneral" })}
+          {t("ok", { ns: "general" })}
         </Button>
       </DialogActions>
     </Dialog>

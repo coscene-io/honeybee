@@ -149,7 +149,7 @@ export function Playlist(): React.JSX.Element {
   const currentBagFiles = usePlaylist(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
-  const { t } = useTranslation("cosPlaylist");
+  const { t } = useTranslation("playList");
   const confirm = useConfirm();
   const consoleApi = useConsoleApi();
 

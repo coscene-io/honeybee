@@ -46,7 +46,7 @@ export function CreateLayoutItems({
     setOpen("");
   }, []);
 
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
 
   const buttons = [
     {

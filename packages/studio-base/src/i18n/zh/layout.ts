@@ -7,7 +7,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
+export const layout: Partial<TypeOptions["resources"]["layout"]> = {
   layout: "布局",
   layouts: "布局",
   offline: "离线",
@@ -38,17 +38,17 @@ export const cosLayout: Partial<TypeOptions["resources"]["cosLayout"]> = {
   shareDialogDescription: "共享布局可以被您的组织的其他成员使用和更改。",
   layoutName: "布局名称",
   revertLayouts: "恢复布局",
-  revertTargetLayout: "恢复 “{{layoutName}}?“",
+  revertTargetLayout: '恢复 "{{layoutName}}"?',
   revertLayoutsPrompt: "您的更改将被永久丢弃。这无法撤消。",
   revertLayoutsConfim: "放弃更改",
   deleteLayoutsWarning: "组织成员将无法再访问此布局。",
   deleteLayoutsPrompt: "{{layoutWarning}}此操作无法撤消。",
   deleteSelectedLayoutsTitle: "删除选定的布局?",
-  deleteLayoutsTitle: "删除 “{{layoutName}}“?",
+  deleteLayoutsTitle: '删除 "{{layoutName}}"',
   personal: "个人",
   organization: "组织",
-  layoutHasUnsavedChange: "“{{layoutName}}” 有未保存的更改",
-  updateSharedLayout: "更新共享布局 “{{layoutName}}“",
+  layoutHasUnsavedChange: '"{{layoutName}}" 有未保存的更改',
+  updateSharedLayout: '更新共享布局 "{{layoutName}}"',
   unavailableWhileOffline: "(离线时不可用)",
   saveAPersonalCopy: "保存个人副本",
   discardTip: "您的更改将被永久删除。且无法撤消。",

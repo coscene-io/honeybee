@@ -31,7 +31,7 @@ interface FilesListProps {
 }
 
 export const FilesList = memo<FilesListProps>(({ files, setFiles }) => {
-  const { t } = useTranslation("cosPlaylist");
+  const { t } = useTranslation("playList");
   const { classes } = useStyles();
 
   const handleRemoveFile = useCallback(

@@ -7,7 +7,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosError: Partial<TypeOptions["resources"]["cosError"]> = {
+export const error: Partial<TypeOptions["resources"]["error"]> = {
   loginExpired: "登录已过期，请重新登录",
   blankAuthToken: "请求中的 auth token 为空",
   currentUrlNotSupported: "当前 URL 不支持",

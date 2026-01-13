@@ -5,10 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const cosVersionBanner = {
+export const versionBanner = {
   download: "Download",
   browserVersionError:
     "We recommend using Chrome V104 or higher for the best experience. Other browsers may not have full functionality. Please switch for the best experience.",
   chromeVersionError:
-    "You’re using an outdated version of Chrome. Please upgrade to the latest version for the best experience.",
+    "You're using an outdated version of Chrome. Please upgrade to the latest version for the best experience.",
 };

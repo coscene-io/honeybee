@@ -59,7 +59,7 @@ export function useAutoDisconnection({
   // 使用 useRef 替代 useState 来管理 timeoutId
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  const { t } = useTranslation("cosWebsocket");
+  const { t } = useTranslation("websocket");
   const close = useMessagePipeline(selectClose);
   const reOpen = useMessagePipeline(selectReOpen);
   const playerState = useMessagePipeline(selectPlayer);

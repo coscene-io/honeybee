@@ -90,7 +90,7 @@ const VersionBanner = function ({
   currentVersion: number;
   isDismissable: boolean;
 }): ReactElement | ReactNull {
-  const { i18n, t } = useTranslation("cosVersionBanner");
+  const { i18n, t } = useTranslation("versionBanner");
 
   const muiTheme = useMemo(() => createMuiTheme("dark", i18n.language), [i18n.language]);
   // high version chrome

@@ -197,4 +197,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   softLimit: "软限制",
   kPosition: "位置常数",
   kVelocity: "速度常数",
+  reCenter: "重新居中",
+  zoomIn: "放大",
+  zoomOut: "缩小",
 };

@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const cosError = {
+export const error = {
   loginExpired: "Login expired, please login again",
   blankAuthToken: "Blank auth token in the request",
   currentUrlNotSupported: "Current URL is not supported",
