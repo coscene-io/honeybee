@@ -203,6 +203,8 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         });
 
         imageFiles = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
+      } else {
+        imageFiles = [];
       }
 
       const newEvent = create(EventSchema, {
