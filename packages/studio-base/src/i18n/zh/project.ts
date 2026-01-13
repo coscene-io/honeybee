@@ -5,10 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const cosWorkspace = {
-  playlist: "Playlist",
-  topics: "Topics",
-  moment: "Moment",
-  panel: "Panel",
-  tasks: "Tasks",
+export const project = {
+  starredProject: "星标项目",
+  activeProject: "活跃项目",
+  private: "私有",
+  internal: "内部",
+  public: "公开",
 };

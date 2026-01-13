@@ -358,7 +358,7 @@ export function StudioRemoteConfigUrl(): React.ReactElement {
   const [remoteConfigUrl, setRemoteConfigUrl] = useAppConfigurationValue<string>(
     AppSetting.REMOTE_CONFIG_URL,
   );
-  const { t } = useTranslation("cosSettings");
+  const { t } = useTranslation("settings");
 
   const initialValueRef = useRef(remoteConfigUrl ?? "");
   const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;

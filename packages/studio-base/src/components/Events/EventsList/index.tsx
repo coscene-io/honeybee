@@ -155,7 +155,7 @@ export function EventsList(): React.JSX.Element {
 
   const [momentVariant, setMomentVariant] = useState<"small" | "learge">("learge");
 
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
   const confirm = useConfirm();
 
   const setToModifyEvent = useEvents(selectSetToModifyEvent);

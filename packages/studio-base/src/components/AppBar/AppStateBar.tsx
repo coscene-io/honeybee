@@ -315,7 +315,7 @@ export function AppStateBar(): React.JSX.Element {
               }}
             >
               {t("refresh", {
-                ns: "cosGeneral",
+                ns: "general",
               })}
             </Button>
             <IconButton

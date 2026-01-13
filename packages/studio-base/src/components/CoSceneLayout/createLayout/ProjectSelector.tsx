@@ -29,7 +29,7 @@ export function ProjectSelector({
   onChange,
   showLabel = true,
 }: ProjectSelectorProps): React.JSX.Element {
-  const { t } = useTranslation(["cosLayout", "cosProject"]);
+  const { t } = useTranslation(["layout", "project"]);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser((store) => store.user);
   const userId = currentUser?.userId;
@@ -87,8 +87,8 @@ export function ProjectSelector({
       value={selectedValue}
       groupBy={(option) =>
         option.project.isStarred
-          ? t("starredProject", { ns: "cosProject" })
-          : t("activeProject", { ns: "cosProject" })
+          ? t("starredProject", { ns: "project" })
+          : t("activeProject", { ns: "project" })
       }
       onChange={(_event, value) => {
         onChange(value.value);

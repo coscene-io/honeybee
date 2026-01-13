@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const cosLayout = {
+export const layout = {
   layout: "Layout",
   layouts: "Layouts",
   offline: "Offline",
@@ -31,24 +31,24 @@ export const cosLayout = {
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
   noPersonalLayouts: "Add a new layout to get started!",
   noOrgnizationLayouts:
-    "Your organization doesn’t have any shared layouts yet. Share a layout to collaborate with others.",
+    "Your organization doesn't have any shared layouts yet. Share a layout to collaborate with others.",
   shareWithTeam: "Share with team ...",
   shareDialogTitle: "Share a copy with your organization",
   shareDialogDescription:
     "Shared layouts can be used and changed by other members of your organization.",
   layoutName: "Layout name",
   revertLayouts: "Revert layouts",
-  revertTargetLayout: "Revert “{{layoutName}}“?",
+  revertTargetLayout: 'Revert "{{layoutName}}"?',
   revertLayoutsPrompt: "Your changes will be permantly discarded. This cannot be undone.",
   revertLayoutsConfim: "Discard changes",
   deleteLayoutsWarning: "Organization members will no longer be able to access this layout. ",
   deleteLayoutsPrompt: "{{layoutWarning}}This action cannot be undone.",
   deleteSelectedLayoutsTitle: "Delete selected layouts?",
-  deleteLayoutsTitle: "Delete “{{layoutName}}“?",
+  deleteLayoutsTitle: 'Delete "{{layoutName}}"?',
   personal: "Personal",
   organization: "Organization",
-  layoutHasUnsavedChange: "“{{layoutName}}” has unsaved changes",
-  updateSharedLayout: "Update shared layout “{{layoutName}}“",
+  layoutHasUnsavedChange: '"{{layoutName}}" has unsaved changes',
+  updateSharedLayout: 'Update shared layout "{{layoutName}}"',
   unavailableWhileOffline: "(unavailable while offline)",
   saveAPersonalCopy: "Save a personal copy",
   discardTip: "Your changes will be permantly deleted. This cannot be undone.",

@@ -7,7 +7,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosVersionBanner: Partial<TypeOptions["resources"]["cosVersionBanner"]> = {
+export const versionBanner: Partial<TypeOptions["resources"]["versionBanner"]> = {
   download: "下载",
   browserVersionError:
     "建议使用 Chrome V104 及以上版本的浏览器，其他浏览器可能功能不全，请切换以获得最佳体验。",

@@ -22,7 +22,7 @@ import { MomentsBarConfig } from "./types";
 
 function buildSettingsTree(
   config: MomentsBarConfig,
-  t: TFunction<"cosEvent">,
+  t: TFunction<"event">,
   selectRecordsOptions: { label: string; value: string }[],
 ): SettingsTreeNodes {
   return {
@@ -53,7 +53,7 @@ export function useMomentsBarSettings(
   saveConfig: SaveConfig<MomentsBarConfig>,
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
   const bagFiles = usePlaylist(selectBagFiles);
 
   const records = useMemo<

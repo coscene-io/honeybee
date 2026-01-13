@@ -224,17 +224,17 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       [
         "playlist",
         {
-          title: t("playlist", { ns: "cosWorkspace" }),
+          title: t("playlist", { ns: "workspace" }),
           component: Playlist,
           hidden: enableList.playlist === "DISABLE",
         },
       ],
-      ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
-      ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
+      ["panel-settings", { title: t("panel", { ns: "workspace" }), component: PanelSettings }],
+      ["topics", { title: t("topics", { ns: "workspace" }), component: TopicList }],
       [
         "moment",
         {
-          title: t("moment", { ns: "cosWorkspace" }),
+          title: t("moment", { ns: "workspace" }),
           component: EventsList,
           hidden: enableList.event === "DISABLE",
         },
@@ -242,7 +242,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       [
         "tasks",
         {
-          title: t("tasks", { ns: "cosWorkspace" }),
+          title: t("tasks", { ns: "workspace" }),
           component: TasksList,
           hidden: !paid || enableList.task === "DISABLE",
         },

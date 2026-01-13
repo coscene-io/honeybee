@@ -7,7 +7,7 @@
 
 import { TypeOptions } from "i18next";
 
-export const cosEvent: Partial<TypeOptions["resources"]["cosEvent"]> = {
+export const event: Partial<TypeOptions["resources"]["event"]> = {
   addPhoto: "添加照片",
   cancel: "取消",
   copiedMomentToClipboard: "已复制一刻到剪贴板",

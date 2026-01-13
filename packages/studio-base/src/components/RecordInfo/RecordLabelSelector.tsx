@@ -60,7 +60,7 @@ export default function RecordLabelSelector({
   disabled?: boolean;
 }): ReactElement {
   const { classes, cx } = useStyles();
-  const { t } = useTranslation("cosGeneral");
+  const { t } = useTranslation("general");
   const [open, setOpen] = useState(false);
 
   return (
