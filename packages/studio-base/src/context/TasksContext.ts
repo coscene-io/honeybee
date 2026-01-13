@@ -14,11 +14,6 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 
 export type TaskStore = {
-  // All tasks in the organization
-  orgTasks: AsyncState<Task[]>;
-  // Filter for organization tasks
-  orgTasksFilter: string;
-
   // All tasks in current project
   projectTasks: AsyncState<Task[]>;
   // Filter for project tasks
@@ -34,9 +29,6 @@ export type TaskStore = {
 
   // Trigger counter for reloading project tasks
   reloadTrigger: number;
-
-  setOrgTasks: (tasks: AsyncState<Task[]>) => void;
-  setOrgTasksFilter: (filter: string) => void;
 
   setProjectTasks: (tasks: AsyncState<Task[]>) => void;
   setProjectTasksFilter: (filter: string) => void;
