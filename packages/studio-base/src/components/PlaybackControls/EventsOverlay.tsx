@@ -143,7 +143,7 @@ function EventMark({
   const [open, setOpen] = useState(false);
   const setEventMarks = useEvents(selectSetEventMarks);
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const leftMark =
     leftMarkPosition != undefined ? `${_.clamp(leftMarkPosition, 0, 1) * 100}%` : undefined;

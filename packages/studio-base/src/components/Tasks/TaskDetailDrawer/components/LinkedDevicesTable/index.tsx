@@ -68,7 +68,7 @@ export default function LinkedDevicesTable({
         title: t("unlinkDevice"),
         prompt: t("unlinkDeviceConfirm", { count: selectedRowIds.length }),
         ok: t("unlinkDevice"),
-        cancel: t("cancel", { ns: "cosGeneral" }),
+        cancel: t("cancel", { ns: "general" }),
         variant: "danger",
       });
 

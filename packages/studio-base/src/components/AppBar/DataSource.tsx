@@ -499,7 +499,7 @@ export function DataSource(): React.JSX.Element {
               case "coscene-websocket":
                 return <RealTimeVizDataSource />;
               case "persistent-cache":
-                return <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>;
+                return <>{t("realTimeVizPlayback", { ns: "websocket" })}</>;
               case "coscene-data-platform":
                 return <DataPlatformSource />;
               default:

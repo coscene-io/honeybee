@@ -58,7 +58,7 @@ export default function LinkDevice({
 }): React.ReactElement {
   const { classes } = useStyles();
   const { t } = useTranslation("task");
-  const { t: tGeneral } = useTranslation("cosGeneral");
+  const { t: tGeneral } = useTranslation("general");
   const [addDeviceDialogOpen, setAddDeviceDialogOpen] = useState<boolean>(false);
   const [filter, setFilter] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(25);

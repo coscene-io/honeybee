@@ -743,7 +743,7 @@ class CoSceneConsoleApi {
           authBridge?.logout();
         }
       } else if (res.status === 403) {
-        toast.error(t("unauthorized", { ns: "cosError" }));
+        toast.error(t("unauthorized", { ns: "error" }));
         throw new HttpError(
           403,
           "Unauthorized. Please check if you are logged in and have permission to access.",
@@ -758,7 +758,7 @@ class CoSceneConsoleApi {
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
         if (coSceneErrorMessageKey) {
-          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "cosError" })}`);
+          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "error" })}`);
         }
 
         this.#problemManager.addProblem("CoScene:request-error", {

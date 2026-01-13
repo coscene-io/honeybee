@@ -87,7 +87,7 @@ export function CurrentLayoutButton({
   onOverwriteLayout,
   onRevertLayout,
 }: CurrentLayoutButtonProps): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const { classes } = useStyles();
 
   const currentLayout = useMemo(() => {

@@ -55,7 +55,7 @@ export function ChoiceRecordDialog({
         <Stack direction="row" justifyContent="flex-end" paddingX={2} paddingBottom={2} gap={1}>
           <Button variant="outlined" size="large" color="inherit" onClick={onClose}>
             {t("cancel", {
-              ns: "cosGeneral",
+              ns: "general",
             })}
           </Button>
           <Button
@@ -70,7 +70,7 @@ export function ChoiceRecordDialog({
             disabled={targetRecord == undefined || targetProject == undefined}
           >
             {t("ok", {
-              ns: "cosGeneral",
+              ns: "general",
             })}
           </Button>
         </Stack>

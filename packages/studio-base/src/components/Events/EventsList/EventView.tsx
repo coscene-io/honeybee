@@ -136,7 +136,7 @@ function EventViewComponent(params: {
   const customFieldSchema = useEvents(selectCustomFieldSchema);
 
   const { formatTime } = useAppTimeFormat();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);

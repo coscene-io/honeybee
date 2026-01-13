@@ -211,4 +211,7 @@ export const threeDee = {
   softLimit: "Soft limit",
   kPosition: "k_position",
   kVelocity: "k_velocity",
+  reCenter: "Re-center",
+  zoomIn: "Zoom-in",
+  zoomOut: "Zoom-out",
 };

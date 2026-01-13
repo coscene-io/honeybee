@@ -70,7 +70,7 @@ export function PlaybackControlsTooltipContent(params: {
   const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
   const { classes } = useStyles();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   if (!startTime) {
     return ReactNull;

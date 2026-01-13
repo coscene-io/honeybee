@@ -9,26 +9,18 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
-import * as cosEn from "./cosEn";
-import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as ja from "./ja";
 import * as zh from "./zh";
 import { getAppConfig } from "../util/appConfig";
 
 export const translations: {
-  en: typeof en & typeof cosEn;
-  zh: typeof zh & typeof cosZh;
+  en: typeof en;
+  zh: typeof zh;
   ja: typeof ja;
 } = {
-  en: {
-    ...en,
-    ...cosEn,
-  },
-  zh: {
-    ...zh,
-    ...cosZh,
-  },
+  en,
+  zh,
   ja,
 };
 

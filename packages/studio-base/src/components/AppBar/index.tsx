@@ -246,7 +246,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
         </>
       ),
       ok: t("openByCoStudio"),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "general" }),
     });
     if (response !== "ok") {
       return;
@@ -272,7 +272,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                 color="inherit"
                 id="app-menu-button"
                 title={t("menu", {
-                  ns: "cosAppBar",
+                  ns: "appBar",
                 })}
                 aria-controls={appMenuOpen ? "app-menu" : undefined}
                 aria-haspopup="true"

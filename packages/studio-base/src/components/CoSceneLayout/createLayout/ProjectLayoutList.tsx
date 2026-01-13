@@ -75,7 +75,7 @@ export function ProjectLayoutList({
   onChange,
   supportsProjectWrite,
 }: LayoutListProps): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const consoleApi = useConsoleApi();
   const [searchText, setSearchText] = useState("");
   const { classes } = useStyles();
