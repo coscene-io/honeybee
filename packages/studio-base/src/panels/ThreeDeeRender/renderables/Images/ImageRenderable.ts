@@ -261,26 +261,24 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     decodePromise
       .then((result) => {
-        if (this.isDisposed() || result == undefined) {
+        if (this.isDisposed()) {
+          closeImageResource(result);
+          return;
+        }
+        if (result == undefined) {
           return;
         }
         // prevent displaying an image older than the one currently displayed
         if (this.#displayedImageSequenceNumber > seq) {
-          if (result instanceof VideoFrame) {
-            result.close();
-          }
+          closeImageResource(result);
           return;
         }
         // cap at 60 fps
         if (this.#lastRenderImage > Date.now() - 16) {
-          if (result instanceof VideoFrame) {
-            result.close();
-          }
+          closeImageResource(result);
           return;
         }
         this.#lastRenderImage = Date.now();
-        // Close the previous decoded frame to free memory
-        this.#decodedFrame?.close();
 
         this.#displayedImageSequenceNumber = seq;
         this.#decodedFrame = new DecodedFrame(result);
@@ -413,6 +411,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         canvasTexture?.dispose();
         this.userData.texture = createCanvasTexture(decodedData);
       } else {
+        const previousImage = canvasTexture.image as ImageBitmap | VideoFrame | undefined;
+        if (previousImage && previousImage !== decodedData) {
+          previousImage.close();
+        }
         canvasTexture.image = decodedData;
         canvasTexture.needsUpdate = true;
       }
@@ -515,6 +517,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 }
 
 let tempColor = { r: 0, g: 0, b: 0, a: 0 };
+
+function closeImageResource(resource?: ImageBitmap | ImageData | VideoFrame): void {
+  if (resource instanceof ImageBitmap || resource instanceof VideoFrame) {
+    resource.close();
+  }
+}
 
 function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(
