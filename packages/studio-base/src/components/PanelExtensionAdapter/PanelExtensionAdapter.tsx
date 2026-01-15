@@ -661,6 +661,7 @@ function PanelExtensionAdapter(
 
       // eslint-disable-next-line no-restricted-syntax
       set onRender(renderFunction: RenderFn | undefined) {
+        console.log('[PanelExtensionAdapter] onRender setter called with:', renderFunction ? 'function' : 'undefined');
         setRenderFn(() => renderFunction);
       },
     });
