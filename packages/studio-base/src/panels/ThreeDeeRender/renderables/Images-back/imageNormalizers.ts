@@ -5,17 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
-// SPDX-License-Identifier: MPL-2.0
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { CompressedImage, RawImage } from "@foxglove/schemas";
 import { PartialMessage } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtension";
 
-import { CompressedVideo } from "./ImageTypes";
 import { normalizeByteArray, normalizeHeader, normalizeTime } from "../../normalizeMessages";
 import { Image as RosImage, CompressedImage as RosCompressedImage } from "../../ros";
 
@@ -66,25 +58,13 @@ export function normalizeRawImage(message: PartialMessage<RawImage>): RawImage {
   };
 }
 
-function normalizeCompressedMedia<T extends CompressedImage | CompressedVideo>(
-  message: PartialMessage<T>,
-): T {
+export function normalizeCompressedImage(
+  message: PartialMessage<CompressedImage>,
+): CompressedImage {
   return {
     timestamp: normalizeTime(message.timestamp),
     frame_id: message.frame_id ?? "",
     format: message.format ?? "",
     data: normalizeByteArray(message.data),
-  } as T;
-}
-
-export function normalizeCompressedImage(
-  message: PartialMessage<CompressedImage>,
-): CompressedImage {
-  return normalizeCompressedMedia<CompressedImage>(message);
-}
-
-export function normalizeCompressedVideo(
-  message: PartialMessage<CompressedVideo>,
-): CompressedVideo {
-  return normalizeCompressedMedia<CompressedVideo>(message);
+  };
 }

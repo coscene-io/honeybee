@@ -5,18 +5,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
-// SPDX-License-Identifier: MPL-2.0
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
+import { Time } from "@foxglove/rostime";
 import { RawImage } from "@foxglove/schemas";
 
+import { AnyImage } from "./ImageTypes";
 import type { RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
@@ -30,11 +26,14 @@ import { Image as RosImage } from "../../ros";
  */
 
 type WorkerService = (typeof import("./WorkerImageDecoder.worker"))["service"];
+const log = Logger.getLogger(__filename);
+
 export class WorkerImageDecoder {
   #remote: Comlink.Remote<WorkerService>;
   #dispose: () => void;
 
   public constructor() {
+    log.debug("Creating WorkerImageDecoder");
     const { remote, dispose } = ComlinkWrap<WorkerService>(
       new Worker(
         // foxglove-depcheck-used: babel-plugin-transform-import-meta
@@ -53,6 +52,21 @@ export class WorkerImageDecoder {
     options: Partial<RawImageOptions>,
   ): Promise<ImageData> {
     return await this.#remote.decode(image, options);
+  }
+
+  public async decodeH264Frame(
+    image: AnyImage,
+    receiveTime: Time,
+  ): Promise<VideoFrame | undefined> {
+    const data = image.data;
+
+    try {
+      void this.#remote.decodeH264Frame(data, receiveTime);
+
+      return await this.#remote.getH264Frames();
+    } catch (error) {
+      throw new Error(`Failed to decode H264 frame: ${error}`);
+    }
   }
 
   public terminate(): void {
