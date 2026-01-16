@@ -240,12 +240,22 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
     this.userData.image = image;
     const timestamp = "timestamp" in image ? image.timestamp : undefined;
+    const isH264 = "format" in image && image.format === "h264";
+
+    // Cap at 60 fps - check BEFORE decoding to avoid wasting CPU resources
+    // For H264, we still need to decode to maintain the decoder state, but we can skip rendering
+    const now = Date.now();
+    const shouldSkipRender = this.#lastRenderImage > now - 16;
+    if (shouldSkipRender && !isH264) {
+      // For non-H264 images, skip decoding entirely to save CPU
+      return;
+    }
 
     const seq = ++this.#receivedImageSequenceNumber;
 
     let decodePromise: Promise<ImageBitmap | ImageData | VideoFrame | undefined> | undefined =
       undefined;
-    if ("format" in image && image.format === "h264") {
+    if (isH264) {
       if (this.decoder == undefined) {
         this.decoder = new WorkerImageDecoder();
       }
@@ -273,8 +283,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           closeImageResource(result);
           return;
         }
-        // cap at 60 fps
-        if (this.#lastRenderImage > Date.now() - 16) {
+        // For H264, check again after decode if we should skip render
+        // (H264 must decode every frame but doesn't need to render every frame)
+        if (isH264 && shouldSkipRender) {
           closeImageResource(result);
           return;
         }
