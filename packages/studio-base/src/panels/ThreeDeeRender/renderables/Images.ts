@@ -14,7 +14,7 @@ import Logger from "@foxglove/log";
 import { toNanoSec } from "@foxglove/rostime";
 import { CameraCalibration, CompressedImage, RawImage } from "@foxglove/schemas";
 import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
-import { ALL_SUPPORTED_IMAGE_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/ImageMode";
+import { ALL_SUPPORTED_IMAGE_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 
 import {
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
@@ -447,9 +447,14 @@ export class Images extends SceneExtension<ImageRenderable> {
       | Partial<LayerSettingsImage>
       | undefined;
 
+    const messageTime = image
+      ? toNanoSec("header" in image ? image.header.stamp : image.timestamp)
+      : 0n;
+
     renderable = this.initRenderable(imageTopic, {
       receiveTime,
       messageTime: image ? toNanoSec("header" in image ? image.header.stamp : image.timestamp) : 0n,
+      firstMessageTime: messageTime,
       frameId: this.renderer.normalizeFrameId(frameId),
       pose: makePose(),
       settingsPath: ["topics", imageTopic],
