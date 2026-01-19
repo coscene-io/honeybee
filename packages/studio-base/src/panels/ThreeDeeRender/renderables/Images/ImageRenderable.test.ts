@@ -11,7 +11,6 @@ import * as THREE from "three";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
-import { BasicBuilder } from "@foxglove/studio-base/testing/builders";
 
 import {
   ImageRenderable,
@@ -39,7 +38,7 @@ const mockRenderer: IRenderer = {
 } as unknown as IRenderer;
 
 const mockUserData: ImageUserData = {
-  topic: BasicBuilder.string(),
+  topic: "/test/image",
   settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
   firstMessageTime: BigInt(0),
   cameraInfo: undefined,
@@ -103,7 +102,7 @@ describe("ImageRenderable", () => {
   });
 
   it("should set a new brightness value", () => {
-    const newBrightnessValue = BasicBuilder.number();
+    const newBrightnessValue = 1;
     const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
 
     renderable.userData.texture = new THREE.Texture();
@@ -115,7 +114,7 @@ describe("ImageRenderable", () => {
   });
 
   it("should set a new contrast value", () => {
-    const newContrastValue = BasicBuilder.number();
+    const newContrastValue = 1;
     const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
 
     renderable.userData.texture = new THREE.Texture();
@@ -133,10 +132,10 @@ describe("ImageRenderable", () => {
       height: 100,
       binning_x: 0,
       binning_y: 0,
-      D: BasicBuilder.multiple(() => BasicBuilder.number({ min: 1 }), 8),
+      D: [1, 2, 3, 4, 5, 6, 7, 8],
       distortion_model: "",
       K: [],
-      P: BasicBuilder.multiple(() => BasicBuilder.number({ min: 1 }), 12),
+      P: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
       R: [],
       roi: {
         x_offset: 0,
@@ -160,8 +159,8 @@ describe("ImageRenderable error handling", () => {
       ...mockUserData,
     });
 
-    const mockErrorKey = BasicBuilder.string();
-    const mockErrorMessage = BasicBuilder.string();
+    const mockErrorKey = "test error key";
+    const mockErrorMessage = "test error message";
 
     // @ts-expect-error addError is protected, but ok to use on tests
     renderable.addError(mockErrorKey, mockErrorMessage);
@@ -182,7 +181,7 @@ describe("ImageRenderable error handling", () => {
     renderable.dispose();
 
     // @ts-expect-error addError is protected, but ok to use on tests
-    renderable.addError(BasicBuilder.string(), BasicBuilder.string());
+    renderable.addError("test error key", "test error message");
 
     expect(mockAdd).not.toHaveBeenCalled();
     expect(mockAddToTopic).not.toHaveBeenCalled();
