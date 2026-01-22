@@ -740,7 +740,7 @@ export class ImageMode
     // otherwise we would need to wait for the next image
     if (decodedImage && lastImageMessage) {
       const frameId = getFrameIdFromImage(lastImageMessage);
-      const { width, height } = decodedImage;
+      const { width, height } = getDecodedImageDimensions(decodedImage);
       const cameraInfo = createFallbackCameraInfoForImage({
         frameId,
         height,
@@ -979,10 +979,9 @@ export class ImageMode
       const { rotation, flipHorizontal, flipVertical } = settings;
       const stamp = "header" in imageMessage ? imageMessage.header.stamp : imageMessage.timestamp;
       try {
-        const width =
-          rotation === 90 || rotation === 270 ? currentImage.height : currentImage.width;
-        const height =
-          rotation === 90 || rotation === 270 ? currentImage.width : currentImage.height;
+        const { width: imageWidth, height: imageHeight } = getDecodedImageDimensions(currentImage);
+        const width = rotation === 90 || rotation === 270 ? imageHeight : imageWidth;
+        const height = rotation === 90 || rotation === 270 ? imageWidth : imageHeight;
 
         // re-render the image onto a new canvas to download the original image
         const canvas = document.createElement("canvas");
@@ -1000,7 +999,7 @@ export class ImageMode
         ctx.translate(width / 2, height / 2);
         ctx.scale(flipHorizontal ? -1 : 1, flipVertical ? -1 : 1);
         ctx.rotate((rotation / 180) * Math.PI);
-        ctx.translate(-currentImage.width / 2, -currentImage.height / 2);
+        ctx.translate(-imageWidth / 2, -imageHeight / 2);
         ctx.drawImage(bitmap, 0, 0);
 
         // read the canvas data as an image (png)
@@ -1043,6 +1042,17 @@ export class ImageMode
       },
     ];
   }
+}
+
+function getDecodedImageDimensions(decodedImage: ImageBitmap | ImageData | VideoFrame): {
+  width: number;
+  height: number;
+} {
+  if (typeof VideoFrame !== "undefined" && decodedImage instanceof VideoFrame) {
+    return { width: decodedImage.displayWidth, height: decodedImage.displayHeight };
+  }
+  const bitmap = decodedImage as ImageBitmap | ImageData;
+  return { width: bitmap.width, height: bitmap.height };
 }
 
 const createFallbackCameraInfoForImage = (options: {

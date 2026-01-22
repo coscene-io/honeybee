@@ -10,6 +10,7 @@ import * as Comlink from "@coscene-io/comlink";
 import { ComlinkWrap } from "@foxglove/den/worker";
 import { RawImage } from "@foxglove/schemas";
 
+import type { CompressedVideo } from "./ImageTypes";
 import type { RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
@@ -46,6 +47,17 @@ export class WorkerImageDecoder {
     options: Partial<RawImageOptions>,
   ): Promise<ImageData> {
     return await this.#remote.decode(image, options);
+  }
+
+  public async decodeVideoFrame(
+    frame: CompressedVideo,
+    firstMessageTime: bigint,
+  ): Promise<VideoFrame | undefined> {
+    return await this.#remote.decodeVideoFrame(frame, firstMessageTime);
+  }
+
+  public async resetVideoDecoder(): Promise<void> {
+    await this.#remote.resetVideoDecoder();
   }
 
   public terminate(): void {

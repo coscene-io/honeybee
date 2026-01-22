@@ -7,25 +7,26 @@
 
 /** @jest-environment jsdom */
 
-import { H264, VideoPlayer } from "@foxglove/den/video";
-import RosTimeBuilder from "@foxglove/studio-base/testing/builders/RosTimeBuilder";
+import { H264 } from "@foxglove/den/video";
 
 import { CompressedImageTypes, CompressedVideo } from "./ImageTypes";
 import {
   decodeCompressedImageToBitmap,
   isVideoKeyframe,
   getVideoDecoderConfig,
-  decodeCompressedVideoToBitmap,
   decodeRawImage,
-  emptyVideoFrame,
 } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
+
+function createMockTime() {
+  return { sec: 0, nsec: 0 };
+}
 
 function createMockVideoFrame(override?: Partial<CompressedVideo>): CompressedVideo {
   return {
     data: new Uint8Array([]),
     format: "h264",
-    timestamp: RosTimeBuilder.time(),
+    timestamp: createMockTime(),
     frame_id: "frame_video",
     ...override,
   };
@@ -36,7 +37,7 @@ describe("decodeCompressedImageToBitmap", () => {
     const mockImage: CompressedImageTypes = {
       data: new Uint8Array([1, 2, 3]),
       format: "jpeg",
-      timestamp: RosTimeBuilder.time(),
+      timestamp: createMockTime(),
       frame_id: "frame_1",
     };
     const bitmap = await decodeCompressedImageToBitmap(mockImage);
@@ -77,31 +78,6 @@ describe("getVideoDecoderConfig", () => {
       data: new Uint8Array([0x00]),
     });
     expect(getVideoDecoderConfig(mockVideoFrame)).toBeUndefined();
-  });
-});
-
-describe("decodeCompressedVideoToBitmap", () => {
-  it("should decode a compressed video frame to an ImageBitmap", async () => {
-    const mockVideoFrame = createMockVideoFrame();
-    const mockVideoPlayer = {
-      isInitialized: jest.fn().mockReturnValue(true),
-      decode: jest.fn().mockResolvedValue(new ImageBitmap()),
-    } as unknown as VideoPlayer;
-    const bitmap = await decodeCompressedVideoToBitmap(mockVideoFrame, mockVideoPlayer, BigInt(0));
-    expect(bitmap).toBeInstanceOf(ImageBitmap);
-    expect(mockVideoPlayer.lastImageBitmap).toBeDefined();
-  });
-
-  it("should return an empty video frame if the video player is not initialized", async () => {
-    const mockVideoFrame = createMockVideoFrame();
-    const mockVideoPlayer = {
-      isInitialized: jest.fn().mockReturnValue(false),
-      codedSize: jest.fn(),
-    } as unknown as VideoPlayer;
-
-    const bitmap = await decodeCompressedVideoToBitmap(mockVideoFrame, mockVideoPlayer, BigInt(0));
-    expect(bitmap).toBeInstanceOf(ImageBitmap);
-    expect(mockVideoPlayer.lastImageBitmap).toBeUndefined();
   });
 });
 
@@ -192,21 +168,5 @@ describe("decodeRawImage", () => {
       const output = new Uint8ClampedArray(12);
       decodeRawImage(mockImage, {}, output);
     }).not.toThrow();
-  });
-});
-
-describe("emptyVideoFrame", () => {
-  it("should return an empty ImageBitmap", async () => {
-    const bitmap = await emptyVideoFrame();
-    expect(bitmap).toBeInstanceOf(ImageBitmap);
-    expect(bitmap.width).toEqual(32); // default 32x32
-    expect(bitmap.height).toEqual(32); // default 32x32
-  });
-
-  it("should return an empty ImageBitmap with specified resizeWidth", async () => {
-    const bitmap = await emptyVideoFrame(undefined, 100);
-    expect(bitmap).toBeInstanceOf(ImageBitmap);
-    expect(bitmap.width).toEqual(100);
-    expect(bitmap.height).toEqual(100);
   });
 });
