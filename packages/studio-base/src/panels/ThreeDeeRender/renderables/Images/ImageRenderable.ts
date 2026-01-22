@@ -30,6 +30,7 @@ import {
   decodeCompressedVideoToBitmap,
   emptyVideoFrame,
   getVideoDecoderConfig,
+  isVideoKeyframe,
 } from "./decodeImage";
 import { CameraInfo } from "../../ros";
 import {
@@ -67,7 +68,7 @@ export const IMAGE_RENDERABLE_DEFAULT_SETTINGS: ImageRenderableSettings = {
   contrast: INITIAL_CONTRAST,
 };
 
-const VIDEO_FORMATS = new Set(["h264"]);
+const VIDEO_FORMATS = new Set(["h264", "h265"]);
 
 export type ImageUserData = BaseUserData & {
   topic: string;
@@ -127,7 +128,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.material?.dispose();
     this.userData.geometry?.dispose();
     this.decoder?.terminate();
+    this.videoPlayer?.close();
     super.dispose();
+  }
+
+  /**
+   * Reset the video player state when seeking. This clears the decoder's internal
+   * reference frame cache so that the decoder starts fresh from the next keyframe.
+   */
+  public resetForSeek(): void {
+    this.videoPlayer?.resetForSeek();
   }
 
   public updateHeaderInfo(): void {
@@ -307,6 +317,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         }
 
         assert(this.userData.firstMessageTime != undefined, "firstMessageTime must be set");
+
+        // Handle seek backwards: if this is a keyframe with an earlier timestamp,
+        // update firstMessageTime to use it as the new reference point
+        const currentFrameTime = toNanoSec(frameMsg.timestamp);
+        if (isVideoKeyframe(frameMsg) && currentFrameTime < this.userData.firstMessageTime) {
+          log.debug(
+            `Seek detected: updating firstMessageTime from ${this.userData.firstMessageTime} to ${currentFrameTime}`,
+          );
+          this.userData.firstMessageTime = currentFrameTime;
+        }
 
         return await decodeCompressedVideoToBitmap(
           frameMsg,

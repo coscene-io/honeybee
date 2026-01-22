@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Bitstream } from "./Bitstream";
+import { Bitstream } from "../h26x/Bitstream";
 
 const H264_PROFILE_NAMES = new Map<number, string>([
   [66, "BASELINE"],
@@ -336,7 +336,7 @@ export class SPS {
         this.num_units_in_tick = bitstream.u(32);
         this.time_scale = bitstream.u(32);
         this.fixed_frame_rate_flag = bitstream.u_1();
-        if (this.num_units_in_tick !== 0 && this.time_scale !== 0 && this.num_units_in_tick !== 0) {
+        if (this.num_units_in_tick !== 0 && this.time_scale !== 0) {
           this.framesPerSecond = this.time_scale / (2 * this.num_units_in_tick);
         }
       }

@@ -22,7 +22,7 @@ import {
   decodeUYVY,
   decodeYUYV,
 } from "@foxglove/den/image";
-import { H264, VideoPlayer } from "@foxglove/den/video";
+import { H264, H265, VideoPlayer } from "@foxglove/den/video";
 import { toMicroSec } from "@foxglove/rostime";
 import { RawImage } from "@foxglove/schemas";
 
@@ -44,6 +44,10 @@ export function isVideoKeyframe(frameMsg: CompressedVideo): boolean {
       // Search for an IDR NAL unit to determine if this is a keyframe
       return H264.IsKeyframe(frameMsg.data);
     }
+
+    case "h265": {
+      return H265.IsKeyframe(frameMsg.data);
+    }
   }
   return false;
 }
@@ -53,6 +57,10 @@ export function getVideoDecoderConfig(frameMsg: CompressedVideo): VideoDecoderCo
     case "h264": {
       // Search for an SPS NAL unit to initialize the decoder. This should precede each keyframe
       return H264.ParseDecoderConfig(frameMsg.data);
+    }
+
+    case "h265": {
+      return H265.ParseDecoderConfig(frameMsg.data);
     }
   }
 

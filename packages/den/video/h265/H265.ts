@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { SPS as SPSNALU } from "./SPS";
+import { SPS as SPSSNALU } from "./SPS";
 import {
   annexBBoxSize,
   findNextStartCode,
@@ -15,38 +15,60 @@ import {
 } from "../h26x/AnnexB";
 import type { H26xCodec } from "../h26x/types";
 
-export enum H264NaluType {
-  NDR = 1,
-  IDR = 5,
-  SEI = 6,
-  SPS = 7,
-  PPS = 8,
-  AUD = 9,
+export enum H265NaluType {
+  TRAIL_N = 0,
+  TRAIL_R = 1,
+  TSA_N = 2,
+  TSA_R = 3,
+  STSA_N = 4,
+  STSA_R = 5,
+  RADL_N = 6,
+  RADL_R = 7,
+  RASL_N = 8,
+  RASL_R = 9,
+  BLA_W_LP = 16,
+  BLA_W_RADL = 17,
+  BLA_N_LP = 18,
+  IDR_W_RADL = 19,
+  IDR_N_LP = 20,
+  CRA_NUT = 21,
+  VPS = 32,
+  SPS = 33,
+  PPS = 34,
+  AUD = 35,
+  EOS_NUT = 36,
+  EOB_NUT = 37,
+  FD_NUT = 38,
+  SEI_PREFIX = 39,
+  SEI_SUFFIX = 40,
 }
 
-export class H264 implements H26xCodec {
+const IRAP_MIN = H265NaluType.BLA_W_LP;
+const IRAP_MAX = H265NaluType.CRA_NUT;
+
+export class H265 implements H26xCodec {
   public IsAnnexB(data: Uint8Array): boolean {
-    return H264.IsAnnexB(data);
+    return H265.IsAnnexB(data);
   }
 
   public AnnexBBoxSize(data: Uint8Array): number | undefined {
-    return H264.AnnexBBoxSize(data);
+    return H265.AnnexBBoxSize(data);
   }
 
   public IsKeyframe(data: Uint8Array): boolean {
-    return H264.IsKeyframe(data);
+    return H265.IsKeyframe(data);
   }
 
   public GetFirstNALUOfType(data: Uint8Array, naluType: number): Uint8Array | undefined {
-    return H264.GetFirstNALUOfType(data, naluType as H264NaluType);
+    return H265.GetFirstNALUOfType(data, naluType as H265NaluType);
   }
 
   public ParseDecoderConfig(data: Uint8Array): VideoDecoderConfig | undefined {
-    return H264.ParseDecoderConfig(data);
+    return H265.ParseDecoderConfig(data);
   }
 
   public GetNaluTypeFromHeader(headerByte: number): number {
-    return H264.GetNaluTypeFromHeader(headerByte);
+    return H265.GetNaluTypeFromHeader(headerByte);
   }
 
   public static IsAnnexB(data: Uint8Array): boolean {
@@ -58,24 +80,19 @@ export class H264 implements H26xCodec {
   }
 
   public static IsKeyframe(data: Uint8Array): boolean {
-    // Determine what type of encoding is used
-    const boxSize = H264.AnnexBBoxSize(data);
+    const boxSize = H265.AnnexBBoxSize(data);
     if (boxSize == undefined) {
       return false;
     }
 
-    // Iterate over the NAL units in the H264 Annex B frame, looking for NaluTypes.IDR
     let i = boxSize;
     while (i < data.length) {
-      // Annex B NALU type is the 5 least significant bits of the first byte following the start
-      // code
-      const naluType: H264NaluType = data[i]! & 0x1f;
-      if (naluType === H264NaluType.IDR) {
+      const naluType = H265.GetNaluTypeFromHeader(data[i]!);
+      if (naluType >= IRAP_MIN && naluType <= IRAP_MAX) {
         return true;
       }
 
-      // Scan for another start code, signifying the beginning of the next NAL unit
-      i = H264.FindNextStartCodeEnd(data, i + 1);
+      i = H265.FindNextStartCodeEnd(data, i + 1);
     }
 
     return false;
@@ -83,22 +100,19 @@ export class H264 implements H26xCodec {
 
   public static GetFirstNALUOfType(
     data: Uint8Array,
-    naluType: H264NaluType,
+    naluType: H265NaluType,
   ): Uint8Array | undefined {
-    // Determine what type of encoding is used
-    return getFirstNaluOfType(data, naluType, (headerByte) => headerByte & 0x1f);
+    return getFirstNaluOfType(data, naluType, H265.GetNaluTypeFromHeader);
   }
 
   public static ParseDecoderConfig(data: Uint8Array): VideoDecoderConfig | undefined {
-    // Find the first SPS NALU and extrat MIME, picHeight, and picWidth fields
-    const spsData = H264.GetFirstNALUOfType(data, H264NaluType.SPS);
+    const spsData = H265.GetFirstNALUOfType(data, H265NaluType.SPS);
     if (spsData == undefined) {
       return undefined;
     }
 
-    // Extract the SPS fields
-    const sps = new SPSNALU(spsData);
-    if (sps.nal_unit_type !== H264NaluType.SPS) {
+    const sps = new SPSSNALU(spsData);
+    if (sps.nal_unit_type !== H265NaluType.SPS) {
       return undefined;
     }
 
@@ -108,13 +122,9 @@ export class H264 implements H26xCodec {
       codedHeight: sps.picHeight,
     };
 
-    // If the aspect ratio is specified, use it to calculate the display aspect ratio
     const aspectWidth = sps.sar_width ?? 0;
     const aspectHeight = sps.sar_height ?? 0;
     if (aspectWidth > 1 || aspectHeight > 1) {
-      // The Sample Aspect Ratio (SAR) is the ratio of the width to the height of an individual
-      // pixel. Display Aspect Ratio (DAR) is the ratio of the width to the height of the video as
-      // it should be displayed
       config.displayAspectWidth = Math.round(sps.picWidth * (aspectWidth / aspectHeight));
       config.displayAspectHeight = sps.picHeight;
     }
@@ -122,23 +132,15 @@ export class H264 implements H26xCodec {
     return config;
   }
 
-  /**
-   * Find the index of the next start code (0x000001 or 0x00000001) in the
-   * given buffer, starting at the given offset.
-   */
   public static FindNextStartCode(data: Uint8Array, start: number): number {
     return findNextStartCode(data, start);
   }
 
-  /**
-   * Find the index of the end of the next start code (0x000001 or 0x00000001) in the
-   * given buffer, starting at the given offset.
-   */
   public static FindNextStartCodeEnd(data: Uint8Array, start: number): number {
     return findNextStartCodeEnd(data, start);
   }
 
-  public static GetNaluTypeFromHeader(headerByte: number): H264NaluType {
-    return (headerByte & 0x1f) as H264NaluType;
+  public static GetNaluTypeFromHeader(headerByte: number): H265NaluType {
+    return ((headerByte >> 1) & 0x3f) as H265NaluType;
   }
 }

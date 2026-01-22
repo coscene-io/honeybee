@@ -307,6 +307,9 @@ export class ImageMode
         this.renderer.queueAnimationFrame();
       }, REMOVE_IMAGE_TIMEOUT_MS);
     }
+    // Reset video player state for seek operations to ensure proper timestamp
+    // handling and decoder state when seeking backwards
+    this.imageRenderable?.resetForSeek();
     // fallback camera model shouldn't ever be stale so we don't need to clear it
     if (!this.#fallbackCameraModelActive()) {
       this.#clearCameraModel();

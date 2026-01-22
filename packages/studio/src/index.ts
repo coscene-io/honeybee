@@ -767,11 +767,6 @@ export type SettingsTreeFieldVec2 = {
   min?: number;
 };
 
-export type SettingsTreeFieldLegendControl = {
-  input: "legendcontrols";
-  value?: undefined;
-};
-
 export type SettingsTreeFieldCommonResourceSelector = {
   input: "commonResourceSelector";
   value?: string;
@@ -801,7 +796,6 @@ export type SettingsTreeFieldValue =
   | SettingsTreeFieldSlider
   | SettingsTreeFieldVec3
   | SettingsTreeFieldVec2
-  | SettingsTreeFieldLegendControl
   | SettingsTreeFieldCommonResourceSelector
   | SettingsTreeFieldMultipleSelect;
 
