@@ -8,20 +8,16 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { H264, H265, VideoPlayer } from "@foxglove/den/video";
-import { toMicroSec } from "@foxglove/rostime";
-import type { RawImage } from "@foxglove/schemas";
+import Logger from "@foxglove/log";
+import { isLessThan, Time, toMicroSec } from "@foxglove/rostime";
 
 import type { CompressedVideo } from "./ImageTypes";
-import { decodeRawImage, RawImageOptions } from "./decodeImage";
-import type { Image as RosImage } from "../../ros";
 
-function decode(image: RosImage | RawImage, options: Partial<RawImageOptions>): ImageData {
-  const result = new ImageData(image.width, image.height);
-  decodeRawImage(image, options, result.data);
-  return Comlink.transfer(result, [result.data.buffer]);
-}
+const log = Logger.getLogger(__filename);
 
 let videoPlayer: VideoPlayer | undefined;
+/** Track the last decoded frame's timestamp to detect out-of-order frames */
+let lastDecodeTime: Time = { sec: 0, nsec: 0 };
 
 function getVideoPlayer(): VideoPlayer {
   if (!videoPlayer) {
@@ -30,10 +26,25 @@ function getVideoPlayer(): VideoPlayer {
   return videoPlayer;
 }
 
-async function decodeVideoFrame(
-  frame: CompressedVideo,
-  firstMessageTime: bigint,
-): Promise<VideoFrame | undefined> {
+/**
+ * Reset the video player when we detect out-of-order frames (e.g., seek backwards).
+ * This ensures the decoder starts fresh from the next keyframe.
+ */
+function resetVideoPlayerForDisorder(): void {
+  log.info("Received out-of-order frame, resetting video decoder");
+  videoPlayer?.close();
+  videoPlayer = undefined;
+  lastDecodeTime = { sec: 0, nsec: 0 };
+}
+
+async function decodeVideoFrame(frame: CompressedVideo, firstMessageTime: bigint): Promise<void> {
+  // Detect out-of-order frames (e.g., from seek backwards)
+  // This is critical for proper decoder state management
+  if (isLessThan(frame.timestamp, lastDecodeTime)) {
+    resetVideoPlayerForDisorder();
+  }
+  lastDecodeTime = frame.timestamp;
+
   const player = getVideoPlayer();
 
   const chunkType = getChunkType(frame);
@@ -52,11 +63,21 @@ async function decodeVideoFrame(
   const firstTimestampMicros = Number(firstMessageTime / 1000n);
   const timestampMicros = toMicroSec(frame.timestamp) - firstTimestampMicros;
 
-  const videoFrame = await player.decode(frame.data, timestampMicros, chunkType);
-  if (!videoFrame) {
+  // Submit the frame for async decoding (non-blocking)
+  player.decodeAsync(frame.data, timestampMicros, chunkType);
+}
+
+function getLatestVideoFrame(): VideoFrame | undefined {
+  const player = getVideoPlayer();
+
+  if (!player.isInitialized()) {
     return undefined;
   }
 
+  const videoFrame = player.getLatestFrame();
+  if (!videoFrame) {
+    return undefined;
+  }
   return Comlink.transfer(videoFrame, [videoFrame]);
 }
 
@@ -74,7 +95,11 @@ function getChunkType(frame: CompressedVideo): "key" | "delta" | undefined {
 function getDecoderConfig(frame: CompressedVideo): VideoDecoderConfig | undefined {
   switch (frame.format) {
     case "h264":
-      return H264.ParseDecoderConfig(frame.data);
+      // return H264.ParseDecoderConfig(frame.data);
+      return {
+        codec: "avc1.640028",
+        optimizeForLatency: true,
+      };
     case "h265":
       return H265.ParseDecoderConfig(frame.data);
     default:
@@ -84,11 +109,12 @@ function getDecoderConfig(frame: CompressedVideo): VideoDecoderConfig | undefine
 
 function resetVideoDecoder(): void {
   videoPlayer?.resetForSeek();
+  lastDecodeTime = { sec: 0, nsec: 0 };
 }
 
 export const service = {
-  decode,
   decodeVideoFrame,
   resetVideoDecoder,
+  getLatestVideoFrame,
 };
 Comlink.expose(service);

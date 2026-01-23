@@ -221,18 +221,28 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     decodePromise
       .then((result) => {
+        // Check if result is a reused frame (same as current #decodedImage).
+        // If so, we must NOT close it as it's still being used by the texture.
+        const isReusedFrame = result === this.#decodedImage;
+
         if (this.isDisposed()) {
-          closeDecodedImageResource(result);
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
           return;
         }
         // prevent displaying an image older than the one currently displayed
         if (this.#displayedImageSequenceNumber > seq) {
-          closeDecodedImageResource(result);
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
           return;
         }
         // cap at 60 fps
         if (this.#lastRenderImage > Date.now() - 16) {
-          closeDecodedImageResource(result);
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
           return;
         }
         this.#lastRenderImage = Date.now();

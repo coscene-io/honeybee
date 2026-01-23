@@ -12,8 +12,6 @@ import Logger from "@foxglove/log";
 
 // foxglove-depcheck-used: @types/dom-webcodecs
 
-const MAX_DECODE_WAIT_MS = 30;
-
 export type VideoPlayerEventTypes = {
   frame: (frame: VideoFrame) => void;
   debug: (message: string) => void;
@@ -24,20 +22,26 @@ export type VideoPlayerEventTypes = {
 const log = Logger.getLogger(__filename);
 
 /**
- * A wrapper around the WebCodecs VideoDecoder API that is safe to use from
- * multiple asynchronous contexts, is keyframe-aware, exposes a simple decode
- * method that takes a chunk of encoded video bitstream representing a single
- * frame and returns the decoded VideoFrame, and emits events for debugging
- * and error handling.
+ * A wrapper around the WebCodecs VideoDecoder API that uses an async queue model
+ * for high-performance decoding. Frames are submitted to the decoder without waiting
+ * for each frame to complete, and decoded frames are buffered for retrieval.
+ *
+ * This design is optimized for high-speed playback scenarios where blocking on each
+ * frame decode would cause performance issues and visual artifacts.
  */
 export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
   readonly #decoderInit: VideoDecoderInit;
   #decoder: VideoDecoder;
   #decoderConfig: VideoDecoderConfig | undefined;
   readonly #mutex = new Mutex();
-  #timeoutId: ReturnType<typeof setTimeout> | undefined;
-  #pendingFrame: VideoFrame | undefined;
   #codedSize: { width: number; height: number } | undefined;
+
+  /** Buffer of decoded frames, newest frames are pushed to the end */
+  #frameBuffer: VideoFrame[] = [];
+
+  /** Whether we have received a keyframe and can start decoding */
+  #foundKeyFrame = false;
+
   // Stores the last decoded frame as an ImageBitmap, should be set after decode()
   public lastImageBitmap: ImageBitmap | undefined;
 
@@ -50,8 +54,16 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     super();
     this.#decoderInit = {
       output: (videoFrame: VideoFrame) => {
-        this.#pendingFrame?.close();
-        this.#pendingFrame = videoFrame;
+        // Push new frame to buffer
+        this.#frameBuffer.push(videoFrame);
+
+        // Update coded size from the frame
+        if (!this.#codedSize) {
+          this.#codedSize = { width: 0, height: 0 };
+        }
+        this.#codedSize.width = videoFrame.codedWidth;
+        this.#codedSize.height = videoFrame.codedHeight;
+
         this.emit("frame", videoFrame);
       },
       error: (error) => this.emit("error", error),
@@ -61,7 +73,7 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
 
   /**
    * Configures the VideoDecoder with the given VideoDecoderConfig. This must
-   * be called before decode() will return a VideoFrame.
+   * be called before decode() will accept frames.
    */
   public async init(decoderConfig: VideoDecoderConfig): Promise<void> {
     await this.#mutex.runExclusive(async () => {
@@ -124,6 +136,47 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
   }
 
   /**
+   * Submits a chunk of encoded video bitstream to the decoder for async decoding.
+   * This method returns immediately without waiting for the decode to complete.
+   * Use getLatestFrame() to retrieve decoded frames.
+   *
+   * @param data A chunk of encoded video bitstream
+   * @param timestampMicros The timestamp of the chunk in microseconds
+   * @param type "key" if this chunk contains a keyframe, "delta" otherwise
+   */
+  public decodeAsync(data: Uint8Array, timestampMicros: number, type: "key" | "delta"): void {
+    if (this.#decoder.state === "closed") {
+      this.emit("warn", "VideoDecoder is closed, creating a new one");
+      this.#decoder = new VideoDecoder(this.#decoderInit);
+    }
+
+    if (this.#decoder.state === "unconfigured") {
+      this.emit("debug", "Waiting for initialization...");
+      return;
+    }
+
+    // Track keyframe state - we need a keyframe before we can decode delta frames
+    if (type === "key") {
+      this.#foundKeyFrame = true;
+    }
+
+    if (!this.#foundKeyFrame) {
+      return;
+    }
+
+    try {
+      this.#decoder.decode(new EncodedVideoChunk({ type, data, timestamp: timestampMicros }));
+    } catch (unk) {
+      const error = new Error(
+        `Failed to decode ${data.byteLength} byte chunk at time ${timestampMicros}: ${
+          (unk as Error).message
+        }`,
+      );
+      this.emit("error", error);
+    }
+  }
+
+  /**
    * Takes a chunk of encoded video bitstream, sends it to the VideoDecoder,
    * and returns a Promise that resolves to the decoded VideoFrame. If the
    * VideoDecoder is not yet configured, we are waiting on a keyframe, or we
@@ -141,86 +194,66 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     timestampMicros: number,
     type: "key" | "delta",
   ): Promise<VideoFrame | undefined> {
-    return await this.#mutex.runExclusive(async () => {
-      if (this.#decoder.state === "closed") {
-        this.emit("warn", "VideoDecoder is closed, creating a new one");
-        this.#decoder = new VideoDecoder(this.#decoderInit);
-      }
+    // Submit frame for async decoding
+    this.decodeAsync(data, timestampMicros, type);
 
-      if (this.#decoder.state === "unconfigured") {
-        this.emit("debug", "Waiting for initialization...");
-        return undefined;
-      }
+    // Return the latest available frame (if any)
+    return this.getLatestFrame();
+  }
 
-      await new Promise<void>((resolve) => {
-        const frameHandler = () => {
-          if (this.#timeoutId != undefined) {
-            clearTimeout(this.#timeoutId);
-          }
-          resolve();
-        };
+  /**
+   * Returns the latest decoded frame from the buffer, closing all older frames.
+   * Returns undefined if no frames are available.
+   */
+  public getLatestFrame(): VideoFrame | undefined {
+    if (this.#frameBuffer.length === 0) {
+      return undefined;
+    }
 
-        if (this.#timeoutId != undefined) {
-          clearTimeout(this.#timeoutId);
-        }
+    // Get the latest frame (last in buffer)
+    const latestFrame = this.#frameBuffer.pop();
 
-        this.#timeoutId = setTimeout(() => {
-          this.removeListener("frame", frameHandler);
-          this.emit(
-            "warn",
-            `Timed out decoding ${data.byteLength} byte chunk at time ${timestampMicros}`,
-          );
-          resolve(undefined);
-        }, MAX_DECODE_WAIT_MS);
+    // Close all older frames to free resources
+    for (const oldFrame of this.#frameBuffer) {
+      oldFrame.close();
+    }
+    this.#frameBuffer = [];
 
-        this.once("frame", frameHandler);
+    return latestFrame;
+  }
 
-        try {
-          this.#decoder.decode(new EncodedVideoChunk({ type, data, timestamp: timestampMicros }));
-        } catch (unk) {
-          clearTimeout(this.#timeoutId);
-          this.removeListener("frame", frameHandler);
-
-          const error = new Error(
-            `Failed to decode ${data.byteLength} byte chunk at time ${timestampMicros}: ${
-              (unk as Error).message
-            }`,
-          );
-          this.emit("error", error);
-          resolve();
-        }
-      });
-
-      const maybeVideoFrame = this.#pendingFrame;
-      this.#pendingFrame = undefined;
-
-      // Update the coded and display sizes if we have a new frame
-      if (maybeVideoFrame) {
-        if (!this.#codedSize) {
-          this.#codedSize = { width: 0, height: 0 };
-        }
-        this.#codedSize.width = maybeVideoFrame.codedWidth;
-        this.#codedSize.height = maybeVideoFrame.codedHeight;
-      }
-
-      return maybeVideoFrame;
-    });
+  /**
+   * Returns the number of frames currently buffered.
+   */
+  public bufferedFrameCount(): number {
+    return this.#frameBuffer.length;
   }
 
   /**
    * Reset the VideoDecoder and clear any pending frames, but do not clear any
    * cached stream information or decoder configuration. This should be called
    * when seeking to a new position in the stream.
+   *
+   * Note: After reset(), the decoder goes to "unconfigured" state, so we
+   * reconfigure it with the saved config.
    */
   public resetForSeek(): void {
     if (this.#decoder.state === "configured") {
       this.#decoder.reset();
+      // After reset(), decoder is in "unconfigured" state, need to reconfigure
+      if (this.#decoderConfig) {
+        this.#decoder.configure(this.#decoderConfig);
+      }
     }
-    if (this.#timeoutId != undefined) {
-      clearTimeout(this.#timeoutId);
+
+    // Clear the frame buffer
+    for (const frame of this.#frameBuffer) {
+      frame.close();
     }
-    this.#pendingFrame?.close();
-    this.#pendingFrame = undefined;
+    this.#frameBuffer = [];
+
+    // Reset keyframe tracking - need a new keyframe after seek
+    this.#foundKeyFrame = false;
   }
 
   /**
@@ -231,10 +264,13 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     if (this.#decoder.state !== "closed") {
       this.#decoder.close();
     }
-    if (this.#timeoutId != undefined) {
-      clearTimeout(this.#timeoutId);
+
+    // Clear the frame buffer
+    for (const frame of this.#frameBuffer) {
+      frame.close();
     }
-    this.#pendingFrame?.close();
-    this.#pendingFrame = undefined;
+    this.#frameBuffer = [];
+
+    this.#foundKeyFrame = false;
   }
 }

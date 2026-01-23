@@ -11,7 +11,7 @@ import { ComlinkWrap } from "@foxglove/den/worker";
 import { RawImage } from "@foxglove/schemas";
 
 import type { CompressedVideo } from "./ImageTypes";
-import type { RawImageOptions } from "./decodeImage";
+import { decodeRawImage, RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
 /**
@@ -40,20 +40,30 @@ export class WorkerImageDecoder {
   }
 
   /**
-   * Copies `image` to the worker, and transfers the decoded result back to the main thread.
+   * decode raw image, raw image will be large, the cost of decoding raw image is much less
+   * than the cost of worker transmission, so decode raw image directly in the main thread
    */
   public async decode(
     image: RosImage | RawImage,
     options: Partial<RawImageOptions>,
   ): Promise<ImageData> {
-    return await this.#remote.decode(image, options);
+    const result = new ImageData(image.width, image.height);
+    decodeRawImage(image, options, result.data);
+    return result;
   }
 
   public async decodeVideoFrame(
     frame: CompressedVideo,
     firstMessageTime: bigint,
   ): Promise<VideoFrame | undefined> {
-    return await this.#remote.decodeVideoFrame(frame, firstMessageTime);
+    // Split into two separate Comlink calls to allow WebCodecs output callback to execute.
+    // WebCodecs VideoDecoder.decode() is async - the output callback fires after the current
+    // JS execution context completes. By making two independent RPC calls, we create an
+    // event loop gap between frame submission and retrieval, giving the decoder time to
+    // process and output the frame before we try to fetch it.
+    await this.#remote.decodeVideoFrame(frame, firstMessageTime);
+
+    return await this.#remote.getLatestVideoFrame();
   }
 
   public async resetVideoDecoder(): Promise<void> {
