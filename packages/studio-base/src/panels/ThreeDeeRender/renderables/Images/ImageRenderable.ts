@@ -15,14 +15,25 @@ import { toNanoSec } from "@foxglove/rostime";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
 import { stringToRgba } from "@foxglove/studio-base/panels/ThreeDeeRender/color";
+import {
+  clampBrightness,
+  clampContrast,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/utils";
 import { WorkerImageDecoder } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/WorkerImageDecoder";
 import { projectPixel } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/projections";
 import { RosValue } from "@foxglove/studio-base/players/types";
 
-import { AnyImage } from "./ImageTypes";
-import { decodeCompressedImageToBitmap } from "./decodeImage";
+import { AnyImage, CompressedVideo } from "./ImageTypes";
+import { decodeCompressedImageToBitmap, isVideoKeyframe } from "./decodeImage";
 import { CameraInfo } from "../../ros";
-import { DECODE_IMAGE_ERR_KEY, IMAGE_TOPIC_PATH } from "../ImageMode/constants";
+import {
+  DECODE_IMAGE_ERR_KEY,
+  FRAGMENT_SHADER,
+  IMAGE_TOPIC_PATH,
+  INITIAL_BRIGHTNESS,
+  INITIAL_CONTRAST,
+  VERTEX_SHADER,
+} from "../ImageMode/constants";
 import { ColorModeSettings } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
@@ -33,6 +44,8 @@ export interface ImageRenderableSettings extends Partial<ColorModeSettings> {
   distance: number;
   planarProjectionFactor: number;
   color: string;
+  brightness: number;
+  contrast: number;
 }
 
 const DEFAULT_DISTANCE = 1;
@@ -44,78 +57,25 @@ export const IMAGE_RENDERABLE_DEFAULT_SETTINGS: ImageRenderableSettings = {
   distance: DEFAULT_DISTANCE,
   planarProjectionFactor: DEFAULT_PLANAR_PROJECTION_FACTOR,
   color: "#ffffff",
+  brightness: INITIAL_BRIGHTNESS,
+  contrast: INITIAL_CONTRAST,
 };
+
+const VIDEO_FORMATS = new Set(["h264", "h265"]);
+
 export type ImageUserData = BaseUserData & {
   topic: string;
   settings: ImageRenderableSettings;
+  firstMessageTime: bigint | undefined;
   cameraInfo: CameraInfo | undefined;
   cameraModel: PinholeCameraModel | undefined;
   image: AnyImage | undefined;
   texture: THREE.Texture | undefined;
-  material: THREE.MeshBasicMaterial | undefined;
+  // The material should use ShaderMaterial so we can use custom shaders to apply effects like brightness and contrast
+  material: THREE.ShaderMaterial | undefined;
   geometry: THREE.PlaneGeometry | undefined;
   mesh: THREE.Mesh | undefined;
 };
-
-class DecodedFrame {
-  readonly #data: ImageData | ImageBitmap | VideoFrame;
-
-  #width: number;
-
-  #height: number;
-
-  #type: "image" | "bitmap" | "video";
-
-  public constructor(image: ImageBitmap | ImageData | VideoFrame) {
-    this.#data = image;
-
-    if (this.#data instanceof VideoFrame) {
-      this.#width = this.#data.displayWidth;
-      this.#height = this.#data.displayHeight;
-
-      this.#type = "video";
-    } else if (this.#data instanceof ImageBitmap) {
-      this.#width = this.#data.width;
-      this.#height = this.#data.height;
-
-      this.#type = "bitmap";
-    } else {
-      this.#width = this.#data.width;
-      this.#height = this.#data.height;
-
-      this.#type = "image";
-    }
-  }
-
-  public getData(): ImageData | ImageBitmap | VideoFrame {
-    return this.#data;
-  }
-
-  public getWidth(): number {
-    return this.#width;
-  }
-
-  public getHeight(): number {
-    return this.#height;
-  }
-
-  public getType(): "image" | "bitmap" | "video" {
-    return this.#type;
-  }
-
-  public async getImage(): Promise<ImageBitmap | ImageData> {
-    if (this.#data instanceof VideoFrame) {
-      return await createImageBitmap(this.#data);
-    }
-    return this.#data;
-  }
-
-  public close(): void {
-    if (this.#data instanceof ImageBitmap || this.#data instanceof VideoFrame) {
-      this.#data.close();
-    }
-  }
-}
 
 export class ImageRenderable extends Renderable<ImageUserData> {
   // Make sure that everything is build the first time we render
@@ -132,12 +92,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #isUpdating = false;
 
-  #decodedFrame?: DecodedFrame;
-
+  #decodedImage?: ImageBitmap | ImageData | VideoFrame;
   protected decoder?: WorkerImageDecoder;
   #receivedImageSequenceNumber = 0;
   #displayedImageSequenceNumber = 0;
   #showingErrorImage = false;
+  #lastRenderImage = 0;
 
   #disposed = false;
 
@@ -149,18 +109,31 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return this.#disposed;
   }
 
-  public getDecodedFrame(): DecodedFrame | undefined {
-    return this.#decodedFrame;
+  public getDecodedImage(): ImageBitmap | ImageData | VideoFrame | undefined {
+    return this.#decodedImage;
   }
 
   public override dispose(): void {
     this.#disposed = true;
-    this.#decodedFrame?.close();
+    if (this.userData.texture?.image instanceof VideoFrame) {
+      this.userData.texture.image.close();
+    }
+    if (isVideoFrame(this.#decodedImage)) {
+      this.#decodedImage.close();
+    }
     this.userData.texture?.dispose();
     this.userData.material?.dispose();
     this.userData.geometry?.dispose();
     this.decoder?.terminate();
     super.dispose();
+  }
+
+  /**
+   * Reset the video player state when seeking. This clears the decoder's internal
+   * reference frame cache so that the decoder starts fresh from the next keyframe.
+   */
+  public resetForSeek(): void {
+    void this.decoder?.resetVideoDecoder();
   }
 
   public updateHeaderInfo(): void {
@@ -212,7 +185,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       this.#geometryNeedsUpdate = true;
     }
 
-    if (newSettings.color !== prevSettings.color) {
+    if (
+      newSettings.color !== prevSettings.color ||
+      prevSettings.brightness !== newSettings.brightness ||
+      prevSettings.contrast !== newSettings.contrast
+    ) {
       this.#materialNeedsUpdate = true;
     }
 
@@ -236,52 +213,41 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.settings = newSettings;
   }
 
-  #lastRenderImage = Date.now();
   public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
     this.userData.image = image;
-    const timestamp = "timestamp" in image ? image.timestamp : undefined;
 
     const seq = ++this.#receivedImageSequenceNumber;
-
-    let decodePromise: Promise<ImageBitmap | ImageData | VideoFrame | undefined> | undefined =
-      undefined;
-    if ("format" in image && image.format === "h264") {
-      if (this.decoder == undefined) {
-        this.decoder = new WorkerImageDecoder();
-      }
-
-      if (timestamp == undefined) {
-        throw new Error("timestamp is undefined");
-      }
-
-      decodePromise = this.decoder.decodeH264Frame(image, timestamp);
-    } else {
-      decodePromise = this.decodeImage(image, resizeWidth);
-    }
+    const decodePromise = this.decodeImage(image, resizeWidth);
 
     decodePromise
       .then((result) => {
+        // Check if result is a reused frame (same as current #decodedImage).
+        // If so, we must NOT close it as it's still being used by the texture.
+        const isReusedFrame = result === this.#decodedImage;
+
         if (this.isDisposed()) {
-          closeImageResource(result);
-          return;
-        }
-        if (result == undefined) {
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
           return;
         }
         // prevent displaying an image older than the one currently displayed
         if (this.#displayedImageSequenceNumber > seq) {
-          closeImageResource(result);
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
           return;
         }
         // cap at 60 fps
         if (this.#lastRenderImage > Date.now() - 16) {
-          closeImageResource(result);
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
           return;
         }
         this.#lastRenderImage = Date.now();
-
         this.#displayedImageSequenceNumber = seq;
-        this.#decodedFrame = new DecodedFrame(result);
+        this.#decodedImage = result;
         this.#textureNeedsUpdate = true;
         this.update();
         this.#showingErrorImage = false;
@@ -299,10 +265,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (!this.#showingErrorImage) {
           void this.#setErrorImage(seq, onDecoded);
         }
-        this.addError(
-          DECODE_IMAGE_ERR_KEY,
-          `Error decoding image: ${err instanceof Error ? err.message : err}`,
-        );
+        this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
       });
   }
 
@@ -314,7 +277,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (this.#displayedImageSequenceNumber > seq) {
       return;
     }
-    this.#decodedFrame = new DecodedFrame(errorBitmap);
+    this.#decodedImage = errorBitmap;
     this.#textureNeedsUpdate = true;
     this.update();
     this.#showingErrorImage = true;
@@ -326,9 +289,48 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   protected async decodeImage(
     image: AnyImage,
     resizeWidth?: number,
-  ): Promise<ImageBitmap | ImageData> {
+  ): Promise<ImageBitmap | ImageData | VideoFrame> {
     if ("format" in image) {
-      return await decodeCompressedImageToBitmap(image, resizeWidth);
+      if (!VIDEO_FORMATS.has(image.format)) {
+        return await decodeCompressedImageToBitmap(image, resizeWidth);
+      } else {
+        const frameMsg = image as CompressedVideo;
+
+        if (frameMsg.data.byteLength === 0) {
+          const error = "Empty video frame";
+          log.error(error);
+          if (isVideoFrame(this.#decodedImage)) {
+            return this.#decodedImage;
+          }
+          return createEmptyVideoFrame();
+        }
+
+        const decoder = (this.decoder ??= new WorkerImageDecoder());
+
+        assert(this.userData.firstMessageTime != undefined, "firstMessageTime must be set");
+
+        // Handle seek backwards: if this is a keyframe with an earlier timestamp,
+        // update firstMessageTime to use it as the new reference point
+        const currentFrameTime = toNanoSec(frameMsg.timestamp);
+        if (isVideoKeyframe(frameMsg) && currentFrameTime < this.userData.firstMessageTime) {
+          log.debug(
+            `Seek detected: updating firstMessageTime from ${this.userData.firstMessageTime} to ${currentFrameTime}`,
+          );
+          this.userData.firstMessageTime = currentFrameTime;
+        }
+
+        const decodedFrame = await decoder.decodeVideoFrame(
+          frameMsg,
+          this.userData.firstMessageTime,
+        );
+        if (decodedFrame != undefined) {
+          return decodedFrame;
+        }
+        if (isVideoFrame(this.#decodedImage)) {
+          return this.#decodedImage;
+        }
+        return createEmptyVideoFrame();
+      }
     }
     return await (this.decoder ??= new WorkerImageDecoder()).decode(image, this.userData.settings);
   }
@@ -339,7 +341,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
     this.#isUpdating = true;
 
-    if (this.#textureNeedsUpdate && this.#decodedFrame) {
+    if (this.#textureNeedsUpdate && this.#decodedImage) {
       this.#updateTexture();
       this.#textureNeedsUpdate = false;
     }
@@ -382,40 +384,49 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #updateTexture(): void {
     assert(
-      this.#decodedFrame,
+      this.#decodedImage,
       "Decoded image must be set before texture can be updated or created",
     );
-    const decodedData = this.#decodedFrame.getData();
-    const decodedFrameWidth = this.#decodedFrame.getWidth();
-    const decodedFrameHeight = this.#decodedFrame.getHeight();
-
-    // Create or update the bitmap texture
-    if (decodedData instanceof ImageBitmap || decodedData instanceof VideoFrame) {
+    const decodedImage = this.#decodedImage;
+    // Create or update the texture
+    if (isVideoFrame(decodedImage)) {
+      const texture = this.userData.texture;
+      if (
+        texture == undefined ||
+        !(texture.image instanceof VideoFrame) ||
+        !videoFrameDimensionsEqual(decodedImage, texture.image)
+      ) {
+        if (texture?.image instanceof VideoFrame) {
+          texture.image.close();
+        }
+        texture?.dispose();
+        this.userData.texture = createVideoFrameTexture(decodedImage);
+      } else {
+        if (texture.image !== decodedImage) {
+          texture.image.close();
+        }
+        texture.image = decodedImage;
+        texture.needsUpdate = true;
+      }
+    } else if (decodedImage instanceof ImageBitmap) {
       const canvasTexture = this.userData.texture;
       if (
         canvasTexture == undefined ||
         // instanceof check allows us to switch from a raw image (DataTexture) to a compressed image (CanvasTexture)
         !(canvasTexture instanceof THREE.CanvasTexture) ||
-        !bitmapDimensionsEqual(
-          decodedData,
-          canvasTexture.image as ImageBitmap | VideoFrame | undefined,
-        )
+        !bitmapDimensionsEqual(decodedImage, canvasTexture.image as ImageBitmap | undefined)
       ) {
-        if (
-          canvasTexture?.image instanceof ImageBitmap ||
-          canvasTexture?.image instanceof VideoFrame
-        ) {
+        if (canvasTexture?.image instanceof VideoFrame) {
+          canvasTexture.image.close();
+        }
+        if (canvasTexture?.image instanceof ImageBitmap) {
           // don't close the image if it is the error image
           canvasTexture.image.close();
         }
         canvasTexture?.dispose();
-        this.userData.texture = createCanvasTexture(decodedData);
+        this.userData.texture = createCanvasTexture(decodedImage);
       } else {
-        const previousImage = canvasTexture.image as ImageBitmap | VideoFrame | undefined;
-        if (previousImage && previousImage !== decodedData) {
-          previousImage.close();
-        }
-        canvasTexture.image = decodedData;
+        canvasTexture.image = decodedImage;
         canvasTexture.needsUpdate = true;
       }
     } else {
@@ -424,14 +435,17 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         dataTexture == undefined ||
         // instanceof check allows us to switch from a compressed image (CanvasTexture) to a raw image (DataTexture)
         !(dataTexture instanceof THREE.DataTexture) ||
-        dataTexture.image.width !== decodedFrameWidth ||
-        dataTexture.image.height !== decodedFrameHeight
+        dataTexture.image.width !== decodedImage.width ||
+        dataTexture.image.height !== decodedImage.height
       ) {
+        if (dataTexture?.image instanceof VideoFrame) {
+          dataTexture.image.close();
+        }
         dataTexture?.dispose();
-        dataTexture = createDataTexture(decodedData);
+        dataTexture = createDataTexture(decodedImage);
         this.userData.texture = dataTexture;
       } else {
-        dataTexture.image = decodedData;
+        dataTexture.image = decodedImage;
         dataTexture.needsUpdate = true;
       }
     }
@@ -447,13 +461,17 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     const texture = this.userData.texture;
     if (texture) {
-      material.map = texture;
+      material.uniforms.map = { value: texture };
     }
 
     tempColor = stringToRgba(tempColor, this.userData.settings.color);
     const transparent = tempColor.a < 1;
     const color = new THREE.Color(tempColor.r, tempColor.g, tempColor.b);
-    material.color.set(color);
+    const { brightness, contrast } = this.userData.settings;
+    material.uniforms.color = { value: color };
+    material.uniforms.brightness = { value: clampBrightness(brightness) };
+    material.uniforms.contrast = { value: clampContrast(contrast) };
+    material.uniforms.opacity = { value: tempColor.a };
     material.opacity = tempColor.a;
     material.transparent = transparent;
     material.depthWrite = !transparent;
@@ -472,13 +490,23 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     stringToRgba(tempColor, this.userData.settings.color);
     const transparent = tempColor.a < 1;
     const color = new THREE.Color(tempColor.r, tempColor.g, tempColor.b);
-    this.userData.material = new THREE.MeshBasicMaterial({
+    const { brightness, contrast } = this.userData.settings;
+    const uniforms = {
+      map: { value: this.userData.texture },
+      color: { value: color },
+      opacity: { value: tempColor.a },
+      brightness: { value: clampBrightness(brightness) },
+      contrast: { value: clampContrast(contrast) },
+    };
+    this.userData.material = new THREE.ShaderMaterial({
       name: `${this.userData.topic}:Material`,
-      color,
+      uniforms,
       side: THREE.DoubleSide,
       opacity: tempColor.a,
       transparent,
       depthWrite: !transparent,
+      vertexShader: VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
     });
   }
 
@@ -518,13 +546,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
 let tempColor = { r: 0, g: 0, b: 0, a: 0 };
 
-function closeImageResource(resource?: ImageBitmap | ImageData | VideoFrame): void {
-  if (resource instanceof ImageBitmap || resource instanceof VideoFrame) {
-    resource.close();
-  }
-}
-
-function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasTexture {
+function createCanvasTexture(bitmap: ImageBitmap): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(
     bitmap,
     THREE.UVMapping,
@@ -536,13 +558,30 @@ function createCanvasTexture(bitmap: ImageBitmap | VideoFrame): THREE.CanvasText
     THREE.UnsignedByteType,
   );
   texture.generateMipmaps = false;
-  texture.colorSpace = THREE.SRGBColorSpace;
+  // Color space needs to be set to LinearSRGBColorSpace for correct color rendering on custom Shader
+  texture.colorSpace = THREE.LinearSRGBColorSpace;
+  return texture;
+}
 
-  // 如果是 VideoFrame，翻转 Y 轴
-  if (bitmap instanceof VideoFrame) {
-    texture.flipY = false; // 防止 Three.js 默认的翻转
-  }
-
+function createVideoFrameTexture(frame: VideoFrame): THREE.Texture {
+  const texture = new THREE.Texture(
+    frame,
+    THREE.UVMapping,
+    THREE.ClampToEdgeWrapping,
+    THREE.ClampToEdgeWrapping,
+    THREE.NearestFilter,
+    THREE.LinearFilter,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  texture.generateMipmaps = false;
+  // Color space needs to be set to LinearSRGBColorSpace for correct color rendering on custom Shader
+  texture.colorSpace = THREE.LinearSRGBColorSpace;
+  // VideoFrame needs explicit Y flip to match ImageBitmap orientation
+  texture.flipY = false;
+  texture.repeat.set(1, -1);
+  texture.offset.set(0, 1);
+  texture.needsUpdate = true;
   return texture;
 }
 
@@ -559,7 +598,8 @@ function createDataTexture(imageData: ImageData): THREE.DataTexture {
     THREE.NearestFilter,
     THREE.LinearFilter,
     1,
-    THREE.SRGBColorSpace,
+    // Color space needs to be set to LinearSRGBColorSpace for correct color rendering on custom Shader
+    THREE.LinearSRGBColorSpace,
   );
   dataTexture.needsUpdate = true; // ensure initial image data is displayed
   return dataTexture;
@@ -569,8 +609,8 @@ function createGeometry(
   cameraModel: PinholeCameraModel,
   settings: ImageRenderableSettings,
 ): THREE.PlaneGeometry {
-  const WIDTH_SEGMENTS = 10;
-  const HEIGHT_SEGMENTS = 10;
+  const WIDTH_SEGMENTS = 100;
+  const HEIGHT_SEGMENTS = 100;
 
   const width = cameraModel.width;
   const height = cameraModel.height;
@@ -620,17 +660,38 @@ function createGeometry(
   return geometry;
 }
 
-const bitmapDimensionsEqual = (a?: ImageBitmap | VideoFrame, b?: ImageBitmap | VideoFrame) => {
-  if (a instanceof ImageBitmap && b instanceof ImageBitmap) {
-    return a.width === b.width && a.height === b.height;
-  }
+const bitmapDimensionsEqual = (a?: ImageBitmap, b?: ImageBitmap) =>
+  a?.width === b?.width && a?.height === b?.height;
 
-  if (a instanceof VideoFrame && b instanceof VideoFrame) {
-    return a.displayWidth === b.displayWidth && a.displayHeight === b.displayHeight;
-  }
+const videoFrameDimensionsEqual = (a?: VideoFrame, b?: VideoFrame) =>
+  a?.displayWidth === b?.displayWidth && a?.displayHeight === b?.displayHeight;
 
-  return true;
-};
+const isVideoFrame = (
+  value: ImageBitmap | ImageData | VideoFrame | undefined,
+): value is VideoFrame => typeof VideoFrame !== "undefined" && value instanceof VideoFrame;
+
+function createEmptyVideoFrame(): VideoFrame {
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  return new VideoFrame(canvas, { timestamp: 0 });
+}
+
+function closeDecodedImageResource(
+  resource: ImageBitmap | ImageData | VideoFrame | undefined,
+): void {
+  if (!resource) {
+    return;
+  }
+  if (typeof VideoFrame !== "undefined" && resource instanceof VideoFrame) {
+    resource.close();
+    return;
+  }
+  if (resource instanceof ImageBitmap) {
+    resource.close();
+  }
+}
 
 async function getErrorImage(width: number, height: number): Promise<ImageBitmap> {
   const canvas = document.createElement("canvas");

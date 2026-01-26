@@ -525,6 +525,8 @@ function FieldInput({
         />
       );
   }
+
+  return <></>;
 }
 
 function FieldLabel({ field }: { field: Immutable<SettingsTreeField> }): React.JSX.Element {
