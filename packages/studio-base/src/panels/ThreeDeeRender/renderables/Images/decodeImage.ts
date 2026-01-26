@@ -22,9 +22,10 @@ import {
   decodeUYVY,
   decodeYUYV,
 } from "@foxglove/den/image";
+import { H264, H265 } from "@foxglove/den/video";
 import { RawImage } from "@foxglove/schemas";
 
-import { CompressedImageTypes } from "./ImageTypes";
+import { CompressedImageTypes, CompressedVideo } from "./ImageTypes";
 import { Image as RosImage } from "../../ros";
 import { ColorModeSettings, getColorConverter } from "../colorMode";
 
@@ -34,6 +35,35 @@ export async function decodeCompressedImageToBitmap(
 ): Promise<ImageBitmap> {
   const bitmapData = new Blob([new Uint8Array(image.data)], { type: `image/${image.format}` });
   return await createImageBitmap(bitmapData, { resizeWidth });
+}
+
+export function isVideoKeyframe(frameMsg: CompressedVideo): boolean {
+  switch (frameMsg.format) {
+    case "h264": {
+      // Search for an IDR NAL unit to determine if this is a keyframe
+      return H264.IsKeyframe(frameMsg.data);
+    }
+
+    case "h265": {
+      return H265.IsKeyframe(frameMsg.data);
+    }
+  }
+  return false;
+}
+
+export function getVideoDecoderConfig(frameMsg: CompressedVideo): VideoDecoderConfig | undefined {
+  switch (frameMsg.format) {
+    case "h264": {
+      // Search for an SPS NAL unit to initialize the decoder. This should precede each keyframe
+      return H264.ParseDecoderConfig(frameMsg.data);
+    }
+
+    case "h265": {
+      return H265.ParseDecoderConfig(frameMsg.data);
+    }
+  }
+
+  return undefined;
 }
 
 export const IMAGE_DEFAULT_COLOR_MODE_SETTINGS: Required<
