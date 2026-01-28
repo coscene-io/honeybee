@@ -114,6 +114,7 @@ import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/cos
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import type { File as File_es } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import type { StorageCluster } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/storage_cluster_pb";
 import { TaskSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import type { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import {
@@ -138,7 +139,6 @@ import type {
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
 import {
   GetStorageClusterRequestSchema,
-  StorageCluster,
   StorageClusterService,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/storage_cluster_pb";
 import {
