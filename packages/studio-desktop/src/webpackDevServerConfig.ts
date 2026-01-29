@@ -93,6 +93,12 @@ export const webpackDevServerConfig =
             secure: false,
             changeOrigin: true,
           },
+          {
+            context: ["/v1/data"],
+            target: "https://viz.dev.coscene.cn",
+            secure: false,
+            changeOrigin: true,
+          },
         ],
       },
       plugins: [
