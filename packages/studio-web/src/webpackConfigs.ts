@@ -98,6 +98,12 @@ export const devServerConfig = (params: ConfigParams): RspackConfiguration => ({
         secure: false,
         changeOrigin: true,
       },
+      {
+        context: ["/v1/data"],
+        target: "https://viz.dev.coscene.cn",
+        secure: false,
+        changeOrigin: true,
+      },
     ],
     headers: {
       // Enable cross-origin isolation: https://resourcepolicy.fyi
