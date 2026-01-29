@@ -19,7 +19,7 @@
     "@connectrpc/connect": "^2.0.0",
     "@connectrpc/connect-web": "^2.0.0",
     "@coscene-io/comlink": "4.4.1",
-    "@coscene-io/cosceneapis-es-v2": "0.0.433",
+    "@coscene-io/cosceneapis-es-v2": "0.0.444",
     "@coscene-io/cosel": "24.14.0",
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
