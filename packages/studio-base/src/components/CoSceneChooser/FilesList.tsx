@@ -54,6 +54,7 @@ export const FilesList = memo<FilesListProps>(({ files, setFiles }) => {
           alignItems="center"
           justifyContent="space-between"
           gap={1}
+          paddingY={0.5}
         >
           <Stack flex={1}>
             <Stack gap={1} direction="row" alignItems="center">
