@@ -23,12 +23,9 @@ Honeybee helps robotics teams visualize, debug, and analyze logs and live teleme
 **Dependencies:**
 
 - [Node.js](https://nodejs.org/en/) V22.12.0+
-- [Git LFS](https://git-lfs.github.com/)
 - [Cursor](https://www.cursor.com/) / [Visual Studio Code](https://code.visualstudio.com/) – Recommended
 
 ## Initialization
-
-> Note: Make sure that all the dependencies are set (specially the [Git LFS](https://git-lfs.github.com/)).
 
 1. Clone repository.
 2. Run the follow commands: `corepack enable` and `yarn install`.
