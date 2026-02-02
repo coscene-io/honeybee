@@ -405,7 +405,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               </Stack>
               <Tooltip
                 classes={{ tooltip: classes.tooltip }}
-                title={currentUser?.email ?? "Profile"}
+                title={currentUser?.email ?? t("profile")}
                 arrow={false}
               >
                 <IconButton
