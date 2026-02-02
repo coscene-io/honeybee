@@ -115,7 +115,7 @@ export default function Root(props: {
   useEffect(() => {
     // Passive logout, token expired
     const cleanup = authBridge?.onLogout(() => {
-      toast.error(t("loginExpired", { ns: "cosAccount" }));
+      toast.error(t("loginExpired", { ns: "account" }));
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatusKey((key) => key + 1);
     });
