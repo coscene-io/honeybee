@@ -89,6 +89,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     position: "relative",
     zIndex: 1,
     fontSize: ICON_SIZE - 2,
+    WebkitAppRegion: "no-drag", // make button clickable for desktop app
 
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1rem",

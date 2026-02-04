@@ -17,6 +17,7 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 0,
     fontSize: 24,
     padding: theme.spacing(1.15),
+    WebkitAppRegion: "no-drag", // make button clickable for desktop app
 
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1em",
