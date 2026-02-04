@@ -46,6 +46,7 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(1.125, 1.5),
     gap: theme.spacing(0.5),
     borderRadius: 0,
+    WebkitAppRegion: "no-drag", // make button clickable for desktop app
 
     ":hover": {
       backgroundColor: theme.palette.background.hover,
@@ -58,6 +59,7 @@ const useStyles = makeStyles()((theme) => ({
     flexShrink: 0,
     minWidth: "auto",
     padding: theme.spacing(0.5, 1),
+    WebkitAppRegion: "no-drag", // make button clickable for desktop app
   },
   leftContent: {
     overflow: "hidden",
