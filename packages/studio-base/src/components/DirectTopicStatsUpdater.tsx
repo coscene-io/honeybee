@@ -87,13 +87,21 @@ export function DirectTopicStatsUpdater({
     });
   }, [latestFrequenciesByTopic, latestStats]);
 
-  // Update when new "data-topic" nodes are added, to support virtualized lists and filtering.
+  // Update when new "data-topic" nodes are added or reused (attributes changed),
+  // to support virtualized lists and filtering.
   useEffect(() => {
     if (!rootRef.current?.parentElement) {
       return;
     }
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
+        if (mutation.type === "attributes") {
+          if (mutation.target instanceof HTMLElement && mutation.target.dataset.topic) {
+            updateStats();
+            return;
+          }
+          continue;
+        }
         for (const node of mutation.addedNodes) {
           // updateStats() triggers mutations of text nodes, so only update if HTMLElements are added to avoid infinite loops
           if (node instanceof HTMLElement && node.querySelector("[data-topic]")) {
@@ -103,7 +111,12 @@ export function DirectTopicStatsUpdater({
         }
       }
     });
-    observer.observe(rootRef.current.parentElement, { childList: true, subtree: true });
+    observer.observe(rootRef.current.parentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-topic", "data-topic-stat"],
+    });
     return () => {
       observer.disconnect();
     };
