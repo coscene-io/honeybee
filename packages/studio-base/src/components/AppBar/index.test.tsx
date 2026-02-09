@@ -14,6 +14,7 @@ import StudioToastProvider from "@foxglove/studio-base/components/StudioToastPro
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
@@ -24,11 +25,16 @@ import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProv
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import MockCoSceneLayoutManager from "@foxglove/studio-base/services/LayoutManager/MockCoSceneLayoutManager";
 import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { setupTestAppConfig } from "@foxglove/studio-base/test/mocks/setupTestAppConfig";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 // MockCoSceneLayoutManager
 
 import { AppBar } from ".";
+
+setupTestAppConfig({
+  COSTUDIO_DOWNLOAD_URL: "",
+});
 
 function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   const appConfiguration = makeMockAppConfiguration();
@@ -52,6 +58,7 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
     <TimelineInteractionStateProvider />,
     <MockMessagePipelineProvider />,
     <MockCurrentLayoutProvider />,
+    <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
     <ThemeProvider isDark />,
     /* eslint-enable react/jsx-key */
   ];
