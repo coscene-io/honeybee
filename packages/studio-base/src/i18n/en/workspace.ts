@@ -24,4 +24,7 @@ export const workspace = {
     "The organization has exhausted its storage usage. To continue using the service, please purchase additional storage or upgrade your subscription plan.",
   iKnow: "I know",
   upgradeSubscriptionPlan: "Upgrade Subscription Plan",
+  playlist: "Playlist",
+  moment: "Moment",
+  tasks: "Tasks",
 };

@@ -10,12 +10,13 @@ import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1al
 import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { CloudUpload, Check, Clear } from "@mui/icons-material";
-import { Tooltip, IconButton, CircularProgress, Typography, Stack } from "@mui/material";
+import { Tooltip, CircularProgress, Typography, Stack } from "@mui/material";
 import { useCallback, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { AppBarIconButton } from "@foxglove/studio-base/components/AppBar/AppBarIconButton";
 import { ChoiceRecordDialog } from "@foxglove/studio-base/components/AppBar/UploadFile/ChoiceRecord";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -153,7 +154,7 @@ export function UploadFile(): React.JSX.Element {
         classes={{ tooltip: classes.tooltip }}
         leaveDelay={500}
       >
-        <IconButton
+        <AppBarIconButton
           onClick={() => {
             if (
               loginStatus === "alreadyLogin" &&
@@ -198,7 +199,7 @@ export function UploadFile(): React.JSX.Element {
             {currentFileStatus?.status === "failed" && <Clear color="error" />}
             {currentFileStatus == undefined && <CloudUpload />}
           </Stack>
-        </IconButton>
+        </AppBarIconButton>
       </Tooltip>
       <ChoiceRecordDialog
         open={openChooser}

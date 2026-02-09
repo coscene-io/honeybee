@@ -93,7 +93,7 @@ export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
           <Typography variant="body2" paddingX={2} paddingTop={2}>
             {t("selectPanelToAddToLayout")}
             <Link color="primary" target="_blank" href={getDocsLink("/viz/layout/")}>
-              {t("userGuide", { ns: "cosGeneral" })}
+              {t("userGuide", { ns: "general" })}
             </Link>
           </Typography>
           <PanelCatalog mode="grid" onPanelSelect={onPanelSelect} />

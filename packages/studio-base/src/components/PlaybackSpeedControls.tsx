@@ -65,7 +65,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
 
   return (
     <>
-      <Tooltip title={t("playbackSpeed", { ns: "cosGeneral" })}>
+      <Tooltip title={t("playbackSpeed", { ns: "general" })}>
         <Button
           className={classes.button}
           id="playback-speed-button"

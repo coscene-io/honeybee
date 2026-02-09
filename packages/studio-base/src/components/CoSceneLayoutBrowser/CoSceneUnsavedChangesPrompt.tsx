@@ -44,7 +44,7 @@ export function UnsavedChangesPrompt({
   defaultSelectedKey?: Exclude<UnsavedChangesResolution["type"], "cancel">;
   defaultPersonalCopyName?: string;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const [selectedKey, setSelectedKey] = useState<string>(defaultSelectedKey);
 
   const handleChoiceGroupChange = React.useCallback(
@@ -153,7 +153,7 @@ export function UnsavedChangesPrompt({
         </DialogContent>
         <DialogActions>
           <Button variant="outlined" size="large" color="inherit" onClick={handleCancel}>
-            {t("cancel", { ns: "cosGeneral" })}
+            {t("cancel", { ns: "general" })}
           </Button>
           <Button
             type="submit"
@@ -162,7 +162,7 @@ export function UnsavedChangesPrompt({
             color={selectedKey === "discard" ? "error" : "primary"}
             disabled={selectedKey === "makePersonal" && nameError != undefined}
           >
-            {selectedKey === "discard" ? t("revertLayoutsConfim") : t("save", { ns: "cosGeneral" })}
+            {selectedKey === "discard" ? t("revertLayoutsConfim") : t("save", { ns: "general" })}
           </Button>
         </DialogActions>
       </form>

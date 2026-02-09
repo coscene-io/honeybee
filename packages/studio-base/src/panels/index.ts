@@ -77,7 +77,7 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
   },
   {
     title: t("moments", {
-      ns: "cosEvent",
+      ns: "event",
     }),
     type: "MomentsBar",
     order: 5,

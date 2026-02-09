@@ -21,6 +21,7 @@ export type CreateEventForm = {
   fileName: string;
   imageFile?: File;
   imgUrl?: string;
+  files?: string[];
   record: string;
   customFieldValues?: Record<string, CustomFieldValue>;
 };

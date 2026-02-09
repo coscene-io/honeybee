@@ -299,7 +299,7 @@ export default function DevicesTable({
         prompt: t("confirmVizTargetDeviceDescription", { deviceTitle: device.displayName }),
         ok: t("switchImmediately"),
         cancel: t("cancel", {
-          ns: "cosGeneral",
+          ns: "general",
         }),
         variant: "danger",
       }).then((response) => {

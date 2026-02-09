@@ -80,6 +80,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       fontSize: "2rem",
       color: theme.palette.appBar.primary,
       borderRadius: 0,
+      ...NOT_DRAGGABLE_STYLE, // make button clickable for desktop app
 
       "svg:not(.MuiSvgIcon-root)": {
         fontSize: "1em",
@@ -109,7 +110,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       display: "flex",
       alignItems: "center",
       gap: theme.spacing(1),
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
     },
     end: {
       gridArea: "end",
@@ -120,7 +120,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     endInner: {
       display: "flex",
       alignItems: "center",
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
     },
     keyEquivalent: {
       fontFamily: theme.typography.fontMonospace,
@@ -141,6 +140,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     iconButton: {
       padding: theme.spacing(0.75),
       margin: theme.spacing(0, 0.5),
+      ...NOT_DRAGGABLE_STYLE, // make button clickable for desktop app
 
       borderRadius: 0,
 
@@ -246,7 +246,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
         </>
       ),
       ok: t("openByCoStudio"),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "general" }),
     });
     if (response !== "ok") {
       return;
@@ -261,18 +261,23 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
     window.open(studioUrl, "_self");
   }, [confirm, t]);
 
+  // Prevent double-click from triggering window maximize in interactive areas
+  const handleStopDoubleClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
   return (
     <>
       <AppBarContainer onDoubleClick={onDoubleClick} leftInset={leftInset}>
         <div className={classes.toolbar}>
           <div className={classes.start}>
-            <div className={classes.startInner}>
+            <div className={classes.startInner} onDoubleClick={handleStopDoubleClick}>
               <IconButton
                 className={cx(classes.logo, { "Mui-selected": appMenuOpen })}
                 color="inherit"
                 id="app-menu-button"
                 title={t("menu", {
-                  ns: "cosAppBar",
+                  ns: "appBar",
                 })}
                 aria-controls={appMenuOpen ? "app-menu" : undefined}
                 aria-haspopup="true"
@@ -316,7 +321,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           </div>
 
           <div className={classes.end}>
-            <div className={classes.endInner}>
+            <div className={classes.endInner} onDoubleClick={handleStopDoubleClick}>
               {appBarLayoutButton}
               {/* <CoSceneLayoutButtonOld /> */}
               <CoSceneLayoutButton />
@@ -405,7 +410,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               </Stack>
               <Tooltip
                 classes={{ tooltip: classes.tooltip }}
-                title={currentUser?.email ?? "Profile"}
+                title={currentUser?.email ?? t("profile")}
                 arrow={false}
               >
                 <IconButton

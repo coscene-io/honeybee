@@ -50,7 +50,7 @@ interface TaskFormProps {
 
 export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.ReactNode {
   const { classes } = useStyles();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
   const consoleApi = useConsoleApi();
 
   const { control, watch } = form;

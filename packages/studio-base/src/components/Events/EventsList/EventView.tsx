@@ -136,7 +136,7 @@ function EventViewComponent(params: {
   const customFieldSchema = useEvents(selectCustomFieldSchema);
 
   const { formatTime } = useAppTimeFormat();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
@@ -274,6 +274,7 @@ function EventViewComponent(params: {
       enabledCreateNewTask: false,
       fileName: "",
       imgUrl: event.imgUrl,
+      files: event.event.files,
       record: event.event.record,
       customFieldValues: event.event.customFieldValues,
     });

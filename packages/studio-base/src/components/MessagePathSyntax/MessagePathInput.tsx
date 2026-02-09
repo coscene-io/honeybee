@@ -159,6 +159,8 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     variant = "standard",
   } = props;
   const { classes } = useStyles();
+  const trimmedPath = path.trim();
+  const leadingWhitespaceLength = path.length - path.trimStart().length;
 
   const messagePathStructuresForDataype = useMemo(
     () => messagePathStructures(datatypes),
@@ -252,7 +254,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     [onChangeProp, path, props.index, allStructureItemsByPath, validTypes],
   );
 
-  const rosPath = useMemo(() => parseMessagePath(path), [path]);
+  const rosPath = useMemo(() => parseMessagePath(trimmedPath), [trimmedPath]);
 
   const topic = useMemo(() => {
     if (!rosPath) {
@@ -325,6 +327,11 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
 
   const { autocompleteItems, autocompleteFilterText, autocompleteRange } = useMemo(() => {
+    const withLeadingOffset = (range: { start: number; end: number }) => ({
+      start: range.start + leadingWhitespaceLength,
+      end: range.end === Infinity ? Infinity : range.end + leadingWhitespaceLength,
+    });
+
     if (disableAutocomplete) {
       return {
         autocompleteItems: [],
@@ -335,11 +342,11 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       // If the path is empty, return topic names only to show the full list of topics. Otherwise,
       // use the full set of topic names and field paths to autocomplete
       return {
-        autocompleteItems: path
+        autocompleteItems: trimmedPath
           ? topicNamesAndFieldsAutocompleteItems
           : topicNamesAutocompleteItems,
-        autocompleteFilterText: path,
-        autocompleteRange: { start: 0, end: Infinity },
+        autocompleteFilterText: trimmedPath,
+        autocompleteRange: { start: leadingWhitespaceLength, end: Infinity },
       };
     } else if (autocompleteType === "messagePath" && topic && rosPath) {
       if (
@@ -366,10 +373,10 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         return {
           autocompleteItems: items,
           autocompleteFilterText: filterText,
-          autocompleteRange: {
+          autocompleteRange: withLeadingOffset({
             start: msgPathPart.nameLoc,
             end: msgPathPart.nameLoc + filterText.length,
-          },
+          }),
         };
       } else {
         // Exclude any initial filters ("/topic{foo=='bar'}") from the range that will be replaced
@@ -392,16 +399,16 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
                   (item) => item.path,
                 ),
 
-          autocompleteRange: {
+          autocompleteRange: withLeadingOffset({
             start: rosPath.topicNameRepr.length + initialFilterLength,
             end: Infinity,
-          },
+          }),
           // Filter out filters (hah!) in a pretty crude way, so autocomplete still works
           // when already having specified a filter and you want to see what other object
           // names you can complete it with. Kind of an edge case, and this doesn't work
           // ideally (because it will remove your existing filter if you actually select
           // the autocomplete item), but it's easy to do for now, and nice to have.
-          autocompleteFilterText: path
+          autocompleteFilterText: trimmedPath
             .substring(rosPath.topicNameRepr.length)
             .replace(/\{[^}]*\}/g, ""),
         };
@@ -409,13 +416,13 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     } else if (invalidGlobalVariablesVariable) {
       return {
         autocompleteItems: Object.keys(globalVariables).map((key) => `$${key}`),
-        autocompleteRange: {
+        autocompleteRange: withLeadingOffset({
           start: invalidGlobalVariablesVariable.loc,
           end:
             invalidGlobalVariablesVariable.loc +
             invalidGlobalVariablesVariable.variableName.length +
             1,
-        },
+        }),
         autocompleteFilterText: invalidGlobalVariablesVariable.variableName,
       };
     }
@@ -431,7 +438,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     topic,
     rosPath,
     invalidGlobalVariablesVariable,
-    path,
+    trimmedPath,
     topicNamesAndFieldsAutocompleteItems,
     topicNamesAutocompleteItems,
     structureTraversalResult,
@@ -439,6 +446,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     validTypes,
     noMultiSlices,
     globalVariables,
+    leadingWhitespaceLength,
   ]);
 
   const topicsByName = useMemo(() => _.keyBy(topics, ({ name }) => name), [topics]);
@@ -457,11 +465,11 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   }, [autocompleteItems, prioritizedDatatype, topicsByName]);
 
   const usesUnsupportedMathModifier =
-    (supportsMathModifiers == undefined || !supportsMathModifiers) && path.includes(".@");
+    (supportsMathModifiers == undefined || !supportsMathModifiers) && trimmedPath.includes(".@");
 
   const hasError =
     usesUnsupportedMathModifier ||
-    (autocompleteType != undefined && !disableAutocomplete && path.length > 0);
+    (autocompleteType != undefined && !disableAutocomplete && trimmedPath.length > 0);
 
   return (
     <Autocomplete

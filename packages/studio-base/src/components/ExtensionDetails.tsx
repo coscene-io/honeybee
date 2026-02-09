@@ -6,9 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import { Button, Link, Tab, Tabs, Typography, Divider } from "@mui/material";
+import { Button, Tab, Tabs, Typography, Divider } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsync, useMountedState } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -42,6 +43,7 @@ const useStyles = makeStyles()((theme) => ({
 
 export function ExtensionDetails({ extension, onClose, installed }: Props): React.ReactElement {
   const { classes } = useStyles();
+  const { t } = useTranslation("extensions");
   const [isInstalled, setIsInstalled] = useState(installed);
   const [activeTab, setActiveTab] = useState<number>(0);
   const isMounted = useMountedState();
@@ -68,7 +70,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
 
   const install = useCallback(async () => {
     if (!isDesktopApp()) {
-      enqueueSnackbar("Download the desktop app to use marketplace extensions.", {
+      enqueueSnackbar(t("downloadDesktopApp"), {
         variant: "error",
       });
       return;
@@ -86,7 +88,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
         void analytics.logEvent(AppEvent.EXTENSION_INSTALL, { type: extension.id });
       }
     } catch (err) {
-      enqueueSnackbar(`Failed to download extension ${extension.id}. ${err.message}`, {
+      enqueueSnackbar(t("failedToDownloadExtension", { id: extension.id, message: err.message }), {
         variant: "error",
       });
     }
@@ -99,6 +101,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
     extension.id,
     installExtension,
     isMounted,
+    t,
   ]);
 
   const uninstall = useCallback(async () => {
@@ -110,7 +113,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
   }, [analytics, extension.id, extension.namespace, isMounted, uninstallExtension]);
 
   return (
-    <Stack fullHeight flex="auto" gap={1}>
+    <Stack fullHeight paddingX={2} flex="auto" gap={1}>
       <div>
         <Button
           className={classes.backButton}
@@ -118,7 +121,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
           size="small"
           startIcon={<ChevronLeftIcon />}
         >
-          Back
+          {t("back")}
         </Button>
         <Typography variant="h3" fontWeight={500}>
           {extension.name}
@@ -128,15 +131,9 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
       <Stack gap={1} alignItems="flex-start">
         <Stack gap={0.5} paddingBottom={1}>
           <Stack direction="row" gap={1} alignItems="baseline">
-            <Link
-              variant="body2"
-              color="primary"
-              href={extension.homepage}
-              target="_blank"
-              underline="hover"
-            >
+            <Typography variant="caption" color="text.secondary">
               {extension.id}
-            </Link>
+            </Typography>
             <Typography
               variant="caption"
               color="text.secondary"
@@ -161,7 +158,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
             variant="contained"
             onClick={uninstall}
           >
-            Uninstall
+            {t("uninstall")}
           </Button>
         ) : (
           canInstall && (
@@ -173,7 +170,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
               variant="contained"
               onClick={install}
             >
-              Install
+              {t("install")}
             </Button>
           )
         )}
@@ -187,8 +184,8 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
             setActiveTab(newValue);
           }}
         >
-          <Tab disableRipple label="README" value={0} />
-          <Tab disableRipple label="CHANGELOG" value={1} />
+          <Tab disableRipple label={t("readme")} value={0} />
+          <Tab disableRipple label={t("changelog")} value={1} />
         </Tabs>
         <Divider />
       </Stack>

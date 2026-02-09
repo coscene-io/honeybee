@@ -66,6 +66,7 @@ export const useDefaultEventForm = (): CreateEventForm => {
       enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
       fileName: toModifyEvent.record,
       imgUrl: toModifyEvent.imgUrl,
+      files: toModifyEvent.files,
       record: toModifyEvent.record,
       customFieldValues: convertCustomFieldValuesToMap(toModifyEvent.customFieldValues),
     };
@@ -80,6 +81,7 @@ export const useDefaultEventForm = (): CreateEventForm => {
     metadataEntries: [{ key: "", value: "" }],
     enabledCreateNewTask: false,
     fileName: passingFile?.[0]?.name ?? "",
+    files: [],
     record: "",
     customFieldValues: {},
   };

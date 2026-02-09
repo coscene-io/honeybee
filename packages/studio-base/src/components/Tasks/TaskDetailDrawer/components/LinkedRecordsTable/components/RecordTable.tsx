@@ -362,7 +362,7 @@ export default function RecordTable({
         prompt: t("confirmVizTargetRecordDescription", { recordTitle }),
         ok: t("enterImmediately"),
         cancel: t("cancel", {
-          ns: "cosGeneral",
+          ns: "general",
         }),
         variant: "danger",
       }).then((response) => {

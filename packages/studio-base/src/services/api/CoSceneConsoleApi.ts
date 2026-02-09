@@ -114,6 +114,7 @@ import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/cos
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import type { File as File_es } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import type { StorageCluster } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/storage_cluster_pb";
 import { TaskSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import type { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import {
@@ -136,6 +137,10 @@ import type {
   GenerateFileDownloadUrlResponse,
   GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
+import {
+  GetStorageClusterRequestSchema,
+  StorageClusterService,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/storage_cluster_pb";
 import {
   TaskService,
   UpsertTaskRequestSchema,
@@ -449,6 +454,10 @@ class CoSceneConsoleApi {
     return this.#baseUrl;
   }
 
+  public setBaseUrl(baseUrl: string): void {
+    this.#baseUrl = baseUrl;
+  }
+
   public getBffUrl(): string {
     return this.#bffUrl;
   }
@@ -734,7 +743,7 @@ class CoSceneConsoleApi {
           authBridge?.logout();
         }
       } else if (res.status === 403) {
-        toast.error(t("unauthorized", { ns: "cosError" }));
+        toast.error(t("unauthorized", { ns: "error" }));
         throw new HttpError(
           403,
           "Unauthorized. Please check if you are logged in and have permission to access.",
@@ -749,7 +758,7 @@ class CoSceneConsoleApi {
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
         if (coSceneErrorMessageKey) {
-          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "cosError" })}`);
+          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "error" })}`);
         }
 
         this.#problemManager.addProblem("CoScene:request-error", {
@@ -1667,6 +1676,20 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(Endpoint.GetOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getStorageCluster = Object.assign(
+    async (
+      payload: MessageInitShape<typeof GetStorageClusterRequestSchema>,
+    ): Promise<StorageCluster> => {
+      const req = create(GetStorageClusterRequestSchema, payload);
+      return await getPromiseClient(StorageClusterService).getStorageCluster(req);
+    },
+    {
+      permission: () => {
+        return true;
       },
     },
   );

@@ -204,15 +204,9 @@ export function ExtensionsSettingsMore(): React.ReactElement {
     setProjectFileDialogOpen(false);
   }, []);
 
-  // Handle install from project resources
-  const handleInstallFromProject = useCallback(
-    async (files: SelectedFile[]) => {
-      if (files.length === 0) {
-        return;
-      }
-
-      const selectedFile = files[0];
-      if (!selectedFile?.file.name) {
+  const handleInstallSingleFile = useCallback(
+    async (selectedFile: SelectedFile) => {
+      if (!selectedFile.file.name) {
         enqueueSnackbar(t("noValidExtensionFile"), { variant: "error" });
         return;
       }
@@ -248,7 +242,21 @@ export function ExtensionsSettingsMore(): React.ReactElement {
         setInstalling(false);
       }
     },
-    [s3FileService, installExtension, enqueueSnackbar, handleCloseProjectFileDialog, t],
+    [enqueueSnackbar, handleCloseProjectFileDialog, installExtension, s3FileService, t],
+  );
+
+  // Handle install from project resources
+  const handleInstallFromProject = useCallback(
+    async (files: SelectedFile[]) => {
+      if (files.length === 0) {
+        return;
+      }
+
+      for (const file of files) {
+        await handleInstallSingleFile(file);
+      }
+    },
+    [handleInstallSingleFile],
   );
 
   // Handle install from URL
@@ -416,7 +424,6 @@ export function ExtensionsSettingsMore(): React.ReactElement {
         closeDialog={handleCloseProjectFileDialog}
         onConfirm={handleInstallFromProject}
         mode="select-files-from-project"
-        maxFilesNumber={1}
         checkFileSupportedFunc={(file) => {
           return (
             file.name.endsWith(FOXGLOVE_EXTENSION_SUFFIX) ||

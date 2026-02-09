@@ -419,7 +419,7 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
           <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
             <IconButton
               color="inherit"
-              title={t("reCenter", { ns: "cosThreeDee" })}
+              title={t("reCenter", { ns: "threeDee" })}
               onClick={onResetCamera}
               style={{ pointerEvents: "auto" }}
             >
@@ -436,7 +436,7 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
           <Paper square={false} elevation={4} style={{ display: "flex", flexDirection: "column" }}>
             <IconButton
               color="inherit"
-              title={t("zoomIn", { ns: "cosThreeDee" })}
+              title={t("zoomIn", { ns: "threeDee" })}
               onClick={onZoomIn}
               style={{ pointerEvents: "auto" }}
             >
@@ -450,7 +450,7 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
 
             <IconButton
               color="inherit"
-              title={t("zoomOut", { ns: "cosThreeDee" })}
+              title={t("zoomOut", { ns: "threeDee" })}
               onClick={onZoomOut}
               style={{ pointerEvents: "auto" }}
             >

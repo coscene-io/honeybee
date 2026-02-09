@@ -89,7 +89,7 @@ export function UserMenu({
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
   const confirm = useConfirm();
-  const { t } = useTranslation("cosAppBar");
+  const { t } = useTranslation("appBar");
   const [latestVersion, setLatestVersion] = useState("");
   const setUser = useCoSceneCurrentUser(selectSetUser);
   const resetCoreDataStore = useCoreData(selectResetCoreDataStore);

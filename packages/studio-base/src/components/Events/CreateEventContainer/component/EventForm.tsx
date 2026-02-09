@@ -81,7 +81,7 @@ const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
 export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.ReactNode {
   const { classes } = useStyles();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
   const { formatTime } = useAppTimeFormat();
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const [isComposition, setIsComposition] = useState(false);
@@ -357,7 +357,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
             }}
           >
             <DeleteForeverIcon />
-            {t("delete", { ns: "cosGeneral" })}
+            {t("delete", { ns: "general" })}
           </Button>
         ) : (
           <Button className={classes.addFileButton} onClick={() => inputRef.current?.click()}>

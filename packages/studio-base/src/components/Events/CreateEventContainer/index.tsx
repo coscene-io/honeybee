@@ -46,7 +46,7 @@ const selectProject = (store: CoreDataStore) => store.project;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 
 function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   return (
     <Stack direction="row" alignItems="center" gap={1}>
@@ -84,7 +84,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
   const isEditing = toModifyEvent != undefined;
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const defaultEventForm = useDefaultEventForm();
 
@@ -186,7 +186,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
       );
 
-      let imageFiles = undefined;
+      let imageFiles = toModifyEvent?.files;
 
       if (event.imageFile) {
         const imgId = uuidv4();
@@ -203,6 +203,10 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         });
 
         imageFiles = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
+      } else if (isEditing) {
+        imageFiles = event.imgUrl ? toModifyEvent.files ?? [] : [];
+      } else {
+        imageFiles = [];
       }
 
       const newEvent = create(EventSchema, {

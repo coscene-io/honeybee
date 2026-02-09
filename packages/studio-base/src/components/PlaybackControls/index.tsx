@@ -49,10 +49,6 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
-  SubscriptionEntitlementStore,
-  useSubscriptionEntitlement,
-} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
-import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -96,10 +92,9 @@ const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
-const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   return (
     <HoverableIconButton
@@ -159,13 +154,12 @@ export default function PlaybackControls(props: {
   const record = useCoreData(selectRecord);
 
   const dataSource = useCoreData(selectDataSource);
-  const paid = useSubscriptionEntitlement(selectPaid);
   const { selectRecent } = usePlayerSelection();
 
   const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
   const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
 
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const consoleApi = useConsoleApi();
 
@@ -276,8 +270,7 @@ export default function PlaybackControls(props: {
         <Scrubber onSeek={seek} />
         <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
           <Stack direction="row" flex={1} gap={0.5}>
-            {paid &&
-              enableList.event === "ENABLE" &&
+            {enableList.event === "ENABLE" &&
               consoleApi.createEvent.permission() &&
               projectIsArchived === false &&
               recordIsArchived === false && (
@@ -309,7 +302,7 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
-                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "cosWebsocket" })}>
+                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "websocket" })}>
                   <IconButton
                     component="button"
                     size="small"
@@ -320,7 +313,7 @@ export default function PlaybackControls(props: {
                     }}
                   >
                     <Typography variant="body2" marginLeft="4px">
-                      {t("switchToRealTime", { ns: "cosWebsocket" })}
+                      {t("switchToRealTime", { ns: "websocket" })}
                     </Typography>
                   </IconButton>
                 </Tooltip>
@@ -331,7 +324,7 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               title={t("seekBackward", {
-                ns: "cosGeneral",
+                ns: "general",
               })}
               icon={<Previous20Regular />}
               activeIcon={<Previous20Filled />}
@@ -346,10 +339,10 @@ export default function PlaybackControls(props: {
               title={
                 isPlaying
                   ? t("pause", {
-                      ns: "cosGeneral",
+                      ns: "general",
                     })
                   : t("play", {
-                      ns: "cosGeneral",
+                      ns: "general",
                     })
               }
               onClick={togglePlayPause}
@@ -360,7 +353,7 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               title={t("seekForward", {
-                ns: "cosGeneral",
+                ns: "general",
               })}
               icon={<Next20Regular />}
               activeIcon={<Next20Filled />}
@@ -374,14 +367,14 @@ export default function PlaybackControls(props: {
             {urlState?.parameters?.jobRunsId != undefined && (
               <>
                 <ImageShadow20Filled />
-                <div>{t("shadowMode", { ns: "cosPlaylist" })}</div>
+                <div>{t("shadowMode", { ns: "playList" })}</div>
               </>
             )}
 
             <SeekStepControls disabled={disableControls} onEditingChange={setSeekStepEditing} />
             <HoverableIconButton
               size="small"
-              title={t("loopPlayback", { ns: "cosGeneral" })}
+              title={t("loopPlayback", { ns: "general" })}
               disabled={disableControls}
               color={repeatEnabled ? "primary" : "inherit"}
               onClick={toggleRepeat}
@@ -397,7 +390,7 @@ export default function PlaybackControls(props: {
 
 export function RealtimeVizPlaybackControls(): React.JSX.Element {
   const { classes } = useStyles();
-  const { t } = useTranslation("cosWebsocket");
+  const { t } = useTranslation("websocket");
   const { dialogActions } = useWorkspaceActions();
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
   const { selectSource } = usePlayerSelection();
@@ -441,7 +434,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
               retentionWindowMs === 0 ? (
                 <Trans
                   i18nKey="noCacheSetPrompt"
-                  ns="cosWebsocket"
+                  ns="websocket"
                   components={{
                     ToSettings: (
                       <Link
@@ -456,7 +449,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
               ) : (
                 <Trans
                   i18nKey="switchToPlaybackDesc"
-                  ns="cosWebsocket"
+                  ns="websocket"
                   values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
                   components={{
                     ToSettings: (

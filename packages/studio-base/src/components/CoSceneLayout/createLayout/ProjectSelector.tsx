@@ -10,11 +10,18 @@ import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAsync } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { ProjectVisibilityChip } from "@foxglove/studio-base/components/CoSceneLayout/createLayout/ProjectVisibility";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollection/constants";
+
+const useStyles = makeStyles()(() => ({
+  root: {
+    WebkitAppRegion: "no-drag", // make input clickable for desktop app
+  },
+}));
 
 interface ProjectSelectorProps {
   value: string;
@@ -29,7 +36,8 @@ export function ProjectSelector({
   onChange,
   showLabel = true,
 }: ProjectSelectorProps): React.JSX.Element {
-  const { t } = useTranslation(["cosLayout", "cosProject"]);
+  const { classes } = useStyles();
+  const { t } = useTranslation(["layout", "project"]);
   const consoleApi = useConsoleApi();
   const currentUser = useCurrentUser((store) => store.user);
   const userId = currentUser?.userId;
@@ -65,6 +73,7 @@ export function ProjectSelector({
       key={selectedValue ? "selected" : "unselected"}
       disableClearable
       options={options.value ?? []}
+      className={classes.root}
       renderOption={(props, option) => (
         <li
           {...props}
@@ -87,8 +96,8 @@ export function ProjectSelector({
       value={selectedValue}
       groupBy={(option) =>
         option.project.isStarred
-          ? t("starredProject", { ns: "cosProject" })
-          : t("activeProject", { ns: "cosProject" })
+          ? t("starredProject", { ns: "project" })
+          : t("activeProject", { ns: "project" })
       }
       onChange={(_event, value) => {
         onChange(value.value);

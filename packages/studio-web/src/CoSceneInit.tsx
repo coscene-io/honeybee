@@ -14,7 +14,7 @@ import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appCon
 export function useCoSceneInit(): void {
   const url = new URL(window.location.href);
 
-  const { t } = useTranslation("cosError");
+  const { t } = useTranslation("error");
 
   const urlFiles = url.searchParams.get("ds.files");
 

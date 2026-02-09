@@ -54,7 +54,7 @@ export function LayoutTableRowMenu({
   onRevertLayout: (layout: Layout) => void;
 }): React.JSX.Element {
   const confirm = useConfirm();
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
 
   const exportAction = useCallback(() => {
     onExportLayout(layout);
@@ -101,8 +101,8 @@ export function LayoutTableRowMenu({
     void confirm({
       title,
       prompt,
-      ok: t("delete", { ns: "cosGeneral" }),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      ok: t("delete", { ns: "general" }),
+      cancel: t("cancel", { ns: "general" }),
       variant: "danger",
     }).then((response) => {
       if (response === "ok") {

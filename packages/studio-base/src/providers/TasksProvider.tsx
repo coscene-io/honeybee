@@ -15,17 +15,12 @@ import { TasksContext, TaskStore } from "@foxglove/studio-base/context/TasksCont
 
 function createTasksStore() {
   return createStore<TaskStore>((set, get) => ({
-    orgTasks: { loading: false, value: [] },
     projectTasks: { loading: false, value: [] },
     focusedTask: undefined,
     viewingTask: undefined,
     customFieldSchema: undefined,
-    orgTasksFilter: "",
     projectTasksFilter: "",
     reloadTrigger: 0,
-    setOrgTasks: (tasks: AsyncState<Task[]>) => {
-      set({ orgTasks: tasks });
-    },
     setProjectTasks: (tasks: AsyncState<Task[]>) => {
       set({ projectTasks: tasks });
     },
@@ -34,9 +29,6 @@ function createTasksStore() {
     },
     setViewingTask: (task: Task | undefined) => {
       set({ viewingTask: task });
-    },
-    setOrgTasksFilter: (filter: string) => {
-      set({ orgTasksFilter: filter });
     },
     setProjectTasksFilter: (filter: string) => {
       set({ projectTasksFilter: filter });

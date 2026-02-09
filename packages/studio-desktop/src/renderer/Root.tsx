@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -115,7 +115,7 @@ export default function Root(props: {
   useEffect(() => {
     // Passive logout, token expired
     const cleanup = authBridge?.onLogout(() => {
-      toast.error(t("loginExpired", { ns: "cosAccount" }));
+      toast.error(t("loginExpired", { ns: "account" }));
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatusKey((key) => key + 1);
     });
@@ -242,7 +242,6 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      <Toaster />
     </>
   );
 }

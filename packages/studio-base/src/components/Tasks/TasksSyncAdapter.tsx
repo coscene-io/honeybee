@@ -11,40 +11,42 @@ import { setDefaultFilter } from "@foxglove/studio-base/components/Tasks/TasksLi
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext";
 import { CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene/cosel";
 
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 
 const selectSetCustomFieldSchema = (store: TaskStore) => store.setCustomFieldSchema;
-const selectSetOrgTasks = (store: TaskStore) => store.setOrgTasks;
 const selectSetProjectTasks = (store: TaskStore) => store.setProjectTasks;
-const selectOrgTasksFilter = (store: TaskStore) => store.orgTasksFilter;
 const selectProjectTasksFilter = (store: TaskStore) => store.projectTasksFilter;
 const selectSetProjectTasksFilter = (store: TaskStore) => store.setProjectTasksFilter;
 const selectReloadTrigger = (store: TaskStore) => store.reloadTrigger;
 
 const selectUser = (store: UserStore) => store.user;
-const selectLoginStatus = (store: UserStore) => store.loginStatus;
+
+const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 export function TasksSyncAdapter(): ReactNull {
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   const consoleApi = useConsoleApi();
 
-  const loginStatus = useCurrentUser(selectLoginStatus);
   const user = useCurrentUser(selectUser);
 
-  const orgTasksFilter = useTasks(selectOrgTasksFilter);
   const projectTasksFilter = useTasks(selectProjectTasksFilter);
   const setProjectTasksFilter = useTasks(selectSetProjectTasksFilter);
   const setCustomFieldSchema = useTasks(selectSetCustomFieldSchema);
-  const setOrgTasks = useTasks(selectSetOrgTasks);
   const setProjectTasks = useTasks(selectSetProjectTasks);
   const reloadTrigger = useTasks(selectReloadTrigger);
 
+  const paid = useSubscriptionEntitlement(selectPaid);
+
   useAsync(async () => {
-    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId || !paid) {
       return;
     }
     // get task custom field schema
@@ -52,10 +54,10 @@ export function TasksSyncAdapter(): ReactNull {
       `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
     );
     setCustomFieldSchema(customFieldSchema);
-  }, [externalInitConfig, consoleApi, setCustomFieldSchema]);
+  }, [externalInitConfig, consoleApi, setCustomFieldSchema, paid]);
 
   const projectTasks = useAsync(async () => {
-    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
+    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId || !paid) {
       return;
     }
     let defaultFilter = projectTasksFilter;
@@ -82,32 +84,12 @@ export function TasksSyncAdapter(): ReactNull {
     user?.userId,
     setProjectTasksFilter,
     reloadTrigger, // Trigger to reload project tasks when reloadProjectTasks() is called
+    paid,
   ]);
 
   useEffect(() => {
     setProjectTasks(projectTasks);
   }, [projectTasks, setProjectTasks]);
-
-  // if user is login, get org tasks
-  const orgTasks = useAsync(async () => {
-    if (loginStatus !== "alreadyLogin") {
-      return;
-    }
-
-    // get org tasks
-    const orgTasks = await consoleApi.listTasks({
-      orderBy: "create_time DESC",
-      parent: "",
-      pageSize: 1000,
-      filter: orgTasksFilter,
-    });
-
-    return orgTasks.tasks;
-  }, [loginStatus, consoleApi, orgTasksFilter]);
-
-  useEffect(() => {
-    setOrgTasks(orgTasks);
-  }, [orgTasks, setOrgTasks]);
 
   return ReactNull;
 }

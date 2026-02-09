@@ -137,7 +137,7 @@ export default function DocumentDropListener(props: Props): React.JSX.Element {
 
       // Check for no supported files
       if (filteredFiles.length === 0 && filteredHandles?.length === 0) {
-        enqueueSnackbar(t("fileFormatUnsupported", { ns: "cosError" }), { variant: "error" });
+        enqueueSnackbar(t("fileFormatUnsupported", { ns: "error" }), { variant: "error" });
         return;
       }
 

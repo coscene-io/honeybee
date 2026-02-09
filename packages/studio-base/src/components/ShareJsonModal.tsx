@@ -58,7 +58,7 @@ export function ShareJsonModal({
 }: ShareJsonModalProps): React.JSX.Element {
   const { classes } = useStyles();
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
-  const { t } = useTranslation("cosGeneral");
+  const { t } = useTranslation("general");
 
   const { decodedValue, error } = useMemo(() => {
     try {

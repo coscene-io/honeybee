@@ -8,12 +8,10 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
-import Logger from "@foxglove/log";
-import { Time } from "@foxglove/rostime";
 import { RawImage } from "@foxglove/schemas";
 
-import { AnyImage } from "./ImageTypes";
-import type { RawImageOptions } from "./decodeImage";
+import type { CompressedVideo } from "./ImageTypes";
+import { decodeRawImage, RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
 /**
@@ -26,14 +24,11 @@ import { Image as RosImage } from "../../ros";
  */
 
 type WorkerService = (typeof import("./WorkerImageDecoder.worker"))["service"];
-const log = Logger.getLogger(__filename);
-
 export class WorkerImageDecoder {
   #remote: Comlink.Remote<WorkerService>;
   #dispose: () => void;
 
   public constructor() {
-    log.debug("Creating WorkerImageDecoder");
     const { remote, dispose } = ComlinkWrap<WorkerService>(
       new Worker(
         // foxglove-depcheck-used: babel-plugin-transform-import-meta
@@ -45,28 +40,34 @@ export class WorkerImageDecoder {
   }
 
   /**
-   * Copies `image` to the worker, and transfers the decoded result back to the main thread.
+   * decode raw image, raw image will be large, the cost of decoding raw image is much less
+   * than the cost of worker transmission, so decode raw image directly in the main thread
    */
   public async decode(
     image: RosImage | RawImage,
     options: Partial<RawImageOptions>,
   ): Promise<ImageData> {
-    return await this.#remote.decode(image, options);
+    const result = new ImageData(image.width, image.height);
+    decodeRawImage(image, options, result.data);
+    return result;
   }
 
-  public async decodeH264Frame(
-    image: AnyImage,
-    receiveTime: Time,
+  public async decodeVideoFrame(
+    frame: CompressedVideo,
+    firstMessageTime: bigint,
   ): Promise<VideoFrame | undefined> {
-    const data = image.data;
+    // Split into two separate Comlink calls to allow WebCodecs output callback to execute.
+    // WebCodecs VideoDecoder.decode() is async - the output callback fires after the current
+    // JS execution context completes. By making two independent RPC calls, we create an
+    // event loop gap between frame submission and retrieval, giving the decoder time to
+    // process and output the frame before we try to fetch it.
+    await this.#remote.decodeVideoFrame(frame, firstMessageTime);
 
-    try {
-      void this.#remote.decodeH264Frame(data, receiveTime);
+    return await this.#remote.getLatestVideoFrame();
+  }
 
-      return await this.#remote.getH264Frames();
-    } catch (error) {
-      throw new Error(`Failed to decode H264 frame: ${error}`);
-    }
+  public async resetVideoDecoder(): Promise<void> {
+    await this.#remote.resetVideoDecoder();
   }
 
   public terminate(): void {

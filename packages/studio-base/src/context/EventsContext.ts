@@ -31,6 +31,7 @@ export type ToModifyEvent = {
   fileName: string;
   imageFile?: File;
   imgUrl?: string;
+  files?: string[];
   record: string;
   customFieldValues?: CustomFieldValue[];
 };

@@ -369,11 +369,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       // if message.userId is not undefined, is some one connecting to the same device
       if (message.userId) {
         void this.#confirm({
-          title: t("cosWebsocket:note"),
+          title: t("websocket:note"),
           prompt: (
             <Trans
               t={t}
-              i18nKey="cosWebsocket:connectionOccupied"
+              i18nKey="websocket:connectionOccupied"
               values={{
                 deviceName: this.#deviceName,
                 username: message.username,
@@ -385,8 +385,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
           ),
           disableEscapeKeyDown: true,
           disableBackdropClick: true,
-          ok: t("cosWebsocket:confirm"),
-          cancel: t("cosWebsocket:exitAndClosePage"),
+          ok: t("websocket:confirm"),
+          cancel: t("websocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
@@ -414,11 +414,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#client.on("kicked", (message) => {
       void this.close();
       void this.#confirm({
-        title: t("cosWebsocket:notification"),
+        title: t("websocket:notification"),
         prompt: (
           <Trans
             t={t}
-            i18nKey="cosWebsocket:vizIsTkenNow"
+            i18nKey="websocket:vizIsTkenNow"
             values={{
               deviceName: this.#deviceName,
               username: message.username,
@@ -430,8 +430,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         ),
         disableEscapeKeyDown: true,
         disableBackdropClick: true,
-        ok: t("cosWebsocket:reconnect"),
-        cancel: t("cosWebsocket:exitAndClosePage"),
+        ok: t("websocket:reconnect"),
+        cancel: t("websocket:exitAndClosePage"),
         variant: "danger",
       }).then((result) => {
         if (result === "ok") {
@@ -485,11 +485,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         void this.close();
         void this.#confirm({
-          title: t("cosWebsocket:notification"),
+          title: t("websocket:notification"),
           prompt: (
             <Trans
               t={t}
-              i18nKey="cosWebsocket:vizIsTkenNow"
+              i18nKey="websocket:vizIsTkenNow"
               values={{
                 deviceName: this.#deviceName,
                 username: message.username,
@@ -501,8 +501,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
           ),
           disableEscapeKeyDown: true,
           disableBackdropClick: true,
-          ok: t("cosWebsocket:reconnect"),
-          cancel: t("cosWebsocket:exitAndClosePage"),
+          ok: t("websocket:reconnect"),
+          cancel: t("websocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
@@ -531,20 +531,20 @@ export default class FoxgloveWebSocketPlayer implements Player {
         if (realCloseEventMessage.data.code !== 1000) {
           this.#problems.addProblem("ws:connection-failed", {
             severity: "error",
-            message: t("cosError:connectionFailed"),
+            message: t("error:connectionFailed"),
             tip: (
               <span>
-                {t("cosError:insecureWebSocketConnectionMessage", {
+                {t("error:insecureWebSocketConnectionMessage", {
                   url: this.#url,
                   version: "coscene.websocket.protocol",
                 })}
                 <br />
-                1. {t("cosError:checkNetworkConnection")}
+                1. {t("error:checkNetworkConnection")}
                 <br />
                 2.{" "}
                 <Trans
                   t={t}
-                  i18nKey="cosError:checkFoxgloveBridge"
+                  i18nKey="error:checkFoxgloveBridge"
                   components={{
                     docLink: (
                       <a
@@ -557,7 +557,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
                   }}
                 />
                 <br />
-                3. {t("cosError:contactUs")}
+                3. {t("error:contactUs")}
               </span>
             ),
           });
@@ -1918,7 +1918,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         if (reachableResult) {
           if (this.#autoConnectToLan) {
-            toast.success(t("cosWebsocket:lanConnectionPromptAutoConnect"));
+            toast.success(t("websocket:lanConnectionPromptAutoConnect"));
             await this.#reconnectWithNewUrl(reachableResult.candidate);
             return;
           }
@@ -1926,10 +1926,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
           // 找到匹配的IP地址，重新连接WebSocket
           // 弹窗询问用户是否使用局域网连接
           const result = await this.#confirm({
-            title: t("cosWebsocket:lanAvailable"),
-            prompt: t("cosWebsocket:lanConnectionPrompt"),
-            ok: t("cosWebsocket:switchNow"),
-            cancel: t("cosWebsocket:keepCurrent"),
+            title: t("websocket:lanAvailable"),
+            prompt: t("websocket:lanConnectionPrompt"),
+            ok: t("websocket:switchNow"),
+            cancel: t("websocket:keepCurrent"),
             variant: "toast",
           });
 

@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useMemo, useState } from "react";
-import { Toaster } from "react-hot-toast";
 
 import {
   IDataSourceFactory,
@@ -93,7 +92,6 @@ export function WebRoot(props: {
       >
         <StudioApp />
       </SharedRoot>
-      <Toaster />
     </>
   );
 }
