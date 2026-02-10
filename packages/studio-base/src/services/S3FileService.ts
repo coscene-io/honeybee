@@ -11,14 +11,19 @@ import {
   HeadObjectCommandOutput,
   S3Client,
 } from "@aws-sdk/client-s3";
-
-import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { RegionEnum_Region } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/region_pb";
 
 import type CoSceneConsoleApi from "./api/CoSceneConsoleApi";
 
 export type S3GetObjectResult = {
   data: Uint8Array;
   mediaType: string | undefined;
+};
+
+const regionMap = {
+  [RegionEnum_Region.CN_HANGZHOU]: "cn-hangzhou",
+  [RegionEnum_Region.CN_SHANGHAI]: "cn-shanghai",
+  [RegionEnum_Region.REGION_UNSPECIFIED]: "",
 };
 
 /**
@@ -42,7 +47,6 @@ export class S3FileService {
       return this.#s3Client.client;
     }
 
-    const appConfig = getAppConfig();
     // TODO: 目前  generateSecurityToken 中的 endpoint 时错误的，需要通过 getStorageCluster 获取正确的 endpoint
     // 需要后端修改为正确的 endpoint
     // for now, the endpoint for generateSecurityToken is incorrect,
@@ -59,6 +63,7 @@ export class S3FileService {
     });
 
     const endpoint = storageCluster.endpoints[0]?.s3GatewayAddress;
+    const region = regionMap[storageCluster.region];
 
     if (!endpoint) {
       throw new Error(`No endpoint found for project: ${project}`);
@@ -67,7 +72,7 @@ export class S3FileService {
     this.#s3Client = {
       key: project,
       client: new S3Client({
-        region: appConfig.S3_REGION,
+        region,
         endpoint,
         forcePathStyle: true,
         credentials: {
