@@ -43,16 +43,32 @@ export class S3FileService {
     }
 
     const appConfig = getAppConfig();
+    // TODO: 目前  generateSecurityToken 中的 endpoint 时错误的，需要通过 getStorageCluster 获取正确的 endpoint
+    // 需要后端修改为正确的 endpoint
+    // for now, the endpoint for generateSecurityToken is incorrect,
+    // we need to get the correct endpoint from getStorageCluster
     const response = await this.#consoleApi.generateSecurityToken({
       project,
       expireDuration: { seconds: BigInt(60 * 60 * 24 * 30) },
     });
 
+    const targetProject = await this.#consoleApi.getProject({ projectName: project });
+
+    const storageCluster = await this.#consoleApi.getStorageCluster({
+      name: targetProject.storageCluster,
+    });
+
+    const endpoint = storageCluster.endpoints[0]?.s3GatewayAddress;
+
+    if (!endpoint) {
+      throw new Error(`No endpoint found for project: ${project}`);
+    }
+
     this.#s3Client = {
       key: project,
       client: new S3Client({
         region: appConfig.S3_REGION,
-        endpoint: `https://${response.endpoint}`,
+        endpoint,
         forcePathStyle: true,
         credentials: {
           accessKeyId: response.accessKeyId,
