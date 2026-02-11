@@ -166,9 +166,12 @@ function TimeCell({ params }: { params: GridRenderCellParams }) {
     return <Typography variant="body2">-</Typography>;
   }
 
-  const time = params.value as { toDate: () => Date };
+  const time = params.value;
+
   return (
-    <Typography variant="body2">{dayjs(time.toDate()).format("YYYY-MM-DD HH:mm:ss")}</Typography>
+    <Typography variant="body2">
+      {dayjs(Number(time.seconds) * 1000).format("YYYY-MM-DD HH:mm:ss")}
+    </Typography>
   );
 }
 
