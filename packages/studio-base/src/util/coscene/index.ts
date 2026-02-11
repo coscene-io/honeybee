@@ -13,6 +13,7 @@ import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
@@ -97,7 +98,7 @@ export function getPromiseClient<T extends DescService>(service: T): Client<T> {
   return createClient(
     service,
     createGrpcWebTransport({
-      baseUrl: window.cosConfig?.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
+      baseUrl: getAppConfig().VITE_APP_BASE_API_URL ?? "https://api.dev.coscene.cn",
       interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
     }),
   );
