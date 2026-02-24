@@ -78,7 +78,7 @@ const MAX_BLOCKS = 100;
 
 // Amount to seek into the data source from the start when loading the player. The purpose of this
 // is to provide some initial data to subscribers.
-const SEEK_ON_START_NS = BigInt(99 * 1e6);
+export const SEEK_ON_START_NS = BigInt(99 * 1e6);
 
 const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
 
@@ -693,6 +693,14 @@ export class IterablePlayer implements Player {
       consumptionType: "partial",
       fetchCompleteTopicState,
     });
+
+    // Yield to the macrotask queue so that all pending microtasks from the new
+    // producer's initial cache population in CachingIterableSource settle before
+    // we return. Without this, the async generator chain (BufferedIterableSource →
+    // CachingIterableSource → source) may still have pending microtasks that emit
+    // "loadedRangesChange" events. If those fire after #stateIdle registers its
+    // rangeChangeHandler, they cause unexpected state emissions.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
   async #stateResetPlaybackIterator() {
@@ -705,7 +713,10 @@ export class IterablePlayer implements Player {
     }
 
     await this.#resetPlaybackIterator("complete");
-    this.#setState(this.#isPlaying ? "play" : "idle");
+    // Only transition if no external action has set a nextState during resetPlaybackIterator.
+    if (!this.#nextState) {
+      this.#setState(this.#isPlaying ? "play" : "idle");
+    }
   }
 
   // Read a small amount of data from the data source with the hope of producing a message or two.
@@ -781,7 +792,13 @@ export class IterablePlayer implements Player {
 
       this.#queueEmitState();
       await this.#resetPlaybackIterator();
-      this.#setState(this.#isPlaying ? "play" : "idle");
+      // Only transition to idle/play if no external action (e.g. setSubscriptions,
+      // seekPlayback) has set a nextState during resetPlaybackIterator's async work.
+      // The await above yields control, so #nextState may have been set externally.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
+      if (!this.#nextState) {
+        this.#setState(this.#isPlaying ? "play" : "idle");
+      }
     } catch (err) {
       if (this.#nextState && err.name === "AbortError") {
         log.debug("Aborted backfill");
