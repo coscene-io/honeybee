@@ -22,6 +22,8 @@ import { MessagePipelineProvider } from "@foxglove/studio-base/components/Messag
 import FakePlayer from "@foxglove/studio-base/components/MessagePipeline/FakePlayer";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
+import MockS3FileServiceContextProvider from "@foxglove/studio-base/context/MockS3FileServiceContextProvider";
+import MockUrdfStorageContextProvider from "@foxglove/studio-base/context/MockUrdfStorageContextProvider";
 import {
   Player,
   PlayerStateActiveData,
@@ -359,9 +361,13 @@ describe("useMessageReducer", () => {
       const [config] = useState(() => makeMockAppConfiguration());
       return (
         <AppConfigurationContext.Provider value={config}>
-          <MockCurrentLayoutProvider>
-            <MessagePipelineProvider player={player}>{children}</MessagePipelineProvider>
-          </MockCurrentLayoutProvider>
+          <MockS3FileServiceContextProvider>
+            <MockUrdfStorageContextProvider>
+              <MockCurrentLayoutProvider>
+                <MessagePipelineProvider player={player}>{children}</MessagePipelineProvider>
+              </MockCurrentLayoutProvider>
+            </MockUrdfStorageContextProvider>
+          </MockS3FileServiceContextProvider>
         </AppConfigurationContext.Provider>
       );
     }

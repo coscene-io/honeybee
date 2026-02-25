@@ -166,29 +166,34 @@ export class BlockLoader {
     this.#stopped = true;
     this.#abortController.abort();
     this.#activeChangeCondvar.notifyAll();
+    this.#progressCallback = undefined;
   }
 
   public async startLoading(args: LoadArgs): Promise<void> {
     log.debug("Start loading process");
     this.#stopped = false;
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (!this.#stopped) {
-      this.#abortController = new AbortController();
-
-      const topics = this.#topics;
-
-      await this.#load({ progress: args.progress });
-
+    try {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (this.#stopped) {
-        break;
-      }
+      while (!this.#stopped) {
+        this.#abortController = new AbortController();
 
-      // Wait for topics to possibly change.
-      if (this.#topics === topics) {
-        await this.#activeChangeCondvar.wait();
+        const topics = this.#topics;
+
+        await this.#load({ progress: args.progress });
+
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (this.#stopped) {
+          break;
+        }
+
+        // Wait for topics to possibly change.
+        if (this.#topics === topics) {
+          await this.#activeChangeCondvar.wait();
+        }
       }
+    } finally {
+      this.#progressCallback = undefined;
     }
   }
 
