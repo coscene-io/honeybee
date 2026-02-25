@@ -105,6 +105,8 @@ module.exports = tslintPlugin.config(
       "id-denylist": ["error", "useEffectOnce", "window"],
       "no-console": "off",
       "@foxglove/studio/license-header": "error",
+      "@foxglove/studio/link-target": "error",
+      "@foxglove/studio/lodash-ramda-imports": "error",
 
       "no-restricted-syntax": [
         "error",
@@ -194,6 +196,9 @@ module.exports = tslintPlugin.config(
         },
       ],
       "no-warning-comments": "off",
+
+      "@foxglove/studio/ramda-usage": "error",
+      "@foxglove/studio/no-map-type-argument": "error",
     },
   },
   {

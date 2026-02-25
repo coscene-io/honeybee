@@ -60,7 +60,7 @@ module.exports = {
           /** @type {import("estree").CallExpression} */
           const callExpr = node.parent;
           const { esTreeNodeToTSNodeMap, program } = ESLintUtils.getParserServices(context);
-          const sourceCode = context.getSourceCode();
+          const sourceCode = context.sourceCode;
           const checker = program.getTypeChecker();
           const tsNode = esTreeNodeToTSNodeMap.get(callExpr.arguments[1]);
           const type = checker.getTypeAtLocation(tsNode);
@@ -95,7 +95,7 @@ module.exports = {
           /** @type {import("estree").CallExpression} */
           const callExpr = node.parent;
           const { esTreeNodeToTSNodeMap, program } = ESLintUtils.getParserServices(context);
-          const sourceCode = context.getSourceCode();
+          const sourceCode = context.sourceCode;
           const checker = program.getTypeChecker();
           const tsNode = esTreeNodeToTSNodeMap.get(callExpr.arguments[1]);
           const type = checker.getTypeAtLocation(tsNode);

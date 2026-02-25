@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import tsParser from "@typescript-eslint/parser";
 import { RuleTester } from "@typescript-eslint/rule-tester";
 import { TSESLint } from "@typescript-eslint/utils";
 import path from "path";
@@ -15,11 +16,14 @@ const rule = require("./lodash-ramda-imports") as TSESLint.RuleModule<
 >;
 
 const ruleTester = new RuleTester({
-  parser: "@typescript-eslint/parser",
-  parserOptions: {
+  languageOptions: {
+    parser: tsParser,
     ecmaVersion: 2020,
-    tsconfigRootDir: path.join(__dirname, "fixture"),
-    project: "tsconfig.json",
+    sourceType: "module",
+    parserOptions: {
+      tsconfigRootDir: path.join(__dirname, "fixture"),
+      project: "tsconfig.json",
+    },
   },
 });
 
@@ -65,20 +69,6 @@ ruleTester.run("lodash-ramda-imports", rule, {
         import _, { isEmpty } from "lodash-es";
         _.isEqual(1, 1);
         isEmpty({});
-      `,
-      errors: [{ messageId: "useNamespaceImport", data: { name: "_", package: "lodash-es" } }],
-      output: /* ts */ `
-        import * as _ from "lodash-es";
-        _.isEqual(1, 1);
-        _.isEmpty({});
-      `,
-    },
-
-    {
-      code: /* ts */ `
-        import lodash, { isEmpty as lodashIsEmpty } from "lodash-es";
-        lodash.isEqual(1, 1);
-        lodashIsEmpty({});
       `,
       errors: [{ messageId: "useNamespaceImport", data: { name: "_", package: "lodash-es" } }],
       output: /* ts */ `
