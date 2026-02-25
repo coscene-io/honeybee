@@ -103,7 +103,52 @@ describe("renderState", () => {
     });
 
     expect(state).toEqual({
-      topics: [{ name: "test", schemaName: "schema", datatype: "schema", convertibleTo: ["more"] }],
+      topics: [
+        {
+          name: "test",
+          schemaName: "schema",
+          messageCount: 0,
+          messageFrequency: 0,
+          convertibleTo: ["more"],
+        },
+      ],
+    });
+  });
+
+  it("should include messageCount and messageFrequency for topics", () => {
+    const buildRenderState = initRenderStateBuilder();
+    const state = buildRenderState({
+      watchedFields: new Set(["topics"]),
+      playerState: undefined,
+      appSettings: undefined,
+      currentFrame: undefined,
+      colorScheme: undefined,
+      globalVariables: {},
+      hoverValue: undefined,
+      sharedPanelState: {},
+      sortedTopics: [
+        { name: "withStats", schemaName: "schema", messageCount: 12, messageFrequency: 3.5 },
+        { name: "withoutStats", schemaName: "schema2" },
+      ],
+      subscriptions: [],
+      messageConverters: [],
+    });
+
+    expect(state).toEqual({
+      topics: [
+        {
+          name: "withStats",
+          schemaName: "schema",
+          messageCount: 12,
+          messageFrequency: 3.5,
+        },
+        {
+          name: "withoutStats",
+          schemaName: "schema2",
+          messageCount: 0,
+          messageFrequency: 0,
+        },
+      ],
     });
   });
 
@@ -163,7 +208,14 @@ describe("renderState", () => {
       endTime: { sec: 100, nsec: 1 },
       startTime: { sec: 1, nsec: 1 },
       previewTime: 3.500000001,
-      topics: [{ datatype: "schema", name: "test", schemaName: "schema" }],
+      topics: [
+        {
+          name: "test",
+          schemaName: "schema",
+          messageCount: 0,
+          messageFrequency: 0,
+        },
+      ],
     });
   });
 
@@ -192,7 +244,7 @@ describe("renderState", () => {
     });
 
     expect(state).toEqual({
-      topics: [{ name: "test", schemaName: "schema", datatype: "schema" }],
+      topics: [{ name: "test", schemaName: "schema", messageCount: 0, messageFrequency: 0 }],
       currentFrame: [
         {
           topic: "test",
@@ -241,8 +293,8 @@ describe("renderState", () => {
 
     expect(state).toEqual({
       topics: [
-        { name: "another", schemaName: "schema", datatype: "schema" },
-        { name: "test", schemaName: "schema", datatype: "schema" },
+        { name: "another", schemaName: "schema", messageCount: 0, messageFrequency: 0 },
+        { name: "test", schemaName: "schema", messageCount: 0, messageFrequency: 0 },
       ],
       currentFrame: [
         {
@@ -357,8 +409,8 @@ describe("renderState", () => {
 
     expect(state).toEqual({
       topics: [
-        { name: "test1", schemaName: "schema", datatype: "schema" },
-        { name: "test2", schemaName: "schema", datatype: "schema" },
+        { name: "test1", schemaName: "schema", messageCount: 0, messageFrequency: 0 },
+        { name: "test2", schemaName: "schema", messageCount: 0, messageFrequency: 0 },
       ],
       allFrames: [
         {
@@ -484,7 +536,13 @@ describe("renderState", () => {
 
     expect(state).toEqual({
       topics: [
-        { name: "test", schemaName: "schema", datatype: "schema", convertibleTo: ["otherSchema"] },
+        {
+          name: "test",
+          schemaName: "schema",
+          messageCount: 0,
+          messageFrequency: 0,
+          convertibleTo: ["otherSchema"],
+        },
       ],
       currentFrame: [
         {
@@ -690,7 +748,8 @@ describe("renderState", () => {
         {
           name: "test",
           schemaName: "schema",
-          datatype: "schema",
+          messageCount: 0,
+          messageFrequency: 0,
           convertibleTo: ["otherSchema", "anotherSchema"],
         },
       ],
@@ -832,7 +891,13 @@ describe("renderState", () => {
 
     expect(state).toEqual({
       topics: [
-        { name: "test", schemaName: "schema", datatype: "schema", convertibleTo: ["otherSchema"] },
+        {
+          name: "test",
+          schemaName: "schema",
+          messageCount: 0,
+          messageFrequency: 0,
+          convertibleTo: ["otherSchema"],
+        },
       ],
       currentFrame: [
         {
@@ -915,13 +980,15 @@ describe("renderState", () => {
         {
           name: "test",
           schemaName: "schema",
-          datatype: "schema",
+          messageCount: 0,
+          messageFrequency: 0,
           convertibleTo: ["otherSchema", "anotherSchema"],
         },
         {
           name: "test2",
           schemaName: "schema2",
-          datatype: "schema2",
+          messageCount: 0,
+          messageFrequency: 0,
         },
       ],
       currentFrame: expect.any(Array),
