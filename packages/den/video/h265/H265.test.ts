@@ -156,7 +156,7 @@ describe("H265", () => {
   });
 
   describe("IsKeyframe with Length-Prefixed format", () => {
-    it("should return true for length-prefixed IDR frame", () => {
+    it("should return false for length-prefixed IDR frame (unsupported format, only support Annex B)", () => {
       // 4-byte length prefix (value = 4) + IDR_W_RADL (type 19, first byte = 0x26)
       const lengthPrefixedIdr = new Uint8Array([
         0x00,
@@ -168,7 +168,7 @@ describe("H265", () => {
         0x00,
         0x00, // IDR_W_RADL NALU
       ]);
-      expect(H265.IsKeyframe(lengthPrefixedIdr)).toBe(true);
+      expect(H265.IsKeyframe(lengthPrefixedIdr)).toBe(false);
     });
 
     it("should return false for length-prefixed non-keyframe", () => {

@@ -33,7 +33,7 @@ describe("<DocumentDropListener>", () => {
     wrapper = document.createElement("div");
     document.body.appendChild(wrapper);
 
-    // eslint-disable-next-line react/no-deprecated
+    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
     ReactDOM.render(
       <div>
         <SnackbarProvider>

@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import EventEmitter from "eventemitter3";
-import { throttle } from "lodash-es";
+import * as _ from "lodash-es";
 import stringHash from "string-hash";
 
 import { debouncePromise } from "@foxglove/den/async";
@@ -90,7 +90,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
   // Throttle buildAndUpdateDatasets to avoid excessive computation on frequent playerState updates
   // Using 100ms throttle with trailing edge to ensure final state is always rendered
-  #throttledBuildAndUpdateDatasets = throttle(
+  #throttledBuildAndUpdateDatasets = _.throttle(
     () => {
       this.#buildAndUpdateDatasetsImpl();
     },

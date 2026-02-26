@@ -280,17 +280,6 @@ export type PlayerStateActiveData = {
   // 参数名称到参数值的映射，用于描述远程参数（如 rosparams）。
   parameters?: Map<string, ParameterValue>;
 
-  /** Set to true when `messages` has been recomputed without seek, backfill or playback.
-   * For example: when global variables changes, user-scripts needs to be rerun to recompute
-   * messages. This variable would be set to true to indicate that `messages` may have changed
-   * without a seek or backfill occurring.
-   *
-   * 当 `messages` 在没有跳转、回填或播放的情况下被重新计算时设置为 true。
-   * 例如：当全局变量发生变化时，用户脚本需要重新运行以重新计算消息。
-   * 此变量将设置为 true 以指示 `messages` 可能在没有跳转或回填发生的情况下发生了变化。
-   */
-  messagesRecomputed?: boolean;
-
   // Network status information for real-time connections
   // 实时连接的网络状态信息
   networkStatus?: {

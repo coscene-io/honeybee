@@ -231,7 +231,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
             ns="appBar"
             i18nKey="openInCoStudioPrompt"
             components={{
-              download: <Link href="#" onClick={downloadLatestStudio} />,
+              download: <Link href="#" target="_self" onClick={downloadLatestStudio} />,
             }}
           />
 
