@@ -57,7 +57,7 @@ export default function Root(props: {
   }
   const { appConfiguration } = props;
 
-  const { t } = useTranslation("appBar");
+  const { t, i18n } = useTranslation("appBar");
 
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
@@ -152,7 +152,9 @@ export default function Root(props: {
     ];
 
     return sources;
-  }, [props.dataSources]);
+    // change language need reload data sources to change the language of the data sources
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.resolvedLanguage, props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
