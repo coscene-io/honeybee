@@ -439,6 +439,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                     ToSettings: (
                       <Link
                         href="#"
+                        target="_self"
                         onClick={() => {
                           dialogActions.preferences.open("general");
                         }}
@@ -455,6 +456,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                     ToSettings: (
                       <Link
                         href="#"
+                        target="_self"
                         onClick={() => {
                           dialogActions.preferences.open("general");
                         }}

@@ -392,6 +392,7 @@ export default function RecordTable({
           <div className={classes.deviceId}>
             <Link
               href="#"
+              target="_self"
               underline="none"
               variant="body2"
               onClick={() => {

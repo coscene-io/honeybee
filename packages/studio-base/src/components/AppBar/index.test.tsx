@@ -12,24 +12,53 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import MultiProvider from "@foxglove/studio-base/components/MultiProvider";
 import StudioToastProvider from "@foxglove/studio-base/components/StudioToastProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
+import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import CoSceneLayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
+import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
+import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
+import MockCoSceneCurrentUserProvider from "@foxglove/studio-base/providers/MockCoSceneCurrentUserProvider";
+import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
+import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import MockCoSceneLayoutManager from "@foxglove/studio-base/services/LayoutManager/MockCoSceneLayoutManager";
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { setupTestAppConfig } from "@foxglove/studio-base/test/mocks/setupTestAppConfig";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
+// MockCoSceneLayoutManager
 
 import { AppBar } from ".";
 
+setupTestAppConfig({
+  COSTUDIO_DOWNLOAD_URL: "",
+});
+
 function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   const appConfiguration = makeMockAppConfiguration();
+  const mockConsoleApi = {
+    generateFileUploadUrls: async () => ({ preSignedUrls: {} }),
+  } as unknown as ConsoleApi;
+  const mockLayoutManager = new MockCoSceneLayoutManager();
+
   const providers = [
     /* eslint-disable react/jsx-key */
+    <DialogsProvider />,
+    <CoSceneConsoleApiContext.Provider value={mockConsoleApi} />,
+    <MockCoSceneCurrentUserProvider />,
+    <CoSceneLayoutManagerContext.Provider value={mockLayoutManager} />,
     <WorkspaceContextProvider />,
     <AppConfigurationContext.Provider value={appConfiguration} />,
+    <CoreDataProvider />,
+    <UploadFilesProvider />,
+    <SubscriptionEntitlementProvider />,
     <StudioToastProvider />,
     <TimelineInteractionStateProvider />,
     <MockMessagePipelineProvider />,
     <MockCurrentLayoutProvider />,
+    <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
     <ThemeProvider isDark />,
     /* eslint-enable react/jsx-key */
   ];

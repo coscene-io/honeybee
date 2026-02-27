@@ -25,7 +25,12 @@ import {
   IteratorResult,
   MessageIteratorArgs,
 } from "./IIterableSource";
-import { IterablePlayer } from "./IterablePlayer";
+import { IterablePlayer, SEEK_ON_START_NS } from "./IterablePlayer";
+
+// The fraction of the data source that has been loaded into the cache after the initial seek.
+// After initialization, the forward iterator starts at (SEEK_ON_START_NS + 1ns) from source start.
+// CachingIterableSource normalizes this to [0, 1] over the total source duration (1s for TestSource).
+const INITIAL_LOADED_FRACTION_START = Number(SEEK_ON_START_NS + 1n) / 1e9;
 
 class TestSource implements IDeserializedIterableSource {
   public readonly sourceType = "deserialized";
@@ -81,10 +86,13 @@ class PlayerStateStore {
     this.#playerStates.push(rest);
     if (this.#playerStates.length === this.#expected) {
       this.#resolve(this.#playerStates);
+      return;
     }
     if (this.#playerStates.length > this.#expected) {
       const error = new Error(
-        `Expected: ${this.#expected} messages, received: ${this.#playerStates.length}`,
+        `Expected exactly ${this.#expected} state transitions, received ${
+          this.#playerStates.length
+        }`,
       );
       this.done = Promise.reject(error);
       throw error;
@@ -219,7 +227,7 @@ describe("IterablePlayer", () => {
             topic: "foo",
             receiveTime: { sec: 0, nsec: 1 },
             message: undefined,
-            sizeInBytes: 0,
+            sizeInBytes: 4,
             schemaName: "foo",
           },
         ];
@@ -233,6 +241,11 @@ describe("IterablePlayer", () => {
     player.seekPlayback({ sec: 0, nsec: 0 });
 
     const playerStates = await store.done;
+
+    // After seeking to {sec:0, nsec:1}, the forward iterator starts at nsec:2.
+    // CachingIterableSource creates a block from nsec:2 to nsec:99000000 which
+    // merges with the existing initialization block, covering [2ns, 1s].
+    const seekLoadedFractionStart = 2 / 1e9;
 
     const baseState: PlayerStateWithoutPlayerId = {
       activeData: {
@@ -255,7 +268,7 @@ describe("IterablePlayer", () => {
       profile: undefined,
       presence: PlayerPresence.PRESENT,
       progress: {
-        fullyLoadedFractionRanges: [{ start: 0, end: 1 }],
+        fullyLoadedFractionRanges: [{ start: seekLoadedFractionStart, end: 1 }],
         messageCache: undefined,
       },
       urlState: {
@@ -274,18 +287,25 @@ describe("IterablePlayer", () => {
           {
             message: undefined,
             receiveTime: { sec: 0, nsec: 1 },
-            sizeInBytes: 0,
+            sizeInBytes: 4,
             topic: "foo",
             schemaName: "foo",
           },
         ],
+      },
+      // The withMessages state is emitted during seek-backfill, before
+      // resetPlaybackIterator runs. So progress still has the value from
+      // the previous idle state (after initialization).
+      progress: {
+        fullyLoadedFractionRanges: [{ start: INITIAL_LOADED_FRACTION_START, end: 1 }],
+        messageCache: undefined,
       },
     };
 
     // The first seek is interrupted by the second seek.
     // The state order:
     // 1. a state update completing the second seek
-    // 1. a state update for moving to idle
+    // 2. a state update for moving to idle
     expect(playerStates).toEqual([withMessages, baseState]);
 
     void player.close();
@@ -324,7 +344,10 @@ describe("IterablePlayer", () => {
 
     const playerStates = await store.done;
 
-    const baseState: PlayerStateWithoutPlayerId = {
+    // The seek-complete and buffering states are emitted during seek-backfill,
+    // before resetPlaybackIterator runs. They retain the progress from the
+    // previous idle state (after initialization).
+    const seekCompleteState: PlayerStateWithoutPlayerId = {
       activeData: {
         currentTime: { sec: 0, nsec: 0 },
         startTime: { sec: 0, nsec: 0 },
@@ -345,7 +368,7 @@ describe("IterablePlayer", () => {
       profile: undefined,
       presence: PlayerPresence.PRESENT,
       progress: {
-        fullyLoadedFractionRanges: [{ start: 0, end: 1 }],
+        fullyLoadedFractionRanges: [{ start: INITIAL_LOADED_FRACTION_START, end: 1 }],
         messageCache: undefined,
       },
       urlState: {
@@ -356,19 +379,30 @@ describe("IterablePlayer", () => {
     };
 
     const bufferingState: PlayerStateWithoutPlayerId = {
-      ...baseState,
+      ...seekCompleteState,
       presence: PlayerPresence.BUFFERING,
       activeData: {
-        ...baseState.activeData!,
+        ...seekCompleteState.activeData!,
         lastSeekTime: 0,
       },
     };
 
-    // The first seek is interrupted by the second seek.
+    // After seeking to {sec:0, nsec:0} (equal to source start), the forward
+    // iterator starts at the source start. CachingIterableSource creates a block
+    // from nsec:0 which merges with the existing block, covering the full range.
+    const idleState: PlayerStateWithoutPlayerId = {
+      ...seekCompleteState,
+      progress: {
+        fullyLoadedFractionRanges: [{ start: 0, end: 1 }],
+        messageCache: undefined,
+      },
+    };
+
     // The state order:
-    // 1. a state update completing the second seek
-    // 1. a state update for moving to idle
-    expect(playerStates).toEqual([bufferingState, baseState, baseState]);
+    // 1. buffering state (seekAckTimeout fires after 100ms)
+    // 2. seek complete (backfill returns after 1000ms)
+    // 3. idle (after resetPlaybackIterator)
+    expect(playerStates).toEqual([bufferingState, seekCompleteState, idleState]);
 
     void player.close();
     await player.isClosed;
@@ -791,18 +825,20 @@ describe("IterablePlayer", () => {
     expect(messageIteratorSpy.mock.calls).toEqual([
       [
         {
-          start: { sec: 0, nsec: 0 },
+          start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo"),
           consumptionType: "partial",
+          fetchCompleteTopicState: undefined,
         },
       ],
       [
         {
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
-          topics: mockTopicSelection("bar", "foo"),
+          topics: mockTopicSelection("foo", "bar"),
           consumptionType: "partial",
+          fetchCompleteTopicState: undefined,
         },
       ],
     ]);
@@ -840,6 +876,7 @@ describe("IterablePlayer", () => {
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo"),
           consumptionType: "partial",
+          fetchCompleteTopicState: undefined,
         },
       ],
     ]);
@@ -929,7 +966,7 @@ describe("IterablePlayer", () => {
               topic: "foo",
               receiveTime: { sec: 0, nsec: 0 },
               message: undefined,
-              sizeInBytes: 0,
+              sizeInBytes: 4,
               schemaName: "foo",
             },
           ],

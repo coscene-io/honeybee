@@ -1,11 +1,10 @@
+/** @jest-environment jsdom */
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-
-/** @jest-environment jsdom */
 
 import * as THREE from "three";
 
@@ -22,6 +21,10 @@ const mockAdd = jest.fn();
 const mockAddToTopic = jest.fn();
 const mockRemove = jest.fn();
 const mockRemoveFromTopic = jest.fn();
+
+class MockVideoFrame {
+  public close(): void {}
+}
 
 // Mocked dependencies
 const mockRenderer: IRenderer = {
@@ -63,9 +66,18 @@ const sampleImage = {
 };
 
 describe("ImageRenderable", () => {
+  beforeAll(() => {
+    (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame = MockVideoFrame;
+  });
+
+  afterAll(() => {
+    delete (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
   it("should instantiate and set settings", () => {
     const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
     expect(renderable).toBeInstanceOf(ImageRenderable);
@@ -151,6 +163,14 @@ describe("ImageRenderable", () => {
 });
 
 describe("ImageRenderable error handling", () => {
+  beforeAll(() => {
+    (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame = MockVideoFrame;
+  });
+
+  afterAll(() => {
+    delete (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });

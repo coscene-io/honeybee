@@ -15,8 +15,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { act, renderHook } from "@testing-library/react";
-import React, { PropsWithChildren } from "react";
+import { renderHook } from "@testing-library/react";
+import React, { act, PropsWithChildren } from "react";
 
 import useMessagesByPath from "@foxglove/studio-base/components/MessagePathSyntax/useMessagesByPath";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
@@ -112,7 +112,7 @@ describe("useMessagesByPath", () => {
       },
     });
 
-    rerender({ paths: ["/some/topic"] });
+    rerender({ paths: ["/some/topic"], topics: [{ name: "/some/topic", schemaName: "dummy" }] });
     unmount();
 
     expect(setSubscriptions.mock.calls).toEqual([

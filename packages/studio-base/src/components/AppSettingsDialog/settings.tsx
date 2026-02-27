@@ -408,6 +408,7 @@ export function StudioRemoteConfigUrl(): React.ReactElement {
                     Link: (
                       <Link
                         href="#"
+                        target="_self"
                         onClick={() => {
                           window.location.reload();
                         }}
@@ -534,7 +535,7 @@ export function CompatibilityMode(): React.ReactElement {
                 t={t}
                 i18nKey="tfCompatibilityModeHelp"
                 components={{
-                  Link: <Link href={getDocsLink("/viz/options")} />,
+                  Link: <Link href={getDocsLink("/viz/options")} target="_blank" />,
                 }}
               />
             }
@@ -692,6 +693,7 @@ export function RetentionWindowMs(): React.ReactElement {
                 Link: (
                   <Link
                     href="#"
+                    target="_self"
                     onClick={async () => {
                       await reloadCurrentSource();
                       setShowTips(false);
@@ -762,6 +764,7 @@ export function RequestWindow(): React.ReactElement {
                 Link: (
                   <Link
                     href="#"
+                    target="_self"
                     onClick={async () => {
                       await reloadCurrentSource();
                       setShowTips(false);
@@ -831,6 +834,7 @@ export function ReadAheadDuration(): React.ReactElement {
                 Link: (
                   <Link
                     href="#"
+                    target="_self"
                     onClick={async () => {
                       await reloadCurrentSource();
                       setShowTips(false);
