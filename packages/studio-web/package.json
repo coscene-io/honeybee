@@ -14,7 +14,7 @@
     "@mui/material": "7.2.0",
     "@rspack/core": "1.6.7",
     "@rspack/plugin-react-refresh": "1.5.3",
-    "@storybook/react": "8.2.8",
+    "@storybook/react": "10.2.13",
     "@types/react-refresh": "^0",
     "assert": "2.1.0",
     "react": "18.3.1",
