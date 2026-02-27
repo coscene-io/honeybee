@@ -65,7 +65,6 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   time: "时间",
   triggerTime: "触发时间",
   value: "值",
-  pivotMetricTooltip: "填写属性值，用于在曲线对比算法中匹配曲线",
   startAndEndTime: "起止时间",
   startAndEndTimeDesc: "{{startTime}} 至 {{endTime}} 持续",
   seconds: "秒",
