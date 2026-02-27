@@ -152,7 +152,7 @@ export default function Root(props: {
     ];
 
     return sources;
-    // change language need reload data sources to change the language of the data sources
+    // Changing the language requires reloading data sources so they use the new language.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i18n.resolvedLanguage, props.dataSources]);
 
