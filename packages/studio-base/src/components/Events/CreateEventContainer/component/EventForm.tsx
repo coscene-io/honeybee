@@ -5,9 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import AddIcon from "@mui/icons-material/Add";
-import ClearIcon from "@mui/icons-material/Clear";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
-import HelpIcon from "@mui/icons-material/Help";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Button,
@@ -19,7 +17,6 @@ import {
   ButtonGroup,
   Select,
   MenuItem,
-  Tooltip,
 } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useState, useRef, useEffect, useMemo } from "react";
@@ -40,7 +37,6 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
-import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { CreateEventForm } from "../types";
 
@@ -67,10 +63,6 @@ const useStyles = makeStyles()((theme, _params) => ({
   },
 }));
 
-const PIVOT_METRIC = "pivotMetric";
-const temperature = [...new Array(9).keys()].map((i) => `温度0${i + 1}`);
-const pivotMetricValues = ["General", "功率", "压力", "转速", "风速", ...temperature, "温度10"];
-
 interface EventFormProps {
   form: UseFormReturn<CreateEventForm>;
   onMetaDataKeyDown?: (keyboardEvent: React.KeyboardEvent) => void;
@@ -95,7 +87,7 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
   const { startTime, duration } = useTimeRange();
 
   // 使用 useFieldArray 管理 metadataEntries
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "metadataEntries",
   });
@@ -108,12 +100,6 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
     [watch],
   );
 
-  // 辅助函数：查找 PIVOT_METRIC 的索引
-  const getPivotMetricIndex = useCallback(() => {
-    return fields.findIndex((_, index) => getFieldValue(index, "key") === PIVOT_METRIC);
-  }, [fields, getFieldValue]);
-
-  const isSupor = getDomainConfig().logo === "supor";
   const isEditing = toModifyEvent != undefined;
 
   const passingFile = useGetPassingFile();
@@ -384,136 +370,90 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
       <Stack paddingTop={2}>
         <FormLabel>{t("attribute")}</FormLabel>
         <div className={classes.grid}>
-          {isSupor ? (
-            <div className={classes.row}>
-              <div>
-                {PIVOT_METRIC}{" "}
-                <Tooltip placement="top-start" title={t("pivotMetricTooltip")}>
-                  <IconButton>
-                    <HelpIcon />
-                  </IconButton>
-                </Tooltip>
-              </div>
-              <Select
-                value={
-                  getPivotMetricIndex() >= 0 ? getFieldValue(getPivotMetricIndex(), "value") : ""
-                }
-                onChange={(evt) => {
-                  const pivotIndex = getPivotMetricIndex();
-                  if (pivotIndex >= 0) {
-                    update(pivotIndex, { key: PIVOT_METRIC, value: evt.target.value });
-                  } else {
-                    append({ key: PIVOT_METRIC, value: evt.target.value });
-                  }
-                }}
-              >
-                {pivotMetricValues.map((item) => (
-                  <MenuItem key={item} value={item}>
-                    {item}
-                  </MenuItem>
-                ))}
-              </Select>
-              <div>
-                {getPivotMetricIndex() >= 0 && (
+          {fields.map((field, index) => {
+            const fieldKey = getFieldValue(index, "key");
+            const hasDuplicate = +((fieldKey.length > 0 && countedMetadata[fieldKey]) ?? 0) > 1;
+            return (
+              <div className={classes.row} key={field.id}>
+                <Controller
+                  name={`metadataEntries.${index}.key`}
+                  control={control}
+                  render={({ field: keyField }) => (
+                    <TextField
+                      {...keyField}
+                      size="small"
+                      variant="filled"
+                      placeholder={t("attributeKey")}
+                      error={hasDuplicate}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (keyboardEvent.key === "Enter" && !isComposition) {
+                          invokeTabKey();
+                        }
+                      }}
+                      onChange={(evt) => {
+                        keyField.onChange(evt);
+                        // 延迟检查是否需要自动添加新行
+                        setTimeout(() => {
+                          handleAutoAppendRow(index);
+                        }, 0);
+                      }}
+                    />
+                  )}
+                />
+                <Controller
+                  name={`metadataEntries.${index}.value`}
+                  control={control}
+                  render={({ field: valueField }) => (
+                    <TextField
+                      {...valueField}
+                      size="small"
+                      variant="filled"
+                      placeholder={t("attributeValue")}
+                      error={hasDuplicate}
+                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                        if (
+                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                          keyboardEvent.key === "Enter" &&
+                          !isComposition &&
+                          onMetaDataKeyDown
+                        ) {
+                          onMetaDataKeyDown(keyboardEvent);
+                        }
+                      }}
+                      onChange={(evt) => {
+                        valueField.onChange(evt);
+                        // 延迟检查是否需要自动添加新行
+                        setTimeout(() => {
+                          handleAutoAppendRow(index);
+                        }, 0);
+                      }}
+                    />
+                  )}
+                />
+                <ButtonGroup>
                   <IconButton
+                    tabIndex={-1}
                     onClick={() => {
-                      const pivotIndex = getPivotMetricIndex();
-                      if (pivotIndex >= 0) {
-                        remove(pivotIndex);
-                      }
+                      addMetadataRow(index);
                     }}
                   >
-                    <ClearIcon />
+                    <AddIcon />
                   </IconButton>
-                )}
+                  <IconButton
+                    tabIndex={-1}
+                    onClick={() => {
+                      removeMetadataRow(index);
+                    }}
+                    style={{
+                      visibility: fields.length > 1 ? "visible" : "hidden",
+                    }}
+                  >
+                    <RemoveIcon />
+                  </IconButton>
+                </ButtonGroup>
               </div>
-            </div>
-          ) : (
-            fields.map((field, index) => {
-              const fieldKey = getFieldValue(index, "key");
-              const hasDuplicate = +((fieldKey.length > 0 && countedMetadata[fieldKey]) ?? 0) > 1;
-              return (
-                <div className={classes.row} key={field.id}>
-                  <Controller
-                    name={`metadataEntries.${index}.key`}
-                    control={control}
-                    render={({ field: keyField }) => (
-                      <TextField
-                        {...keyField}
-                        size="small"
-                        variant="filled"
-                        placeholder={t("attributeKey")}
-                        error={hasDuplicate}
-                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                          if (keyboardEvent.key === "Enter" && !isComposition) {
-                            invokeTabKey();
-                          }
-                        }}
-                        onChange={(evt) => {
-                          keyField.onChange(evt);
-                          // 延迟检查是否需要自动添加新行
-                          setTimeout(() => {
-                            handleAutoAppendRow(index);
-                          }, 0);
-                        }}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name={`metadataEntries.${index}.value`}
-                    control={control}
-                    render={({ field: valueField }) => (
-                      <TextField
-                        {...valueField}
-                        size="small"
-                        variant="filled"
-                        placeholder={t("attributeValue")}
-                        error={hasDuplicate}
-                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                          if (
-                            (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                            keyboardEvent.key === "Enter" &&
-                            !isComposition &&
-                            onMetaDataKeyDown
-                          ) {
-                            onMetaDataKeyDown(keyboardEvent);
-                          }
-                        }}
-                        onChange={(evt) => {
-                          valueField.onChange(evt);
-                          // 延迟检查是否需要自动添加新行
-                          setTimeout(() => {
-                            handleAutoAppendRow(index);
-                          }, 0);
-                        }}
-                      />
-                    )}
-                  />
-                  <ButtonGroup>
-                    <IconButton
-                      tabIndex={-1}
-                      onClick={() => {
-                        addMetadataRow(index);
-                      }}
-                    >
-                      <AddIcon />
-                    </IconButton>
-                    <IconButton
-                      tabIndex={-1}
-                      onClick={() => {
-                        removeMetadataRow(index);
-                      }}
-                      style={{
-                        visibility: fields.length > 1 ? "visible" : "hidden",
-                      }}
-                    >
-                      <RemoveIcon />
-                    </IconButton>
-                  </ButtonGroup>
-                </div>
-              );
-            })
-          )}
+            );
+          })}
         </div>
       </Stack>
 

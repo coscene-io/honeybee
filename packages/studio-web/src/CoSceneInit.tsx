@@ -27,9 +27,7 @@ export function useCoSceneInit(): void {
 
   const favicon = useMemo(() => {
     const logo = getDomainConfig().logo;
-    if (logo === "supor") {
-      return "/viz/supor.ico";
-    } else if (logo === "agibot") {
+    if (logo === "agibot") {
       return "/viz/agibot_favicon.svg";
     } else {
       switch (appConfig.VITE_APP_PROJECT_ENV) {
