@@ -90,7 +90,9 @@ class PlayerStateStore {
     }
     if (this.#playerStates.length > this.#expected) {
       const error = new Error(
-        `Expected exactly ${this.#expected} state transitions, received ${this.#playerStates.length}`,
+        `Expected exactly ${this.#expected} state transitions, received ${
+          this.#playerStates.length
+        }`,
       );
       this.done = Promise.reject(error);
       throw error;
