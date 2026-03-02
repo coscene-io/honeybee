@@ -19,6 +19,7 @@ jobs:
     uses: coscene-io/cicd-templates/.github/workflows/image-push-yarn.yml@main
     with:
       project: honeybee
+      lfs: false
     secrets: inherit
 
   upgrade-server:
