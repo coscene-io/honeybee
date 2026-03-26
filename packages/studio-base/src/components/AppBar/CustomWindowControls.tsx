@@ -28,6 +28,9 @@ export type CustomWindowControlsProps = {
 };
 
 const useStyles = makeStyles()((theme) => ({
+  controls: {
+    WebkitAppRegion: "no-drag",
+  },
   closeButton: {
     color: theme.palette.secondary.main,
     ":hover": {
@@ -52,7 +55,14 @@ export function CustomWindowControls({
 }: Omit<CustomWindowControlsProps, "showCustomWindowControls">): React.JSX.Element {
   const { classes } = useStyles();
   return (
-    <Stack direction="row" gap={1} paddingX={1}>
+    <Stack
+      direction="row"
+      gap={1}
+      paddingX={1}
+      data-testid="win-controls"
+      data-app-region="no-drag"
+      className={classes.controls}
+    >
       <IconButton
         size="small"
         color="inherit"
