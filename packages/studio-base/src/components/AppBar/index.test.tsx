@@ -84,6 +84,9 @@ describe("<AppBar />", () => {
       </Wrapper>,
     );
 
+    const controls = await root.findByTestId("win-controls");
+    expect(controls.getAttribute("data-app-region")).toBe("no-drag");
+
     const minButton = await root.findByTestId("win-minimize");
     minButton.click();
     expect(mockMinimize).toHaveBeenCalled();
