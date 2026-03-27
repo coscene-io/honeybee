@@ -11,6 +11,8 @@ import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 
 import dataCollectionThumbnail from "./DataCollection/thumbnail.png";
 import dataSourceInfoThumbnail from "./DataSourceInfo/thumbnail.png";
+import faultRecordThumbnail from "./FaultRecord/thumbnail.png";
+import fileUploadThumbnail from "./FileUpload/thumbnail.png";
 import gaugeThumbnail from "./Gauge/thumbnail.png";
 import imageThumbnail from "./Image/thumbnail.png";
 import indicatorThumbnail from "./Indicator/thumbnail.png";
@@ -207,5 +209,19 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     description: t("dataCollectionDescription"),
     thumbnail: dataCollectionThumbnail,
     module: async () => await import("./DataCollection"),
+  },
+  {
+    title: t("faultRecord"),
+    type: "FaultRecord",
+    description: t("faultRecordDescription"),
+    thumbnail: faultRecordThumbnail,
+    module: async () => await import("./FaultRecord/index"),
+  },
+  {
+    title: t("fileUpload"),
+    type: "FileUpload",
+    description: t("fileUploadDescription"),
+    thumbnail: fileUploadThumbnail,
+    module: async () => await import("./FileUpload/index"),
   },
 ];
