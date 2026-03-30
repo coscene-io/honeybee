@@ -176,6 +176,10 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     return extensions;
   }, [availableSources]);
 
+  const remoteFileDataSource = useMemo(() => {
+    return availableSources.find((source) => source.id === "remote-file");
+  }, [availableSources]);
+
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
@@ -329,19 +333,29 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       "]": () => {
         sidebarActions.right.setOpen((oldValue) => !oldValue);
       },
-      o: (ev: KeyboardEvent) => {
+      // Mod+O opens a local file, Mod+Shift+O opens connections, Mod+Alt+O jumps to Remote File.
+      KeyO: (ev: KeyboardEvent) => {
         if (!keyboardEventHasModifier(ev)) {
-          return;
+          return false;
         }
-        ev.preventDefault();
         if (ev.shiftKey) {
           dialogActions.dataSource.open("connection");
+          return;
+        }
+        if (ev.altKey) {
+          dialogActions.dataSource.open("connection", remoteFileDataSource);
           return;
         }
         void dialogActions.openFile.open().catch(console.error);
       },
     };
-  }, [dialogActions.dataSource, dialogActions.openFile, sidebarActions.left, sidebarActions.right]);
+  }, [
+    dialogActions.dataSource,
+    dialogActions.openFile,
+    remoteFileDataSource,
+    sidebarActions.left,
+    sidebarActions.right,
+  ]);
 
   const play = useMessagePipeline(selectPlay);
   const playUntil = useMessagePipeline(selectPlayUntil);
