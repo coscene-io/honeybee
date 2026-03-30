@@ -340,13 +340,14 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         }
         if (ev.shiftKey) {
           dialogActions.dataSource.open("connection");
-          return;
+          return true;
         }
         if (ev.altKey) {
           dialogActions.dataSource.open("connection", remoteFileDataSource);
-          return;
+          return true;
         }
         void dialogActions.openFile.open().catch(console.error);
+        return true;
       },
     };
   }, [
