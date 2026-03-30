@@ -23,8 +23,6 @@ export type S3GetObjectResult = {
 const regionMap = {
   [RegionEnum_Region.CN_HANGZHOU]: "cn-hangzhou",
   [RegionEnum_Region.CN_SHANGHAI]: "cn-shanghai",
-  [RegionEnum_Region.CN_GUANGZHOU]: "cn-guangzhou",
-  [RegionEnum_Region.US_CENTRAL1]: "us-central1",
   [RegionEnum_Region.REGION_UNSPECIFIED]: "",
 };
 
