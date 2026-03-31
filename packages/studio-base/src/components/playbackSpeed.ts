@@ -8,17 +8,7 @@
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
 export const PLAYBACK_SPEED_OPTIONS: PlaybackSpeed[] = [
-  0.01,
-  0.02,
-  0.05,
-  0.1,
-  0.2,
-  0.5,
-  0.8,
-  1,
-  2,
-  3,
-  5,
+  0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.8, 1, 2, 3, 5,
 ];
 
 export type PlaybackSpeedDirection = "decrease" | "increase";

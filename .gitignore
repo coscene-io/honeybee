@@ -1,5 +1,6 @@
 *.log
 *.tsbuildinfo
+.eslintcache
 .idea/
 .DS_Store
 .webpack/

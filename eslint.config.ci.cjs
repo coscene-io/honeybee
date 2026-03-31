@@ -22,6 +22,12 @@ module.exports = [
       "import/no-self-import": "error",
       // https://github.com/import-js/eslint-plugin-import/issues/242#issuecomment-230118951
       "import/no-duplicates": "error",
+    },
+  },
+  {
+    files: ["**/*.@(js|jsx|ts|tsx)"],
+    ignores: ["**/*.test.@(js|jsx|ts|tsx)", "**/*.stories.@(js|jsx|ts|tsx)", "**/__tests__/**"],
+    rules: {
       // https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-cycle.md
       "import/no-cycle": [
         "error",
