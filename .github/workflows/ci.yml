@@ -26,6 +26,14 @@ jobs:
 
       - run: yarn install --immutable
 
+      - name: Restore ESLint cache
+        uses: actions/cache@v4
+        with:
+          path: .eslintcache
+          key: ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config.cjs', 'eslint.config.ci.cjs', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config.cjs', 'eslint.config.ci.cjs', 'tsconfig.json', 'tsconfig.eslint.json') }}-
+
       - run: set -x
 
       - run: yarn run tsc --noEmit

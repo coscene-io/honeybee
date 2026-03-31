@@ -14,15 +14,14 @@ import { makeStyles } from "tss-react/mui";
 
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import {
+  formatPlaybackSpeed,
+  PLAYBACK_SPEED_OPTIONS,
+} from "@foxglove/studio-base/components/playbackSpeed";
+import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
-
-const SPEED_OPTIONS: PlaybackSpeed[] = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.8, 1, 2, 3, 5];
-
-const formatSpeed = (val: PlaybackSpeed) => `${val < 0.1 ? val.toFixed(2) : val}×`;
 
 const selectPlaybackSpeed = (store: WorkspaceContextStore) => store.playbackControls.speed;
 
@@ -65,7 +64,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
 
   return (
     <>
-      <Tooltip title={t("playbackSpeed", { ns: "general" })}>
+      <Tooltip title={t("playbackSpeedShortcut", { ns: "general" })}>
         <Button
           className={classes.button}
           id="playback-speed-button"
@@ -80,7 +79,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
           color="inherit"
           endIcon={<ArrowDropDownIcon />}
         >
-          {formatSpeed(speed)}
+          {formatPlaybackSpeed(speed)}
         </Button>
       </Tooltip>
       <Menu
@@ -104,7 +103,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
           },
         }}
       >
-        {SPEED_OPTIONS.map((option) => (
+        {PLAYBACK_SPEED_OPTIONS.map((option) => (
           <MenuItem
             selected={speed === option}
             key={option}
@@ -120,7 +119,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
             )}
             <ListItemText
               inset={speed !== option}
-              primary={formatSpeed(option)}
+              primary={formatPlaybackSpeed(option)}
               slotProps={{
                 primary: {
                   variant: "inherit",
