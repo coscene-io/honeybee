@@ -248,17 +248,29 @@ export default function PlaybackControls(props: {
     [getTimeInfo, seek, effectiveSeekMs],
   );
 
+  const handleSeekBackwardKeyDown = useCallback(
+    (ev: KeyboardEvent) => {
+      seekBackwardAction(ev);
+    },
+    [seekBackwardAction],
+  );
+
+  const handleSeekForwardKeyDown = useCallback(
+    (ev: KeyboardEvent) => {
+      seekForwardAction(ev);
+    },
+    [seekForwardAction],
+  );
+
   const keyDownHandlers = useMemo(
     () => ({
       " ": togglePlayPause,
-      ArrowLeft: (ev: KeyboardEvent) => {
-        seekBackwardAction(ev);
-      },
-      ArrowRight: (ev: KeyboardEvent) => {
-        seekForwardAction(ev);
-      },
+      ArrowLeft: handleSeekBackwardKeyDown,
+      Left: handleSeekBackwardKeyDown,
+      ArrowRight: handleSeekForwardKeyDown,
+      Right: handleSeekForwardKeyDown,
     }),
-    [seekBackwardAction, seekForwardAction, togglePlayPause],
+    [handleSeekBackwardKeyDown, handleSeekForwardKeyDown, togglePlayPause],
   );
 
   const disableControls = presence === PlayerPresence.ERROR;
