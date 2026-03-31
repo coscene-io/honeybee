@@ -277,12 +277,14 @@ export default function PlaybackControls(props: {
           return false;
         }
         adjustPlaybackSpeed("decrease");
+        return true;
       },
       Equal: (ev: KeyboardEvent) => {
         if (hasPlaybackSpeedModifier(ev)) {
           return false;
         }
         adjustPlaybackSpeed("increase");
+        return true;
       },
     }),
     [
