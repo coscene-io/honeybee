@@ -45,6 +45,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { stepPlaybackSpeed } from "@foxglove/studio-base/components/playbackSpeed";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
@@ -87,6 +88,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
+const selectPlaybackSpeed = (store: WorkspaceContextStore) => store.playbackControls.speed;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
@@ -165,8 +167,9 @@ export default function PlaybackControls(props: {
 
   const { classes, cx } = useStyles();
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
+  const playbackSpeed = useWorkspaceStore(selectPlaybackSpeed);
   const {
-    playbackControlActions: { setRepeat },
+    playbackControlActions: { setRepeat, setSpeed },
   } = useWorkspaceActions();
 
   const toggleRepeat = useCallback(() => {
@@ -248,6 +251,18 @@ export default function PlaybackControls(props: {
     [getTimeInfo, seek, effectiveSeekMs],
   );
 
+  const adjustPlaybackSpeed = useCallback(
+    (direction: "decrease" | "increase") => {
+      setSpeed(stepPlaybackSpeed(playbackSpeed, direction));
+    },
+    [playbackSpeed, setSpeed],
+  );
+
+  const hasPlaybackSpeedModifier = useCallback(
+    (event: KeyboardEvent) => event.ctrlKey || event.metaKey || event.altKey,
+    [],
+  );
+
   const keyDownHandlers = useMemo(
     () => ({
       " ": togglePlayPause,
@@ -257,8 +272,26 @@ export default function PlaybackControls(props: {
       ArrowRight: (ev: KeyboardEvent) => {
         seekForwardAction(ev);
       },
+      Minus: (ev: KeyboardEvent) => {
+        if (hasPlaybackSpeedModifier(ev)) {
+          return false;
+        }
+        adjustPlaybackSpeed("decrease");
+      },
+      Equal: (ev: KeyboardEvent) => {
+        if (hasPlaybackSpeedModifier(ev)) {
+          return false;
+        }
+        adjustPlaybackSpeed("increase");
+      },
     }),
-    [seekBackwardAction, seekForwardAction, togglePlayPause],
+    [
+      adjustPlaybackSpeed,
+      hasPlaybackSpeedModifier,
+      seekBackwardAction,
+      seekForwardAction,
+      togglePlayPause,
+    ],
   );
 
   const disableControls = presence === PlayerPresence.ERROR;
