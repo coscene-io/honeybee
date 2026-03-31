@@ -37,9 +37,9 @@ export const appBar = {
   viewOurDocs: "View our docs",
   profile: "Profile",
   mediaGeneratingTips:
-    "media File generation in progress, refresh page to play when finished ({{successfulCount}}/{{totalCount}})",
+    "Media files are still being generated. Refresh the page when generation is complete to play them ({{successfulCount}}/{{totalCount}}).",
   mediaSuccessfulGeneration:
-    "All media files have been generated, refresh page to play all files ({{count}}/{{count}})",
+    "All media files have been generated. Refresh the page to play them ({{count}}/{{count}}).",
   mediaGenerationError:
     "There are files in the playlist that cannot be indexed, please check the file contents",
   loadingTips: "Loading playback data at full speed, please wait...",

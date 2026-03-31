@@ -37,9 +37,9 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   viewOurDocs: "查看我们的文档",
   profile: "个人资料",
   mediaGeneratingTips:
-    "media 文件生成中，生成完成后刷新页面即可播放（{{successfulCount}}/{{totalCount}}）",
+    "媒体文件生成中，生成完成后刷新页面即可播放（{{successfulCount}}/{{totalCount}}）",
   mediaSuccessfulGeneration:
-    "已将所有 media 文件生成，刷新页面即可播放全部文件 ({{count}}/{{count}})",
+    "所有媒体文件均已生成，刷新页面即可播放（{{count}}/{{count}}）",
   mediaGenerationError: "播放列表中存在无法生成索引的文件，请检查文件内容",
   loadingTips: "正在全速加载播放数据，请稍候...",
   toSetupLayout: "前往设置布局",
