@@ -20,12 +20,10 @@ It helps robotics teams visualize, debug, and analyze logs and live telemetry th
 
 **Supported development environments:** Linux, Windows, macOS
 
-**Prerequisites:**
+**Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v22 recommended (`package.json` currently allows `>=20`)
-- [Corepack](https://nodejs.org/api/corepack.html) enabled, to use the repo-pinned Yarn version
-- Access to the private `@coscene-io/*` packages, typically via `GH_PACKAGES_ORG_TOKEN`
-- [Cursor](https://www.cursor.com/) or [Visual Studio Code](https://code.visualstudio.com/) is recommended
+- [Node.js](https://nodejs.org/en/) V22.12.0+
+- [Cursor](https://www.cursor.com/) / [Visual Studio Code](https://code.visualstudio.com/) – Recommended
 
 ## Setup
 
