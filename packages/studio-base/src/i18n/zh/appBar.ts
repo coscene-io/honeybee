@@ -38,8 +38,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   profile: "个人资料",
   mediaGeneratingTips:
     "media 文件生成中，生成完成后刷新页面即可播放（{{successfulCount}}/{{totalCount}}）",
-  mediaSuccessfulGeneration:
-    "所有 media 文件均已生成，刷新页面即可播放（{{count}}/{{count}}）",
+  mediaSuccessfulGeneration: "所有 media 文件均已生成，刷新页面即可播放（{{count}}/{{count}}）",
   mediaGenerationError: "播放列表中存在无法生成索引的文件，请检查文件内容",
   loadingTips: "正在全速加载播放数据，请稍候...",
   toSetupLayout: "前往设置布局",
