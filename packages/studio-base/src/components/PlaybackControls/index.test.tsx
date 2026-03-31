@@ -19,17 +19,26 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import PlaybackControls from "./index";
 
-jest.mock("./PlaybackTimeDisplay", () => function MockPlaybackTimeDisplay() {
-  return <></>;
-});
-jest.mock("./Scrubber", () => function MockScrubber() {
-  return <></>;
-});
+jest.mock(
+  "./PlaybackTimeDisplay",
+  () =>
+    function MockPlaybackTimeDisplay() {
+      return <></>;
+    },
+);
+jest.mock(
+  "./Scrubber",
+  () =>
+    function MockScrubber() {
+      return <></>;
+    },
+);
 jest.mock(
   "@foxglove/studio-base/components/PlaybackSpeedControls",
-  () => function MockPlaybackSpeedControls() {
-    return <></>;
-  },
+  () =>
+    function MockPlaybackSpeedControls() {
+      return <></>;
+    },
 );
 jest.mock("./SeekStepControls", () => ({
   __esModule: true,
