@@ -225,6 +225,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
       if (isEditing) {
         const maskArray = [
+          "triggerTime",
           "displayName",
           "duration_nanos",
           "description",
