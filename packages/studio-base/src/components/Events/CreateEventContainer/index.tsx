@@ -142,8 +142,9 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         },
         event,
       });
-      const targetUrl = `${window.location.origin
-        }/${organizationSlug}/${projectSlug}/tasks/general-tasks/${newTask.name.split("/").pop()}`;
+      const targetUrl = `${
+        window.location.origin
+      }/${organizationSlug}/${projectSlug}/tasks/general-tasks/${newTask.name.split("/").pop()}`;
 
       toast.success(<CreateTaskSuccessToast targetUrl={targetUrl} />);
       if (task.needSyncTask) {
@@ -193,7 +194,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         const imgFileDisplayName = `${imgId}.${
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
           ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
-          }`;
+        }`;
 
         await consoleApi.uploadEventPicture({
           recordName,
