@@ -5,16 +5,56 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create } from "@bufbuild/protobuf";
 import type {
   CustomFieldValue,
   Property,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import _debounce from "lodash/debounce";
-import { useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { CustomFieldValueField } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValueField";
 
-import { CustomFieldValuesFindByPropery } from "./CustomFieldValuesFindByPropery";
+function getCustomFieldValueSignature(customFieldValue: CustomFieldValue): string {
+  return (
+    JSON.stringify({
+      propertyId: customFieldValue.property?.id,
+      value: customFieldValue.value,
+    }) ?? ""
+  );
+}
+
+const CustomFieldValueItem = memo(
+  function CustomFieldValueItem({
+    customFieldValue,
+    readonly,
+    onChange,
+    valueSignature,
+    variant,
+  }: {
+    customFieldValue: CustomFieldValue;
+    readonly: boolean;
+    onChange?: (customFieldValue: CustomFieldValue) => void;
+    valueSignature: string;
+    variant: "primary" | "secondary";
+  }): React.ReactNode {
+    void valueSignature;
+
+    return (
+      <CustomFieldValueField
+        variant={variant}
+        customFieldValue={customFieldValue}
+        readonly={readonly}
+        onChange={onChange}
+      />
+    );
+  },
+  (prevProps, nextProps) =>
+    prevProps.readonly === nextProps.readonly &&
+    prevProps.variant === nextProps.variant &&
+    prevProps.valueSignature === nextProps.valueSignature,
+);
 
 export function CustomFieldValuesFields({
   properties,
@@ -31,6 +71,12 @@ export function CustomFieldValuesFields({
   variant?: "primary" | "secondary";
   ignoreProperties?: boolean;
 }): React.ReactNode {
+  const customFieldValuesRef = useRef(customFieldValues);
+
+  useEffect(() => {
+    customFieldValuesRef.current = customFieldValues;
+  }, [customFieldValues]);
+
   const debouncedOnChange = useMemo(
     () =>
       onChange
@@ -41,29 +87,51 @@ export function CustomFieldValuesFields({
     [onChange],
   );
 
+  useEffect(() => {
+    return () => {
+      debouncedOnChange?.cancel();
+    };
+  }, [debouncedOnChange]);
+
+  const upsertCustomFieldValue = useCallback(
+    (newCustomFieldValue: CustomFieldValue) => {
+      if (!debouncedOnChange) {
+        return;
+      }
+
+      const currentCustomFieldValues = customFieldValuesRef.current;
+      const index = currentCustomFieldValues.findIndex(
+        (value) => value.property?.id === newCustomFieldValue.property?.id,
+      );
+      if (index !== -1) {
+        const nextCustomFieldValues = [...currentCustomFieldValues];
+        nextCustomFieldValues[index] = newCustomFieldValue;
+        debouncedOnChange(nextCustomFieldValues);
+      } else {
+        debouncedOnChange([...currentCustomFieldValues, newCustomFieldValue]);
+      }
+    },
+    [debouncedOnChange],
+  );
+
+  const customFieldValueByPropertyId = useMemo(() => {
+    return new Map(
+      customFieldValues.map((customFieldValue) => [
+        customFieldValue.property?.id,
+        customFieldValue,
+      ]),
+    );
+  }, [customFieldValues]);
+
   if (ignoreProperties) {
     return customFieldValues.map((customFieldValue, index) => (
-      <CustomFieldValueField
+      <CustomFieldValueItem
         key={customFieldValue.property?.id ?? index}
         variant={variant}
         customFieldValue={customFieldValue}
         readonly={readonly}
-        onChange={
-          debouncedOnChange
-            ? (newCustomFieldValue) => {
-                const index = customFieldValues.findIndex(
-                  (value) => value.property?.id === newCustomFieldValue.property?.id,
-                );
-                if (index !== -1) {
-                  const newCustomFieldValues = [...customFieldValues];
-                  newCustomFieldValues[index] = newCustomFieldValue;
-                  debouncedOnChange(newCustomFieldValues);
-                } else {
-                  debouncedOnChange([...customFieldValues, newCustomFieldValue]);
-                }
-              }
-            : undefined
-        }
+        onChange={debouncedOnChange ? upsertCustomFieldValue : undefined}
+        valueSignature={getCustomFieldValueSignature(customFieldValue)}
       />
     ));
   }
@@ -71,14 +139,18 @@ export function CustomFieldValuesFields({
   return (
     <>
       {properties.map((property) => {
+        const customFieldValue =
+          customFieldValueByPropertyId.get(property.id) ??
+          create(CustomFieldValueSchema, { property });
+
         return (
-          <CustomFieldValuesFindByPropery
+          <CustomFieldValueItem
             key={property.id}
-            property={property}
-            customFieldValues={customFieldValues}
+            customFieldValue={customFieldValue}
             readonly={readonly}
-            onChange={debouncedOnChange}
+            onChange={debouncedOnChange ? upsertCustomFieldValue : undefined}
             variant={variant}
+            valueSignature={getCustomFieldValueSignature(customFieldValue)}
           />
         );
       })}
