@@ -67,9 +67,9 @@ function mosiacRightSidebarSplitPercentage(node: MosaicNode<LayoutNode>): number
 function resolveActiveKey<K extends string>(
   items: Map<K, SidebarItem>,
   preferredKey: K | undefined,
-  isOpen: boolean,
+  isOpen: "open" | "closed",
 ): K | undefined {
-  if (!isOpen) {
+  if (isOpen === "closed") {
     return undefined;
   }
 
@@ -117,11 +117,11 @@ export function Sidebars<LeftKey extends string, RightKey extends string>(
   const leftSidebarOpen = selectedLeftKey != undefined;
   const rightSidebarOpen = selectedRightKey != undefined;
   const activeLeftKey = useMemo(
-    () => resolveActiveKey(leftItems, selectedLeftKey, leftSidebarOpen),
+    () => resolveActiveKey(leftItems, selectedLeftKey, leftSidebarOpen ? "open" : "closed"),
     [leftItems, leftSidebarOpen, selectedLeftKey],
   );
   const activeRightKey = useMemo(
-    () => resolveActiveKey(rightItems, selectedRightKey, rightSidebarOpen),
+    () => resolveActiveKey(rightItems, selectedRightKey, rightSidebarOpen ? "open" : "closed"),
     [rightItems, rightSidebarOpen, selectedRightKey],
   );
 
