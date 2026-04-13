@@ -53,6 +53,20 @@ const log = Logger.getLogger(__filename);
 type UpdateRecordPayload = MessageInitShape<typeof UpdateRecordRequestSchema>;
 type UpdateRecordFn = (payload: UpdateRecordPayload) => Promise<void>;
 
+function getActiveRecordName(
+  externalInitConfig: CoreDataStore["externalInitConfig"],
+): string | undefined {
+  if (
+    !externalInitConfig?.warehouseId ||
+    !externalInitConfig.projectId ||
+    !externalInitConfig.recordId
+  ) {
+    return;
+  }
+
+  return `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/records/${externalInitConfig.recordId}`;
+}
+
 function getCustomFieldValueSignature(
   customFieldValue: CoSceneRecord["customFieldValues"][number],
 ): string {
@@ -369,12 +383,25 @@ export default function RecordInfo(): ReactElement {
 
   const updateRecord = useCallback(
     async (payload: UpdateRecordPayload) => {
+      const targetRecordName = payload.record?.name;
+      if (!targetRecordName) {
+        return;
+      }
+
       const updatedRecord = await consoleApi.updateRecord(payload);
-      const currentRecord = coreDataStore.getState().record.value;
+      const { externalInitConfig, record } = coreDataStore.getState();
+
+      // Drop stale responses once the user has navigated away or a different record is still shown.
+      if (
+        getActiveRecordName(externalInitConfig) !== targetRecordName ||
+        record.value?.name !== targetRecordName
+      ) {
+        return;
+      }
 
       setRecord({
         loading: false,
-        value: mergeUpdatedRecord(currentRecord, updatedRecord, payload.updateMask?.paths ?? []),
+        value: mergeUpdatedRecord(record.value, updatedRecord, payload.updateMask?.paths ?? []),
       });
     },
     [consoleApi, coreDataStore, setRecord],
