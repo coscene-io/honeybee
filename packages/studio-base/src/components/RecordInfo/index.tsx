@@ -78,6 +78,18 @@ function getCustomFieldValueSignature(
   );
 }
 
+function normalizeMaskFieldPath(path: string): string {
+  return path.replace(/_([a-z])/g, (_, character: string) => character.toUpperCase());
+}
+
+function getUpdatedRootFields(updateMaskPaths: readonly string[]): Set<string> {
+  return new Set(
+    updateMaskPaths
+      .map((path) => normalizeMaskFieldPath(path.split(".")[0] ?? ""))
+      .filter((path) => path.length > 0),
+  );
+}
+
 function mergeCustomFieldValues(
   currentCustomFieldValues: CoSceneRecord["customFieldValues"],
   updatedCustomFieldValues: CoSceneRecord["customFieldValues"],
@@ -116,23 +128,22 @@ function mergeUpdatedRecord(
     return updatedRecord;
   }
 
-  const mergedRecord: CoSceneRecord = {
-    ...currentRecord,
-    ...updatedRecord,
-    createTime: currentRecord.createTime,
-  };
-
-  if (!updateMaskPaths.includes("device")) {
-    mergedRecord.device = currentRecord.device;
+  const updatedRootFields = getUpdatedRootFields(updateMaskPaths);
+  if (updatedRootFields.size === 0) {
+    return updatedRecord;
   }
 
-  if (!updateMaskPaths.includes("labels")) {
-    mergedRecord.labels = currentRecord.labels;
+  const mergedRecord = { ...updatedRecord } as CoSceneRecord;
+  const mergedRecordObject = mergedRecord as unknown as Record<string, unknown>;
+  const currentRecordObject = currentRecord as unknown as Record<string, unknown>;
+
+  for (const key of Object.keys(currentRecordObject)) {
+    if (!updatedRootFields.has(key)) {
+      mergedRecordObject[key] = currentRecordObject[key];
+    }
   }
 
-  if (!updateMaskPaths.includes("customFieldValues")) {
-    mergedRecord.customFieldValues = currentRecord.customFieldValues;
-  } else {
+  if (updatedRootFields.has("customFieldValues")) {
     mergedRecord.customFieldValues = mergeCustomFieldValues(
       currentRecord.customFieldValues,
       updatedRecord.customFieldValues,
