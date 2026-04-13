@@ -10,11 +10,13 @@ import { useEffect } from "react";
 import { useAsync, useAsyncFn } from "react-use";
 import { AsyncState } from "react-use/lib/useAsync";
 
+import { useGuaranteedContext } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import {
+  CoreDataContext,
   CoreDataStore,
   ExternalInitConfig,
   useCoreData,
@@ -33,7 +35,6 @@ const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitCon
 const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectCoordinatorConfig = (state: CoreDataStore) => state.coordinatorConfig;
 const selectProject = (state: CoreDataStore) => state.project;
-
 const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
 const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 const selectSetShowtUrlKey = (state: CoreDataStore) => state.setShowtUrlKey;
@@ -164,6 +165,7 @@ export function useSetShowtUrlKey(): (showtUrlKey: string) => Promise<void> {
 }
 
 export function CoreDataSyncAdapter(): ReactNull {
+  const coreDataStore = useGuaranteedContext(CoreDataContext);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const organization = useCoreData(selectOrganization);
   const coordinatorConfig = useCoreData(selectCoordinatorConfig);
@@ -247,13 +249,13 @@ export function CoreDataSyncAdapter(): ReactNull {
       externalInitConfig.projectId &&
       externalInitConfig.recordId
     ) {
-      setRecord({ loading: true, value: undefined });
+      setRecord({ loading: true, value: coreDataStore.getState().record.value });
       const recordName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/records/${externalInitConfig.recordId}`;
       const targetRecord = await consoleApi.getRecord({ recordName });
 
       setRecord({ loading: false, value: targetRecord });
     }
-  }, [externalInitConfig, setRecord, consoleApi]);
+  }, [coreDataStore, externalInitConfig, setRecord, consoleApi]);
 
   useEffect(() => {
     if (
