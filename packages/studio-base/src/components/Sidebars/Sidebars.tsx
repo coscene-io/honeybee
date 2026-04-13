@@ -64,6 +64,22 @@ function mosiacRightSidebarSplitPercentage(node: MosaicNode<LayoutNode>): number
   }
 }
 
+function resolveActiveKey<K extends string>(
+  items: Map<K, SidebarItem>,
+  preferredKey: K | undefined,
+  isOpen: "open" | "closed",
+): K | undefined {
+  if (isOpen === "closed") {
+    return undefined;
+  }
+
+  if (preferredKey != undefined && items.has(preferredKey)) {
+    return preferredKey;
+  }
+
+  return items.keys().next().value as K | undefined;
+}
+
 type SidebarProps<LeftKey, RightKey> = PropsWithChildren<{
   leftItems: Map<LeftKey, SidebarItem>;
   selectedLeftKey: LeftKey | undefined;
@@ -100,25 +116,14 @@ export function Sidebars<LeftKey extends string, RightKey extends string>(
 
   const leftSidebarOpen = selectedLeftKey != undefined;
   const rightSidebarOpen = selectedRightKey != undefined;
-
-  // Select an available item if the selected one is not actually available
-  useEffect(() => {
-    if (leftSidebarOpen && !leftItems.has(selectedLeftKey)) {
-      onSelectLeftKey([...leftItems.keys()][0]);
-    }
-    if (rightSidebarOpen && !rightItems.has(selectedRightKey)) {
-      onSelectRightKey([...rightItems.keys()][0]);
-    }
-  }, [
-    leftItems,
-    leftSidebarOpen,
-    onSelectLeftKey,
-    onSelectRightKey,
-    rightItems,
-    rightSidebarOpen,
-    selectedLeftKey,
-    selectedRightKey,
-  ]);
+  const activeLeftKey = useMemo(
+    () => resolveActiveKey(leftItems, selectedLeftKey, leftSidebarOpen ? "open" : "closed"),
+    [leftItems, leftSidebarOpen, selectedLeftKey],
+  );
+  const activeRightKey = useMemo(
+    () => resolveActiveKey(rightItems, selectedRightKey, rightSidebarOpen ? "open" : "closed"),
+    [rightItems, rightSidebarOpen, selectedRightKey],
+  );
 
   useEffect(() => {
     const leftTargetWidth = 320;
@@ -177,12 +182,12 @@ export function Sidebars<LeftKey extends string, RightKey extends string>(
             onSelectLeftKey(undefined);
           }}
           items={leftItems}
-          activeTab={selectedLeftKey}
+          activeTab={activeLeftKey}
           setActiveTab={onSelectLeftKey}
         />
       </ErrorBoundary>
     ),
-    [leftItems, onSelectLeftKey, selectedLeftKey],
+    [activeLeftKey, leftItems, onSelectLeftKey],
   );
 
   const rightSidebarComponent = useMemo(
@@ -194,12 +199,12 @@ export function Sidebars<LeftKey extends string, RightKey extends string>(
             onSelectRightKey(undefined);
           }}
           items={rightItems}
-          activeTab={selectedRightKey}
+          activeTab={activeRightKey}
           setActiveTab={onSelectRightKey}
         />
       </ErrorBoundary>
     ),
-    [onSelectRightKey, rightItems, selectedRightKey],
+    [activeRightKey, onSelectRightKey, rightItems],
   );
 
   return (
