@@ -740,12 +740,12 @@ class CoSceneConsoleApi {
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         if (!isDesktopApp()) {
-          log.info("-------- redirect to login coscene console api");
-          log.info("-------- fullUrl: ", fullUrl);
-          log.info("-------- res: ", res);
-          console.error("-------- redirect to login coscene console api");
-          console.error("-------- fullUrl: ", fullUrl);
-          console.error("-------- res: ", res);
+          log.info("aaaaaaa responseObserver CoSceneConsoleApi");
+          // log.info("aaaaaaa fullUrl: ", fullUrl);
+          // log.info("aaaaaaa res: ", res);
+          console.error("aaaaaaa responseObserver CoSceneConsoleApi");
+          console.error("aaaaaaa fullUrl: ", fullUrl);
+          console.error("aaaaaaa res: ", res);
           // window.location.href = `/login?redirectToPath=${encodeURIComponent(
           //   window.location.pathname + window.location.search,
           // )}`;

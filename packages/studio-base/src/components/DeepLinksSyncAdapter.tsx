@@ -112,9 +112,10 @@ export function DeepLinksSyncAdapter({
         if (isDesktopApp()) {
           window.open(`https://${domainConfig.webDomain}/studio/login`);
         } else {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          console.error("aaaaaaa debouncedPleaseLoginFirstToast");
+          // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+          //   window.location.pathname + window.location.search,
+          // )}`;
         }
       }, 500);
     }, 1000);

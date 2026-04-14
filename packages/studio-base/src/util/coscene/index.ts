@@ -59,6 +59,8 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     console.error("no jwt");
   }
 
+  // console.error('bbbbbb request', req)
+  // log.error("bbbb redirect to login coscene index");
   try {
     return await next(req);
 
@@ -72,12 +74,12 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
           authBridge?.logout();
         } else {
 
-          log.info("-------- redirect to login coscene index");
-          log.info("-------- redirect to login req url: ", req.url);
-          console.error("-------- redirect to login coscene index");
-          console.error("-------- req url: ", req.url);
-          console.error("-------- error: ", error);
-          // log.info("-------- window.location.pathname: ", window.location.pathname);
+          log.info("aaaaaaa setAuthorizationUnaryInterceptor index");
+          log.info("aaaaaaa redirect to login req url: ", req.url);
+          console.error("aaaaaaa setAuthorizationUnaryInterceptor index");
+          console.error("aaaaaaa req url: ", req.url);
+          console.error("aaaaaaa error: ", error);
+
           // window.location.href = `/login?redirectToPath=${encodeURIComponent(
           //   window.location.pathname + window.location.search,
           // )}`;

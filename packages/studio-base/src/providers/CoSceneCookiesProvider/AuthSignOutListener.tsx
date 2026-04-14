@@ -23,9 +23,10 @@ function AuthSignOutListener(): React.JSX.Element {
 
   useEffect(() => {
     if (signOut && !isDesktopApp()) {
-      log.info("-------- redirect to login AuthSignOutListener");
-      // log.info("-------- authStatusCookieName: ", authStatusCookieName);
-      // log.info("-------- signOut: ", signOut);
+      log.info("aaaaaaa redirect to login AuthSignOutListener");
+      console.error("aaaaaaa redirect to login AuthSignOutListener");
+      // log.info("aaaaaaa authStatusCookieName: ", authStatusCookieName);
+      // log.info("aaaaaaa signOut: ", signOut);
 
       // window.location.href = `/login?redirectToPath=${encodeURIComponent(
       //   window.location.pathname + window.location.search,
