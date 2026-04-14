@@ -21,10 +21,13 @@ function AuthSignOutListener(): React.JSX.Element {
   const [cookies] = useCookies([authStatusCookieName]);
   const signOut = cookies[authStatusCookieName]?.status === AuthStatus.SIGN_OUT;
 
+  console.error("bbbbb", signOut, authStatusCookieName, cookies);
   useEffect(() => {
     if (signOut && !isDesktopApp()) {
       log.info("aaaaaaa redirect to login AuthSignOutListener");
       console.error("aaaaaaa redirect to login AuthSignOutListener");
+      // console.error("ccccc", signOut, authStatusCookieName, cookies);
+
       // log.info("aaaaaaa authStatusCookieName: ", authStatusCookieName);
       // log.info("aaaaaaa signOut: ", signOut);
 
