@@ -15,10 +15,11 @@ import _debounce from "lodash/debounce";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { CustomFieldValueField } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValueField";
+import { stringifyWithBigint } from "@foxglove/studio-base/util/stringifyWithBigint";
 
 function getCustomFieldValueSignature(customFieldValue: CustomFieldValue): string {
   return (
-    JSON.stringify({
+    stringifyWithBigint({
       propertyId: customFieldValue.property?.id,
       value: customFieldValue.value,
     }) ?? ""
