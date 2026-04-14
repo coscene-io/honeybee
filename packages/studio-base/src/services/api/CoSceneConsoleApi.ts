@@ -167,6 +167,7 @@ import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import toast from "react-hot-toast";
 
+import Log from "@foxglove/log";
 import { Time, toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
 import {
@@ -188,7 +189,10 @@ import {
 import { timestampToTime } from "@foxglove/studio-base/util/time";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
+
 import { HttpError } from "./HttpError";
+
+const log = Log.getLogger(__filename);
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
@@ -417,11 +421,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -699,8 +703,8 @@ class CoSceneConsoleApi {
       customHost != undefined && customHost
         ? url
         : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
 
     const fullConfig: RequestInit = {
       ...config,
@@ -736,9 +740,15 @@ class CoSceneConsoleApi {
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         if (!isDesktopApp()) {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          log.info("-------- redirect to login coscene console api");
+          log.info("-------- fullUrl: ", fullUrl);
+          log.info("-------- res: ", res);
+          console.error("-------- redirect to login coscene console api");
+          console.error("-------- fullUrl: ", fullUrl);
+          console.error("-------- res: ", res);
+          // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+          //   window.location.pathname + window.location.search,
+          // )}`;
         } else {
           authBridge?.logout();
         }

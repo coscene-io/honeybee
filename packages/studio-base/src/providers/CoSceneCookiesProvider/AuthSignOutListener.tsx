@@ -8,10 +8,13 @@
 import { useEffect } from "react";
 import { useCookies } from "react-cookie";
 
+import Log from "@foxglove/log";
 import { getAuthStatusCookieName } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AuthStatus } from "./constant";
+
+const log = Log.getLogger(__filename);
 
 function AuthSignOutListener(): React.JSX.Element {
   const authStatusCookieName = getAuthStatusCookieName();
@@ -20,9 +23,13 @@ function AuthSignOutListener(): React.JSX.Element {
 
   useEffect(() => {
     if (signOut && !isDesktopApp()) {
-      window.location.href = `/login?redirectToPath=${encodeURIComponent(
-        window.location.pathname + window.location.search,
-      )}`;
+      log.info("-------- redirect to login AuthSignOutListener");
+      // log.info("-------- authStatusCookieName: ", authStatusCookieName);
+      // log.info("-------- signOut: ", signOut);
+
+      // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+      //   window.location.pathname + window.location.search,
+      // )}`;
     }
   }, [signOut]);
 

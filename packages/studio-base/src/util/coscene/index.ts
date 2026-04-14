@@ -13,10 +13,14 @@ import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
+import Log from "@foxglove/log";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
+
+
+const log = Log.getLogger(__filename);
 
 export * from "./cosel";
 
@@ -67,9 +71,16 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+
+          log.info("-------- redirect to login coscene index");
+          log.info("-------- redirect to login req url: ", req.url);
+          console.error("-------- redirect to login coscene index");
+          console.error("-------- req url: ", req.url);
+          console.error("-------- error: ", error);
+          // log.info("-------- window.location.pathname: ", window.location.pathname);
+          // window.location.href = `/login?redirectToPath=${encodeURIComponent(
+          //   window.location.pathname + window.location.search,
+          // )}`;
         }
       }
     }
