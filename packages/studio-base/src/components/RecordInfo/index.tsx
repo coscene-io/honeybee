@@ -31,6 +31,7 @@ import {
   SubscriptionEntitlementStore,
   useSubscriptionEntitlement,
 } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import { stringifyWithBigint } from "@foxglove/studio-base/util/stringifyWithBigint";
 
 const selectSetRecord = (store: CoreDataStore) => store.setRecord;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
@@ -71,7 +72,7 @@ function getCustomFieldValueSignature(
   customFieldValue: CoSceneRecord["customFieldValues"][number],
 ): string {
   return (
-    JSON.stringify({
+    stringifyWithBigint({
       propertyId: customFieldValue.property?.id,
       value: customFieldValue.value,
     }) ?? ""
