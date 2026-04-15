@@ -9,7 +9,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
 import { IconButton, TextField } from "@mui/material";
 import memoizeWeak from "memoize-weak";
-import { useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -19,7 +19,10 @@ import { FieldEditor } from "@foxglove/studio-base/components/SettingsTreeEditor
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
-import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
+import {
+  PanelStateStore,
+  usePanelStateStore,
+} from "@foxglove/studio-base/context/PanelStateContext";
 import { PANEL_TITLE_CONFIG_KEY, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import { NodeEditor } from "./NodeEditor";
@@ -71,7 +74,25 @@ export default function SettingsTreeEditor({
     }
   }, [settings.nodes, filterText]);
 
-  const definedNodes = useMemo(() => prepareSettingsNodes(filteredNodes), [filteredNodes]);
+  const memoizedNodes = useMemo(
+    () =>
+      prepareSettingsNodes(filteredNodes).map(([key, root]) => ({
+        key,
+        props: {
+          actionHandler,
+          defaultOpen: root.defaultExpansionState !== "collapsed",
+          open:
+            root.expansionState == undefined
+              ? undefined
+              : root.expansionState !== "collapsed",
+          filter: filterText,
+          focusedPath,
+          path: makeStablePath(key),
+          settings: root,
+        },
+      })),
+    [actionHandler, filterText, filteredNodes, focusedPath],
+  );
 
   const { selectedPanelIds } = useSelectedPanels();
   const selectedPanelId = useMemo(
@@ -88,9 +109,12 @@ export default function SettingsTreeEditor({
     [panelCatalog, panelType],
   );
   const [config, saveConfig] = useConfigById(selectedPanelId);
-  const defaultPanelTitle = usePanelStateStore((state) =>
-    selectedPanelId ? state.defaultTitles[selectedPanelId] : undefined,
+  const defaultTitleSelector = useCallback(
+    (state: PanelStateStore) =>
+      selectedPanelId ? state.defaultTitles[selectedPanelId] : undefined,
+    [selectedPanelId],
   );
+  const defaultPanelTitle = usePanelStateStore(defaultTitleSelector);
   const customPanelTitle =
     typeof config?.[PANEL_TITLE_CONFIG_KEY] === "string"
       ? config[PANEL_TITLE_CONFIG_KEY]
@@ -116,6 +140,10 @@ export default function SettingsTreeEditor({
   const showTitleField =
     filterText.length === 0 && panelInfo?.hasCustomToolbar !== true && variant !== "log";
 
+  const handleFilterChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setFilterText(event.target.value);
+  }, []);
+
   return (
     <Stack fullHeight>
       {settings.enableFilter === true && (
@@ -123,9 +151,7 @@ export default function SettingsTreeEditor({
           <TextField
             id={`${variant}-settings-filter`}
             variant="filled"
-            onChange={(event) => {
-              setFilterText(event.target.value);
-            }}
+            onChange={handleFilterChange}
             value={filterText}
             className={classes.textField}
             fullWidth
@@ -170,23 +196,8 @@ export default function SettingsTreeEditor({
             />
           </>
         )}
-        {definedNodes.map(([key, root]) => (
-          <NodeEditor
-            key={key}
-            actionHandler={actionHandler}
-            defaultOpen={root.defaultExpansionState === "collapsed" ? false : true}
-            open={
-              root.expansionState == undefined
-                ? undefined
-                : root.expansionState === "collapsed"
-                ? false
-                : true
-            }
-            filter={filterText}
-            focusedPath={focusedPath}
-            path={makeStablePath(key)}
-            settings={root}
-          />
+        {memoizedNodes.map(({ key, props }) => (
+          <NodeEditor key={key} {...props} />
         ))}
       </div>
     </Stack>
