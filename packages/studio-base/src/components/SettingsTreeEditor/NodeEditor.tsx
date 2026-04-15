@@ -334,9 +334,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
             actionHandler={actionHandler}
             defaultOpen={child.defaultExpansionState !== "collapsed"}
             open={
-              child.expansionState == undefined
-                ? undefined
-                : child.expansionState !== "collapsed"
+              child.expansionState == undefined ? undefined : child.expansionState !== "collapsed"
             }
             filter={filter}
             focusedPath={focusedPath}

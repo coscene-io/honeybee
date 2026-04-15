@@ -81,10 +81,7 @@ export default function SettingsTreeEditor({
         props: {
           actionHandler,
           defaultOpen: root.defaultExpansionState !== "collapsed",
-          open:
-            root.expansionState == undefined
-              ? undefined
-              : root.expansionState !== "collapsed",
+          open: root.expansionState == undefined ? undefined : root.expansionState !== "collapsed",
           filter: filterText,
           focusedPath,
           path: makeStablePath(key),
