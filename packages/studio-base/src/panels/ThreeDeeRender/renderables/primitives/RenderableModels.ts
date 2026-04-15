@@ -51,10 +51,28 @@ export class RenderableModels extends RenderablePrimitive {
   #renderablesByDataCrc = new Map<number, RenderableModel[]>();
   /** Renderables loaded from URLs */
   #renderablesByUrl = new Map<string, RenderableModel[]>();
+  #pendingModelLoads = new Map<string, Promise<LoadedModel | undefined>>();
   #updateCount = 0;
 
   public constructor(renderer: IRenderer) {
     super("", renderer);
+  }
+
+  async #loadOrGetPending(
+    key: string,
+    loadFn: () => Promise<LoadedModel | undefined>,
+  ): Promise<LoadedModel | undefined> {
+    const existing = this.#pendingModelLoads.get(key);
+    if (existing) {
+      return await existing;
+    }
+
+    const pending = loadFn().finally(() => {
+      this.#pendingModelLoads.delete(key);
+    });
+
+    this.#pendingModelLoads.set(key, pending);
+    return await pending;
   }
 
   /**
@@ -69,12 +87,14 @@ export class RenderableModels extends RenderablePrimitive {
     revokeURL: (_: string) => void,
   ): Promise<RenderableModel | undefined> {
     const url = getURL(primitive);
+    const key = primitive.url.length === 0 ? crc32(primitive.data).toString() : primitive.url;
     let renderable: RenderableModel | undefined;
     try {
-      // Load the model if necessary
-      const cachedModel = await this.#loadCachedModel(url, {
-        overrideMediaType: primitive.media_type.length > 0 ? primitive.media_type : undefined,
-      });
+      const cachedModel = await this.#loadOrGetPending(key, async () =>
+        await this.#loadCachedModel(url, {
+          overrideMediaType: primitive.media_type.length > 0 ? primitive.media_type : undefined,
+        }),
+      );
       if (cachedModel) {
         renderable = { model: cloneAndPrepareModel(cachedModel), cachedModel, primitive };
       }
