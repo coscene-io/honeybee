@@ -33,6 +33,7 @@ import ExtensionsSettings, {
   ExtensionsSettingsMore,
 } from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
+import { useStructureItemsStoreManager } from "@foxglove/studio-base/components/MessagePathSyntax/useStructureItemsStoreManager";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -185,6 +186,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const playerId = useMessagePipeline(selectPlayerId);
 
   useDefaultWebLaunchPreference();
+  useStructureItemsStoreManager();
 
   const [enableDebugMode = false] = useAppConfigurationValue<boolean>(AppSetting.SHOW_DEBUG_PANELS);
 

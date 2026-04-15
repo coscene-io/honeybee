@@ -20,11 +20,20 @@ import grammar from "./grammar.ne";
 import { MessagePath } from "./types";
 
 const grammarObj = Grammar.fromCompiled(grammar);
+const MAX_CACHE_ENTRIES = 1000;
+const cacheMessagePath = new Map<string, MessagePath | undefined>();
+
+function evictOldestCachedPath(): void {
+  const firstEntry = cacheMessagePath.keys().next();
+  if (firstEntry.done === false) {
+    cacheMessagePath.delete(firstEntry.value);
+  }
+}
 
 /** Wrap topic name in double quotes if it contains special characters */
 export function quoteTopicNameIfNeeded(name: string): string {
   // Pattern should match `slashID` in grammar.ne
-  if (name.match(/^[a-zA-Z0-9_/-]+$/)) {
+  if (/^[a-zA-Z0-9_/-]+$/.test(name)) {
     return name;
   }
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
@@ -33,18 +42,31 @@ export function quoteTopicNameIfNeeded(name: string): string {
 /** Wrap field name in double quotes if it contains special characters */
 export function quoteFieldNameIfNeeded(name: string): string {
   // Pattern should match `id` in grammar.ne
-  if (name.match(/^[a-zA-Z0-9_-]+$/)) {
+  if (/^[a-zA-Z0-9_-]+$/.test(name)) {
     return name;
   }
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
 }
 
 const parseMessagePath = (path: string): MessagePath | undefined => {
-  // Need to create a new Parser object for every new string to parse (should be cheap).
+  if (cacheMessagePath.has(path)) {
+    return cacheMessagePath.get(path);
+  }
+
   const parser = new Parser(grammarObj);
   try {
-    return parser.feed(path).results[0];
+    const results = parser.feed(path).results as MessagePath[];
+    const result = results[0];
+    if (cacheMessagePath.size >= MAX_CACHE_ENTRIES) {
+      evictOldestCachedPath();
+    }
+    cacheMessagePath.set(path, result);
+    return result;
   } catch {
+    if (cacheMessagePath.size >= MAX_CACHE_ENTRIES) {
+      evictOldestCachedPath();
+    }
+    cacheMessagePath.set(path, undefined);
     return undefined;
   }
 };
