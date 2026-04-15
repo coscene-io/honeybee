@@ -251,24 +251,33 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
     [actionHandler, open, props.path, setState],
   );
 
-  const selectVisibilityFilter = (action: SettingsTreeAction) => {
-    if (action.action === "update" && action.payload.input === "select") {
-      setState((draft) => {
-        draft.visibilityFilter = action.payload.value as SelectVisibilityFilterValue;
-      });
-    }
-  };
+  const selectVisibilityFilter = useCallback(
+    (action: SettingsTreeAction) => {
+      if (action.action === "update" && action.payload.input === "select") {
+        setState((draft) => {
+          draft.visibilityFilter = action.payload.value as SelectVisibilityFilterValue;
+        });
+      }
+    },
+    [setState],
+  );
 
-  const toggleVisibility = () => {
+  const toggleVisibility = useCallback(() => {
     actionHandler({
       action: "update",
       payload: { input: "boolean", path: [...props.path, "visible"], value: !visible },
     });
-  };
+  }, [actionHandler, props.path, visible]);
 
-  const handleNodeAction = (actionId: string) => {
-    actionHandler({ action: "perform-node-action", payload: { id: actionId, path: props.path } });
-  };
+  const handleNodeAction = useCallback(
+    (actionId: string) => {
+      actionHandler({
+        action: "perform-node-action",
+        payload: { id: actionId, path: props.path },
+      });
+    },
+    [actionHandler, props.path],
+  );
 
   const isFocused = _.isEqual(focusedPath, props.path);
 
@@ -291,43 +300,52 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
 
   const rootRef = useRef<HTMLDivElement>(ReactNull);
 
-  const fieldEditors = filterMap(Object.entries(fields ?? {}), ([key, field]) => {
-    return field ? (
-      <FieldEditor
-        key={key}
-        field={field}
-        path={makeStablePath(props.path, key)}
-        actionHandler={actionHandler}
-      />
-    ) : undefined;
-  });
+  const fieldEditors = useMemo(
+    () =>
+      filterMap(Object.entries(fields ?? {}), ([key, field]) => {
+        return field ? (
+          <FieldEditor
+            key={key}
+            field={field}
+            path={makeStablePath(props.path, key)}
+            actionHandler={actionHandler}
+          />
+        ) : undefined;
+      }),
+    [actionHandler, fields, props.path],
+  );
 
-  const filterFn =
-    state.visibilityFilter === "visible"
-      ? showVisibleFilter
-      : state.visibilityFilter === "invisible"
-      ? showInvisibleFilter
-      : undefined;
-  const childNodes = filterMap(prepareSettingsNodes(children ?? {}), ([key, child]) => {
-    return !filterFn || filterFn(child) ? (
-      <NodeEditor
-        actionHandler={actionHandler}
-        defaultOpen={child.defaultExpansionState === "collapsed" ? false : true}
-        open={
-          child.expansionState == undefined
-            ? undefined
-            : child.expansionState === "collapsed"
-            ? false
-            : true
-        }
-        filter={filter}
-        focusedPath={focusedPath}
-        key={key}
-        settings={child}
-        path={makeStablePath(props.path, key)}
-      />
-    ) : undefined;
-  });
+  const filterFn = useMemo(() => {
+    if (state.visibilityFilter === "visible") {
+      return showVisibleFilter;
+    }
+    if (state.visibilityFilter === "invisible") {
+      return showInvisibleFilter;
+    }
+    return undefined;
+  }, [state.visibilityFilter]);
+
+  const preparedChildNodes = useMemo(() => prepareSettingsNodes(children ?? {}), [children]);
+  const childNodes = useMemo(
+    () =>
+      filterMap(preparedChildNodes, ([key, child]) => {
+        return !filterFn || filterFn(child) ? (
+          <NodeEditor
+            actionHandler={actionHandler}
+            defaultOpen={child.defaultExpansionState !== "collapsed"}
+            open={
+              child.expansionState == undefined ? undefined : child.expansionState !== "collapsed"
+            }
+            filter={filter}
+            focusedPath={focusedPath}
+            key={key}
+            settings={child}
+            path={makeStablePath(props.path, key)}
+          />
+        ) : undefined;
+      }),
+    [actionHandler, filter, filterFn, focusedPath, preparedChildNodes, props.path],
+  );
 
   const IconComponent = settings.icon ? icons[settings.icon] : undefined;
 
