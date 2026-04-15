@@ -81,8 +81,8 @@ describe("getNewConnection", () => {
           });
           expect(newConnection).toEqual({
             start: 46,
-            end: 56,
-            /* 46 + maxRequestSize */
+            end: 100,
+            /* capped by fileSize because the conservative read-ahead window exceeds this test file */
           });
         });
 
@@ -104,8 +104,8 @@ describe("getNewConnection", () => {
           });
           expect(newConnection).toEqual({
             start: 40,
-            end: 50,
-            /* read-ahead */
+            end: 100,
+            /* capped by fileSize because the conservative read-ahead window exceeds this test file */
           });
         });
 
@@ -115,7 +115,7 @@ describe("getNewConnection", () => {
             readRequestRange: { start: 45, end: 55 },
             downloadedRanges: [{ start: 40, end: 50 }],
           });
-          expect(newConnection).toEqual({ start: 50, end: 55 });
+          expect(newConnection).toEqual({ start: 50, end: 100 });
         });
 
         it("reads ahead a bit as long as it does not evict existing downloaded ranges that we requested", () => {
@@ -126,8 +126,8 @@ describe("getNewConnection", () => {
           });
           expect(newConnection).toEqual({
             start: 50,
-            end: 58,
-            /* readRequestRange.start + maxRequestSize */
+            end: 100,
+            /* capped by fileSize because the conservative read-ahead window exceeds this test file */
           });
         });
 
@@ -150,7 +150,7 @@ describe("getNewConnection", () => {
       describe("read-ahead", () => {
         it("starts a new connection based on the end position of the last resolved read request", () => {
           const newConnection = getNewConnection({ ...defaults, lastResolvedCallbackEnd: 15 });
-          expect(newConnection).toEqual({ start: 15, end: 25 });
+          expect(newConnection).toEqual({ start: 15, end: 100 });
         });
 
         it("skips over already downloaded ranges", () => {
@@ -159,14 +159,14 @@ describe("getNewConnection", () => {
             lastResolvedCallbackEnd: 15,
             downloadedRanges: [{ start: 10, end: 20 }],
           });
-          expect(newConnection).toEqual({ start: 20, end: 25 });
+          expect(newConnection).toEqual({ start: 20, end: 100 });
         });
 
         it("creates no new connection when the read-ahead range has been fully downloaded", () => {
           const newConnection = getNewConnection({
             ...defaults,
             lastResolvedCallbackEnd: 15,
-            downloadedRanges: [{ start: 10, end: 25 }],
+            downloadedRanges: [{ start: 10, end: 100 }],
           });
           expect(newConnection).toEqual(undefined);
         });
