@@ -74,7 +74,7 @@ export function SharedRoot(
     appConfig.VITE_APP_PROJECT_ENV !== "local" &&
     appConfig.VITE_APP_PROJECT_ENV !== "aws" &&
     appConfig.VITE_APP_PROJECT_ENV !== "gcp" &&
-    appConfig.SENTRY_ENABLED != undefined
+    appConfig.SENTRY_ENABLED === true
   ) {
     log.info("initializing Sentry");
     Sentry.init({
