@@ -12,7 +12,7 @@ import type {
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import _debounce from "lodash/debounce";
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo } from "react";
 
 import { CustomFieldValueField } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValueField";
 import { stringifyWithBigint } from "@foxglove/studio-base/util/stringifyWithBigint";
@@ -42,12 +42,28 @@ const CustomFieldValueItem = memo(
   }): React.ReactNode {
     void valueSignature;
 
+    const debouncedOnChange = useMemo(
+      () =>
+        onChange
+          ? _debounce((value: CustomFieldValue) => {
+              onChange(value);
+            }, 300)
+          : undefined,
+      [onChange],
+    );
+
+    useEffect(() => {
+      return () => {
+        debouncedOnChange?.cancel();
+      };
+    }, [debouncedOnChange]);
+
     return (
       <CustomFieldValueField
         variant={variant}
         customFieldValue={customFieldValue}
         readonly={readonly}
-        onChange={onChange}
+        onChange={debouncedOnChange}
       />
     );
   },
@@ -68,53 +84,10 @@ export function CustomFieldValuesFields({
   properties: Property[];
   customFieldValues: CustomFieldValue[];
   readonly?: boolean;
-  onChange?: (customFieldValues: CustomFieldValue[]) => void;
+  onChange?: (customFieldValue: CustomFieldValue) => void;
   variant?: "primary" | "secondary";
   ignoreProperties?: boolean;
 }): React.ReactNode {
-  const customFieldValuesRef = useRef(customFieldValues);
-
-  useEffect(() => {
-    customFieldValuesRef.current = customFieldValues;
-  }, [customFieldValues]);
-
-  const debouncedOnChange = useMemo(
-    () =>
-      onChange
-        ? _debounce((values: CustomFieldValue[]) => {
-            onChange(values);
-          }, 300)
-        : undefined,
-    [onChange],
-  );
-
-  useEffect(() => {
-    return () => {
-      debouncedOnChange?.cancel();
-    };
-  }, [debouncedOnChange]);
-
-  const upsertCustomFieldValue = useCallback(
-    (newCustomFieldValue: CustomFieldValue) => {
-      if (!debouncedOnChange) {
-        return;
-      }
-
-      const currentCustomFieldValues = customFieldValuesRef.current;
-      const index = currentCustomFieldValues.findIndex(
-        (value) => value.property?.id === newCustomFieldValue.property?.id,
-      );
-      if (index !== -1) {
-        const nextCustomFieldValues = [...currentCustomFieldValues];
-        nextCustomFieldValues[index] = newCustomFieldValue;
-        debouncedOnChange(nextCustomFieldValues);
-      } else {
-        debouncedOnChange([...currentCustomFieldValues, newCustomFieldValue]);
-      }
-    },
-    [debouncedOnChange],
-  );
-
   const customFieldValueByPropertyId = useMemo(() => {
     return new Map(
       customFieldValues.map((customFieldValue) => [
@@ -131,7 +104,7 @@ export function CustomFieldValuesFields({
         variant={variant}
         customFieldValue={customFieldValue}
         readonly={readonly}
-        onChange={debouncedOnChange ? upsertCustomFieldValue : undefined}
+        onChange={onChange}
         valueSignature={getCustomFieldValueSignature(customFieldValue)}
       />
     ));
@@ -149,7 +122,7 @@ export function CustomFieldValuesFields({
             key={property.id}
             customFieldValue={customFieldValue}
             readonly={readonly}
-            onChange={debouncedOnChange ? upsertCustomFieldValue : undefined}
+            onChange={onChange}
             variant={variant}
             valueSignature={getCustomFieldValueSignature(customFieldValue)}
           />

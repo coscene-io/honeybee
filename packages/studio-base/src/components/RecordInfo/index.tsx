@@ -31,7 +31,6 @@ import {
   SubscriptionEntitlementStore,
   useSubscriptionEntitlement,
 } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
-import { stringifyWithBigint } from "@foxglove/studio-base/util/stringifyWithBigint";
 
 const selectSetRecord = (store: CoreDataStore) => store.setRecord;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
@@ -337,14 +336,14 @@ function RecordCustomFieldsSection({
       properties={recordCustomFieldSchema.properties}
       customFieldValues={recordCustomFieldValues}
       readonly={!consoleApi.updateRecord.permission()}
-      onChange={(customFieldValues) => {
+      onChange={(customFieldValue) => {
         if (!recordName) {
           return;
         }
 
         void updateRecord({
-          record: { name: recordName, customFieldValues },
-          updateMask: { paths: ["customFieldValues"] },
+          record: { name: recordName, customFieldValues: [customFieldValue] },
+          updateMask: { paths: [`customFieldValues.${customFieldValue.property?.id}`] },
         });
       }}
     />
@@ -413,7 +412,7 @@ export default function RecordInfo(): ReactElement {
 
       setRecord({
         loading: false,
-        value: mergeUpdatedRecord(record.value, updatedRecord, payload.updateMask?.paths ?? []),
+        value: updatedRecord,
       });
     },
     [consoleApi, coreDataStore, setRecord],
