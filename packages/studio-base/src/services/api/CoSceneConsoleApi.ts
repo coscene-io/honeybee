@@ -429,8 +429,16 @@ class CoSceneConsoleApi {
     this.#authHeader = jwt;
   }
 
-  public async setApiBaseInfo(baseInfo: ApiBaseInfo): Promise<void> {
+  public async setApiBaseInfo(
+    baseInfo: ApiBaseInfo,
+    options?: {
+      fetchPermissionList?: boolean;
+    },
+  ): Promise<void> {
     this.#baseInfo = baseInfo;
+    if (options?.fetchPermissionList === false) {
+      return;
+    }
     await this.#getPermissionList();
   }
 

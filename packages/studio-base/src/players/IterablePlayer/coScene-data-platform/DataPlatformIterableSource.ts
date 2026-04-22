@@ -401,6 +401,14 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   };
 
   const consoleApi = new ConsoleApi(api.baseUrl, api.bffUrl, api.auth ?? "");
+  void consoleApi.setApiBaseInfo(
+    {
+      warehouseId,
+      projectId,
+      recordId: params.recordId,
+    },
+    { fetchPermissionList: false },
+  );
 
   return new DataPlatformIterableSource({
     api: consoleApi,
