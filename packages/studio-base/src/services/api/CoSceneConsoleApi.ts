@@ -474,6 +474,16 @@ class CoSceneConsoleApi {
     this.#responseObserver = observer;
   }
 
+  #getRecordName(): string | undefined {
+    const { warehouseId, projectId, recordId } = this.#baseInfo;
+
+    if (!warehouseId || !projectId || !recordId) {
+      return undefined;
+    }
+
+    return `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
+  }
+
   public async orgs(): Promise<Org[]> {
     return await this.#get<Org[]>("/v1/orgs");
   }
@@ -695,6 +705,7 @@ class CoSceneConsoleApi {
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
   ): { fullUrl: string; fullConfig: RequestInit } {
+    const recordName = this.#getRecordName();
     const fullUrl =
       customHost != undefined && customHost
         ? url
@@ -706,6 +717,7 @@ class CoSceneConsoleApi {
       ...config,
       headers: {
         Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+        ...(recordName ? { "Record-Name": recordName } : {}),
         ...config?.headers,
       },
     };
