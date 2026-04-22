@@ -7,7 +7,6 @@
 
 import { MessageInitShape } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { UpdateRecordRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 import { Avatar, FormLabel, Link, Typography } from "@mui/material";
 import dayjs from "dayjs";
@@ -31,7 +30,6 @@ import {
   SubscriptionEntitlementStore,
   useSubscriptionEntitlement,
 } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
-import { stringifyWithBigint } from "@foxglove/studio-base/util/stringifyWithBigint";
 
 const selectSetRecord = (store: CoreDataStore) => store.setRecord;
 const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
@@ -66,92 +64,6 @@ function getActiveRecordName(
   }
 
   return `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/records/${externalInitConfig.recordId}`;
-}
-
-function getCustomFieldValueSignature(
-  customFieldValue: CoSceneRecord["customFieldValues"][number],
-): string {
-  return (
-    stringifyWithBigint({
-      propertyId: customFieldValue.property?.id,
-      value: customFieldValue.value,
-    }) ?? ""
-  );
-}
-
-function normalizeMaskFieldPath(path: string): string {
-  return path.replace(/_([a-z])/g, (_, character: string) => character.toUpperCase());
-}
-
-function getUpdatedRootFields(updateMaskPaths: readonly string[]): Set<string> {
-  return new Set(
-    updateMaskPaths
-      .map((path) => normalizeMaskFieldPath(path.split(".")[0] ?? ""))
-      .filter((path) => path.length > 0),
-  );
-}
-
-function mergeCustomFieldValues(
-  currentCustomFieldValues: CoSceneRecord["customFieldValues"],
-  updatedCustomFieldValues: CoSceneRecord["customFieldValues"],
-): CoSceneRecord["customFieldValues"] {
-  const currentCustomFieldValuesByPropertyId = new Map(
-    currentCustomFieldValues.map((customFieldValue) => [
-      customFieldValue.property?.id,
-      customFieldValue,
-    ]),
-  );
-
-  return updatedCustomFieldValues.map((customFieldValue) => {
-    const propertyId = customFieldValue.property?.id;
-    if (!propertyId) {
-      return customFieldValue;
-    }
-
-    const currentCustomFieldValue = currentCustomFieldValuesByPropertyId.get(propertyId);
-    if (!currentCustomFieldValue) {
-      return customFieldValue;
-    }
-
-    return getCustomFieldValueSignature(currentCustomFieldValue) ===
-      getCustomFieldValueSignature(customFieldValue)
-      ? currentCustomFieldValue
-      : customFieldValue;
-  });
-}
-
-function mergeUpdatedRecord(
-  currentRecord: CoSceneRecord | undefined,
-  updatedRecord: CoSceneRecord,
-  updateMaskPaths: readonly string[],
-): CoSceneRecord {
-  if (!currentRecord) {
-    return updatedRecord;
-  }
-
-  const updatedRootFields = getUpdatedRootFields(updateMaskPaths);
-  if (updatedRootFields.size === 0) {
-    return updatedRecord;
-  }
-
-  const mergedRecord = { ...updatedRecord } as CoSceneRecord;
-  const mergedRecordObject = mergedRecord as unknown as Record<string, unknown>;
-  const currentRecordObject = currentRecord as unknown as Record<string, unknown>;
-
-  for (const key of Object.keys(currentRecordObject)) {
-    if (!updatedRootFields.has(key)) {
-      mergedRecordObject[key] = currentRecordObject[key];
-    }
-  }
-
-  if (updatedRootFields.has("customFieldValues")) {
-    mergedRecord.customFieldValues = mergeCustomFieldValues(
-      currentRecord.customFieldValues,
-      updatedRecord.customFieldValues,
-    );
-  }
-
-  return mergedRecord;
 }
 
 function DeviceInfoSection({ updateRecord }: { updateRecord: UpdateRecordFn }): ReactElement {
@@ -337,14 +249,14 @@ function RecordCustomFieldsSection({
       properties={recordCustomFieldSchema.properties}
       customFieldValues={recordCustomFieldValues}
       readonly={!consoleApi.updateRecord.permission()}
-      onChange={(customFieldValues) => {
+      onChange={(customFieldValue) => {
         if (!recordName) {
           return;
         }
 
         void updateRecord({
-          record: { name: recordName, customFieldValues },
-          updateMask: { paths: ["customFieldValues"] },
+          record: { name: recordName, customFieldValues: [customFieldValue] },
+          updateMask: { paths: [`customFieldValues.${customFieldValue.property?.id}`] },
         });
       }}
     />
@@ -413,7 +325,7 @@ export default function RecordInfo(): ReactElement {
 
       setRecord({
         loading: false,
-        value: mergeUpdatedRecord(record.value, updatedRecord, payload.updateMask?.paths ?? []),
+        value: updatedRecord,
       });
     },
     [consoleApi, coreDataStore, setRecord],
