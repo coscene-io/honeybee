@@ -19,7 +19,6 @@ import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { filterMap } from "@foxglove/den/collection";
 import {
   quoteTopicNameIfNeeded,
   parseMessagePath,
@@ -34,11 +33,12 @@ import useGlobalVariables, {
 
 import {
   traverseStructure,
-  messagePathStructures,
   messagePathsForStructure,
+  messagePathStructures,
   validTerminatingStructureItem,
   StructureTraversalResult,
 } from "./messagePathsForDatatype";
+import { useStructuredItemsByPath } from "./useStructureItemsByPath";
 
 export function tryToSetDefaultGlobalVar(
   variableName: string,
@@ -162,37 +162,14 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const trimmedPath = path.trim();
   const leadingWhitespaceLength = path.length - path.trimStart().length;
 
-  const messagePathStructuresForDataype = useMemo(
+  const messagePathStructuresForDatatype = useMemo(
     () => messagePathStructures(datatypes),
     [datatypes],
   );
-  /** A map from each possible message path to the corresponding MessagePathStructureItem */
-  const allStructureItemsByPath = useMemo(
-    () =>
-      new Map(
-        topics.flatMap((topic) => {
-          if (topic.schemaName == undefined) {
-            return [];
-          }
-          const structureItem = messagePathStructuresForDataype[topic.schemaName];
-          if (structureItem == undefined) {
-            return [];
-          }
-          const allPaths = messagePathsForStructure(structureItem, {
-            validTypes,
-            noMultiSlices,
-          });
-          return filterMap(allPaths, (item) => {
-            if (item.path === "") {
-              // Plain topic items will be added via `topicNamesAutocompleteItems`
-              return undefined;
-            }
-            return [quoteTopicNameIfNeeded(topic.name) + item.path, item.terminatingStructureItem];
-          });
-        }),
-      ),
-    [messagePathStructuresForDataype, noMultiSlices, topics, validTypes],
-  );
+  const structureItemsByPath = useStructuredItemsByPath({
+    noMultiSlices,
+    validTypes,
+  });
 
   const onChangeProp = props.onChange;
   const onChange = useCallback(
@@ -225,7 +202,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
 
       // Check if accepting this completion would result in a path to a non-complex field.
       const completedPath = completeStart + rawValue + completeEnd;
-      const completedField = allStructureItemsByPath.get(completedPath);
+      const completedField = structureItemsByPath.get(completedPath);
       const isSimpleField =
         completedField != undefined && completedField.structureType === "primitive";
 
@@ -251,7 +228,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         autocomplete.blur();
       }
     },
-    [onChangeProp, path, props.index, allStructureItemsByPath, validTypes],
+    [onChangeProp, path, props.index, structureItemsByPath, validTypes],
   );
 
   const rosPath = useMemo(() => parseMessagePath(trimmedPath), [trimmedPath]);
@@ -282,10 +259,10 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     }
 
     return traverseStructure(
-      messagePathStructuresForDataype[topic.schemaName],
+      messagePathStructuresForDatatype[topic.schemaName],
       rosPath.messagePath,
     );
-  }, [messagePathStructuresForDataype, rosPath?.messagePath, topic]);
+  }, [messagePathStructuresForDatatype, rosPath?.messagePath, topic]);
 
   const invalidGlobalVariablesVariable = useMemo(() => {
     if (!rosPath) {
@@ -300,8 +277,8 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   );
 
   const topicNamesAndFieldsAutocompleteItems = useMemo(
-    () => topicNamesAutocompleteItems.concat(Array.from(allStructureItemsByPath.keys())),
-    [allStructureItemsByPath, topicNamesAutocompleteItems],
+    () => topicNamesAutocompleteItems.concat(Array.from(structureItemsByPath.keys())),
+    [structureItemsByPath, topicNamesAutocompleteItems],
   );
 
   const autocompleteType = useMemo(() => {
@@ -323,8 +300,6 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
 
     return undefined;
   }, [invalidGlobalVariablesVariable, structureTraversalResult, validTypes, rosPath, topic]);
-
-  const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
 
   const { autocompleteItems, autocompleteFilterText, autocompleteRange } = useMemo(() => {
     const withLeadingOffset = (range: { start: number; end: number }) => ({
@@ -384,20 +359,18 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         const initialFilterLength =
           rosPath.messagePath[0]?.type === "filter" ? rosPath.messagePath[0].repr.length + 2 : 0;
 
-        const structure = topic.schemaName != undefined ? structures[topic.schemaName] : undefined;
+        const structure =
+          topic.schemaName != undefined ? messagePathStructuresForDatatype[topic.schemaName] : undefined;
 
         return {
           autocompleteItems:
             structure == undefined
               ? []
-              : filterMap(
-                  messagePathsForStructure(structure, {
-                    validTypes,
-                    noMultiSlices,
-                    messagePath: rosPath.messagePath,
-                  }),
-                  (item) => item.path,
-                ),
+              : messagePathsForStructure(structure, {
+                  validTypes,
+                  noMultiSlices,
+                  messagePath: rosPath.messagePath,
+                }).map((item) => item.path),
 
           autocompleteRange: withLeadingOffset({
             start: rosPath.topicNameRepr.length + initialFilterLength,
@@ -442,7 +415,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     topicNamesAndFieldsAutocompleteItems,
     topicNamesAutocompleteItems,
     structureTraversalResult,
-    structures,
+    messagePathStructuresForDatatype,
     validTypes,
     noMultiSlices,
     globalVariables,
