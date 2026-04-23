@@ -48,6 +48,7 @@ import { InterfaceMode } from "./types";
 
 const ZOOM_IN_LIMITATION = 1;
 const ZOOM_OUT_LIMITATION = 40;
+const EM_DASH = "\u2014";
 
 const PublishClickIcons: Record<PublishClickType, React.ReactNode> = {
   pose: <PublishGoalIcon fontSize="small" />,
@@ -65,6 +66,37 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "flex-end",
     gap: 10,
     pointerEvents: "none",
+  },
+  leftOverlay: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 10,
+    pointerEvents: "none",
+  },
+  imageTopicFrequency: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: theme.spacing(0.75),
+    padding: theme.spacing(0.5, 0.75),
+    backgroundColor: tc(theme.palette.background.paper).setAlpha(0.88).toRgbString(),
+    color: theme.palette.text.primary,
+    fontFamily: theme.typography.fontMonospace,
+    fontFeatureSettings: `${theme.typography.fontFeatureSettings}, 'tnum'`,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: 1.2,
+    pointerEvents: "none",
+  },
+  imageTopicFrequencyLabel: {
+    color: theme.palette.text.secondary,
+    fontWeight: theme.typography.fontWeightBold,
+    letterSpacing: 0.5,
+  },
+  stats: {
+    pointerEvents: "auto",
   },
   iconButton: {
     position: "relative",
@@ -127,7 +159,15 @@ type Props = {
   onResetCamera: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  selectedImageTopic: string | undefined;
+  selectedImageTopicMessageFrequency: number | undefined;
 };
+
+function formatFrequency(frequency: number | undefined): string {
+  return frequency != undefined && Number.isFinite(frequency)
+    ? `${frequency.toFixed(2)} Hz`
+    : EM_DASH;
+}
 
 /**
  * Provides DOM overlay elements on top of the 3D scene (e.g. stats, debug GUI).
@@ -173,10 +213,28 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
   }, [renderer]);
 
   const stats = props.enableStats ? (
-    <div id="stats" style={{ position: "absolute", top: "10px", left: "10px" }}>
+    <div id="stats" className={classes.stats}>
       <Stats />
     </div>
   ) : undefined;
+  const imageTopicFrequency =
+    props.interfaceMode === "image" && props.selectedImageTopic != undefined ? (
+      <Paper
+        className={classes.imageTopicFrequency}
+        data-testid="image-topic-frequency"
+        elevation={4}
+        square={false}
+      >
+        <span className={classes.imageTopicFrequencyLabel}>FPS</span>
+        <span
+          data-topic={props.selectedImageTopic}
+          data-topic-stat="frequency"
+          title={props.selectedImageTopic}
+        >
+          {formatFrequency(props.selectedImageTopicMessageFrequency)}
+        </span>
+      </Paper>
+    ) : undefined;
 
   // Convert the list of selected renderables (if any) into MouseEventObjects
   // that can be passed to <InteractionContextMenu>, which shows a context menu
@@ -360,6 +418,12 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
   return (
     <>
       {props.interfaceMode === "image" && <PanelContextMenu getItems={getContextMenuItems} />}
+      {(imageTopicFrequency != undefined || stats != undefined) && (
+        <div className={classes.leftOverlay}>
+          {imageTopicFrequency}
+          {stats}
+        </div>
+      )}
       <div ref={mousePresenceRef} className={classes.root}>
         {
           // Only show on hover for image panel
@@ -483,7 +547,6 @@ function UnMemoedRendererOverlay(props: Props): React.JSX.Element {
         />
       )}
       <HUD renderer={renderer} />
-      {stats}
       {resetViewButton}
     </>
   );
