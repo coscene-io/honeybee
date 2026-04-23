@@ -22,11 +22,13 @@ import {
   PanelExtensionAdapter,
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ThreeDeeRender } from "./ThreeDeeRender";
+import { TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY } from "./topicMessageFrequencies";
 import { InterfaceMode } from "./types";
 
 type InitPanelArgs = {
@@ -68,7 +70,13 @@ type Props = {
   debugPicking?: boolean;
 };
 
-function ThreeDeeRenderAdapter(interfaceMode: InterfaceMode, props: Props) {
+type AdapterContentProps = Props & {
+  extensionData?: Record<string, unknown>;
+  interfaceMode: InterfaceMode;
+};
+
+function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
+  const { interfaceMode } = props;
   const crash = useCrash();
 
   const forwardedAnalytics = useForwardAnalytics();
@@ -105,11 +113,32 @@ function ThreeDeeRenderAdapter(interfaceMode: InterfaceMode, props: Props) {
   return (
     <PanelExtensionAdapter
       config={props.config}
+      extensionData={props.extensionData}
       highestSupportedConfigVersion={1}
       saveConfig={props.saveConfig}
       initPanel={boundInitPanel}
     />
   );
+}
+
+function ImagePanelAdapter(props: Props) {
+  const topicMessageFrequencies = useTopicPublishFrequencies();
+  const extensionData = useMemo(
+    () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
+    [topicMessageFrequencies],
+  );
+
+  return (
+    <ThreeDeeRenderAdapterContent {...props} interfaceMode="image" extensionData={extensionData} />
+  );
+}
+
+function ThreeDeeRenderAdapter(interfaceMode: InterfaceMode, props: Props) {
+  if (interfaceMode === "image") {
+    return <ImagePanelAdapter {...props} />;
+  }
+
+  return <ThreeDeeRenderAdapterContent {...props} interfaceMode={interfaceMode} />;
 }
 
 /**

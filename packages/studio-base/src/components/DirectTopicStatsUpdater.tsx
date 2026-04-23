@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useLatest } from "react-use";
 
-import { Time } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -21,14 +20,7 @@ const EMPTY_TOPIC_STATS = new Map<string, TopicStats>();
 
 const selectTopicStats = (ctx: MessagePipelineContext) =>
   ctx.playerState.activeData?.topicStats ?? EMPTY_TOPIC_STATS;
-const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
 const selectPlayerCapabilities = (ctx: MessagePipelineContext) => ctx.playerState.capabilities;
-
-type StatSample = {
-  time: Time;
-  count: number;
-  frequency: undefined | number;
-};
 
 /**
  * Encapsulates logic for directly updating topic stats DOM elements, bypassing
@@ -45,12 +37,10 @@ export function DirectTopicStatsUpdater({
 }): React.JSX.Element {
   const topicStats = useMessagePipeline(selectTopicStats);
   const playerCapabilities = useMessagePipeline(selectPlayerCapabilities);
-  const playerId = useMessagePipeline(selectPlayerId);
 
   const latestStats = useLatest(topicStats);
   const updateCount = useRef(0);
   const rootRef = useRef<HTMLDivElement>(ReactNull);
-  const samplesByTopic = useRef<Record<string, StatSample>>({});
 
   const frequenciesByTopic = useTopicPublishFrequencies();
   const latestFrequenciesByTopic = useLatest(frequenciesByTopic);
@@ -127,12 +117,6 @@ export function DirectTopicStatsUpdater({
       updateStats();
     }
   }, [updateStats, interval, topicStats, playerIsStaticSource]);
-
-  // Clear previous samples on player change.
-  useEffect(() => {
-    void playerId;
-    samplesByTopic.current = {};
-  }, [playerId]);
 
   useLayoutEffect(() => {
     updateStats();
