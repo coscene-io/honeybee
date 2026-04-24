@@ -66,12 +66,20 @@ export function filterCompressedVideoQueue(
     const lastKeyframeIndex = findLastIndex(normalizedMessages, isVideoKeyframe);
 
     if (lastKeyframeIndex >= 0) {
+      const selectedTopicMessages = topicMessages.slice(lastKeyframeIndex);
+      const selectedNormalizedMessages = normalizedMessages.slice(lastKeyframeIndex);
+      if (isBacklogged(selectedTopicMessages, selectedNormalizedMessages, filterOptions)) {
+        waitingForKeyframeTopics.add(topic);
+        topicsToReset.add(topic);
+        continue;
+      }
+
       if (lastKeyframeIndex > 0 || waitingForKeyframeTopics.has(topic)) {
         topicsToReset.add(topic);
       }
       waitingForKeyframeTopics.delete(topic);
 
-      for (const messageEvent of topicMessages.slice(lastKeyframeIndex)) {
+      for (const messageEvent of selectedTopicMessages) {
         selectedMessages.add(messageEvent);
       }
       continue;

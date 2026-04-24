@@ -80,6 +80,36 @@ describe("filterCompressedVideoQueue", () => {
     expect(waitingForKeyframeTopics).toEqual(new Set());
   });
 
+  it("waits for a newer keyframe when the newest GOP exceeds the message threshold", () => {
+    const waitingForKeyframeTopics = new Set<string>();
+    const queue = [
+      makeMessage("/camera", 0n, "key"),
+      ...Array.from({ length: 15 }, (_, i) =>
+        makeMessage("/camera", BigInt(i + 1) * 10_000_000n, "delta"),
+      ),
+    ];
+
+    const result = filterCompressedVideoQueue(queue, waitingForKeyframeTopics);
+
+    expect(result.messages).toEqual([]);
+    expect(result.topicsToReset).toEqual(new Set(["/camera"]));
+    expect(waitingForKeyframeTopics).toEqual(new Set(["/camera"]));
+  });
+
+  it("waits for a newer keyframe when the newest GOP exceeds the duration threshold", () => {
+    const waitingForKeyframeTopics = new Set<string>();
+    const queue = [
+      makeMessage("/camera", 0n, "key"),
+      makeMessage("/camera", 600_000_000n, "delta"),
+    ];
+
+    const result = filterCompressedVideoQueue(queue, waitingForKeyframeTopics);
+
+    expect(result.messages).toEqual([]);
+    expect(result.topicsToReset).toEqual(new Set(["/camera"]));
+    expect(waitingForKeyframeTopics).toEqual(new Set(["/camera"]));
+  });
+
   it("filters each topic independently while preserving queue order", () => {
     const waitingForKeyframeTopics = new Set<string>();
     const aDelta = makeMessage("/a", 0n, "delta");
