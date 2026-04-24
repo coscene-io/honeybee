@@ -417,11 +417,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -714,12 +714,19 @@ class CoSceneConsoleApi {
     customHost?: boolean,
   ): { fullUrl: string; fullConfig: RequestInit } {
     const recordName = this.#getRecordName();
-    const fullUrl =
-      customHost != undefined && customHost
-        ? url
-        : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+    let fullUrl;
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (url === "/v1/data/getStreams" && timeZone === "Asia/Shanghai") {
+      fullUrl = `https://viz-volc.intl.coscene.cn${url}`;
+    } else {
+      fullUrl =
+        customHost != undefined && customHost
+          ? url
+          : url.startsWith("/bff")
+            ? `${this.#bffUrl}${url}`
+            : `${this.#baseUrl}${url}`;
+    }
 
     const fullConfig: RequestInit = {
       ...config,
