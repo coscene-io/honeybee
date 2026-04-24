@@ -21,14 +21,19 @@ import {
   ImageRenderable,
   ImageUserData,
 } from "./Images/ImageRenderable";
-import { ALL_CAMERA_INFO_SCHEMAS, AnyImage } from "./Images/ImageTypes";
+import { ALL_CAMERA_INFO_SCHEMAS, AnyImage, CompressedVideo } from "./Images/ImageTypes";
 import {
   normalizeCompressedImage,
+  normalizeCompressedVideo,
   normalizeRawImage,
   normalizeRosCompressedImage,
   normalizeRosImage,
 } from "./Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPrefixMatching";
+import {
+  CompressedVideoMessageEvent,
+  filterCompressedVideoQueue,
+} from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import { PartialMessageEvent, SceneExtension, onlyLastByTopicMessage } from "../SceneExtension";
@@ -85,6 +90,7 @@ export class Images extends SceneExtension<ImageRenderable> {
   #cameraInfoByTopic = new Map<string, CameraInfo>();
 
   protected supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
+  #waitingForVideoKeyframeTopics = new Set<string>();
 
   public constructor(renderer: IRenderer, name: string = Images.extensionId) {
     super(name, renderer);
@@ -95,6 +101,11 @@ export class Images extends SceneExtension<ImageRenderable> {
   public override dispose(): void {
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
     super.dispose();
+  }
+
+  public override removeAllRenderables(): void {
+    this.#waitingForVideoKeyframeTopics.clear();
+    super.removeAllRenderables();
   }
 
   public override getSubscriptions(): readonly AnyRendererSubscription[] {
@@ -140,7 +151,8 @@ export class Images extends SceneExtension<ImageRenderable> {
         type: "schema",
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
-          handler: this.#handleCompressedImage,
+          handler: this.#handleCompressedVideo,
+          filterQueue: this.#filterCompressedVideoQueue,
         },
       },
     ];
@@ -309,6 +321,23 @@ export class Images extends SceneExtension<ImageRenderable> {
 
   #handleCompressedImage = (messageEvent: PartialMessageEvent<CompressedImage>): void => {
     this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
+  };
+
+  #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
+    this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
+  };
+
+  #filterCompressedVideoQueue = (
+    queue: CompressedVideoMessageEvent[],
+  ): CompressedVideoMessageEvent[] => {
+    const { messages, topicsToReset } = filterCompressedVideoQueue(
+      queue,
+      this.#waitingForVideoKeyframeTopics,
+    );
+    for (const topic of topicsToReset) {
+      this.renderables.get(topic)?.resetForSeek();
+    }
+    return messages;
   };
 
   protected handleImage = (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage): void => {

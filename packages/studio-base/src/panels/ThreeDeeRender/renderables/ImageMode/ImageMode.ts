@@ -96,6 +96,10 @@ import {
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
+import {
+  CompressedVideoMessageEvent,
+  filterCompressedVideoQueue,
+} from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
@@ -117,6 +121,7 @@ export class ImageMode
 
   protected imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
+  #waitingForVideoKeyframeTopics = new Set<string>();
 
   protected readonly messageHandler: IMessageHandler;
 
@@ -271,6 +276,7 @@ export class ImageMode
         subscription: {
           handler: this.messageHandler.handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
+          filterQueue: this.#filterCompressedVideoQueue.bind(this),
         },
       },
     ];
@@ -285,6 +291,17 @@ export class ImageMode
     return msgs;
   }
 
+  #filterCompressedVideoQueue(msgs: CompressedVideoMessageEvent[]): CompressedVideoMessageEvent[] {
+    const { messages, topicsToReset } = filterCompressedVideoQueue(
+      msgs,
+      this.#waitingForVideoKeyframeTopics,
+    );
+    if (topicsToReset.size > 0) {
+      this.imageRenderable?.resetForSeek();
+    }
+    return messages;
+  }
+
   public override dispose(): void {
     this.renderer.settings.errors.off("update", this.#handleErrorChange);
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
@@ -296,6 +313,7 @@ export class ImageMode
   }
 
   public override removeAllRenderables(): void {
+    this.#waitingForVideoKeyframeTopics.clear();
     // To avoid flickering while seeking or changing subscriptions, we avoid clearing the
     // ImageRenderable for a short timeout. When a new image message arrives, we cancel the timeout,
     // so the old image will continue displaying until the new one has been decoded.
