@@ -716,8 +716,9 @@ class CoSceneConsoleApi {
     const recordName = this.#getRecordName();
     let fullUrl;
 
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    if (url === "/v1/data/getStreams" && timeZone === "Asia/Shanghai") {
+    if (url === "/v1/data/getStreams"
+      && Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Shanghai"
+      && this.#baseUrl === "https://viz.volc.coscene.cn") {
       fullUrl = `https://viz-volc.intl.coscene.cn${url}`;
     } else {
       fullUrl =
