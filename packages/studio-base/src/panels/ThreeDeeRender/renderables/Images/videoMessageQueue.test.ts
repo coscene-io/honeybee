@@ -80,7 +80,7 @@ describe("filterCompressedVideoQueue", () => {
     expect(waitingForKeyframeTopics).toEqual(new Set());
   });
 
-  it("waits for a newer keyframe when the newest GOP exceeds the message threshold", () => {
+  it("keeps a bounded GOP prefix when the newest GOP exceeds the message threshold", () => {
     const waitingForKeyframeTopics = new Set<string>();
     const queue = [
       makeMessage("/camera", 0n, "key"),
@@ -91,12 +91,12 @@ describe("filterCompressedVideoQueue", () => {
 
     const result = filterCompressedVideoQueue(queue, waitingForKeyframeTopics);
 
-    expect(result.messages).toEqual([]);
+    expect(result.messages).toEqual(queue.slice(0, 15));
     expect(result.topicsToReset).toEqual(new Set(["/camera"]));
     expect(waitingForKeyframeTopics).toEqual(new Set(["/camera"]));
   });
 
-  it("waits for a newer keyframe when the newest GOP exceeds the duration threshold", () => {
+  it("keeps the keyframe when the newest GOP exceeds the duration threshold", () => {
     const waitingForKeyframeTopics = new Set<string>();
     const queue = [
       makeMessage("/camera", 0n, "key"),
@@ -105,8 +105,29 @@ describe("filterCompressedVideoQueue", () => {
 
     const result = filterCompressedVideoQueue(queue, waitingForKeyframeTopics);
 
-    expect(result.messages).toEqual([]);
+    expect(result.messages).toEqual(queue.slice(0, 1));
     expect(result.topicsToReset).toEqual(new Set(["/camera"]));
+    expect(waitingForKeyframeTopics).toEqual(new Set(["/camera"]));
+  });
+
+  it("continues emitting keyframes when large GOPs arrive while waiting", () => {
+    const waitingForKeyframeTopics = new Set<string>();
+    const firstQueue = [
+      makeMessage("/camera", 0n, "key"),
+      makeMessage("/camera", 600_000_000n, "delta"),
+    ];
+    const secondQueue = [
+      makeMessage("/camera", 1_000_000_000n, "key"),
+      makeMessage("/camera", 1_600_000_000n, "delta"),
+    ];
+
+    const firstResult = filterCompressedVideoQueue(firstQueue, waitingForKeyframeTopics);
+    const secondResult = filterCompressedVideoQueue(secondQueue, waitingForKeyframeTopics);
+
+    expect(firstResult.messages).toEqual(firstQueue.slice(0, 1));
+    expect(secondResult.messages).toEqual(secondQueue.slice(0, 1));
+    expect(firstResult.topicsToReset).toEqual(new Set(["/camera"]));
+    expect(secondResult.topicsToReset).toEqual(new Set(["/camera"]));
     expect(waitingForKeyframeTopics).toEqual(new Set(["/camera"]));
   });
 

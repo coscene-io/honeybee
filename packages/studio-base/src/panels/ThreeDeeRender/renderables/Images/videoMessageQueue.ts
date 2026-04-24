@@ -66,20 +66,22 @@ export function filterCompressedVideoQueue(
     const lastKeyframeIndex = findLastIndex(normalizedMessages, isVideoKeyframe);
 
     if (lastKeyframeIndex >= 0) {
-      const selectedTopicMessages = topicMessages.slice(lastKeyframeIndex);
-      const selectedNormalizedMessages = normalizedMessages.slice(lastKeyframeIndex);
-      if (isBacklogged(selectedTopicMessages, selectedNormalizedMessages, filterOptions)) {
+      const selected = limitDecodableGop(
+        topicMessages.slice(lastKeyframeIndex),
+        normalizedMessages.slice(lastKeyframeIndex),
+        filterOptions,
+      );
+      if (selected.truncated) {
         waitingForKeyframeTopics.add(topic);
         topicsToReset.add(topic);
-        continue;
-      }
-
-      if (lastKeyframeIndex > 0 || waitingForKeyframeTopics.has(topic)) {
+      } else if (lastKeyframeIndex > 0 || waitingForKeyframeTopics.has(topic)) {
         topicsToReset.add(topic);
+        waitingForKeyframeTopics.delete(topic);
+      } else {
+        waitingForKeyframeTopics.delete(topic);
       }
-      waitingForKeyframeTopics.delete(topic);
 
-      for (const messageEvent of selectedTopicMessages) {
+      for (const messageEvent of selected.messages) {
         selectedMessages.add(messageEvent);
       }
       continue;
@@ -127,6 +129,43 @@ function isBacklogged(
     return false;
   }
   return maxTime - minTime > options.maxQueueDurationNs;
+}
+
+function limitDecodableGop(
+  topicMessages: CompressedVideoMessageEvent[],
+  normalizedMessages: CompressedVideo[],
+  options: Required<CompressedVideoQueueFilterOptions>,
+): { messages: CompressedVideoMessageEvent[]; truncated: boolean } {
+  const firstMessage = topicMessages[0];
+  const firstNormalizedMessage = normalizedMessages[0];
+  if (firstMessage == undefined || firstNormalizedMessage == undefined) {
+    return { messages: [], truncated: false };
+  }
+
+  const maxMessages = Math.max(1, options.maxQueueMessages);
+  const messages = [firstMessage];
+  let minTime = toNanoSec(firstNormalizedMessage.timestamp);
+  let maxTime = minTime;
+
+  for (let i = 1; i < topicMessages.length; i++) {
+    if (messages.length >= maxMessages) {
+      return { messages, truncated: true };
+    }
+
+    const normalizedMessage = normalizedMessages[i]!;
+    const timestamp = toNanoSec(normalizedMessage.timestamp);
+    const nextMinTime = timestamp < minTime ? timestamp : minTime;
+    const nextMaxTime = timestamp > maxTime ? timestamp : maxTime;
+    if (nextMaxTime - nextMinTime > options.maxQueueDurationNs) {
+      return { messages, truncated: true };
+    }
+
+    messages.push(topicMessages[i]!);
+    minTime = nextMinTime;
+    maxTime = nextMaxTime;
+  }
+
+  return { messages, truncated: false };
 }
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
