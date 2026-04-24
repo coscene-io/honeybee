@@ -192,6 +192,25 @@ import { HttpError } from "./HttpError";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
+// Volcano Engine (火山云) base URL — used by China-region clients.
+const VOLC_BASE_URL = "https://viz.volc.coscene.cn";
+
+// International host for getStreams when the client is outside China Standard Time zones.
+const VOLC_STREAM_INTL_HOST = "https://viz-volc.intl.coscene.cn";
+
+// All IANA timezone identifiers that map to UTC+8 China Standard Time.
+// Intl may return any of these depending on the OS/locale configuration.
+const CHINA_STANDARD_TIME_ZONES = new Set([
+  "Asia/Shanghai",
+  "Asia/Chongqing",
+  "Asia/Harbin",
+  "Asia/Urumqi",
+  "Asia/Kashgar",
+  "PRC",
+]);
+
+const STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT = new Set(["/v1/data/getStreams"]);
+
 export type User = {
   id: string;
   email: string;
@@ -417,11 +436,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-    orgPermissionList: [],
-    projectPermissionList: [],
-    orgDenyList: [],
-    projectDenyList: [],
-  };
+      orgPermissionList: [],
+      projectPermissionList: [],
+      orgDenyList: [],
+      projectDenyList: [],
+    };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -707,6 +726,19 @@ class CoSceneConsoleApi {
     },
   );
 
+  /**
+   * Returns true when a stream endpoint should be redirected to the international host.
+   * Conditions: the endpoint is in the redirect list, the configured base URL is the Volcano
+   * Engine host, and the client's local timezone is NOT a China Standard Time zone.
+   */
+  #needsIntlStreamRedirect(url: string): boolean {
+    return (
+      STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT.has(url) &&
+      this.#baseUrl === VOLC_BASE_URL &&
+      !CHINA_STANDARD_TIME_ZONES.has(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    );
+  }
+
   public getRequectConfig(
     url: string,
     config?: RequestInit,
@@ -714,12 +746,18 @@ class CoSceneConsoleApi {
     customHost?: boolean,
   ): { fullUrl: string; fullConfig: RequestInit } {
     const recordName = this.#getRecordName();
-    const fullUrl =
-      customHost != undefined && customHost
-        ? url
-        : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+    let fullUrl;
+
+    if (this.#needsIntlStreamRedirect(url)) {
+      fullUrl = `${VOLC_STREAM_INTL_HOST}${url}`;
+    } else {
+      fullUrl =
+        customHost != undefined && customHost
+          ? url
+          : url.startsWith("/bff")
+            ? `${this.#bffUrl}${url}`
+            : `${this.#baseUrl}${url}`;
+    }
 
     const fullConfig: RequestInit = {
       ...config,
