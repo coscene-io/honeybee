@@ -96,6 +96,7 @@ import {
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
+import { filterCompressedVideoQueue } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
@@ -271,6 +272,7 @@ export class ImageMode
         subscription: {
           handler: this.messageHandler.handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
+          filterQueue: filterCompressedVideoQueue,
         },
       },
     ];

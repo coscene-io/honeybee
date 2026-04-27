@@ -21,14 +21,16 @@ import {
   ImageRenderable,
   ImageUserData,
 } from "./Images/ImageRenderable";
-import { ALL_CAMERA_INFO_SCHEMAS, AnyImage } from "./Images/ImageTypes";
+import { ALL_CAMERA_INFO_SCHEMAS, AnyImage, CompressedVideo } from "./Images/ImageTypes";
 import {
   normalizeCompressedImage,
+  normalizeCompressedVideo,
   normalizeRawImage,
   normalizeRosCompressedImage,
   normalizeRosImage,
 } from "./Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPrefixMatching";
+import { filterCompressedVideoQueue } from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import { PartialMessageEvent, SceneExtension, onlyLastByTopicMessage } from "../SceneExtension";
@@ -140,7 +142,8 @@ export class Images extends SceneExtension<ImageRenderable> {
         type: "schema",
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
-          handler: this.#handleCompressedImage,
+          handler: this.#handleCompressedVideo,
+          filterQueue: filterCompressedVideoQueue,
         },
       },
     ];
@@ -309,6 +312,10 @@ export class Images extends SceneExtension<ImageRenderable> {
 
   #handleCompressedImage = (messageEvent: PartialMessageEvent<CompressedImage>): void => {
     this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
+  };
+
+  #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
+    this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
   };
 
   protected handleImage = (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage): void => {
