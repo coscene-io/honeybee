@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
 import { CompressedVideo } from "./ImageTypes";
@@ -15,38 +14,14 @@ import { PartialMessage } from "../../SceneExtension";
 
 export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<CompressedVideo>>;
 
-export type CompressedVideoQueueFilterOptions = {
-  maxQueueMessages?: number;
-  maxQueueDurationNs?: bigint;
-};
-
-export const DEFAULT_COMPRESSED_VIDEO_QUEUE_FILTER_OPTIONS = {
-  maxQueueMessages: 15,
-  maxQueueDurationNs: 500_000_000n,
-};
-
-export type CompressedVideoQueueFilterResult = {
-  messages: CompressedVideoMessageEvent[];
-  topicsToReset: Set<string>;
-};
-
 /**
  * Compressed video frames depend on previous frames. Keep the newest decodable GOP instead of
- * keeping only the last message, and wait for a keyframe when the decoder falls too far behind.
+ * keeping only the last message. If a newer keyframe arrives, older frames on the same topic can be
+ * discarded because the keyframe starts a new decodable segment.
  */
 export function filterCompressedVideoQueue(
   queue: CompressedVideoMessageEvent[],
-  waitingForKeyframeTopics: Set<string>,
-  options: CompressedVideoQueueFilterOptions = {},
-): CompressedVideoQueueFilterResult {
-  const filterOptions: Required<CompressedVideoQueueFilterOptions> = {
-    maxQueueMessages:
-      options.maxQueueMessages ?? DEFAULT_COMPRESSED_VIDEO_QUEUE_FILTER_OPTIONS.maxQueueMessages,
-    maxQueueDurationNs:
-      options.maxQueueDurationNs ??
-      DEFAULT_COMPRESSED_VIDEO_QUEUE_FILTER_OPTIONS.maxQueueDurationNs,
-  };
-  const topicsToReset = new Set<string>();
+): CompressedVideoMessageEvent[] {
   const selectedMessages = new Set<CompressedVideoMessageEvent>();
   const messagesByTopic = new Map<string, CompressedVideoMessageEvent[]>();
 
@@ -59,113 +34,20 @@ export function filterCompressedVideoQueue(
     }
   }
 
-  for (const [topic, topicMessages] of messagesByTopic) {
+  for (const topicMessages of messagesByTopic.values()) {
     const normalizedMessages = topicMessages.map((messageEvent) =>
       normalizeCompressedVideo(messageEvent.message),
     );
     const lastKeyframeIndex = findLastIndex(normalizedMessages, isVideoKeyframe);
 
-    if (lastKeyframeIndex >= 0) {
-      const selected = limitDecodableGop(
-        topicMessages.slice(lastKeyframeIndex),
-        normalizedMessages.slice(lastKeyframeIndex),
-        filterOptions,
-      );
-      if (selected.truncated) {
-        waitingForKeyframeTopics.add(topic);
-        topicsToReset.add(topic);
-      } else if (lastKeyframeIndex > 0 || waitingForKeyframeTopics.has(topic)) {
-        topicsToReset.add(topic);
-        waitingForKeyframeTopics.delete(topic);
-      } else {
-        waitingForKeyframeTopics.delete(topic);
-      }
-
-      for (const messageEvent of selected.messages) {
-        selectedMessages.add(messageEvent);
-      }
-      continue;
-    }
-
-    if (waitingForKeyframeTopics.has(topic)) {
-      continue;
-    }
-
-    if (isBacklogged(topicMessages, normalizedMessages, filterOptions)) {
-      waitingForKeyframeTopics.add(topic);
-      topicsToReset.add(topic);
-      continue;
-    }
-
-    for (const messageEvent of topicMessages) {
+    const selectedTopicMessages =
+      lastKeyframeIndex >= 0 ? topicMessages.slice(lastKeyframeIndex) : topicMessages;
+    for (const messageEvent of selectedTopicMessages) {
       selectedMessages.add(messageEvent);
     }
   }
 
-  return {
-    messages: queue.filter((messageEvent) => selectedMessages.has(messageEvent)),
-    topicsToReset,
-  };
-}
-
-function isBacklogged(
-  topicMessages: CompressedVideoMessageEvent[],
-  normalizedMessages: CompressedVideo[],
-  options: Required<CompressedVideoQueueFilterOptions>,
-): boolean {
-  if (topicMessages.length > options.maxQueueMessages) {
-    return true;
-  }
-
-  let minTime: bigint | undefined;
-  let maxTime: bigint | undefined;
-  for (const message of normalizedMessages) {
-    const timestamp = toNanoSec(message.timestamp);
-    minTime = minTime == undefined || timestamp < minTime ? timestamp : minTime;
-    maxTime = maxTime == undefined || timestamp > maxTime ? timestamp : maxTime;
-  }
-
-  if (minTime == undefined || maxTime == undefined) {
-    return false;
-  }
-  return maxTime - minTime > options.maxQueueDurationNs;
-}
-
-function limitDecodableGop(
-  topicMessages: CompressedVideoMessageEvent[],
-  normalizedMessages: CompressedVideo[],
-  options: Required<CompressedVideoQueueFilterOptions>,
-): { messages: CompressedVideoMessageEvent[]; truncated: boolean } {
-  const firstMessage = topicMessages[0];
-  const firstNormalizedMessage = normalizedMessages[0];
-  if (firstMessage == undefined || firstNormalizedMessage == undefined) {
-    return { messages: [], truncated: false };
-  }
-
-  const maxMessages = Math.max(1, options.maxQueueMessages);
-  const messages = [firstMessage];
-  let minTime = toNanoSec(firstNormalizedMessage.timestamp);
-  let maxTime = minTime;
-
-  for (let i = 1; i < topicMessages.length; i++) {
-    if (messages.length >= maxMessages) {
-      return { messages, truncated: true };
-    }
-
-    const normalizedMessage = normalizedMessages[i]!;
-    const timestamp = toNanoSec(normalizedMessage.timestamp);
-    const nextMinTime = timestamp < minTime ? timestamp : minTime;
-    const nextMaxTime = timestamp > maxTime ? timestamp : maxTime;
-    if (nextMaxTime - nextMinTime > options.maxQueueDurationNs) {
-      return { messages, truncated: true };
-    }
-
-    messages.push(topicMessages[i]!);
-    minTime = nextMinTime;
-    maxTime = nextMaxTime;
-  }
-
-  return { messages, truncated: false };
+  return queue.filter((messageEvent) => selectedMessages.has(messageEvent));
 }
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
