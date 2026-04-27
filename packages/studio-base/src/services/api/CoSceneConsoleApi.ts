@@ -436,11 +436,11 @@ class CoSceneConsoleApi {
     orgDenyList: string[];
     projectDenyList: string[];
   } = {
-      orgPermissionList: [],
-      projectPermissionList: [],
-      orgDenyList: [],
-      projectDenyList: [],
-    };
+    orgPermissionList: [],
+    projectPermissionList: [],
+    orgDenyList: [],
+    projectDenyList: [],
+  };
 
   public constructor(baseUrl: string, bffUrl: string, jwt: string) {
     this.#baseUrl = baseUrl;
@@ -755,8 +755,8 @@ class CoSceneConsoleApi {
         customHost != undefined && customHost
           ? url
           : url.startsWith("/bff")
-            ? `${this.#bffUrl}${url}`
-            : `${this.#baseUrl}${url}`;
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
     }
 
     const fullConfig: RequestInit = {
