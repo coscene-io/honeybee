@@ -16,6 +16,7 @@ import {
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageUserData,
 } from "./ImageRenderable";
+import type { AnyImage, CompressedVideo } from "./ImageTypes";
 
 const mockAdd = jest.fn();
 const mockAddToTopic = jest.fn();
@@ -23,7 +24,14 @@ const mockRemove = jest.fn();
 const mockRemoveFromTopic = jest.fn();
 
 class MockVideoFrame {
-  public close(): void {}
+  public readonly displayWidth: number;
+  public readonly displayHeight: number;
+  public readonly close = jest.fn();
+
+  public constructor(displayWidth = 640, displayHeight = 480) {
+    this.displayWidth = displayWidth;
+    this.displayHeight = displayHeight;
+  }
 }
 
 // Mocked dependencies
@@ -65,13 +73,75 @@ const sampleImage = {
   header: { frame_id: "camera", stamp: { sec: 0, nsec: 1 } },
 };
 
+const sampleVideo: CompressedVideo = {
+  format: "h264",
+  data: new Uint8Array([0x65]),
+  timestamp: { sec: 0, nsec: 1 },
+  frame_id: "camera",
+};
+
+function makeUserData(): ImageUserData {
+  return {
+    ...mockUserData,
+    settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+    texture: undefined,
+    material: undefined,
+    geometry: undefined,
+    mesh: undefined,
+    image: undefined,
+  };
+}
+
+class TestImageRenderable extends ImageRenderable {
+  readonly #decodedImages: (ImageBitmap | ImageData | VideoFrame)[];
+
+  public constructor(decodedImages: (ImageBitmap | ImageData | VideoFrame)[]) {
+    super(mockUserData.topic, mockRenderer, makeUserData());
+    this.#decodedImages = decodedImages;
+  }
+
+  protected override async decodeImage(
+    _image: AnyImage,
+    _resizeWidth?: number,
+  ): Promise<ImageBitmap | ImageData | VideoFrame> {
+    const decodedImage = this.#decodedImages.shift();
+    if (!decodedImage) {
+      throw new Error("No decoded image queued");
+    }
+    return decodedImage;
+  }
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function mockDateNow(start = 1_000): { advance: (ms: number) => void; restore: () => void } {
+  let now = start;
+  const spy = jest.spyOn(Date, "now").mockImplementation(() => now);
+  return {
+    advance: (ms: number) => {
+      now += ms;
+    },
+    restore: () => {
+      spy.mockRestore();
+    },
+  };
+}
+
 describe("ImageRenderable", () => {
+  let originalVideoFrame: unknown;
+
   beforeAll(() => {
-    (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame = MockVideoFrame;
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    originalVideoFrame = globals.VideoFrame;
+    globals.VideoFrame = MockVideoFrame;
   });
 
   afterAll(() => {
-    delete (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame;
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    globals.VideoFrame = originalVideoFrame;
   });
 
   beforeEach(() => {
@@ -160,15 +230,129 @@ describe("ImageRenderable", () => {
     renderable.setCameraModel(model);
     expect(renderable.userData.cameraModel).toBe(model);
   });
+
+  it("should update texture and queue render for a new video frame", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const onDecoded = jest.fn();
+      const renderable = new TestImageRenderable([frame]);
+
+      renderable.setImage(sampleVideo, undefined, onDecoded);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect(mockRenderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
+      expect(onDecoded).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should skip texture update and render when video decode reuses the current frame", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const onDecoded = jest.fn();
+      const renderable = new TestImageRenderable([frame, frame]);
+
+      renderable.setImage(sampleVideo, undefined, onDecoded);
+      await flushPromises();
+
+      time.advance(20);
+      jest.clearAllMocks();
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } }, undefined, onDecoded);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+      expect(onDecoded).not.toHaveBeenCalled();
+      expect((frame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should close the previous video frame once when replacing it", async () => {
+    const time = mockDateNow();
+    try {
+      const frame1 = new MockVideoFrame() as unknown as VideoFrame;
+      const frame2 = new MockVideoFrame() as unknown as VideoFrame;
+      const renderable = new TestImageRenderable([frame1, frame2]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+
+      time.advance(20);
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      await flushPromises();
+
+      expect(renderable.userData.texture?.image).toBe(frame2);
+      expect((frame1 as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect((frame2 as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should not close the same video frame twice on dispose", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const renderable = new TestImageRenderable([frame]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+      renderable.dispose();
+
+      expect((frame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should close the previous ImageBitmap when replacing it with the same dimensions", async () => {
+    const time = mockDateNow();
+    try {
+      const bitmap1 = await createImageBitmap(new ImageData(640, 480));
+      const bitmap2 = await createImageBitmap(new ImageData(640, 480));
+      const closeBitmap1 = jest.spyOn(bitmap1, "close");
+      const closeBitmap2 = jest.spyOn(bitmap2, "close");
+      const renderable = new TestImageRenderable([bitmap1, bitmap2]);
+
+      renderable.setImage(sampleImage);
+      await flushPromises();
+
+      time.advance(20);
+      renderable.setImage({
+        ...sampleImage,
+        header: { frame_id: "camera", stamp: { sec: 0, nsec: 2 } },
+      });
+      await flushPromises();
+
+      expect(renderable.userData.texture?.image).toBe(bitmap2);
+      expect(closeBitmap1).toHaveBeenCalledTimes(1);
+      expect(closeBitmap2).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
 });
 
 describe("ImageRenderable error handling", () => {
+  let originalVideoFrame: unknown;
+
   beforeAll(() => {
-    (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame = MockVideoFrame;
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    originalVideoFrame = globals.VideoFrame;
+    globals.VideoFrame = MockVideoFrame;
   });
 
   afterAll(() => {
-    delete (globalThis as unknown as { VideoFrame?: unknown }).VideoFrame;
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    globals.VideoFrame = originalVideoFrame;
   });
 
   beforeEach(() => {
