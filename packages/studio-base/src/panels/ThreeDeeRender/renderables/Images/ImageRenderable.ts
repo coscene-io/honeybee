@@ -230,12 +230,18 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           }
           return;
         }
-        if (isReusedFrame) {
-          return;
-        }
         // prevent displaying an image older than the one currently displayed
         if (this.#displayedImageSequenceNumber > seq) {
-          closeDecodedImageResource(result);
+          if (!isReusedFrame) {
+            closeDecodedImageResource(result);
+          }
+          return;
+        }
+        if (isReusedFrame) {
+          this.#displayedImageSequenceNumber = seq;
+          this.update();
+          this.#showingErrorImage = false;
+          this.removeError(DECODE_IMAGE_ERR_KEY);
           return;
         }
         // cap at 60 fps
@@ -672,7 +678,7 @@ function createEmptyVideoFrame(): VideoFrame {
 }
 
 function closeDecodedImageResource(resource: unknown): void {
-  if (!resource) {
+  if (resource == undefined) {
     return;
   }
   if (typeof VideoFrame !== "undefined" && resource instanceof VideoFrame) {

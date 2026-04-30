@@ -80,6 +80,8 @@ const sampleVideo: CompressedVideo = {
   frame_id: "camera",
 };
 
+type TestDecodedImage = ImageBitmap | ImageData | VideoFrame;
+
 function makeUserData(): ImageUserData {
   return {
     ...mockUserData,
@@ -93,9 +95,9 @@ function makeUserData(): ImageUserData {
 }
 
 class TestImageRenderable extends ImageRenderable {
-  readonly #decodedImages: (ImageBitmap | ImageData | VideoFrame)[];
+  readonly #decodedImages: (TestDecodedImage | Promise<TestDecodedImage>)[];
 
-  public constructor(decodedImages: (ImageBitmap | ImageData | VideoFrame)[]) {
+  public constructor(decodedImages: (TestDecodedImage | Promise<TestDecodedImage>)[]) {
     super(mockUserData.topic, mockRenderer, makeUserData());
     this.#decodedImages = decodedImages;
   }
@@ -103,12 +105,12 @@ class TestImageRenderable extends ImageRenderable {
   protected override async decodeImage(
     _image: AnyImage,
     _resizeWidth?: number,
-  ): Promise<ImageBitmap | ImageData | VideoFrame> {
+  ): Promise<TestDecodedImage> {
     const decodedImage = this.#decodedImages.shift();
     if (!decodedImage) {
       throw new Error("No decoded image queued");
     }
-    return decodedImage;
+    return await decodedImage;
   }
 }
 
@@ -270,6 +272,44 @@ describe("ImageRenderable", () => {
       expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
       expect(onDecoded).not.toHaveBeenCalled();
       expect((frame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should reject an older decoded frame after a newer decode reuses the current frame", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const staleFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveStaleFrame!: (value: TestDecodedImage) => void;
+      const staleFramePromise = new Promise<TestDecodedImage>((resolve) => {
+        resolveStaleFrame = resolve;
+      });
+      const renderable = new TestImageRenderable([frame, staleFramePromise, frame]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+
+      time.advance(20);
+      jest.clearAllMocks();
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+
+      time.advance(20);
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect(renderable.userData.messageTime).toBe(3n);
+
+      resolveStaleFrame(staleFrame);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect((staleFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
     } finally {
       time.restore();
     }
