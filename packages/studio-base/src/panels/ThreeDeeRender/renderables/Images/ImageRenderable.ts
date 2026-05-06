@@ -115,11 +115,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   public override dispose(): void {
     this.#disposed = true;
-    if (this.userData.texture?.image instanceof VideoFrame) {
-      this.userData.texture.image.close();
-    }
-    if (isVideoFrame(this.#decodedImage)) {
-      this.#decodedImage.close();
+    const textureImage = this.userData.texture?.image;
+    closeDecodedImageResource(textureImage);
+    if (this.#decodedImage !== textureImage) {
+      closeDecodedImageResource(this.#decodedImage);
     }
     this.userData.texture?.dispose();
     this.userData.material?.dispose();
@@ -238,11 +237,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           }
           return;
         }
+        if (isReusedFrame) {
+          this.#displayedImageSequenceNumber = seq;
+          this.update();
+          this.#showingErrorImage = false;
+          this.removeError(DECODE_IMAGE_ERR_KEY);
+          return;
+        }
         // cap at 60 fps
         if (this.#lastRenderImage > Date.now() - 16) {
-          if (!isReusedFrame) {
-            closeDecodedImageResource(result);
-          }
+          closeDecodedImageResource(result);
           return;
         }
         this.#lastRenderImage = Date.now();
@@ -396,15 +400,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         !(texture.image instanceof VideoFrame) ||
         !videoFrameDimensionsEqual(decodedImage, texture.image)
       ) {
-        if (texture?.image instanceof VideoFrame) {
-          texture.image.close();
-        }
+        closeDecodedImageResource(texture?.image);
         texture?.dispose();
         this.userData.texture = createVideoFrameTexture(decodedImage);
       } else {
-        if (texture.image !== decodedImage) {
-          texture.image.close();
+        if (texture.image === decodedImage) {
+          return;
         }
+        texture.image.close();
         texture.image = decodedImage;
         texture.needsUpdate = true;
       }
@@ -416,16 +419,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         !(canvasTexture instanceof THREE.CanvasTexture) ||
         !bitmapDimensionsEqual(decodedImage, canvasTexture.image as ImageBitmap | undefined)
       ) {
-        if (canvasTexture?.image instanceof VideoFrame) {
-          canvasTexture.image.close();
-        }
-        if (canvasTexture?.image instanceof ImageBitmap) {
-          // don't close the image if it is the error image
-          canvasTexture.image.close();
-        }
+        closeDecodedImageResource(canvasTexture?.image);
         canvasTexture?.dispose();
         this.userData.texture = createCanvasTexture(decodedImage);
       } else {
+        if (canvasTexture.image === decodedImage) {
+          return;
+        }
+        closeDecodedImageResource(canvasTexture.image);
         canvasTexture.image = decodedImage;
         canvasTexture.needsUpdate = true;
       }
@@ -438,9 +439,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         dataTexture.image.width !== decodedImage.width ||
         dataTexture.image.height !== decodedImage.height
       ) {
-        if (dataTexture?.image instanceof VideoFrame) {
-          dataTexture.image.close();
-        }
+        closeDecodedImageResource(dataTexture?.image);
         dataTexture?.dispose();
         dataTexture = createDataTexture(decodedImage);
         this.userData.texture = dataTexture;
@@ -678,17 +677,15 @@ function createEmptyVideoFrame(): VideoFrame {
   return new VideoFrame(canvas, { timestamp: 0 });
 }
 
-function closeDecodedImageResource(
-  resource: ImageBitmap | ImageData | VideoFrame | undefined,
-): void {
-  if (!resource) {
+function closeDecodedImageResource(resource: unknown): void {
+  if (resource == undefined) {
     return;
   }
   if (typeof VideoFrame !== "undefined" && resource instanceof VideoFrame) {
     resource.close();
     return;
   }
-  if (resource instanceof ImageBitmap) {
+  if (typeof ImageBitmap !== "undefined" && resource instanceof ImageBitmap) {
     resource.close();
   }
 }
