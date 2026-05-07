@@ -34,7 +34,6 @@ export type ShardEntry = {
   timeRange: TimeRange;
   topics: TopicEntry[];
   messageCount?: number;
-  url: string;
 };
 
 export type Manifest = {
@@ -47,7 +46,6 @@ export type Manifest = {
   };
   profiles: Profile[];
   shards: ShardEntry[];
-  expiresAt?: string | null;
 };
 
 function isObject(x: unknown): x is Record<string, unknown> {
@@ -125,10 +123,6 @@ export function parseManifest(raw: unknown): Manifest {
     if (kindRaw !== "tail" && kindRaw !== "topic") {
       throw new Error(`shards[${i}].kind must be 'tail' or 'topic', got ${kindRaw}`);
     }
-    const url = s.url;
-    if (typeof url !== "string" || url.length === 0) {
-      throw new Error(`shards[${i}].url is required (run uploader to populate)`);
-    }
     const topicsRaw = s.topics;
     if (!Array.isArray(topicsRaw)) {
       throw new Error(`shards[${i}].topics is not an array`);
@@ -155,7 +149,6 @@ export function parseManifest(raw: unknown): Manifest {
       timeRange: asTimeRange(s.timeRange, `shards[${i}].timeRange`),
       topics,
       messageCount: typeof s.messageCount === "number" ? s.messageCount : undefined,
-      url,
     };
   });
 
@@ -164,6 +157,5 @@ export function parseManifest(raw: unknown): Manifest {
     sourceFile,
     profiles,
     shards,
-    expiresAt: typeof raw.expiresAt === "string" ? raw.expiresAt : undefined,
   };
 }

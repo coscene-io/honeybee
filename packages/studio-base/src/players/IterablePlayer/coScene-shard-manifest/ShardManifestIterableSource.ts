@@ -75,8 +75,11 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     const decompressHandlers = await loadDecompressHandlers();
 
     // Open one indexed reader per active shard. In parallel for first-paint speed.
+    // Each shard URL is resolved relative to the manifest URL — for v1 we
+    // assume the bucket prefix is publicly readable, so no presigned URLs.
     const childPromises = active.shards.map(async (shard) => {
-      const readable = new RemoteFileReadable(shard.url);
+      const shardUrl = new URL(shard.filename, this.#manifestUrl).toString();
+      const readable = new RemoteFileReadable(shardUrl);
       await readable.open();
       const reader = await McapIndexedReader.Initialize({ readable, decompressHandlers });
       const source = new McapIndexedIterableSource(reader);

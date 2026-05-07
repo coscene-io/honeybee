@@ -11,7 +11,6 @@ function shard(partial: Partial<ShardEntry> & Pick<ShardEntry, "id" | "kind">): 
     sha256: "0".repeat(64),
     timeRange: { startNs: "0", endNs: "0" },
     topics: [],
-    url: `https://example/${partial.id}.mcap`,
     ...partial,
   };
 }
