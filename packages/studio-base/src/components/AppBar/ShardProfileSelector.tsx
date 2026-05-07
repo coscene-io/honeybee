@@ -1,8 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Select, MenuItem, FormControl } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 // Small AppBar control that lets the user switch the active shard-manifest
 // profile without reloading manually. Visible only when the current data
@@ -29,15 +34,30 @@ interface MinimalManifest {
 
 const DEFAULT_OPTION: ProfileOption = { value: "", label: "Default (lowest)" };
 
+const useStyles = makeStyles()(() => ({
+  formControl: {
+    minWidth: 160,
+    marginRight: 8,
+  },
+  select: {
+    height: 32,
+    fontSize: 13,
+  },
+}));
+
 function profileToOption(p: ManifestProfile): ProfileOption {
-  if (p.label && p.label.length > 0 && p.label !== p.id) {
+  if (p.label != undefined && p.label.length > 0 && p.label !== p.id) {
     return { value: p.id, label: p.label };
   }
   // Synthesize a label from params when the manifest's `label` is missing.
   const h = p.params?.h ?? p.params?.height;
   const fps = p.params?.fps;
-  if (h && fps) return { value: p.id, label: `${h}p · ${fps}fps` };
-  if (h) return { value: p.id, label: `${h}p` };
+  if (h != undefined && h > 0 && fps != undefined && fps > 0) {
+    return { value: p.id, label: `${h}p · ${fps}fps` };
+  }
+  if (h != undefined && h > 0) {
+    return { value: p.id, label: `${h}p` };
+  }
   return { value: p.id, label: p.id };
 }
 
@@ -45,9 +65,12 @@ function profileHeight(p: ManifestProfile): number {
   return p.params?.h ?? p.params?.height ?? 0;
 }
 
-export function ShardProfileSelector(): React.JSX.Element | null {
+export function ShardProfileSelector(): React.JSX.Element | ReactNull {
+  const { classes } = useStyles();
   const search = useMemo(() => {
-    if (typeof window === "undefined") return new URLSearchParams();
+    if (typeof window === "undefined") {
+      return new URLSearchParams();
+    }
     return new URLSearchParams(window.location.search);
   }, []);
 
@@ -58,20 +81,26 @@ export function ShardProfileSelector(): React.JSX.Element | null {
   const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([DEFAULT_OPTION]);
 
   useEffect(() => {
-    if (!isShardManifest || !manifestUrl) return;
+    if (!isShardManifest || !manifestUrl) {
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
         const resp = await fetch(manifestUrl);
-        if (!resp.ok) return;
+        if (!resp.ok) {
+          return;
+        }
         const json = (await resp.json()) as MinimalManifest;
         const fromManifest = (json.profiles ?? [])
-          .filter((p) => p.id && p.id !== "full")
+          .filter((p) => p.id !== "" && p.id !== "full")
           .sort((a, b) => profileHeight(a) - profileHeight(b))
           .map(profileToOption);
-        if (!cancelled && fromManifest.length > 0) {
-          setProfileOptions([DEFAULT_OPTION, ...fromManifest]);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (cancelled || fromManifest.length === 0) {
+          return;
         }
+        setProfileOptions([DEFAULT_OPTION, ...fromManifest]);
       } catch {
         // Network error / parse error — silently keep the default-only list.
       }
@@ -83,7 +112,7 @@ export function ShardProfileSelector(): React.JSX.Element | null {
 
   const onChange = useCallback((value: string) => {
     const next = new URLSearchParams(window.location.search);
-    if (value) {
+    if (value !== "") {
       next.set("ds.profile", value);
     } else {
       next.delete("ds.profile");
@@ -92,15 +121,17 @@ export function ShardProfileSelector(): React.JSX.Element | null {
   }, []);
 
   if (!isShardManifest) {
-    return null;
+    return ReactNull;
   }
 
   return (
-    <FormControl size="small" variant="outlined" sx={{ minWidth: 160, mr: 1 }}>
+    <FormControl size="small" variant="outlined" className={classes.formControl}>
       <Select
         value={currentProfile}
-        onChange={(e) => onChange(String(e.target.value))}
-        sx={{ height: 32, fontSize: 13 }}
+        onChange={(e) => {
+          onChange(String(e.target.value));
+        }}
+        className={classes.select}
         displayEmpty
       >
         {profileOptions.map((opt) => (

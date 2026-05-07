@@ -1,5 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { McapIndexedReader, McapTypes } from "@mcap/core";
 
@@ -112,7 +116,9 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     const active = selectActiveShards(manifest, this.#preferredProfile);
     this.#activeShards = active.shards;
     log.info(
-      `manifest: ${manifest.shards.length} shards total; ${active.shards.length} active for profile=${this.#preferredProfile ?? "<default>"}`,
+      `manifest: ${manifest.shards.length} shards total; ${
+        active.shards.length
+      } active for profile=${this.#preferredProfile ?? "<default>"}`,
     );
     for (const [topic, profile] of active.selectedProfileByTopic) {
       log.info(`  topic ${topic} -> profile ${profile}`);
@@ -144,7 +150,7 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       `opening ${eager.length} of ${active.shards.length} shards eagerly (tail + 1 per schema family); rest are lazy`,
     );
 
-    await Promise.all(eager.map(async (shard) => this.#ensureOpen(shard)));
+    await Promise.all(eager.map(async (shard) => await this.#ensureOpen(shard)));
 
     // Build the union of topic info / datatypes from the eagerly-opened
     // children. For non-eagerly-opened video shards, synthesize topic
@@ -171,7 +177,9 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
         }
       }
       for (const [name, dt] of ci.datatypes) {
-        if (!datatypes.has(name)) datatypes.set(name, dt);
+        if (!datatypes.has(name)) {
+          datatypes.set(name, dt);
+        }
       }
       for (const [topic, set] of ci.publishersByTopic) {
         let dst = publishersByTopic.get(topic);
@@ -179,9 +187,13 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
           dst = new Set();
           publishersByTopic.set(topic, dst);
         }
-        for (const v of set) dst.add(v);
+        for (const v of set) {
+          dst.add(v);
+        }
       }
-      for (const p of ci.problems) problems.push(p);
+      for (const p of ci.problems) {
+        problems.push(p);
+      }
     }
 
     // Synthesize topic entries for the remaining (lazy) shards using the
@@ -198,11 +210,17 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     }
 
     for (const shard of active.shards) {
-      if (this.#openChildren.has(shard.id)) continue;
+      if (this.#openChildren.has(shard.id)) {
+        continue;
+      }
       const topicName = shard.topic;
       const schemaName = shard.schema;
-      if (topicName == undefined || schemaName == undefined) continue;
-      if (topicsByName.has(topicName)) continue;
+      if (topicName == undefined || schemaName == undefined) {
+        continue;
+      }
+      if (topicsByName.has(topicName)) {
+        continue;
+      }
 
       const template = topicInfoBySchema.get(schemaName);
       if (!template) {
@@ -233,8 +251,12 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     for (const sf of manifest.sourceFiles) {
       const s = BigInt(sf.timeRange.startNs);
       const e = BigInt(sf.timeRange.endNs);
-      if (startNs == undefined || s < startNs) startNs = s;
-      if (endNs == undefined || e > endNs) endNs = e;
+      if (startNs == undefined || s < startNs) {
+        startNs = s;
+      }
+      if (endNs == undefined || e > endNs) {
+        endNs = e;
+      }
     }
     const start = startNs != undefined ? fromNanoSec(startNs) : { sec: 0, nsec: 0 };
     const end = endNs != undefined ? fromNanoSec(endNs) : { sec: 0, nsec: 0 };
@@ -256,7 +278,9 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
   // one in-flight open. Returns the resolved ShardChild.
   async #ensureOpen(shard: ShardEntry): Promise<ShardChild> {
     const cached = this.#openChildren.get(shard.id);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
 
     let pending = this.#openPromises.get(shard.id);
     if (!pending) {
@@ -268,7 +292,11 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
         const url = new URL(shard.filename, this.#manifestUrl).toString();
         const readAhead = readAheadBytesForShard(shard);
         log.info(
-          `opening shard ${shard.id} (${shard.filename}, read-ahead ${(readAhead / 1024 / 1024).toFixed(1)} MiB)`,
+          `opening shard ${shard.id} (${shard.filename}, read-ahead ${(
+            readAhead /
+            1024 /
+            1024
+          ).toFixed(1)} MiB)`,
         );
         const readable = new CoalescingRemoteReadable(url, readAhead);
         await readable.open();
@@ -290,22 +318,30 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
   public async *messageIterator(
     args: Immutable<MessageIteratorArgs>,
   ): AsyncIterableIterator<Readonly<IteratorResult<Uint8Array>>> {
-    if (this.#activeShards.length === 0) return;
+    if (this.#activeShards.length === 0) {
+      return;
+    }
 
     const requestedTopics = new Map(args.topics);
-    if (requestedTopics.size === 0) return;
+    if (requestedTopics.size === 0) {
+      return;
+    }
 
     // Open any shards whose topic set overlaps the request, in parallel.
     const matchingShards = this.#activeShards.filter((shard) => {
       const shardTopics = manifestTopicSet(shard);
       for (const t of requestedTopics.keys()) {
-        if (shardTopics.has(t)) return true;
+        if (shardTopics.has(t)) {
+          return true;
+        }
       }
       return false;
     });
-    if (matchingShards.length === 0) return;
+    if (matchingShards.length === 0) {
+      return;
+    }
 
-    const children = await Promise.all(matchingShards.map((s) => this.#ensureOpen(s)));
+    const children = await Promise.all(matchingShards.map(async (s) => await this.#ensureOpen(s)));
 
     const iterators: AsyncIterator<Readonly<IteratorResult<Uint8Array>>>[] = [];
     for (const child of children) {
@@ -319,7 +355,9 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
           childSelection.set(topic, value);
         }
       }
-      if (childSelection.size === 0) continue;
+      if (childSelection.size === 0) {
+        continue;
+      }
       const childArgs: MessageIteratorArgs = {
         ...args,
         topics: childSelection as MessageIteratorArgs["topics"],
@@ -331,28 +369,38 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       );
     }
 
-    if (iterators.length === 0) return;
+    if (iterators.length === 0) {
+      return;
+    }
     yield* mergeShards<Uint8Array>(iterators);
   }
 
   public async getBackfillMessages(
     args: Immutable<GetBackfillMessagesArgs>,
   ): Promise<MessageEvent<Uint8Array>[]> {
-    if (this.#activeShards.length === 0) return [];
+    if (this.#activeShards.length === 0) {
+      return [];
+    }
 
     const requestedTopics = new Map(args.topics);
-    if (requestedTopics.size === 0) return [];
+    if (requestedTopics.size === 0) {
+      return [];
+    }
 
     const matchingShards = this.#activeShards.filter((shard) => {
       const shardTopics = manifestTopicSet(shard);
       for (const t of requestedTopics.keys()) {
-        if (shardTopics.has(t)) return true;
+        if (shardTopics.has(t)) {
+          return true;
+        }
       }
       return false;
     });
-    if (matchingShards.length === 0) return [];
+    if (matchingShards.length === 0) {
+      return [];
+    }
 
-    const children = await Promise.all(matchingShards.map((s) => this.#ensureOpen(s)));
+    const children = await Promise.all(matchingShards.map(async (s) => await this.#ensureOpen(s)));
 
     const out: MessageEvent<Uint8Array>[] = [];
     for (const child of children) {
@@ -363,12 +411,16 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
           childSelection.set(topic, value);
         }
       }
-      if (childSelection.size === 0) continue;
+      if (childSelection.size === 0) {
+        continue;
+      }
       const childMsgs = await child.source.getBackfillMessages({
         ...args,
         topics: childSelection as GetBackfillMessagesArgs["topics"],
       });
-      for (const m of childMsgs) out.push(m);
+      for (const m of childMsgs) {
+        out.push(m);
+      }
     }
     out.sort((a, b) => compare(a.receiveTime, b.receiveTime));
     return out;

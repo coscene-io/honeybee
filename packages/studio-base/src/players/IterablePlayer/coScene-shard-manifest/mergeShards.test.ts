@@ -1,5 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Time } from "@foxglove/rostime";
 import { IteratorResult } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
@@ -45,7 +49,10 @@ describe("mergeShards", () => {
     const c = fromArray([msg(t(3)), msg(t(6)), msg(t(9))]);
     const out = await collect(mergeShards([a, b, c]));
     const times = out
-      .filter((r): r is IteratorResult<Uint8Array> & { type: "message-event" } => r.type === "message-event")
+      .filter(
+        (r): r is IteratorResult<Uint8Array> & { type: "message-event" } =>
+          r.type === "message-event",
+      )
       .map((r) => r.msgEvent.receiveTime.sec);
     expect(times).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
@@ -53,7 +60,9 @@ describe("mergeShards", () => {
   it("returns identical sequence for a single iterator", async () => {
     const a = fromArray([msg(t(1)), msg(t(2)), msg(t(3))]);
     const out = await collect(mergeShards([a]));
-    expect(out.map((r) => r.type === "message-event" ? r.msgEvent.receiveTime.sec : 0)).toEqual([1, 2, 3]);
+    expect(out.map((r) => (r.type === "message-event" ? r.msgEvent.receiveTime.sec : 0))).toEqual([
+      1, 2, 3,
+    ]);
   });
 
   it("returns empty for zero iterators without throwing", async () => {
@@ -66,7 +75,10 @@ describe("mergeShards", () => {
     const b = fromArray([msg(t(1), "/b"), msg(t(2), "/b")]);
     const out = await collect(mergeShards([a, b]));
     const tags = out
-      .filter((r): r is IteratorResult<Uint8Array> & { type: "message-event" } => r.type === "message-event")
+      .filter(
+        (r): r is IteratorResult<Uint8Array> & { type: "message-event" } =>
+          r.type === "message-event",
+      )
       .map((r) => r.msgEvent.topic);
     // Tie at sec=1 → iterator a wins (lower index); same at sec=2.
     expect(tags).toEqual(["/a", "/b", "/a", "/b"]);
@@ -77,7 +89,10 @@ describe("mergeShards", () => {
     const b = fromArray([msg(t(2)), msg(t(3)), msg(t(4))]);
     const out = await collect(mergeShards([a, b]));
     const times = out
-      .filter((r): r is IteratorResult<Uint8Array> & { type: "message-event" } => r.type === "message-event")
+      .filter(
+        (r): r is IteratorResult<Uint8Array> & { type: "message-event" } =>
+          r.type === "message-event",
+      )
       .map((r) => r.msgEvent.receiveTime.sec);
     expect(times).toEqual([1, 2, 3, 4]);
   });
@@ -111,7 +126,7 @@ describe("mergeShards", () => {
     const ctrl = new AbortController();
     async function* infinite(): AsyncIterableIterator<IteratorResult<Uint8Array>> {
       let n = 0;
-      while (true) {
+      for (;;) {
         yield msg(t(n++));
         await Promise.resolve();
       }

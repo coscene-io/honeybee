@@ -1,5 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { compare, Time } from "@foxglove/rostime";
 import { IteratorResult } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
@@ -15,16 +19,22 @@ import { IteratorResult } from "@foxglove/studio-base/players/IterablePlayer/IIt
 // On AbortSignal, all iterators are explicitly returned/closed and the
 // generator finishes.
 
+const EXHAUSTED = Symbol("exhausted");
+
 type IteratorEntry<T> = {
   index: number;
   iterator: AsyncIterator<Readonly<IteratorResult<T>>>;
-  // Buffered next result. Undefined = no value loaded yet, null = exhausted.
-  buffered: Readonly<IteratorResult<T>> | null | undefined;
+  // Buffered next result. undefined = no value loaded yet, EXHAUSTED = done.
+  buffered: Readonly<IteratorResult<T>> | typeof EXHAUSTED | undefined;
 };
 
 function timeOf<T>(result: IteratorResult<T>): Time | undefined {
-  if (result.type === "message-event") return result.msgEvent.receiveTime;
-  if (result.type === "stamp") return result.stamp;
+  if (result.type === "message-event") {
+    return result.msgEvent.receiveTime;
+  }
+  if (result.type === "stamp") {
+    return result.stamp;
+  }
   return undefined;
 }
 
@@ -43,32 +53,37 @@ export async function* mergeShards<T>(
   }));
 
   const advance = async (entry: IteratorEntry<T>): Promise<void> => {
-    while (true) {
-      const next = await entry.iterator.next();
-      if (next.done) {
-        entry.buffered = null;
-        return;
-      }
-      // Always queue problem results immediately — they get yielded out-of-band.
-      entry.buffered = next.value;
+    const next = await entry.iterator.next();
+    if (next.done === true) {
+      entry.buffered = EXHAUSTED;
       return;
     }
+    // Always queue problem results immediately — they get yielded out-of-band.
+    entry.buffered = next.value;
   };
 
   try {
     // Prime all entries.
     for (const entry of entries) {
-      if (abortSignal?.aborted) return;
+      if (abortSignal?.aborted === true) {
+        return;
+      }
       await advance(entry);
     }
 
-    while (true) {
-      if (abortSignal?.aborted) return;
+    for (;;) {
+      if (abortSignal?.aborted === true) {
+        return;
+      }
 
       // Drain any buffered "problem" results first — they have no logTime.
       let drainedProblem = false;
       for (const entry of entries) {
-        if (entry.buffered != null && entry.buffered.type === "problem") {
+        if (
+          entry.buffered != undefined &&
+          entry.buffered !== EXHAUSTED &&
+          entry.buffered.type === "problem"
+        ) {
           yield entry.buffered;
           await advance(entry);
           drainedProblem = true;
@@ -83,9 +98,14 @@ export async function* mergeShards<T>(
       let bestTime: Time | undefined;
       for (let i = 0; i < entries.length; i++) {
         const e = entries[i];
-        if (!e || e.buffered == null) continue;
+        if (e?.buffered == undefined || e.buffered === EXHAUSTED) {
+          continue;
+        }
         const t = timeOf(e.buffered);
-        if (t == undefined) continue; // shouldn't happen — problems drained above
+        if (t == undefined) {
+          // shouldn't happen — problems drained above
+          continue;
+        }
         if (bestTime == undefined || compare(t, bestTime) < 0) {
           bestIdx = i;
           bestTime = t;
@@ -96,6 +116,9 @@ export async function* mergeShards<T>(
       }
       const winner = entries[bestIdx]!;
       const value = winner.buffered!;
+      if (value === EXHAUSTED) {
+        return;
+      }
       yield value;
       await advance(winner);
     }

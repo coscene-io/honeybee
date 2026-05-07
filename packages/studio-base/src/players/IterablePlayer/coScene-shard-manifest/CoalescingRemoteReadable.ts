@@ -1,5 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { McapTypes } from "@mcap/core";
 
@@ -19,7 +23,7 @@ export class CoalescingRemoteReadable implements McapTypes.IReadable {
   #bare: BareRemoteReadable;
   #readAhead: bigint;
   #fileSize?: bigint;
-  #window?: { offset: bigint; end: bigint; data: Uint8Array };
+  #cachedRange?: { offset: bigint; end: bigint; data: Uint8Array };
 
   public constructor(url: string, readAheadBytes: number) {
     this.#bare = new BareRemoteReadable(url);
@@ -39,12 +43,14 @@ export class CoalescingRemoteReadable implements McapTypes.IReadable {
   }
 
   public async read(offset: bigint, size: bigint): Promise<Uint8Array> {
-    if (size === 0n) return new Uint8Array();
+    if (size === 0n) {
+      return new Uint8Array();
+    }
     if (offset < 0n || size < 0n) {
       throw new Error(`CoalescingRemoteReadable.read invalid input ${offset} ${size}`);
     }
 
-    const win = this.#window;
+    const win = this.#cachedRange;
     if (win && offset >= win.offset && offset + size <= win.end) {
       const start = Number(offset - win.offset);
       return win.data.subarray(start, start + Number(size));
@@ -64,7 +70,7 @@ export class CoalescingRemoteReadable implements McapTypes.IReadable {
     const fetchSize = requested < remaining ? requested : remaining;
 
     const data = await this.#bare.read(offset, fetchSize);
-    this.#window = { offset, end: offset + fetchSize, data };
+    this.#cachedRange = { offset, end: offset + fetchSize, data };
     return data.subarray(0, Number(size));
   }
 }

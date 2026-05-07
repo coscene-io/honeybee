@@ -1,5 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { McapTypes } from "@mcap/core";
 
@@ -25,15 +29,15 @@ export class BareRemoteReadable implements McapTypes.IReadable {
   }
 
   public async open(): Promise<void> {
-    if (this.#size != undefined) return;
+    if (this.#size != undefined) {
+      return;
+    }
     const resp = await fetch(this.#url, { method: "HEAD" });
     if (!resp.ok) {
-      throw new Error(
-        `HEAD ${this.#url} failed: ${resp.status} ${resp.statusText}`,
-      );
+      throw new Error(`HEAD ${this.#url} failed: ${resp.status} ${resp.statusText}`);
     }
     const len = resp.headers.get("content-length");
-    if (len == null) {
+    if (len == undefined) {
       throw new Error(`HEAD ${this.#url} missing Content-Length header`);
     }
     const parsed = Number(len);
@@ -51,7 +55,9 @@ export class BareRemoteReadable implements McapTypes.IReadable {
   }
 
   public async read(offset: bigint, size: bigint): Promise<Uint8Array> {
-    if (size === 0n) return new Uint8Array();
+    if (size === 0n) {
+      return new Uint8Array();
+    }
     if (offset < 0n || size < 0n) {
       throw new Error(`BareRemoteReadable.read invalid input ${offset} ${size}`);
     }

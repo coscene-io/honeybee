@@ -1,5 +1,9 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // Playback manifest schema. Permissive about future fields (e.g., pointcloud
 // profiles); the parser only enforces what we need today.
@@ -53,7 +57,7 @@ export type Manifest = {
 };
 
 function isObject(x: unknown): x is Record<string, unknown> {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
+  return typeof x === "object" && x != undefined && !Array.isArray(x);
 }
 
 function asString(x: unknown, path: string): string {

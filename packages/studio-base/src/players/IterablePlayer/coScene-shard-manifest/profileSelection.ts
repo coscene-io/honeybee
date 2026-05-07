@@ -1,14 +1,22 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Manifest, ShardEntry } from "./manifest";
 
 // For an encoded shard the topic ends with "/h264"; the source topic key strips
 // that suffix so the encoded variants and the full-resolution shard share a key.
 function sourceTopicKey(shard: ShardEntry): string | undefined {
-  if (shard.kind !== "topic") return undefined;
+  if (shard.kind !== "topic") {
+    return undefined;
+  }
   const t = shard.topic;
-  if (!t) return undefined;
+  if (!t) {
+    return undefined;
+  }
   return t.endsWith("/h264") ? t.slice(0, -"/h264".length) : t;
 }
 
@@ -47,7 +55,8 @@ export function selectActiveShards(
   // highest-resolution video profile per group.
   const heightByProfileId = new Map<string, number>();
   for (const p of manifest.profiles) {
-    const h = (p.params as { h?: number; height?: number } | undefined)?.h ??
+    const h =
+      (p.params as { h?: number; height?: number } | undefined)?.h ??
       (p.params as { height?: number } | undefined)?.height ??
       0;
     heightByProfileId.set(p.id, h);
@@ -116,6 +125,3 @@ export function selectActiveShards(
 
   return { shards: selected, selectedProfileByTopic };
 }
-
-// Exposed for tests.
-export const __forTesting = { sourceTopicKey };

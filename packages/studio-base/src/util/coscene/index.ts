@@ -28,7 +28,9 @@ const authBridge = (global as { authBridge?: Auth }).authBridge;
 // cloud-auth bootstrap redirect to /login that would otherwise fire when the
 // platform-bff calls 401 on an empty / placeholder JWT.
 export function isAuthlessDataSource(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") {
+    return false;
+  }
   try {
     const ds = new URL(window.location.href).searchParams.get("ds");
     return ds === "shard-manifest";
