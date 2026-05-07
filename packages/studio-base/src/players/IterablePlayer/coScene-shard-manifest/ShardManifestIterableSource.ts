@@ -147,7 +147,7 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       topics: Array.from(topicsByName.values()),
       datatypes,
       profile: undefined,
-      name: this.#manifest.sourceFile.name,
+      name: this.#manifest.sourceFiles.map((s) => s.name).join(", "),
       problems,
       publishersByTopic,
       topicStats,

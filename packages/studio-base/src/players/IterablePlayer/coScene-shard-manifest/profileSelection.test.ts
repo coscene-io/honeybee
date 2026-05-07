@@ -18,12 +18,14 @@ function shard(partial: Partial<ShardEntry> & Pick<ShardEntry, "id" | "kind">): 
 function manifest(shards: ShardEntry[]): Manifest {
   return {
     version: 1,
-    sourceFile: {
-      name: "x",
-      sha256: "0".repeat(64),
-      sizeBytes: 0,
-      timeRange: { startNs: "0", endNs: "0" },
-    },
+    sourceFiles: [
+      {
+        name: "x",
+        sha256: "0".repeat(64),
+        sizeBytes: 0,
+        timeRange: { startNs: "0", endNs: "0" },
+      },
+    ],
     profiles: [
       { id: "full", modality: "video", label: "full" },
       { id: "480p10", modality: "video", label: "480p", params: { h: 480, fps: 10 } },
@@ -159,5 +161,94 @@ describe("selectActiveShards", () => {
     ]);
     const result = selectActiveShards(m, undefined);
     expect(result.shards.map((s) => s.id)).toEqual(["tail"]);
+  });
+
+  // Record-level (multi-input) cases: every input file contributes a shard
+  // per (topic, profile), all of which need to be selected together so the
+  // k-way merge can interleave them by logTime.
+  it("includes every tail shard from a multi-input record", () => {
+    const m = manifest([
+      shard({ id: "bag-0/tail", kind: "tail" }),
+      shard({ id: "bag-1/tail", kind: "tail" }),
+    ]);
+    const result = selectActiveShards(m, undefined);
+    expect(result.shards.map((s) => s.id).sort()).toEqual(["bag-0/tail", "bag-1/tail"]);
+  });
+
+  it("selects ALL shards at the chosen profile across input files", () => {
+    const m = manifest([
+      shard({ id: "bag-0/tail", kind: "tail" }),
+      shard({ id: "bag-1/tail", kind: "tail" }),
+      shard({
+        id: "bag-0/cam_a-480p10",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "480p10",
+      }),
+      shard({
+        id: "bag-0/cam_a-720p15",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "720p15",
+      }),
+      shard({
+        id: "bag-1/cam_a-480p10",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "480p10",
+      }),
+      shard({
+        id: "bag-1/cam_a-720p15",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "720p15",
+      }),
+    ]);
+    const result = selectActiveShards(m, "480p10");
+    expect(result.shards.map((s) => s.id).sort()).toEqual([
+      "bag-0/cam_a-480p10",
+      "bag-0/tail",
+      "bag-1/cam_a-480p10",
+      "bag-1/tail",
+    ]);
+    expect(result.selectedProfileByTopic.get("/cam_a/img")).toBe("480p10");
+  });
+
+  it("default mode picks lowest-quality variant once, then includes it from every file", () => {
+    const m = manifest([
+      shard({ id: "bag-0/tail", kind: "tail" }),
+      shard({ id: "bag-1/tail", kind: "tail" }),
+      shard({
+        id: "bag-0/cam_a-480p10",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "480p10",
+      }),
+      shard({
+        id: "bag-0/cam_a-720p15",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "720p15",
+      }),
+      shard({
+        id: "bag-1/cam_a-480p10",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "480p10",
+      }),
+      shard({
+        id: "bag-1/cam_a-720p15",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "720p15",
+      }),
+    ]);
+    const result = selectActiveShards(m, undefined);
+    expect(result.shards.map((s) => s.id).sort()).toEqual([
+      "bag-0/cam_a-480p10",
+      "bag-0/tail",
+      "bag-1/cam_a-480p10",
+      "bag-1/tail",
+    ]);
   });
 });

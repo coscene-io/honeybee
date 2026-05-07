@@ -36,14 +36,18 @@ export type ShardEntry = {
   messageCount?: number;
 };
 
+export type SourceFileInfo = {
+  name: string;
+  sha256: string;
+  sizeBytes: number;
+  timeRange: TimeRange;
+};
+
 export type Manifest = {
   version: number;
-  sourceFile: {
-    name: string;
-    sha256: string;
-    sizeBytes: number;
-    timeRange: TimeRange;
-  };
+  // One entry per input MCAP. Single-file manifests have length 1; record-level
+  // manifests for multi-input recordings have length N.
+  sourceFiles: SourceFileInfo[];
   profiles: Profile[];
   shards: ShardEntry[];
 };
@@ -84,16 +88,21 @@ export function parseManifest(raw: unknown): Manifest {
     throw new Error(`unsupported manifest version: ${String(raw.version)}`);
   }
 
-  const sourceFileRaw = raw.sourceFile;
-  if (!isObject(sourceFileRaw)) {
-    throw new Error("manifest.sourceFile is not an object");
+  const sourceFilesRaw = raw.sourceFiles;
+  if (!Array.isArray(sourceFilesRaw) || sourceFilesRaw.length === 0) {
+    throw new Error("manifest.sourceFiles is not a non-empty array");
   }
-  const sourceFile = {
-    name: asString(sourceFileRaw.name, "sourceFile.name"),
-    sha256: asString(sourceFileRaw.sha256, "sourceFile.sha256"),
-    sizeBytes: asNumber(sourceFileRaw.sizeBytes, "sourceFile.sizeBytes"),
-    timeRange: asTimeRange(sourceFileRaw.timeRange, "sourceFile.timeRange"),
-  };
+  const sourceFiles: SourceFileInfo[] = sourceFilesRaw.map((s, i) => {
+    if (!isObject(s)) {
+      throw new Error(`manifest.sourceFiles[${i}] is not an object`);
+    }
+    return {
+      name: asString(s.name, `sourceFiles[${i}].name`),
+      sha256: asString(s.sha256, `sourceFiles[${i}].sha256`),
+      sizeBytes: asNumber(s.sizeBytes, `sourceFiles[${i}].sizeBytes`),
+      timeRange: asTimeRange(s.timeRange, `sourceFiles[${i}].timeRange`),
+    };
+  });
 
   const profilesRaw = raw.profiles;
   if (!Array.isArray(profilesRaw)) {
@@ -154,7 +163,7 @@ export function parseManifest(raw: unknown): Manifest {
 
   return {
     version: 1,
-    sourceFile,
+    sourceFiles,
     profiles,
     shards,
   };

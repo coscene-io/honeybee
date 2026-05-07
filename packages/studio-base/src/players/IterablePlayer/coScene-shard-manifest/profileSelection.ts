@@ -77,9 +77,16 @@ export function selectActiveShards(
   const selectedProfileByTopic = new Map<string, string>();
 
   for (const [topic, bucket] of groups) {
-    let chosen: ShardEntry | undefined;
+    // First decide WHICH profile id to use for this group, then include every
+    // shard in the group with that profile. Multi-input records have one
+    // shard per (input file, topic, profile), so the group can have multiple
+    // shards we want to interleave; the existing k-way merge handles ordering.
+    let chosenProfile: string | undefined;
     if (preferredProfile) {
-      chosen = bucket.find((s) => s.profile === preferredProfile);
+      const hasMatch = bucket.some((s) => s.profile === preferredProfile);
+      if (hasMatch) {
+        chosenProfile = preferredProfile;
+      }
       // No fallback — the group is excluded if it lacks the requested profile.
     } else {
       // Default low-bandwidth mode: lowest-quality video variant only.
@@ -93,11 +100,15 @@ export function selectActiveShards(
             (heightByProfileId.get(a.profile!) ?? Number.MAX_SAFE_INTEGER) -
             (heightByProfileId.get(b.profile!) ?? Number.MAX_SAFE_INTEGER),
         );
-      chosen = videoVariants[0];
+      chosenProfile = videoVariants[0]?.profile;
     }
-    if (chosen) {
-      selected.push(chosen);
-      selectedProfileByTopic.set(topic, chosen.profile ?? "<none>");
+    if (chosenProfile != undefined) {
+      for (const s of bucket) {
+        if (s.profile === chosenProfile) {
+          selected.push(s);
+        }
+      }
+      selectedProfileByTopic.set(topic, chosenProfile);
     }
   }
 
