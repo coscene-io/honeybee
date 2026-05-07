@@ -154,6 +154,33 @@ describe("selectActiveShards", () => {
     expect(result.shards.map((s) => s.id)).toEqual(["only-720p15"]);
   });
 
+  it("excludes `raw` shards from default mode (non-image passthrough only on opt-in)", () => {
+    const m = manifest([
+      shard({ id: "tail", kind: "tail" }),
+      shard({ id: "lidar-raw", kind: "topic", topic: "/lidar/points", profile: "raw" }),
+    ]);
+    const result = selectActiveShards(m, undefined);
+    // Raw passthrough is heavy; default mode keeps just the tail.
+    expect(result.shards.map((s) => s.id)).toEqual(["tail"]);
+  });
+
+  it("explicit `raw` profile loads non-image passthrough shards", () => {
+    const m = manifest([
+      shard({ id: "tail", kind: "tail" }),
+      shard({ id: "lidar-raw", kind: "topic", topic: "/lidar/points", profile: "raw" }),
+      shard({
+        id: "cam_a-480p10",
+        kind: "topic",
+        topic: "/cam_a/img/h264",
+        profile: "480p10",
+      }),
+    ]);
+    const result = selectActiveShards(m, "raw");
+    // Image groups have no `raw` variant → excluded; lidar group matches → included.
+    expect(result.shards.map((s) => s.id).sort()).toEqual(["lidar-raw", "tail"]);
+    expect(result.selectedProfileByTopic.get("/lidar/points")).toBe("raw");
+  });
+
   it("ignores `topic`-kind shards with no `topic` field", () => {
     const m = manifest([
       shard({ id: "tail", kind: "tail" }),

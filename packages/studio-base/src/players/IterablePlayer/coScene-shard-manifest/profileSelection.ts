@@ -90,11 +90,13 @@ export function selectActiveShards(
       // No fallback — the group is excluded if it lacks the requested profile.
     } else {
       // Default low-bandwidth mode: lowest-quality video variant only.
-      // `full` (raw passthrough — possibly hundreds of MB) is never picked
-      // by default; users opt in explicitly with `?ds.profile=full`. Groups
-      // with no video variant (depth, pointcloud, telemetry) are excluded.
+      // Raw passthrough variants (`full` = legacy raw-image, `raw` = raw
+      // non-image like pointclouds — both potentially hundreds of MB) are
+      // never picked by default; users opt in explicitly with
+      // `?ds.profile=full` or `?ds.profile=raw`. Groups with no video variant
+      // (depth, pointcloud, telemetry) are excluded.
       const videoVariants = bucket
-        .filter((s) => s.profile && s.profile !== "full")
+        .filter((s) => s.profile && s.profile !== "full" && s.profile !== "raw")
         .sort(
           (a, b) =>
             (heightByProfileId.get(a.profile!) ?? Number.MAX_SAFE_INTEGER) -
