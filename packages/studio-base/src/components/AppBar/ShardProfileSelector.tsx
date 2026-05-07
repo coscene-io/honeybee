@@ -5,13 +5,13 @@ import { Select, MenuItem, FormControl } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Small AppBar control that lets the user switch the active shard-manifest
-// profile without restarting the dev server. Visible only when the current
-// data source is the `shard-manifest` PoC source.
+// profile without reloading manually. Visible only when the current data
+// source is the `shard-manifest` source.
 //
 // The profile catalog is read from the manifest at runtime. The component
-// fetches the manifest URL itself (small JSON, presigned, browser-cacheable)
-// and shows whichever non-`full` profiles the C++ sharder emitted. Switching
-// rewrites `ds.profile=<id>` in the URL and reloads so the IterableSource
+// fetches the manifest URL itself (small JSON, browser-cacheable) and shows
+// whichever non-`full` profiles the sharder emitted. Switching rewrites
+// `ds.profile=<id>` in the URL and reloads so the IterableSource
 // re-initializes with the new selection.
 
 type ProfileOption = { value: string; label: string };

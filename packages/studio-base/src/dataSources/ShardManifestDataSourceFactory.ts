@@ -12,20 +12,21 @@ import {
 import { Player } from "@foxglove/studio-base/players/types";
 
 // Loads playback shards directly from object storage (bypassing
-// honeybee-server-pro) using a presigned manifest URL. The manifest enumerates
-// per-modality shards and their presigned shard URLs. Honeybee opens an
-// indexed reader per active shard and merges by `logTime` in the worker.
+// honeybee-server-pro) using a manifest URL. The manifest enumerates
+// per-modality shards by relative path. Honeybee opens an indexed reader
+// per active shard and merges by `logTime` in the worker.
 //
 // URL pattern:
-//   ?ds=shard-manifest&url=<presigned-manifest-url>
-//   ?ds=shard-manifest&url=...&profile=480p10
+//   ?ds=shard-manifest&ds.url=<manifest-url>
+//   ?ds=shard-manifest&ds.url=...&ds.profile=480p10
 class ShardManifestDataSourceFactory implements IDataSourceFactory {
   public id = "shard-manifest";
   public type: IDataSourceFactory["type"] = "connection";
-  public displayName = "Shard manifest (PoC)";
+  public displayName = "Shard manifest";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
-  public hidden = true; // PoC: hidden from the open-dialog UI
-  public description = "Direct-from-OSS playback via presigned manifest (PoC).";
+  // Hidden from the open-dialog UI; entered exclusively via URL.
+  public hidden = true;
+  public description = "Direct-from-Object-Storage playback via manifest.";
 
   public formConfig = {
     fields: [
