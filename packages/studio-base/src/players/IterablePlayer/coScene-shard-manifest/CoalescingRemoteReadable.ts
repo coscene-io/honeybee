@@ -25,6 +25,24 @@ import type { McapTypes } from "@mcap/core";
 // One active window per instance: a backwards seek or a jump beyond the
 // current window aborts the in-flight fetch and starts a new one. Memory
 // cost is bounded by readAheadBytes per open shard.
+//
+// KNOWN ISSUE — seek latency under HTTP/1.1 connection limits:
+//   When a seek invalidates the active window, we abort() the in-flight
+//   stream and issue a new range request for the new offset. Browsers
+//   limit concurrent connections per origin (typically 6 for HTTP/1.1, far
+//   higher for HTTP/2), and aborting one connection doesn't always free a
+//   slot synchronously — the browser may keep the socket in a half-closed
+//   state until TCP cleanup completes. As a result, on backends served
+//   over HTTP/1.1 a fast scrub through the timeline can stall briefly
+//   waiting for the previous fetch's slot to be released before the new
+//   range request begins. HTTP/2 backends don't have this problem because
+//   all streams share one socket and RST_STREAM frees the slot
+//   immediately. Future fix candidates: (1) keep the previous window's
+//   already-downloaded bytes around as a small ring of past windows
+//   instead of discarding them on abort, (2) issue the new fetch from a
+//   different fetch queue / Worker, (3) skip abort when the queue is
+//   nearly full and let the previous fetch finish in the background.
+//   Tracked for follow-up; not blocking PoC.
 
 type ActiveFetch = {
   offset: bigint;
