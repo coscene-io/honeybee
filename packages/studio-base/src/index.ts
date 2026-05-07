@@ -55,6 +55,7 @@ export type {
   LayoutHistory,
 } from "./services/CoSceneILayoutStorage";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
+export { default as ShardManifestDataSourceFactory } from "./dataSources/ShardManifestDataSourceFactory";
 export { default as ConsoleApi } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 export type { LayoutID } from "./context/CurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";

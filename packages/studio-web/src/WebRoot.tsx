@@ -11,6 +11,7 @@ import {
   IDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
   FoxgloveWebSocketDataSourceFactory,
+  ShardManifestDataSourceFactory,
   SharedRoot,
   AppBarProps,
   AppSetting,
@@ -57,6 +58,7 @@ export function WebRoot(props: {
     const sources = [
       new CoSceneDataPlatformDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory(),
+      new ShardManifestDataSourceFactory(),
       new PersistentCacheDataSourceFactory(),
     ];
 
