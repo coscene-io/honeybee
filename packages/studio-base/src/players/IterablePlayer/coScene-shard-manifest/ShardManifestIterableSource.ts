@@ -298,7 +298,7 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
             1024
           ).toFixed(1)} MiB)`,
         );
-        const readable = new CoalescingRemoteReadable(url, readAhead);
+        const readable = new CoalescingRemoteReadable(url, readAhead, shard.sizeBytes);
         await readable.open();
         const reader = await McapIndexedReader.Initialize({
           readable,

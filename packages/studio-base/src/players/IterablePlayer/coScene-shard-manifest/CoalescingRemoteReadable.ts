@@ -58,38 +58,24 @@ type ActiveFetch = {
 export class CoalescingRemoteReadable implements McapTypes.IReadable {
   #url: string;
   #readAhead: bigint;
-  #fileSize?: bigint;
+  #fileSize: bigint;
   #active?: ActiveFetch;
 
-  public constructor(url: string, readAheadBytes: number) {
+  public constructor(url: string, readAheadBytes: number, fileSizeBytes: number) {
+    if (!Number.isFinite(fileSizeBytes) || fileSizeBytes < 0) {
+      throw new Error(`CoalescingRemoteReadable invalid file size: ${fileSizeBytes}`);
+    }
     this.#url = url;
     this.#readAhead = BigInt(Math.max(0, Math.floor(readAheadBytes)));
+    this.#fileSize = BigInt(Math.floor(fileSizeBytes));
   }
 
   public async open(): Promise<void> {
-    if (this.#fileSize != undefined) {
-      return;
-    }
-    const resp = await fetch(this.#url, { method: "HEAD" });
-    if (!resp.ok) {
-      throw new Error(`HEAD ${this.#url} failed: ${resp.status} ${resp.statusText}`);
-    }
-    const len = resp.headers.get("content-length");
-    if (len == undefined) {
-      throw new Error(`HEAD ${this.#url} missing Content-Length header`);
-    }
-    const parsed = Number(len);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      throw new Error(`HEAD ${this.#url} invalid Content-Length: ${len}`);
-    }
-    this.#fileSize = BigInt(parsed);
+    return;
   }
 
   public async size(): Promise<bigint> {
-    if (this.#fileSize == undefined) {
-      await this.open();
-    }
-    return this.#fileSize!;
+    return this.#fileSize;
   }
 
   public async read(offset: bigint, size: bigint): Promise<Uint8Array> {
