@@ -15,10 +15,52 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  IterablePlayer,
+  WorkerIterableSource,
+  WorkerSerializedIterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+const RAW_PROFILE = "raw";
+const SHARD_MODE_PARAM = "shardMode";
+const SHARD_MODE_MANIFEST = "manifest";
+const SHARD_MODE_RAW = "raw";
+const MANIFEST_URL_PARAM = "manifestUrl";
+
+function definedUrlParams(params?: Record<string, string | undefined>): Record<string, string> {
+  const definedParams: Record<string, string> = {};
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value != undefined) {
+        definedParams[key] = value;
+      }
+    }
+  }
+  return definedParams;
+}
+
+function buildManifestUrl(
+  objectStorageBaseUrl: string,
+  projectId: string,
+  recordId: string,
+): string {
+  return `${objectStorageBaseUrl.replace(
+    /\/+$/,
+    "",
+  )}/projects/${projectId}/records/${recordId}/manifest.json`;
+}
+
+async function manifestExists(manifestUrl: string): Promise<boolean> {
+  try {
+    const response = await fetch(manifestUrl, { method: "HEAD" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
@@ -71,13 +113,46 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     ],
   };
 
-  public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
+  public async initialize(args: DataSourceFactoryInitializeArgs): Promise<Player | undefined> {
+    const consoleApi = args.consoleApi;
+
+    if (!consoleApi) {
+      console.error("coscene-data-platform initialize: consoleApi is undefined");
+      return;
+    }
+
+    const objectStorageBaseUrl = getAppConfig().OBJECT_STORAGE_BASE_URL;
+    const { projectId, recordId } = consoleApi.getApiBaseInfo();
+    if (!objectStorageBaseUrl || !projectId || !recordId) {
+      return this.#createDataPlatformPlayer(args);
+    }
+
+    const manifestUrl = buildManifestUrl(objectStorageBaseUrl, projectId, recordId);
+    if (args.params?.profile === RAW_PROFILE) {
+      return this.#createDataPlatformPlayer(args, manifestUrl);
+    }
+
+    if (await manifestExists(manifestUrl)) {
+      return this.#createShardManifestPlayer(args, manifestUrl);
+    }
+
+    return this.#createDataPlatformPlayer(args);
+  }
+
+  #createDataPlatformPlayer(
+    args: DataSourceFactoryInitializeArgs,
+    manifestUrl?: string,
+  ): Player | undefined {
     const consoleApi = args.consoleApi;
     const requestWindow = args.requestWindow ?? getRequestWindowDefaultTime();
     const readAheadDuration = args.readAheadDuration ?? getReadAheadDurationDefaultTime();
 
     if (!consoleApi) {
       console.error("coscene-data-platform initialize: consoleApi is undefined");
+      return;
+    }
+
+    if (args.checkOutboundTrafficEntitlement?.() === false) {
       return;
     }
 
@@ -107,21 +182,55 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       },
     });
 
-    const definedParams: Record<string, string> = {};
-    if (args.params) {
-      for (const [key, value] of Object.entries(args.params)) {
-        if (value != undefined) {
-          definedParams[key] = value;
-        }
-      }
+    const urlParams = definedUrlParams(args.params);
+    if (args.params?.profile === RAW_PROFILE && manifestUrl != undefined) {
+      urlParams[SHARD_MODE_PARAM] = SHARD_MODE_RAW;
+      urlParams[MANIFEST_URL_PARAM] = manifestUrl;
     }
 
     return new IterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
       sourceId: this.id,
-      urlParams: definedParams,
+      urlParams,
       readAheadDuration,
+    });
+  }
+
+  #createShardManifestPlayer(
+    args: DataSourceFactoryInitializeArgs,
+    manifestUrl: string,
+  ): Player | undefined {
+    const profile = args.params?.profile;
+    const params: Record<string, string> = { url: manifestUrl };
+    if (profile != undefined) {
+      params.profile = profile;
+    }
+
+    const source = new WorkerSerializedIterableSource({
+      initWorker: () => {
+        // foxglove-depcheck-used: babel-plugin-transform-import-meta
+        return new Worker(
+          new URL(
+            "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/ShardManifestIterableSource.worker",
+            import.meta.url,
+          ),
+        );
+      },
+      initArgs: { params },
+    });
+
+    return new IterablePlayer({
+      metricsCollector: args.metricsCollector,
+      source,
+      sourceId: this.id,
+      urlParams: {
+        ...definedUrlParams(args.params),
+        [SHARD_MODE_PARAM]: SHARD_MODE_MANIFEST,
+        [MANIFEST_URL_PARAM]: manifestUrl,
+      },
+      readAheadDuration: { sec: 10, nsec: 0 },
+      name: profile ? `Shard manifest (${profile})` : "Shard manifest",
     });
   }
 }

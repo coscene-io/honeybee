@@ -22,21 +22,8 @@ export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
-// Returns true when the current URL points at a data source that does not
-// need cosScene cloud auth (e.g. the shard-manifest PoC source which is
-// authenticated end-to-end via TOS presigned URLs). Used to suppress the
-// cloud-auth bootstrap redirect to /login that would otherwise fire when the
-// platform-bff calls 401 on an empty / placeholder JWT.
 export function isAuthlessDataSource(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  try {
-    const ds = new URL(window.location.href).searchParams.get("ds");
-    return ds === "shard-manifest";
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 // window.navigator.platform is not reliable, use this function to check os

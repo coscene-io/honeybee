@@ -33,4 +33,5 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   viewData: "データを見る",
   viewOurDocs: "ドキュメンテーションを見る",
   profile: undefined,
+  rawData: "Raw Data",
 };

@@ -249,8 +249,7 @@ export function DeepLinksSyncAdapter({
       return;
     }
 
-    // Authless data sources (e.g. shard-manifest PoC) are end-to-end
-    // authenticated via presigned URLs — bypass the login gate.
+    // Authless data sources bypass the login gate.
     const authless = isAuthlessDataSource();
 
     // 特殊情况：用户未登录但试图访问需要登录的数据源

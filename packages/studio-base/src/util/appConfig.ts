@@ -55,6 +55,7 @@ declare global {
       OFFICIAL_WEB_URL?: string;
       COORDINATOR_URL?: string;
       S3_REGION?: string;
+      OBJECT_STORAGE_BASE_URL?: string;
     };
     buildTime?: string;
   }
@@ -111,6 +112,10 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
     COORDINATOR_URL: cosConfig.COORDINATOR_URL ?? "https://coordinator.dev.coscene.cn",
 
     S3_REGION: cosConfig.S3_REGION ?? "cn-shanghai",
+
+    OBJECT_STORAGE_BASE_URL:
+      cosConfig.OBJECT_STORAGE_BASE_URL ??
+      "https://coscene-dev-honeybee-sh.tos-cn-shanghai.volces.com/",
   };
 
   if (

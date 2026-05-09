@@ -100,10 +100,6 @@ function useBeforeConnectionSource(): (
   const consoleApi = useConsoleApi();
   const setShowtUrlKey = useSetShowtUrlKey();
 
-  const [entitlement, entitlementDialog] = useEntitlementWithDialog(
-    PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC,
-  );
-
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string) => {
       consoleApi.setType("playback");
@@ -124,10 +120,6 @@ function useBeforeConnectionSource(): (
       switch (sourceId) {
         case "coscene-data-platform":
           consoleApi.setType("playback");
-          if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
-            entitlementDialog();
-            return false;
-          }
           if (!params.key) {
             throw new Error("coscene-data-platform params.key is required");
           }
@@ -149,7 +141,7 @@ function useBeforeConnectionSource(): (
 
       return true;
     },
-    [consoleApi, entitlement, syncBaseInfo, entitlementDialog],
+    [consoleApi, syncBaseInfo],
   );
 
   return beforeConnectionSource;
@@ -183,6 +175,9 @@ export default function PlayerManager(
 
   const beforeConnectionSource = useBeforeConnectionSource();
   const setCurrentFile = useUploadFiles(selectSetCurrentFile);
+  const [entitlement, entitlementDialog] = useEntitlementWithDialog(
+    PlanFeatureEnum_PlanFeature.OUTBOUND_TRAFFIC,
+  );
 
   const confirm = useConfirm();
 
@@ -351,7 +346,7 @@ export default function PlayerManager(
         setDataSource({ id: sourceId, type: "sample" });
         setCurrentSourceParams({ sourceId, args });
 
-        const newPlayer = foundSource.initialize({
+        const newPlayer = await foundSource.initialize({
           metricsCollector,
         });
 
@@ -388,7 +383,15 @@ export default function PlayerManager(
               return;
             }
 
-            const newPlayer = foundSource.initialize({
+            const checkOutboundTrafficEntitlement = () => {
+              if (entitlement != undefined && entitlement.usage > entitlement.maxQuota) {
+                entitlementDialog();
+                return false;
+              }
+              return true;
+            };
+
+            const newPlayer = await foundSource.initialize({
               metricsCollector,
               confirm,
               params: {
@@ -406,7 +409,13 @@ export default function PlayerManager(
                   ? { sec: positiveReadAheadDuration, nsec: 0 }
                   : undefined,
               autoConnectToLan,
+              checkOutboundTrafficEntitlement,
             });
+
+            if (!newPlayer) {
+              constructPlayers(undefined);
+              return;
+            }
 
             constructPlayers(newPlayer);
 
@@ -442,7 +451,7 @@ export default function PlayerManager(
               sessionId: dataSourceState.sessionId,
               previousRecentId: dataSourceState.recentId,
             });
-            const newPlayer = foundSource.initialize({
+            const newPlayer = await foundSource.initialize({
               metricsCollector,
               confirm,
               params: {
@@ -479,7 +488,7 @@ export default function PlayerManager(
 
               setCurrentFile(file);
 
-              const newPlayer = foundSource.initialize({
+              const newPlayer = await foundSource.initialize({
                 file: multiFile ? undefined : file,
                 files: multiFile ? fileList : undefined,
                 metricsCollector,
@@ -509,7 +518,7 @@ export default function PlayerManager(
 
               setCurrentFile(file);
 
-              const newPlayer = foundSource.initialize({
+              const newPlayer = await foundSource.initialize({
                 file,
                 metricsCollector,
               });
@@ -545,6 +554,8 @@ export default function PlayerManager(
       beforeConnectionSource,
       confirm,
       consoleApi,
+      entitlement,
+      entitlementDialog,
       retentionWindowMs,
       autoConnectToLan,
       addRecent,

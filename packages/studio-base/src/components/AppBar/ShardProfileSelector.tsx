@@ -7,17 +7,13 @@
 
 import { Select, MenuItem, FormControl } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-// Small AppBar control that lets the user switch the active shard-manifest
-// profile without reloading manually. Visible only when the current data
-// source is the `shard-manifest` source.
-//
-// The profile catalog is read from the manifest at runtime. The component
-// fetches the manifest URL itself (small JSON, browser-cacheable) and shows
-// whichever non-`full` profiles the sharder emitted. Switching rewrites
-// `ds.profile=<id>` in the URL and reloads so the IterableSource
-// re-initializes with the new selection.
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 
 type ProfileOption = { value: string; label: string };
 
@@ -33,6 +29,13 @@ interface MinimalManifest {
 }
 
 const DEFAULT_OPTION: ProfileOption = { value: "", label: "Default (lowest)" };
+const RAW_PROFILE = "raw";
+const SHARD_MODE_PARAM = "shardMode";
+const SHARD_MODE_MANIFEST = "manifest";
+const SHARD_MODE_RAW = "raw";
+const MANIFEST_URL_PARAM = "manifestUrl";
+
+const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
 const useStyles = makeStyles()(() => ({
   formControl: {
@@ -67,6 +70,8 @@ function profileHeight(p: ManifestProfile): number {
 
 export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   const { classes } = useStyles();
+  const { t } = useTranslation("appBar");
+  const urlState = useMessagePipeline(selectUrlState);
   const search = useMemo(() => {
     if (typeof window === "undefined") {
       return new URLSearchParams();
@@ -74,14 +79,22 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     return new URLSearchParams(window.location.search);
   }, []);
 
-  const isShardManifest = search.get("ds") === "shard-manifest";
-  const manifestUrl = search.get("ds.url") ?? "";
+  const isShardManifest =
+    urlState?.sourceId === "coscene-data-platform" &&
+    (urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_MANIFEST ||
+      urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_RAW);
+  const manifestUrl = urlState?.parameters?.[MANIFEST_URL_PARAM] ?? "";
   const currentProfile = search.get("ds.profile") ?? "";
+  const rawOption = useMemo<ProfileOption>(
+    () => ({ value: RAW_PROFILE, label: t("rawData") }),
+    [t],
+  );
 
   const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([DEFAULT_OPTION]);
 
   useEffect(() => {
     if (!isShardManifest || !manifestUrl) {
+      setProfileOptions([DEFAULT_OPTION]);
       return;
     }
     let cancelled = false;
@@ -110,6 +123,13 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     };
   }, [isShardManifest, manifestUrl]);
 
+  const options = useMemo(() => {
+    if (profileOptions.some((opt) => opt.value === RAW_PROFILE)) {
+      return profileOptions;
+    }
+    return [...profileOptions, rawOption];
+  }, [profileOptions, rawOption]);
+
   const onChange = useCallback((value: string) => {
     const next = new URLSearchParams(window.location.search);
     if (value !== "") {
@@ -134,7 +154,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
         className={classes.select}
         displayEmpty
       >
-        {profileOptions.map((opt) => (
+        {options.map((opt) => (
           <MenuItem key={opt.value} value={opt.value}>
             {opt.label}
           </MenuItem>
