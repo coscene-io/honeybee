@@ -22,6 +22,10 @@ export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
+export function isAuthlessDataSource(): boolean {
+  return false;
+}
+
 // window.navigator.platform is not reliable, use this function to check os
 export function getOS(): string | undefined {
   const userAgent = window.navigator.userAgent.toLowerCase(),
@@ -63,7 +67,7 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === Code.Unauthenticated) {
-      if (window.location.pathname !== "/login") {
+      if (window.location.pathname !== "/login" && !isAuthlessDataSource()) {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {

@@ -174,7 +174,12 @@ import {
   ExternalInitConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
-import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
+import {
+  getPromiseClient,
+  CosQuery,
+  SerializeOption,
+  isAuthlessDataSource,
+} from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
@@ -793,12 +798,14 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        if (!isDesktopApp()) {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
-        } else {
-          authBridge?.logout();
+        if (!isAuthlessDataSource()) {
+          if (!isDesktopApp()) {
+            window.location.href = `/login?redirectToPath=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`;
+          } else {
+            authBridge?.logout();
+          }
         }
       } else if (res.status === 403) {
         toast.error(t("unauthorized", { ns: "error" }));
