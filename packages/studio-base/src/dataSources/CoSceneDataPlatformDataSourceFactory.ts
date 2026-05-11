@@ -133,6 +133,8 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     }
 
     if (await manifestExists(manifestUrl)) {
+      // Manifest playback reads directly from object storage and is intentionally
+      // not subject to the OUTBOUND_TRAFFIC entitlement check for now.
       return this.#createShardManifestPlayer(args, manifestUrl);
     }
 
