@@ -113,9 +113,7 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
     S3_REGION: cosConfig.S3_REGION ?? "cn-shanghai",
 
-    OBJECT_STORAGE_BASE_URL:
-      cosConfig.OBJECT_STORAGE_BASE_URL ??
-      "https://coscene-dev-honeybee-sh.tos-cn-shanghai.volces.com/",
+    OBJECT_STORAGE_BASE_URL: cosConfig.OBJECT_STORAGE_BASE_URL ?? undefined,
   };
 
   if (

@@ -44,9 +44,10 @@ export type ActiveShardSet = {
 //        and groups without any encoded variant (depth, pointcloud) are
 //        excluded — heavy raw shards never get fetched by accident.
 //
-// To force the raw passthrough variant, pass `?ds.profile=full`. To force
+// To force the full-resolution variant, pass `?ds.profile=full`. To force
 // the highest video quality, pass `?ds.profile=720p15` (or whichever is
-// configured).
+// configured). Note: `?ds.profile=raw` is intercepted at the factory layer
+// and routes to the legacy data-platform player — it never reaches here.
 export function selectActiveShards(
   manifest: Manifest,
   preferredProfile: string | undefined,
@@ -101,9 +102,8 @@ export function selectActiveShards(
       // Default low-bandwidth mode: lowest-quality video variant only.
       // Raw passthrough variants (`full` = legacy raw-image, `raw` = raw
       // non-image like pointclouds — both potentially hundreds of MB) are
-      // never picked by default; users opt in explicitly with
-      // `?ds.profile=full` or `?ds.profile=raw`. Groups with no video variant
-      // (depth, pointcloud, telemetry) are excluded.
+      // never picked by default. Groups with no video variant (depth,
+      // pointcloud, telemetry) are excluded.
       const videoVariants = bucket
         .filter((s) => s.profile && s.profile !== "full" && s.profile !== "raw")
         .sort(
