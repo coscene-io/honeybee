@@ -80,6 +80,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const fieldConfigurationUrl = `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
+  const isSubmittingRef = useRef(false);
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
@@ -157,20 +158,25 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   };
 
   const onSubmit = async () => {
-    setIsLoading(true);
-    const isEventFormValid = await eventForm.trigger();
-    let isTaskFormValid = true;
-
-    if (enabledCreateNewTask) {
-      isTaskFormValid = await taskForm.trigger();
-    }
-
-    if (!isEventFormValid || !isTaskFormValid) {
-      setIsLoading(false);
+    if (isSubmittingRef.current) {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+
     try {
+      const isEventFormValid = await eventForm.trigger();
+      let isTaskFormValid = true;
+
+      if (enabledCreateNewTask) {
+        isTaskFormValid = await taskForm.trigger();
+      }
+
+      if (!isEventFormValid || !isTaskFormValid) {
+        return;
+      }
+
       const event = eventForm.getValues();
 
       if (event.startTime == undefined || event.duration == undefined) {
@@ -259,6 +265,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       console.error(error);
       toast.error(t("createMomentFailed"));
     } finally {
+      isSubmittingRef.current = false;
       setIsLoading(false);
     }
   };
