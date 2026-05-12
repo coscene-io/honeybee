@@ -22,3 +22,6 @@ coverage/
 # Extensions
 *.foxe
 *.coe
+
+# Service info documentation
+service-info.md
