@@ -9,7 +9,6 @@ interface DomainConfig {
   env: string;
   logo: string;
   authStatusCookieName: string;
-  authStatusCookieDomain: string;
   webDomain: string;
   ssoDomain: string;
 }
@@ -19,7 +18,6 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
     env: "local",
     logo: "coscene",
     authStatusCookieName: "coSceneAuthStatusDev",
-    authStatusCookieDomain: "localhost",
     webDomain: "dev.coscene.cn",
     ssoDomain: "sso.dev.coscene.cn",
   },
