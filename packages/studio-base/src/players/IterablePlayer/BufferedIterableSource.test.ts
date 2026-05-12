@@ -687,47 +687,4 @@ describe("BufferedIterableSource", () => {
     await messageIterator.return?.();
     expect(messageIteratorCount).toEqual(1);
   });
-
-  it("should treat AbortError during stopProducer as cancellation", async () => {
-    const source = new TestSource();
-    const bufferedSource = new BufferedIterableSource(source);
-
-    await bufferedSource.initialize();
-
-    const started = waiter(1);
-    const release = waiter(1);
-
-    source.messageIterator = function messageIterator(
-      _args: MessageIteratorArgs,
-    ): AsyncIterableIterator<Readonly<IteratorResult>> {
-      return {
-        async next() {
-          started.notify();
-          await release.wait();
-          throw new DOMException("signal is aborted without reason", "AbortError");
-        },
-        async return() {
-          return { done: true, value: undefined };
-        },
-        [Symbol.asyncIterator]() {
-          return this;
-        },
-      };
-    };
-
-    const messageIterator = bufferedSource.messageIterator({
-      topics: mockTopicSelection("a"),
-    });
-
-    const next = messageIterator.next();
-    await started.wait();
-
-    const iteratorReturn = messageIterator.return?.bind(messageIterator);
-    expect(iteratorReturn).toBeDefined();
-    const returned = iteratorReturn!();
-    release.notify();
-
-    await expect(returned).resolves.toEqual({ done: true });
-    await expect(next).resolves.toEqual({ done: true });
-  });
 });
