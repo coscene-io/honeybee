@@ -164,6 +164,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
     isSubmittingRef.current = true;
     setIsLoading(true);
+    let shouldResetSubmitting = true;
 
     try {
       const isEventFormValid = await eventForm.trigger();
@@ -260,13 +261,16 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       }
 
       refreshEvents();
+      shouldResetSubmitting = false;
       onClose();
     } catch (error) {
       console.error(error);
       toast.error(t("createMomentFailed"));
     } finally {
-      isSubmittingRef.current = false;
-      setIsLoading(false);
+      if (shouldResetSubmitting) {
+        isSubmittingRef.current = false;
+        setIsLoading(false);
+      }
     }
   };
 
