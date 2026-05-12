@@ -151,6 +151,7 @@ async function clearIdbCache(sessionId?: string) {
   try {
     const idbCache = new IndexedDbMessageStore({
       sessionId,
+      kind: "realtime-viz",
     });
     // Ensure initialization completes to avoid racing init/close transactions
     await idbCache.init();

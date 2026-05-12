@@ -12,7 +12,6 @@ import { compare, Time } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 
-import type { PersistentMessageCache } from "../../../persistence/PersistentMessageCache";
 import {
   IIterableSource,
   Initalization,
@@ -20,6 +19,7 @@ import {
   IteratorResult,
   GetBackfillMessagesArgs,
   IterableSourceInitializeArgs,
+  TopicWithDecodingInfo,
 } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
@@ -27,7 +27,7 @@ const log = Logger.getLogger(__filename);
 export class PersistentCacheIterableSource implements IIterableSource {
   #retentionWindowMs?: number;
   #maxCacheSize?: number;
-  #cache?: PersistentMessageCache;
+  #cache?: IndexedDbMessageStore;
   #sessionId: string;
 
   public constructor({
@@ -54,6 +54,8 @@ export class PersistentCacheIterableSource implements IIterableSource {
     await this.#cache.init();
 
     const stats = await this.#cache.stats();
+    const storedTopics = await this.#cache.getTopics();
+    const datatypes = (await this.#cache.getDatatypes()) ?? new Map();
 
     // If no data is available, return minimal initialization
     if (stats.count === 0 || !stats.earliest || !stats.latest) {
@@ -69,44 +71,37 @@ export class PersistentCacheIterableSource implements IIterableSource {
       };
     }
 
-    // Get a sample of messages to determine available topics and their schemas
-    const sampleMessages = await this.#cache.getMessages({
-      start: stats.earliest,
-      end: stats.latest,
-      limit: 1000, // Sample first 1000 messages to discover topics
-    });
-
-    // Build topics list from sample messages
-    const topicsMap = new Map<string, { name: string; schemaName: string }>();
     const topicStats = new Map<string, { numMessages: number }>();
 
-    for (const msg of sampleMessages) {
-      if (!topicsMap.has(msg.topic)) {
-        topicsMap.set(msg.topic, {
-          name: msg.topic,
-          schemaName: msg.schemaName,
-        });
-        topicStats.set(msg.topic, { numMessages: 0 });
-      }
-      const stats = topicStats.get(msg.topic);
-      if (stats) {
-        stats.numMessages++;
-      }
+    const topics: TopicWithDecodingInfo[] = [];
+    for (const topic of storedTopics) {
+      const { topicStats: _topicStats, ...topicInfo } = topic;
+      topics.push(topicInfo);
+      topicStats.set(topic.name, topic.topicStats ?? { numMessages: 0 });
     }
 
-    // Try to get cached datatypes if the cache is an IndexedDbMessageStore
-    let datatypes = new Map();
-    if (this.#cache instanceof IndexedDbMessageStore) {
-      const cachedDatatypes = await this.#cache.getDatatypes();
-      if (cachedDatatypes != undefined) {
-        datatypes = cachedDatatypes;
-      }
+    if (topics.length === 0 || datatypes.size === 0) {
+      return {
+        start: stats.earliest,
+        end: stats.latest,
+        topics: [],
+        topicStats,
+        datatypes,
+        profile: undefined,
+        publishersByTopic: new Map(),
+        problems: [
+          {
+            severity: "warn",
+            message: "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
+          },
+        ],
+      };
     }
 
     return {
       start: stats.earliest,
       end: stats.latest,
-      topics: Array.from(topicsMap.values()),
+      topics,
       topicStats,
       datatypes,
       profile: undefined,
@@ -222,8 +217,6 @@ export class PersistentCacheIterableSource implements IIterableSource {
       throw new Error("PersistentCacheIterableSource not initialized");
     }
 
-    // clear current session data
-    await this.#cache.clear();
     await this.#cache.close();
   }
 }
