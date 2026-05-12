@@ -42,12 +42,19 @@ function definedUrlParams(params?: Record<string, string | undefined>): Record<s
   return definedParams;
 }
 
-function buildManifestUrl(
+function ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl: string): string {
+  if (/^https?:\/\//i.test(objectStorageBaseUrl)) {
+    return objectStorageBaseUrl;
+  }
+  return `https://${objectStorageBaseUrl}`;
+}
+
+export function buildManifestUrl(
   objectStorageBaseUrl: string,
   projectId: string,
   recordId: string,
 ): string {
-  return `${objectStorageBaseUrl.replace(
+  return `${ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl).replace(
     /\/+$/,
     "",
   )}/projects/${projectId}/records/${recordId}/manifest.json`;
