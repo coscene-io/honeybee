@@ -32,6 +32,15 @@ const log = Log.getLogger(__filename);
 const DEFAULT_READ_AHEAD_DURATION = getReadAheadDurationDefaultTime();
 const DEFAULT_MIN_READ_AHEAD_DURATION = getReadAheadDurationMinTime();
 
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error != undefined &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
 type Options = {
   // How far ahead to buffer
   readAheadDuration?: Time;
@@ -243,7 +252,14 @@ class BufferedIterableSource<MessageType = unknown>
     log.debug("Stopping producer");
     this.#aborted = true;
     this.#writeSignal.notifyAll();
-    await this.#producer;
+    try {
+      await this.#producer;
+    } catch (error) {
+      if (!isAbortError(error)) {
+        throw error;
+      }
+      log.debug("Ignoring aborted producer");
+    }
     this.#producer = undefined;
   }
 
