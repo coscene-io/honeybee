@@ -100,7 +100,10 @@ export class RealtimeVizHistoryCache {
     if (this.#disabled) {
       return;
     }
-    await this.flush();
-    await this.#store.close();
+    try {
+      await this.flush();
+    } finally {
+      await this.#store.close();
+    }
   }
 }

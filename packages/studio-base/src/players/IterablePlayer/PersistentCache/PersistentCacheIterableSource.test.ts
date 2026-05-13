@@ -55,6 +55,38 @@ describe("PersistentCacheIterableSource", () => {
     await source.terminate();
   });
 
+  it("allows replay initialization when datatypes are empty", async () => {
+    const store = new IndexedDbMessageStore({ sessionId: "empty-datatypes" });
+    await store.init();
+    await store.storeDatatypes(new Map());
+    await store.storeTopics(
+      [{ name: "/json", schemaName: undefined, messageEncoding: "json" }],
+      new Map([["/json", { numMessages: 1 }]]),
+    );
+    await store.append([
+      {
+        topic: "/json",
+        schemaName: "",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: { value: 1 },
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.flush();
+    await store.close();
+
+    const source = new PersistentCacheIterableSource({ sessionId: "empty-datatypes" });
+    const init = await source.initialize();
+
+    expect(init.topics).toEqual([
+      { name: "/json", schemaName: undefined, messageEncoding: "json" },
+    ]);
+    expect(init.datatypes).toEqual(new Map());
+    expect(init.problems).toEqual([]);
+
+    await source.terminate();
+  });
+
   it("does not delete the cache session on terminate", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "readonly-terminate" });
     await store.init();

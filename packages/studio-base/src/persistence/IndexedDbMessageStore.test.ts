@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as IDB from "idb";
+import race from "race-as-promised";
 
 import { MessageEvent } from "@foxglove/studio";
 import {
@@ -14,14 +15,56 @@ import {
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-function messageEvent(seq: number, topic = "/topic"): MessageEvent {
+function messageEvent(
+  seq: number,
+  topic = "/topic",
+  receiveTime: MessageEvent["receiveTime"] = { sec: 10, nsec: 1 },
+): MessageEvent {
   return {
     topic,
     schemaName: "pkg/Msg",
-    receiveTime: { sec: 10, nsec: 1 },
+    receiveTime,
     message: { seq },
     sizeInBytes: 10,
   };
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForStatsCount(
+  store: IndexedDbMessageStore,
+  expectedCount: number,
+): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  let count = 0;
+  while (Date.now() < deadline) {
+    count = (await store.stats()).count;
+    if (count === expectedCount) {
+      return;
+    }
+    await wait(25);
+  }
+  expect(count).toBe(expectedCount);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error("Timed out waiting for promise"));
+    }, timeoutMs);
+  });
+  try {
+    return await race([promise, timeoutPromise]);
+  } finally {
+    if (timeout != undefined) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 describe("IndexedDbMessageStore", () => {
@@ -106,6 +149,84 @@ describe("IndexedDbMessageStore", () => {
     ]);
 
     await store.close();
+  });
+
+  it("removes stale topic metadata when storing a new topic set", async () => {
+    const store = new IndexedDbMessageStore({ sessionId: "topic-sync" });
+    await store.init();
+
+    await store.storeTopics([
+      { name: "/old", schemaName: "pkg/Msg" },
+      { name: "/current", schemaName: "pkg/Msg" },
+    ]);
+    await store.storeTopics([{ name: "/current", schemaName: "pkg/Msg" }]);
+
+    expect(await store.getTopics()).toEqual([{ name: "/current", schemaName: "pkg/Msg" }]);
+
+    await store.close();
+  });
+
+  it("continues scheduled background flushes until the queue is empty", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "multi-batch-background",
+      appendBatchMaxSize: 2,
+    });
+    await store.init();
+
+    try {
+      await store.append([messageEvent(1), messageEvent(2), messageEvent(3)]);
+      await waitForStatsCount(store, 3);
+      expect((await store.stats()).count).toBe(3);
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("prunes messages outside the retention window", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "retention-window",
+      retentionWindowMs: 1_000,
+    });
+    await store.init();
+
+    await store.append([
+      messageEvent(1, "/topic", { sec: 1, nsec: 0 }),
+      messageEvent(2, "/topic", { sec: 3, nsec: 0 }),
+    ]);
+    await store.flush();
+
+    const messages = await store.getMessages({
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 4, nsec: 0 },
+    });
+
+    expect(messages.map((msg) => msg.message)).toEqual([{ seq: 2 }]);
+    await store.close();
+  });
+
+  it("closes the database connection even when close fails to flush pending messages", async () => {
+    const store = new IndexedDbMessageStore({ sessionId: "close-flush-error" });
+    await store.init();
+
+    await store.append([
+      {
+        ...messageEvent(1),
+        message: { unsupported: () => undefined },
+      } as unknown as MessageEvent,
+    ]);
+
+    await expect(store.close()).rejects.toThrow();
+    (console.warn as jest.Mock).mockClear();
+
+    const upgraded = await withTimeout(
+      IDB.openDB("studio-realtime-cache", 3, {
+        upgrade(db) {
+          db.createObjectStore("close-flush-error-upgrade");
+        },
+      }),
+      500,
+    );
+    upgraded.close();
   });
 
   it("clears sessions by kind without deleting other session kinds", async () => {

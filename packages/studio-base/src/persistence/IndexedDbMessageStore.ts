@@ -50,6 +50,7 @@ export type CacheSessionMetadata = {
   status?: "active" | "closed" | "abandoned" | "pending-delete";
   nextSeq: number;
   approximateSizeBytes: number;
+  messageCount?: number;
 };
 
 export type TopicMetadata = TopicWithDecodingInfo & {
@@ -117,7 +118,12 @@ interface MessagesDB extends IDB.DBSchema {
     value: LoadedRange;
     indexes: {
       bySession: string;
-      bySessionFingerprintStart: [sessionId: string, topicFingerprint: string, sec: number, nsec: number];
+      bySessionFingerprintStart: [
+        sessionId: string,
+        topicFingerprint: string,
+        sec: number,
+        nsec: number,
+      ];
     };
   };
 }
@@ -129,6 +135,16 @@ function sanitizeEvent(sessionId: string, seq: number, event: MessageEvent): Sto
 
 function eventSize(event: MessageEvent): number {
   return Math.max(0, event.sizeInBytes);
+}
+
+function toError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  return new Error("Unknown error");
 }
 
 interface IndexedDbMessageStoreOptions {
@@ -145,6 +161,8 @@ interface IndexedDbMessageStoreOptions {
   topicFingerprint?: string;
   /** Maximum queued messages before oldest queued writes are dropped. */
   maxQueuedMessages?: number;
+  /** Maximum messages written per IndexedDB transaction. */
+  appendBatchMaxSize?: number;
   /** Timeout for blocked IndexedDB opens so realtime viz can degrade instead of hanging. */
   openTimeoutMs?: number;
 }
@@ -189,10 +207,7 @@ function createLoadedRangesStore(db: IDB.IDBPDatabase<MessagesDB>): void {
   ]);
 }
 
-function deleteStoreIfPresent(
-  db: IDB.IDBPDatabase<MessagesDB>,
-  storeName: StoreName,
-): void {
+function deleteStoreIfPresent(db: IDB.IDBPDatabase<MessagesDB>, storeName: StoreName): void {
   if (db.objectStoreNames.contains(storeName)) {
     db.deleteObjectStore(storeName);
   }
@@ -219,7 +234,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #sourceKey?: string;
   #topicFingerprint?: string;
   #currentSessionId: string;
-  #initialized = false;
+  #initPromise: Promise<void>;
   #closing = false;
   #closed = false;
   #lastPruneTime?: number;
@@ -245,6 +260,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       sourceKey,
       topicFingerprint,
       maxQueuedMessages = 50_000,
+      appendBatchMaxSize = 1000,
       openTimeoutMs = DEFAULT_OPEN_TIMEOUT_MS,
     } = options;
 
@@ -256,6 +272,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#topicFingerprint = topicFingerprint;
     this.#currentSessionId = sessionId;
     this.#maxQueuedMessages = maxQueuedMessages;
+    this.#appendBatchMaxSize = appendBatchMaxSize;
 
     const rawDbPromise = IDB.openDB<MessagesDB>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion, _newVersion, transaction) {
@@ -276,7 +293,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         });
       },
       blocked() {
-        log.warn("IndexedDbMessageStore initialization blocked by another open database connection");
+        log.warn(
+          "IndexedDbMessageStore initialization blocked by another open database connection",
+        );
       },
       blocking() {
         log.warn("IndexedDbMessageStore is blocking a newer database version");
@@ -313,46 +332,50 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       );
     });
 
-    void this.#dbPromise
-      .then(async () => {
-        if (this.#closed) {
-          this.#initialized = true;
-          log.debug("Skipping IndexedDbMessageStore initialization because store is already closed");
-          return;
-        }
-        await this.#recordSessionCreation();
-        await this.#calculateExistingMessageStats();
-        this.#initialized = true;
-        log.info(`IndexedDbMessageStore initialized with session: ${this.#currentSessionId}`);
-      })
-      .catch((error: unknown) => {
-        this.#initialized = true;
-        log.error("Failed to initialize IndexedDbMessageStore:", error);
-      });
+    this.#initPromise = this.#initialize();
+    void this.#initPromise.catch(() => undefined);
   }
 
-  async #calculateExistingMessageStats(): Promise<void> {
+  async #initialize(): Promise<void> {
+    try {
+      await this.#dbPromise;
+      if (this.#closed) {
+        log.debug("Skipping IndexedDbMessageStore initialization because store is already closed");
+        return;
+      }
+      await this.#recordSessionCreation();
+      await this.#loadExistingMessageStats();
+      log.info(`IndexedDbMessageStore initialized with session: ${this.#currentSessionId}`);
+    } catch (error) {
+      log.error("Failed to initialize IndexedDbMessageStore:", error);
+      throw toError(error);
+    }
+  }
+
+  async #loadExistingMessageStats(): Promise<void> {
     try {
       if (this.#closed) {
         return;
       }
       const db = await this.#dbPromise;
-      const tx = db.transaction(STORE, "readonly");
-      const index = tx.store.index("bySession");
-      let count = 0;
-      let approximateSizeBytes = 0;
-
-      for await (const cursor of index.iterate(this.#currentSessionId)) {
-        count++;
-        approximateSizeBytes += eventSize(cursor.value as MessageEvent);
-      }
+      const tx = db.transaction([STORE, SESSIONS_STORE], "readonly");
+      const messageIndex = tx.objectStore(STORE).index("bySession");
+      const sessionMetadata = await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId);
+      const count =
+        sessionMetadata?.messageCount ?? (await messageIndex.count(this.#currentSessionId));
+      const approximateSizeBytes = sessionMetadata?.approximateSizeBytes ?? 0;
       await tx.done;
 
       this.#messageCount = count;
       this.#approximateSizeBytes = approximateSizeBytes;
-      log.debug(`Calculated existing message stats: ${count} messages`);
+      log.debug(`Loaded existing message stats: ${count} messages`);
+
+      if (sessionMetadata?.messageCount == undefined) {
+        await this.#updateSessionMetadata({ messageCount: count, approximateSizeBytes });
+      }
     } catch (error) {
-      log.debug("Failed to calculate existing message stats:", error);
+      log.debug("Failed to load existing message stats:", error);
+      throw error;
     }
   }
 
@@ -380,10 +403,12 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         status: "active",
         nextSeq: Math.max(existing?.nextSeq ?? 0, 0),
         approximateSizeBytes: existing?.approximateSizeBytes ?? 0,
+        messageCount: existing?.messageCount,
       };
 
       this.#nextSeq = metadata.nextSeq;
       this.#approximateSizeBytes = metadata.approximateSizeBytes;
+      this.#messageCount = metadata.messageCount ?? 0;
 
       await store.put(metadata);
       await tx.done;
@@ -403,9 +428,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const sessionsStore = sessionsTx.objectStore(SESSIONS_STORE);
       const oldSessions: string[] = [];
 
-      for await (const cursor of sessionsStore.index("byKindLastActive").iterate(
-        IDBKeyRange.bound([kind, Number.MIN_SAFE_INTEGER], [kind, cutoffTime]),
-      )) {
+      for await (const cursor of sessionsStore
+        .index("byKindLastActive")
+        .iterate(IDBKeyRange.bound([kind, Number.MIN_SAFE_INTEGER], [kind, cutoffTime]))) {
         oldSessions.push(cursor.value.sessionId);
       }
       await sessionsTx.done;
@@ -432,12 +457,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         "readwrite",
       );
 
-      await tx.objectStore(STORE).delete(
-        IDBKeyRange.bound(
-          [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
-          [sessionId, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
-        ),
-      );
+      await tx
+        .objectStore(STORE)
+        .delete(
+          IDBKeyRange.bound(
+            [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
+            [sessionId, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+          ),
+        );
       await tx.objectStore(DATATYPES_STORE).delete(sessionId);
       await tx.objectStore(SESSIONS_STORE).delete(sessionId);
 
@@ -465,10 +492,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   public async init(): Promise<void> {
-    await this.#dbPromise;
-    while (!this.#initialized) {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
+    await this.#initPromise;
   }
 
   public getSessionId(): string {
@@ -497,10 +521,6 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     });
   }
 
-  public async waitForInit(): Promise<void> {
-    await this.init();
-  }
-
   public async getSessionMetadata(): Promise<CacheSessionMetadata | undefined> {
     if (this.#closed) {
       return undefined;
@@ -523,7 +543,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const store = tx.objectStore(SESSIONS_STORE);
     const existing = await store.get(this.#currentSessionId);
     if (existing != undefined) {
-      await store.put({ ...existing, ...updates, lastActiveAt: updates.lastActiveAt ?? Date.now() });
+      await store.put({
+        ...existing,
+        ...updates,
+        lastActiveAt: updates.lastActiveAt ?? Date.now(),
+      });
     }
     await tx.done;
   }
@@ -542,7 +566,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (overflowCount > 0) {
       this.#appendQueue.splice(0, overflowCount);
       log.warn(
-        `IndexedDbMessageStore append queue exceeded ${this.#maxQueuedMessages}; dropped ${overflowCount} oldest queued messages`,
+        `IndexedDbMessageStore append queue exceeded ${
+          this.#maxQueuedMessages
+        }; dropped ${overflowCount} oldest queued messages`,
       );
     }
 
@@ -553,19 +579,25 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (this.#appendFlushTimer != undefined || this.#appendFlushInFlight != undefined) {
       return;
     }
-    this.#appendFlushTimer = setTimeout(() => {
-      this.#appendFlushTimer = undefined;
-      this.#appendFlushInFlight = this.#flushQueuedAppends();
-      void this.#appendFlushInFlight.then(
-        () => {
-          this.#appendFlushInFlight = undefined;
-        },
-        (error: unknown) => {
-          log.warn("Failed to flush queued IndexedDB messages:", error);
-          this.#appendFlushInFlight = undefined;
-        },
-      );
-    }, this.#appendQueue.length >= this.#appendBatchMaxSize ? 0 : this.#appendBatchMaxDelayMs);
+    this.#appendFlushTimer = setTimeout(
+      () => {
+        this.#appendFlushTimer = undefined;
+        this.#appendFlushInFlight = this.#flushQueuedAppends();
+        void this.#appendFlushInFlight.then(
+          () => {
+            this.#appendFlushInFlight = undefined;
+            if (this.#appendQueue.length > 0 && !this.#closing && !this.#closed) {
+              this.#scheduleFlush();
+            }
+          },
+          (error: unknown) => {
+            log.warn("Failed to flush queued IndexedDB messages:", error);
+            this.#appendFlushInFlight = undefined;
+          },
+        );
+      },
+      this.#appendQueue.length >= this.#appendBatchMaxSize ? 0 : this.#appendBatchMaxDelayMs,
+    );
   }
 
   public async flush(): Promise<void> {
@@ -625,6 +657,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         ...sessionData,
         lastActiveAt: now,
         nextSeq: seq,
+        messageCount: Math.max(0, (sessionData.messageCount ?? 0) + batch.length),
         approximateSizeBytes: Math.max(
           0,
           sessionData.approximateSizeBytes + approximateSizeBytesAdded,
@@ -639,10 +672,6 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#approximateSizeBytes += approximateSizeBytesAdded;
 
     await this.#maybePrune(latestTime);
-
-    if (this.#appendQueue.length > 0 && !this.#closing) {
-      this.#scheduleFlush();
-    }
   }
 
   async #maybePrune(latestTime: Time | undefined): Promise<void> {
@@ -683,7 +712,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       this.#lastPruneTime = now;
 
       if (totalPrunedCount > 0) {
-        await this.#updateSessionMetadata({ approximateSizeBytes: this.#approximateSizeBytes });
+        await this.#updateSessionMetadata({
+          approximateSizeBytes: this.#approximateSizeBytes,
+          messageCount: this.#messageCount,
+        });
         log.debug(
           `Pruned ${totalPrunedCount} messages, approximate session size: ${Math.round(
             this.#approximateSizeBytes / 1024 / 1024,
@@ -907,11 +939,12 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
     this.#closing = true;
 
+    let flushError: unknown;
     try {
       await this.flush();
     } catch (error) {
       log.warn("Error flushing pending events on close:", error);
-      throw error;
+      flushError = error;
     } finally {
       this.#closed = true;
       this.#appendQueue.length = 0;
@@ -919,13 +952,21 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
     try {
       const db = await this.#dbPromise;
-      if (this.#kind === "realtime-viz") {
-        await this.#updateClosedStatus(db);
+      try {
+        if (this.#kind === "realtime-viz") {
+          await this.#updateClosedStatus(db);
+        }
+      } catch (error) {
+        log.debug("Error marking database session closed:", error);
       }
       log.debug("Closing database", { dbName: DB_NAME, sessionId: this.#currentSessionId });
       db.close();
     } catch (error) {
       log.debug("Error closing database:", error);
+    }
+
+    if (flushError != undefined) {
+      throw toError(flushError);
     }
   }
 
@@ -962,21 +1003,25 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
     let earliest: Time | undefined;
     let latest: Time | undefined;
-    let count = 0;
-    let approximateSizeBytes = 0;
 
-    for await (const cursor of index.iterate(range)) {
-      earliest ??= cursor.value.receiveTime;
-      latest = cursor.value.receiveTime;
-      count++;
-      approximateSizeBytes += eventSize(cursor.value as MessageEvent);
+    const firstCursor = await index.openCursor(range);
+    if (firstCursor != undefined) {
+      earliest = firstCursor.value.receiveTime;
+    }
+
+    const lastCursor = await index.openCursor(range, "prev");
+    if (lastCursor != undefined) {
+      latest = lastCursor.value.receiveTime;
     }
 
     await tx.done;
-    this.#messageCount = count;
-    this.#approximateSizeBytes = approximateSizeBytes;
 
-    return { count, earliest, latest, approximateSizeBytes };
+    return {
+      count: this.#messageCount,
+      earliest,
+      latest,
+      approximateSizeBytes: this.#approximateSizeBytes,
+    };
   }
 
   public async getWindowStats(): Promise<{
@@ -1066,7 +1111,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#messageCount = Math.max(0, this.#messageCount - totalPrunedCount);
     this.#approximateSizeBytes = Math.max(0, initialStorage - totalPrunedBytes);
     this.#lastPruneTime = now;
-    await this.#updateSessionMetadata({ approximateSizeBytes: this.#approximateSizeBytes });
+    await this.#updateSessionMetadata({
+      approximateSizeBytes: this.#approximateSizeBytes,
+      messageCount: this.#messageCount,
+    });
 
     log.info(
       `Force pruned ${totalPrunedCount} messages, approximate storage: ${Math.round(
@@ -1144,6 +1192,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const tx = db.transaction(TOPICS_STORE, "readwrite");
     const store = tx.objectStore(TOPICS_STORE);
     const now = Date.now();
+    const topicNames = new Set(topics.map((topic) => topic.name));
+
+    for await (const cursor of store.index("bySession").iterate(this.#currentSessionId)) {
+      if (!topicNames.has(cursor.value.name)) {
+        await cursor.delete();
+      }
+    }
 
     for (const topic of topics) {
       await store.put({

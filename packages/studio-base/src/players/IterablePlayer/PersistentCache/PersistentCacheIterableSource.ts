@@ -80,7 +80,7 @@ export class PersistentCacheIterableSource implements IIterableSource {
       topicStats.set(topic.name, topic.topicStats ?? { numMessages: 0 });
     }
 
-    if (topics.length === 0 || datatypes.size === 0) {
+    if (topics.length === 0) {
       return {
         start: stats.earliest,
         end: stats.latest,
@@ -92,7 +92,8 @@ export class PersistentCacheIterableSource implements IIterableSource {
         problems: [
           {
             severity: "warn",
-            message: "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
+            message:
+              "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
           },
         ],
       };
