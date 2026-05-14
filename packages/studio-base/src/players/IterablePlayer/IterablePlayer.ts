@@ -62,6 +62,7 @@ const log = Log.getLogger(__filename);
 // Setting this to higher than 1.5GB caused the renderer process to crash on linux.
 // See: https://github.com/foxglove/studio/pull/1733
 const DEFAULT_CACHE_SIZE_BYTES = 1.0e9;
+const DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES = 25 * 1024 * 1024 * 1024;
 
 // Amount to wait until panels have had the chance to subscribe to topics before
 // we start playback
@@ -227,7 +228,7 @@ export class IterablePlayer implements Player {
       ? {
           sourceId,
           sourceKey: playbackSpillCacheSourceKey ?? JSON.stringify({ sourceId, urlParams }),
-          maxCacheSize: DEFAULT_CACHE_SIZE_BYTES,
+          maxCacheSize: DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES,
         }
       : undefined;
     if (source.sourceType === "deserialized") {
