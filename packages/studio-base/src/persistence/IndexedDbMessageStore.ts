@@ -8,7 +8,14 @@
 import * as IDB from "idb";
 
 import Log from "@foxglove/log";
-import { isGreaterThan, Time, fromMillis, subtract } from "@foxglove/rostime";
+import {
+  isGreaterThan,
+  Time,
+  fromMillis,
+  fromNanoSec,
+  subtract,
+  toNanoSec,
+} from "@foxglove/rostime";
 import type { MessageEvent } from "@foxglove/studio";
 import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
 import type { TopicStats } from "@foxglove/studio-base/players/types";
@@ -26,6 +33,7 @@ const SESSIONS_STORE = "sessions";
 const TOPICS_STORE = "topics";
 const LOADED_RANGES_STORE = "loadedRanges";
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+const PLAYBACK_SPILL_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OPEN_TIMEOUT_MS = 5000;
 
 type StoreName =
@@ -133,8 +141,43 @@ function sanitizeEvent(sessionId: string, seq: number, event: MessageEvent): Sto
   return { ...rest, sessionId, seq };
 }
 
+function restoreEvent(event: StoredMessageEvent): MessageEvent {
+  const { sessionId: _sessionId, seq: _seq, ...rest } = event;
+  return rest;
+}
+
 function eventSize(event: MessageEvent): number {
   return Math.max(0, event.sizeInBytes);
+}
+
+function isLoadedRangeCovering(ranges: readonly LoadedRange[], start: Time, end: Time): boolean {
+  if (compareTime(start, end) > 0) {
+    return true;
+  }
+
+  let coveredStart = toNanoSec(start);
+  const targetEnd = toNanoSec(end);
+
+  for (const range of ranges) {
+    const rangeStart = toNanoSec(range.start);
+    const rangeEnd = toNanoSec(range.end);
+    if (rangeEnd < coveredStart) {
+      continue;
+    }
+    if (rangeStart > coveredStart) {
+      return false;
+    }
+    if (rangeEnd >= targetEnd) {
+      return true;
+    }
+    coveredStart = rangeEnd + 1n;
+  }
+
+  return false;
+}
+
+function compareTime(a: Time, b: Time): number {
+  return a.sec === b.sec ? a.nsec - b.nsec : a.sec - b.sec;
 }
 
 function toError(error: unknown): Error {
@@ -419,8 +462,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
   }
 
-  public async cleanupOldSessions(kind: CacheSessionKind = this.#kind): Promise<void> {
-    const cutoffTime = Date.now() - THREE_DAYS_MS;
+  public async cleanupOldSessions(
+    kind: CacheSessionKind = this.#kind,
+    maxInactiveMs: number = kind === "playback-spill" ? PLAYBACK_SPILL_TTL_MS : THREE_DAYS_MS,
+  ): Promise<void> {
+    const cutoffTime = Date.now() - maxInactiveMs;
 
     try {
       const db = await this.#dbPromise;
@@ -440,7 +486,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         return;
       }
 
-      log.info(`Cleaning up ${oldSessions.length} ${kind} sessions inactive for more than 3 days`);
+      log.info(`Cleaning up ${oldSessions.length} ${kind} inactive cache sessions`);
       for (const sessionId of oldSessions) {
         await this.#cleanupSessionData(sessionId);
       }
@@ -519,6 +565,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     void this.#updateSessionMetadata({ maxBytes: sizeBytes }).catch((error: unknown) => {
       log.debug("Failed to update maxBytes metadata:", error);
     });
+  }
+
+  public async setTopicFingerprint(topicFingerprint: string): Promise<void> {
+    this.#topicFingerprint = topicFingerprint;
+    await this.#updateSessionMetadata({ topicFingerprint });
   }
 
   public async getSessionMetadata(): Promise<CacheSessionMetadata | undefined> {
@@ -832,13 +883,68 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       if (topicSet && !topicSet.has(value.topic)) {
         continue;
       }
-      out.push(value as unknown as MessageEvent);
+      out.push(restoreEvent(value));
       if (limit != undefined && out.length >= limit) {
         break;
       }
     }
     await tx.done;
     return out;
+  }
+
+  public async deleteMessages(params: {
+    start: Time;
+    end: Time;
+    topics?: readonly string[];
+  }): Promise<void> {
+    if (this.#closed) {
+      log.debug("Skipping deleteMessages - store has been closed");
+      return;
+    }
+
+    const { start, end, topics } = params;
+    const sessionId = this.#currentSessionId;
+    const db = await this.#dbPromise;
+    const tx = db.transaction([STORE, SESSIONS_STORE], "readwrite");
+    const index = tx.objectStore(STORE).index("bySessionTime");
+    const range = IDBKeyRange.bound(
+      [sessionId, start.sec, start.nsec],
+      [sessionId, end.sec, end.nsec],
+    );
+    const topicSet = topics ? new Set(topics) : undefined;
+    const keys: [sessionId: string, sec: number, nsec: number, seq: number][] = [];
+    let bytes = 0;
+
+    for await (const cursor of index.iterate(range)) {
+      const value = cursor.value;
+      if (topicSet && !topicSet.has(value.topic)) {
+        continue;
+      }
+      keys.push(cursor.primaryKey);
+      bytes += eventSize(value as MessageEvent);
+    }
+
+    const messageStore = tx.objectStore(STORE);
+    for (const key of keys) {
+      await messageStore.delete(key);
+    }
+
+    const sessionsStore = tx.objectStore(SESSIONS_STORE);
+    const sessionData = await sessionsStore.get(sessionId);
+    if (sessionData != undefined && keys.length > 0) {
+      const messageCount = Math.max(0, (sessionData.messageCount ?? 0) - keys.length);
+      const approximateSizeBytes = Math.max(0, sessionData.approximateSizeBytes - bytes);
+      await sessionsStore.put({
+        ...sessionData,
+        lastActiveAt: Date.now(),
+        messageCount,
+        approximateSizeBytes,
+      });
+      this.#messageCount = messageCount;
+      this.#approximateSizeBytes = approximateSizeBytes;
+    }
+
+    await tx.done;
   }
 
   public async getBackfillMessages(params: {
@@ -872,7 +978,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         }
       }
       if (found) {
-        results.push(found as unknown as MessageEvent);
+        results.push(restoreEvent(found));
       }
     }
 
@@ -893,6 +999,20 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#approximateSizeBytes = 0;
     this.#nextSeq = 0;
     log.debug("cleared session: ", { sessionId: this.#currentSessionId });
+  }
+
+  public async deleteCurrentSession(): Promise<void> {
+    if (this.#closed) {
+      log.debug("Skipping deleteCurrentSession - store has been closed");
+      return;
+    }
+
+    await this.#cleanupSessionData(this.#currentSessionId);
+    this.#appendQueue.length = 0;
+    this.#messageCount = 0;
+    this.#approximateSizeBytes = 0;
+    this.#nextSeq = 0;
+    this.#lastPruneTime = undefined;
   }
 
   public async clearAll(): Promise<void> {
@@ -1244,9 +1364,40 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       return;
     }
     const db = await this.#dbPromise;
-    const id = `${range.sessionId}:${range.topicFingerprint}:${range.start.sec}:${range.start.nsec}:${range.end.sec}:${range.end.nsec}`;
     const tx = db.transaction(LOADED_RANGES_STORE, "readwrite");
-    await tx.store.put({ ...range, id, updatedAt: Date.now() });
+    const store = tx.store;
+    const queryRange = IDBKeyRange.bound(
+      [range.sessionId, range.topicFingerprint, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
+      [range.sessionId, range.topicFingerprint, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+    );
+
+    let startNs = toNanoSec(range.start);
+    let endNs = toNanoSec(range.end);
+    const obsoleteKeys: string[] = [];
+
+    for await (const cursor of store.index("bySessionFingerprintStart").iterate(queryRange)) {
+      const value = cursor.value;
+      const valueStartNs = toNanoSec(value.start);
+      const valueEndNs = toNanoSec(value.end);
+      if (valueEndNs + 1n < startNs || valueStartNs > endNs + 1n) {
+        continue;
+      }
+      startNs = startNs < valueStartNs ? startNs : valueStartNs;
+      endNs = endNs > valueEndNs ? endNs : valueEndNs;
+      obsoleteKeys.push(cursor.primaryKey);
+    }
+
+    for (const key of obsoleteKeys) {
+      await store.delete(key);
+    }
+
+    const mergedRange = {
+      ...range,
+      start: fromNanoSec(startNs),
+      end: fromNanoSec(endNs),
+    };
+    const id = `${mergedRange.sessionId}:${mergedRange.topicFingerprint}:${mergedRange.start.sec}:${mergedRange.start.nsec}:${mergedRange.end.sec}:${mergedRange.end.nsec}`;
+    await store.put({ ...mergedRange, id, updatedAt: Date.now() });
     await tx.done;
   }
 
@@ -1266,6 +1417,52 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
     await tx.done;
     return out;
+  }
+
+  public async hasLoadedRange(params: {
+    topicFingerprint: string;
+    start: Time;
+    end: Time;
+  }): Promise<boolean> {
+    const ranges = await this.getLoadedRanges(params.topicFingerprint);
+    return isLoadedRangeCovering(ranges, params.start, params.end);
+  }
+
+  public async deleteLoadedRanges(topicFingerprint?: string): Promise<void> {
+    if (this.#closed) {
+      return;
+    }
+
+    const db = await this.#dbPromise;
+    const tx = db.transaction(LOADED_RANGES_STORE, "readwrite");
+    const keys: string[] = [];
+
+    if (topicFingerprint == undefined) {
+      keys.push(...(await tx.store.index("bySession").getAllKeys(this.#currentSessionId)));
+    } else {
+      const range = IDBKeyRange.bound(
+        [
+          this.#currentSessionId,
+          topicFingerprint,
+          Number.MIN_SAFE_INTEGER,
+          Number.MIN_SAFE_INTEGER,
+        ],
+        [
+          this.#currentSessionId,
+          topicFingerprint,
+          Number.MAX_SAFE_INTEGER,
+          Number.MAX_SAFE_INTEGER,
+        ],
+      );
+      for await (const cursor of tx.store.index("bySessionFingerprintStart").iterate(range)) {
+        keys.push(cursor.primaryKey);
+      }
+    }
+
+    for (const key of keys) {
+      await tx.store.delete(key);
+    }
+    await tx.done;
   }
 }
 

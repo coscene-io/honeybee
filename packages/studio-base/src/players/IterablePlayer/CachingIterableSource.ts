@@ -7,11 +7,17 @@
 
 import EventEmitter from "eventemitter3";
 import * as _ from "lodash-es";
+import stringHash from "string-hash";
 
 import { minIndexBy, sortedIndexByTuple } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
 import { add, compare, subtract, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent, Time } from "@foxglove/studio";
+import {
+  IndexedDbMessageStore,
+  LoadedRange,
+} from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
+import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import { TopicSelection } from "@foxglove/studio-base/players/types";
 // CoScene
 import { Range } from "@foxglove/studio-base/util/ranges";
@@ -27,6 +33,37 @@ import {
 // CoScene
 
 const log = Log.getLogger(__filename);
+const MAX_SPILL_APPENDS_BEFORE_FLUSH = 1000;
+
+function messageSize(message: MessageEvent): number {
+  return Math.max(message.sizeInBytes, estimateObjectSize(message.message));
+}
+
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+  if (value != undefined && typeof value === "object") {
+    const input = value as Record<string, unknown>;
+    const output: Record<string, unknown> = {};
+    for (const key of Object.keys(input).sort()) {
+      output[key] = canonicalize(input[key] ?? "__undefined__");
+    }
+    return output;
+  }
+  return value ?? "__undefined__";
+}
+
+function topicFingerprint(topics: TopicSelection): string {
+  const entries = Array.from(topics.entries())
+    .map(([topicName, payload]) => ({
+      topic: topicName,
+      fields: payload.fields ?? "__undefined__",
+      preloadType: payload.preloadType ?? "__undefined__",
+    }))
+    .sort((a, b) => a.topic.localeCompare(b.topic));
+  return stringHash(JSON.stringify(canonicalize(entries)) ?? "").toString(36);
+}
 
 // An individual cache item represents a continuous range of CacheIteratorItems
 type CacheBlock<MessageType> = {
@@ -61,6 +98,11 @@ type CacheBlock<MessageType> = {
 type Options = {
   maxBlockSize?: number;
   maxTotalSize?: number;
+  spillCache?: {
+    sourceId: string;
+    sourceKey?: string;
+    maxCacheSize?: number;
+  };
 };
 
 interface EventTypes {
@@ -105,6 +147,11 @@ class CachingIterableSource<MessageType = unknown>
 
   #nextBlockId: bigint = BigInt(0);
   #evictableBlockCandidates: CacheBlock<MessageType>["id"][] = [];
+  #spillStore?: IndexedDbMessageStore;
+  #spillEnabled = true;
+  #spillCacheOptions?: NonNullable<Options["spillCache"]>;
+  #spillTopicFingerprint?: string;
+  #spillAppendCountSinceFlush = 0;
 
   public constructor(source: IIterableSource<MessageType>, opt?: Options) {
     super();
@@ -112,16 +159,20 @@ class CachingIterableSource<MessageType = unknown>
     this.#source = source;
     this.#maxTotalSizeBytes = opt?.maxTotalSize ?? 629145600; // 600MB (was 1GB, reduced to mitigate OOM issues)
     this.#maxBlockSizeBytes = opt?.maxBlockSize ?? 52428800; // 50MB
+    this.#spillCacheOptions = opt?.spillCache;
   }
 
   public async initialize(): Promise<Initalization> {
     this.#initResult = await this.#source.initialize();
+    await this.#initSpillCache();
     return this.#initResult;
   }
 
   public async terminate(): Promise<void> {
     this.#cache.length = 0;
     this.#cachedTopics.clear();
+    this.#totalSizeBytes = 0;
+    await this.#closeSpillCache({ clear: true });
   }
 
   public loadedRanges(): Range[] {
@@ -130,6 +181,429 @@ class CachingIterableSource<MessageType = unknown>
 
   public getCacheSize(): number {
     return this.#totalSizeBytes;
+  }
+
+  async #resetForTopicsIfNeeded(topics: TopicSelection): Promise<void> {
+    if (_.isEqual(topics, this.#cachedTopics)) {
+      return;
+    }
+
+    log.debug("topics changed - clearing cache, resetting range");
+    this.#cachedTopics = topics;
+    this.#cache.length = 0;
+    this.#totalSizeBytes = 0;
+    this.#recomputeLoadedRangeCache();
+    await this.#resetSpillForTopics(topics);
+  }
+
+  async #initSpillCache(): Promise<void> {
+    if (this.#spillCacheOptions == undefined || this.#spillStore != undefined) {
+      return;
+    }
+
+    const sourceKey = this.#spillCacheOptions.sourceKey ?? this.#spillCacheOptions.sourceId;
+    this.#spillStore = new IndexedDbMessageStore({
+      sessionId: `playback-spill:${this.#spillCacheOptions.sourceId}:${sourceKey}`,
+      kind: "playback-spill",
+      retentionWindowMs: Number.MAX_SAFE_INTEGER,
+      maxCacheSize: this.#spillCacheOptions.maxCacheSize,
+      sourceId: this.#spillCacheOptions.sourceId,
+      sourceKey,
+    });
+
+    try {
+      await this.#spillStore.init();
+      await this.#spillStore.cleanupOldSessions("playback-spill");
+    } catch (error) {
+      log.warn("Disabling playback spill cache after initialization failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+    }
+  }
+
+  async #closeSpillCache(opt: { clear: boolean }): Promise<void> {
+    const store = this.#spillStore;
+    this.#spillStore = undefined;
+    this.#spillTopicFingerprint = undefined;
+    this.#spillAppendCountSinceFlush = 0;
+
+    if (store == undefined) {
+      return;
+    }
+
+    try {
+      if (opt.clear) {
+        await store.deleteCurrentSession();
+      }
+      await store.close();
+    } catch (error) {
+      log.debug("Failed to close playback spill cache:", error);
+    }
+  }
+
+  async #resetSpillForTopics(topics: TopicSelection): Promise<void> {
+    if (!this.#spillEnabled || this.#spillStore == undefined) {
+      return;
+    }
+
+    const nextFingerprint = topicFingerprint(topics);
+    if (this.#spillTopicFingerprint === nextFingerprint) {
+      return;
+    }
+
+    try {
+      await this.#spillStore.flush();
+      await this.#spillStore.setTopicFingerprint(nextFingerprint);
+      await this.#spillStore.clear();
+      this.#spillTopicFingerprint = nextFingerprint;
+      this.#spillAppendCountSinceFlush = 0;
+    } catch (error) {
+      log.warn("Disabling playback spill cache after topic reset failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+    }
+  }
+
+  async #appendSpill(iterResult: IteratorResult<MessageType>): Promise<void> {
+    if (
+      !this.#spillEnabled ||
+      this.#spillStore == undefined ||
+      iterResult.type !== "message-event"
+    ) {
+      return;
+    }
+
+    try {
+      await this.#spillStore.append([iterResult.msgEvent as MessageEvent]);
+      this.#spillAppendCountSinceFlush++;
+      if (this.#spillAppendCountSinceFlush >= MAX_SPILL_APPENDS_BEFORE_FLUSH) {
+        await this.#spillStore.flush();
+        this.#spillAppendCountSinceFlush = 0;
+      }
+    } catch (error) {
+      log.warn("Disabling playback spill cache after append failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+    }
+  }
+
+  async #recordSpillLoadedRange(start: Time, end: Time): Promise<void> {
+    if (
+      !this.#spillEnabled ||
+      this.#spillStore == undefined ||
+      this.#spillTopicFingerprint == undefined ||
+      compare(start, end) > 0
+    ) {
+      return;
+    }
+
+    try {
+      await this.#spillStore.flush();
+      this.#spillAppendCountSinceFlush = 0;
+      await this.#spillStore.putLoadedRange({
+        sessionId: this.#spillStore.getSessionId(),
+        topicFingerprint: this.#spillTopicFingerprint,
+        start,
+        end,
+      });
+    } catch (error) {
+      log.warn("Disabling playback spill cache after loaded range update failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+    }
+  }
+
+  #hasActiveSpillCache(): boolean {
+    return (
+      this.#spillEnabled &&
+      this.#spillStore != undefined &&
+      this.#spillTopicFingerprint != undefined
+    );
+  }
+
+  async #getSpillLoadedRanges(): Promise<readonly LoadedRange[]> {
+    const store = this.#spillStore;
+    const topicFingerprint = this.#spillTopicFingerprint;
+    if (!this.#spillEnabled || store == undefined || topicFingerprint == undefined) {
+      return [];
+    }
+
+    try {
+      return await store.getLoadedRanges(topicFingerprint);
+    } catch (error) {
+      log.warn("Disabling playback spill cache after loaded range lookup failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+      return [];
+    }
+  }
+
+  async #readSpillMessages(args: {
+    start: Time;
+    end: Time;
+    topics: TopicSelection;
+  }): Promise<readonly MessageEvent[]> {
+    if (!this.#spillEnabled || this.#spillStore == undefined) {
+      return [];
+    }
+
+    try {
+      return await this.#spillStore.getMessages({
+        start: args.start,
+        end: args.end,
+        topics: Array.from(args.topics.keys()),
+      });
+    } catch (error) {
+      log.warn("Disabling playback spill cache after message lookup failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+      return [];
+    }
+  }
+
+  async #readSpillBackfillMessages(args: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
+    if (
+      !this.#spillEnabled ||
+      this.#spillStore == undefined ||
+      this.#spillTopicFingerprint == undefined
+    ) {
+      return [];
+    }
+
+    try {
+      const loadedRanges = await this.#spillStore.getLoadedRanges(this.#spillTopicFingerprint);
+      const containingRange = loadedRanges.find(
+        (range) => compare(range.start, args.time) <= 0 && compare(range.end, args.time) >= 0,
+      );
+      if (containingRange == undefined) {
+        return [];
+      }
+
+      const messages = await this.#spillStore.getMessages({
+        start: containingRange.start,
+        end: args.time,
+        topics: Array.from(args.topics.keys()),
+      });
+      return Array.from(
+        messages.reduce((byTopic, message) => byTopic.set(message.topic, message), new Map()),
+      ).map(([, message]) => message);
+    } catch (error) {
+      log.warn("Disabling playback spill cache after backfill lookup failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+      return [];
+    }
+  }
+
+  #insertLoadedBlock(start: Time, end: Time, messages: readonly MessageEvent[]): void {
+    const size = messages.reduce((total, message) => total + messageSize(message), 0);
+    while (
+      this.#totalSizeBytes + size > this.#maxTotalSizeBytes &&
+      this.#maybePurgeCache({ activeBlock: undefined, sizeInBytes: size })
+    ) {
+      // Make room before inserting a block hydrated from spill storage.
+    }
+
+    const block: CacheBlock<MessageType> = {
+      id: this.#nextBlockId++,
+      start,
+      end,
+      items: messages.map((msgEvent) => [
+        toNanoSec(msgEvent.receiveTime),
+        { type: "message-event", msgEvent: msgEvent as MessageEvent<MessageType> },
+      ]),
+      size: 0,
+      lastAccess: Date.now(),
+    };
+    for (const message of messages) {
+      block.size += messageSize(message);
+    }
+    this.#totalSizeBytes += block.size;
+
+    const insertIndex = _.sortedIndexBy(this.#cache, block, (item) => toNanoSec(item.start));
+    this.#cache.splice(insertIndex, 0, block);
+    this.#recomputeLoadedRangeCache();
+  }
+
+  async *#yieldSpillRange(args: {
+    start: Time;
+    end: Time;
+    topics: TopicSelection;
+  }): AsyncIterableIterator<Readonly<IteratorResult<MessageType>>> {
+    const messages = await this.#readSpillMessages(args);
+    this.#insertLoadedBlock(args.start, args.end, messages);
+    for (const message of messages) {
+      yield {
+        type: "message-event",
+        msgEvent: message as MessageEvent<MessageType>,
+      };
+    }
+  }
+
+  async *#yieldSourceRange(args: {
+    start: Time;
+    end: Time;
+    topics: TopicSelection;
+    consumptionType: MessageIteratorArgs["consumptionType"];
+    fetchCompleteTopicState: MessageIteratorArgs["fetchCompleteTopicState"];
+    writeSpill: boolean;
+  }): AsyncIterableIterator<Readonly<IteratorResult<MessageType>>> {
+    const sourceMessageIterator = this.#source.messageIterator({
+      topics: args.topics,
+      start: args.start,
+      end: args.end,
+      consumptionType: args.consumptionType,
+      fetchCompleteTopicState: args.fetchCompleteTopicState,
+    });
+
+    // The cache is indexed on time, but iterator results that are problems might not have a time.
+    // For these we use the lastTime that we knew about (or had a message for).
+    // This variable tracks the last known time from a read.
+    let readHead = args.start;
+    let lastTime = toNanoSec(args.start);
+    let sourceHadProblem = false;
+    let block: CacheBlock<MessageType> | undefined;
+
+    const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
+
+    for await (const iterResult of sourceMessageIterator) {
+      if (iterResult.type === "problem") {
+        sourceHadProblem = true;
+      }
+
+      // if there is no block, we make a new block
+      if (!block) {
+        const newBlock: CacheBlock<MessageType> = {
+          id: this.#nextBlockId++,
+          start: readHead,
+          end: readHead,
+          items: [],
+          size: 0,
+          lastAccess: Date.now(),
+        };
+
+        // Find where we need to insert our new block.
+        // It should come before any blocks with a start time > than new block start time.
+        const insertIndex = _.sortedIndexBy(this.#cache, newBlock, (item) => toNanoSec(item.start));
+        this.#cache.splice(insertIndex, 0, newBlock);
+
+        block = newBlock;
+        this.#recomputeLoadedRangeCache();
+      }
+
+      // When receiving a message event or stamp, we update our known time on the block to the
+      // stamp or receiveTime because we know we've received all the results up to this time
+      if (iterResult.type === "message-event" || iterResult.type === "stamp") {
+        const receiveTime =
+          iterResult.type === "stamp" ? iterResult.stamp : iterResult.msgEvent.receiveTime;
+        const receiveTimeNs = toNanoSec(receiveTime);
+
+        // There might be multiple messages at the same time, and since block end time
+        // is inclusive we only update the end time once we've moved to the next time
+        if (receiveTimeNs > lastTime) {
+          // write any pending messages to the block
+          for (const pendingIterResult of pendingIterResults) {
+            const item = pendingIterResult[1];
+            const pendingSizeInBytes =
+              item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+            block.items.push(pendingIterResult);
+            block.size += pendingSizeInBytes;
+          }
+
+          pendingIterResults.length = 0;
+
+          // update the last time this block was accessed
+          block.lastAccess = Date.now();
+
+          // Set the end time to 1 nanosecond before the current receive time since we know we've
+          // read up to this receive time.
+          block.end = subtract(receiveTime, { sec: 0, nsec: 1 });
+
+          lastTime = receiveTimeNs;
+          this.#recomputeLoadedRangeCache();
+        }
+      }
+
+      // Block is too big so we close it and will start a new one next loop
+      if (block.size >= this.#maxBlockSizeBytes) {
+        // The new block starts right after our previous one
+        readHead = add(block.end, { sec: 0, nsec: 1 });
+
+        // Will force creation of a new block on the next loop
+        block = undefined;
+      }
+
+      const sizeInBytes = iterResult.type === "message-event" ? iterResult.msgEvent.sizeInBytes : 0;
+      if (
+        this.#maybePurgeCache({
+          activeBlock: block,
+          sizeInBytes,
+        })
+      ) {
+        this.#recomputeLoadedRangeCache();
+      }
+
+      // As we add items to pending we also consider them as part of the total size
+      this.#totalSizeBytes += sizeInBytes;
+
+      // Store the latest message in pending results and flush to the block when time moves forward
+      pendingIterResults.push([lastTime, iterResult]);
+      if (args.writeSpill) {
+        await this.#appendSpill(iterResult);
+      }
+
+      yield iterResult;
+    }
+
+    // We've finished reading our source to the end, close out the block
+    if (block) {
+      block.end = args.end;
+
+      // update the last time this block was accessed
+      block.lastAccess = Date.now();
+
+      // write any pending messages to the block
+      for (const pendingIterResult of pendingIterResults) {
+        const item = pendingIterResult[1];
+        const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+        block.items.push(pendingIterResult);
+        block.size += pendingSizeInBytes;
+      }
+
+      this.#recomputeLoadedRangeCache();
+    } else {
+      // We don't have a block after finishing our source. This can happen if the last
+      // thing we read in the source made our block be over size and we cycled to a new block.
+      // This can also happen if there were no messages in our source range.
+      //
+      // Since we never loop again we need to insert an empty block from the readHead
+      // to sourceReadEnd because we know there's nothing else in that range.
+      const newBlock: CacheBlock<MessageType> = {
+        id: this.#nextBlockId++,
+        start: readHead,
+        end: args.end,
+        items: pendingIterResults,
+        size: 0,
+        lastAccess: Date.now(),
+      };
+
+      for (const pendingIterResult of pendingIterResults) {
+        const item = pendingIterResult[1];
+        const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+        newBlock.size += pendingSizeInBytes;
+      }
+
+      // Find where we need to insert our new block.
+      // It should come before any blocks with a start time > than new block start time.
+      const insertIndex = _.sortedIndexBy(this.#cache, newBlock, (item) => toNanoSec(item.start));
+      this.#cache.splice(insertIndex, 0, newBlock);
+
+      this.#recomputeLoadedRangeCache();
+    }
+
+    if (args.writeSpill && !sourceHadProblem) {
+      await this.#recordSpillLoadedRange(args.start, args.end);
+    }
   }
 
   public async *messageIterator(
@@ -142,16 +616,7 @@ class CachingIterableSource<MessageType = unknown>
     const maxEnd = args.end ?? this.#initResult.end;
     const maxEndNanos = toNanoSec(maxEnd);
 
-    // When the list of topics we want changes we purge the entire cache and start again.
-    //
-    // This is heavy-handed but avoids dealing with how to handle disjoint cached ranges across topics.
-    if (!_.isEqual(args.topics, this.#cachedTopics)) {
-      log.debug("topics changed - clearing cache, resetting range");
-      this.#cachedTopics = args.topics;
-      this.#cache.length = 0;
-      this.#totalSizeBytes = 0;
-      this.#recomputeLoadedRangeCache();
-    }
+    await this.#resetForTopicsIfNeeded(args.topics);
 
     // Where we want to read messages from. As we move through blocks and messages, the read head
     // moves forward to track the next place we should be reading.
@@ -248,150 +713,64 @@ class CachingIterableSource<MessageType = unknown>
         sourceReadEnd = maxEnd;
       }
 
-      const sourceMessageIterator = this.#source.messageIterator({
-        topics: this.#cachedTopics,
-        start: sourceReadStart,
-        end: sourceReadEnd,
-        consumptionType: args.consumptionType,
-        fetchCompleteTopicState: args.fetchCompleteTopicState,
-      });
+      if (!this.#hasActiveSpillCache()) {
+        yield* this.#yieldSourceRange({
+          start: sourceReadStart,
+          end: sourceReadEnd,
+          topics: this.#cachedTopics,
+          consumptionType: args.consumptionType,
+          fetchCompleteTopicState: args.fetchCompleteTopicState,
+          writeSpill: false,
+        });
+        readHead = add(sourceReadEnd, { sec: 0, nsec: 1 });
+        continue;
+      }
 
-      // The cache is indexed on time, but iterator results that are problems might not have a time.
-      // For these we use the lastTime that we knew about (or had a message for).
-      // This variable tracks the last known time from a read.
-      let lastTime = toNanoSec(sourceReadStart);
-
-      const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
-
-      for await (const iterResult of sourceMessageIterator) {
-        // if there is no block, we make a new block
-        if (!block) {
-          const newBlock: CacheBlock<MessageType> = {
-            id: this.#nextBlockId++,
-            start: readHead,
-            end: readHead,
-            items: [],
-            size: 0,
-            lastAccess: Date.now(),
-          };
-
-          // Find where we need to insert our new block.
-          // It should come before any blocks with a start time > than new block start time.
-          const insertIndex = _.sortedIndexBy(this.#cache, newBlock, (item) =>
-            toNanoSec(item.start),
-          );
-          this.#cache.splice(insertIndex, 0, newBlock);
-
-          block = newBlock;
-          this.#recomputeLoadedRangeCache();
-        }
-
-        // When receiving a message event or stamp, we update our known time on the block to the
-        // stamp or receiveTime because we know we've received all the results up to this time
-        if (iterResult.type === "message-event" || iterResult.type === "stamp") {
-          const receiveTime =
-            iterResult.type === "stamp" ? iterResult.stamp : iterResult.msgEvent.receiveTime;
-          const receiveTimeNs = toNanoSec(receiveTime);
-
-          // There might be multiple messages at the same time, and since block end time
-          // is inclusive we only update the end time once we've moved to the next time
-          if (receiveTimeNs > lastTime) {
-            // write any pending messages to the block
-            for (const pendingIterResult of pendingIterResults) {
-              const item = pendingIterResult[1];
-              const pendingSizeInBytes =
-                item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
-              block.items.push(pendingIterResult);
-              block.size += pendingSizeInBytes;
-            }
-
-            pendingIterResults.length = 0;
-
-            // update the last time this block was accessed
-            block.lastAccess = Date.now();
-
-            // Set the end time to 1 nanosecond before the current receive time since we know we've
-            // read up to this receive time.
-            block.end = subtract(receiveTime, { sec: 0, nsec: 1 });
-
-            lastTime = receiveTimeNs;
-            this.#recomputeLoadedRangeCache();
+      const spillRanges = await this.#getSpillLoadedRanges();
+      let segmentStart = sourceReadStart;
+      while (compare(segmentStart, sourceReadEnd) <= 0) {
+        let containingSpillRange: LoadedRange | undefined;
+        for (const range of spillRanges) {
+          if (compare(range.start, segmentStart) <= 0 && compare(range.end, segmentStart) >= 0) {
+            containingSpillRange = range;
+            break;
           }
         }
 
-        // Block is too big so we close it and will start a new one next loop
-        if (block.size >= this.#maxBlockSizeBytes) {
-          // The new block starts right after our previous one
-          readHead = add(block.end, { sec: 0, nsec: 1 });
-
-          // Will force creation of a new block on the next loop
-          block = undefined;
+        if (containingSpillRange) {
+          const segmentEnd =
+            compare(containingSpillRange.end, sourceReadEnd) < 0
+              ? containingSpillRange.end
+              : sourceReadEnd;
+          yield* this.#yieldSpillRange({
+            start: segmentStart,
+            end: segmentEnd,
+            topics: this.#cachedTopics,
+          });
+          segmentStart = add(segmentEnd, { sec: 0, nsec: 1 });
+          continue;
         }
 
-        const sizeInBytes =
-          iterResult.type === "message-event" ? iterResult.msgEvent.sizeInBytes : 0;
-        if (
-          this.#maybePurgeCache({
-            activeBlock: block,
-            sizeInBytes,
-          })
-        ) {
-          this.#recomputeLoadedRangeCache();
+        let nextSpillRange: LoadedRange | undefined;
+        for (const range of spillRanges) {
+          if (compare(range.start, segmentStart) > 0 && compare(range.start, sourceReadEnd) <= 0) {
+            nextSpillRange = range;
+            break;
+          }
         }
+        const segmentEnd = nextSpillRange
+          ? subtract(nextSpillRange.start, { sec: 0, nsec: 1 })
+          : sourceReadEnd;
 
-        // As we add items to pending we also consider them as part of the total size
-        this.#totalSizeBytes += sizeInBytes;
-
-        // Store the latest message in pending results and flush to the block when time moves forward
-        pendingIterResults.push([lastTime, iterResult]);
-
-        yield iterResult;
-      }
-
-      // We've finished reading our source to the end, close out the block
-      if (block) {
-        block.end = sourceReadEnd;
-
-        // update the last time this block was accessed
-        block.lastAccess = Date.now();
-
-        // write any pending messages to the block
-        for (const pendingIterResult of pendingIterResults) {
-          const item = pendingIterResult[1];
-          const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
-          block.items.push(pendingIterResult);
-          block.size += pendingSizeInBytes;
-        }
-
-        this.#recomputeLoadedRangeCache();
-      } else {
-        // We don't have a block after finishing our source. This can happen if the last
-        // thing we read in the source made our block be over size and we cycled to a new block.
-        // This can also happen if there were no messages in our source range.
-        //
-        // Since we never loop again we need to insert an empty block from the readHead
-        // to sourceReadEnd because we know there's nothing else in that range.
-        const newBlock: CacheBlock<MessageType> = {
-          id: this.#nextBlockId++,
-          start: readHead,
-          end: sourceReadEnd,
-          items: pendingIterResults,
-          size: 0,
-          lastAccess: Date.now(),
-        };
-
-        for (const pendingIterResult of pendingIterResults) {
-          const item = pendingIterResult[1];
-          const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
-          newBlock.size += pendingSizeInBytes;
-        }
-
-        // Find where we need to insert our new block.
-        // It should come before any blocks with a start time > than new block start time.
-        const insertIndex = _.sortedIndexBy(this.#cache, newBlock, (item) => toNanoSec(item.start));
-        this.#cache.splice(insertIndex, 0, newBlock);
-
-        this.#recomputeLoadedRangeCache();
+        yield* this.#yieldSourceRange({
+          start: segmentStart,
+          end: segmentEnd,
+          topics: this.#cachedTopics,
+          consumptionType: args.consumptionType,
+          fetchCompleteTopicState: args.fetchCompleteTopicState,
+          writeSpill: true,
+        });
+        segmentStart = add(segmentEnd, { sec: 0, nsec: 1 });
       }
 
       // We've read everything there was to read for this source, so our next read will be after
@@ -406,6 +785,8 @@ class CachingIterableSource<MessageType = unknown>
     if (!this.#initResult) {
       throw new Error("Invariant: uninitialized");
     }
+
+    await this.#resetForTopicsIfNeeded(args.topics);
 
     // Find a block that contains args.time. We must find a block that contains args.time rather
     // than one that occurs anytime before args.time to correctly get the last message before
@@ -476,6 +857,23 @@ class CachingIterableSource<MessageType = unknown>
 
     // If we found all our topics from our cache then we don't need to fallback to the source
     if (needsTopics.size === 0) {
+      return out;
+    }
+
+    const spillBackfill = await this.#readSpillBackfillMessages({
+      ...args,
+      topics: needsTopics,
+    });
+    for (const message of spillBackfill) {
+      if (!needsTopics.has(message.topic)) {
+        continue;
+      }
+      needsTopics.delete(message.topic);
+      out.push(message as MessageEvent<MessageType>);
+    }
+
+    if (needsTopics.size === 0) {
+      out.sort((a, b) => compare(a.receiveTime, b.receiveTime));
       return out;
     }
 

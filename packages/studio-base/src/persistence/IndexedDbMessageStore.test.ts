@@ -338,4 +338,74 @@ describe("IndexedDbMessageStore", () => {
     (console.warn as jest.Mock).mockClear();
     await store.close();
   });
+
+  it("merges loaded ranges and detects complete coverage", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "loaded-ranges",
+      kind: "playback-spill",
+    });
+    await store.init();
+
+    await store.putLoadedRange({
+      sessionId: store.getSessionId(),
+      topicFingerprint: "topics",
+      start: { sec: 1, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+    });
+    await store.putLoadedRange({
+      sessionId: store.getSessionId(),
+      topicFingerprint: "topics",
+      start: { sec: 2, nsec: 1 },
+      end: { sec: 3, nsec: 0 },
+    });
+
+    expect(await store.getLoadedRanges("topics")).toEqual([
+      expect.objectContaining({
+        sessionId: "loaded-ranges",
+        topicFingerprint: "topics",
+        start: { sec: 1, nsec: 0 },
+        end: { sec: 3, nsec: 0 },
+      }),
+    ]);
+    await expect(
+      store.hasLoadedRange({
+        topicFingerprint: "topics",
+        start: { sec: 1, nsec: 500 },
+        end: { sec: 2, nsec: 500 },
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      store.hasLoadedRange({
+        topicFingerprint: "topics",
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 2, nsec: 0 },
+      }),
+    ).resolves.toBe(false);
+
+    await store.close();
+  });
+
+  it("does not expose internal session fields when reading messages", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "restore-event",
+      kind: "playback-spill",
+    });
+    await store.init();
+    await store.append([messageEvent(1)]);
+    await store.flush();
+
+    const messages = await store.getMessages({
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 20, nsec: 0 },
+    });
+    expect(messages).toEqual([messageEvent(1)]);
+
+    const backfill = await store.getBackfillMessages({
+      topics: ["/topic"],
+      time: { sec: 20, nsec: 0 },
+    });
+    expect(backfill).toEqual([messageEvent(1)]);
+
+    await store.close();
+  });
 });

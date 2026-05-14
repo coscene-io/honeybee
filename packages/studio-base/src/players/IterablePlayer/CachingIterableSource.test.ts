@@ -5,7 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
+import {
+  clearIndexedDbMessageStoreDatabase,
+  IndexedDbMessageStore,
+} from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
+import { SubscribePayload, TopicSelection } from "@foxglove/studio-base/players/types";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
 import { CachingIterableSource } from "./CachingIterableSource";
@@ -18,6 +24,9 @@ import {
 } from "./IIterableSource";
 
 class TestSource implements IIterableSource {
+  public messageIteratorCalls = 0;
+  public getBackfillMessagesCalls = 0;
+
   public async initialize(): Promise<Initalization> {
     return {
       start: { sec: 0, nsec: 0 },
@@ -33,14 +42,30 @@ class TestSource implements IIterableSource {
 
   public async *messageIterator(
     _args: MessageIteratorArgs,
-  ): AsyncIterableIterator<Readonly<IteratorResult>> {}
+  ): AsyncIterableIterator<Readonly<IteratorResult>> {
+    this.messageIteratorCalls++;
+    yield* [];
+  }
 
   public async getBackfillMessages(_args: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
+    this.getBackfillMessagesCalls++;
     return [];
   }
 }
 
+function payloadSelection(payloads: SubscribePayload[]): TopicSelection {
+  return new Map(payloads.map((payload) => [payload.topic, payload]));
+}
+
 describe("CachingIterableSource", () => {
+  beforeEach(async () => {
+    await clearIndexedDbMessageStoreDatabase();
+  });
+
+  afterEach(async () => {
+    await clearIndexedDbMessageStoreDatabase();
+  });
+
   it("should construct and initialize", async () => {
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source);
@@ -984,5 +1009,398 @@ describe("CachingIterableSource", () => {
         schemaName: "foo",
       },
     ]);
+  });
+
+  it("reads evicted ranges from playback spill cache without calling the source again", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "same-topics" },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      for (let i = 0; i < 8; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { value: i },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    {
+      const iterator = bufferedSource.messageIterator({ topics: mockTopicSelection("a") });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+      expect(bufferedSource.loadedRanges()).toEqual([{ start: 0.6, end: 1 }]);
+      expect(source.messageIteratorCalls).toBe(1);
+    }
+
+    source.messageIterator = function messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      throw new Error("source should not be called when spill cache covers the range");
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+    });
+
+    const values: unknown[] = [];
+    for await (const result of iterator) {
+      if (result.type === "message-event") {
+        values.push(result.msgEvent.message);
+      }
+    }
+
+    expect(values).toEqual([{ value: 0 }, { value: 1 }, { value: 2 }]);
+    expect(source.messageIteratorCalls).toBe(1);
+
+    await bufferedSource.terminate();
+  });
+
+  it("records empty playback spill ranges so empty re-reads do not call the source", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "empty-range" },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      yield* [];
+    };
+
+    {
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 1, nsec: 0 },
+        end: { sec: 2, nsec: 0 },
+      });
+      await expect(iterator.next()).resolves.toEqual({ done: true });
+      expect(source.messageIteratorCalls).toBe(1);
+    }
+
+    source.messageIterator = function messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      throw new Error("source should not be called for empty covered spill range");
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 1, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+    });
+    await expect(iterator.next()).resolves.toEqual({ done: true });
+    expect(source.messageIteratorCalls).toBe(1);
+
+    await bufferedSource.terminate();
+  });
+
+  it("only requests uncovered gaps when playback spill coverage is partial", async () => {
+    const source = new TestSource();
+    const sourceRequests: MessageIteratorArgs[] = [];
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "partial-coverage" },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      sourceRequests.push(args);
+
+      const start = args.start ?? { sec: 0, nsec: 0 };
+      const end = args.end ?? { sec: 10, nsec: 0 };
+      const startNs = toNanoSec(start);
+      const endNs = toNanoSec(end);
+
+      for (let i = 0; i <= 9; ++i) {
+        const receiveTime = { sec: i, nsec: 0 };
+        const receiveTimeNs = toNanoSec(receiveTime);
+        if (receiveTimeNs < startNs || receiveTimeNs > endNs) {
+          continue;
+        }
+
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime,
+            message: { value: i },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    const loadedSegments: [number, number][] = [
+      [0, 1],
+      [4, 5],
+      [8, 9],
+    ];
+    for (const [startSec, endSec] of loadedSegments) {
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: startSec, nsec: 0 },
+        end: { sec: endSec, nsec: 0 },
+      });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+    }
+    expect(sourceRequests).toHaveLength(3);
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 5, nsec: 0 },
+    });
+    const messages: unknown[] = [];
+    for await (const result of iterator) {
+      if (result.type === "message-event") {
+        messages.push(result.msgEvent.message);
+      }
+    }
+
+    expect(messages).toEqual([
+      { value: 0 },
+      { value: 1 },
+      { value: 2 },
+      { value: 3 },
+      { value: 4 },
+      { value: 5 },
+    ]);
+    expect(sourceRequests).toHaveLength(4);
+    expect(sourceRequests[3]).toMatchObject({
+      start: { sec: 1, nsec: 1 },
+      end: { sec: 3, nsec: 999999999 },
+    });
+
+    await bufferedSource.terminate();
+  });
+
+  it("keeps playback spill ranges isolated by topic fields fingerprint", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "field-fingerprint" },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      const fields = args.topics.get("a")?.fields;
+      const fieldLabel = fields?.join(",") ?? "all";
+      for (let i = 0; i < 4; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { fieldLabel, value: i },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    {
+      const iterator = bufferedSource.messageIterator({
+        topics: payloadSelection([{ topic: "a", fields: ["x"] }]),
+      });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+      expect(source.messageIteratorCalls).toBe(1);
+    }
+
+    {
+      const iterator = bufferedSource.messageIterator({
+        topics: payloadSelection([{ topic: "a", fields: ["y"] }]),
+      });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+      expect(source.messageIteratorCalls).toBe(2);
+    }
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      const fields = args.topics.get("a")?.fields;
+      const fieldLabel = fields?.join(",") ?? "all";
+      for (let i = 0; i < 2; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { fieldLabel, value: i, reloaded: true },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: payloadSelection([{ topic: "a", fields: ["x"] }]),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 1, nsec: 0 },
+    });
+    const messages: unknown[] = [];
+    for await (const result of iterator) {
+      if (result.type === "message-event") {
+        messages.push(result.msgEvent.message);
+      }
+    }
+
+    expect(messages).toEqual([
+      { fieldLabel: "x", value: 0, reloaded: true },
+      { fieldLabel: "x", value: 1, reloaded: true },
+    ]);
+    expect(source.messageIteratorCalls).toBe(3);
+
+    await bufferedSource.terminate();
+  });
+
+  it("returns backfill messages from playback spill cache after memory eviction", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "backfill" },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      for (let i = 0; i < 8; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { value: i },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    {
+      const iterator = bufferedSource.messageIterator({ topics: mockTopicSelection("a") });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+    }
+
+    source.getBackfillMessages = async () => {
+      source.getBackfillMessagesCalls++;
+      throw new Error("source backfill should not be called when spill cache has the message");
+    };
+
+    const backfill = await bufferedSource.getBackfillMessages({
+      topics: mockTopicSelection("a"),
+      time: { sec: 1, nsec: 0 },
+    });
+
+    expect(backfill).toEqual([
+      {
+        topic: "a",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: { value: 1 },
+        sizeInBytes: 101,
+        schemaName: "foo",
+      },
+    ]);
+    expect(source.getBackfillMessagesCalls).toBe(0);
+
+    await bufferedSource.terminate();
+  });
+
+  it("deletes playback spill session on terminate", async () => {
+    const source = new TestSource();
+    const sourceKey = "terminate";
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    const iterator = bufferedSource.messageIterator({ topics: mockTopicSelection("a") });
+    for await (const result of iterator) {
+      void result;
+      // no-op
+    }
+
+    await bufferedSource.terminate();
+
+    const reader = new IndexedDbMessageStore({
+      sessionId: `playback-spill:test-source:${sourceKey}`,
+      kind: "playback-spill",
+    });
+    await reader.init();
+    expect((await reader.stats()).count).toBe(0);
+    await reader.close();
   });
 });

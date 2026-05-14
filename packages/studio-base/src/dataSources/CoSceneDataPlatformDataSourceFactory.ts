@@ -162,6 +162,13 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
+    const playbackSpillCacheSourceKey = JSON.stringify({
+      sourceId: this.id,
+      baseUrl,
+      bffUrl,
+      params: { ...args.params, ...baseInfo },
+      manifestUrl,
+    });
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -196,6 +203,8 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceId: this.id,
       urlParams,
       readAheadDuration,
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey,
     });
   }
 
@@ -233,6 +242,11 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       },
       readAheadDuration: { sec: 10, nsec: 0 },
       name: profile ? `Shard manifest (${profile})` : "Shard manifest",
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: JSON.stringify({
+        sourceId: this.id,
+        params,
+      }),
     });
   }
 }

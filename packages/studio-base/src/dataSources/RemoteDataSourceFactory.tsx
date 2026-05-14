@@ -111,6 +111,8 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       urlParams: { url },
       sourceId: this.id,
       readAheadDuration: { sec: 10, nsec: 0 },
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: JSON.stringify({ sourceId: this.id, url }),
     });
   }
 

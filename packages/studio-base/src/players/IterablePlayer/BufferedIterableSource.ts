@@ -39,6 +39,12 @@ type Options = {
   minReadAheadDuration?: Time;
   // Max. cache size in bytes
   maxCacheSizeBytes?: number;
+  // Optional IndexedDB-backed overflow cache for evicted playback ranges.
+  spillCache?: {
+    sourceId: string;
+    sourceKey?: string;
+    maxCacheSize?: number;
+  };
 };
 
 interface EventTypes {
@@ -99,6 +105,7 @@ class BufferedIterableSource<MessageType = unknown>
     this.#minReadAheadDuration = opt?.minReadAheadDuration ?? DEFAULT_MIN_READ_AHEAD_DURATION;
     this.#source = new CachingIterableSource<MessageType>(source, {
       maxTotalSize: opt?.maxCacheSizeBytes,
+      spillCache: opt?.spillCache,
     });
 
     if (compare(this.#readAheadDuration, this.#minReadAheadDuration) < 0) {
