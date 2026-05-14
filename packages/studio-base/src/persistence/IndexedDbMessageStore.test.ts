@@ -252,6 +252,33 @@ describe("IndexedDbMessageStore", () => {
     await spill.close();
   });
 
+  it("flushes pending appends before deleting the current session", async () => {
+    const store = new IndexedDbMessageStore({ sessionId: "delete-current-session-drain" });
+    await store.init();
+
+    try {
+      await store.append([messageEvent(1)]);
+      await store.deleteCurrentSession();
+      await wait(250);
+
+      expect((await store.stats()).count).toBe(0);
+
+      const db = await IDB.openDB("studio-realtime-cache");
+      try {
+        const tx = db.transaction(["messages", "sessions"], "readonly");
+        await expect(
+          tx.objectStore("messages").index("bySession").count(store.getSessionId()),
+        ).resolves.toBe(0);
+        await expect(tx.objectStore("sessions").get(store.getSessionId())).resolves.toBeUndefined();
+        await tx.done;
+      } finally {
+        db.close();
+      }
+    } finally {
+      await store.close();
+    }
+  });
+
   it("drops v1 cache data during migration and remains writable", async () => {
     await IDB.deleteDB("studio-realtime-cache");
 
@@ -381,6 +408,73 @@ describe("IndexedDbMessageStore", () => {
         end: { sec: 2, nsec: 0 },
       }),
     ).resolves.toBe(false);
+
+    await store.close();
+  });
+
+  it("clears playback spill loaded ranges after append pruning", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "spill-loaded-ranges-append-prune",
+      kind: "playback-spill",
+      maxCacheSize: 20,
+    });
+    await store.init();
+
+    await store.putLoadedRange({
+      sessionId: store.getSessionId(),
+      topicFingerprint: "topics",
+      start: { sec: 1, nsec: 0 },
+      end: { sec: 3, nsec: 0 },
+    });
+    await expect(
+      store.hasLoadedRange({
+        topicFingerprint: "topics",
+        start: { sec: 1, nsec: 0 },
+        end: { sec: 3, nsec: 0 },
+      }),
+    ).resolves.toBe(true);
+
+    await store.append([
+      messageEvent(1, "/topic", { sec: 1, nsec: 0 }),
+      messageEvent(2, "/topic", { sec: 2, nsec: 0 }),
+      messageEvent(3, "/topic", { sec: 3, nsec: 0 }),
+    ]);
+    await store.flush();
+
+    expect((await store.stats()).count).toBeLessThan(3);
+    expect(await store.getLoadedRanges("topics")).toEqual([]);
+    await expect(
+      store.hasLoadedRange({
+        topicFingerprint: "topics",
+        start: { sec: 1, nsec: 0 },
+        end: { sec: 3, nsec: 0 },
+      }),
+    ).resolves.toBe(false);
+
+    await store.close();
+  });
+
+  it("clears playback spill loaded ranges after force pruning", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "spill-loaded-ranges-force-prune",
+      kind: "playback-spill",
+      retentionWindowMs: 1,
+    });
+    await store.init();
+
+    await store.append([messageEvent(1, "/topic", { sec: 1, nsec: 0 })]);
+    await store.flush();
+    await store.putLoadedRange({
+      sessionId: store.getSessionId(),
+      topicFingerprint: "topics",
+      start: { sec: 1, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+    });
+
+    const result = await store.forcePrune();
+
+    expect(result.prunedCount).toBe(1);
+    expect(await store.getLoadedRanges("topics")).toEqual([]);
 
     await store.close();
   });

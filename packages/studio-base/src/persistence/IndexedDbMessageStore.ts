@@ -767,6 +767,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           approximateSizeBytes: this.#approximateSizeBytes,
           messageCount: this.#messageCount,
         });
+        await this.#deleteLoadedRangesAfterPrune();
         log.debug(
           `Pruned ${totalPrunedCount} messages, approximate session size: ${Math.round(
             this.#approximateSizeBytes / 1024 / 1024,
@@ -852,6 +853,12 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
 
     return { count: totalDeletedCount, bytes: totalDeletedBytes };
+  }
+
+  async #deleteLoadedRangesAfterPrune(): Promise<void> {
+    if (this.#kind === "playback-spill") {
+      await this.deleteLoadedRanges();
+    }
   }
 
   public async getMessages(params: {
@@ -1007,6 +1014,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       return;
     }
 
+    await this.flush();
     await this.#cleanupSessionData(this.#currentSessionId);
     this.#appendQueue.length = 0;
     this.#messageCount = 0;
@@ -1235,6 +1243,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       approximateSizeBytes: this.#approximateSizeBytes,
       messageCount: this.#messageCount,
     });
+    if (totalPrunedCount > 0) {
+      await this.#deleteLoadedRangesAfterPrune();
+    }
 
     log.info(
       `Force pruned ${totalPrunedCount} messages, approximate storage: ${Math.round(

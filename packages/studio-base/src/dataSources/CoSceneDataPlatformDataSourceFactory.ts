@@ -42,6 +42,25 @@ function definedUrlParams(params?: Record<string, string | undefined>): Record<s
   return definedParams;
 }
 
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortJsonValue);
+  }
+  if (value != undefined && typeof value === "object") {
+    const input = value as Record<string, unknown>;
+    const output: Record<string, unknown> = {};
+    for (const key of Object.keys(input).sort()) {
+      output[key] = sortJsonValue(input[key]);
+    }
+    return output;
+  }
+  return value;
+}
+
+function stableJsonStringify(value: unknown): string {
+  return JSON.stringify(sortJsonValue(value)) ?? "";
+}
+
 function buildManifestUrl(
   objectStorageBaseUrl: string,
   projectId: string,
@@ -162,7 +181,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
-    const playbackSpillCacheSourceKey = JSON.stringify({
+    const playbackSpillCacheSourceKey = stableJsonStringify({
       sourceId: this.id,
       baseUrl,
       bffUrl,
@@ -243,7 +262,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       readAheadDuration: { sec: 10, nsec: 0 },
       name: profile ? `Shard manifest (${profile})` : "Shard manifest",
       enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: JSON.stringify({
+      playbackSpillCacheSourceKey: stableJsonStringify({
         sourceId: this.id,
         params,
       }),

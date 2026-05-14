@@ -5,9 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as IDB from "idb";
+
 import { toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import {
+  CacheSessionMetadata,
   clearIndexedDbMessageStoreDatabase,
   IndexedDbMessageStore,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
@@ -55,6 +58,18 @@ class TestSource implements IIterableSource {
 
 function payloadSelection(payloads: SubscribePayload[]): TopicSelection {
   return new Map(payloads.map((payload) => [payload.topic, payload]));
+}
+
+async function getPlaybackSpillSessions(): Promise<CacheSessionMetadata[]> {
+  const db = await IDB.openDB("studio-realtime-cache");
+  try {
+    const tx = db.transaction("sessions", "readonly");
+    const sessions = (await tx.objectStore("sessions").getAll()) as CacheSessionMetadata[];
+    await tx.done;
+    return sessions.filter((session) => session.kind === "playback-spill");
+  } finally {
+    db.close();
+  }
 }
 
 describe("CachingIterableSource", () => {
@@ -1046,7 +1061,7 @@ describe("CachingIterableSource", () => {
           bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
         }
       }
-      expect(bufferedSource.loadedRanges()).toEqual([{ start: 0.6, end: 1 }]);
+      expect(bufferedSource.loadedRanges()).toEqual([{ start: 0, end: 1 }]);
       expect(source.messageIteratorCalls).toBe(1);
     }
 
@@ -1343,29 +1358,190 @@ describe("CachingIterableSource", () => {
       source.getBackfillMessagesCalls++;
       throw new Error("source backfill should not be called when spill cache has the message");
     };
+    const spillGetMessagesSpy = jest.spyOn(IndexedDbMessageStore.prototype, "getMessages");
+    const spillGetBackfillMessagesSpy = jest.spyOn(
+      IndexedDbMessageStore.prototype,
+      "getBackfillMessages",
+    );
 
-    const backfill = await bufferedSource.getBackfillMessages({
-      topics: mockTopicSelection("a"),
-      time: { sec: 1, nsec: 0 },
+    try {
+      const backfill = await bufferedSource.getBackfillMessages({
+        topics: mockTopicSelection("a"),
+        time: { sec: 1, nsec: 0 },
+      });
+
+      expect(backfill).toEqual([
+        {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 101,
+          schemaName: "foo",
+        },
+      ]);
+      expect(source.getBackfillMessagesCalls).toBe(0);
+      expect(spillGetMessagesSpy).not.toHaveBeenCalled();
+      expect(spillGetBackfillMessagesSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      spillGetMessagesSpy.mockRestore();
+      spillGetBackfillMessagesSpy.mockRestore();
+      await bufferedSource.terminate();
+    }
+  });
+
+  it("does not use playback spill coverage for complete topic-state fetches", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "complete-topic-state" },
     });
 
-    expect(backfill).toEqual([
-      {
-        topic: "a",
-        receiveTime: { sec: 1, nsec: 0 },
-        message: { value: 1 },
-        sizeInBytes: 101,
-        schemaName: "foo",
-      },
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      const complete = args.fetchCompleteTopicState === "complete";
+      for (let i = 0; i < 3; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { complete, value: i },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    {
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 2, nsec: 0 },
+      });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+      expect(source.messageIteratorCalls).toBe(1);
+    }
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+      fetchCompleteTopicState: "complete",
+    });
+    const messages: unknown[] = [];
+    for await (const result of iterator) {
+      if (result.type === "message-event") {
+        messages.push(result.msgEvent.message);
+      }
+    }
+
+    expect(messages).toEqual([
+      { complete: true, value: 0 },
+      { complete: true, value: 1 },
+      { complete: true, value: 2 },
     ]);
-    expect(source.getBackfillMessagesCalls).toBe(0);
+    expect(source.messageIteratorCalls).toBe(2);
 
     await bufferedSource.terminate();
   });
 
-  it("deletes playback spill session on terminate", async () => {
+  it("records playback spill loaded ranges at stamp boundaries", async () => {
     const source = new TestSource();
-    const sourceKey = "terminate";
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "stamp-boundary" },
+    });
+    let releaseSource: (() => void) | undefined;
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { value: 0 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+      yield { type: "stamp", stamp: { sec: 2, nsec: 0 } };
+      await new Promise<void>((resolve) => {
+        releaseSource = resolve;
+      });
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 5, nsec: 0 },
+    });
+    await expect(iterator.next()).resolves.toMatchObject({
+      done: false,
+      value: { type: "message-event" },
+    });
+    await expect(iterator.next()).resolves.toMatchObject({
+      done: false,
+      value: { type: "message-event" },
+    });
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { type: "stamp", stamp: { sec: 2, nsec: 0 } },
+    });
+
+    const sessions = await getPlaybackSpillSessions();
+    expect(sessions).toHaveLength(1);
+    const session = sessions[0]!;
+    expect(session.sessionId).toMatch(/^playback-spill:test-source:/);
+    expect(session.sourceId).toBe("test-source");
+    expect(session.sourceKey).toBe("stamp-boundary");
+
+    const reader = new IndexedDbMessageStore({
+      sessionId: session.sessionId,
+      kind: "playback-spill",
+    });
+    await reader.init();
+    const topicFingerprint = (await reader.getSessionMetadata())?.topicFingerprint;
+    if (topicFingerprint == undefined) {
+      throw new Error("Expected playback spill topic fingerprint to be recorded");
+    }
+    await expect(reader.getLoadedRanges(topicFingerprint)).resolves.toMatchObject([
+      { start: { sec: 0, nsec: 0 }, end: { sec: 2, nsec: 0 } },
+    ]);
+
+    await reader.close();
+    releaseSource?.();
+    await iterator.return?.();
+    await bufferedSource.terminate();
+    await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
+  });
+
+  it("deletes playback spill session on terminate and does not reuse it after reopen", async () => {
+    const source = new TestSource();
+    const sourceKey = "reopen";
     const bufferedSource = new CachingIterableSource(source, {
       spillCache: { sourceId: "test-source", sourceKey },
     });
@@ -1394,13 +1570,51 @@ describe("CachingIterableSource", () => {
     }
 
     await bufferedSource.terminate();
+    await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
 
-    const reader = new IndexedDbMessageStore({
-      sessionId: `playback-spill:test-source:${sourceKey}`,
-      kind: "playback-spill",
+    const reopenedSource = new TestSource();
+    const reopenedBufferedSource = new CachingIterableSource(reopenedSource, {
+      spillCache: { sourceId: "test-source", sourceKey },
     });
-    await reader.init();
-    expect((await reader.stats()).count).toBe(0);
-    await reader.close();
+    await reopenedBufferedSource.initialize();
+
+    reopenedSource.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      reopenedSource.messageIteratorCalls++;
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 2 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    const reopenedIterator = reopenedBufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 1, nsec: 0 },
+      end: { sec: 1, nsec: 0 },
+    });
+    await expect(reopenedIterator.next()).resolves.toEqual({
+      done: false,
+      value: {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 2 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      },
+    });
+    await expect(reopenedIterator.next()).resolves.toEqual({ done: true });
+    expect(reopenedSource.messageIteratorCalls).toBe(1);
+
+    await reopenedBufferedSource.terminate();
   });
 });

@@ -35,6 +35,10 @@ import {
 const log = Log.getLogger(__filename);
 const MAX_SPILL_APPENDS_BEFORE_FLUSH = 1000;
 
+function createPlaybackSpillSessionId(sourceId: string): string {
+  return `playback-spill:${sourceId}:${globalThis.crypto.randomUUID()}`;
+}
+
 function messageSize(message: MessageEvent): number {
   return Math.max(message.sizeInBytes, estimateObjectSize(message.message));
 }
@@ -151,6 +155,7 @@ class CachingIterableSource<MessageType = unknown>
   #spillEnabled = true;
   #spillCacheOptions?: NonNullable<Options["spillCache"]>;
   #spillTopicFingerprint?: string;
+  #spillLoadedRanges: readonly LoadedRange[] = [];
   #spillAppendCountSinceFlush = 0;
 
   public constructor(source: IIterableSource<MessageType>, opt?: Options) {
@@ -203,7 +208,7 @@ class CachingIterableSource<MessageType = unknown>
 
     const sourceKey = this.#spillCacheOptions.sourceKey ?? this.#spillCacheOptions.sourceId;
     this.#spillStore = new IndexedDbMessageStore({
-      sessionId: `playback-spill:${this.#spillCacheOptions.sourceId}:${sourceKey}`,
+      sessionId: createPlaybackSpillSessionId(this.#spillCacheOptions.sourceId),
       kind: "playback-spill",
       retentionWindowMs: Number.MAX_SAFE_INTEGER,
       maxCacheSize: this.#spillCacheOptions.maxCacheSize,
@@ -225,6 +230,7 @@ class CachingIterableSource<MessageType = unknown>
     const store = this.#spillStore;
     this.#spillStore = undefined;
     this.#spillTopicFingerprint = undefined;
+    this.#spillLoadedRanges = [];
     this.#spillAppendCountSinceFlush = 0;
 
     if (store == undefined) {
@@ -256,7 +262,9 @@ class CachingIterableSource<MessageType = unknown>
       await this.#spillStore.setTopicFingerprint(nextFingerprint);
       await this.#spillStore.clear();
       this.#spillTopicFingerprint = nextFingerprint;
+      this.#spillLoadedRanges = [];
       this.#spillAppendCountSinceFlush = 0;
+      this.#recomputeLoadedRangeCache();
     } catch (error) {
       log.warn("Disabling playback spill cache after topic reset failed:", error);
       await this.#closeSpillCache({ clear: false });
@@ -306,6 +314,8 @@ class CachingIterableSource<MessageType = unknown>
         start,
         end,
       });
+      this.#spillLoadedRanges = await this.#spillStore.getLoadedRanges(this.#spillTopicFingerprint);
+      this.#recomputeLoadedRangeCache();
     } catch (error) {
       log.warn("Disabling playback spill cache after loaded range update failed:", error);
       await this.#closeSpillCache({ clear: false });
@@ -329,7 +339,9 @@ class CachingIterableSource<MessageType = unknown>
     }
 
     try {
-      return await store.getLoadedRanges(topicFingerprint);
+      this.#spillLoadedRanges = await store.getLoadedRanges(topicFingerprint);
+      this.#recomputeLoadedRangeCache();
+      return this.#spillLoadedRanges;
     } catch (error) {
       log.warn("Disabling playback spill cache after loaded range lookup failed:", error);
       await this.#closeSpillCache({ clear: false });
@@ -361,7 +373,9 @@ class CachingIterableSource<MessageType = unknown>
     }
   }
 
-  async #readSpillBackfillMessages(args: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
+  async #readSpillBackfillMessages(
+    args: GetBackfillMessagesArgs,
+  ): Promise<readonly MessageEvent[]> {
     if (
       !this.#spillEnabled ||
       this.#spillStore == undefined ||
@@ -379,14 +393,10 @@ class CachingIterableSource<MessageType = unknown>
         return [];
       }
 
-      const messages = await this.#spillStore.getMessages({
-        start: containingRange.start,
-        end: args.time,
+      return await this.#spillStore.getBackfillMessages({
+        time: args.time,
         topics: Array.from(args.topics.keys()),
       });
-      return Array.from(
-        messages.reduce((byTopic, message) => byTopic.set(message.topic, message), new Map()),
-      ).map(([, message]) => message);
     } catch (error) {
       log.warn("Disabling playback spill cache after backfill lookup failed:", error);
       await this.#closeSpillCache({ clear: false });
@@ -461,14 +471,15 @@ class CachingIterableSource<MessageType = unknown>
     // This variable tracks the last known time from a read.
     let readHead = args.start;
     let lastTime = toNanoSec(args.start);
-    let sourceHadProblem = false;
+    let sourceHadProblemInRange = false;
+    let spillRangeStart = args.start;
     let block: CacheBlock<MessageType> | undefined;
 
     const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
 
     for await (const iterResult of sourceMessageIterator) {
       if (iterResult.type === "problem") {
-        sourceHadProblem = true;
+        sourceHadProblemInRange = true;
       }
 
       // if there is no block, we make a new block
@@ -552,6 +563,15 @@ class CachingIterableSource<MessageType = unknown>
         await this.#appendSpill(iterResult);
       }
 
+      if (args.writeSpill && iterResult.type === "stamp") {
+        const spillRangeEnd = compare(iterResult.stamp, args.end) > 0 ? args.end : iterResult.stamp;
+        if (!sourceHadProblemInRange && compare(spillRangeStart, spillRangeEnd) <= 0) {
+          await this.#recordSpillLoadedRange(spillRangeStart, spillRangeEnd);
+        }
+        sourceHadProblemInRange = false;
+        spillRangeStart = add(spillRangeEnd, { sec: 0, nsec: 1 });
+      }
+
       yield iterResult;
     }
 
@@ -601,8 +621,8 @@ class CachingIterableSource<MessageType = unknown>
       this.#recomputeLoadedRangeCache();
     }
 
-    if (args.writeSpill && !sourceHadProblem) {
-      await this.#recordSpillLoadedRange(args.start, args.end);
+    if (args.writeSpill && !sourceHadProblemInRange && compare(spillRangeStart, args.end) <= 0) {
+      await this.#recordSpillLoadedRange(spillRangeStart, args.end);
     }
   }
 
@@ -621,6 +641,17 @@ class CachingIterableSource<MessageType = unknown>
     // Where we want to read messages from. As we move through blocks and messages, the read head
     // moves forward to track the next place we should be reading.
     let readHead = args.start ?? this.#initResult.start;
+
+    if (args.fetchCompleteTopicState === "complete") {
+      yield* this.#source.messageIterator({
+        topics: args.topics,
+        start: readHead,
+        end: maxEnd,
+        consumptionType: args.consumptionType,
+        fetchCompleteTopicState: args.fetchCompleteTopicState,
+      });
+      return;
+    }
 
     const findIndexContainingPredicate = (item: CacheBlock<MessageType>) => {
       return compare(item.start, readHead) <= 0 && compare(item.end, readHead) >= 0;
@@ -904,7 +935,7 @@ class CachingIterableSource<MessageType = unknown>
       return;
     }
 
-    if (this.#cache.length === 0) {
+    if (this.#cache.length === 0 && this.#spillLoadedRanges.length === 0) {
       this.#loadedRangesCache = [{ start: 0, end: 0 }];
       this.emit("loadedRangesChange");
       return;
@@ -915,15 +946,30 @@ class CachingIterableSource<MessageType = unknown>
     // continuous ranges for continuous spans
     const ranges: { start: number; end: number }[] = [];
     let prevRange: { start: bigint; end: bigint } | undefined;
-    for (const block of this.#cache) {
-      const range = {
+    const rangesNs = [
+      ...this.#cache.map((block) => ({
         start: toNanoSec(block.start),
         end: toNanoSec(block.end),
-      };
+      })),
+      ...this.#spillLoadedRanges.map((range) => ({
+        start: toNanoSec(range.start),
+        end: toNanoSec(range.end),
+      })),
+    ].sort((a, b) => {
+      if (a.start < b.start) {
+        return -1;
+      }
+      if (a.start > b.start) {
+        return 1;
+      }
+      return 0;
+    });
+
+    for (const range of rangesNs) {
       if (!prevRange) {
         prevRange = range;
-      } else if (prevRange.end + 1n === range.start) {
-        prevRange.end = range.end;
+      } else if (prevRange.end + 1n >= range.start) {
+        prevRange.end = prevRange.end > range.end ? prevRange.end : range.end;
       } else {
         ranges.push({
           start: Number(prevRange.start - sourceStartNs) / rangeNs,
