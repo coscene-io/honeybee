@@ -1778,6 +1778,41 @@ describe("CachingIterableSource", () => {
     }
   });
 
+  it("does not recover a playback spill session from an obsolete heartbeat after terminate", async () => {
+    jest.useFakeTimers();
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "heartbeat-terminate-race" },
+    });
+
+    let resolveTouch: ((value: boolean) => void) | undefined;
+    const touchSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "touchSession")
+      .mockImplementation(
+        async () =>
+          await new Promise<boolean>((resolve) => {
+            resolveTouch = resolve;
+          }),
+      );
+
+    try {
+      await bufferedSource.initialize();
+
+      await jest.advanceTimersByTimeAsync(30_000);
+      expect(touchSpy).toHaveBeenCalledTimes(1);
+
+      const terminatePromise = bufferedSource.terminate();
+      resolveTouch?.(false);
+      await terminatePromise;
+      await Promise.resolve();
+
+      await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
+    } finally {
+      touchSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it("runs best-effort playback spill cleanup on pagehide without clearing local ranges", async () => {
     const restoreBrowserEvents = withBrowserEvents();
     const source = new TestSource();
@@ -1818,6 +1853,34 @@ describe("CachingIterableSource", () => {
       window.dispatchEvent(new Event("pagehide"));
       await waitFor(() => deleteSpy.mock.calls.length > 0);
       expect(bufferedSource.loadedRanges()).toEqual(rangesBeforePageHide);
+    } finally {
+      deleteSpy.mockRestore();
+      await bufferedSource.terminate();
+      restoreBrowserEvents();
+    }
+  });
+
+  it("keeps playback spill session on bfcache pagehide", async () => {
+    const restoreBrowserEvents = withBrowserEvents();
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "pagehide-bfcache" },
+    });
+    const deleteSpy = jest.spyOn(IndexedDbMessageStore.prototype, "deleteCurrentSession");
+
+    try {
+      await bufferedSource.initialize();
+
+      const event = new Event("pagehide") as PageTransitionEvent;
+      Object.defineProperty(event, "persisted", {
+        configurable: true,
+        value: true,
+      });
+      window.dispatchEvent(event);
+
+      await Promise.resolve();
+      expect(deleteSpy).not.toHaveBeenCalled();
+      await expect(getPlaybackSpillSessions()).resolves.toHaveLength(1);
     } finally {
       deleteSpy.mockRestore();
       await bufferedSource.terminate();

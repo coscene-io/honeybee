@@ -161,7 +161,7 @@ class CachingIterableSource<MessageType = unknown>
   #spillAppendCountSinceFlush = 0;
   #spillLastSessionCheckAt: number | undefined;
   #spillHeartbeatTimer: ReturnType<typeof setInterval> | undefined;
-  #spillPageHideHandler: (() => void) | undefined;
+  #spillPageHideHandler: ((event: PageTransitionEvent) => void) | undefined;
   #spillPageShowHandler: ((event: PageTransitionEvent) => void) | undefined;
   #spillVisibilityChangeHandler: (() => void) | undefined;
   #spillRecoveryPromise: Promise<void> | undefined;
@@ -272,7 +272,10 @@ class CachingIterableSource<MessageType = unknown>
     }
 
     if (typeof window !== "undefined" && this.#spillPageHideHandler == undefined) {
-      this.#spillPageHideHandler = () => {
+      this.#spillPageHideHandler = (event: PageTransitionEvent) => {
+        if (event.persisted) {
+          return;
+        }
         const store = this.#spillStore;
         if (store == undefined) {
           return;
@@ -344,12 +347,19 @@ class CachingIterableSource<MessageType = unknown>
     try {
       alive = await store.touchSession();
     } catch (error) {
+      if (store !== this.#spillStore) {
+        return false;
+      }
       log.warn("Disabling playback spill cache after session touch failed:", error);
       await this.#closeSpillCache({ clear: false });
       this.#spillEnabled = false;
       if (this.#initResult != undefined) {
         this.#recomputeLoadedRangeCache();
       }
+      return false;
+    }
+
+    if (store !== this.#spillStore) {
       return false;
     }
 
@@ -531,12 +541,6 @@ class CachingIterableSource<MessageType = unknown>
         end: args.end,
         topics: Array.from(args.topics.keys()),
       });
-      if (messages.length === 0) {
-        const stillAlive = await this.#ensureSpillSessionAlive({ force: true });
-        if (!stillAlive) {
-          return undefined;
-        }
-      }
       return messages;
     } catch (error) {
       log.warn("Disabling playback spill cache after message lookup failed:", error);
