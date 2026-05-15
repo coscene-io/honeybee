@@ -102,8 +102,11 @@ export class CoalescingRemoteReadable implements McapTypes.IReadable {
       return active.buffer.subarray(localStart, neededBytes);
     }
 
-    // Miss: abort any in-flight fetch and start a new streaming range fetch.
-    if (active != undefined && !active.done) {
+    // Miss: start a new streaming range fetch. If the previous fetch is only
+    // filling read-ahead in the background, abort it; if another read() is
+    // waiting on it, let that fetch finish so concurrent MCAP reads do not
+    // turn an internal cache miss into an AbortError.
+    if (active != undefined && !active.done && active.waiters.length === 0) {
       active.abortController.abort();
     }
 
