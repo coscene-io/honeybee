@@ -72,6 +72,52 @@ async function getPlaybackSpillSessions(): Promise<CacheSessionMetadata[]> {
   }
 }
 
+async function waitFor(predicate: () => boolean | Promise<boolean>): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (Date.now() < deadline) {
+    if (await predicate()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  expect(await predicate()).toBe(true);
+}
+
+async function deletePlaybackSpillSession(sessionId: string): Promise<void> {
+  const store = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+  await store.init();
+  try {
+    await store.deleteCurrentSession();
+  } finally {
+    await store.close();
+  }
+}
+
+function withBrowserEvents(): () => void {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const windowTarget = new EventTarget();
+  const documentTarget = new EventTarget();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: windowTarget,
+  });
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: Object.assign(documentTarget, { visibilityState: "visible" }),
+  });
+  return () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: previousWindow,
+    });
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: previousDocument,
+    });
+  };
+}
+
 describe("CachingIterableSource", () => {
   beforeEach(async () => {
     await clearIndexedDbMessageStoreDatabase();
@@ -1132,6 +1178,97 @@ describe("CachingIterableSource", () => {
     await bufferedSource.terminate();
   });
 
+  it("falls back to source when a stale spill range points at a deleted session", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "deleted-session-read" },
+    });
+
+    try {
+      await bufferedSource.initialize();
+
+      source.messageIterator = async function* messageIterator(
+        args: MessageIteratorArgs,
+      ): AsyncIterableIterator<Readonly<IteratorResult>> {
+        source.messageIteratorCalls++;
+        const start = args.start?.sec ?? 0;
+        const end = args.end?.sec ?? 3;
+        for (let i = start; i <= end; ++i) {
+          yield {
+            type: "message-event",
+            msgEvent: {
+              topic: "a",
+              receiveTime: { sec: i, nsec: 0 },
+              message: { value: i, call: source.messageIteratorCalls },
+              sizeInBytes: 101,
+              schemaName: "foo",
+            },
+          };
+        }
+      };
+
+      {
+        const iterator = bufferedSource.messageIterator({
+          topics: mockTopicSelection("a"),
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 3, nsec: 0 },
+        });
+        for await (const result of iterator) {
+          if (result.type === "message-event") {
+            bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+          }
+        }
+      }
+      expect(source.messageIteratorCalls).toBe(1);
+
+      const originalSession = (await getPlaybackSpillSessions())[0];
+      if (originalSession == undefined) {
+        throw new Error("Expected playback spill session");
+      }
+      await deletePlaybackSpillSession(originalSession.sessionId);
+
+      source.messageIteratorCalls = 0;
+      source.messageIterator = async function* messageIterator(
+        _args: MessageIteratorArgs,
+      ): AsyncIterableIterator<Readonly<IteratorResult>> {
+        source.messageIteratorCalls++;
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: 0, nsec: 0 },
+            message: { value: source.messageIteratorCalls },
+            sizeInBytes: 10,
+            schemaName: "foo",
+          },
+        };
+      };
+
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 0, nsec: 0 },
+      });
+      const messages: unknown[] = [];
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          messages.push(result.msgEvent.message);
+        }
+      }
+
+      expect(messages).toEqual([{ value: 1 }]);
+      expect(source.messageIteratorCalls).toBe(1);
+      await waitFor(async () => {
+        const sessions = await getPlaybackSpillSessions();
+        return sessions.length === 1 && sessions[0]?.sessionId !== originalSession.sessionId;
+      });
+    } finally {
+      await bufferedSource.terminate();
+    }
+  });
+
   it("only requests uncovered gaps when playback spill coverage is partial", async () => {
     const source = new TestSource();
     const sourceRequests: MessageIteratorArgs[] = [];
@@ -1616,5 +1753,200 @@ describe("CachingIterableSource", () => {
     expect(reopenedSource.messageIteratorCalls).toBe(1);
 
     await reopenedBufferedSource.terminate();
+  });
+
+  it("touches playback spill sessions from the heartbeat and stops on terminate", async () => {
+    jest.useFakeTimers();
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "heartbeat" },
+    });
+    const touchSpy = jest.spyOn(IndexedDbMessageStore.prototype, "touchSession");
+
+    try {
+      await bufferedSource.initialize();
+
+      await jest.advanceTimersByTimeAsync(30_000);
+      expect(touchSpy).toHaveBeenCalledTimes(1);
+
+      await bufferedSource.terminate();
+      await jest.advanceTimersByTimeAsync(30_000);
+      expect(touchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      touchSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it("runs best-effort playback spill cleanup on pagehide without clearing local ranges", async () => {
+    const restoreBrowserEvents = withBrowserEvents();
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "pagehide" },
+    });
+    const deleteSpy = jest.spyOn(IndexedDbMessageStore.prototype, "deleteCurrentSession");
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 1, nsec: 0 },
+      end: { sec: 1, nsec: 0 },
+    });
+    for await (const result of iterator) {
+      void result;
+    }
+    const rangesBeforePageHide = bufferedSource.loadedRanges();
+
+    try {
+      window.dispatchEvent(new Event("pagehide"));
+      await waitFor(() => deleteSpy.mock.calls.length > 0);
+      expect(bufferedSource.loadedRanges()).toEqual(rangesBeforePageHide);
+    } finally {
+      deleteSpy.mockRestore();
+      await bufferedSource.terminate();
+      restoreBrowserEvents();
+    }
+  });
+
+  it("recovers playback spill cache on visible when the session was deleted", async () => {
+    const restoreBrowserEvents = withBrowserEvents();
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "test-source", sourceKey: "visible-recovery" },
+    });
+
+    try {
+      await bufferedSource.initialize();
+
+      source.messageIterator = async function* messageIterator(
+        args: MessageIteratorArgs,
+      ): AsyncIterableIterator<Readonly<IteratorResult>> {
+        source.messageIteratorCalls++;
+        const start = args.start?.sec ?? 0;
+        const end = args.end?.sec ?? 3;
+        for (let i = start; i <= end; ++i) {
+          yield {
+            type: "message-event",
+            msgEvent: {
+              topic: "a",
+              receiveTime: { sec: i, nsec: 0 },
+              message: { value: i, call: source.messageIteratorCalls },
+              sizeInBytes: 101,
+              schemaName: "foo",
+            },
+          };
+        }
+      };
+
+      {
+        const iterator = bufferedSource.messageIterator({
+          topics: mockTopicSelection("a"),
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 3, nsec: 0 },
+        });
+        for await (const result of iterator) {
+          if (result.type === "message-event") {
+            bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+          }
+        }
+      }
+      expect(bufferedSource.loadedRanges()).toEqual([{ start: 0, end: 0.3 }]);
+      const originalSession = (await getPlaybackSpillSessions())[0];
+      if (originalSession == undefined) {
+        throw new Error("Expected playback spill session");
+      }
+
+      await deletePlaybackSpillSession(originalSession.sessionId);
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "visible",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      await waitFor(async () => (await getPlaybackSpillSessions()).length === 1);
+      const recoveredSession = (await getPlaybackSpillSessions())[0];
+      expect(recoveredSession?.sessionId).not.toBe(originalSession.sessionId);
+      expect(bufferedSource.loadedRanges()).toEqual([{ start: 0.2, end: 0.3 }]);
+
+      source.messageIteratorCalls = 0;
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 1, nsec: 0 },
+      });
+      const messages: unknown[] = [];
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          messages.push(result.msgEvent.message);
+        }
+      }
+      expect(messages).toEqual([
+        { value: 0, call: 1 },
+        { value: 1, call: 1 },
+      ]);
+      expect(source.messageIteratorCalls).toBe(1);
+
+    } finally {
+      await bufferedSource.terminate();
+      restoreBrowserEvents();
+    }
+  });
+
+  it("deduplicates concurrent playback spill recovery triggers", async () => {
+    const restoreBrowserEvents = withBrowserEvents();
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source", sourceKey: "dedupe-recovery" },
+    });
+
+    try {
+      await bufferedSource.initialize();
+
+      const originalSession = (await getPlaybackSpillSessions())[0];
+      if (originalSession == undefined) {
+        throw new Error("Expected playback spill session");
+      }
+      await deletePlaybackSpillSession(originalSession.sessionId);
+
+      window.dispatchEvent(new Event("pageshow"));
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "visible",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      await waitFor(async () => {
+        const sessions = await getPlaybackSpillSessions();
+        return sessions.length === 1 && sessions[0]?.sessionId !== originalSession.sessionId;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const sessions = await getPlaybackSpillSessions();
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0]?.sessionId).not.toBe(originalSession.sessionId);
+
+    } finally {
+      await bufferedSource.terminate();
+      restoreBrowserEvents();
+    }
   });
 });

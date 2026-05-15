@@ -10,6 +10,7 @@ import race from "race-as-promised";
 
 import { MessageEvent } from "@foxglove/studio";
 import {
+  CacheSessionMetadata,
   clearIndexedDbMessageStoreDatabase,
   IndexedDbMessageStore,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
@@ -27,6 +28,20 @@ function messageEvent(
     message: { seq },
     sizeInBytes: 10,
   };
+}
+
+async function getSessionMetadata(sessionId: string): Promise<CacheSessionMetadata | undefined> {
+  const db = await IDB.openDB("studio-realtime-cache");
+  try {
+    const tx = db.transaction("sessions", "readonly");
+    const metadata = (await tx.objectStore("sessions").get(sessionId)) as
+      | CacheSessionMetadata
+      | undefined;
+    await tx.done;
+    return metadata;
+  } finally {
+    db.close();
+  }
 }
 
 async function wait(ms: number): Promise<void> {
@@ -113,6 +128,44 @@ describe("IndexedDbMessageStore", () => {
 
     expect(messages.map((msg) => msg.message)).toEqual([{ seq: 1 }, { seq: 2 }]);
     await second.close();
+  });
+
+  it("touches the current session and reports missing sessions", async () => {
+    const nowSpy = jest.spyOn(Date, "now");
+    nowSpy.mockReturnValue(1_000);
+    const store = new IndexedDbMessageStore({ sessionId: "touch-session" });
+    await store.init();
+
+    try {
+      expect((await getSessionMetadata("touch-session"))?.lastActiveAt).toBe(1_000);
+
+      nowSpy.mockReturnValue(2_000);
+      await expect(store.touchSession()).resolves.toBe(true);
+      expect((await getSessionMetadata("touch-session"))?.lastActiveAt).toBe(2_000);
+
+      await store.deleteCurrentSession();
+      await expect(store.touchSession()).resolves.toBe(false);
+    } finally {
+      nowSpy.mockRestore();
+      await store.close();
+    }
+  });
+
+  it("rejects touchSession when IndexedDB open fails", async () => {
+    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(
+      async () => {
+        throw new Error("open failed");
+      },
+    );
+    const store = new IndexedDbMessageStore({ sessionId: "touch-open-error" });
+
+    try {
+      await expect(store.touchSession()).rejects.toThrow("open failed");
+      (console.error as jest.Mock).mockClear();
+    } finally {
+      openDBSpy.mockRestore();
+      await store.close();
+    }
   });
 
   it("stores datatypes and topic metadata", async () => {
@@ -279,6 +332,245 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
+  it("does not write messages when the current session metadata is missing", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "missing-session-append",
+      kind: "playback-spill",
+    });
+    await store.init();
+
+    try {
+      await store.deleteCurrentSession();
+      await store.append([messageEvent(1)]);
+      await store.flush();
+
+      const db = await IDB.openDB("studio-realtime-cache");
+      try {
+        const tx = db.transaction(["messages", "sessions"], "readonly");
+        await expect(
+          tx.objectStore("messages").index("bySession").count(store.getSessionId()),
+        ).resolves.toBe(0);
+        await expect(tx.objectStore("sessions").get(store.getSessionId())).resolves.toBeUndefined();
+        await tx.done;
+      } finally {
+        db.close();
+      }
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("cleanupOldSessions keeps fresh playback spill sessions and deletes stale ones", async () => {
+    const stale = new IndexedDbMessageStore({
+      sessionId: "stale-session",
+      kind: "playback-spill",
+    });
+    await stale.init();
+    await stale.append([messageEvent(1)]);
+    await stale.flush();
+    await stale.close();
+
+    const fresh = new IndexedDbMessageStore({
+      sessionId: "fresh-session",
+      kind: "playback-spill",
+    });
+    await fresh.init();
+    await fresh.append([messageEvent(2)]);
+    await fresh.flush();
+    await fresh.close();
+
+    const realtime = new IndexedDbMessageStore({
+      sessionId: "fresh-realtime",
+      kind: "realtime-viz",
+    });
+    await realtime.init();
+    await realtime.append([messageEvent(3)]);
+    await realtime.flush();
+    await realtime.close();
+
+    const db = await IDB.openDB("studio-realtime-cache");
+    try {
+      const tx = db.transaction("sessions", "readwrite");
+      const store = tx.objectStore("sessions");
+      const staleMetadata = (await store.get("stale-session")) as CacheSessionMetadata;
+      const freshMetadata = (await store.get("fresh-session")) as CacheSessionMetadata;
+      const realtimeMetadata = (await store.get("fresh-realtime")) as CacheSessionMetadata;
+      await store.put({ ...staleMetadata, lastActiveAt: 1_000 });
+      await store.put({ ...freshMetadata, lastActiveAt: 9_500 });
+      await store.put({ ...realtimeMetadata, lastActiveAt: 1_000 });
+      await tx.done;
+    } finally {
+      db.close();
+    }
+
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(10_000);
+    const cleaner = new IndexedDbMessageStore({
+      sessionId: "stale-cleaner",
+      kind: "playback-spill",
+    });
+
+    let staleReader: IndexedDbMessageStore | undefined;
+    let freshReader: IndexedDbMessageStore | undefined;
+    let realtimeReader: IndexedDbMessageStore | undefined;
+    try {
+      await cleaner.init();
+      await cleaner.cleanupOldSessions("playback-spill", 5_000);
+      staleReader = new IndexedDbMessageStore({
+        sessionId: "stale-session",
+        kind: "playback-spill",
+      });
+      await staleReader.init();
+      freshReader = new IndexedDbMessageStore({
+        sessionId: "fresh-session",
+        kind: "playback-spill",
+      });
+      await freshReader.init();
+      realtimeReader = new IndexedDbMessageStore({
+        sessionId: "fresh-realtime",
+        kind: "realtime-viz",
+      });
+      await realtimeReader.init();
+
+      await expect(
+        staleReader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(0);
+      await expect(
+        freshReader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(1);
+      await expect(
+        realtimeReader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(1);
+    } finally {
+      await staleReader?.deleteCurrentSession();
+      await freshReader?.deleteCurrentSession();
+      await realtimeReader?.deleteCurrentSession();
+      await cleaner.deleteCurrentSession();
+      await staleReader?.close();
+      await freshReader?.close();
+      await realtimeReader?.close();
+      await cleaner.close();
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("skips cleanup when a scanned stale session is touched before deletion", async () => {
+    const stale = new IndexedDbMessageStore({
+      sessionId: "stale-then-touched",
+      kind: "playback-spill",
+    });
+    await stale.init();
+    await stale.append([messageEvent(1)]);
+    await stale.flush();
+    await stale.close();
+
+    const db = await IDB.openDB("studio-realtime-cache");
+    try {
+      const tx = db.transaction("sessions", "readwrite");
+      const store = tx.objectStore("sessions");
+      const metadata = (await store.get("stale-then-touched")) as CacheSessionMetadata;
+      await store.put({ ...metadata, lastActiveAt: 1_000 });
+      await tx.done;
+    } finally {
+      db.close();
+    }
+
+    const originalOpenDB = IDB.openDB;
+    let touchedAfterScan = false;
+    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(
+      async (...args: Parameters<typeof IDB.openDB>) => {
+        const openedDb = await originalOpenDB(...args);
+        if (touchedAfterScan || args[0] !== "studio-realtime-cache") {
+          return openedDb;
+        }
+
+        return new Proxy(openedDb, {
+          get(target, prop, receiver) {
+            if (prop !== "transaction") {
+              const value = Reflect.get(target, prop, receiver) as unknown;
+              return typeof value === "function" ? value.bind(target) : value;
+            }
+
+            return (storeNames: unknown, mode?: unknown, options?: unknown) => {
+              const tx = target.transaction(
+                storeNames as Parameters<typeof target.transaction>[0],
+                mode as Parameters<typeof target.transaction>[1],
+                options as Parameters<typeof target.transaction>[2],
+              );
+              if (storeNames !== "sessions" || mode !== "readonly") {
+                return tx;
+              }
+
+              return new Proxy(tx, {
+                get(txTarget, txProp, txReceiver) {
+                  if (txProp === "done") {
+                    return txTarget.done.then(async () => {
+                      if (touchedAfterScan) {
+                        return;
+                      }
+                      touchedAfterScan = true;
+                      const touchTx = target.transaction("sessions", "readwrite");
+                      const session = (await touchTx.store.get(
+                        "stale-then-touched",
+                      )) as CacheSessionMetadata;
+                      await touchTx.store.put({
+                        ...session,
+                        lastActiveAt: 9_500,
+                      });
+                      await touchTx.done;
+                    });
+                  }
+
+                  const value = Reflect.get(txTarget, txProp, txReceiver) as unknown;
+                  return typeof value === "function" ? value.bind(txTarget) : value;
+                },
+              });
+            };
+          },
+        });
+      },
+    );
+
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(10_000);
+    const cleaner = new IndexedDbMessageStore({
+      sessionId: "stale-touch-cleaner",
+      kind: "playback-spill",
+    });
+    let reader: IndexedDbMessageStore | undefined;
+    try {
+      await cleaner.init();
+      await cleaner.cleanupOldSessions("playback-spill", 5_000);
+      expect(touchedAfterScan).toBe(true);
+
+      reader = new IndexedDbMessageStore({
+        sessionId: "stale-then-touched",
+        kind: "playback-spill",
+      });
+      await reader.init();
+      await expect(
+        reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(1);
+    } finally {
+      await reader?.deleteCurrentSession();
+      await cleaner.deleteCurrentSession();
+      await reader?.close();
+      await cleaner.close();
+      nowSpy.mockRestore();
+      openDBSpy.mockRestore();
+    }
+  });
+
   it("drops v1 cache data during migration and remains writable", async () => {
     await IDB.deleteDB("studio-realtime-cache");
 
@@ -367,12 +659,15 @@ describe("IndexedDbMessageStore", () => {
   });
 
   it("merges loaded ranges and detects complete coverage", async () => {
+    const nowSpy = jest.spyOn(Date, "now");
+    nowSpy.mockReturnValue(1_000);
     const store = new IndexedDbMessageStore({
       sessionId: "loaded-ranges",
       kind: "playback-spill",
     });
     await store.init();
 
+    nowSpy.mockReturnValue(2_000);
     await store.putLoadedRange({
       sessionId: store.getSessionId(),
       topicFingerprint: "topics",
@@ -408,7 +703,9 @@ describe("IndexedDbMessageStore", () => {
         end: { sec: 2, nsec: 0 },
       }),
     ).resolves.toBe(false);
+    expect((await getSessionMetadata("loaded-ranges"))?.lastActiveAt).toBe(2_000);
 
+    nowSpy.mockRestore();
     await store.close();
   });
 

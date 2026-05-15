@@ -488,20 +488,36 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       log.info(`Cleaning up ${oldSessions.length} ${kind} inactive cache sessions`);
       for (const sessionId of oldSessions) {
-        await this.#cleanupSessionData(sessionId);
+        await this.#cleanupSessionData(sessionId, { kind, cutoffTime });
       }
     } catch (error) {
       log.error("Failed to cleanup old sessions:", error);
     }
   }
 
-  async #cleanupSessionData(sessionId: string): Promise<void> {
+  async #cleanupSessionData(
+    sessionId: string,
+    staleGuard?: { kind: CacheSessionKind; cutoffTime: number },
+  ): Promise<void> {
     try {
       const db = await this.#dbPromise;
       const tx = db.transaction(
         [STORE, DATATYPES_STORE, SESSIONS_STORE, TOPICS_STORE, LOADED_RANGES_STORE],
         "readwrite",
       );
+
+      const sessionsStore = tx.objectStore(SESSIONS_STORE);
+      const sessionMetadata = await sessionsStore.get(sessionId);
+      if (staleGuard != undefined) {
+        if (
+          sessionMetadata == undefined ||
+          sessionMetadata.kind !== staleGuard.kind ||
+          sessionMetadata.lastActiveAt > staleGuard.cutoffTime
+        ) {
+          await tx.done;
+          return;
+        }
+      }
 
       await tx
         .objectStore(STORE)
@@ -512,7 +528,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           ),
         );
       await tx.objectStore(DATATYPES_STORE).delete(sessionId);
-      await tx.objectStore(SESSIONS_STORE).delete(sessionId);
+      await sessionsStore.delete(sessionId);
 
       const topicsStore = tx.objectStore(TOPICS_STORE);
       for (const key of await topicsStore.index("bySession").getAllKeys(sessionId)) {
@@ -581,6 +597,23 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const result = await tx.store.get(this.#currentSessionId);
     await tx.done;
     return result;
+  }
+
+  public async touchSession(): Promise<boolean> {
+    if (this.#closed) {
+      return false;
+    }
+    const db = await this.#dbPromise;
+    const tx = db.transaction(SESSIONS_STORE, "readwrite");
+    const store = tx.objectStore(SESSIONS_STORE);
+    const existing = await store.get(this.#currentSessionId);
+    if (existing == undefined) {
+      await tx.done;
+      return false;
+    }
+    await store.put({ ...existing, lastActiveAt: Date.now() });
+    await tx.done;
+    return true;
   }
 
   async #updateSessionMetadata(
@@ -688,6 +721,12 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
 
     const sessionId = this.#currentSessionId;
+    const sessionData = await sessionsStore.get(sessionId);
+    if (sessionData == undefined) {
+      await tx.done;
+      return;
+    }
+
     let latestTime: Time | undefined;
     let approximateSizeBytesAdded = 0;
     let seq = this.#nextSeq;
@@ -702,19 +741,16 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
 
     const now = Date.now();
-    const sessionData = await sessionsStore.get(sessionId);
-    if (sessionData != undefined) {
-      await sessionsStore.put({
-        ...sessionData,
-        lastActiveAt: now,
-        nextSeq: seq,
-        messageCount: Math.max(0, (sessionData.messageCount ?? 0) + batch.length),
-        approximateSizeBytes: Math.max(
-          0,
-          sessionData.approximateSizeBytes + approximateSizeBytesAdded,
-        ),
-      });
-    }
+    await sessionsStore.put({
+      ...sessionData,
+      lastActiveAt: now,
+      nextSeq: seq,
+      messageCount: Math.max(0, (sessionData.messageCount ?? 0) + batch.length),
+      approximateSizeBytes: Math.max(
+        0,
+        sessionData.approximateSizeBytes + approximateSizeBytesAdded,
+      ),
+    });
 
     await tx.done;
 
@@ -1375,8 +1411,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       return;
     }
     const db = await this.#dbPromise;
-    const tx = db.transaction(LOADED_RANGES_STORE, "readwrite");
-    const store = tx.store;
+    const tx = db.transaction([LOADED_RANGES_STORE, SESSIONS_STORE], "readwrite");
+    const store = tx.objectStore(LOADED_RANGES_STORE);
+    const sessionsStore = tx.objectStore(SESSIONS_STORE);
+    const existingSession = await sessionsStore.get(this.#currentSessionId);
+    if (existingSession == undefined) {
+      await tx.done;
+      return;
+    }
     const queryRange = IDBKeyRange.bound(
       [range.sessionId, range.topicFingerprint, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
       [range.sessionId, range.topicFingerprint, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
@@ -1408,7 +1450,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       end: fromNanoSec(endNs),
     };
     const id = `${mergedRange.sessionId}:${mergedRange.topicFingerprint}:${mergedRange.start.sec}:${mergedRange.start.nsec}:${mergedRange.end.sec}:${mergedRange.end.nsec}`;
-    await store.put({ ...mergedRange, id, updatedAt: Date.now() });
+    const now = Date.now();
+    await store.put({ ...mergedRange, id, updatedAt: now });
+    await sessionsStore.put({ ...existingSession, lastActiveAt: now });
     await tx.done;
   }
 

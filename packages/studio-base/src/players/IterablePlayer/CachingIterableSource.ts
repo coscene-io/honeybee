@@ -34,6 +34,8 @@ import {
 
 const log = Log.getLogger(__filename);
 const MAX_SPILL_APPENDS_BEFORE_FLUSH = 1000;
+const PLAYBACK_SPILL_HEARTBEAT_MS = 30 * 1000;
+const PLAYBACK_SPILL_STALE_MS = 5 * 60 * 1000;
 
 function createPlaybackSpillSessionId(sourceId: string): string {
   return `playback-spill:${sourceId}:${globalThis.crypto.randomUUID()}`;
@@ -157,6 +159,12 @@ class CachingIterableSource<MessageType = unknown>
   #spillTopicFingerprint?: string;
   #spillLoadedRanges: readonly LoadedRange[] = [];
   #spillAppendCountSinceFlush = 0;
+  #spillLastSessionCheckAt: number | undefined;
+  #spillHeartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  #spillPageHideHandler: (() => void) | undefined;
+  #spillPageShowHandler: ((event: PageTransitionEvent) => void) | undefined;
+  #spillVisibilityChangeHandler: (() => void) | undefined;
+  #spillRecoveryPromise: Promise<void> | undefined;
 
   public constructor(source: IIterableSource<MessageType>, opt?: Options) {
     super();
@@ -174,6 +182,7 @@ class CachingIterableSource<MessageType = unknown>
   }
 
   public async terminate(): Promise<void> {
+    this.#stopSpillLifecycleHandlers();
     this.#cache.length = 0;
     this.#cachedTopics.clear();
     this.#totalSizeBytes = 0;
@@ -201,9 +210,12 @@ class CachingIterableSource<MessageType = unknown>
     await this.#resetSpillForTopics(topics);
   }
 
-  async #initSpillCache(): Promise<void> {
+  async #initSpillCache(): Promise<boolean> {
     if (this.#spillCacheOptions == undefined || this.#spillStore != undefined) {
-      return;
+      return this.#spillStore != undefined;
+    }
+    if (!this.#spillEnabled) {
+      return false;
     }
 
     const sourceKey = this.#spillCacheOptions.sourceKey ?? this.#spillCacheOptions.sourceId;
@@ -218,11 +230,15 @@ class CachingIterableSource<MessageType = unknown>
 
     try {
       await this.#spillStore.init();
-      await this.#spillStore.cleanupOldSessions("playback-spill");
+      await this.#spillStore.cleanupOldSessions("playback-spill", PLAYBACK_SPILL_STALE_MS);
+      this.#spillLastSessionCheckAt = Date.now();
+      this.#startSpillLifecycleHandlers();
+      return true;
     } catch (error) {
       log.warn("Disabling playback spill cache after initialization failed:", error);
       await this.#closeSpillCache({ clear: false });
       this.#spillEnabled = false;
+      return false;
     }
   }
 
@@ -232,6 +248,7 @@ class CachingIterableSource<MessageType = unknown>
     this.#spillTopicFingerprint = undefined;
     this.#spillLoadedRanges = [];
     this.#spillAppendCountSinceFlush = 0;
+    this.#spillLastSessionCheckAt = undefined;
 
     if (store == undefined) {
       return;
@@ -244,6 +261,145 @@ class CachingIterableSource<MessageType = unknown>
       await store.close();
     } catch (error) {
       log.debug("Failed to close playback spill cache:", error);
+    }
+  }
+
+  #startSpillLifecycleHandlers(): void {
+    if (this.#spillHeartbeatTimer == undefined) {
+      this.#spillHeartbeatTimer = setInterval(() => {
+        void this.#ensureSpillSessionAlive({ force: false });
+      }, PLAYBACK_SPILL_HEARTBEAT_MS);
+    }
+
+    if (typeof window !== "undefined" && this.#spillPageHideHandler == undefined) {
+      this.#spillPageHideHandler = () => {
+        const store = this.#spillStore;
+        if (store == undefined) {
+          return;
+        }
+        void store.deleteCurrentSession().catch((error: unknown) => {
+          log.debug("Best-effort playback spill pagehide cleanup failed:", error);
+        });
+      };
+      window.addEventListener("pagehide", this.#spillPageHideHandler);
+    }
+
+    if (typeof window !== "undefined" && this.#spillPageShowHandler == undefined) {
+      this.#spillPageShowHandler = () => {
+        void this.#ensureSpillSessionAlive({ force: true });
+      };
+      window.addEventListener("pageshow", this.#spillPageShowHandler);
+    }
+
+    if (typeof document !== "undefined" && this.#spillVisibilityChangeHandler == undefined) {
+      this.#spillVisibilityChangeHandler = () => {
+        if (document.visibilityState === "visible") {
+          void this.#ensureSpillSessionAlive({ force: true });
+        }
+      };
+      document.addEventListener("visibilitychange", this.#spillVisibilityChangeHandler);
+    }
+  }
+
+  #stopSpillLifecycleHandlers(): void {
+    if (this.#spillHeartbeatTimer != undefined) {
+      clearInterval(this.#spillHeartbeatTimer);
+      this.#spillHeartbeatTimer = undefined;
+    }
+    if (typeof window !== "undefined" && this.#spillPageHideHandler != undefined) {
+      window.removeEventListener("pagehide", this.#spillPageHideHandler);
+      this.#spillPageHideHandler = undefined;
+    }
+    if (typeof window !== "undefined" && this.#spillPageShowHandler != undefined) {
+      window.removeEventListener("pageshow", this.#spillPageShowHandler);
+      this.#spillPageShowHandler = undefined;
+    }
+    if (typeof document !== "undefined" && this.#spillVisibilityChangeHandler != undefined) {
+      document.removeEventListener("visibilitychange", this.#spillVisibilityChangeHandler);
+      this.#spillVisibilityChangeHandler = undefined;
+    }
+  }
+
+  async #ensureSpillSessionAlive(opt: { force?: boolean } = {}): Promise<boolean> {
+    if (this.#spillRecoveryPromise != undefined) {
+      await this.#spillRecoveryPromise;
+      return this.#spillEnabled && this.#spillStore != undefined;
+    }
+
+    const store = this.#spillStore;
+    if (!this.#spillEnabled || store == undefined) {
+      return false;
+    }
+
+    const now = Date.now();
+    if (
+      opt.force !== true &&
+      this.#spillLastSessionCheckAt != undefined &&
+      now - this.#spillLastSessionCheckAt < PLAYBACK_SPILL_HEARTBEAT_MS
+    ) {
+      return true;
+    }
+
+    let alive: boolean;
+    try {
+      alive = await store.touchSession();
+    } catch (error) {
+      log.warn("Disabling playback spill cache after session touch failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+      if (this.#initResult != undefined) {
+        this.#recomputeLoadedRangeCache();
+      }
+      return false;
+    }
+
+    if (alive) {
+      this.#spillLastSessionCheckAt = Date.now();
+      return true;
+    }
+
+    await this.#recoverSpillCache();
+    return false;
+  }
+
+  async #recoverSpillCache(): Promise<void> {
+    if (this.#spillRecoveryPromise != undefined) {
+      await this.#spillRecoveryPromise;
+      return;
+    }
+
+    this.#spillRecoveryPromise = this.#recoverSpillCacheImpl();
+    try {
+      await this.#spillRecoveryPromise;
+    } finally {
+      this.#spillRecoveryPromise = undefined;
+    }
+  }
+
+  async #recoverSpillCacheImpl(): Promise<void> {
+    const savedFingerprint = this.#spillTopicFingerprint;
+
+    try {
+      await this.#closeSpillCache({ clear: false });
+      const initialized = await this.#initSpillCache();
+      if (!initialized || this.#spillStore == undefined) {
+        return;
+      }
+      if (savedFingerprint != undefined) {
+        await this.#spillStore.setTopicFingerprint(savedFingerprint);
+        this.#spillTopicFingerprint = savedFingerprint;
+      }
+      this.#spillLoadedRanges = [];
+      this.#spillAppendCountSinceFlush = 0;
+      this.#spillLastSessionCheckAt = Date.now();
+      this.#recomputeLoadedRangeCache();
+    } catch (error) {
+      log.warn("Disabling playback spill cache after session recovery failed:", error);
+      await this.#closeSpillCache({ clear: false });
+      this.#spillEnabled = false;
+      if (this.#initResult != undefined) {
+        this.#recomputeLoadedRangeCache();
+      }
     }
   }
 
@@ -332,14 +488,23 @@ class CachingIterableSource<MessageType = unknown>
   }
 
   async #getSpillLoadedRanges(): Promise<readonly LoadedRange[]> {
+    const alive = await this.#ensureSpillSessionAlive();
     const store = this.#spillStore;
     const topicFingerprint = this.#spillTopicFingerprint;
-    if (!this.#spillEnabled || store == undefined || topicFingerprint == undefined) {
+    if (!alive || !this.#spillEnabled || store == undefined || topicFingerprint == undefined) {
       return [];
     }
 
     try {
-      this.#spillLoadedRanges = await store.getLoadedRanges(topicFingerprint);
+      const hadLoadedRanges = this.#spillLoadedRanges.length > 0;
+      const loadedRanges = await store.getLoadedRanges(topicFingerprint);
+      if (hadLoadedRanges && loadedRanges.length === 0) {
+        const stillAlive = await this.#ensureSpillSessionAlive({ force: true });
+        if (!stillAlive) {
+          return [];
+        }
+      }
+      this.#spillLoadedRanges = loadedRanges;
       this.#recomputeLoadedRangeCache();
       return this.#spillLoadedRanges;
     } catch (error) {
@@ -354,29 +519,39 @@ class CachingIterableSource<MessageType = unknown>
     start: Time;
     end: Time;
     topics: TopicSelection;
-  }): Promise<readonly MessageEvent[]> {
-    if (!this.#spillEnabled || this.#spillStore == undefined) {
-      return [];
+  }): Promise<readonly MessageEvent[] | undefined> {
+    const alive = await this.#ensureSpillSessionAlive();
+    if (!alive || !this.#spillEnabled || this.#spillStore == undefined) {
+      return undefined;
     }
 
     try {
-      return await this.#spillStore.getMessages({
+      const messages = await this.#spillStore.getMessages({
         start: args.start,
         end: args.end,
         topics: Array.from(args.topics.keys()),
       });
+      if (messages.length === 0) {
+        const stillAlive = await this.#ensureSpillSessionAlive({ force: true });
+        if (!stillAlive) {
+          return undefined;
+        }
+      }
+      return messages;
     } catch (error) {
       log.warn("Disabling playback spill cache after message lookup failed:", error);
       await this.#closeSpillCache({ clear: false });
       this.#spillEnabled = false;
-      return [];
+      return undefined;
     }
   }
 
   async #readSpillBackfillMessages(
     args: GetBackfillMessagesArgs,
   ): Promise<readonly MessageEvent[]> {
+    const alive = await this.#ensureSpillSessionAlive();
     if (
+      !alive ||
       !this.#spillEnabled ||
       this.#spillStore == undefined ||
       this.#spillTopicFingerprint == undefined
@@ -439,8 +614,11 @@ class CachingIterableSource<MessageType = unknown>
     start: Time;
     end: Time;
     topics: TopicSelection;
-  }): AsyncIterableIterator<Readonly<IteratorResult<MessageType>>> {
+  }): AsyncGenerator<Readonly<IteratorResult<MessageType>>, boolean, void> {
     const messages = await this.#readSpillMessages(args);
+    if (messages == undefined) {
+      return false;
+    }
     this.#insertLoadedBlock(args.start, args.end, messages);
     for (const message of messages) {
       yield {
@@ -448,6 +626,7 @@ class CachingIterableSource<MessageType = unknown>
         msgEvent: message as MessageEvent<MessageType>,
       };
     }
+    return true;
   }
 
   async *#yieldSourceRange(args: {
@@ -773,11 +952,30 @@ class CachingIterableSource<MessageType = unknown>
             compare(containingSpillRange.end, sourceReadEnd) < 0
               ? containingSpillRange.end
               : sourceReadEnd;
-          yield* this.#yieldSpillRange({
+          const spillIterator = this.#yieldSpillRange({
             start: segmentStart,
             end: segmentEnd,
             topics: this.#cachedTopics,
           });
+          let spillReadSucceeded = true;
+          for (;;) {
+            const result = await spillIterator.next();
+            if (result.done === true) {
+              spillReadSucceeded = result.value;
+              break;
+            }
+            yield result.value;
+          }
+          if (!spillReadSucceeded) {
+            yield* this.#yieldSourceRange({
+              start: segmentStart,
+              end: segmentEnd,
+              topics: this.#cachedTopics,
+              consumptionType: args.consumptionType,
+              fetchCompleteTopicState: args.fetchCompleteTopicState,
+              writeSpill: true,
+            });
+          }
           segmentStart = add(segmentEnd, { sec: 0, nsec: 1 });
           continue;
         }
