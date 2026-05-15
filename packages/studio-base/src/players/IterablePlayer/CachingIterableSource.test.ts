@@ -1785,15 +1785,15 @@ describe("CachingIterableSource", () => {
       spillCache: { sourceId: "test-source", sourceKey: "heartbeat-terminate-race" },
     });
 
-    let resolveTouch: ((value: boolean) => void) | undefined;
-    const touchSpy = jest
-      .spyOn(IndexedDbMessageStore.prototype, "touchSession")
-      .mockImplementation(
-        async () =>
-          await new Promise<boolean>((resolve) => {
-            resolveTouch = resolve;
-          }),
-      );
+    let resolveTouchAsNotTouched: (() => void) | undefined;
+    const touchSpy = jest.spyOn(IndexedDbMessageStore.prototype, "touchSession").mockImplementation(
+      async () =>
+        await new Promise<boolean>((resolve) => {
+          resolveTouchAsNotTouched = () => {
+            resolve(false);
+          };
+        }),
+    );
 
     try {
       await bufferedSource.initialize();
@@ -1802,7 +1802,7 @@ describe("CachingIterableSource", () => {
       expect(touchSpy).toHaveBeenCalledTimes(1);
 
       const terminatePromise = bufferedSource.terminate();
-      resolveTouch?.(false);
+      resolveTouchAsNotTouched?.();
       await terminatePromise;
       await Promise.resolve();
 
@@ -1967,7 +1967,6 @@ describe("CachingIterableSource", () => {
         { value: 1, call: 1 },
       ]);
       expect(source.messageIteratorCalls).toBe(1);
-
     } finally {
       await bufferedSource.terminate();
       restoreBrowserEvents();
@@ -2006,7 +2005,6 @@ describe("CachingIterableSource", () => {
       const sessions = await getPlaybackSpillSessions();
       expect(sessions).toHaveLength(1);
       expect(sessions[0]?.sessionId).not.toBe(originalSession.sessionId);
-
     } finally {
       await bufferedSource.terminate();
       restoreBrowserEvents();

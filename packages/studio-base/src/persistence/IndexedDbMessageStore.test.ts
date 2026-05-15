@@ -152,11 +152,9 @@ describe("IndexedDbMessageStore", () => {
   });
 
   it("rejects touchSession when IndexedDB open fails", async () => {
-    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(
-      async () => {
-        throw new Error("open failed");
-      },
-    );
+    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(async () => {
+      throw new Error("open failed");
+    });
     const store = new IndexedDbMessageStore({ sessionId: "touch-open-error" });
 
     try {
@@ -485,8 +483,9 @@ describe("IndexedDbMessageStore", () => {
 
     const originalOpenDB = IDB.openDB;
     let touchedAfterScan = false;
-    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(
-      async (...args: Parameters<typeof IDB.openDB>) => {
+    const openDBSpy = jest
+      .spyOn(IDB, "openDB")
+      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (touchedAfterScan || args[0] !== "studio-realtime-cache") {
           return openedDb;
@@ -536,8 +535,7 @@ describe("IndexedDbMessageStore", () => {
             };
           },
         });
-      },
-    );
+      });
 
     const nowSpy = jest.spyOn(Date, "now").mockReturnValue(10_000);
     const cleaner = new IndexedDbMessageStore({
