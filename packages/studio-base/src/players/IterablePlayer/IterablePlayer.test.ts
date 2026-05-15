@@ -6,10 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as IDB from "idb";
 import * as _ from "lodash-es";
 
 import { signal } from "@foxglove/den/async";
 import { compare, fromSec } from "@foxglove/rostime";
+import {
+  CacheSessionMetadata,
+  clearIndexedDbMessageStoreDatabase,
+} from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import {
   MessageEvent,
   PlayerCapabilities,
@@ -31,6 +36,18 @@ import { IterablePlayer, SEEK_ON_START_NS } from "./IterablePlayer";
 // After initialization, the forward iterator starts at (SEEK_ON_START_NS + 1ns) from source start.
 // CachingIterableSource normalizes this to [0, 1] over the total source duration (1s for TestSource).
 const INITIAL_LOADED_FRACTION_START = Number(SEEK_ON_START_NS + 1n) / 1e9;
+
+async function getPlaybackSpillSessions(): Promise<CacheSessionMetadata[]> {
+  const db = await IDB.openDB("studio-realtime-cache");
+  try {
+    const tx = db.transaction("sessions", "readonly");
+    const sessions = (await tx.objectStore("sessions").getAll()) as CacheSessionMetadata[];
+    await tx.done;
+    return sessions.filter((session) => session.kind === "playback-spill");
+  } finally {
+    db.close();
+  }
+}
 
 class TestSource implements IDeserializedIterableSource {
   public readonly sourceType = "deserialized";
@@ -193,6 +210,43 @@ describe("IterablePlayer", () => {
 
     void player.close();
     await player.isClosed;
+  });
+
+  it("uses a larger IndexedDB limit for playback spill than the in-memory cache", async () => {
+    await clearIndexedDbMessageStoreDatabase();
+    const originalCrypto = globalThis.crypto;
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: { ...originalCrypto, randomUUID: () => "00000000-0000-4000-8000-000000000000" },
+    });
+
+    const source = new TestSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      enablePlaybackSpillCache: true,
+      sourceId: "test",
+    });
+
+    try {
+      const store = new PlayerStateStore(4);
+      player.setListener(async (state) => {
+        await store.add(state);
+      });
+      await store.done;
+
+      const sessions = await getPlaybackSpillSessions();
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0]?.maxBytes).toBe(25 * 1024 * 1024 * 1024);
+    } finally {
+      Object.defineProperty(globalThis, "crypto", {
+        configurable: true,
+        value: originalCrypto,
+      });
+      void player.close();
+      await player.isClosed;
+      await clearIndexedDbMessageStoreDatabase();
+    }
   });
 
   it("when seeking during a seek backfill, start another seek after the current one exits", async () => {

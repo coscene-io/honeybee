@@ -62,6 +62,7 @@ const log = Log.getLogger(__filename);
 // Setting this to higher than 1.5GB caused the renderer process to crash on linux.
 // See: https://github.com/foxglove/studio/pull/1733
 const DEFAULT_CACHE_SIZE_BYTES = 1.0e9;
+const DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES = 25 * 1024 * 1024 * 1024;
 
 // Amount to wait until panels have had the chance to subscribe to topics before
 // we start playback
@@ -105,6 +106,9 @@ type IterablePlayerOptions = {
 
   // Max. time that messages will be buffered ahead for smoother playback. (default: 10sec)
   readAheadDuration?: Time;
+
+  enablePlaybackSpillCache?: boolean;
+  playbackSpillCacheSourceKey?: string;
 };
 
 type IterablePlayerState =
@@ -215,13 +219,23 @@ export class IterablePlayer implements Player {
       enablePreload,
       sourceId,
       readAheadDuration = getReadAheadDurationDefaultTime(),
+      enablePlaybackSpillCache = false,
+      playbackSpillCacheSourceKey,
     } = options;
 
     this.#iterableSource = source;
+    const spillCache = enablePlaybackSpillCache
+      ? {
+          sourceId,
+          sourceKey: playbackSpillCacheSourceKey ?? JSON.stringify({ sourceId, urlParams }),
+          maxCacheSize: DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES,
+        }
+      : undefined;
     if (source.sourceType === "deserialized") {
       const slicingSource = new DeserializedSourceWrapper(source);
       this.#bufferImpl = new BufferedIterableSource(slicingSource, {
         readAheadDuration,
+        spillCache,
       });
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;
@@ -229,6 +243,7 @@ export class IterablePlayer implements Player {
       this.#bufferImpl = new BufferedIterableSource(deserializingSource, {
         readAheadDuration,
         maxCacheSizeBytes: 300 * MEGABYTE_IN_BYTES,
+        spillCache,
       });
     }
     this.#bufferedSource = this.#bufferImpl;

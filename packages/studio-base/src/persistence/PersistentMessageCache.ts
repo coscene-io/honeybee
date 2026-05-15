@@ -6,6 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { MessageEvent, Time } from "@foxglove/studio";
+import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
+import type { TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 /** @deprecated Use separate PersistentMessageCache instances for session isolation */
@@ -36,6 +38,11 @@ export interface PersistentMessageCache {
    * Optionally performs retention pruning based on the latest message time in the batch.
    */
   append(events: readonly MessageEvent[]): Promise<void>;
+
+  /**
+   * Flush all currently queued writes to durable storage.
+   */
+  flush(): Promise<void>;
 
   /**
    * Query messages by time range and optional topic filter.
@@ -76,4 +83,13 @@ export interface PersistentMessageCache {
 
   /** Retrieve datatypes information for this session (optional, may not be supported by all implementations). */
   getDatatypes?(): Promise<RosDatatypes | undefined>;
+
+  /** Store topic metadata for this session. */
+  storeTopics?(
+    topics: readonly TopicWithDecodingInfo[],
+    topicStats?: Map<string, TopicStats>,
+  ): Promise<void>;
+
+  /** Retrieve topic metadata for this session. */
+  getTopics?(): Promise<readonly TopicWithDecodingInfo[]>;
 }
