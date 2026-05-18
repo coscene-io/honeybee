@@ -28,7 +28,6 @@ interface MinimalManifest {
   profiles?: ManifestProfile[];
 }
 
-const DEFAULT_OPTION: ProfileOption = { value: "", label: "Default (lowest)" };
 const RAW_PROFILE = "raw";
 const SHARD_MODE_PARAM = "shardMode";
 const SHARD_MODE_MANIFEST = "manifest";
@@ -68,6 +67,10 @@ function profileHeight(p: ManifestProfile): number {
   return p.params?.h ?? p.params?.height ?? 0;
 }
 
+function isDefaultVideoProfile(p: ManifestProfile): boolean {
+  return p.modality === "video" || p.params?.h != undefined || p.params?.height != undefined;
+}
+
 export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
@@ -90,11 +93,13 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     [t],
   );
 
-  const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([DEFAULT_OPTION]);
+  const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([]);
+  const [defaultProfile, setDefaultProfile] = useState<string>("");
 
   useEffect(() => {
     if (!isShardManifest || !manifestUrl) {
-      setProfileOptions([DEFAULT_OPTION]);
+      setProfileOptions([]);
+      setDefaultProfile("");
       return;
     }
     let cancelled = false;
@@ -105,15 +110,16 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
           return;
         }
         const json = (await resp.json()) as MinimalManifest;
-        const fromManifest = (json.profiles ?? [])
-          .filter((p) => p.id !== "" && p.id !== "full")
-          .sort((a, b) => profileHeight(a) - profileHeight(b))
-          .map(profileToOption);
+        const profiles = (json.profiles ?? [])
+          .filter((p) => p.id !== "" && p.id !== "full" && p.id !== RAW_PROFILE)
+          .sort((a, b) => profileHeight(a) - profileHeight(b));
+        const fromManifest = profiles.map(profileToOption);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (cancelled || fromManifest.length === 0) {
           return;
         }
-        setProfileOptions([DEFAULT_OPTION, ...fromManifest]);
+        setProfileOptions(fromManifest);
+        setDefaultProfile(profiles.find(isDefaultVideoProfile)?.id ?? fromManifest[0]?.value ?? "");
       } catch {
         // Network error / parse error — silently keep the default-only list.
       }
@@ -130,15 +136,20 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     return [...profileOptions, rawOption];
   }, [profileOptions, rawOption]);
 
-  const onChange = useCallback((value: string) => {
-    const next = new URLSearchParams(window.location.search);
-    if (value !== "") {
-      next.set("ds.profile", value);
-    } else {
-      next.delete("ds.profile");
-    }
-    window.location.search = next.toString();
-  }, []);
+  const selectedValue = currentProfile === "" ? defaultProfile : currentProfile;
+
+  const onChange = useCallback(
+    (value: string) => {
+      const next = new URLSearchParams(window.location.search);
+      if (value !== "" && value !== defaultProfile) {
+        next.set("ds.profile", value);
+      } else {
+        next.delete("ds.profile");
+      }
+      window.location.search = next.toString();
+    },
+    [defaultProfile],
+  );
 
   if (!isShardManifest) {
     return ReactNull;
@@ -147,7 +158,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   return (
     <FormControl size="small" variant="outlined" className={classes.formControl}>
       <Select
-        value={currentProfile}
+        value={selectedValue}
         onChange={(e) => {
           onChange(String(e.target.value));
         }}

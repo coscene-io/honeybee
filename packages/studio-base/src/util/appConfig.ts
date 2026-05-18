@@ -24,6 +24,8 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
     ssoDomain: "sso.dev.coscene.cn",
   },
 };
+const DEFAULT_DEV_OBJECT_STORAGE_BASE_URL = "coscene-dev-honeybee-sh.tos-cn-shanghai.volces.com";
+
 declare global {
   interface Window {
     cosConfig?: {
@@ -113,7 +115,9 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
     S3_REGION: cosConfig.S3_REGION ?? "cn-shanghai",
 
-    OBJECT_STORAGE_BASE_URL: cosConfig.OBJECT_STORAGE_BASE_URL ?? undefined,
+    OBJECT_STORAGE_BASE_URL:
+      cosConfig.OBJECT_STORAGE_BASE_URL ??
+      (process.env.NODE_ENV === "development" ? DEFAULT_DEV_OBJECT_STORAGE_BASE_URL : undefined),
   };
 
   if (
