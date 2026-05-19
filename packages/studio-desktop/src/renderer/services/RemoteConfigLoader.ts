@@ -20,6 +20,8 @@ export interface RemoteConfigOptions {
 const DEFAULT_TIMEOUT = 5000;
 
 export async function initializeCosConfig(options: RemoteConfigOptions): Promise<void> {
+  (window as { cosConfigRemoteHostname?: string }).cosConfigRemoteHostname = undefined;
+
   // local config
   await loadLocalConfig();
 
@@ -60,6 +62,7 @@ async function loadRemoteConfig(options: RemoteConfigOptions): Promise<boolean> 
 
     // 保存当前配置（此时已经加载了本地配置）
     const localConfig = { ...window.cosConfig };
+    const remoteConfigHostname = new URL(remoteUrl).hostname;
 
     // 加载远程配置
     const scriptUrl = new URL("cos-config.js", remoteUrl).toString();
@@ -68,6 +71,8 @@ async function loadRemoteConfig(options: RemoteConfigOptions): Promise<boolean> 
     if (success && window.cosConfig && typeof window.cosConfig === "object") {
       // 合并配置：远程配置优先
       window.cosConfig = { ...localConfig, ...window.cosConfig };
+      (window as { cosConfigRemoteHostname?: string }).cosConfigRemoteHostname =
+        remoteConfigHostname;
       log.info("Remote config loaded and merged successfully");
       return true;
     } else {
