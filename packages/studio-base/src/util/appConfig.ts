@@ -58,6 +58,7 @@ declare global {
       OBJECT_STORAGE_BASE_URL?: string;
     };
     buildTime?: string;
+    cosConfigRemoteHostname?: string;
   }
 }
 
@@ -128,9 +129,13 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
 export function getDomainConfig(): DomainConfig {
   const appConfig = getAppConfig();
+  const hostname = typeof window !== "undefined" ? window.location.hostname : undefined;
+  const remoteConfigHostname =
+    typeof window !== "undefined" ? window.cosConfigRemoteHostname : undefined;
 
   return (
-    appConfig.DOMAIN_CONFIG?.[window.location.hostname] ??
+    (hostname ? appConfig.DOMAIN_CONFIG?.[hostname] : undefined) ??
+    (remoteConfigHostname ? appConfig.DOMAIN_CONFIG?.[remoteConfigHostname] : undefined) ??
     appConfig.DOMAIN_CONFIG?.default ??
     DEFAULT_DOMAN_CONFIG.default!
   );
