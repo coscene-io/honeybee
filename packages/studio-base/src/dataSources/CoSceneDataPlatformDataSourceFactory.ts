@@ -24,6 +24,10 @@ import { Player } from "@foxglove/studio-base/players/types";
 import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
+import { buildManifestUrl, getManifestStorageBaseUrl, manifestExists } from "./manifestStorage";
+
+export { buildManifestUrl } from "./manifestStorage";
+
 const RAW_PROFILE = "raw";
 const SHARD_MODE_PARAM = "shardMode";
 const SHARD_MODE_MANIFEST = "manifest";
@@ -40,33 +44,6 @@ function definedUrlParams(params?: Record<string, string | undefined>): Record<s
     }
   }
   return definedParams;
-}
-
-function ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl: string): string {
-  if (/^https?:\/\//i.test(objectStorageBaseUrl)) {
-    return objectStorageBaseUrl;
-  }
-  return `https://${objectStorageBaseUrl}`;
-}
-
-export function buildManifestUrl(
-  objectStorageBaseUrl: string,
-  projectId: string,
-  recordId: string,
-): string {
-  return `${ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl).replace(
-    /\/+$/,
-    "",
-  )}/projects/${projectId}/records/${recordId}/manifest.json`;
-}
-
-async function manifestExists(manifestUrl: string): Promise<boolean> {
-  try {
-    const response = await fetch(manifestUrl, { method: "HEAD" });
-    return response.ok;
-  } catch {
-    return false;
-  }
 }
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
@@ -128,7 +105,10 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       return;
     }
 
-    const objectStorageBaseUrl = getAppConfig().OBJECT_STORAGE_BASE_URL;
+    const objectStorageBaseUrl = getManifestStorageBaseUrl(
+      args.manifestStorageSource,
+      getAppConfig().OBJECT_STORAGE_BASE_URL,
+    );
     const { projectId, recordId } = consoleApi.getApiBaseInfo();
     if (!objectStorageBaseUrl || !projectId || !recordId) {
       return this.#createDataPlatformPlayer(args);

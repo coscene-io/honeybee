@@ -17,9 +17,11 @@ import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
   Checkbox,
+  Chip,
   Divider,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   FormLabel,
   Link,
   MenuItem,
@@ -32,7 +34,7 @@ import {
   Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { ChangeEvent, MouseEvent, useCallback, useMemo, useRef, useState } from "react";
+import { ChangeEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -50,6 +52,13 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import {
+  COSCENE_VIZ_DATA_BASE_URL,
+  ManifestStorageSource,
+  buildManifestUrl,
+  ensureObjectStorageBaseUrlProtocol,
+  manifestExists,
+} from "@foxglove/studio-base/dataSources/manifestStorage";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
@@ -760,6 +769,146 @@ export function RequestWindow(): React.ReactElement {
             <Trans
               t={t}
               i18nKey="requestWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    target="_self"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+type FixedManifestAvailability = "idle" | "checking" | "available" | "unavailable";
+
+export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull {
+  const { t } = useTranslation("appSettings");
+  const [manifestStorageSource, setManifestStorageSource] = useAppConfigurationValue<string>(
+    AppSetting.MANIFEST_STORAGE_SOURCE,
+  );
+  const dataSource = useCoreData(selectDataSource);
+  const { reloadCurrentSource } = usePlayerSelection();
+  const consoleApi = useConsoleApi();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+  const fixedAvailabilityRequest = useRef(0);
+  const [fixedAvailability, setFixedAvailability] = useState<FixedManifestAvailability>("idle");
+
+  const isCoSceneDataPlatform = dataSource?.id === "coscene-data-platform";
+  const apiBaseInfo = isCoSceneDataPlatform ? consoleApi.getApiBaseInfo() : undefined;
+  const projectId = apiBaseInfo?.projectId;
+  const recordId = apiBaseInfo?.recordId;
+  const objectStorageBaseUrl = getAppConfig().OBJECT_STORAGE_BASE_URL;
+
+  const fixedManifestUrl = useMemo(() => {
+    if (projectId == undefined || recordId == undefined) {
+      return undefined;
+    }
+    return buildManifestUrl(COSCENE_VIZ_DATA_BASE_URL, projectId, recordId);
+  }, [projectId, recordId]);
+
+  useEffect(() => {
+    if (!isCoSceneDataPlatform) {
+      setFixedAvailability("idle");
+      return;
+    }
+    if (fixedManifestUrl == undefined) {
+      setFixedAvailability("unavailable");
+      return;
+    }
+
+    const requestId = fixedAvailabilityRequest.current + 1;
+    fixedAvailabilityRequest.current = requestId;
+    setFixedAvailability("checking");
+    void (async () => {
+      const exists = await manifestExists(fixedManifestUrl);
+      if (fixedAvailabilityRequest.current === requestId) {
+        setFixedAvailability(exists ? "available" : "unavailable");
+      }
+    })();
+
+    return () => {
+      fixedAvailabilityRequest.current += 1;
+    };
+  }, [fixedManifestUrl, isCoSceneDataPlatform]);
+
+  const selectedValue =
+    manifestStorageSource === ManifestStorageSource.CoSceneVizData
+      ? ManifestStorageSource.CoSceneVizData
+      : ManifestStorageSource.Default;
+  const fixedOptionDisabled = fixedAvailability !== "available";
+  const defaultStorageLabel =
+    objectStorageBaseUrl != undefined && objectStorageBaseUrl.length > 0
+      ? ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl)
+      : "OBJECT_STORAGE_BASE_URL";
+
+  const onChangeManifestStorageSource = useCallback(
+    (event: SelectChangeEvent<ManifestStorageSource>) => {
+      const nextValue = event.target.value as ManifestStorageSource;
+      if (nextValue === ManifestStorageSource.CoSceneVizData && fixedOptionDisabled) {
+        return;
+      }
+      void setManifestStorageSource(nextValue);
+      setShowTips(true);
+    },
+    [fixedOptionDisabled, setManifestStorageSource],
+  );
+
+  if (!isCoSceneDataPlatform) {
+    return ReactNull;
+  }
+
+  return (
+    <Stack>
+      <FormControl fullWidth>
+        <FormLabel>
+          <Stack direction="row" alignItems="center" gap={0.5}>
+            {t("manifestStorageSource")}:
+            <Tooltip title={t("manifestStorageSourceDescription")}>
+              <HelpIcon fontSize="small" />
+            </Tooltip>
+          </Stack>
+        </FormLabel>
+        <SmartSelect<ManifestStorageSource>
+          value={selectedValue}
+          fullWidth
+          onChange={onChangeManifestStorageSource}
+        >
+          <MenuItem value={ManifestStorageSource.Default}>
+            <Stack direction="row" alignItems="center" gap={1} fullWidth zeroMinWidth>
+              <Typography variant="body2" noWrap>
+                {defaultStorageLabel}
+              </Typography>
+              <Chip size="small" label={t("manifestStorageSourceDefaultTag")} />
+            </Stack>
+          </MenuItem>
+          <MenuItem value={ManifestStorageSource.CoSceneVizData} disabled={fixedOptionDisabled}>
+            {COSCENE_VIZ_DATA_BASE_URL}
+          </MenuItem>
+        </SmartSelect>
+        {fixedAvailability === "checking" && (
+          <FormHelperText>{t("manifestStorageSourceChecking")}</FormHelperText>
+        )}
+        {fixedAvailability === "unavailable" && (
+          <FormHelperText>{t("manifestStorageSourceUnavailable")}</FormHelperText>
+        )}
+      </FormControl>
+      {showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="manifestStorageSourceNextEffectiveNotice"
               components={{
                 Link: (
                   <Link
