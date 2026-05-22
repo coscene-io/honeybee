@@ -17,6 +17,7 @@ import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
   Checkbox,
+  Chip,
   Divider,
   FormControl,
   FormControlLabel,
@@ -55,6 +56,7 @@ import {
   COSCENE_VIZ_DATA_BASE_URL,
   ManifestStorageSource,
   buildManifestUrl,
+  ensureObjectStorageBaseUrlProtocol,
   manifestExists,
 } from "@foxglove/studio-base/dataSources/manifestStorage";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
@@ -847,7 +849,7 @@ export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull 
   const fixedOptionDisabled = fixedAvailability !== "available";
   const defaultStorageLabel =
     objectStorageBaseUrl != undefined && objectStorageBaseUrl.length > 0
-      ? t("manifestStorageSourceDefault", { url: objectStorageBaseUrl })
+      ? ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl)
       : "OBJECT_STORAGE_BASE_URL";
 
   const onChangeManifestStorageSource = useCallback(
@@ -882,7 +884,14 @@ export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull 
           fullWidth
           onChange={onChangeManifestStorageSource}
         >
-          <MenuItem value={ManifestStorageSource.Default}>{defaultStorageLabel}</MenuItem>
+          <MenuItem value={ManifestStorageSource.Default}>
+            <Stack direction="row" alignItems="center" gap={1} fullWidth zeroMinWidth>
+              <Typography variant="body2" noWrap>
+                {defaultStorageLabel}
+              </Typography>
+              <Chip size="small" label={t("manifestStorageSourceDefaultTag")} />
+            </Stack>
+          </MenuItem>
           <MenuItem value={ManifestStorageSource.CoSceneVizData} disabled={fixedOptionDisabled}>
             {COSCENE_VIZ_DATA_BASE_URL}
           </MenuItem>

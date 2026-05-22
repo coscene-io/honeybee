@@ -26,6 +26,9 @@ import {
 } from "@foxglove/studio-base/dataSources/manifestStorage";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 
+const DEFAULT_OBJECT_STORAGE_BASE_URL = "default-storage.example.com";
+const DISPLAYED_DEFAULT_OBJECT_STORAGE_BASE_URL = `https://${DEFAULT_OBJECT_STORAGE_BASE_URL}`;
+
 class TestAppConfiguration implements IAppConfiguration {
   public set = jest.fn(async (key: string, value: AppConfigurationValue) => {
     this.#values.set(key, value);
@@ -74,6 +77,7 @@ function renderSetting(options: { sourceId?: string; fixedManifestOk?: boolean }
   const appConfiguration = new TestAppConfiguration();
   const reloadCurrentSource = jest.fn(async () => {});
   global.fetch = jest.fn().mockResolvedValue({ ok: options.fixedManifestOk ?? true } as Response);
+  window.cosConfig = { OBJECT_STORAGE_BASE_URL: DEFAULT_OBJECT_STORAGE_BASE_URL };
 
   function Wrapper(props: PropsWithChildren): React.JSX.Element {
     return (
@@ -136,7 +140,10 @@ describe("ManifestStorageSourceSettings", () => {
 
     fireEvent.mouseDown(screen.getByRole("combobox"));
 
-    expect(screen.getByRole("option", { name: /OBJECT_STORAGE_BASE_URL/ })).toBeTruthy();
+    expect(
+      screen.getByRole("option", { name: `${DISPLAYED_DEFAULT_OBJECT_STORAGE_BASE_URL} default` }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /OBJECT_STORAGE_BASE_URL/ })).toBeNull();
     expect(
       screen.getByRole("option", { name: COSCENE_VIZ_DATA_BASE_URL }).getAttribute("aria-disabled"),
     ).not.toBe("true");

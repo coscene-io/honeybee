@@ -64,7 +64,7 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   manifestStorageSource: "Manifest 和 MCAP 请求地址",
   manifestStorageSourceDescription:
     "选择数据平台回放时拉取 manifest 文件以及相对路径 MCAP 分片文件的地址。",
-  manifestStorageSourceDefault: "OBJECT_STORAGE_BASE_URL（{{url}}）",
+  manifestStorageSourceDefaultTag: "默认",
   manifestStorageSourceChecking: "正在检查该地址是否可播放当前文件。",
   manifestStorageSourceUnavailable: "该地址不可播放当前文件。",
   manifestStorageSourceNextEffectiveNotice:

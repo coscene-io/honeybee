@@ -12,7 +12,7 @@ export enum ManifestStorageSource {
 
 export const COSCENE_VIZ_DATA_BASE_URL = "https://coscene-viz-data.coscene.io";
 
-function ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl: string): string {
+export function ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl: string): string {
   if (/^https?:\/\//i.test(objectStorageBaseUrl)) {
     return objectStorageBaseUrl;
   }

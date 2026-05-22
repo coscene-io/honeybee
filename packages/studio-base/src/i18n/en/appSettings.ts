@@ -72,7 +72,7 @@ export const appSettings = {
   manifestStorageSource: "Manifest and MCAP request host",
   manifestStorageSourceDescription:
     "Selects the host used to fetch manifest files and relative MCAP shard files for data-platform playback.",
-  manifestStorageSourceDefault: "OBJECT_STORAGE_BASE_URL ({{url}})",
+  manifestStorageSourceDefaultTag: "default",
   manifestStorageSourceChecking: "Checking whether this address can play the current file.",
   manifestStorageSourceUnavailable: "This address cannot play the current file.",
   manifestStorageSourceNextEffectiveNotice:
