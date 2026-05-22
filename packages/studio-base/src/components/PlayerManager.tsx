@@ -302,6 +302,9 @@ export default function PlayerManager(
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
   const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
   const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
+  const [manifestStorageSource] = useAppConfigurationValue<string>(
+    AppSetting.MANIFEST_STORAGE_SOURCE,
+  );
   const [autoConnectToLan] = useAppConfigurationValue<boolean>(AppSetting.AUTO_CONNECT_LAN);
 
   const positiveRequestWindow =
@@ -409,6 +412,7 @@ export default function PlayerManager(
                 positiveReadAheadDuration != undefined
                   ? { sec: positiveReadAheadDuration, nsec: 0 }
                   : undefined,
+              manifestStorageSource,
               autoConnectToLan,
               checkOutboundTrafficEntitlement,
             });
@@ -558,6 +562,7 @@ export default function PlayerManager(
       entitlement,
       entitlementDialog,
       retentionWindowMs,
+      manifestStorageSource,
       autoConnectToLan,
       addRecent,
       t,

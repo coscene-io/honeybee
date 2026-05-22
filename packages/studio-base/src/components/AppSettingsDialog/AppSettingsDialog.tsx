@@ -48,6 +48,7 @@ import {
   InactivityTimeout,
   RetentionWindowMs,
   RequestWindow,
+  ManifestStorageSourceSettings,
   ReadAheadDuration,
   StudioRemoteConfigUrl,
   AutoConnectToLan,
@@ -257,6 +258,7 @@ export function AppSettingsDialog(
               <RetentionWindowMs />
               <InactivityTimeout />
               <RequestWindow />
+              <ManifestStorageSourceSettings />
               <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
               <IsRenderAllTabs />

@@ -48,6 +48,7 @@ export enum AppSetting {
 
   REQUEST_WINDOW = "requestWindow",
   READ_AHEAD_DURATION = "readAheadDuration",
+  MANIFEST_STORAGE_SOURCE = "manifestStorageSource",
 
   // Remote Config
   REMOTE_CONFIG_URL = "remoteConfigUrl",
