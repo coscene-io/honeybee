@@ -39,6 +39,7 @@ class TestSource implements IIterableSource {
     args: MessageIteratorArgs,
   ): AsyncIterableIterator<Readonly<IteratorResult>> {
     this.messageIteratorArgs = args;
+    yield* [];
   }
 
   public async getBackfillMessages(_args: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
@@ -67,6 +68,7 @@ class TestSerializedSource implements ISerializedIterableSource {
     args: MessageIteratorArgs,
   ): AsyncIterableIterator<Readonly<IteratorResult<Uint8Array>>> {
     this.messageIteratorArgs = args;
+    yield* [];
   }
 
   public async getBackfillMessages(

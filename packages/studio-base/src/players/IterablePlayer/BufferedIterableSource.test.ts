@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
+import race from "race-as-promised";
 
 import { MessageEvent } from "@foxglove/studio";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
@@ -42,8 +43,11 @@ function waiter(count: number) {
   };
 }
 
-function delay(ms: number): Promise<"timeout"> {
-  return new Promise((resolve) => setTimeout(() => resolve("timeout"), ms));
+async function delay(ms: number): Promise<"timeout"> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+  return "timeout";
 }
 
 class TestSource implements IIterableSource {
@@ -62,7 +66,9 @@ class TestSource implements IIterableSource {
 
   public async *messageIterator(
     _args: MessageIteratorArgs,
-  ): AsyncIterableIterator<Readonly<IteratorResult>> {}
+  ): AsyncIterableIterator<Readonly<IteratorResult>> {
+    yield* [];
+  }
 
   public async getBackfillMessages(_args: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
     return [];
@@ -145,8 +151,15 @@ describe("BufferedIterableSource", () => {
     ): AsyncIterableIterator<Readonly<IteratorResult>> {
       sourceStarted.notify();
       await new Promise<void>((resolve) => {
-        args.abortSignal?.addEventListener("abort", () => resolve(), { once: true });
+        args.abortSignal?.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
       });
+      yield* [];
     };
 
     const messageIterator = bufferedSource.messageIterator({
@@ -155,7 +168,7 @@ describe("BufferedIterableSource", () => {
     });
     await sourceStarted.wait();
 
-    const result = await Promise.race([
+    const result = await race([
       messageIterator.return?.().then(() => "returned" as const),
       delay(50),
     ]);
@@ -176,8 +189,15 @@ describe("BufferedIterableSource", () => {
     ): AsyncIterableIterator<Readonly<IteratorResult>> {
       sourceStarted.notify();
       await new Promise<void>((resolve) => {
-        args.abortSignal?.addEventListener("abort", () => resolve(), { once: true });
+        args.abortSignal?.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
       });
+      yield* [];
     };
 
     const messageIterator = bufferedSource.messageIterator({
@@ -186,7 +206,7 @@ describe("BufferedIterableSource", () => {
     });
     await sourceStarted.wait();
 
-    const result = await Promise.race([
+    const result = await race([
       bufferedSource.stopProducer().then(() => "stopped" as const),
       delay(50),
     ]);

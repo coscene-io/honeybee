@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import race from "race-as-promised";
+
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
 import {
@@ -12,26 +14,22 @@ import {
   DataPlatformIterableSource,
 } from "./DataPlatformIterableSource";
 
-function waitFor(predicate: () => boolean): Promise<void> {
+async function waitFor(predicate: () => boolean): Promise<void> {
   const deadline = Date.now() + 1_000;
-  return new Promise((resolve, reject) => {
-    const check = () => {
-      if (predicate()) {
-        resolve();
-        return;
-      }
-      if (Date.now() > deadline) {
-        reject(new Error("Timed out waiting for predicate"));
-        return;
-      }
-      setTimeout(check, 10);
-    };
-    check();
-  });
+  while (Date.now() < deadline) {
+    if (predicate()) {
+      return;
+    }
+    await delay(10);
+  }
+  expect(predicate()).toBe(true);
 }
 
-function delay(ms: number): Promise<"timeout"> {
-  return new Promise((resolve) => setTimeout(() => resolve("timeout"), ms));
+async function delay(ms: number): Promise<"timeout"> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+  return "timeout";
 }
 
 describe("DataPlatformIterableSource", () => {
@@ -60,7 +58,9 @@ describe("DataPlatformIterableSource", () => {
         return await new Promise<Response>((_resolve, reject) => {
           signal.addEventListener(
             "abort",
-            () => reject(new DOMException("Aborted", "AbortError")),
+            () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            },
             { once: true },
           );
         });
@@ -91,7 +91,7 @@ describe("DataPlatformIterableSource", () => {
     abortController.abort();
 
     expect(getStreamsSignal?.aborted).toBe(true);
-    await expect(Promise.race([nextPromise, delay(50)])).resolves.toMatchObject({
+    await expect(race([nextPromise, delay(50)])).resolves.toMatchObject({
       done: true,
     });
   });
