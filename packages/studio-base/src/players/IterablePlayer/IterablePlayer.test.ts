@@ -878,24 +878,22 @@ describe("IterablePlayer", () => {
 
     expect(messageIteratorSpy.mock.calls).toEqual([
       [
-        expect.objectContaining({
+        {
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo"),
           consumptionType: "partial",
           fetchCompleteTopicState: undefined,
-          abortSignal: expect.any(AbortSignal),
-        }),
+        },
       ],
       [
-        expect.objectContaining({
+        {
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo", "bar"),
           consumptionType: "partial",
           fetchCompleteTopicState: undefined,
-          abortSignal: expect.any(AbortSignal),
-        }),
+        },
       ],
     ]);
 
@@ -927,14 +925,13 @@ describe("IterablePlayer", () => {
 
     expect(messageIteratorSpy.mock.calls).toEqual([
       [
-        expect.objectContaining({
+        {
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo"),
           consumptionType: "partial",
           fetchCompleteTopicState: undefined,
-          abortSignal: expect.any(AbortSignal),
-        }),
+        },
       ],
     ]);
 

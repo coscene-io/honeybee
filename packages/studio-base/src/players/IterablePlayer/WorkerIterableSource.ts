@@ -106,11 +106,8 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
     // An AbortSignal is not clonable, so we remove it from the args and send it as a separate argumet
     // to our worker getBackfillMessages call. Our installed Comlink handler for AbortSignal handles
     // making the abort signal available within the worker.
-    const { abort, abortSignal, ...rest } = args;
-    const messageCursorPromise = this.#sourceWorkerRemote.getMessageCursor(
-      rest,
-      abort ?? abortSignal,
-    );
+    const { abort, ...rest } = args;
+    const messageCursorPromise = this.#sourceWorkerRemote.getMessageCursor(rest, abort);
 
     const cursor: IMessageCursor = {
       async next() {

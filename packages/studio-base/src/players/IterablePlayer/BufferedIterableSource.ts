@@ -85,7 +85,6 @@ class BufferedIterableSource<MessageType = unknown>
   // The promise for the current producer. The message generator starts a producer and awaits the
   // producer before exiting.
   #producer?: Promise<void>;
-  #producerAbortController?: AbortController;
 
   #initResult?: Initalization;
 
@@ -138,28 +137,12 @@ class BufferedIterableSource<MessageType = unknown>
     // the start of the array.
     this.#cache.clear();
 
-    const producerAbortController = new AbortController();
-    this.#producerAbortController = producerAbortController;
-    const abortProducer = () => {
-      this.#aborted = true;
-      producerAbortController.abort();
-      this.#readSignal.notifyAll();
-      this.#writeSignal.notifyAll();
-    };
-
-    if (args.abortSignal?.aborted === true) {
-      abortProducer();
-    } else {
-      args.abortSignal?.addEventListener("abort", abortProducer, { once: true });
-    }
-
     try {
       const sourceIterator = this.#source.messageIterator({
         topics: args.topics,
         start: this.#readHead,
         consumptionType: "partial",
         fetchCompleteTopicState: args.fetchCompleteTopicState,
-        abortSignal: producerAbortController.signal,
       });
 
       // Messages are read from the source until reaching the readUntil time. Then we wait for the read head
@@ -247,10 +230,6 @@ class BufferedIterableSource<MessageType = unknown>
         await this.#writeSignal.wait();
       }
     } finally {
-      args.abortSignal?.removeEventListener("abort", abortProducer);
-      if (this.#producerAbortController === producerAbortController) {
-        this.#producerAbortController = undefined;
-      }
       // Indicate to the consumer that it can try reading again
       this.#readSignal.notifyAll();
       this.#readDone = true;
@@ -270,8 +249,6 @@ class BufferedIterableSource<MessageType = unknown>
   public async stopProducer(): Promise<void> {
     log.debug("Stopping producer");
     this.#aborted = true;
-    this.#producerAbortController?.abort();
-    this.#readSignal.notifyAll();
     this.#writeSignal.notifyAll();
     await this.#producer;
     this.#producer = undefined;
