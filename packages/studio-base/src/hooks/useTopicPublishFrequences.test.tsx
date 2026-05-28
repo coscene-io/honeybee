@@ -53,38 +53,44 @@ describe("useTopicPublishFrequencies", () => {
   });
 
   it("updates frequences for a live source", () => {
-    let activeData: Partial<PlayerState["activeData"]> = {
-      currentTime: { sec: 2, nsec: 0 },
-      endTime: { sec: 10, nsec: 0 },
-      startTime: { sec: 0, nsec: 0 },
-      topicStats: new Map([
-        ["topic_a", { numMessages: 10 }],
-        ["topic_b", { numMessages: 20 }],
-      ]),
-    };
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(1_000);
 
-    const { result, rerender } = renderHook(useTopicPublishFrequencies, {
-      wrapper: ({ children }) => (
-        <MockMessagePipelineProvider activeData={activeData}>
-          {children}
-        </MockMessagePipelineProvider>
-      ),
-    });
+    try {
+      let activeData: Partial<PlayerState["activeData"]> = {
+        currentTime: { sec: 2, nsec: 0 },
+        endTime: { sec: 10, nsec: 0 },
+        startTime: { sec: 0, nsec: 0 },
+        topicStats: new Map([
+          ["topic_a", { numMessages: 10 }],
+          ["topic_b", { numMessages: 20 }],
+        ]),
+      };
 
-    expect(result.current).toStrictEqual({});
+      const { result, rerender } = renderHook(useTopicPublishFrequencies, {
+        wrapper: ({ children }) => (
+          <MockMessagePipelineProvider activeData={activeData}>
+            {children}
+          </MockMessagePipelineProvider>
+        ),
+      });
 
-    activeData = {
-      currentTime: { sec: 3, nsec: 0 },
-      endTime: { sec: 10, nsec: 0 },
-      startTime: { sec: 0, nsec: 0 },
-      topicStats: new Map([
-        ["topic_a", { numMessages: 20 }],
-        ["topic_b", { numMessages: 40 }],
-      ]),
-    };
-    rerender();
+      expect(result.current).toStrictEqual({});
 
-    expect(result.current["topic_a"]).toBeGreaterThan(0);
-    expect(result.current["topic_b"]).toBeGreaterThan(0);
+      nowSpy.mockReturnValue(2_000);
+      activeData = {
+        currentTime: { sec: 3, nsec: 0 },
+        endTime: { sec: 10, nsec: 0 },
+        startTime: { sec: 0, nsec: 0 },
+        topicStats: new Map([
+          ["topic_a", { numMessages: 20 }],
+          ["topic_b", { numMessages: 40 }],
+        ]),
+      };
+      rerender();
+
+      expect(result.current).toStrictEqual({ topic_a: 10, topic_b: 20 });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
