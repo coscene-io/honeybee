@@ -56,10 +56,10 @@ export class WorkerSerializedIterableSourceWorker implements ISerializedIterable
   }
 
   public getMessageCursor(
-    args: Omit<Immutable<MessageIteratorArgs>, "abort">,
+    args: Omit<Immutable<MessageIteratorArgs>, "abortSignal">,
     abort?: AbortSignal,
   ): IMessageCursor<Uint8Array> & Comlink.ProxyMarked {
-    const iter = this.#source.messageIterator(args);
+    const iter = this.#source.messageIterator({ ...args, abortSignal: abort });
     const cursor = new ComlinkTransferIteratorCursor(new IteratorCursor<Uint8Array>(iter, abort));
     return Comlink.proxy(cursor);
   }

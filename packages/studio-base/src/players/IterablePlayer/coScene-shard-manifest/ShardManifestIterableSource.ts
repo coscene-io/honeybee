@@ -372,7 +372,7 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     if (iterators.length === 0) {
       return;
     }
-    yield* mergeShards<Uint8Array>(iterators);
+    yield* mergeShards<Uint8Array>(iterators, args.abortSignal);
   }
 
   public async getBackfillMessages(
