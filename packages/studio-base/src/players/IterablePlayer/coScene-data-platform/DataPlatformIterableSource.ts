@@ -237,6 +237,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       const stream = streamMessages({
         api: this.#consoleApi,
+        signal: args.abortSignal,
         parsedChannelsByTopic,
         params: streamByParams,
       });
@@ -269,6 +270,7 @@ export class DataPlatformIterableSource implements IIterableSource {
 
       const stream = streamMessages({
         api: this.#consoleApi,
+        signal: args.abortSignal,
         parsedChannelsByTopic,
         params: streamByParams,
       });
