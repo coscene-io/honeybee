@@ -639,7 +639,6 @@ class CachingIterableSource<MessageType = unknown>
     topics: TopicSelection;
     consumptionType: MessageIteratorArgs["consumptionType"];
     fetchCompleteTopicState: MessageIteratorArgs["fetchCompleteTopicState"];
-    abortSignal: MessageIteratorArgs["abortSignal"];
     writeSpill: boolean;
   }): AsyncIterableIterator<Readonly<IteratorResult<MessageType>>> {
     const sourceMessageIterator = this.#source.messageIterator({
@@ -648,7 +647,6 @@ class CachingIterableSource<MessageType = unknown>
       end: args.end,
       consumptionType: args.consumptionType,
       fetchCompleteTopicState: args.fetchCompleteTopicState,
-      abortSignal: args.abortSignal,
     });
 
     // The cache is indexed on time, but iterator results that are problems might not have a time.
@@ -834,7 +832,6 @@ class CachingIterableSource<MessageType = unknown>
         end: maxEnd,
         consumptionType: args.consumptionType,
         fetchCompleteTopicState: args.fetchCompleteTopicState,
-        abortSignal: args.abortSignal,
       });
       return;
     }
@@ -937,7 +934,6 @@ class CachingIterableSource<MessageType = unknown>
           topics: this.#cachedTopics,
           consumptionType: args.consumptionType,
           fetchCompleteTopicState: args.fetchCompleteTopicState,
-          abortSignal: args.abortSignal,
           writeSpill: false,
         });
         readHead = add(sourceReadEnd, { sec: 0, nsec: 1 });
@@ -981,7 +977,6 @@ class CachingIterableSource<MessageType = unknown>
               topics: this.#cachedTopics,
               consumptionType: args.consumptionType,
               fetchCompleteTopicState: args.fetchCompleteTopicState,
-              abortSignal: args.abortSignal,
               writeSpill: true,
             });
           }
@@ -1006,7 +1001,6 @@ class CachingIterableSource<MessageType = unknown>
           topics: this.#cachedTopics,
           consumptionType: args.consumptionType,
           fetchCompleteTopicState: args.fetchCompleteTopicState,
-          abortSignal: args.abortSignal,
           writeSpill: true,
         });
         segmentStart = add(segmentEnd, { sec: 0, nsec: 1 });

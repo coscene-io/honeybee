@@ -265,10 +265,7 @@ export class BlockLoader {
       const cursor =
         this.#source.getMessageCursor?.({ ...iteratorArgs, abort: this.#abortController.signal }) ??
         new IteratorCursor(
-          this.#source.messageIterator({
-            ...iteratorArgs,
-            abortSignal: this.#abortController.signal,
-          }),
+          this.#source.messageIterator(iteratorArgs),
           this.#abortController.signal,
         );
 
