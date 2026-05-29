@@ -14,21 +14,24 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-
-type ProfileOption = { value: string; label: string };
-
-interface ManifestProfile {
-  id: string;
-  modality?: string;
-  label?: string;
-  params?: { h?: number; height?: number; fps?: number; codec?: string };
-}
+import {
+  findMatchingShardProfilePreference,
+  isDefaultVideoProfile,
+  loadShardProfilePreference,
+  profileHeight,
+  profileToOption,
+  RAW_PROFILE,
+  saveShardProfilePreference,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import type {
+  ManifestProfile,
+  ShardProfileOption,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
 
 interface MinimalManifest {
   profiles?: ManifestProfile[];
 }
 
-const RAW_PROFILE = "raw";
 const SHARD_MODE_PARAM = "shardMode";
 const SHARD_MODE_MANIFEST = "manifest";
 const SHARD_MODE_RAW = "raw";
@@ -47,53 +50,23 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-function profileToOption(p: ManifestProfile): ProfileOption {
-  if (p.label != undefined && p.label.length > 0 && p.label !== p.id) {
-    return { value: p.id, label: p.label };
-  }
-  // Synthesize a label from params when the manifest's `label` is missing.
-  const h = p.params?.h ?? p.params?.height;
-  const fps = p.params?.fps;
-  if (h != undefined && h > 0 && fps != undefined && fps > 0) {
-    return { value: p.id, label: `${h}p · ${fps}fps` };
-  }
-  if (h != undefined && h > 0) {
-    return { value: p.id, label: `${h}p` };
-  }
-  return { value: p.id, label: p.id };
-}
-
-function profileHeight(p: ManifestProfile): number {
-  return p.params?.h ?? p.params?.height ?? 0;
-}
-
-function isDefaultVideoProfile(p: ManifestProfile): boolean {
-  return p.modality === "video" || p.params?.h != undefined || p.params?.height != undefined;
-}
-
 export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
   const urlState = useMessagePipeline(selectUrlState);
-  const search = useMemo(() => {
-    if (typeof window === "undefined") {
-      return new URLSearchParams();
-    }
-    return new URLSearchParams(window.location.search);
-  }, []);
 
   const isShardManifest =
     urlState?.sourceId === "coscene-data-platform" &&
     (urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_MANIFEST ||
       urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_RAW);
   const manifestUrl = urlState?.parameters?.[MANIFEST_URL_PARAM] ?? "";
-  const currentProfile = search.get("ds.profile") ?? "";
-  const rawOption = useMemo<ProfileOption>(
+  const currentProfile = urlState?.parameters?.profile ?? "";
+  const rawOption = useMemo<ShardProfileOption>(
     () => ({ value: RAW_PROFILE, label: t("rawData") }),
     [t],
   );
 
-  const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([]);
+  const [profileOptions, setProfileOptions] = useState<ShardProfileOption[]>([]);
   const [defaultProfile, setDefaultProfile] = useState<string>("");
 
   useEffect(() => {
@@ -136,10 +109,42 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     return [...profileOptions, rawOption];
   }, [profileOptions, rawOption]);
 
-  const selectedValue = currentProfile === "" ? defaultProfile : currentProfile;
+  const selectedValue =
+    currentProfile !== "" && options.some((option) => option.value === currentProfile)
+      ? currentProfile
+      : defaultProfile;
+
+  useEffect(() => {
+    if (!isShardManifest || options.length === 0) {
+      return;
+    }
+    const hasCurrentProfile =
+      currentProfile !== "" && options.some((option) => option.value === currentProfile);
+    if (hasCurrentProfile) {
+      return;
+    }
+    const savedOption = findMatchingShardProfilePreference(options, loadShardProfilePreference());
+    if (
+      savedOption == undefined ||
+      (savedOption.value === defaultProfile && currentProfile === "")
+    ) {
+      return;
+    }
+    const next = new URLSearchParams(window.location.search);
+    if (savedOption.value === defaultProfile) {
+      next.delete("ds.profile");
+    } else {
+      next.set("ds.profile", savedOption.value);
+    }
+    window.location.search = next.toString();
+  }, [currentProfile, defaultProfile, isShardManifest, options]);
 
   const onChange = useCallback(
     (value: string) => {
+      const selectedOption = options.find((option) => option.value === value);
+      if (selectedOption != undefined) {
+        saveShardProfilePreference(selectedOption);
+      }
       const next = new URLSearchParams(window.location.search);
       if (value !== "" && value !== defaultProfile) {
         next.set("ds.profile", value);
@@ -148,7 +153,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
       }
       window.location.search = next.toString();
     },
-    [defaultProfile],
+    [defaultProfile, options],
   );
 
   if (!isShardManifest) {

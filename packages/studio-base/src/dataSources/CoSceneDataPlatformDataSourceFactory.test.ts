@@ -19,6 +19,7 @@ import {
   ManifestStorageSource,
   getManifestStorageBaseUrl,
 } from "./manifestStorage";
+import { SHARD_PROFILE_PREFERENCE_STORAGE_KEY } from "../players/IterablePlayer/coScene-shard-manifest/profilePreference";
 
 const mockGetAppConfig = jest.fn();
 
@@ -91,6 +92,10 @@ describe("buildManifestUrl", () => {
 
 describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () => {
   const originalFetch = global.fetch;
+  const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "localStorage",
+  );
 
   beforeEach(() => {
     mockGetAppConfig.mockReturnValue({
@@ -104,12 +109,21 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
 
   afterEach(() => {
     global.fetch = originalFetch;
+    if (originalLocalStorageDescriptor) {
+      Object.defineProperty(globalThis, "localStorage", originalLocalStorageDescriptor);
+    } else {
+      delete (globalThis as Partial<typeof globalThis>).localStorage;
+    }
   });
 
-  async function initializeFactory(manifestStorageSource?: string) {
+  async function initializeFactory(
+    manifestStorageSource?: string,
+    params?: Record<string, string | undefined>,
+  ) {
     const factory = new CoSceneDataPlatformDataSourceFactory();
     return await factory.initialize({
       metricsCollector: undefined as never,
+      params,
       consoleApi: {
         getApiBaseInfo: () => ({ projectId: "project-id", recordId: "record-id" }),
         getAuthHeader: () => "Bearer token",
@@ -152,5 +166,78 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
     );
     expect(mockWorkerSerializedIterableSource).not.toHaveBeenCalled();
     expect(mockWorkerIterableSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a saved shard profile when the new manifest has a matching profile label", async () => {
+    const manifestUrl =
+      "https://default-storage.example.com/projects/project-id/records/record-id/manifest.json";
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) =>
+          key === SHARD_PROFILE_PREFERENCE_STORAGE_KEY
+            ? JSON.stringify({ value: "old-hd", label: "720p @ 15fps" })
+            : undefined,
+      },
+    });
+    global.fetch = jest.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "HEAD") {
+        return { ok: true } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          profiles: [
+            { id: "sd10", modality: "video", label: "480p @ 10fps", params: { h: 480, fps: 10 } },
+            { id: "hd15", modality: "video", label: "720p @ 15fps", params: { h: 720, fps: 15 } },
+          ],
+        }),
+      } as Response;
+    });
+
+    await initializeFactory();
+
+    expect(global.fetch).toHaveBeenCalledWith(manifestUrl, { method: "HEAD" });
+    expect(global.fetch).toHaveBeenCalledWith(manifestUrl);
+    expect(mockWorkerSerializedIterableSource.mock.calls[0]?.[0]).toMatchObject({
+      initArgs: { params: { url: manifestUrl, profile: "hd15" } },
+    });
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      urlParams: { profile: "hd15" },
+    });
+  });
+
+  it("remaps a stale requested profile when localStorage has the matching profile label", async () => {
+    const manifestUrl =
+      "https://default-storage.example.com/projects/project-id/records/record-id/manifest.json";
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) =>
+          key === SHARD_PROFILE_PREFERENCE_STORAGE_KEY
+            ? JSON.stringify({ value: "old-hd", label: "720p @ 15fps" })
+            : undefined,
+      },
+    });
+    global.fetch = jest.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "HEAD") {
+        return { ok: true } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          profiles: [
+            { id: "sd10", modality: "video", label: "480p @ 10fps", params: { h: 480, fps: 10 } },
+            { id: "hd15", modality: "video", label: "720p @ 15fps", params: { h: 720, fps: 15 } },
+          ],
+        }),
+      } as Response;
+    });
+
+    await initializeFactory(undefined, { profile: "old-hd" });
+
+    expect(mockWorkerSerializedIterableSource.mock.calls[0]?.[0]).toMatchObject({
+      initArgs: { params: { url: manifestUrl, profile: "hd15" } },
+    });
   });
 });
