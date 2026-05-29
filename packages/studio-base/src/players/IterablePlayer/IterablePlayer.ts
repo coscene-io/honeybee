@@ -193,6 +193,7 @@ export class IterablePlayer implements Player {
 
   // The iterator for reading messages during playback
   #playbackIterator?: AsyncIterator<Readonly<IteratorResult>>;
+  #playbackIteratorAbort?: AbortController;
 
   #blockLoader?: BlockLoader;
   #blockLoadingProcess?: Promise<void>;
@@ -474,7 +475,15 @@ export class IterablePlayer implements Player {
     this.#nextState = newState;
     this.#abort?.abort();
     this.#abort = undefined;
+    if (newState !== "idle" && newState !== "play") {
+      this.#abortPlaybackIterator();
+    }
     void this.#runState();
+  }
+
+  #abortPlaybackIterator(): void {
+    this.#playbackIteratorAbort?.abort();
+    this.#playbackIteratorAbort = undefined;
   }
 
   /**
@@ -499,6 +508,7 @@ export class IterablePlayer implements Player {
         // we will need to make a new one.
         if (state !== "idle" && state !== "play" && this.#playbackIterator) {
           log.debug("Ending playback iterator because next state is not IDLE or PLAY");
+          this.#abortPlaybackIterator();
           await this.#playbackIterator.return?.();
           this.#playbackIterator = undefined;
         }
@@ -696,17 +706,21 @@ export class IterablePlayer implements Player {
         : add(this.#currentTime, { sec: 0, nsec: 1 });
 
     log.debug("Ending previous iterator");
+    this.#abortPlaybackIterator();
     await this.#playbackIterator?.return?.();
 
     // set the playIterator to the seek time
     await this.#bufferImpl.stopProducer();
 
     log.debug("Initializing forward iterator from", next);
+    const playbackIteratorAbort = new AbortController();
+    this.#playbackIteratorAbort = playbackIteratorAbort;
     this.#playbackIterator = this.#bufferedSource.messageIterator({
       topics: this.#allTopics,
       start: next,
       consumptionType: "partial",
       fetchCompleteTopicState,
+      abortSignal: playbackIteratorAbort.signal,
     });
 
     // Yield to the macrotask queue so that all pending microtasks from the new
@@ -1181,6 +1195,7 @@ export class IterablePlayer implements Player {
 
   async #stateClose() {
     this.#isPlaying = false;
+    this.#abortPlaybackIterator();
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;
     // Note: #bufferedSource and #bufferImpl are the same object now,

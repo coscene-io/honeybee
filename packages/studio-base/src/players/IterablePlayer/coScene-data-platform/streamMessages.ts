@@ -333,7 +333,11 @@ export async function* streamMessages({
     }
   } catch (err) {
     // Capture errors from manually aborting the request via the abort controller.
-    if (err instanceof DOMException && err.message === "The user aborted a request.") {
+    const errorName =
+      typeof err === "object" && err != undefined && "name" in err ? err.name : undefined;
+    const errorMessage =
+      typeof err === "object" && err != undefined && "message" in err ? err.message : undefined;
+    if (errorName === "AbortError" || errorMessage === "The user aborted a request.") {
       return;
     }
     throw err;

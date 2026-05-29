@@ -71,6 +71,21 @@ function topicFingerprint(topics: TopicSelection): string {
   return stringHash(JSON.stringify(canonicalize(entries)) ?? "").toString(36);
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof error === "object" &&
+      error != undefined &&
+      "name" in error &&
+      error.name === "AbortError")
+  );
+}
+
+function isAborted(abortSignal: AbortSignal | undefined): boolean {
+  return abortSignal?.aborted === true;
+}
+
 // An individual cache item represents a continuous range of CacheIteratorItems
 type CacheBlock<MessageType> = {
   // Unique id of the cache item.
@@ -639,14 +654,20 @@ class CachingIterableSource<MessageType = unknown>
     topics: TopicSelection;
     consumptionType: MessageIteratorArgs["consumptionType"];
     fetchCompleteTopicState: MessageIteratorArgs["fetchCompleteTopicState"];
+    abortSignal?: AbortSignal;
     writeSpill: boolean;
-  }): AsyncIterableIterator<Readonly<IteratorResult<MessageType>>> {
+  }): AsyncGenerator<Readonly<IteratorResult<MessageType>>, boolean, void> {
+    if (isAborted(args.abortSignal)) {
+      return false;
+    }
+
     const sourceMessageIterator = this.#source.messageIterator({
       topics: args.topics,
       start: args.start,
       end: args.end,
       consumptionType: args.consumptionType,
       fetchCompleteTopicState: args.fetchCompleteTopicState,
+      abortSignal: args.abortSignal,
     });
 
     // The cache is indexed on time, but iterator results that are problems might not have a time.
@@ -659,103 +680,133 @@ class CachingIterableSource<MessageType = unknown>
     let block: CacheBlock<MessageType> | undefined;
 
     const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
-
-    for await (const iterResult of sourceMessageIterator) {
-      if (iterResult.type === "problem") {
-        sourceHadProblemInRange = true;
+    const discardPendingIterResults = () => {
+      for (const pendingIterResult of pendingIterResults) {
+        const item = pendingIterResult[1];
+        const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+        this.#totalSizeBytes -= pendingSizeInBytes;
       }
+      pendingIterResults.length = 0;
+    };
 
-      // if there is no block, we make a new block
-      if (!block) {
-        const newBlock: CacheBlock<MessageType> = {
-          id: this.#nextBlockId++,
-          start: readHead,
-          end: readHead,
-          items: [],
-          size: 0,
-          lastAccess: Date.now(),
-        };
+    try {
+      for await (const iterResult of sourceMessageIterator) {
+        if (isAborted(args.abortSignal)) {
+          discardPendingIterResults();
+          return false;
+        }
 
-        // Find where we need to insert our new block.
-        // It should come before any blocks with a start time > than new block start time.
-        const insertIndex = _.sortedIndexBy(this.#cache, newBlock, (item) => toNanoSec(item.start));
-        this.#cache.splice(insertIndex, 0, newBlock);
+        if (iterResult.type === "problem") {
+          sourceHadProblemInRange = true;
+        }
 
-        block = newBlock;
-        this.#recomputeLoadedRangeCache();
-      }
+        // if there is no block, we make a new block
+        if (!block) {
+          const newBlock: CacheBlock<MessageType> = {
+            id: this.#nextBlockId++,
+            start: readHead,
+            end: readHead,
+            items: [],
+            size: 0,
+            lastAccess: Date.now(),
+          };
 
-      // When receiving a message event or stamp, we update our known time on the block to the
-      // stamp or receiveTime because we know we've received all the results up to this time
-      if (iterResult.type === "message-event" || iterResult.type === "stamp") {
-        const receiveTime =
-          iterResult.type === "stamp" ? iterResult.stamp : iterResult.msgEvent.receiveTime;
-        const receiveTimeNs = toNanoSec(receiveTime);
+          // Find where we need to insert our new block.
+          // It should come before any blocks with a start time > than new block start time.
+          const insertIndex = _.sortedIndexBy(this.#cache, newBlock, (item) =>
+            toNanoSec(item.start),
+          );
+          this.#cache.splice(insertIndex, 0, newBlock);
 
-        // There might be multiple messages at the same time, and since block end time
-        // is inclusive we only update the end time once we've moved to the next time
-        if (receiveTimeNs > lastTime) {
-          // write any pending messages to the block
-          for (const pendingIterResult of pendingIterResults) {
-            const item = pendingIterResult[1];
-            const pendingSizeInBytes =
-              item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
-            block.items.push(pendingIterResult);
-            block.size += pendingSizeInBytes;
-          }
-
-          pendingIterResults.length = 0;
-
-          // update the last time this block was accessed
-          block.lastAccess = Date.now();
-
-          // Set the end time to 1 nanosecond before the current receive time since we know we've
-          // read up to this receive time.
-          block.end = subtract(receiveTime, { sec: 0, nsec: 1 });
-
-          lastTime = receiveTimeNs;
+          block = newBlock;
           this.#recomputeLoadedRangeCache();
         }
-      }
 
-      // Block is too big so we close it and will start a new one next loop
-      if (block.size >= this.#maxBlockSizeBytes) {
-        // The new block starts right after our previous one
-        readHead = add(block.end, { sec: 0, nsec: 1 });
+        // When receiving a message event or stamp, we update our known time on the block to the
+        // stamp or receiveTime because we know we've received all the results up to this time
+        if (iterResult.type === "message-event" || iterResult.type === "stamp") {
+          const receiveTime =
+            iterResult.type === "stamp" ? iterResult.stamp : iterResult.msgEvent.receiveTime;
+          const receiveTimeNs = toNanoSec(receiveTime);
 
-        // Will force creation of a new block on the next loop
-        block = undefined;
-      }
+          // There might be multiple messages at the same time, and since block end time
+          // is inclusive we only update the end time once we've moved to the next time
+          if (receiveTimeNs > lastTime) {
+            // write any pending messages to the block
+            for (const pendingIterResult of pendingIterResults) {
+              const item = pendingIterResult[1];
+              const pendingSizeInBytes =
+                item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+              block.items.push(pendingIterResult);
+              block.size += pendingSizeInBytes;
+            }
 
-      const sizeInBytes = iterResult.type === "message-event" ? iterResult.msgEvent.sizeInBytes : 0;
-      if (
-        this.#maybePurgeCache({
-          activeBlock: block,
-          sizeInBytes,
-        })
-      ) {
-        this.#recomputeLoadedRangeCache();
-      }
+            pendingIterResults.length = 0;
 
-      // As we add items to pending we also consider them as part of the total size
-      this.#totalSizeBytes += sizeInBytes;
+            // update the last time this block was accessed
+            block.lastAccess = Date.now();
 
-      // Store the latest message in pending results and flush to the block when time moves forward
-      pendingIterResults.push([lastTime, iterResult]);
-      if (args.writeSpill) {
-        await this.#appendSpill(iterResult);
-      }
+            // Set the end time to 1 nanosecond before the current receive time since we know we've
+            // read up to this receive time.
+            block.end = subtract(receiveTime, { sec: 0, nsec: 1 });
 
-      if (args.writeSpill && iterResult.type === "stamp") {
-        const spillRangeEnd = compare(iterResult.stamp, args.end) > 0 ? args.end : iterResult.stamp;
-        if (!sourceHadProblemInRange && compare(spillRangeStart, spillRangeEnd) <= 0) {
-          await this.#recordSpillLoadedRange(spillRangeStart, spillRangeEnd);
+            lastTime = receiveTimeNs;
+            this.#recomputeLoadedRangeCache();
+          }
         }
-        sourceHadProblemInRange = false;
-        spillRangeStart = add(spillRangeEnd, { sec: 0, nsec: 1 });
-      }
 
-      yield iterResult;
+        // Block is too big so we close it and will start a new one next loop
+        if (block.size >= this.#maxBlockSizeBytes) {
+          // The new block starts right after our previous one
+          readHead = add(block.end, { sec: 0, nsec: 1 });
+
+          // Will force creation of a new block on the next loop
+          block = undefined;
+        }
+
+        const sizeInBytes =
+          iterResult.type === "message-event" ? iterResult.msgEvent.sizeInBytes : 0;
+        if (
+          this.#maybePurgeCache({
+            activeBlock: block,
+            sizeInBytes,
+          })
+        ) {
+          this.#recomputeLoadedRangeCache();
+        }
+
+        // As we add items to pending we also consider them as part of the total size
+        this.#totalSizeBytes += sizeInBytes;
+
+        // Store the latest message in pending results and flush to the block when time moves forward
+        pendingIterResults.push([lastTime, iterResult]);
+        if (args.writeSpill) {
+          await this.#appendSpill(iterResult);
+        }
+
+        if (args.writeSpill && iterResult.type === "stamp") {
+          const spillRangeEnd =
+            compare(iterResult.stamp, args.end) > 0 ? args.end : iterResult.stamp;
+          if (!sourceHadProblemInRange && compare(spillRangeStart, spillRangeEnd) <= 0) {
+            await this.#recordSpillLoadedRange(spillRangeStart, spillRangeEnd);
+          }
+          sourceHadProblemInRange = false;
+          spillRangeStart = add(spillRangeEnd, { sec: 0, nsec: 1 });
+        }
+
+        yield iterResult;
+      }
+    } catch (error) {
+      if (isAborted(args.abortSignal) && isAbortError(error)) {
+        discardPendingIterResults();
+        return false;
+      }
+      throw error;
+    }
+
+    if (isAborted(args.abortSignal)) {
+      discardPendingIterResults();
+      return false;
     }
 
     // We've finished reading our source to the end, close out the block
@@ -807,6 +858,7 @@ class CachingIterableSource<MessageType = unknown>
     if (args.writeSpill && !sourceHadProblemInRange && compare(spillRangeStart, args.end) <= 0) {
       await this.#recordSpillLoadedRange(spillRangeStart, args.end);
     }
+    return true;
   }
 
   public async *messageIterator(
@@ -832,6 +884,7 @@ class CachingIterableSource<MessageType = unknown>
         end: maxEnd,
         consumptionType: args.consumptionType,
         fetchCompleteTopicState: args.fetchCompleteTopicState,
+        abortSignal: args.abortSignal,
       });
       return;
     }
@@ -928,14 +981,18 @@ class CachingIterableSource<MessageType = unknown>
       }
 
       if (!this.#hasActiveSpillCache()) {
-        yield* this.#yieldSourceRange({
+        const sourceRangeComplete = yield* this.#yieldSourceRange({
           start: sourceReadStart,
           end: sourceReadEnd,
           topics: this.#cachedTopics,
           consumptionType: args.consumptionType,
           fetchCompleteTopicState: args.fetchCompleteTopicState,
+          abortSignal: args.abortSignal,
           writeSpill: false,
         });
+        if (!sourceRangeComplete) {
+          return;
+        }
         readHead = add(sourceReadEnd, { sec: 0, nsec: 1 });
         continue;
       }
@@ -971,14 +1028,18 @@ class CachingIterableSource<MessageType = unknown>
             yield result.value;
           }
           if (!spillReadSucceeded) {
-            yield* this.#yieldSourceRange({
+            const sourceRangeComplete = yield* this.#yieldSourceRange({
               start: segmentStart,
               end: segmentEnd,
               topics: this.#cachedTopics,
               consumptionType: args.consumptionType,
               fetchCompleteTopicState: args.fetchCompleteTopicState,
+              abortSignal: args.abortSignal,
               writeSpill: true,
             });
+            if (!sourceRangeComplete) {
+              return;
+            }
           }
           segmentStart = add(segmentEnd, { sec: 0, nsec: 1 });
           continue;
@@ -995,14 +1056,18 @@ class CachingIterableSource<MessageType = unknown>
           ? subtract(nextSpillRange.start, { sec: 0, nsec: 1 })
           : sourceReadEnd;
 
-        yield* this.#yieldSourceRange({
+        const sourceRangeComplete = yield* this.#yieldSourceRange({
           start: segmentStart,
           end: segmentEnd,
           topics: this.#cachedTopics,
           consumptionType: args.consumptionType,
           fetchCompleteTopicState: args.fetchCompleteTopicState,
+          abortSignal: args.abortSignal,
           writeSpill: true,
         });
+        if (!sourceRangeComplete) {
+          return;
+        }
         segmentStart = add(segmentEnd, { sec: 0, nsec: 1 });
       }
 
