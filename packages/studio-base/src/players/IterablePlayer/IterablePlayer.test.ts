@@ -494,7 +494,13 @@ describe("IterablePlayer", () => {
       iteratorStarted.resolve();
       await new Promise<void>((resolve) => {
         releaseIterator = resolve;
-        args.abortSignal?.addEventListener("abort", () => resolve(), { once: true });
+        args.abortSignal?.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
       });
       yield* [];
     };

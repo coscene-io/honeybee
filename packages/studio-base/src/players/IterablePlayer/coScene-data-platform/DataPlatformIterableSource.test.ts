@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import race from "race-as-promised";
+
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
 import {
@@ -89,7 +91,7 @@ describe("DataPlatformIterableSource", () => {
     abortController.abort();
 
     expect(getStreamsSignal?.aborted).toBe(true);
-    await expect(Promise.race([nextPromise, delay(50)])).resolves.toMatchObject({
+    await expect(race([nextPromise, delay(50)])).resolves.toMatchObject({
       done: true,
     });
   });

@@ -700,7 +700,13 @@ describe("CachingIterableSource", () => {
           resolve();
           return;
         }
-        abortController.signal.addEventListener("abort", () => resolve(), { once: true });
+        abortController.signal.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
       });
       yield {
         type: "message-event",
@@ -1242,7 +1248,13 @@ describe("CachingIterableSource", () => {
           resolve();
           return;
         }
-        abortController.signal.addEventListener("abort", () => resolve(), { once: true });
+        abortController.signal.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
       });
       yield {
         type: "message-event",
