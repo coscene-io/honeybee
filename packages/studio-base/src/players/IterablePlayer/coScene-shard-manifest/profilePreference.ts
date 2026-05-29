@@ -90,7 +90,10 @@ export function saveShardProfilePreference(option: ShardProfileOption): void {
     return;
   }
   try {
-    localStorage.setItem(SHARD_PROFILE_PREFERENCE_STORAGE_KEY, JSON.stringify(option));
+    const serialized = JSON.stringify(option);
+    if (serialized != undefined) {
+      localStorage.setItem(SHARD_PROFILE_PREFERENCE_STORAGE_KEY, serialized);
+    }
   } catch {
     // Ignore quota/security errors; profile selection should still work for the current page.
   }
