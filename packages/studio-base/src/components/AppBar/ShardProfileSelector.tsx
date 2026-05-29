@@ -14,22 +14,23 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-
-type ProfileOption = { value: string; label: string };
-
-interface ManifestProfile {
-  id: string;
-  modality?: string;
-  label?: string;
-  params?: { h?: number; height?: number; fps?: number; codec?: string };
-}
+import {
+  findMatchingShardProfilePreference,
+  loadShardProfilePreference,
+  manifestProfileOptions,
+  RAW_PROFILE,
+  saveShardProfilePreference,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import type {
+  ManifestProfile,
+  ShardProfileOption,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
 
 interface MinimalManifest {
   profiles?: ManifestProfile[];
 }
 
-const DEFAULT_OPTION: ProfileOption = { value: "", label: "Default (lowest)" };
-const RAW_PROFILE = "raw";
+const DEFAULT_OPTION: ShardProfileOption = { value: "", label: "Default (lowest)" };
 const SHARD_MODE_PARAM = "shardMode";
 const SHARD_MODE_MANIFEST = "manifest";
 const SHARD_MODE_RAW = "raw";
@@ -48,49 +49,23 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-function profileToOption(p: ManifestProfile): ProfileOption {
-  if (p.label != undefined && p.label.length > 0 && p.label !== p.id) {
-    return { value: p.id, label: p.label };
-  }
-  // Synthesize a label from params when the manifest's `label` is missing.
-  const h = p.params?.h ?? p.params?.height;
-  const fps = p.params?.fps;
-  if (h != undefined && h > 0 && fps != undefined && fps > 0) {
-    return { value: p.id, label: `${h}p · ${fps}fps` };
-  }
-  if (h != undefined && h > 0) {
-    return { value: p.id, label: `${h}p` };
-  }
-  return { value: p.id, label: p.id };
-}
-
-function profileHeight(p: ManifestProfile): number {
-  return p.params?.h ?? p.params?.height ?? 0;
-}
-
 export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   const { classes } = useStyles();
   const { t } = useTranslation("appBar");
   const urlState = useMessagePipeline(selectUrlState);
-  const search = useMemo(() => {
-    if (typeof window === "undefined") {
-      return new URLSearchParams();
-    }
-    return new URLSearchParams(window.location.search);
-  }, []);
 
   const isShardManifest =
     urlState?.sourceId === "coscene-data-platform" &&
     (urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_MANIFEST ||
       urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_RAW);
   const manifestUrl = urlState?.parameters?.[MANIFEST_URL_PARAM] ?? "";
-  const currentProfile = search.get("ds.profile") ?? "";
-  const rawOption = useMemo<ProfileOption>(
+  const currentProfile = urlState?.parameters?.profile ?? "";
+  const rawOption = useMemo<ShardProfileOption>(
     () => ({ value: RAW_PROFILE, label: t("rawData") }),
     [t],
   );
 
-  const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([DEFAULT_OPTION]);
+  const [profileOptions, setProfileOptions] = useState<ShardProfileOption[]>([DEFAULT_OPTION]);
 
   useEffect(() => {
     if (!isShardManifest || !manifestUrl) {
@@ -105,10 +80,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
           return;
         }
         const json = (await resp.json()) as MinimalManifest;
-        const fromManifest = (json.profiles ?? [])
-          .filter((p) => p.id !== "" && p.id !== "full")
-          .sort((a, b) => profileHeight(a) - profileHeight(b))
-          .map(profileToOption);
+        const fromManifest = manifestProfileOptions(json.profiles ?? []);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (cancelled || fromManifest.length === 0) {
           return;
@@ -130,15 +102,52 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     return [...profileOptions, rawOption];
   }, [profileOptions, rawOption]);
 
-  const onChange = useCallback((value: string) => {
+  const selectedValue =
+    currentProfile !== "" && options.some((option) => option.value === currentProfile)
+      ? currentProfile
+      : DEFAULT_OPTION.value;
+
+  useEffect(() => {
+    if (!isShardManifest || options.length === 0) {
+      return;
+    }
+    const hasCurrentProfile =
+      currentProfile !== "" && options.some((option) => option.value === currentProfile);
+    if (hasCurrentProfile) {
+      return;
+    }
+    const savedOption = findMatchingShardProfilePreference(options, loadShardProfilePreference());
+    if (
+      savedOption == undefined ||
+      (savedOption.value === DEFAULT_OPTION.value && currentProfile === "")
+    ) {
+      return;
+    }
     const next = new URLSearchParams(window.location.search);
-    if (value !== "") {
-      next.set("ds.profile", value);
-    } else {
+    if (savedOption.value === DEFAULT_OPTION.value) {
       next.delete("ds.profile");
+    } else {
+      next.set("ds.profile", savedOption.value);
     }
     window.location.search = next.toString();
-  }, []);
+  }, [currentProfile, isShardManifest, options]);
+
+  const onChange = useCallback(
+    (value: string) => {
+      const selectedOption = options.find((option) => option.value === value);
+      if (selectedOption != undefined) {
+        saveShardProfilePreference(selectedOption);
+      }
+      const next = new URLSearchParams(window.location.search);
+      if (value !== DEFAULT_OPTION.value) {
+        next.set("ds.profile", value);
+      } else {
+        next.delete("ds.profile");
+      }
+      window.location.search = next.toString();
+    },
+    [options],
+  );
 
   if (!isShardManifest) {
     return ReactNull;
@@ -147,7 +156,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   return (
     <FormControl size="small" variant="outlined" className={classes.formControl}>
       <Select
-        value={currentProfile}
+        value={selectedValue}
         onChange={(e) => {
           onChange(String(e.target.value));
         }}

@@ -20,15 +20,28 @@ import {
   WorkerIterableSource,
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  findMatchingShardProfilePreference,
+  loadShardProfilePreference,
+  manifestProfileOptions,
+  RAW_PROFILE,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import type {
+  ManifestProfile,
+  ShardProfileOption,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
 import { Player } from "@foxglove/studio-base/players/types";
 import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
-const RAW_PROFILE = "raw";
 const SHARD_MODE_PARAM = "shardMode";
 const SHARD_MODE_MANIFEST = "manifest";
 const SHARD_MODE_RAW = "raw";
 const MANIFEST_URL_PARAM = "manifestUrl";
+
+interface MinimalManifest {
+  profiles?: ManifestProfile[];
+}
 
 function definedUrlParams(params?: Record<string, string | undefined>): Record<string, string> {
   const definedParams: Record<string, string> = {};
@@ -67,6 +80,29 @@ async function manifestExists(manifestUrl: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function fetchShardProfileOptions(manifestUrl: string): Promise<ShardProfileOption[]> {
+  try {
+    const response = await fetch(manifestUrl);
+    if (!response.ok) {
+      return [];
+    }
+    const manifest = (await response.json()) as MinimalManifest;
+    return manifestProfileOptions(manifest.profiles ?? []);
+  } catch {
+    return [];
+  }
+}
+
+function withProfile(
+  args: DataSourceFactoryInitializeArgs,
+  profile: string | undefined,
+): DataSourceFactoryInitializeArgs {
+  if (profile == undefined) {
+    return args;
+  }
+  return { ...args, params: { ...args.params, profile } };
 }
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
@@ -135,17 +171,48 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     }
 
     const manifestUrl = buildManifestUrl(objectStorageBaseUrl, projectId, recordId);
-    if (args.params?.profile === RAW_PROFILE) {
+    const requestedProfile = args.params?.profile;
+    if (requestedProfile === RAW_PROFILE) {
       return this.#createDataPlatformPlayer(args, manifestUrl);
     }
 
     if (await manifestExists(manifestUrl)) {
+      const profile = await this.#resolveManifestProfile(manifestUrl, requestedProfile);
+      if (profile === RAW_PROFILE) {
+        return this.#createDataPlatformPlayer(withProfile(args, profile), manifestUrl);
+      }
       // Manifest playback reads directly from object storage and is intentionally
       // not subject to the OUTBOUND_TRAFFIC entitlement check for now.
-      return this.#createShardManifestPlayer(args, manifestUrl);
+      return this.#createShardManifestPlayer(withProfile(args, profile), manifestUrl);
     }
 
     return this.#createDataPlatformPlayer(args);
+  }
+
+  async #resolveManifestProfile(
+    manifestUrl: string,
+    requestedProfile: string | undefined,
+  ): Promise<string | undefined> {
+    const preference = loadShardProfilePreference();
+    if (requestedProfile == undefined && preference?.value === RAW_PROFILE) {
+      return RAW_PROFILE;
+    }
+    if (preference == undefined && requestedProfile != undefined) {
+      return requestedProfile;
+    }
+    if (preference == undefined) {
+      return undefined;
+    }
+
+    const options = await fetchShardProfileOptions(manifestUrl);
+    if (
+      requestedProfile != undefined &&
+      options.some((option) => option.value === requestedProfile)
+    ) {
+      return requestedProfile;
+    }
+
+    return findMatchingShardProfilePreference(options, preference)?.value ?? requestedProfile;
   }
 
   #createDataPlatformPlayer(
