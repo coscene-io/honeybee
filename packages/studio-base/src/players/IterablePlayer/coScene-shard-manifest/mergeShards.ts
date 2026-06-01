@@ -38,6 +38,17 @@ function timeOf<T>(result: IteratorResult<T>): Time | undefined {
   return undefined;
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof error === "object" &&
+      error != undefined &&
+      "name" in error &&
+      error.name === "AbortError")
+  );
+}
+
 export async function* mergeShards<T>(
   iterators: AsyncIterator<Readonly<IteratorResult<T>>>[],
   abortSignal?: AbortSignal,
@@ -53,7 +64,16 @@ export async function* mergeShards<T>(
   }));
 
   const advance = async (entry: IteratorEntry<T>): Promise<void> => {
-    const next = await entry.iterator.next();
+    let next: Awaited<ReturnType<AsyncIterator<Readonly<IteratorResult<T>>>["next"]>>;
+    try {
+      next = await entry.iterator.next();
+    } catch (error) {
+      if (abortSignal?.aborted === true && isAbortError(error)) {
+        entry.buffered = EXHAUSTED;
+        return;
+      }
+      throw error;
+    }
     if (next.done === true) {
       entry.buffered = EXHAUSTED;
       return;

@@ -21,7 +21,7 @@ import {
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
     inset: 0,
-    pointerBags: "none",
+    pointerEvents: "none",
     position: "absolute",
     display: "flex",
     alignItems: "center",

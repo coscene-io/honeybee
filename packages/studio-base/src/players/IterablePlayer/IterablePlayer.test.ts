@@ -129,6 +129,17 @@ class PlayerStateStore {
   }
 }
 
+async function waitFor(predicate: () => boolean): Promise<void> {
+  const deadline = performance.now() + 1_000;
+  while (performance.now() < deadline) {
+    if (predicate()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  expect(predicate()).toBe(true);
+}
+
 describe("IterablePlayer", () => {
   let mockDateNow: jest.SpyInstance<number, []>;
   beforeEach(() => {
@@ -460,6 +471,87 @@ describe("IterablePlayer", () => {
 
     void player.close();
     await player.isClosed;
+  });
+
+  it("aborts pending playback iterator so seek can run while playback is buffering", async () => {
+    const source = new TestSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+
+    let releaseIterator: (() => void) | undefined;
+    const playbackAbortSignals: AbortSignal[] = [];
+    const iteratorStarted = signal();
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs & { abortSignal?: AbortSignal },
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      if (args.abortSignal) {
+        playbackAbortSignals.push(args.abortSignal);
+      }
+      iteratorStarted.resolve();
+      await new Promise<void>((resolve) => {
+        releaseIterator = resolve;
+        args.abortSignal?.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
+      });
+      yield* [];
+    };
+
+    player.setSubscriptions([{ topic: "foo" }]);
+
+    let initialized = false;
+    let buffering = false;
+    player.setListener(async (state) => {
+      if (
+        state.presence === PlayerPresence.PRESENT &&
+        state.activeData?.isPlaying === false &&
+        compare(state.activeData.currentTime, { sec: 0, nsec: 99000000 }) === 0
+      ) {
+        initialized = true;
+      }
+      if (state.presence === PlayerPresence.BUFFERING && state.activeData?.isPlaying === true) {
+        buffering = true;
+      }
+    });
+
+    try {
+      await waitFor(() => initialized);
+      await iteratorStarted;
+
+      player.startPlayback();
+      await waitFor(() => buffering);
+
+      let seekBackfillCalled = false;
+      source.getBackfillMessages = async () => {
+        seekBackfillCalled = true;
+        return [
+          {
+            topic: "foo",
+            receiveTime: { sec: 0, nsec: 500000000 },
+            message: undefined,
+            sizeInBytes: 4,
+            schemaName: "foo",
+          },
+        ];
+      };
+
+      player.seekPlayback({ sec: 0, nsec: 500000000 });
+
+      await waitFor(() => seekBackfillCalled);
+      expect(playbackAbortSignals[0]?.aborted).toBe(true);
+    } finally {
+      releaseIterator?.();
+      void player.close();
+      await player.isClosed;
+    }
   });
 
   it("startPlayback emits when seek-backfill state is active", async () => {
@@ -878,22 +970,22 @@ describe("IterablePlayer", () => {
 
     expect(messageIteratorSpy.mock.calls).toEqual([
       [
-        {
+        expect.objectContaining({
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo"),
           consumptionType: "partial",
           fetchCompleteTopicState: undefined,
-        },
+        }),
       ],
       [
-        {
+        expect.objectContaining({
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo", "bar"),
           consumptionType: "partial",
           fetchCompleteTopicState: undefined,
-        },
+        }),
       ],
     ]);
 
@@ -925,13 +1017,13 @@ describe("IterablePlayer", () => {
 
     expect(messageIteratorSpy.mock.calls).toEqual([
       [
-        {
+        expect.objectContaining({
           start: { sec: 0, nsec: 99000001 },
           end: { sec: 1, nsec: 0 },
           topics: mockTopicSelection("foo"),
           consumptionType: "partial",
           fetchCompleteTopicState: undefined,
-        },
+        }),
       ],
     ]);
 
