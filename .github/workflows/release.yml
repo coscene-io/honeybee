@@ -26,7 +26,42 @@ env:
   ENV_PREFIX: ${{ github.event.inputs.environment == 'saas' && '/' || format('/{0}/', github.event.inputs.environment) }}
 
 jobs:
+  validate-release-tag:
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag_name: ${{ steps.release_tag.outputs.tag_name }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Validate release tag
+        id: release_tag
+        run: |
+          TAG_NAME="coStudio/${{ github.event.inputs.environment }}/v${{ github.event.inputs.version }}"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/${TAG_NAME}" >/dev/null 2>&1
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "Release tag already exists: ${TAG_NAME}"
+            exit 1
+          fi
+
+          if [ "$status" -ne 2 ]; then
+            echo "Failed to check release tag ${TAG_NAME}; git ls-remote exited with status ${status}"
+            exit "$status"
+          fi
+
+          echo "Release tag is available: ${TAG_NAME}"
+
   build:
+    needs: validate-release-tag
+
     environment: ${{ github.event.inputs.environment }}
 
     runs-on: ${{matrix.runs-on}}
@@ -224,8 +259,51 @@ jobs:
           access_key_secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           gpg_private_key: ${{ env.APT_GPG_PRIVATE_KEY }}
 
+  tag-release:
+    needs:
+      - validate-release-tag
+      - build
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      tag_name: ${{ steps.release_tag.outputs.tag_name }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push release tag
+        id: release_tag
+        env:
+          TAG_NAME: ${{ needs.validate-release-tag.outputs.tag_name }}
+        run: |
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+
+          set +e
+          git ls-remote --exit-code --tags origin "refs/tags/${TAG_NAME}" >/dev/null 2>&1
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "Release tag already exists: ${TAG_NAME}"
+            exit 1
+          fi
+
+          if [ "$status" -ne 2 ]; then
+            echo "Failed to check release tag ${TAG_NAME}; git ls-remote exited with status ${status}"
+            exit "$status"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG_NAME" "$GITHUB_SHA" -m "Release coStudio ${{ github.event.inputs.environment }} v${{ github.event.inputs.version }}"
+          git push origin "refs/tags/${TAG_NAME}"
+
   notification:
-    needs: build
+    needs: tag-release
     runs-on: ubuntu-latest
 
     steps:
@@ -241,6 +319,7 @@ jobs:
               A new version of coScene Studio has been published.
               Version: ${{ github.event.inputs.version }}
               Environment: ${{ github.event.inputs.environment }}
+              Tag: ${{ needs.tag-release.outputs.tag_name }}
               Download:
                 mac:
                   https://download.coscene.cn/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
@@ -265,6 +344,7 @@ jobs:
               A new version of coScene Studio has been published.
               Version: ${{ github.event.inputs.version }}
               Environment: ${{ github.event.inputs.environment }}
+              Tag: ${{ needs.tag-release.outputs.tag_name }}
               Download:
                 mac:
                   https://download.coscene.io/coStudio/coStudio_${{ github.event.inputs.version }}-mac_universal.dmg
