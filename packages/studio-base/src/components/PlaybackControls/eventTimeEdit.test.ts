@@ -7,6 +7,7 @@
 
 import { create } from "@bufbuild/protobuf";
 import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { DeviceSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 
 import {
@@ -65,7 +66,25 @@ describe("eventTimeEdit", () => {
 
     expect(update.event.triggerTime?.seconds).toBe(5n);
     expect(update.event.duration?.seconds).toBe(0n);
-    expect(update.event.customizedFields).toEqual({ retained: "true" });
-    expect(update.updateMask.paths).toEqual(["triggerTime", "duration"]);
+    expect(update.event.customizedFields).toEqual({});
+    expect(update.updateMask.paths).toEqual(["trigger_time", "duration_nanos", "duration"]);
+  });
+
+  it("does not copy an empty device into the time update payload", () => {
+    const sourceEvent = create(EventSchema, {
+      name: "events/point",
+      device: create(DeviceSchema, { name: "" }),
+      triggerTime: create(TimestampSchema, { seconds: 2n, nanos: 0 }),
+      duration: create(DurationSchema, { seconds: 1n, nanos: 0 }),
+    });
+
+    const update = buildEventTimeUpdate({
+      sourceEvent,
+      startTime: { sec: 5, nsec: 0 },
+      durationSec: 0,
+    });
+
+    expect(update.event.device).toBeUndefined();
+    expect(update.updateMask.paths).toEqual(["trigger_time", "duration_nanos", "duration"]);
   });
 });

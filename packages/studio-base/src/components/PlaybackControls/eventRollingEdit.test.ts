@@ -143,10 +143,11 @@ describe("eventRollingEdit", () => {
 
     expect(previousUpdate.event.name).toBe("events/first");
     expect(previousUpdate.event.duration?.seconds).toBe(6n);
+    expect(previousUpdate.updateMask.paths).toEqual(["trigger_time", "duration_nanos", "duration"]);
     expect(nextUpdate.event.name).toBe("events/second");
     expect(nextUpdate.event.triggerTime?.seconds).toBe(6n);
     expect(nextUpdate.event.duration?.seconds).toBe(4n);
-    expect(nextUpdate.event.customizedFields).toEqual({ retained: "true" });
-    expect(nextUpdate.updateMask.paths).toEqual(["triggerTime", "duration"]);
+    expect(nextUpdate.event.customizedFields).toEqual({});
+    expect(nextUpdate.updateMask.paths).toEqual(["trigger_time", "duration_nanos", "duration"]);
   });
 });

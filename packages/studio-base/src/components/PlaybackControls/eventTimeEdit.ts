@@ -127,19 +127,15 @@ export function buildEventTimeUpdate({
 
   return {
     event: create(EventSchema, {
-      ...sourceEvent,
       name: sourceEvent.name,
-      displayName: sourceEvent.displayName,
-      description: sourceEvent.description,
       triggerTime: create(TimestampSchema, {
         seconds: BigInt(nextStartTime.sec),
         nanos: nextStartTime.nsec,
       }),
       duration: secondsToDuration(durationSec),
-      customizedFields: { ...sourceEvent.customizedFields },
     }),
     updateMask: create(FieldMaskSchema, {
-      paths: ["triggerTime", "duration"],
+      paths: ["trigger_time", "duration_nanos", "duration"],
     }),
   };
 }

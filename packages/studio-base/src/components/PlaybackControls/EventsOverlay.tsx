@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create } from "@bufbuild/protobuf";
+import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import { alpha, Menu, MenuItem, type PopoverPosition, Tooltip } from "@mui/material";
 import Fade from "@mui/material/Fade";
@@ -721,7 +723,11 @@ function getEventWithRange(
     ...event,
     endPosition,
     endTime,
-    event: update.event,
+    event: create(EventSchema, {
+      ...event.event,
+      duration: update.event.duration,
+      triggerTime: update.event.triggerTime,
+    }),
     secondsSinceStart: range.startSec,
     startPosition,
     startTime,
