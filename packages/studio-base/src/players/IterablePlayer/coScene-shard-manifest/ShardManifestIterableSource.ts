@@ -48,6 +48,10 @@ function manifestTopicSet(shard: ShardEntry): Set<string> {
   return new Set(shard.topics.map((t) => t.name));
 }
 
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
+
 // Pick a read-ahead window for a shard. Two regimes:
 //   1. Small shards (sizeBytes ≤ WHOLE_FILE_THRESHOLD): fetch the entire
 //      shard in one HTTP request. Avoids the chunking overhead for tiny
@@ -276,6 +280,29 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
 
   // Open a single shard if it isn't already open. Concurrent callers share
   // one in-flight open. Returns the resolved ShardChild.
+  async #openShardSource(shard: ShardEntry, abortSignal?: AbortSignal): Promise<ShardChild> {
+    const handlers = this.#decompressHandlers;
+    if (!handlers) {
+      throw new Error("decompressHandlers not loaded; initialize() must run first");
+    }
+    const url = new URL(shard.filename, this.#manifestUrl).toString();
+    const readAhead = readAheadBytesForShard(shard);
+    log.info(
+      `opening shard ${shard.id} (${shard.filename}, read-ahead ${(readAhead / 1024 / 1024).toFixed(
+        1,
+      )} MiB)`,
+    );
+    const readable = new CoalescingRemoteReadable(url, readAhead, shard.sizeBytes, abortSignal);
+    await readable.open();
+    const reader = await McapIndexedReader.Initialize({
+      readable,
+      decompressHandlers: handlers,
+    });
+    const source = new McapIndexedIterableSource(reader);
+    const init = await source.initialize();
+    return { shard, source, init };
+  }
+
   async #ensureOpen(shard: ShardEntry): Promise<ShardChild> {
     const cached = this.#openChildren.get(shard.id);
     if (cached) {
@@ -285,28 +312,7 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     let pending = this.#openPromises.get(shard.id);
     if (!pending) {
       pending = (async () => {
-        const handlers = this.#decompressHandlers;
-        if (!handlers) {
-          throw new Error("decompressHandlers not loaded; initialize() must run first");
-        }
-        const url = new URL(shard.filename, this.#manifestUrl).toString();
-        const readAhead = readAheadBytesForShard(shard);
-        log.info(
-          `opening shard ${shard.id} (${shard.filename}, read-ahead ${(
-            readAhead /
-            1024 /
-            1024
-          ).toFixed(1)} MiB)`,
-        );
-        const readable = new CoalescingRemoteReadable(url, readAhead, shard.sizeBytes);
-        await readable.open();
-        const reader = await McapIndexedReader.Initialize({
-          readable,
-          decompressHandlers: handlers,
-        });
-        const source = new McapIndexedIterableSource(reader);
-        const init = await source.initialize();
-        const child: ShardChild = { shard, source, init };
+        const child = await this.#openShardSource(shard);
         this.#openChildren.set(shard.id, child);
         return child;
       })();
@@ -341,14 +347,20 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return;
     }
 
-    const children = await Promise.all(matchingShards.map(async (s) => await this.#ensureOpen(s)));
-
     const iterators: AsyncIterator<Readonly<IteratorResult<Uint8Array>>>[] = [];
-    for (const child of children) {
+    for (const shard of matchingShards) {
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+
       // Re-narrow against the shard's actual topic set (post-open) — for
       // tail this can differ from the manifest's `topics[]` if the shard
       // was written by a future tool.
-      const childTopicNames = new Set(child.init.topics.map((t) => t.name));
+      const cachedChild = this.#openChildren.get(shard.id);
+      const childTopicNames =
+        cachedChild != undefined
+          ? new Set(cachedChild.init.topics.map((t) => t.name))
+          : manifestTopicSet(shard);
       const childSelection = new Map<string, unknown>();
       for (const [topic, value] of requestedTopics) {
         if (childTopicNames.has(topic)) {
@@ -357,6 +369,10 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       }
       if (childSelection.size === 0) {
         continue;
+      }
+      const child = await this.#openShardSource(shard, args.abortSignal);
+      if (isAborted(args.abortSignal)) {
+        return;
       }
       const childArgs: MessageIteratorArgs = {
         ...args,

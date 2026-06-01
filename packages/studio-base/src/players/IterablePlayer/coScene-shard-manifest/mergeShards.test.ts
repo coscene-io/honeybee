@@ -40,6 +40,20 @@ async function collect(
   return out;
 }
 
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: unknown) => void;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 const t = (sec: number, nsec = 0): Time => ({ sec, nsec });
 
 describe("mergeShards", () => {
@@ -141,5 +155,26 @@ describe("mergeShards", () => {
       }
     }
     expect(out.length).toBe(3);
+  });
+
+  it("finishes without throwing when a pending shard next rejects after abort", async () => {
+    const ctrl = new AbortController();
+    const blockedNext = deferred<void>();
+    const iterator: AsyncIterator<Readonly<IteratorResult<Uint8Array>>> = {
+      async next() {
+        await blockedNext.promise;
+        throw new DOMException("signal is aborted without reason", "AbortError");
+      },
+      async return() {
+        return { done: true, value: undefined };
+      },
+    };
+    const merged = mergeShards([iterator], ctrl.signal);
+    const next = merged.next();
+
+    ctrl.abort();
+    blockedNext.resolve();
+
+    await expect(next).resolves.toEqual({ done: true, value: undefined });
   });
 });

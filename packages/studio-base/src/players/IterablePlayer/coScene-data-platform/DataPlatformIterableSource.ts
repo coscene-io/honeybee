@@ -33,6 +33,10 @@ import {
 
 const log = Logger.getLogger(__filename);
 
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
+
 /**
  * The console api methods used by DataPlatformIterableSource.
  *
@@ -194,6 +198,10 @@ export class DataPlatformIterableSource implements IIterableSource {
   ): AsyncIterableIterator<Readonly<IteratorResult>> {
     log.debug("message iterator", args);
 
+    if (isAborted(args.abortSignal)) {
+      return;
+    }
+
     const topics = args.topics;
     const topicNames = Array.from(topics.keys());
 
@@ -226,6 +234,10 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamEnd = clampTime(args.end ?? this.#end, this.#start, this.#end);
 
     if (args.consumptionType === "full") {
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
@@ -243,9 +255,19 @@ export class DataPlatformIterableSource implements IIterableSource {
       });
 
       for await (const messages of stream) {
+        if (isAborted(args.abortSignal)) {
+          return;
+        }
         for (const message of messages) {
+          if (isAborted(args.abortSignal)) {
+            return;
+          }
           yield message;
         }
+      }
+
+      if (isAborted(args.abortSignal)) {
+        return;
       }
 
       if (fetchCompleteTopicState === "complete") {
@@ -259,6 +281,10 @@ export class DataPlatformIterableSource implements IIterableSource {
     let localEnd = clampTime(addTime(localStart, this.#requestWindow), streamStart, streamEnd);
 
     for (;;) {
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
@@ -276,9 +302,19 @@ export class DataPlatformIterableSource implements IIterableSource {
       });
 
       for await (const messages of stream) {
+        if (isAborted(args.abortSignal)) {
+          return;
+        }
         for (const message of messages) {
+          if (isAborted(args.abortSignal)) {
+            return;
+          }
           yield message;
         }
+      }
+
+      if (isAborted(args.abortSignal)) {
+        return;
       }
 
       if (compare(localEnd, streamEnd) >= 0) {

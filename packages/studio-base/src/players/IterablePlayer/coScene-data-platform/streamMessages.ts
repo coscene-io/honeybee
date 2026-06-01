@@ -75,6 +75,10 @@ export async function* streamMessages({
    */
   parsedChannelsByTopic: Map<string, ParsedChannelAndEncodings[]>;
 }): AsyncGenerator<IteratorResult[]> {
+  if (signal?.aborted === true) {
+    return;
+  }
+
   // Local connection ID management for this streaming session
   const connectionIdByTopic: Record<string, number> = {};
   let nextConnectionId = 0;

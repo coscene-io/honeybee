@@ -97,4 +97,54 @@ describe("CoalescingRemoteReadable", () => {
       global.fetch = originalFetch;
     }
   });
+
+  it("aborts an in-flight range when the external abort signal fires", async () => {
+    const chunk = deferred<Uint8Array>();
+    const abortController = new AbortController();
+    const abortSignals: AbortSignal[] = [];
+    const originalFetch = global.fetch;
+
+    global.fetch = jest.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      if (signal != undefined) {
+        abortSignals.push(signal);
+      }
+
+      return {
+        ok: true,
+        status: 206,
+        body: {
+          getReader: () => ({
+            read: async () => {
+              if (signal?.aborted === true) {
+                throw new DOMException("signal is aborted without reason", "AbortError");
+              }
+              await chunk.promise;
+              return { done: false, value: new Uint8Array([1, 2, 3, 4]) };
+            },
+          }),
+        },
+      };
+    }) as jest.MockedFunction<typeof fetch>;
+
+    try {
+      const readable = new CoalescingRemoteReadable(
+        "https://example.com/shard.mcap",
+        4,
+        16,
+        abortController.signal,
+      );
+
+      const read = readable.read(0n, 4n);
+      await Promise.resolve();
+
+      abortController.abort();
+
+      expect(abortSignals[0]?.aborted).toBe(true);
+      await expect(read).rejects.toThrow("aborted");
+    } finally {
+      chunk.resolve(new Uint8Array([1, 2, 3, 4]));
+      global.fetch = originalFetch;
+    }
+  });
 });
