@@ -52,6 +52,17 @@ function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true;
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError") ||
+    (typeof error === "object" &&
+      error != undefined &&
+      "name" in error &&
+      error.name === "AbortError")
+  );
+}
+
 // Pick a read-ahead window for a shard. Two regimes:
 //   1. Small shards (sizeBytes ≤ WHOLE_FILE_THRESHOLD): fetch the entire
 //      shard in one HTTP request. Avoids the chunking overhead for tiny
@@ -347,7 +358,7 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return;
     }
 
-    const iterators: AsyncIterator<Readonly<IteratorResult<Uint8Array>>>[] = [];
+    const shardsToOpen: Array<{ shard: ShardEntry; topics: MessageIteratorArgs["topics"] }> = [];
     for (const shard of matchingShards) {
       if (isAborted(args.abortSignal)) {
         return;
@@ -370,13 +381,43 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       if (childSelection.size === 0) {
         continue;
       }
-      const child = await this.#openShardSource(shard, args.abortSignal);
-      if (isAborted(args.abortSignal)) {
+      shardsToOpen.push({
+        shard,
+        topics: childSelection as MessageIteratorArgs["topics"],
+      });
+    }
+
+    if (shardsToOpen.length === 0 || isAborted(args.abortSignal)) {
+      return;
+    }
+
+    let children: Array<{ child: ShardChild; topics: MessageIteratorArgs["topics"] }>;
+    try {
+      // P2 tradeoff: playback uses temporary readers instead of #openChildren because cached
+      // readers are not bound to this iterator's abortSignal. Revisit when reads can be
+      // canceled per iterator without binding cancellation to the reader lifetime.
+      children = await Promise.all(
+        shardsToOpen.map(async ({ shard, topics }) => ({
+          child: await this.#openShardSource(shard, args.abortSignal),
+          topics,
+        })),
+      );
+    } catch (error) {
+      if (isAborted(args.abortSignal) && isAbortError(error)) {
         return;
       }
+      throw error;
+    }
+
+    if (isAborted(args.abortSignal)) {
+      return;
+    }
+
+    const iterators: AsyncIterator<Readonly<IteratorResult<Uint8Array>>>[] = [];
+    for (const { child, topics } of children) {
       const childArgs: MessageIteratorArgs = {
         ...args,
-        topics: childSelection as MessageIteratorArgs["topics"],
+        topics,
       };
       iterators.push(
         child.source.messageIterator(childArgs)[Symbol.asyncIterator]() as AsyncIterator<
@@ -416,10 +457,36 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return [];
     }
 
-    const children = await Promise.all(matchingShards.map(async (s) => await this.#ensureOpen(s)));
+    if (isAborted(args.abortSignal)) {
+      return [];
+    }
+
+    let children: ShardChild[];
+    try {
+      children = await Promise.all(
+        matchingShards.map(async (shard) => {
+          return args.abortSignal != undefined
+            ? await this.#openShardSource(shard, args.abortSignal)
+            : await this.#ensureOpen(shard);
+        }),
+      );
+    } catch (error) {
+      if (isAborted(args.abortSignal) && isAbortError(error)) {
+        return [];
+      }
+      throw error;
+    }
+
+    if (isAborted(args.abortSignal)) {
+      return [];
+    }
 
     const out: MessageEvent<Uint8Array>[] = [];
     for (const child of children) {
+      if (isAborted(args.abortSignal)) {
+        return [];
+      }
+
       const childTopicNames = new Set(child.init.topics.map((t) => t.name));
       const childSelection = new Map<string, unknown>();
       for (const [topic, value] of requestedTopics) {
@@ -430,10 +497,21 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       if (childSelection.size === 0) {
         continue;
       }
-      const childMsgs = await child.source.getBackfillMessages({
-        ...args,
-        topics: childSelection as GetBackfillMessagesArgs["topics"],
-      });
+      let childMsgs: MessageEvent<Uint8Array>[];
+      try {
+        childMsgs = await child.source.getBackfillMessages({
+          ...args,
+          topics: childSelection as GetBackfillMessagesArgs["topics"],
+        });
+      } catch (error) {
+        if (isAborted(args.abortSignal) && isAbortError(error)) {
+          return [];
+        }
+        throw error;
+      }
+      if (isAborted(args.abortSignal)) {
+        return [];
+      }
       for (const m of childMsgs) {
         out.push(m);
       }

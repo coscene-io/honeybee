@@ -1720,6 +1720,120 @@ describe("CachingIterableSource", () => {
     await bufferedSource.terminate();
   });
 
+  it("does not call source for complete topic-state fetches when already aborted", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source);
+    const abortController = new AbortController();
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = function messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      throw new Error("should not read from source");
+    };
+
+    abortController.abort();
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+      fetchCompleteTopicState: "complete",
+      abortSignal: abortController.signal,
+    });
+
+    await expect(iterator.next()).resolves.toEqual({ done: true });
+    expect(source.messageIteratorCalls).toBe(0);
+  });
+
+  it("finishes complete topic-state fetches when abort makes source throw AbortError", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source);
+    const abortController = new AbortController();
+    let sourceStarted!: () => void;
+    const sourceStartedPromise = new Promise<void>((resolve) => {
+      sourceStarted = resolve;
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = function messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      source.messageIteratorCalls++;
+      sourceStarted();
+      let read = false;
+      return {
+        async next() {
+          if (read) {
+            return { done: true, value: undefined };
+          }
+          read = true;
+          await new Promise<void>((resolve) => {
+            args.abortSignal?.addEventListener(
+              "abort",
+              () => {
+                resolve();
+              },
+              { once: true },
+            );
+          });
+          throw new DOMException("signal is aborted without reason", "AbortError");
+        },
+        [Symbol.asyncIterator]() {
+          return this;
+        },
+      };
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+      fetchCompleteTopicState: "complete",
+      abortSignal: abortController.signal,
+    });
+
+    const next = iterator.next();
+    await sourceStartedPromise;
+    abortController.abort();
+
+    await expect(next).resolves.toEqual({ done: true });
+    expect(source.messageIteratorCalls).toBe(1);
+  });
+
+  it("preserves non-abort errors from complete topic-state fetches", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source);
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = function messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      source.messageIteratorCalls++;
+      return {
+        async next() {
+          throw new Error("source failed");
+        },
+        [Symbol.asyncIterator]() {
+          return this;
+        },
+      };
+    };
+
+    const iterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+      fetchCompleteTopicState: "complete",
+    });
+
+    await expect(iterator.next()).rejects.toThrow("source failed");
+    expect(source.messageIteratorCalls).toBe(1);
+  });
+
   it("records playback spill loaded ranges at stamp boundaries", async () => {
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {

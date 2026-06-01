@@ -878,14 +878,24 @@ class CachingIterableSource<MessageType = unknown>
     let readHead = args.start ?? this.#initResult.start;
 
     if (args.fetchCompleteTopicState === "complete") {
-      yield* this.#source.messageIterator({
-        topics: args.topics,
-        start: readHead,
-        end: maxEnd,
-        consumptionType: args.consumptionType,
-        fetchCompleteTopicState: args.fetchCompleteTopicState,
-        abortSignal: args.abortSignal,
-      });
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+      try {
+        yield* this.#source.messageIterator({
+          topics: args.topics,
+          start: readHead,
+          end: maxEnd,
+          consumptionType: args.consumptionType,
+          fetchCompleteTopicState: args.fetchCompleteTopicState,
+          abortSignal: args.abortSignal,
+        });
+      } catch (error) {
+        if (isAborted(args.abortSignal) && isAbortError(error)) {
+          return;
+        }
+        throw error;
+      }
       return;
     }
 
