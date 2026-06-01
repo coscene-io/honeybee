@@ -45,6 +45,10 @@ const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitCon
 const selectProject = (store: CoreDataStore) => store.project;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 
+export function getEventDurationSeconds(duration: number, durationUnit: "sec" | "nsec"): number {
+  return Math.max(0, durationUnit === "sec" ? duration : duration / 1e9);
+}
+
 function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
   const { t } = useTranslation("event");
 
@@ -192,6 +196,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       const keyedMetadata = Object.fromEntries(
         filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
       );
+      const durationSeconds = getEventDurationSeconds(event.duration, event.durationUnit);
 
       let imageFiles = toModifyEvent?.files;
 
@@ -220,10 +225,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         name: toModifyEvent?.name ?? "",
         displayName: event.eventName,
         triggerTime: timestampFromDate(event.startTime),
-        duration:
-          event.durationUnit === "sec"
-            ? secondsToDuration(event.duration)
-            : secondsToDuration(event.duration / 1e9),
+        duration: secondsToDuration(durationSeconds),
         description: event.description,
         files: imageFiles,
         customFieldValues: convertCustomFieldValuesMapToArray(event.customFieldValues ?? {}),

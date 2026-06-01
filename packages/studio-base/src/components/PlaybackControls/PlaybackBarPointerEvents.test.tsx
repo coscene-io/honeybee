@@ -18,6 +18,9 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 import { BagsOverlay } from "./BagsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { ProgressPlot } from "./ProgressPlot";
+import { makeTimelineViewport } from "./timelineViewport";
+
+const viewport = makeTimelineViewport(0, 10);
 
 function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   return (
@@ -41,7 +44,7 @@ describe("Playback bar pointer events", () => {
   it("keeps progress plot visual layers out of hit testing", () => {
     const { container } = render(
       <Wrapper>
-        <ProgressPlot loading />
+        <ProgressPlot loading viewport={viewport} />
       </Wrapper>,
     );
 
@@ -72,7 +75,7 @@ describe("Playback bar pointer events", () => {
   it("keeps playback hover ticks out of hit testing", () => {
     const { container } = render(
       <Wrapper>
-        <PlaybackBarHoverTicks componentId="test-component" />
+        <PlaybackBarHoverTicks componentId="test-component" viewport={viewport} />
       </Wrapper>,
     );
 

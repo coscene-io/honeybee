@@ -51,7 +51,9 @@ export type WorkspaceContextStore = {
   };
   playbackControls: {
     repeat: boolean;
+    rollingEditEnabled: boolean;
     speed: PlaybackSpeed;
+    timelineHeight: number;
   };
   sidebars: {
     left: {

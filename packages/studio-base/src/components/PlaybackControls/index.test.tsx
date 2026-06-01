@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
@@ -45,6 +45,11 @@ function SpeedObserver(): React.JSX.Element {
   return <div data-testid="playback-speed">{speed}</div>;
 }
 
+function TimelineHeightObserver(): React.JSX.Element {
+  const timelineHeight = useWorkspaceStore((store) => store.playbackControls.timelineHeight);
+  return <div data-testid="timeline-height">{timelineHeight}</div>;
+}
+
 function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -66,6 +71,7 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
               <MockMessagePipelineProvider>
                 {children}
                 <SpeedObserver />
+                <TimelineHeightObserver />
               </MockMessagePipelineProvider>
             </WorkspaceContextProvider>
           </CoreDataProvider>
@@ -154,5 +160,38 @@ describe("<PlaybackControls />", () => {
     });
 
     expect(screen.getByTestId("playback-speed").textContent).toBe("1");
+  });
+
+  it("resizes the timeline and stores the height in the workspace", () => {
+    render(
+      <Wrapper>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("playback-controls").style.height).toBe("200px");
+    expect(screen.getByTestId("timeline-height").textContent).toBe("200");
+
+    act(() => {
+      fireEvent(
+        screen.getByTestId("playback-controls-resize-handle"),
+        new MouseEvent("pointerdown", { bubbles: true, clientY: 200 }),
+      );
+    });
+    act(() => {
+      fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientY: 150 }));
+      fireEvent(window, new MouseEvent("pointerup", { bubbles: true }));
+    });
+
+    expect(screen.getByTestId("playback-controls").style.height).toBe("250px");
+    expect(screen.getByTestId("timeline-height").textContent).toBe("250");
   });
 });

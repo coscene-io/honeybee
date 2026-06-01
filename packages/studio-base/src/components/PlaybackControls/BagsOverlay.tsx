@@ -5,9 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as _ from "lodash-es";
 import { makeStyles } from "tss-react/mui";
 
+import { subtract, toSec } from "@foxglove/rostime";
 import {
   CoScenePlaylistStore,
   usePlaylist,
@@ -17,6 +17,8 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+
+import { type TimelineViewport, timelineRangeToStyle } from "./timelineViewport";
 
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
@@ -47,13 +49,32 @@ const selectBags = (store: CoScenePlaylistStore) => store.bagFiles;
 const selectHoveredBag = (store: TimelineInteractionStateStore) => store.hoveredBag;
 const selectBagsAtHoverValue = (store: TimelineInteractionStateStore) => store.bagsAtHoverValue;
 
-function BagTick({ bag }: { bag: BagFileInfo }): React.JSX.Element {
+function BagTick({
+  bag,
+  viewport,
+}: {
+  bag: BagFileInfo;
+  viewport: TimelineViewport;
+}): React.JSX.Element | ReactNull {
   const bagsAtHoverValue = useTimelineInteractionState(selectBagsAtHoverValue);
   const hoveredBag = useTimelineInteractionState(selectHoveredBag);
   const { classes, cx } = useStyles();
 
-  const left = `calc(${_.clamp(bag.startPosition!, 0, 1) * 100}% - 1px)`;
-  const right = `calc(100% - ${_.clamp(bag.endPosition!, 0, 1) * 100}% - 1px)`;
+  if (bag.startTime == undefined || bag.endTime == undefined) {
+    return ReactNull;
+  }
+
+  const style = timelineRangeToStyle(
+    bag.secondsSinceStart ?? toSec(bag.startTime) - viewport.totalStartSec,
+    bag.secondsSinceStart != undefined
+      ? bag.secondsSinceStart + toSec(subtract(bag.endTime, bag.startTime))
+      : toSec(bag.endTime) - viewport.totalStartSec,
+    viewport,
+  );
+
+  if (style == undefined) {
+    return ReactNull;
+  }
 
   return (
     <div
@@ -62,14 +83,14 @@ function BagTick({ bag }: { bag: BagFileInfo }): React.JSX.Element {
           ? bag.name === hoveredBag.name
           : bagsAtHoverValue[bag.name] != undefined,
       })}
-      style={{ left, right }}
+      style={style}
     />
   );
 }
 
 const MemoBagTick = React.memo(BagTick);
 
-function UnmemoizedBagsOverlay(): React.JSX.Element {
+function UnmemoizedBagsOverlay({ viewport }: { viewport: TimelineViewport }): React.JSX.Element {
   const bags = usePlaylist(selectBags);
   const { classes } = useStyles();
 
@@ -78,7 +99,7 @@ function UnmemoizedBagsOverlay(): React.JSX.Element {
       {(bags.value ?? [])
         .filter((ele) => ele.startTime)
         .map((bag, index) => (
-          <MemoBagTick key={`${bag.name}${index}`} bag={bag} />
+          <MemoBagTick key={`${bag.name}${index}`} bag={bag} viewport={viewport} />
         ))}
     </div>
   );
