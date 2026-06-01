@@ -82,3 +82,12 @@ describe("time.getTimestampForMessageEvent", () => {
     ).toEqual(undefined);
   });
 });
+
+describe("time.secondsToDuration", () => {
+  it("clamps negative durations to zero", () => {
+    expect(time.secondsToDuration(-1.5)).toMatchObject({
+      seconds: 0n,
+      nanos: 0,
+    });
+  });
+});

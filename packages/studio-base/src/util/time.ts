@@ -97,8 +97,9 @@ export const durationToNanoSeconds = (duration?: DurationLike): bigint => {
 };
 
 export const secondsToDuration = (seconds: number): Duration => {
-  const sec = Math.floor(seconds);
-  const nsec = Math.round((seconds - sec) * 1e9);
+  const nonNegativeSeconds = Math.max(seconds, 0);
+  const sec = Math.floor(nonNegativeSeconds);
+  const nsec = Math.round((nonNegativeSeconds - sec) * 1e9);
 
   const duration = create(DurationSchema, {
     seconds: BigInt(sec),
