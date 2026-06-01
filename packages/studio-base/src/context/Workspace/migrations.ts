@@ -34,7 +34,9 @@ type WorkspaceContextStoreV0 = {
   rightSidebarSize: undefined | number;
   playbackControls: {
     repeat: boolean;
+    rollingEditEnabled?: boolean;
     speed: PlaybackSpeed;
+    timelineHeight?: number;
   };
   prefsDialogState: {
     initialTab: undefined | AppSettingsTab;
@@ -79,7 +81,9 @@ export function migrateV0WorkspaceState(
     },
     playbackControls: {
       repeat: v0State.playbackControls.repeat,
+      rollingEditEnabled: v0State.playbackControls.rollingEditEnabled ?? true,
       speed: v0State.playbackControls.speed,
+      timelineHeight: v0State.playbackControls.timelineHeight ?? 200,
     },
     layoutDrawer: {
       open: false,

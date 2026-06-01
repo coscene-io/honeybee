@@ -47,4 +47,7 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   invalidSeekStep: "步长需大于等于 1e-6 秒且小于等于 1 小时，已重置为 0.1 秒。",
   playbackSpeed: "播放速度",
   playbackSpeedShortcut: "播放速度（- / +）",
+  timelineZoom: "时间轴缩放",
+  zoomIn: "放大",
+  zoomOut: "缩小",
 };

@@ -57,7 +57,9 @@ export type WorkspaceActions = {
 
   playbackControlActions: {
     setRepeat: Dispatch<SetStateAction<boolean>>;
+    setRollingEditEnabled: Dispatch<SetStateAction<boolean>>;
     setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
+    setTimelineHeight: Dispatch<SetStateAction<number>>;
   };
 
   sidebarActions: {
@@ -185,10 +187,25 @@ export function useWorkspaceActions(): WorkspaceActions {
             draft.playbackControls.repeat = repeat;
           });
         },
+        setRollingEditEnabled: (setter: SetStateAction<boolean>) => {
+          set((draft) => {
+            const rollingEditEnabled = setterValue(
+              setter,
+              draft.playbackControls.rollingEditEnabled,
+            );
+            draft.playbackControls.rollingEditEnabled = rollingEditEnabled;
+          });
+        },
         setSpeed: (setter: SetStateAction<PlaybackSpeed>) => {
           set((draft) => {
             const speed = setterValue(setter, draft.playbackControls.speed);
             draft.playbackControls.speed = speed;
+          });
+        },
+        setTimelineHeight: (setter: SetStateAction<number>) => {
+          set((draft) => {
+            const timelineHeight = setterValue(setter, draft.playbackControls.timelineHeight);
+            draft.playbackControls.timelineHeight = timelineHeight;
           });
         },
       },
