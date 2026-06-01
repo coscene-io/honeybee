@@ -76,6 +76,7 @@ const useStyles = makeStyles()((theme) => ({
   loadingIndicator: {
     label: "ProgressPlot-loadingIndicator",
     position: "absolute",
+    pointerEvents: "none",
     width: "100%",
     height: "100%",
     animation: `${animatedBackground} 300ms linear infinite`,
@@ -92,6 +93,7 @@ const useStyles = makeStyles()((theme) => ({
   range: {
     label: "ProgressPlot-range",
     position: "absolute",
+    pointerEvents: "none",
     backgroundColor:
       theme.palette.mode === "dark"
         ? tinycolor(theme.palette.text.secondary).darken(25).toHexString()

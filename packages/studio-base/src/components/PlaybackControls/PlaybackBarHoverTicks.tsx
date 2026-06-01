@@ -136,7 +136,7 @@ function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
   }, [hoverValue]);
 
   return (
-    <Stack ref={ref} flex="auto">
+    <Stack ref={ref} flex="auto" style={{ pointerEvents: "none" }}>
       {scaleBounds && (
         <HoverBar componentId={componentId} scales={scaleBounds} isPlaybackSeconds>
           <Tooltip

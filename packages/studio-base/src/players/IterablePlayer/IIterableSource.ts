@@ -78,6 +78,12 @@ export type MessageIteratorArgs = {
    * return map message in every time, we need this param to notify the backend help us find last message in target time`s topic
    */
   fetchCompleteTopicState?: "complete" | "incremental";
+
+  /**
+   * Allows callers to cancel an in-flight iterator read. This is needed for streaming sources whose
+   * next result may be blocked on network I/O.
+   */
+  abortSignal?: AbortSignal;
 };
 
 /**
