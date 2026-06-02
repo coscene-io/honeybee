@@ -19,7 +19,7 @@ export const EVENT_BAR_HEIGHT_PX: number = 24;
 export const EVENT_BAR_TOP_OFFSET_PX: number = 2;
 export const EVENT_MIN_WIDTH_PX: number = 4;
 
-const EVENT_LANE_ADJACENCY_EPSILON_SEC = 1e-6;
+const EVENT_LANE_ADJACENCY_EPSILON_SEC = 2e-3;
 
 export type EventLaneLayoutItem = {
   endPosition: number;
