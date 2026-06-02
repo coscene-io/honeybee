@@ -19,6 +19,7 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -351,14 +352,21 @@ export function EventsSyncAdapter(): React.JSX.Element {
         pauseRef.current?.();
       }
 
-      const nextMarks = [
-        ...marks,
-        positionEventMark({ currentTime: current, startTime: start, endTime: end }),
-      ].sort((a, b) => a.position - b.position);
+      const mark = positionEventMark({ currentTime: current, startTime: start, endTime: end });
+      const snappedMark = getSnappedEventMark({ mark, events: events.value ?? [] });
+      const nextMarks = [...marks, snappedMark].sort((a, b) => a.position - b.position);
 
       setEventMarks(nextMarks);
     },
-    [currentTimeRef, endTimeRef, eventMarksRef, pauseRef, setEventMarks, startTimeRef],
+    [
+      currentTimeRef,
+      endTimeRef,
+      eventMarksRef,
+      events.value,
+      pauseRef,
+      setEventMarks,
+      startTimeRef,
+    ],
   );
 
   const keyDownHandlers = useMemo(

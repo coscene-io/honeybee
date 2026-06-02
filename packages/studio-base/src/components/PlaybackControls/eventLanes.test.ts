@@ -107,9 +107,20 @@ describe("layoutEventLanes", () => {
     expect(getEventLaneByName(layout, "events/second")).toBe(0);
   });
 
+  it("keeps adjacent events on the same lane after millisecond timestamp drift", () => {
+    const layout = layoutEventLanes({
+      events: [makeEvent("events/first", 0, 2), makeEvent("events/second", 1.999, 2)],
+      viewport: makeTimelineViewport(0, 10),
+    });
+
+    expect(layout.laneCount).toBe(1);
+    expect(getEventLaneByName(layout, "events/first")).toBe(0);
+    expect(getEventLaneByName(layout, "events/second")).toBe(0);
+  });
+
   it("keeps non-exact near-touching events on separate lanes within overlap tolerance", () => {
     const layout = layoutEventLanes({
-      events: [makeEvent("events/first", 1, 2), makeEvent("events/second", 3.001, 2)],
+      events: [makeEvent("events/first", 1, 2), makeEvent("events/second", 3.01, 2)],
       viewport: makeTimelineViewport(0, 10),
     });
 
