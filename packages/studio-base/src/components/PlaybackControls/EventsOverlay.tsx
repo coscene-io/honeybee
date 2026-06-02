@@ -806,6 +806,24 @@ function areEventTimeRangesEqual(left: EventTimeRange, right: EventTimeRange): b
   );
 }
 
+function areEventMarksEqual(
+  left: TimelinePositionedEventMark[],
+  right: TimelinePositionedEventMark[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((leftMark, index) => {
+      const rightMark = right[index];
+      return (
+        rightMark != undefined &&
+        leftMark.key === rightMark.key &&
+        Math.abs(leftMark.position - rightMark.position) < 1e-9 &&
+        areEqual(leftMark.time, rightMark.time)
+      );
+    })
+  );
+}
+
 function snapRangeToLaneBoundaries({
   activeEventName,
   edge,
@@ -1428,18 +1446,20 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         });
         const markOrder = new Map(eventMarks.map((mark, index) => [mark.key, index]));
 
-        setEventMarks(
-          eventMarks
-            .map((mark) => (mark.key === dragPointKey ? nextMark : mark))
-            .sort((a, b) => {
-              const positionDelta = a.position - b.position;
-              if (positionDelta !== 0) {
-                return positionDelta;
-              }
+        const nextEventMarks = eventMarks
+          .map((mark) => (mark.key === dragPointKey ? nextMark : mark))
+          .sort((a, b) => {
+            const positionDelta = a.position - b.position;
+            if (positionDelta !== 0) {
+              return positionDelta;
+            }
 
-              return (markOrder.get(a.key) ?? 0) - (markOrder.get(b.key) ?? 0);
-            }),
-        );
+            return (markOrder.get(a.key) ?? 0) - (markOrder.get(b.key) ?? 0);
+          });
+
+        if (!areEventMarksEqual(eventMarks, nextEventMarks)) {
+          setEventMarks(nextEventMarks);
+        }
       }
     }
   }, [
