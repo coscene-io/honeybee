@@ -20,6 +20,10 @@ import {
 
 import { type TimelineViewport, timelineRangeToStyle } from "./timelineViewport";
 
+export const BAG_OVERLAY_HEIGHT_PX: number = 12;
+const BAG_TICK_HEIGHT_PX: number = 6;
+const BAG_TICK_HOVERED_HEIGHT_PX: number = 12;
+
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
     inset: 0,
@@ -27,7 +31,7 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
     position: "absolute",
     display: "flex",
     alignItems: "center",
-    height: 10,
+    height: BAG_OVERLAY_HEIGHT_PX,
   },
   tick: {
     transition: transitions.create("height", { duration: transitions.duration.shortest }),
@@ -35,13 +39,13 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
     backgroundColor: "#93c5fd",
     opacity: 0.5,
     position: "absolute",
-    height: 6,
+    height: BAG_TICK_HEIGHT_PX,
   },
   tickHovered: {
     transition: transitions.create("height", { duration: transitions.duration.shortest }),
     backgroundColor: "#93c5fd",
     border: `1px solid ${palette.info.main}`,
-    height: 12,
+    height: BAG_TICK_HOVERED_HEIGHT_PX,
   },
 }));
 

@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, render, screen, waitFor } from "@testing-library/react";
+import i18n from "i18next";
 import * as _ from "lodash-es";
 import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -170,6 +171,43 @@ function Wrapper({
 describe("<EventsOverlay />", () => {
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it("shows the shortcut hint when the timeline has no moments", async () => {
+    const originalLanguage = i18n.language;
+    await act(async () => {
+      await i18n.changeLanguage("zh");
+    });
+
+    try {
+      const eventsStore = makeEventsStore({
+        eventMarks: [],
+        setEventMarks: jest.fn(),
+      });
+      const timelineInteractionStore = makeTimelineInteractionStore();
+
+      render(
+        <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+          <EventsOverlay
+            componentId="test-component"
+            canWriteEvents
+            isDragging={false}
+            eventContextMenuRequest={undefined}
+            onEventContextMenuHandled={jest.fn()}
+            setCursor={jest.fn()}
+            viewport={viewport}
+          />
+        </Wrapper>,
+      );
+
+      expect(screen.getByTestId("timeline-empty-event-hint").textContent).toBe(
+        "使用快捷键 Alt+1 创建一刻，为数据打标注",
+      );
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage(originalLanguage || "en");
+      });
+    }
   });
 
   it("hides the single create mark tooltip after three seconds", async () => {

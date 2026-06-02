@@ -17,16 +17,32 @@ const useStyles = makeStyles()(() => ({
     top: 0,
     transform: "translateX(-50%)",
     width: 9,
+    zIndex: TIMELINE_POSITION_INDICATOR_Z_INDEX,
+  },
+  line: {
+    backgroundColor: "currentColor",
+    borderRadius: 1,
+    bottom: 0,
+    left: 4,
+    position: "absolute",
+    top: TIMELINE_POSITION_INDICATOR_LINE_EXTENSION_TOP_PX,
+    width: 1,
   },
   svg: {
     display: "block",
-    height: "100%",
+    height: TIMELINE_POSITION_INDICATOR_HEIGHT_PX,
     overflow: "visible",
+    position: "relative",
     width: "100%",
+    zIndex: 1,
   },
 }));
 
 export const TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX: number = 10;
+export const TIMELINE_POSITION_INDICATOR_HEIGHT_PX: number = 129;
+export const TIMELINE_POSITION_INDICATOR_LINE_EXTENSION_TOP_PX: number =
+  TIMELINE_POSITION_INDICATOR_HEIGHT_PX - 1;
+export const TIMELINE_POSITION_INDICATOR_Z_INDEX: number = 4;
 
 function makeDOMRect(x: number, y: number, width: number, height: number): DOMRect {
   if (typeof DOMRect !== "undefined") {
@@ -77,6 +93,12 @@ export const TimelinePositionIndicator: ForwardRefExoticComponent<
         data-testid={dataTestId}
         style={{ ...style, color }}
       >
+        <div
+          aria-hidden
+          className={classes.line}
+          data-testid={`${dataTestId}-line`}
+          style={{ opacity: fillOpacity }}
+        />
         <svg
           aria-hidden
           className={classes.svg}

@@ -45,7 +45,7 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { BagsOverlay } from "./BagsOverlay";
+import { BAG_OVERLAY_HEIGHT_PX, BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
@@ -65,6 +65,9 @@ import {
 
 const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
 const TIMELINE_RULER_HEIGHT_PX: number = 14;
+const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
+const EVENT_LANE_LAYER_TOP_PX: number =
+  TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 
 function isTimelineZoomEnabled(): boolean {
@@ -150,7 +153,7 @@ const useStyles = makeStyles()((theme) => ({
     pointerEvents: "none",
     position: "absolute",
     right: 0,
-    top: TIMELINE_RULER_HEIGHT_PX,
+    top: EVENT_LANE_LAYER_TOP_PX,
   },
   hoverTickLayer: {
     pointerEvents: "none",
@@ -456,7 +459,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
     return Math.max(
       MIN_TIMELINE_CONTENT_HEIGHT_PX,
-      TIMELINE_RULER_HEIGHT_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
+      EVENT_LANE_LAYER_TOP_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
     );
   }, [eventLaneCount, previewEventLaneCount]);
 
@@ -575,7 +578,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               <Stack
                 position="absolute"
                 fullWidth
-                style={{ height: 10, top: TIMELINE_RULER_HEIGHT_PX }}
+                style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
               >
                 <BagsOverlay viewport={resolvedViewport} />
               </Stack>
