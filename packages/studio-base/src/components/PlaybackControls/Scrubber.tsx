@@ -67,6 +67,10 @@ const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
 const TIMELINE_RULER_HEIGHT_PX: number = 14;
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 
+function isTimelineZoomEnabled(): boolean {
+  return false;
+}
+
 const useStyles = makeStyles()((theme) => ({
   root: {
     display: "flex",
@@ -361,6 +365,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
       const rect = target.getBoundingClientRect();
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
+        if (!isTimelineZoomEnabled()) {
+          return;
+        }
         const anchorSec = clientXToTime(event.clientX, rect, currentViewport);
         setViewport((oldViewport) => {
           const sourceViewport = oldViewport ?? currentViewport;
@@ -402,7 +409,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const onZoomSliderChange = useCallback(
     (_event: Event, value: number | number[]): void => {
       const currentViewport = latestViewport.current;
-      if (currentViewport == undefined || zoomAnchorSec == undefined) {
+      if (!isTimelineZoomEnabled() || currentViewport == undefined || zoomAnchorSec == undefined) {
         return;
       }
 
@@ -476,6 +483,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               aria-label={t("timelineZoom")}
               className={classes.zoomSlider}
               disabled={
+                !isTimelineZoomEnabled() ||
                 zoomPercent == undefined ||
                 zoomAnchorSec == undefined ||
                 startTime == undefined ||
