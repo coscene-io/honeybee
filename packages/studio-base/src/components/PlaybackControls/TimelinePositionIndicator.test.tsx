@@ -14,10 +14,7 @@ describe("<TimelinePositionIndicator />", () => {
   it("keeps the handle fixed while extending the line to the parent bottom", () => {
     render(
       <div style={{ height: 300, position: "relative" }}>
-        <TimelinePositionIndicator
-          color="currentColor"
-          dataTestId="timeline-position-indicator"
-        />
+        <TimelinePositionIndicator color="currentColor" dataTestId="timeline-position-indicator" />
       </div>,
     );
 

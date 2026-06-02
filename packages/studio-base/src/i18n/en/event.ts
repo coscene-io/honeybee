@@ -28,7 +28,7 @@ export const event = {
   editMomentFailed: "Save failed",
   editMomentSuccess: "Save success",
   elapsed: "Elapsed",
-  emptyTimelineHint: "Select start and end points to create a moment",
+  emptyTimelineHint: "Use Alt+1 to create a moment and annotate data",
   enableLinkedEventAdjustment: "Enable linked event adjustment",
   disableLinkedEventAdjustment: "Disable linked event adjustment",
   end: "End",

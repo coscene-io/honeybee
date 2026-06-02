@@ -30,7 +30,7 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   editMomentFailed: "保存失败",
   editMomentSuccess: "保存成功",
   elapsed: "经过时间",
-  emptyTimelineHint: "选择起止点创建一刻",
+  emptyTimelineHint: "使用快捷键 Alt+1 创建一刻，为数据打标注",
   enableLinkedEventAdjustment: "开启联动调整",
   disableLinkedEventAdjustment: "关闭联动调整",
   end: "结束",
