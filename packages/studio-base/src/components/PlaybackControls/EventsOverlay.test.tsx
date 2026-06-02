@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import * as _ from "lodash-es";
 import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -168,6 +168,84 @@ function Wrapper({
 }
 
 describe("<EventsOverlay />", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("hides the single create mark tooltip after three seconds", async () => {
+    jest.useFakeTimers();
+
+    const eventsStore = makeEventsStore({
+      eventMarks: [{ key: "start", position: 0.1, time: { sec: 1, nsec: 0 } }],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(await screen.findByText("Start Point")).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(2_999);
+    });
+    expect(screen.getByText("Start Point")).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Start Point")).toBeNull();
+    });
+  });
+
+  it("keeps the create moment form open after the mark tooltip timeout", async () => {
+    jest.useFakeTimers();
+
+    const eventsStore = makeEventsStore({
+      eventMarks: [
+        { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(await screen.findByTestId("create-event-container")).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(3_000);
+    });
+
+    expect(screen.getByTestId("create-event-container")).toBeTruthy();
+  });
+
   it("does not rewrite event marks when a dragged create mark stays at the same position", async () => {
     const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
     const eventsStore = makeEventsStore({

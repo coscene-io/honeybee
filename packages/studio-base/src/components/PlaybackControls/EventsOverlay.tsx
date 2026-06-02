@@ -78,6 +78,7 @@ import EventMarkIcon from "../../assets/event-mark.svg";
 
 const HOTSPOT_WIDTH_PER_CENT = 0.01;
 const EVENT_CLICK_DRAG_THRESHOLD_PX = 4;
+const EVENT_MARK_TOOLTIP_AUTO_HIDE_MS = 3_000;
 
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {
@@ -451,10 +452,12 @@ function EventMark({
   const leftMarkRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | ReactNull>(ReactNull);
   const [open, setOpen] = useState(false);
+  const [isMarkTooltipOpen, setIsMarkTooltipOpen] = useState(false);
   const setEventMarks = useEvents(selectSetEventMarks);
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
   const { classes, cx } = useStyles();
   const { t } = useTranslation("event");
+  const singleMarkKey = marks.length === 1 ? marks[0]?.key : undefined;
 
   const leftMarkPosition =
     marks[0]?.time != undefined && timelineStartSec != undefined
@@ -479,13 +482,29 @@ function EventMark({
     }
   }, [marks]);
 
+  useEffect(() => {
+    if (singleMarkKey == undefined) {
+      setIsMarkTooltipOpen(false);
+      return;
+    }
+
+    setIsMarkTooltipOpen(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsMarkTooltipOpen(false);
+    }, EVENT_MARK_TOOLTIP_AUTO_HIDE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [singleMarkKey]);
+
   return (
     <>
       <div className={classes.markLayer} data-testid="timeline-event-mark-layer">
         <Tooltip
           title={t("startPoint")}
           placement="top"
-          open={marks.length === 1}
+          open={isMarkTooltipOpen}
           slotProps={{
             popper: {
               modifiers: [{ name: "offset", options: { offset: [0, 4] } }],
