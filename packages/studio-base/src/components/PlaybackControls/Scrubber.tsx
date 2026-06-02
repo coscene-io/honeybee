@@ -475,30 +475,31 @@ export default function Scrubber(props: Props): React.JSX.Element {
           {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
         </div>
         <div className={classes.toolbarActions}>
-          <div className={classes.zoomControl}>
-            <Tooltip title={t("zoomOut")}>
-              <ZoomOutIcon className={classes.zoomIcon} />
-            </Tooltip>
-            <MuiSlider
-              aria-label={t("timelineZoom")}
-              className={classes.zoomSlider}
-              disabled={
-                !isTimelineZoomEnabled() ||
-                zoomPercent == undefined ||
-                zoomAnchorSec == undefined ||
-                startTime == undefined ||
-                endTime == undefined
-              }
-              min={0}
-              max={100}
-              size="small"
-              value={zoomPercent ?? 0}
-              onChange={onZoomSliderChange}
-            />
-            <Tooltip title={t("zoomIn")}>
-              <ZoomInIcon className={classes.zoomIcon} />
-            </Tooltip>
-          </div>
+          {isTimelineZoomEnabled() && (
+            <div className={classes.zoomControl}>
+              <Tooltip title={t("zoomOut")}>
+                <ZoomOutIcon className={classes.zoomIcon} />
+              </Tooltip>
+              <MuiSlider
+                aria-label={t("timelineZoom")}
+                className={classes.zoomSlider}
+                disabled={
+                  zoomPercent == undefined ||
+                  zoomAnchorSec == undefined ||
+                  startTime == undefined ||
+                  endTime == undefined
+                }
+                min={0}
+                max={100}
+                size="small"
+                value={zoomPercent ?? 0}
+                onChange={onZoomSliderChange}
+              />
+              <Tooltip title={t("zoomIn")}>
+                <ZoomInIcon className={classes.zoomIcon} />
+              </Tooltip>
+            </div>
+          )}
           {canWriteEvents && (
             <HoverableIconButton
               size="small"
