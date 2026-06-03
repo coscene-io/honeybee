@@ -48,6 +48,21 @@ jest.mock("react-resize-detector", () => ({
 
 const viewport = makeTimelineViewport(0, 10);
 
+function defer<T>(): {
+  promise: Promise<T>;
+  reject: (reason?: unknown) => void;
+  resolve: (value: T | PromiseLike<T>) => void;
+} {
+  let reject!: (reason?: unknown) => void;
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    reject = promiseReject;
+    resolve = promiseResolve;
+  });
+
+  return { promise, reject, resolve };
+}
+
 function makeEvent(name: string, startSec: number, durationSec: number): TimelinePositionedEvent {
   const startTime = fromSec(startSec);
   const duration = fromSec(durationSec);
@@ -526,6 +541,74 @@ describe("<EventsOverlay />", () => {
     });
     expect(console.error).toHaveBeenCalledWith(new Error("update failed"));
     (console.error as jest.Mock).mockClear();
+  });
+
+  it("waits for every rolling edit update before refreshing after a partial failure", async () => {
+    const failedUpdate = defer<unknown>();
+    const pendingUpdate = defer<unknown>();
+    const failure = new Error("first failed");
+    const updateEvent = jest
+      .fn()
+      .mockImplementationOnce(async () => await failedUpdate.promise)
+      .mockImplementationOnce(async () => await pendingUpdate.promise);
+    const first = makeEvent("events/first", 0, 5);
+    const second = makeEvent("events/second", 5, 5);
+    const eventsStore = makeEventsStore({
+      events: [first, second],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        consoleApi={{ updateEvent } as React.ContextType<typeof CoSceneConsoleApiContext>}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    await dragRollingEditBoundary(600);
+
+    expect(updateEvent).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      failedUpdate.reject(failure);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(console.error).not.toHaveBeenCalledWith(failure);
+    expect(eventsStore.getState().eventFetchCount).toBe(0);
+    expect(getEventRanges(eventsStore)).toEqual([
+      { startSec: 0, endSec: 6 },
+      { startSec: 6, endSec: 10 },
+    ]);
+
+    await act(async () => {
+      pendingUpdate.resolve({});
+      await pendingUpdate.promise;
+    });
+
+    await waitFor(() => {
+      expect(eventsStore.getState().eventFetchCount).toBe(1);
+    });
+    expect(console.error).toHaveBeenCalledWith(failure);
+    (console.error as jest.Mock).mockClear();
+    expect(getEventRanges(eventsStore)).toEqual([
+      { startSec: 0, endSec: 5 },
+      { startSec: 5, endSec: 10 },
+    ]);
   });
 
   it("keeps moment loop playback when a timeline moment press stays under the drag threshold", () => {

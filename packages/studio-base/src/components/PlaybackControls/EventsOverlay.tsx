@@ -1181,11 +1181,17 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       }
 
       try {
-        await Promise.all(
+        const results = await Promise.allSettled(
           updates.map(async (update) => {
             await consoleApi.updateEvent(update);
           }),
         );
+        const failedResult = results.find(
+          (result): result is PromiseRejectedResult => result.status === "rejected",
+        );
+        if (failedResult != undefined) {
+          throw failedResult.reason;
+        }
       } catch (error) {
         console.error(error);
         setEvents(previousEvents);
