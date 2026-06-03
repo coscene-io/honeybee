@@ -54,6 +54,11 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
       rollingEditEnabled: true,
       speed: 1,
       timelineHeight: 200,
+      momentSubtitle: {
+        enabled: false,
+        fontSize: 16,
+        position: undefined,
+      },
     },
     layoutDrawer: {
       open: false,

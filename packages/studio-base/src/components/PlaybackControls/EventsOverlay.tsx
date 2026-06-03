@@ -1061,10 +1061,15 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   }, [baseLaneLayout, eventDrag, positionedEvents, viewport]);
 
   const renderLaneLayoutRef = useRef<EventLaneLayout>(renderLaneLayout);
+  const loopedEventRef = useRef(loopedEvent);
 
   useEffect(() => {
     renderLaneLayoutRef.current = renderLaneLayout;
   }, [renderLaneLayout]);
+
+  useEffect(() => {
+    loopedEventRef.current = loopedEvent;
+  }, [loopedEvent]);
 
   const renderedLaneCount = Math.max(renderLaneLayout.laneCount, 1);
   const laneContentHeight = renderedLaneCount * EVENT_LANE_HEIGHT_PX;
@@ -1250,6 +1255,12 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         const movedBeyondClickThreshold =
           currentDrag.movedBeyondClickThreshold ||
           Math.abs(clientX - currentDrag.initialClientX) > EVENT_CLICK_DRAG_THRESHOLD_PX;
+        if (!currentDrag.movedBeyondClickThreshold && movedBeyondClickThreshold) {
+          if (loopedEventRef.current != undefined) {
+            loopedEventRef.current = undefined;
+            setLoopedEvent(undefined);
+          }
+        }
         const pointerFraction = clientXToFraction(clientX, rootRef.current.getBoundingClientRect());
         const nextRange =
           currentDrag.kind === "body" && currentDrag.anchor != undefined
@@ -1328,7 +1339,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       eventDragRef.current = nextDrag;
       setEventDrag(nextDrag);
     },
-    [commitEventTimeEdit, onSeek, viewport],
+    [commitEventTimeEdit, onSeek, setLoopedEvent, viewport],
   );
 
   const startEventBodyDrag = useCallback(
