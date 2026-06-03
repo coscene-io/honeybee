@@ -6,13 +6,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
+import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 import * as _ from "lodash-es";
 import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
 
+import { add, fromSec } from "@foxglove/rostime";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -44,16 +48,45 @@ jest.mock("react-resize-detector", () => ({
 
 const viewport = makeTimelineViewport(0, 10);
 
+function makeEvent(name: string, startSec: number, durationSec: number): TimelinePositionedEvent {
+  const startTime = fromSec(startSec);
+  const duration = fromSec(durationSec);
+  const endTime = add(startTime, duration);
+
+  return {
+    event: create(EventSchema, {
+      name,
+      displayName: name,
+      triggerTime: create(TimestampSchema, {
+        seconds: BigInt(startTime.sec),
+        nanos: startTime.nsec,
+      }),
+      duration: create(DurationSchema, {
+        seconds: BigInt(duration.sec),
+        nanos: duration.nsec,
+      }),
+    }),
+    startTime,
+    endTime,
+    color: "#00ADEF",
+    startPosition: startSec / 10,
+    endPosition: (startSec + durationSec) / 10,
+    secondsSinceStart: startSec,
+  };
+}
+
 function makeEventsStore({
+  events = [],
   eventMarks,
   setEventMarks,
 }: {
+  events?: TimelinePositionedEvent[];
   eventMarks: TimelinePositionedEventMark[];
   setEventMarks: jest.Mock<void, [TimelinePositionedEventMark[]]>;
 }): StoreApi<EventsStore> {
   return createStore<EventsStore>((set) => ({
     eventFetchCount: 0,
-    events: { loading: false, value: [] },
+    events: { loading: false, value: events },
     filter: "",
     selectedEventId: undefined,
     deviceId: undefined,
@@ -152,7 +185,9 @@ function Wrapper({
   return (
     <ThemeProvider isDark>
       <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
-        <CoSceneConsoleApiContext.Provider value={{} as never}>
+        <CoSceneConsoleApiContext.Provider
+          value={{ updateEvent: jest.fn(async () => {}) } as never}
+        >
           <MockMessagePipelineProvider
             startTime={{ sec: 0, nsec: 0 }}
             endTime={{ sec: 10, nsec: 0 }}
@@ -166,6 +201,35 @@ function Wrapper({
       </AppConfigurationContext.Provider>
     </ThemeProvider>
   );
+}
+
+function mockTimelineRect(element: Element): void {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({
+      bottom: 100,
+      height: 100,
+      left: 0,
+      right: 1000,
+      top: 0,
+      width: 1000,
+      x: 0,
+      y: 0,
+      toJSON: () => undefined,
+    }),
+  });
+}
+
+function firePointerDown(element: Element | Window, clientX: number): void {
+  fireEvent(element, new MouseEvent("pointerdown", { bubbles: true, clientX }));
+}
+
+function firePointerMove(clientX: number): void {
+  fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX }));
+}
+
+function firePointerUp(clientX: number): void {
+  fireEvent(window, new MouseEvent("pointerup", { bubbles: true, clientX }));
 }
 
 describe("<EventsOverlay />", () => {
@@ -357,4 +421,106 @@ describe("<EventsOverlay />", () => {
       { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
     ]);
   });
+
+  it("keeps moment loop playback when a timeline moment press stays under the drag threshold", () => {
+    const event = makeEvent("events/looped", 1, 2);
+    const eventsStore = makeEventsStore({
+      events: [event],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+    timelineInteractionStore.getState().setLoopedEvent(event);
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    firePointerMove(103);
+
+    expect(timelineInteractionStore.getState().loopedEvent?.event.name).toBe("events/looped");
+
+    firePointerUp(103);
+  });
+
+  it("clears moment loop playback when dragging a timeline moment body past the threshold", () => {
+    const event = makeEvent("events/looped", 1, 2);
+    const eventsStore = makeEventsStore({
+      events: [event],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+    timelineInteractionStore.getState().setLoopedEvent(event);
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    firePointerMove(106);
+
+    expect(timelineInteractionStore.getState().loopedEvent).toBeUndefined();
+
+    firePointerUp(106);
+  });
+
+  it.each(["timeline-event-start-handle", "timeline-event-end-handle"])(
+    "clears moment loop playback when dragging the %s past the threshold",
+    (handleTestId) => {
+      const event = makeEvent("events/looped", 1, 2);
+      const eventsStore = makeEventsStore({
+        events: [event],
+        eventMarks: [],
+        setEventMarks: jest.fn(),
+      });
+      const timelineInteractionStore = makeTimelineInteractionStore();
+      timelineInteractionStore.getState().setLoopedEvent(event);
+
+      render(
+        <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+          <EventsOverlay
+            componentId="test-component"
+            canWriteEvents
+            isDragging={false}
+            eventContextMenuRequest={undefined}
+            onEventContextMenuHandled={jest.fn()}
+            setCursor={jest.fn()}
+            viewport={viewport}
+          />
+        </Wrapper>,
+      );
+      mockTimelineRect(screen.getByTestId("events-overlay"));
+
+      firePointerDown(screen.getByTestId(handleTestId), 100);
+      firePointerMove(106);
+
+      expect(timelineInteractionStore.getState().loopedEvent).toBeUndefined();
+
+      firePointerUp(106);
+    },
+  );
 });
