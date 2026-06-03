@@ -62,6 +62,8 @@ import {
   zoomViewportAtTime,
   type TimelineViewport,
 } from "./timelineViewport";
+import MomentSubtitleActiveIcon from "../../assets/moment-subtitle-active.svg";
+import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.svg";
 
 const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
 const TIMELINE_RULER_HEIGHT_PX: number = 14;
@@ -170,6 +172,8 @@ const selectRecord = (store: CoreDataStore) => store.record;
 const selectEvents = (store: EventsStore) => store.events;
 const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.rollingEditEnabled;
+const selectMomentSubtitleEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.momentSubtitle.enabled;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -208,6 +212,44 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
 
 const MemoedEventButton = React.memo(EventButton);
 
+function MomentSubtitleIcon({ active }: { active: boolean }): React.JSX.Element {
+  const Icon = active ? MomentSubtitleActiveIcon : MomentSubtitleInactiveIcon;
+
+  return (
+    <span
+      aria-hidden="true"
+      data-testid={active ? "moment-subtitle-icon-active" : "moment-subtitle-icon-inactive"}
+      style={{ display: "inline-flex" }}
+    >
+      <Icon focusable="false" />
+    </span>
+  );
+}
+
+function MomentSubtitleButton({
+  enabled,
+  onClick,
+}: {
+  enabled: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("general");
+  const label = t(enabled ? "disableMomentSubtitles" : "enableMomentSubtitles");
+
+  return (
+    <HoverableIconButton
+      aria-label={label}
+      color={enabled ? "primary" : "inherit"}
+      size="small"
+      title={label}
+      icon={<MomentSubtitleIcon active={enabled} />}
+      onClick={onClick}
+    />
+  );
+}
+
+const MemoedMomentSubtitleButton = React.memo(MomentSubtitleButton);
+
 export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
   const { classes } = useStyles();
@@ -230,8 +272,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const record = useCoreData(selectRecord);
   const events = useEvents(selectEvents);
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
+  const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
   const {
-    playbackControlActions: { setRollingEditEnabled },
+    playbackControlActions: { setRollingEditEnabled, setMomentSubtitleEnabled },
   } = useWorkspaceActions();
 
   const setHoverValue = useSetHoverValue();
@@ -467,6 +510,10 @@ export default function Scrubber(props: Props): React.JSX.Element {
     setRollingEditEnabled((old) => !old);
   }, [setRollingEditEnabled]);
 
+  const toggleMomentSubtitle = useCallback((): void => {
+    setMomentSubtitleEnabled((old) => !old);
+  }, [setMomentSubtitleEnabled]);
+
   const handlePreviewEventLaneCountChange = useCallback((laneCount: number | undefined): void => {
     setPreviewEventLaneCount(laneCount);
   }, []);
@@ -502,6 +549,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 <ZoomInIcon className={classes.zoomIcon} />
               </Tooltip>
             </div>
+          )}
+          {enableList.event === "ENABLE" && (
+            <MemoedMomentSubtitleButton
+              enabled={momentSubtitleEnabled}
+              onClick={toggleMomentSubtitle}
+            />
           )}
           {canWriteEvents && (
             <HoverableIconButton
