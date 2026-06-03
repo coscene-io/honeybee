@@ -779,6 +779,53 @@ function getEventsWithEventRange({
     });
 }
 
+function getEventsWithRollingEditRange({
+  boundarySec,
+  events,
+  pair,
+  viewport,
+}: {
+  boundarySec: number;
+  events: TimelinePositionedEvent[];
+  pair: RollingEditPair;
+  viewport: TimelineViewport;
+}): TimelinePositionedEvent[] {
+  const clampedBoundarySec = clampRollingEditBoundary(pair, boundarySec);
+  const nextEndSec =
+    pair.next.secondsSinceStart + toSec(subtract(pair.next.endTime, pair.next.startTime));
+  const rangesByEventName = new Map<string, EventTimeRange>([
+    [
+      pair.previous.event.name,
+      {
+        endSec: clampedBoundarySec,
+        startSec: pair.previous.secondsSinceStart,
+      },
+    ],
+    [
+      pair.next.event.name,
+      {
+        endSec: nextEndSec,
+        startSec: clampedBoundarySec,
+      },
+    ],
+  ]);
+
+  return events
+    .map((event) => {
+      const range = rangesByEventName.get(event.event.name);
+      return range == undefined ? event : getEventWithRange(event, range, viewport);
+    })
+    .sort((left, right) => {
+      if (left.startPosition !== right.startPosition) {
+        return left.startPosition - right.startPosition;
+      }
+      if (left.endPosition !== right.endPosition) {
+        return left.endPosition - right.endPosition;
+      }
+      return left.event.name.localeCompare(right.event.name);
+    });
+}
+
 function getEventsWithDragRange({
   drag,
   events,
@@ -1118,20 +1165,42 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const commitRollingEdit = useCallback(
     async (pair: RollingEditPair, boundarySec: number): Promise<void> => {
       const updates = buildRollingEditUpdates(pair, boundarySec);
+      const previousEvents = events;
+      if (previousEvents.value != undefined) {
+        const optimisticEvents = getEventsWithRollingEditRange({
+          boundarySec,
+          events: previousEvents.value,
+          pair,
+          viewport,
+        });
+        setEvents(
+          previousEvents.loading
+            ? { loading: true, value: optimisticEvents }
+            : { loading: false, value: optimisticEvents },
+        );
+      }
+
       try {
-        await Promise.all(
+        const results = await Promise.allSettled(
           updates.map(async (update) => {
             await consoleApi.updateEvent(update);
           }),
         );
+        const failedResult = results.find(
+          (result): result is PromiseRejectedResult => result.status === "rejected",
+        );
+        if (failedResult != undefined) {
+          throw failedResult.reason;
+        }
       } catch (error) {
         console.error(error);
+        setEvents(previousEvents);
         toast.error("Failed to update events");
       } finally {
         refreshEvents();
       }
     },
-    [consoleApi, refreshEvents],
+    [consoleApi, events, refreshEvents, setEvents, viewport],
   );
 
   const commitEventTimeEdit = useCallback(
@@ -1529,8 +1598,8 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
 
     const onPointerUp = (): void => {
       const currentRollingEdit = rollingEdit;
-      setRollingEdit(undefined);
       void commitRollingEdit(currentRollingEdit.pair, currentRollingEdit.boundarySec);
+      setRollingEdit(undefined);
     };
 
     window.addEventListener("pointermove", onPointerMove);
@@ -1663,6 +1732,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
             return left == undefined ? undefined : (
               <div
                 className={classes.rollingEditHandle}
+                data-testid="timeline-rolling-edit-handle"
                 key={pair.key}
                 style={{ left, top }}
                 onPointerDown={(event) => {
