@@ -6,11 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import i18n from "i18next";
+import { useEffect } from "react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
@@ -21,11 +25,68 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import Scrubber from "./Scrubber";
 
-function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
+jest.mock("./EventsOverlay", () => ({
+  EventsOverlay: function MockEventsOverlay(): React.JSX.Element {
+    return <div data-testid="events-overlay" />;
+  },
+}));
+
+jest.mock("./PlaybackBarHoverTicks", () => ({
+  PlaybackBarHoverTicks: function MockPlaybackBarHoverTicks(): React.JSX.Element {
+    return <div data-testid="playback-bar-hover-ticks" />;
+  },
+}));
+
+jest.mock("./ProgressPlot", () => ({
+  ProgressPlot: function MockProgressPlot(): React.JSX.Element {
+    return <div data-testid="progress-plot" />;
+  },
+}));
+
+jest.mock("./Slider", () => ({
+  __esModule: true,
+  default: function MockSlider(): React.JSX.Element {
+    return <div data-testid="scrubber-slider" />;
+  },
+}));
+
+function SeedEventFeature({ enabled }: { enabled: boolean }): ReactNull {
+  const setDataSource = useCoreData((store: CoreDataStore) => store.setDataSource);
+
+  useEffect(() => {
+    setDataSource(enabled ? { id: "coscene-data-platform", type: "connection" } : undefined);
+  }, [enabled, setDataSource]);
+
+  return ReactNull;
+}
+
+function MomentSubtitleStateProbe(): React.JSX.Element {
+  const enabled = useWorkspaceStore(
+    (store) =>
+      (
+        store.playbackControls as {
+          momentSubtitle?: { enabled: boolean };
+        }
+      ).momentSubtitle?.enabled,
+  );
+  return <div data-testid="moment-subtitle-enabled">{String(enabled)}</div>;
+}
+
+function Wrapper({
+  children,
+  eventEnabled = false,
+}: React.PropsWithChildren<{ eventEnabled?: boolean }>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
       <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
-        <CoSceneConsoleApiContext.Provider value={{} as never}>
+        <CoSceneConsoleApiContext.Provider
+          value={
+            {
+              createEvent: { permission: () => false },
+              updateEvent: { permission: () => false },
+            } as never
+          }
+        >
           <CoreDataProvider>
             <WorkspaceContextProvider disablePersistenceForStorybook>
               <MockMessagePipelineProvider
@@ -35,7 +96,11 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
               >
                 <TimelineInteractionStateProvider>
                   <CoScenePlaylistProvider>
-                    <EventsProvider>{children}</EventsProvider>
+                    <EventsProvider>
+                      <SeedEventFeature enabled={eventEnabled} />
+                      {children}
+                      <MomentSubtitleStateProbe />
+                    </EventsProvider>
                   </CoScenePlaylistProvider>
                 </TimelineInteractionStateProvider>
               </MockMessagePipelineProvider>
@@ -48,6 +113,10 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
 }
 
 describe("<Scrubber />", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("keeps the first moment lane at least 4px below the bag file bar", () => {
     render(
       <Wrapper>
@@ -60,5 +129,38 @@ describe("<Scrubber />", () => {
     );
 
     expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
+  });
+
+  it("renders and toggles the moment subtitle button when events are enabled", async () => {
+    render(
+      <Wrapper eventEnabled>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    const subtitleButton = await screen.findByLabelText("Enable moment subtitles");
+
+    expect(within(subtitleButton).getByTestId("moment-subtitle-icon-inactive")).toBeTruthy();
+    expect(within(subtitleButton).queryByTestId("moment-subtitle-icon-active")).toBeNull();
+    expect(screen.getByTestId("moment-subtitle-enabled").textContent).toBe("false");
+
+    fireEvent.click(subtitleButton);
+
+    expect(screen.getByTestId("moment-subtitle-enabled").textContent).toBe("true");
+    expect(screen.getByLabelText("Disable moment subtitles")).toBeTruthy();
+    expect(within(subtitleButton).getByTestId("moment-subtitle-icon-active")).toBeTruthy();
+    expect(within(subtitleButton).queryByTestId("moment-subtitle-icon-inactive")).toBeNull();
+  });
+
+  it("shows the moment subtitle toggle without event write permission", async () => {
+    render(
+      <Wrapper eventEnabled>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    expect(await screen.findByLabelText("Enable moment subtitles")).toBeTruthy();
+    expect(screen.queryByLabelText("Enable linked event adjustment")).toBeNull();
+    expect(screen.queryByLabelText("Disable linked event adjustment")).toBeNull();
   });
 });
