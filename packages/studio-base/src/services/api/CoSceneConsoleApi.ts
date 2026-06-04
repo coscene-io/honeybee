@@ -1009,13 +1009,20 @@ class CoSceneConsoleApi {
     });
   }
 
-  public async deleteEvent({ eventName }: { eventName: string }): Promise<Empty> {
-    const deleteEventRequest = create(DeleteEventRequestSchema, {
-      name: eventName,
-    });
+  public deleteEvent = Object.assign(
+    async ({ eventName }: { eventName: string }): Promise<Empty> => {
+      const deleteEventRequest = create(DeleteEventRequestSchema, {
+        name: eventName,
+      });
 
-    return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
-  }
+      return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.DeleteEvent, this.#permissionList);
+      },
+    },
+  );
 
   public updateEvent = Object.assign(
     async ({ event, updateMask }: { event: Event; updateMask: FieldMask }): Promise<void> => {
