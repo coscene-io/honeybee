@@ -1,0 +1,11 @@
+# CODEOWNERS for honeybee.
+# Generated from recent module-level Git history; keep broad by design.
+
+* @Woodii1998
+
+/packages/ @Woodii1998
+/web/ @Woodii1998
+/desktop/ @Woodii1998
+/benchmark/ @Woodii1998
+/ci/ @Woodii1998
+
