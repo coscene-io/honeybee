@@ -48,7 +48,7 @@ const kMaxLength = Math.pow(2, 32);
 
 export default class VirtualLRUBuffer {
   public readonly byteLength: number; // How many bytes does this buffer represent.
-  #blocks: Uint8Array[] = []; // Actual `Buffer` for each block.
+  #blocks: (Uint8Array | undefined)[] = []; // Actual `Buffer` for each block.
   // How many bytes is each block. This used to work up to 2GiB minus a byte, and now seems to crash
   // past 2GiB minus 4KiB. Default to 1GiB so we don't get caught out next time the limit drops.
   #blockSize: number = Math.trunc(kMaxLength / 2);
@@ -162,7 +162,7 @@ export default class VirtualLRUBuffer {
       }
     }
     const block = this.#blocks[index];
-    if (!block) {
+    if (block == undefined) {
       throw new Error("invariant violation - no block at index");
     }
     return block;

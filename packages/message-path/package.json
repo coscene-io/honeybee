@@ -23,8 +23,8 @@
     "nearley": "2.20.1"
   },
   "devDependencies": {
-    "@foxglove/tsconfig": "2.0.0",
+    "@foxglove/tsconfig": "3.2.0",
     "@types/nearley": "2.11.5",
-    "typescript": "5.3.3"
+    "typescript": "5.9.3"
   }
 }

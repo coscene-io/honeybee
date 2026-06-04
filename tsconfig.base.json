@@ -1,0 +1,23 @@
+// Shared TypeScript configuration for this repository.
+//
+// Keep this small: it adapts the latest @foxglove/tsconfig defaults to the
+// compiler behavior this codebase already uses.
+{
+  "extends": "@foxglove/tsconfig/base",
+  "compilerOptions": {
+    "module": "es2022",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "importHelpers": true,
+    "allowJs": false,
+    "composite": false,
+    "incremental": false,
+    "resolveJsonModule": true,
+    "erasableSyntaxOnly": false,
+    "noUncheckedSideEffectImports": false,
+    "rewriteRelativeImportExtensions": false,
+    "verbatimModuleSyntax": false
+  }
+}

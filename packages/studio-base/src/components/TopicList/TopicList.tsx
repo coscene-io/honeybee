@@ -120,11 +120,10 @@ export function TopicList(): React.JSX.Element {
   const latestTreeItems = useLatest(treeItems);
 
   const getSelectedItemsAsDraggedMessagePaths = useCallback(() => {
-    return filterMap(Array.from(getSelectedIndexes()).sort(), (index) =>
-      latestTreeItems.current[index]
-        ? getDraggedMessagePath(latestTreeItems.current[index]!)
-        : undefined,
-    );
+    return filterMap(Array.from(getSelectedIndexes()).sort(), (index) => {
+      const treeItem = latestTreeItems.current[index];
+      return treeItem ? getDraggedMessagePath(treeItem) : undefined;
+    });
   }, [getSelectedIndexes, latestTreeItems]);
 
   const handleContextMenu = useCallback(

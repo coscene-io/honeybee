@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+const prettierPlugin = require("eslint-plugin-prettier");
 const tssUnusedClasses = require("eslint-plugin-tss-unused-classes");
 const globals = require("globals");
 const tslintPlugin = require("typescript-eslint");
@@ -88,6 +89,7 @@ module.exports = tslintPlugin.config(
 
   {
     plugins: {
+      prettier: prettierPlugin,
       "tss-unused-classes": tssUnusedClasses,
       "@foxglove/studio": foxgloveEslintPluginStudio,
     },

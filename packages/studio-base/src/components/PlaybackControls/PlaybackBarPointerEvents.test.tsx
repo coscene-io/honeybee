@@ -63,7 +63,7 @@ describe("Playback bar pointer events", () => {
   it("keeps bags overlay out of hit testing", () => {
     const { container } = render(
       <Wrapper>
-        <BagsOverlay />
+        <BagsOverlay viewport={viewport} />
       </Wrapper>,
     );
 
