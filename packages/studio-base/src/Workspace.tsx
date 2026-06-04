@@ -29,6 +29,7 @@ import {
 import { DeepLinksSyncAdapter } from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import { EventsList } from "@foxglove/studio-base/components/Events/EventsList";
+import { MomentSubtitleOverlay } from "@foxglove/studio-base/components/Events/MomentSubtitleOverlay";
 import ExtensionsSettings, {
   ExtensionsSettingsMore,
 } from "@foxglove/studio-base/components/ExtensionsSettings";
@@ -427,6 +428,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
             </Stack>
           </RemountOnValueChange>
         </Sidebars>
+        {enableList.event === "ENABLE" && <MomentSubtitleOverlay />}
         {play != undefined &&
           pause != undefined &&
           seek != undefined &&

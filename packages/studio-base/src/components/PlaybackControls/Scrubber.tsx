@@ -45,7 +45,7 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { BagsOverlay } from "./BagsOverlay";
+import { BAG_OVERLAY_HEIGHT_PX, BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
@@ -62,10 +62,19 @@ import {
   zoomViewportAtTime,
   type TimelineViewport,
 } from "./timelineViewport";
+import MomentSubtitleActiveIcon from "../../assets/moment-subtitle-active.svg";
+import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.svg";
 
 const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
 const TIMELINE_RULER_HEIGHT_PX: number = 14;
+const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
+const EVENT_LANE_LAYER_TOP_PX: number =
+  TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
+
+function isTimelineZoomEnabled(): boolean {
+  return false;
+}
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -146,7 +155,7 @@ const useStyles = makeStyles()((theme) => ({
     pointerEvents: "none",
     position: "absolute",
     right: 0,
-    top: TIMELINE_RULER_HEIGHT_PX,
+    top: EVENT_LANE_LAYER_TOP_PX,
   },
   hoverTickLayer: {
     pointerEvents: "none",
@@ -163,6 +172,8 @@ const selectRecord = (store: CoreDataStore) => store.record;
 const selectEvents = (store: EventsStore) => store.events;
 const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.rollingEditEnabled;
+const selectMomentSubtitleEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.momentSubtitle.enabled;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -201,6 +212,44 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
 
 const MemoedEventButton = React.memo(EventButton);
 
+function MomentSubtitleIcon({ active }: { active: boolean }): React.JSX.Element {
+  const Icon = active ? MomentSubtitleActiveIcon : MomentSubtitleInactiveIcon;
+
+  return (
+    <span
+      aria-hidden="true"
+      data-testid={active ? "moment-subtitle-icon-active" : "moment-subtitle-icon-inactive"}
+      style={{ display: "inline-flex" }}
+    >
+      <Icon focusable="false" />
+    </span>
+  );
+}
+
+function MomentSubtitleButton({
+  enabled,
+  onClick,
+}: {
+  enabled: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("general");
+  const label = t(enabled ? "disableMomentSubtitles" : "enableMomentSubtitles");
+
+  return (
+    <HoverableIconButton
+      aria-label={label}
+      color={enabled ? "primary" : "inherit"}
+      size="small"
+      title={label}
+      icon={<MomentSubtitleIcon active={enabled} />}
+      onClick={onClick}
+    />
+  );
+}
+
+const MemoedMomentSubtitleButton = React.memo(MomentSubtitleButton);
+
 export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
   const { classes } = useStyles();
@@ -223,8 +272,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const record = useCoreData(selectRecord);
   const events = useEvents(selectEvents);
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
+  const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
   const {
-    playbackControlActions: { setRollingEditEnabled },
+    playbackControlActions: { setRollingEditEnabled, setMomentSubtitleEnabled },
   } = useWorkspaceActions();
 
   const setHoverValue = useSetHoverValue();
@@ -361,6 +411,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
       const rect = target.getBoundingClientRect();
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
+        if (!isTimelineZoomEnabled()) {
+          return;
+        }
         const anchorSec = clientXToTime(event.clientX, rect, currentViewport);
         setViewport((oldViewport) => {
           const sourceViewport = oldViewport ?? currentViewport;
@@ -402,7 +455,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const onZoomSliderChange = useCallback(
     (_event: Event, value: number | number[]): void => {
       const currentViewport = latestViewport.current;
-      if (currentViewport == undefined || zoomAnchorSec == undefined) {
+      if (!isTimelineZoomEnabled() || currentViewport == undefined || zoomAnchorSec == undefined) {
         return;
       }
 
@@ -449,13 +502,17 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
     return Math.max(
       MIN_TIMELINE_CONTENT_HEIGHT_PX,
-      TIMELINE_RULER_HEIGHT_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
+      EVENT_LANE_LAYER_TOP_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
     );
   }, [eventLaneCount, previewEventLaneCount]);
 
   const toggleRollingEdit = useCallback((): void => {
     setRollingEditEnabled((old) => !old);
   }, [setRollingEditEnabled]);
+
+  const toggleMomentSubtitle = useCallback((): void => {
+    setMomentSubtitleEnabled((old) => !old);
+  }, [setMomentSubtitleEnabled]);
 
   const handlePreviewEventLaneCountChange = useCallback((laneCount: number | undefined): void => {
     setPreviewEventLaneCount(laneCount);
@@ -468,29 +525,37 @@ export default function Scrubber(props: Props): React.JSX.Element {
           {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
         </div>
         <div className={classes.toolbarActions}>
-          <div className={classes.zoomControl}>
-            <Tooltip title={t("zoomOut")}>
-              <ZoomOutIcon className={classes.zoomIcon} />
-            </Tooltip>
-            <MuiSlider
-              aria-label={t("timelineZoom")}
-              className={classes.zoomSlider}
-              disabled={
-                zoomPercent == undefined ||
-                zoomAnchorSec == undefined ||
-                startTime == undefined ||
-                endTime == undefined
-              }
-              min={0}
-              max={100}
-              size="small"
-              value={zoomPercent ?? 0}
-              onChange={onZoomSliderChange}
+          {isTimelineZoomEnabled() && (
+            <div className={classes.zoomControl}>
+              <Tooltip title={t("zoomOut")}>
+                <ZoomOutIcon className={classes.zoomIcon} />
+              </Tooltip>
+              <MuiSlider
+                aria-label={t("timelineZoom")}
+                className={classes.zoomSlider}
+                disabled={
+                  zoomPercent == undefined ||
+                  zoomAnchorSec == undefined ||
+                  startTime == undefined ||
+                  endTime == undefined
+                }
+                min={0}
+                max={100}
+                size="small"
+                value={zoomPercent ?? 0}
+                onChange={onZoomSliderChange}
+              />
+              <Tooltip title={t("zoomIn")}>
+                <ZoomInIcon className={classes.zoomIcon} />
+              </Tooltip>
+            </div>
+          )}
+          {enableList.event === "ENABLE" && (
+            <MemoedMomentSubtitleButton
+              enabled={momentSubtitleEnabled}
+              onClick={toggleMomentSubtitle}
             />
-            <Tooltip title={t("zoomIn")}>
-              <ZoomInIcon className={classes.zoomIcon} />
-            </Tooltip>
-          </div>
+          )}
           {canWriteEvents && (
             <HoverableIconButton
               size="small"
@@ -566,7 +631,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               <Stack
                 position="absolute"
                 fullWidth
-                style={{ height: 10, top: TIMELINE_RULER_HEIGHT_PX }}
+                style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
               >
                 <BagsOverlay viewport={resolvedViewport} />
               </Stack>

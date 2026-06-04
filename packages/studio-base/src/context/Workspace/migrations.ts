@@ -10,6 +10,7 @@ import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourc
 import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   LeftSidebarItemKey,
+  type MomentSubtitleSettings,
   RightSidebarItemKey,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -37,6 +38,7 @@ type WorkspaceContextStoreV0 = {
     rollingEditEnabled?: boolean;
     speed: PlaybackSpeed;
     timelineHeight?: number;
+    momentSubtitle?: MomentSubtitleSettings;
   };
   prefsDialogState: {
     initialTab: undefined | AppSettingsTab;
@@ -84,6 +86,11 @@ export function migrateV0WorkspaceState(
       rollingEditEnabled: v0State.playbackControls.rollingEditEnabled ?? true,
       speed: v0State.playbackControls.speed,
       timelineHeight: v0State.playbackControls.timelineHeight ?? 200,
+      momentSubtitle: v0State.playbackControls.momentSubtitle ?? {
+        enabled: false,
+        fontSize: 16,
+        position: undefined,
+      },
     },
     layoutDrawer: {
       open: false,

@@ -21,6 +21,7 @@ import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 import {
   LeftSidebarItemKey,
   LeftSidebarItemKeys,
+  type MomentSubtitlePosition,
   RightSidebarItemKey,
   RightSidebarItemKeys,
   WorkspaceContext,
@@ -60,6 +61,9 @@ export type WorkspaceActions = {
     setRollingEditEnabled: Dispatch<SetStateAction<boolean>>;
     setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
     setTimelineHeight: Dispatch<SetStateAction<number>>;
+    setMomentSubtitleEnabled: Dispatch<SetStateAction<boolean>>;
+    setMomentSubtitleFontSize: Dispatch<SetStateAction<number>>;
+    setMomentSubtitlePosition: Dispatch<SetStateAction<undefined | MomentSubtitlePosition>>;
   };
 
   sidebarActions: {
@@ -206,6 +210,24 @@ export function useWorkspaceActions(): WorkspaceActions {
           set((draft) => {
             const timelineHeight = setterValue(setter, draft.playbackControls.timelineHeight);
             draft.playbackControls.timelineHeight = timelineHeight;
+          });
+        },
+        setMomentSubtitleEnabled: (setter: SetStateAction<boolean>) => {
+          set((draft) => {
+            const enabled = setterValue(setter, draft.playbackControls.momentSubtitle.enabled);
+            draft.playbackControls.momentSubtitle.enabled = enabled;
+          });
+        },
+        setMomentSubtitleFontSize: (setter: SetStateAction<number>) => {
+          set((draft) => {
+            const fontSize = setterValue(setter, draft.playbackControls.momentSubtitle.fontSize);
+            draft.playbackControls.momentSubtitle.fontSize = fontSize;
+          });
+        },
+        setMomentSubtitlePosition: (setter: SetStateAction<undefined | MomentSubtitlePosition>) => {
+          set((draft) => {
+            const position = setterValue(setter, draft.playbackControls.momentSubtitle.position);
+            draft.playbackControls.momentSubtitle.position = position;
           });
         },
       },
