@@ -28,7 +28,9 @@ describe("parseChannel", () => {
   });
 
   it("works with flatbuffer", () => {
-    const reflectionSchema = fs.readFileSync(`${__dirname}/fixtures/reflection.bfbs`);
+    const reflectionSchema = Uint8Array.from(
+      fs.readFileSync(`${__dirname}/fixtures/reflection.bfbs`),
+    );
     const channel = parseChannel({
       messageEncoding: "flatbuffer",
       schema: { name: "reflection.Schema", encoding: "flatbuffer", data: reflectionSchema },

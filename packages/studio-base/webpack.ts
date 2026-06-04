@@ -201,27 +201,7 @@ export function makeConfig(
                   "throw new Error('[coScene] This module is not supported in the browser.');",
               },
               {
-                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
-              },
-              {
-                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
-              },
-              {
-                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
-              },
-              {
-                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
-              },
-              {
-                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
-                replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
-              },
-              {
-                search: `return { module:   require(modulePath), modulePath, error: void 0 };`,
+                search: /return \{ module:\s+require\(modulePath\), modulePath, error: void 0 \};/,
                 replace: `throw new Error('[coScene] This module is not supported in the browser.');`,
               },
               {

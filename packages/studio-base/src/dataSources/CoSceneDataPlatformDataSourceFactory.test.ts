@@ -180,7 +180,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
             : undefined,
       },
     });
-    global.fetch = jest.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    global.fetch = jest.fn(async (_input: unknown, init?: RequestInit) => {
       if (init?.method === "HEAD") {
         return { ok: true } as Response;
       }
@@ -193,7 +193,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
           ],
         }),
       } as Response;
-    });
+    }) as unknown as typeof fetch;
 
     await initializeFactory();
 
@@ -219,7 +219,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
             : undefined,
       },
     });
-    global.fetch = jest.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    global.fetch = jest.fn(async (_input: unknown, init?: RequestInit) => {
       if (init?.method === "HEAD") {
         return { ok: true } as Response;
       }
@@ -232,7 +232,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
           ],
         }),
       } as Response;
-    });
+    }) as unknown as typeof fetch;
 
     await initializeFactory(undefined, { profile: "old-hd" });
 

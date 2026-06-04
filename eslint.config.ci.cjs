@@ -8,11 +8,16 @@
 // We keep some slow lint rules here, and only run them in CI.
 // Please only add rules here if they are unlikely to be encountered
 // during normal development.
+const prettierPlugin = require("eslint-plugin-prettier");
+
 const baseConfig = require("./eslint.config.cjs");
 
 module.exports = [
   ...baseConfig,
   {
+    plugins: {
+      prettier: prettierPlugin,
+    },
     rules: {
       // disable progress spinner
       "file-progress/activate": "off",

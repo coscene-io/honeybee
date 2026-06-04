@@ -61,7 +61,7 @@ export function scalarMultiply(vector: number[], scalar: number): number[] {
   const ret = vector.slice();
   let i;
   for (i = 0; i < ret.length; ++i) {
-    ret[i] *= scalar;
+    ret[i] = ret[i]! * scalar;
   }
   return ret;
 }

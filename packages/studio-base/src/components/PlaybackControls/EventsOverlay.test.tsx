@@ -48,6 +48,14 @@ jest.mock("react-resize-detector", () => ({
 
 const viewport = makeTimelineViewport(0, 10);
 
+type ConsoleApi = NonNullable<React.ContextType<typeof CoSceneConsoleApiContext>>;
+
+function makeConsoleApiMock(
+  overrides: Partial<Record<keyof ConsoleApi, unknown>> = {},
+): ConsoleApi {
+  return overrides as unknown as ConsoleApi;
+}
+
 function defer<T>(): {
   promise: Promise<T>;
   reject: (reason?: unknown) => void;
@@ -191,7 +199,7 @@ function makeTimelineInteractionStore(
 
 function Wrapper({
   children,
-  consoleApi = {} as React.ContextType<typeof CoSceneConsoleApiContext>,
+  consoleApi = makeConsoleApiMock(),
   eventsStore,
   timelineInteractionStore,
 }: React.PropsWithChildren<{
@@ -476,7 +484,7 @@ describe("<EventsOverlay />", () => {
 
     render(
       <Wrapper
-        consoleApi={{ updateEvent } as React.ContextType<typeof CoSceneConsoleApiContext>}
+        consoleApi={makeConsoleApiMock({ updateEvent })}
         eventsStore={eventsStore}
         timelineInteractionStore={timelineInteractionStore}
       >
@@ -514,7 +522,7 @@ describe("<EventsOverlay />", () => {
 
     render(
       <Wrapper
-        consoleApi={{ updateEvent } as React.ContextType<typeof CoSceneConsoleApiContext>}
+        consoleApi={makeConsoleApiMock({ updateEvent })}
         eventsStore={eventsStore}
         timelineInteractionStore={timelineInteractionStore}
       >
@@ -562,7 +570,7 @@ describe("<EventsOverlay />", () => {
 
     render(
       <Wrapper
-        consoleApi={{ updateEvent } as React.ContextType<typeof CoSceneConsoleApiContext>}
+        consoleApi={makeConsoleApiMock({ updateEvent })}
         eventsStore={eventsStore}
         timelineInteractionStore={timelineInteractionStore}
       >
@@ -657,7 +665,7 @@ describe("<EventsOverlay />", () => {
 
     render(
       <Wrapper
-        consoleApi={{ updateEvent } as React.ContextType<typeof CoSceneConsoleApiContext>}
+        consoleApi={makeConsoleApiMock({ updateEvent })}
         eventsStore={eventsStore}
         timelineInteractionStore={timelineInteractionStore}
       >
@@ -697,7 +705,7 @@ describe("<EventsOverlay />", () => {
 
       render(
         <Wrapper
-          consoleApi={{ updateEvent } as React.ContextType<typeof CoSceneConsoleApiContext>}
+          consoleApi={makeConsoleApiMock({ updateEvent })}
           eventsStore={eventsStore}
           timelineInteractionStore={timelineInteractionStore}
         >

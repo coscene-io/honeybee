@@ -201,7 +201,7 @@ export function registerRosPackageProtocolHandlers(): void {
       const pngData = PNG.sync.write(png);
 
       // 返回转换后的 PNG 数据
-      return new Response(pngData, {
+      return new Response(Uint8Array.from(pngData), {
         headers: {
           "Content-Type": "image/png",
         },

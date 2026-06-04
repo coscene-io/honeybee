@@ -11,10 +11,28 @@ import { useCallback } from "react";
 import { useAsync } from "react-use";
 
 import Stack from "@foxglove/studio-base/components/Stack";
-import Plot, { PlotConfig } from "@foxglove/studio-base/panels/Plot";
-import { fixture, paths } from "@foxglove/studio-base/panels/Plot/index.stories";
+import Plot from "@foxglove/studio-base/panels/Plot";
+import { PlotConfig } from "@foxglove/studio-base/panels/Plot/config";
+import { fixture } from "@foxglove/studio-base/panels/Plot/storyFixtures";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 import { useReadySignal, ReadySignal } from "@foxglove/studio-base/stories/ReadySignalContext";
+
+const paths: PlotConfig["paths"] = [
+  { value: "/some_topic/location.pose.velocity", enabled: true, timestampMethod: "receiveTime" },
+  {
+    value: "/some_topic/location.pose.acceleration",
+    enabled: true,
+    timestampMethod: "receiveTime",
+  },
+  {
+    value: "/some_topic/location.pose.acceleration.@derivative",
+    enabled: true,
+    timestampMethod: "receiveTime",
+  },
+  { value: "/boolean_topic.data", enabled: true, timestampMethod: "receiveTime" },
+  { value: "/some_topic/state.items[0].speed", enabled: true, timestampMethod: "receiveTime" },
+  { value: "/some_topic/location.header.stamp", enabled: true, timestampMethod: "receiveTime" },
+];
 
 export default {
   title: "panels/Plot/PlotLegend",

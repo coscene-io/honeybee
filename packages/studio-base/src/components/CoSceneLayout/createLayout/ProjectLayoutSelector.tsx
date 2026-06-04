@@ -47,7 +47,7 @@ export function ProjectLayoutSelector({
 
       try {
         const result = await consoleApi.getProjectLayout({ name: layoutName });
-        const data = result.data?.toJson() as LayoutData;
+        const data = result.data! as LayoutData;
         onChange(data, displayName);
       } catch (error) {
         console.error(error);

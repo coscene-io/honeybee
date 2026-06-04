@@ -4,7 +4,7 @@
   "devDependencies": {
     "@foxglove/log": "workspace:*",
     "@foxglove/studio-web": "workspace:*",
-    "@foxglove/tsconfig": "2.0.0",
+    "@foxglove/tsconfig": "3.2.0",
     "@sentry/browser": "8.24.0",
     "@sentry/webpack-plugin": "2.22.0",
     "@types/serve-handler": "^6",

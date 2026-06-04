@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@coscene-io/comlink": "4.4.1",
-    "@foxglove/tsconfig": "2.0.0",
-    "typescript": "5.3.3"
+    "@foxglove/tsconfig": "3.2.0",
+    "typescript": "5.9.3"
   }
 }

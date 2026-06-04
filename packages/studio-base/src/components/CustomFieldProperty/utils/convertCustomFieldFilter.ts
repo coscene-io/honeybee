@@ -6,13 +6,28 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { Property } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
-import type {
-  FilterItemProps,
-  FilterItemType,
-  FilterOption,
-} from "@coscene-io/data-platform-web/src/components/search/utils";
 
 import { BinaryOperator } from "@foxglove/studio-base/util/coscene";
+
+type FilterItemType = "text" | "multiSelect";
+
+type FilterOption = {
+  content: string;
+  keyword: string;
+  value: string;
+};
+
+type FilterItemProps = {
+  field: {
+    fieldRaw: string;
+    jsonPath: string[];
+    operators: BinaryOperator[];
+  };
+  label: string;
+  name: string;
+  options: FilterOption[];
+  type: FilterItemType;
+};
 
 function convertCustomFieldFilter(property: Property, fieldRaw: string = "custom_fields") {
   let type: FilterItemType = "text";

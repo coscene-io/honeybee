@@ -48,6 +48,10 @@ const STL_MIME_TYPES = ["model/stl", "model/x.stl-ascii", "model/x.stl-binary", 
 const DAE_MIME_TYPES = ["model/vnd.collada+xml"];
 const OBJ_MIME_TYPES = ["model/obj", "text/prs.wavefront-obj"];
 
+function copyToArrayBuffer(data: Uint8Array): ArrayBuffer {
+  return Uint8Array.from(data).buffer;
+}
+
 export class ModelCache {
   #textDecoder = new TextDecoder();
   #models = new Map<string, Promise<LoadedModel | undefined>>();
@@ -112,11 +116,7 @@ export class ModelCache {
     if (STL_MIME_TYPES.includes(contentType) || /\.stl$/i.test(url)) {
       // Create a copy of the array buffer to respect the `byteOffset` and `byteLength` value as
       // the underlying three.js STLLoader only accepts an ArrayBuffer instance.
-      return this.#loadSTL(
-        url,
-        buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
-        this.options.meshUpAxis,
-      );
+      return this.#loadSTL(url, copyToArrayBuffer(buffer), this.options.meshUpAxis);
     }
 
     // Check if this is a COLLADA file based on content-type or file extension
@@ -224,7 +224,7 @@ export class ModelCache {
         }
         const textureAsset = await this.#fetchAsset(textureUrl);
         const objectUrl = URL.createObjectURL(
-          new Blob([textureAsset.data], { type: textureAsset.mediaType }),
+          new Blob([Uint8Array.from(textureAsset.data)], { type: textureAsset.mediaType }),
         );
         this.#colladaTextureObjectUrls.set(textureUrl, objectUrl);
       } catch (e) {
