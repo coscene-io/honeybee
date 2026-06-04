@@ -18,7 +18,13 @@ export const event = {
   createTaskSuccess: "Create task success",
   creationUnavailableInCurrentPeriod: "The current time period does not support creating a moment",
   delete: "Delete",
-  deleteConfirmPrompt: "Are you sure you want to delete this moment?",
+  deleteAll: "Delete All",
+  deleteAllConfirmPrompt:
+    "After deletion, moments cannot be restored. Please proceed with caution.",
+  deleteAllConfirmTitle: "Delete All Moments",
+  deleteAllMomentsPartialFailed:
+    "Deleted {{successCount}} moments. Failed to delete {{failureCount}} moments.",
+  deleteConfirmPrompt: "After deletion, moments cannot be restored. Please proceed with caution.",
   deleteConfirmTitle: "Delete Moment",
   description: "Description",
   duplicateKey: "Duplicate key",
@@ -41,6 +47,7 @@ export const event = {
   maxFilesNumber: "Select at most {{maxFilesNumber}} file",
   metadata: "Metadata",
   momentDeleted: "Moment deleted",
+  allMomentsDeleted: "Deleted {{count}} moments",
   momentName: "Moment Name",
   moments: "Moments",
   momentTips: "A moment is a keyframe in visual records",
