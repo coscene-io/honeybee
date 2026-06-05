@@ -19,12 +19,15 @@ import {
   clampBrightness,
   clampContrast,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/utils";
-import { WorkerImageDecoder } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/WorkerImageDecoder";
+import {
+  DecodeVideoFramesResult,
+  WorkerImageDecoder,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/WorkerImageDecoder";
 import { projectPixel } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/projections";
 import { RosValue } from "@foxglove/studio-base/players/types";
 
 import { AnyImage, CompressedVideo } from "./ImageTypes";
-import { decodeCompressedImageToBitmap, isVideoKeyframe } from "./decodeImage";
+import { decodeCompressedImageToBitmap } from "./decodeImage";
 import { CameraInfo } from "../../ros";
 import {
   DECODE_IMAGE_ERR_KEY,
@@ -72,6 +75,13 @@ type PendingDecodedImage = {
   onDecoded: (() => void) | undefined;
 };
 
+type PendingVideoDecode = {
+  frame: CompressedVideo;
+  receiveTime: bigint;
+  settled: boolean;
+  resolve: (result: DecodedImageResource) => void;
+};
+
 export type ImageUserData = BaseUserData & {
   topic: string;
   settings: ImageRenderableSettings;
@@ -109,6 +119,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   #lastRenderImage = 0;
   #pendingDecodedImage: PendingDecodedImage | undefined;
   #pendingRenderTimeout: ReturnType<typeof setTimeout> | undefined;
+  #pendingVideoDecodes: PendingVideoDecode[] = [];
+  #pendingVideoDecodeScheduled = false;
+  #videoDecodeRequestId = 0;
 
   #disposed = false;
 
@@ -136,6 +149,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       clearTimeout(this.#pendingRenderTimeout);
       this.#pendingRenderTimeout = undefined;
     }
+    this.#cancelPendingVideoDecodes();
     this.userData.texture?.dispose();
     this.userData.material?.dispose();
     this.userData.geometry?.dispose();
@@ -148,6 +162,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
    * reference frame cache so that the decoder starts fresh from the next keyframe.
    */
   public resetForSeek(): void {
+    this.#videoDecodeRequestId++;
+    this.#cancelPendingVideoDecodes();
     void this.decoder?.resetVideoDecoder();
   }
 
@@ -384,32 +400,101 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
         const decoder = (this.decoder ??= new WorkerImageDecoder());
 
-        assert(this.userData.firstMessageTime != undefined, "firstMessageTime must be set");
-
-        // Handle seek backwards: if this is a keyframe with an earlier timestamp,
-        // update firstMessageTime to use it as the new reference point
-        const currentFrameTime = toNanoSec(frameMsg.timestamp);
-        if (isVideoKeyframe(frameMsg) && currentFrameTime < this.userData.firstMessageTime) {
-          log.debug(
-            `Seek detected: updating firstMessageTime from ${this.userData.firstMessageTime} to ${currentFrameTime}`,
-          );
-          this.userData.firstMessageTime = currentFrameTime;
-        }
-
-        const decodedFrame = await decoder.decodeVideoFrame(
-          frameMsg,
-          this.userData.firstMessageTime,
-        );
-        if (decodedFrame != undefined) {
-          return decodedFrame;
-        }
-        if (isVideoFrame(this.#decodedImage) && this.userData.messageTime === currentFrameTime) {
-          return this.#decodedImage;
-        }
-        return createEmptyVideoFrame();
+        return await this.#decodeCompressedVideoFrame(decoder, frameMsg);
       }
     }
     return await (this.decoder ??= new WorkerImageDecoder()).decode(image, this.userData.settings);
+  }
+
+  async #decodeCompressedVideoFrame(
+    decoder: WorkerImageDecoder,
+    frameMsg: CompressedVideo,
+  ): Promise<DecodedImageResource> {
+    return await new Promise<DecodedImageResource>((resolve) => {
+      this.#pendingVideoDecodes.push({
+        frame: frameMsg,
+        receiveTime: this.userData.receiveTime,
+        settled: false,
+        resolve,
+      });
+
+      if (!this.#pendingVideoDecodeScheduled) {
+        this.#pendingVideoDecodeScheduled = true;
+        queueMicrotask(() => {
+          this.#pendingVideoDecodeScheduled = false;
+          void this.#flushPendingVideoDecodes(decoder);
+        });
+      }
+    });
+  }
+
+  async #flushPendingVideoDecodes(decoder: WorkerImageDecoder): Promise<void> {
+    const entries = this.#pendingVideoDecodes;
+    if (entries.length === 0) {
+      return;
+    }
+    this.#pendingVideoDecodes = [];
+
+    const requestId = ++this.#videoDecodeRequestId;
+    const result = await decoder.decodeVideoFrames({
+      requestId,
+      frames: entries.map((entry) => ({ frame: entry.frame, receiveTime: entry.receiveTime })),
+    });
+
+    if (this.isDisposed() || result.requestId !== this.#videoDecodeRequestId) {
+      closeDecodeResultFrame(result);
+      for (const entry of entries) {
+        this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+      }
+      return;
+    }
+
+    if (result.type !== "TargetFrame" && result.type !== "IntermediateFrame") {
+      for (const entry of entries) {
+        this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+      }
+      return;
+    }
+
+    const resultEntry =
+      entries.find(
+        (entry) =>
+          toNanoSec(entry.frame.timestamp) === result.originalTimestamp &&
+          entry.receiveTime === result.receiveTime,
+      ) ?? entries[entries.length - 1]!;
+
+    for (const entry of entries) {
+      if (entry === resultEntry) {
+        continue;
+      }
+      this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+    }
+    this.#settleVideoDecode(resultEntry, result.frame);
+  }
+
+  #settleVideoDecode(entry: PendingVideoDecode, result: DecodedImageResource): void {
+    if (entry.settled) {
+      this.#closeDecodedImageIfUnused(result);
+      return;
+    }
+    entry.settled = true;
+    entry.resolve(result);
+  }
+
+  #cancelPendingVideoDecodes(): void {
+    const entries = this.#pendingVideoDecodes;
+    this.#pendingVideoDecodes = [];
+    for (const entry of entries) {
+      this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+    }
+  }
+
+  #fallbackVideoFrame(frameMsg: CompressedVideo): DecodedImageResource {
+    const currentFrameTime = toNanoSec(frameMsg.timestamp);
+    if (isVideoFrame(this.#decodedImage) && this.userData.messageTime === currentFrameTime) {
+      return this.#decodedImage;
+    }
+    return createEmptyVideoFrame();
   }
 
   public update(): void {
@@ -760,6 +845,12 @@ function closeDecodedImageResource(resource: unknown): void {
   }
   if (typeof ImageBitmap !== "undefined" && resource instanceof ImageBitmap) {
     resource.close();
+  }
+}
+
+function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
+  if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
+    result.frame.close();
   }
 }
 

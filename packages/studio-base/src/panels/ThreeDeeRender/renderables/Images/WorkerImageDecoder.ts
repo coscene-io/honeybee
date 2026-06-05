@@ -14,6 +14,26 @@ import type { CompressedVideo } from "./ImageTypes";
 import { decodeRawImage, RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
+export type DecodeVideoFrameInput = {
+  frame: CompressedVideo;
+  receiveTime: bigint;
+};
+
+export type DecodeVideoFramesArgs = {
+  frames: DecodeVideoFrameInput[];
+  requestId: number;
+};
+
+export type DecodeVideoFramesResult =
+  | {
+      type: "TargetFrame" | "IntermediateFrame";
+      requestId: number;
+      frame: VideoFrame;
+      originalTimestamp: bigint;
+      receiveTime: bigint;
+    }
+  | { type: "Timeout" | "Aborted"; requestId: number };
+
 /**
  * Provides a worker that can process RawImages on a background thread.
  *
@@ -54,9 +74,13 @@ export class WorkerImageDecoder {
 
   public async decodeVideoFrame(
     frame: CompressedVideo,
-    firstMessageTime: bigint,
+    _firstMessageTime?: bigint,
   ): Promise<VideoFrame | undefined> {
-    return await this.#remote.decodeVideoFrame(frame, firstMessageTime);
+    return await this.#remote.decodeVideoFrame(frame);
+  }
+
+  public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
+    return await this.#remote.decodeVideoFrames(args);
   }
 
   public async resetVideoDecoder(): Promise<void> {
