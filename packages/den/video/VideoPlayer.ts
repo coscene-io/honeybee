@@ -20,6 +20,8 @@ export type VideoPlayerEventTypes = {
 };
 
 const log = Logger.getLogger(__filename);
+const MAX_BUFFERED_FRAMES = 1;
+const MAX_TIMED_OUT_TIMESTAMPS = 1024;
 
 /**
  * A wrapper around the WebCodecs VideoDecoder API that uses an async queue model
@@ -42,6 +44,12 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
   /** Whether we have received a keyframe and can start decoding */
   #foundKeyFrame = false;
 
+  #pendingByTimestamp = new Map<
+    number,
+    { resolve: (frame: VideoFrame | undefined) => void; timer: ReturnType<typeof setTimeout> }
+  >();
+  #timedOutTimestamps = new Set<number>();
+
   // Stores the last decoded frame as an ImageBitmap, should be set after decode()
   public lastImageBitmap: ImageBitmap | undefined;
 
@@ -54,9 +62,6 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     super();
     this.#decoderInit = {
       output: (videoFrame: VideoFrame) => {
-        // Push new frame to buffer
-        this.#frameBuffer.push(videoFrame);
-
         // Update coded size from the frame
         if (!this.#codedSize) {
           this.#codedSize = { width: 0, height: 0 };
@@ -65,6 +70,24 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
         this.#codedSize.height = videoFrame.codedHeight;
 
         this.emit("frame", videoFrame);
+
+        const pending = this.#pendingByTimestamp.get(videoFrame.timestamp);
+        if (pending) {
+          this.#pendingByTimestamp.delete(videoFrame.timestamp);
+          clearTimeout(pending.timer);
+          pending.resolve(videoFrame);
+          return;
+        }
+
+        if (this.#timedOutTimestamps.delete(videoFrame.timestamp)) {
+          videoFrame.close();
+          return;
+        }
+
+        this.#frameBuffer.push(videoFrame);
+        while (this.#frameBuffer.length > MAX_BUFFERED_FRAMES) {
+          this.#frameBuffer.shift()?.close();
+        }
       },
       error: (error) => this.emit("error", error),
     };
@@ -229,6 +252,83 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     return this.#frameBuffer.length;
   }
 
+  public async decodeAndWaitForFrame(
+    data: Uint8Array,
+    timestampMicros: number,
+    type: "key" | "delta",
+    timeoutMs = 1000,
+  ): Promise<VideoFrame | undefined> {
+    if (this.#decoder.state === "closed") {
+      this.emit("warn", "VideoDecoder is closed, creating a new one");
+      this.#decoder = new VideoDecoder(this.#decoderInit);
+    }
+
+    if (this.#decoder.state === "unconfigured") {
+      return undefined;
+    }
+
+    if (type === "key") {
+      this.#foundKeyFrame = true;
+    }
+    if (!this.#foundKeyFrame) {
+      return undefined;
+    }
+
+    const ts = Math.trunc(timestampMicros);
+    this.#timedOutTimestamps.delete(ts);
+
+    const existing = this.#pendingByTimestamp.get(ts);
+    if (existing) {
+      clearTimeout(existing.timer);
+      this.#pendingByTimestamp.delete(ts);
+      existing.resolve(undefined);
+    }
+
+    const framePromise = new Promise<VideoFrame | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        this.#pendingByTimestamp.delete(ts);
+        this.#timedOutTimestamps.add(ts);
+        if (this.#timedOutTimestamps.size > MAX_TIMED_OUT_TIMESTAMPS) {
+          const oldestTimedOutTimestamp = this.#timedOutTimestamps.values().next().value;
+          if (oldestTimedOutTimestamp != undefined) {
+            this.#timedOutTimestamps.delete(oldestTimedOutTimestamp);
+          }
+        }
+        resolve(undefined);
+      }, timeoutMs);
+      this.#pendingByTimestamp.set(ts, { resolve, timer });
+    });
+
+    try {
+      this.#decoder.decode(new EncodedVideoChunk({ type, data, timestamp: ts }));
+    } catch (unk) {
+      const pending = this.#pendingByTimestamp.get(ts);
+      if (pending) {
+        clearTimeout(pending.timer);
+        this.#pendingByTimestamp.delete(ts);
+        pending.resolve(undefined);
+      }
+      this.emit(
+        "error",
+        new Error(
+          `Failed to decode ${data.byteLength} byte chunk at time ${ts}: ${(unk as Error).message}`,
+        ),
+      );
+      return undefined;
+    }
+
+    return await framePromise;
+  }
+
+  #clearPending(): void {
+    for (const pending of this.#pendingByTimestamp.values()) {
+      clearTimeout(pending.timer);
+      pending.resolve(undefined);
+    }
+    this.#pendingByTimestamp.clear();
+    this.#timedOutTimestamps.clear();
+  }
+
   /**
    * Reset the VideoDecoder and clear any pending frames, but do not clear any
    * cached stream information or decoder configuration. This should be called
@@ -252,6 +352,8 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     }
     this.#frameBuffer = [];
 
+    this.#clearPending();
+
     // Reset keyframe tracking - need a new keyframe after seek
     this.#foundKeyFrame = false;
   }
@@ -271,6 +373,7 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     }
     this.#frameBuffer = [];
 
+    this.#clearPending();
     this.#foundKeyFrame = false;
   }
 }

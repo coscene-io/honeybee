@@ -55,6 +55,8 @@ import {
   ISerializedIterableSource,
   IteratorResult,
 } from "./IIterableSource";
+import { KeyframeIndex } from "./keyframeIndex";
+import { gopBackfillForVideo } from "./videoBackfill";
 
 const log = Log.getLogger(__filename);
 
@@ -159,6 +161,7 @@ export class IterablePlayer implements Player {
   #subscriptions: SubscribePayload[] = [];
   #allTopics: TopicSelection = new Map();
   #preloadTopics: TopicSelection = new Map();
+  readonly #videoKeyframeIndexes = new Map<string, KeyframeIndex>();
 
   #progress: Progress = {};
   #id: string = uuidv4();
@@ -778,7 +781,8 @@ export class IterablePlayer implements Player {
     }
 
     // Ensure the seek time is always within the data source bounds
-    const targetTime = clampTime(this.#seekTarget, this.#start, this.#end);
+    const startTime = this.#start;
+    const targetTime = clampTime(this.#seekTarget, startTime, this.#end);
 
     this.#lastMessageEvent = undefined;
 
@@ -796,10 +800,22 @@ export class IterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
+      const abortSignal = this.#abort.signal;
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
-        abortSignal: this.#abort.signal,
+        abortSignal,
+      });
+
+      await this.#bufferImpl.stopProducer();
+      const backfillMessages = await gopBackfillForVideo({
+        source: this.#bufferedSource,
+        backfillMessages: messages,
+        subscriptions: this.#allTopics,
+        targetTime,
+        startTime,
+        abortSignal,
+        keyframeIndexes: this.#videoKeyframeIndexes,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout
@@ -809,7 +825,7 @@ export class IterablePlayer implements Player {
         return;
       }
 
-      this.#messages = messages;
+      this.#messages = backfillMessages;
       this.#currentTime = targetTime;
       this.#lastSeekEmitTime = Date.now();
       this.#presence = PlayerPresence.PRESENT;

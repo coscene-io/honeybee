@@ -62,6 +62,15 @@ export const IMAGE_RENDERABLE_DEFAULT_SETTINGS: ImageRenderableSettings = {
 };
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
+const MIN_IMAGE_RENDER_INTERVAL_MS = 16;
+
+type DecodedImageResource = ImageBitmap | ImageData | VideoFrame;
+
+type PendingDecodedImage = {
+  seq: number;
+  result: DecodedImageResource;
+  onDecoded: (() => void) | undefined;
+};
 
 export type ImageUserData = BaseUserData & {
   topic: string;
@@ -92,12 +101,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #isUpdating = false;
 
-  #decodedImage?: ImageBitmap | ImageData | VideoFrame;
+  #decodedImage?: DecodedImageResource;
   protected decoder?: WorkerImageDecoder;
   #receivedImageSequenceNumber = 0;
   #displayedImageSequenceNumber = 0;
   #showingErrorImage = false;
   #lastRenderImage = 0;
+  #pendingDecodedImage: PendingDecodedImage | undefined;
+  #pendingRenderTimeout: ReturnType<typeof setTimeout> | undefined;
 
   #disposed = false;
 
@@ -119,6 +130,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     closeDecodedImageResource(textureImage);
     if (this.#decodedImage !== textureImage) {
       closeDecodedImageResource(this.#decodedImage);
+    }
+    this.#clearPendingDecodedImage(this.#decodedImage);
+    if (this.#pendingRenderTimeout != undefined) {
+      clearTimeout(this.#pendingRenderTimeout);
+      this.#pendingRenderTimeout = undefined;
     }
     this.userData.texture?.dispose();
     this.userData.material?.dispose();
@@ -220,45 +236,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     decodePromise
       .then((result) => {
-        // Check if result is a reused frame (same as current #decodedImage).
-        // If so, we must NOT close it as it's still being used by the texture.
-        const isReusedFrame = result === this.#decodedImage;
-
-        if (this.isDisposed()) {
-          if (!isReusedFrame) {
-            closeDecodedImageResource(result);
-          }
-          return;
-        }
-        // prevent displaying an image older than the one currently displayed
-        if (this.#displayedImageSequenceNumber > seq) {
-          if (!isReusedFrame) {
-            closeDecodedImageResource(result);
-          }
-          return;
-        }
-        if (isReusedFrame) {
-          this.#displayedImageSequenceNumber = seq;
-          this.update();
-          this.#showingErrorImage = false;
-          this.removeError(DECODE_IMAGE_ERR_KEY);
-          return;
-        }
-        // cap at 60 fps
-        if (this.#lastRenderImage > Date.now() - 16) {
-          closeDecodedImageResource(result);
-          return;
-        }
-        this.#lastRenderImage = Date.now();
-        this.#displayedImageSequenceNumber = seq;
-        this.#decodedImage = result;
-        this.#textureNeedsUpdate = true;
-        this.update();
-        this.#showingErrorImage = false;
-
-        onDecoded?.();
-        this.removeError(DECODE_IMAGE_ERR_KEY);
-        this.renderer.queueAnimationFrame();
+        this.#handleDecodedImage(seq, result, onDecoded);
       })
       .catch((err: unknown) => {
         log.error(err);
@@ -271,6 +249,101 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         }
         this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
       });
+  }
+
+  #handleDecodedImage(
+    seq: number,
+    result: DecodedImageResource,
+    onDecoded: (() => void) | undefined,
+  ): void {
+    if (this.isDisposed()) {
+      this.#closeDecodedImageIfUnused(result);
+      return;
+    }
+
+    if (this.#displayedImageSequenceNumber > seq) {
+      this.#closeDecodedImageIfUnused(result);
+      return;
+    }
+
+    if (result === this.#decodedImage) {
+      this.#displayedImageSequenceNumber = seq;
+      this.update();
+      this.#showingErrorImage = false;
+      this.removeError(DECODE_IMAGE_ERR_KEY);
+      return;
+    }
+
+    if (seq < this.#receivedImageSequenceNumber) {
+      this.#closeDecodedImageIfUnused(result);
+      return;
+    }
+
+    const nextRenderDelayMs = this.#lastRenderImage + MIN_IMAGE_RENDER_INTERVAL_MS - Date.now();
+    if (nextRenderDelayMs > 0) {
+      this.#setPendingDecodedImage({ seq, result, onDecoded });
+      this.#pendingRenderTimeout ??= setTimeout(() => {
+        this.#pendingRenderTimeout = undefined;
+        this.#flushPendingDecodedImage();
+      }, nextRenderDelayMs);
+      return;
+    }
+
+    this.#displayDecodedImage(seq, result, onDecoded);
+  }
+
+  #displayDecodedImage(
+    seq: number,
+    result: DecodedImageResource,
+    onDecoded: (() => void) | undefined,
+  ): void {
+    this.#clearPendingDecodedImage(result);
+    if (this.#pendingRenderTimeout != undefined) {
+      clearTimeout(this.#pendingRenderTimeout);
+      this.#pendingRenderTimeout = undefined;
+    }
+
+    this.#lastRenderImage = Date.now();
+    this.#displayedImageSequenceNumber = seq;
+    this.#decodedImage = result;
+    this.#textureNeedsUpdate = true;
+    this.update();
+    this.#showingErrorImage = false;
+
+    onDecoded?.();
+    this.removeError(DECODE_IMAGE_ERR_KEY);
+    this.renderer.queueAnimationFrame();
+  }
+
+  #setPendingDecodedImage(pending: PendingDecodedImage): void {
+    this.#clearPendingDecodedImage(pending.result);
+    this.#pendingDecodedImage = pending;
+  }
+
+  #flushPendingDecodedImage(): void {
+    const pending = this.#pendingDecodedImage;
+    if (!pending) {
+      return;
+    }
+    this.#pendingDecodedImage = undefined;
+    this.#handleDecodedImage(pending.seq, pending.result, pending.onDecoded);
+  }
+
+  #clearPendingDecodedImage(keep?: DecodedImageResource): void {
+    const pending = this.#pendingDecodedImage;
+    if (!pending) {
+      return;
+    }
+    this.#pendingDecodedImage = undefined;
+    if (pending.result !== keep) {
+      this.#closeDecodedImageIfUnused(pending.result);
+    }
+  }
+
+  #closeDecodedImageIfUnused(result: DecodedImageResource): void {
+    if (result !== this.#decodedImage) {
+      closeDecodedImageResource(result);
+    }
   }
 
   async #setErrorImage(seq: number, onDecoded?: () => void): Promise<void> {
@@ -330,7 +403,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (decodedFrame != undefined) {
           return decodedFrame;
         }
-        if (isVideoFrame(this.#decodedImage)) {
+        if (isVideoFrame(this.#decodedImage) && this.userData.messageTime === currentFrameTime) {
           return this.#decodedImage;
         }
         return createEmptyVideoFrame();

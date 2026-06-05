@@ -337,6 +337,108 @@ describe("ImageRenderable", () => {
     }
   });
 
+  it("flushes the newest decoded frame after the render throttle window", async () => {
+    jest.useFakeTimers();
+    const time = mockDateNow();
+    try {
+      const frame1 = new MockVideoFrame() as unknown as VideoFrame;
+      const frame2 = new MockVideoFrame() as unknown as VideoFrame;
+      const onDecoded = jest.fn();
+      const renderable = new TestImageRenderable([frame1, frame2]);
+
+      renderable.setImage(sampleVideo, undefined, onDecoded);
+      await flushPromises();
+
+      time.advance(1);
+      jest.clearAllMocks();
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } }, undefined, onDecoded);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame1);
+      expect(renderable.userData.texture?.image).toBe(frame1);
+      expect((frame2 as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+
+      time.advance(15);
+      jest.advanceTimersByTime(15);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame2);
+      expect(renderable.userData.texture?.image).toBe(frame2);
+      expect((frame1 as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect((frame2 as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+      expect(mockRenderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
+      expect(onDecoded).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+      jest.useRealTimers();
+    }
+  });
+
+  it("closes the replaced pending decoded frame", async () => {
+    jest.useFakeTimers();
+    const time = mockDateNow();
+    try {
+      const frame1 = new MockVideoFrame() as unknown as VideoFrame;
+      const pendingFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const newestFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const renderable = new TestImageRenderable([frame1, pendingFrame, newestFrame]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+
+      time.advance(1);
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      await flushPromises();
+
+      time.advance(1);
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
+      await flushPromises();
+
+      expect((pendingFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+
+      time.advance(15);
+      jest.advanceTimersByTime(15);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(newestFrame);
+      expect((newestFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+      jest.useRealTimers();
+    }
+  });
+
+  it("closes pending decoded frame and cancels its timer on dispose", async () => {
+    jest.useFakeTimers();
+    const time = mockDateNow();
+    try {
+      const frame1 = new MockVideoFrame() as unknown as VideoFrame;
+      const pendingFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const renderable = new TestImageRenderable([frame1, pendingFrame]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+
+      time.advance(1);
+      jest.clearAllMocks();
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      await flushPromises();
+
+      renderable.dispose();
+      expect((pendingFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+
+      time.advance(15);
+      jest.advanceTimersByTime(15);
+      await flushPromises();
+
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+      jest.useRealTimers();
+    }
+  });
+
   it("should not close the same video frame twice on dispose", async () => {
     const time = mockDateNow();
     try {

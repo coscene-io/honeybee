@@ -56,14 +56,7 @@ export class WorkerImageDecoder {
     frame: CompressedVideo,
     firstMessageTime: bigint,
   ): Promise<VideoFrame | undefined> {
-    // Split into two separate Comlink calls to allow WebCodecs output callback to execute.
-    // WebCodecs VideoDecoder.decode() is async - the output callback fires after the current
-    // JS execution context completes. By making two independent RPC calls, we create an
-    // event loop gap between frame submission and retrieval, giving the decoder time to
-    // process and output the frame before we try to fetch it.
-    await this.#remote.decodeVideoFrame(frame, firstMessageTime);
-
-    return await this.#remote.getLatestVideoFrame();
+    return await this.#remote.decodeVideoFrame(frame, firstMessageTime);
   }
 
   public async resetVideoDecoder(): Promise<void> {
