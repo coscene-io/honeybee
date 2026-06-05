@@ -6355,7 +6355,7 @@ __metadata:
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
     "@rspack/core": 1.6.7
-    "@sentry/core": 8.24.0
+    "@sentry/core": 10.56.0
     "@sentry/types": 8.24.0
     "@storybook/addon-actions": 8.2.8
     "@storybook/jest": 0.2.3
@@ -8357,6 +8357,13 @@ __metadata:
   bin:
     sentry-cli: bin/sentry-cli
   checksum: 92e88688b5148e5abed2cc253290008da89029c5816d7f1bdb5fbed035305c0bcfb5f49e4976ff8ced5fbb876d28e655eef838d32c7a388d3582654ff67d65e0
+  languageName: node
+  linkType: hard
+
+"@sentry/core@npm:10.56.0":
+  version: 10.56.0
+  resolution: "@sentry/core@npm:10.56.0"
+  checksum: c98ae994c5fefafe283b598cdac4b9514f62e0a4b950cc1d0e359cc369c25a966e48c09f6bc0286383b704f4ca87ab7b446eddf7ea6cb46660cd16aed26df001
   languageName: node
   linkType: hard
 
