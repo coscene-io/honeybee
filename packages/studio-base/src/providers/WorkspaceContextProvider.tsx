@@ -59,6 +59,10 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
         fontSize: 16,
         position: undefined,
       },
+      thumbnails: {
+        enabled: true,
+        topic: undefined,
+      },
     },
     layoutDrawer: {
       open: false,

@@ -66,6 +66,13 @@ export type WorkspaceContextStore = {
     speed: PlaybackSpeed;
     timelineHeight: number;
     momentSubtitle: MomentSubtitleSettings;
+    /** Video thumbnail strip shown along the timeline. */
+    thumbnails: {
+      /** Whether the thumbnail strip is shown. Auto-enabled when a recording has video tracks. */
+      enabled: boolean;
+      /** Topic of the CompressedVideo track to render thumbnails for. Auto-picked when undefined. */
+      topic: undefined | string;
+    };
   };
   sidebars: {
     left: {

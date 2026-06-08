@@ -51,6 +51,8 @@ import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
+import { ThumbnailTrackButton } from "./ThumbnailTrackButton";
+import { VideoThumbnailOverlay } from "./VideoThumbnailOverlay";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
 import {
   clientXToTime,
@@ -174,6 +176,14 @@ const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.rollingEditEnabled;
 const selectMomentSubtitleEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.momentSubtitle.enabled;
+const selectThumbnailsEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.thumbnails.enabled;
+const selectThumbnailTopic = (store: WorkspaceContextStore) =>
+  store.playbackControls.thumbnails.topic;
+const selectSortedTopics = (ctx: MessagePipelineContext) => ctx.sortedTopics;
+
+const COMPRESSED_VIDEO_SCHEMA = "foxglove.CompressedVideo";
+const THUMBNAIL_STRIP_HEIGHT_PX: number = 48;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
@@ -273,9 +283,41 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const events = useEvents(selectEvents);
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
   const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
+  const thumbnailsEnabled = useWorkspaceStore(selectThumbnailsEnabled);
+  const thumbnailTopic = useWorkspaceStore(selectThumbnailTopic);
+  const sortedTopics = useMessagePipeline(selectSortedTopics);
   const {
-    playbackControlActions: { setRollingEditEnabled, setMomentSubtitleEnabled },
+    playbackControlActions: {
+      setRollingEditEnabled,
+      setMomentSubtitleEnabled,
+      setThumbnailsEnabled,
+      setThumbnailTopic,
+    },
   } = useWorkspaceActions();
+
+  // Video tracks available for the thumbnail strip.
+  const videoTopics = useMemo(
+    () => sortedTopics.filter((topic) => topic.schemaName === COMPRESSED_VIDEO_SCHEMA),
+    [sortedTopics],
+  );
+  // The effective thumbnail topic: the user's choice if still present, else the first video track.
+  const resolvedThumbnailTopic = useMemo(() => {
+    if (thumbnailTopic != undefined && videoTopics.some((topic) => topic.name === thumbnailTopic)) {
+      return thumbnailTopic;
+    }
+    return videoTopics[0]?.name;
+  }, [thumbnailTopic, videoTopics]);
+
+  // Auto-pick the first video track when thumbnails are enabled and none is chosen yet.
+  useEffect(() => {
+    if (thumbnailsEnabled && thumbnailTopic == undefined && resolvedThumbnailTopic != undefined) {
+      setThumbnailTopic(resolvedThumbnailTopic);
+    }
+  }, [thumbnailsEnabled, thumbnailTopic, resolvedThumbnailTopic, setThumbnailTopic]);
+
+  const toggleThumbnailsEnabled = useCallback((): void => {
+    setThumbnailsEnabled((old) => !old);
+  }, [setThumbnailsEnabled]);
 
   const setHoverValue = useSetHoverValue();
 
@@ -550,6 +592,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
               </Tooltip>
             </div>
           )}
+          <ThumbnailTrackButton
+            enabled={thumbnailsEnabled}
+            topic={resolvedThumbnailTopic}
+            videoTopics={videoTopics}
+            onToggleEnabled={toggleThumbnailsEnabled}
+            onSelectTopic={setThumbnailTopic}
+          />
           {enableList.event === "ENABLE" && (
             <MemoedMomentSubtitleButton
               enabled={momentSubtitleEnabled}
@@ -634,6 +683,20 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
               >
                 <BagsOverlay viewport={resolvedViewport} />
+              </Stack>
+            )}
+            {resolvedViewport && thumbnailsEnabled && resolvedThumbnailTopic != undefined && (
+              <Stack
+                position="absolute"
+                fullWidth
+                style={{ height: THUMBNAIL_STRIP_HEIGHT_PX, bottom: 0, left: 0 }}
+              >
+                <VideoThumbnailOverlay
+                  enabled={thumbnailsEnabled}
+                  topic={resolvedThumbnailTopic}
+                  startTime={startTime}
+                  endTime={endTime}
+                />
               </Stack>
             )}
             <div className={classes.laneLayer} data-testid="event-lane-layer">

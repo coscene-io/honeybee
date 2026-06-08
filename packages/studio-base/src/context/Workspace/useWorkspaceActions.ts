@@ -64,6 +64,8 @@ export type WorkspaceActions = {
     setMomentSubtitleEnabled: Dispatch<SetStateAction<boolean>>;
     setMomentSubtitleFontSize: Dispatch<SetStateAction<number>>;
     setMomentSubtitlePosition: Dispatch<SetStateAction<undefined | MomentSubtitlePosition>>;
+    setThumbnailsEnabled: Dispatch<SetStateAction<boolean>>;
+    setThumbnailTopic: Dispatch<SetStateAction<undefined | string>>;
   };
 
   sidebarActions: {
@@ -228,6 +230,18 @@ export function useWorkspaceActions(): WorkspaceActions {
           set((draft) => {
             const position = setterValue(setter, draft.playbackControls.momentSubtitle.position);
             draft.playbackControls.momentSubtitle.position = position;
+          });
+        },
+        setThumbnailsEnabled: (setter: SetStateAction<boolean>) => {
+          set((draft) => {
+            const enabled = setterValue(setter, draft.playbackControls.thumbnails.enabled);
+            draft.playbackControls.thumbnails.enabled = enabled;
+          });
+        },
+        setThumbnailTopic: (setter: SetStateAction<undefined | string>) => {
+          set((draft) => {
+            const topic = setterValue(setter, draft.playbackControls.thumbnails.topic);
+            draft.playbackControls.thumbnails.topic = topic;
           });
         },
       },
