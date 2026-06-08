@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -204,7 +204,7 @@ export function parseChannel(
         ? parseRos2idl(schema)
         : parseMessageDefinition(schema, { ros2: true });
 
-      const reader = new ROS2MessageReader(parsedDefinitions);
+      const reader = new ROS2MessageReader(parsedDefinitions, { timeType: "sec,nsec" });
 
       return {
         datatypes: parsedDefinitionsToDatatypes(parsedDefinitions, channel.schema.name),

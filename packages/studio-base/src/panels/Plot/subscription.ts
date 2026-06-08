@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -12,7 +12,9 @@ import type {
   SubscriptionPreloadType,
 } from "@foxglove/studio-base/players/types";
 
-const typeIsName = (part: Immutable<MessagePathPart>) => part.type === "name";
+type NamePart = Immutable<Extract<MessagePathPart, { type: "name" }>>;
+
+const typeIsName = (part: Immutable<MessagePathPart>): part is NamePart => part.type === "name";
 
 export function pathToSubscribePayload(
   path: Immutable<MessagePath>,
@@ -21,7 +23,7 @@ export function pathToSubscribePayload(
   const { messagePath: parts, topicName: topic } = path;
 
   const firstField = parts.find(typeIsName);
-  if (firstField == undefined || firstField.type !== "name" || firstField.name.length === 0) {
+  if (firstField == undefined || firstField.name.length === 0) {
     return undefined;
   }
 

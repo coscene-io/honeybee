@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as Comlink from "comlink";
+import * as Comlink from "@coscene-io/comlink";
 
 import { abortSignalTransferHandler } from "@foxglove/comlink-transfer-handlers";
 import { Immutable, MessageEvent } from "@foxglove/studio";
@@ -50,12 +50,16 @@ export class WorkerIterableSourceWorker implements IIterableSource {
   }
 
   public getMessageCursor(
-    args: Omit<Immutable<MessageIteratorArgs>, "abort">,
+    args: Omit<Immutable<MessageIteratorArgs>, "abortSignal">,
     abort?: AbortSignal,
   ): IMessageCursor & Comlink.ProxyMarked {
-    const iter = this._source.messageIterator(args);
+    const iter = this._source.messageIterator({ ...args, abortSignal: abort });
     const cursor = new IteratorCursor(iter, abort);
     return Comlink.proxy(cursor);
+  }
+
+  public async terminate(): Promise<void> {
+    await this._source.terminate?.();
   }
 }
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,6 +16,7 @@ import {
   listItemSecondaryActionClasses,
 } from "@mui/material";
 import { ChangeEventHandler, FocusEventHandler, KeyboardEvent, useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles()((theme) => ({
@@ -55,6 +56,7 @@ export function ScriptListItem({
   const { classes } = useStyles();
   const [label, setLabel] = useState(title);
   const [editMode, setEditMode] = useState(false);
+  const { t } = useTranslation("userScriptEditor");
 
   const onChange: ChangeEventHandler<HTMLInputElement> = useCallback((event) => {
     const name = event.target.value;
@@ -111,8 +113,8 @@ export function ScriptListItem({
           {!editMode && (
             <IconButton
               size="small"
-              aria-title="rename"
-              title="Rename"
+              aria-label={t("rename")}
+              title={t("rename")}
               onClick={() => {
                 setEditMode(true);
               }}
@@ -122,8 +124,8 @@ export function ScriptListItem({
           )}
           <IconButton
             size="small"
-            aria-title="delete"
-            title="Delete"
+            aria-label={t("delete")}
+            title={t("delete")}
             color="error"
             onClick={onDelete}
           >
@@ -133,7 +135,13 @@ export function ScriptListItem({
       }
     >
       {editMode ? (
-        <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+        <ListItemText
+          slotProps={{
+            primary: {
+              variant: "body2",
+            },
+          }}
+        >
           <InputBase
             autoFocus
             fullWidth
@@ -154,7 +162,12 @@ export function ScriptListItem({
         >
           <ListItemText
             primary={title}
-            primaryTypographyProps={{ variant: "body2", noWrap: true }}
+            slotProps={{
+              primary: {
+                variant: "body2",
+                noWrap: true,
+              },
+            }}
           />
         </ListItemButton>
       )}

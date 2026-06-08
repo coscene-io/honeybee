@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,12 +16,8 @@ import PanelCatalogContext, {
   PanelCatalog,
   PanelInfo,
 } from "@foxglove/studio-base/context/PanelCatalogContext";
-import * as generalPanels from "@foxglove/studio-base/panels";
-import * as suporPanels from "@foxglove/studio-base/panels/suporPanels";
+import * as panels from "@foxglove/studio-base/panels";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
-import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
-
-const panels = getDomainConfig().logo === "supor" ? suporPanels : generalPanels;
 
 type PanelProps = {
   config: unknown;

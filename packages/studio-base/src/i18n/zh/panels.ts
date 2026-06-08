@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -52,4 +52,6 @@ export const panels: Partial<TypeOptions["resources"]["panels"]> = {
   variableSliderDescription: "更新布局的数字变量值。",
   settings: "设置",
   momentsBarDesc: "以卡片形式显示一刻信息",
+  dataCollection: "数据采集",
+  dataCollectionDescription: "通过实时连接，向设备的 service 发送指令采集数据",
 };

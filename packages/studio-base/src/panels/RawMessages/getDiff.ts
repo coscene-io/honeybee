@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -40,7 +40,8 @@ export const diffLabels = {
   ID: { labelText: "STUDIO_DIFF___ID" },
 } as const;
 
-export const diffLabelsByLabelText = _.keyBy(Object.values(diffLabels), "labelText");
+export const diffLabelsByLabelText: Record<string, (typeof diffLabels)[keyof typeof diffLabels]> =
+  _.keyBy(Object.values(diffLabels), "labelText");
 
 export type DiffObject = Record<string, unknown>;
 export default function getDiff({

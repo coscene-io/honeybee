@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,26 +6,25 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // coScene custom tools
-import { createPromiseClient, PromiseClient, Interceptor } from "@bufbuild/connect";
-import { createGrpcWebTransport } from "@bufbuild/connect-web";
-import { ServiceType, Timestamp, Value, JsonObject } from "@bufbuild/protobuf";
-import { ACCESS_TOKEN_NAME } from "@coscene-io/coscene/queries";
-import {
-  Layout,
-  LayoutDetail,
-} from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/layout_pb";
-import { File } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { StatusCode } from "grpc-web";
+import { DescService } from "@bufbuild/protobuf";
+import { createClient, Client, Interceptor, Code } from "@connectrpc/connect";
+import { createGrpcWebTransport } from "@connectrpc/connect-web";
+import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
-import { LayoutID, ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
+
+export function isAuthlessDataSource(): boolean {
+  return false;
+}
 
 // window.navigator.platform is not reliable, use this function to check os
 export function getOS(): string | undefined {
@@ -67,8 +66,8 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
   } catch (error: any) {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
-    if (error.code === StatusCode.UNAUTHENTICATED) {
-      if (window.location.pathname !== "/login") {
+    if (error.code === Code.Unauthenticated) {
+      if (window.location.pathname !== "/login" && !isAuthlessDataSource()) {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {
@@ -99,55 +98,36 @@ const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-export function getPromiseClient<T extends ServiceType>(service: T): PromiseClient<T> {
-  return createPromiseClient(
+export function getPromiseClient<T extends DescService>(service: T): Client<T> {
+  return createClient(
     service,
     createGrpcWebTransport({
-      baseUrl: window.cosConfig.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
+      baseUrl: getAppConfig().VITE_APP_BASE_API_URL ?? "https://api.dev.coscene.cn",
       interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
     }),
   );
 }
 
-// protobuf => JsonObject is not support undefind type so we need to replace undefined with null
-function replaceUndefinedWithNull(obj: Record<string, unknown>) {
-  Object.keys(obj).forEach((key) => {
-    if (obj[key] != undefined && typeof obj[key] === "object") {
-      replaceUndefinedWithNull(obj[key] as Record<string, unknown>);
-    } else if (obj[key] == undefined) {
-      obj[key] = ReactNull;
+export function replaceNullWithUndefined(obj: unknown): unknown {
+  // eslint-disable-next-line no-restricted-syntax
+  if (obj == null) {
+    return undefined;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullWithUndefined);
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceNullWithUndefined(value);
     }
-  });
+    return result;
+  }
+
   return obj;
 }
-
-export const getCoSceneLayout = (layout: {
-  id: LayoutID | undefined;
-  savedAt: ISO8601Timestamp | undefined;
-  name: string | undefined;
-  permission: "CREATOR_WRITE" | "ORG_READ" | "ORG_WRITE" | undefined;
-  data: Record<string, unknown> | undefined;
-  userId: string;
-}): Layout => {
-  const newLayout = new Layout();
-  newLayout.name =
-    layout.permission === "CREATOR_WRITE"
-      ? `users/${layout.userId}/layouts/${layout.id}`
-      : "layouts/" + (layout.id ?? "");
-  const layoutDetail = new LayoutDetail();
-
-  layoutDetail.name = layout.name ?? "";
-  layoutDetail.permission = layout.permission ?? "";
-  layoutDetail.createTime = Timestamp.fromDate(new Date());
-  layoutDetail.updateTime = Timestamp.fromDate(new Date());
-  layoutDetail.saveTime = Timestamp.fromDate(new Date(layout.savedAt ?? ""));
-
-  layoutDetail.data = Value.fromJson(replaceUndefinedWithNull(layout.data ?? {}) as JsonObject);
-
-  newLayout.value = layoutDetail;
-
-  return newLayout;
-};
 
 // 将任意字符串映射为一颜色
 export function stringToColor(str: string): string {

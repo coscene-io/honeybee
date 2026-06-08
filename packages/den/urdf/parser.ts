@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -393,10 +393,11 @@ function parseFloatAttributeOptional(xml: Element, attribName: string): number |
 }
 
 function parseFloatContent(xml: Element): number {
-  if (xml.textContent == undefined) {
+  const text = xml.textContent;
+  if (text.length === 0) {
     throw new Error(`expected float value in "${xml}"`);
   }
-  return parseFloat(xml.textContent);
+  return parseFloat(text);
 }
 
 function defaultPose(): Pose {

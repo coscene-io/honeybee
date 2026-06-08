@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,7 +7,7 @@
 
 import { createContext, useContext } from "react";
 
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 const CoSceneConsoleApiContext = createContext<ConsoleApi | undefined>(undefined);
 CoSceneConsoleApiContext.displayName = "ConsoleApiContext";

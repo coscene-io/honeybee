@@ -1,5 +1,6 @@
 *.log
 *.tsbuildinfo
+.eslintcache
 .idea/
 .DS_Store
 .webpack/
@@ -20,3 +21,4 @@ coverage/
 
 # Extensions
 *.foxe
+*.coe

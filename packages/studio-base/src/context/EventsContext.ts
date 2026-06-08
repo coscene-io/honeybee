@@ -1,11 +1,15 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Event } from "@coscene-io/cosceneapis-es/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { Event } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import {
+  CustomFieldSchema,
+  CustomFieldValue,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { StoreApi, useStore } from "zustand";
@@ -27,7 +31,9 @@ export type ToModifyEvent = {
   fileName: string;
   imageFile?: File;
   imgUrl?: string;
+  files?: string[];
   record: string;
+  customFieldValues?: CustomFieldValue[];
 };
 
 /**
@@ -87,9 +93,6 @@ export type EventsStore = {
   /** Used to signal event refreshes. */
   eventFetchCount: number;
 
-  /** Whether events are supported for the currently loaded source. */
-  eventsSupported: boolean;
-
   /** Fetched events for this session. */
   events: AsyncState<TimelinePositionedEvent[]>;
 
@@ -107,6 +110,9 @@ export type EventsStore = {
 
   toModifyEvent: ToModifyEvent | undefined;
 
+  // customFieldValues: CustomFieldValue[];
+  customFieldSchema?: CustomFieldSchema;
+
   /** Refreshes events from api. */
   refreshEvents: () => void;
 
@@ -115,10 +121,6 @@ export type EventsStore = {
 
   /** Set the fetched events. */
   setEvents: (events: AsyncState<TimelinePositionedEvent[]>) => void;
-
-  /** Set the flag indicating support for events. */
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
-  setEventsSupported: (supported: boolean) => void;
 
   /** Update the current filter expression. */
   setFilter: (filter: string) => void;
@@ -130,6 +132,8 @@ export type EventsStore = {
   setEventMarks: (marks: TimelinePositionedEventMark[]) => void;
 
   setToModifyEvent: (toModifyEvent: ToModifyEvent | undefined) => void;
+
+  setCustomFieldSchema: (customFieldSchema?: CustomFieldSchema) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -52,4 +52,7 @@ export const panels = {
   variableSliderDescription: "Update numerical variable values for a layout.",
   settings: "Settings",
   momentsBarDesc: "Displaying momentary information in card form",
+  dataCollection: "Data Collection",
+  dataCollectionDescription:
+    "Send instructions to the device service through a live connection to collect data",
 };

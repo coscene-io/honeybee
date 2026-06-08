@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -85,6 +85,8 @@ export type MockMessagePipelineProps = {
   playerId?: string;
   progress?: Progress;
   urlState?: PlayerURLState;
+  close?: () => void;
+  reOpen?: () => void;
 };
 type MockMessagePipelineState = MessagePipelineInternalState & {
   mockProps: MockMessagePipelineProps;
@@ -193,6 +195,9 @@ function getPublicState(
           condvar.notifyAll();
         };
       },
+
+    reOpen: props.reOpen ?? noop,
+    close: props.close ?? noop,
   };
 }
 

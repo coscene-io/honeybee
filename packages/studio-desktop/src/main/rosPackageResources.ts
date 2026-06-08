@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -154,7 +154,7 @@ export function registerRosPackageProtocolHandlers(): void {
       log.info(`Resolved: ${resolvedResourcePath}`);
 
       // 使用 net.fetch 加载本地文件
-      return await net.fetch(resolvedResourcePath);
+      return await net.fetch(`file://${resolvedResourcePath}`);
     } catch (err) {
       log.error(err);
       return new Response("Not Found", { status: 404 });
@@ -201,7 +201,7 @@ export function registerRosPackageProtocolHandlers(): void {
       const pngData = PNG.sync.write(png);
 
       // 返回转换后的 PNG 数据
-      return new Response(pngData, {
+      return new Response(Uint8Array.from(pngData), {
         headers: {
           "Content-Type": "image/png",
         },

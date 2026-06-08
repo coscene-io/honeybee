@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,7 +17,8 @@ export async function getBagInfo(file: File): Promise<FileInfo> {
   let totalMessages = 0n;
   for (const chunk of bag.chunkInfos) {
     for (const { conn, count } of chunk.connections) {
-      numMessagesByConnectionIndex[conn] += BigInt(count);
+      numMessagesByConnectionIndex[conn] =
+        (numMessagesByConnectionIndex[conn] ?? 0n) + BigInt(count);
       totalMessages += BigInt(count);
     }
   }

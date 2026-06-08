@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,7 +10,7 @@ import { createContext, useContext } from "react";
 import { AppBarProps } from "@foxglove/studio-base/components/AppBar";
 import { CustomWindowControlsProps } from "@foxglove/studio-base/components/AppBar/CustomWindowControls";
 import { IAppConfiguration } from "@foxglove/studio-base/context/AppConfigurationContext";
-import { IDataSourceFactory } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { ExtensionLoader } from "@foxglove/studio-base/services/ExtensionLoader";
 
 interface ISharedRootContext {

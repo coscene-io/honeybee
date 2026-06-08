@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -31,7 +31,7 @@ import Logger from "@foxglove/log";
 import {
   ConfigsPayload,
   SaveConfigsPayload,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+} from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { reportError } from "@foxglove/studio-base/reportError";
 import { TabConfig, TabLocation, TabPanelConfig } from "@foxglove/studio-base/types/layouts";
 import {
@@ -105,6 +105,10 @@ function mapTemplateIdsToNewIds(templateIds: string[]): PanelIdMap {
 
 type IndexableMosaic = MosaicNode<string> & Record<string, unknown>;
 
+function isIndexableMosaic(value: unknown): value is IndexableMosaic {
+  return typeof value === "object" && value != undefined && !Array.isArray(value);
+}
+
 function getLayoutWithNewPanelIds(
   layout: undefined | IndexableMosaic,
   panelIdMap: PanelIdMap,
@@ -120,12 +124,13 @@ function getLayoutWithNewPanelIds(
   }
   const newLayout: Record<string, unknown> = {};
   for (const key in layout) {
-    if (typeof layout[key] === "object" && !Array.isArray(layout[key])) {
-      newLayout[key] = getLayoutWithNewPanelIds(layout[key] as IndexableMosaic, panelIdMap);
-    } else if (typeof layout[key] === "string" && panelIdMap[layout[key] as string] != undefined) {
-      newLayout[key] = panelIdMap[layout[key] as string];
+    const value = layout[key];
+    if (isIndexableMosaic(value)) {
+      newLayout[key] = getLayoutWithNewPanelIds(value, panelIdMap);
+    } else if (typeof value === "string" && panelIdMap[value] != undefined) {
+      newLayout[key] = panelIdMap[value];
     } else {
-      newLayout[key] = layout[key];
+      newLayout[key] = value;
     }
   }
   return newLayout as unknown as MosaicNode<string>;

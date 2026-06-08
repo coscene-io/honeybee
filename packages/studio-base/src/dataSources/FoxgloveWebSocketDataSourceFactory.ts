@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,14 +7,16 @@
 
 import { t } from "i18next";
 
+import Logger from "@foxglove/log";
 import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import FoxgloveWebSocketPlayer from "@foxglove/studio-base/players/FoxgloveWebSocketPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+const log = Logger.getLogger(__filename);
 
 export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-websocket";
@@ -30,37 +32,20 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
   ];
   public showDocs = true;
 
-  // public docsLinks = [
-  //   {
-  //     label: "ROS 1",
-  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros1#foxglove-websocket",
-  //   },
-  //   {
-  //     label: "ROS 2",
-  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/ros2#foxglove-websocket",
-  //   },
-  //   {
-  //     label: "custom data",
-  //     url: "https://docs.foxglove.dev/docs/connecting-to-data/frameworks/custom#foxglove-websocket",
-  //   },
-  // ];
-
-  #confirm: confirmTypes;
   #userId: string;
   #username: string;
   #deviceName: string;
 
-  public constructor({ confirm }: { confirm: confirmTypes }) {
-    const currentUser = localStorage.getItem("current_user") ?? "{}";
-    const currentUserId = JSON.parse(currentUser).userId ?? "";
-    const currentUsername = JSON.parse(currentUser).nickName ?? "";
-    const deviceName = windowAppURLState()?.dsParams?.hostName;
+  public constructor() {
+    const userStore = localStorage.getItem("user-storage") ?? "{}";
+    const userInfo = JSON.parse(userStore);
+    const currentUserId = userInfo?.state?.user?.userId ?? "";
+    const currentUsername = userInfo?.state?.user?.nickName ?? "";
+    const deviceName = windowAppURLState()?.dsParams?.hostName ?? "";
 
     this.#userId = currentUserId;
     this.#username = currentUsername;
-    this.#deviceName = deviceName ?? "unknown";
-
-    this.#confirm = confirm;
+    this.#deviceName = deviceName;
   }
 
   public formConfig = {
@@ -86,19 +71,30 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const url = args.params?.url;
+    const sessionId = args.sessionId;
+    const autoConnectToLan = args.autoConnectToLan ?? true;
     if (!url) {
       return;
     }
+    if (!args.confirm) {
+      throw new Error("WebSocketDataSourceFactory: confirm is undefined");
+    }
+
+    log.debug(`Initializing WebSocketPlayer with url: ${url}, sessionId: ${sessionId}`);
 
     return new FoxgloveWebSocketPlayer({
       url,
       metricsCollector: args.metricsCollector,
       sourceId: this.id,
       params: args.params ?? {},
-      confirm: this.#confirm,
+      confirm: args.confirm,
       userId: this.#userId,
       username: this.#username,
       deviceName: this.#deviceName,
+      authHeader: args.consoleApi?.getAuthHeader() ?? "",
+      retentionWindowMs: args.retentionWindowMs ?? 30 * 1000, // 30 seconds default
+      sessionId,
+      autoConnectToLan,
     });
   }
 }

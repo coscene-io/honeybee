@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -197,6 +197,14 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
     const tf = this.#transforms.remove(time);
     if (tf?.[1]) {
       this.#transformPool.release(tf[1]);
+    }
+  }
+
+  /** Clears all transforms and releases them back to the pool. */
+  public clearTransforms(): void {
+    const removed = this.#transforms.clear();
+    for (const [, tf] of removed) {
+      this.#transformPool.release(tf);
     }
   }
 

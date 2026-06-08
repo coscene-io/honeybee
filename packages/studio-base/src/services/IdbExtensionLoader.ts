@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -88,11 +88,11 @@ export class IdbExtensionLoader implements ExtensionLoader {
     return srcText;
   }
 
-  public async installExtension(foxeFileData: Uint8Array): Promise<ExtensionInfo> {
+  public async installExtension(coeFileData: Uint8Array): Promise<ExtensionInfo> {
     log.debug("Installing extension");
 
     const zip = new JSZip();
-    const content = await zip.loadAsync(foxeFileData);
+    const content = await zip.loadAsync(coeFileData);
 
     const pkgInfoText = await content.file("package.json")?.async("string");
     if (pkgInfoText == undefined) {
@@ -109,7 +109,7 @@ export class IdbExtensionLoader implements ExtensionLoader {
       qualifiedName: qualifiedName(this.namespace, normalizedPublisher, rawInfo),
     };
     await this.#storage.put({
-      content: foxeFileData,
+      content: coeFileData,
       info,
     });
 

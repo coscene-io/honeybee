@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -33,17 +33,26 @@ import {
   useWorkspaceStore,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { getLegalDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import {
   AutoUpdate,
   ColorSchemeSettings,
   LanguageSettings,
-  MessageFramerate,
   TimeFormat,
   TimezoneSettings,
-  AddTopicPrefix,
   CompatibilityMode,
+  RosPackagePath,
+  InactivityTimeout,
+  RetentionWindowMs,
+  RequestWindow,
+  ManifestStorageSourceSettings,
+  ReadAheadDuration,
+  StudioRemoteConfigUrl,
+  AutoConnectToLan,
+  IsRenderAllTabs,
 } from "./settings";
 
 const useStyles = makeStyles()((theme) => ({
@@ -103,11 +112,12 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const TERMS_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnA1CuBWbcU6PH2aXYLGhjrb";
-const PRIVACY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnzZNZ5kAuIw0stvaXxqkFAV";
-const SECURITY_DOC_URL = "https://coscene0.feishu.cn/wiki/wikcnxpT8beRnb3JMLYxRMcBnq0";
-const CONTACT_EMAIL = "contact@coscene.io";
+const CONTACT_EMAIL = "hi@coscene.io";
 const LICENSE_URL = "https://github.com/coscene-io/honeybee/blob/main/LICENSE";
+
+const appConfig = getAppConfig();
+const showLanguageOptions =
+  appConfig.LANGUAGE != undefined && appConfig.LANGUAGE.options.length > 1;
 
 type SectionKey = "contact" | "legal";
 
@@ -135,14 +145,20 @@ export function AppSettingsDialog(
     SectionKey,
     {
       subheader: string;
-      links: { title: string; url?: string }[];
+      links: { title: string; url?: string; target: "_blank" | "_self" }[];
     }
   >([
     [
       "contact",
       {
         subheader: t("contact"),
-        links: [{ title: t("contact"), url: `mailto:${CONTACT_EMAIL}` }],
+        links: [
+          {
+            title: CONTACT_EMAIL,
+            url: `mailto:${CONTACT_EMAIL}?subject=Support%20Request&body=Hello%20Support%20Team`,
+            target: "_self",
+          },
+        ],
       },
     ],
     [
@@ -153,10 +169,23 @@ export function AppSettingsDialog(
           {
             title: t("licenseTerms"),
             url: LICENSE_URL,
+            target: "_blank",
           },
-          { title: t("privacyPolicy"), url: PRIVACY_DOC_URL },
-          { title: t("termsOfService"), url: TERMS_DOC_URL },
-          { title: t("security"), url: SECURITY_DOC_URL },
+          {
+            title: t("privacyPolicy"),
+            url: getLegalDocsLink("privacy"),
+            target: "_blank",
+          },
+          {
+            title: t("termsOfService"),
+            url: getLegalDocsLink("terms"),
+            target: "_blank",
+          },
+          {
+            title: t("security"),
+            url: getLegalDocsLink("security"),
+            target: "_blank",
+          },
         ],
       },
     ],
@@ -221,18 +250,25 @@ export function AppSettingsDialog(
               [classes.tabPanelActive]: activeTab === "general",
             })}
           >
-            <Stack gap={2}>
+            <Stack gap={2} paddingBottom={2}>
               <ColorSchemeSettings />
               <TimezoneSettings />
               <TimeFormat orientation={smUp ? "horizontal" : "vertical"} />
-              <AddTopicPrefix />
               <CompatibilityMode />
-              <MessageFramerate />
-              <LanguageSettings />
+              <RetentionWindowMs />
+              <InactivityTimeout />
+              <RequestWindow />
+              <ManifestStorageSourceSettings />
+              <ReadAheadDuration />
+              {showLanguageOptions && <LanguageSettings />}
+              <IsRenderAllTabs />
+              {isDesktopApp() && <AutoConnectToLan />}
               {supportsAppUpdates && <AutoUpdate />}
+
               {/* CoScene */}
               {/* {!isDesktopApp() && <LaunchDefault />} */}
-              {/* {isDesktopApp() && <RosPackagePath />} */}
+              {isDesktopApp() && <RosPackagePath />}
+              {isDesktopApp() && <StudioRemoteConfigUrl />}
               {/* <Stack>
                 <FormLabel>{t("advanced")}:</FormLabel>
                 <FormControlLabel
@@ -304,7 +340,7 @@ export function AppSettingsDialog(
                         key={link.title}
                         data-testid={link.title}
                         href={link.url}
-                        target="_blank"
+                        target={link.target}
                       >
                         {link.title}
                       </Link>

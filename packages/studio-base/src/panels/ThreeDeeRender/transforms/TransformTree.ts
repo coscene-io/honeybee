@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -180,6 +180,10 @@ export class TransformTree {
   }
 
   public clear(): void {
+    // Release all transforms back to the pool before clearing frames
+    for (const frame of this.#frames.values()) {
+      frame.clearTransforms();
+    }
     this.#frames.clear();
   }
 

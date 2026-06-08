@@ -1,10 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { JsonValue } from "@bufbuild/protobuf";
+import { fromJson, toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import Brightness5Icon from "@mui/icons-material/Brightness5";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
@@ -14,53 +17,72 @@ import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
   Checkbox,
+  Chip,
   Divider,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   FormLabel,
   Link,
   MenuItem,
-  Select,
   SelectChangeEvent,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   ToggleButtonGroupProps,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import moment from "moment-timezone";
-import { MouseEvent, useCallback, useMemo } from "react";
+import { ChangeEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
+import SmartSelect from "@foxglove/studio-base/components/SmartSelect";
 import Stack from "@foxglove/studio-base/components/Stack";
+import {
+  READ_AHEAD_DURATION_DEFAULT_SECONDS,
+  READ_AHEAD_DURATION_MIN_SECONDS,
+  REQUEST_WINDOW_DEFAULT_SECONDS,
+} from "@foxglove/studio-base/constants/appSettingsDefaults";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
-  useAppConfigurationValue,
-  useTopicPrefixConfigurationValue,
-} from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+  COSCENE_VIZ_DATA_BASE_URL,
+  ManifestStorageSource,
+  buildManifestUrl,
+  ensureObjectStorageBaseUrlProtocol,
+  manifestExists,
+} from "@foxglove/studio-base/dataSources/manifestStorage";
+import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Language } from "@foxglove/studio-base/i18n";
 import { reportError } from "@foxglove/studio-base/reportError";
-import { UserPersonalInfo } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
-import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
-const MESSAGE_RATES = [1, 3, 5, 10, 15, 20, 30, 60];
-const LANGUAGE_OPTIONS: { key: Language; value: string }[] = [
-  { key: "en", value: "English" },
-  { key: "zh", value: "中文" },
-  { key: "ja", value: "日本語" },
+const INFINITY_TIME = 1000 * 60 * 60 * 24 * 365 * 100;
+const TIMEOUT_MINUTES = [10, 20, 30, 60, 120, INFINITY_TIME];
+const RETENTION_WINDOW_MS = [
+  0,
+  10 * 1000,
+  20 * 1000,
+  30 * 1000,
+  1 * 60 * 1000,
+  2 * 60 * 1000,
+  3 * 60 * 1000,
+  5 * 60 * 1000,
 ];
-
+const PERSONAL_INFO_CONFIG_ID = "personalInfo";
 const useStyles = makeStyles()((theme) => ({
   autocompleteInput: {
     "&.MuiOutlinedInput-input": {
@@ -83,14 +105,7 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(0.75),
     lineHeight: "1 !important",
   },
-  // versionText: {
-  //   color: theme.palette.text.secondary,
-  //   fontSize: theme.typography.caption.fontSize,
-  //   marginBottom: theme.spacing(1),
-  // },
 }));
-
-const selectUser = (store: UserStore) => store.user;
 
 function formatTimezone(name: string) {
   const tz = moment.tz(name);
@@ -212,7 +227,9 @@ export function TimezoneSettings(): React.ReactElement {
         renderInput={(params) => (
           <TextField
             {...params}
-            inputProps={{ ...params.inputProps, className: classes.autocompleteInput }}
+            slotProps={{
+              htmlInput: { ...params.inputProps, className: classes.autocompleteInput },
+            }}
           />
         )}
         onChange={(_event, value) => void setTimezone(value?.data)}
@@ -299,32 +316,6 @@ export function LaunchDefault(): React.ReactElement {
   );
 }
 
-export function MessageFramerate(): React.ReactElement {
-  const { t } = useTranslation("appSettings");
-  const [messageRate, setMessageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
-  const options = useMemo(
-    () => MESSAGE_RATES.map((rate) => ({ key: rate, text: `${rate}`, data: rate })),
-    [],
-  );
-
-  return (
-    <Stack>
-      <FormLabel>{t("messageRate")} (Hz):</FormLabel>
-      <Select
-        value={messageRate ?? 60}
-        fullWidth
-        onChange={(event) => void setMessageRate(event.target.value as number)}
-      >
-        {options.map((option) => (
-          <MenuItem key={option.key} value={option.key}>
-            {option.text}
-          </MenuItem>
-        ))}
-      </Select>
-    </Stack>
-  );
-}
-
 export function AutoUpdate(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [updatesEnabled = true, setUpdatedEnabled] = useAppConfigurationValue<boolean>(
@@ -372,46 +363,143 @@ export function RosPackagePath(): React.ReactElement {
   );
 }
 
+export function StudioRemoteConfigUrl(): React.ReactElement {
+  const [remoteConfigUrl, setRemoteConfigUrl] = useAppConfigurationValue<string>(
+    AppSetting.REMOTE_CONFIG_URL,
+  );
+  const { t } = useTranslation("settings");
+
+  const initialValueRef = useRef(remoteConfigUrl ?? "");
+  const isChanged = (remoteConfigUrl ?? "") !== initialValueRef.current;
+
+  const appConfig = getAppConfig();
+  const env = appConfig.VITE_APP_PROJECT_ENV;
+
+  const placeholder =
+    env === "aws" || env === "gcp"
+      ? `${t("example")}: https://coscene.io/`
+      : `${t("example")}: https://coscene.cn/`;
+
+  const invalid = useMemo(() => {
+    const value = (remoteConfigUrl ?? "").trim();
+    if (value === "") {
+      return false;
+    }
+    const pattern = /^https:\/\/(?:[a-z0-9-]+\.)*coscene\.(?:io|cn)\/?$/i;
+    return !pattern.test(value);
+  }, [remoteConfigUrl]);
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("domain")} :
+          <Tooltip title={t("domainDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+
+      <TextField
+        fullWidth
+        placeholder={placeholder}
+        value={remoteConfigUrl ?? ""}
+        onChange={(event) => void setRemoteConfigUrl(event.target.value)}
+        error={invalid}
+        helperText={
+          invalid
+            ? t("invalidDomain")
+            : isChanged && (
+                <Trans
+                  t={t}
+                  i18nKey="willTakeEffectOnTheNextStartup"
+                  components={{
+                    Link: (
+                      <Link
+                        href="#"
+                        target="_self"
+                        onClick={() => {
+                          window.location.reload();
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )
+        }
+      />
+    </Stack>
+  );
+}
+
+const selectUser = (store: UserStore) => store.user;
+
 export function LanguageSettings(): React.ReactElement {
   const { t, i18n } = useTranslation("appSettings");
-  const consoleApi = useConsoleApi();
 
-  const [selectedLanguage = "en", setSelectedLanguage] = useAppConfigurationValue<Language>(
-    AppSetting.LANGUAGE,
-  );
-  const userInfo = useCurrentUser(selectUser);
+  const [, setSelectedLanguage] = useAppConfigurationValue<Language>(AppSetting.LANGUAGE);
+  const selectedLanguage: Language = useMemo(() => i18n.language as Language, [i18n.language]);
+
+  const appConfig = getAppConfig();
+  const consoleApi = useConsoleApi();
+  const currentUser = useCurrentUser(selectUser);
+
+  const LANGUAGE_OPTIONS: { key: Language; value: string }[] = useMemo(
+    () =>
+      [
+        { key: "en", value: "English" },
+        { key: "zh", value: "中文" },
+        { key: "ja", value: "日本語" },
+      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key)),
+    [appConfig.LANGUAGE?.options],
+  ) as { key: Language; value: string }[];
 
   const onChangeLanguage = useCallback(
     async (event: SelectChangeEvent<Language>) => {
-      const lang = event.target.value as Language;
-
-      if (!isDesktopApp()) {
-        const userConfigMap = await consoleApi.getUserConfigMap({
-          userId: userInfo?.userId ?? "",
-          configId: "personalInfo",
-        });
-
-        const userConfig = userConfigMap?.value?.toJson() as UserPersonalInfo | undefined;
-        if ((lang === "zh" || lang === "en") && userConfig != undefined) {
-          await consoleApi.upsertUserConfig({
-            userId: userInfo?.userId ?? "",
-            configId: "personalInfo",
-            obj: {
-              ...userConfig,
-              settings: { ...userConfig.settings, language: lang },
-            },
-          });
-        }
-      }
+      const lang = event.target.value;
 
       void setSelectedLanguage(lang);
       await i18n.changeLanguage(lang).catch((error: unknown) => {
         console.error("Failed to switch languages", error);
         reportError(error as Error);
       });
+
+      // Only sync to config map if user is logged in and has permission
+      if (consoleApi.upsertOrgConfigMap.permission() && currentUser?.userId) {
+        const configName = `users/${currentUser.userId}/configMaps/${PERSONAL_INFO_CONFIG_ID}`;
+
+        const userConfig = await consoleApi.getOrgConfigMap({
+          name: configName,
+        });
+
+        const settings = {
+          ...(userConfig.value != undefined &&
+            (toJson(ValueSchema, userConfig.value) as
+              | {
+                  settings?: {
+                    language?: string;
+                  };
+                }
+              | undefined)),
+
+          settings: {
+            language: lang,
+          },
+        };
+
+        void consoleApi.upsertOrgConfigMap({
+          configMap: {
+            name: configName,
+            value:
+              Object.keys(settings).length > 0
+                ? fromJson(ValueSchema, settings as JsonValue)
+                : undefined,
+          },
+        });
+      }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [i18n, setSelectedLanguage],
+
+    [consoleApi, currentUser?.userId, i18n, setSelectedLanguage],
   );
 
   const options: { key: string; text: string; data: string }[] = useMemo(
@@ -421,59 +509,19 @@ export function LanguageSettings(): React.ReactElement {
         text: language.value,
         data: language.key,
       })),
-    [],
+    [LANGUAGE_OPTIONS],
   );
-
-  // <div className={classes.versionText}>
-  //   {t("lastUpdated")}: {dayjs(APP_CONFIG.LAST_BUILD_TIME).format("YYYY-MM-DD HH:mm:ss")}
-  // </div>;
 
   return (
     <Stack>
       <FormLabel>{t("language")}:</FormLabel>
-      <Select<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
+      <SmartSelect<Language> value={selectedLanguage} fullWidth onChange={onChangeLanguage}>
         {options.map((option) => (
           <MenuItem key={option.key} value={option.key}>
             {option.text}
           </MenuItem>
         ))}
-      </Select>
-    </Stack>
-  );
-}
-
-export function AddTopicPrefix(): React.ReactElement {
-  const [, setAddTopicPrefix] = useAppConfigurationValue<string>(AppSetting.ADD_TOPIC_PREFIX);
-  const addTopicPrefix = useTopicPrefixConfigurationValue();
-  const { reloadCurrentSource } = usePlayerSelection();
-  const consoleApi = useConsoleApi();
-
-  const { t } = useTranslation("appSettings");
-
-  return (
-    <Stack>
-      <FormLabel>{t("addTopicPrefix")}:</FormLabel>
-      <ToggleButtonGroup
-        color="primary"
-        size="small"
-        fullWidth
-        exclusive
-        value={addTopicPrefix}
-        onChange={async (_, value?: string) => {
-          if (value != undefined) {
-            await setAddTopicPrefix(value);
-            consoleApi.setAddTopicPrefix(value === "true" ? "true" : "false");
-            await reloadCurrentSource({ addTopicPrefix: value === "true" ? "true" : "false" });
-          }
-        }}
-      >
-        <ToggleButton value="false" data-testid="timeformat-seconds">
-          {t("off")}
-        </ToggleButton>
-        <ToggleButton value="true" data-testid="timeformat-local">
-          {t("on")}
-        </ToggleButton>
-      </ToggleButtonGroup>
+      </SmartSelect>
     </Stack>
   );
 }
@@ -482,7 +530,7 @@ export function CompatibilityMode(): React.ReactElement {
   const [tfCompatibilityMode, setTfCompatibilityMode] = useAppConfigurationValue<string>(
     AppSetting.TF_COMPATIBILITY_MODE,
   );
-  const { t, i18n } = useTranslation("appSettings");
+  const { t } = useTranslation("appSettings");
   const { reloadCurrentSource } = usePlayerSelection();
 
   return (
@@ -496,15 +544,7 @@ export function CompatibilityMode(): React.ReactElement {
                 t={t}
                 i18nKey="tfCompatibilityModeHelp"
                 components={{
-                  Link: (
-                    <Link
-                      href={
-                        i18n.language === "zh"
-                          ? "https://docs.coscene.cn/docs/recipes/viz/options"
-                          : "https://docs.coscene.cn/en/docs/recipes/viz/options"
-                      }
-                    />
-                  ),
+                  Link: <Link href={getDocsLink("/viz/options")} target="_blank" />,
                 }}
               />
             }
@@ -525,6 +565,498 @@ export function CompatibilityMode(): React.ReactElement {
 
             void reloadCurrentSource();
           }
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function InactivityTimeout(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [timeoutMinutes, setTimeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
+  const options = useMemo(
+    () =>
+      TIMEOUT_MINUTES.map((minutes) => ({
+        key: minutes,
+        text: minutes === INFINITY_TIME ? t("neverDisconnect") : `${minutes}`,
+        data: minutes,
+      })),
+    [t],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("inactivityTimeout")} ({t("minutes")}):
+          <Tooltip title={t("inactivityTimeoutDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <SmartSelect
+        value={timeoutMinutes ?? 30}
+        fullWidth
+        onChange={(event) => void setTimeoutMinutes(event.target.value)}
+      >
+        {options.map((option) => (
+          <MenuItem key={option.key} value={option.key}>
+            {option.text}
+          </MenuItem>
+        ))}
+      </SmartSelect>
+    </Stack>
+  );
+}
+
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
+
+export function RetentionWindowMs(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [retentionWindowMs, setRetentionWindowMs] = useAppConfigurationValue<number>(
+    AppSetting.RETENTION_WINDOW_MS,
+  );
+  const dataSource = useCoreData(selectDataSource);
+  const [showTips, setShowTips] = useState(false);
+  const { reloadCurrentSource } = usePlayerSelection();
+
+  const { theme } = useStyles();
+  const getDurationText = useCallback(
+    (ms: number) => {
+      switch (ms) {
+        case 0:
+          return t("noCache");
+        case 10 * 1000:
+          return `10 ${t("seconds")}`;
+        case 20 * 1000:
+          return `20 ${t("seconds")}`;
+        case 30 * 1000:
+          return `30 ${t("seconds")}`;
+        case 60 * 1000:
+          return `1 ${t("minutes")}`;
+        case 1 * 60 * 1000:
+          return `1 ${t("minutes")}`;
+        case 2 * 60 * 1000:
+          return `2 ${t("minutes")}`;
+        case 3 * 60 * 1000:
+          return `3 ${t("minutes")}`;
+        case 5 * 60 * 1000:
+          return `5 ${t("minutes")}`;
+        default:
+          return "";
+      }
+    },
+    [t],
+  );
+
+  const options = useMemo(
+    () =>
+      RETENTION_WINDOW_MS.map((ms) => ({
+        key: ms,
+        text: getDurationText(ms),
+        data: ms,
+      })),
+    [getDurationText],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("retentionWindowMs")}:
+          <Tooltip title={t("retentionWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <SmartSelect
+        value={retentionWindowMs ?? 30 * 1000}
+        fullWidth
+        onChange={(event) => {
+          void setRetentionWindowMs(event.target.value);
+          if (dataSource?.id === "coscene-websocket") {
+            setShowTips(true);
+          }
+        }}
+      >
+        {options.map((option) => (
+          <MenuItem key={option.key} value={option.key}>
+            {option.text}
+          </MenuItem>
+        ))}
+      </SmartSelect>
+      {showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="retentionWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    target="_self"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function RequestWindow(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [requestWindow, setRequestWindow] = useAppConfigurationValue<number>(
+    AppSetting.REQUEST_WINDOW,
+  );
+
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeRequestWindow = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setRequestWindow(undefined);
+      } else {
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setRequestWindow(nextValue);
+        }
+      }
+      setShowTips(true);
+    },
+    [setRequestWindow],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("requestWindow")}:
+          <Tooltip title={t("requestWindowDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={requestWindow}
+        type="number"
+        placeholder={String(REQUEST_WINDOW_DEFAULT_SECONDS)}
+        onChange={onChangeRequestWindow}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="requestWindowNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    target="_self"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+type FixedManifestAvailability = "idle" | "checking" | "available" | "unavailable";
+
+export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull {
+  const { t } = useTranslation("appSettings");
+  const [manifestStorageSource, setManifestStorageSource] = useAppConfigurationValue<string>(
+    AppSetting.MANIFEST_STORAGE_SOURCE,
+  );
+  const dataSource = useCoreData(selectDataSource);
+  const { reloadCurrentSource } = usePlayerSelection();
+  const consoleApi = useConsoleApi();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+  const fixedAvailabilityRequest = useRef(0);
+  const [fixedAvailability, setFixedAvailability] = useState<FixedManifestAvailability>("idle");
+
+  const isCoSceneDataPlatform = dataSource?.id === "coscene-data-platform";
+  const apiBaseInfo = isCoSceneDataPlatform ? consoleApi.getApiBaseInfo() : undefined;
+  const projectId = apiBaseInfo?.projectId;
+  const recordId = apiBaseInfo?.recordId;
+  const objectStorageBaseUrl = getAppConfig().OBJECT_STORAGE_BASE_URL;
+
+  const fixedManifestUrl = useMemo(() => {
+    if (projectId == undefined || recordId == undefined) {
+      return undefined;
+    }
+    return buildManifestUrl(COSCENE_VIZ_DATA_BASE_URL, projectId, recordId);
+  }, [projectId, recordId]);
+
+  useEffect(() => {
+    if (!isCoSceneDataPlatform) {
+      setFixedAvailability("idle");
+      return;
+    }
+    if (fixedManifestUrl == undefined) {
+      setFixedAvailability("unavailable");
+      return;
+    }
+
+    const requestId = fixedAvailabilityRequest.current + 1;
+    fixedAvailabilityRequest.current = requestId;
+    setFixedAvailability("checking");
+    void (async () => {
+      const exists = await manifestExists(fixedManifestUrl);
+      if (fixedAvailabilityRequest.current === requestId) {
+        setFixedAvailability(exists ? "available" : "unavailable");
+      }
+    })();
+
+    return () => {
+      fixedAvailabilityRequest.current += 1;
+    };
+  }, [fixedManifestUrl, isCoSceneDataPlatform]);
+
+  const selectedValue =
+    manifestStorageSource === ManifestStorageSource.CoSceneVizData
+      ? ManifestStorageSource.CoSceneVizData
+      : ManifestStorageSource.Default;
+  const fixedOptionDisabled = fixedAvailability !== "available";
+  const defaultStorageLabel =
+    objectStorageBaseUrl != undefined && objectStorageBaseUrl.length > 0
+      ? ensureObjectStorageBaseUrlProtocol(objectStorageBaseUrl)
+      : "OBJECT_STORAGE_BASE_URL";
+
+  const onChangeManifestStorageSource = useCallback(
+    (event: SelectChangeEvent<ManifestStorageSource>) => {
+      const nextValue = event.target.value as ManifestStorageSource;
+      if (nextValue === ManifestStorageSource.CoSceneVizData && fixedOptionDisabled) {
+        return;
+      }
+      void setManifestStorageSource(nextValue);
+      setShowTips(true);
+    },
+    [fixedOptionDisabled, setManifestStorageSource],
+  );
+
+  if (!isCoSceneDataPlatform) {
+    return ReactNull;
+  }
+
+  return (
+    <Stack>
+      <FormControl fullWidth>
+        <FormLabel>
+          <Stack direction="row" alignItems="center" gap={0.5}>
+            {t("manifestStorageSource")}:
+            <Tooltip title={t("manifestStorageSourceDescription")}>
+              <HelpIcon fontSize="small" />
+            </Tooltip>
+          </Stack>
+        </FormLabel>
+        <SmartSelect<ManifestStorageSource>
+          value={selectedValue}
+          fullWidth
+          onChange={onChangeManifestStorageSource}
+        >
+          <MenuItem value={ManifestStorageSource.Default}>
+            <Stack direction="row" alignItems="center" gap={1} fullWidth zeroMinWidth>
+              <Typography variant="body2" noWrap>
+                {defaultStorageLabel}
+              </Typography>
+              <Chip size="small" label={t("manifestStorageSourceDefaultTag")} />
+            </Stack>
+          </MenuItem>
+          <MenuItem value={ManifestStorageSource.CoSceneVizData} disabled={fixedOptionDisabled}>
+            {COSCENE_VIZ_DATA_BASE_URL}
+          </MenuItem>
+        </SmartSelect>
+        {fixedAvailability === "checking" && (
+          <FormHelperText>{t("manifestStorageSourceChecking")}</FormHelperText>
+        )}
+        {fixedAvailability === "unavailable" && (
+          <FormHelperText>{t("manifestStorageSourceUnavailable")}</FormHelperText>
+        )}
+      </FormControl>
+      {showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="manifestStorageSourceNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    target="_self"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function ReadAheadDuration(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [readAheadDuration, setReadAheadDuration] = useAppConfigurationValue<number>(
+    AppSetting.READ_AHEAD_DURATION,
+  );
+  const dataSource = useCoreData(selectDataSource);
+  const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
+  const { reloadCurrentSource } = usePlayerSelection();
+  const { theme } = useStyles();
+  const [showTips, setShowTips] = useState(false);
+
+  const onChangeReadAheadDuration = useCallback(
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const rawValue = event.target.value;
+      if (rawValue === "") {
+        void setReadAheadDuration(undefined);
+      } else {
+        const nextValue = Number(rawValue);
+        if (Number.isFinite(nextValue) && nextValue > 0) {
+          void setReadAheadDuration(Math.max(nextValue, READ_AHEAD_DURATION_MIN_SECONDS));
+        }
+      }
+      setShowTips(true);
+    },
+    [setReadAheadDuration],
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("readAheadDuration")}:
+          <Tooltip title={t("readAheadDurationDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <TextField
+        fullWidth
+        value={readAheadDuration}
+        type="number"
+        placeholder={String(READ_AHEAD_DURATION_DEFAULT_SECONDS)}
+        onChange={onChangeReadAheadDuration}
+      />
+      {shouldShowReloadTip && showTips && (
+        <Stack>
+          <Typography color={theme.palette.warning.main}>
+            <Trans
+              t={t}
+              i18nKey="readAheadDurationNextEffectiveNotice"
+              components={{
+                Link: (
+                  <Link
+                    href="#"
+                    target="_self"
+                    onClick={async () => {
+                      await reloadCurrentSource();
+                      setShowTips(false);
+                    }}
+                  />
+                ),
+              }}
+            />
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function AutoConnectToLan(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [autoConnectToLan = true, setAutoConnectToLan] = useAppConfigurationValue<boolean>(
+    AppSetting.AUTO_CONNECT_LAN,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("autoConnectToLan")} :
+          <Tooltip title={t("autoConnectToLanDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(autoConnectToLan)}
+        onChange={(_, value?: string) => {
+          void setAutoConnectToLan(value === "true");
+        }}
+      >
+        <ToggleButton value="false" data-testid="timeformat-seconds">
+          {t("off")}
+        </ToggleButton>
+        <ToggleButton value="true" data-testid="timeformat-local">
+          {t("on")}
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
+export function IsRenderAllTabs(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [isRenderAllTabs = false, setIsRenderAllTabs] = useAppConfigurationValue<boolean>(
+    AppSetting.IS_RENDER_ALL_TABS,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("isRenderAllTabs")} :
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(isRenderAllTabs)}
+        onChange={(_, value?: string) => {
+          void setIsRenderAllTabs(value === "true");
         }}
       >
         <ToggleButton value="false" data-testid="timeformat-seconds">

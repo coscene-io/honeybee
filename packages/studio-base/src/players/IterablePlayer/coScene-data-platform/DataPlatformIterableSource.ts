@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,14 +11,14 @@ import * as _ from "lodash-es";
 import Logger from "@foxglove/log";
 import { parseChannel } from "@foxglove/mcap-support";
 import { clampTime, fromRFC3339String, add as addTime, compare, Time } from "@foxglove/rostime";
-import { ParamsFile } from "@foxglove/studio-base/context/CoScenePlaylistContext";
+import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
 import {
   PlayerProblem,
   Topic,
-  MessageEvent,
   TopicStats,
+  type MessageEvent,
 } from "@foxglove/studio-base/players/types";
-import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import ConsoleApi, { CoverageResponse } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { streamMessages, ParsedChannelAndEncodings, StreamParams } from "./streamMessages";
@@ -32,6 +32,10 @@ import {
 } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
+
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
 
 /**
  * The console api methods used by DataPlatformIterableSource.
@@ -49,19 +53,7 @@ type DataPlatformSourceParameters = {
 type DataPlatformIterableSourceOptions = {
   api: DataPlatformInterableSourceConsoleApi;
   params: DataPlatformSourceParameters;
-};
-
-const getPlaybackQualityTranslation = (quality?: string) => {
-  switch (quality) {
-    case "high":
-      return "HIGH";
-    case "low":
-      return "LOW";
-    case "mid":
-      return "MID";
-    default:
-      return "ORIGINAL";
-  }
+  requestWindow?: Time;
 };
 
 export class DataPlatformIterableSource implements IIterableSource {
@@ -71,6 +63,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   #params: DataPlatformSourceParameters;
   #start?: Time;
   #end?: Time;
+
+  #requestWindow: Time = getRequestWindowDefaultTime();
 
   /**
    * Cached readers for each schema so we don't have to re-parse definitions on each stream request.
@@ -84,6 +78,8 @@ export class DataPlatformIterableSource implements IIterableSource {
   public constructor(options: DataPlatformIterableSourceOptions) {
     this.#consoleApi = options.api;
     this.#params = options.params;
+
+    this.#requestWindow = options.requestWindow ?? getRequestWindowDefaultTime();
   }
 
   public async initialize(): Promise<Initalization> {
@@ -202,8 +198,15 @@ export class DataPlatformIterableSource implements IIterableSource {
   ): AsyncIterableIterator<Readonly<IteratorResult>> {
     log.debug("message iterator", args);
 
+    if (isAborted(args.abortSignal)) {
+      return;
+    }
+
     const topics = args.topics;
     const topicNames = Array.from(topics.keys());
+
+    // only firest req need fetch complete topic state
+    let fetchCompleteTopicState = args.fetchCompleteTopicState;
 
     if (!this.#start || !this.#end) {
       throw new Error("DataPlatformIterableSource not initialized");
@@ -231,55 +234,95 @@ export class DataPlatformIterableSource implements IIterableSource {
     const streamEnd = clampTime(args.end ?? this.#end, this.#start, this.#end);
 
     if (args.consumptionType === "full") {
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+
       const streamByParams: StreamParams = {
         start: streamStart,
         end: streamEnd,
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
+        fetchCompleteTopicState,
       };
 
       const stream = streamMessages({
         api: this.#consoleApi,
+        signal: args.abortSignal,
         parsedChannelsByTopic,
         params: streamByParams,
       });
 
       for await (const messages of stream) {
-        for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
+        if (isAborted(args.abortSignal)) {
+          return;
         }
+        for (const message of messages) {
+          if (isAborted(args.abortSignal)) {
+            return;
+          }
+          yield message;
+        }
+      }
+
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+
+      if (fetchCompleteTopicState === "complete") {
+        fetchCompleteTopicState = "incremental";
       }
 
       return;
     }
 
     let localStart = streamStart;
-    let localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
+    let localEnd = clampTime(addTime(localStart, this.#requestWindow), streamStart, streamEnd);
 
     for (;;) {
+      if (isAborted(args.abortSignal)) {
+        return;
+      }
+
       const streamByParams: StreamParams = {
         start: localStart,
         end: localEnd,
         id: this.#params.key,
         projectName: this.#params.projectName,
         topics: topicNames,
+        fetchCompleteTopicState,
       };
 
       const stream = streamMessages({
         api: this.#consoleApi,
+        signal: args.abortSignal,
         parsedChannelsByTopic,
         params: streamByParams,
       });
 
       for await (const messages of stream) {
-        for (const message of messages) {
-          yield { type: "message-event", msgEvent: message };
+        if (isAborted(args.abortSignal)) {
+          return;
         }
+        for (const message of messages) {
+          if (isAborted(args.abortSignal)) {
+            return;
+          }
+          yield message;
+        }
+      }
+
+      if (isAborted(args.abortSignal)) {
+        return;
       }
 
       if (compare(localEnd, streamEnd) >= 0) {
         return;
+      }
+
+      if (fetchCompleteTopicState === "complete") {
+        fetchCompleteTopicState = "incremental";
       }
 
       yield { type: "stamp", stamp: localEnd };
@@ -310,7 +353,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       }
 
       localStart = clampTime(localStart, streamStart, streamEnd);
-      localEnd = clampTime(addTime(localStart, { sec: 5, nsec: 0 }), streamStart, streamEnd);
+      localEnd = clampTime(addTime(localStart, this.#requestWindow), streamStart, streamEnd);
     }
   }
 
@@ -331,6 +374,7 @@ export class DataPlatformIterableSource implements IIterableSource {
       id: this.#params.key,
       projectName: this.#params.projectName,
       topics: Array.from(topics.keys()),
+      fetchCompleteTopicState: "complete",
     };
 
     streamByParams.replayPolicy = "lastPerChannel";
@@ -343,14 +387,28 @@ export class DataPlatformIterableSource implements IIterableSource {
       signal: abortSignal,
       params: streamByParams,
     })) {
-      messages.push(...block);
+      for (const message of block) {
+        if (message.type === "message-event") {
+          messages.push(message.msgEvent);
+        }
+
+        if (message.type === "problem") {
+          log.warn(`Problem during backfill: ${message.problem.message}`, {
+            severity: message.problem.severity,
+            tip: message.problem.tip,
+            topics: Array.from(topics.keys()),
+            time,
+          });
+        }
+      }
     }
+
     return messages;
   }
 }
 
 export function initialize(args: IterableSourceInitializeArgs): DataPlatformIterableSource {
-  const { api, params } = args;
+  const { api, params, requestWindow } = args;
   if (!params) {
     throw new Error("params is required for data platform source");
   }
@@ -360,70 +418,39 @@ export function initialize(args: IterableSourceInitializeArgs): DataPlatformIter
   }
 
   const projectId = params.projectId;
-  const projectSlug = params.projectSlug;
   const warehouseId = params.warehouseId;
-  const warehouseSlug = params.warehouseSlug;
-  const userId = params.userId;
   const key = params.key;
-
-  const addTopicPrefix = params.addTopicPrefix;
-  const timeMode = params.timeMode;
-  const playbackQualityLevel = params.playbackQualityLevel;
 
   if (!projectId) {
     throw new Error("projectId is required for data platform source");
-  }
-
-  if (!projectSlug) {
-    throw new Error("projectSlug is required for data platform source");
   }
 
   if (!warehouseId) {
     throw new Error("warehouseId is required for data platform source");
   }
 
-  if (!warehouseSlug) {
-    throw new Error("warehouseSlug is required for data platform source");
-  }
-
-  if (!userId) {
-    throw new Error("user id is undefined");
-  }
-
   if (!key) {
     throw new Error("key is undefined");
   }
-
-  const files: ParamsFile[] = JSON.parse(params.files ?? "[]");
-  const jobRuns: string[] = [];
-  const fileNames: string[] = [];
-
-  files.forEach((file) => {
-    if ("filename" in file) {
-      fileNames.push(file.filename);
-    }
-
-    if ("jobRunsName" in file) {
-      jobRuns.push(file.jobRunsName);
-    }
-  });
 
   const dpSourceParams: DataPlatformSourceParameters = {
     key,
     projectName: `warehouses/${warehouseId}/projects/${projectId}`,
   };
 
-  const consoleApi = new ConsoleApi(
-    api.baseUrl,
-    api.bffUrl,
-    api.auth ?? "",
-    addTopicPrefix === "true" ? "true" : "false",
-    timeMode === "absoluteTime" ? "absoluteTime" : "relativeTime",
-    getPlaybackQualityTranslation(playbackQualityLevel),
+  const consoleApi = new ConsoleApi(api.baseUrl, api.bffUrl, api.auth ?? "");
+  void consoleApi.setApiBaseInfo(
+    {
+      warehouseId,
+      projectId,
+      recordId: params.recordId,
+    },
+    { fetchPermissionList: false },
   );
 
   return new DataPlatformIterableSource({
     api: consoleApi,
     params: dpSourceParams,
+    requestWindow,
   });
 }

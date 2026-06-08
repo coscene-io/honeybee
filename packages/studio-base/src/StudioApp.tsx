@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -9,10 +9,14 @@ import { Fragment, Suspense, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
+import { UserScriptStateProvider } from "@foxglove/studio-base/context/UserScriptStateContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
+import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
+import TasksProvider from "@foxglove/studio-base/providers/TasksProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import UploadFilesProvider from "@foxglove/studio-base/providers/UploadFilesProvider";
 
@@ -21,8 +25,6 @@ import MultiProvider from "./components/MultiProvider";
 import PlayerManager from "./components/PlayerManager";
 import SendNotificationToastAdapter from "./components/SendNotificationToastAdapter";
 import StudioToastProvider from "./components/StudioToastProvider";
-import { UserScriptStateProvider } from "./context/UserScriptStateContext";
-import CurrentLayoutProvider from "./providers/CurrentLayoutProvider";
 import ExtensionCatalogProvider from "./providers/ExtensionCatalogProvider";
 import ExtensionMarketplaceProvider from "./providers/ExtensionMarketplaceProvider";
 import PanelCatalogProvider from "./providers/PanelCatalogProvider";
@@ -37,6 +39,13 @@ function contextMenuHandler(event: MouseEvent) {
   event.preventDefault();
   return false;
 }
+
+const selectDialogs = (store: DialogsStore) => store.dialogs;
+
+const GlobalDialogs = (): React.JSX.Element => {
+  const dialogs = useDialogs(selectDialogs);
+  return <>{Array.from(dialogs.values()).map((dialog) => dialog)}</>;
+};
 
 export function StudioApp(): React.JSX.Element {
   const {
@@ -54,13 +63,14 @@ export function StudioApp(): React.JSX.Element {
   const providers = [
     /* eslint-disable react/jsx-key */
     <TimelineInteractionStateProvider />,
-    <CurrentLayoutProvider />,
     <UserScriptStateProvider />,
     <ExtensionMarketplaceProvider />,
     <ExtensionCatalogProvider loaders={extensionLoaders} />,
-    <PlayerManager playerSources={dataSources} />,
-    <EventsProvider />,
     <UploadFilesProvider />,
+    <EventsProvider />,
+    <TasksProvider />,
+    <SubscriptionEntitlementProvider />,
+    <PlayerManager playerSources={dataSources} />,
     /* eslint-enable react/jsx-key */
   ];
 
@@ -104,6 +114,7 @@ export function StudioApp(): React.JSX.Element {
                 onCloseWindow={customWindowControlProps?.onCloseWindow}
                 AppBarComponent={AppBarComponent}
               />
+              <GlobalDialogs />
             </PanelCatalogProvider>
           </Suspense>
         </DndProvider>

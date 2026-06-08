@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -22,7 +22,7 @@ import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   useSelectedPanels,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   PanelStateStore,
@@ -123,9 +123,12 @@ export default function PanelSettings({
 
   const [config] = useConfigById(selectedPanelId);
 
-  const settingsTree = usePanelStateStore((state) =>
-    selectedPanelId ? state.settingsTrees[selectedPanelId] : undefined,
+  const settingsTreeSelector = useCallback(
+    (state: PanelStateStore) =>
+      selectedPanelId ? state.settingsTrees[selectedPanelId] : undefined,
+    [selectedPanelId],
   );
+  const settingsTree = usePanelStateStore(settingsTreeSelector);
 
   const resetToDefaults = useCallback(() => {
     if (selectedPanelId) {

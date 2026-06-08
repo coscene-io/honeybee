@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,8 +14,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 import {
-  registerScript,
   processMessage,
+  registerScript,
 } from "@foxglove/studio-base/players/UserScriptPlayer/runtimeWorker/registry";
 import Rpc from "@foxglove/studio-base/util/Rpc";
 import { enforceFetchIsBlocked, inSharedWorker } from "@foxglove/studio-base/util/workers";

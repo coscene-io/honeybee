@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,6 +10,7 @@ import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourc
 import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   LeftSidebarItemKey,
+  type MomentSubtitleSettings,
   RightSidebarItemKey,
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
@@ -34,7 +35,10 @@ type WorkspaceContextStoreV0 = {
   rightSidebarSize: undefined | number;
   playbackControls: {
     repeat: boolean;
+    rollingEditEnabled?: boolean;
     speed: PlaybackSpeed;
+    timelineHeight?: number;
+    momentSubtitle?: MomentSubtitleSettings;
   };
   prefsDialogState: {
     initialTab: undefined | AppSettingsTab;
@@ -79,9 +83,16 @@ export function migrateV0WorkspaceState(
     },
     playbackControls: {
       repeat: v0State.playbackControls.repeat,
+      rollingEditEnabled: v0State.playbackControls.rollingEditEnabled ?? true,
       speed: v0State.playbackControls.speed,
+      timelineHeight: v0State.playbackControls.timelineHeight ?? 200,
+      momentSubtitle: v0State.playbackControls.momentSubtitle ?? {
+        enabled: false,
+        fontSize: 16,
+        position: undefined,
+      },
     },
-    layoutMenu: {
+    layoutDrawer: {
       open: false,
     },
   };

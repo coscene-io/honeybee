@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -43,7 +43,7 @@ export default function TextHighlight({
 
   const match = fuzzySort.single(searchText, targetStr);
   const result = match
-    ? fuzzySort.highlight(match, "<span class='TextHighlight-highlight'>", "</span>")
+    ? match.highlight("<span class='TextHighlight-highlight'>", "</span>")
     : undefined;
 
   return (

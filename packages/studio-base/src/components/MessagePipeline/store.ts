@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,6 +11,7 @@ import shallowequal from "shallowequal";
 import { createStore, StoreApi } from "zustand";
 
 import { Condvar } from "@foxglove/den/async";
+import Log from "@foxglove/log";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import {
   makeSubscriptionMemoizer,
@@ -24,11 +25,14 @@ import {
   PlayerState,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import { IUrdfStorage } from "@foxglove/studio-base/services/UrdfStorage";
+import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
+import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { FramePromise } from "./pauseFrameForPromise";
 import { MessagePipelineContext } from "./types";
+
+const log = Log.getLogger(__filename);
 
 export function defaultPlayerState(player?: Player): PlayerState {
   return {
@@ -97,10 +101,12 @@ export function createMessagePipelineStore({
   promisesToWaitForRef,
   initialPlayer,
   urdfStorage,
+  s3FileService,
 }: {
   promisesToWaitForRef: MutableRefObject<FramePromise[]>;
   initialPlayer: Player | undefined;
   urdfStorage: IUrdfStorage;
+  s3FileService: S3FileService;
 }): StoreApi<MessagePipelineInternalState> {
   return createStore((set, get) => ({
     player: initialPlayer,
@@ -176,23 +182,20 @@ export function createMessagePipelineStore({
         const { player, lastCapabilities } = get();
 
         const cachedFetchAsset = async (fileUri: string, opts?: { signal?: AbortSignal }) => {
-          const storagedData = await urdfStorage.get(fileUri);
-
-          if (storagedData) {
-            return {
-              uri: fileUri,
-              data: storagedData,
-              mediaType: undefined,
-            };
+          if (fileUri.startsWith("s3://")) {
+            return await builtinS3Fetch(fileUri, s3FileService, urdfStorage, opts);
           }
 
-          const fetchedUrdfFile = await builtinFetch(fileUri, opts);
-          if (urdfStorage.checkUriNeedsCache(fileUri)) {
-            await urdfStorage.set(fileUri, fetchedUrdfFile.data);
-          }
-
-          return fetchedUrdfFile;
+          return await builtinFetch(fileUri, urdfStorage, opts);
         };
+
+        if (protocol === "s3:") {
+          try {
+            return await cachedFetchAsset(uri, options);
+          } catch {
+            // Do nothing here as one of the fallback methods below might work.
+          }
+        }
 
         if (protocol === "package:") {
           // For the desktop app, package:// is registered as a supported schema for builtin _fetch_ calls.
@@ -202,19 +205,22 @@ export function createMessagePipelineStore({
 
           if (lastCapabilities.includes(PlayerCapabilities.assets) && player?.fetchAsset) {
             try {
-              const storagedData = await urdfStorage.get(uri);
+              const etag = await urdfStorage.getEtag(uri);
 
-              if (storagedData) {
+              // if etag is same as fetchedUrdfFile.etag, return empty file
+              const fetchedUrdfFile = await player.fetchAsset(uri, etag);
+
+              if (etag && etag === fetchedUrdfFile.etag) {
+                const cachedFile = await urdfStorage.getFile(uri);
                 return {
                   uri,
-                  data: storagedData,
+                  data: cachedFile ?? new Uint8Array(),
                   mediaType: undefined,
                 };
               }
 
-              const fetchedUrdfFile = await player.fetchAsset(uri);
-              if (urdfStorage.checkUriNeedsCache(uri)) {
-                await urdfStorage.set(uri, fetchedUrdfFile.data);
+              if (urdfStorage.checkUriNeedsCache(uri) && fetchedUrdfFile.etag) {
+                await urdfStorage.set(uri, fetchedUrdfFile.etag, fetchedUrdfFile.data);
               }
 
               return fetchedUrdfFile;
@@ -270,6 +276,25 @@ export function createMessagePipelineStore({
         return () => {
           condvar.notifyAll();
         };
+      },
+
+      close() {
+        const state = get();
+        const player = state.player;
+
+        if (player) {
+          try {
+            void player.close();
+          } catch (error) {
+            log.error("Error calling player.close():", error);
+          }
+        } else {
+          log.debug("No player available to close - player may have already been disconnected");
+        }
+      },
+
+      reOpen() {
+        get().player?.reOpen();
       },
     },
   }));
@@ -481,15 +506,112 @@ export function reducer(
   }
 }
 
-async function builtinFetch(url: string, opts?: { signal?: AbortSignal }) {
+async function fetchETag(url: string): Promise<string | undefined> {
+  const res = await fetch(url, {
+    method: "HEAD",
+    mode: "cors",
+  });
+  if (!res.ok) {
+    throw new Error(`HEAD ${res.status}`);
+  }
+  const etag = res.headers.get("etag");
+  return etag ? etag : undefined;
+}
+
+async function builtinFetch(
+  url: string,
+  urdfStorage: IUrdfStorage,
+  opts?: { signal?: AbortSignal },
+) {
+  let fetchedEtag: string | undefined;
+
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      fetchedEtag = await fetchETag(url);
+      const cachedEtag = await urdfStorage.getEtag(url);
+
+      if (cachedEtag && fetchedEtag && fetchedEtag === cachedEtag) {
+        const cachedFile = await urdfStorage.getFile(url);
+        return {
+          uri: url,
+          data: cachedFile ?? new Uint8Array(),
+          mediaType: undefined,
+        };
+      }
+    } catch {
+      // Do nothing here as the fallback method below might work.
+    }
+  }
+
   const response = await fetch(url, opts);
   if (!response.ok) {
     const errMsg = response.statusText;
     throw new Error(`Error ${response.status}${errMsg ? ` (${errMsg})` : ``}`);
   }
+
+  const data = new Uint8Array(await response.arrayBuffer());
+
+  if (fetchedEtag) {
+    await urdfStorage.set(url, fetchedEtag, data);
+  }
+
   return {
     uri: url,
-    data: new Uint8Array(await response.arrayBuffer()),
+    data,
     mediaType: response.headers.get("content-type") ?? undefined,
+  };
+}
+
+/**
+ * Parse S3 URL to extract project and file key
+ * @param url S3 URL (s3://...)
+ * @returns project and fileKey
+ */
+function parseS3Url(url: string): { project: string; fileKey: string } {
+  const pkgPath = url.slice("s3://".length);
+  const project = pkgPath.split("/files/")[0] ?? "";
+  const fileKey = `project${pkgPath.split("project").pop()}`;
+  return { project, fileKey };
+}
+
+async function builtinS3Fetch(
+  url: string,
+  s3FileService: S3FileService,
+  urdfStorage: IUrdfStorage,
+  opts?: { signal?: AbortSignal },
+) {
+  const { project, fileKey } = parseS3Url(url);
+
+  // Check cache using headObject
+  let fetchedLastModified: string | undefined;
+  try {
+    const headResponse = await s3FileService.headObject(project, fileKey, opts);
+    fetchedLastModified = headResponse.LastModified?.toISOString();
+
+    const cachedEtag = await urdfStorage.getEtag(url);
+    if (fetchedLastModified && cachedEtag && fetchedLastModified === cachedEtag) {
+      const cachedFile = await urdfStorage.getFile(url);
+      return {
+        uri: url,
+        data: cachedFile ?? new Uint8Array(),
+        mediaType: undefined,
+      };
+    }
+  } catch (e) {
+    log.warn("Failed to check S3 object head, continuing with fetch", e);
+  }
+
+  // Get object
+  const result = await s3FileService.getObject(project, fileKey, opts);
+
+  // Cache the fetched file
+  if (urdfStorage.checkUriNeedsCache(url) && fetchedLastModified) {
+    await urdfStorage.set(url, fetchedLastModified, result.data);
+  }
+
+  return {
+    uri: url,
+    data: result.data,
+    mediaType: result.mediaType,
   };
 }

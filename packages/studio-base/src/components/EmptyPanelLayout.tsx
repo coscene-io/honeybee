@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -23,8 +23,9 @@ import { makeStyles } from "tss-react/mui";
 
 import { PanelCatalog, PanelSelection } from "@foxglove/studio-base/components/PanelCatalog";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { MosaicDropResult } from "@foxglove/studio-base/types/panels";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { getPanelIdForType } from "@foxglove/studio-base/util/layout";
 
 type Props = {
@@ -61,7 +62,7 @@ const useStyles = makeStyles()((theme) => ({
 export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
   const { classes, cx } = useStyles();
   const { addPanel } = useCurrentLayoutActions();
-  const { t, i18n } = useTranslation("addPanel");
+  const { t } = useTranslation("addPanel");
 
   const [{ isOver }, drop] = useDrop<unknown, MosaicDropResult, { isOver: boolean }>({
     accept: MosaicDragType.WINDOW,
@@ -91,16 +92,8 @@ export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
         <Stack paddingBottom={2}>
           <Typography variant="body2" paddingX={2} paddingTop={2}>
             {t("selectPanelToAddToLayout")}
-            <Link
-              color="primary"
-              target="_blank"
-              href={
-                i18n.language === "zh"
-                  ? "https://docs.coscene.cn/docs/recipes/viz/layout/"
-                  : "https://docs.coscene.cn/en/docs/recipes/viz/layout/"
-              }
-            >
-              {t("userGuide", { ns: "cosGeneral" })}
+            <Link color="primary" target="_blank" href={getDocsLink("/viz/layout/")}>
+              {t("userGuide", { ns: "general" })}
             </Link>
           </Typography>
           <PanelCatalog mode="grid" onPanelSelect={onPanelSelect} />

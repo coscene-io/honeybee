@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,9 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
+  Chip,
   Menu,
   MenuItem,
-  PaperProps,
   PopoverPosition,
   PopoverReference,
   Stack,
@@ -26,12 +26,20 @@ import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
-import { downloadLatestStudio, getCoStudioVersion } from "@foxglove/studio-base/util/download";
+import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import {
+  downloadLatestStudio,
+  getCoStudioVersion,
+  checkSupportCoStudioDownload,
+  openUserFeedback,
+} from "@foxglove/studio-base/util/download";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const useStyles = makeStyles()(() => ({
@@ -50,8 +58,24 @@ type UserMenuProps = {
 };
 
 const selectUser = (store: UserStore) => store.user;
+const selectSetUser = (store: UserStore) => store.setUser;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
+const selectResetCoreDataStore = (store: CoreDataStore) => store.resetCoreDataStore;
+
+function CoStudioEnvBadge() {
+  const appConfig = getAppConfig();
+  const projectEnv = appConfig.VITE_APP_PROJECT_ENV;
+
+  switch (projectEnv) {
+    case "aws":
+      return <Chip label="portal" size="small" color="primary" />;
+    case "gcp":
+      return <Chip label="io" size="small" color="primary" />;
+  }
+
+  return ReactNull;
+}
 
 export function UserMenu({
   anchorEl,
@@ -64,17 +88,26 @@ export function UserMenu({
   const { classes } = useStyles();
   const currentUserType = useCurrentUserType();
   const analytics = useAnalytics();
-  const [confirm, confirmModal] = useConfirm();
-  const { t } = useTranslation("cosAppBar");
+  const confirm = useConfirm();
+  const { t } = useTranslation("appBar");
   const [latestVersion, setLatestVersion] = useState("");
+  const setUser = useCoSceneCurrentUser(selectSetUser);
+  const resetCoreDataStore = useCoreData(selectResetCoreDataStore);
+
+  const domainConfig = getDomainConfig();
 
   useEffect(() => {
-    void getCoStudioVersion().then((version) => {
-      setLatestVersion(version);
-    });
+    const appConfig = getAppConfig();
+
+    if (appConfig.COSTUDIO_DOWNLOAD_URL) {
+      void getCoStudioVersion().then((version) => {
+        setLatestVersion(version);
+      });
+    }
   }, []);
 
   const { dialogActions } = useWorkspaceActions();
+  const { selectSource } = usePlayerSelection();
 
   const isDesktop = isDesktopApp();
 
@@ -88,11 +121,23 @@ export function UserMenu({
     if (isDesktop) {
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatus("notLogin");
+      setUser(undefined);
+      resetCoreDataStore();
+      selectSource(undefined);
+      dialogActions.dataSource.open("start");
       toast.success(t("signoutSuccess"));
     } else {
       window.location.href = "/login";
     }
-  }, [isDesktop, setLoginStatus, t]);
+  }, [
+    isDesktop,
+    setLoginStatus,
+    setUser,
+    resetCoreDataStore,
+    selectSource,
+    dialogActions.dataSource,
+    t,
+  ]);
 
   const onSignoutClick = useCallback(() => {
     void confirm({
@@ -119,10 +164,8 @@ export function UserMenu({
   );
 
   const onDocsClick = useCallback(() => {
-    window.open(
-      "https://docs.coscene.cn/docs/category/%E6%95%B0%E6%8D%AE%E5%8F%AF%E8%A7%86%E5%8C%96",
-      "_blank",
-    );
+    const safeUrl = new URL(getDocsLink("/viz/about-viz")).toString();
+    window.open(safeUrl, "_blank");
   }, []);
 
   return (
@@ -136,11 +179,12 @@ export function UserMenu({
         open={open}
         onClose={handleClose}
         onClick={handleClose}
-        MenuListProps={{ className: classes.menuList, dense: true }}
+        data-tourid="user-menu"
         slotProps={{
-          paper: {
-            "data-tourid": "user-menu",
-          } as Partial<PaperProps & { "data-tourid"?: string }>,
+          list: {
+            className: classes.menuList,
+            dense: true,
+          },
         }}
       >
         {loginStatus === "alreadyLogin" && (
@@ -156,30 +200,31 @@ export function UserMenu({
         </MenuItem>
         <MenuItem onClick={onDocsClick}>{t("documentation")}</MenuItem>
 
-        {!isDesktop && (
+        {checkSupportCoStudioDownload() && (
           <MenuItem onClick={downloadLatestStudio} className="test">
             <Stack
               direction="row"
               justifyContent="space-between"
               alignItems="center"
               width="100%"
-              gap={1}
+              gap={0.5}
             >
               <span>{t("downloadLatestStudio")}</span>
               <Typography variant="caption" color="text.secondary">
-                v{latestVersion}
+                {latestVersion ? `v${latestVersion}` : "latest"}
               </Typography>
+              <CoStudioEnvBadge />
             </Stack>
           </MenuItem>
         )}
+
+        <MenuItem onClick={openUserFeedback}>{t("userFeedback")}</MenuItem>
 
         {(isDesktop || loginStatus === "alreadyLogin") && (
           <MenuItem
             onClick={() => {
               if (isDesktop && loginStatus === "notLogin") {
-                window.open(
-                  `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}/studio/login`,
-                );
+                window.open(`https://${domainConfig.webDomain}/studio/login`);
               } else {
                 onSignoutClick();
               }
@@ -189,7 +234,6 @@ export function UserMenu({
           </MenuItem>
         )}
       </Menu>
-      {confirmModal}
     </>
   );
 }

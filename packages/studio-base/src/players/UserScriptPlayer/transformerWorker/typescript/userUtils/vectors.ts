@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -61,7 +61,7 @@ export function scalarMultiply(vector: number[], scalar: number): number[] {
   const ret = vector.slice();
   let i;
   for (i = 0; i < ret.length; ++i) {
-    ret[i] *= scalar;
+    ret[i] = ret[i]! * scalar;
   }
   return ret;
 }
@@ -79,7 +79,7 @@ export function vectorAddition(vectors: number[][]): number[] {
   const ret = first.slice();
   for (let i = 1; i < vectors.length; ++i) {
     for (let j = 0; j < ret.length; ++j) {
-      ret[j] += vectors[i]![j]!;
+      ret[j] = (ret[j] ?? 0) + vectors[i]![j]!;
     }
   }
   return ret;

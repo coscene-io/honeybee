@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -155,7 +155,7 @@ describe("layout reducers", () => {
           newPanelType: "Tab",
           destinationPath: [],
           position: "right",
-          config: { activeTabIdx: 0, tabs: [{ title: "A", layout: undefined }] },
+          config: { activeTabIdx: 0, tabs: [{ title: "A", layout: "Audio!b" }] },
         },
       });
       const { configById } = panels;
@@ -170,7 +170,8 @@ describe("layout reducers", () => {
       expect(tabs.length).toEqual(1);
       expect(tabs[0]?.title).toEqual("A");
 
-      expect(tabs[0]?.layout).toBeUndefined();
+      const newAudioId = tabs[0]?.layout as string;
+      expect(getPanelTypeFromId(newAudioId)).toEqual("Audio");
     });
     it("drops panel into empty Tab layout", () => {
       let panels: LayoutData = {
@@ -229,6 +230,29 @@ describe("layout reducers", () => {
       expect(configById[(tabBTabs[0]!.layout as MosaicParent<string>).second as string]).toEqual({
         foo: "bar",
       });
+    });
+    it("drops nested Tab panel into main layout", () => {
+      let panels: LayoutData = { ...emptyLayout, layout: "Audio!a" };
+      panels = panelsReducer(panels, {
+        type: "DROP_PANEL",
+        payload: {
+          newPanelType: "Tab",
+          destinationPath: [],
+          position: "right",
+          config: { activeTabIdx: 0, tabs: [{ title: "A", layout: "Tab!b" }] },
+        },
+      });
+      const { configById } = panels;
+      const layout = panels.layout as MosaicParent<string>;
+      expect(layout.first).toEqual("Audio!a");
+      expect(getPanelTypeFromId(layout.second as string)).toEqual("Tab");
+
+      const parentTabConfig = configById[layout.second as string] as TabPanelConfig;
+      expect(parentTabConfig.tabs.length).toEqual(1);
+      expect(parentTabConfig.tabs[0]!.title).toEqual("A");
+
+      const childTabId = parentTabConfig.tabs[0]!.layout as string;
+      expect(getPanelTypeFromId(childTabId)).toEqual("Tab");
     });
   });
 
@@ -542,27 +566,16 @@ describe("layout reducers", () => {
 
       const { configById } = panels;
       const layout = panels.layout as MosaicParent<string>;
-
-      const newTabId = layout.second as string;
-      expect(getPanelTypeFromId(newTabId)).toEqual("Tab");
-      expect(newTabId).not.toEqual("Tab!a");
-
-      expect(layout).toEqual({
-        direction: "row",
-        first: "Tab!a",
-        second: newTabId,
-      });
-
-      const newAudioId = (configById[newTabId] as TabPanelConfig).tabs[0]!.layout as string;
-      expect(getPanelTypeFromId(newAudioId)).toEqual("Audio");
-      expect(newAudioId).not.toEqual("Audio!a");
-
-      expect(configById).toEqual({
-        "Tab!a": tabConfig,
-        "Audio!a": audioConfig,
-        [newTabId]: { activeTabIdx: 0, tabs: [{ title: "A", layout: newAudioId }] },
-        [newAudioId]: audioConfig,
-      });
+      expect(layout.first).toEqual("Tab!a");
+      expect(getPanelTypeFromId(layout.second as string)).toEqual("Tab");
+      expect(layout.direction).toEqual("row");
+      expect(configById["Tab!a"]).toEqual(tabConfig);
+      expect(
+        getPanelTypeFromId(
+          (configById[layout.second as string] as TabPanelConfig).tabs[0]!.layout as string,
+        ),
+      ).toEqual("Audio");
+      expect(configById["Audio!a"]).toEqual(audioConfig);
     });
 
     it("can split panel inside Tab panel", () => {
@@ -587,142 +600,11 @@ describe("layout reducers", () => {
       expect(layout).toEqual("Tab!a");
       const tabLayout = (configById["Tab!a"] as TabPanelConfig).tabs[0]!
         .layout! as MosaicParent<string>;
-
-      const newAudioId = tabLayout.second as string;
-      expect(getPanelTypeFromId(newAudioId)).toEqual("Audio");
-      expect(newAudioId).not.toEqual("Audio!a");
-
-      expect(configById).toEqual({
-        "Tab!a": {
-          activeTabIdx: 0,
-          tabs: [
-            {
-              title: "A",
-              layout: {
-                direction: "row",
-                first: "Audio!a",
-                second: newAudioId,
-              },
-            },
-          ],
-        },
-        "Audio!a": audioConfig,
-        [newAudioId]: audioConfig,
-      });
-    });
-
-    it("can split outer Tab of two nested Tabs", () => {
-      const audioConfig = { foo: "bar" };
-      const tabConfig1 = { activeTabIdx: 0, tabs: [{ title: "A1", layout: "Tab!b" }] };
-      const tabConfig2 = { activeTabIdx: 0, tabs: [{ title: "B1", layout: "Audio!a" }] };
-      let panels: LayoutData = {
-        ...emptyLayout,
-        layout: "Tab!a",
-        configById: { "Tab!a": tabConfig1, "Tab!b": tabConfig2, "Audio!a": audioConfig },
-      };
-      panels = panelsReducer(panels, {
-        type: "SPLIT_PANEL",
-        payload: {
-          id: "Tab!a",
-          tabId: undefined,
-          direction: "row",
-          path: [],
-          root: "Tab!a",
-        },
-      });
-      const { layout, configById } = panels;
-
-      const newOuterTabId = (layout as MosaicParent<string>).second as string;
-      expect(getPanelTypeFromId(newOuterTabId)).toEqual("Tab");
-      expect(newOuterTabId).not.toEqual("Tab!a");
-      expect(newOuterTabId).not.toEqual("Tab!b");
-      expect(layout).toEqual({ direction: "row", first: "Tab!a", second: newOuterTabId });
-
-      const newInnerTabId = (configById[newOuterTabId] as TabPanelConfig).tabs[0]!.layout as string;
-      expect(getPanelTypeFromId(newInnerTabId)).toEqual("Tab");
-      expect(newInnerTabId).not.toEqual("Tab!a");
-      expect(newInnerTabId).not.toEqual("Tab!b");
-
-      const newAudioId = (configById[newInnerTabId] as TabPanelConfig).tabs[0]!.layout as string;
-      expect(getPanelTypeFromId(newAudioId)).toEqual("Audio");
-      expect(newAudioId).not.toEqual("Audio!a");
-      expect(configById).toEqual({
-        "Tab!a": {
-          activeTabIdx: 0,
-          tabs: [{ title: "A1", layout: "Tab!b" }],
-        },
-        "Tab!b": {
-          activeTabIdx: 0,
-          tabs: [{ title: "B1", layout: "Audio!a" }],
-        },
-        [newOuterTabId]: {
-          activeTabIdx: 0,
-          tabs: [{ title: "A1", layout: newInnerTabId }],
-        },
-        [newInnerTabId]: {
-          activeTabIdx: 0,
-          tabs: [{ title: "B1", layout: newAudioId }],
-        },
-        "Audio!a": audioConfig,
-        [newAudioId]: audioConfig,
-      });
-    });
-
-    it("can split inner Tab of two nested Tabs", () => {
-      const audioConfig = { foo: "bar" };
-      const tabConfig1 = { activeTabIdx: 0, tabs: [{ title: "A1", layout: "Tab!b" }] };
-      const tabConfig2 = { activeTabIdx: 0, tabs: [{ title: "B2", layout: "Audio!a" }] };
-      let panels: LayoutData = {
-        ...emptyLayout,
-        layout: "Tab!a",
-        configById: { "Tab!a": tabConfig1, "Tab!b": tabConfig2, "Audio!a": audioConfig },
-      };
-      panels = panelsReducer(panels, {
-        type: "SPLIT_PANEL",
-        payload: {
-          id: "Tab!b",
-          tabId: "Tab!a",
-          direction: "row",
-          path: [],
-          root: "Tab!b",
-        },
-      });
-      const { layout, configById } = panels;
-      expect(layout).toEqual("Tab!a");
-      const outerTabLayout = (configById["Tab!a"] as TabPanelConfig).tabs[0]!
-        .layout! as MosaicParent<string>;
-      const newTabId = outerTabLayout.second as string;
-      expect(getPanelTypeFromId(newTabId)).toBe("Tab");
-      expect(newTabId).not.toBe("Tab!b");
-
-      const newAudioId = (configById[newTabId] as TabPanelConfig).tabs[0]!.layout as string;
-      expect(getPanelTypeFromId(newAudioId)).toEqual("Audio");
-      expect(newAudioId).not.toEqual("Audio!a");
-      expect(configById).toEqual({
-        "Tab!a": {
-          activeTabIdx: 0,
-          tabs: [
-            {
-              title: "A1",
-              layout: {
-                direction: "row",
-                first: "Tab!b",
-                second: newTabId,
-              },
-            },
-          ],
-        },
-        "Tab!b": {
-          activeTabIdx: 0,
-          tabs: [{ title: "B2", layout: "Audio!a" }],
-        },
-        [newTabId]: {
-          activeTabIdx: 0,
-          tabs: [{ title: "B2", layout: newAudioId }],
-        },
-        "Audio!a": audioConfig,
-        [newAudioId]: audioConfig,
-      });
+      expect(tabLayout.first).toEqual("Audio!a");
+      expect(getPanelTypeFromId(tabLayout.second as string)).toEqual("Audio");
+      expect(tabLayout.direction).toEqual("row");
+      expect(configById["Audio!a"]).toEqual(audioConfig);
+      expect(configById[tabLayout.second as string]).toEqual(audioConfig);
     });
 
     it("can swap panels", () => {
@@ -752,7 +634,7 @@ describe("layout reducers", () => {
 
     it("can swap panel for a Tab panel", () => {
       const audioConfig = { foo: "bar" };
-      const tabConfig = { activeTabIdx: 0, tabs: [{ title: "A", layout: undefined }] };
+      const tabConfig = { activeTabIdx: 0, tabs: [{ title: "A", layout: "RawMessages!a" }] };
       let panels: LayoutData = {
         ...emptyLayout,
         layout: "Audio!a",
@@ -772,8 +654,8 @@ describe("layout reducers", () => {
       const { configById } = panels;
       const layout = panels.layout as string;
       expect(getPanelTypeFromId(layout)).toEqual("Tab");
-      const tabLayout = (configById[layout] as TabPanelConfig).tabs[0]!.layout;
-      expect(tabLayout).toBeUndefined();
+      const tabLayout = (configById[layout] as TabPanelConfig).tabs[0]!.layout!;
+      expect(getPanelTypeFromId(tabLayout as string)).toEqual("RawMessages");
     });
 
     it("can swap panel inside a Tab", () => {

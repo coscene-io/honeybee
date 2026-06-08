@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,15 +8,18 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import ReplayIcon from "@mui/icons-material/Replay";
 import { IconButton, LinearProgress, List, ListItem, Stack, Tooltip } from "@mui/material";
+import { useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { UploadFilesStore, useUploadFiles } from "@foxglove/studio-base/context/UploadFilesContext";
 
 const selectUploadingFiles = (store: UploadFilesStore) => store.uploadingFiles;
 const selectCurrentUser = (store: UserStore) => store.user;
+const selectOrganization = (store: CoreDataStore) => store.organization;
 
 const useStyles = makeStyles()(() => ({
   linearProgress: {
@@ -35,6 +38,9 @@ export function UploadingFileList({
 
   const { t } = useTranslation("appBar");
   const { classes } = useStyles();
+  const organization = useCoreData(selectOrganization);
+
+  const orgSlug = useMemo(() => organization.value?.slug, [organization]);
 
   return (
     <List>
@@ -62,18 +68,15 @@ export function UploadingFileList({
                   <IconButton
                     onClick={async (e) => {
                       e.stopPropagation();
-                      const orgSlug = currentUser?.orgSlug;
                       const targetSite = currentUser?.targetSite;
 
-                      const projectId = status.target.recordName
-                        .split("/projects/")[1]
-                        ?.split("/")[0];
-                      const recordId = status.target.recordName
+                      const projectSlug = status.target.project.slug;
+                      const recordId = status.target.record.name
                         .split("/records/")[1]
                         ?.split("/")[0];
 
                       await navigator.clipboard.writeText(
-                        `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
+                        `${targetSite}/${orgSlug}/${projectSlug}/records/${recordId}`,
                       );
                       toast.success(t("copyRecordLinkSuccess"));
                     }}
@@ -88,18 +91,15 @@ export function UploadingFileList({
                   <IconButton
                     onClick={async (e) => {
                       e.stopPropagation();
-                      const orgSlug = currentUser?.orgSlug;
                       const targetSite = currentUser?.targetSite;
 
-                      const projectId = status.target.recordName
-                        .split("/projects/")[1]
-                        ?.split("/")[0];
-                      const recordId = status.target.recordName
+                      const projectSlug = status.target.project.slug;
+                      const recordId = status.target.record.name
                         .split("/records/")[1]
                         ?.split("/")[0];
 
                       window.open(
-                        `${targetSite}/${orgSlug}/${projectId}/records/${recordId}`,
+                        `${targetSite}/${orgSlug}/${projectSlug}/records/${recordId}`,
                         "_blank",
                       );
                     }}

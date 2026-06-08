@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -29,7 +29,7 @@ const log = Log.getLogger(__filename);
 
 const DEFAULT_CACHE_SIZE_BYTES = 1.0e9;
 const MIN_MEM_CACHE_BLOCK_SIZE_NS = 0.1e9;
-const MAX_BLOCKS = 400;
+const MAX_BLOCKS = 100;
 const CAPABILITIES: string[] = [PlayerCapabilities.playbackControl];
 
 class BenchmarkPlayer implements Player {
@@ -49,7 +49,7 @@ class BenchmarkPlayer implements Player {
     this.#listener = listener;
     void this.#run();
   }
-  public close(): void {
+  public async close(): Promise<void> {
     //throw new Error("Method not implemented.");
   }
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
@@ -294,6 +294,8 @@ class BenchmarkPlayer implements Player {
         .join("ms, ")}ms`,
     );
   }
+
+  public reOpen(): void {}
 }
 
 function getFrameStats(frames: number[]) {

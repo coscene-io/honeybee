@@ -1,24 +1,28 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useMemo } from "react";
+import { create } from "@bufbuild/protobuf";
+import { RoleSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
+import { useEffect } from "react";
 import { useAsyncFn } from "react-use";
 
 import Logger from "@foxglove/log";
-import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   useCurrentUser,
   UserStore,
-  OrganizationRoleCode,
-  ProjectRoleCode,
+  OrganizationRoleEnum,
+  ProjectRoleEnum,
+  OrganizationRoleWeight,
+  ProjectRoleWeight,
   User,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger(__filename);
 
@@ -28,63 +32,41 @@ const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectSetUserRole = (store: UserStore) => store.setRole;
 const selectSetUser = (store: UserStore) => store.setUser;
 
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
+const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 
 export function CoSceneCurrentUserSyncAdapter(): ReactNull {
+  const domainConfig = getDomainConfig();
+
   const loginStatus = useCurrentUser(selectLoginStatus);
   const currentUser = useCurrentUser(selectCurrentUser);
 
   const setUserRole = useCurrentUser(selectSetUserRole);
   const setUser = useCurrentUser(selectSetUser);
 
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
+
   const consoleApi = useConsoleApi();
 
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
+  const [_userRole, syncUserRole] = useAsyncFn(async () => {
+    if (currentUser != undefined) {
+      const projectRoles = await consoleApi.listUserRoles({ isProjectRole: true });
 
-  const [_userRole, syncUserRole] = useAsyncFn(
-    async (warehouseId, projectId) => {
-      if (currentUser != undefined) {
-        const res = await consoleApi.getRoleLists();
-        const roles = res.roles;
+      const orgRoles = await consoleApi.listUserRoles({ isProjectRole: false });
 
-        const projectRoles = await consoleApi.batchGetProjectUserRoles(
-          `warehouses/${warehouseId}/projects/${projectId}`,
-          [`users/${currentUser.userId}`],
-        );
+      const projectRoleCode = projectRoles.userRoles[0] ?? create(RoleSchema);
 
-        const orgRoles = await consoleApi.batchGetOrgUserRoles([`users/${currentUser.userId}`]);
+      const orgRolesCode = orgRoles.userRoles[0] ?? create(RoleSchema);
 
-        let projectRoleCode = "";
-
-        if (projectRoles.userRoles.length > 0) {
-          projectRoleCode = projectRoles.userRoles[0]?.role ?? "";
-        }
-
-        let orgRolesCode = "";
-        if (orgRoles.userRoles.length > 0) {
-          orgRolesCode = orgRoles.userRoles[0]?.role ?? "";
-        }
-
-        const organizationRole = roles.find((role) => role.name === orgRolesCode);
-
-        const projectRole = roles.find((role) => role.name === projectRoleCode);
-
-        setUserRole(
-          organizationRole?.code ? (organizationRole.code as OrganizationRoleCode) : undefined,
-          projectRole?.code ? (projectRole.code as ProjectRoleCode) : undefined,
-        );
-      }
-    },
-    [consoleApi, currentUser, setUserRole],
-  );
+      setUserRole(
+        OrganizationRoleWeight[orgRolesCode.code as OrganizationRoleEnum],
+        ProjectRoleWeight[projectRoleCode.code as ProjectRoleEnum],
+      );
+    }
+  }, [consoleApi, currentUser, setUserRole]);
 
   const [_userInfo, syncUserInfo] = useAsyncFn(async () => {
     if (loginStatus === "alreadyLogin") {
       const userInfo = await consoleApi.getUser("users/current");
-
-      const currentOrg = await consoleApi.getOrg("organizations/current");
-
       const userId = userInfo.name.split("/").pop() ?? "";
 
       setUser({
@@ -93,25 +75,20 @@ export function CoSceneCurrentUserSyncAdapter(): ReactNull {
         email: userInfo.email,
         nickName: userInfo.nickname,
         phoneNumber: userInfo.phoneNumber,
-        orgDisplayName: currentOrg.displayName,
-        orgId: currentOrg.name.split("/")[1],
-        orgSlug: currentOrg.slug,
-        targetSite: `https://${APP_CONFIG.DOMAIN_CONFIG["default"]?.webDomain}`,
+        targetSite: `https://${domainConfig.webDomain}`,
         userId,
       } as User);
-    } else {
-      setUser(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consoleApi, loginStatus, setUser]);
 
   useEffect(() => {
-    if (baseInfo.projectId != undefined && baseInfo.warehouseId != undefined) {
-      syncUserRole(baseInfo.warehouseId, baseInfo.projectId).catch((err: unknown) => {
+    if (externalInitConfig?.projectId != undefined && externalInitConfig.warehouseId != undefined) {
+      syncUserRole().catch((err: unknown) => {
         log.error("syncUserRole", err);
       });
     }
-  }, [syncUserRole, baseInfo]);
+  }, [syncUserRole, externalInitConfig]);
 
   useEffect(() => {
     syncUserInfo().catch((err: unknown) => {

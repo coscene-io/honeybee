@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,11 +8,12 @@
 import { Add16Regular, Dismiss12Regular } from "@fluentui/react-icons";
 import { Button, ButtonGroup, Stack, buttonClasses } from "@mui/material";
 import { MouseEvent, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import tinycolor from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { DEFAULT_PATH } from "@foxglove/studio-base/panels/Plot/settings";
 import { stateTransitionPathDisplayName } from "@foxglove/studio-base/panels/StateTransitions/shared";
@@ -72,6 +73,7 @@ export const PathLegend = React.memo(function PathLegend(props: {
   const { id: panelId } = usePanelContext();
   const { openPanelSettings } = useWorkspaceActions();
   const { classes } = useStyles();
+  const { t } = useTranslation("stateTransitions");
 
   const handleDeletePath = useCallback(
     (event: MouseEvent<HTMLButtonElement>, index: number) => {
@@ -110,8 +112,8 @@ export const PathLegend = React.memo(function PathLegend(props: {
               }}
             >
               {paths.length === 0
-                ? "Click to add a series"
-                : stateTransitionPathDisplayName(path, index)}
+                ? t("clickToAddSeries")
+                : stateTransitionPathDisplayName(path, index, t)}
             </Button>
             {paths.length > 0 && (
               <Button

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -205,17 +205,12 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
   return (
     <MuiAutocomplete
       className={className}
-      componentsProps={{
-        paper: { elevation: 8 },
-      }}
       getOptionLabel={getOptionLabel}
       disableCloseOnSelect
       disabled={disabled}
       freeSolo
       fullWidth
-      PopperComponent={CustomPopper}
       filterOptions={filterOptions}
-      ListboxComponent={ReactWindowListboxAdapter}
       onChange={onSelect}
       onInputChange={onChange}
       openOnFocus
@@ -244,6 +239,14 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
       selectOnFocus={selectOnFocus}
       size="small"
       value={value ?? ReactNull}
+      slots={{
+        popper: CustomPopper,
+        listbox: ReactWindowListboxAdapter,
+      }}
+      slotProps={{
+        paper: { elevation: 8 },
+        listbox: {},
+      }}
     />
   );
 });

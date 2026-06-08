@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -129,11 +129,11 @@ export async function loadExtension(id: string, rootFolder: string): Promise<str
 }
 
 export async function installExtension(
-  foxeFileData: Uint8Array,
+  coeFileData: Uint8Array,
   rootFolder: string,
 ): Promise<DesktopExtension> {
   // Open the archive
-  const archive = await JSZip.loadAsync(foxeFileData);
+  const archive = await JSZip.loadAsync(coeFileData);
 
   // Check for a package.json file
   const pkgJsonZipObj = archive.files["package.json"];

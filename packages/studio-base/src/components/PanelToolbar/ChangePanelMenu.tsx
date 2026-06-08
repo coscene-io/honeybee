@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -12,7 +12,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { PanelCatalog, PanelSelection } from "@foxglove/studio-base/components/PanelCatalog";
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 
 const useStyles = makeStyles()((theme) => ({
   paper: {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -9,6 +9,7 @@ import { TFunction } from "i18next";
 import { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 
+import dataCollectionThumbnail from "./DataCollection/thumbnail.png";
 import dataSourceInfoThumbnail from "./DataSourceInfo/thumbnail.png";
 import gaugeThumbnail from "./Gauge/thumbnail.png";
 import imageThumbnail from "./Image/thumbnail.png";
@@ -26,7 +27,7 @@ import tableThumbnail from "./Table/thumbnail.png";
 import teleopThumbnail from "./Teleop/thumbnail.png";
 import threeDeeRenderThumbnail from "./ThreeDeeRender/thumbnail.png";
 import topicGraphThumbnail from "./TopicGraph/thumbnail.png";
-// import userScriptEditorThumbnail from "./UserScriptEditor/thumbnail.png";
+import userScriptEditorThumbnail from "./UserScriptEditor/thumbnail.png";
 import variableSliderThumbnail from "./VariableSlider/thumbnail.png";
 import diagnosticStatusThumbnail from "./diagnostics/thumbnails/diagnostic-status.png";
 import diagnosticSummaryThumbnail from "./diagnostics/thumbnails/diagnostic-summary.png";
@@ -76,7 +77,7 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
   },
   {
     title: t("moments", {
-      ns: "cosEvent",
+      ns: "event",
     }),
     type: "MomentsBar",
     order: 5,
@@ -143,16 +144,6 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     module: async () => await import("./Parameters"),
   },
   {
-    title: t("annotatedPlot", {
-      ns: "cosAnnotatedPlot",
-    }),
-    whitelisting: ["supor"],
-    type: "AnnotatedPlot",
-    description: t("plotDescription"),
-    thumbnail: plotThumbnail,
-    module: async () => await import("./AnnotatedPlot"),
-  },
-  {
     title: t("publish"),
     type: "Publish",
     description: t("publishDescription"),
@@ -195,13 +186,13 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     thumbnail: variableSliderThumbnail,
     module: async () => await import("./VariableSlider"),
   },
-  // {
-  //   title: t("userScripts"),
-  //   type: "NodePlayground",
-  //   description: t("userScriptsDescription"),
-  //   thumbnail: userScriptEditorThumbnail,
-  //   module: async () => await import("./UserScriptEditor"),
-  // },
+  {
+    title: t("userScripts"),
+    type: "NodePlayground",
+    description: t("userScriptsDescription"),
+    thumbnail: userScriptEditorThumbnail,
+    module: async () => await import("./UserScriptEditor"),
+  },
   {
     title: t("tab"),
     type: TAB_PANEL_TYPE,
@@ -209,5 +200,12 @@ export const getBuiltin: (t: TFunction<"panels">) => PanelInfo[] = (t) => [
     thumbnail: tabThumbnail,
     module: async () => await import("./Tab"),
     hasCustomToolbar: true,
+  },
+  {
+    title: t("dataCollection"),
+    type: "DataCollection",
+    description: t("dataCollectionDescription"),
+    thumbnail: dataCollectionThumbnail,
+    module: async () => await import("./DataCollection"),
   },
 ];

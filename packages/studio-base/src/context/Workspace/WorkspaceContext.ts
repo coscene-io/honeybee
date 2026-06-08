@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,8 +11,19 @@ import { StoreApi, useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
-import { IDataSourceFactory } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
+
+export type MomentSubtitlePosition = {
+  anchorX: number;
+  bottom: number;
+};
+
+export type MomentSubtitleSettings = {
+  enabled: boolean;
+  fontSize: number;
+  position: undefined | MomentSubtitlePosition;
+};
 
 export const LeftSidebarItemKeys = [
   "panel-settings",
@@ -20,15 +31,16 @@ export const LeftSidebarItemKeys = [
   "problems",
   "playlist",
   "moment",
+  "tasks",
 ] as const;
 export type LeftSidebarItemKey = (typeof LeftSidebarItemKeys)[number];
 
 export const RightSidebarItemKeys = [
-  "events",
   "extensions",
   "variables",
   "studio-logs-settings",
   "performance",
+  "record-info",
 ] as const;
 export type RightSidebarItemKey = (typeof RightSidebarItemKeys)[number];
 
@@ -50,7 +62,10 @@ export type WorkspaceContextStore = {
   };
   playbackControls: {
     repeat: boolean;
+    rollingEditEnabled: boolean;
     speed: PlaybackSpeed;
+    timelineHeight: number;
+    momentSubtitle: MomentSubtitleSettings;
   };
   sidebars: {
     left: {
@@ -64,7 +79,7 @@ export type WorkspaceContextStore = {
       size: undefined | number;
     };
   };
-  layoutMenu: {
+  layoutDrawer: {
     open: boolean;
   };
 };

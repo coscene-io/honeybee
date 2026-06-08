@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -163,41 +163,44 @@ export function NumberInput(
       }}
       type="number"
       className={cx(classes.textField, { [classes.textFieldReadonly]: readOnly })}
-      inputProps={{
-        ref: inputRef,
-        step,
-        onPointerDown,
-        onPointerUp,
-        onPointerMove,
-      }}
-      InputProps={{
-        readOnly,
-        startAdornment: (
-          <IconButton
-            className={classes.iconButton}
-            size="small"
-            edge="start"
-            tabIndex={-1} // Disable tabbing to the step buttons.
-            onClick={(event: React.MouseEvent) => {
-              updateValue((value ?? placeHolderValue ?? 0) - (event.shiftKey ? step * 10 : step));
-            }}
-          >
-            {iconDown ?? <ChevronLeftIcon fontSize="small" />}
-          </IconButton>
-        ),
-        endAdornment: (
-          <IconButton
-            className={classes.iconButton}
-            size="small"
-            edge="end"
-            tabIndex={-1} // Disable tabbing to the step buttons.
-            onClick={(event: React.MouseEvent) => {
-              updateValue((value ?? placeHolderValue ?? 0) + (event.shiftKey ? step * 10 : step));
-            }}
-          >
-            {iconUp ?? <ChevronRightIcon fontSize="small" />}
-          </IconButton>
-        ),
+      slotProps={{
+        input: {
+          readOnly,
+          startAdornment: (
+            <IconButton
+              className={classes.iconButton}
+              size="small"
+              edge="start"
+              tabIndex={-1} // Disable tabbing to the step buttons.
+              onClick={(event: React.MouseEvent) => {
+                updateValue((value ?? placeHolderValue ?? 0) - (event.shiftKey ? step * 10 : step));
+              }}
+            >
+              {iconDown ?? <ChevronLeftIcon fontSize="small" />}
+            </IconButton>
+          ),
+          endAdornment: (
+            <IconButton
+              className={classes.iconButton}
+              size="small"
+              edge="end"
+              tabIndex={-1} // Disable tabbing to the step buttons.
+              onClick={(event: React.MouseEvent) => {
+                updateValue((value ?? placeHolderValue ?? 0) + (event.shiftKey ? step * 10 : step));
+              }}
+            >
+              {iconUp ?? <ChevronRightIcon fontSize="small" />}
+            </IconButton>
+          ),
+        },
+
+        htmlInput: {
+          ref: inputRef,
+          step,
+          onPointerDown,
+          onPointerUp,
+          onPointerMove,
+        },
       }}
     />
   );

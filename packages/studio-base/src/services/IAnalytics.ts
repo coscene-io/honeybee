@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 
 enum AppEvent {
   APP_INIT = "app_initialized",
@@ -44,6 +44,7 @@ enum AppEvent {
   LAYOUT_CREATE = "layout_created",
   LAYOUT_DUPLICATE = "layout_duplicated",
   LAYOUT_RENAME = "layout_renamed",
+  LAYOUT_MOVE = "layout_moved",
   LAYOUT_DELETE = "layout_deleted",
   LAYOUT_SELECT = "layout_selected",
   LAYOUT_IMPORT = "layout_imported",
@@ -84,7 +85,8 @@ enum AppEvent {
 
   // Player state events
   PLAYER_INITIALIZING_TIME = "player_initializing_time",
-  PLAYER_BUFFERING_TIME = "player_buffering_time",
+  PLAYER_SEEK_LATENCY = "player_seek_latency",
+  PLAYER_STALL_DURATION = "player_stall_duration",
 }
 
 interface IAnalytics {

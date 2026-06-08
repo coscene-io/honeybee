@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -96,7 +96,7 @@ class TransformPreloadingPlayer implements Player {
     this.#listener = listener;
     void this.#run();
   }
-  public close(): void {
+  public async close(): Promise<void> {
     // no-op
   }
   public setSubscriptions(_subs: SubscribePayload[]): void {
@@ -252,7 +252,9 @@ class TransformPreloadingPlayer implements Player {
         seekFramesMs.push(endFrame - startFrame);
       }
       // eslint-disable-next-line no-loop-func
-      seekFramesMs.forEach((ms, i) => (seekFramesMsTotals[i] += ms));
+      seekFramesMs.forEach((ms, i) => {
+        seekFramesMsTotals[i] = (seekFramesMsTotals[i] ?? 0) + ms;
+      });
     }
 
     log.info(`Number of messages: ${allMessages.length}`);
@@ -297,7 +299,9 @@ class TransformPreloadingPlayer implements Player {
         const endFrame = performance.now();
         seekFramesMs.push(endFrame - startFrame);
       }
-      seekFramesMs.forEach((ms, i) => (seekFramesMsTotals[i] += ms));
+      seekFramesMs.forEach((ms, i) => {
+        seekFramesMsTotals[i] = (seekFramesMsTotals[i] ?? 0) + ms;
+      });
     }
 
     log.info(
@@ -308,6 +312,8 @@ class TransformPreloadingPlayer implements Player {
         .join("ms, ")}ms`,
     );
   }
+
+  public reOpen(): void {}
 }
 
 type TFParams = {

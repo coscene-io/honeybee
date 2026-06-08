@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -39,7 +39,7 @@ export default class LocalFileStorage implements Storage {
       for (const entry of await this.list(datastore)) {
         const filePath = path.join(datastoreDir, entry);
         const content = await fs.readFile(filePath);
-        result.push(content);
+        result.push(Uint8Array.from(content));
       }
     } catch (err) {
       if (err.code !== "ENOENT") {
@@ -66,12 +66,13 @@ export default class LocalFileStorage implements Storage {
     options?: { encoding?: "utf8" },
   ): Promise<StorageContent | undefined> {
     const filePath = await this.#makeFilePath(datastore, key);
-    return await fs.readFile(filePath, options).catch((err: unknown) => {
+    const content = await fs.readFile(filePath, options).catch((err: unknown) => {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
         throw err;
       }
       return undefined;
     });
+    return typeof content === "string" || content == undefined ? content : Uint8Array.from(content);
   }
 
   public async put(datastore: string, key: string, value: StorageContent): Promise<void> {

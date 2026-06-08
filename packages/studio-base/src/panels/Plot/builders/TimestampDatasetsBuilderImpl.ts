@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,8 +11,7 @@ import {
   downsampleScatter,
   downsampleTimeseries,
 } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
-import { extendBounds1D } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, extendBounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import { CsvDataset, SeriesConfigKey, SeriesItem, Viewport } from "./IDatasetsBuilder";
 import type { Dataset } from "../ChartRenderer";

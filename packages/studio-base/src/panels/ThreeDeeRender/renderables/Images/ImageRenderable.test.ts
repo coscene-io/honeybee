@@ -1,0 +1,442 @@
+/** @jest-environment jsdom */
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import * as THREE from "three";
+
+import { PinholeCameraModel } from "@foxglove/den/image";
+import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+
+import {
+  ImageRenderable,
+  IMAGE_RENDERABLE_DEFAULT_SETTINGS,
+  ImageUserData,
+} from "./ImageRenderable";
+import type { AnyImage, CompressedVideo } from "./ImageTypes";
+
+const mockAdd = jest.fn();
+const mockAddToTopic = jest.fn();
+const mockRemove = jest.fn();
+const mockRemoveFromTopic = jest.fn();
+
+class MockVideoFrame {
+  public readonly displayWidth: number;
+  public readonly displayHeight: number;
+  public readonly close = jest.fn();
+
+  public constructor(displayWidth = 640, displayHeight = 480) {
+    this.displayWidth = displayWidth;
+    this.displayHeight = displayHeight;
+  }
+}
+
+// Mocked dependencies
+const mockRenderer: IRenderer = {
+  queueAnimationFrame: jest.fn(),
+  normalizeFrameId: jest.fn((id) => id),
+  settings: {
+    errors: {
+      add: mockAdd,
+      addToTopic: mockAddToTopic,
+      remove: mockRemove,
+      removeFromTopic: mockRemoveFromTopic,
+    },
+  },
+} as unknown as IRenderer;
+
+const mockUserData: ImageUserData = {
+  topic: "/test/image",
+  settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+  firstMessageTime: BigInt(0),
+  cameraInfo: undefined,
+  cameraModel: undefined,
+  image: undefined,
+  texture: undefined,
+  material: undefined,
+  geometry: undefined,
+  mesh: undefined,
+  frameId: "frame",
+  messageTime: 0n,
+  receiveTime: 0n,
+  pose: { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+  settingsPath: [],
+};
+
+// Simplest image format test case
+const sampleImage = {
+  format: "jpeg",
+  data: new Uint8Array([1, 2, 3]), // fake data
+  header: { frame_id: "camera", stamp: { sec: 0, nsec: 1 } },
+};
+
+const sampleVideo: CompressedVideo = {
+  format: "h264",
+  data: new Uint8Array([0x65]),
+  timestamp: { sec: 0, nsec: 1 },
+  frame_id: "camera",
+};
+
+type TestDecodedImage = ImageBitmap | ImageData | VideoFrame;
+
+function makeUserData(): ImageUserData {
+  return {
+    ...mockUserData,
+    settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+    texture: undefined,
+    material: undefined,
+    geometry: undefined,
+    mesh: undefined,
+    image: undefined,
+  };
+}
+
+class TestImageRenderable extends ImageRenderable {
+  readonly #decodedImages: (TestDecodedImage | Promise<TestDecodedImage>)[];
+
+  public constructor(decodedImages: (TestDecodedImage | Promise<TestDecodedImage>)[]) {
+    super(mockUserData.topic, mockRenderer, makeUserData());
+    this.#decodedImages = decodedImages;
+  }
+
+  protected override async decodeImage(
+    _image: AnyImage,
+    _resizeWidth?: number,
+  ): Promise<TestDecodedImage> {
+    const decodedImage = this.#decodedImages.shift();
+    if (!decodedImage) {
+      throw new Error("No decoded image queued");
+    }
+    return await decodedImage;
+  }
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function mockDateNow(start = 1_000): { advance: (ms: number) => void; restore: () => void } {
+  let now = start;
+  const spy = jest.spyOn(Date, "now").mockImplementation(() => now);
+  return {
+    advance: (ms: number) => {
+      now += ms;
+    },
+    restore: () => {
+      spy.mockRestore();
+    },
+  };
+}
+
+describe("ImageRenderable", () => {
+  let originalVideoFrame: unknown;
+
+  beforeAll(() => {
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    originalVideoFrame = globals.VideoFrame;
+    globals.VideoFrame = MockVideoFrame;
+  });
+
+  afterAll(() => {
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    globals.VideoFrame = originalVideoFrame;
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should instantiate and set settings", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+    expect(renderable).toBeInstanceOf(ImageRenderable);
+
+    const newSettings = { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS, distance: 2 };
+    renderable.setSettings(newSettings);
+    expect(renderable.userData.settings.distance).toBe(2);
+  });
+
+  it("should set and decode image", async () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+    renderable.setImage(sampleImage);
+    expect(renderable.userData.image).toBe(sampleImage);
+    expect(renderable.getDecodedImage()).toBe(undefined);
+
+    // @ts-expect-error decodeImage is protected, but ok to use on tests
+    await renderable.decodeImage(renderable.userData.image!, 100);
+    expect(renderable.getDecodedImage()).toBeInstanceOf(ImageBitmap);
+  });
+
+  it("should dispose resources", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+    renderable.userData.texture = new THREE.Texture();
+    renderable.userData.material = new THREE.ShaderMaterial();
+    renderable.userData.geometry = new THREE.PlaneGeometry();
+
+    // @ts-expect-error isDisposed is protected, but ok to use on tests
+    expect(renderable.isDisposed()).toBe(false);
+
+    renderable.dispose();
+
+    // @ts-expect-error isDisposed is protected, but ok to use on tests
+    expect(renderable.isDisposed()).toBe(true);
+  });
+
+  it("should set a new brightness value", () => {
+    const newBrightnessValue = 1;
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+
+    renderable.userData.texture = new THREE.Texture();
+    renderable.userData.material = new THREE.ShaderMaterial();
+    renderable.setSettings({ ...renderable.userData.settings, brightness: newBrightnessValue });
+    renderable.userData.geometry = new THREE.PlaneGeometry();
+
+    expect(renderable.userData.settings.brightness).toBe(newBrightnessValue);
+  });
+
+  it("should set a new contrast value", () => {
+    const newContrastValue = 1;
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+
+    renderable.userData.texture = new THREE.Texture();
+    renderable.userData.material = new THREE.ShaderMaterial();
+    renderable.setSettings({ ...renderable.userData.settings, contrast: newContrastValue });
+    renderable.userData.geometry = new THREE.PlaneGeometry();
+
+    expect(renderable.userData.settings.contrast).toBe(newContrastValue);
+  });
+
+  it("should set camera model", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+    const model = new PinholeCameraModel({
+      width: 100,
+      height: 100,
+      binning_x: 0,
+      binning_y: 0,
+      D: [1, 2, 3, 4, 5, 6, 7, 8],
+      distortion_model: "",
+      K: [],
+      P: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      R: [],
+      roi: {
+        x_offset: 0,
+        y_offset: 0,
+        height: 0,
+        width: 0,
+        do_rectify: false,
+      },
+    });
+    renderable.setCameraModel(model);
+    expect(renderable.userData.cameraModel).toBe(model);
+  });
+
+  it("should update texture and queue render for a new video frame", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const onDecoded = jest.fn();
+      const renderable = new TestImageRenderable([frame]);
+
+      renderable.setImage(sampleVideo, undefined, onDecoded);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect(mockRenderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
+      expect(onDecoded).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should skip texture update and render when video decode reuses the current frame", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const onDecoded = jest.fn();
+      const renderable = new TestImageRenderable([frame, frame]);
+
+      renderable.setImage(sampleVideo, undefined, onDecoded);
+      await flushPromises();
+
+      time.advance(20);
+      jest.clearAllMocks();
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } }, undefined, onDecoded);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+      expect(onDecoded).not.toHaveBeenCalled();
+      expect((frame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should reject an older decoded frame after a newer decode reuses the current frame", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const staleFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveStaleFrame!: (value: TestDecodedImage) => void;
+      const staleFramePromise = new Promise<TestDecodedImage>((resolve) => {
+        resolveStaleFrame = resolve;
+      });
+      const renderable = new TestImageRenderable([frame, staleFramePromise, frame]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+
+      time.advance(20);
+      jest.clearAllMocks();
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+
+      time.advance(20);
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect(renderable.userData.messageTime).toBe(3n);
+
+      resolveStaleFrame(staleFrame);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.texture?.image).toBe(frame);
+      expect((staleFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should close the previous video frame once when replacing it", async () => {
+    const time = mockDateNow();
+    try {
+      const frame1 = new MockVideoFrame() as unknown as VideoFrame;
+      const frame2 = new MockVideoFrame() as unknown as VideoFrame;
+      const renderable = new TestImageRenderable([frame1, frame2]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+
+      time.advance(20);
+      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      await flushPromises();
+
+      expect(renderable.userData.texture?.image).toBe(frame2);
+      expect((frame1 as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect((frame2 as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should not close the same video frame twice on dispose", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const renderable = new TestImageRenderable([frame]);
+
+      renderable.setImage(sampleVideo);
+      await flushPromises();
+      renderable.dispose();
+
+      expect((frame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("should close the previous ImageBitmap when replacing it with the same dimensions", async () => {
+    const time = mockDateNow();
+    try {
+      const bitmap1 = await createImageBitmap(new ImageData(640, 480));
+      const bitmap2 = await createImageBitmap(new ImageData(640, 480));
+      const closeBitmap1 = jest.spyOn(bitmap1, "close");
+      const closeBitmap2 = jest.spyOn(bitmap2, "close");
+      const renderable = new TestImageRenderable([bitmap1, bitmap2]);
+
+      renderable.setImage(sampleImage);
+      await flushPromises();
+
+      time.advance(20);
+      renderable.setImage({
+        ...sampleImage,
+        header: { frame_id: "camera", stamp: { sec: 0, nsec: 2 } },
+      });
+      await flushPromises();
+
+      expect(renderable.userData.texture?.image).toBe(bitmap2);
+      expect(closeBitmap1).toHaveBeenCalledTimes(1);
+      expect(closeBitmap2).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+});
+
+describe("ImageRenderable error handling", () => {
+  let originalVideoFrame: unknown;
+
+  beforeAll(() => {
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    originalVideoFrame = globals.VideoFrame;
+    globals.VideoFrame = MockVideoFrame;
+  });
+
+  afterAll(() => {
+    const globals = globalThis as unknown as { VideoFrame?: unknown };
+    globals.VideoFrame = originalVideoFrame;
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  it("should call renderer error methods on addError", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, {
+      ...mockUserData,
+    });
+
+    const mockErrorKey = "test error key";
+    const mockErrorMessage = "test error message";
+
+    // @ts-expect-error addError is protected, but ok to use on tests
+    renderable.addError(mockErrorKey, mockErrorMessage);
+
+    expect(mockAdd).toHaveBeenCalledWith(
+      ["imageMode", "imageTopic"],
+      mockErrorKey,
+      mockErrorMessage,
+    );
+    expect(mockAddToTopic).toHaveBeenCalledWith(mockUserData.topic, mockErrorKey, mockErrorMessage);
+  });
+
+  it("should not call addError in case of renderable is disposed", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, {
+      ...mockUserData,
+    });
+
+    renderable.dispose();
+
+    // @ts-expect-error addError is protected, but ok to use on tests
+    renderable.addError("test error key", "test error message");
+
+    expect(mockAdd).not.toHaveBeenCalled();
+    expect(mockAddToTopic).not.toHaveBeenCalled();
+  });
+
+  it("should call renderer error methods on removeError", () => {
+    const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
+
+    // @ts-expect-error removeError is protected, but ok to use on tests
+    renderable.removeError("decode");
+    expect(mockRemove).toHaveBeenCalledWith(["imageMode", "imageTopic"], "decode");
+    expect(mockRemoveFromTopic).toHaveBeenCalledWith(mockUserData.topic, "decode");
+  });
+});

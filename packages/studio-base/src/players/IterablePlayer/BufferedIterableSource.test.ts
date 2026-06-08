@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
+import race from "race-as-promised";
 
 import { MessageEvent } from "@foxglove/studio";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
@@ -40,6 +41,13 @@ function waiter(count: number) {
       resolver();
     },
   };
+}
+
+async function delay(ms: number): Promise<"timeout"> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+  return "timeout";
 }
 
 class TestSource implements IIterableSource {
@@ -126,6 +134,83 @@ describe("BufferedIterableSource", () => {
     });
 
     expect(bufferedSource.loadedRanges()).toEqual([{ start: 0, end: 1 }]);
+  });
+
+  it("aborts the pending source iterator when the buffered iterator is returned", async () => {
+    const source = new TestSource();
+    const bufferedSource = new BufferedIterableSource(source);
+
+    await bufferedSource.initialize();
+
+    const sourceStarted = waiter(1);
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs & { abortSignal?: AbortSignal },
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      sourceStarted.notify();
+      await new Promise<void>((resolve) => {
+        args.abortSignal?.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
+      });
+      yield* [];
+    };
+
+    const messageIterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+    });
+    await sourceStarted.wait();
+
+    const result = await race([
+      messageIterator.return?.().then(() => "returned" as const) ?? Promise.resolve("no-return"),
+      delay(50),
+    ]);
+
+    expect(result).toBe("returned");
+  });
+
+  it("aborts the pending source iterator when the producer is stopped", async () => {
+    const source = new TestSource();
+    const bufferedSource = new BufferedIterableSource(source);
+
+    await bufferedSource.initialize();
+
+    const sourceStarted = waiter(1);
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs & { abortSignal?: AbortSignal },
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      sourceStarted.notify();
+      await new Promise<void>((resolve) => {
+        args.abortSignal?.addEventListener(
+          "abort",
+          () => {
+            resolve();
+          },
+          { once: true },
+        );
+      });
+      yield* [];
+    };
+
+    const messageIterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+    });
+    await sourceStarted.wait();
+
+    const result = await race([
+      bufferedSource.stopProducer().then(() => "stopped" as const),
+      delay(50),
+    ]);
+
+    expect(result).toBe("stopped");
+    await messageIterator.return?.();
   });
 
   it("should produce messages after buffering is complete", async () => {
@@ -419,12 +504,15 @@ describe("BufferedIterableSource", () => {
     source.messageIterator = async function* messageIterator(
       args: MessageIteratorArgs,
     ): AsyncIterableIterator<Readonly<IteratorResult>> {
-      expect(args).toEqual({
-        topics: mockTopicSelection("a"),
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 10, nsec: 0 },
-        consumptionType: "partial",
-      });
+      expect(args).toEqual(
+        expect.objectContaining({
+          topics: mockTopicSelection("a"),
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 10, nsec: 0 },
+          consumptionType: "partial",
+        }),
+      );
+      expect(args.abortSignal).toBeInstanceOf(AbortSignal);
       messageIteratorCount += 1;
 
       for (let i = 0; i < 8; ++i) {
@@ -483,12 +571,15 @@ describe("BufferedIterableSource", () => {
     source.messageIterator = async function* messageIterator(
       args: MessageIteratorArgs,
     ): AsyncIterableIterator<Readonly<IteratorResult>> {
-      expect(args).toEqual({
-        topics: mockTopicSelection("a"),
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 10, nsec: 0 },
-        consumptionType: "partial",
-      });
+      expect(args).toEqual(
+        expect.objectContaining({
+          topics: mockTopicSelection("a"),
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 10, nsec: 0 },
+          consumptionType: "partial",
+        }),
+      );
+      expect(args.abortSignal).toBeInstanceOf(AbortSignal);
       messageIteratorCount += 1;
 
       for (let i = 0; i < 8; ++i) {
@@ -598,12 +689,15 @@ describe("BufferedIterableSource", () => {
     source.messageIterator = async function* messageIterator(
       args: MessageIteratorArgs,
     ): AsyncIterableIterator<Readonly<IteratorResult>> {
-      expect(args).toEqual({
-        topics: mockTopicSelection("a"),
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 10, nsec: 0 },
-        consumptionType: "partial",
-      });
+      expect(args).toEqual(
+        expect.objectContaining({
+          topics: mockTopicSelection("a"),
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 10, nsec: 0 },
+          consumptionType: "partial",
+        }),
+      );
+      expect(args.abortSignal).toBeInstanceOf(AbortSignal);
       messageIteratorCount += 1;
 
       for (let i = 0; i < 8; ++i) {
@@ -655,12 +749,15 @@ describe("BufferedIterableSource", () => {
     source.messageIterator = async function* messageIterator(
       args: MessageIteratorArgs,
     ): AsyncIterableIterator<Readonly<IteratorResult>> {
-      expect(args).toEqual({
-        topics: mockTopicSelection("a"),
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 10, nsec: 0 },
-        consumptionType: "partial",
-      });
+      expect(args).toEqual(
+        expect.objectContaining({
+          topics: mockTopicSelection("a"),
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 10, nsec: 0 },
+          consumptionType: "partial",
+        }),
+      );
+      expect(args.abortSignal).toBeInstanceOf(AbortSignal);
       messageIteratorCount += 1;
 
       for (let i = 0; i < 8; ++i) {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,7 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createContext } from "react";
-import { StoreApi, useStore } from "zustand";
+import { StoreApi } from "zustand";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable, SettingsTree } from "@foxglove/studio";
@@ -47,5 +48,5 @@ export const PanelStateContext = createContext<undefined | StoreApi<PanelStateSt
 
 export function usePanelStateStore<T>(selector: (store: PanelStateStore) => T): T {
   const context = useGuaranteedContext(PanelStateContext);
-  return useStore(context, selector);
+  return useStoreWithEqualityFn(context, selector);
 }

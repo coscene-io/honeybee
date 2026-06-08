@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -19,8 +19,8 @@ import ts from "typescript/lib/typescript";
 import stressTestDatatypes from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/fixtures/example-datatypes";
 import generateRosLib, {
   generateTypeDefs,
-  typedArrayMap,
   InterfaceDeclarations,
+  typedArrayMap,
 } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/generateRosLib";
 import { compile } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/transform";
 import { ScriptData } from "@foxglove/studio-base/players/UserScriptPlayer/types";

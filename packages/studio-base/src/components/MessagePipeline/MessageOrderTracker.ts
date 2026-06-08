@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -118,14 +118,11 @@ class MessageOrderTracker {
             `Processed a message on ${message.topic} at ${formattedTime} which is earlier than ` +
             `last processed message on ${this.#lastMessageTopic} at ${lastMessageTime}.`;
 
-          log.error("Data went back in time: ", errorMessage);
-
-          // 多 bag 播放时因为 topic 重复导致 bag 之间的时间戳不连续，会导致这个错误， @YunxianHua 目前没有解决方案，暂时注释掉
-          // problems.push({
-          //   severity: "warn",
-          //   message: "Data went back in time",
-          //   error: new Error(errorMessage),
-          // });
+          problems.push({
+            severity: "warn",
+            message: "Data went back in time",
+            error: new Error(errorMessage),
+          });
         }
         this.#lastMessageTopic = message.topic;
         this.#lastMessageTime = messageTime;

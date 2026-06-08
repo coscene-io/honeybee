@@ -1,13 +1,19 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Fade, PopperProps, Tooltip } from "@mui/material";
+import LinkIcon from "@mui/icons-material/Link";
+import LinkOffIcon from "@mui/icons-material/LinkOff";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+import { Fade, PopperProps, Slider as MuiSlider, Tooltip } from "@mui/material";
 import type { Instance } from "@popperjs/core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
@@ -19,73 +25,257 @@ import {
   fromSec,
   Time,
 } from "@foxglove/rostime";
+import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useBaseInfo, CoSceneBaseStore } from "@foxglove/studio-base/context/CoSceneBaseContext";
+import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { type EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   useClearHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import {
+  type WorkspaceContextStore,
+  useWorkspaceStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { BagsOverlay } from "./BagsOverlay";
+import { BAG_OVERLAY_HEIGHT_PX, BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
-import PlaybackBarHoverTicks from "./PlaybackBarHoverTicks";
+import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
-import Slider, { HoverOverEvent } from "./Slider";
+import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
+import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import {
+  clientXToTime,
+  getTimelineViewportZoomPercent,
+  makeTimelineViewport,
+  panViewportBySeconds,
+  setTimelineViewportZoomPercentAtTime,
+  viewportEquals,
+  zoomViewportAtTime,
+  type TimelineViewport,
+} from "./timelineViewport";
+import MomentSubtitleActiveIcon from "../../assets/moment-subtitle-active.svg";
+import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.svg";
+
+const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
+const TIMELINE_RULER_HEIGHT_PX: number = 14;
+const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
+const EVENT_LANE_LAYER_TOP_PX: number =
+  TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
+const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
+
+function isTimelineZoomEnabled(): boolean {
+  return false;
+}
 
 const useStyles = makeStyles()((theme) => ({
-  marker: {
-    backgroundColor: theme.palette.text.primary,
-    position: "absolute",
-    height: 16,
-    borderRadius: 1,
-    width: 2,
-    transform: "translate(-50%, 0)",
+  root: {
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: 1,
+    minHeight: 0,
+    minWidth: 0,
+    position: "relative",
   },
-  track: {
-    position: "absolute",
+  toolbar: {
+    alignItems: "center",
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    display: "flex",
+    flex: `0 0 ${SCRUBBER_TOOLBAR_HEIGHT_PX}px`,
+    height: SCRUBBER_TOOLBAR_HEIGHT_PX,
+    justifyContent: "space-between",
+    paddingInline: theme.spacing(0.5),
+  },
+  toolbarGroup: {
+    alignItems: "center",
+    display: "flex",
+    gap: theme.spacing(0.5),
+    minWidth: 0,
+  },
+  toolbarActions: {
+    alignItems: "center",
+    display: "flex",
+    gap: theme.spacing(0.5),
+    marginLeft: "auto",
+    minWidth: 0,
+  },
+  zoomControl: {
+    alignItems: "center",
+    color: theme.palette.text.secondary,
+    display: "flex",
+    gap: theme.spacing(0.75),
+    minWidth: 160,
+    width: 220,
+  },
+  zoomIcon: {
+    color: "currentColor",
+    fontSize: 18,
+    flex: "0 0 auto",
+  },
+  zoomSlider: {
+    color: theme.palette.text.primary,
+    flex: "1 1 auto",
+    minWidth: 80,
+    paddingBlock: theme.spacing(0.75),
+
+    "& .MuiSlider-rail": {
+      opacity: 0.22,
+    },
+    "& .MuiSlider-thumb": {
+      height: 14,
+      width: 14,
+      borderRadius: 2,
+    },
+    "& .MuiSlider-track": {
+      border: 0,
+    },
+  },
+  timelineViewport: {
+    flex: "1 1 auto",
+    minHeight: 0,
+    overflowX: "hidden",
+    overflowY: "auto",
+    position: "relative",
+  },
+  timelineContent: {
+    height: "100%",
+    position: "relative",
+  },
+  laneLayer: {
+    bottom: 0,
     left: 0,
+    pointerEvents: "none",
+    position: "absolute",
     right: 0,
-    height: 6,
-    backgroundColor: theme.palette.action.focus,
+    top: EVENT_LANE_LAYER_TOP_PX,
   },
-  trackDisabled: {
-    opacity: theme.palette.action.disabledOpacity,
+  hoverTickLayer: {
+    pointerEvents: "none",
   },
 }));
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
-const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
-const selectRanges = (ctx: MessagePipelineContext) =>
-  ctx.playerState.progress.fullyLoadedFractionRanges;
+const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
-const selectEnableList = (store: CoSceneBaseStore) => store.getEnableList();
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectProject = (store: CoreDataStore) => store.project;
+const selectRecord = (store: CoreDataStore) => store.record;
+const selectEvents = (store: EventsStore) => store.events;
+const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.rollingEditEnabled;
+const selectMomentSubtitleEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.momentSubtitle.enabled;
 
 type Props = {
   onSeek: (seekTo: Time) => void;
 };
 
+export type EventContextMenuRequest = ContextMenuEvent;
+
+function dispatchCreateMomentShortcut(): void {
+  const event = new KeyboardEvent("keydown", {
+    key: "1",
+    code: "Digit1",
+    keyCode: 49, // '1' keyCode
+    which: 49,
+    altKey: true, // mock Option (Alt)
+    bubbles: true,
+    cancelable: true,
+  });
+  document.dispatchEvent(event);
+}
+
+function EventButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
+  const { t } = useTranslation("event");
+  const label = t("createMomentTips");
+
+  return (
+    <HoverableIconButton
+      aria-label={label}
+      disabled={disableControls}
+      size="small"
+      title={label}
+      icon={<ShieldOutlinedIcon fontSize="small" />}
+      onClick={dispatchCreateMomentShortcut}
+    />
+  );
+}
+
+const MemoedEventButton = React.memo(EventButton);
+
+function MomentSubtitleIcon({ active }: { active: boolean }): React.JSX.Element {
+  const Icon = active ? MomentSubtitleActiveIcon : MomentSubtitleInactiveIcon;
+
+  return (
+    <span
+      aria-hidden="true"
+      data-testid={active ? "moment-subtitle-icon-active" : "moment-subtitle-icon-inactive"}
+      style={{ display: "inline-flex" }}
+    >
+      <Icon focusable="false" />
+    </span>
+  );
+}
+
+function MomentSubtitleButton({
+  enabled,
+  onClick,
+}: {
+  enabled: boolean;
+  onClick: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("general");
+  const label = t(enabled ? "disableMomentSubtitles" : "enableMomentSubtitles");
+
+  return (
+    <HoverableIconButton
+      aria-label={label}
+      color={enabled ? "primary" : "inherit"}
+      size="small"
+      title={label}
+      icon={<MomentSubtitleIcon active={enabled} />}
+      onClick={onClick}
+    />
+  );
+}
+
+const MemoedMomentSubtitleButton = React.memo(MomentSubtitleButton);
+
 export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
-  const { classes, cx } = useStyles();
+  const { classes } = useStyles();
+  const { t } = useTranslation("general");
+  const consoleApi = useConsoleApi();
 
   const [hoverComponentId] = useState<string>(() => uuidv4());
 
   const [cursor, setCursor] = useState("pointer");
+  const [eventContextMenuRequest, setEventContextMenuRequest] = useState<
+    EventContextMenuRequest | undefined
+  >(undefined);
 
   const startTime = useMessagePipeline(selectStartTime);
-  const currentTime = useMessagePipeline(selectCurrentTime);
   const endTime = useMessagePipeline(selectEndTime);
+  const currentTime = useMessagePipeline(selectCurrentTime);
   const presence = useMessagePipeline(selectPresence);
-  const ranges = useMessagePipeline(selectRanges);
-
-  const enableList = useBaseInfo(selectEnableList);
+  const enableList = useCoreData(selectEnableList);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
+  const events = useEvents(selectEvents);
+  const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
+  const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
+  const {
+    playbackControlActions: { setRollingEditEnabled, setMomentSubtitleEnabled },
+  } = useWorkspaceActions();
 
   const setHoverValue = useSetHoverValue();
 
@@ -100,28 +290,41 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const latestStartTime = useLatest(startTime);
   const latestEndTime = useLatest(endTime);
 
+  const defaultViewport = useMemo<TimelineViewport | undefined>(() => {
+    if (startTime == undefined || endTime == undefined) {
+      return undefined;
+    }
+
+    return makeTimelineViewport(0, toSec(subtractTimes(endTime, startTime)));
+  }, [endTime, startTime]);
+
+  const [viewport, setViewport] = useState<TimelineViewport | undefined>(defaultViewport);
+  const [previewEventLaneCount, setPreviewEventLaneCount] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    setViewport(defaultViewport);
+  }, [defaultViewport]);
+
+  const resolvedViewport = viewport ?? defaultViewport;
+  const latestViewport = useLatest(resolvedViewport);
+  const scrubberRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+
   const onChange = useCallback(
-    (fraction: number) => {
+    (playbackSeconds: number) => {
       if (!latestStartTime.current || !latestEndTime.current) {
         return;
       }
-      onSeek(
-        addTimes(
-          latestStartTime.current,
-          fromSec(fraction * toSec(subtractTimes(latestEndTime.current, latestStartTime.current))),
-        ),
-      );
+      onSeek(addTimes(latestStartTime.current, fromSec(playbackSeconds)));
     },
     [onSeek, latestEndTime, latestStartTime],
   );
 
   const onHoverOver = useCallback(
-    ({ fraction, clientX, clientY }: HoverOverEvent) => {
+    ({ playbackSeconds, clientX, clientY }: HoverOverEvent) => {
       if (!latestStartTime.current || !latestEndTime.current) {
         return;
       }
-      const duration = toSec(subtractTimes(latestEndTime.current, latestStartTime.current));
-      const timeFromStart = fromSec(fraction * duration);
+      const timeFromStart = fromSec(playbackSeconds);
       setHoverInfo({ stamp: addTimes(latestStartTime.current, timeFromStart), clientX, clientY });
       setHoverValue({
         componentId: hoverComponentId,
@@ -131,6 +334,10 @@ export default function Scrubber(props: Props): React.JSX.Element {
     },
     [hoverComponentId, latestEndTime, latestStartTime, setHoverValue],
   );
+
+  const onContextMenu = useCallback((event: ContextMenuEvent): void => {
+    setEventContextMenuRequest(event);
+  }, []);
 
   const clearHoverValue = useClearHoverValue();
 
@@ -142,28 +349,16 @@ export default function Scrubber(props: Props): React.JSX.Element {
   // Clean up the hover value when we are unmounted -- important for storybook.
   useEffect(() => onHoverOut, [onHoverOut]);
 
-  const renderSlider = useCallback(
-    (val?: number) => {
-      if (val == undefined) {
-        return undefined;
-      }
-      return <div className={classes.marker} style={{ left: `${val * 100}%` }} />;
-    },
-    [classes.marker],
-  );
-
-  const min = startTime && toSec(startTime);
-  const max = endTime && toSec(endTime);
-  const fraction =
-    currentTime && startTime && endTime
-      ? toSec(subtractTimes(currentTime, startTime)) / toSec(subtractTimes(endTime, startTime))
-      : undefined;
+  const min = useMemo(() => startTime && toSec(startTime), [startTime]);
+  const max = useMemo(() => endTime && toSec(endTime), [endTime]);
 
   const loading = presence === PlayerPresence.INITIALIZING || presence === PlayerPresence.BUFFERING;
+  const disableControls = presence === PlayerPresence.ERROR;
 
   const popperRef = React.useRef<Instance>(ReactNull);
 
   const isHovered = hoverInfo != undefined;
+
   const popperProps: Partial<PopperProps> = useMemo(
     () => ({
       open: isHovered, // Keep the tooltip visible while dragging even when the mouse is outside the playback bar
@@ -205,58 +400,275 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const [isDragging, setIsDragging] = useState(false);
 
-  return (
-    <Tooltip
-      title={
-        hoverInfo != undefined ? <PlaybackControlsTooltipContent stamp={hoverInfo.stamp} /> : ""
+  const onWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>): void => {
+      const currentViewport = latestViewport.current;
+      const target = scrubberRef.current;
+      if (currentViewport == undefined || target == undefined) {
+        return;
       }
-      placement="top"
-      disableInteractive
-      TransitionComponent={Fade}
-      TransitionProps={{ timeout: 0 }}
-      PopperProps={popperProps}
-    >
-      <Stack
-        direction="row"
-        flexGrow={1}
-        alignItems="center"
-        position="relative"
-        style={{ height: 32 }}
-        onPointerDown={() => {
-          setIsDragging(true);
+
+      const rect = target.getBoundingClientRect();
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        if (!isTimelineZoomEnabled()) {
+          return;
+        }
+        const anchorSec = clientXToTime(event.clientX, rect, currentViewport);
+        setViewport((oldViewport) => {
+          const sourceViewport = oldViewport ?? currentViewport;
+          const nextViewport = zoomViewportAtTime(sourceViewport, anchorSec, event.deltaY);
+          return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+        });
+        return;
+      }
+
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+        event.preventDefault();
+        setViewport((oldViewport) => {
+          const sourceViewport = oldViewport ?? currentViewport;
+          const deltaSec =
+            (event.deltaX / Math.max(rect.width, 1)) *
+            (sourceViewport.visibleEndSec - sourceViewport.visibleStartSec);
+          const nextViewport = panViewportBySeconds(sourceViewport, deltaSec);
+          return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+        });
+      }
+    },
+    [latestViewport],
+  );
+
+  const zoomPercent = useMemo(
+    () =>
+      resolvedViewport != undefined ? getTimelineViewportZoomPercent(resolvedViewport) : undefined,
+    [resolvedViewport],
+  );
+
+  const zoomAnchorSec = useMemo(() => {
+    if (startTime == undefined || currentTime == undefined) {
+      return undefined;
+    }
+
+    return toSec(subtractTimes(currentTime, startTime));
+  }, [currentTime, startTime]);
+
+  const onZoomSliderChange = useCallback(
+    (_event: Event, value: number | number[]): void => {
+      const currentViewport = latestViewport.current;
+      if (!isTimelineZoomEnabled() || currentViewport == undefined || zoomAnchorSec == undefined) {
+        return;
+      }
+
+      const nextZoomPercent = Array.isArray(value) ? value[0] : value;
+      if (nextZoomPercent == undefined) {
+        return;
+      }
+
+      setViewport((oldViewport) => {
+        const sourceViewport = oldViewport ?? currentViewport;
+        const nextViewport = setTimelineViewportZoomPercentAtTime(
+          sourceViewport,
+          zoomAnchorSec,
+          nextZoomPercent,
+        );
+        return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+      });
+    },
+    [latestViewport, zoomAnchorSec],
+  );
+
+  const canCreateEvents =
+    enableList.event === "ENABLE" &&
+    consoleApi.createEvent.permission() &&
+    project.value?.isArchived === false &&
+    record.value?.isArchived === false;
+
+  const canWriteEvents =
+    enableList.event === "ENABLE" &&
+    consoleApi.updateEvent.permission() &&
+    project.value?.isArchived === false &&
+    record.value?.isArchived === false;
+
+  const eventLaneCount = useMemo((): number => {
+    if (resolvedViewport == undefined || enableList.event !== "ENABLE") {
+      return 0;
+    }
+
+    return layoutEventLanes({ events: events.value ?? [], viewport: resolvedViewport }).laneCount;
+  }, [enableList.event, events.value, resolvedViewport]);
+
+  const timelineContentHeight = useMemo((): number => {
+    const effectiveEventLaneCount = previewEventLaneCount ?? eventLaneCount;
+
+    return Math.max(
+      MIN_TIMELINE_CONTENT_HEIGHT_PX,
+      EVENT_LANE_LAYER_TOP_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
+    );
+  }, [eventLaneCount, previewEventLaneCount]);
+
+  const toggleRollingEdit = useCallback((): void => {
+    setRollingEditEnabled((old) => !old);
+  }, [setRollingEditEnabled]);
+
+  const toggleMomentSubtitle = useCallback((): void => {
+    setMomentSubtitleEnabled((old) => !old);
+  }, [setMomentSubtitleEnabled]);
+
+  const handlePreviewEventLaneCountChange = useCallback((laneCount: number | undefined): void => {
+    setPreviewEventLaneCount(laneCount);
+  }, []);
+
+  return (
+    <div ref={scrubberRef} className={classes.root} onWheel={onWheel}>
+      <div className={classes.toolbar}>
+        <div className={classes.toolbarGroup}>
+          {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
+        </div>
+        <div className={classes.toolbarActions}>
+          {isTimelineZoomEnabled() && (
+            <div className={classes.zoomControl}>
+              <Tooltip title={t("zoomOut")}>
+                <ZoomOutIcon className={classes.zoomIcon} />
+              </Tooltip>
+              <MuiSlider
+                aria-label={t("timelineZoom")}
+                className={classes.zoomSlider}
+                disabled={
+                  zoomPercent == undefined ||
+                  zoomAnchorSec == undefined ||
+                  startTime == undefined ||
+                  endTime == undefined
+                }
+                min={0}
+                max={100}
+                size="small"
+                value={zoomPercent ?? 0}
+                onChange={onZoomSliderChange}
+              />
+              <Tooltip title={t("zoomIn")}>
+                <ZoomInIcon className={classes.zoomIcon} />
+              </Tooltip>
+            </div>
+          )}
+          {enableList.event === "ENABLE" && (
+            <MemoedMomentSubtitleButton
+              enabled={momentSubtitleEnabled}
+              onClick={toggleMomentSubtitle}
+            />
+          )}
+          {canWriteEvents && (
+            <HoverableIconButton
+              size="small"
+              title={t(
+                rollingEditEnabled ? "disableLinkedEventAdjustment" : "enableLinkedEventAdjustment",
+                { ns: "event" },
+              )}
+              color={rollingEditEnabled ? "primary" : "inherit"}
+              icon={
+                rollingEditEnabled ? (
+                  <LinkIcon data-testid="rolling-edit-icon-active" fontSize="small" />
+                ) : (
+                  <LinkOffIcon data-testid="rolling-edit-icon-inactive" fontSize="small" />
+                )
+              }
+              onClick={toggleRollingEdit}
+            />
+          )}
+        </div>
+      </div>
+      <Tooltip
+        title={
+          hoverInfo != undefined ? <PlaybackControlsTooltipContent stamp={hoverInfo.stamp} /> : ""
+        }
+        placement="top"
+        disableInteractive
+        slotProps={{
+          popper: popperProps,
+          transition: { timeout: 0 },
         }}
-        onPointerUp={() => {
-          setIsDragging(false);
-        }}
-        onPointerLeave={() => {
-          setIsDragging(false);
+        slots={{
+          transition: Fade,
         }}
       >
-        <div className={cx(classes.track, { [classes.trackDisabled]: !startTime })} />
-        <Stack position="absolute" flex="auto" fullWidth style={{ height: 6 }}>
-          <ProgressPlot loading={loading} availableRanges={ranges} />
-        </Stack>
-        <Stack fullHeight fullWidth position="absolute" flex={1}>
-          <Slider
-            disabled={min == undefined || max == undefined}
-            fraction={fraction}
-            onHoverOver={onHoverOver}
-            onHoverOut={onHoverOut}
-            onChange={onChange}
-            renderSlider={renderSlider}
-            cursor={cursor}
-          />
-        </Stack>
-        <BagsOverlay />
-        {enableList.event === "ENABLE" && (
-          <EventsOverlay
-            componentId={hoverComponentId}
-            isDragging={isDragging}
-            setCursor={setCursor}
-          />
-        )}
-        <PlaybackBarHoverTicks componentId={hoverComponentId} />
-      </Stack>
-    </Tooltip>
+        <div className={classes.timelineViewport}>
+          <div
+            className={classes.timelineContent}
+            style={{ minHeight: timelineContentHeight }}
+            onPointerDown={() => {
+              setIsDragging(true);
+            }}
+            onPointerUp={() => {
+              setIsDragging(false);
+            }}
+            onPointerLeave={() => {
+              setIsDragging(false);
+            }}
+          >
+            {resolvedViewport && (
+              <Stack
+                position="absolute"
+                flex="auto"
+                fullWidth
+                style={{ height: TIMELINE_RULER_HEIGHT_PX, top: 0 }}
+              >
+                <ProgressPlot loading={loading} viewport={resolvedViewport} />
+              </Stack>
+            )}
+            <Stack fullHeight fullWidth position="absolute" flex={1}>
+              {resolvedViewport && (
+                <Slider
+                  disabled={min == undefined || max == undefined}
+                  onContextMenu={onContextMenu}
+                  onHoverOver={onHoverOver}
+                  onHoverOut={onHoverOut}
+                  onChange={onChange}
+                  cursor={cursor}
+                  viewport={resolvedViewport}
+                />
+              )}
+            </Stack>
+            {resolvedViewport && (
+              <Stack
+                position="absolute"
+                fullWidth
+                style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
+              >
+                <BagsOverlay viewport={resolvedViewport} />
+              </Stack>
+            )}
+            <div className={classes.laneLayer} data-testid="event-lane-layer">
+              {resolvedViewport && enableList.event === "ENABLE" && (
+                <EventsOverlay
+                  componentId={hoverComponentId}
+                  canWriteEvents={canWriteEvents}
+                  isDragging={isDragging}
+                  eventContextMenuRequest={eventContextMenuRequest}
+                  onEventContextMenuHandled={() => {
+                    setEventContextMenuRequest(undefined);
+                  }}
+                  onPreviewLaneCountChange={handlePreviewEventLaneCountChange}
+                  onSeek={onChange}
+                  rollingEditEnabled={rollingEditEnabled}
+                  setCursor={setCursor}
+                  viewport={resolvedViewport}
+                />
+              )}
+            </div>
+            {resolvedViewport && (
+              <Stack
+                className={classes.hoverTickLayer}
+                data-testid="playback-hover-tick-layer"
+                fullHeight
+                fullWidth
+                position="absolute"
+                flex={1}
+              >
+                <PlaybackBarHoverTicks componentId={hoverComponentId} viewport={resolvedViewport} />
+              </Stack>
+            )}
+          </div>
+        </div>
+      </Tooltip>
+    </div>
   );
 }

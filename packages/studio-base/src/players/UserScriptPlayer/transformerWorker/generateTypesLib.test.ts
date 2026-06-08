@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,7 +8,7 @@
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
 import { ScriptData } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 
-import { generateTypesLib, generateTypesInterface } from "./generateTypesLib";
+import { generateTypesInterface, generateTypesLib } from "./generateTypesLib";
 import { compile } from "./transform";
 
 const baseNodeData: ScriptData = {

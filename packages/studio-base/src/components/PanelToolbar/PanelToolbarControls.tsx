@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useSelectedPanels } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import PanelCatalogContext from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   PanelStateStore,

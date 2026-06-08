@@ -1,36 +1,35 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Tooltip } from "@mui/material";
-import { useMemo } from "react";
+import { PopperProps, Tooltip } from "@mui/material";
+import type { Instance } from "@popperjs/core";
+import { useEffect, useMemo, useRef } from "react";
 import { useResizeDetector } from "react-resize-detector";
 import { makeStyles } from "tss-react/mui";
 
-import { add, fromSec, toSec } from "@foxglove/rostime";
+import { add, fromSec } from "@foxglove/rostime";
 import { RpcScales } from "@foxglove/studio-base/components/Chart/types";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
-import HoverBar from "@foxglove/studio-base/components/TimeBasedChart/HoverBar";
 import { useHoverValue } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 
+import HoverBar from "./HoverBar";
+import {
+  TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX,
+  TimelinePositionIndicator,
+  getTimelinePositionIndicatorHandleAnchorRect,
+} from "./TimelinePositionIndicator";
+import { type TimelineViewport } from "./timelineViewport";
+
 const useStyles = makeStyles()((theme) => ({
-  tick: {
-    position: "absolute",
-    height: 16,
-    borderRadius: 1,
-    width: 2,
-    top: 8,
-    transform: "translate(-50%, 0)",
-    backgroundColor: theme.palette.warning.main,
-  },
   time: {
     textAlign: "center",
     fontFamily: theme.typography.fontMonospace,
@@ -56,11 +55,14 @@ function getEndTime(ctx: MessagePipelineContext) {
 
 type Props = {
   componentId: string;
+  viewport: TimelineViewport;
 };
 
-export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
-  const { componentId } = props;
-  const { classes } = useStyles();
+function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
+  const { componentId, viewport } = props;
+  const { classes, theme } = useStyles();
+  const indicatorRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+  const popperRef = useRef<Instance>(ReactNull);
 
   const startTime = useMessagePipeline(getStartTime);
   const endTime = useMessagePipeline(getEndTime);
@@ -96,19 +98,45 @@ export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
 
     return {
       x: {
-        min: 0,
-        max: toSec(endTime) - toSec(startTime),
+        min: viewport.visibleStartSec,
+        max: viewport.visibleEndSec,
         pixelMin: 0,
         pixelMax: width ?? 0,
       },
     };
-  }, [width, startTime, endTime]);
+  }, [width, startTime, endTime, viewport]);
 
   // Hover time is only displayed when the hover value originates from other components
   const displayHoverTime = hoverValue != undefined && hoverValue.componentId !== componentId;
 
+  const popperProps: Partial<PopperProps> = useMemo(
+    () => ({
+      popperRef,
+      anchorEl: {
+        getBoundingClientRect: () => {
+          const rect = indicatorRef.current?.getBoundingClientRect();
+          return getTimelinePositionIndicatorHandleAnchorRect(
+            rect ??
+              ({
+                left: 0,
+                top: -TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX / 2,
+                width: 0,
+              } as DOMRect),
+          );
+        },
+      },
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    if (popperRef.current != undefined) {
+      void popperRef.current.update();
+    }
+  }, [hoverValue]);
+
   return (
-    <Stack ref={ref} flex="auto">
+    <Stack ref={ref} flex="auto" style={{ pointerEvents: "none" }}>
       {scaleBounds && (
         <HoverBar componentId={componentId} scales={scaleBounds} isPlaybackSeconds>
           <Tooltip
@@ -119,14 +147,23 @@ export default function PlaybackBarHoverTicks(props: Props): React.JSX.Element {
             disableHoverListener
             disableTouchListener
             disableInteractive
-            TransitionProps={{ timeout: 0 }}
             open={displayHoverTime}
             title={<div className={classes.time}>{hoverTimeDisplay}</div>}
+            slotProps={{
+              popper: popperProps,
+              transition: { timeout: 0 },
+            }}
           >
-            <div className={classes.tick} />
+            <TimelinePositionIndicator
+              ref={indicatorRef}
+              color={theme.palette.warning.main}
+              dataTestId="playback-hover-time-indicator"
+            />
           </Tooltip>
         </HoverBar>
       )}
     </Stack>
   );
 }
+
+export const PlaybackBarHoverTicks = React.memo(UnmemoizedPlaybackBarHoverTicks);

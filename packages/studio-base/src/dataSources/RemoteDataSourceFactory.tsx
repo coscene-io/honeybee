@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -18,6 +18,7 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const initWorkers: Record<string, () => Worker> = {
   ".bag": () => {
@@ -81,7 +82,8 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
   public warning = (
     <>
       {t("openDialog:loadingLargeFilesOverHttpCanBeSlow")}
-      <Link href="https://coscene.cn/" target="_blank">
+      &nbsp;
+      <Link href={`https://${getDomainConfig().webDomain}`} target="_blank">
         {t("openDialog:coSceneDataPlatform")}
       </Link>
       .
@@ -109,6 +111,8 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       urlParams: { url },
       sourceId: this.id,
       readAheadDuration: { sec: 10, nsec: 0 },
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: JSON.stringify({ sourceId: this.id, url }),
     });
   }
 

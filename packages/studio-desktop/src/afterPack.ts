@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -70,7 +70,7 @@ async function copySpotlightImporter(context: AfterPackContext) {
   await downloadTool(zipURL, zipPath);
   const actualSHA = crypto
     .createHash("sha256")
-    .update(await fs.readFile(zipPath))
+    .update(Uint8Array.from(await fs.readFile(zipPath)))
     .digest("hex");
   if (actualSHA !== zipSHA) {
     throw new Error(`SHA mismatch for ${zipURL}: expected ${zipSHA}, got ${actualSHA}`);

@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as Comlink from "comlink";
+import * as Comlink from "@coscene-io/comlink";
 
 import { abortSignalTransferHandler } from "@foxglove/comlink-transfer-handlers";
 import { ComlinkWrap } from "@foxglove/den/worker";
@@ -67,11 +67,13 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
     const cursor = this.getMessageCursor(args);
     try {
       for (;;) {
-        // The fastest framerate that studio renders at is 60fps. So to render a frame studio needs
-        // at minimum ~16 milliseconds of messages before it will render a frame. Here we fetch
-        // batches of 17 milliseconds so that one batch fetch could result in one frame render.
-        // Fetching too much in a batch means we cannot render until the batch is returned.
-        const results = await cursor.nextBatch(17 /* milliseconds */);
+        // We previously used 17ms batches (roughly one 60fps frame) so each fetch could feed a frame,
+        // but profiling showed each Comlink round trip costs ~6-15ms regardless of payload size.
+        // Pulling ~100ms per batch trades a bit more latency for ~6x fewer worker round trips,
+        // significantly reducing time lost to cross-thread overhead while still returning data fast enough
+        // for playback and preloading consumers. With the same 6-15ms per-call cost but 5-6x more payload per call,
+        // our downstream consumers see roughly 2x higher effective throughput even though the per-batch latency grew modestly.
+        const results = await cursor.nextBatch(100 /* milliseconds */);
         if (!results || results.length === 0) {
           break;
         }
@@ -104,8 +106,11 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
     // An AbortSignal is not clonable, so we remove it from the args and send it as a separate argumet
     // to our worker getBackfillMessages call. Our installed Comlink handler for AbortSignal handles
     // making the abort signal available within the worker.
-    const { abort, ...rest } = args;
-    const messageCursorPromise = this.#sourceWorkerRemote.getMessageCursor(rest, abort);
+    const { abort, abortSignal, ...rest } = args;
+    const messageCursorPromise = this.#sourceWorkerRemote.getMessageCursor(
+      rest,
+      abort ?? abortSignal,
+    );
 
     const cursor: IMessageCursor = {
       async next() {
@@ -137,6 +142,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   }
 
   public async terminate(): Promise<void> {
+    await this.#sourceWorkerRemote?.terminate();
     this.#disposeRemote?.();
     // shouldn't normally have to do this, but if `initialize` is called after again we don't want
     // to reuse the old remote

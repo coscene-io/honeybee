@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -44,7 +44,7 @@ export function UnsavedChangesPrompt({
   defaultSelectedKey?: Exclude<UnsavedChangesResolution["type"], "cancel">;
   defaultPersonalCopyName?: string;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const [selectedKey, setSelectedKey] = useState<string>(defaultSelectedKey);
 
   const handleChoiceGroupChange = React.useCallback(
@@ -141,8 +141,11 @@ export function UnsavedChangesPrompt({
                 onChange={handleNameChange}
                 error={nameError != undefined}
                 helperText={nameError}
-                FormHelperTextProps={{
-                  variant: "standard",
+                slotProps={{
+                  htmlInput: { maxLength: 60 },
+                  formHelperText: {
+                    variant: "standard",
+                  },
                 }}
               />
             )}
@@ -150,7 +153,7 @@ export function UnsavedChangesPrompt({
         </DialogContent>
         <DialogActions>
           <Button variant="outlined" size="large" color="inherit" onClick={handleCancel}>
-            {t("cancel", { ns: "cosGeneral" })}
+            {t("cancel", { ns: "general" })}
           </Button>
           <Button
             type="submit"
@@ -159,7 +162,7 @@ export function UnsavedChangesPrompt({
             color={selectedKey === "discard" ? "error" : "primary"}
             disabled={selectedKey === "makePersonal" && nameError != undefined}
           >
-            {selectedKey === "discard" ? t("revertLayoutsConfim") : t("save", { ns: "cosGeneral" })}
+            {selectedKey === "discard" ? t("revertLayoutsConfim") : t("save", { ns: "general" })}
           </Button>
         </DialogActions>
       </form>

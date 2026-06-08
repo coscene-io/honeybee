@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -30,12 +30,16 @@ import {
   ServiceId,
   SubscriptionId,
   Time,
-  Login,
+  ServerLogin,
   Kicked,
   ChannelId,
   MessageData,
   ServerInfo,
   StatusMessage,
+  ServerSyncTime,
+  TimeOffset,
+  NetworkStatistics,
+  PreFetchAssetResponse,
 } from "./types";
 
 type EventTypes = {
@@ -56,9 +60,13 @@ type EventTypes = {
   serviceCallResponse: (event: ServiceCallResponse) => void;
   connectionGraphUpdate: (event: ConnectionGraphUpdate) => void;
   fetchAssetResponse: (event: FetchAssetResponse) => void;
+  preFetchAssetResponse: (event: PreFetchAssetResponse) => void;
   serviceCallFailure: (event: ServiceCallFailure) => void;
-  login: (event: Login) => void;
+  login: (event: ServerLogin) => void;
   kicked: (event: Kicked) => void;
+  syncTime: (event: ServerSyncTime) => void;
+  timeOffset: (event: TimeOffset) => void;
+  networkStatistics: (event: NetworkStatistics) => void;
 };
 
 const textEncoder = new TextEncoder();
@@ -104,13 +112,16 @@ export default class FoxgloveClient {
       }
       this.#emitter.emit("open");
     };
-    this.#ws.onmessage = (event: MessageEvent<ArrayBuffer | string>) => {
+    this.#ws.onmessage = (event: MessageEvent<ArrayBuffer | string> & { receiveTime?: number }) => {
       let message: ServerMessage;
       try {
         if (event.data instanceof ArrayBuffer) {
-          message = parseServerMessage(event.data);
+          message = parseServerMessage(event.data, event.receiveTime ?? Date.now());
         } else {
-          message = JSON.parse(event.data) as ServerMessage;
+          message = {
+            ...JSON.parse(event.data),
+            receiveTime: event.receiveTime ?? Date.now(),
+          } as ServerMessage;
         }
       } catch (error) {
         this.#emitter.emit("error", error as Error);
@@ -166,6 +177,18 @@ export default class FoxgloveClient {
           this.#emitter.emit("kicked", message);
           return;
 
+        case "syncTime":
+          this.#emitter.emit("syncTime", { ...message });
+          return;
+
+        case "timeOffset":
+          this.#emitter.emit("timeOffset", message);
+          return;
+
+        case "networkStatistics":
+          this.#emitter.emit("networkStatistics", message);
+          return;
+
         case BinaryOpcode.MESSAGE_DATA:
           this.#emitter.emit("message", message);
           return;
@@ -180,6 +203,10 @@ export default class FoxgloveClient {
 
         case BinaryOpcode.FETCH_ASSET_RESPONSE:
           this.#emitter.emit("fetchAssetResponse", message);
+          return;
+
+        case BinaryOpcode.PRE_FETCH_ASSET_RESPONSE:
+          this.#emitter.emit("preFetchAssetResponse", message);
           return;
       }
     };
@@ -271,12 +298,20 @@ export default class FoxgloveClient {
     this.#send({ op: "unsubscribeConnectionGraph" });
   }
 
+  public preFetchAsset(uri: string, requestId: number): void {
+    this.#send({ op: "preFetchAsset", uri, requestId });
+  }
+
   public fetchAsset(uri: string, requestId: number): void {
     this.#send({ op: "fetchAsset", uri, requestId });
   }
 
   public login(userId: string, username: string): void {
     this.#send({ op: "login", userId, username });
+  }
+
+  public clientSyncTime(serverTime: number, clientTime: number, delayTime: number): void {
+    this.#send({ op: "syncTime", serverTime, clientTime, delayTime });
   }
 
   /**

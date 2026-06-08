@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -25,3 +25,22 @@ export * from "./stateTransitions";
 export * from "./threeDee";
 export * from "./topicList";
 export * from "./workspace";
+export * from "./recordInfo";
+export * from "./dataCollection";
+export * from "./task";
+export * from "./rawMessages";
+export * from "./table";
+export * from "./userScriptEditor";
+export * from "./extensions";
+export * from "./variable";
+export * from "./error";
+export * from "./layout";
+export * from "./help";
+export * from "./event";
+export * from "./project";
+export * from "./settings";
+export * from "./versionBanner";
+export * from "./account";
+export * from "./playList";
+export * from "./guide";
+export * from "./websocket";

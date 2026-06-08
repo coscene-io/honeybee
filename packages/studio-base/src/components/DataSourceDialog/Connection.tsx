@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -15,7 +15,7 @@ import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
@@ -113,7 +113,10 @@ export default function Connection(): React.JSX.Element {
   // connectionSources is the list of availableSources supporting "connections"
   const connectionSources = useMemo(() => {
     return availableSources.filter((source) => {
-      return source.type === "connection" && source.hidden !== true;
+      return (
+        (source.type === "connection" || source.type === "persistent-cache") &&
+        source.hidden !== true
+      );
     });
   }, [availableSources]);
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -103,6 +103,12 @@ interface IDatasetsBuilder {
   getViewportDatasets(viewport: Immutable<Viewport>): Promise<GetViewportDatasetsResult>;
 
   getCsvData(): Promise<CsvDataset[]>;
+
+  /**
+   * Optional explicit destroy hook for releasing resources (e.g., workers) immediately
+   * instead of relying on GC/FinalizationRegistry.
+   */
+  destroy?(): void;
 }
 
 export type { IDatasetsBuilder };

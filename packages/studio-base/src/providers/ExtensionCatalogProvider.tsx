@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -139,12 +139,12 @@ function createExtensionRegistryStore(
       return new Uint8Array(await res.arrayBuffer());
     },
 
-    installExtension: async (namespace: ExtensionNamespace, foxeFileData: Uint8Array) => {
+    installExtension: async (namespace: ExtensionNamespace, coeFileData: Uint8Array) => {
       const namespacedLoader = loaders.find((loader) => loader.namespace === namespace);
       if (namespacedLoader == undefined) {
         throw new Error("No extension loader found for namespace " + namespace);
       }
-      const info = await namespacedLoader.installExtension(foxeFileData);
+      const info = await namespacedLoader.installExtension(coeFileData);
       await get().refreshExtensions();
       return info;
     },

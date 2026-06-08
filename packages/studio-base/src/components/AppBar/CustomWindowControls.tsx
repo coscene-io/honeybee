@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -28,6 +28,9 @@ export type CustomWindowControlsProps = {
 };
 
 const useStyles = makeStyles()((theme) => ({
+  controls: {
+    WebkitAppRegion: "no-drag",
+  },
   closeButton: {
     color: theme.palette.secondary.main,
     ":hover": {
@@ -52,7 +55,14 @@ export function CustomWindowControls({
 }: Omit<CustomWindowControlsProps, "showCustomWindowControls">): React.JSX.Element {
   const { classes } = useStyles();
   return (
-    <Stack direction="row" gap={1} paddingX={1}>
+    <Stack
+      direction="row"
+      gap={1}
+      paddingX={1}
+      data-testid="win-controls"
+      data-app-region="no-drag"
+      className={classes.controls}
+    >
       <IconButton
         size="small"
         color="inherit"

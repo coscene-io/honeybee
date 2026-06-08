@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -14,11 +14,14 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Dialog, DialogContent, DialogTitle, DialogActions, Button } from "@mui/material";
-import { useCallback, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogTitle, DialogActions, Button, Paper } from "@mui/material";
+import { useCallback, useRef } from "react";
 import { useKeyPressEvent } from "react-use";
+import { v4 as uuidv4 } from "uuid";
 
-type ConfirmVariant = "danger" | "primary";
+import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsContext";
+
+type ConfirmVariant = "danger" | "primary" | "toast";
 type ConfirmAction = "ok" | "cancel";
 
 export type ConfirmOptions = {
@@ -33,6 +36,10 @@ export type ConfirmOptions = {
   cancel?: string | false;
   // indicate the type of confirmation
   variant?: ConfirmVariant;
+  // if true, the escape key will not close the modal
+  disableEscapeKeyDown?: boolean;
+  // if true, the backdrop click will not close the modal
+  disableBackdropClick?: boolean;
 };
 
 type ConfirmModalProps = ConfirmOptions & {
@@ -79,14 +86,47 @@ function ConfirmModal(props: ConfirmModalProps) {
       {props.ok ?? "OK"}
     </Button>,
   ];
-  if (props.variant === "danger") {
-    buttons.reverse();
+
+  // Toast variant - positioned at top right
+  if (props.variant === "toast") {
+    return (
+      <Paper
+        elevation={8}
+        style={{
+          position: "fixed",
+          top: 50,
+          right: 16,
+          zIndex: 9999,
+          maxWidth: 400,
+          minWidth: 300,
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
+          borderRadius: 8,
+        }}
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onComplete("ok");
+          }}
+        >
+          <DialogTitle>{props.title}</DialogTitle>
+          <DialogContent>{props.prompt}</DialogContent>
+          <DialogActions>{buttons}</DialogActions>
+        </form>
+      </Paper>
+    );
   }
 
   return (
     <Dialog
       open
-      onClose={() => {
+      onClose={(_e, reason) => {
+        if ((props.disableEscapeKeyDown ?? false) && reason === "escapeKeyDown") {
+          return;
+        }
+        if ((props.disableBackdropClick ?? false) && reason === "backdropClick") {
+          return;
+        }
         onComplete("cancel");
       }}
       maxWidth="sm"
@@ -109,27 +149,35 @@ function ConfirmModal(props: ConfirmModalProps) {
 export type confirmTypes = (options: ConfirmOptions) => Promise<ConfirmAction>;
 export type confirmModalTypes = React.JSX.Element | undefined;
 
+const selectAddDialog = (store: DialogsStore) => store.addDialog;
+const selectRemoveDialog = (store: DialogsStore) => store.removeDialog;
+
 // Returns a function that can be used similarly to the DOM confirm(), but
 // backed by a React element rather than a native modal, and asynchronous.
-export function useConfirm(): [
-  confirm: (options: ConfirmOptions) => Promise<ConfirmAction>,
-  confirmModal: React.JSX.Element | undefined,
-] {
-  const [modal, setModal] = useState<React.JSX.Element | undefined>();
+export function useConfirm(): (options: ConfirmOptions) => Promise<ConfirmAction> {
+  const addDialog = useDialogs(selectAddDialog);
+  const removeDialog = useDialogs(selectRemoveDialog);
 
-  const openConfirm = useCallback(async (options: ConfirmOptions) => {
-    return await new Promise<ConfirmAction>((resolve) => {
-      setModal(
-        <ConfirmModal
-          {...options}
-          onComplete={(value) => {
-            resolve(value);
-            setModal(undefined);
-          }}
-        />,
-      );
-    });
-  }, []);
+  const openConfirm = useCallback(
+    async (options: ConfirmOptions, key?: string) => {
+      const dialogKey = key ?? uuidv4();
+      return await new Promise<ConfirmAction>((resolve) => {
+        addDialog({
+          key: dialogKey,
+          dialog: (
+            <ConfirmModal
+              {...options}
+              onComplete={(value) => {
+                resolve(value);
+                removeDialog({ key: dialogKey });
+              }}
+            />
+          ),
+        });
+      });
+    },
+    [addDialog, removeDialog],
+  );
 
-  return [openConfirm, modal];
+  return openConfirm;
 }

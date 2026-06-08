@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -21,7 +21,7 @@ export interface ExtensionLoader {
   loadExtension(id: string): Promise<string>;
 
   // install extension contained within the file data
-  installExtension(foxeFileData: Uint8Array): Promise<ExtensionInfo>;
+  installExtension(coeFileData: Uint8Array): Promise<ExtensionInfo>;
 
   // uninstall extension with id
   uninstallExtension(id: string): Promise<void>;

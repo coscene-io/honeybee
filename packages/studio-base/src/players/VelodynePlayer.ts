@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -274,7 +274,7 @@ export default class VelodynePlayer implements Player {
     this.#emitState();
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     this.#closed = true;
     if (this.#socket) {
       void this.#socket.dispose();
@@ -313,6 +313,8 @@ export default class VelodynePlayer implements Player {
   public setGlobalVariables(_globalVariables: GlobalVariables): void {
     // no-op
   }
+
+  public reOpen(): void {}
 }
 
 function rawPacketToRos(packet: RawPacket, topOfHour: Time): { stamp: Time; data: Uint8Array } {

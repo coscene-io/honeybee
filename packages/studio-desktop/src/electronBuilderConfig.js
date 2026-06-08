@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -22,7 +22,7 @@ function makeElectronBuilderConfig(params) {
       app: params.appPath,
       buildResources: path.join(__dirname, "../resources"),
     },
-    artifactName: "coStudio-v${version}-${os}-${arch}.${ext}",
+    artifactName: "coStudio_${version}-${os}_${arch}.${ext}",
     afterPack: path.resolve(__dirname, "afterPack.ts"),
     icon: path.join(__dirname, "../resources/icon/icon.icns"),
     protocols: [
@@ -54,7 +54,13 @@ function makeElectronBuilderConfig(params) {
           name: "coScene Extension",
           mimeType: "application/zip",
         },
+        {
+          ext: "coe",
+          name: "coScene Extension",
+          mimeType: "application/zip",
+        },
       ],
+      icon: path.join(__dirname, "../resources/icon/icon.png"),
     },
     win: {
       target: [
@@ -77,6 +83,11 @@ function makeElectronBuilderConfig(params) {
         },
         {
           ext: "foxe",
+          name: "coScene Extension",
+          mimeType: "application/zip",
+        },
+        {
+          ext: "coe",
           name: "coScene Extension",
           mimeType: "application/zip",
         },
@@ -104,6 +115,7 @@ function makeElectronBuilderConfig(params) {
         { from: path.join(__dirname, "../resources/icon/BagIcon.png"), to: "BagIcon.png" },
         { from: path.join(__dirname, "../resources/icon/McapIcon.png"), to: "McapIcon.png" },
         { from: path.join(__dirname, "../resources/icon/FoxeIcon.png"), to: "FoxeIcon.png" },
+        { from: path.join(__dirname, "../resources/icon/CoeIcon.png"), to: "CoeIcon.png" },
       ],
       extendInfo: {
         CFBundleDocumentTypes: [
@@ -134,6 +146,15 @@ function makeElectronBuilderConfig(params) {
             CFBundleTypeIconSystemGenerated: 1,
             LSItemContentTypes: ["dev.foxglove.extension"],
           },
+          {
+            CFBundleTypeExtensions: ["coe"],
+            CFBundleTypeIconFile: "CoeIcon",
+            CFBundleTypeName: "coScene Extension File",
+            CFBundleTypeRole: "Viewer",
+            LSHandlerRank: "Owner",
+            CFBundleTypeIconSystemGenerated: 1,
+            LSItemContentTypes: ["dev.coscene.extension"],
+          },
         ],
         CFBundleURLTypes: [
           {
@@ -157,6 +178,14 @@ function makeElectronBuilderConfig(params) {
             UTTypeIdentifier: "dev.foxglove.extension",
             UTTypeTagSpecification: { "public.filename-extension": "foxe" },
             UTTypeReferenceURL: "https://foxglove.dev/docs/studio/extensions/getting-started",
+          },
+          {
+            UTTypeConformsTo: ["public.data", "public.archive", "public.zip-archive"],
+            UTTypeDescription: "coScene Extension File",
+            UTTypeIcons: { UTTypeIconText: "coe" },
+            UTTypeIdentifier: "dev.coscene.extension",
+            UTTypeTagSpecification: { "public.filename-extension": "coe" },
+            UTTypeReferenceURL: "https://docs.coscene.cn/docs/viz/extensions/introduction",
           },
         ],
         UTImportedTypeDeclarations: [
@@ -210,12 +239,14 @@ function makeElectronBuilderConfig(params) {
       grade: "stable",
       summary: "Integrated visualization and diagnosis tool for robotics",
     },
-    publish: [
-      {
-        provider: "generic",
-        url: "https://coscene-download.oss-cn-hangzhou.aliyuncs.com/coStudio/packages",
-      },
-    ],
+    publish: process.env.COSTUDIO_DOWNLOAD_URL
+      ? [
+          {
+            provider: "generic",
+            url: process.env.COSTUDIO_DOWNLOAD_URL,
+          },
+        ]
+      : undefined,
     nsis: {
       license: path.join(__dirname, "../resources/license_zh_CN.txt"),
       oneClick: false,

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -169,7 +169,10 @@ export class RenderableModels extends RenderablePrimitive {
           try {
             renderable = await this.#createRenderable(
               primitive,
-              (model) => URL.createObjectURL(new Blob([model.data], { type: model.media_type })),
+              (model) =>
+                URL.createObjectURL(
+                  new Blob([Uint8Array.from(model.data)], { type: model.media_type }),
+                ),
               (url) => {
                 URL.revokeObjectURL(url);
               },

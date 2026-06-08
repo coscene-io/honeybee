@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,6 +8,7 @@
 import { Button } from "@mui/material";
 import * as _ from "lodash-es";
 import { useMemo, useRef, useState, ReactElement, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
@@ -21,6 +22,7 @@ import Variable from "./Variable";
 const ANIMATION_RESET_DELAY_MS = 1500;
 
 export default function VariablesList(): ReactElement {
+  const { t } = useTranslation("variable");
   const { globalVariables, setGlobalVariables } = useGlobalVariables();
   const globalVariableNames = useMemo(() => Object.keys(globalVariables), [globalVariables]);
 
@@ -85,7 +87,7 @@ export default function VariablesList(): ReactElement {
             void analytics.logEvent(AppEvent.VARIABLE_ADD);
           }}
         >
-          Add variable
+          {t("addVariable")}
         </Button>
       </Stack>
     </Stack>

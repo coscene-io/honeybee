@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -41,6 +41,7 @@ import { prepareSettingsNodes } from "./utils";
 type NodeEditorProps = {
   actionHandler: (action: SettingsTreeAction) => void;
   defaultOpen?: boolean;
+  open?: boolean;
   filter?: string;
   focusedPath?: readonly string[];
   path: readonly string[];
@@ -104,6 +105,10 @@ const useStyles = makeStyles()((theme) => ({
         visibility: "hidden",
       },
 
+      "[data-node-function=inline-action-hover]": {
+        visibility: "hidden",
+      },
+
       "&:hover": {
         backgroundColor: theme.palette.action.hover,
 
@@ -112,6 +117,10 @@ const useStyles = makeStyles()((theme) => ({
         },
 
         "[data-node-function=edit-label]": {
+          visibility: "visible",
+        },
+
+        "[data-node-function=inline-action-hover]": {
           visibility: "visible",
         },
       },
@@ -198,7 +207,7 @@ type State = {
 };
 
 function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
-  const { actionHandler, defaultOpen = true, filter, focusedPath, settings = {} } = props;
+  const { actionHandler, defaultOpen = true, open, filter, focusedPath, settings = {} } = props;
   const [state, setState] = useImmer<State>({
     editing: false,
     focusedPath: undefined,
@@ -214,24 +223,61 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
   const visible = props.settings?.visible !== false;
   const selectVisibilityFilterEnabled = props.settings?.enableVisibilityFilter === true;
 
-  const selectVisibilityFilter = (action: SettingsTreeAction) => {
-    if (action.action === "update" && action.payload.input === "select") {
-      setState((draft) => {
-        draft.visibilityFilter = action.payload.value as SelectVisibilityFilterValue;
-      });
+  const isOpen = useMemo(() => {
+    if (open != undefined) {
+      return open;
     }
-  };
+    return state.open;
+  }, [open, state.open]);
 
-  const toggleVisibility = () => {
+  const setOpen = useCallback(
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    (openState: boolean) => {
+      setState((draft) => {
+        draft.open = openState;
+      });
+
+      if (open != undefined) {
+        actionHandler({
+          action: "update",
+          payload: {
+            path: [...props.path, "expansionState"],
+            input: "string",
+            value: openState ? "expanded" : "collapsed",
+          },
+        });
+      }
+    },
+    [actionHandler, open, props.path, setState],
+  );
+
+  const selectVisibilityFilter = useCallback(
+    (action: SettingsTreeAction) => {
+      if (action.action === "update" && action.payload.input === "select") {
+        setState((draft) => {
+          draft.visibilityFilter = action.payload.value as SelectVisibilityFilterValue;
+        });
+      }
+    },
+    [setState],
+  );
+
+  const toggleVisibility = useCallback(() => {
     actionHandler({
       action: "update",
       payload: { input: "boolean", path: [...props.path, "visible"], value: !visible },
     });
-  };
+  }, [actionHandler, props.path, visible]);
 
-  const handleNodeAction = (actionId: string) => {
-    actionHandler({ action: "perform-node-action", payload: { id: actionId, path: props.path } });
-  };
+  const handleNodeAction = useCallback(
+    (actionId: string) => {
+      actionHandler({
+        action: "perform-node-action",
+        payload: { id: actionId, path: props.path },
+      });
+    },
+    [actionHandler, props.path],
+  );
 
   const isFocused = _.isEqual(focusedPath, props.path);
 
@@ -240,15 +286,13 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
       focusedPath != undefined && _.isEqual(props.path, focusedPath.slice(0, props.path.length));
 
     if (isOnFocusedPath) {
-      setState((draft) => {
-        draft.open = true;
-      });
+      setOpen(true);
     }
 
     if (isFocused) {
       rootRef.current?.scrollIntoView();
     }
-  }, [focusedPath, isFocused, props.path, setState]);
+  }, [focusedPath, isFocused, props.path, setOpen, setState]);
 
   const { fields, children } = settings;
   const hasChildren = children != undefined && Object.keys(children).length > 0;
@@ -256,36 +300,52 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
 
   const rootRef = useRef<HTMLDivElement>(ReactNull);
 
-  const fieldEditors = filterMap(Object.entries(fields ?? {}), ([key, field]) => {
-    return field ? (
-      <FieldEditor
-        key={key}
-        field={field}
-        path={makeStablePath(props.path, key)}
-        actionHandler={actionHandler}
-      />
-    ) : undefined;
-  });
+  const fieldEditors = useMemo(
+    () =>
+      filterMap(Object.entries(fields ?? {}), ([key, field]) => {
+        return field ? (
+          <FieldEditor
+            key={key}
+            field={field}
+            path={makeStablePath(props.path, key)}
+            actionHandler={actionHandler}
+          />
+        ) : undefined;
+      }),
+    [actionHandler, fields, props.path],
+  );
 
-  const filterFn =
-    state.visibilityFilter === "visible"
-      ? showVisibleFilter
-      : state.visibilityFilter === "invisible"
-      ? showInvisibleFilter
-      : undefined;
-  const childNodes = filterMap(prepareSettingsNodes(children ?? {}), ([key, child]) => {
-    return !filterFn || filterFn(child) ? (
-      <NodeEditor
-        actionHandler={actionHandler}
-        defaultOpen={child.defaultExpansionState === "collapsed" ? false : true}
-        filter={filter}
-        focusedPath={focusedPath}
-        key={key}
-        settings={child}
-        path={makeStablePath(props.path, key)}
-      />
-    ) : undefined;
-  });
+  const filterFn = useMemo(() => {
+    if (state.visibilityFilter === "visible") {
+      return showVisibleFilter;
+    }
+    if (state.visibilityFilter === "invisible") {
+      return showInvisibleFilter;
+    }
+    return undefined;
+  }, [state.visibilityFilter]);
+
+  const preparedChildNodes = useMemo(() => prepareSettingsNodes(children ?? {}), [children]);
+  const childNodes = useMemo(
+    () =>
+      filterMap(preparedChildNodes, ([key, child]) => {
+        return !filterFn || filterFn(child) ? (
+          <NodeEditor
+            actionHandler={actionHandler}
+            defaultOpen={child.defaultExpansionState !== "collapsed"}
+            open={
+              child.expansionState == undefined ? undefined : child.expansionState !== "collapsed"
+            }
+            filter={filter}
+            focusedPath={focusedPath}
+            key={key}
+            settings={child}
+            path={makeStablePath(props.path, key)}
+          />
+        ) : undefined;
+      }),
+    [actionHandler, filter, filterFn, focusedPath, preparedChildNodes, props.path],
+  );
 
   const IconComponent = settings.icon ? icons[settings.icon] : undefined;
 
@@ -308,12 +368,8 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
   }, [setState]);
 
   const toggleOpen = useCallback(() => {
-    setState((draft) => {
-      if (!draft.editing) {
-        draft.open = !draft.open;
-      }
-    });
-  }, [setState]);
+    setOpen(!isOpen);
+  }, [isOpen, setOpen]);
 
   const onLabelKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -329,7 +385,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
       _.partition(
         settings.actions,
         (action): action is SettingsTreeNodeActionItem =>
-          action.type === "action" && action.display === "inline",
+          action.type === "action" && (action.display === "inline" || action.display === "hover"),
       ),
     [settings.actions],
   );
@@ -398,7 +454,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           onClick={toggleOpen}
           data-testid={`settings__nodeHeaderToggle__${props.path.join("-")}`}
         >
-          {hasProperties && <ExpansionArrow expanded={state.open} />}
+          {hasProperties && <ExpansionArrow expanded={isOpen} />}
           {iconItem}
           {state.editing ? (
             <TextField
@@ -412,21 +468,23 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
               onFocus={(event) => {
                 event.target.select();
               }}
-              InputProps={{
-                endAdornment: (
-                  <IconButton
-                    className={classes.actionButton}
-                    title="Rename"
-                    data-node-function="edit-label"
-                    color="primary"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleEditing();
-                    }}
-                  >
-                    <CheckIcon fontSize="small" />
-                  </IconButton>
-                ),
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <IconButton
+                      className={classes.actionButton}
+                      title="Rename"
+                      data-node-function="edit-label"
+                      color="primary"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleEditing();
+                      }}
+                    >
+                      <CheckIcon fontSize="small" />
+                    </IconButton>
+                  ),
+                },
               }}
             />
           ) : (
@@ -475,12 +533,15 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
                 payload: { id: action.id, path: props.path },
               });
             };
+            const isHoverAction = action.display === "hover";
+
             return Icon ? (
               <IconButton
                 key={action.id}
                 onClick={handler}
                 title={action.label}
                 className={classes.actionButton}
+                data-node-function={isHoverAction ? "inline-action-hover" : undefined}
               >
                 <Icon fontSize="small" />
               </IconButton>
@@ -491,6 +552,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
                 size="small"
                 color="inherit"
                 className={classes.actionButton}
+                data-node-function={isHoverAction ? "inline-action-hover" : undefined}
               >
                 {action.label}
               </Button>
@@ -502,14 +564,14 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           )}
         </Stack>
       </div>
-      {state.open && fieldEditors.length > 0 && (
+      {isOpen && fieldEditors.length > 0 && (
         <>
           <div className={classes.fieldPadding} />
           {fieldEditors}
           <div className={classes.fieldPadding} />
         </>
       )}
-      {state.open && selectVisibilityFilterEnabled && hasChildren && (
+      {isOpen && selectVisibilityFilterEnabled && hasChildren && (
         <>
           <Stack paddingBottom={0.5} style={{ gridColumn: "span 2" }} />
           <FieldEditor
@@ -520,7 +582,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           />
         </>
       )}
-      {state.open && childNodes}
+      {isOpen && childNodes}
       {indent === 1 && <Divider style={{ gridColumn: "span 2" }} />}
     </>
   );

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -80,7 +80,7 @@ export async function main(): Promise<void> {
   if (!isProduction && (app as Partial<typeof app>).dock != undefined) {
     const devIcon = getDevModeIcon();
     if (devIcon) {
-      app.dock.setIcon(devIcon);
+      (app as Partial<typeof app>).dock!.setIcon(devIcon);
     }
   }
 
@@ -278,7 +278,7 @@ export async function main(): Promise<void> {
     // See: https://www.electronjs.org/docs/tutorial/security
     const contentSecurityPolicy: Record<string, string> = {
       "default-src": "'self'",
-      "script-src": `'self' 'unsafe-inline' 'unsafe-eval'`,
+      "script-src": `'self' 'unsafe-inline' 'unsafe-eval' https://coscene.cn https://*.coscene.cn https://coscene.io https://*.coscene.io`,
       "worker-src": `'self' blob:`,
       "style-src": "'self' 'unsafe-inline'",
       "connect-src": "'self' ws: wss: http: https: package: blob: data: file:",

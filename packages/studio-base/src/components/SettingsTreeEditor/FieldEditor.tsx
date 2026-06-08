@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,7 +11,6 @@ import {
   Autocomplete,
   MenuItem,
   MenuList,
-  MenuListProps,
   Select,
   TextField,
   ToggleButton,
@@ -24,8 +23,8 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
 
 import { Immutable, SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
-import CoSceneDeduplicatedMessagePath from "@foxglove/studio-base/components/CoSceneDeduplicatedMessagePath/MessagePathInput";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
+import CommonResourceSelecter from "@foxglove/studio-base/components/SettingsTreeEditor/inputs/CommonResourceSelecter";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 
@@ -117,7 +116,7 @@ function FieldInput({
   path: readonly string[];
 }): React.JSX.Element {
   const { classes, cx } = useStyles();
-  const { t } = useTranslation("cosSettings");
+  const { t } = useTranslation("settings");
 
   switch (field.input) {
     case "autocomplete":
@@ -129,19 +128,11 @@ function FieldInput({
           value={field.value}
           disabled={field.disabled}
           readOnly={field.readonly}
-          ListboxComponent={MenuList}
-          ListboxProps={{ dense: true } as Partial<MenuListProps>}
           renderOption={(props, option, { selected }) => (
             <MenuItem selected={selected} {...props}>
               {option}
             </MenuItem>
           )}
-          componentsProps={{
-            clearIndicator: {
-              size: "small",
-              className: classes.clearIndicator,
-            },
-          }}
           clearIcon={<CancelIcon fontSize="small" />}
           renderInput={(params) => (
             <TextField {...params} variant="filled" size="small" placeholder={field.placeholder} />
@@ -158,6 +149,16 @@ function FieldInput({
             });
           }}
           options={field.items}
+          slots={{
+            listbox: (props) => <MenuList {...props} dense />,
+          }}
+          slotProps={{
+            clearIndicator: {
+              size: "small",
+              className: classes.clearIndicator,
+            },
+            listbox: {},
+          }}
         />
       );
     case "number":
@@ -220,14 +221,16 @@ function FieldInput({
           disabled={field.disabled}
           value={field.value ?? ""}
           placeholder={field.placeholder}
-          InputProps={{
-            readOnly: field.readonly,
-          }}
           onChange={(event) => {
             actionHandler({
               action: "update",
               payload: { path, input: "string", value: event.target.value },
             });
+          }}
+          slotProps={{
+            input: {
+              readOnly: field.readonly,
+            },
           }}
         />
       );
@@ -236,7 +239,7 @@ function FieldInput({
         <Tooltip
           arrow
           placement="right"
-          title={<Typography variant="subtitle2">{field.help}</Typography>}
+          title={field.help && <Typography variant="subtitle2">{field.help}</Typography>}
         >
           <ToggleButtonGroup
             className={classes.styledToggleButtonGroup}
@@ -313,23 +316,6 @@ function FieldInput({
           validTypes={field.validTypes}
         />
       );
-    case "deduplicatedMessagePath":
-      return (
-        <CoSceneDeduplicatedMessagePath
-          variant="filled"
-          path={field.value ?? ""}
-          disabled={field.disabled}
-          readOnly={field.readonly}
-          supportsMathModifiers={field.supportsMathModifiers}
-          onChange={(value) => {
-            actionHandler({
-              action: "update",
-              payload: { path, input: "deduplicatedMessagePath", value },
-            });
-          }}
-          validTypes={field.validTypes}
-        />
-      );
     case "select": {
       const selectedOptionIndex = // use findIndex instead of find to avoid confusing TypeScript with union of arrays
         field.options.findIndex((option) => option.value === field.value);
@@ -346,7 +332,7 @@ function FieldInput({
       }
 
       const hasError = !selectedOption && (!isEmpty || field.value != undefined);
-      return (
+      const selectElement = (
         <Select
           className={cx({ [classes.error]: hasError })}
           size="small"
@@ -380,7 +366,19 @@ function FieldInput({
               },
             });
           }}
-          MenuProps={{ MenuListProps: { dense: true } }}
+          MenuProps={{
+            slotProps: {
+              list: {
+                dense: true,
+              },
+              paper: {
+                style: {
+                  maxHeight: 240,
+                  overflow: "auto",
+                },
+              },
+            },
+          }}
         >
           {field.options.map(({ label, value = UNDEFINED_SENTINEL_VALUE, disabled }) => (
             <MenuItem key={value} value={value} disabled={disabled}>
@@ -392,6 +390,18 @@ function FieldInput({
             <MenuItem style={{ display: "none" }} value={INVALID_SENTINEL_VALUE} />
           )}
         </Select>
+      );
+
+      return field.help ? (
+        <Tooltip
+          arrow
+          placement="right"
+          title={<Typography variant="subtitle2">{field.help}</Typography>}
+        >
+          <div>{selectElement}</div>
+        </Tooltip>
+      ) : (
+        selectElement
       );
     }
 
@@ -414,7 +424,6 @@ function FieldInput({
           variant="filled"
           value={selectValue}
           multiple
-          placeholder={field.placeholder}
           onChange={(event) => {
             actionHandler({
               action: "update",
@@ -428,7 +437,27 @@ function FieldInput({
               },
             });
           }}
-          MenuProps={{ MenuListProps: { dense: true } }}
+          // Select + multiple is not supported placeholder
+          // so we need to use renderValue to show the placeholder
+          renderValue={(selected) => {
+            if (selected.length === 0) {
+              return <Typography style={{ color: "#999" }}>{field.placeholder ?? ""}</Typography>;
+            }
+            return Array.isArray(selected) ? selected.join(", ") : selected;
+          }}
+          MenuProps={{
+            slotProps: {
+              list: {
+                dense: true,
+              },
+              paper: {
+                style: {
+                  maxHeight: 240,
+                  overflow: "auto",
+                },
+              },
+            },
+          }}
         >
           {field.options.map(({ label, value, disabled }) => (
             <MenuItem key={value} value={value} disabled={disabled}>
@@ -439,6 +468,7 @@ function FieldInput({
         </Select>
       );
     }
+
     case "gradient":
       return (
         <ColorGradientInput
@@ -482,7 +512,21 @@ function FieldInput({
           }}
         />
       );
+    case "commonResourceSelector":
+      return (
+        <CommonResourceSelecter
+          value={field.value}
+          onChange={(value) => {
+            actionHandler({
+              action: "update",
+              payload: { path, input: "commonResourceSelector", value },
+            });
+          }}
+        />
+      );
   }
+
+  return <></>;
 }
 
 function FieldLabel({ field }: { field: Immutable<SettingsTreeField> }): React.JSX.Element {

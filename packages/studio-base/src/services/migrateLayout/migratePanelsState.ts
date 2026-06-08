@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,7 +7,7 @@
 
 import { MarkOptional } from "ts-essentials";
 
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
 import { migrateLegacyToNew3DPanels } from "./migrateLegacyToNew3DPanels";
 import { migrateLegacyToNewImagePanels } from "./migrateLegacyToNewImagePanels";

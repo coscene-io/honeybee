@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -9,19 +9,21 @@ import { useMemo } from "react";
 import AnalyticsProvider from "@foxglove/studio-base/context/AnalyticsProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
+import S3FileServiceContext from "@foxglove/studio-base/context/S3FileServiceContext";
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
-import CoSceneBaseProvider from "@foxglove/studio-base/providers/CoSceneBaseProvider";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
-import CoSceneCurrentLayoutProvider from "@foxglove/studio-base/providers/CoSceneCurrentLayoutProvider";
+import CoSceneCurrentUserProvider from "@foxglove/studio-base/providers/CoSceneCurrentUserProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
-import CoSceneProjectProvider from "@foxglove/studio-base/providers/CoSceneProjectProvider";
 import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/providers/CoSceneUserProfileLocalStorageProvider";
-import CoSceneUserProvider from "@foxglove/studio-base/providers/CoSceneUserProvider";
-import ConsoleApi from "@foxglove/studio-base/services/CoSceneConsoleApi";
+import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
+import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
+import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 export function SharedProviders({
   consoleApi,
@@ -32,13 +34,16 @@ export function SharedProviders({
 }): React.JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
+  const s3FileService = useMemo(() => new S3FileService(consoleApi), [consoleApi]);
 
   const providers = useMemo(
     () => [
+      <DialogsProvider key="DialogsProvider" />,
       <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
-      <CoSceneBaseProvider key="CoSceneBaseProvider" />,
+      <S3FileServiceContext.Provider value={s3FileService} key="S3FileServiceContext" />,
+      <CoreDataProvider key="CoreDataProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
-      <CoSceneUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
+      <CoSceneCurrentUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
       // dependent - CoSceneUserProvider
       <AnalyticsProvider key="AnalyticsProvider" />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
@@ -48,12 +53,11 @@ export function SharedProviders({
       />,
       <UrdfStorageContext.Provider value={urdfStorage} key="UrdfStorageContext" />,
       <CoSceneLayoutManagerProvider key="CoSceneLayoutManagerProvider" />,
-      <CoSceneCurrentLayoutProvider key="CoSceneCurrentLayoutProvider" />,
+      <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
-      <CoSceneProjectProvider key="CoSceneProjectProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
-    [consoleApi, loginStatusKey, layoutStorage, urdfStorage],
+    [consoleApi, loginStatusKey, layoutStorage, urdfStorage, s3FileService],
   );
 
   return providers;

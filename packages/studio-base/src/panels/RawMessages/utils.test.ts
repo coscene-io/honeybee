@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,13 +13,13 @@ describe("getMessageDocumentationLink", () => {
       "https://docs.ros.org/api/std_msgs/html/msg/String.html",
     );
     expect(getMessageDocumentationLink("foxglove_msgs/CircleAnnotation")).toEqual(
-      "https://docs.foxglove.dev/docs/visualization/message-schemas/circle-annotation",
+      "https://dev.docs.coscene.cn/en/docs/viz/message-schemas/circle-annotation",
     );
     expect(getMessageDocumentationLink("foxglove_msgs/msg/CircleAnnotation")).toEqual(
-      "https://docs.foxglove.dev/docs/visualization/message-schemas/circle-annotation",
+      "https://dev.docs.coscene.cn/en/docs/viz/message-schemas/circle-annotation",
     );
     expect(getMessageDocumentationLink("foxglove.CircleAnnotation")).toEqual(
-      "https://docs.foxglove.dev/docs/visualization/message-schemas/circle-annotation",
+      "https://dev.docs.coscene.cn/en/docs/viz/message-schemas/circle-annotation",
     );
     expect(getMessageDocumentationLink("foxglove.DoesNotExist")).toBeUndefined();
   });

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -84,15 +84,6 @@ describe("MessagePipeline/MessageOrderTracker", () => {
           severity: "warn",
         },
       ]);
-    });
-
-    it("doesn't report out of order error when messages have been recomputed", () => {
-      const orderTracker = new MessageOrderTracker();
-      const playerState = playerStateWithMessages([message(7, 10), message(8, 9)]);
-      playerState.activeData!.messagesRecomputed = true;
-      const problems = orderTracker.update(playerState);
-
-      expect(problems).toEqual([]);
     });
 
     it("does not report an error when messages are in order", () => {

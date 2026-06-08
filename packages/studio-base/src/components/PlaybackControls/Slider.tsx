@@ -1,33 +1,50 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as _ from "lodash-es";
-import { useCallback, useEffect, useRef, ReactNode, useState, useLayoutEffect } from "react";
+import { useTheme } from "@mui/material";
+import { useCallback, useEffect, useRef, useState, useLayoutEffect, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { scaleValue } from "@foxglove/den/math";
+import { subtract as subtractTimes, toSec } from "@foxglove/rostime";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
+
+import {
+  TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX,
+  TimelinePositionIndicator,
+} from "./TimelinePositionIndicator";
+import {
+  clientXToFraction,
+  fractionToTime,
+  timeToFraction,
+  type TimelineViewport,
+} from "./timelineViewport";
 
 export type HoverOverEvent = {
-  /** Hovered `fraction` value */
-  fraction: number;
+  /** Hovered playback seconds relative to the playback start. */
+  playbackSeconds: number;
   /** Current hovered X position in client coordinates */
   clientX: number;
   /** Current hovered Y position in client coordinates */
   clientY: number;
 };
 
+export type ContextMenuEvent = HoverOverEvent;
+
 type Props = {
-  fraction: number | undefined;
   disabled?: boolean;
-  onChange: (value: number) => void;
+  onChange: (playbackSeconds: number) => void;
+  onContextMenu?: (event: ContextMenuEvent) => void;
   onHoverOver?: (event: HoverOverEvent) => void;
   onHoverOut?: () => void;
-  renderSlider?: (value?: number) => ReactNode;
   cursor: string;
+  viewport: TimelineViewport;
 };
 
 const useStyles = makeStyles<{ cursor: string }>()((theme, props) => ({
@@ -45,43 +62,63 @@ const useStyles = makeStyles<{ cursor: string }>()((theme, props) => ({
     cursor: "not-allowed",
     opacity: theme.palette.action.disabledOpacity,
   },
-  range: {
-    label: "Slider-range",
-    backgroundColor: theme.palette.action.active,
-    position: "absolute",
-    height: "100%",
-  },
 }));
 
-function defaultRenderSlider(value: number | undefined, className: string): ReactNode {
-  if (value == undefined || isNaN(value)) {
+const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
+
+function RenderSlider({ viewport }: { viewport: TimelineViewport }): React.JSX.Element | ReactNull {
+  const theme = useTheme();
+
+  const startTime = useMessagePipeline(selectStartTime);
+  const currentTime = useMessagePipeline(selectCurrentTime);
+
+  const fraction = useMemo(
+    () =>
+      currentTime && startTime
+        ? timeToFraction(toSec(subtractTimes(currentTime, startTime)), viewport)
+        : undefined,
+    [currentTime, startTime, viewport],
+  );
+
+  if (fraction == undefined || fraction < 0 || fraction > 1) {
     return ReactNull;
   }
-  return <div className={className} style={{ width: `${value * 100}%` }} />;
+
+  return (
+    <TimelinePositionIndicator
+      color={theme.palette.text.primary}
+      dataTestId="playback-current-time-indicator"
+      fillOpacity={0.85}
+      style={{ left: `${fraction * 100}%` }}
+    />
+  );
 }
 
-export default function Slider(props: Props): React.JSX.Element {
+function Slider(props: Props): React.JSX.Element {
   const {
-    fraction,
     disabled = false,
-    renderSlider = defaultRenderSlider,
+    onContextMenu,
     onHoverOver,
     onHoverOut,
     onChange,
     cursor,
+    viewport,
   } = props;
   const { classes, cx } = useStyles({ cursor });
 
   const elRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
 
-  const getValueAtMouse = useCallback((ev: React.MouseEvent | MouseEvent): number => {
-    if (!elRef.current) {
-      return 0;
-    }
-    const { left, right } = elRef.current.getBoundingClientRect();
-    const scaled = scaleValue(ev.clientX, left, right, 0, 1);
-    return _.clamp(scaled, 0, 1);
-  }, []);
+  const getPlaybackSecondsAtMouse = useCallback(
+    (ev: React.MouseEvent | MouseEvent): number => {
+      if (!elRef.current) {
+        return 0;
+      }
+      const rect = elRef.current.getBoundingClientRect();
+      return fractionToTime(clientXToFraction(ev.clientX, rect), viewport);
+    },
+    [viewport],
+  );
 
   const [mouseDown, setMouseDown] = useState(false);
   const mouseDownRef = useRef(mouseDown);
@@ -125,21 +162,21 @@ export default function Slider(props: Props): React.JSX.Element {
         return;
       }
 
-      const val = getValueAtMouse(ev);
+      const playbackSeconds = getPlaybackSecondsAtMouse(ev);
       if (elRef.current) {
         const elRect = elRef.current.getBoundingClientRect();
         onHoverOver?.({
-          fraction: val,
+          playbackSeconds,
           clientX: ev.clientX,
-          clientY: elRect.y + elRect.height / 2,
+          clientY: elRect.y + TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX / 2,
         });
       }
       if (!mouseDownRef.current) {
         return;
       }
-      onChange(val);
+      onChange(playbackSeconds);
     },
-    [disabled, getValueAtMouse, onChange, onHoverOver],
+    [disabled, getPlaybackSecondsAtMouse, onChange, onHoverOver],
   );
 
   const onPointerDown = useCallback(
@@ -151,10 +188,27 @@ export default function Slider(props: Props): React.JSX.Element {
         document.activeElement.blur();
       }
       ev.preventDefault();
-      onChange(getValueAtMouse(ev));
+      onChange(getPlaybackSecondsAtMouse(ev));
       setMouseDown(true);
     },
-    [disabled, getValueAtMouse, onChange],
+    [disabled, getPlaybackSecondsAtMouse, onChange],
+  );
+
+  const handleContextMenu = useCallback(
+    (ev: React.MouseEvent<HTMLDivElement>): void => {
+      if (disabled) {
+        return;
+      }
+
+      ev.preventDefault();
+      const playbackSeconds = getPlaybackSecondsAtMouse(ev);
+      onContextMenu?.({
+        playbackSeconds,
+        clientX: ev.clientX,
+        clientY: ev.clientY,
+      });
+    },
+    [disabled, getPlaybackSecondsAtMouse, onContextMenu],
   );
 
   useEffect(() => {
@@ -172,6 +226,8 @@ export default function Slider(props: Props): React.JSX.Element {
   return (
     <div
       ref={elRef}
+      data-testid="scrubber-slider"
+      onContextMenu={handleContextMenu}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onMouseEnter={onMouseEnter}
@@ -180,7 +236,9 @@ export default function Slider(props: Props): React.JSX.Element {
         [classes.rootDisabled]: disabled,
       })}
     >
-      {renderSlider(fraction, classes.range)}
+      <RenderSlider viewport={viewport} />
     </div>
   );
 }
+
+export default React.memo(Slider);

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -27,11 +27,13 @@ async function _loadDecompressHandlers(): Promise<McapTypes.DecompressHandlers> 
   ]);
 
   return {
-    lz4: (buffer, decompressedSize) => decompressLZ4(buffer, Number(decompressedSize)),
+    lz4: (buffer, decompressedSize) =>
+      Uint8Array.from(decompressLZ4(buffer, Number(decompressedSize))),
 
     bz2: (buffer, decompressedSize) =>
       bzip2.decompress(buffer, Number(decompressedSize), { small: false }),
 
-    zstd: (buffer, decompressedSize) => decompressZstd(buffer, Number(decompressedSize)),
+    zstd: (buffer, decompressedSize) =>
+      Uint8Array.from(decompressZstd(buffer, Number(decompressedSize))),
   };
 }

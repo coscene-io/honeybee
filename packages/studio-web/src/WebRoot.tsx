@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,10 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useMemo, useState } from "react";
-import { Toaster } from "react-hot-toast";
 
 import {
-  CoSceneIDataSourceFactory,
+  IDataSourceFactory,
   CoSceneDataPlatformDataSourceFactory,
   FoxgloveWebSocketDataSourceFactory,
   SharedRoot,
@@ -18,10 +17,10 @@ import {
   IdbExtensionLoader,
   ConsoleApi,
   SharedProviders,
+  PersistentCacheDataSourceFactory,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
-import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -30,17 +29,14 @@ const isDevelopment = process.env.NODE_ENV === "development";
 
 export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
-  dataSources: CoSceneIDataSourceFactory[] | undefined;
+  dataSources: IDataSourceFactory[] | undefined;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 }): React.JSX.Element {
-  const baseUrl = APP_CONFIG.CS_HONEYBEE_BASE_URL;
+  const appConfig = getAppConfig();
+  const baseUrl = appConfig.CS_HONEYBEE_BASE_URL ?? "";
   const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
 
   useCoSceneInit();
-
-  // if has many sources need to set confirm
-  // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
 
   const appConfiguration = useMemo(
     () =>
@@ -60,15 +56,16 @@ export function WebRoot(props: {
   const dataSources = useMemo(() => {
     const sources = [
       new CoSceneDataPlatformDataSourceFactory(),
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory(),
+      new PersistentCacheDataSourceFactory(),
     ];
 
     return props.dataSources ?? sources;
-  }, [props.dataSources, confirm]);
+  }, [props.dataSources]);
 
   const consoleApi = useMemo(
-    () => new ConsoleApi(baseUrl, APP_CONFIG.VITE_APP_BFF_URL, jwt),
-    [baseUrl, jwt],
+    () => new ConsoleApi(baseUrl, appConfig.VITE_APP_BFF_URL ?? "", jwt),
+    [baseUrl, jwt, appConfig.VITE_APP_BFF_URL],
   );
 
   const coSceneProviders = SharedProviders({ consoleApi });
@@ -95,8 +92,6 @@ export function WebRoot(props: {
       >
         <StudioApp />
       </SharedRoot>
-      <Toaster />
-      {confirmModal}
     </>
   );
 }

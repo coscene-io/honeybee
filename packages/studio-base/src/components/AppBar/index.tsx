@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,24 +16,25 @@ import {
   Desktop24Regular,
 } from "@fluentui/react-icons";
 import PersonIcon from "@mui/icons-material/Person";
-import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography } from "@mui/material";
+import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography, Divider } from "@mui/material";
 import { useCallback, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import tc from "tinycolor2";
 import { makeStyles } from "tss-react/mui";
 
-import { CoSceneLayoutButton } from "@foxglove/studio-base/components/AppBar/CoSceneLayoutButton";
+import { AppBarProject } from "@foxglove/studio-base/components/AppBar/AppBarProject";
+import { CoSceneLayoutButton } from "@foxglove/studio-base/components/CoSceneLayout/CoSceneLayoutButton";
 import { CoSceneLogo } from "@foxglove/studio-base/components/CoSceneLogo";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import {
-  LayoutState,
-  useCurrentLayoutSelector,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  LayoutState,
+  useCurrentLayoutSelector,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import {
   WorkspaceContextStore,
@@ -41,7 +42,11 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { downloadLatestStudio } from "@foxglove/studio-base/util/download";
+import {
+  checkSupportCoStudioDownload,
+  downloadLatestStudio,
+} from "@foxglove/studio-base/util/download";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { AddPanelMenu } from "./AddPanelMenu";
@@ -52,6 +57,7 @@ import { AppStateBar } from "./AppStateBar";
 import { UserMenu } from "./CoSceneUserMenu";
 import { CustomWindowControls, CustomWindowControlsProps } from "./CustomWindowControls";
 import { DataSource } from "./DataSource";
+import { ShardProfileSelector } from "./ShardProfileSelector";
 
 const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
   theme,
@@ -75,6 +81,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
       fontSize: "2rem",
       color: theme.palette.appBar.primary,
       borderRadius: 0,
+      ...NOT_DRAGGABLE_STYLE, // make button clickable for desktop app
 
       "svg:not(.MuiSvgIcon-root)": {
         fontSize: "1em",
@@ -103,14 +110,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     startInner: {
       display: "flex",
       alignItems: "center",
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
-    },
-    middle: {
-      gridArea: "middle",
-      justifySelf: "center",
-      overflow: "hidden",
-      maxWidth: "100%",
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
+      gap: theme.spacing(1),
     },
     end: {
       gridArea: "end",
@@ -121,7 +121,6 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     endInner: {
       display: "flex",
       alignItems: "center",
-      ...NOT_DRAGGABLE_STYLE, // make buttons clickable for desktop app
     },
     keyEquivalent: {
       fontFamily: theme.typography.fontMonospace,
@@ -142,6 +141,7 @@ const useStyles = makeStyles<{ debugDragRegion?: boolean }, "avatar">()((
     iconButton: {
       padding: theme.spacing(0.75),
       margin: theme.spacing(0, 0.5),
+      ...NOT_DRAGGABLE_STYLE, // make button clickable for desktop app
 
       borderRadius: 0,
 
@@ -174,6 +174,7 @@ const selectLeftSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.l
 const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.right.open;
 
 const selectUser = (store: UserStore) => store.user;
+const selectLoginStatus = (state: UserStore) => state.loginStatus;
 
 export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
@@ -190,6 +191,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const { classes, cx, theme } = useStyles({ debugDragRegion });
   const { currentUser } = useCurrentUser();
   const { t } = useTranslation("appBar");
+
+  const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
 
   const { appBarLayoutButton } = useAppContext();
 
@@ -208,7 +211,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const userMenuOpen = Boolean(userAnchorEl);
   const panelMenuOpen = Boolean(panelAnchorEl);
   const userInfo = useCoSceneCurrentUser(selectUser);
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
 
   const handleOpenInCoStudio = useCallback(async () => {
     const skipConfirm = localStorage.getItem("openInCoStudioDoNotShowAgain") === "true";
@@ -229,7 +232,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
             ns="appBar"
             i18nKey="openInCoStudioPrompt"
             components={{
-              download: <Link href="#" onClick={downloadLatestStudio} />,
+              download: <Link href="#" target="_self" onClick={downloadLatestStudio} />,
             }}
           />
 
@@ -244,7 +247,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
         </>
       ),
       ok: t("openByCoStudio"),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "general" }),
     });
     if (response !== "ok") {
       return;
@@ -259,18 +262,23 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
     window.open(studioUrl, "_self");
   }, [confirm, t]);
 
+  // Prevent double-click from triggering window maximize in interactive areas
+  const handleStopDoubleClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
   return (
     <>
       <AppBarContainer onDoubleClick={onDoubleClick} leftInset={leftInset}>
         <div className={classes.toolbar}>
           <div className={classes.start}>
-            <div className={classes.startInner}>
+            <div className={classes.startInner} onDoubleClick={handleStopDoubleClick}>
               <IconButton
                 className={cx(classes.logo, { "Mui-selected": appMenuOpen })}
                 color="inherit"
                 id="app-menu-button"
                 title={t("menu", {
-                  ns: "cosAppBar",
+                  ns: "appBar",
                 })}
                 aria-controls={appMenuOpen ? "app-menu" : undefined}
                 aria-haspopup="true"
@@ -294,36 +302,50 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   setAppMenuEl(undefined);
                 }}
               />
-              <AppBarIconButton
-                className={cx({ "Mui-selected": panelMenuOpen })}
-                color="inherit"
-                disabled={!hasCurrentLayout}
-                id="add-panel-button"
-                data-tourid="add-panel-button"
-                title={t("addPanel")}
-                aria-label="Add panel button"
-                aria-controls={panelMenuOpen ? "add-panel-menu" : undefined}
-                aria-haspopup="true"
-                aria-expanded={panelMenuOpen ? "true" : undefined}
-                onClick={(event) => {
-                  setPanelAnchorEl(event.currentTarget);
-                }}
-              >
-                <SlideAdd24Regular color={theme.palette.appBar.icon} />
-              </AppBarIconButton>
+              <Divider
+                orientation="vertical"
+                flexItem
+                style={{ marginTop: 14, marginBottom: 14 }}
+              />
+              {isDesktopApp() && loginStatus === "alreadyLogin" && (
+                <>
+                  <AppBarProject />
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    style={{ marginTop: 14, marginBottom: 14 }}
+                  />
+                </>
+              )}
+              <DataSource />
             </div>
           </div>
 
-          <div className={classes.middle}>
-            <DataSource />
-          </div>
-
           <div className={classes.end}>
-            <div className={classes.endInner}>
+            <div className={classes.endInner} onDoubleClick={handleStopDoubleClick}>
               {appBarLayoutButton}
+              <ShardProfileSelector />
+              {/* <CoSceneLayoutButtonOld /> */}
               <CoSceneLayoutButton />
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
-                {!isDesktopApp() && (
+                <AppBarIconButton
+                  className={cx({ "Mui-selected": panelMenuOpen })}
+                  color="inherit"
+                  disabled={!hasCurrentLayout}
+                  id="add-panel-button"
+                  data-tourid="add-panel-button"
+                  title={t("addPanel")}
+                  aria-label="Add panel button"
+                  aria-controls={panelMenuOpen ? "add-panel-menu" : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={panelMenuOpen ? "true" : undefined}
+                  onClick={(event) => {
+                    setPanelAnchorEl(event.currentTarget);
+                  }}
+                >
+                  <SlideAdd24Regular color={theme.palette.appBar.icon} />
+                </AppBarIconButton>
+                {checkSupportCoStudioDownload() && (
                   <AppBarIconButton
                     title={t("openInCoStudio")}
                     aria-label={t("openInCoStudio")}
@@ -380,7 +402,8 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   title={t("help")}
                   aria-label={t("help")}
                   onClick={() => {
-                    window.open("https://docs.coscene.cn", "_blank");
+                    const safeUrl = new URL(getDocsLink()).toString();
+                    window.open(safeUrl, "_blank");
                   }}
                   data-tourid="help-button"
                 >
@@ -389,7 +412,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
               </Stack>
               <Tooltip
                 classes={{ tooltip: classes.tooltip }}
-                title={currentUser?.email ?? "Profile"}
+                title={currentUser?.email ?? t("profile")}
                 arrow={false}
               >
                 <IconButton
@@ -407,11 +430,16 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                   data-testid="user-button"
                 >
                   <Avatar
-                    src={userInfo?.avatarUrl ?? undefined}
+                    src={
+                      userInfo?.avatarUrl != undefined && userInfo.avatarUrl !== ""
+                        ? userInfo.avatarUrl
+                        : undefined
+                    }
                     className={classes.avatar}
                     variant="rounded"
                   >
-                    {userInfo?.avatarUrl == undefined && <PersonIcon color="secondary" />}
+                    {userInfo?.avatarUrl == undefined ||
+                      (userInfo.avatarUrl === "" && <PersonIcon color="secondary" />)}
                   </Avatar>
                 </IconButton>
               </Tooltip>
@@ -445,7 +473,6 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           setUserAnchorEl(undefined);
         }}
       />
-      {confirmModal}
     </>
   );
 }

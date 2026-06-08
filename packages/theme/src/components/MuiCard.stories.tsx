@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -38,13 +38,16 @@ export const BasicCard: StoryObj = {
           </IconButton>
         }
         title="Word of the day"
-        titleTypographyProps={{
-          variant: "body2",
-          color: "text.secondary",
-        }}
         subheader={<>be &bull; nev &bull; o &bull; lent</>}
-        subheaderTypographyProps={{
-          variant: "h5",
+        slotProps={{
+          title: {
+            variant: "body2",
+            color: "text.secondary",
+          },
+
+          subheader: {
+            variant: "h5",
+          },
         }}
       />
       <Divider />

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -128,6 +128,8 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
   public override dispose(): void {
     this.renderer.off("transformTreeUpdated", this.#handleTransformTreeUpdated);
+    // Cancel the throttled function to prevent memory leaks
+    this.#throttledUpdateSettingsTree.cancel();
     this.#lineMaterial.dispose();
     this.#linePickingMaterial.dispose();
     super.dispose();
@@ -363,8 +365,8 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
       this.renderer.updateConfig((draft) => {
         for (const frameId of this.renderables.keys()) {
           const frameKeySanitized = frameId === "settings" ? "$settings" : `frame:${frameId}`;
-          draft.transforms[frameKeySanitized] ??= {};
-          draft.transforms[frameKeySanitized]!.visible = value;
+          const transformSettings = (draft.transforms[frameKeySanitized] ??= {});
+          transformSettings.visible = value;
         }
       });
 

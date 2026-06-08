@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -31,17 +31,18 @@ import { EmptyPanelLayout } from "@foxglove/studio-base/components/EmptyPanelLay
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import {
   LayoutState,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   usePanelMosaicId,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
-import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { getPanelIdForType, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
 import ErrorBoundary from "./ErrorBoundary";
@@ -220,7 +221,7 @@ export default function PanelLayout(): React.JSX.Element {
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
-  const { t, i18n } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
 
   const createNewLayout = async () => {
     const layoutData: Omit<LayoutData, "name" | "id"> = {
@@ -230,9 +231,10 @@ export default function PanelLayout(): React.JSX.Element {
     };
 
     const layout = await layoutManager.saveNewLayout({
+      folder: "",
       name: "Default",
       data: layoutData,
-      permission: "CREATOR_WRITE",
+      permission: "PERSONAL_WRITE",
     });
     setSelectedLayoutId(layout.id);
   };
@@ -272,13 +274,9 @@ export default function PanelLayout(): React.JSX.Element {
           target="_blank"
           underline="hover"
           variant="body1"
-          href={
-            i18n.language === "zh"
-              ? "https://docs.coscene.cn/docs/recipes/viz/layout/"
-              : "https://docs.coscene.cn/en/docs/recipes/viz/layout/"
-          }
+          href={getDocsLink("/viz/layout/")}
         >
-          {t("userGuide", { ns: "cosGeneral" })}
+          {t("userGuide", { ns: "general" })}
         </Link>
       </Stack>
     </EmptyState>

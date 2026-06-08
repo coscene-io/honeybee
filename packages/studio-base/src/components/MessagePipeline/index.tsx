@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,15 +16,15 @@ import {
   useRef,
 } from "react";
 import { StoreApi, useStore } from "zustand";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Immutable } from "@foxglove/studio";
-import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import CurrentLayoutContext, {
   LayoutState,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useS3FileService } from "@foxglove/studio-base/context/S3FileServiceContext";
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
-import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
   Player,
@@ -65,9 +65,9 @@ export function useMessagePipelineGetter(): () => MessagePipelineContext {
 
 export function useMessagePipeline<T>(selector: (arg0: MessagePipelineContext) => T): T {
   const store = useGuaranteedContext(ContextInternal);
-  return useStore(
+  return useStoreWithEqualityFn(
     store,
-    useCallback((state) => selector(state.public), [selector]),
+    useCallback((state: MessagePipelineInternalState) => selector(state.public), [selector]),
   );
 }
 
@@ -104,6 +104,8 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
 
   const urdfStorage = useUrdfStorage();
 
+  const s3FileService = useS3FileService();
+
   // We make a new store when the player changes. This throws away any state from the previous store
   // and re-creates the pipeline functions and references. We make a new store to avoid holding onto
   // any state from the previous store.
@@ -112,8 +114,13 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   // are ok with this behavior because the <Workspace> re-mounts all panels when a player changes.
   // The re-mounted panels will re-initialize and setup new publishers and subscribers.
   const store = useMemo(() => {
-    return createMessagePipelineStore({ promisesToWaitForRef, initialPlayer: player, urdfStorage });
-  }, [player, urdfStorage]);
+    return createMessagePipelineStore({
+      promisesToWaitForRef,
+      initialPlayer: player,
+      urdfStorage,
+      s3FileService,
+    });
+  }, [player, urdfStorage, s3FileService]);
 
   const subscriptions = useStore(store, selectSubscriptions);
 
@@ -134,13 +141,9 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     };
   }, [debouncedPlayerSetSubscriptions]);
 
-  useEffect(
-    () => debouncedPlayerSetSubscriptions(subscriptions),
-    [debouncedPlayerSetSubscriptions, subscriptions],
-  );
-
-  // Slow down the message pipeline framerate to the given FPS if it is set to less than 60
-  const [messageRate] = useAppConfigurationValue<number>(AppSetting.MESSAGE_RATE);
+  useEffect(() => {
+    debouncedPlayerSetSubscriptions(subscriptions);
+  }, [debouncedPlayerSetSubscriptions, subscriptions]);
 
   // Tell listener the layout has completed
   const renderDone = useStore(store, selectRenderDone);
@@ -149,7 +152,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
   }, [renderDone]);
 
   const msPerFrameRef = useRef<number>(16);
-  msPerFrameRef.current = 1000 / (messageRate ?? 60);
+  msPerFrameRef.current = 1000 / 60;
 
   // To avoid re-rendering the MessagePipelineProvider and all children when global variables change
   // we register a listener directly on the context to track updates to global variables.
@@ -203,7 +206,7 @@ export function MessagePipelineProvider({ children, player }: ProviderProps): Re
     player.setListener(listener);
     return () => {
       cleanupListener();
-      player.close();
+      void player.close();
       dispatch({
         type: "update-player-state",
         playerState: defaultPlayerState(),
@@ -258,6 +261,7 @@ function createPlayerListener(args: {
   listener: (state: PlayerState) => Promise<void>;
   cleanupListener: () => void;
 } {
+  // console.log("create player listener");
   const { msPerFrameRef, promisesToWaitForRef, store } = args;
   const updateState = store.getState().dispatch;
   const messageOrderTracker = new MessageOrderTracker();

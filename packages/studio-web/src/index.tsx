@@ -1,17 +1,15 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import * as Sentry from "@sentry/browser";
 import { StrictMode, useEffect } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import Logger from "@foxglove/log";
-import type { CoSceneIDataSourceFactory } from "@foxglove/studio-base";
+import type { IDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
 
 import VersionBanner from "./VersionBanner";
 import { canRenderApp } from "./canRenderApp";
@@ -28,7 +26,7 @@ function LogAfterRender(props: React.PropsWithChildren): React.JSX.Element {
 }
 
 export type MainParams = {
-  dataSources?: CoSceneIDataSourceFactory[];
+  dataSources?: IDataSourceFactory[];
   extraProviders?: React.JSX.Element[];
   rootElement?: React.JSX.Element;
 };
@@ -40,35 +38,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     console.error(...args);
   };
 
-  if (APP_CONFIG.VITE_APP_PROJECT_ENV !== "local" && APP_CONFIG.SENTRY_ENABLED) {
-    log.info("initializing Sentry");
-    Sentry.init({
-      dsn: APP_CONFIG.SENTRY_HONEYBEE_DSN,
-      release: APP_CONFIG.RELEASE_TAG,
-      autoSessionTracking: true,
-      // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
-      // creates more noise than benefit.
-      integrations: (integrations) => {
-        return integrations
-          .filter((integration) => integration.name !== "Breadcrumbs")
-          .concat([
-            Sentry.browserTracingIntegration({
-              instrumentNavigation: false,
-            }),
-          ]);
-      },
-      environment: APP_CONFIG.VITE_APP_PROJECT_ENV,
-
-      // We recommend adjusting this value in production, or using tracesSampler
-      // for finer control
-      tracesSampleRate: 0.1,
-    });
-  }
-
   const rootEl = document.getElementById("root");
   if (!rootEl) {
     throw new Error("missing #root element");
   }
+
+  const root = createRoot(rootEl);
 
   const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)\./);
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;
@@ -80,14 +55,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   );
 
   if (!canRender) {
-    // eslint-disable-next-line react/no-deprecated
-    ReactDOM.render(
+    root.render(
       <StrictMode>
         <LogAfterRender>
           <CssBaseline>{banner}</CssBaseline>
         </LogAfterRender>
       </StrictMode>,
-      rootEl,
     );
     return;
   }
@@ -109,14 +82,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
   );
 
-  // eslint-disable-next-line react/no-deprecated
-  ReactDOM.render(
+  root.render(
     <StrictMode>
       <LogAfterRender>
         {banner}
         {rootElement}
       </LogAfterRender>
     </StrictMode>,
-    rootEl,
   );
 }

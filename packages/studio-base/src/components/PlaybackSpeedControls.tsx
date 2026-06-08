@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,21 +7,21 @@
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
-import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
+import {
+  formatPlaybackSpeed,
+  PLAYBACK_SPEED_OPTIONS,
+} from "@foxglove/studio-base/components/playbackSpeed";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
-import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
-
-const SPEED_OPTIONS: PlaybackSpeed[] = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.8, 1, 2, 3, 5];
-
-const formatSpeed = (val: PlaybackSpeed) => `${val < 0.1 ? val.toFixed(2) : val}×`;
 
 const selectPlaybackSpeed = (store: WorkspaceContextStore) => store.playbackControls.speed;
 
@@ -43,6 +43,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
   const speed = useWorkspaceStore(selectPlaybackSpeed);
   const setPlaybackSpeed = useMessagePipeline(useCallback((state) => state.setPlaybackSpeed, []));
   // Speed setting lives on the Workspace/persists accross layouts
+  const { t } = useTranslation();
   const {
     playbackControlActions: { setSpeed },
   } = useWorkspaceActions();
@@ -63,31 +64,29 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
 
   return (
     <>
-      <Button
-        className={classes.button}
-        id="playback-speed-button"
-        aria-controls={open ? "playback-speed-menu" : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? "true" : undefined}
-        onClick={handleClick}
-        data-testid="PlaybackSpeedControls-Dropdown"
-        disabled={props.disabled}
-        disableRipple
-        variant="contained"
-        color="inherit"
-        endIcon={<ArrowDropDownIcon />}
-      >
-        {formatSpeed(speed)}
-      </Button>
+      <Tooltip title={t("playbackSpeedShortcut", { ns: "general" })}>
+        <Button
+          className={classes.button}
+          id="playback-speed-button"
+          aria-controls={open ? "playback-speed-menu" : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? "true" : undefined}
+          onClick={handleClick}
+          data-testid="PlaybackSpeedControls-Dropdown"
+          disabled={props.disabled}
+          disableRipple
+          variant="contained"
+          color="inherit"
+          endIcon={<ArrowDropDownIcon />}
+        >
+          {formatPlaybackSpeed(speed)}
+        </Button>
+      </Tooltip>
       <Menu
         id="playback-speed-menu"
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "playback-speed-button",
-          dense: true,
-        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -96,8 +95,15 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
           vertical: "bottom",
           horizontal: "left",
         }}
+        data-tourid="playback-speed-controls"
+        aria-labelledby="playback-speed-button"
+        slotProps={{
+          list: {
+            dense: true,
+          },
+        }}
       >
-        {SPEED_OPTIONS.map((option) => (
+        {PLAYBACK_SPEED_OPTIONS.map((option) => (
           <MenuItem
             selected={speed === option}
             key={option}
@@ -113,8 +119,12 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
             )}
             <ListItemText
               inset={speed !== option}
-              primary={formatSpeed(option)}
-              primaryTypographyProps={{ variant: "inherit" }}
+              primary={formatPlaybackSpeed(option)}
+              slotProps={{
+                primary: {
+                  variant: "inherit",
+                },
+              }}
             />
           </MenuItem>
         ))}

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -20,7 +20,6 @@ import {
   TextField,
   // eslint-disable-next-line
   styled as muiStyled,
-  Chip,
   Stack,
 } from "@mui/material";
 import {
@@ -35,13 +34,10 @@ import {
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
 
-// import { withStyles } from "tss-react/mui";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
-import { CoSceneBaseStore, useBaseInfo } from "@foxglove/studio-base/context/CoSceneBaseContext";
-import { UserStore, useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { Layout, layoutIsShared } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 const StyledListItem = muiStyled(ListItem, {
   shouldForwardProp: (prop) =>
@@ -126,9 +122,6 @@ export type LayoutActionMenuItem =
       debug?: boolean;
     };
 
-const selectUserRole = (store: UserStore) => store.role;
-const selectBaseInfo = (store: CoSceneBaseStore) => store.baseInfo;
-
 export default React.memo(function LayoutRow({
   layout,
   anySelectedModifiedLayouts,
@@ -144,8 +137,6 @@ export default React.memo(function LayoutRow({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
-  onRecommendedToProjectLayout,
-  onCopyToRecordDefaultLayout,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -153,22 +144,19 @@ export default React.memo(function LayoutRow({
   selected: boolean;
   searchQuery: string;
   onSelect: (item: Layout, params?: { selectedViaClick?: boolean; event?: MouseEvent }) => void;
-  onRename: (item: Layout, newName: string) => void;
+  onRename?: (item: Layout, newName: string) => void;
   onDuplicate: (item: Layout) => void;
-  onDelete: (item: Layout) => void;
+  onDelete?: (item: Layout) => void;
   onShare: (item: Layout) => void;
   onExport: (item: Layout) => void;
-  onOverwrite: (item: Layout) => void;
-  onRevert: (item: Layout) => void;
+  onOverwrite?: (item: Layout) => void;
+  onRevert?: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
-  onRecommendedToProjectLayout?: (item: Layout) => void;
-  onCopyToRecordDefaultLayout?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
-  const [confirm, confirmModal] = useConfirm();
+  const confirm = useConfirm();
   const layoutManager = useLayoutManager();
-  const { t } = useTranslation("cosLayout");
-  const currentUserRole = useCurrentUser(selectUserRole);
+  const { t } = useTranslation("layout");
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -180,11 +168,8 @@ export default React.memo(function LayoutRow({
   >(undefined);
 
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
-  const hasModifications = layout.working != undefined;
+  const hasModifications = layout.working != undefined && onOverwrite != undefined;
   const multiSelection = multiSelectedIds.length > 1;
-
-  const asyncBaseInfo = useBaseInfo(selectBaseInfo);
-  const baseInfo = useMemo(() => asyncBaseInfo.value ?? {}, [asyncBaseInfo]);
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -198,10 +183,16 @@ export default React.memo(function LayoutRow({
   }, [layoutManager]);
 
   const overwriteAction = useCallback(() => {
+    if (onOverwrite == undefined) {
+      throw new Error("onOverwrite is not defined");
+    }
     onOverwrite(layout);
   }, [layout, onOverwrite]);
 
   const confirmRevert = useCallback(async () => {
+    if (onRevert == undefined) {
+      throw new Error("onRevert is not defined");
+    }
     const response = await confirm({
       title: multiSelection
         ? t("revertLayouts")
@@ -210,7 +201,7 @@ export default React.memo(function LayoutRow({
           }),
       prompt: t("revertLayoutsPrompt"),
       ok: t("revertLayoutsConfim"),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      cancel: t("cancel", { ns: "general" }),
       variant: "danger",
     });
     if (response !== "ok") {
@@ -248,20 +239,11 @@ export default React.memo(function LayoutRow({
     onExport(layout);
   }, [layout, onExport]);
 
-  const recommendedToProjectAction = useCallback(() => {
-    if (onRecommendedToProjectLayout) {
-      onRecommendedToProjectLayout(layout);
-    }
-  }, [layout, onRecommendedToProjectLayout]);
-
-  const copyToRecordDefaultAction = useCallback(() => {
-    if (onCopyToRecordDefaultLayout) {
-      onCopyToRecordDefaultLayout(layout);
-    }
-  }, [layout, onCopyToRecordDefaultLayout]);
-
   const onSubmit = useCallback(
     (event: React.FormEvent) => {
+      if (onRename == undefined) {
+        throw new Error("onRename is not defined");
+      }
       event.preventDefault();
       if (!editingName) {
         return;
@@ -276,6 +258,7 @@ export default React.memo(function LayoutRow({
   );
 
   const onTextFieldKeyDown = useCallback((event: React.KeyboardEvent) => {
+    event.stopPropagation();
     if (event.key === "Escape") {
       setEditingName(false);
     }
@@ -291,8 +274,11 @@ export default React.memo(function LayoutRow({
   const nameInputRef = useRef<HTMLInputElement>(ReactNull);
 
   const confirmDelete = useCallback(() => {
+    if (onDelete == undefined) {
+      throw new Error("onDelete is not defined");
+    }
     const layoutWarning =
-      !multiSelection && layoutIsShared(layout) ? t("deleteLayoutsWarning") : "";
+      !multiSelection && layoutIsProject(layout) ? t("deleteLayoutsWarning") : "";
     const prompt = t("deleteLayoutsPrompt", { layoutWarning });
     const title = multiSelection
       ? t("deleteSelectedLayoutsTitle")
@@ -302,8 +288,8 @@ export default React.memo(function LayoutRow({
     void confirm({
       title,
       prompt,
-      ok: t("delete", { ns: "cosGeneral" }),
-      cancel: t("cancel", { ns: "cosGeneral" }),
+      ok: t("delete", { ns: "general" }),
+      cancel: t("cancel", { ns: "general" }),
       variant: "danger",
     }).then((response) => {
       if (response === "ok" && isMounted()) {
@@ -334,52 +320,32 @@ export default React.memo(function LayoutRow({
   }, []);
 
   const menuItems: (boolean | LayoutActionMenuItem)[] = [
-    {
-      type: "item",
-      key: "rename",
-      text: t("rename"),
-      onClick: renameAction,
-      "data-testid": "rename-layout",
-      disabled: (layoutIsShared(layout) && !isOnline) || multiSelection,
-      secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
-    },
+    ...(onRename != undefined
+      ? [
+          {
+            type: "item",
+            key: "rename",
+            text: t("rename"),
+            onClick: renameAction,
+            "data-testid": "rename-layout",
+            disabled: (layoutIsProject(layout) && !isOnline) || multiSelection,
+            secondaryText: layoutIsProject(layout) && !isOnline ? "Offline" : undefined,
+          } as LayoutActionMenuItem,
+        ]
+      : []),
     // For shared layouts, duplicate first requires saving or discarding changes
-    !(layoutIsShared(layout) && hasModifications) && {
+    !(layoutIsProject(layout) && hasModifications) && {
       type: "item",
       key: "duplicate",
       text:
-        layoutManager.supportsSharing && layoutIsShared(layout)
+        layoutManager.supportsSharing && layoutIsProject(layout)
           ? t("makeAPersonalCopy")
           : t("duplicate"),
       onClick: duplicateAction,
       "data-testid": "duplicate-layout",
     },
-    layoutIsShared(layout) &&
-      onRecommendedToProjectLayout != undefined &&
-      !layout.isRecordRecommended &&
-      (currentUserRole.organizationRole === "ORGANIZATION_ADMIN" ||
-        currentUserRole.projectRole === "PROJECT_ADMIN") && {
-        type: "item",
-        key: "recommendedToProjectLayout",
-        text: layout.isProjectRecommended
-          ? t("removeProjectRecommendedLayout")
-          : t("markAsProjectRecommendedLayout"),
-        onClick: recommendedToProjectAction,
-        "data-testid": "recommended-project-layout",
-      },
-    onCopyToRecordDefaultLayout != undefined &&
-      !layout.isRecordRecommended &&
-      (currentUserRole.organizationRole !== "ORGANIZATION_READER" ||
-        currentUserRole.projectRole !== "PROJECT_READER") &&
-      baseInfo.recordId != undefined && {
-        type: "item",
-        key: "copyToRecordDefaultLayout",
-        text: t("copyToRecordDefaultLayoutTitle"),
-        onClick: copyToRecordDefaultAction,
-        "data-testid": "copy-to-record-default-layout",
-      },
     layoutManager.supportsSharing &&
-      !layoutIsShared(layout) && {
+      !layoutIsProject(layout) && {
         type: "item",
         key: "share",
         text: t("shareWithTeam"),
@@ -395,34 +361,46 @@ export default React.memo(function LayoutRow({
       onClick: exportAction,
     },
     { key: "divider_1", type: "divider" },
-    {
-      type: "item",
-      key: "delete",
-      text: t("delete"),
-      onClick: confirmDelete,
-      "data-testid": "delete-layout",
-    },
+    ...(onDelete != undefined
+      ? [
+          {
+            type: "item",
+            key: "delete",
+            text: t("delete"),
+            onClick: confirmDelete,
+            "data-testid": "delete-layout",
+          } as LayoutActionMenuItem,
+        ]
+      : []),
   ];
 
   if (hasModifications || anySelectedModifiedLayouts) {
     const sectionItems: LayoutActionMenuItem[] = [
-      {
-        type: "item",
-        key: "overwrite",
-        text: t("saveChanges"),
-        onClick: overwriteAction,
-        disabled: deletedOnServer || (layoutIsShared(layout) && !isOnline),
-        secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
-      },
-      {
-        type: "item",
-        key: "revert",
-        text: t("revert"),
-        onClick: confirmRevert,
-        disabled: deletedOnServer,
-      },
+      ...(onOverwrite != undefined
+        ? [
+            {
+              type: "item",
+              key: "overwrite",
+              text: t("saveChanges"),
+              onClick: overwriteAction,
+              disabled: deletedOnServer || (layoutIsProject(layout) && !isOnline),
+              secondaryText: layoutIsProject(layout) && !isOnline ? "Offline" : undefined,
+            } as LayoutActionMenuItem,
+          ]
+        : []),
+      ...(onRevert != undefined
+        ? [
+            {
+              type: "item",
+              key: "revert",
+              text: t("revert"),
+              onClick: confirmRevert,
+              disabled: deletedOnServer,
+            } as LayoutActionMenuItem,
+          ]
+        : []),
     ];
-    if (layoutIsShared(layout)) {
+    if (layoutIsProject(layout)) {
       sectionItems.push({
         type: "item",
         key: "copy_to_personal",
@@ -437,11 +415,15 @@ export default React.memo(function LayoutRow({
       : t("thisLayoutHasUnsavedChanges");
 
     menuItems.unshift(
-      {
-        key: "changes",
-        type: "header",
-        text: deletedOnServer ? t("someoneElseHasDeletedThisLayout") : unsavedChangesMessage,
-      },
+      ...(onOverwrite != undefined && onDelete != undefined
+        ? [
+            {
+              key: "changes",
+              type: "header",
+              text: deletedOnServer ? t("someoneElseHasDeletedThisLayout") : unsavedChangesMessage,
+            } as LayoutActionMenuItem,
+          ]
+        : []),
       ...sectionItems,
       { key: "changes_divider", type: "divider" },
     );
@@ -491,7 +473,6 @@ export default React.memo(function LayoutRow({
         </IconButton>
       }
     >
-      {confirmModal}
       <ListItemButton
         data-testid="layout-list-item"
         selected={selected || multiSelectedIds.includes(layout.id)}
@@ -524,14 +505,8 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
               <HighlightedText text={layout.name} highlight={searchQuery} />
-              {layout.isProjectRecommended && (
-                <Chip label={t("projectRecommandedLayout")} color="success" size="small" />
-              )}
-              {layout.isRecordRecommended && (
-                <Chip label={t("recordDefaultLayout")} color="success" size="small" />
-              )}
             </Stack>
           </Typography>
         </ListItemText>
@@ -549,9 +524,12 @@ export default React.memo(function LayoutRow({
         }
         anchorEl={contextMenuTarget?.element}
         onClose={handleClose}
-        MenuListProps={{
-          "aria-labelledby": "layout-actions",
-          dense: true,
+        aria-labelledby="layout-actions"
+        data-tourid="layout-actions"
+        slotProps={{
+          list: {
+            dense: true,
+          },
         }}
       >
         {filteredItems.map((item) => {

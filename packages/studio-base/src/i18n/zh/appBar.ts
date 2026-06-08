@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,7 +10,6 @@ import { TypeOptions } from "i18next";
 export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   about: "关于",
   addPanel: "添加面板",
-  documentation: "文档",
   exploreSampleData: "探索样本数据",
   exportLayoutToFile: "导出布局到文件……",
   extensions: "扩展",
@@ -26,7 +25,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   openConnection: "打开连接……",
   openLocalFile: "打开本地文件……",
   recentDataSources: "最近使用的数据源",
-  settings: "设置",
+  visualizationSettings: "可视化设置",
   showLeftSidebar: "显示左侧边栏",
   showRightSidebar: "显示右侧边栏",
   signIn: "登录",
@@ -37,13 +36,13 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   viewData: "查看数据",
   viewOurDocs: "查看我们的文档",
   profile: "个人资料",
+  rawData: "原始数据",
   mediaGeneratingTips:
     "media 文件生成中，生成完成后刷新页面即可播放（{{successfulCount}}/{{totalCount}}）",
   mediaSuccessfulGeneration:
     "已将所有 media 文件生成，刷新页面即可播放全部文件 ({{count}}/{{count}})",
-  mediaGenerationError: "存在 media 生成失败的文件，请删除对应文件后重试",
+  mediaGenerationError: "播放列表中存在无法生成索引的文件，请检查文件内容",
   loadingTips: "正在全速加载播放数据，请稍候...",
-  layoutGuideliens: "新建「布局」自定义你的可视化视图，或直接使用组织共享布局",
   toSetupLayout: "前往设置布局",
   noMoreTips: "不再提示",
   loginSuccess: "登录成功",
@@ -68,4 +67,27 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
     "将在 coStudio 中打开当前页面，请确认已经安装 coStudio，或者点击此处<download>下载</download>，并允许打开外部链接",
   openByCoStudio: "通过 coStudio 打开",
   doNotShowAgain: "不再提示",
+  autoDisconnectionTips:
+    "检测到长时间无操作，可视化即将自动断连，如需继续使用请保持活跃状态 {{time}}",
+  networkConnection: "网络连接",
+  localNetworkConnection: "局域网连接",
+  colinkRemoteConnection: "coLink 远程连接",
+  openHomePage: "打开首页",
+  networkStatus: "网络状态",
+  networkDelay: "延迟",
+  networkSpeed: "速度",
+  droppedMessages: "丢弃消息",
+  packetLoss: "包丢失率",
+  networkStatusHelp: "仅 coBridge ≥ v1.2.0 版本可展示网络状态信息",
+  // From cosZh
+  settings: "设置",
+  documentation: "文档",
+  login: "登录",
+  signOutConfirmTitle: "确定要登出吗",
+  signOutConfirmOk: "登出",
+  signOutConfirmCancel: "取消",
+  menu: "菜单",
+  signoutSuccess: "登出成功",
+  downloadLatestStudio: "下载 coStudio",
+  userFeedback: "用户反馈",
 };

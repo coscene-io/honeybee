@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -30,8 +30,6 @@ export default function LayoutSection({
   onRevert,
   onMakePersonalCopy,
   searchQuery,
-  onRecommendedToProjectLayout,
-  onCopyToRecordDefaultLayout,
 }: {
   title: string | undefined;
   emptyText: string | undefined;
@@ -40,16 +38,14 @@ export default function LayoutSection({
   multiSelectedIds: readonly string[];
   selectedId?: string;
   onSelect: (item: Layout, params?: { selectedViaClick?: boolean; event?: MouseEvent }) => void;
-  onRename: (item: Layout, newName: string) => void;
+  onRename?: (item: Layout, newName: string) => void;
   onDuplicate: (item: Layout) => void;
-  onDelete: (item: Layout) => void;
+  onDelete?: (item: Layout) => void;
   onShare: (item: Layout) => void;
   onExport: (item: Layout) => void;
-  onOverwrite: (item: Layout) => void;
-  onRevert: (item: Layout) => void;
+  onOverwrite?: (item: Layout) => void;
+  onRevert?: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
-  onRecommendedToProjectLayout?: (item: Layout) => void;
-  onCopyToRecordDefaultLayout?: (item: Layout) => void;
   searchQuery: string;
 }): React.JSX.Element {
   return (
@@ -93,8 +89,6 @@ export default function LayoutSection({
               onOverwrite={onOverwrite}
               onRevert={onRevert}
               onMakePersonalCopy={onMakePersonalCopy}
-              onRecommendedToProjectLayout={onRecommendedToProjectLayout}
-              onCopyToRecordDefaultLayout={onCopyToRecordDefaultLayout}
             />
           ))}
       </List>

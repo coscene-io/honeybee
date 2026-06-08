@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,6 +26,7 @@ import { makeStyles } from "tss-react/mui";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 
 const useStyles = makeStyles()((theme) => ({
   subheader: {
@@ -87,13 +88,16 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
       open={open}
       onClose={handleClose}
       transformOrigin={transformOrigin}
-      MenuListProps={{
-        "aria-labelledby": "help-button",
+      slotProps={{
+        list: {
+          "aria-labelledby": "help-button",
+          dense: true,
+        },
       }}
     >
       <ListSubheader className={classes.subheader}>Documentation</ListSubheader>
       <MenuItem
-        href="https://docs.coscene.cn/docs/category/%E6%95%B0%E6%8D%AE%E5%8F%AF%E8%A7%86%E5%8C%96/"
+        href={getDocsLink("/viz/about-viz")}
         className={classes.menuItem}
         component="a"
         target="_blank"
@@ -107,9 +111,13 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
       >
         <SlideLayout24Regular className={classes.icon} />
         <ListItemText
-          primary={t("dataVisualization", { ns: "cosHelp" })}
-          secondary={t("visualizeMachineDataAndAnalysis", { ns: "cosHelp" })}
-          secondaryTypographyProps={{ className: classes.menuText }}
+          primary={t("dataVisualization", { ns: "help" })}
+          secondary={t("visualizeMachineDataAndAnalysis", { ns: "help" })}
+          slotProps={{
+            secondary: {
+              className: classes.menuText,
+            },
+          }}
         />
       </MenuItem>
       {/* <MenuItem

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,6 +10,7 @@ import { useNetworkState } from "react-use";
 
 import { useVisibilityState } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
+import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import LayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useLayoutStorage } from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/CoSceneRemoteLayoutStorageContext";
@@ -21,19 +22,29 @@ const log = Logger.getLogger(__filename);
 const SYNC_INTERVAL_BASE_MS = 30_000;
 const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
 
+const selectUser = (store: UserStore) => store.user;
+
 export default function CoSceneLayoutManagerProvider({
   children,
 }: React.PropsWithChildren): React.JSX.Element {
   const layoutStorage = useLayoutStorage();
   const remoteLayoutStorage = useRemoteLayoutStorage();
 
+  const currentUser = useCurrentUser(selectUser);
+
   const layoutManager = useMemo(
-    () => new LayoutManager({ local: layoutStorage, remote: remoteLayoutStorage }),
-    [layoutStorage, remoteLayoutStorage],
+    () =>
+      new LayoutManager({
+        local: layoutStorage,
+        remote: remoteLayoutStorage,
+        currentUser,
+      }),
+    [layoutStorage, remoteLayoutStorage, currentUser],
   );
 
   const { online = false } = useNetworkState();
   const visibilityState = useVisibilityState();
+
   useEffect(() => {
     layoutManager.setOnline(online);
   }, [layoutManager, online]);
@@ -41,9 +52,11 @@ export default function CoSceneLayoutManagerProvider({
   // Sync periodically when logged in, online, and the app is not hidden
   const enableSyncing = remoteLayoutStorage != undefined && online && visibilityState === "visible";
   useEffect(() => {
+    // if base info is loaded, resync layouts
     if (!enableSyncing) {
       return;
     }
+
     const controller = new AbortController();
     void (async () => {
       let failures = 0;

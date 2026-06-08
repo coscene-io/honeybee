@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,10 +13,10 @@ import PanelToolbar, {
 } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
-import MomentsList from "@foxglove/studio-base/panels/AnnotatedPlot/MomentsList";
 import { useMomentsBarSettings } from "@foxglove/studio-base/panels/MomentsBar/settings";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
+import MomentsList from "./MomentsList";
 import { MomentsBarConfig } from "./types";
 
 type Props = {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -31,7 +31,7 @@ export function Root(): React.JSX.Element {
       new MemoryAppConfiguration({
         defaults: {
           [AppSetting.LAUNCH_PREFERENCE]: LaunchPreferenceValue.WEB,
-          [AppSetting.MESSAGE_RATE]: 240,
+          // [AppSetting.MESSAGE_RATE]: 240,
         },
       }),
   );
@@ -56,6 +56,7 @@ export function Root(): React.JSX.Element {
     return sources;
   }, []);
 
+  const [extensionLoaders] = useState(() => []);
   const url = new URL(window.location.href);
 
   return (
@@ -64,6 +65,8 @@ export function Root(): React.JSX.Element {
       deepLinks={[url.href]}
       dataSources={dataSources}
       appConfiguration={appConfiguration}
+      extensionLoaders={extensionLoaders}
+      enableGlobalCss
     >
       <StudioApp />
     </SharedRoot>

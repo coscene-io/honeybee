@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -16,7 +16,7 @@ const useStyles = makeStyles()((theme) => ({
       padding: theme.spacing(0.375, 0.5),
       gap: theme.spacing(0.375),
 
-      [`.${inputBaseClasses.inputSizeSmall}`]: {
+      [`&.${inputBaseClasses.sizeSmall} > .${inputBaseClasses.input}`]: {
         padding: theme.spacing(0.425, 0.5),
       },
     },
@@ -50,15 +50,17 @@ export function FilterTagInput({
       options={suggestions}
       freeSolo
       fullWidth
-      ChipProps={{
-        className: classes.chip,
-        variant: "filled",
-        size: "small",
-        deleteIcon: <Dismiss12Filled />,
-      }}
       renderInput={(params) => (
         <TextField {...params} size="small" className={classes.input} placeholder="Search filter" />
       )}
+      slotProps={{
+        chip: {
+          className: classes.chip,
+          variant: "filled",
+          size: "small",
+          deleteIcon: <Dismiss12Filled />,
+        },
+      }}
     />
   );
 }

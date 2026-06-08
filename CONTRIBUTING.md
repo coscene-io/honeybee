@@ -1,16 +1,14 @@
-# Contributing to Foxglove Studio
+# Contributing to Honeybee
 
 **Supported development environments:** Linux, Windows, macOS
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v16.10+
-- [Git LFS](https://git-lfs.github.com/)
+- [Node.js](https://nodejs.org/en/) v22 recommended (`package.json` currently allows `>=20`)
 
 ## Getting started
 
 1. Clone repo
-1. Run `git lfs pull` to ensure Git LFS objects are up to date
 1. Run `corepack enable` and `yarn install`
    - If you still get errors about corepack after running `corepack enable`, try uninstalling and reinstalling Node.js. Ensure that Yarn is not separately installed from another source, but is installed _via_ corepack.
 1. Launch the development environment:
@@ -18,9 +16,6 @@
 ```sh
 # To launch the app:
 $ yarn web:serve
-
-# To launch the storybook:
-$ yarn storybook
 ```
 
 ### Other useful commands
@@ -34,7 +29,7 @@ $ yarn test:watch   # run tests on changed files
 
 ## Localization
 
-At this time, first-class support for Foxglove Studio is provided in English only. Localization into other languages is available on a best-effort basis, with translations provided by community volunteers. Current community supported-languages are:
+At this time, first-class support for Honeybee is provided in English only. Localization into other languages is available on a best-effort basis, with translations provided by community volunteers. Current community supported-languages are:
 
 - Chinese
 - Japanese
@@ -48,7 +43,7 @@ Translation support is implemented using [`react-i18next`](https://react.i18next
 
 ### Add translations to the `i18n` directory
 
-The [`i18n` directory](packages/studio-base/src/i18n) contains translated (localized) strings for all languages supported by Foxglove Studio.
+The [`i18n` directory](packages/studio-base/src/i18n) contains translated (localized) strings for all languages supported by Honeybee.
 
 Translated strings are organized into _namespaces_ — e.g. [`i18n/[language]/appSettings.ts`](packages/studio-base/src/i18n/en/appSettings.ts) contains translations for the app's Settings tab.
 

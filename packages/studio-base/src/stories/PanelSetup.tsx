@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -42,8 +42,8 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 // CoScene
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
-import { PanelsActions } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { PanelsActions } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
   ExtensionCatalog,
   ExtensionCatalogContext,

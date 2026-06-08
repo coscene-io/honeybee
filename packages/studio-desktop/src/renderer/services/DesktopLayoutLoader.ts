@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,11 +6,22 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Logger from "@foxglove/log";
-import { LayoutLoader, LayoutInfo, LayoutData } from "@foxglove/studio-base";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 
 import { Desktop } from "../../common/types";
 
 const log = Logger.getLogger(__filename);
+
+type LayoutInfo = {
+  from: string;
+  name: string;
+  data: LayoutData;
+};
+
+interface LayoutLoader {
+  namespace: string;
+  fetchLayouts: () => Promise<LayoutInfo[]>;
+}
 
 export class DesktopLayoutLoader implements LayoutLoader {
   #bridge?: Desktop;

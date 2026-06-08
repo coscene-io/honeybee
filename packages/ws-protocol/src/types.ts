@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,6 +10,7 @@ export enum BinaryOpcode {
   TIME = 2,
   SERVICE_CALL_RESPONSE = 3,
   FETCH_ASSET_RESPONSE = 4,
+  PRE_FETCH_ASSET_RESPONSE = 5,
 }
 export enum ClientBinaryOpcode {
   MESSAGE_DATA = 1,
@@ -122,6 +123,7 @@ export type ServiceCallRequest = ServiceCallPayload & {
 };
 export type ServerInfo = {
   op: "serverInfo";
+  receiveTime: number;
   name: string;
   capabilities: string[];
   supportedEncodings?: string[];
@@ -130,24 +132,29 @@ export type ServerInfo = {
 };
 export type StatusMessage = {
   op: "status";
+  receiveTime: number;
   level: StatusLevel;
   message: string;
   id?: string;
 };
 export type RemoveStatusMessages = {
   op: "removeStatus";
+  receiveTime: number;
   statusIds: string[];
 };
 export type Advertise = {
   op: "advertise";
+  receiveTime: number;
   channels: Channel[];
 };
 export type Unadvertise = {
   op: "unadvertise";
+  receiveTime: number;
   channelIds: ChannelId[];
 };
 export type ParameterValues = {
   op: "parameterValues";
+  receiveTime: number;
   parameters: Parameter[];
   id?: string;
 };
@@ -171,10 +178,12 @@ export type UnsubscribeParameterUpdates = {
 };
 export type AdvertiseServices = {
   op: "advertiseServices";
+  receiveTime: number;
   services: Service[];
 };
 export type UnadvertiseServices = {
   op: "unadvertiseServices";
+  receiveTime: number;
   serviceIds: ServiceId[];
 };
 export type SubscribeConnectionGraph = {
@@ -190,6 +199,7 @@ export type FetchAsset = {
 };
 export type ConnectionGraphUpdate = {
   op: "connectionGraphUpdate";
+  receiveTime: number;
   publishedTopics: {
     name: string;
     publisherIds: string[];
@@ -207,6 +217,7 @@ export type ConnectionGraphUpdate = {
 };
 export type MessageData = {
   op: BinaryOpcode.MESSAGE_DATA;
+  receiveTime: number;
   subscriptionId: SubscriptionId;
   timestamp: bigint;
   data: DataView;
@@ -214,25 +225,45 @@ export type MessageData = {
 export type Time = {
   op: BinaryOpcode.TIME;
   timestamp: bigint;
+  receiveTime: number;
 };
 export type ServiceCallResponse = ServiceCallPayload & {
   op: BinaryOpcode.SERVICE_CALL_RESPONSE;
+  receiveTime: number;
 };
 export type FetchAssetSuccessResponse = {
   op: BinaryOpcode.FETCH_ASSET_RESPONSE;
+  receiveTime: number;
   requestId: number;
   status: FetchAssetStatus.SUCCESS;
   data: DataView;
 };
 export type FetchAssetErrorResponse = {
   op: BinaryOpcode.FETCH_ASSET_RESPONSE;
+  receiveTime: number;
   requestId: number;
   status: FetchAssetStatus.ERROR;
   error: string;
 };
 export type FetchAssetResponse = FetchAssetSuccessResponse | FetchAssetErrorResponse;
+export type PreFetchAssetSuccessResponse = {
+  op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE;
+  receiveTime: number;
+  requestId: number;
+  status: FetchAssetStatus.SUCCESS;
+  etag?: string;
+};
+export type PreFetchAssetErrorResponse = {
+  op: BinaryOpcode.PRE_FETCH_ASSET_RESPONSE;
+  receiveTime: number;
+  requestId: number;
+  status: FetchAssetStatus.ERROR;
+  error: string;
+};
+export type PreFetchAssetResponse = PreFetchAssetSuccessResponse | PreFetchAssetErrorResponse;
 export type ServiceCallFailure = {
   op: "serviceCallFailure";
+  receiveTime: number;
   serviceId: number;
   callId: number;
   message: string;
@@ -254,7 +285,18 @@ export type Parameter = {
   type?: "byte_array" | "float64" | "float64_array";
 };
 
-export type Login = {
+export type ServerLogin = {
+  op: "login";
+  receiveTime: number;
+  userId: string;
+  username: string;
+  infoPort: string;
+  macAddr: string;
+  lanCandidates: string[];
+  linkType?: "other" | "colink";
+};
+
+export type ClientLogin = {
   op: "login";
   userId: string;
   username: string;
@@ -262,9 +304,43 @@ export type Login = {
 
 export type Kicked = {
   op: "kicked";
+  receiveTime: number;
   userId: string;
   username: string;
   message: string;
+};
+
+export type ServerSyncTime = {
+  op: "syncTime";
+  receiveTime: number;
+  serverTime: number;
+};
+
+export type ClientSyncTime = {
+  op: "syncTime";
+  delayTime: number;
+  serverTime: number;
+  clientTime: number;
+};
+
+export type PreFetchAsset = {
+  op: "preFetchAsset";
+  uri: string;
+  requestId: number;
+};
+
+export type NetworkStatistics = {
+  op: "networkStatistics";
+  receiveTime: number;
+  curSpeed: number; // KiB/s
+  droppedMsgs: number; // count of messages dropped by server
+  packageLoss: number; // rate of package, caculated by bytes, not message count
+};
+
+export type TimeOffset = {
+  op: "timeOffset";
+  receiveTime: number;
+  timeOffset: number;
 };
 
 export type ServerMessage =
@@ -281,9 +357,13 @@ export type ServerMessage =
   | ParameterValues
   | ConnectionGraphUpdate
   | FetchAssetResponse
+  | PreFetchAssetResponse
   | ServiceCallFailure
-  | Login
-  | Kicked;
+  | ServerLogin
+  | Kicked
+  | ServerSyncTime
+  | NetworkStatistics
+  | TimeOffset;
 
 export type ClientMessage =
   | Subscribe
@@ -299,7 +379,9 @@ export type ClientMessage =
   | SubscribeConnectionGraph
   | UnsubscribeConnectionGraph
   | FetchAsset
-  | Login;
+  | PreFetchAsset
+  | ClientLogin
+  | ClientSyncTime;
 
 /**
  * Abstraction that supports both browser and Node WebSocket clients.

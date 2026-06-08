@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -57,7 +57,7 @@ import { PanelRoot } from "@foxglove/studio-base/components/PanelRoot";
 import {
   useCurrentLayoutActions,
   useSelectedPanels,
-} from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext";
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
 import {
   useWorkspaceStore,
@@ -459,7 +459,12 @@ export default function Panel<
       // We have to lie to TypeScript with "as PanelProps" because the "PanelProps extends {...}"
       // constraint technically allows the panel to require the types of config/saveConfig be more
       // specific types that aren't satisfied by the functions we pass in
-      () => ({ config: panelComponentConfig, saveConfig, ...otherPanelProps }) as PanelProps,
+      () =>
+        ({
+          config: panelComponentConfig,
+          saveConfig,
+          ...otherPanelProps,
+        }) as PanelProps,
       [otherPanelProps, panelComponentConfig, saveConfig],
     );
     const child = useMemo(() => <PanelComponent {...childProps} />, [childProps]);
@@ -582,13 +587,12 @@ export default function Panel<
       <Profiler
         id={childId}
         onRender={(
-          _id,
-          _phase,
-          actualDuration,
-          _baseDuration,
-          _startTime,
-          _commitTime,
-          _interactions,
+          _id: string,
+          _phase: "mount" | "update" | "nested-update",
+          actualDuration: number,
+          _baseDuration: number,
+          _startTime: number,
+          _commitTime: number,
         ) => {
           if (perfInfo.current) {
             perfInfo.current.innerText = `${++renderCount.current}\n${actualDuration.toFixed(1)}ms`;
@@ -609,6 +613,7 @@ export default function Panel<
             exitFullscreen,
             setHasFullscreenDescendant,
             isFullscreen: fullscreen,
+            hasFullscreenDescendant,
             tabId,
             // disallow dragging the root panel in a layout
             connectToolbarDragHandle: isTopLevelPanel ? undefined : connectToolbarDragHandle,

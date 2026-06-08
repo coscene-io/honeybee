@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -73,7 +73,7 @@ module.exports = {
             messageId: "useNamespaceImport",
             data: { package: config.package, name: config.preferNamespaceImport },
             *fix(fixer) {
-              const variables = context.getDeclaredVariables(node);
+              const variables = context.sourceCode.getDeclaredVariables(node);
               const defaultImportName = node.specifiers.find(
                 (specifier) => specifier.type === "ImportDefaultSpecifier",
               )?.local.name;

@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+const prettierPlugin = require("eslint-plugin-prettier");
 const tssUnusedClasses = require("eslint-plugin-tss-unused-classes");
 const globals = require("globals");
 const tslintPlugin = require("typescript-eslint");
@@ -88,6 +89,7 @@ module.exports = tslintPlugin.config(
 
   {
     plugins: {
+      prettier: prettierPlugin,
       "tss-unused-classes": tssUnusedClasses,
       "@foxglove/studio": foxgloveEslintPluginStudio,
     },
@@ -97,13 +99,16 @@ module.exports = tslintPlugin.config(
     },
 
     rules: {
+      "@typescript-eslint/no-shadow": "off",
       "tss-unused-classes/unused-classes": "error",
       "prettier/prettier": "off",
-      "import/no-self-import": "off",
-      "import/no-duplicates": "off",
+      "import/no-self-import": "error",
+      "import/no-duplicates": "error",
       "id-denylist": ["error", "useEffectOnce", "window"],
       "no-console": "off",
       "@foxglove/studio/license-header": "error",
+      "@foxglove/studio/link-target": "error",
+      "@foxglove/studio/lodash-ramda-imports": "error",
 
       "no-restricted-syntax": [
         "error",
@@ -136,7 +141,7 @@ module.exports = tslintPlugin.config(
         {
           selector: "CallExpression[callee.object.name='Promise'][callee.property.name='race']",
           message:
-            'Promise.race is banned\n  use `import { race } from "@foxglove/den/async"` instead\n\nSee:\n  https://github.com/nodejs/node/issues/17469#issuecomment-685216777\n  https://bugs.chromium.org/p/v8/issues/detail?id=9858"\n',
+            'Promise.race is banned\n  use `import race from "race-as-promised";` instead\n\nSee:\n  https://github.com/nodejs/node/issues/17469#issuecomment-685216777\n  https://bugs.chromium.org/p/v8/issues/detail?id=9858"\n',
         },
       ],
     },
@@ -193,6 +198,9 @@ module.exports = tslintPlugin.config(
         },
       ],
       "no-warning-comments": "off",
+
+      "@foxglove/studio/ramda-usage": "error",
+      "@foxglove/studio/no-map-type-argument": "error",
     },
   },
   {

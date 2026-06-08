@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -8,7 +8,6 @@
 export const appBar = {
   about: "About",
   addPanel: "Add panel",
-  documentation: "Documentation",
   exploreSampleData: "Explore sample data",
   exportLayoutToFile: "Export layout to file…",
   extensions: "Extensions",
@@ -26,7 +25,7 @@ export const appBar = {
   openLocalFile: "Open local file…",
   recentDataSources: "Recent data sources",
   recentlyViewed: "Recently viewed",
-  settings: "Visualization settings",
+  visualizationSettings: "Visualization settings",
   showLeftSidebar: "Show left sidebar",
   showRightSidebar: "Show right sidebar",
   signIn: "Sign in",
@@ -37,15 +36,14 @@ export const appBar = {
   viewData: "View data",
   viewOurDocs: "View our docs",
   profile: "Profile",
+  rawData: "Raw Data",
   mediaGeneratingTips:
     "media File generation in progress, refresh page to play when finished ({{successfulCount}}/{{totalCount}})",
   mediaSuccessfulGeneration:
     "All media files have been generated, refresh page to play all files ({{count}}/{{count}})",
   mediaGenerationError:
-    "There are media files that failed to generate, please delete the corresponding files and try again",
+    "There are files in the playlist that cannot be indexed, please check the file contents",
   loadingTips: "Loading playback data at full speed, please wait...",
-  layoutGuideliens:
-    "Create a new 'layout' to customize your visualization view, or use the organization's shared layout directly",
   toSetupLayout: "Go to Setup Layout",
   noMoreTips: "Do not show again",
   loginSuccess: "Login success",
@@ -67,7 +65,29 @@ export const appBar = {
   createRecordAndUpload: "Create record and upload",
   openInCoStudio: "Open in coStudio",
   openInCoStudioPrompt:
-    "This page will be opened in coStudio, please confirm that coStudio has been installed, or click here <download>download</download> to download and allow external links to be opened",
+    "This page will be opened in coStudio, please confirm that <download>coStudio</download> has been installed",
   openByCoStudio: "Open by coStudio",
   doNotShowAgain: "Do not show again",
+  autoDisconnectionTips:
+    "If no operation is performed for a long time, the visualization will be disconnected automatically. Please keep it active if you want to continue using it. {{time}}",
+  networkConnection: "Network connection",
+  colinkRemoteConnection: "coLink remote connection",
+  localNetworkConnection: "local network connection",
+  openHomePage: "Open home page",
+  networkStatus: "Network Status",
+  networkDelay: "Delay",
+  networkSpeed: "Speed",
+  droppedMessages: "Dropped Messages",
+  packetLoss: "Packet Loss",
+  networkStatusHelp: "Only coBridge ≥ v1.2.0 can show network status information",
+  settings: "Settings",
+  documentation: "Documentation",
+  login: "Login",
+  signOutConfirmTitle: "Are you sure you want to sign out?",
+  signOutConfirmOk: "Sign out",
+  signOutConfirmCancel: "No",
+  menu: "Menu",
+  signoutSuccess: "Sign out success",
+  downloadLatestStudio: "Download coStudio",
+  userFeedback: "User Feedback",
 };

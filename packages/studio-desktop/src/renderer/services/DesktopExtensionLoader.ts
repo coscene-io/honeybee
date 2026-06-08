@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -49,11 +49,11 @@ export class DesktopExtensionLoader implements ExtensionLoader {
     return (await this.#bridge?.loadExtension(id)) ?? "";
   }
 
-  public async installExtension(foxeFileData: Uint8Array): Promise<ExtensionInfo> {
+  public async installExtension(coeFileData: Uint8Array): Promise<ExtensionInfo> {
     if (this.#bridge == undefined) {
       throw new Error(`Cannot install extension without a desktopBridge`);
     }
-    const detail = await this.#bridge.installExtension(foxeFileData);
+    const detail = await this.#bridge.installExtension(coeFileData);
 
     const pkgInfo = detail.packageJson as ExtensionInfo;
 

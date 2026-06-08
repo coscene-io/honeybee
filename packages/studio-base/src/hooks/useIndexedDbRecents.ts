@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -52,7 +52,7 @@ interface IRecentsStore {
   recents: RecentRecord[];
 
   // Add a new recent
-  addRecent: (newRecent: UnsavedRecentRecord) => void;
+  addRecent: (newRecent: UnsavedRecentRecord) => string;
 
   // Save changes
   save: () => Promise<void>;
@@ -64,6 +64,9 @@ function useIndexedDbRecents(): IRecentsStore {
     [],
   );
 
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+
   const [recents, setRecents] = useState<RecentRecord[]>([]);
 
   // Track new recents in a ref and update the state after persisting
@@ -71,7 +74,7 @@ function useIndexedDbRecents(): IRecentsStore {
 
   const save = useCallback(async () => {
     // We don't save until we've loaded our existing recents. This ensures we include stored recents when we save
-    if (loading) {
+    if (loadingRef.current) {
       return;
     }
 
@@ -118,11 +121,11 @@ function useIndexedDbRecents(): IRecentsStore {
     idbSet(IDB_KEY, recentsToSave, IDB_STORE).catch((err: unknown) => {
       log.error(err);
     });
-  }, [loading]);
+  }, []);
 
   // Set the first load records from the store to the state
   useLayoutEffect(() => {
-    if (loading) {
+    if (loadingRef.current) {
       return;
     }
 
@@ -139,16 +142,19 @@ function useIndexedDbRecents(): IRecentsStore {
       // Normally a save invokes set - but since we don't need to save we set here
       setRecents(newRecentsRef.current);
     }
-  }, [loading, initialRecents, save]);
+  }, [initialRecents, save, loading]);
 
   const addRecent = useCallback(
-    (record: UnsavedRecentRecord) => {
+    (record: UnsavedRecentRecord): string => {
+      const id = uuid();
       const fullRecord: RecentRecord = {
-        id: uuid(),
+        id,
         ...record,
       };
       newRecentsRef.current.unshift(fullRecord);
       void save();
+
+      return id;
     },
     [save],
   );

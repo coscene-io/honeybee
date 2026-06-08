@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -37,7 +37,7 @@ export function initPanel(
   crash: ReturnType<typeof useCrash>,
   context: PanelExtensionContext,
 ): () => void {
-  // eslint-disable-next-line react/no-deprecated
+  // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
   ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
@@ -47,7 +47,7 @@ export function initPanel(
     context.panelElement,
   );
   return () => {
-    // eslint-disable-next-line react/no-deprecated
+    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
     ReactDOM.unmountComponentAtNode(context.panelElement);
   };
 }

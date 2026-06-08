@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -42,8 +42,6 @@ export type BagFileInfo = {
 
   /** The time, in seconds, relative to the start of the timeline. */
   secondsSinceStart?: number;
-
-  sha256: string;
 };
 
 export type CoScenePlaylistStore = DeepReadonly<{
@@ -59,7 +57,6 @@ export type CoScenePlaylistStore = DeepReadonly<{
 export type ParamsFile =
   | {
       filename: string;
-      sha256: string;
     }
   | {
       jobRunsName: string;

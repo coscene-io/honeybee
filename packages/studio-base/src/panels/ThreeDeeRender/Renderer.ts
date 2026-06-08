@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -925,7 +925,9 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
   public updateCustomLayersCount(): void {
     const layerCount = Object.keys(this.config.layers).length;
-    const label = `Custom Layers${layerCount > 0 ? ` (${layerCount})` : ""}`;
+    const label = `${i18next.t("threeDee:customLayers")}${
+      layerCount > 0 ? ` (${layerCount})` : ""
+    }`;
     this.settings.setLabel(["layers"], label);
   }
 

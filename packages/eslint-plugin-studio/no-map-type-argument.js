@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,7 +26,7 @@ module.exports = {
           const callExpr = node.parent;
 
           const { esTreeNodeToTSNodeMap, program } = ESLintUtils.getParserServices(context);
-          const sourceCode = context.getSourceCode();
+          const sourceCode = context.sourceCode;
           const checker = program.getTypeChecker();
           const objectTsNode = esTreeNodeToTSNodeMap.get(node.object);
           const objectType = checker.getTypeAtLocation(objectTsNode);

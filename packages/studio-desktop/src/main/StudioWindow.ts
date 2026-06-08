@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -42,7 +42,10 @@ const isWindows = process.platform === "win32";
 const isProduction = process.env.NODE_ENV === "production";
 const rendererPath = MAIN_WINDOW_WEBPACK_ENTRY;
 
-const closeMenuItem: MenuItemConstructorOptions = isMac ? { role: "close" } : { role: "quit" };
+const closeMenuItem: MenuItemConstructorOptions = isMac
+  ? { role: "close", label: t("desktopWindow:closeWindow") }
+  : { role: "quit", label: t("desktopWindow:closeWindow") };
+
 const log = Logger.getLogger(__filename);
 
 function getWindowBackgroundColor(): string | undefined {
@@ -73,8 +76,8 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     backgroundColor: getWindowBackgroundColor(),
     height: 800,
     width: 1200,
-    minWidth: 350,
-    minHeight: 250,
+    minWidth: 1200,
+    minHeight: 800,
     // autoHideMenuBar: true,
     autoHideMenuBar: false,
     title: COSCENE_PRODUCT_NAME,
@@ -107,7 +110,12 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
   }
 
   const browserWindow = new BrowserWindow(windowOptions);
-  nativeTheme.on("updated", () => {
+
+  const themeUpdateHandler = () => {
+    if (browserWindow.isDestroyed()) {
+      return;
+    }
+
     if (isWindows) {
       // Although the TS types say this function is always available, it is undefined on non-Windows platforms
       browserWindow.setTitleBarOverlay(getTitleBarOverlayOptions());
@@ -116,7 +124,9 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
     if (bgColor != undefined) {
       browserWindow.setBackgroundColor(bgColor);
     }
-  });
+  };
+
+  nativeTheme.on("updated", themeUpdateHandler);
 
   // Forward full screen events to the renderer
   browserWindow.addListener("enter-full-screen", () => {
@@ -128,9 +138,11 @@ function newStudioWindow(deepLinks: string[] = [], reloadMainWindow: () => void)
   browserWindow.addListener("maximize", () => {
     browserWindow.webContents.send("maximize");
   });
-
   browserWindow.addListener("unmaximize", () => {
     browserWindow.webContents.send("unmaximize");
+  });
+  browserWindow.addListener("close", () => {
+    nativeTheme.removeListener("updated", themeUpdateHandler);
   });
 
   browserWindow.webContents.once("dom-ready", () => {
@@ -220,9 +232,11 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
       role: "appMenu",
       label: app.name,
       submenu: [
-        { role: "about" },
+        { role: "about", label: t("desktopWindow:about") },
         // checkForUpdatesItem,
+
         { type: "separator" },
+
         {
           label: t("desktopWindow:settings"),
           accelerator: "CommandOrControl+,",
@@ -230,15 +244,14 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
             sendNativeAppMenuEvent("open-help-general", browserWindow);
           },
         },
-        { role: "services" },
-        { type: "separator" },
+        { role: "services", label: t("desktopWindow:services") },
 
         { type: "separator" },
 
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { role: "quit" },
+        { role: "hide", label: t("desktopWindow:hide") },
+        { role: "hideOthers", label: t("desktopWindow:hideOthers") },
+        { role: "unhide", label: t("desktopWindow:unhide") },
+        { role: "quit", label: t("desktopWindow:quit") },
       ],
     });
   }
@@ -288,23 +301,23 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
     role: "editMenu",
     label: t("desktopWindow:edit"),
     submenu: [
-      { role: "undo" },
-      { role: "redo" },
+      { role: "undo", label: t("desktopWindow:undo") },
+      { role: "redo", label: t("desktopWindow:redo") },
       { type: "separator" },
 
-      { role: "cut" },
-      { role: "copy" },
-      { role: "paste" },
+      { role: "cut", label: t("desktopWindow:cut") },
+      { role: "copy", label: t("desktopWindow:copy") },
+      { role: "paste", label: t("desktopWindow:paste") },
       ...(isMac
         ? [
-            { role: "pasteAndMatchStyle" } as const,
-            { role: "delete" } as const,
-            { role: "selectAll" } as const,
+            { role: "pasteAndMatchStyle", label: t("desktopWindow:pasteAndMatchStyle") } as const,
+            { role: "delete", label: t("desktopWindow:delete") } as const,
+            { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
           ]
         : [
-            { role: "delete" } as const,
+            { role: "delete", label: t("desktopWindow:delete") } as const,
             { type: "separator" } as const,
-            { role: "selectAll" } as const,
+            { role: "selectAll", label: t("desktopWindow:selectAll") } as const,
           ]),
     ],
   });
@@ -334,18 +347,22 @@ function buildMenu(browserWindow: BrowserWindow): Menu {
     role: "viewMenu",
     label: t("desktopWindow:view"),
     submenu: [
-      { role: "resetZoom" },
-      { role: "zoomIn" },
-      { role: "zoomOut" },
+      { role: "resetZoom", label: t("desktopWindow:resetZoom") },
+      { role: "zoomIn", label: t("desktopWindow:zoomIn") },
+      { role: "zoomOut", label: t("desktopWindow:zoomOut") },
+
       { type: "separator" },
-      { role: "togglefullscreen" },
+
+      { role: "togglefullscreen", label: t("desktopWindow:toggleFullScreen") },
+
       { type: "separator" },
+
       {
         label: t("desktopWindow:advanced"),
         submenu: [
-          { role: "reload" },
-          { role: "forceReload" },
-          { role: "toggleDevTools" },
+          { role: "reload", label: t("desktopWindow:reload") },
+          { role: "forceReload", label: t("desktopWindow:forceReload") },
+          { role: "toggleDevTools", label: t("desktopWindow:toggleDevTools") },
           {
             label: t("desktopWindow:inspectSharedWorker"),
             click() {

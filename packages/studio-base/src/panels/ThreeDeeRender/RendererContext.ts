@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -71,7 +71,12 @@ export function useRendererProperty<K extends keyof IRenderer>(
       return;
     }
     const onChange = () => {
-      setValue(() => renderer[key]);
+      // Only update if the value actually changed to avoid unnecessary re-renders
+      setValue((prev: IRenderer[K]) => {
+        const newValue = renderer[key];
+        // For Map/Set objects, compare references
+        return newValue === prev ? prev : newValue;
+      });
     };
     onChange();
 

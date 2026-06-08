@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -58,7 +58,7 @@ export function ShareJsonModal({
 }: ShareJsonModalProps): React.JSX.Element {
   const { classes } = useStyles();
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
-  const { t } = useTranslation("cosGeneral");
+  const { t } = useTranslation("general");
 
   const { decodedValue, error } = useMemo(() => {
     try {
@@ -102,9 +102,11 @@ export function ShareJsonModal({
           helperText={
             error ? "The JSON provided is invalid." : " " // pass whitespace to prevent height from jumping
           }
-          inputProps={{ "data-testid": "share-json-input" }}
-          FormHelperTextProps={{ variant: "standard" }}
           spellCheck={false}
+          slotProps={{
+            htmlInput: { "data-testid": "share-json-input" },
+            formHelperText: { variant: "standard" },
+          }}
         />
       </DialogContent>
       <DialogActions>

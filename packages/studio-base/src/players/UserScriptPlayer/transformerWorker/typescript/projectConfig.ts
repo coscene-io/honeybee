@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,15 +17,20 @@
 import * as _ from "lodash-es";
 
 import { exportTypeScriptSchemas } from "@foxglove/schemas/internal";
+import {
+  lib_dts,
+  lib_filename,
+} from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/lib";
 import rawUserUtils from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/rawUserUtils";
 import {
   ros_lib_dts,
   ros_lib_filename,
 } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/ros";
+import {
+  UserScriptProjectConfig,
+  UserScriptProjectFile,
+} from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/types";
 import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalConstants";
-
-import { lib_dts, lib_filename } from "./lib";
-import { UserScriptProjectConfig, UserScriptProjectFile } from "./types";
 
 /**
  * Generates virtual ts files for each type exported by the @foxglove/schemas package.

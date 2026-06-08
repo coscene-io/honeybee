@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,12 +7,11 @@
 
 import Log from "@foxglove/log";
 import { Time } from "@foxglove/rostime";
-import { DataSourceArgs } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
+import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   PlayerMetricsCollectorInterface,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import CoSceneConsoleApi, { MetricType } from "@foxglove/studio-base/services/CoSceneConsoleApi";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 const log = Log.getLogger(__filename);
@@ -22,24 +21,40 @@ type EventData = { [key: string]: string | number | boolean };
 export default class AnalyticsMetricsCollector implements PlayerMetricsCollectorInterface {
   #timeStatistics: number = 0;
   #playing: boolean = false;
-  #consoleApi: CoSceneConsoleApi | undefined;
   #analytics: IAnalytics;
   #sourceId: string | undefined;
   #metadata: EventData = {};
+  #intervalId: ReturnType<typeof setInterval> | undefined;
+  #lastTickTime: number | undefined;
 
   public constructor({ analytics }: { analytics: IAnalytics }) {
     log.debug("New AnalyticsMetricsCollector");
     this.#timeStatistics = 0;
     this.#analytics = analytics;
 
-    setInterval(async () => {
-      if (this.#playing) {
-        this.#timeStatistics += 0.1;
-        if (~~(this.#timeStatistics * 10) % 50 === 0) {
-          void this.#syncEventToAnalytics({
-            event: AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL,
-          });
-        }
+    this.#intervalId = setInterval(async () => {
+      if (!this.#playing) {
+        this.#lastTickTime = undefined;
+        return;
+      }
+
+      const now = performance.now();
+      if (this.#lastTickTime == undefined) {
+        this.#lastTickTime = now;
+        return;
+      }
+
+      const delta = (now - this.#lastTickTime) / 1000;
+      this.#lastTickTime = now;
+
+      const oldTime = this.#timeStatistics;
+      this.#timeStatistics += delta;
+
+      // Report every 5 seconds of playback
+      if (Math.floor(this.#timeStatistics / 5) > Math.floor(oldTime / 5)) {
+        void this.#syncEventToAnalytics({
+          event: AppEvent.PLAYER_RECORD_PLAYS_EVERY_FIVE_SECONDS_TOTAL,
+        });
       }
     }, 100);
   }
@@ -72,6 +87,10 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene setSpeed: ${speed}`);
   }
   public close(): void {
+    if (this.#intervalId != undefined) {
+      clearInterval(this.#intervalId);
+      this.#intervalId = undefined;
+    }
     console.debug(`coScene close`);
   }
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
@@ -92,13 +111,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene recordTimeToFirstMsgs`);
   }
 
-  public async playerConstructed(): Promise<void> {
-    if (this.#consoleApi) {
-      await this.#consoleApi.sendIncCounter({
-        name: MetricType.RecordPlaysTotal,
-      });
-    }
-  }
+  public async playerConstructed(): Promise<void> {}
 
   public play(speed?: number): void {
     console.debug(`coScene play: ${speed}`);
@@ -107,5 +120,19 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
 
   public pause(): void {
     this.#playing = false;
+  }
+
+  public recordSeekLatency(latencyMs: number): void {
+    void this.#syncEventToAnalytics({
+      event: AppEvent.PLAYER_SEEK_LATENCY,
+      data: { latency_ms: latencyMs },
+    });
+  }
+
+  public recordStallDuration(durationMs: number): void {
+    void this.#syncEventToAnalytics({
+      event: AppEvent.PLAYER_STALL_DURATION,
+      data: { duration_ms: durationMs },
+    });
   }
 }

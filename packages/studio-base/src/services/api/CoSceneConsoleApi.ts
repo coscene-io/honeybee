@@ -1,0 +1,1771 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { create, fromBinary, MessageInitShape } from "@bufbuild/protobuf";
+import { Empty, FieldMask } from "@bufbuild/protobuf/wkt";
+import type { Label } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
+import type { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import type { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import type { Role } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
+import { Policy_Effect } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
+import type { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
+import {
+  LabelService,
+  CreateLabelRequestSchema,
+  DeleteLabelRequestSchema,
+  ListLabelsRequestSchema,
+  UpdateLabelRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/label_pb";
+import type { ListLabelsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/label_pb";
+import {
+  OrganizationService,
+  GetOrganizationRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/organization_pb";
+import {
+  ProjectService,
+  GetProjectRequestSchema,
+  ListUserProjectsRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/project_pb";
+import type { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/project_pb";
+import {
+  RoleService,
+  ListUserRolesRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/role_pb";
+import type { ListUserRolesResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/role_pb";
+import {
+  SubscriptionService,
+  ListOrganizationSubscriptionsRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/subscription_pb";
+import type { ListOrganizationSubscriptionsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/subscription_pb";
+import {
+  UserService,
+  GetUserRequestSchema,
+  BatchGetUsersRequestSchema,
+  ListOrganizationUsersRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/user_pb";
+import type { BatchGetUsersResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/services/user_pb";
+import { LayoutViewEnum_LayoutView } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_view_pb";
+import type { ConfigMap } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/config_map_pb";
+import type { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/device_pb";
+import type { DiagnosisRule } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
+import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import type { Event } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import type { Layout } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
+import type { Record as CoSceneRecord } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
+import {
+  ConfigMapService,
+  GetConfigMapRequestSchema,
+  UpsertConfigMapRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/config_map_pb";
+import {
+  DeviceService,
+  GetDeviceRequestSchema,
+  ListProjectDevicesRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/device_pb";
+import {
+  DiagnosisService,
+  GetDiagnosisRuleRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/diagnosis_rule_pb";
+import {
+  EventService,
+  CreateEventRequestSchema,
+  DeleteEventRequestSchema,
+  UpdateEventRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/event_pb";
+import {
+  LayoutService,
+  GetUserLayoutRequestSchema,
+  GetProjectLayoutRequestSchema,
+  CreateUserLayoutRequestSchema,
+  CreateProjectLayoutRequestSchema,
+  UpdateUserLayoutRequestSchema,
+  UpdateProjectLayoutRequestSchema,
+  DeleteUserLayoutRequestSchema,
+  DeleteProjectLayoutRequestSchema,
+  ListUserLayoutsRequestSchema,
+  ListProjectLayoutsRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/layout_pb";
+import type {
+  ListUserLayoutsResponse,
+  ListProjectLayoutsResponse,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/layout_pb";
+import {
+  RecordService,
+  GetRecordRequestSchema,
+  ListRecordsRequestSchema,
+  CreateRecordRequestSchema,
+  UpdateRecordRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
+import type { ListRecordsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
+import {
+  TicketSystemService,
+  GetTicketSystemMetadataRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import type { TicketSystemMetadata } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/ticket_system_pb";
+import type {
+  CustomFieldValue,
+  CustomFieldSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_category_pb";
+import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
+import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import type { File as File_es } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import type { StorageCluster } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/storage_cluster_pb";
+import { TaskSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
+import type { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
+import {
+  CustomFieldService,
+  GetRecordCustomFieldSchemaRequestSchema,
+  GetMomentCustomFieldSchemaRequestSchema,
+  GetDeviceCustomFieldSchemaRequestSchema,
+  GetTaskCustomFieldSchemaRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/custom_field_pb";
+import {
+  FileService,
+  ListFilesRequestSchema,
+  DeleteFileRequestSchema,
+  GenerateFileDownloadUrlRequestSchema,
+  GenerateFileUploadUrlsRequestSchema,
+  GetFileRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
+import type {
+  ListFilesResponse,
+  GenerateFileDownloadUrlResponse,
+  GenerateFileUploadUrlsResponse,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
+import {
+  GetStorageClusterRequestSchema,
+  StorageClusterService,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/storage_cluster_pb";
+import {
+  TaskService,
+  UpsertTaskRequestSchema,
+  SyncTaskRequestSchema,
+  CreateTaskRequestSchema,
+  GetTaskRequestSchema,
+  ListTasksRequestSchema,
+  UpdateTaskRequestSchema,
+  LinkTaskRequestSchema,
+  UnlinkTaskRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/task_pb";
+import type { ListTasksResponse } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/task_pb";
+import {
+  SecurityTokenService,
+  GenerateSecurityTokenRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/datastorage/v1alpha1/services/security_token_pb";
+import type { GenerateSecurityTokenResponse } from "@coscene-io/cosceneapis-es-v2/coscene/datastorage/v1alpha1/services/security_token_pb";
+import type { JobRun } from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/resources/job_run_pb";
+import {
+  JobRunService,
+  GetJobRunRequestSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/services/job_run_pb";
+import * as base64 from "@protobufjs/base64";
+import { t } from "i18next";
+import toast from "react-hot-toast";
+
+import { Time, toRFC3339String } from "@foxglove/rostime";
+import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
+import {
+  CoordinatorConfig,
+  ExternalInitConfig,
+} from "@foxglove/studio-base/context/CoreDataContext";
+import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
+import {
+  getPromiseClient,
+  CosQuery,
+  SerializeOption,
+  isAuthlessDataSource,
+} from "@foxglove/studio-base/util/coscene";
+import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
+import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import {
+  Endpoint,
+  EndpointDataplatformV1alph1,
+  EndpointDataplatformV1alph2,
+  EndpointDataplatformV1alph3,
+  EndpointDatastorageV1alph1,
+  checkUserPermission,
+} from "@foxglove/studio-base/util/permission/endpoint";
+import { timestampToTime } from "@foxglove/studio-base/util/time";
+import { Auth } from "@foxglove/studio-desktop/src/common/types";
+
+import { HttpError } from "./HttpError";
+
+const authBridge = (global as { authBridge?: Auth }).authBridge;
+
+// Volcano Engine (火山云) base URL — used by China-region clients.
+const VOLC_BASE_URL = "https://viz.volc.coscene.cn";
+
+// International host for getStreams when the client is outside China Standard Time zones.
+const VOLC_STREAM_INTL_HOST = "https://viz-volc.intl.coscene.cn";
+
+// All IANA timezone identifiers that map to UTC+8 China Standard Time.
+// Intl may return any of these depending on the OS/locale configuration.
+const CHINA_STANDARD_TIME_ZONES = new Set([
+  "Asia/Shanghai",
+  "Asia/Chongqing",
+  "Asia/Harbin",
+  "Asia/Urumqi",
+  "Asia/Kashgar",
+  "PRC",
+]);
+
+const STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT = new Set(["/v1/data/getStreams"]);
+
+export type User = {
+  id: string;
+  email: string;
+  orgId: string;
+  orgDisplayName: string | null; // eslint-disable-line no-restricted-syntax
+  orgSlug: string;
+  orgPaid: boolean | null; // eslint-disable-line no-restricted-syntax
+  org: {
+    id: string;
+    slug: string;
+    displayName: string;
+    isEnterprise: boolean;
+    allowsUploads: boolean;
+    supportsEdgeSites: boolean;
+  };
+};
+
+export type UserPersonalInfo = {
+  history?: {
+    visitedProject?: string[];
+  };
+  settings?: {
+    language?: string;
+  };
+};
+
+type SigninArgs = {
+  idToken: string;
+};
+
+type Session = {
+  bearerToken: string;
+};
+
+type Org = {
+  id: string;
+  slug: string;
+  displayName?: string;
+};
+
+type DeviceCodeArgs = {
+  clientId: string;
+};
+
+type DeviceCodeResponse = {
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  expiresIn: number;
+  interval: number;
+};
+
+type ExtensionResponse = {
+  activeVersion: string;
+  description?: string;
+  foxe: string;
+  id: string;
+  name: string;
+  publisher: string;
+  sha256Sum?: string;
+};
+
+export type ConsoleEvent = {
+  id: string;
+  createdAt: string;
+  deviceId: string;
+  durationNanos: string;
+  endTime: Time;
+  endTimeInSeconds: number;
+  metadata: Record<string, string>;
+  startTime: Time;
+  startTimeInSeconds: number;
+  timestampNanos: string;
+  updatedAt: string;
+};
+
+type TokenArgs = {
+  deviceCode: string;
+  clientId: string;
+};
+
+type TokenResponse = {
+  accessToken: string;
+  idToken: string;
+};
+
+type TopicResponse = {
+  topic: string;
+  encoding: string;
+  schemaName: string;
+  schemaEncoding: string;
+  schema?: Uint8Array;
+  version: string;
+  messageCount?: number;
+  messageFrequency?: number;
+};
+
+type RawTopicResponse = Omit<TopicResponse, "schema"> & { schema?: string };
+
+type topicInterfaceReturns = {
+  startTime: number;
+  endTime: number;
+  topics: RawTopicResponse[];
+};
+
+type customTopicResponse = {
+  start: string;
+  end: string;
+  metaData: TopicResponse[];
+};
+
+export type MediaStatus =
+  | "NORMAL"
+  | "MEDIA_LOST"
+  | "GENERATING"
+  | "GENERATE_INCAPABLE"
+  | "MEDIA_ILLEGAL"
+  | "PERMISSION"
+  | "GENERATED_SUCCESS"
+  | "PENDING";
+
+export type FileList = {
+  source: string;
+  displayName: string;
+  startTime: number;
+  endTime: number;
+  projectName: string;
+  recordName: string;
+  ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
+  mediaStatus: MediaStatus;
+};
+
+export type getPlaylistResponse = {
+  fileList: FileList[];
+};
+
+type CoverageResponse = {
+  deviceId: string;
+  start: string;
+  end: string;
+};
+
+export enum MetricType {
+  RecordPlaysTotal = "honeybee_record_plays_total",
+  RecordPlaysEveryFiveSecondsTotal = "honeybee_record_plays_every_five_seconds_total",
+}
+
+type ApiResponse<T> = { status: number; json: T };
+
+export type SingleFileGetEventsRequest = {
+  projectName: string;
+  projectDisplayName: string;
+  recordDisplayName: string;
+  filter?: string;
+  startTime: number;
+  endTime: number;
+};
+
+export type EventList = {
+  event: Event;
+  projectDisplayName: string;
+  recordDisplayName: string;
+}[];
+
+export type GetEventsResponse = {
+  eventList: {
+    event: string;
+    projectDisplayName: string;
+    recordDisplayName: string;
+  }[];
+};
+
+export type ApiBaseInfo = {
+  projectId?: string;
+  warehouseId?: string;
+  recordId?: string;
+};
+
+export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
+
+function permissionListFromRole(role: Role | undefined) {
+  if (!role?.policy?.statements) {
+    return { permissionList: [], denyList: [] };
+  }
+
+  return role.policy.statements.reduce(
+    (acc, statement) => {
+      const actions = statement.actions;
+      if (statement.effect === Policy_Effect.DENY) {
+        acc.denyList.push(...actions);
+      } else if (statement.effect === Policy_Effect.ALLOW) {
+        acc.permissionList.push(...actions);
+      }
+      return acc;
+    },
+    { permissionList: [] as string[], denyList: [] as string[] },
+  );
+}
+
+function mergePermissionList(targetRole: Role, mergeRole: Role) {
+  const { permissionList: targetPermissionList, denyList: targetDenyList } =
+    permissionListFromRole(targetRole);
+  const { permissionList: mergePermissionList, denyList: mergeDenyList } =
+    permissionListFromRole(mergeRole);
+
+  return {
+    permissionList: [...new Set([...targetPermissionList, ...mergePermissionList])],
+    denyList: [...new Set([...targetDenyList, ...mergeDenyList])],
+  };
+}
+
+class CoSceneConsoleApi {
+  #baseUrl: string;
+  #bffUrl: string;
+  #authHeader?: string;
+  #responseObserver: undefined | ((response: Response) => void);
+  #problemManager = new PlayerProblemManager();
+  #baseInfo: ApiBaseInfo = {};
+  #type?: "realtime" | "playback" | "other";
+  #permissionList: {
+    orgPermissionList: string[];
+    projectPermissionList: string[];
+    orgDenyList: string[];
+    projectDenyList: string[];
+  } = {
+    orgPermissionList: [],
+    projectPermissionList: [],
+    orgDenyList: [],
+    projectDenyList: [],
+  };
+
+  public constructor(baseUrl: string, bffUrl: string, jwt: string) {
+    this.#baseUrl = baseUrl;
+    this.#bffUrl = bffUrl;
+    this.#authHeader = jwt;
+  }
+
+  public async setApiBaseInfo(
+    baseInfo: ApiBaseInfo,
+    options?: {
+      fetchPermissionList?: boolean;
+    },
+  ): Promise<void> {
+    this.#baseInfo = baseInfo;
+    if (options?.fetchPermissionList === false) {
+      return;
+    }
+    await this.#getPermissionList();
+  }
+
+  public getApiBaseInfo(): ApiBaseInfo {
+    return this.#baseInfo;
+  }
+
+  public setType(type?: "realtime" | "playback" | "other"): void {
+    this.#type = type;
+  }
+
+  public getType(): "realtime" | "playback" | "other" | undefined {
+    return this.#type;
+  }
+
+  public getProblemManager(): PlayerProblemManager {
+    return this.#problemManager;
+  }
+
+  public getBaseUrl(): string {
+    return this.#baseUrl;
+  }
+
+  public setBaseUrl(baseUrl: string): void {
+    this.#baseUrl = baseUrl;
+  }
+
+  public getBffUrl(): string {
+    return this.#bffUrl;
+  }
+
+  public setAuthHeader(header: string): void {
+    this.#authHeader = header;
+  }
+
+  public getAuthHeader(): string | undefined {
+    return this.#authHeader;
+  }
+
+  public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
+    this.#responseObserver = observer;
+  }
+
+  #getRecordName(): string | undefined {
+    const { warehouseId, projectId, recordId } = this.#baseInfo;
+
+    if (!warehouseId || !projectId || !recordId) {
+      return undefined;
+    }
+
+    return `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
+  }
+
+  public async orgs(): Promise<Org[]> {
+    return await this.#get<Org[]>("/v1/orgs");
+  }
+
+  public async me(): Promise<User> {
+    return await this.#get<User>("/v1/me");
+  }
+
+  public async signin(args: SigninArgs): Promise<Session> {
+    return await this.#post<Session>("/v1/signin", args);
+  }
+
+  public async signout(): Promise<void> {
+    await this.#post<void>("/v1/signout");
+  }
+
+  public async deviceCode(args: DeviceCodeArgs): Promise<DeviceCodeResponse> {
+    return await this.#post<DeviceCodeResponse>("/v1/auth/device-code", {
+      clientId: args.clientId,
+    });
+  }
+
+  public async token(args: TokenArgs): Promise<TokenResponse> {
+    return await this.#post<TokenResponse>("/v1/auth/token", {
+      deviceCode: args.deviceCode,
+      clientId: args.clientId,
+    });
+  }
+
+  async #get<T>(
+    apiPath: string,
+    query?: Record<string, string | undefined>,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+    config?: RequestInit,
+  ): Promise<T> {
+    // Strip keys with undefined values from the final query
+    let queryWithoutUndefined: Record<string, string> | undefined;
+    if (query) {
+      queryWithoutUndefined = {};
+      for (const [key, value] of Object.entries(query)) {
+        if (value != undefined) {
+          queryWithoutUndefined[key] = value;
+        }
+      }
+    }
+
+    return (
+      await this.#request<T>(
+        query == undefined
+          ? apiPath
+          : `${apiPath}?${new URLSearchParams(queryWithoutUndefined).toString()}`,
+        { method: "GET", ...config },
+        undefined,
+        customHost,
+      )
+    ).json;
+  }
+
+  public async getExtensions(): Promise<ExtensionResponse[]> {
+    return await this.#get<ExtensionResponse[]>("/v1/extensions");
+  }
+
+  public async getExtension(id: string): Promise<ExtensionResponse> {
+    return await this.#get<ExtensionResponse>(`/v1/extensions/${id}`);
+  }
+
+  public async createUserLayout({
+    parent,
+    layout,
+  }: {
+    parent: string;
+    layout: Layout;
+  }): Promise<Layout> {
+    const req = create(CreateUserLayoutRequestSchema, {
+      parent,
+      layout,
+    });
+    return await getPromiseClient(LayoutService).createUserLayout(req);
+  }
+
+  public async getUserLayout({ name }: { name: string }): Promise<Layout> {
+    const req = create(GetUserLayoutRequestSchema, { name });
+    return await getPromiseClient(LayoutService).getUserLayout(req);
+  }
+
+  public async listUserLayouts({
+    parent,
+    filter,
+    view = LayoutViewEnum_LayoutView.FULL,
+  }: {
+    parent: string;
+    filter?: string;
+    view?: LayoutViewEnum_LayoutView;
+  }): Promise<ListUserLayoutsResponse> {
+    const req = create(ListUserLayoutsRequestSchema, {
+      parent,
+      filter,
+      view,
+    });
+    return await getPromiseClient(LayoutService).listUserLayouts(req);
+  }
+
+  public async updateUserLayout({
+    layout,
+    updateMask,
+  }: {
+    layout: Layout;
+    updateMask?: FieldMask;
+  }): Promise<Layout> {
+    const req = create(UpdateUserLayoutRequestSchema, {
+      userLayout: layout,
+      updateMask,
+    });
+    return await getPromiseClient(LayoutService).updateUserLayout(req);
+  }
+
+  public async deleteUserLayout({ name }: { name: string }): Promise<Empty> {
+    const req = create(DeleteUserLayoutRequestSchema, { name });
+    return await getPromiseClient(LayoutService).deleteUserLayout(req);
+  }
+
+  public createProjectLayout = Object.assign(
+    async ({ parent, layout }: { parent: string; layout: Layout }): Promise<Layout> => {
+      const req = create(CreateProjectLayoutRequestSchema, {
+        parent,
+        layout,
+      });
+      return await getPromiseClient(LayoutService).createProjectLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.CreateProjectLayout,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getProjectLayout = Object.assign(
+    async ({ name }: { name: string }): Promise<Layout> => {
+      const req = create(GetProjectLayoutRequestSchema, { name });
+      return await getPromiseClient(LayoutService).getProjectLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.GetProjectLayout,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public listProjectLayouts = Object.assign(
+    async ({
+      parent,
+      filter,
+      view = LayoutViewEnum_LayoutView.FULL,
+    }: {
+      parent: string;
+      filter?: string;
+      view?: LayoutViewEnum_LayoutView;
+    }): Promise<ListProjectLayoutsResponse> => {
+      const req = create(ListProjectLayoutsRequestSchema, {
+        parent,
+        filter,
+        view,
+      });
+      return await getPromiseClient(LayoutService).listProjectLayouts(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.ListProjectLayouts,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public updateProjectLayout = Object.assign(
+    async ({ layout, updateMask }: { layout: Layout; updateMask?: FieldMask }): Promise<Layout> => {
+      const req = create(UpdateProjectLayoutRequestSchema, {
+        projectLayout: layout,
+        updateMask,
+      });
+      return await getPromiseClient(LayoutService).updateProjectLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.UpdateProjectLayout,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public deleteProjectLayout = Object.assign(
+    async ({ name }: { name: string }): Promise<Empty> => {
+      const req = create(DeleteProjectLayoutRequestSchema, { name });
+      return await getPromiseClient(LayoutService).deleteProjectLayout(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.DeleteProjectLayout,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  /**
+   * Returns true when a stream endpoint should be redirected to the international host.
+   * Conditions: the endpoint is in the redirect list, the configured base URL is the Volcano
+   * Engine host, and the client's local timezone is NOT a China Standard Time zone.
+   */
+  #needsIntlStreamRedirect(url: string): boolean {
+    return (
+      STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT.has(url) &&
+      this.#baseUrl === VOLC_BASE_URL &&
+      !CHINA_STANDARD_TIME_ZONES.has(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    );
+  }
+
+  public getRequectConfig(
+    url: string,
+    config?: RequestInit,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+  ): { fullUrl: string; fullConfig: RequestInit } {
+    const recordName = this.#getRecordName();
+    let fullUrl;
+
+    if (this.#needsIntlStreamRedirect(url)) {
+      fullUrl = `${VOLC_STREAM_INTL_HOST}${url}`;
+    } else {
+      fullUrl =
+        customHost != undefined && customHost
+          ? url
+          : url.startsWith("/bff")
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
+    }
+
+    const fullConfig: RequestInit = {
+      ...config,
+      headers: {
+        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+        ...(recordName ? { "Record-Name": recordName } : {}),
+        ...config?.headers,
+      },
+    };
+
+    return { fullUrl, fullConfig };
+  }
+
+  async #request<T>(
+    url: string,
+    config?: RequestInit,
+    {
+      allowedStatuses = [],
+    }: {
+      /** By default, status codes other than 200 will throw an error. */
+      allowedStatuses?: number[];
+    } = {},
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+  ): Promise<ApiResponse<T>> {
+    if (url.length === 0 || url === "/") {
+      throw new Error("Invalid URL");
+    }
+
+    const { fullUrl, fullConfig } = this.getRequectConfig(url, config, customHost);
+
+    const res = await fetch(fullUrl, fullConfig);
+    this.#responseObserver?.(res);
+    if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
+      if (res.status === 401) {
+        if (!isAuthlessDataSource()) {
+          if (!isDesktopApp()) {
+            window.location.href = `/login?redirectToPath=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`;
+          } else {
+            authBridge?.logout();
+          }
+        }
+      } else if (res.status === 403) {
+        toast.error(t("unauthorized", { ns: "error" }));
+        throw new HttpError(
+          403,
+          "Unauthorized. Please check if you are logged in and have permission to access.",
+        );
+      }
+      const json = (await res.json().catch((err: unknown) => {
+        throw new Error(
+          `Status ${res.status}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      })) as { message?: string; error?: string; errorCode?: number };
+      const message = json.message ?? json.error;
+      if (json.errorCode != undefined) {
+        const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
+        if (coSceneErrorMessageKey) {
+          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "error" })}`);
+        }
+
+        this.#problemManager.addProblem("CoScene:request-error", {
+          message: String(json.errorCode),
+          severity: "error",
+        });
+      }
+      throw new HttpError(res.status, message ?? `Status ${res.status}`, res);
+    }
+
+    try {
+      return { status: res.status, json: (await res.json()) as T };
+    } catch {
+      throw new Error("Request Failed.");
+    }
+  }
+
+  async #post<T>(
+    apiPath: string,
+    body?: unknown,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    customHost?: boolean,
+    config?: RequestInit,
+  ): Promise<T> {
+    return (
+      await this.#request<T>(
+        apiPath,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+          ...(config ?? {}),
+          headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
+        },
+        {},
+        customHost,
+      )
+    ).json;
+  }
+
+  async #patch<T>(apiPath: string, body?: unknown): Promise<ApiResponse<T>> {
+    return await this.#request<T>(
+      apiPath,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      { allowedStatuses: [409] },
+    );
+  }
+
+  // coScene-----------------------------------------------------------
+
+  public async topics(key: string): Promise<customTopicResponse> {
+    const topics = await this.#post<topicInterfaceReturns>(
+      "/v1/data/getMetadata",
+      {
+        id: key,
+      },
+      undefined,
+      {
+        headers: {
+          "Topic-Prefix": "false",
+          "Relative-Time": "false",
+        },
+      },
+    );
+
+    const metaData = topics.topics.map((topic) => {
+      if (topic.schema == undefined) {
+        return topic as Omit<RawTopicResponse, "schema">;
+      }
+      const decodedSchema = new Uint8Array(base64.length(topic.schema));
+      base64.decode(topic.schema, decodedSchema, 0);
+      return { ...topic, schema: decodedSchema };
+    });
+
+    return {
+      // ...topics,
+      start: toRFC3339String(timestampToTime(topics.startTime)),
+      end: toRFC3339String(timestampToTime(topics.endTime)),
+      metaData,
+    };
+  }
+
+  public async getStreams({
+    start,
+    end,
+    topics,
+    id,
+    signal,
+    projectName,
+    fetchCompleteTopicState,
+  }: {
+    start: number;
+    end: number;
+    topics: string[];
+    id: string;
+    signal: AbortSignal;
+    projectName: string;
+    fetchCompleteTopicState?: "complete" | "incremental";
+  }): Promise<Response> {
+    const { fullUrl, fullConfig } = this.getRequectConfig("/v1/data/getStreams", {
+      method: "POST",
+      signal,
+      cache: "no-cache",
+      headers: {
+        // Include the version of studio in the request Useful when scraping logs to determine what
+        // versions of the app are making requests.
+        "Content-Type": "application/json",
+        "Project-Name": projectName,
+        "Topic-Prefix": "false",
+        "Relative-Time": "false",
+      },
+      body: JSON.stringify({
+        start,
+        end,
+        topics,
+        id,
+        fetchCompleteTopicState: fetchCompleteTopicState ?? "incremental",
+      }),
+    });
+
+    return await fetch(fullUrl, fullConfig);
+  }
+
+  public async getPlaylist(key: string): Promise<getPlaylistResponse> {
+    return await this.#post<getPlaylistResponse>(
+      "/v1/data/getPlaylist",
+      {
+        id: key,
+      },
+      undefined,
+    );
+  }
+
+  // event
+  public createEvent = Object.assign(
+    async ({
+      event,
+      parent,
+      recordName,
+    }: {
+      event: Event;
+      parent: string;
+      recordName: string;
+    }): Promise<Event> => {
+      const createEventRequest = create(CreateEventRequestSchema, {
+        parent,
+        event,
+        record: recordName,
+      });
+
+      const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
+
+      return newEvent;
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.CreateEvent, this.#permissionList);
+      },
+    },
+  );
+
+  public async getEvents(params: { fileList: SingleFileGetEventsRequest[] }): Promise<EventList> {
+    const eventBinaryArray = await this.#post<GetEventsResponse>(
+      "/bff/honeybee/event/v1/listEvents",
+      params,
+    );
+
+    return eventBinaryArray.eventList.map((event) => {
+      const binaryEvent = event.event;
+      const binaryString = atob(binaryEvent);
+      const uint8Array = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+      }
+      return {
+        event: fromBinary(EventSchema, uint8Array),
+        projectDisplayName: event.projectDisplayName,
+        recordDisplayName: event.recordDisplayName,
+      };
+    });
+  }
+
+  public deleteEvent = Object.assign(
+    async ({ eventName }: { eventName: string }): Promise<Empty> => {
+      const deleteEventRequest = create(DeleteEventRequestSchema, {
+        name: eventName,
+      });
+
+      return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.DeleteEvent, this.#permissionList);
+      },
+    },
+  );
+
+  public updateEvent = Object.assign(
+    async ({ event, updateMask }: { event: Event; updateMask: FieldMask }): Promise<void> => {
+      const req = create(UpdateEventRequestSchema, {
+        event,
+        updateMask,
+      });
+
+      await getPromiseClient(EventService).updateEvent(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.UpdateEvent, this.#permissionList);
+      },
+    },
+  );
+
+  // user detail info only for current user
+  public async getUser(userName: string): Promise<CoUser> {
+    const request = create(GetUserRequestSchema, {
+      name: userName,
+    });
+    const result = await getPromiseClient(UserService).getUser(request);
+    return result;
+  }
+
+  // no sensitive info, can get all users info
+  public async batchGetUsers(userNames: string[]): Promise<BatchGetUsersResponse> {
+    const request = create(BatchGetUsersRequestSchema, {
+      names: userNames,
+    });
+    return await getPromiseClient(UserService).batchGetUsers(request);
+  }
+
+  public async getOrg(orgName: string): Promise<Organization> {
+    const request = create(GetOrganizationRequestSchema, { name: orgName });
+    return await getPromiseClient(OrganizationService).getOrganization(request);
+  }
+
+  public createTask = Object.assign(
+    async ({
+      parent,
+      task,
+      event,
+    }: {
+      parent: string;
+      task: {
+        title: string;
+        description: string;
+        assignee: string;
+        assigner: string;
+        customFieldValues?: CustomFieldValue[];
+      };
+      event: Event;
+    }): Promise<Task> => {
+      const currentUser = await this.getUser("users/current");
+      const newTask = create(TaskSchema, {
+        category: TaskCategoryEnum_TaskCategory.COMMON,
+        title: task.title,
+        description: task.description,
+        state: TaskStateEnum_TaskState.PENDING,
+        assignee: task.assignee,
+        assigner: currentUser.name,
+        detail: {
+          case: "commonTaskDetail",
+          value: {
+            related: {
+              case: "event",
+              value: event.name,
+            },
+          },
+        },
+        customFieldValues: task.customFieldValues,
+      });
+
+      const request = create(UpsertTaskRequestSchema, {
+        parent,
+        task: newTask,
+      });
+      // create task does not have remove dumplicates logic, so we use upsert task to create task
+      return await getPromiseClient(TaskService).upsertTask(request);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.CreateTask, this.#permissionList);
+      },
+    },
+  );
+
+  public createTask_v2 = Object.assign(
+    async ({ parent, task }: { parent: string; task: Task }): Promise<Task> => {
+      const request = create(CreateTaskRequestSchema, {
+        parent,
+        task,
+      });
+      // create task does not have remove dumplicates logic, so we use upsert task to create task
+      return await getPromiseClient(TaskService).createTask(request);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.CreateTask, this.#permissionList);
+      },
+    },
+  );
+
+  public async getTicketSystemMetadata({
+    parent,
+  }: {
+    parent: string;
+  }): Promise<TicketSystemMetadata> {
+    const request = create(GetTicketSystemMetadataRequestSchema, {
+      name: parent,
+    });
+    const result = await getPromiseClient(TicketSystemService).getTicketSystemMetadata(request);
+    return result;
+  }
+
+  public async syncTask({ name }: { name: string }): Promise<void> {
+    const req = create(SyncTaskRequestSchema, {
+      name,
+    });
+
+    await getPromiseClient(TaskService).syncTask(req);
+  }
+
+  public async listOrganizationUsers(): Promise<CoUser[]> {
+    const request = create(ListOrganizationUsersRequestSchema, {
+      parent: "organizations/current",
+      pageSize: 100,
+    });
+    const result = await getPromiseClient(UserService).listOrganizationUsers(request);
+    return result.organizationUsers;
+  }
+
+  public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {
+    const req = create(GetRecordRequestSchema, {
+      name: recordName,
+    });
+
+    return await getPromiseClient(RecordService).getRecord(req);
+  }
+
+  public async getProject({ projectName }: { projectName: string }): Promise<Project> {
+    const req = create(GetProjectRequestSchema, {
+      name: projectName,
+    });
+    return await getPromiseClient(ProjectService).getProject(req);
+  }
+
+  public async listUserProjects({
+    userId,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    userId: string;
+    pageSize: number;
+    filter?: string;
+    currentPage: number;
+  }): Promise<ListUserProjectsResponse> {
+    const req = create(ListUserProjectsRequestSchema, {
+      parent: `users/${userId}`,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    if (filter) {
+      req.filter = filter;
+    }
+
+    const projectClient = getPromiseClient(ProjectService);
+
+    return await projectClient.listUserProjects(req);
+  }
+
+  public async listRecord({
+    projectName,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    projectName: string;
+    pageSize: number;
+    filter: string;
+    currentPage: number;
+  }): Promise<ListRecordsResponse> {
+    const req = create(ListRecordsRequestSchema, {
+      parent: projectName,
+      filter,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    const recordClient = getPromiseClient(RecordService);
+
+    return await recordClient.listRecords(req);
+  }
+
+  public async listFiles({
+    parent,
+    pageSize,
+    filter,
+    currentPage,
+  }: {
+    parent: string;
+    pageSize: number;
+    filter?: string;
+    currentPage: number;
+  }): Promise<ListFilesResponse> {
+    const req = create(ListFilesRequestSchema, {
+      parent,
+      filter,
+      pageSize,
+      skip: pageSize * currentPage,
+    });
+
+    const fileClient = getPromiseClient(FileService);
+
+    return await fileClient.listFiles(req);
+  }
+
+  public async generateFileUploadUrls(
+    payload: MessageInitShape<typeof GenerateFileUploadUrlsRequestSchema>,
+  ): Promise<GenerateFileUploadUrlsResponse> {
+    const req = create(GenerateFileUploadUrlsRequestSchema, payload);
+    return await getPromiseClient(FileService)
+      .generateFileUploadUrls(req)
+      .catch((err: unknown) => {
+        console.error("generateFileUploadUrls", err);
+        throw err;
+      });
+  }
+
+  public async uploadEventPicture({
+    recordName,
+    file,
+    filename,
+  }: {
+    recordName: string;
+    file: File;
+    filename: string;
+  }): Promise<void> {
+    const name = generateFileName({
+      filename,
+      recordName,
+      targetDir: ".cos/moments",
+    });
+
+    const Es_file = create(File_esSchema, {
+      filename,
+      name,
+      size: BigInt(file.size),
+    });
+
+    const uploadUrlsResult = await this.generateFileUploadUrls({
+      files: [Es_file],
+      parent: recordName,
+    });
+
+    const url = uploadUrlsResult.preSignedUrls[name] ?? "";
+
+    const res = await fetch(url, {
+      method: "PUT",
+      body: file,
+    });
+
+    if (res.status !== 200) {
+      throw new Error("Failed to upload file");
+    }
+  }
+
+  public async generateFileDownloadUrl(
+    payload: MessageInitShape<typeof GenerateFileDownloadUrlRequestSchema>,
+  ): Promise<GenerateFileDownloadUrlResponse> {
+    const req = create(GenerateFileDownloadUrlRequestSchema, payload);
+    return await getPromiseClient(FileService)
+      .generateFileDownloadUrl(req)
+      .catch((err: unknown) => {
+        console.error("error", err);
+        throw err;
+      });
+  }
+
+  public async getJobRun(jobRunName: string): Promise<JobRun> {
+    const jobRunClient = getPromiseClient(JobRunService);
+
+    const req = create(GetJobRunRequestSchema, {
+      name: jobRunName,
+    });
+
+    return await jobRunClient.getJobRun(req);
+  }
+
+  // getBaseInfo
+  public async getExternalInitConfig(key: string): Promise<ExternalInitConfig> {
+    const externalInitConfig: ExternalInitConfig = await this.#get<ExternalInitConfig>(
+      `/bff/shortenUrl/${key}`,
+    );
+
+    return externalInitConfig;
+  }
+
+  // setBaseInfo
+  public async setExternalInitConfig(externalInitConfig: ExternalInitConfig): Promise<string> {
+    const externalInitConfigString: string = JSON.stringify(externalInitConfig) ?? "";
+
+    const key = await this.#post<{ id: string }>("/bff/shortenUrl", {
+      url: externalInitConfigString,
+    });
+
+    return key.id;
+  }
+
+  public async deleteFile(
+    payload: MessageInitShape<typeof DeleteFileRequestSchema>,
+  ): Promise<void> {
+    const req = create(DeleteFileRequestSchema, payload);
+    await getPromiseClient(FileService)
+      .deleteFile(req)
+      .catch((err: unknown) => {
+        throw err;
+      });
+  }
+
+  public async getFilesStatus(key: string): Promise<Response> {
+    const { fullConfig, fullUrl } = this.getRequectConfig(`/v1/data/getFilesStatus/${key}`);
+    return await fetch(fullUrl, fullConfig);
+  }
+
+  public createRecord = Object.assign(
+    async (payload: MessageInitShape<typeof CreateRecordRequestSchema>): Promise<CoSceneRecord> => {
+      const req = create(CreateRecordRequestSchema, payload);
+      return await getPromiseClient(RecordService).createRecord(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.CreateRecord, this.#permissionList);
+      },
+    },
+  );
+
+  public async getDiagnosisRule(): Promise<DiagnosisRule> {
+    const projectId = this.#baseInfo.projectId;
+    const warehouseId = this.#baseInfo.warehouseId;
+
+    const name = `warehouses/${warehouseId}/projects/${projectId}/diagnosisRule`;
+
+    const req = create(GetDiagnosisRuleRequestSchema, {
+      name,
+    });
+
+    return await getPromiseClient(DiagnosisService).getDiagnosisRule(req);
+  }
+
+  public async syncMedia({ key }: { key: string }): Promise<void> {
+    await this.#patch("/v1/data/sync", { id: key });
+  }
+
+  public async listUserRoles({
+    isProjectRole,
+  }: {
+    isProjectRole: boolean;
+  }): Promise<ListUserRolesResponse> {
+    const parent = isProjectRole
+      ? `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`
+      : undefined;
+
+    const req = create(ListUserRolesRequestSchema, { parent });
+    return await getPromiseClient(RoleService).listUserRoles(req);
+  }
+
+  async #getPermissionList(): Promise<void> {
+    const userOrgRole = await this.listUserRoles({ isProjectRole: false });
+    const userProjectRole = await this.listUserRoles({ isProjectRole: true });
+
+    const orgRole: Role | undefined = userOrgRole.userRoles[0];
+    const projectRole: Role | undefined = userProjectRole.userRoles[0];
+
+    const { permissionList: orgPermissionList, denyList: orgDenyList } =
+      permissionListFromRole(orgRole);
+
+    let projectPermissionList: string[] = [];
+    let projectDenyList: string[] = [];
+
+    if (projectRole && orgRole) {
+      const { permissionList, denyList } = mergePermissionList(projectRole, orgRole);
+      projectPermissionList = permissionList;
+      projectDenyList = denyList;
+    }
+
+    this.#permissionList = {
+      orgPermissionList,
+      orgDenyList,
+      projectPermissionList,
+      projectDenyList,
+    };
+  }
+
+  public listProjectDevices = Object.assign(
+    async ({
+      filter,
+      pageSize,
+      currentPage,
+      warehouseId,
+      projectId,
+    }: {
+      filter: CosQuery;
+      pageSize: number;
+      currentPage: number;
+      warehouseId: string;
+      projectId: string;
+    }) => {
+      const realFilter = CosQuery.Companion.empty();
+      realFilter.mergeFrom(filter);
+      const realFilterStr = realFilter.toQueryString(new SerializeOption(false));
+
+      const req = create(ListProjectDevicesRequestSchema, {
+        orderBy: "create_time desc",
+        parent: `warehouses/${warehouseId}/projects/${projectId}`,
+        filter: realFilterStr,
+        pageSize,
+        skip: pageSize * currentPage,
+      });
+
+      return await getPromiseClient(DeviceService).listProjectDevices(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph2.ListProjectDevices,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public listLabels = Object.assign(
+    async ({
+      pageSize,
+      warehouseId,
+      projectId,
+    }: {
+      pageSize: number;
+      warehouseId: string;
+      projectId: string;
+    }): Promise<ListLabelsResponse> => {
+      const req = create(ListLabelsRequestSchema, {
+        parent: `warehouses/${warehouseId}/projects/${projectId}`,
+        pageSize,
+      });
+
+      return await getPromiseClient(LabelService).listLabels(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.ListLabels, this.#permissionList);
+      },
+    },
+  );
+
+  public createLabel = Object.assign(
+    async (payload: MessageInitShape<typeof CreateLabelRequestSchema>): Promise<Label> => {
+      const req = create(CreateLabelRequestSchema, payload);
+      return await getPromiseClient(LabelService).createLabel(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.CreateLabel, this.#permissionList);
+      },
+    },
+  );
+
+  public deleteLabel = Object.assign(
+    async (payload: MessageInitShape<typeof DeleteLabelRequestSchema>): Promise<void> => {
+      const req = create(DeleteLabelRequestSchema, payload);
+      await getPromiseClient(LabelService).deleteLabel(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.DeleteLabel, this.#permissionList);
+      },
+    },
+  );
+
+  public updateLabel = Object.assign(
+    async (payload: MessageInitShape<typeof UpdateLabelRequestSchema>): Promise<Label> => {
+      const req = create(UpdateLabelRequestSchema, payload);
+      return await getPromiseClient(LabelService).updateLabel(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph1.UpdateLabel, this.#permissionList);
+      },
+    },
+  );
+
+  public updateRecord = Object.assign(
+    async (payload: MessageInitShape<typeof UpdateRecordRequestSchema>): Promise<CoSceneRecord> => {
+      const req = create(UpdateRecordRequestSchema, payload);
+      return await getPromiseClient(RecordService).updateRecord(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.UpdateRecord, this.#permissionList);
+      },
+    },
+  );
+
+  public getDevice = Object.assign(
+    async ({ deviceName }: { deviceName: string }): Promise<Device> => {
+      const req = create(GetDeviceRequestSchema, { name: deviceName });
+      return await getPromiseClient(DeviceService).getDevice(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.GetDevice, this.#permissionList);
+      },
+    },
+  );
+
+  public getTask = Object.assign(
+    async ({ taskName }: { taskName: string }): Promise<Task> => {
+      const req = create(GetTaskRequestSchema, { name: taskName });
+      return await getPromiseClient(TaskService).getTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.GetTask, this.#permissionList);
+      },
+    },
+  );
+
+  public listOrganizationSubscriptions = Object.assign(
+    async (
+      payload: MessageInitShape<typeof ListOrganizationSubscriptionsRequestSchema>,
+    ): Promise<ListOrganizationSubscriptionsResponse> => {
+      const req = create(ListOrganizationSubscriptionsRequestSchema, payload);
+      return await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph1.ListOrganizationSubscriptions,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getRecordCustomFieldSchema = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = create(GetRecordCustomFieldSchemaRequestSchema, { project });
+      return await getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetRecordCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getMomentCustomFieldSchema = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = create(GetMomentCustomFieldSchemaRequestSchema, { project });
+      return await getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetMomentCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getDeviceCustomFieldSchema = Object.assign(
+    async (): Promise<CustomFieldSchema> => {
+      const req = create(GetDeviceCustomFieldSchemaRequestSchema);
+      return await getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetDeviceCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getTaskCustomFieldSchema = Object.assign(
+    async (project: string): Promise<CustomFieldSchema> => {
+      const req = create(GetTaskCustomFieldSchemaRequestSchema, { project });
+      return await getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDataplatformV1alph3.GetTaskCustomFieldSchema,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public getFile = Object.assign(
+    async (payload: MessageInitShape<typeof GetFileRequestSchema>): Promise<File_es> => {
+      const req = create(GetFileRequestSchema, payload);
+      return await getPromiseClient(FileService).getFile(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph2.GetFile, this.#permissionList);
+      },
+    },
+  );
+
+  public generateSecurityToken = Object.assign(
+    async (
+      payload: MessageInitShape<typeof GenerateSecurityTokenRequestSchema>,
+    ): Promise<GenerateSecurityTokenResponse> => {
+      const req = create(GenerateSecurityTokenRequestSchema, payload);
+      return await getPromiseClient(SecurityTokenService).generateSecurityToken(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(
+          EndpointDatastorageV1alph1.GenerateSecurityToken,
+          this.#permissionList,
+        );
+      },
+    },
+  );
+
+  public listTasks = Object.assign(
+    async (
+      payload: MessageInitShape<typeof ListTasksRequestSchema>,
+    ): Promise<ListTasksResponse> => {
+      const req = create(ListTasksRequestSchema, payload);
+      return await getPromiseClient(TaskService).listTasks(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.ListTasks, this.#permissionList);
+      },
+    },
+  );
+
+  public updateTask = Object.assign(
+    async (payload: MessageInitShape<typeof UpdateTaskRequestSchema>): Promise<Task> => {
+      const req = create(UpdateTaskRequestSchema, payload);
+      return await getPromiseClient(TaskService).updateTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UpdateTask, this.#permissionList);
+      },
+    },
+  );
+
+  public linkTasks = Object.assign(
+    async (payload: MessageInitShape<typeof LinkTaskRequestSchema>): Promise<Empty> => {
+      const req = create(LinkTaskRequestSchema, payload);
+      return await getPromiseClient(TaskService).linkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.LinkTask, this.#permissionList);
+      },
+    },
+  );
+
+  public unlinkTasks = Object.assign(
+    async (payload: MessageInitShape<typeof UnlinkTaskRequestSchema>): Promise<Empty> => {
+      const req = create(UnlinkTaskRequestSchema, payload);
+      return await getPromiseClient(TaskService).unlinkTask(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(EndpointDataplatformV1alph3.UnlinkTask, this.#permissionList);
+      },
+    },
+  );
+
+  public async getCoordinatorConfig({
+    currentOrganizationId,
+    coordinatorUrl,
+  }: {
+    currentOrganizationId: string;
+    coordinatorUrl: string;
+  }): Promise<CoordinatorConfig> {
+    if (!coordinatorUrl || !currentOrganizationId) {
+      throw new Error("Coordinator URL or current organization ID is not set");
+    }
+
+    const url = `${coordinatorUrl}/api/v1/networks/${currentOrganizationId}/config`;
+    const config = await this.#get<CoordinatorConfig>(url, undefined, true);
+
+    return config;
+  }
+
+  public upsertOrgConfigMap = Object.assign(
+    async (payload: MessageInitShape<typeof UpsertConfigMapRequestSchema>): Promise<void> => {
+      const req = create(UpsertConfigMapRequestSchema, payload);
+      await getPromiseClient(ConfigMapService).upsertConfigMap(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.UpsertOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getOrgConfigMap = Object.assign(
+    async (payload: MessageInitShape<typeof GetConfigMapRequestSchema>): Promise<ConfigMap> => {
+      const req = create(GetConfigMapRequestSchema, payload);
+      return await getPromiseClient(ConfigMapService).getConfigMap(req);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.GetOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getStorageCluster = Object.assign(
+    async (
+      payload: MessageInitShape<typeof GetStorageClusterRequestSchema>,
+    ): Promise<StorageCluster> => {
+      const req = create(GetStorageClusterRequestSchema, payload);
+      return await getPromiseClient(StorageClusterService).getStorageCluster(req);
+    },
+    {
+      permission: () => {
+        return true;
+      },
+    },
+  );
+}
+
+export type { Org, DeviceCodeResponse, Session, CoverageResponse };
+export default CoSceneConsoleApi;

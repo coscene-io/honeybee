@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -39,6 +39,7 @@ export { default as VelodyneDataSourceFactory } from "./dataSources/VelodyneData
 export { default as RemoteDataSourceFactory } from "./dataSources/RemoteDataSourceFactory";
 export { default as McapLocalDataSourceFactory } from "./dataSources/McapLocalDataSourceFactory";
 export { default as SampleNuscenesDataSourceFactory } from "./dataSources/SampleNuscenesDataSourceFactory";
+export { default as PersistentCacheDataSourceFactory } from "./dataSources/PersistentCacheDataSourceFactory";
 export { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
@@ -47,16 +48,29 @@ export { SharedProviders } from "./providers/SharedProviders";
 
 // CoScene
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";
-export type { Layout, ISO8601Timestamp, ILayoutStorage } from "./services/CoSceneILayoutStorage";
-export type { IDataSourceFactory as CoSceneIDataSourceFactory } from "./context/CoScenePlayerSelectionContext";
+export type {
+  Layout,
+  ISO8601Timestamp,
+  ILayoutStorage,
+  LayoutHistory,
+} from "./services/CoSceneILayoutStorage";
 export { default as CoSceneDataPlatformDataSourceFactory } from "./dataSources/CoSceneDataPlatformDataSourceFactory";
-export { default as ConsoleApi } from "@foxglove/studio-base/services/CoSceneConsoleApi";
-export type { LayoutID } from "./context/CoSceneCurrentLayoutContext";
+export { default as ConsoleApi } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+export type { LayoutID } from "./context/CurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
-export type { IUrdfStorage } from "./services/UrdfStorage";
+export type { IUrdfStorage } from "./services/IUrdfStorage";
+export { S3FileService } from "./services/S3FileService";
+export type { S3GetObjectResult } from "./services/S3FileService";
 
 export type { AppBarProps } from "./components/AppBar";
 
 // desktop
 export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowContext";
 export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
+
+// Persistence
+export type {
+  PersistentMessageCache,
+  PersistenceSessionId,
+} from "./persistence/PersistentMessageCache";
+export { IndexedDbMessageStore } from "./persistence/IndexedDbMessageStore";

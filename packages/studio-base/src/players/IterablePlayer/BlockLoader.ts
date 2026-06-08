@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -65,6 +65,7 @@ export class BlockLoader {
   #stopped: boolean = false;
   #activeChangeCondvar: Condvar = new Condvar();
   #abortController: AbortController;
+  #progressCallback?: (progress: Progress) => void;
 
   public constructor(args: BlockLoaderArgs) {
     this.#source = args.source;
@@ -117,6 +118,9 @@ export class BlockLoader {
     }
 
     this.#topics = topics;
+
+    this.#removeUnusedBlockTopics();
+    this.#progressCallback?.(this.#calculateProgress(topics, this.#cacheSize()));
   }
 
   /**
@@ -137,8 +141,9 @@ export class BlockLoader {
         for (const topic of blockTopics) {
           // remove topics that are no longer requested to be preloaded and topics that will
           // be re-loaded (due to different subscription parameters)
-          if ((!topics.has(topic) || block.needTopics.has(topic)) && newMessagesByTopic[topic]) {
-            for (const msg of newMessagesByTopic[topic]!) {
+          const messages = newMessagesByTopic[topic];
+          if ((!topics.has(topic) || block.needTopics.has(topic)) && messages) {
+            for (const msg of messages) {
               blockBytesRemoved += msg.sizeInBytes;
             }
             delete newMessagesByTopic[topic];
@@ -162,33 +167,39 @@ export class BlockLoader {
     this.#stopped = true;
     this.#abortController.abort();
     this.#activeChangeCondvar.notifyAll();
+    this.#progressCallback = undefined;
   }
 
   public async startLoading(args: LoadArgs): Promise<void> {
     log.debug("Start loading process");
     this.#stopped = false;
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (!this.#stopped) {
-      this.#abortController = new AbortController();
-
-      const topics = this.#topics;
-
-      await this.#load({ progress: args.progress });
-
+    try {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (this.#stopped) {
-        break;
-      }
+      while (!this.#stopped) {
+        this.#abortController = new AbortController();
 
-      // Wait for topics to possibly change.
-      if (this.#topics === topics) {
-        await this.#activeChangeCondvar.wait();
+        const topics = this.#topics;
+
+        await this.#load({ progress: args.progress });
+
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (this.#stopped) {
+          break;
+        }
+
+        // Wait for topics to possibly change.
+        if (this.#topics === topics) {
+          await this.#activeChangeCondvar.wait();
+        }
       }
+    } finally {
+      this.#progressCallback = undefined;
     }
   }
 
   async #load(args: { progress: LoadArgs["progress"] }): Promise<void> {
+    this.#progressCallback = args.progress;
     const topics = new Map(this.#topics);
 
     // Ignore changing the blocks if the topic list is empty
@@ -255,7 +266,10 @@ export class BlockLoader {
       const cursor =
         this.#source.getMessageCursor?.({ ...iteratorArgs, abort: this.#abortController.signal }) ??
         new IteratorCursor(
-          this.#source.messageIterator(iteratorArgs),
+          this.#source.messageIterator({
+            ...iteratorArgs,
+            abortSignal: this.#abortController.signal,
+          }),
           this.#abortController.signal,
         );
 

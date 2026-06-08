@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -9,25 +9,18 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 
-import * as cosEn from "./cosEn";
-import * as cosZh from "./cosZh";
 import * as en from "./en";
 import * as ja from "./ja";
 import * as zh from "./zh";
+import { getAppConfig } from "../util/appConfig";
 
 export const translations: {
-  en: typeof en & typeof cosEn;
-  zh: typeof zh & typeof cosZh;
+  en: typeof en;
+  zh: typeof zh;
   ja: typeof ja;
 } = {
-  en: {
-    ...en,
-    ...cosEn,
-  },
-  zh: {
-    ...zh,
-    ...cosZh,
-  },
+  en,
+  zh,
   ja,
 };
 
@@ -41,13 +34,19 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
     i18n.use(initReactI18next);
     i18n.use(LanguageDetector);
   }
+
+  const appConfig = getAppConfig();
+
   await i18n.init({
+    lng: appConfig.LANGUAGE?.options.length === 1 ? appConfig.LANGUAGE.default : undefined,
     resources: translations,
     detection:
-      context === "browser"
-        ? { order: ["localStorage", "navigator"], caches: ["localStorage"] }
+      context === "browser" &&
+      appConfig.LANGUAGE?.options.length != undefined &&
+      appConfig.LANGUAGE.options.length > 1
+        ? { order: ["localStorage"], caches: ["localStorage"] }
         : undefined,
-    fallbackLng: "zh",
+    fallbackLng: appConfig.LANGUAGE?.default,
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default

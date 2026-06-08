@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -36,7 +36,7 @@ if (typeof window !== "undefined") {
   (window as { setImmediate?: typeof setImmediate }).setImmediate ??= setImmediate;
 }
 
-global.TextEncoder = util.TextEncoder;
+global.TextEncoder = util.TextEncoder as unknown as typeof global.TextEncoder;
 
 // React available everywhere (matches webpack config)
 // eslint-disable-next-line @typescript-eslint/no-require-imports

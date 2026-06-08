@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,6 +7,7 @@
 
 import * as _ from "lodash-es";
 import { ReactNode, useState } from "react";
+import { DeepPartial } from "ts-essentials";
 import { StoreApi, createStore } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -50,23 +51,31 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
     },
     playbackControls: {
       repeat: false,
+      rollingEditEnabled: true,
       speed: 1,
+      timelineHeight: 200,
+      momentSubtitle: {
+        enabled: false,
+        fontSize: 16,
+        position: undefined,
+      },
     },
-    layoutMenu: {
+    layoutDrawer: {
       open: false,
     },
   };
 }
 
 function createWorkspaceContextStore(
-  initialState?: Partial<WorkspaceContextStore>,
+  initialState?: DeepPartial<WorkspaceContextStore>,
   options?: { disablePersistenceForStorybook?: boolean },
 ): StoreApi<WorkspaceContextStore> {
   const stateCreator = () => {
-    const store: WorkspaceContextStore = {
-      ...makeWorkspaceContextInitialState(),
-      ...initialState,
-    };
+    const store: WorkspaceContextStore = _.merge(
+      {},
+      makeWorkspaceContextInitialState(),
+      initialState,
+    );
     return store;
   };
   if (options?.disablePersistenceForStorybook === true) {
@@ -94,9 +103,9 @@ function createWorkspaceContextStore(
 export type WorkspaceContextProviderProps = {
   children?: ReactNode;
   disablePersistenceForStorybook?: boolean;
-  initialState?: Partial<WorkspaceContextStore>;
+  initialState?: DeepPartial<WorkspaceContextStore>;
   workspaceStoreCreator?: (
-    initialState?: Partial<WorkspaceContextStore>,
+    initialState?: DeepPartial<WorkspaceContextStore>,
     options?: { disablePersistenceForStorybook?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
 };

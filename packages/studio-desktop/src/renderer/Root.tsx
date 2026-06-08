@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -15,7 +15,7 @@ import {
   AppSetting,
   FoxgloveWebSocketDataSourceFactory,
   IAppConfiguration,
-  CoSceneIDataSourceFactory,
+  IDataSourceFactory,
   IdbExtensionLoader,
   McapLocalDataSourceFactory,
   OsContext,
@@ -30,11 +30,11 @@ import {
   ConsoleApi,
   CoSceneDataPlatformDataSourceFactory,
   SharedProviders,
+  PersistentCacheDataSourceFactory,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
-import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { APP_CONFIG } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
@@ -50,27 +50,28 @@ const authBridge = (global as { authBridge?: Auth }).authBridge;
 export default function Root(props: {
   appConfiguration: IAppConfiguration;
   extraProviders: React.JSX.Element[] | undefined;
-  dataSources: CoSceneIDataSourceFactory[] | undefined;
+  dataSources: IDataSourceFactory[] | undefined;
 }): React.JSX.Element {
   if (!storageBridge) {
     throw new Error("storageBridge is missing");
   }
   const { appConfiguration } = props;
 
-  const { t } = useTranslation("appBar");
-
-  // if has many sources need to set confirm
-  // recommand set confirm to message pipeline
-  const [confirm, confirmModal] = useConfirm();
+  const { t, i18n } = useTranslation("appBar");
 
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
 
   const authToken = localStorage.getItem("coScene_org_jwt");
 
+  const appConfig = getAppConfig();
   const consoleApi = useMemo(
     () =>
-      new ConsoleApi(APP_CONFIG.CS_HONEYBEE_BASE_URL, APP_CONFIG.VITE_APP_BFF_URL, authToken ?? ""),
+      new ConsoleApi(
+        appConfig.CS_HONEYBEE_BASE_URL ?? "",
+        appConfig.VITE_APP_BFF_URL ?? "",
+        authToken ?? "",
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -114,7 +115,7 @@ export default function Root(props: {
   useEffect(() => {
     // Passive logout, token expired
     const cleanup = authBridge?.onLogout(() => {
-      toast.error(t("loginExpired", { ns: "cosAccount" }));
+      toast.error(t("loginExpired", { ns: "account" }));
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatusKey((key) => key + 1);
     });
@@ -130,13 +131,13 @@ export default function Root(props: {
   const nativeAppMenu = useMemo(() => new NativeAppMenu(menuBridge), []);
   const nativeWindow = useMemo(() => new NativeWindow(desktopBridge), []);
 
-  const dataSources: CoSceneIDataSourceFactory[] = useMemo(() => {
+  const dataSources: IDataSourceFactory[] = useMemo(() => {
     if (props.dataSources) {
       return props.dataSources;
     }
 
     const sources = [
-      new FoxgloveWebSocketDataSourceFactory({ confirm }),
+      new FoxgloveWebSocketDataSourceFactory(),
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
@@ -147,10 +148,13 @@ export default function Root(props: {
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
       new RemoteDataSourceFactory(),
+      new PersistentCacheDataSourceFactory(),
     ];
 
     return sources;
-  }, [confirm, props.dataSources]);
+    // Changing the language requires reloading data sources so they use the new language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.resolvedLanguage, props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -240,8 +244,6 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      {confirmModal}
-      <Toaster />
     </>
   );
 }

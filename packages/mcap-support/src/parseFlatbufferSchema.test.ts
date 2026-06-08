@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -11,6 +11,10 @@ import fs from "fs";
 
 import { ByteVector } from "./fixtures/byte-vector";
 import { parseFlatbufferSchema } from "./parseFlatbufferSchema";
+
+function fixtureBytes(name: string): Uint8Array {
+  return Uint8Array.from(fs.readFileSync(`${__dirname}/fixtures/${name}`));
+}
 
 const enumSchema = {
   definitions: [
@@ -318,7 +322,7 @@ describe("parseFlatbufferSchema", () => {
     // The .bfbs file in question is generated from running
     // $ flatc -b --schema reflection/reflection.fbs
     // In https://github.com/google/flatbuffers
-    const reflectionSchemaBuffer: Buffer = fs.readFileSync(`${__dirname}/fixtures/reflection.bfbs`);
+    const reflectionSchemaBuffer = fixtureBytes("reflection.bfbs");
     const { datatypes, deserialize } = parseFlatbufferSchema(
       "reflection.Schema",
       reflectionSchemaBuffer,
@@ -339,7 +343,7 @@ describe("parseFlatbufferSchema", () => {
     expect(datatypes.get("reflection.Enum")).toEqual(enumSchema);
   });
   it("parses non-root table schema", () => {
-    const reflectionSchemaBuffer: Buffer = fs.readFileSync(`${__dirname}/fixtures/reflection.bfbs`);
+    const reflectionSchemaBuffer = fixtureBytes("reflection.bfbs");
     const { datatypes, deserialize } = parseFlatbufferSchema(
       "reflection.Type",
       reflectionSchemaBuffer,
@@ -387,7 +391,7 @@ describe("parseFlatbufferSchema", () => {
      */
     const byteVectorBin = Uint8Array.from(builder.asUint8Array());
 
-    const byteVectorSchemaArray = fs.readFileSync(`${__dirname}/fixtures/ByteVector.bfbs`);
+    const byteVectorSchemaArray = fixtureBytes("ByteVector.bfbs");
     const { deserialize } = parseFlatbufferSchema("ByteVector", byteVectorSchemaArray);
     expect(deserialize(byteVectorBin)).toEqual({ data: new Uint8Array([1, 2, 3]) });
   });

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -28,7 +28,9 @@ describe("parseChannel", () => {
   });
 
   it("works with flatbuffer", () => {
-    const reflectionSchema = fs.readFileSync(`${__dirname}/fixtures/reflection.bfbs`);
+    const reflectionSchema = Uint8Array.from(
+      fs.readFileSync(`${__dirname}/fixtures/reflection.bfbs`),
+    );
     const channel = parseChannel({
       messageEncoding: "flatbuffer",
       schema: { name: "reflection.Schema", encoding: "flatbuffer", data: reflectionSchema },

@@ -1,10 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create } from "@bufbuild/protobuf";
+import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { useTheme } from "@mui/material";
 import { StoryObj, StoryFn } from "@storybook/react";
 import { useEffect } from "react";
@@ -52,24 +55,21 @@ export const WithEvents: StoryObj = {
     useEffect(() => {
       setEvents([
         {
-          event: {
-            createdAt: "1",
-            id: "1",
-            deviceId: "dev1",
-            durationNanos: "1",
-            endTime: { sec: 1, nsec: 1 },
-            endTimeInSeconds: 1,
-            metadata: {
+          event: create(EventSchema, {
+            name: "events/1",
+            displayName: "Event 1",
+            triggerTime: create(TimestampSchema, { seconds: 0n, nanos: 0 }),
+            duration: create(DurationSchema, { seconds: 1n, nanos: 0 }),
+            customizedFields: {
               "meta 1": "value 1",
               "meta 2": "value 2",
               "long event metadata key that might overflow":
                 "long event metadata value that might also overflow",
             },
-            startTime: { sec: 0, nsec: 0 },
-            startTimeInSeconds: 1,
-            timestampNanos: "1",
-            updatedAt: "1",
-          },
+          }),
+          startTime: { sec: 0, nsec: 0 },
+          endTime: { sec: 1, nsec: 0 },
+          color: "#00ADEF",
           startPosition: 0,
           endPosition: 0.1,
           secondsSinceStart: 0,

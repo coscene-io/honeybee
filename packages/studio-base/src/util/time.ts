@@ -1,21 +1,13 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-//
-// This file incorporates work covered by the following copyright and
-// permission notice:
-//
-//   Copyright 2018-2021 Cruise LLC
-//
-//   This source code is licensed under the Apache License, Version 2.0,
-//   found at http://www.apache.org/licenses/LICENSE-2.0
-//   You may not use this file except in compliance with the License.
 
-// No time functions that require `moment` should live in this file.
-import { Duration } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
+import { DurationSchema } from "@bufbuild/protobuf/wkt";
+import type { Duration } from "@bufbuild/protobuf/wkt";
 
 import log from "@foxglove/log";
 import { Time } from "@foxglove/rostime";
@@ -86,7 +78,9 @@ export const formateTimeToReadableFormat = (time: Time): string => {
   }${Math.floor(time.nsec / 1e7)}`;
 };
 
-export const durationToSeconds = (duration?: Duration): number => {
+type DurationLike = Pick<Readonly<Duration>, "seconds" | "nanos">;
+
+export const durationToSeconds = (duration?: DurationLike): number => {
   if (!duration) {
     return 0;
   }
@@ -94,7 +88,7 @@ export const durationToSeconds = (duration?: Duration): number => {
   return Number(duration.seconds) + duration.nanos / 1e9;
 };
 
-export const durationToNanoSeconds = (duration?: Readonly<Duration>): bigint => {
+export const durationToNanoSeconds = (duration?: DurationLike): bigint => {
   if (!duration) {
     return BigInt(0);
   }
@@ -103,10 +97,11 @@ export const durationToNanoSeconds = (duration?: Readonly<Duration>): bigint => 
 };
 
 export const secondsToDuration = (seconds: number): Duration => {
-  const sec = Math.floor(seconds);
-  const nsec = Math.round((seconds - sec) * 1e9);
+  const nonNegativeSeconds = Math.max(seconds, 0);
+  const sec = Math.floor(nonNegativeSeconds);
+  const nsec = Math.round((nonNegativeSeconds - sec) * 1e9);
 
-  const duration = new Duration({
+  const duration = create(DurationSchema, {
     seconds: BigInt(sec),
     nanos: nsec,
   });

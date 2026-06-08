@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -26,7 +26,6 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   layoutDebuggingDescription:
     "レイアウトストレージの開発およびデバッグ用の追加コントロールを表示する。",
   light: "ライト",
-  messageRate: "メッセージレート",
   noExperimentalFeatures: "現在、実験的機能はありません。",
   openLinksIn: "リンクを開く",
   privacy: "プライバシー",

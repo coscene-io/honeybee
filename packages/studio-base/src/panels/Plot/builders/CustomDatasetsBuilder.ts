@@ -1,19 +1,19 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as Comlink from "comlink";
+import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
+import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { PlayerState } from "@foxglove/studio-base/players/types";
-import { extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
 import {
@@ -30,6 +30,8 @@ import {
 } from "./IDatasetsBuilder";
 import { getChartValue, isChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
+
+const log = Logger.getLogger(__filename);
 
 type CustomDatasetsSeriesItem = {
   config: Immutable<SeriesItem>;
@@ -57,22 +59,39 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
   #xCurrentBounds?: Bounds1D;
   #xFullBounds?: Bounds1D;
 
+  #dispose?: () => void;
+  #destroyed = false;
+
   public constructor({ handleWorkerError }: { handleWorkerError?: (event: Event) => void } = {}) {
     const worker = new Worker(
       // foxglove-depcheck-used: babel-plugin-transform-import-meta
       new URL("./CustomDatasetsBuilderImpl.worker", import.meta.url),
     );
     worker.onerror = (event) => {
+      log.error("[CustomDatasetsBuilder] Worker error:", event);
       handleWorkerError?.(event);
     };
     worker.onmessageerror = (event) => {
+      log.error("[CustomDatasetsBuilder] Worker message error:", event);
       handleWorkerError?.(event);
     };
     const { remote, dispose } =
       ComlinkWrap<Comlink.RemoteObject<CustomDatasetsBuilderImpl>>(worker);
 
+    this.#dispose = dispose;
     this.#datasetsBuilderRemote = remote;
-    registry.register(this, dispose);
+    registry.register(this, () => {
+      this.#dispose?.();
+    });
+  }
+
+  public destroy(): void {
+    if (this.#destroyed) {
+      return;
+    }
+    this.#destroyed = true;
+    this.#dispose?.();
+    this.#dispose = undefined;
   }
 
   public handlePlayerState(state: Immutable<PlayerState>): Bounds1D | undefined {

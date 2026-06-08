@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -86,7 +86,7 @@ export function LaunchPreferenceScreen(): ReactElement {
       <DialogContent>
         <Grid container spacing={1}>
           {actions.map((action) => (
-            <Grid key={action.key} item xs={12} sm={6}>
+            <Grid key={action.key} size={{ xs: 12, sm: 6 }}>
               <Button
                 className={classes.button}
                 fullWidth
@@ -105,7 +105,7 @@ export function LaunchPreferenceScreen(): ReactElement {
               </Button>
             </Grid>
           ))}
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <FormControlLabel
               label="Remember my preference"
               control={

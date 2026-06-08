@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -271,7 +271,7 @@ const generateRosLib = ({
      * Input<"/your_input_topic_2">'.
      *
      * These types are dynamically generated from the bag(s) currently in your
-     * Foxglove Studio session, so if a datatype changes, your User Script
+     * Lichtblick session, so if a datatype changes, your User Script
      * may not compile on the newly formatted bag.
      */
     ${printer.printNode(ts.EmitHint.Unspecified, typedMessage, sourceFile)}

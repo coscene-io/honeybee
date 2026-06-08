@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,7 +10,7 @@ import { decodeRendererArg, encodeRendererArg } from "./rendererArgs";
 describe("encodeRendererArg & decodeRendererArg", () => {
   it("encodes and decodes", () => {
     const encoded = encodeRendererArg("deepLinks", ["coscene://example"]);
-    expect(encoded).toEqual("--deepLinks=WyJsaWNodGJsaWNrOi8vZXhhbXBsZSJd");
+    expect(encoded).toEqual("--deepLinks=WyJjb3NjZW5lOi8vZXhhbXBsZSJd");
     expect(decodeRendererArg("deepLinks", ["arg1", encoded, "arg2"])).toEqual([
       "coscene://example",
     ]);

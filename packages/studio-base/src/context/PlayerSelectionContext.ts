@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,18 +7,30 @@
 
 import { createContext, useContext } from "react";
 
-import { LayoutData } from "@foxglove/studio-base/context/CoSceneCurrentLayoutContext/actions";
-import { Player, PlayerMetricsCollectorInterface } from "@foxglove/studio-base/players/types";
+import { Time } from "@foxglove/rostime";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+import { PersistentCacheSourceInitializeArgs } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
+import { Player } from "@foxglove/studio-base/players/types";
+import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
 export type DataSourceFactoryInitializeArgs = {
-  metricsCollector: PlayerMetricsCollectorInterface;
+  metricsCollector: AnalyticsMetricsCollector;
   file?: File;
   files?: File[];
   params?: Record<string, string | undefined>;
-};
+  consoleApi?: ConsoleApi;
+  confirm?: confirmTypes;
+  requestWindow?: Time;
+  readAheadDuration?: Time;
+  manifestStorageSource?: string;
+  autoConnectToLan?: boolean;
+  checkOutboundTrafficEntitlement?: () => boolean;
+} & PersistentCacheSourceInitializeArgs;
 
-export type DataSourceFactoryType = "file" | "connection" | "sample";
+export type DataSourceFactoryType = "file" | "connection" | "sample" | "persistent-cache";
 
 export type Field = {
   id: string;
@@ -48,10 +60,12 @@ export interface IDataSourceFactory {
   iconName?: RegisteredIconNames;
   description?: string;
   docsLinks?: { label?: string; url: string }[];
+  showDocs?: boolean;
   disabledReason?: string | React.JSX.Element;
   badgeText?: string;
   hidden?: boolean;
   warning?: string | React.JSX.Element;
+  needLogin?: boolean;
 
   sampleLayout?: LayoutData;
 
@@ -67,7 +81,9 @@ export interface IDataSourceFactory {
   supportsMultiFile?: boolean;
 
   // Initialize a player.
-  initialize: (args: DataSourceFactoryInitializeArgs) => Player | undefined;
+  initialize: (
+    args: DataSourceFactoryInitializeArgs,
+  ) => Player | Promise<Player | undefined> | undefined;
 }
 
 /**
@@ -93,14 +109,23 @@ type ConnectionDataSourceArgs = {
   params?: Record<string, string | undefined>;
 };
 
-export type DataSourceArgs = FileDataSourceArgs | ConnectionDataSourceArgs;
+type PersistentCacheDataSourceArgs = {
+  type: "persistent-cache";
+  params?: Record<string, string | undefined>;
+};
+
+export type DataSourceArgs =
+  | FileDataSourceArgs
+  | ConnectionDataSourceArgs
+  | PersistentCacheDataSourceArgs;
 
 /**
  * PlayerSelectionContext exposes the available data sources and a function to set the current data source
  */
 export interface PlayerSelection {
-  selectSource: (sourceId: string, args?: DataSourceArgs) => void;
+  selectSource: (sourceId: string | undefined, args?: DataSourceArgs) => void;
   selectRecent: (recentId: string) => void;
+  reloadCurrentSource: (params?: Record<string, string | undefined>) => Promise<void>;
 
   /** Currently selected data source */
   selectedSource?: IDataSourceFactory;
@@ -115,6 +140,7 @@ export interface PlayerSelection {
 const PlayerSelectionContext = createContext<PlayerSelection>({
   selectSource: () => {},
   selectRecent: () => {},
+  reloadCurrentSource: async () => {},
   availableSources: [],
   recentSources: [],
 });

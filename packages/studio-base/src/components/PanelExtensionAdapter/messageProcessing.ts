@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -205,7 +205,7 @@ export function forEachSortedArrays<Item>(
     const minItem = arrays[minCursorIndex]![cursors[minCursorIndex]!];
     if (minItem != undefined) {
       forEach(minItem);
-      cursors[minCursorIndex]++;
+      cursors[minCursorIndex] = (cursors[minCursorIndex] ?? 0) + 1;
     } else {
       break;
     }

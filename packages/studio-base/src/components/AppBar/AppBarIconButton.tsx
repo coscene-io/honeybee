@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,6 +17,7 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 0,
     fontSize: 24,
     padding: theme.spacing(1.15),
+    WebkitAppRegion: "no-drag", // make button clickable for desktop app
 
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1em",

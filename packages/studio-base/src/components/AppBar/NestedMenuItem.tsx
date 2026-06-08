@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -93,11 +93,16 @@ export function NestedMenuItem(
           setAnchorEl(undefined);
         }}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        MenuListProps={{ dense: true, className: classes.menuList }}
         autoFocus={false}
         disableAutoFocus
         disableEnforceFocus
         hideBackdrop
+        slotProps={{
+          list: {
+            dense: true,
+            className: classes.menuList,
+          },
+        }}
       >
         {items.map((item, idx) => {
           switch (item.type) {

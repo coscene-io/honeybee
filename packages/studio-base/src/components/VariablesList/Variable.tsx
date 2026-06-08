@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import * as _ from "lodash-es";
 import { useMemo, useCallback, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { VariableValue } from "@foxglove/studio";
@@ -111,6 +112,7 @@ export default function Variable(props: {
 }): React.JSX.Element {
   const { name, selected = false, index } = props;
 
+  const { t } = useTranslation("variable");
   const { classes } = useStyles();
 
   // When editing the variable name, the new name might collide with an existing variable name
@@ -195,14 +197,13 @@ export default function Variable(props: {
               anchorEl={anchorEl}
               open={menuOpen}
               onClose={handleClose}
-              MenuListProps={{
-                "aria-labelledby": "variable-action-button",
-                dense: true,
-              }}
+              data-tourid="variable-actions-menu"
+              aria-labelledby="variable-action-button"
+              slotProps={{ list: { dense: true } }}
             >
               <MenuItem onClick={deleteVariable}>
                 <Typography color="error.main" variant="inherit">
-                  Delete variable
+                  {t("deleteVariable")}
                 </Typography>
               </MenuItem>
             </Menu>
@@ -228,7 +229,7 @@ export default function Variable(props: {
                   autoFocus={name === ""}
                   error={isDuplicate}
                   value={editedName ?? name}
-                  placeholder="variable_name"
+                  placeholder={t("variableNamePlaceholder")}
                   data-testid={`global-variable-key-input-${name}`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -244,10 +245,7 @@ export default function Variable(props: {
                   onBlur={onBlur}
                   endAdornment={
                     isDuplicate && (
-                      <Tooltip
-                        arrow
-                        title="A variable with this name already exists. Please select a unique variable name to save changes."
-                      >
+                      <Tooltip arrow title={t("duplicateNameError")}>
                         <ErrorIcon className={classes.edgeEnd} fontSize="small" color="error" />
                       </Tooltip>
                     )
@@ -255,10 +253,12 @@ export default function Variable(props: {
                 />
               </Stack>
             }
-            primaryTypographyProps={{
-              component: "div",
-              fontWeight: 600,
-              variant: "body2",
+            slotProps={{
+              primary: {
+                component: "div",
+                fontWeight: 600,
+                variant: "body2",
+              },
             }}
           />
         </ListItemButton>
@@ -272,7 +272,7 @@ export default function Variable(props: {
             color={copied ? "primary" : "inherit"}
             getText={getText}
           >
-            {copied ? "Copied" : "Copy"}
+            {copied ? t("copied") : t("copy")}
           </CopyButton>
           <JsonInput value={value} onChange={onChangeValue} />
         </div>

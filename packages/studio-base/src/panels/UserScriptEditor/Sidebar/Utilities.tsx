@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { List, ListItem, ListItemButton, ListItemText } from "@mui/material";
+import { Trans, useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { Script } from "@foxglove/studio-base/panels/UserScriptEditor/script";
@@ -24,23 +25,34 @@ export function Utilities({
   gotoUtils: (filePath: string) => void;
   script?: Script;
 }): React.JSX.Element {
+  const { t } = useTranslation("userScriptEditor");
   return (
     <Stack flex="auto" position="relative">
       <SidebarHeader
         onClose={onClose}
-        title="Utilities"
+        title={t("utilitiesHeader")}
         subheader={
-          <>
-            You can import any of these modules into your script using the following syntax:{" "}
-            <pre>{`import { ... } from "./pointClouds.ts".`}</pre>
-          </>
+          <Trans
+            ns="userScriptEditor"
+            i18nKey="utilitiesSubheader"
+            components={{
+              pre: <pre />,
+            }}
+          />
         }
       />
       <List dense>
         {utilityFiles.map(({ fileName, filePath }) => (
           <ListItem disablePadding key={filePath} onClick={gotoUtils.bind(undefined, filePath)}>
             <ListItemButton selected={script ? filePath === script.filePath : undefined}>
-              <ListItemText primary={fileName} primaryTypographyProps={{ variant: "body2" }} />
+              <ListItemText
+                primary={fileName}
+                slotProps={{
+                  primary: {
+                    variant: "body2",
+                  },
+                }}
+              />
             </ListItemButton>
           </ListItem>
         ))}

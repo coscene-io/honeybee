@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -80,5 +80,14 @@ describe("time.getTimestampForMessageEvent", () => {
         "headerStamp",
       ),
     ).toEqual(undefined);
+  });
+});
+
+describe("time.secondsToDuration", () => {
+  it("clamps negative durations to zero", () => {
+    expect(time.secondsToDuration(-1.5)).toMatchObject({
+      seconds: 0n,
+      nanos: 0,
+    });
   });
 });

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -7,28 +7,39 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoIcon from "@mui/icons-material/Info";
+import WarningIcon from "@mui/icons-material/Warning";
 import { Button, IconButton, CircularProgress, Stack } from "@mui/material";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/CoScenePlayerSelectionContext";
 import {
   CoScenePlaylistStore,
   usePlaylist,
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
-import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { windowAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+import { useAutoDisconnection } from "./hooks/useAutoDisconnection";
+
+const MINUTE_MS = 60 * 1000;
+const DEFAULT_TIMEOUT = 30 * MINUTE_MS; // 30 minutes
+const DEFAULT_WARNING_TIMEOUT = 5 * MINUTE_MS; // 5 minutes
 
 const useStyles = makeStyles()((theme) => ({
   mediaGenerationStatusBar: {
@@ -48,10 +59,15 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.error.main,
     color: theme.palette.error.contrastText,
   },
+  autoDisconnectionTips: {
+    backgroundColor: theme.palette.warning.main,
+    color: theme.palette.warning.contrastText,
+  },
 }));
 
 const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 const selectUser = (store: UserStore) => store.user;
 
@@ -60,16 +76,29 @@ export function AppStateBar(): React.JSX.Element {
   const { classes, theme } = useStyles();
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
+  const confirm = useConfirm();
+  const [timeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
+  const dataSource = useCoreData(selectDataSource);
+
+  const timeoutMs = timeoutMinutes != undefined ? timeoutMinutes * MINUTE_MS : DEFAULT_TIMEOUT;
+
+  const remainingTime = useAutoDisconnection({
+    confirm,
+    foregroundTimeout: timeoutMs,
+    backgroundTimeout: timeoutMs,
+    // Disable auto-disconnect when not websocket, or when user selected "never"
+    disableTimeout: dataSource?.id != undefined && dataSource.id !== "coscene-websocket",
+  });
+
   const [showLoadingStatus, setShowLoadingStatus] = useState(false);
   const [timer, setTimer] = useState<NodeJS.Timeout | undefined>(undefined);
-  const { layoutActions } = useWorkspaceActions();
-  const [layoutTipsOpen, setLayoutTipsOpen] = useState(false);
 
-  const [isToastMounted, setIsToastMounted] = useState(false);
-  const [generatingMediaToastId, setGeneratingMediaToastId] = useState<string | undefined>(
-    undefined,
-  );
   const [fileLoadingToastId, setFileLoadingToastId] = useState<string | undefined>(undefined);
+
+  // Add state for controlling visibility of media generation messages
+  const [showGeneratingMedia, setShowGeneratingMedia] = useState(true);
+  const [showGeneratingMediaSuccess, setShowGeneratingMediaSuccess] = useState(true);
+  const [showGeneratingMediaError, setShowGeneratingMediaError] = useState(true);
 
   const { selectSource } = usePlayerSelection();
   const currentUser = useCurrentUser(selectUser);
@@ -132,9 +161,6 @@ export function AppStateBar(): React.JSX.Element {
         setInitializingTime(0);
       }
       if (bufferingTime > 0) {
-        void analytics.logEvent(AppEvent.PLAYER_BUFFERING_TIME, {
-          buffering_time: Date.now() - bufferingTime,
-        });
         setBufferingTime(0);
       }
     }
@@ -162,170 +188,18 @@ export function AppStateBar(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, fileLoadingToastId]);
 
+  // Reset visibility when media generation conditions change
   useEffect(() => {
-    const layoutTipsOpenTag = localStorage.getItem("CoScene_noMoreLayoutTips");
-    if (layoutTipsOpenTag !== "true") {
-      setLayoutTipsOpen(true);
-    }
-  }, []);
+    setShowGeneratingMedia(true);
+  }, [generatingMediaCount, generatedMediaCount, normalBagFileCount, bagFileCount]);
 
   useEffect(() => {
-    setIsToastMounted(true);
-    return () => {
-      setIsToastMounted(false);
-    };
-  }, []);
-
-  const handleNoMoreTips = () => {
-    localStorage.setItem("CoScene_noMoreLayoutTips", "true");
-    setLayoutTipsOpen(false);
-  };
+    setShowGeneratingMediaSuccess(true);
+  }, [isGeneratingMediaSuccess]);
 
   useEffect(() => {
-    if (generatingMediaToastId) {
-      toast.remove(generatingMediaToastId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatedMediaCount]);
-
-  useEffect(() => {
-    if (
-      isToastMounted &&
-      generatingMediaCount > 0 &&
-      generatedMediaCount + normalBagFileCount < bagFileCount
-    ) {
-      const toastId = toast.custom(
-        (toastMessage) => (
-          <Stack
-            direction="row"
-            paddingX={3}
-            paddingY={1}
-            gap={1}
-            alignItems="center"
-            className={classes.mediaGenerationStatusBar}
-          >
-            <InfoIcon />
-            {t("mediaGeneratingTips", {
-              successfulCount: generatedMediaCount + normalBagFileCount,
-              totalCount: bagFileCount,
-            })}
-            <IconButton
-              onClick={() => {
-                toast.remove(toastMessage.id);
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        ),
-        {
-          duration: Infinity,
-        },
-      );
-      setGeneratingMediaToastId(toastId);
-    }
-  }, [
-    generatingMediaCount,
-    normalBagFileCount,
-    bagFileCount,
-    classes.mediaGenerationStatusBar,
-    t,
-    generatedMediaCount,
-    isToastMounted,
-  ]);
-
-  useEffect(() => {
-    if (isToastMounted && isGeneratingMediaSuccess) {
-      toast.custom(
-        (toastMessage) => (
-          <Stack
-            direction="row"
-            paddingX={3}
-            alignItems="center"
-            justifyContent="space-between"
-            className={classes.mediaGeneratSuccessStatusBar}
-          >
-            <Stack direction="row" gap={1} alignItems="center">
-              <CheckCircleOutlineIcon />
-              {t("mediaSuccessfulGeneration", {
-                count: bagFileCount,
-              })}
-            </Stack>
-
-            <Button
-              variant="text"
-              onClick={() => {
-                selectSource("coscene-data-platform", {
-                  type: "connection",
-                  params: { ...currentUser, key },
-                });
-                toast.remove(toastMessage.id);
-              }}
-              style={{
-                color: theme.palette.success.contrastText,
-              }}
-            >
-              {t("refresh", {
-                ns: "cosGeneral",
-              })}
-            </Button>
-            <IconButton
-              onClick={() => {
-                toast.remove(toastMessage.id);
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        ),
-        {
-          duration: Infinity,
-        },
-      );
-    }
-  }, [
-    bagFileCount,
-    classes.mediaGeneratSuccessStatusBar,
-    isGeneratingMediaSuccess,
-    t,
-    theme.palette.success.contrastText,
-    isToastMounted,
-    currentUser,
-    key,
-    selectSource,
-  ]);
-
-  useEffect(() => {
-    if (isToastMounted && isGeneratingMediaError) {
-      toast.custom(
-        (toastMessage) => (
-          <Stack
-            direction="row"
-            paddingX={3}
-            alignItems="center"
-            justifyContent="space-between"
-            className={classes.mediaGenerationErrorStatusBar}
-          >
-            <Stack direction="row" gap={1} alignItems="center">
-              <InfoIcon />
-              {t("mediaGenerationError")}
-            </Stack>
-
-            <IconButton
-              onClick={() => {
-                toast.remove(toastMessage.id);
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-        ),
-        {
-          duration: Infinity,
-        },
-      );
-    }
-  }, [classes.mediaGenerationErrorStatusBar, isGeneratingMediaError, t, isToastMounted]);
+    setShowGeneratingMediaError(true);
+  }, [isGeneratingMediaError]);
 
   useEffect(() => {
     if (showLoadingStatus && loading && fileLoadingToastId == undefined) {
@@ -362,28 +236,126 @@ export function AppStateBar(): React.JSX.Element {
 
   return (
     <>
-      {layoutTipsOpen && (
-        <Stack direction="row" alignItems="center" justifyContent="center" position="relative">
-          <Stack direction="row" alignItems="center">
-            <span>{t("layoutGuideliens")}</span>
-            <Button
-              onClick={() => {
-                layoutActions.setOpen(true);
-              }}
-            >
-              {t("toSetupLayout")}
-            </Button>
-          </Stack>
-          <Stack direction="row" alignItems="center" position="absolute" right={8}>
-            <Button onClick={handleNoMoreTips}>{t("noMoreTips")}</Button>
+      {remainingTime < DEFAULT_WARNING_TIMEOUT && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="center"
+          position="relative"
+          className={classes.autoDisconnectionTips}
+          paddingY={1}
+          gap={1}
+        >
+          <WarningIcon fontSize="small" />
+          {t("autoDisconnectionTips", {
+            time: dayjs(remainingTime).format("mm:ss"),
+          })}
+        </Stack>
+      )}
+
+      {generatingMediaCount > 0 &&
+        generatedMediaCount + normalBagFileCount < bagFileCount &&
+        showGeneratingMedia && (
+          <Stack
+            direction="row"
+            paddingX={3}
+            gap={1}
+            alignItems="center"
+            justifyContent="space-between"
+            className={classes.mediaGenerationStatusBar}
+          >
+            <Stack direction="row" gap={1} alignItems="center">
+              <InfoIcon />
+              {t("mediaGeneratingTips", {
+                successfulCount: generatedMediaCount + normalBagFileCount,
+                totalCount: bagFileCount,
+              })}
+            </Stack>
             <IconButton
+              size="small"
               onClick={() => {
-                setLayoutTipsOpen(false);
+                setShowGeneratingMedia(false);
+              }}
+              style={{
+                color: theme.palette.warning.contrastText,
               }}
             >
               <CloseIcon />
             </IconButton>
           </Stack>
+        )}
+
+      {isGeneratingMediaSuccess && showGeneratingMediaSuccess && (
+        <Stack
+          direction="row"
+          paddingX={3}
+          alignItems="center"
+          justifyContent="space-between"
+          className={classes.mediaGeneratSuccessStatusBar}
+        >
+          <Stack direction="row" gap={1} alignItems="center">
+            <CheckCircleOutlineIcon />
+            {t("mediaSuccessfulGeneration", {
+              count: bagFileCount,
+            })}
+          </Stack>
+
+          <Stack direction="row" gap={1} alignItems="center">
+            <Button
+              // variant="text"
+              onClick={() => {
+                selectSource("coscene-data-platform", {
+                  type: "connection",
+                  params: { ...currentUser, key },
+                });
+                setShowGeneratingMediaSuccess(false);
+              }}
+              style={{
+                color: theme.palette.success.contrastText,
+              }}
+            >
+              {t("refresh", {
+                ns: "general",
+              })}
+            </Button>
+            <IconButton
+              size="small"
+              onClick={() => {
+                setShowGeneratingMediaSuccess(false);
+              }}
+              style={{
+                color: theme.palette.success.contrastText,
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </Stack>
+      )}
+
+      {isGeneratingMediaError && showGeneratingMediaError && (
+        <Stack
+          direction="row"
+          paddingX={3}
+          alignItems="center"
+          justifyContent="space-between"
+          className={classes.mediaGenerationErrorStatusBar}
+        >
+          <Stack direction="row" gap={1} alignItems="center">
+            <InfoIcon />
+            {t("mediaGenerationError")}
+          </Stack>
+          <IconButton
+            size="small"
+            onClick={() => {
+              setShowGeneratingMediaError(false);
+            }}
+            style={{
+              color: theme.palette.error.contrastText,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </Stack>
       )}
     </>

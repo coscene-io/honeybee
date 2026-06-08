@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -93,6 +93,12 @@ type PanelExtensionAdapterProps = {
   highestSupportedConfigVersion?: number;
   config: unknown;
   saveConfig: SaveConfig<unknown>;
+  /**
+   * Optional extension-specific data that will be available in renderState.extensionData
+   * extensionData change will call render function
+   * recommend use useMemo to stable extensionData object reference
+   */
+  extensionData?: Record<string, unknown>;
 };
 
 function selectContext(ctx: MessagePipelineContext) {
@@ -112,7 +118,7 @@ type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
 function PanelExtensionAdapter(
   props: React.PropsWithChildren<PanelExtensionAdapterProps>,
 ): React.JSX.Element {
-  const { initPanel, config, saveConfig, highestSupportedConfigVersion } = props;
+  const { initPanel, config, saveConfig, highestSupportedConfigVersion, extensionData } = props;
 
   // Unlike the react data flow, the config is only provided to the panel once on setup.
   // The panel is meant to manage the config and call saveConfig on its own.
@@ -245,6 +251,7 @@ function PanelExtensionAdapter(
       subscriptions: localSubscriptions,
       watchedFields,
       config: undefined,
+      extensionData,
     });
 
     if (!renderState) {
@@ -281,6 +288,7 @@ function PanelExtensionAdapter(
     appSettings,
     buildRenderState,
     colorScheme,
+    extensionData,
     globalVariables,
     hoverValue,
     localSubscriptions,
@@ -300,11 +308,51 @@ function PanelExtensionAdapter(
 
   const extensionsSettings = useExtensionCatalog(getExtensionPanelSettings);
 
+  // Use refs to store values that change frequently, avoiding dependency chain issues
+  const latestPanelSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"]>();
+  const extensionsSettingsRef = useRef(extensionsSettings);
+  const panelNameRef = useRef(panelName);
+
+  // Keep refs up to date
+  useEffect(() => {
+    extensionsSettingsRef.current = extensionsSettings;
+    panelNameRef.current = panelName;
+  }, [extensionsSettings, panelName]);
+
+  // Stable action handler - reference never changes, accesses latest values via refs
+  const stableSettingsActionHandler = useMemo(
+    () => (action: SettingsTreeAction) => {
+      // Call panel's action handler
+      latestPanelSettingsActionHandlerRef.current?.(action);
+
+      // Call extension settings handler
+      const {
+        payload: { path },
+      } = action;
+
+      saveConfig(
+        produce<{ topics: Record<string, unknown> }>((draft) => {
+          const [category, topicName] = path;
+          if (category === "topics" && topicName != undefined) {
+            extensionsSettingsRef.current[panelNameRef.current]?.[topicName]?.handler(
+              action,
+              draft.topics[topicName],
+            );
+          }
+        }),
+      );
+    },
+    [saveConfig],
+  );
+
+  useEffect(() => {
+    latestPanelSettingsActionHandlerRef.current = undefined;
+  }, [panelId]);
+
   type PartialPanelExtensionContext = Omit<BuiltinPanelExtensionContext, "panelElement">;
 
   const partialExtensionContext = useMemo<PartialPanelExtensionContext>(() => {
     const layout: PanelExtensionContext["layout"] = {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       addPanel({ position, type, updateIfExists, getState }) {
         if (!isMounted()) {
           return;
@@ -322,21 +370,6 @@ function PanelExtensionAdapter(
             assertNever(position, `Unsupported position for addPanel: ${position}`);
         }
       },
-    };
-
-    const extensionSettingsActionHandler = (action: SettingsTreeAction) => {
-      const {
-        payload: { path },
-      } = action;
-
-      saveConfig(
-        produce<{ topics: Record<string, unknown> }>((draft) => {
-          const [category, topicName] = path;
-          if (category === "topics" && topicName != undefined) {
-            extensionsSettings[panelName]?.[topicName]?.handler(action, draft.topics[topicName]);
-          }
-        }),
-      );
     };
 
     return {
@@ -530,11 +563,10 @@ function PanelExtensionAdapter(
         if (!isMounted()) {
           return;
         }
-        const actionHandler: typeof settings.actionHandler = (action) => {
-          settings.actionHandler(action);
-          extensionSettingsActionHandler(action);
-        };
-        updatePanelSettingsTree({ ...settings, actionHandler });
+        // Store the panel's action handler in ref for stable wrapper to call
+        latestPanelSettingsActionHandlerRef.current = settings.actionHandler;
+        // Use stable action handler to prevent unnecessary re-renders of settings tree
+        updatePanelSettingsTree({ ...settings, actionHandler: stableSettingsActionHandler });
       },
 
       setDefaultPanelTitle: (title: string) => {
@@ -559,8 +591,7 @@ function PanelExtensionAdapter(
     isMounted,
     openSiblingPanel,
     saveConfig,
-    extensionsSettings,
-    panelName,
+    stableSettingsActionHandler,
     getMessagePipelineContext,
     setGlobalVariables,
     clearHoverValue,

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<contact@coscene.io>
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -15,11 +15,10 @@ import { Immutable, Time } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
-import { Bounds1D } from "@foxglove/studio-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { TimestampDatasetsBuilder } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilder";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
-import { Bounds } from "@foxglove/studio-base/types/Bounds";
+import { Bounds1D, Bounds } from "@foxglove/studio-base/types/Bounds";
 import delay from "@foxglove/studio-base/util/delay";
 import { getContrastColor, getLineColor } from "@foxglove/studio-base/util/plotColors";
 
@@ -109,13 +108,19 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     this.#datasetsBuilder = builder;
   }
 
-  /** Stop the coordinator from sending any future updates to the renderer. */
+  /** Stop the coordinator from sending any future updates to the renderer.
+   *  Don't destroy datasetsBuilder, let Plot.tsx manager it
+   */
   public destroy(): void {
     this.#destroyed = true;
   }
 
+  public isDestroyed(): boolean {
+    return this.#destroyed;
+  }
+
   public handlePlayerState(state: Immutable<PlayerState>): void {
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
     const activeData = state.activeData;
@@ -174,7 +179,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     colorScheme: "light" | "dark",
     globalVariables: GlobalVariables,
   ): void {
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
     this.#xAxisVal = config.xAxisVal;
@@ -347,7 +352,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
 
   /** Get the entire data for all series */
   public async getCsvData(): Promise<CsvDataset[]> {
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return [];
     }
     return await this.#datasetsBuilder.getCsvData();
@@ -384,15 +389,17 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       if (fullRange) {
         const { min, max } = fullRange;
 
-        return {
-          min:
-            this.#followRange != undefined &&
-            this.#followRange > 0 &&
-            this.#currentSeconds != undefined
-              ? this.#currentSeconds - this.#followRange
-              : min,
-          max: this.#currentSeconds ?? max,
-        };
+        if (max - min > 0) {
+          return {
+            min:
+              this.#followRange != undefined &&
+              this.#followRange > 0 &&
+              this.#currentSeconds != undefined
+                ? this.#currentSeconds - this.#followRange
+                : min,
+            max: this.#currentSeconds ?? max,
+          };
+        }
       }
     }
 
@@ -420,12 +427,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     };
   }
 
-  #isDestroyed(): boolean {
-    return this.#destroyed;
-  }
-
   async #dispatchRender(): Promise<void> {
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
     this.#updateAction.xBounds = await this.#getXBounds();
@@ -445,7 +448,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     };
 
     const bounds = await this.#renderer.update(action);
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
 
@@ -461,14 +464,14 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   }
 
   async #dispatchDatasets(): Promise<void> {
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
     this.#viewport.bounds.x = await this.#getXBounds();
     this.#viewport.bounds.y = this.#interactionBounds?.y ?? this.#configBounds.y;
 
     const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
     this.#latestXScale = await this.#renderer.updateDatasets(
@@ -476,7 +479,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       // work for sparse arrays)
       Array.from(result.datasetsByConfigIndex, replaceUndefinedWithEmptyDataset),
     );
-    if (this.#isDestroyed()) {
+    if (this.isDestroyed()) {
       return;
     }
     this.emit("xScaleChanged", this.#latestXScale);
@@ -509,7 +512,7 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       // Bail processing if the coordinator has been destroyed or if our input blocks have changed
       // This lets us start processing new input blocks instead of continuing to work on stale
       // blocks.
-      return this.#isDestroyed() || this.#latestBlocks !== blocks;
+      return this.isDestroyed() || this.#latestBlocks !== blocks;
     });
   }
 }
