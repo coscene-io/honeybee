@@ -162,11 +162,11 @@ export function createMessagePipelineStore({
         get().dispatch({ type: "update-subscriber", id, payloads });
       },
       subscribeMessageRange(args) {
-        const subscribeMessageRange = get().player?.subscribeMessageRange;
-        if (subscribeMessageRange == undefined) {
+        const player = get().player;
+        if (player?.subscribeMessageRange == undefined) {
           return undefined;
         }
-        return subscribeMessageRange(args);
+        return player.subscribeMessageRange(args);
       },
       setPublishers(id, payloads) {
         get().dispatch({ type: "set-publishers", id, payloads });

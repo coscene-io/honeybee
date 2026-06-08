@@ -544,93 +544,171 @@ describe("ImageRenderable", () => {
     }
   });
 
-  it("resolves setImage ok=true when a compressed video target frame is decoded", async () => {
+  it("serializes compressed video decode batches while a previous worker decode is pending", async () => {
     const time = mockDateNow();
     try {
-      const frame = new MockVideoFrame() as unknown as VideoFrame;
-      const decoder = {
-        decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
-          async () => ({
-            type: "TargetFrame",
-            requestId: 1,
-            frame,
-            originalTimestamp: 1n,
-            receiveTime: 10n,
-          }),
-        ),
-        awaitTargetFrame: abortAwaitTargetFrame(),
-        resetVideoDecoder: jest.fn(),
-        terminate: jest.fn(),
-      } as unknown as WorkerImageDecoder;
-      const renderable = new TestVideoBatchRenderable(decoder);
-
-      renderable.userData.receiveTime = 10n;
-      const result = renderable.setImage(videoFrame(1, "key"));
-      await flushPromises();
-      await flushPromises();
-
-      await expect(result).resolves.toEqual<ImageSetImageResult>({ ok: true });
-    } finally {
-      time.restore();
-    }
-  });
-
-  it("resolves setImage ok=false when compressed video decode times out", async () => {
-    const time = mockDateNow();
-    try {
-      const decoder = {
-        decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
-          async () => ({ type: "Timeout", requestId: 1 }),
-        ),
-        awaitTargetFrame: abortAwaitTargetFrame(),
-        resetVideoDecoder: jest.fn(),
-        terminate: jest.fn(),
-      } as unknown as WorkerImageDecoder;
-      const renderable = new TestVideoBatchRenderable(decoder);
-
-      renderable.userData.receiveTime = 10n;
-      const result = renderable.setImage(videoFrame(1, "key"));
-      await flushPromises();
-      await flushPromises();
-
-      await expect(result).resolves.toEqual<ImageSetImageResult>({ ok: false });
-    } finally {
-      time.restore();
-    }
-  });
-
-  it("displays an intermediate video frame using the latest pending request", async () => {
-    const time = mockDateNow();
-    try {
-      const intermediateFrame = new MockVideoFrame() as unknown as VideoFrame;
-      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
-        async () => ({
-          type: "IntermediateFrame",
-          requestId: 1,
-          frame: intermediateFrame,
-          originalTimestamp: 1n,
-          receiveTime: 10n,
-        }),
-      );
+      const firstFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const secondFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveFirstDecode!: (result: DecodeVideoFramesResult) => void;
+      const firstDecodePromise = new Promise<DecodeVideoFramesResult>((resolve) => {
+        resolveFirstDecode = resolve;
+      });
+      const decodeVideoFrames = jest
+        .fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>()
+        .mockImplementationOnce(async () => await firstDecodePromise)
+        .mockResolvedValueOnce({
+          type: "TargetFrame",
+          requestId: 2,
+          frame: secondFrame,
+          originalTimestamp: 2n,
+          receiveTime: 20n,
+        });
       const decoder = {
         decodeVideoFrames,
         awaitTargetFrame: abortAwaitTargetFrame(),
         resetVideoDecoder: jest.fn(),
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
-
       const renderable = new TestVideoBatchRenderable(decoder);
 
       renderable.userData.receiveTime = 10n;
-      void renderable.setImage(videoFrame(1, "key"));
+      const firstResult = renderable.setImage(videoFrame(1, "key"));
+      await flushPromises();
+
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+
+      time.advance(20);
       renderable.userData.receiveTime = 20n;
-      void renderable.setImage(videoFrame(2, "delta"));
+      const secondResult = renderable.setImage(videoFrame(2, "delta"));
+      await flushPromises();
 
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+      expect(decoder.resetVideoDecoder).not.toHaveBeenCalled();
+
+      resolveFirstDecode({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: firstFrame,
+        originalTimestamp: 1n,
+        receiveTime: 10n,
+      });
       await flushPromises();
       await flushPromises();
 
-      expect(renderable.getDecodedImage()).toBe(intermediateFrame);
-      expect((intermediateFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(2);
+      expect(decodeVideoFrames.mock.calls[1]![0].frames.map((entry) => entry.receiveTime)).toEqual([
+        20n,
+      ]);
+      await expect(firstResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      await expect(secondResult).resolves.toEqual<ImageSetImageResult>({ ok: true });
+      expect(renderable.getDecodedImage()).toBe(secondFrame);
+      expect((firstFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect((secondFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("resetForSeek aborts pending and queued compressed video decode batches", async () => {
+    const time = mockDateNow();
+    try {
+      const lateFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveFirstDecode!: (result: DecodeVideoFramesResult) => void;
+      const firstDecodePromise = new Promise<DecodeVideoFramesResult>((resolve) => {
+        resolveFirstDecode = resolve;
+      });
+      const decodeVideoFrames = jest
+        .fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>()
+        .mockImplementationOnce(async () => await firstDecodePromise)
+        .mockResolvedValueOnce({
+          type: "TargetFrame",
+          requestId: 2,
+          frame: new MockVideoFrame() as unknown as VideoFrame,
+          originalTimestamp: 2n,
+          receiveTime: 20n,
+        });
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      const activeResult = renderable.setImage(videoFrame(1, "key"));
+      await flushPromises();
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+
+      time.advance(20);
+      renderable.userData.receiveTime = 20n;
+      const queuedResult = renderable.setImage(videoFrame(2, "delta"));
+      await flushPromises();
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+
+      renderable.resetForSeek();
+
+      await expect(activeResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      await expect(queuedResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      expect(decoder.resetVideoDecoder).toHaveBeenCalledTimes(1);
+
+      resolveFirstDecode({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: lateFrame,
+        originalTimestamp: 1n,
+        receiveTime: 10n,
+      });
+      await flushPromises();
+
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+      expect(renderable.getDecodedImage()).toBeUndefined();
+      expect((lateFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("keeps the current video frame when compressed video decode times out", async () => {
+    const time = mockDateNow();
+    try {
+      const currentFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const decodeVideoFrames = jest
+        .fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>()
+        .mockResolvedValueOnce({
+          type: "TargetFrame",
+          requestId: 1,
+          frame: currentFrame,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+        })
+        .mockResolvedValueOnce({ type: "Timeout", requestId: 2 });
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      await expect(renderable.setImage(videoFrame(1, "key"))).resolves.toEqual<ImageSetImageResult>(
+        { ok: true },
+      );
+      expect(renderable.getDecodedImage()).toBe(currentFrame);
+      expect(renderable.userData.texture?.image).toBe(currentFrame);
+
+      time.advance(20);
+      jest.clearAllMocks();
+      renderable.userData.receiveTime = 20n;
+      await expect(
+        renderable.setImage(videoFrame(2, "delta")),
+      ).resolves.toEqual<ImageSetImageResult>({ ok: false });
+
+      expect(renderable.getDecodedImage()).toBe(currentFrame);
+      expect(renderable.userData.texture?.image).toBe(currentFrame);
+      expect((currentFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
     } finally {
       time.restore();
     }
@@ -748,63 +826,6 @@ describe("ImageRenderable", () => {
 
       expect(renderable.getDecodedImage()).toBe(latestFrame);
       expect((staleTargetFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
-    } finally {
-      time.restore();
-    }
-  });
-
-  it("closes a stale transferred video frame from an older worker request", async () => {
-    const time = mockDateNow();
-    try {
-      const staleFrame = new MockVideoFrame() as unknown as VideoFrame;
-      const latestFrame = new MockVideoFrame() as unknown as VideoFrame;
-      let resolveStale!: (result: DecodeVideoFramesResult) => void;
-      const staleResult = new Promise<DecodeVideoFramesResult>((resolve) => {
-        resolveStale = resolve;
-      });
-      const decodeVideoFrames = jest
-        .fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>()
-        .mockReturnValueOnce(staleResult)
-        .mockResolvedValueOnce({
-          type: "TargetFrame",
-          requestId: 2,
-          frame: latestFrame,
-          originalTimestamp: 2n,
-          receiveTime: 20n,
-        });
-      const decoder = {
-        decodeVideoFrames,
-        awaitTargetFrame: abortAwaitTargetFrame(),
-        resetVideoDecoder: jest.fn(),
-        terminate: jest.fn(),
-      } as unknown as WorkerImageDecoder;
-      const renderable = new TestVideoBatchRenderable(decoder);
-
-      renderable.userData.receiveTime = 10n;
-      const staleSetImage = renderable.setImage(videoFrame(1, "key"));
-      await flushPromises();
-
-      time.advance(20);
-      renderable.userData.receiveTime = 20n;
-      const latestSetImage = renderable.setImage(videoFrame(2, "key"));
-      await flushPromises();
-      await flushPromises();
-
-      expect(renderable.getDecodedImage()).toBe(latestFrame);
-      await expect(latestSetImage).resolves.toEqual<ImageSetImageResult>({ ok: true });
-
-      resolveStale({
-        type: "TargetFrame",
-        requestId: 1,
-        frame: staleFrame,
-        originalTimestamp: 1n,
-        receiveTime: 10n,
-      });
-      await flushPromises();
-
-      expect(renderable.getDecodedImage()).toBe(latestFrame);
-      expect((staleFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
-      await expect(staleSetImage).resolves.toEqual<ImageSetImageResult>({ ok: false });
     } finally {
       time.restore();
     }

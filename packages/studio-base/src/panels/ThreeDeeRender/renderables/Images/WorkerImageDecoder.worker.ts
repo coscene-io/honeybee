@@ -177,7 +177,6 @@ async function decodeVideoFrame(frame: CompressedVideo): Promise<VideoFrame | un
 }
 
 async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
-  activeBatchAbort?.();
   abortPendingTargetFrame();
 
   const {
@@ -230,12 +229,12 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       }
       lastDecodeTime = frame.timestamp;
 
-      const chunkType = getChunkType(frame);
-      if (!chunkType) {
+      const frameInfo = getVideoFrameInfo(frame);
+      if (frameInfo == undefined) {
         continue;
       }
 
-      if (!(await ensureInitialized(player, frame, chunkType))) {
+      if (!(await ensureInitialized(player, frame, frameInfo.type))) {
         continue;
       }
 
@@ -251,10 +250,15 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       }
       lastQueuedTimestampMicros = timestampMicros;
 
+      const frameData =
+        frame.format === "h264" && frameInfo.mayNeedRewrite
+          ? H264.RewriteForLowLatencyDecoding(frame.data) ?? frame.data
+          : frame.data;
+
       queuedFrames.push({
-        data: frame.data,
+        data: frameData,
         timestampMicros,
-        type: chunkType,
+        type: frameInfo.type,
         metadata: {
           originalTimestamp: toNanoSec(frame.timestamp),
           receiveTime: entry.receiveTime,
@@ -387,9 +391,7 @@ function isBatchAborted(batchState: { aborted: boolean }): boolean {
   return batchState.aborted;
 }
 
-async function awaitTargetFrame(
-  args: AwaitTargetFrameArgs,
-): Promise<AwaitTargetFrameResult> {
+async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
   const pending = pendingTargetFrame;
   if (pending == undefined || pending.requestId !== args.requestId) {
     return { type: "Aborted", requestId: args.requestId };
@@ -408,12 +410,19 @@ async function awaitTargetFrame(
   });
 }
 
-function getChunkType(frame: CompressedVideo): "key" | "delta" | undefined {
+function getVideoFrameInfo(
+  frame: CompressedVideo,
+): { type: "key" | "delta"; mayNeedRewrite: boolean } | undefined {
   switch (frame.format) {
-    case "h264":
-      return H264.IsKeyframe(frame.data) ? "key" : "delta";
+    case "h264": {
+      const info = H264.GetFrameInfo(frame.data);
+      return {
+        type: info.isKeyFrame ? "key" : "delta",
+        mayNeedRewrite: info.mayNeedRewrite,
+      };
+    }
     case "h265":
-      return H265.IsKeyframe(frame.data) ? "key" : "delta";
+      return { type: H265.IsKeyframe(frame.data) ? "key" : "delta", mayNeedRewrite: false };
     default:
       return undefined;
   }

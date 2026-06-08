@@ -536,6 +536,12 @@ export function ThreeDeeRender(props: {
     }
   }, [parameters, renderer]);
 
+  useEffect(() => {
+    if (renderer) {
+      renderer.subscribeMessageRange = subscribeMessageRange;
+    }
+  }, [renderer, subscribeMessageRange]);
+
   // Keep the renderer currentTime up to date and handle seeking
   useEffect(() => {
     const newTimeNs = currentTime ? toNanoSec(currentTime) : undefined;
@@ -573,12 +579,6 @@ export function ThreeDeeRender(props: {
       renderer.startTime = startTime ? toNanoSec(startTime) : undefined;
     }
   }, [renderer, startTime]);
-
-  useEffect(() => {
-    if (renderer) {
-      renderer.subscribeMessageRange = subscribeMessageRange;
-    }
-  }, [renderer, subscribeMessageRange]);
 
   // Handle preloaded messages and render a frame if new messages are available
   // Should be called before `messages` is handled

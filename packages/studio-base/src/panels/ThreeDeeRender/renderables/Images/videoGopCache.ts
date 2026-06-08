@@ -30,6 +30,7 @@ type CachedVideoFrame = {
 export type VideoFrameInfo = {
   frame: CompressedVideoLike;
   isKeyframe: boolean;
+  mayNeedRewrite: boolean;
   byteLength: number;
 };
 
@@ -62,9 +63,11 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
         if (!H264.IsAnnexB(message.data)) {
           return undefined;
         }
+        const h264Info = H264.GetFrameInfo(message.data);
         return {
           frame: message as CompressedVideoLike,
-          isKeyframe: H264.IsKeyframe(message.data),
+          isKeyframe: h264Info.isKeyFrame,
+          mayNeedRewrite: h264Info.mayNeedRewrite,
           byteLength: message.data.byteLength,
         };
       case "h265":
@@ -74,6 +77,7 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
         return {
           frame: message as CompressedVideoLike,
           isKeyframe: H265.IsKeyframe(message.data),
+          mayNeedRewrite: false,
           byteLength: message.data.byteLength,
         };
       default:
@@ -328,8 +332,23 @@ class CachedVideoRange {
   }
 
   public framesForReceiveTime(targetNs: bigint): MessageEvent[] {
-    const targetIndex = findLastIndex(this.frames, (frame) => frame.receiveTimeNs <= targetNs);
-    return targetIndex >= 0 ? this.#framesForTargetIndex(targetIndex, targetNs) : [];
+    const keyframeIndex = findLastIndex(
+      this.frames,
+      (frame) => frame.isKeyframe && frame.receiveTimeNs <= targetNs,
+    );
+    if (keyframeIndex < 0) {
+      return [];
+    }
+
+    const replayableFrames: MessageEvent[] = [];
+    for (let i = keyframeIndex; i < this.frames.length; i++) {
+      const frame = this.frames[i]!;
+      if (frame.receiveTimeNs > targetNs) {
+        break;
+      }
+      replayableFrames.push(frame.messageEvent);
+    }
+    return replayableFrames;
   }
 
   public framesForPublishTime(targetNs: bigint): MessageEvent[] {
@@ -345,13 +364,10 @@ class CachedVideoRange {
     return targetIndex >= 0 ? this.#framesForTargetIndex(targetIndex) : [];
   }
 
-  #framesForTargetIndex(targetIndex: number, maxReceiveTimeNs?: bigint): MessageEvent[] {
+  #framesForTargetIndex(targetIndex: number): MessageEvent[] {
     let keyframeIndex = -1;
     for (let i = targetIndex; i >= 0; i--) {
       const frame = this.frames[i]!;
-      if (maxReceiveTimeNs != undefined && frame.receiveTimeNs > maxReceiveTimeNs) {
-        continue;
-      }
       if (frame.isKeyframe) {
         keyframeIndex = i;
         break;
@@ -363,7 +379,6 @@ class CachedVideoRange {
 
     return this.frames
       .slice(keyframeIndex, targetIndex + 1)
-      .filter((frame) => maxReceiveTimeNs == undefined || frame.receiveTimeNs <= maxReceiveTimeNs)
       .map((frame) => frame.messageEvent);
   }
 

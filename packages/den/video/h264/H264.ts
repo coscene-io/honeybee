@@ -13,6 +13,7 @@ import {
   getFirstNaluOfType,
   isAnnexB,
 } from "../h26x/AnnexB";
+import { BitstreamWriter } from "../h26x/Bitstream";
 import type { H26xCodec } from "../h26x/types";
 
 export enum H264NaluType {
@@ -23,6 +24,11 @@ export enum H264NaluType {
   PPS = 8,
   AUD = 9,
 }
+
+export type H264FrameInfo = {
+  isKeyFrame: boolean;
+  mayNeedRewrite: boolean;
+};
 
 export class H264 implements H26xCodec {
   public IsAnnexB(data: Uint8Array): boolean {
@@ -35,6 +41,10 @@ export class H264 implements H26xCodec {
 
   public IsKeyframe(data: Uint8Array): boolean {
     return H264.IsKeyframe(data);
+  }
+
+  public GetFrameInfo(data: Uint8Array): H264FrameInfo {
+    return H264.GetFrameInfo(data);
   }
 
   public GetFirstNALUOfType(data: Uint8Array, naluType: number): Uint8Array | undefined {
@@ -58,27 +68,37 @@ export class H264 implements H26xCodec {
   }
 
   public static IsKeyframe(data: Uint8Array): boolean {
+    return H264.GetFrameInfo(data).isKeyFrame;
+  }
+
+  public static GetFrameInfo(data: Uint8Array): H264FrameInfo {
     // Determine what type of encoding is used
     const boxSize = H264.AnnexBBoxSize(data);
     if (boxSize == undefined) {
-      return false;
+      return { isKeyFrame: false, mayNeedRewrite: false };
     }
 
     // Iterate over the NAL units in the H264 Annex B frame, looking for NaluTypes.IDR
     let i = boxSize;
+    let isKeyFrame = false;
+    let mayNeedRewrite = false;
     while (i < data.length) {
       // Annex B NALU type is the 5 least significant bits of the first byte following the start
       // code
       const naluType: H264NaluType = data[i]! & 0x1f;
       if (naluType === H264NaluType.IDR) {
-        return true;
+        isKeyFrame = true;
+        mayNeedRewrite = true;
+        break;
+      } else if (naluType === H264NaluType.SPS) {
+        mayNeedRewrite = true;
       }
 
       // Scan for another start code, signifying the beginning of the next NAL unit
       i = H264.FindNextStartCodeEnd(data, i + 1);
     }
 
-    return false;
+    return { isKeyFrame, mayNeedRewrite };
   }
 
   public static GetFirstNALUOfType(
@@ -120,6 +140,78 @@ export class H264 implements H26xCodec {
     }
 
     return config;
+  }
+
+  public static RewriteForLowLatencyDecoding(data: Uint8Array): Uint8Array | undefined {
+    const spsData = H264.GetFirstNALUOfType(data, H264NaluType.SPS);
+    if (spsData == undefined) {
+      return undefined;
+    }
+
+    const sps = new SPSNALU(spsData);
+    if (
+      sps.vui_parameters_present_flag === 1 &&
+      sps.bitstream_restriction_flag === 1 &&
+      sps.max_num_reorder_frames === 0 &&
+      sps.max_dec_frame_buffering === sps.max_num_ref_frames
+    ) {
+      return undefined;
+    }
+
+    sps.vui_parameters_present_flag = 1;
+    sps.bitstream_restriction_flag = 1;
+    sps.max_num_reorder_frames = 0;
+    sps.max_dec_frame_buffering = sps.max_num_ref_frames;
+    sps.aspect_ratio_info_present_flag ??= 0;
+    sps.overscan_info_present_flag ??= 0;
+    sps.video_signal_type_present_flag ??= 0;
+    sps.chroma_loc_info_present_flag ??= 0;
+    sps.timing_info_present_flag ??= 0;
+    sps.nal_hrd_parameters_present_flag ??= 0;
+    sps.vcl_hrd_parameters_present_flag ??= 0;
+    sps.pic_struct_present_flag ??= 0;
+
+    const rewritten = new Uint8Array(data.byteLength + 64);
+    let writeOffset = 0;
+    let readOffset = 0;
+    let replacedSps = false;
+
+    try {
+      while (readOffset < data.length) {
+        const boxSize = H264.AnnexBBoxSize(data.subarray(readOffset));
+        if (boxSize == undefined || readOffset + boxSize >= data.length) {
+          break;
+        }
+
+        const naluStart = readOffset + boxSize;
+        const nextStart = H264.FindNextStartCode(data, naluStart + 1);
+        const naluType = data[naluStart]! & 0x1f;
+        if (naluType !== H264NaluType.SPS) {
+          rewritten.set(data.subarray(readOffset, nextStart), writeOffset);
+          writeOffset += nextStart - readOffset;
+          readOffset = nextStart;
+          continue;
+        }
+
+        if (replacedSps) {
+          readOffset = nextStart;
+          continue;
+        }
+
+        rewritten.set(data.subarray(readOffset, naluStart), writeOffset);
+        writeOffset += boxSize;
+        const writer = new BitstreamWriter(rewritten.subarray(writeOffset));
+        sps.writeToBitstream(writer);
+        writer.finish();
+        writeOffset += writer.bytesWritten();
+        replacedSps = true;
+        readOffset = nextStart;
+      }
+    } catch {
+      return undefined;
+    }
+
+    return rewritten.subarray(0, writeOffset);
   }
 
   /**

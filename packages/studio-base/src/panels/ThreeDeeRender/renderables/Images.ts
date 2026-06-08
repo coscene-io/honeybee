@@ -167,6 +167,8 @@ export class Images extends SceneExtension<ImageRenderable> {
    * Update cameraInfoTopics cache with latest set of camera info messages
    */
   #handleTopicsChanged = () => {
+    this.#compressedVideoController.clear();
+
     this.#cameraInfoTopics = new Set();
     for (const topic of this.renderer.topics ?? []) {
       if (

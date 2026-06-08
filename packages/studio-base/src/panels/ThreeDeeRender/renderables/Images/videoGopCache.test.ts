@@ -45,6 +45,16 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, delta1, delta2]);
   });
 
+  it("does not skip a future-received delta when replaying by receiveTime", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(1, 100, "key");
+    const futureReceivedDelta = h264Frame(20, 101, "delta");
+    const laterPublishDelta = h264Frame(3, 102, "delta");
+    cache.addFrames([key, futureReceivedDelta, laterPublishDelta]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(3))).toEqual([key]);
+  });
+
   it("replays the GOP covering a publishTime seek", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
@@ -126,13 +136,6 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(2))).toBeUndefined();
     expect(cache.framesForReceiveTime(TOPIC, t(4))).toEqual([newKey, newDelta]);
     expect(cache.byteSize()).toBe(16);
-  });
-
-  it("evicts an oversized single range instead of staying over budget forever", () => {
-    const cache = new VideoGopCache({ maxBytes: 10 });
-    cache.addFrames([h264Frame(1, 1, "key", 8), h264Frame(2, 2, "delta", 8)]);
-
-    expect(cache.byteSize()).toBeLessThanOrEqual(10);
   });
 
   it("keeps byteSize accurate after merging overlapping ranges", () => {

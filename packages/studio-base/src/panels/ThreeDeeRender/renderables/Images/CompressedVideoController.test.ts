@@ -8,13 +8,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { H264 } from "@foxglove/den/video";
-import { Time } from "@foxglove/rostime";
+import { Time, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import { CompressedVideoController } from "./CompressedVideoController";
 import { ImageSetImageResult } from "./ImageRenderable";
 import { CompressedVideo } from "./ImageTypes";
+import { PartialMessageEvent } from "../../SceneExtension";
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -74,10 +75,28 @@ describe("CompressedVideoController", () => {
   beforeEach(() => {
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);
+    jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
+      isKeyFrame: data[0] === 0x65,
+      mayNeedRewrite: false,
+    }));
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it("marks non-seek frames as playback display mode", () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const displayFrame = jest.fn();
+    const renderer = makeRenderer();
+    const controller = new CompressedVideoController({
+      renderer,
+      displayFrame,
+    });
+
+    controller.processMessage(keyframe);
+
+    expect(displayFrame.mock.calls.map((call) => call[2])).toEqual(["playback"]);
   });
 
   it("replays cached GOP frames on seek", () => {
@@ -101,6 +120,37 @@ describe("CompressedVideoController", () => {
       keyframe,
       delta,
     ]);
+    expect(displayFrame.mock.calls.map((call) => call[2])).toEqual(["seek", "seek"]);
+  });
+
+  it("resets the decoder before replaying cached GOP frames on seek", () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const events: string[] = [];
+    const displayFrame = jest.fn((messageEvent: PartialMessageEvent<CompressedVideo>) => {
+      events.push(`display:${toNanoSec(messageEvent.receiveTime)}`);
+      return { ok: true };
+    });
+    const resetDecoder = jest.fn((topic: string) => {
+      events.push(`reset:${topic}`);
+    });
+    const renderer = makeRenderer();
+    const controller = new CompressedVideoController({
+      renderer,
+      displayFrame,
+      resetDecoder,
+    });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(delta);
+    displayFrame.mockClear();
+    events.length = 0;
+
+    renderer.currentTime = 10_000_000n;
+    controller.handleSeek();
+
+    expect(resetDecoder).toHaveBeenCalledWith("/camera");
+    expect(events).toEqual(["reset:/camera", "display:0", "display:10000000"]);
   });
 
   it("uses progressive lookback when seek receives a delta frame outside the cache", async () => {
@@ -108,6 +158,7 @@ describe("CompressedVideoController", () => {
     const delta = makeVideoMessage(10_000_000n, "delta");
     const seekDelta = makeVideoMessage(20_000_000n, "delta");
     const displayFrame = jest.fn();
+    const unsubscribe = jest.fn();
     const subscribeMessageRange = jest.fn<
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
@@ -117,7 +168,7 @@ describe("CompressedVideoController", () => {
           yield [keyframe, delta, seekDelta];
         })(),
       );
-      return jest.fn();
+      return unsubscribe;
     });
     const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
     const controller = new CompressedVideoController({
@@ -142,6 +193,130 @@ describe("CompressedVideoController", () => {
       keyframe,
       delta,
       seekDelta,
+    ]);
+    expect(displayFrame.mock.calls.map((call) => call[2])).toEqual(["seek", "seek", "seek"]);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses progressive lookback for an initial seek-backfill delta even when handleSeek was not called", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const seekDelta = makeVideoMessage(20_000_000n, "delta");
+    const displayFrame = jest.fn(async (..._args: unknown[]) => ({ ok: true }));
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, delta, seekDelta];
+        })(),
+      );
+      return unsubscribe;
+    });
+    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+    const controller = new CompressedVideoController({
+      renderer,
+      displayFrame,
+    });
+
+    controller.processMessage(seekDelta);
+    await flushAsyncWork();
+
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/camera",
+        timeRange: {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 0, nsec: 20_000_000 },
+        },
+      }),
+    );
+    expect(displayFrame.mock.calls.map(([messageEvent]) => messageEvent)).toEqual([
+      keyframe,
+      delta,
+      seekDelta,
+    ]);
+    expect(displayFrame.mock.calls.map((call) => call[2])).toEqual(["seek", "seek", "seek"]);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts lookback on seek for a registered topic even before any frame was received", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const displayFrame = jest.fn(async (..._args: unknown[]) => ({ ok: true }));
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, delta];
+        })(),
+      );
+      return unsubscribe;
+    });
+    const renderer = makeRenderer({ currentTime: 10_000_000n, subscribeMessageRange });
+    const controller = new CompressedVideoController({
+      renderer,
+      displayFrame,
+    });
+
+    controller.registerTopic("/camera");
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/camera",
+        timeRange: {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 0, nsec: 10_000_000 },
+        },
+      }),
+    );
+    expect(displayFrame.mock.calls.map(([messageEvent]) => messageEvent)).toEqual([
+      keyframe,
+      delta,
+    ]);
+    expect(displayFrame.mock.calls.map((call) => call[2])).toEqual(["seek", "seek"]);
+  });
+
+  it("retries registered topic lookback when the range subscription is not ready yet", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const displayFrame = jest.fn(async (..._args: unknown[]) => ({ ok: true }));
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      if (subscribeMessageRange.mock.calls.length === 1) {
+        return undefined;
+      }
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, delta];
+        })(),
+      );
+      return unsubscribe;
+    });
+    const renderer = makeRenderer({ currentTime: 10_000_000n, subscribeMessageRange });
+    const controller = new CompressedVideoController({
+      renderer,
+      displayFrame,
+    });
+
+    controller.registerTopic("/camera");
+    controller.handleSeek();
+    await new Promise<void>((resolve) => setTimeout(resolve, 75));
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    expect(displayFrame.mock.calls.map(([messageEvent]) => messageEvent)).toEqual([
+      keyframe,
+      delta,
     ]);
   });
 
@@ -184,32 +359,6 @@ describe("CompressedVideoController", () => {
     expect(displayFrame).not.toHaveBeenCalled();
   });
 
-  it("treats an undefined range subscription return as unsupported and allows the next seek", async () => {
-    const seekDelta = makeVideoMessage(20_000_000n, "delta");
-    const subscribeMessageRange = jest.fn<
-      ReturnType<SubscribeMessageRange>,
-      Parameters<SubscribeMessageRange>
-    >(() => undefined);
-    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
-    const controller = new CompressedVideoController({
-      renderer,
-      displayFrame: jest.fn(),
-    });
-
-    controller.handleSeek();
-    controller.processMessage(seekDelta);
-    await flushAsyncWork();
-
-    renderer.currentTime = 30_000_000n;
-    expect(() => {
-      controller.handleSeek();
-      controller.processMessage(makeVideoMessage(30_000_000n, "delta"));
-    }).not.toThrow();
-    await flushAsyncWork();
-
-    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
-  });
-
   it("falls back to lookback when cached replay fails to decode", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
@@ -246,16 +395,19 @@ describe("CompressedVideoController", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const seekDelta = makeVideoMessage(20_000_000n, "delta");
     const displayFrame = jest.fn<Promise<ImageSetImageResult>, []>(async () => ({ ok: false }));
+    const unsubscribes: jest.Mock[] = [];
     const subscribeMessageRange = jest.fn<
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ onNewRangeIterator }) => {
+      const unsubscribe = jest.fn();
+      unsubscribes.push(unsubscribe);
       void onNewRangeIterator(
         (async function* () {
           yield [keyframe, seekDelta];
         })(),
       );
-      return jest.fn();
+      return unsubscribe;
     });
     const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
     const controller = new CompressedVideoController({
@@ -270,33 +422,10 @@ describe("CompressedVideoController", () => {
     expect(subscribeMessageRange).toHaveBeenCalledTimes(5);
     expect(subscribeMessageRange.mock.calls[0]![0].timeRange.start).toEqual({ sec: 0, nsec: 0 });
     expect(subscribeMessageRange.mock.calls[1]![0].timeRange.start).toEqual({ sec: 0, nsec: 0 });
-  });
-
-  it("falls back to lookback when a seek keyframe fails to decode", async () => {
-    const seekKeyframe = makeVideoMessage(20_000_000n, "key");
-    const displayFrame = jest.fn<Promise<ImageSetImageResult>, []>(async () => ({ ok: false }));
-    const subscribeMessageRange = jest.fn<
-      ReturnType<SubscribeMessageRange>,
-      Parameters<SubscribeMessageRange>
-    >(({ onNewRangeIterator }) => {
-      void onNewRangeIterator(
-        (async function* () {
-          yield [seekKeyframe];
-        })(),
-      );
-      return jest.fn();
-    });
-    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
-    const controller = new CompressedVideoController({
-      renderer,
-      displayFrame,
-    });
-
-    controller.handleSeek();
-    controller.processMessage(seekKeyframe);
-    await flushAsyncWork();
-
-    expect(subscribeMessageRange).toHaveBeenCalled();
+    expect(unsubscribes).toHaveLength(5);
+    for (const unsubscribe of unsubscribes) {
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("uses publish-time GOPs when the replay target is a synchronized video timestamp", async () => {

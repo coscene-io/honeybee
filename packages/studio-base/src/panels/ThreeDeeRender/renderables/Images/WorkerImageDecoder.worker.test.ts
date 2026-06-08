@@ -8,6 +8,13 @@
 import type { CompressedVideo } from "./ImageTypes";
 
 const mockVideoPlayers: MockVideoPlayer[] = [];
+const mockH264GetFrameInfo = jest.fn((data: Uint8Array) => ({
+  isKeyFrame: data[4] === 0x65,
+  mayNeedRewrite: data[5] === 0xfe,
+}));
+const mockH264RewriteForLowLatencyDecoding = jest.fn((data: Uint8Array) =>
+  new Uint8Array([...data, 0xaa]),
+);
 
 jest.mock("@coscene-io/comlink", () => ({
   expose: jest.fn(),
@@ -34,6 +41,8 @@ jest.mock("@foxglove/den/video", () => {
   return {
     H264: {
       IsKeyframe: (data: Uint8Array) => data[4] === 0x65,
+      GetFrameInfo: mockH264GetFrameInfo,
+      RewriteForLowLatencyDecoding: mockH264RewriteForLowLatencyDecoding,
       ParseDecoderConfig: (data: Uint8Array) =>
         data[5] === 0xff ? undefined : { codec: "avc1.mock" },
     },
@@ -55,13 +64,34 @@ type MockVideoPlayer = {
 
 let service: typeof import("./WorkerImageDecoder.worker").service;
 
-function h264Frame(sec: number, kind: "key" | "delta"): CompressedVideo {
+function h264Frame(sec: number, kind: "key" | "delta", marker = 0): CompressedVideo {
   return {
     format: "h264",
-    data: new Uint8Array([0, 0, 0, 1, kind === "key" ? 0x65 : 0x41, 0]),
+    data: new Uint8Array([0, 0, 0, 1, kind === "key" ? 0x65 : 0x41, marker]),
     timestamp: { sec, nsec: 0 },
     frame_id: "camera",
   };
+}
+
+function emitQueuedFrameFromCall(
+  player: MockVideoPlayer,
+  callIndex: number,
+  frameIndex: number,
+): VideoFrame {
+  const call = player.queueFrames.mock.calls[callIndex]!;
+  const queuedFrames = call[0] as Array<{
+    metadata: { originalTimestamp: bigint; receiveTime: bigint };
+  }>;
+  const onFrame = call[1] as (frame: {
+    frame: VideoFrame;
+    metadata: { originalTimestamp: bigint; receiveTime: bigint };
+  }) => void;
+  const frame = { close: jest.fn() } as unknown as VideoFrame;
+  onFrame({
+    frame,
+    metadata: queuedFrames[frameIndex]!.metadata,
+  });
+  return frame;
 }
 
 function emitLastQueuedFrame(player: MockVideoPlayer): VideoFrame {
@@ -69,33 +99,15 @@ function emitLastQueuedFrame(player: MockVideoPlayer): VideoFrame {
   const queuedFrames = call[0] as Array<{
     metadata: { originalTimestamp: bigint; receiveTime: bigint };
   }>;
-  const onFrame = call[1] as (frame: {
-    frame: VideoFrame;
-    metadata: { originalTimestamp: bigint; receiveTime: bigint };
-  }) => void;
-  const frame = { close: jest.fn() } as unknown as VideoFrame;
-  onFrame({
-    frame,
-    metadata: queuedFrames[queuedFrames.length - 1]!.metadata,
-  });
-  return frame;
+  return emitQueuedFrameFromCall(
+    player,
+    player.queueFrames.mock.calls.length - 1,
+    queuedFrames.length - 1,
+  );
 }
 
 function emitQueuedFrame(player: MockVideoPlayer, index: number): VideoFrame {
-  const call = player.queueFrames.mock.calls[player.queueFrames.mock.calls.length - 1]!;
-  const queuedFrames = call[0] as Array<{
-    metadata: { originalTimestamp: bigint; receiveTime: bigint };
-  }>;
-  const onFrame = call[1] as (frame: {
-    frame: VideoFrame;
-    metadata: { originalTimestamp: bigint; receiveTime: bigint };
-  }) => void;
-  const frame = { close: jest.fn() } as unknown as VideoFrame;
-  onFrame({
-    frame,
-    metadata: queuedFrames[index]!.metadata,
-  });
-  return frame;
+  return emitQueuedFrameFromCall(player, player.queueFrames.mock.calls.length - 1, index);
 }
 
 async function flushPromises(): Promise<void> {
@@ -150,6 +162,32 @@ describe("WorkerImageDecoder worker video batches", () => {
       ),
     ).toEqual([2_000_000, 3_000_000]);
     emitLastQueuedFrame(player);
+    await expect(secondResultPromise).resolves.toMatchObject({ type: "TargetFrame" });
+  });
+
+  it("does not reset the decoder when a new batch starts while the previous batch is pending", async () => {
+    const firstResultPromise = service.decodeVideoFrames({
+      requestId: 1,
+      frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
+    });
+    await flushPromises();
+
+    const player = mockVideoPlayers[0]!;
+    expect(player.queueFrames).toHaveBeenCalledTimes(1);
+
+    const secondResultPromise = service.decodeVideoFrames({
+      requestId: 2,
+      frames: [{ frame: h264Frame(2, "delta"), receiveTime: 2n }],
+    });
+    await flushPromises();
+
+    expect(player.resetForSeek).not.toHaveBeenCalled();
+    expect(player.queueFrames).toHaveBeenCalledTimes(2);
+
+    emitQueuedFrameFromCall(player, 0, 0);
+    await expect(firstResultPromise).resolves.toMatchObject({ type: "TargetFrame" });
+
+    emitQueuedFrameFromCall(player, 1, 0);
     await expect(secondResultPromise).resolves.toMatchObject({ type: "TargetFrame" });
   });
 
@@ -211,6 +249,24 @@ describe("WorkerImageDecoder worker video batches", () => {
       originalTimestamp: 1_000_000_000n,
       receiveTime: 20n,
     });
+  });
+
+  it("rewrites H264 frames marked mayNeedRewrite before queueing", async () => {
+    const resultPromise = service.decodeVideoFrames({
+      requestId: 1,
+      frames: [{ frame: h264Frame(1, "key", 0xfe), receiveTime: 1n }],
+    });
+    await flushPromises();
+
+    const player = mockVideoPlayers[0]!;
+    const queuedFrames = player.queueFrames.mock.calls[0]![0] as Array<{ data: Uint8Array }>;
+    expect(mockH264RewriteForLowLatencyDecoding).toHaveBeenCalledWith(
+      new Uint8Array([0, 0, 0, 1, 0x65, 0xfe]),
+    );
+    expect(queuedFrames[0]!.data).toEqual(new Uint8Array([0, 0, 0, 1, 0x65, 0xfe, 0xaa]));
+
+    emitLastQueuedFrame(player);
+    await expect(resultPromise).resolves.toMatchObject({ type: "TargetFrame" });
   });
 
   it("returns FrameOutOfOrder when a replay batch contains decreasing original timestamps", async () => {

@@ -24,11 +24,15 @@ import { IRenderer } from "../../IRenderer";
 import { PartialMessageEvent } from "../../SceneExtension";
 
 const LOOKBACK_WINDOWS_SEC = [5, 10, 20, 40, 60] as const;
+const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 
 type DisplayFrame = (
   messageEvent: PartialMessageEvent<CompressedVideo>,
   image: CompressedVideo,
+  mode: VideoDisplayMode,
 ) => void | ImageSetImageResult | Promise<ImageSetImageResult>;
+
+export type VideoDisplayMode = "playback" | "seek";
 
 export type VideoSeekReplayTarget = {
   type: "receive" | "publish";
@@ -45,6 +49,7 @@ type TopicState = {
   replayGeneration?: number;
   successfulWindowSeconds?: number;
   completedSeekGeneration?: number;
+  decoderResetGeneration?: number;
 };
 
 type ControllerRenderer = Pick<
@@ -79,18 +84,29 @@ export class CompressedVideoController {
     const normalizedEvent = normalizeVideoMessageEvent(messageEvent);
     const frameInfo = parseVideoFrameInfo(normalizedEvent);
     if (frameInfo == undefined) {
-      void this.#displayVideoFrame(normalizedEvent);
+      void this.#displayVideoFrame(normalizedEvent, "playback");
       return;
     }
 
     const state = this.#stateForTopic(normalizedEvent.topic);
     const receiveTimeNs = toNanoSec(normalizedEvent.receiveTime);
+    const shouldStartImplicitSeekBackfill = this.#shouldStartImplicitSeekBackfill({
+      messageEvent: normalizedEvent,
+      receiveTimeNs,
+      isKeyframe: frameInfo.isKeyframe,
+    });
+    if (shouldStartImplicitSeekBackfill) {
+      this.#startImplicitSeekBackfill();
+    }
+
     const isSeekFrame =
       this.#seekTargetNs != undefined &&
       receiveTimeNs <= this.#seekTargetNs &&
       state.completedSeekGeneration !== this.#seekGeneration;
 
     if (isSeekFrame) {
+      this.#resetDecoderForSeek(normalizedEvent.topic, state, this.#seekGeneration);
+
       if (
         state.replayGeneration === this.#seekGeneration ||
         state.lookbackGeneration === this.#seekGeneration
@@ -118,7 +134,7 @@ export class CompressedVideoController {
     }
 
     this.#cache.addFrame(normalizedEvent);
-    void this.#displayVideoFrame(normalizedEvent);
+    void this.#displayVideoFrame(normalizedEvent, "playback");
   }
 
   public handleSeek(): void {
@@ -128,10 +144,15 @@ export class CompressedVideoController {
 
     for (const [topic, state] of this.#statesByTopic) {
       this.#cancelLookback(state);
+      this.#resetDecoderForSeek(topic, state, this.#seekGeneration);
       if (!this.#replayCachedSeek(topic, state)) {
         this.#startLookback(topic, state, this.#seekGeneration);
       }
     }
+  }
+
+  public registerTopic(topic: string): void {
+    this.#stateForTopic(topic);
   }
 
   public clearTopic(topic: string): void {
@@ -143,12 +164,16 @@ export class CompressedVideoController {
     this.#cache.clearTopic(topic);
   }
 
-  public dispose(): void {
+  public clear(): void {
     for (const state of this.#statesByTopic.values()) {
       this.#cancelLookback(state);
     }
     this.#statesByTopic.clear();
     this.#cache.clear();
+  }
+
+  public dispose(): void {
+    this.clear();
   }
 
   #stateForTopic(topic: string): TopicState {
@@ -158,6 +183,48 @@ export class CompressedVideoController {
       this.#statesByTopic.set(topic, state);
     }
     return state;
+  }
+
+  #shouldStartImplicitSeekBackfill(args: {
+    messageEvent: MessageEvent<CompressedVideo>;
+    receiveTimeNs: bigint;
+    isKeyframe: boolean;
+  }): boolean {
+    const { messageEvent, receiveTimeNs, isKeyframe } = args;
+    if (
+      isKeyframe ||
+      this.#seekTargetNs != undefined ||
+      this.#renderer.subscribeMessageRange == undefined ||
+      receiveTimeNs > this.#renderer.currentTime
+    ) {
+      return false;
+    }
+
+    const explicitTarget = this.#getSeekReplayTarget?.(messageEvent);
+    const replayTarget =
+      explicitTarget != undefined && explicitTarget !== "defer"
+        ? explicitTarget
+        : ({ type: "receive", time: fromNanoSec(this.#renderer.currentTime) } as const);
+
+    return this.#framesForReplayTarget(messageEvent.topic, replayTarget) == undefined;
+  }
+
+  #startImplicitSeekBackfill(): void {
+    this.#seekGeneration++;
+    this.#seekTargetNs = this.#renderer.currentTime;
+    this.#cache.handleSeek(fromNanoSec(this.#seekTargetNs));
+
+    for (const state of this.#statesByTopic.values()) {
+      this.#cancelLookback(state);
+    }
+  }
+
+  #resetDecoderForSeek(topic: string, state: TopicState, generation: number): void {
+    if (state.decoderResetGeneration === generation) {
+      return;
+    }
+    this.#resetDecoder?.(topic);
+    state.decoderResetGeneration = generation;
   }
 
   #replayCachedSeek(
@@ -256,7 +323,7 @@ export class CompressedVideoController {
         return;
       }
 
-      const frames = await this.#readLookbackWindow(
+      const frames = await this.#readLookbackWindowWithRetries(
         topic,
         state,
         generation,
@@ -296,6 +363,26 @@ export class CompressedVideoController {
     state.lookbackGeneration = undefined;
   }
 
+  async #readLookbackWindowWithRetries(
+    topic: string,
+    state: TopicState,
+    generation: number,
+    lookbackSec: number,
+  ): Promise<MessageEvent[] | undefined> {
+    let frames = await this.#readLookbackWindow(topic, state, generation, lookbackSec);
+    for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
+      if (frames != undefined || !this.#isCurrentLookback(state, generation)) {
+        return frames;
+      }
+      await delay(retryDelayMs);
+      if (!this.#isCurrentLookback(state, generation)) {
+        return undefined;
+      }
+      frames = await this.#readLookbackWindow(topic, state, generation, lookbackSec);
+    }
+    return frames;
+  }
+
   async #readLookbackWindow(
     topic: string,
     state: TopicState,
@@ -314,15 +401,25 @@ export class CompressedVideoController {
 
     return await new Promise<MessageEvent[] | undefined>((resolve) => {
       let finished = false;
+      let unsubscribe: (() => void) | undefined;
+      const currentCancel = () => {
+        finish([]);
+      };
       const finish = (frames: MessageEvent[] | undefined) => {
         if (finished) {
           return;
         }
         finished = true;
+        unsubscribe?.();
+        unsubscribe = undefined;
+        if (state.lookbackCancel === currentCancel) {
+          state.lookbackCancel = undefined;
+        }
         resolve(frames);
       };
 
-      const unsubscribe = subscribeMessageRange({
+      state.lookbackCancel = currentCancel;
+      unsubscribe = subscribeMessageRange({
         topic,
         timeRange: { start: lookbackStart, end: seekTime },
         onNewRangeIterator: async (iterator) => {
@@ -342,11 +439,6 @@ export class CompressedVideoController {
         finish(undefined);
         return;
       }
-
-      state.lookbackCancel = () => {
-        unsubscribe();
-        finish([]);
-      };
     });
   }
 
@@ -372,6 +464,7 @@ export class CompressedVideoController {
       async (frame) =>
         await this.#displayVideoFrame(
           normalizeVideoMessageEvent(frame as MessageEvent<CompressedVideo>),
+          "seek",
         ),
     );
     const result = await results[results.length - 1]!;
@@ -380,9 +473,10 @@ export class CompressedVideoController {
 
   async #displayVideoFrame(
     messageEvent: MessageEvent<CompressedVideo>,
+    mode: VideoDisplayMode,
   ): Promise<ImageSetImageResult> {
     try {
-      const result = await this.#displayFrame(messageEvent, messageEvent.message);
+      const result = await this.#displayFrame(messageEvent, messageEvent.message, mode);
       if (result == undefined) {
         return { ok: true };
       }
@@ -425,7 +519,10 @@ async function collectReplayableFrames(
   let currentGop: MessageEvent[] = [];
   for await (const batch of iterator) {
     for (const messageEvent of batch) {
-      if (messageEvent.topic !== topic || compare(messageEvent.receiveTime, seekTime) > 0) {
+      if (messageEvent.topic !== topic) {
+        continue;
+      }
+      if (compare(messageEvent.receiveTime, seekTime) > 0) {
         continue;
       }
       const frameInfo = parseVideoFrameInfo(messageEvent);
@@ -456,6 +553,10 @@ function framesForLookbackReplayTarget(
     return frameInfo != undefined && compare(frameInfo.frame.timestamp, replayTarget.time) > 0;
   });
   return targetIndex >= 0 ? frames.slice(0, targetIndex) : frames;
+}
+
+async function delay(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 function normalizeVideoMessageEvent(

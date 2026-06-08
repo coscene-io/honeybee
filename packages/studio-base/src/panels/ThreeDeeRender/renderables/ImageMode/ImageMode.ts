@@ -18,7 +18,7 @@ import {
   MessageEvent,
   SettingsTreeAction,
   SettingsTreeFields,
-  Topic,
+  type Topic,
 } from "@foxglove/studio";
 import { PanelContextMenuItem } from "@foxglove/studio-base/components/PanelContextMenu";
 import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtensionAdapter";
@@ -53,7 +53,10 @@ import {
   ConfigWithDefaults,
   ImageModeEventMap,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/types";
-import { CompressedVideoController } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
+import {
+  CompressedVideoController,
+  type VideoDisplayMode,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
 import {
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageRenderable,
@@ -121,10 +124,11 @@ export class ImageMode
 
   protected imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
-  #lastSetImageResult: Promise<ImageSetImageResult> = Promise.resolve({ ok: false });
+  #lastSetImageResult: Promise<ImageSetImageResult> | undefined;
 
   protected readonly messageHandler: IMessageHandler;
   #compressedVideoController: CompressedVideoController;
+  #compressedVideoTopic: string | undefined;
 
   protected readonly supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
@@ -357,7 +361,9 @@ export class ImageMode
    */
   #handleTopicsChanged = () => {
     this.#annotations.handleTopicsChanged(this.renderer.topics);
-    if (this.getImageModeSettings().imageTopic != undefined) {
+    const configuredImageTopic = this.getImageModeSettings().imageTopic;
+    if (configuredImageTopic != undefined) {
+      this.#setCompressedVideoTopic(configuredImageTopic);
       return;
     }
 
@@ -369,20 +375,36 @@ export class ImageMode
 
     if (imageTopic) {
       this.setImageTopic(imageTopic);
+    } else {
+      this.#setCompressedVideoTopic(undefined);
     }
   };
+
+  #setCompressedVideoTopic(topic: string | undefined): void {
+    if (this.#compressedVideoTopic === topic) {
+      if (topic != undefined) {
+        this.#compressedVideoController.registerTopic(topic);
+      }
+      return;
+    }
+
+    if (this.#compressedVideoTopic != undefined) {
+      this.#compressedVideoController.clearTopic(this.#compressedVideoTopic);
+    }
+    this.#compressedVideoTopic = topic;
+    if (topic != undefined) {
+      this.#compressedVideoController.registerTopic(topic);
+    }
+  }
 
   /** Sets specified image topic on the config and updates calibration topic if a match is found.
    *  Does not check that image topic is different
    **/
   protected setImageTopic(imageTopic: Topic): void {
-    const previousImageTopic = this.getImageModeSettings().imageTopic;
     const matchingCalibrationTopic = this.#getMatchingCalibrationTopic(imageTopic.name);
     // don't want renderables shared across topics to ensure clean state for new topic
     this.#removeImageRenderable();
-    if (previousImageTopic != undefined && previousImageTopic !== imageTopic.name) {
-      this.#compressedVideoController.clearTopic(previousImageTopic);
-    }
+    this.#setCompressedVideoTopic(imageTopic.name);
 
     this.renderer.updateConfig((draft) => {
       draft.imageMode.imageTopic = imageTopic.name;
@@ -716,7 +738,17 @@ export class ImageMode
 
   #displayCompressedVideoFrame = async (
     messageEvent: PartialMessageEvent<CompressedVideo>,
+    image: CompressedVideo,
+    mode: VideoDisplayMode,
   ): Promise<ImageSetImageResult> => {
+    if (mode === "seek") {
+      const result = await this.#setImageOnRenderable(messageEvent, image);
+      if (result.ok) {
+        this.messageHandler.updateImageState(messageEvent, image);
+      }
+      return result;
+    }
+
     this.#lastSetImageResult = Promise.resolve({ ok: false });
     this.messageHandler.handleCompressedVideo(messageEvent);
     return await this.#lastSetImageResult;
@@ -746,6 +778,13 @@ export class ImageMode
   };
 
   #handleImageChange = (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage): void => {
+    this.#lastSetImageResult = this.#setImageOnRenderable(messageEvent, image);
+  };
+
+  async #setImageOnRenderable(
+    messageEvent: PartialMessageEvent<AnyImage>,
+    image: AnyImage,
+  ): Promise<ImageSetImageResult> {
     const topic = messageEvent.topic;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
     const frameId = "header" in image ? image.header.frame_id : image.frame_id;
@@ -769,8 +808,8 @@ export class ImageMode
         this.#updateViewAndRenderables();
       }
     });
-    this.#lastSetImageResult = setImageResult;
-  };
+    return await setImageResult;
+  }
 
   /** Creates a fallback camera model based off of the renderable with a decoded image and updates the camera.
    * Will no-op if there is not a decodedImage on the renderable.

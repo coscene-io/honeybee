@@ -67,6 +67,7 @@ import { DIAGNOSTIC_SEVERITY, SOURCES, ERROR_CODES } from "./constants";
 import { remapVirtualSubscriptions, getPreloadTypes } from "./subscriptions";
 
 const log = Log.getLogger(__filename);
+const USER_SCRIPT_RANGE_BATCH_SIZE = 100;
 
 // TypeScript's built-in lib only accepts strings for the scriptURL. However, webpack only
 // understands `new URL()` to properly build the worker entry point:
@@ -112,6 +113,7 @@ export default class UserScriptPlayer implements Player {
   // Datatypes and topics are derived from scriptRegistrations, but memoized so they only change when needed
   #memoizedScriptDatatypes: readonly RosDatatypes[] = [];
   #memoizedScriptTopics: readonly Topic[] = [];
+  #scriptRegistrationsByOutputTopic = new Map<string, ScriptRegistration>();
 
   #subscriptions: SubscribePayload[] = [];
   #scriptSubscriptions: Record<string, SubscribePayload> = {};
@@ -682,6 +684,7 @@ export default class UserScriptPlayer implements Player {
       scriptRegistration.terminate();
     }
     state.scriptRegistrations = [];
+    this.#scriptRegistrationsByOutputTopic = new Map();
 
     const rosLib = await this.#getRosLib(state);
     const typesLib = await this.#getTypesLib(state);
@@ -769,6 +772,9 @@ export default class UserScriptPlayer implements Player {
 
     let changedTopicsRequireEmitState = false;
     state.scriptRegistrations = validScriptRegistrations;
+    this.#scriptRegistrationsByOutputTopic = new Map(
+      validScriptRegistrations.map((registration) => [registration.output.name, registration]),
+    );
     const scriptTopics = state.scriptRegistrations.map(({ output }) => output);
     if (!_.isEqual(scriptTopics, this.#memoizedScriptTopics)) {
       this.#memoizedScriptTopics = scriptTopics;
@@ -1060,10 +1066,138 @@ export default class UserScriptPlayer implements Player {
   }
 
   public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
-    if (this.#scriptSubscriptions[args.topic] != undefined) {
-      return undefined;
+    const scriptRegistration = this.#scriptRegistrationsByOutputTopic.get(args.topic);
+    if (scriptRegistration != undefined) {
+      return this.#subscribeScriptMessageRange(args, scriptRegistration);
     }
     return this.#player.subscribeMessageRange?.(args);
+  }
+
+  #subscribeScriptMessageRange(
+    args: SubscribeMessageRangeArgs,
+    scriptRegistration: ScriptRegistration,
+  ): (() => void) | undefined {
+    const subscribeMessageRange = this.#player.subscribeMessageRange;
+    const inputTopics = _.uniq(scriptRegistration.inputs);
+    if (subscribeMessageRange == undefined || inputTopics.length === 0) {
+      return undefined;
+    }
+
+    let aborted = false;
+    let pendingInputs = inputTopics.length;
+    let emitted = false;
+    const inputMessagesByTopic = new Map<string, MessageEvent[]>();
+    const unsubscribes: (() => void)[] = [];
+    const globalVariables = this.#globalVariables;
+    const isAborted = () => aborted;
+
+    const maybeEmitOutputRange = () => {
+      if (aborted || emitted || pendingInputs !== 0) {
+        return;
+      }
+      emitted = true;
+      const inputMessages = inputTopics
+        .flatMap((topic) => inputMessagesByTopic.get(topic) ?? [])
+        .sort((a, b) => compare(a.receiveTime, b.receiveTime));
+
+      Promise.resolve(
+        args.onNewRangeIterator(
+          this.#scriptMessageRangeIterator(inputMessages, scriptRegistration, globalVariables, () =>
+            aborted,
+          ),
+        ),
+      ).catch((err: unknown) => {
+        log.warn(`User script message range subscription failed: ${String(err)}`);
+      });
+    };
+
+    const handleInputMessages = (inputTopic: string, inputMessages: MessageEvent[]) => {
+      inputMessagesByTopic.set(inputTopic, inputMessages);
+      pendingInputs--;
+      maybeEmitOutputRange();
+    };
+
+    for (const inputTopic of inputTopics) {
+      const unsubscribe = this.#subscribeScriptInputRange(
+        args,
+        inputTopic,
+        isAborted,
+        handleInputMessages,
+      );
+
+      if (unsubscribe == undefined) {
+        aborted = true;
+        for (const existingUnsubscribe of unsubscribes) {
+          existingUnsubscribe();
+        }
+        return undefined;
+      }
+      unsubscribes.push(unsubscribe);
+    }
+
+    return () => {
+      aborted = true;
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe();
+      }
+    };
+  }
+
+  #subscribeScriptInputRange(
+    args: SubscribeMessageRangeArgs,
+    inputTopic: string,
+    isAborted: () => boolean,
+    onInputMessages: (inputTopic: string, inputMessages: MessageEvent[]) => void,
+  ): (() => void) | undefined {
+    return this.#player.subscribeMessageRange?.({
+      topic: inputTopic,
+      timeRange: args.timeRange,
+      onNewRangeIterator: async (iterator) => {
+        const inputMessages: MessageEvent[] = [];
+        try {
+          for await (const batch of iterator) {
+            if (isAborted()) {
+              return;
+            }
+            inputMessages.push(...batch);
+          }
+        } catch (err: unknown) {
+          log.warn(`User script input range subscription failed: ${String(err)}`);
+        } finally {
+          onInputMessages(inputTopic, inputMessages);
+        }
+      },
+    });
+  }
+
+  async *#scriptMessageRangeIterator(
+    inputMessages: readonly MessageEvent[],
+    scriptRegistration: ScriptRegistration,
+    globalVariables: GlobalVariables,
+    isAborted: () => boolean,
+  ): AsyncIterableIterator<readonly MessageEvent[]> {
+    let outputMessages: MessageEvent[] = [];
+    for (const messageEvent of inputMessages) {
+      if (isAborted()) {
+        return;
+      }
+      const outputMessage = await scriptRegistration.processBlockMessage(
+        messageEvent,
+        globalVariables,
+      );
+      if (outputMessage == undefined) {
+        continue;
+      }
+      outputMessages.push(outputMessage);
+      if (outputMessages.length >= USER_SCRIPT_RANGE_BATCH_SIZE) {
+        yield outputMessages;
+        outputMessages = [];
+      }
+    }
+
+    if (!isAborted() && outputMessages.length > 0) {
+      yield outputMessages;
+    }
   }
 
   public async close(): Promise<void> {
