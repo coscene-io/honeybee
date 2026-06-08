@@ -65,6 +65,32 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, replacement]);
   });
 
+  it("does not stitch a post-seek delta onto an older cached range", () => {
+    const cache = new VideoGopCache();
+    const oldKey = h264Frame(10, 100, "key");
+    const oldDelta = h264Frame(11, 101, "delta");
+    const targetDelta = h264Frame(50, 150, "delta");
+    cache.addFrames([oldKey, oldDelta]);
+
+    cache.handleSeek(t(50));
+    cache.addFrame(targetDelta);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(50))).toBeUndefined();
+  });
+
+  it("merges overlapping cached ranges and replays from the nearest keyframe", () => {
+    const cache = new VideoGopCache();
+    const oldKey = h264Frame(10, 100, "key");
+    const oldDelta = h264Frame(11, 101, "delta");
+    const newKey = h264Frame(12, 102, "key");
+    const newDelta = h264Frame(13, 103, "delta");
+    cache.addFrames([oldKey, oldDelta]);
+    cache.handleSeek(t(12));
+    cache.addFrames([newKey, newDelta]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(13))).toEqual([newKey, newDelta]);
+  });
+
   it("ignores incomplete or invalid compressed video payloads", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
@@ -85,7 +111,7 @@ describe("VideoGopCache", () => {
     expect(cache.addFrame(sliced)).toBe(false);
     expect(cache.addFrame(nonAnnexB)).toBe(false);
     expect(cache.addFrame(key)).toBe(true);
-    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key]);
+    expect(cache.framesForReceiveTime(TOPIC, t(10))).toEqual([key]);
   });
 
   it("uses compressed payload byteLength for memory budget and preserves decodable GOPs", () => {
@@ -100,5 +126,27 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(2))).toBeUndefined();
     expect(cache.framesForReceiveTime(TOPIC, t(4))).toEqual([newKey, newDelta]);
     expect(cache.byteSize()).toBe(16);
+  });
+
+  it("evicts an oversized single range instead of staying over budget forever", () => {
+    const cache = new VideoGopCache({ maxBytes: 10 });
+    cache.addFrames([h264Frame(1, 1, "key", 8), h264Frame(2, 2, "delta", 8)]);
+
+    expect(cache.byteSize()).toBeLessThanOrEqual(10);
+  });
+
+  it("keeps byteSize accurate after merging overlapping ranges", () => {
+    const cache = new VideoGopCache();
+    cache.addFrame(h264Frame(1, 1, "key", 8));
+    cache.handleSeek(t(10));
+    cache.addFrame(h264Frame(10, 10, "key", 8));
+    cache.addFrame(h264Frame(2, 1, "key", 16));
+    cache.addFrame(h264Frame(11, 11, "delta", 8));
+
+    expect(cache.byteSize()).toBe(32);
+    expect(cache.framesForPublishTime(TOPIC, t(11))).toEqual([
+      h264Frame(10, 10, "key", 8),
+      h264Frame(11, 11, "delta", 8),
+    ]);
   });
 });

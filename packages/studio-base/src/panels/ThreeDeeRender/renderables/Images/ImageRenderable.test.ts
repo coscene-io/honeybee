@@ -14,10 +14,12 @@ import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer
 import {
   ImageRenderable,
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
+  ImageSetImageResult,
   ImageUserData,
 } from "./ImageRenderable";
 import type { AnyImage, CompressedVideo } from "./ImageTypes";
 import {
+  AwaitTargetFrameResult,
   DecodeVideoFramesArgs,
   DecodeVideoFramesResult,
   WorkerImageDecoder,
@@ -93,6 +95,15 @@ function videoFrame(timestampNsec: number, kind: "key" | "delta"): CompressedVid
   };
 }
 
+function abortAwaitTargetFrame(): jest.Mock<
+  Promise<AwaitTargetFrameResult>,
+  [{ requestId: number }]
+> {
+  return jest.fn(
+    async ({ requestId }): Promise<AwaitTargetFrameResult> => ({ type: "Aborted", requestId }),
+  );
+}
+
 type TestDecodedImage = ImageBitmap | ImageData | VideoFrame;
 
 function makeUserData(): ImageUserData {
@@ -124,6 +135,13 @@ class TestImageRenderable extends ImageRenderable {
       throw new Error("No decoded image queued");
     }
     return await decodedImage;
+  }
+
+  protected override async decodeImageWithResult(
+    image: AnyImage,
+    resizeWidth?: number,
+  ): Promise<{ image: TestDecodedImage; ok: boolean }> {
+    return { image: await this.decodeImage(image, resizeWidth), ok: true };
   }
 }
 
@@ -181,7 +199,7 @@ describe("ImageRenderable", () => {
 
   it("should set and decode image", async () => {
     const renderable = new ImageRenderable(mockUserData.topic, mockRenderer, { ...mockUserData });
-    renderable.setImage(sampleImage);
+    void renderable.setImage(sampleImage);
     expect(renderable.userData.image).toBe(sampleImage);
     expect(renderable.getDecodedImage()).toBe(undefined);
 
@@ -260,7 +278,7 @@ describe("ImageRenderable", () => {
       const onDecoded = jest.fn();
       const renderable = new TestImageRenderable([frame]);
 
-      renderable.setImage(sampleVideo, undefined, onDecoded);
+      void renderable.setImage(sampleVideo, undefined, onDecoded);
       await flushPromises();
 
       expect(renderable.getDecodedImage()).toBe(frame);
@@ -279,12 +297,16 @@ describe("ImageRenderable", () => {
       const onDecoded = jest.fn();
       const renderable = new TestImageRenderable([frame, frame]);
 
-      renderable.setImage(sampleVideo, undefined, onDecoded);
+      void renderable.setImage(sampleVideo, undefined, onDecoded);
       await flushPromises();
 
       time.advance(20);
       jest.clearAllMocks();
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } }, undefined, onDecoded);
+      void renderable.setImage(
+        { ...sampleVideo, timestamp: { sec: 0, nsec: 2 } },
+        undefined,
+        onDecoded,
+      );
       await flushPromises();
 
       expect(renderable.getDecodedImage()).toBe(frame);
@@ -308,15 +330,15 @@ describe("ImageRenderable", () => {
       });
       const renderable = new TestImageRenderable([frame, staleFramePromise, frame]);
 
-      renderable.setImage(sampleVideo);
+      void renderable.setImage(sampleVideo);
       await flushPromises();
 
       time.advance(20);
       jest.clearAllMocks();
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      void renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
 
       time.advance(20);
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
+      void renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
       await flushPromises();
 
       expect(renderable.getDecodedImage()).toBe(frame);
@@ -342,11 +364,11 @@ describe("ImageRenderable", () => {
       const frame2 = new MockVideoFrame() as unknown as VideoFrame;
       const renderable = new TestImageRenderable([frame1, frame2]);
 
-      renderable.setImage(sampleVideo);
+      void renderable.setImage(sampleVideo);
       await flushPromises();
 
       time.advance(20);
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      void renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
       await flushPromises();
 
       expect(renderable.userData.texture?.image).toBe(frame2);
@@ -366,12 +388,16 @@ describe("ImageRenderable", () => {
       const onDecoded = jest.fn();
       const renderable = new TestImageRenderable([frame1, frame2]);
 
-      renderable.setImage(sampleVideo, undefined, onDecoded);
+      void renderable.setImage(sampleVideo, undefined, onDecoded);
       await flushPromises();
 
       time.advance(1);
       jest.clearAllMocks();
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } }, undefined, onDecoded);
+      void renderable.setImage(
+        { ...sampleVideo, timestamp: { sec: 0, nsec: 2 } },
+        undefined,
+        onDecoded,
+      );
       await flushPromises();
 
       expect(renderable.getDecodedImage()).toBe(frame1);
@@ -404,15 +430,15 @@ describe("ImageRenderable", () => {
       const newestFrame = new MockVideoFrame() as unknown as VideoFrame;
       const renderable = new TestImageRenderable([frame1, pendingFrame, newestFrame]);
 
-      renderable.setImage(sampleVideo);
+      void renderable.setImage(sampleVideo);
       await flushPromises();
 
       time.advance(1);
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      void renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
       await flushPromises();
 
       time.advance(1);
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
+      void renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 3 } });
       await flushPromises();
 
       expect((pendingFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
@@ -437,12 +463,12 @@ describe("ImageRenderable", () => {
       const pendingFrame = new MockVideoFrame() as unknown as VideoFrame;
       const renderable = new TestImageRenderable([frame1, pendingFrame]);
 
-      renderable.setImage(sampleVideo);
+      void renderable.setImage(sampleVideo);
       await flushPromises();
 
       time.advance(1);
       jest.clearAllMocks();
-      renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
+      void renderable.setImage({ ...sampleVideo, timestamp: { sec: 0, nsec: 2 } });
       await flushPromises();
 
       renderable.dispose();
@@ -465,7 +491,7 @@ describe("ImageRenderable", () => {
       const frame = new MockVideoFrame() as unknown as VideoFrame;
       const renderable = new TestImageRenderable([frame]);
 
-      renderable.setImage(sampleVideo);
+      void renderable.setImage(sampleVideo);
       await flushPromises();
       renderable.dispose();
 
@@ -490,6 +516,7 @@ describe("ImageRenderable", () => {
       );
       const decoder = {
         decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
         resetVideoDecoder: jest.fn(),
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
@@ -497,9 +524,9 @@ describe("ImageRenderable", () => {
       const renderable = new TestVideoBatchRenderable(decoder);
 
       renderable.userData.receiveTime = 10n;
-      renderable.setImage(videoFrame(1, "key"));
+      const keyResult = renderable.setImage(videoFrame(1, "key"));
       renderable.userData.receiveTime = 20n;
-      renderable.setImage(videoFrame(2, "delta"));
+      const deltaResult = renderable.setImage(videoFrame(2, "delta"));
 
       await flushPromises();
       await flushPromises();
@@ -510,6 +537,217 @@ describe("ImageRenderable", () => {
         20n,
       ]);
       expect(renderable.getDecodedImage()).toBe(frame);
+      await expect(keyResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      await expect(deltaResult).resolves.toEqual<ImageSetImageResult>({ ok: true });
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("resolves setImage ok=true when a compressed video target frame is decoded", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const decoder = {
+        decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+          async () => ({
+            type: "TargetFrame",
+            requestId: 1,
+            frame,
+            originalTimestamp: 1n,
+            receiveTime: 10n,
+          }),
+        ),
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      const result = renderable.setImage(videoFrame(1, "key"));
+      await flushPromises();
+      await flushPromises();
+
+      await expect(result).resolves.toEqual<ImageSetImageResult>({ ok: true });
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("resolves setImage ok=false when compressed video decode times out", async () => {
+    const time = mockDateNow();
+    try {
+      const decoder = {
+        decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+          async () => ({ type: "Timeout", requestId: 1 }),
+        ),
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      const result = renderable.setImage(videoFrame(1, "key"));
+      await flushPromises();
+      await flushPromises();
+
+      await expect(result).resolves.toEqual<ImageSetImageResult>({ ok: false });
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("displays an intermediate video frame using the latest pending request", async () => {
+    const time = mockDateNow();
+    try {
+      const intermediateFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async () => ({
+          type: "IntermediateFrame",
+          requestId: 1,
+          frame: intermediateFrame,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+        }),
+      );
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      void renderable.setImage(videoFrame(1, "key"));
+      renderable.userData.receiveTime = 20n;
+      void renderable.setImage(videoFrame(2, "delta"));
+
+      await flushPromises();
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(intermediateFrame);
+      expect((intermediateFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("replaces an intermediate video frame when the target frame arrives later", async () => {
+    const time = mockDateNow();
+    try {
+      const intermediateFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const targetFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveTarget!: (result: AwaitTargetFrameResult) => void;
+      const targetPromise = new Promise<AwaitTargetFrameResult>((resolve) => {
+        resolveTarget = resolve;
+      });
+      const decoder = {
+        decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+          async () => ({
+            type: "IntermediateFrame",
+            requestId: 1,
+            frame: intermediateFrame,
+            originalTimestamp: 1n,
+            receiveTime: 10n,
+          }),
+        ),
+        awaitTargetFrame: jest.fn(() => targetPromise),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      void renderable.setImage(videoFrame(1, "key"));
+      renderable.userData.receiveTime = 20n;
+      void renderable.setImage(videoFrame(2, "delta"));
+
+      await flushPromises();
+      await flushPromises();
+      expect(renderable.getDecodedImage()).toBe(intermediateFrame);
+
+      time.advance(20);
+      resolveTarget({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: targetFrame,
+        originalTimestamp: 2n,
+        receiveTime: 20n,
+      });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(targetFrame);
+      expect((intermediateFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect((targetFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("closes a late target frame when a newer image has already been requested", async () => {
+    const time = mockDateNow();
+    try {
+      const intermediateFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const staleTargetFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const latestFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveStaleTarget!: (result: AwaitTargetFrameResult) => void;
+      const staleTargetPromise = new Promise<AwaitTargetFrameResult>((resolve) => {
+        resolveStaleTarget = resolve;
+      });
+      const decodeVideoFrames = jest
+        .fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>()
+        .mockResolvedValueOnce({
+          type: "IntermediateFrame",
+          requestId: 1,
+          frame: intermediateFrame,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+        })
+        .mockResolvedValueOnce({
+          type: "TargetFrame",
+          requestId: 2,
+          frame: latestFrame,
+          originalTimestamp: 3n,
+          receiveTime: 30n,
+        });
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: jest.fn(() => staleTargetPromise),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      renderable.userData.receiveTime = 10n;
+      void renderable.setImage(videoFrame(1, "key"));
+      renderable.userData.receiveTime = 20n;
+      void renderable.setImage(videoFrame(2, "delta"));
+      await flushPromises();
+      await flushPromises();
+      expect(renderable.getDecodedImage()).toBe(intermediateFrame);
+
+      time.advance(20);
+      renderable.userData.receiveTime = 30n;
+      void renderable.setImage(videoFrame(3, "key"));
+      await flushPromises();
+      await flushPromises();
+      expect(renderable.getDecodedImage()).toBe(latestFrame);
+
+      resolveStaleTarget({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: staleTargetFrame,
+        originalTimestamp: 2n,
+        receiveTime: 20n,
+      });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(latestFrame);
+      expect((staleTargetFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
     } finally {
       time.restore();
     }
@@ -536,22 +774,24 @@ describe("ImageRenderable", () => {
         });
       const decoder = {
         decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
         resetVideoDecoder: jest.fn(),
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
       const renderable = new TestVideoBatchRenderable(decoder);
 
       renderable.userData.receiveTime = 10n;
-      renderable.setImage(videoFrame(1, "key"));
+      const staleSetImage = renderable.setImage(videoFrame(1, "key"));
       await flushPromises();
 
       time.advance(20);
       renderable.userData.receiveTime = 20n;
-      renderable.setImage(videoFrame(2, "key"));
+      const latestSetImage = renderable.setImage(videoFrame(2, "key"));
       await flushPromises();
       await flushPromises();
 
       expect(renderable.getDecodedImage()).toBe(latestFrame);
+      await expect(latestSetImage).resolves.toEqual<ImageSetImageResult>({ ok: true });
 
       resolveStale({
         type: "TargetFrame",
@@ -564,6 +804,7 @@ describe("ImageRenderable", () => {
 
       expect(renderable.getDecodedImage()).toBe(latestFrame);
       expect((staleFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      await expect(staleSetImage).resolves.toEqual<ImageSetImageResult>({ ok: false });
     } finally {
       time.restore();
     }
@@ -578,11 +819,11 @@ describe("ImageRenderable", () => {
       const closeBitmap2 = jest.spyOn(bitmap2, "close");
       const renderable = new TestImageRenderable([bitmap1, bitmap2]);
 
-      renderable.setImage(sampleImage);
+      void renderable.setImage(sampleImage);
       await flushPromises();
 
       time.advance(20);
-      renderable.setImage({
+      void renderable.setImage({
         ...sampleImage,
         header: { frame_id: "camera", stamp: { sec: 0, nsec: 2 } },
       });

@@ -22,6 +22,8 @@ export type DecodeVideoFrameInput = {
 export type DecodeVideoFramesArgs = {
   frames: DecodeVideoFrameInput[];
   requestId: number;
+  targetFrameTimeoutMs?: number;
+  anyFrameTimeoutMs?: number;
 };
 
 export type DecodeVideoFramesResult =
@@ -32,7 +34,21 @@ export type DecodeVideoFramesResult =
       originalTimestamp: bigint;
       receiveTime: bigint;
     }
-  | { type: "Timeout" | "Aborted"; requestId: number };
+  | { type: "Timeout" | "Aborted" | "FrameOutOfOrder"; requestId: number };
+
+export type AwaitTargetFrameArgs = {
+  requestId: number;
+};
+
+export type AwaitTargetFrameResult =
+  | {
+      type: "TargetFrame";
+      requestId: number;
+      frame: VideoFrame;
+      originalTimestamp: bigint;
+      receiveTime: bigint;
+    }
+  | { type: "Aborted"; requestId: number };
 
 /**
  * Provides a worker that can process RawImages on a background thread.
@@ -81,6 +97,12 @@ export class WorkerImageDecoder {
 
   public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
     return await this.#remote.decodeVideoFrames(args);
+  }
+
+  public async awaitTargetFrame(
+    args: AwaitTargetFrameArgs,
+  ): Promise<AwaitTargetFrameResult> {
+    return await this.#remote.awaitTargetFrame(args);
   }
 
   public async resetVideoDecoder(): Promise<void> {

@@ -544,6 +544,13 @@ function PanelExtensionAdapter(
         return await getMessagePipelineContext().fetchAsset(uri, options);
       },
 
+      unstable_subscribeMessageRange: (args) => {
+        if (!isMounted()) {
+          return undefined;
+        }
+        return getMessagePipelineContext().subscribeMessageRange?.(args);
+      },
+
       unsubscribeAll: () => {
         if (!isMounted()) {
           return;

@@ -49,6 +49,7 @@ import {
   PlayerState,
   PlayerStateActiveData,
   PublishPayload,
+  SubscribeMessageRangeArgs,
   SubscribePayload,
   Topic,
   MessageEvent,
@@ -1056,6 +1057,13 @@ export default class UserScriptPlayer implements Player {
     this.#player.setSubscriptions(
       remapVirtualSubscriptions(subscriptions, state.inputsByOutputTopic),
     );
+  }
+
+  public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
+    if (this.#scriptSubscriptions[args.topic] != undefined) {
+      return undefined;
+    }
+    return this.#player.subscribeMessageRange?.(args);
   }
 
   public async close(): Promise<void> {

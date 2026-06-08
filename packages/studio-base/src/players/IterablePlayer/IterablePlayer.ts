@@ -38,6 +38,7 @@ import {
   PlayerStateActiveData,
   Progress,
   PublishPayload,
+  SubscribeMessageRangeArgs,
   SubscribePayload,
   Topic,
   TopicSelection,
@@ -55,8 +56,6 @@ import {
   ISerializedIterableSource,
   IteratorResult,
 } from "./IIterableSource";
-import { gopBackfillForVideo } from "./videoBackfill";
-import { VideoGopCache } from "./videoGopCache";
 
 const log = Log.getLogger(__filename);
 
@@ -82,6 +81,7 @@ const MAX_BLOCKS = 100;
 // Amount to seek into the data source from the start when loading the player. The purpose of this
 // is to provide some initial data to subscribers.
 export const SEEK_ON_START_NS = BigInt(99 * 1e6);
+const MESSAGE_RANGE_BATCH_SIZE = 512;
 
 const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
 
@@ -161,7 +161,6 @@ export class IterablePlayer implements Player {
   #subscriptions: SubscribePayload[] = [];
   #allTopics: TopicSelection = new Map();
   #preloadTopics: TopicSelection = new Map();
-  readonly #videoGopCache = new VideoGopCache();
 
   #progress: Progress = {};
   #id: string = uuidv4();
@@ -188,8 +187,8 @@ export class IterablePlayer implements Player {
   // Buffered source used for playback.
   #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
 
-  // Independent deserialized source used only for bounded GOP lookback reads.
-  #gopBackfillSource?: IDeserializedIterableSource;
+  // Independent deserialized source used only for bounded panel-owned message range reads.
+  #messageRangeSource?: IDeserializedIterableSource;
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -412,7 +411,6 @@ export class IterablePlayer implements Player {
       return;
     }
 
-    this.#videoGopCache.clear();
     this.#allTopics = allTopics;
     this.#preloadTopics = preloadTopics;
     this.#blockLoader?.setTopics(this.#preloadTopics);
@@ -438,6 +436,57 @@ export class IterablePlayer implements Player {
     }
   }
 
+  public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
+    const source = this.#messageRangeSource;
+    if (source == undefined) {
+      return undefined;
+    }
+
+    const abortController = new AbortController();
+    let iterator: AsyncIterableIterator<Readonly<IteratorResult>> | undefined;
+
+    const rangeIterator = (async function* (): AsyncIterableIterator<readonly MessageEvent[]> {
+      let messages: MessageEvent[] = [];
+      iterator = source.messageIterator({
+        topics: new Map([[args.topic, { topic: args.topic }]]),
+        start: args.timeRange.start,
+        end: args.timeRange.end,
+        consumptionType: "full",
+        abortSignal: abortController.signal,
+      });
+
+      try {
+        for await (const result of iterator) {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          if (result.type === "message-event" && result.msgEvent.topic === args.topic) {
+            messages.push(result.msgEvent);
+            if (messages.length >= MESSAGE_RANGE_BATCH_SIZE) {
+              yield messages;
+              messages = [];
+            }
+          }
+        }
+      } finally {
+        await iterator.return?.();
+      }
+
+      if (!abortController.signal.aborted && messages.length > 0) {
+        yield messages;
+      }
+    })();
+
+    Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch((err: unknown) => {
+      log.warn(`Message range subscription failed: ${String(err)}`);
+    });
+
+    return () => {
+      abortController.abort();
+      void iterator?.return?.();
+    };
+  }
+
   public setPublishers(_publishers: AdvertiseOptions[]): void {
     // no-op
   }
@@ -455,7 +504,6 @@ export class IterablePlayer implements Player {
   }
 
   public async close(): Promise<void> {
-    this.#videoGopCache.clear();
     try {
       void this.#iterableSource.terminate?.();
     } catch (e) {
@@ -576,7 +624,6 @@ export class IterablePlayer implements Player {
 
     try {
       const initResult = await this.#bufferedSource.initialize();
-      this.#videoGopCache.clear();
       const {
         start,
         end,
@@ -675,12 +722,12 @@ export class IterablePlayer implements Player {
       }
 
       if (this.#iterableSource.sourceType === "deserialized") {
-        this.#gopBackfillSource = new DeserializedSourceWrapper(this.#iterableSource);
+        this.#messageRangeSource = new DeserializedSourceWrapper(this.#iterableSource);
       } else {
-        const gopBackfillSource = new DeserializingIterableSource(this.#iterableSource);
+        const messageRangeSource = new DeserializingIterableSource(this.#iterableSource);
         // Do not call initialize(); the underlying source was initialized via #bufferedSource above.
-        gopBackfillSource.initializeDeserializers(initResult);
-        this.#gopBackfillSource = gopBackfillSource;
+        messageRangeSource.initializeDeserializers(initResult);
+        this.#messageRangeSource = messageRangeSource;
       }
 
       this.#presence = PlayerPresence.PRESENT;
@@ -822,18 +869,6 @@ export class IterablePlayer implements Player {
         abortSignal,
       });
 
-      await this.#bufferImpl.stopProducer();
-      const gopBackfillSource = this.#gopBackfillSource ?? this.#bufferedSource;
-      const backfillMessages = await gopBackfillForVideo({
-        source: gopBackfillSource,
-        backfillMessages: messages,
-        subscriptions: this.#allTopics,
-        targetTime,
-        startTime,
-        abortSignal,
-        gopCache: this.#videoGopCache,
-      });
-
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout
       clearTimeout(seekAckTimeout);
 
@@ -841,7 +876,7 @@ export class IterablePlayer implements Player {
         return;
       }
 
-      this.#messages = backfillMessages;
+      this.#messages = messages;
       this.#currentTime = targetTime;
       this.#lastSeekEmitTime = Date.now();
       this.#presence = PlayerPresence.PRESENT;
@@ -1065,7 +1100,6 @@ export class IterablePlayer implements Player {
         }
 
         if (iterResult.type === "message-event") {
-          this.#videoGopCache.addFrame(iterResult.msgEvent);
           // The message is past the tick end time, we need to save it for next tick
           if (compare(iterResult.msgEvent.receiveTime, end) > 0) {
             this.#lastMessageEvent = iterResult.msgEvent;
@@ -1228,7 +1262,6 @@ export class IterablePlayer implements Player {
 
   async #stateClose() {
     this.#isPlaying = false;
-    this.#videoGopCache.clear();
     this.#abortPlaybackIterator();
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;

@@ -13,6 +13,7 @@ import {
   PlaybackSpeed,
   PlayerState,
   PublishPayload,
+  SubscribeMessageRange,
   SubscribePayload,
   Topic,
 } from "@foxglove/studio-base/players/types";
@@ -26,6 +27,7 @@ export type MessagePipelineContext = Immutable<{
   subscriptions: SubscribePayload[];
   messageEventsBySubscriberId: Map<string, MessageEvent[]>;
   setSubscriptions: (id: string, subscriptionsForId: Immutable<SubscribePayload[]>) => void;
+  subscribeMessageRange?: SubscribeMessageRange;
   setPublishers: (id: string, publishersForId: AdvertiseOptions[]) => void;
   setParameter: (key: string, value: ParameterValue) => void;
   publish: (request: PublishPayload) => void;

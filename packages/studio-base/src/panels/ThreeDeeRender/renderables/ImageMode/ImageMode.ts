@@ -53,14 +53,17 @@ import {
   ConfigWithDefaults,
   ImageModeEventMap,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/types";
+import { CompressedVideoController } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
 import {
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageRenderable,
   ImageRenderableSettings,
+  ImageSetImageResult,
   ImageUserData,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageRenderable";
 import {
   AnyImage,
+  CompressedVideo,
   getFrameIdFromImage,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageTypes";
 import {
@@ -118,8 +121,10 @@ export class ImageMode
 
   protected imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
+  #lastSetImageResult: Promise<ImageSetImageResult> = Promise.resolve({ ok: false });
 
   protected readonly messageHandler: IMessageHandler;
+  #compressedVideoController: CompressedVideoController;
 
   protected readonly supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
@@ -141,6 +146,21 @@ export class ImageMode
     this.#camera.setFlipVertical(config.flipVertical);
 
     this.messageHandler = this.initMessageHandler(config);
+    this.#compressedVideoController = new CompressedVideoController({
+      renderer,
+      displayFrame: this.#displayCompressedVideoFrame,
+      resetDecoder: () => {
+        this.imageRenderable?.resetForSeek();
+      },
+      getSeekReplayTarget: (messageEvent) => {
+        if (this.renderer.config.imageMode.synchronize !== true) {
+          return undefined;
+        }
+        return messageEvent != undefined
+          ? { type: "publish", time: messageEvent.message.timestamp }
+          : "defer";
+      },
+    });
     this.messageHandler.addListener(this.#updateFromMessageState);
 
     renderer.settings.errors.on("update", this.#handleErrorChange);
@@ -270,7 +290,7 @@ export class ImageMode
         type: "schema",
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
-          handler: this.messageHandler.handleCompressedVideo,
+          handler: this.#handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
           filterQueue: filterCompressedVideoQueue,
         },
@@ -292,9 +312,14 @@ export class ImageMode
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
+    this.#compressedVideoController.dispose();
     this.#annotations.dispose();
     this.imageRenderable?.dispose();
     super.dispose();
+  }
+
+  public override handleSeek(): void {
+    this.#compressedVideoController.handleSeek();
   }
 
   public override removeAllRenderables(): void {
@@ -351,9 +376,13 @@ export class ImageMode
    *  Does not check that image topic is different
    **/
   protected setImageTopic(imageTopic: Topic): void {
+    const previousImageTopic = this.getImageModeSettings().imageTopic;
     const matchingCalibrationTopic = this.#getMatchingCalibrationTopic(imageTopic.name);
     // don't want renderables shared across topics to ensure clean state for new topic
     this.#removeImageRenderable();
+    if (previousImageTopic != undefined && previousImageTopic !== imageTopic.name) {
+      this.#compressedVideoController.clearTopic(previousImageTopic);
+    }
 
     this.renderer.updateConfig((draft) => {
       draft.imageMode.imageTopic = imageTopic.name;
@@ -681,6 +710,18 @@ export class ImageMode
     return this.getImageModeSettings().imageTopic === topic;
   };
 
+  #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
+    this.#compressedVideoController.processMessage(messageEvent);
+  };
+
+  #displayCompressedVideoFrame = async (
+    messageEvent: PartialMessageEvent<CompressedVideo>,
+  ): Promise<ImageSetImageResult> => {
+    this.#lastSetImageResult = Promise.resolve({ ok: false });
+    this.messageHandler.handleCompressedVideo(messageEvent);
+    return await this.#lastSetImageResult;
+  };
+
   #updateFromMessageState = (
     newState: MessageRenderState,
     oldState: MessageRenderState | undefined,
@@ -722,12 +763,13 @@ export class ImageMode
     }
 
     renderable.userData.receiveTime = receiveTime;
-    renderable.setImage(image, /*resizeWidth=*/ undefined, () => {
+    const setImageResult = renderable.setImage(image, /*resizeWidth=*/ undefined, () => {
       if (this.#fallbackCameraModelActive()) {
         this.#updateFallbackCameraModel(renderable);
         this.#updateViewAndRenderables();
       }
     });
+    this.#lastSetImageResult = setImageResult;
   };
 
   /** Creates a fallback camera model based off of the renderable with a decoded image and updates the camera.

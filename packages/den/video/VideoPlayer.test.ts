@@ -117,4 +117,50 @@ describe("VideoPlayer", () => {
     expect(lateFrame.close).toHaveBeenCalledTimes(1);
     expect(player.bufferedFrameCount()).toBe(0);
   });
+
+  it("queues a batch and returns decoded frames with their metadata without buffering them", async () => {
+    const player = new VideoPlayer();
+    await player.init({ codec: "avc1.640028" });
+    const decoder = MockVideoDecoder.instances[0]!;
+    const decoded: Array<{ frame: VideoFrame; metadata: string }> = [];
+
+    player.queueFrames(
+      [
+        { data: new Uint8Array([1]), timestampMicros: 10, type: "key", metadata: "key" },
+        { data: new Uint8Array([2]), timestampMicros: 20, type: "delta", metadata: "delta" },
+      ],
+      (frame) => decoded.push(frame),
+    );
+
+    expect(decoder.chunks.map((chunk) => chunk.timestamp)).toEqual([10, 20]);
+
+    const keyFrame = decoder.emitFrame(10);
+    const deltaFrame = decoder.emitFrame(20);
+
+    expect(decoded).toEqual([
+      { frame: keyFrame, metadata: "key" },
+      { frame: deltaFrame, metadata: "delta" },
+    ]);
+    expect(player.bufferedFrameCount()).toBe(0);
+    expect(player.getLatestFrame()).toBeUndefined();
+  });
+
+  it("closes queued frames that arrive after reset", async () => {
+    const player = new VideoPlayer();
+    await player.init({ codec: "avc1.640028" });
+    const decoder = MockVideoDecoder.instances[0]!;
+    const decoded = jest.fn();
+
+    player.queueFrames(
+      [{ data: new Uint8Array([1]), timestampMicros: 10, type: "key", metadata: "stale" }],
+      decoded,
+    );
+    player.resetForSeek();
+
+    const staleFrame = decoder.emitFrame(10);
+
+    expect(decoded).not.toHaveBeenCalled();
+    expect(staleFrame.close).toHaveBeenCalledTimes(1);
+    expect(player.bufferedFrameCount()).toBe(0);
+  });
 });

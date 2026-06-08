@@ -68,18 +68,30 @@ const VIDEO_FORMATS = new Set(["h264", "h265"]);
 const MIN_IMAGE_RENDER_INTERVAL_MS = 16;
 
 type DecodedImageResource = ImageBitmap | ImageData | VideoFrame;
+type DecodedImageResult = {
+  image: DecodedImageResource;
+  ok: boolean;
+};
+
+export type ImageSetImageResult = {
+  ok: boolean;
+};
 
 type PendingDecodedImage = {
   seq: number;
   result: DecodedImageResource;
+  ok: boolean;
   onDecoded: (() => void) | undefined;
+  resolve: (result: ImageSetImageResult) => void;
 };
 
 type PendingVideoDecode = {
+  seq: number;
   frame: CompressedVideo;
   receiveTime: bigint;
+  onDecoded: (() => void) | undefined;
   settled: boolean;
-  resolve: (result: DecodedImageResource) => void;
+  resolve: (result: DecodedImageResult) => void;
 };
 
 export type ImageUserData = BaseUserData & {
@@ -236,7 +248,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       // Decode the current image again, which takes into account the new options
       const image = this.userData.image;
       if (image) {
-        this.setImage(image);
+        void this.setImage(image);
       }
       return;
     }
@@ -244,41 +256,53 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.settings = newSettings;
   }
 
-  public setImage(image: AnyImage, resizeWidth?: number, onDecoded?: () => void): void {
+  public async setImage(
+    image: AnyImage,
+    resizeWidth?: number,
+    onDecoded?: () => void,
+  ): Promise<ImageSetImageResult> {
     this.userData.image = image;
 
     const seq = ++this.#receivedImageSequenceNumber;
-    const decodePromise = this.decodeImage(image, resizeWidth);
+    const decodePromise = this.decodeImageWithResult(image, resizeWidth, seq, onDecoded);
 
-    decodePromise
-      .then((result) => {
-        this.#handleDecodedImage(seq, result, onDecoded);
-      })
-      .catch((err: unknown) => {
-        log.error(err);
-        if (this.isDisposed()) {
-          return;
-        }
-        // avoid needing to recreate error image if it already shown
-        if (!this.#showingErrorImage) {
-          void this.#setErrorImage(seq, onDecoded);
-        }
-        this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
-      });
+    return await new Promise<ImageSetImageResult>((resolve) => {
+      decodePromise
+        .then((result) => {
+          this.#handleDecodedImage(seq, result, onDecoded, resolve);
+        })
+        .catch((err: unknown) => {
+          log.error(err);
+          if (this.isDisposed()) {
+            resolve({ ok: false });
+            return;
+          }
+          // avoid needing to recreate error image if it already shown
+          if (!this.#showingErrorImage) {
+            void this.#setErrorImage(seq, onDecoded);
+          }
+          this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
+          resolve({ ok: false });
+        });
+    });
   }
 
   #handleDecodedImage(
     seq: number,
-    result: DecodedImageResource,
+    decoded: DecodedImageResult,
     onDecoded: (() => void) | undefined,
+    resolve: (result: ImageSetImageResult) => void,
   ): void {
+    const result = decoded.image;
     if (this.isDisposed()) {
       this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false });
       return;
     }
 
     if (this.#displayedImageSequenceNumber > seq) {
       this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false });
       return;
     }
 
@@ -287,17 +311,19 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       this.update();
       this.#showingErrorImage = false;
       this.removeError(DECODE_IMAGE_ERR_KEY);
+      resolve({ ok: decoded.ok });
       return;
     }
 
     if (seq < this.#receivedImageSequenceNumber) {
       this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false });
       return;
     }
 
     const nextRenderDelayMs = this.#lastRenderImage + MIN_IMAGE_RENDER_INTERVAL_MS - Date.now();
     if (nextRenderDelayMs > 0) {
-      this.#setPendingDecodedImage({ seq, result, onDecoded });
+      this.#setPendingDecodedImage({ seq, result, ok: decoded.ok, onDecoded, resolve });
       this.#pendingRenderTimeout ??= setTimeout(() => {
         this.#pendingRenderTimeout = undefined;
         this.#flushPendingDecodedImage();
@@ -305,14 +331,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return;
     }
 
-    this.#displayDecodedImage(seq, result, onDecoded);
+    this.#displayDecodedImage(seq, decoded, onDecoded, resolve);
   }
 
   #displayDecodedImage(
     seq: number,
-    result: DecodedImageResource,
+    decoded: DecodedImageResult,
     onDecoded: (() => void) | undefined,
+    resolve: (result: ImageSetImageResult) => void,
   ): void {
+    const result = decoded.image;
     this.#clearPendingDecodedImage(result);
     if (this.#pendingRenderTimeout != undefined) {
       clearTimeout(this.#pendingRenderTimeout);
@@ -329,6 +357,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     onDecoded?.();
     this.removeError(DECODE_IMAGE_ERR_KEY);
     this.renderer.queueAnimationFrame();
+    resolve({ ok: decoded.ok });
   }
 
   #setPendingDecodedImage(pending: PendingDecodedImage): void {
@@ -342,7 +371,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return;
     }
     this.#pendingDecodedImage = undefined;
-    this.#handleDecodedImage(pending.seq, pending.result, pending.onDecoded);
+    this.#handleDecodedImage(
+      pending.seq,
+      { image: pending.result, ok: pending.ok },
+      pending.onDecoded,
+      pending.resolve,
+    );
   }
 
   #clearPendingDecodedImage(keep?: DecodedImageResource): void {
@@ -353,6 +387,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.#pendingDecodedImage = undefined;
     if (pending.result !== keep) {
       this.#closeDecodedImageIfUnused(pending.result);
+      pending.resolve({ ok: false });
     }
   }
 
@@ -383,9 +418,18 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     image: AnyImage,
     resizeWidth?: number,
   ): Promise<ImageBitmap | ImageData | VideoFrame> {
+    return (await this.decodeImageWithResult(image, resizeWidth)).image;
+  }
+
+  protected async decodeImageWithResult(
+    image: AnyImage,
+    resizeWidth?: number,
+    seq?: number,
+    onDecoded?: () => void,
+  ): Promise<DecodedImageResult> {
     if ("format" in image) {
       if (!VIDEO_FORMATS.has(image.format)) {
-        return await decodeCompressedImageToBitmap(image, resizeWidth);
+        return { image: await decodeCompressedImageToBitmap(image, resizeWidth), ok: true };
       } else {
         const frameMsg = image as CompressedVideo;
 
@@ -393,27 +437,37 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           const error = "Empty video frame";
           log.error(error);
           if (isVideoFrame(this.#decodedImage)) {
-            return this.#decodedImage;
+            return { image: this.#decodedImage, ok: false };
           }
-          return createEmptyVideoFrame();
+          return { image: createEmptyVideoFrame(), ok: false };
         }
 
         const decoder = (this.decoder ??= new WorkerImageDecoder());
 
-        return await this.#decodeCompressedVideoFrame(decoder, frameMsg);
+        return await this.#decodeCompressedVideoFrame(decoder, frameMsg, seq ?? 0, onDecoded);
       }
     }
-    return await (this.decoder ??= new WorkerImageDecoder()).decode(image, this.userData.settings);
+    return {
+      image: await (this.decoder ??= new WorkerImageDecoder()).decode(
+        image,
+        this.userData.settings,
+      ),
+      ok: true,
+    };
   }
 
   async #decodeCompressedVideoFrame(
     decoder: WorkerImageDecoder,
     frameMsg: CompressedVideo,
-  ): Promise<DecodedImageResource> {
-    return await new Promise<DecodedImageResource>((resolve) => {
+    seq: number,
+    onDecoded: (() => void) | undefined,
+  ): Promise<DecodedImageResult> {
+    return await new Promise<DecodedImageResult>((resolve) => {
       this.#pendingVideoDecodes.push({
+        seq,
         frame: frameMsg,
         receiveTime: this.userData.receiveTime,
+        onDecoded,
         settled: false,
         resolve,
       });
@@ -444,37 +498,77 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (this.isDisposed() || result.requestId !== this.#videoDecodeRequestId) {
       closeDecodeResultFrame(result);
       for (const entry of entries) {
-        this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+        this.#settleVideoDecode(entry, this.#fallbackVideoFrameResult(entry.frame));
       }
       return;
     }
 
     if (result.type !== "TargetFrame" && result.type !== "IntermediateFrame") {
       for (const entry of entries) {
-        this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+        this.#settleVideoDecode(entry, this.#fallbackVideoFrameResult(entry.frame));
+      }
+      if (result.type === "Timeout") {
+        void this.#awaitTargetVideoFrame(decoder, requestId, entries[entries.length - 1]!);
       }
       return;
     }
 
+    const targetEntry = entries[entries.length - 1]!;
     const resultEntry =
-      entries.find(
-        (entry) =>
-          toNanoSec(entry.frame.timestamp) === result.originalTimestamp &&
-          entry.receiveTime === result.receiveTime,
-      ) ?? entries[entries.length - 1]!;
+      result.type === "IntermediateFrame"
+        ? targetEntry
+        : entries.find(
+            (entry) =>
+              toNanoSec(entry.frame.timestamp) === result.originalTimestamp &&
+              entry.receiveTime === result.receiveTime,
+          ) ?? targetEntry;
 
     for (const entry of entries) {
       if (entry === resultEntry) {
         continue;
       }
-      this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+      this.#settleVideoDecode(entry, this.#fallbackVideoFrameResult(entry.frame));
     }
-    this.#settleVideoDecode(resultEntry, result.frame);
+    this.#settleVideoDecode(resultEntry, { image: result.frame, ok: true });
+    if (result.type === "IntermediateFrame") {
+      void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry);
+    }
   }
 
-  #settleVideoDecode(entry: PendingVideoDecode, result: DecodedImageResource): void {
+  async #awaitTargetVideoFrame(
+    decoder: WorkerImageDecoder,
+    requestId: number,
+    targetEntry: PendingVideoDecode,
+  ): Promise<void> {
+    let result: Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>>;
+    try {
+      result = await decoder.awaitTargetFrame({ requestId });
+    } catch {
+      return;
+    }
+    if (result.type !== "TargetFrame") {
+      return;
+    }
+    if (
+      this.isDisposed() ||
+      requestId !== this.#videoDecodeRequestId ||
+      targetEntry.seq !== this.#receivedImageSequenceNumber
+    ) {
+      result.frame.close();
+      return;
+    }
+
+    this.#handleDecodedImage(
+      targetEntry.seq,
+      { image: result.frame, ok: true },
+      targetEntry.onDecoded,
+      () => {},
+    );
+  }
+
+  #settleVideoDecode(entry: PendingVideoDecode, result: DecodedImageResult): void {
     if (entry.settled) {
-      this.#closeDecodedImageIfUnused(result);
+      this.#closeDecodedImageIfUnused(result.image);
       return;
     }
     entry.settled = true;
@@ -485,8 +579,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     const entries = this.#pendingVideoDecodes;
     this.#pendingVideoDecodes = [];
     for (const entry of entries) {
-      this.#settleVideoDecode(entry, this.#fallbackVideoFrame(entry.frame));
+      this.#settleVideoDecode(entry, this.#fallbackVideoFrameResult(entry.frame));
     }
+  }
+
+  #fallbackVideoFrameResult(frameMsg: CompressedVideo): DecodedImageResult {
+    return { image: this.#fallbackVideoFrame(frameMsg), ok: false };
   }
 
   #fallbackVideoFrame(frameMsg: CompressedVideo): DecodedImageResource {
