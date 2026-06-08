@@ -1230,8 +1230,8 @@ describe("pipeline", () => {
 
           export default publisher;`,
         error: 2322,
-        errorMessage: expect.stringContaining(
-          `Type 'Uint32Array' is not assignable to type 'number[] | Float32Array | Float64Array'`,
+        errorMessage: expect.stringMatching(
+          /Type 'Uint32Array(?:<[^']+>)?' is not assignable to type 'number\[\] \| Float32Array(?:<[^']+>)? \| Float64Array(?:<[^']+>)?'/,
         ),
       },
       {

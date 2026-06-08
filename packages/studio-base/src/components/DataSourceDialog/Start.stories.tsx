@@ -55,6 +55,7 @@ export default {
 const playerSelection: PlayerSelection = {
   selectSource: () => {},
   selectRecent: () => {},
+  reloadCurrentSource: async () => {},
   recentSources: [
     {
       id: "1111",

@@ -17,7 +17,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
         {
           configById: {
@@ -25,7 +24,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
       ),
     ).toEqual(true);
@@ -40,7 +38,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
         {
           configById: {
@@ -48,7 +45,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
       ),
     ).toEqual(true);
@@ -63,7 +59,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
         {
           configById: {
@@ -71,7 +66,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
       ),
     ).toEqual(false);
@@ -87,7 +81,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
         {
           configById: {
@@ -95,7 +88,6 @@ describe("isLayoutEqual", () => {
           },
           globalVariables: {},
           userNodes: {},
-          playbackConfig: { speed: 1 },
         },
       ),
     ).toEqual(false);

@@ -40,7 +40,8 @@ export const diffLabels = {
   ID: { labelText: "STUDIO_DIFF___ID" },
 } as const;
 
-export const diffLabelsByLabelText = _.keyBy(Object.values(diffLabels), "labelText");
+export const diffLabelsByLabelText: Record<string, (typeof diffLabels)[keyof typeof diffLabels]> =
+  _.keyBy(Object.values(diffLabels), "labelText");
 
 export type DiffObject = Record<string, unknown>;
 export default function getDiff({

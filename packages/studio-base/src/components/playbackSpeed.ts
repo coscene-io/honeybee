@@ -17,7 +17,7 @@ export const formatPlaybackSpeed = (val: PlaybackSpeed): string =>
   `${val < 0.1 ? val.toFixed(2) : val}×`;
 
 export function stepPlaybackSpeed(
-  currentSpeed: PlaybackSpeed,
+  currentSpeed: number,
   direction: PlaybackSpeedDirection,
 ): PlaybackSpeed {
   if (direction === "increase") {

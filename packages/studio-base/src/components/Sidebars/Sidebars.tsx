@@ -77,7 +77,7 @@ function resolveActiveKey<K extends string>(
     return preferredKey;
   }
 
-  return items.keys().next().value as K | undefined;
+  return items.keys().next().value;
 }
 
 type SidebarProps<LeftKey, RightKey> = PropsWithChildren<{
