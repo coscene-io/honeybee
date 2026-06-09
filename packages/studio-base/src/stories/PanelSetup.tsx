@@ -68,6 +68,7 @@ import {
   PlayerStateActiveData,
   Progress,
   PublishPayload,
+  SubscribeMessageRange,
   Topic,
 } from "@foxglove/studio-base/players/types";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
@@ -105,6 +106,7 @@ export type Fixture = {
   userScriptRosLib?: string;
   savedProps?: SavedProps;
   publish?: (request: PublishPayload) => void;
+  subscribeMessageRange?: SubscribeMessageRange;
   setPublishers?: (publisherId: string, advertisements: AdvertiseOptions[]) => void;
   setSubscriptions?: ComponentProps<typeof MockMessagePipelineProvider>["setSubscriptions"];
   setParameter?: (key: string, value: ParameterValue) => void;
@@ -322,6 +324,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): React.JSX.Element | Rea
     activeData,
     progress,
     publish,
+    subscribeMessageRange,
     setPublishers,
     setSubscriptions,
     setParameter,
@@ -355,6 +358,7 @@ function UnconnectedPanelSetup(props: UnconnectedProps): React.JSX.Element | Rea
         activeData={activeData}
         progress={progress}
         publish={publish}
+        subscribeMessageRange={subscribeMessageRange}
         startPlayback={noop}
         pausePlayback={noop}
         seekPlayback={noop}

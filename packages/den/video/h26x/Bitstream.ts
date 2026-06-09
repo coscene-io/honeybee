@@ -184,3 +184,140 @@ export class Bitstream {
     return this.#buffer[this.#bytePtr++]!;
   }
 }
+
+/**
+ * Bitstream writer for H26x data. The writer inserts emulation prevention bytes when writing
+ * byte-aligned output so the resulting RBSP can be embedded in an Annex B NALU.
+ */
+export class BitstreamWriter {
+  #bytePtr = 0;
+  #currentByte = 0;
+  #bitPtr = 0;
+  #zeroByteCount = 0;
+  #finished = false;
+  readonly #buffer: Uint8Array;
+
+  public constructor(buffer: Uint8Array) {
+    this.#buffer = buffer;
+  }
+
+  public u_1(value: number): void {
+    if (this.#finished) {
+      throw new Error("Attempt to write to bitstream after finish()");
+    }
+    if (this.#bitPtr >= 8) {
+      throw new Error("Invariant: full byte should have been written already");
+    }
+
+    this.#currentByte |= (value & 1) << (7 - this.#bitPtr);
+    if (this.#bitPtr === 7) {
+      this.#writeByte();
+    } else {
+      this.#bitPtr++;
+    }
+  }
+
+  public u_2(value: number): void {
+    this.u_1((value & 2) >>> 1);
+    this.u_1(value & 1);
+  }
+
+  public u_3(value: number): void {
+    this.u_1((value & 4) >>> 2);
+    this.u_1((value & 2) >>> 1);
+    this.u_1(value & 1);
+  }
+
+  public u_8(value: number): void {
+    if (this.#finished) {
+      throw new Error("Attempt to write to bitstream after finish()");
+    }
+    if (this.#bitPtr === 0) {
+      this.#writeRawByte(value & 0xff);
+      return;
+    }
+
+    for (let bit = 7; bit >= 0; bit--) {
+      this.u_1((value >>> bit) & 1);
+    }
+  }
+
+  public u(bits: number, value: number): void {
+    if (this.#finished) {
+      throw new Error("Attempt to write to bitstream after finish()");
+    }
+    if (bits < 1 || bits > 32) {
+      throw new Error(`u(${bits}) is not supported`);
+    }
+    for (let bit = bits - 1; bit >= 0; bit--) {
+      this.u_1((value >>> bit) & 1);
+    }
+  }
+
+  public ue_v(value: number): void {
+    if (this.#finished) {
+      throw new Error("Attempt to write to bitstream after finish()");
+    }
+    if (value >= 0xffffffff) {
+      throw new Error(
+        `ue(v) does not support writing values higher than 2^32-1 (received ${value})`,
+      );
+    }
+
+    const codeNum = value + 1;
+    const bitLength = 32 - Math.clz32(codeNum);
+    for (let i = bitLength - 1; i > 0; i--) {
+      this.u_1(0);
+    }
+    for (let i = bitLength - 1; i >= 0; i--) {
+      this.u_1((codeNum >>> i) & 1);
+    }
+  }
+
+  public se_v(value: number): void {
+    if (value === 0) {
+      this.ue_v(0);
+    } else if (value > 0) {
+      this.ue_v((value << 1) - 1);
+    } else {
+      this.ue_v(-value << 1);
+    }
+  }
+
+  public finish(): void {
+    if (this.#finished) {
+      throw new Error("finish() was already called");
+    }
+    if (this.#bitPtr > 0) {
+      this.#writeByte();
+    }
+    this.#finished = true;
+  }
+
+  public bytesWritten(): number {
+    return this.#bytePtr;
+  }
+
+  #writeByte(): void {
+    this.#writeRawByte(this.#currentByte);
+    this.#currentByte = 0;
+    this.#bitPtr = 0;
+  }
+
+  #writeRawByte(value: number): void {
+    if (value <= 3 && this.#zeroByteCount >= 2) {
+      this.#writeByteToBuffer(3);
+    }
+
+    this.#writeByteToBuffer(value);
+  }
+
+  #writeByteToBuffer(value: number): void {
+    if (this.#bytePtr >= this.#buffer.length) {
+      throw new Error("Write would exceed end of buffer");
+    }
+    this.#buffer[this.#bytePtr] = value;
+    this.#bytePtr++;
+    this.#zeroByteCount = value === 0 ? Math.min(this.#zeroByteCount + 1, 2) : 0;
+  }
+}

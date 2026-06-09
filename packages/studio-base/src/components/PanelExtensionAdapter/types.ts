@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { PanelExtensionContext } from "@foxglove/studio";
+import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 /**
  * An asset loaded from Studio's asset manager.
@@ -80,6 +81,8 @@ export type BuiltinPanelExtensionContext = {
     uri: string,
     options?: { signal?: AbortSignal; referenceUrl?: string },
   ) => Promise<Asset>;
+
+  unstable_subscribeMessageRange?: SubscribeMessageRange;
 
   /**
    * Updates the configuration for message path drag & drop support. A value of `undefined`

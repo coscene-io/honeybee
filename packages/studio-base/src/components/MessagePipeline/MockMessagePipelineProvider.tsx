@@ -40,6 +40,7 @@ import {
   PlayerURLState,
   Progress,
   PublishPayload,
+  SubscribeMessageRange,
   SubscribePayload,
   Topic,
   TopicStats,
@@ -64,6 +65,7 @@ export type MockMessagePipelineProps = {
   problems?: PlayerProblem[];
   publish?: (request: PublishPayload) => void;
   callService?: (service: string, request: unknown) => Promise<unknown>;
+  subscribeMessageRange?: SubscribeMessageRange;
   setPublishers?: (arg0: string, arg1: AdvertiseOptions[]) => void;
   setSubscriptions?: (arg0: string, arg1: Immutable<SubscribePayload[]>) => void;
   setParameter?: (key: string, value: ParameterValue) => void;
@@ -162,6 +164,7 @@ function getPublicState(
         dispatch({ type: "update-subscriber", id, payloads });
         props.setSubscriptions?.(id, payloads);
       }),
+    subscribeMessageRange: props.subscribeMessageRange,
     setPublishers:
       (props.setPublishers === prevState?.mockProps.setPublishers
         ? prevState?.public.setPublishers

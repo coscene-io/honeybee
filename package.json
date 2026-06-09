@@ -17,7 +17,7 @@
   },
   "homepage": "https://www.coscene.cn/",
   "engines": {
-    "node": ">=20"
+    "node": ">=24 <25"
   },
   "scripts": {
     "clean": "tsc --build --clean packages/**/tsconfig.json && rimraf .webpack */.webpack dist storybook-screenshots storybook-static",
@@ -64,7 +64,7 @@
     ]
   },
   "resolutions": {
-    "@types/node": "20.10.0",
+    "@types/node": "24.13.1",
     "@types/react": "18.3.27",
     "react-use": "patch:react-use@17.4.0#./patches/react-use.patch",
     "react-dnd": "patch:react-dnd@npm:16.0.1#./patches/react-dnd.patch",
@@ -94,6 +94,7 @@
     "@types/case-sensitive-paths-webpack-plugin": "2.1.9",
     "@types/jest": "29.5.14",
     "@types/license-checker": "^25.0.6",
+    "@types/node": "24.13.1",
     "@types/semver": "^7.5.6",
     "babel-plugin-transform-import-meta": "2.2.1",
     "cross-env": "7.0.3",
