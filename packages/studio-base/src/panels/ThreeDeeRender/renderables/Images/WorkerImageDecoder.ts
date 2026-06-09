@@ -99,9 +99,7 @@ export class WorkerImageDecoder {
     return await this.#remote.decodeVideoFrames(args);
   }
 
-  public async awaitTargetFrame(
-    args: AwaitTargetFrameArgs,
-  ): Promise<AwaitTargetFrameResult> {
+  public async awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
     return await this.#remote.awaitTargetFrame(args);
   }
 

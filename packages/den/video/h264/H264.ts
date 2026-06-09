@@ -185,7 +185,7 @@ export class H264 implements H26xCodec {
 
         const naluStart = readOffset + boxSize;
         const nextStart = H264.FindNextStartCode(data, naluStart + 1);
-        const naluType = data[naluStart]! & 0x1f;
+        const naluType: H264NaluType = data[naluStart]! & 0x1f;
         if (naluType !== H264NaluType.SPS) {
           rewritten.set(data.subarray(readOffset, nextStart), writeOffset);
           writeOffset += nextStart - readOffset;

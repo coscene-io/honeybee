@@ -7,10 +7,7 @@
 
 import type { MutableRefObject } from "react";
 
-import type {
-  Player,
-  SubscribeMessageRangeArgs,
-} from "@foxglove/studio-base/players/types";
+import type { Player, SubscribeMessageRangeArgs } from "@foxglove/studio-base/players/types";
 import type { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
 import type { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 

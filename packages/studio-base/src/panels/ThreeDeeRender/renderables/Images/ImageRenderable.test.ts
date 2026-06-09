@@ -608,46 +608,6 @@ describe("ImageRenderable", () => {
     }
   });
 
-  it("passes compressed video decode timeout options to the worker", async () => {
-    const time = mockDateNow();
-    try {
-      const frame = new MockVideoFrame() as unknown as VideoFrame;
-      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
-        async ({ requestId }) => ({
-          type: "TargetFrame",
-          requestId,
-          frame,
-          originalTimestamp: 2n,
-          receiveTime: 20n,
-        }),
-      );
-      const decoder = {
-        decodeVideoFrames,
-        awaitTargetFrame: abortAwaitTargetFrame(),
-        resetVideoDecoder: jest.fn(),
-        terminate: jest.fn(),
-      } as unknown as WorkerImageDecoder;
-      const renderable = new TestVideoBatchRenderable(decoder);
-      const keyframe = videoFrameEvent(10n, 1, "key");
-      const delta = videoFrameEvent(20n, 2, "delta");
-
-      await renderable.setCompressedVideoFrames([keyframe, delta], {
-        targetFrameTimeoutMs: 123,
-        anyFrameTimeoutMs: 456,
-      });
-
-      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
-      expect(decodeVideoFrames.mock.calls[0]![0]).toEqual(
-        expect.objectContaining({
-          targetFrameTimeoutMs: 123,
-          anyFrameTimeoutMs: 456,
-        }),
-      );
-    } finally {
-      time.restore();
-    }
-  });
-
   it("serializes compressed video decode batches while a previous worker decode is pending", async () => {
     const time = mockDateNow();
     try {

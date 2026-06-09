@@ -1102,8 +1102,11 @@ export default class UserScriptPlayer implements Player {
 
       Promise.resolve(
         args.onNewRangeIterator(
-          this.#scriptMessageRangeIterator(inputMessages, scriptRegistration, globalVariables, () =>
-            aborted,
+          this.#scriptMessageRangeIterator(
+            inputMessages,
+            scriptRegistration,
+            globalVariables,
+            () => aborted,
           ),
         ),
       ).catch((err: unknown) => {

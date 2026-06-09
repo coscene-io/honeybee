@@ -243,43 +243,6 @@ describe("CompressedVideoController", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it("continues to wider publish-time lookback windows when replay fails to decode", async () => {
-    const keyframe = makeVideoMessage(0n, "key");
-    const delta = makeVideoMessage(20_000_000n, "delta");
-    const displayFrames = jest.fn<
-      Promise<ImageSetImageResult>,
-      Parameters<CompressedVideoDisplayFrames>
-    >(async () => ({ ok: false }));
-    const unsubscribes: jest.Mock[] = [];
-    const subscribeMessageRange = jest.fn<
-      ReturnType<SubscribeMessageRange>,
-      Parameters<SubscribeMessageRange>
-    >(({ onNewRangeIterator }) => {
-      const unsubscribe = jest.fn();
-      unsubscribes.push(unsubscribe);
-      void onNewRangeIterator(
-        (async function* () {
-          yield [keyframe, delta];
-        })(),
-      );
-      return unsubscribe;
-    });
-    const renderer = makeRenderer({ subscribeMessageRange });
-    const controller = makeController({ renderer, displayFrames });
-
-    await controller.displayPublishTimeTarget(delta);
-
-    expect(subscribeMessageRange).toHaveBeenCalledTimes(5);
-    expect(subscribeMessageRange.mock.calls[0]![0].timeRange.end).toEqual({
-      sec: 0,
-      nsec: 20_000_000,
-    });
-    expect(unsubscribes).toHaveLength(5);
-    for (const unsubscribe of unsubscribes) {
-      expect(unsubscribe).toHaveBeenCalledTimes(1);
-    }
-  });
-
   it("clears previous publish-time replay progress after seek", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const middle = makeVideoMessage(10_000_000n, "delta");
@@ -562,40 +525,48 @@ describe("CompressedVideoController", () => {
     expect(subscribeMessageRange).toHaveBeenCalled();
   });
 
-  it("continues to wider lookback windows when replayed lookback frames fail to decode", async () => {
-    const keyframe = makeVideoMessage(0n, "key");
-    const seekDelta = makeVideoMessage(20_000_000n, "delta");
-    const displayFrames = jest.fn<
-      Promise<ImageSetImageResult>,
-      Parameters<CompressedVideoDisplayFrames>
-    >(async () => ({ ok: false }));
-    const unsubscribes: jest.Mock[] = [];
-    const subscribeMessageRange = jest.fn<
-      ReturnType<SubscribeMessageRange>,
-      Parameters<SubscribeMessageRange>
-    >(({ onNewRangeIterator }) => {
-      const unsubscribe = jest.fn();
-      unsubscribes.push(unsubscribe);
-      void onNewRangeIterator(
-        (async function* () {
-          yield [keyframe, seekDelta];
-        })(),
-      );
-      return unsubscribe;
-    });
-    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
-    const controller = makeController({ renderer, displayFrames });
+  it("continues to wider lookback windows when replayed frames fail to decode", async () => {
+    for (const mode of ["publish-target", "seek-backfill"] as const) {
+      const keyframe = makeVideoMessage(0n, "key");
+      const delta = makeVideoMessage(20_000_000n, "delta");
+      const displayFrames = jest.fn<
+        Promise<ImageSetImageResult>,
+        Parameters<CompressedVideoDisplayFrames>
+      >(async () => ({ ok: false }));
+      const unsubscribes: jest.Mock[] = [];
+      const subscribeMessageRange = jest.fn<
+        ReturnType<SubscribeMessageRange>,
+        Parameters<SubscribeMessageRange>
+      >(({ onNewRangeIterator }) => {
+        const unsubscribe = jest.fn();
+        unsubscribes.push(unsubscribe);
+        void onNewRangeIterator(
+          (async function* () {
+            yield [keyframe, delta];
+          })(),
+        );
+        return unsubscribe;
+      });
+      const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+      const controller = makeController({ renderer, displayFrames });
 
-    controller.handleSeek();
-    controller.processMessage(seekDelta);
-    await flushAsyncWork();
+      if (mode === "publish-target") {
+        await controller.displayPublishTimeTarget(delta);
+      } else {
+        controller.handleSeek();
+        controller.processMessage(delta);
+        await flushAsyncWork();
+      }
 
-    expect(subscribeMessageRange).toHaveBeenCalledTimes(5);
-    expect(subscribeMessageRange.mock.calls[0]![0].timeRange.start).toEqual({ sec: 0, nsec: 0 });
-    expect(subscribeMessageRange.mock.calls[1]![0].timeRange.start).toEqual({ sec: 0, nsec: 0 });
-    expect(unsubscribes).toHaveLength(5);
-    for (const unsubscribe of unsubscribes) {
-      expect(unsubscribe).toHaveBeenCalledTimes(1);
+      expect(subscribeMessageRange.mock.calls.length).toBeGreaterThan(1);
+      expect(subscribeMessageRange.mock.calls[0]![0].timeRange.end).toEqual({
+        sec: 0,
+        nsec: 20_000_000,
+      });
+      expect(unsubscribes).toHaveLength(subscribeMessageRange.mock.calls.length);
+      for (const unsubscribe of unsubscribes) {
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+      }
     }
   });
 

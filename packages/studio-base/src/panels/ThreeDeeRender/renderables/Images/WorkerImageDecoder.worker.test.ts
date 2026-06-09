@@ -12,8 +12,8 @@ const mockH264GetFrameInfo = jest.fn((data: Uint8Array) => ({
   isKeyFrame: data[4] === 0x65,
   mayNeedRewrite: data[5] === 0xfe,
 }));
-const mockH264RewriteForLowLatencyDecoding = jest.fn((data: Uint8Array) =>
-  new Uint8Array([...data, 0xaa]),
+const mockH264RewriteForLowLatencyDecoding = jest.fn(
+  (data: Uint8Array) => new Uint8Array([...data, 0xaa]),
 );
 
 jest.mock("@coscene-io/comlink", () => ({

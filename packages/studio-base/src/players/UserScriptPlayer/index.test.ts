@@ -233,8 +233,9 @@ describe("UserScriptPlayer", () => {
         );
         return unsubscribe;
       });
-      (fakePlayer as unknown as { subscribeMessageRange: typeof subscribeMessageRange })
-        .subscribeMessageRange = subscribeMessageRange;
+      (
+        fakePlayer as unknown as { subscribeMessageRange: typeof subscribeMessageRange }
+      ).subscribeMessageRange = subscribeMessageRange;
 
       const outputMessages: MessageEvent[] = [];
       const rangeUnsubscribe = userScriptPlayer.subscribeMessageRange({
