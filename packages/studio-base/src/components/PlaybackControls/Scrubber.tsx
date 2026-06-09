@@ -689,7 +689,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
               <Stack
                 position="absolute"
                 fullWidth
-                style={{ height: THUMBNAIL_STRIP_HEIGHT_PX, bottom: 0, left: 0 }}
+                // Let scrub/hover events fall through to the full-height Slider underneath.
+                style={{
+                  height: THUMBNAIL_STRIP_HEIGHT_PX,
+                  bottom: 0,
+                  left: 0,
+                  pointerEvents: "none",
+                }}
               >
                 <VideoThumbnailOverlay
                   enabled={thumbnailsEnabled}
