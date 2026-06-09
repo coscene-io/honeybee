@@ -80,7 +80,10 @@ export function getLegacyAuthStatusCookieCleanupOptions(
 
   const normalizedFallbackParentDomain = normalizeCookieDomain(fallbackParentDomain);
 
-  if (normalizedFallbackParentDomain.length === 0 || configuredDomain === normalizedFallbackParentDomain) {
+  if (
+    normalizedFallbackParentDomain.length === 0 ||
+    configuredDomain === normalizedFallbackParentDomain
+  ) {
     return undefined;
   }
 
