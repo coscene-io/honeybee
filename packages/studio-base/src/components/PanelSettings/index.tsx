@@ -123,9 +123,12 @@ export default function PanelSettings({
 
   const [config] = useConfigById(selectedPanelId);
 
-  const settingsTree = usePanelStateStore((state) =>
-    selectedPanelId ? state.settingsTrees[selectedPanelId] : undefined,
+  const settingsTreeSelector = useCallback(
+    (state: PanelStateStore) =>
+      selectedPanelId ? state.settingsTrees[selectedPanelId] : undefined,
+    [selectedPanelId],
   );
+  const settingsTree = usePanelStateStore(settingsTreeSelector);
 
   const resetToDefaults = useCallback(() => {
     if (selectedPanelId) {

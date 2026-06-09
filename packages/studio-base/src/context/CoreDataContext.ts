@@ -92,6 +92,9 @@ export type CoreDataStore = {
   coordinatorConfig?: CoordinatorConfig;
   colinkApi?: ReturnType<typeof DevicesApiFactory>;
 
+  // different project in different warehouse, need to dynamically adjust baseUrl according to the current project
+  baseUrl?: string;
+
   reloadRecordTrigger: number;
   reloadProjectTrigger: number;
   reloadDeviceTrigger: number;
@@ -116,6 +119,8 @@ export type CoreDataStore = {
   setCoordinatorConfig: (coordinatorConfig: CoordinatorConfig) => void;
   setColinkApi: (colinkApi: ReturnType<typeof DevicesApiFactory>) => void;
   setOrganization: (organization: AsyncState<Organization>) => void;
+
+  setBaseUrl: (baseUrl: string) => void;
 
   refreshProject: () => void;
   refreshDevice: () => void;

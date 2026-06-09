@@ -44,7 +44,7 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
-// 扩展Footer组件的props接口
+// Extend Footer component props interface
 declare module "@mui/x-data-grid" {
   interface FooterPropsOverrides {
     onButtonClick?: (selectedRows: string[]) => void;
@@ -166,9 +166,12 @@ function TimeCell({ params }: { params: GridRenderCellParams }) {
     return <Typography variant="body2">-</Typography>;
   }
 
-  const time = params.value as { toDate: () => Date };
+  const time = params.value;
+
   return (
-    <Typography variant="body2">{dayjs(time.toDate()).format("YYYY-MM-DD HH:mm:ss")}</Typography>
+    <Typography variant="body2">
+      {dayjs(Number(time.seconds) * 1000).format("YYYY-MM-DD HH:mm:ss")}
+    </Typography>
   );
 }
 
@@ -299,7 +302,7 @@ export default function DevicesTable({
         prompt: t("confirmVizTargetDeviceDescription", { deviceTitle: device.displayName }),
         ok: t("switchImmediately"),
         cancel: t("cancel", {
-          ns: "cosGeneral",
+          ns: "general",
         }),
         variant: "danger",
       }).then((response) => {
@@ -331,6 +334,7 @@ export default function DevicesTable({
           <div className={classes.deviceId}>
             <Link
               href="#"
+              target="_self"
               underline="none"
               variant="body2"
               onClick={() => {

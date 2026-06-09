@@ -114,6 +114,7 @@ import { TaskCategoryEnum_TaskCategory } from "@coscene-io/cosceneapis-es-v2/cos
 import { TaskStateEnum_TaskState } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/enums/task_state_pb";
 import { FileSchema as File_esSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import type { File as File_es } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
+import type { StorageCluster } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/storage_cluster_pb";
 import { TaskSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import type { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/task_pb";
 import {
@@ -136,6 +137,10 @@ import type {
   GenerateFileDownloadUrlResponse,
   GenerateFileUploadUrlsResponse,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
+import {
+  GetStorageClusterRequestSchema,
+  StorageClusterService,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/storage_cluster_pb";
 import {
   TaskService,
   UpsertTaskRequestSchema,
@@ -169,7 +174,12 @@ import {
   ExternalInitConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
-import { getPromiseClient, CosQuery, SerializeOption } from "@foxglove/studio-base/util/coscene";
+import {
+  getPromiseClient,
+  CosQuery,
+  SerializeOption,
+  isAuthlessDataSource,
+} from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
@@ -186,6 +196,25 @@ import { Auth } from "@foxglove/studio-desktop/src/common/types";
 import { HttpError } from "./HttpError";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
+
+// Volcano Engine (火山云) base URL — used by China-region clients.
+const VOLC_BASE_URL = "https://viz.volc.coscene.cn";
+
+// International host for getStreams when the client is outside China Standard Time zones.
+const VOLC_STREAM_INTL_HOST = "https://viz-volc.intl.coscene.cn";
+
+// All IANA timezone identifiers that map to UTC+8 China Standard Time.
+// Intl may return any of these depending on the OS/locale configuration.
+const CHINA_STANDARD_TIME_ZONES = new Set([
+  "Asia/Shanghai",
+  "Asia/Chongqing",
+  "Asia/Harbin",
+  "Asia/Urumqi",
+  "Asia/Kashgar",
+  "PRC",
+]);
+
+const STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT = new Set(["/v1/data/getStreams"]);
 
 export type User = {
   id: string;
@@ -317,7 +346,6 @@ export type FileList = {
   recordName: string;
   ghostModeFileType: "NORMAL_FILE" | "GHOST_RESULT_FILE" | "GHOST_SOURCE_FILE";
   mediaStatus: MediaStatus;
-  sha256: string;
 };
 
 export type getPlaylistResponse = {
@@ -425,8 +453,16 @@ class CoSceneConsoleApi {
     this.#authHeader = jwt;
   }
 
-  public async setApiBaseInfo(baseInfo: ApiBaseInfo): Promise<void> {
+  public async setApiBaseInfo(
+    baseInfo: ApiBaseInfo,
+    options?: {
+      fetchPermissionList?: boolean;
+    },
+  ): Promise<void> {
     this.#baseInfo = baseInfo;
+    if (options?.fetchPermissionList === false) {
+      return;
+    }
     await this.#getPermissionList();
   }
 
@@ -450,6 +486,10 @@ class CoSceneConsoleApi {
     return this.#baseUrl;
   }
 
+  public setBaseUrl(baseUrl: string): void {
+    this.#baseUrl = baseUrl;
+  }
+
   public getBffUrl(): string {
     return this.#bffUrl;
   }
@@ -464,6 +504,16 @@ class CoSceneConsoleApi {
 
   public setResponseObserver(observer: undefined | ((response: Response) => void)): void {
     this.#responseObserver = observer;
+  }
+
+  #getRecordName(): string | undefined {
+    const { warehouseId, projectId, recordId } = this.#baseInfo;
+
+    if (!warehouseId || !projectId || !recordId) {
+      return undefined;
+    }
+
+    return `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
   }
 
   public async orgs(): Promise<Org[]> {
@@ -681,23 +731,44 @@ class CoSceneConsoleApi {
     },
   );
 
+  /**
+   * Returns true when a stream endpoint should be redirected to the international host.
+   * Conditions: the endpoint is in the redirect list, the configured base URL is the Volcano
+   * Engine host, and the client's local timezone is NOT a China Standard Time zone.
+   */
+  #needsIntlStreamRedirect(url: string): boolean {
+    return (
+      STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT.has(url) &&
+      this.#baseUrl === VOLC_BASE_URL &&
+      !CHINA_STANDARD_TIME_ZONES.has(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    );
+  }
+
   public getRequectConfig(
     url: string,
     config?: RequestInit,
     // eslint-disable-next-line @foxglove/no-boolean-parameters
     customHost?: boolean,
   ): { fullUrl: string; fullConfig: RequestInit } {
-    const fullUrl =
-      customHost != undefined && customHost
-        ? url
-        : url.startsWith("/bff")
-        ? `${this.#bffUrl}${url}`
-        : `${this.#baseUrl}${url}`;
+    const recordName = this.#getRecordName();
+    let fullUrl;
+
+    if (this.#needsIntlStreamRedirect(url)) {
+      fullUrl = `${VOLC_STREAM_INTL_HOST}${url}`;
+    } else {
+      fullUrl =
+        customHost != undefined && customHost
+          ? url
+          : url.startsWith("/bff")
+          ? `${this.#bffUrl}${url}`
+          : `${this.#baseUrl}${url}`;
+    }
 
     const fullConfig: RequestInit = {
       ...config,
       headers: {
         Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+        ...(recordName ? { "Record-Name": recordName } : {}),
         ...config?.headers,
       },
     };
@@ -727,15 +798,17 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        if (!isDesktopApp()) {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
-        } else {
-          authBridge?.logout();
+        if (!isAuthlessDataSource()) {
+          if (!isDesktopApp()) {
+            window.location.href = `/login?redirectToPath=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`;
+          } else {
+            authBridge?.logout();
+          }
         }
       } else if (res.status === 403) {
-        toast.error(t("unauthorized", { ns: "cosError" }));
+        toast.error(t("unauthorized", { ns: "error" }));
         throw new HttpError(
           403,
           "Unauthorized. Please check if you are logged in and have permission to access.",
@@ -750,7 +823,7 @@ class CoSceneConsoleApi {
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
         if (coSceneErrorMessageKey) {
-          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "cosError" })}`);
+          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "error" })}`);
         }
 
         this.#problemManager.addProblem("CoScene:request-error", {
@@ -936,13 +1009,20 @@ class CoSceneConsoleApi {
     });
   }
 
-  public async deleteEvent({ eventName }: { eventName: string }): Promise<Empty> {
-    const deleteEventRequest = create(DeleteEventRequestSchema, {
-      name: eventName,
-    });
+  public deleteEvent = Object.assign(
+    async ({ eventName }: { eventName: string }): Promise<Empty> => {
+      const deleteEventRequest = create(DeleteEventRequestSchema, {
+        name: eventName,
+      });
 
-    return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
-  }
+      return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
+    },
+    {
+      permission: () => {
+        return checkUserPermission(Endpoint.DeleteEvent, this.#permissionList);
+      },
+    },
+  );
 
   public updateEvent = Object.assign(
     async ({ event, updateMask }: { event: Event; updateMask: FieldMask }): Promise<void> => {
@@ -1668,6 +1748,20 @@ class CoSceneConsoleApi {
     {
       permission: () => {
         return checkUserPermission(Endpoint.GetOrgConfigMap, this.#permissionList);
+      },
+    },
+  );
+
+  public getStorageCluster = Object.assign(
+    async (
+      payload: MessageInitShape<typeof GetStorageClusterRequestSchema>,
+    ): Promise<StorageCluster> => {
+      const req = create(GetStorageClusterRequestSchema, payload);
+      return await getPromiseClient(StorageClusterService).getStorageCluster(req);
+    },
+    {
+      permission: () => {
+        return true;
       },
     },
   );

@@ -231,9 +231,12 @@ function TimeCell({ params }: { params: GridRenderCellParams }) {
     return <Typography variant="body2">-</Typography>;
   }
 
-  const time = params.value as { toDate: () => Date };
+  const time = params.value;
+
   return (
-    <Typography variant="body2">{dayjs(time.toDate()).format("YYYY-MM-DD HH:mm:ss")}</Typography>
+    <Typography variant="body2">
+      {dayjs(Number(time.seconds) * 1000).format("YYYY-MM-DD HH:mm:ss")}
+    </Typography>
   );
 }
 
@@ -362,7 +365,7 @@ export default function RecordTable({
         prompt: t("confirmVizTargetRecordDescription", { recordTitle }),
         ok: t("enterImmediately"),
         cancel: t("cancel", {
-          ns: "cosGeneral",
+          ns: "general",
         }),
         variant: "danger",
       }).then((response) => {
@@ -392,6 +395,7 @@ export default function RecordTable({
           <div className={classes.deviceId}>
             <Link
               href="#"
+              target="_self"
               underline="none"
               variant="body2"
               onClick={() => {

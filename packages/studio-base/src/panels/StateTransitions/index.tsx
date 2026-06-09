@@ -646,6 +646,7 @@ function StateTransitions(props: Props) {
 const defaultConfig: StateTransitionConfig = {
   paths: [],
   isSynced: true,
+  showPoints: false,
 };
 export default Panel(
   Object.assign(StateTransitions, {

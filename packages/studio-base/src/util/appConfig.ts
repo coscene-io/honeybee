@@ -24,6 +24,8 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
     ssoDomain: "sso.dev.coscene.cn",
   },
 };
+const DEFAULT_DEV_OBJECT_STORAGE_BASE_URL = "coscene-dev-honeybee-sh.tos-cn-shanghai.volces.com";
+
 declare global {
   interface Window {
     cosConfig?: {
@@ -55,8 +57,10 @@ declare global {
       OFFICIAL_WEB_URL?: string;
       COORDINATOR_URL?: string;
       S3_REGION?: string;
+      OBJECT_STORAGE_BASE_URL?: string;
     };
     buildTime?: string;
+    cosConfigRemoteHostname?: string;
   }
 }
 
@@ -110,7 +114,11 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
     COORDINATOR_URL: cosConfig.COORDINATOR_URL ?? "https://coordinator.dev.coscene.cn",
 
-    S3_REGION: cosConfig.S3_REGION ?? "dev-cn-shanghai",
+    S3_REGION: cosConfig.S3_REGION ?? "cn-shanghai",
+
+    OBJECT_STORAGE_BASE_URL:
+      cosConfig.OBJECT_STORAGE_BASE_URL ??
+      (process.env.NODE_ENV === "development" ? DEFAULT_DEV_OBJECT_STORAGE_BASE_URL : undefined),
   };
 
   if (
@@ -125,9 +133,13 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 
 export function getDomainConfig(): DomainConfig {
   const appConfig = getAppConfig();
+  const hostname = typeof window !== "undefined" ? window.location.hostname : undefined;
+  const remoteConfigHostname =
+    typeof window !== "undefined" ? window.cosConfigRemoteHostname : undefined;
 
   return (
-    appConfig.DOMAIN_CONFIG?.[window.location.hostname] ??
+    (hostname ? appConfig.DOMAIN_CONFIG?.[hostname] : undefined) ??
+    (remoteConfigHostname ? appConfig.DOMAIN_CONFIG?.[remoteConfigHostname] : undefined) ??
     appConfig.DOMAIN_CONFIG?.default ??
     DEFAULT_DOMAN_CONFIG.default!
   );

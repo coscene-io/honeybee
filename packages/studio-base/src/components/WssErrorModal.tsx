@@ -35,7 +35,7 @@ export default function WssErrorModal(
 
   const [open, setOpen] = useState(true);
   const [hasDismissedWssErrorModal, setHasDismissedWssErrorModal] = useState(false);
-  const { t } = useTranslation("cosWebsocket");
+  const { t } = useTranslation("websocket");
 
   const handleClose = () => {
     setOpen(false);

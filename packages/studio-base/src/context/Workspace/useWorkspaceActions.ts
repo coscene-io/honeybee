@@ -21,6 +21,7 @@ import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 import {
   LeftSidebarItemKey,
   LeftSidebarItemKeys,
+  type MomentSubtitlePosition,
   RightSidebarItemKey,
   RightSidebarItemKeys,
   WorkspaceContext,
@@ -57,7 +58,12 @@ export type WorkspaceActions = {
 
   playbackControlActions: {
     setRepeat: Dispatch<SetStateAction<boolean>>;
+    setRollingEditEnabled: Dispatch<SetStateAction<boolean>>;
     setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
+    setTimelineHeight: Dispatch<SetStateAction<number>>;
+    setMomentSubtitleEnabled: Dispatch<SetStateAction<boolean>>;
+    setMomentSubtitleFontSize: Dispatch<SetStateAction<number>>;
+    setMomentSubtitlePosition: Dispatch<SetStateAction<undefined | MomentSubtitlePosition>>;
   };
 
   sidebarActions: {
@@ -185,10 +191,43 @@ export function useWorkspaceActions(): WorkspaceActions {
             draft.playbackControls.repeat = repeat;
           });
         },
+        setRollingEditEnabled: (setter: SetStateAction<boolean>) => {
+          set((draft) => {
+            const rollingEditEnabled = setterValue(
+              setter,
+              draft.playbackControls.rollingEditEnabled,
+            );
+            draft.playbackControls.rollingEditEnabled = rollingEditEnabled;
+          });
+        },
         setSpeed: (setter: SetStateAction<PlaybackSpeed>) => {
           set((draft) => {
             const speed = setterValue(setter, draft.playbackControls.speed);
             draft.playbackControls.speed = speed;
+          });
+        },
+        setTimelineHeight: (setter: SetStateAction<number>) => {
+          set((draft) => {
+            const timelineHeight = setterValue(setter, draft.playbackControls.timelineHeight);
+            draft.playbackControls.timelineHeight = timelineHeight;
+          });
+        },
+        setMomentSubtitleEnabled: (setter: SetStateAction<boolean>) => {
+          set((draft) => {
+            const enabled = setterValue(setter, draft.playbackControls.momentSubtitle.enabled);
+            draft.playbackControls.momentSubtitle.enabled = enabled;
+          });
+        },
+        setMomentSubtitleFontSize: (setter: SetStateAction<number>) => {
+          set((draft) => {
+            const fontSize = setterValue(setter, draft.playbackControls.momentSubtitle.fontSize);
+            draft.playbackControls.momentSubtitle.fontSize = fontSize;
+          });
+        },
+        setMomentSubtitlePosition: (setter: SetStateAction<undefined | MomentSubtitlePosition>) => {
+          set((draft) => {
+            const position = setterValue(setter, draft.playbackControls.momentSubtitle.position);
+            draft.playbackControls.momentSubtitle.position = position;
           });
         },
       },

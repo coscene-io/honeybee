@@ -26,7 +26,7 @@ module.exports = {
           const callExpr = node.parent;
 
           const { esTreeNodeToTSNodeMap, program } = ESLintUtils.getParserServices(context);
-          const sourceCode = context.getSourceCode();
+          const sourceCode = context.sourceCode;
           const checker = program.getTypeChecker();
           const objectTsNode = esTreeNodeToTSNodeMap.get(node.object);
           const objectType = checker.getTypeAtLocation(objectTsNode);

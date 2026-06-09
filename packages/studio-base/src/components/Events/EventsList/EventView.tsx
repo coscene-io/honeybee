@@ -8,7 +8,6 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
-import { DeleteFileRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/file_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
@@ -24,6 +23,7 @@ import { makeStyles } from "tss-react/mui";
 import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
+import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   useMessagePipeline,
@@ -136,7 +136,7 @@ function EventViewComponent(params: {
   const customFieldSchema = useEvents(selectCustomFieldSchema);
 
   const { formatTime } = useAppTimeFormat();
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
@@ -162,18 +162,7 @@ function EventViewComponent(params: {
   const [show, setShow] = useState(true);
 
   const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
-    if (event.event.files[0]) {
-      try {
-        await consoleApi.deleteFile(
-          create(DeleteFileRequestSchema, { name: event.event.files[0] }),
-        );
-      } catch (error) {
-        console.error("Error deleting file", error);
-      }
-    }
-
-    await consoleApi.deleteEvent({ eventName: event.event.name });
-
+    await deleteEventWithFile({ consoleApi, event });
     toast.success(t("momentDeleted"));
     refreshEvents();
   }, [consoleApi, event, refreshEvents, t]);
@@ -274,6 +263,7 @@ function EventViewComponent(params: {
       enabledCreateNewTask: false,
       fileName: "",
       imgUrl: event.imgUrl,
+      files: event.event.files,
       record: event.event.record,
       customFieldValues: event.event.customFieldValues,
     });
@@ -392,7 +382,7 @@ function EventViewComponent(params: {
               <ShareIcon fontSize="small" />
             </IconButton>
 
-            {consoleApi.updateEvent.permission() &&
+            {consoleApi.deleteEvent.permission() &&
               projectIsArchived === false &&
               recordIsArchived === false && (
                 <IconButton size="small" onClick={confirmDelete} title={t("delete")}>

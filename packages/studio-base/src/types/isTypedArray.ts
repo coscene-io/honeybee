@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as _ from "lodash-es";
-
 type TypedArray =
   | Int8Array
   | Uint8Array
@@ -20,6 +18,13 @@ type TypedArray =
   | BigUint64Array
   | Uint8ClampedArray;
 
+/**
+ * Check if a value is a TypedArray.
+ *
+ * Uses native ArrayBuffer.isView() instead of lodash's isTypedArray() for better performance.
+ * Lodash internally uses Object.prototype.toString.call() which creates temporary string objects,
+ * causing memory allocation and GC pressure when called frequently.
+ */
 export function isTypedArray(value: unknown): value is TypedArray {
-  return _.isTypedArray(value);
+  return ArrayBuffer.isView(value) && !(value instanceof DataView);
 }

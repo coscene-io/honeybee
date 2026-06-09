@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
@@ -6,7 +8,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 /* eslint-disable @typescript-eslint/no-deprecated */
-/** @jest-environment jsdom */
 
 import { renderHook } from "@testing-library/react";
 

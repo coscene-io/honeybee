@@ -25,7 +25,9 @@ export type DataSourceFactoryInitializeArgs = {
   confirm?: confirmTypes;
   requestWindow?: Time;
   readAheadDuration?: Time;
+  manifestStorageSource?: string;
   autoConnectToLan?: boolean;
+  checkOutboundTrafficEntitlement?: () => boolean;
 } & PersistentCacheSourceInitializeArgs;
 
 export type DataSourceFactoryType = "file" | "connection" | "sample" | "persistent-cache";
@@ -79,7 +81,9 @@ export interface IDataSourceFactory {
   supportsMultiFile?: boolean;
 
   // Initialize a player.
-  initialize: (args: DataSourceFactoryInitializeArgs) => Player | undefined;
+  initialize: (
+    args: DataSourceFactoryInitializeArgs,
+  ) => Player | Promise<Player | undefined> | undefined;
 }
 
 /**

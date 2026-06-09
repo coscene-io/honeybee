@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 import { subtract as subtractTimes, areEqual, fromMillis, Time, toSec } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
@@ -66,6 +66,7 @@ const selectEndTime = ({ playerState }: MessagePipelineContext) => playerState.a
 const selectTopicStats = (ctx: MessagePipelineContext) =>
   ctx.playerState.activeData?.topicStats ?? EMPTY_TOPIC_STATS;
 const selectPlayerCapabilities = (ctx: MessagePipelineContext) => ctx.playerState.capabilities;
+const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
 
 type StatSample = {
   time: Time;
@@ -90,12 +91,13 @@ export function useTopicPublishFrequencies(): Immutable<FrequenciesByTopic> {
   const endTime = useMessagePipeline(selectEndTime);
   const topicStats = useMessagePipeline(selectTopicStats);
   const playerCapabilities = useMessagePipeline(selectPlayerCapabilities);
+  const playerId = useMessagePipeline(selectPlayerId);
   const duration = useMemo(
     () => (endTime && startTime ? subtractTimes(endTime, startTime) : { sec: 0, nsec: 0 }),
     [endTime, startTime],
   );
 
-  const samplesByTopic = useRef<Record<string, StatSample>>({});
+  const samplesByTopic = useMemo<Record<string, StatSample>>(() => ({}), [playerId]);
 
   const playerIsStaticSource = useMemo(
     () => playerCapabilities.includes(PlayerCapabilities.playbackControl),
@@ -121,9 +123,9 @@ export function useTopicPublishFrequencies(): Immutable<FrequenciesByTopic> {
         result[topic] = frequency;
       } else {
         // For a live source we calculate a running average of frequency.
-        const sample = samplesByTopic.current[topic];
+        const sample = samplesByTopic[topic];
         if (sample == undefined) {
-          samplesByTopic.current[topic] = {
+          samplesByTopic[topic] = {
             time: currentTime,
             count: stat.numMessages,
             frequency: undefined,
@@ -146,7 +148,7 @@ export function useTopicPublishFrequencies(): Immutable<FrequenciesByTopic> {
     }
 
     return result;
-  }, [playerCurrentTime, duration, playerIsStaticSource, topicStats]);
+  }, [playerCurrentTime, duration, playerIsStaticSource, samplesByTopic, topicStats]);
 
   return frequencies;
 }

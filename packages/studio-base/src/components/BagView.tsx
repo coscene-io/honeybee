@@ -195,7 +195,7 @@ function BagViewComponent(params: {
   } = params;
   const { classes, cx } = useStyles();
   const { formatTime } = useAppTimeFormat();
-  const { t } = useTranslation("cosPlaylist");
+  const { t } = useTranslation("playList");
   const [boxIsHovered, setBoxIsHovered] = useState<boolean>(false);
   const urlState = useMessagePipeline(selectUrlState);
   const consoleApi = useConsoleApi();
@@ -239,7 +239,6 @@ function BagViewComponent(params: {
 
       newFiles.push({
         filename: file.name,
-        sha256: file.sha256,
       });
     });
 
@@ -287,7 +286,7 @@ function BagViewComponent(params: {
       }),
       ok: t("remove"),
       cancel: t("cancel", {
-        ns: "cosGeneral",
+        ns: "general",
       }),
       variant: "danger",
     });

@@ -587,13 +587,12 @@ export default function Panel<
       <Profiler
         id={childId}
         onRender={(
-          _id,
-          _phase,
-          actualDuration,
-          _baseDuration,
-          _startTime,
-          _commitTime,
-          _interactions,
+          _id: string,
+          _phase: "mount" | "update" | "nested-update",
+          actualDuration: number,
+          _baseDuration: number,
+          _startTime: number,
+          _commitTime: number,
         ) => {
           if (perfInfo.current) {
             perfInfo.current.innerText = `${++renderCount.current}\n${actualDuration.toFixed(1)}ms`;

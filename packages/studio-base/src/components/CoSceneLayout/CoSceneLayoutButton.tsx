@@ -52,7 +52,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const confirm = useConfirm();
 
   const layoutManager = useLayoutManager();
@@ -218,10 +218,10 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           title: `${t("update")} "${item.name}"?`,
           prompt: t("updateRemoteLayoutConfirm"),
           ok: t("save", {
-            ns: "cosGeneral",
+            ns: "general",
           }),
           cancel: t("cancel", {
-            ns: "cosGeneral",
+            ns: "general",
           }),
         });
         if (response !== "ok") {
@@ -247,7 +247,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         prompt: t("revertLayoutConfirm"),
         ok: t("discardChanges"),
         cancel: t("cancel", {
-          ns: "cosGeneral",
+          ns: "general",
         }),
       });
       if (response !== "ok") {

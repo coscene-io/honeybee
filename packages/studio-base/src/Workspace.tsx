@@ -29,7 +29,10 @@ import {
 import { DeepLinksSyncAdapter } from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import { EventsList } from "@foxglove/studio-base/components/Events/EventsList";
-import ExtensionsSettings from "@foxglove/studio-base/components/ExtensionsSettings";
+import { MomentSubtitleOverlay } from "@foxglove/studio-base/components/Events/MomentSubtitleOverlay";
+import ExtensionsSettings, {
+  ExtensionsSettingsMore,
+} from "@foxglove/studio-base/components/ExtensionsSettings";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -174,6 +177,10 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     return extensions;
   }, [availableSources]);
 
+  const remoteFileDataSource = useMemo(() => {
+    return availableSources.find((source) => source.id === "remote-file");
+  }, [availableSources]);
+
   // We use playerId to detect when a player changes for RemountOnValueChange below
   // see comment below above the RemountOnValueChange component
   const playerId = useMessagePipeline(selectPlayerId);
@@ -222,25 +229,25 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       [
         "playlist",
         {
-          title: t("playlist", { ns: "cosWorkspace" }),
+          title: t("playlist", { ns: "workspace" }),
           component: Playlist,
           hidden: enableList.playlist === "DISABLE",
         },
       ],
-      ["panel-settings", { title: t("panel", { ns: "cosWorkspace" }), component: PanelSettings }],
-      ["topics", { title: t("topics", { ns: "cosWorkspace" }), component: TopicList }],
+      ["panel-settings", { title: t("panel", { ns: "workspace" }), component: PanelSettings }],
+      ["topics", { title: t("topics", { ns: "workspace" }), component: TopicList }],
       [
         "moment",
         {
-          title: t("moment", { ns: "cosWorkspace" }),
+          title: t("moment", { ns: "workspace" }),
           component: EventsList,
-          hidden: !paid || enableList.event === "DISABLE",
+          hidden: enableList.event === "DISABLE",
         },
       ],
       [
         "tasks",
         {
-          title: t("tasks", { ns: "cosWorkspace" }),
+          title: t("tasks", { ns: "workspace" }),
           component: TasksList,
           hidden: !paid || enableList.task === "DISABLE",
         },
@@ -306,8 +313,14 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     navigator.userAgent.includes("Mac") ? event.metaKey : event.ctrlKey;
 
   function ExtensionsSidebar() {
+    const { t } = useTranslation("workspace");
+
     return (
-      <SidebarContent title="Extensions" disablePadding>
+      <SidebarContent
+        title={t("extensions")}
+        disablePadding
+        trailingItems={[<ExtensionsSettingsMore key="extensions-settings-more" />]}
+      >
         <ExtensionsSettings />
       </SidebarContent>
     );
@@ -321,19 +334,30 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       "]": () => {
         sidebarActions.right.setOpen((oldValue) => !oldValue);
       },
-      o: (ev: KeyboardEvent) => {
+      // Mod+O opens a local file, Mod+Shift+O opens connections, Mod+Alt+O jumps to Remote File.
+      KeyO: (ev: KeyboardEvent) => {
         if (!keyboardEventHasModifier(ev)) {
-          return;
+          return false;
         }
-        ev.preventDefault();
         if (ev.shiftKey) {
           dialogActions.dataSource.open("connection");
-          return;
+          return true;
+        }
+        if (ev.altKey) {
+          dialogActions.dataSource.open("connection", remoteFileDataSource);
+          return true;
         }
         void dialogActions.openFile.open().catch(console.error);
+        return true;
       },
     };
-  }, [dialogActions.dataSource, dialogActions.openFile, sidebarActions.left, sidebarActions.right]);
+  }, [
+    dialogActions.dataSource,
+    dialogActions.openFile,
+    remoteFileDataSource,
+    sidebarActions.left,
+    sidebarActions.right,
+  ]);
 
   const play = useMessagePipeline(selectPlay);
   const playUntil = useMessagePipeline(selectPlayUntil);
@@ -404,6 +428,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
             </Stack>
           </RemountOnValueChange>
         </Sidebars>
+        {enableList.event === "ENABLE" && <MomentSubtitleOverlay />}
         {play != undefined &&
           pause != undefined &&
           seek != undefined &&

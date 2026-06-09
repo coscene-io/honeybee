@@ -16,4 +16,9 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   on: undefined,
   off: undefined,
   auto: undefined,
+  enableMomentSubtitles: "Enable moment subtitles",
+  disableMomentSubtitles: "Disable moment subtitles",
+  decreaseMomentSubtitleFontSize: "Decrease subtitle font size",
+  increaseMomentSubtitleFontSize: "Increase subtitle font size",
+  resetMomentSubtitlePosition: "Reset subtitle position",
 };

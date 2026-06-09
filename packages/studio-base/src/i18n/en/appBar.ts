@@ -8,7 +8,6 @@
 export const appBar = {
   about: "About",
   addPanel: "Add panel",
-  documentation: "Documentation",
   exploreSampleData: "Explore sample data",
   exportLayoutToFile: "Export layout to file…",
   extensions: "Extensions",
@@ -26,7 +25,7 @@ export const appBar = {
   openLocalFile: "Open local file…",
   recentDataSources: "Recent data sources",
   recentlyViewed: "Recently viewed",
-  settings: "Visualization settings",
+  visualizationSettings: "Visualization settings",
   showLeftSidebar: "Show left sidebar",
   showRightSidebar: "Show right sidebar",
   signIn: "Sign in",
@@ -37,6 +36,7 @@ export const appBar = {
   viewData: "View data",
   viewOurDocs: "View our docs",
   profile: "Profile",
+  rawData: "Raw Data",
   mediaGeneratingTips:
     "media File generation in progress, refresh page to play when finished ({{successfulCount}}/{{totalCount}})",
   mediaSuccessfulGeneration:
@@ -80,4 +80,14 @@ export const appBar = {
   droppedMessages: "Dropped Messages",
   packetLoss: "Packet Loss",
   networkStatusHelp: "Only coBridge ≥ v1.2.0 can show network status information",
+  settings: "Settings",
+  documentation: "Documentation",
+  login: "Login",
+  signOutConfirmTitle: "Are you sure you want to sign out?",
+  signOutConfirmOk: "Sign out",
+  signOutConfirmCancel: "No",
+  menu: "Menu",
+  signoutSuccess: "Sign out success",
+  downloadLatestStudio: "Download coStudio",
+  userFeedback: "User Feedback",
 };

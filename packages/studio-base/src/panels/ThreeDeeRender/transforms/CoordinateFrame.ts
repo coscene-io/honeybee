@@ -200,6 +200,14 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
     }
   }
 
+  /** Clears all transforms and releases them back to the pool. */
+  public clearTransforms(): void {
+    const removed = this.#transforms.clear();
+    for (const [, tf] of removed) {
+      this.#transformPool.release(tf);
+    }
+  }
+
   /**
    * Find the closest transform(s) in the transform history to the given time.
    * Note that if an exact match is found, both `outLower` and `outUpper` will

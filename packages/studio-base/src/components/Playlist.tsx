@@ -149,7 +149,7 @@ export function Playlist(): React.JSX.Element {
   const currentBagFiles = usePlaylist(selectCurrentBagFiles);
   const seek = useMessagePipeline(selectSeek);
   const { classes } = useStyles();
-  const { t } = useTranslation("cosPlaylist");
+  const { t } = useTranslation("playList");
   const confirm = useConfirm();
   const consoleApi = useConsoleApi();
 
@@ -215,20 +215,19 @@ export function Playlist(): React.JSX.Element {
     [setHoveredBag],
   );
 
-  const handleAddFiles = (selectedFiles: { filename: string; sha256: string }[]) => {
+  const handleAddFiles = (selectedFiles: { filename: string }[]) => {
     const files: readonly ParamsFile[] = externalInitConfig?.files ?? [];
-    const fileNamesSet = new Set<{ filename: string; sha256: string }>();
+    const fileNamesSet = new Set<{ filename: string }>();
 
     selectedFiles.forEach((file) => {
       fileNamesSet.add({
         filename: file.filename,
-        sha256: file.sha256,
       });
     });
 
     files.forEach((bag) => {
       if ("filename" in bag) {
-        fileNamesSet.add({ filename: bag.filename, sha256: bag.sha256 });
+        fileNamesSet.add({ filename: bag.filename });
       }
     });
 
@@ -400,14 +399,12 @@ export function Playlist(): React.JSX.Element {
           setAddFileDialogOpen(false);
         }}
         onConfirm={(files) => {
-          const fileNames = files.map((file) => ({
-            filename: file.file.name,
-            sha256: file.file.sha256,
-          }));
-
+          const fileNames = files.map((file) => ({ filename: file.file.name }));
           handleAddFiles(fileNames);
         }}
         mode="select-files-from-record"
+        disableProjectSelect
+        disableCreateRecord
       />
     </Stack>
   );

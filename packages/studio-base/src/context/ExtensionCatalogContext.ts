@@ -6,7 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createContext } from "react";
-import { StoreApi, useStore } from "zustand";
+import { StoreApi } from "zustand";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import {
@@ -48,7 +49,7 @@ export const ExtensionCatalogContext = createContext<undefined | StoreApi<Extens
 
 export function useExtensionCatalog<T>(selector: (registry: ExtensionCatalog) => T): T {
   const context = useGuaranteedContext(ExtensionCatalogContext);
-  return useStore(context, selector);
+  return useStoreWithEqualityFn(context, selector);
 }
 
 export function getExtensionPanelSettings(

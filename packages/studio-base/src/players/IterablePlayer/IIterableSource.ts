@@ -78,6 +78,12 @@ export type MessageIteratorArgs = {
    * return map message in every time, we need this param to notify the backend help us find last message in target time`s topic
    */
   fetchCompleteTopicState?: "complete" | "incremental";
+
+  /**
+   * Allows callers to cancel an in-flight iterator read. This is needed for streaming sources whose
+   * next result may be blocked on network I/O.
+   */
+  abortSignal?: AbortSignal;
 };
 
 /**
@@ -224,6 +230,20 @@ export interface IIterableSource<MessageType = unknown> {
    * method when the source will no longer be used.
    */
   terminate?: () => Promise<void>;
+
+  /**
+   * Optional method to initialize deserializers without re-initializing the underlying data source.
+   *
+   * This is useful when the underlying source has already been initialized elsewhere,
+   * and we only need to set up deserializers for a wrapper (e.g., DeserializingIterableSource).
+   *
+   * Unlike initialize(), this method:
+   * - Does NOT call the underlying source's initialize()
+   * - Only sets up deserializers for each topic based on the provided initResult
+   *
+   * @param initResult - The initialization result from a previous initialize() call
+   */
+  initializeDeserializers?: (initResult: Initalization) => void;
 }
 
 export type PersistentCacheSourceInitializeArgs = {

@@ -47,7 +47,7 @@ export default function CommonResourceSelecter({
   value,
   onChange,
 }: CommonSourceSelecterProps): React.JSX.Element {
-  const { t } = useTranslation("cosSettings");
+  const { t } = useTranslation("settings");
   const { classes } = useStyles();
   const [addFileDialogOpen, setAddFileDialogOpen] = useState<boolean>(false);
   const consoleApi = useConsoleApi();

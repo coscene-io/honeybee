@@ -36,6 +36,7 @@ import { useSyncLayoutFromUrl } from "@foxglove/studio-base/hooks/useSyncLayoutF
 import { useSyncTimeFromUrl } from "@foxglove/studio-base/hooks/useSyncTimeFromUrl";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const log = Logger.getLogger(__filename);
@@ -248,8 +249,11 @@ export function DeepLinksSyncAdapter({
       return;
     }
 
+    // Authless data sources bypass the login gate.
+    const authless = isAuthlessDataSource();
+
     // 特殊情况：用户未登录但试图访问需要登录的数据源
-    if (loginStatus === "notLogin" && unappliedSourceArgs?.ds) {
+    if (loginStatus === "notLogin" && unappliedSourceArgs?.ds && !authless) {
       isSourceProcessed.current = true;
       debouncedPleaseLoginFirstToast();
       setUnappliedSourceArgs(undefined);
@@ -257,7 +261,7 @@ export function DeepLinksSyncAdapter({
     }
 
     // 用户未登录，不设置data source，直接设置恢复layout的标志
-    if (loginStatus !== "alreadyLogin") {
+    if (loginStatus !== "alreadyLogin" && !authless) {
       isSourceProcessed.current = true;
       setUnappliedSourceArgs(undefined);
       setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
@@ -271,8 +275,9 @@ export function DeepLinksSyncAdapter({
         dialogActions.dataSource.close();
       }
 
-      // 等待用户信息同步完成
-      if (currentUser?.userId == undefined) {
+      // 等待用户信息同步完成 (skip for authless data sources where there is
+      // intentionally no logged-in user)
+      if (!authless && currentUser?.userId == undefined) {
         return;
       }
 
@@ -280,7 +285,7 @@ export function DeepLinksSyncAdapter({
       const sourceParams: DataSourceArgs = {
         type: "connection",
         params: {
-          ...currentUser,
+          ...(authless ? {} : currentUser),
           ...unappliedSourceArgs.dsParams,
         },
       };

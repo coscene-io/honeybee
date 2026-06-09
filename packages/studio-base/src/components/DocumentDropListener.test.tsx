@@ -16,8 +16,8 @@
 //   You may not use this file except in compliance with the License.
 
 import { SnackbarProvider } from "notistack";
+import { act } from "react";
 import ReactDOM from "react-dom";
-import { act } from "react-dom/test-utils";
 
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
@@ -33,7 +33,7 @@ describe("<DocumentDropListener>", () => {
     wrapper = document.createElement("div");
     document.body.appendChild(wrapper);
 
-    // eslint-disable-next-line react/no-deprecated
+    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
     ReactDOM.render(
       <div>
         <SnackbarProvider>

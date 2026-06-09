@@ -18,7 +18,7 @@ import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
-import CoSceneCurrentLayoutContext, {
+import CurrentLayoutContext, {
   ICurrentLayout,
   LayoutID,
   LayoutState,
@@ -354,7 +354,7 @@ export default function CurrentLayoutProvider({
   });
 
   return (
-    <CoSceneCurrentLayoutContext.Provider value={value}>
+    <CurrentLayoutContext.Provider value={value}>
       {children}
       {incompatibleLayoutVersionError && (
         <IncompatibleLayoutVersionAlert
@@ -363,6 +363,6 @@ export default function CurrentLayoutProvider({
           }}
         />
       )}
-    </CoSceneCurrentLayoutContext.Provider>
+    </CurrentLayoutContext.Provider>
   );
 }

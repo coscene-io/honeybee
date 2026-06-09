@@ -180,6 +180,10 @@ export class TransformTree {
   }
 
   public clear(): void {
+    // Release all transforms back to the pool before clearing frames
+    for (const frame of this.#frames.values()) {
+      frame.clearTransforms();
+    }
     this.#frames.clear();
   }
 

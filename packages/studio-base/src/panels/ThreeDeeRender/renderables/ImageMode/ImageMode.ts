@@ -18,27 +18,60 @@ import {
   MessageEvent,
   SettingsTreeAction,
   SettingsTreeFields,
-  Topic,
+  type Topic,
 } from "@foxglove/studio";
 import { PanelContextMenuItem } from "@foxglove/studio-base/components/PanelContextMenu";
 import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import { HUDItem } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { Path } from "@foxglove/studio-base/panels/ThreeDeeRender/LayerErrors";
 import {
+  COMPRESSED_VIDEO_DATATYPES,
+  COMPRESSED_IMAGE_DATATYPES,
+  RAW_IMAGE_DATATYPES,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/foxglove";
+import {
+  ALL_SUPPORTED_CALIBRATION_SCHEMAS,
+  ALL_SUPPORTED_IMAGE_SCHEMAS,
+  CALIBRATION_TOPIC_PATH,
+  CALIBRATION_TOPIC_UNAVAILABLE,
+  CAMERA_MODEL,
+  DEFAULT_FOCAL_LENGTH,
+  DEFAULT_IMAGE_CONFIG,
   IMAGE_MODE_HUD_GROUP_ID,
+  IMAGE_TOPIC_DIFFERENT_FRAME,
   IMAGE_TOPIC_PATH,
+  IMAGE_TOPIC_UNAVAILABLE,
+  MAX_BRIGHTNESS,
+  MAX_CONTRAST,
+  MIN_BRIGHTNESS,
+  MIN_CONTRAST,
+  MISSING_CAMERA_INFO,
+  NO_IMAGE_TOPICS_HUD_ITEM,
+  REMOVE_IMAGE_TIMEOUT_MS,
+  SUPPORTED_RAW_IMAGE_SCHEMAS,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 import {
+  ConfigWithDefaults,
+  ImageModeEventMap,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/types";
+import {
+  CompressedVideoController,
+  type CompressedVideoDisplayFrames,
+  type GetSeekReplayTarget,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
+import {
+  type CompressedVideoFrameEvent,
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageRenderable,
   ImageRenderableSettings,
+  ImageSetImageResult,
   ImageUserData,
+  type SetCompressedVideoFramesOptions,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageRenderable";
 import {
   AnyImage,
+  CompressedVideo,
   getFrameIdFromImage,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageTypes";
-import { IMAGE_DEFAULT_COLOR_MODE_SETTINGS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/decodeImage";
 import {
   cameraInfosEqual,
   normalizeCameraInfo,
@@ -65,74 +98,19 @@ import type {
 import { PartialMessageEvent, SceneExtension } from "../../SceneExtension";
 import { SettingsTreeEntry } from "../../SettingsManager";
 import {
-  CAMERA_CALIBRATION_DATATYPES,
-  COMPRESSED_IMAGE_DATATYPES,
-  RAW_IMAGE_DATATYPES,
-  COMPRESSED_VIDEO_DATATYPES,
-} from "../../foxglove";
-import {
   IMAGE_DATATYPES as ROS_IMAGE_DATATYPES,
   COMPRESSED_IMAGE_DATATYPES as ROS_COMPRESSED_IMAGE_DATATYPES,
-  CAMERA_INFO_DATATYPES,
   CameraInfo,
 } from "../../ros";
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
+import { normalizeCompressedVideo } from "../Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
+import { filterCompressedVideoQueue } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
 
-const CALIBRATION_TOPIC_PATH = ["imageMode", "calibrationTopic"];
-
-const IMAGE_TOPIC_UNAVAILABLE = "IMAGE_TOPIC_UNAVAILABLE";
-const CALIBRATION_TOPIC_UNAVAILABLE = "CALIBRATION_TOPIC_UNAVAILABLE";
-
-const MISSING_CAMERA_INFO = "MISSING_CAMERA_INFO";
-const IMAGE_TOPIC_DIFFERENT_FRAME = "IMAGE_TOPIC_DIFFERENT_FRAME";
-
-const CAMERA_MODEL = "CameraModel";
-
-const DEFAULT_FOCAL_LENGTH = 500;
-
-const REMOVE_IMAGE_TIMEOUT_MS = 50;
-
-const NO_IMAGE_TOPICS_HUD_ITEM: HUDItem = {
-  id: "NO_IMAGE_TOPICS",
-  group: IMAGE_MODE_HUD_GROUP_ID,
-  getMessage: () => t3D("noImageTopicsAvailable"),
-  displayType: "empty",
-};
-interface ImageModeEventMap extends THREE.Object3DEventMap {
-  hasModifiedViewChanged: object;
-}
-
-export const ALL_SUPPORTED_IMAGE_SCHEMAS = new Set([
-  ...ROS_IMAGE_DATATYPES,
-  ...ROS_COMPRESSED_IMAGE_DATATYPES,
-  ...RAW_IMAGE_DATATYPES,
-  ...COMPRESSED_IMAGE_DATATYPES,
-  ...COMPRESSED_VIDEO_DATATYPES,
-]);
-
-const SUPPORTED_RAW_IMAGE_SCHEMAS = new Set([...RAW_IMAGE_DATATYPES, ...ROS_IMAGE_DATATYPES]);
-
-const ALL_SUPPORTED_CALIBRATION_SCHEMAS = new Set([
-  ...CAMERA_INFO_DATATYPES,
-  ...CAMERA_CALIBRATION_DATATYPES,
-]);
-
-const DEFAULT_CONFIG = {
-  synchronize: false,
-  flipHorizontal: false,
-  flipVertical: false,
-  rotation: 0 as 0 | 90 | 180 | 270,
-  ...IMAGE_DEFAULT_COLOR_MODE_SETTINGS,
-};
-
-const NOT_SUPPORT_SYNC_ANNOTATIONS_SCHEMAS = new Set([...COMPRESSED_VIDEO_DATATYPES]);
-
-type ConfigWithDefaults = ImageModeConfig & typeof DEFAULT_CONFIG;
 export class ImageMode
   extends SceneExtension<ImageRenderable, ImageModeEventMap>
   implements ICameraHandler
@@ -150,16 +128,18 @@ export class ImageMode
 
   protected imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
+  #lastSetImageResult: Promise<ImageSetImageResult> | undefined;
 
   protected readonly messageHandler: IMessageHandler;
+  #compressedVideoTopic: string | undefined;
+  #compressedVideoController: CompressedVideoController | undefined;
+  #directlyDisplayedSeekImages = new WeakSet<AnyImage>();
 
   protected readonly supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
   #dragStartPanOffset = new THREE.Vector2();
   #dragStartMouseCoords = new THREE.Vector2();
   #hasModifiedView = false;
-
-  #isSupportSyncAnnotations: boolean = true;
 
   public constructor(renderer: IRenderer, name: string = ImageMode.extensionId) {
     super(name, renderer);
@@ -304,9 +284,9 @@ export class ImageMode
         type: "schema",
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
-          handler: this.messageHandler.handleCompressedImage,
+          handler: this.#handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
-          filterQueue: this.#filterMessageQueue.bind(this),
+          filterQueue: filterCompressedVideoQueue,
         },
       },
     ];
@@ -315,7 +295,7 @@ export class ImageMode
 
   #filterMessageQueue<T>(msgs: MessageEvent<T>[]): MessageEvent<T>[] {
     // only take multiple images in if synchronization is enabled
-    if (!this.getImageModeSettings().synchronize && this.#isSupportSyncAnnotations) {
+    if (!this.getImageModeSettings().synchronize) {
       return msgs.slice(msgs.length - 1);
     }
     return msgs;
@@ -326,9 +306,18 @@ export class ImageMode
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
+    this.#compressedVideoController?.dispose();
     this.#annotations.dispose();
     this.imageRenderable?.dispose();
     super.dispose();
+  }
+
+  public override handleSeek(): void {
+    const topic = this.#compressedVideoTopic;
+    if (topic == undefined) {
+      return;
+    }
+    this.#compressedVideoControllerForTopic(topic).handleSeek();
   }
 
   public override removeAllRenderables(): void {
@@ -342,6 +331,7 @@ export class ImageMode
         this.renderer.queueAnimationFrame();
       }, REMOVE_IMAGE_TIMEOUT_MS);
     }
+    this.#compressedVideoController?.resetPlaybackState();
     // fallback camera model shouldn't ever be stale so we don't need to clear it
     if (!this.#fallbackCameraModelActive()) {
       this.#clearCameraModel();
@@ -363,7 +353,9 @@ export class ImageMode
    */
   #handleTopicsChanged = () => {
     this.#annotations.handleTopicsChanged(this.renderer.topics);
-    if (this.getImageModeSettings().imageTopic != undefined) {
+    const configuredImageTopic = this.getImageModeSettings().imageTopic;
+    if (configuredImageTopic != undefined) {
+      this.#setCompressedVideoTopic(configuredImageTopic);
       return;
     }
 
@@ -375,8 +367,36 @@ export class ImageMode
 
     if (imageTopic) {
       this.setImageTopic(imageTopic);
+    } else {
+      this.#setCompressedVideoTopic(undefined);
     }
   };
+
+  #setCompressedVideoTopic(topic: string | undefined): void {
+    const compressedVideoTopic = this.#compressedVideoTopicFor(topic);
+
+    if (this.#compressedVideoTopic === compressedVideoTopic) {
+      return;
+    }
+
+    this.#compressedVideoController?.dispose();
+    this.#compressedVideoController = undefined;
+    this.#compressedVideoTopic = compressedVideoTopic;
+  }
+
+  #compressedVideoTopicFor(topicName: string | undefined): string | undefined {
+    if (topicName == undefined) {
+      return undefined;
+    }
+
+    const topic =
+      this.renderer.topicsByName?.get(topicName) ??
+      this.renderer.topics?.find((candidate) => candidate.name === topicName);
+    if (topic == undefined || !topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
+      return undefined;
+    }
+    return topicName;
+  }
 
   /** Sets specified image topic on the config and updates calibration topic if a match is found.
    *  Does not check that image topic is different
@@ -385,6 +405,7 @@ export class ImageMode
     const matchingCalibrationTopic = this.#getMatchingCalibrationTopic(imageTopic.name);
     // don't want renderables shared across topics to ensure clean state for new topic
     this.#removeImageRenderable();
+    this.#setCompressedVideoTopic(imageTopic.name);
 
     this.renderer.updateConfig((draft) => {
       draft.imageMode.imageTopic = imageTopic.name;
@@ -425,6 +446,8 @@ export class ImageMode
       flipHorizontal,
       flipVertical,
       rotation,
+      brightness,
+      contrast,
     } = settings;
 
     const imageTopics = filterMap(this.renderer.topics ?? [], (topic) => {
@@ -433,14 +456,6 @@ export class ImageMode
       }
       return { label: topic.name, value: topic.name };
     });
-
-    const targetTopic = this.renderer.topics?.find((topic) => topic.name === imageTopicName);
-    const isSupportSyncAnnotations: boolean =
-      targetTopic && NOT_SUPPORT_SYNC_ANNOTATIONS_SCHEMAS.has(targetTopic.schemaName)
-        ? false
-        : true;
-
-    this.#isSupportSyncAnnotations = isSupportSyncAnnotations;
 
     const calibrationTopics: { label: string; value: string | undefined }[] = filterMap(
       this.renderer.topics ?? [],
@@ -515,7 +530,7 @@ export class ImageMode
       error: imageTopicError,
     };
     fields.calibrationTopic = {
-      label: t3D("calibration"),
+      label: "Calibration",
       input: "select",
       value: calibrationTopic,
       options: calibrationTopics,
@@ -523,24 +538,22 @@ export class ImageMode
     };
     fields.synchronize = {
       input: "boolean",
-      label: t3D("syncAnnotations"),
-      value: this.#isSupportSyncAnnotations ? synchronize : undefined,
-      disabled: !this.#isSupportSyncAnnotations,
-      help: t3D("syncAnnotationsHelp"),
+      label: "Sync annotations",
+      value: synchronize,
     };
     fields.flipHorizontal = {
       input: "boolean",
-      label: t3D("flipHorizontal"),
+      label: "Flip horizontal",
       value: flipHorizontal,
     };
     fields.flipVertical = {
       input: "boolean",
-      label: t3D("flipVertical"),
+      label: "Flip vertical",
       value: flipVertical,
     };
     fields.rotation = {
       input: "toggle",
-      label: t3D("rotation"),
+      label: "Rotation",
       value: rotation,
       options: [
         { label: "0°", value: 0 },
@@ -548,6 +561,22 @@ export class ImageMode
         { label: "180°", value: 180 },
         { label: "270°", value: 270 },
       ],
+    };
+    fields.brightness = {
+      input: "slider",
+      label: "Brightness",
+      min: MIN_BRIGHTNESS,
+      max: MAX_BRIGHTNESS,
+      value: brightness,
+      step: 5,
+    };
+    fields.contrast = {
+      input: "slider",
+      label: "Contrast",
+      min: MIN_CONTRAST,
+      max: MAX_CONTRAST,
+      value: contrast,
+      step: 5,
     };
 
     const imageTopic =
@@ -562,7 +591,7 @@ export class ImageMode
         config: settings as ImageModeConfig,
 
         defaults: {
-          gradient: DEFAULT_CONFIG.gradient,
+          gradient: DEFAULT_IMAGE_CONFIG.gradient,
         },
         modifiers: {
           supportsPackedRgbModes: false,
@@ -649,6 +678,8 @@ export class ImageMode
       explicitAlpha: config.explicitAlpha,
       minValue: config.minValue,
       maxValue: config.maxValue,
+      brightness: config.brightness,
+      contrast: config.contrast,
     });
     if (config.synchronize !== prevImageModeConfig.synchronize) {
       this.hud.removeGroup(IMAGE_MODE_HUD_GROUP_ID);
@@ -702,6 +733,123 @@ export class ImageMode
     return this.getImageModeSettings().imageTopic === topic;
   };
 
+  #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
+    const normalizedEvent = {
+      ...messageEvent,
+      message: normalizeCompressedVideo(messageEvent.message),
+    } as MessageEvent<CompressedVideo>;
+    this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent);
+  };
+
+  #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (
+    frames,
+    mode,
+    options,
+  ): Promise<ImageSetImageResult> => {
+    const targetFrame = frames[frames.length - 1];
+    if (targetFrame == undefined) {
+      return { ok: false };
+    }
+
+    if (mode === "direct") {
+      return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
+    }
+
+    if (mode === "seek") {
+      return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
+    }
+
+    this.#lastSetImageResult = Promise.resolve({ ok: false });
+    this.messageHandler.handleCompressedVideo(targetFrame);
+    return await this.#lastSetImageResult;
+  };
+
+  #getCompressedVideoSeekReplayTarget: GetSeekReplayTarget = (messageEvent) => {
+    if (this.renderer.config.imageMode.synchronize !== true) {
+      return undefined;
+    }
+    return messageEvent != undefined
+      ? { type: "publish", time: messageEvent.message.timestamp }
+      : "defer";
+  };
+
+  #compressedVideoControllerForTopic(topic: string): CompressedVideoController {
+    if (this.#compressedVideoTopic !== topic) {
+      this.#setCompressedVideoTopic(topic);
+    }
+    if (this.#compressedVideoController == undefined) {
+      this.#compressedVideoController = new CompressedVideoController({
+        topic,
+        renderer: this.renderer,
+        displayFrames: this.#displayCompressedVideoFrames,
+        resetDecoder: () => {
+          this.imageRenderable?.resetForSeek();
+        },
+        getSeekReplayTarget: this.#getCompressedVideoSeekReplayTarget,
+      });
+    } else {
+      this.#compressedVideoController.updateOptions({
+        displayFrames: this.#displayCompressedVideoFrames,
+        resetDecoder: () => {
+          this.imageRenderable?.resetForSeek();
+        },
+        getSeekReplayTarget: this.#getCompressedVideoSeekReplayTarget,
+      });
+    }
+    return this.#compressedVideoController;
+  }
+
+  async #setCompressedVideoFramesOnRenderable(
+    frames: readonly CompressedVideoFrameEvent[],
+    mode: "direct" | "seek",
+    options?: SetCompressedVideoFramesOptions,
+  ): Promise<ImageSetImageResult> {
+    const targetFrame = frames[frames.length - 1];
+    if (targetFrame == undefined) {
+      return { ok: false };
+    }
+
+    const image = targetFrame.message;
+    const topic = targetFrame.topic;
+    const receiveTime = toNanoSec(targetFrame.receiveTime);
+    const frameId = image.frame_id;
+
+    if (this.#removeImageTimeout != undefined) {
+      clearTimeout(this.#removeImageTimeout);
+      this.#removeImageTimeout = undefined;
+    }
+
+    const renderable = this.#getImageRenderable(topic, receiveTime, image, frameId);
+
+    if (this.#cameraModel) {
+      renderable.userData.cameraInfo = this.#cameraModel.info;
+      renderable.setCameraModel(this.#cameraModel.model);
+    }
+
+    renderable.userData.receiveTime = receiveTime;
+    return await renderable.setCompressedVideoFrames(frames, {
+      ...options,
+      onDecoded: () => {
+        options?.onDecoded?.();
+        if (this.#fallbackCameraModelActive()) {
+          this.#updateFallbackCameraModel(renderable);
+          this.#updateViewAndRenderables();
+        }
+      },
+      updateImageState:
+        mode === "seek"
+          ? (event) => {
+              this.#directlyDisplayedSeekImages.add(event.message);
+              try {
+                this.messageHandler.updateImageState(event, event.message);
+              } finally {
+                this.#directlyDisplayedSeekImages.delete(event.message);
+              }
+            }
+          : options?.updateImageState,
+    });
+  }
+
   #updateFromMessageState = (
     newState: MessageRenderState,
     oldState: MessageRenderState | undefined,
@@ -709,13 +857,41 @@ export class ImageMode
     if (newState.missingAnnotationTopics) {
       this.#removeImageRenderable();
     }
-    if (newState.image != undefined && newState.image.message !== oldState?.image?.message) {
-      this.#handleImageChange(newState.image, newState.image.message);
+    const displayedImage = this.imageRenderable?.userData.image;
+    if (
+      newState.image != undefined &&
+      newState.image.message !== oldState?.image?.message &&
+      newState.image.message !== displayedImage &&
+      !this.#directlyDisplayedSeekImages.has(newState.image.message)
+    ) {
+      if (this.#shouldReplaySynchronizedCompressedVideo(newState.image)) {
+        const image = normalizeCompressedVideo(newState.image.message);
+        const messageEvent = {
+          ...newState.image,
+          message: image,
+        } as MessageEvent<CompressedVideo>;
+        this.#lastSetImageResult = this.#compressedVideoControllerForTopic(
+          messageEvent.topic,
+        ).displayPublishTimeTarget(messageEvent);
+      } else {
+        this.#handleImageChange(newState.image, newState.image.message);
+      }
     }
     if (newState.cameraInfo != undefined && newState.cameraInfo !== oldState?.cameraInfo) {
       this.#handleCameraInfoChange(newState.cameraInfo);
     }
   };
+
+  #shouldReplaySynchronizedCompressedVideo(
+    messageEvent: PartialMessageEvent<AnyImage>,
+  ): messageEvent is PartialMessageEvent<CompressedVideo> {
+    return (
+      this.renderer.config.imageMode.synchronize === true &&
+      this.#compressedVideoTopicFor(messageEvent.topic) != undefined &&
+      "format" in messageEvent.message &&
+      "data" in messageEvent.message
+    );
+  }
 
   /** Processes camera info messages and updates state */
   #handleCameraInfoChange = (cameraInfo: CameraInfo): void => {
@@ -726,6 +902,13 @@ export class ImageMode
   };
 
   #handleImageChange = (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage): void => {
+    this.#lastSetImageResult = this.#setImageOnRenderable(messageEvent, image);
+  };
+
+  async #setImageOnRenderable(
+    messageEvent: PartialMessageEvent<AnyImage>,
+    image: AnyImage,
+  ): Promise<ImageSetImageResult> {
     const topic = messageEvent.topic;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
     const frameId = "header" in image ? image.header.frame_id : image.frame_id;
@@ -743,28 +926,27 @@ export class ImageMode
     }
 
     renderable.userData.receiveTime = receiveTime;
-    renderable.setImage(image, /*resizeWidth=*/ undefined, () => {
+    const setImageResult = renderable.setImage(image, /*resizeWidth=*/ undefined, () => {
       if (this.#fallbackCameraModelActive()) {
         this.#updateFallbackCameraModel(renderable);
         this.#updateViewAndRenderables();
       }
     });
-  };
+    return await setImageResult;
+  }
 
   /** Creates a fallback camera model based off of the renderable with a decoded image and updates the camera.
-   * Will no-op if there is not a decodedFrame on the renderable.
+   * Will no-op if there is not a decodedImage on the renderable.
    * Be sure to call `#updateViewAndRenderables` after calling this method to update the camera and renderable.
    */
   #updateFallbackCameraModel(renderable: ImageRenderable) {
-    const decodedFrame = renderable.getDecodedFrame();
+    const decodedImage = renderable.getDecodedImage();
     const lastImageMessage = renderable.userData.image;
     // if we've already received an image, use it to create a fallback camera model
     // otherwise we would need to wait for the next image
-    if (decodedFrame && lastImageMessage) {
+    if (decodedImage && lastImageMessage) {
       const frameId = getFrameIdFromImage(lastImageMessage);
-      const width = decodedFrame.getWidth();
-      const height = decodedFrame.getHeight();
-
+      const { width, height } = getDecodedImageDimensions(decodedImage);
       const cameraInfo = createFallbackCameraInfoForImage({
         frameId,
         height,
@@ -808,9 +990,13 @@ export class ImageMode
       // planarProjectionFactor must be 1 to avoid imprecise projection due to small number of grid subdivisions
       planarProjectionFactor: 1,
     };
+    const messageTime = image
+      ? toNanoSec("header" in image ? image.header.stamp : image.timestamp)
+      : 0n;
     renderable = this.initRenderable(topicName, {
       receiveTime,
-      messageTime: image ? toNanoSec("header" in image ? image.header.stamp : image.timestamp) : 0n,
+      messageTime,
+      firstMessageTime: messageTime,
       frameId: this.renderer.normalizeFrameId(frameId),
       pose: makePose(),
       settingsPath: IMAGE_TOPIC_PATH,
@@ -872,12 +1058,12 @@ export class ImageMode
 
     const colorMode =
       config.colorMode === "rgba-fields"
-        ? DEFAULT_CONFIG.colorMode
-        : config.colorMode ?? DEFAULT_CONFIG.colorMode;
+        ? DEFAULT_IMAGE_CONFIG.colorMode
+        : config.colorMode ?? DEFAULT_IMAGE_CONFIG.colorMode;
 
     // Ensures that no required fields are left undefined
     // rightmost values are applied last and have the most precedence
-    return _.merge({}, DEFAULT_CONFIG, { colorMode }, config);
+    return _.merge({}, DEFAULT_IMAGE_CONFIG, { colorMode }, config);
   }
 
   /**
@@ -917,11 +1103,13 @@ export class ImageMode
     // If the camera info has not changed, we don't need to make a new model and can return the existing one
     const currentCameraInfo = this.#cameraModel?.info;
     const dataEqual = cameraInfosEqual(currentCameraInfo, newCameraInfo);
+
     if (dataEqual && currentCameraInfo != undefined) {
       return;
     }
 
     const model = this.#getPinholeCameraModel(newCameraInfo);
+
     if (model) {
       this.#cameraModel = {
         model,
@@ -984,10 +1172,8 @@ export class ImageMode
       if (!this.imageRenderable) {
         return;
       }
-      const currentImage = await this.imageRenderable.getDecodedFrame()?.getImage();
-
+      const currentImage = this.imageRenderable.getDecodedImage();
       if (!currentImage) {
-        log.error("No image to download");
         return;
       }
 
@@ -999,10 +1185,9 @@ export class ImageMode
       const { rotation, flipHorizontal, flipVertical } = settings;
       const stamp = "header" in imageMessage ? imageMessage.header.stamp : imageMessage.timestamp;
       try {
-        const width =
-          rotation === 90 || rotation === 270 ? currentImage.height : currentImage.width;
-        const height =
-          rotation === 90 || rotation === 270 ? currentImage.width : currentImage.height;
+        const { width: imageWidth, height: imageHeight } = getDecodedImageDimensions(currentImage);
+        const width = rotation === 90 || rotation === 270 ? imageHeight : imageWidth;
+        const height = rotation === 90 || rotation === 270 ? imageWidth : imageHeight;
 
         // re-render the image onto a new canvas to download the original image
         const canvas = document.createElement("canvas");
@@ -1020,7 +1205,7 @@ export class ImageMode
         ctx.translate(width / 2, height / 2);
         ctx.scale(flipHorizontal ? -1 : 1, flipVertical ? -1 : 1);
         ctx.rotate((rotation / 180) * Math.PI);
-        ctx.translate(-currentImage.width / 2, -currentImage.height / 2);
+        ctx.translate(-imageWidth / 2, -imageHeight / 2);
         ctx.drawImage(bitmap, 0, 0);
 
         // read the canvas data as an image (png)
@@ -1059,10 +1244,21 @@ export class ImageMode
         type: "item",
         label: "Download image",
         onclick: this.#getDownloadImageCallback(),
-        disabled: this.imageRenderable?.getDecodedFrame() == undefined,
+        disabled: this.imageRenderable?.getDecodedImage() == undefined,
       },
     ];
   }
+}
+
+function getDecodedImageDimensions(decodedImage: ImageBitmap | ImageData | VideoFrame): {
+  width: number;
+  height: number;
+} {
+  if (typeof VideoFrame !== "undefined" && decodedImage instanceof VideoFrame) {
+    return { width: decodedImage.displayWidth, height: decodedImage.displayHeight };
+  }
+  const bitmap = decodedImage as ImageBitmap | ImageData;
+  return { width: bitmap.width, height: bitmap.height };
 }
 
 const createFallbackCameraInfoForImage = (options: {

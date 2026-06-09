@@ -88,14 +88,14 @@ export const webpackDevServerConfig =
         allowedHosts: "all",
         proxy: [
           {
-            context: ["/v1/data"],
-            target: "https://viz.dev.coscene.cn",
+            context: ["/bff"],
+            target: "https://bff.dev.coscene.cn",
             secure: false,
             changeOrigin: true,
           },
           {
-            context: ["/bff"],
-            target: "https://bff.dev.coscene.cn",
+            context: ["/v1/data"],
+            target: "https://viz.dev.coscene.cn",
             secure: false,
             changeOrigin: true,
           },

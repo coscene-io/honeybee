@@ -72,6 +72,7 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
         source,
         sourceId: this.id,
         urlParams: { sessionId },
+        enablePlaybackSpillCache: false,
       });
     } catch (error) {
       console.error("Failed to initialize PersistentCacheDataSourceFactory:", error);

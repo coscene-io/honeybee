@@ -12,6 +12,8 @@ import dayjs from "dayjs";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Toaster } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -72,7 +74,7 @@ export function SharedRoot(
     appConfig.VITE_APP_PROJECT_ENV !== "local" &&
     appConfig.VITE_APP_PROJECT_ENV !== "aws" &&
     appConfig.VITE_APP_PROJECT_ENV !== "gcp" &&
-    appConfig.SENTRY_ENABLED != undefined
+    appConfig.SENTRY_ENABLED === true
   ) {
     log.info("initializing Sentry");
     Sentry.init({
@@ -108,6 +110,10 @@ export function SharedRoot(
     }
   }, [i18n.language]);
 
+  const toaster = <Toaster />;
+  const toasterPortal =
+    typeof document !== "undefined" ? createPortal(toaster, document.body) : toaster;
+
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
       <PostHogProvider client={posthog}>
@@ -132,6 +138,7 @@ export function SharedRoot(
                 >
                   {children}
                 </SharedRootContext.Provider>
+                {toasterPortal}
               </LocalizationProvider>
             </ErrorBoundary>
           </CssBaseline>

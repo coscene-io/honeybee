@@ -7,6 +7,7 @@
 
 import * as _ from "lodash-es";
 import { ReactNode, useState } from "react";
+import { DeepPartial } from "ts-essentials";
 import { StoreApi, createStore } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -50,7 +51,14 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
     },
     playbackControls: {
       repeat: false,
+      rollingEditEnabled: true,
       speed: 1,
+      timelineHeight: 200,
+      momentSubtitle: {
+        enabled: false,
+        fontSize: 16,
+        position: undefined,
+      },
     },
     layoutDrawer: {
       open: false,
@@ -59,14 +67,15 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
 }
 
 function createWorkspaceContextStore(
-  initialState?: Partial<WorkspaceContextStore>,
+  initialState?: DeepPartial<WorkspaceContextStore>,
   options?: { disablePersistenceForStorybook?: boolean },
 ): StoreApi<WorkspaceContextStore> {
   const stateCreator = () => {
-    const store: WorkspaceContextStore = {
-      ...makeWorkspaceContextInitialState(),
-      ...initialState,
-    };
+    const store: WorkspaceContextStore = _.merge(
+      {},
+      makeWorkspaceContextInitialState(),
+      initialState,
+    );
     return store;
   };
   if (options?.disablePersistenceForStorybook === true) {
@@ -94,9 +103,9 @@ function createWorkspaceContextStore(
 export type WorkspaceContextProviderProps = {
   children?: ReactNode;
   disablePersistenceForStorybook?: boolean;
-  initialState?: Partial<WorkspaceContextStore>;
+  initialState?: DeepPartial<WorkspaceContextStore>;
   workspaceStoreCreator?: (
-    initialState?: Partial<WorkspaceContextStore>,
+    initialState?: DeepPartial<WorkspaceContextStore>,
     options?: { disablePersistenceForStorybook?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
 };

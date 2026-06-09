@@ -7,8 +7,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render } from "@testing-library/react";
-import { act } from "react-dom/test-utils";
+import { render, act } from "@testing-library/react";
 
 import { Condvar, signal } from "@foxglove/den/async";
 import { Time } from "@foxglove/rostime";
@@ -713,5 +712,39 @@ describe("PanelExtensionAdapter", () => {
       [expect.any(String), [{ preloadType: "full", topic: "x" }]],
       [expect.any(String), []],
     ]);
+  });
+
+  it("exposes message range subscriptions to builtin panels", async () => {
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn(() => unsubscribe);
+    const rangeArgs = {
+      topic: "x",
+      timeRange: {
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 1, nsec: 0 },
+      },
+      onNewRangeIterator: jest.fn(),
+    };
+    const initPanel = jest.fn((context: PanelExtensionContext) => {
+      (context as any).unstable_subscribeMessageRange(rangeArgs);
+    });
+
+    const config = {};
+    const saveConfig = () => {};
+
+    const { unmount } = render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup fixture={{ subscribeMessageRange } as any}>
+            <PanelExtensionAdapter config={config} saveConfig={saveConfig} initPanel={initPanel} />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+
+    expect(initPanel).toHaveBeenCalled();
+    expect(subscribeMessageRange).toHaveBeenCalledWith(rangeArgs);
+
+    unmount();
   });
 });

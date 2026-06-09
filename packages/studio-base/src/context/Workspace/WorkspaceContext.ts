@@ -14,6 +14,17 @@ import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourc
 import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
+export type MomentSubtitlePosition = {
+  anchorX: number;
+  bottom: number;
+};
+
+export type MomentSubtitleSettings = {
+  enabled: boolean;
+  fontSize: number;
+  position: undefined | MomentSubtitlePosition;
+};
+
 export const LeftSidebarItemKeys = [
   "panel-settings",
   "topics",
@@ -51,7 +62,10 @@ export type WorkspaceContextStore = {
   };
   playbackControls: {
     repeat: boolean;
+    rollingEditEnabled: boolean;
     speed: PlaybackSpeed;
+    timelineHeight: number;
+    momentSubtitle: MomentSubtitleSettings;
   };
   sidebars: {
     left: {

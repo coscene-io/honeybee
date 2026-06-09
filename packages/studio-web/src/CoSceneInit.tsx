@@ -14,7 +14,7 @@ import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appCon
 export function useCoSceneInit(): void {
   const url = new URL(window.location.href);
 
-  const { t } = useTranslation("cosError");
+  const { t } = useTranslation("error");
 
   const urlFiles = url.searchParams.get("ds.files");
 
@@ -27,9 +27,7 @@ export function useCoSceneInit(): void {
 
   const favicon = useMemo(() => {
     const logo = getDomainConfig().logo;
-    if (logo === "supor") {
-      return "/viz/supor.ico";
-    } else if (logo === "agibot") {
+    if (logo === "agibot") {
       return "/viz/agibot_favicon.svg";
     } else {
       switch (appConfig.VITE_APP_PROJECT_ENV) {

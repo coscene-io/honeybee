@@ -27,14 +27,12 @@ import {
   Previous20Regular,
   ImageShadow20Filled,
 } from "@fluentui/react-icons";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import ShieldTwoToneIcon from "@mui/icons-material/ShieldTwoTone";
 import { IconButton, Tooltip, Typography, Link } from "@mui/material";
-import { useCallback, useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, compare } from "@foxglove/rostime";
+import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -45,13 +43,9 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpeedControls";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { stepPlaybackSpeed } from "@foxglove/studio-base/components/playbackSpeed";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import {
-  SubscriptionEntitlementStore,
-  useSubscriptionEntitlement,
-} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import {
   WorkspaceContextStore,
   useWorkspaceStore,
@@ -65,16 +59,45 @@ import Scrubber from "./Scrubber";
 import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
+const TIMELINE_MIN_HEIGHT_PX = 126;
+const TIMELINE_MAX_HEIGHT_PX = 360;
+
 const useStyles = makeStyles()((theme) => ({
   root: {
-    display: "flex",
-    flexDirection: "column",
-    padding: theme.spacing(0.5, 1, 1, 1),
-    position: "relative",
     backgroundColor: theme.palette.background.paper,
     borderTop: `1px solid ${theme.palette.divider}`,
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: TIMELINE_MAX_HEIGHT_PX,
+    minHeight: TIMELINE_MIN_HEIGHT_PX,
+    overflow: "hidden",
+    position: "relative",
     zIndex: 100000,
+  },
+  resizeHandle: {
+    cursor: "ns-resize",
+    height: 6,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: -3,
+    zIndex: 2,
+  },
+  resizeHandleActive: {
+    backgroundColor: theme.palette.action.hover,
+  },
+  controlsRow: {
+    borderTop: `1px solid ${theme.palette.divider}`,
+    flex: "0 0 auto",
+    minHeight: 40,
     overflowX: "auto",
+    padding: theme.spacing(0.5, 1, 0.75, 1),
+  },
+  realtimeRoot: {
+    maxHeight: "none",
+    minHeight: 0,
+    overflowX: "auto",
+    padding: theme.spacing(0.5, 1, 1, 1),
   },
   disabled: {
     opacity: theme.palette.action.disabledOpacity,
@@ -91,46 +114,34 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPlaybackRepeat = (store: WorkspaceContextStore) => store.playbackControls.repeat;
+const selectPlaybackSpeed = (store: WorkspaceContextStore) => store.playbackControls.speed;
+const selectTimelineHeight = (store: WorkspaceContextStore) =>
+  store.playbackControls.timelineHeight;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-const selectEnableList = (store: CoreDataStore) => store.getEnableList();
-const selectProject = (store: CoreDataStore) => store.project;
-const selectRecord = (store: CoreDataStore) => store.record;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
-const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
-function MomentButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
-  const { t } = useTranslation("cosEvent");
-
-  return (
-    <HoverableIconButton
-      disabled={disableControls}
-      size="small"
-      title={t("createMomentTips")}
-      icon={<ShieldOutlinedIcon />}
-      activeIcon={<ShieldTwoToneIcon />}
-      onClick={() => {
-        const event = new KeyboardEvent("keydown", {
-          key: "1",
-          code: "Digit1",
-          keyCode: 49, // '1'  keyCode
-          which: 49,
-          altKey: true, // mock Option (Alt)
-          bubbles: true,
-          cancelable: true,
-        });
-        document.dispatchEvent(event);
-      }}
-    >
-      <Typography variant="body2" marginLeft="4px">
-        {t("createMomentButtonText", {
-          option: /Mac/i.test(navigator.userAgent) ? "⌥" : "Alt",
-        })}
-      </Typography>
-    </HoverableIconButton>
-  );
+function clampTimelineHeight(height: number): number {
+  return Math.min(Math.max(height, TIMELINE_MIN_HEIGHT_PX), TIMELINE_MAX_HEIGHT_PX);
 }
 
-const MemoedMomentButton = React.memo(MomentButton);
+function getPointerClientY(
+  event: Pick<PointerEvent, "clientY" | "pageY" | "screenY"> | React.PointerEvent,
+): number {
+  const nativeEvent =
+    "nativeEvent" in event
+      ? (event.nativeEvent as Pick<PointerEvent, "clientY" | "pageY" | "screenY">)
+      : undefined;
+  const candidates = [
+    event.clientY,
+    event.pageY,
+    event.screenY,
+    nativeEvent?.clientY,
+    nativeEvent?.pageY,
+    nativeEvent?.screenY,
+  ];
+
+  return candidates.find((value) => Number.isFinite(value)) ?? 0;
+}
 
 export default function PlaybackControls(props: {
   play: NonNullable<Player["startPlayback"]>;
@@ -154,26 +165,27 @@ export default function PlaybackControls(props: {
   } = props;
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
-  const enableList = useCoreData(selectEnableList);
-  const project = useCoreData(selectProject);
-  const record = useCoreData(selectRecord);
 
   const dataSource = useCoreData(selectDataSource);
-  const paid = useSubscriptionEntitlement(selectPaid);
   const { selectRecent } = usePlayerSelection();
 
-  const projectIsArchived = useMemo(() => project.value?.isArchived, [project]);
-  const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
-
-  const { t } = useTranslation("cosEvent");
-
-  const consoleApi = useConsoleApi();
+  const { t } = useTranslation("event");
 
   const { classes, cx } = useStyles();
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
+  const playbackSpeed = useWorkspaceStore(selectPlaybackSpeed);
+  const timelineHeight = useWorkspaceStore(selectTimelineHeight);
   const {
-    playbackControlActions: { setRepeat },
+    playbackControlActions: { setRepeat, setSpeed, setTimelineHeight },
   } = useWorkspaceActions();
+  const timelineResizeState = useRef<
+    | {
+        initialHeight: number;
+        initialY: number;
+      }
+    | undefined
+  >(undefined);
+  const [isTimelineResizing, setIsTimelineResizing] = useState(false);
 
   const toggleRepeat = useCallback(() => {
     // toggle repeat on the workspace
@@ -213,8 +225,8 @@ export default function PlaybackControls(props: {
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
-      const { currentTime } = getTimeInfo();
-      if (!currentTime) {
+      const { currentTime, startTime: start, endTime: end } = getTimeInfo();
+      if (!currentTime || !start || !end) {
         return;
       }
 
@@ -228,11 +240,16 @@ export default function PlaybackControls(props: {
       // i.e. Skipping coordinate frame messages may result in incorrectly rendered markers or
       // missing markers altogther.
       const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
+      const clampedTargetTime = clampTime(targetTime, start, end);
+
+      if (areEqual(clampedTargetTime, currentTime)) {
+        return;
+      }
 
       if (playUntil) {
-        playUntil(targetTime);
+        playUntil(clampedTargetTime);
       } else {
-        seek(targetTime);
+        seek(clampedTargetTime);
       }
     },
     [getTimeInfo, playUntil, seek, effectiveSeekMs],
@@ -249,6 +266,58 @@ export default function PlaybackControls(props: {
     [getTimeInfo, seek, effectiveSeekMs],
   );
 
+  const adjustPlaybackSpeed = useCallback(
+    (direction: "decrease" | "increase") => {
+      setSpeed(stepPlaybackSpeed(playbackSpeed, direction));
+    },
+    [playbackSpeed, setSpeed],
+  );
+
+  const startTimelineResize = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>): void => {
+      event.preventDefault();
+      timelineResizeState.current = {
+        initialHeight: timelineHeight,
+        initialY: getPointerClientY(event),
+      };
+      setIsTimelineResizing(true);
+    },
+    [timelineHeight],
+  );
+
+  useEffect(() => {
+    if (!isTimelineResizing) {
+      return undefined;
+    }
+
+    const onPointerMove = (event: PointerEvent): void => {
+      const state = timelineResizeState.current;
+      if (state == undefined) {
+        return;
+      }
+
+      const deltaY = state.initialY - getPointerClientY(event);
+      setTimelineHeight(clampTimelineHeight(state.initialHeight + deltaY));
+    };
+
+    const onPointerUp = (): void => {
+      timelineResizeState.current = undefined;
+      setIsTimelineResizing(false);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [isTimelineResizing, setTimelineHeight]);
+
+  const hasPlaybackSpeedModifier = useCallback(
+    (event: KeyboardEvent) => event.ctrlKey || event.metaKey || event.altKey,
+    [],
+  );
+
   const keyDownHandlers = useMemo(
     () => ({
       " ": togglePlayPause,
@@ -258,8 +327,28 @@ export default function PlaybackControls(props: {
       ArrowRight: (ev: KeyboardEvent) => {
         seekForwardAction(ev);
       },
+      Minus: (ev: KeyboardEvent) => {
+        if (hasPlaybackSpeedModifier(ev)) {
+          return false;
+        }
+        adjustPlaybackSpeed("decrease");
+        return true;
+      },
+      Equal: (ev: KeyboardEvent) => {
+        if (hasPlaybackSpeedModifier(ev)) {
+          return false;
+        }
+        adjustPlaybackSpeed("increase");
+        return true;
+      },
     }),
-    [seekBackwardAction, seekForwardAction, togglePlayPause],
+    [
+      adjustPlaybackSpeed,
+      hasPlaybackSpeedModifier,
+      seekBackwardAction,
+      seekForwardAction,
+      togglePlayPause,
+    ],
   );
 
   const disableControls = presence === PlayerPresence.ERROR;
@@ -267,17 +356,21 @@ export default function PlaybackControls(props: {
   return (
     <>
       {!seekStepEditing && <KeyListener global keyDownHandlers={keyDownHandlers} />}
-      <div className={classes.root}>
+      <div
+        className={classes.root}
+        data-testid="playback-controls"
+        style={{ height: clampTimelineHeight(timelineHeight) }}
+      >
+        <div
+          className={cx(classes.resizeHandle, {
+            [classes.resizeHandleActive]: isTimelineResizing,
+          })}
+          data-testid="playback-controls-resize-handle"
+          onPointerDown={startTimelineResize}
+        />
         <Scrubber onSeek={seek} />
-        <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto">
+        <Stack className={classes.controlsRow} direction="row" alignItems="center" gap={1}>
           <Stack direction="row" flex={1} gap={0.5}>
-            {paid &&
-              enableList.event === "ENABLE" &&
-              consoleApi.createEvent.permission() &&
-              projectIsArchived === false &&
-              recordIsArchived === false && (
-                <MemoedMomentButton disableControls={disableControls} />
-              )}
             <Tooltip
               // A desired workflow is the ability to copy data source info text (start, end, duration)
               // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
@@ -304,7 +397,7 @@ export default function PlaybackControls(props: {
             <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
-                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "cosWebsocket" })}>
+                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "websocket" })}>
                   <IconButton
                     component="button"
                     size="small"
@@ -315,7 +408,7 @@ export default function PlaybackControls(props: {
                     }}
                   >
                     <Typography variant="body2" marginLeft="4px">
-                      {t("switchToRealTime", { ns: "cosWebsocket" })}
+                      {t("switchToRealTime", { ns: "websocket" })}
                     </Typography>
                   </IconButton>
                 </Tooltip>
@@ -326,7 +419,7 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               title={t("seekBackward", {
-                ns: "cosGeneral",
+                ns: "general",
               })}
               icon={<Previous20Regular />}
               activeIcon={<Previous20Filled />}
@@ -341,10 +434,10 @@ export default function PlaybackControls(props: {
               title={
                 isPlaying
                   ? t("pause", {
-                      ns: "cosGeneral",
+                      ns: "general",
                     })
                   : t("play", {
-                      ns: "cosGeneral",
+                      ns: "general",
                     })
               }
               onClick={togglePlayPause}
@@ -355,7 +448,7 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               title={t("seekForward", {
-                ns: "cosGeneral",
+                ns: "general",
               })}
               icon={<Next20Regular />}
               activeIcon={<Next20Filled />}
@@ -369,14 +462,14 @@ export default function PlaybackControls(props: {
             {urlState?.parameters?.jobRunsId != undefined && (
               <>
                 <ImageShadow20Filled />
-                <div>{t("shadowMode", { ns: "cosPlaylist" })}</div>
+                <div>{t("shadowMode", { ns: "playList" })}</div>
               </>
             )}
 
             <SeekStepControls disabled={disableControls} onEditingChange={setSeekStepEditing} />
             <HoverableIconButton
               size="small"
-              title={t("loopPlayback", { ns: "cosGeneral" })}
+              title={t("loopPlayback", { ns: "general" })}
               disabled={disableControls}
               color={repeatEnabled ? "primary" : "inherit"}
               onClick={toggleRepeat}
@@ -391,8 +484,8 @@ export default function PlaybackControls(props: {
 }
 
 export function RealtimeVizPlaybackControls(): React.JSX.Element {
-  const { classes } = useStyles();
-  const { t } = useTranslation("cosWebsocket");
+  const { classes, cx } = useStyles();
+  const { t } = useTranslation("websocket");
   const { dialogActions } = useWorkspaceActions();
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
   const { selectSource } = usePlayerSelection();
@@ -426,7 +519,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
   );
 
   return (
-    <div className={classes.root}>
+    <div className={cx(classes.root, classes.realtimeRoot)}>
       <Stack direction="row" alignItems="center" flex={1} gap={1} overflowX="auto" paddingTop={0.5}>
         <Stack direction="row" flex={1} gap={0.5}>
           <PlaybackTimeDisplay onSeek={() => {}} onPause={() => {}} />
@@ -436,11 +529,12 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
               retentionWindowMs === 0 ? (
                 <Trans
                   i18nKey="noCacheSetPrompt"
-                  ns="cosWebsocket"
+                  ns="websocket"
                   components={{
                     ToSettings: (
                       <Link
                         href="#"
+                        target="_self"
                         onClick={() => {
                           dialogActions.preferences.open("general");
                         }}
@@ -451,12 +545,13 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
               ) : (
                 <Trans
                   i18nKey="switchToPlaybackDesc"
-                  ns="cosWebsocket"
+                  ns="websocket"
                   values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
                   components={{
                     ToSettings: (
                       <Link
                         href="#"
+                        target="_self"
                         onClick={() => {
                           dialogActions.preferences.open("general");
                         }}

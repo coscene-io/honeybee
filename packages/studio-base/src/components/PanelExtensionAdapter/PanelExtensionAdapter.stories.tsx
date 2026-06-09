@@ -97,7 +97,7 @@ function SimplePanel({ context }: { context: PanelExtensionContext }) {
 export const SimplePanelRender: StoryObj = {
   render: (): ReactElement => {
     function initPanel(context: PanelExtensionContext) {
-      // eslint-disable-next-line react/no-deprecated
+      // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
       ReactDOM.render(<SimplePanel context={context} />, context.panelElement);
     }
 

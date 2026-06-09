@@ -15,10 +15,91 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  IterablePlayer,
+  WorkerIterableSource,
+  WorkerSerializedIterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  findMatchingShardProfilePreference,
+  loadShardProfilePreference,
+  manifestProfileOptions,
+  RAW_PROFILE,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import type {
+  ManifestProfile,
+  ShardProfileOption,
+} from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
 import { Player } from "@foxglove/studio-base/players/types";
-import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+
+import { buildManifestUrl, getManifestStorageBaseUrl, manifestExists } from "./manifestStorage";
+
+export { buildManifestUrl } from "./manifestStorage";
+
+const SHARD_MODE_PARAM = "shardMode";
+const SHARD_MODE_MANIFEST = "manifest";
+const SHARD_MODE_RAW = "raw";
+const MANIFEST_URL_PARAM = "manifestUrl";
+
+interface MinimalManifest {
+  profiles?: ManifestProfile[];
+}
+
+function definedUrlParams(params?: Record<string, string | undefined>): Record<string, string> {
+  const definedParams: Record<string, string> = {};
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value != undefined) {
+        definedParams[key] = value;
+      }
+    }
+  }
+  return definedParams;
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortJsonValue);
+  }
+  if (value != undefined && typeof value === "object") {
+    const input = value as Record<string, unknown>;
+    const output: Record<string, unknown> = {};
+    for (const key of Object.keys(input).sort()) {
+      output[key] = sortJsonValue(input[key]);
+    }
+    return output;
+  }
+  return value;
+}
+
+function stableJsonStringify(value: unknown): string {
+  return JSON.stringify(sortJsonValue(value)) ?? "";
+}
+
+async function fetchShardProfileOptions(manifestUrl: string): Promise<ShardProfileOption[]> {
+  try {
+    const response = await fetch(manifestUrl);
+    if (!response.ok) {
+      return [];
+    }
+    const manifest = (await response.json()) as MinimalManifest;
+    return manifestProfileOptions(manifest.profiles ?? []);
+  } catch {
+    return [];
+  }
+}
+
+function withProfile(
+  args: DataSourceFactoryInitializeArgs,
+  profile: string | undefined,
+): DataSourceFactoryInitializeArgs {
+  if (profile == undefined) {
+    return args;
+  }
+  return { ...args, params: { ...args.params, profile } };
+}
 
 class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public id = "coscene-data-platform";
@@ -71,7 +152,72 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     ],
   };
 
-  public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
+  public async initialize(args: DataSourceFactoryInitializeArgs): Promise<Player | undefined> {
+    const consoleApi = args.consoleApi;
+
+    if (!consoleApi) {
+      console.error("coscene-data-platform initialize: consoleApi is undefined");
+      return;
+    }
+
+    const objectStorageBaseUrl = getManifestStorageBaseUrl(
+      args.manifestStorageSource,
+      getAppConfig().OBJECT_STORAGE_BASE_URL,
+    );
+    const { projectId, recordId } = consoleApi.getApiBaseInfo();
+    if (!objectStorageBaseUrl || !projectId || !recordId) {
+      return this.#createDataPlatformPlayer(args);
+    }
+
+    const manifestUrl = buildManifestUrl(objectStorageBaseUrl, projectId, recordId);
+    const requestedProfile = args.params?.profile;
+    if (requestedProfile === RAW_PROFILE) {
+      return this.#createDataPlatformPlayer(args, manifestUrl);
+    }
+
+    if (await manifestExists(manifestUrl)) {
+      const profile = await this.#resolveManifestProfile(manifestUrl, requestedProfile);
+      if (profile === RAW_PROFILE) {
+        return this.#createDataPlatformPlayer(withProfile(args, profile), manifestUrl);
+      }
+      // Manifest playback reads directly from object storage and is intentionally
+      // not subject to the OUTBOUND_TRAFFIC entitlement check for now.
+      return this.#createShardManifestPlayer(withProfile(args, profile), manifestUrl);
+    }
+
+    return this.#createDataPlatformPlayer(args);
+  }
+
+  async #resolveManifestProfile(
+    manifestUrl: string,
+    requestedProfile: string | undefined,
+  ): Promise<string | undefined> {
+    const preference = loadShardProfilePreference();
+    if (requestedProfile == undefined && preference?.value === RAW_PROFILE) {
+      return RAW_PROFILE;
+    }
+    if (preference == undefined && requestedProfile != undefined) {
+      return requestedProfile;
+    }
+    if (preference == undefined) {
+      return undefined;
+    }
+
+    const options = await fetchShardProfileOptions(manifestUrl);
+    if (
+      requestedProfile != undefined &&
+      options.some((option) => option.value === requestedProfile)
+    ) {
+      return requestedProfile;
+    }
+
+    return findMatchingShardProfilePreference(options, preference)?.value ?? requestedProfile;
+  }
+
+  #createDataPlatformPlayer(
+    args: DataSourceFactoryInitializeArgs,
+    manifestUrl?: string,
+  ): Player | undefined {
     const consoleApi = args.consoleApi;
     const requestWindow = args.requestWindow ?? getRequestWindowDefaultTime();
     const readAheadDuration = args.readAheadDuration ?? getReadAheadDurationDefaultTime();
@@ -81,10 +227,21 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       return;
     }
 
+    if (args.checkOutboundTrafficEntitlement?.() === false) {
+      return;
+    }
+
     const baseUrl = consoleApi.getBaseUrl();
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
+    const playbackSpillCacheSourceKey = stableJsonStringify({
+      sourceId: this.id,
+      baseUrl,
+      bffUrl,
+      params: { ...args.params, ...baseInfo },
+      manifestUrl,
+    });
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -107,21 +264,62 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       },
     });
 
-    const definedParams: Record<string, string> = {};
-    if (args.params) {
-      for (const [key, value] of Object.entries(args.params)) {
-        if (value != undefined) {
-          definedParams[key] = value;
-        }
-      }
+    const urlParams = definedUrlParams(args.params);
+    if (args.params?.profile === RAW_PROFILE && manifestUrl != undefined) {
+      urlParams[SHARD_MODE_PARAM] = SHARD_MODE_RAW;
+      urlParams[MANIFEST_URL_PARAM] = manifestUrl;
     }
 
     return new IterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
       sourceId: this.id,
-      urlParams: definedParams,
+      urlParams,
       readAheadDuration,
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey,
+    });
+  }
+
+  #createShardManifestPlayer(
+    args: DataSourceFactoryInitializeArgs,
+    manifestUrl: string,
+  ): Player | undefined {
+    const profile = args.params?.profile;
+    const params: Record<string, string> = { url: manifestUrl };
+    if (profile != undefined) {
+      params.profile = profile;
+    }
+
+    const source = new WorkerSerializedIterableSource({
+      initWorker: () => {
+        // foxglove-depcheck-used: babel-plugin-transform-import-meta
+        return new Worker(
+          new URL(
+            "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/ShardManifestIterableSource.worker",
+            import.meta.url,
+          ),
+        );
+      },
+      initArgs: { params },
+    });
+
+    return new IterablePlayer({
+      metricsCollector: args.metricsCollector,
+      source,
+      sourceId: this.id,
+      urlParams: {
+        ...definedUrlParams(args.params),
+        [SHARD_MODE_PARAM]: SHARD_MODE_MANIFEST,
+        [MANIFEST_URL_PARAM]: manifestUrl,
+      },
+      readAheadDuration: { sec: 10, nsec: 0 },
+      name: profile ? `Shard manifest (${profile})` : "Shard manifest",
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: stableJsonStringify({
+        sourceId: this.id,
+        params,
+      }),
     });
   }
 }

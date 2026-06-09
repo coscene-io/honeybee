@@ -24,7 +24,7 @@ export function ProjectLayoutSelector({
   onChange,
   error,
 }: LayoutSelectorProps): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const consoleApi = useConsoleApi();
 
   const options = useAsync(async () => {
@@ -47,7 +47,7 @@ export function ProjectLayoutSelector({
 
       try {
         const result = await consoleApi.getProjectLayout({ name: layoutName });
-        const data = result.data?.toJson() as LayoutData;
+        const data = result.data! as LayoutData;
         onChange(data, displayName);
       } catch (error) {
         console.error(error);

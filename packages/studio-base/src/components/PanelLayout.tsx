@@ -221,7 +221,7 @@ export default function PanelLayout(): React.JSX.Element {
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
   const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
 
   const createNewLayout = async () => {
     const layoutData: Omit<LayoutData, "name" | "id"> = {
@@ -276,7 +276,7 @@ export default function PanelLayout(): React.JSX.Element {
           variant="body1"
           href={getDocsLink("/viz/layout/")}
         >
-          {t("userGuide", { ns: "cosGeneral" })}
+          {t("userGuide", { ns: "general" })}
         </Link>
       </Stack>
     </EmptyState>

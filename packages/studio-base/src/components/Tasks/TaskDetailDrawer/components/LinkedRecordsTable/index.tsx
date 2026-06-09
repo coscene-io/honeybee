@@ -63,7 +63,7 @@ export default function LinkedRecordsTable({
         title: t("unlinkRecord"),
         prompt: t("unlinkRecordConfirm", { count: selectedRowIds.length }),
         ok: t("unlinkRecord"),
-        cancel: t("cancel", { ns: "cosGeneral" }),
+        cancel: t("cancel", { ns: "general" }),
         variant: "danger",
       });
 

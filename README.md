@@ -1,69 +1,75 @@
 # Honeybee
 
-Honeybee is an integrated visualization and diagnosis tool for robotics, available in browser or as a desktop app on Linux, Windows, and macOS.
+Honeybee is an integrated visualization and diagnosis tool for robotics, available in the browser and as a desktop app on Linux, Windows, and macOS.
 
-Honeybee helps robotics teams visualize, debug, and analyze logs and live telemetry through a rich set of panels and tools.
+It helps robotics teams visualize, debug, and analyze logs and live telemetry through a rich set of panels and tools.
 
 ![Honeybee](./resources/play-nuScene.gif)
 
 ## Availability and Access
 
 - The source code of Honeybee is publicly available.
-- The application depends on private npm packages, so it cannot run out-of-the-box outside our organization.
-- To try Honeybee, visit our hosted version at [coscene.cn](https://coscene.cn/).
-- Internal contributors can follow the Initialization section below to set up the development environment.
+- Running the app from source requires access to private npm packages, so it does not work out-of-the-box outside our organization.
+- To try Honeybee, visit our hosted version at [coscene.cn](https://coscene.cn/), or download the desktop app
+  - [Linux ARM64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-linux_arm64.deb)
+  - [Linux AMD64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-linux_amd64.deb)
+  - [Windows ARM64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-win_arm64.exe)
+  - [Windows AMD64](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-win_x64.exe)
+  - [Mac Universal](https://download.coscene.cn/coStudio/packages/latest/coStudio_latest-mac_universal.dmg)
+- Internal contributors can follow the setup section below to prepare a development environment.
 
 **Supported development environments:** Linux, Windows, macOS
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v20.0.0+
-- [Git LFS](https://git-lfs.github.com/)
-- [Visual Studio Code](https://code.visualstudio.com/) – Recommended
+- [Node.js](https://nodejs.org/en/) V22.12.0+
+- [Cursor](https://www.cursor.com/) / [Visual Studio Code](https://code.visualstudio.com/) – Recommended
 
-## Initialization
+## Setup
 
-> Note: Make sure that all the dependencies are set (specially the [Git LFS](https://git-lfs.github.com/)).
+1. Clone the repository.
+2. Enable Corepack and install dependencies:
 
-1. Clone repository.
-2. Run the follow commands: `corepack enable` and `yarn install`.
-3. Launch the development environment:
+```sh
+corepack enable
+yarn install
+```
 
-   ```sh
-   # To launch the desktop app (run both scripts concurrently):
-   $ yarn desktop:serve        # start webpack
-   $ yarn desktop:start        # launch electron
+3. Start the target you want to work on:
 
-   # To launch the browser app:
-   $ yarn web:serve
+```sh
+# Web app
+yarn web:serve
 
-   # To launch the browser app using a local instance of the backend server:
-   $ yarn web:serve:local
+# Desktop app (run in two terminals)
+yarn desktop:serve
+yarn desktop:start
 
-   # To launch the storybook:
-   $ yarn storybook
+# Storybook
+yarn storybook
+```
 
-   # Advanced usage: running webpack and electron on different computers (or VMs) on the same network
-   $ yarn desktop:serve --host 192.168.xxx.yyy         # the address where electron can reach the webpack dev server
-   $ yarn dlx electron@13.0.0-beta.13 .webpack # launch the version of electron for the current computer's platform
+For advanced desktop debugging across different machines or VMs on the same network:
 
-   # To launch the desktop app using production API endpoints
-   $ yarn desktop:serve
-   $ yarn desktop:start
+```sh
+yarn desktop:serve --host 192.168.xxx.yyy
+yarn dlx electron@13.0.0-beta.13 .webpack
+```
 
-   # NOTE: yarn web:serve does not support connecting to the production endpoints
-   ```
+## Common commands
 
-A [Dockerfile](/Dockerfile) to self-host the browser app is also available.
+```sh
+yarn run            # list available commands
+yarn build:packages # build TypeScript packages
+yarn lint           # lint and auto-fix
+yarn lint:ci        # CI-style linting without auto-fix
+yarn test           # run all tests
+yarn test:watch     # run tests in watch mode
+```
 
-**Other useful commands:**
+## Contributing
 
-    ```sh
-    $ yarn run          # list available commands
-    $ yarn lint         # lint all files
-    $ yarn test         # run all tests
-    $ yarn test:watch   # run tests on changed files
-    ```
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution and localization guidelines.
 
 ## :star: Credits
 

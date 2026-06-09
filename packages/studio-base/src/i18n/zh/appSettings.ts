@@ -61,6 +61,14 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   readAheadDurationDescription:
     "设置播放器在当前播放位置前预加载的时长。值越大播放更平滑但占用更多内存，值越小则更省内存。",
   readAheadDurationNextEffectiveNotice: "设置已更新，将在下一次可视化时生效 <Link>立即刷新</Link>",
+  manifestStorageSource: "Manifest 和 MCAP 请求地址",
+  manifestStorageSourceDescription:
+    "选择数据平台回放时拉取 manifest 文件以及相对路径 MCAP 分片文件的地址。",
+  manifestStorageSourceDefaultTag: "默认",
+  manifestStorageSourceChecking: "正在检查该地址是否可播放当前文件。",
+  manifestStorageSourceUnavailable: "该地址不可播放当前文件。",
+  manifestStorageSourceNextEffectiveNotice:
+    "设置已更新，将在下一次可视化时生效 <Link>立即刷新</Link>",
   autoConnectToLan: "实时可视化自动连接局域网",
   autoConnectToLanDescription: "检测到与设备处于同一局域网时，自动连接局域网地址，无需手动确认",
   isRenderAllTabs: "渲染所有选项卡",

@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import AnalyticsProvider from "@foxglove/studio-base/context/AnalyticsProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLayoutStorageContext";
+import S3FileServiceContext from "@foxglove/studio-base/context/S3FileServiceContext";
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
 import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
@@ -21,6 +22,7 @@ import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayout
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
+import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 export function SharedProviders({
@@ -32,11 +34,13 @@ export function SharedProviders({
 }): React.JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
+  const s3FileService = useMemo(() => new S3FileService(consoleApi), [consoleApi]);
 
   const providers = useMemo(
     () => [
       <DialogsProvider key="DialogsProvider" />,
       <CoSceneConsoleApiContext.Provider value={consoleApi} key="CoSceneConsoleApiContext" />,
+      <S3FileServiceContext.Provider value={s3FileService} key="S3FileServiceContext" />,
       <CoreDataProvider key="CoreDataProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneCurrentUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
@@ -53,7 +57,7 @@ export function SharedProviders({
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
     ],
-    [consoleApi, loginStatusKey, layoutStorage, urdfStorage],
+    [consoleApi, loginStatusKey, layoutStorage, urdfStorage, s3FileService],
   );
 
   return providers;

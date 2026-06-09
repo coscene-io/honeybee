@@ -24,4 +24,7 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
   storageLimitReachedDesc: "组织存储使用已耗尽，如需继续使用，请增购存储或升级订阅计划。",
   iKnow: "我知道了",
   upgradeSubscriptionPlan: "升级订阅计划",
+  playlist: "播放列表",
+  moment: "一刻",
+  tasks: "任务",
 };

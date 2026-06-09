@@ -42,8 +42,6 @@ export type BagFileInfo = {
 
   /** The time, in seconds, relative to the start of the timeline. */
   secondsSinceStart?: number;
-
-  sha256: string;
 };
 
 export type CoScenePlaylistStore = DeepReadonly<{
@@ -59,7 +57,6 @@ export type CoScenePlaylistStore = DeepReadonly<{
 export type ParamsFile =
   | {
       filename: string;
-      sha256: string;
     }
   | {
       jobRunsName: string;

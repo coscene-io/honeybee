@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -57,7 +57,7 @@ export default function Root(props: {
   }
   const { appConfiguration } = props;
 
-  const { t } = useTranslation("appBar");
+  const { t, i18n } = useTranslation("appBar");
 
   // notify user login status change
   const [loginStatusKey, setLoginStatusKey] = useState(0);
@@ -115,7 +115,7 @@ export default function Root(props: {
   useEffect(() => {
     // Passive logout, token expired
     const cleanup = authBridge?.onLogout(() => {
-      toast.error(t("loginExpired", { ns: "cosAccount" }));
+      toast.error(t("loginExpired", { ns: "account" }));
       localStorage.removeItem("coScene_org_jwt");
       setLoginStatusKey((key) => key + 1);
     });
@@ -152,7 +152,9 @@ export default function Root(props: {
     ];
 
     return sources;
-  }, [props.dataSources]);
+    // Changing the language requires reloading data sources so they use the new language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.resolvedLanguage, props.dataSources]);
 
   // App url state in window.location will represent the user's current session state
   // better than the initial deep link so we prioritize the current window.location
@@ -242,7 +244,6 @@ export default function Root(props: {
       >
         <StudioApp />
       </SharedRoot>
-      <Toaster />
     </>
   );
 }

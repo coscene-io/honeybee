@@ -393,10 +393,11 @@ function parseFloatAttributeOptional(xml: Element, attribName: string): number |
 }
 
 function parseFloatContent(xml: Element): number {
-  if (xml.textContent == undefined) {
+  const text = xml.textContent;
+  if (text.length === 0) {
     throw new Error(`expected float value in "${xml}"`);
   }
-  return parseFloat(xml.textContent);
+  return parseFloat(text);
 }
 
 function defaultPose(): Pose {

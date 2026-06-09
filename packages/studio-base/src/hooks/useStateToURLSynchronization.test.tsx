@@ -26,7 +26,7 @@ jest.mock("@foxglove/studio-base/context/CurrentLayoutContext");
 jest.mock("@foxglove/studio-base/components/MessagePipeline");
 
 describe("useStateToURLSynchronization", () => {
-  it("updates the url with a stable source & player state", () => {
+  it("updates the url with a stable source time", () => {
     const spy = jest.spyOn(window.history, "replaceState");
 
     (useMessagePipeline as jest.Mock).mockImplementation((selector) =>
@@ -48,38 +48,12 @@ describe("useStateToURLSynchronization", () => {
       <EventsProvider>{children}</EventsProvider>
     );
 
-    const { rerender } = renderHook(useStateToURLSynchronization, { wrapper });
+    renderHook(useStateToURLSynchronization, { wrapper });
 
     expect(spy).toHaveBeenCalledWith(
       undefined,
       "",
       "http://localhost/?time=1970-01-01T00%3A00%3A01.000000001Z",
-    );
-    expect(spy).toHaveBeenLastCalledWith(
-      undefined,
-      "",
-      "http://localhost/?ds=test-source&ds.a=one&ds.b=two&time=1970-01-01T00%3A00%3A01.000000001Z",
-    );
-
-    (useMessagePipeline as jest.Mock).mockImplementation((selector) =>
-      selector({
-        playerState: {
-          activeData: {
-            currentTime: { sec: 10, nsec: 10 },
-          },
-          capabilities: ["playbackControl"],
-          urlState: {
-            sourceId: "test-source2",
-            parameters: { b: "two", c: "three" },
-          },
-        },
-      }),
-    );
-    rerender();
-    expect(spy).toHaveBeenLastCalledWith(
-      undefined,
-      "",
-      "http://localhost/?ds=test-source2&ds.b=two&ds.c=three&time=1970-01-01T00%3A00%3A01.000000001Z",
     );
   });
 });

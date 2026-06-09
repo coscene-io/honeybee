@@ -29,7 +29,7 @@ const log = Log.getLogger(__filename);
 
 const DEFAULT_CACHE_SIZE_BYTES = 1.0e9;
 const MIN_MEM_CACHE_BLOCK_SIZE_NS = 0.1e9;
-const MAX_BLOCKS = 400;
+const MAX_BLOCKS = 100;
 const CAPABILITIES: string[] = [PlayerCapabilities.playbackControl];
 
 class BenchmarkPlayer implements Player {

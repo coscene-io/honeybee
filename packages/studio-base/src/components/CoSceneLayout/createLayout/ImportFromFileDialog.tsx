@@ -30,6 +30,7 @@ import {
   CreateLayoutParams,
   CreateLayoutForm,
 } from "@foxglove/studio-base/services/CoSceneILayoutManager";
+import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { SelectFolder } from "./SelectFolder";
 
@@ -54,7 +55,7 @@ export function ImportFromFileDialog({
   projectFolders: string[];
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
-  const { t } = useTranslation(["cosLayout", "general"]);
+  const { t } = useTranslation(["layout", "general"]);
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutForm & { selectedFile: string }>({
@@ -122,7 +123,7 @@ export function ImportFromFileDialog({
       return;
     }
 
-    const data = parsedState as LayoutData;
+    const data = replaceNullWithUndefined(parsedState) as LayoutData;
 
     form.setValue("selectedFile", file.name);
     form.setValue("name", layoutName);
@@ -207,7 +208,7 @@ export function ImportFromFileDialog({
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>
-          {t("cancel", { ns: "cosGeneral" })}
+          {t("cancel", { ns: "general" })}
         </Button>
         <Button
           variant="contained"
@@ -215,7 +216,7 @@ export function ImportFromFileDialog({
             void form.handleSubmit(onSubmit)();
           }}
         >
-          {t("ok", { ns: "cosGeneral" })}
+          {t("ok", { ns: "general" })}
         </Button>
       </DialogActions>
     </Dialog>

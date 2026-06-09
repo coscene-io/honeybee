@@ -35,7 +35,8 @@ interface IAppContext {
     nodeOrField: Immutable<SettingsTreeNode | SettingsTreeField>,
   ) => React.JSX.Element | undefined;
   workspaceStoreCreator?: (
-    initialState?: Partial<WorkspaceContextStore>,
+    initialState?: DeepPartial<WorkspaceContextStore>,
+    options?: { disablePersistenceForStorybook?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
   PerformanceSidebarComponent?: React.ComponentType;
   extraPanels?: PanelInfo[];

@@ -8,13 +8,47 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { ComlinkWrap } from "@foxglove/den/worker";
-import Logger from "@foxglove/log";
-import { Time } from "@foxglove/rostime";
 import { RawImage } from "@foxglove/schemas";
 
-import { AnyImage } from "./ImageTypes";
-import type { RawImageOptions } from "./decodeImage";
+import type { CompressedVideo } from "./ImageTypes";
+import { decodeRawImage, RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
+
+export type DecodeVideoFrameInput = {
+  frame: CompressedVideo;
+  receiveTime: bigint;
+};
+
+export type DecodeVideoFramesArgs = {
+  frames: DecodeVideoFrameInput[];
+  requestId: number;
+  targetFrameTimeoutMs?: number;
+  anyFrameTimeoutMs?: number;
+};
+
+export type DecodeVideoFramesResult =
+  | {
+      type: "TargetFrame" | "IntermediateFrame";
+      requestId: number;
+      frame: VideoFrame;
+      originalTimestamp: bigint;
+      receiveTime: bigint;
+    }
+  | { type: "Timeout" | "Aborted" | "FrameOutOfOrder"; requestId: number };
+
+export type AwaitTargetFrameArgs = {
+  requestId: number;
+};
+
+export type AwaitTargetFrameResult =
+  | {
+      type: "TargetFrame";
+      requestId: number;
+      frame: VideoFrame;
+      originalTimestamp: bigint;
+      receiveTime: bigint;
+    }
+  | { type: "Aborted"; requestId: number };
 
 /**
  * Provides a worker that can process RawImages on a background thread.
@@ -26,14 +60,11 @@ import { Image as RosImage } from "../../ros";
  */
 
 type WorkerService = (typeof import("./WorkerImageDecoder.worker"))["service"];
-const log = Logger.getLogger(__filename);
-
 export class WorkerImageDecoder {
   #remote: Comlink.Remote<WorkerService>;
   #dispose: () => void;
 
   public constructor() {
-    log.debug("Creating WorkerImageDecoder");
     const { remote, dispose } = ComlinkWrap<WorkerService>(
       new Worker(
         // foxglove-depcheck-used: babel-plugin-transform-import-meta
@@ -45,28 +76,35 @@ export class WorkerImageDecoder {
   }
 
   /**
-   * Copies `image` to the worker, and transfers the decoded result back to the main thread.
+   * decode raw image, raw image will be large, the cost of decoding raw image is much less
+   * than the cost of worker transmission, so decode raw image directly in the main thread
    */
   public async decode(
     image: RosImage | RawImage,
     options: Partial<RawImageOptions>,
   ): Promise<ImageData> {
-    return await this.#remote.decode(image, options);
+    const result = new ImageData(image.width, image.height);
+    decodeRawImage(image, options, result.data);
+    return result;
   }
 
-  public async decodeH264Frame(
-    image: AnyImage,
-    receiveTime: Time,
+  public async decodeVideoFrame(
+    frame: CompressedVideo,
+    _firstMessageTime?: bigint,
   ): Promise<VideoFrame | undefined> {
-    const data = image.data;
+    return await this.#remote.decodeVideoFrame(frame);
+  }
 
-    try {
-      void this.#remote.decodeH264Frame(data, receiveTime);
+  public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
+    return await this.#remote.decodeVideoFrames(args);
+  }
 
-      return await this.#remote.getH264Frames();
-    } catch (error) {
-      throw new Error(`Failed to decode H264 frame: ${error}`);
-    }
+  public async awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
+    return await this.#remote.awaitTargetFrame(args);
+  }
+
+  public async resetVideoDecoder(): Promise<void> {
+    await this.#remote.resetVideoDecoder();
   }
 
   public terminate(): void {

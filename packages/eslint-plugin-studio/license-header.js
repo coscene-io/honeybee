@@ -26,7 +26,7 @@ module.exports = {
   create: (context) => {
     return {
       Program: () => {
-        const source = context.getSourceCode().getText();
+        const source = context.sourceCode.getText();
         const headerIndex = source.indexOf(LICENSE_HEADER);
         const prefixLines = source.substring(0, headerIndex).trim().split("\n");
         const prefixLinesAreValid = prefixLines.every(

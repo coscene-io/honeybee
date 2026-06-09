@@ -9,6 +9,14 @@ import path from "path";
 
 import { findRosPackage, rosPackageNameAtPath } from "./rosPackageResources";
 
+jest.mock("electron", () => ({
+  net: { fetch: jest.fn() },
+  protocol: {
+    handle: jest.fn(),
+    registerSchemesAsPrivileged: jest.fn(),
+  },
+}));
+
 const FIXTURES_ROOT = path.join(__dirname, "./fixtures");
 const PACKAGES_ROOT = path.join(FIXTURES_ROOT, "./packages");
 

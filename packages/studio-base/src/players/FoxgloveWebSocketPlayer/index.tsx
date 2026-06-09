@@ -33,8 +33,7 @@ import {
 import { ParameterValue } from "@foxglove/studio";
 import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
-import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
-import type { PersistentMessageCache } from "@foxglove/studio-base/persistence/PersistentMessageCache";
+import { RealtimeVizHistoryCache } from "@foxglove/studio-base/persistence/RealtimeVizHistoryCache";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import {
@@ -95,6 +94,8 @@ const SUPPORTED_SERVICE_ENCODINGS = ["json", ...ROS_ENCODINGS];
 type ResolvedChannel = {
   channel: Channel;
   parsedChannel: ParsedChannel;
+  schemaEncoding?: string;
+  schemaData?: Uint8Array;
 };
 type Publication = ClientChannel & { messageWriter?: Ros1MessageWriter | Ros2MessageWriter };
 type ResolvedService = {
@@ -206,7 +207,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #authHeader: string;
 
   /** Persistent message cache for 5-minute historical data */
-  #persistentCache?: PersistentMessageCache;
+  #persistentCache?: RealtimeVizHistoryCache;
   /** Whether to enable persistent caching */
   #enablePersistentCache: boolean = true;
   #retentionWindowMs?: number;
@@ -270,7 +271,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#retentionWindowMs > 0
     ) {
       try {
-        this.#persistentCache = new IndexedDbMessageStore({
+        this.#persistentCache = new RealtimeVizHistoryCache({
           retentionWindowMs: this.#retentionWindowMs,
           sessionId: this.#sessionId ?? `websocket-${this.#id}`,
         });
@@ -369,11 +370,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
       // if message.userId is not undefined, is some one connecting to the same device
       if (message.userId) {
         void this.#confirm({
-          title: t("cosWebsocket:note"),
+          title: t("websocket:note"),
           prompt: (
             <Trans
               t={t}
-              i18nKey="cosWebsocket:connectionOccupied"
+              i18nKey="websocket:connectionOccupied"
               values={{
                 deviceName: this.#deviceName,
                 username: message.username,
@@ -385,8 +386,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
           ),
           disableEscapeKeyDown: true,
           disableBackdropClick: true,
-          ok: t("cosWebsocket:confirm"),
-          cancel: t("cosWebsocket:exitAndClosePage"),
+          ok: t("websocket:confirm"),
+          cancel: t("websocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
@@ -414,11 +415,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#client.on("kicked", (message) => {
       void this.close();
       void this.#confirm({
-        title: t("cosWebsocket:notification"),
+        title: t("websocket:notification"),
         prompt: (
           <Trans
             t={t}
-            i18nKey="cosWebsocket:vizIsTkenNow"
+            i18nKey="websocket:vizIsTkenNow"
             values={{
               deviceName: this.#deviceName,
               username: message.username,
@@ -430,8 +431,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         ),
         disableEscapeKeyDown: true,
         disableBackdropClick: true,
-        ok: t("cosWebsocket:reconnect"),
-        cancel: t("cosWebsocket:exitAndClosePage"),
+        ok: t("websocket:reconnect"),
+        cancel: t("websocket:exitAndClosePage"),
         variant: "danger",
       }).then((result) => {
         if (result === "ok") {
@@ -485,11 +486,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         void this.close();
         void this.#confirm({
-          title: t("cosWebsocket:notification"),
+          title: t("websocket:notification"),
           prompt: (
             <Trans
               t={t}
-              i18nKey="cosWebsocket:vizIsTkenNow"
+              i18nKey="websocket:vizIsTkenNow"
               values={{
                 deviceName: this.#deviceName,
                 username: message.username,
@@ -501,8 +502,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
           ),
           disableEscapeKeyDown: true,
           disableBackdropClick: true,
-          ok: t("cosWebsocket:reconnect"),
-          cancel: t("cosWebsocket:exitAndClosePage"),
+          ok: t("websocket:reconnect"),
+          cancel: t("websocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
           if (result === "ok") {
@@ -531,20 +532,20 @@ export default class FoxgloveWebSocketPlayer implements Player {
         if (realCloseEventMessage.data.code !== 1000) {
           this.#problems.addProblem("ws:connection-failed", {
             severity: "error",
-            message: t("cosError:connectionFailed"),
+            message: t("error:connectionFailed"),
             tip: (
               <span>
-                {t("cosError:insecureWebSocketConnectionMessage", {
+                {t("error:insecureWebSocketConnectionMessage", {
                   url: this.#url,
                   version: "coscene.websocket.protocol",
                 })}
                 <br />
-                1. {t("cosError:checkNetworkConnection")}
+                1. {t("error:checkNetworkConnection")}
                 <br />
                 2.{" "}
                 <Trans
                   t={t}
-                  i18nKey="cosError:checkFoxgloveBridge"
+                  i18nKey="error:checkFoxgloveBridge"
                   components={{
                     docLink: (
                       <a
@@ -557,7 +558,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
                   }}
                 />
                 <br />
-                3. {t("cosError:contactUs")}
+                3. {t("error:contactUs")}
               </span>
             ),
           });
@@ -692,9 +693,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#client.on("advertise", (newChannels) => {
       for (const channel of newChannels) {
         let parsedChannel;
+        let schemaEncoding;
+        let schemaData;
         try {
-          let schemaEncoding;
-          let schemaData;
           if (
             channel.encoding === "json" &&
             (channel.schemaEncoding == undefined || channel.schemaEncoding === "jsonschema")
@@ -761,7 +762,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           this.#emitState();
           continue;
         }
-        const resolvedChannel = { channel, parsedChannel };
+        const resolvedChannel = { channel, parsedChannel, schemaEncoding, schemaData };
         this.#channelsById.set(channel.id, resolvedChannel);
         this.#channelsByTopic.set(channel.topic, resolvedChannel);
       }
@@ -840,10 +841,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         // Persist message to cache asynchronously (non-blocking)
         if (this.#persistentCache) {
-          void this.#persistentCache.append([messageEvent]).catch((error: unknown) => {
-            // Don't let cache errors affect real-time visualization
-            log.debug("Failed to persist message to cache:", error);
-          });
+          this.#persistentCache.append([messageEvent]);
         }
         this.#parsedMessagesBytes += sizeInBytes;
         if (this.#parsedMessagesBytes > CURRENT_FRAME_MAXIMUM_SIZE_BYTES) {
@@ -1168,6 +1166,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const topics: Topic[] = Array.from(this.#channelsById.values(), (chanInfo) => ({
       name: chanInfo.channel.topic,
       schemaName: chanInfo.channel.schemaName,
+      messageEncoding: chanInfo.channel.encoding,
+      schemaEncoding: chanInfo.schemaEncoding,
+      schemaData: chanInfo.schemaData,
     }));
 
     // Remove stats entries for removed topics
@@ -1181,11 +1182,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     this.#topicsStats = topicStats;
     this.#topics = topics;
+    this.#persistentCache?.storeTopics(topics, this.#topicsStats);
 
     // Update the _datatypes map;
     for (const { parsedChannel } of this.#channelsById.values()) {
       this.#updateDataTypes(parsedChannel.datatypes);
     }
+
+    this.#persistentCache?.storeDatatypes(this.#datatypes);
 
     this.#emitState();
   }
@@ -1331,7 +1335,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#retentionWindowMs > 0
     ) {
       try {
-        this.#persistentCache = new IndexedDbMessageStore({
+        this.#persistentCache = new RealtimeVizHistoryCache({
           retentionWindowMs: this.#retentionWindowMs,
           sessionId: this.#sessionId ?? `websocket-${this.#id}`,
         });
@@ -1838,14 +1842,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#datatypes = updatedDatatypes; // Signal that datatypes changed.
 
       // Store updated datatypes to persistent cache
-      if (
-        this.#persistentCache != undefined &&
-        "storeDatatypes" in this.#persistentCache &&
-        this.#persistentCache.storeDatatypes != undefined
-      ) {
-        void this.#persistentCache.storeDatatypes(updatedDatatypes).catch((error: unknown) => {
-          log.debug("Failed to store datatypes to cache:", error);
-        });
+      if (this.#persistentCache != undefined) {
+        this.#persistentCache.storeDatatypes(updatedDatatypes);
       }
     }
   }
@@ -1918,7 +1916,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         if (reachableResult) {
           if (this.#autoConnectToLan) {
-            toast.success(t("cosWebsocket:lanConnectionPromptAutoConnect"));
+            toast.success(t("websocket:lanConnectionPromptAutoConnect"));
             await this.#reconnectWithNewUrl(reachableResult.candidate);
             return;
           }
@@ -1926,10 +1924,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
           // 找到匹配的IP地址，重新连接WebSocket
           // 弹窗询问用户是否使用局域网连接
           const result = await this.#confirm({
-            title: t("cosWebsocket:lanAvailable"),
-            prompt: t("cosWebsocket:lanConnectionPrompt"),
-            ok: t("cosWebsocket:switchNow"),
-            cancel: t("cosWebsocket:keepCurrent"),
+            title: t("websocket:lanAvailable"),
+            prompt: t("websocket:lanConnectionPrompt"),
+            ok: t("websocket:switchNow"),
+            cancel: t("websocket:keepCurrent"),
             variant: "toast",
           });
 

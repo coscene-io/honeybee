@@ -111,8 +111,8 @@ export function HelpMenu(props: HelpMenuProps): React.JSX.Element {
       >
         <SlideLayout24Regular className={classes.icon} />
         <ListItemText
-          primary={t("dataVisualization", { ns: "cosHelp" })}
-          secondary={t("visualizeMachineDataAndAnalysis", { ns: "cosHelp" })}
+          primary={t("dataVisualization", { ns: "help" })}
+          secondary={t("visualizeMachineDataAndAnalysis", { ns: "help" })}
           slotProps={{
             secondary: {
               className: classes.menuText,

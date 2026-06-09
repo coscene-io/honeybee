@@ -1,0 +1,280 @@
+/** @jest-environment jsdom */
+
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import EventEmitter from "eventemitter3";
+
+import { H264 } from "@foxglove/den/video";
+import { Time } from "@foxglove/rostime";
+import { MessageEvent, SettingsTreeAction } from "@foxglove/studio";
+import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
+import { IRenderer, RendererConfig } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+
+import { Images, LayerSettingsImage } from "./Images";
+import {
+  type CompressedVideoFrameEvent,
+  ImageRenderable,
+  ImageSetImageResult,
+  ImageUserData,
+  type SetCompressedVideoFramesOptions,
+} from "./Images/ImageRenderable";
+import { AnyImage, CompressedVideo } from "./Images/ImageTypes";
+
+function timeFromNanoseconds(timestamp: bigint): Time {
+  return {
+    sec: Number(timestamp / 1_000_000_000n),
+    nsec: Number(timestamp % 1_000_000_000n),
+  };
+}
+
+function makeVideoMessage(timestamp: bigint, type: "key" | "delta"): MessageEvent<CompressedVideo> {
+  return {
+    topic: "/video",
+    schemaName: "foxglove.CompressedVideo",
+    receiveTime: timeFromNanoseconds(timestamp),
+    message: {
+      timestamp: timeFromNanoseconds(timestamp),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([type === "key" ? 0x65 : 0x41]),
+    },
+    sizeInBytes: 1,
+  };
+}
+
+function timestampFromImage(image: AnyImage): Time {
+  return "header" in image ? image.header.stamp : image.timestamp;
+}
+
+class TestImageRenderable extends ImageRenderable {
+  public readonly setImageCalls: AnyImage[] = [];
+  public readonly setCompressedVideoFrameBatches: AnyImage[][] = [];
+
+  public override async setImage(
+    image: AnyImage,
+    _resizeWidth?: number,
+    _onDecoded?: () => void,
+  ): Promise<ImageSetImageResult> {
+    this.userData.image = image;
+    this.setImageCalls.push(image);
+    return { ok: true };
+  }
+
+  public override async setCompressedVideoFrames(
+    frames: readonly CompressedVideoFrameEvent[],
+    options?: SetCompressedVideoFramesOptions,
+  ): Promise<ImageSetImageResult> {
+    const targetFrame = frames[frames.length - 1];
+    if (targetFrame == undefined) {
+      return { ok: false };
+    }
+    this.userData.image = targetFrame.message;
+    this.setCompressedVideoFrameBatches.push(frames.map((frame) => frame.message));
+    options?.onDecoded?.();
+    options?.updateImageState?.(targetFrame);
+    return { ok: true };
+  }
+}
+
+class TestImages extends Images {
+  public readonly createdRenderables: TestImageRenderable[] = [];
+
+  protected override initRenderable(topicName: string, userData: ImageUserData): ImageRenderable {
+    const renderable = new TestImageRenderable(topicName, this.renderer, userData);
+    this.createdRenderables.push(renderable);
+    return renderable;
+  }
+}
+
+function makeRenderer(
+  options: {
+    topicSettings?: Record<string, Partial<LayerSettingsImage> | undefined>;
+    subscribeMessageRange?: SubscribeMessageRange;
+  } = {},
+): IRenderer {
+  const emitter = new EventEmitter();
+  const topics = [
+    { name: "/video", schemaName: "foxglove.CompressedVideo" },
+    { name: "/raw", schemaName: "foxglove.RawImage" },
+  ];
+  const config: RendererConfig = {
+    cameraState: {},
+    followTf: undefined,
+    followMode: "follow-none",
+    scene: {},
+    publish: {},
+    transforms: {},
+    topics: options.topicSettings ?? {
+      "/video": { visible: true },
+      "/raw": { visible: true },
+    },
+    layers: {},
+    imageMode: {},
+  } as RendererConfig;
+
+  return Object.assign(emitter, {
+    config,
+    topics,
+    topicsByName: new Map(topics.map((topic) => [topic.name, topic])),
+    currentTime: 10_000_000n,
+    startTime: 0n,
+    subscribeMessageRange: options.subscribeMessageRange,
+    settings: {
+      errors: {
+        add: jest.fn(),
+        addToTopic: jest.fn(),
+        clear: jest.fn(),
+        clearPath: jest.fn(),
+        errorIfFalse: jest.fn(),
+        errors: {
+          errorAtPath: jest.fn(),
+        },
+        off: jest.fn(),
+        on: jest.fn(),
+        remove: jest.fn(),
+        removeFromTopic: jest.fn(),
+      },
+      setNodesForKey: jest.fn(),
+    },
+    hud: new HUDItemManager(jest.fn()),
+    normalizeFrameId: jest.fn((frameId: string) => frameId),
+    queueAnimationFrame: jest.fn(),
+    updateConfig: jest.fn((updateHandler: (draft: RendererConfig) => void) => {
+      updateHandler(config);
+    }),
+  }) as unknown as IRenderer;
+}
+
+describe("Images compressed video seek lookback", () => {
+  beforeEach(() => {
+    jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
+    jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
+      isKeyFrame: data[0] === 0x65,
+      mayNeedRewrite: false,
+    }));
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function compressedVideoSubscription(images: Images) {
+    const subscription = images
+      .getSubscriptions()
+      .find((entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"))
+      ?.subscription;
+    if (subscription == undefined) {
+      throw new Error("Missing compressed video subscription");
+    }
+    return subscription;
+  }
+
+  it("looks back for visible compressed video topics before any frame is received", () => {
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => jest.fn());
+    const renderer = makeRenderer({ subscribeMessageRange });
+    const images = new TestImages(renderer);
+
+    images.handleSeek();
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/video",
+        timeRange: {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 0, nsec: 10_000_000 },
+        },
+      }),
+    );
+  });
+
+  it("does not look back for raw image topics or hidden compressed video topics", () => {
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => jest.fn());
+    const renderer = makeRenderer({
+      topicSettings: {
+        "/video": { visible: false },
+        "/raw": { visible: true },
+      },
+      subscribeMessageRange,
+    });
+    const images = new TestImages(renderer);
+
+    images.handleSeek();
+
+    expect(subscribeMessageRange).not.toHaveBeenCalled();
+  });
+
+  it("registers a compressed video topic when it becomes visible from settings", () => {
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => jest.fn());
+    const renderer = makeRenderer({
+      topicSettings: {
+        "/video": { visible: false },
+        "/raw": { visible: true },
+      },
+      subscribeMessageRange,
+    });
+    const images = new TestImages(renderer);
+
+    images.handleSeek();
+
+    const action: SettingsTreeAction = {
+      action: "update",
+      payload: {
+        path: ["topics", "/video", "visible"],
+        input: "boolean",
+        value: true,
+      },
+    };
+    images.handleSettingsAction(action);
+    images.handleSeek();
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/video",
+      }),
+    );
+  });
+
+  it("replays cached compressed video GOP after renderables are removed", async () => {
+    const renderer = makeRenderer({ subscribeMessageRange: undefined });
+    const images = new TestImages(renderer);
+    const subscription = compressedVideoSubscription(images);
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+
+    subscription.handler(keyframe);
+    subscription.handler(delta);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    images.removeAllRenderables();
+    images.handleSeek();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const displayedBatches = images.createdRenderables.flatMap((renderable) =>
+      renderable.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
+    );
+    expect(displayedBatches).toEqual([
+      [keyframe.message.timestamp],
+      [delta.message.timestamp],
+      [keyframe.message.timestamp, delta.message.timestamp],
+    ]);
+  });
+});

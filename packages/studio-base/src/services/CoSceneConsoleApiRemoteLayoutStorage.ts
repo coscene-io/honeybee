@@ -21,6 +21,7 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
@@ -39,7 +40,12 @@ function convertGrpcLayoutToRemoteLayout({
     throw new Error(`Missing data for server layout ${layout.displayName} (${layout.name})`);
   }
 
-  const data: LayoutData = layout.data as LayoutData;
+  let data: LayoutData;
+  try {
+    data = replaceNullWithUndefined(layout.data) as LayoutData;
+  } catch (err) {
+    throw new Error(`Invalid layout data for ${layout.displayName}: ${err}`);
+  }
 
   // Parse layout name to extract ID and parent
   const id = layout.name as LayoutID;

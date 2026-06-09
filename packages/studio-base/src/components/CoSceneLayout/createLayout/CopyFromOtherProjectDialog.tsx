@@ -34,7 +34,7 @@ export function CopyFromOtherProjectDialog({
   onCreateLayout: (params: CreateLayoutParams) => void;
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const { classes } = useStyles();
   const { enqueueSnackbar } = useSnackbar();
   const [projectName, setProjectName] = useState("");

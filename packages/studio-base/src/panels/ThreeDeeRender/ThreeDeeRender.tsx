@@ -59,6 +59,7 @@ import {
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
 import { PublishClickEventMap, PublishClickType } from "./renderables/PublishClickTool";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/PublishSettings";
+import { getTopicMessageFrequencies } from "./topicMessageFrequencies";
 import { InterfaceMode } from "./types";
 
 const log = Logger.getLogger(__filename);
@@ -79,6 +80,32 @@ const PANEL_STYLE: React.CSSProperties = {
   position: "relative",
 };
 
+function getSelectedTopicMessageFrequency({
+  extensionData,
+  selectedTopic,
+  topics,
+}: {
+  extensionData: Record<string, unknown> | undefined;
+  selectedTopic: string | undefined;
+  topics: ReadonlyArray<Topic> | undefined;
+}): number | undefined {
+  if (selectedTopic == undefined) {
+    return undefined;
+  }
+
+  const topicMessageFrequencies = getTopicMessageFrequencies(extensionData);
+  if (
+    topicMessageFrequencies != undefined &&
+    Object.prototype.hasOwnProperty.call(topicMessageFrequencies, selectedTopic)
+  ) {
+    const frequency = topicMessageFrequencies[selectedTopic];
+    return typeof frequency === "number" ? frequency : undefined;
+  }
+
+  const frequency = topics?.find((topic) => topic.name === selectedTopic)?.messageFrequency;
+  return frequency != undefined && frequency > 0 ? frequency : undefined;
+}
+
 /**
  * A panel that renders a 3D scene. This is a thin wrapper around a `Renderer` instance.
  */
@@ -94,6 +121,7 @@ export function ThreeDeeRender(props: {
     initialState,
     saveState,
     unstable_fetchAsset: fetchAsset,
+    unstable_subscribeMessageRange: subscribeMessageRange,
     unstable_setMessagePathDropConfig: setMessagePathDropConfig,
   } = context;
   const analytics = useAnalytics();
@@ -204,10 +232,12 @@ export function ThreeDeeRender(props: {
   const [currentFrameMessages, setCurrentFrameMessages] = useState<
     ReadonlyArray<MessageEvent> | undefined
   >();
+  const [startTime, setStartTime] = useState<Time | undefined>();
   const [currentTime, setCurrentTime] = useState<Time | undefined>();
   const [didSeek, setDidSeek] = useState<boolean>(false);
   const [sharedPanelState, setSharedPanelState] = useState<undefined | Shared3DPanelState>();
   const [allFrames, setAllFrames] = useState<readonly MessageEvent[] | undefined>(undefined);
+  const [extensionData, setExtensionData] = useState<Record<string, unknown> | undefined>();
 
   const renderRef = useRef({ needsRender: false });
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
@@ -368,6 +398,9 @@ export function ThreeDeeRender(props: {
         if (renderState.currentTime) {
           setCurrentTime(renderState.currentTime);
         }
+        if (renderState.startTime) {
+          setStartTime(renderState.startTime);
+        }
 
         // Check if didSeek is set to true to reset the preloadedMessageTime and
         // trigger a state flush in Renderer
@@ -402,17 +435,21 @@ export function ThreeDeeRender(props: {
 
         // allFrames has messages on preloaded topics across all frames (as they are loaded)
         setAllFrames(renderState.allFrames);
+
+        setExtensionData(renderState.extensionData);
       });
     };
 
     context.watch("allFrames");
     context.watch("colorScheme");
     context.watch("currentFrame");
+    context.watch("startTime");
     context.watch("currentTime");
     context.watch("didSeek");
     context.watch("parameters");
     context.watch("sharedPanelState");
     context.watch("topics");
+    context.watch("extensionData");
     context.watch("appSettings");
     context.subscribeAppSettings([AppSetting.TIMEZONE, AppSetting.TF_COMPATIBILITY_MODE]);
   }, [context, renderer]);
@@ -499,6 +536,12 @@ export function ThreeDeeRender(props: {
     }
   }, [parameters, renderer]);
 
+  useEffect(() => {
+    if (renderer) {
+      renderer.subscribeMessageRange = subscribeMessageRange;
+    }
+  }, [renderer, subscribeMessageRange]);
+
   // Keep the renderer currentTime up to date and handle seeking
   useEffect(() => {
     const newTimeNs = currentTime ? toNanoSec(currentTime) : undefined;
@@ -530,6 +573,12 @@ export function ThreeDeeRender(props: {
       renderRef.current.needsRender = true;
     }
   }, [backgroundColor, colorScheme, renderer]);
+
+  useEffect(() => {
+    if (renderer) {
+      renderer.startTime = startTime ? toNanoSec(startTime) : undefined;
+    }
+  }, [renderer, startTime]);
 
   // Handle preloaded messages and render a frame if new messages are available
   // Should be called before `messages` is handled
@@ -877,6 +926,17 @@ export function ThreeDeeRender(props: {
     [renderer],
   );
 
+  const selectedImageTopic = interfaceMode === "image" ? config.imageMode.imageTopic : undefined;
+  const selectedImageTopicMessageFrequency = useMemo(
+    () =>
+      getSelectedTopicMessageFrequency({
+        extensionData,
+        selectedTopic: selectedImageTopic,
+        topics,
+      }),
+    [extensionData, selectedImageTopic, topics],
+  );
+
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
       <div style={PANEL_STYLE} onKeyDown={onKeyDown}>
@@ -909,6 +969,8 @@ export function ThreeDeeRender(props: {
             onResetCamera={onResetCamera}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
+            selectedImageTopic={selectedImageTopic}
+            selectedImageTopicMessageFrequency={selectedImageTopicMessageFrequency}
           />
         </RendererContext.Provider>
       </div>

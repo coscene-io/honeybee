@@ -4,13 +4,11 @@
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v20.0.0+
-- [Git LFS](https://git-lfs.github.com/)
+- [Node.js](https://nodejs.org/en/) v22 recommended (`package.json` currently allows `>=20`)
 
 ## Getting started
 
 1. Clone repo
-1. Run `git lfs pull` to ensure Git LFS objects are up to date
 1. Run `corepack enable` and `yarn install`
    - If you still get errors about corepack after running `corepack enable`, try uninstalling and reinstalling Node.js. Ensure that Yarn is not separately installed from another source, but is installed _via_ corepack.
 1. Launch the development environment:

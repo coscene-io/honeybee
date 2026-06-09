@@ -45,8 +45,12 @@ const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitCon
 const selectProject = (store: CoreDataStore) => store.project;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 
+export function getEventDurationSeconds(duration: number, durationUnit: "sec" | "nsec"): number {
+  return Math.max(0, durationUnit === "sec" ? duration : duration / 1e9);
+}
+
 function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   return (
     <Stack direction="row" alignItems="center" gap={1}>
@@ -80,11 +84,12 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const fieldConfigurationUrl = `https://${domainConfig.webDomain}/${organizationSlug}/${projectSlug}/manage/advanced-settings/custom-field/moment-custom-field`;
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
+  const isSubmittingRef = useRef(false);
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
   const isEditing = toModifyEvent != undefined;
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
 
   const defaultEventForm = useDefaultEventForm();
 
@@ -132,59 +137,13 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   const handleCreateTask = async (event: Event) => {
     const task = taskForm.getValues();
 
-    const description: string =
-      JSON.stringify({
-        root: {
-          children: [
-            {
-              children: [
-                {
-                  sourceName: event.name,
-                  sourceType: "moment",
-                  type: "source",
-                  version: 1,
-                },
-              ],
-              direction: "ltr",
-              format: "",
-              indent: 0,
-              type: "paragraph",
-              version: 1,
-            },
-            ...task.description.split("\n").map((text) => ({
-              children: [
-                {
-                  detail: 0,
-                  format: 0,
-                  mode: "normal",
-                  style: "",
-                  text,
-                  type: "text",
-                  version: 1,
-                },
-              ],
-              direction: "ltr",
-              format: "",
-              indent: 0,
-              type: "paragraph",
-              version: 1,
-            })),
-          ],
-          direction: "ltr",
-          format: "",
-          indent: 0,
-          type: "root",
-          version: 1,
-        },
-      }) ?? task.description;
-
     try {
       const newTask = await consoleApi.createTask({
         parent: projectName,
         task: {
           ...task,
           customFieldValues: convertCustomFieldValuesMapToArray(task.customFieldValues ?? {}),
-          description,
+          description: task.description,
         },
         event,
       });
@@ -203,20 +162,26 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   };
 
   const onSubmit = async () => {
-    setIsLoading(true);
-    const isEventFormValid = await eventForm.trigger();
-    let isTaskFormValid = true;
-
-    if (enabledCreateNewTask) {
-      isTaskFormValid = await taskForm.trigger();
-    }
-
-    if (!isEventFormValid || !isTaskFormValid) {
-      setIsLoading(false);
+    if (isSubmittingRef.current) {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+    let shouldResetSubmitting = true;
+
     try {
+      const isEventFormValid = await eventForm.trigger();
+      let isTaskFormValid = true;
+
+      if (enabledCreateNewTask) {
+        isTaskFormValid = await taskForm.trigger();
+      }
+
+      if (!isEventFormValid || !isTaskFormValid) {
+        return;
+      }
+
       const event = eventForm.getValues();
 
       if (event.startTime == undefined || event.duration == undefined) {
@@ -231,8 +196,9 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       const keyedMetadata = Object.fromEntries(
         filteredMeta.map((entry) => [entry.key.trim(), entry.value.trim()]),
       );
+      const durationSeconds = getEventDurationSeconds(event.duration, event.durationUnit);
 
-      let imageFiles = undefined;
+      let imageFiles = toModifyEvent?.files;
 
       if (event.imageFile) {
         const imgId = uuidv4();
@@ -249,16 +215,17 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         });
 
         imageFiles = [`${recordName}/files/.cos/moments/${imgFileDisplayName}`];
+      } else if (isEditing) {
+        imageFiles = event.imgUrl ? toModifyEvent.files ?? [] : [];
+      } else {
+        imageFiles = [];
       }
 
       const newEvent = create(EventSchema, {
         name: toModifyEvent?.name ?? "",
         displayName: event.eventName,
         triggerTime: timestampFromDate(event.startTime),
-        duration:
-          event.durationUnit === "sec"
-            ? secondsToDuration(event.duration)
-            : secondsToDuration(event.duration / 1e9),
+        duration: secondsToDuration(durationSeconds),
         description: event.description,
         files: imageFiles,
         customFieldValues: convertCustomFieldValuesMapToArray(event.customFieldValues ?? {}),
@@ -267,6 +234,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
       if (isEditing) {
         const maskArray = [
+          "triggerTime",
           "displayName",
           "duration_nanos",
           "description",
@@ -295,12 +263,16 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       }
 
       refreshEvents();
+      shouldResetSubmitting = false;
       onClose();
     } catch (error) {
       console.error(error);
       toast.error(t("createMomentFailed"));
     } finally {
-      setIsLoading(false);
+      if (shouldResetSubmitting) {
+        isSubmittingRef.current = false;
+        setIsLoading(false);
+      }
     }
   };
 

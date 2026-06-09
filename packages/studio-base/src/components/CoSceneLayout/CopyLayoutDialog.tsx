@@ -52,7 +52,7 @@ export function CopyLayoutDialog({
   layout: Layout;
   supportsProjectWrite: boolean;
 }): React.JSX.Element {
-  const { t } = useTranslation("cosLayout");
+  const { t } = useTranslation("layout");
   const { classes } = useStyles();
 
   const form = useForm<CreateLayoutForm>({
@@ -141,7 +141,7 @@ export function CopyLayoutDialog({
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>
-          {t("cancel", { ns: "cosGeneral" })}
+          {t("cancel", { ns: "general" })}
         </Button>
         <Button
           variant="contained"
@@ -149,7 +149,7 @@ export function CopyLayoutDialog({
             void form.handleSubmit(onSubmit)();
           }}
         >
-          {t("ok", { ns: "cosGeneral" })}
+          {t("ok", { ns: "general" })}
         </Button>
       </DialogActions>
     </Dialog>

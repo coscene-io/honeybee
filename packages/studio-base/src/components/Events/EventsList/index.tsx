@@ -6,10 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ClearIcon from "@mui/icons-material/Clear";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweepOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
+  Button,
   CircularProgress,
   IconButton,
   TextField,
@@ -22,6 +24,7 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -29,12 +32,14 @@ import { makeStyles } from "tss-react/mui";
 import Logger from "@foxglove/log";
 import { fromDate, add, fromSec } from "@foxglove/rostime";
 import { positionEventMark } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
+import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   EventsStore,
   TimelinePositionedEvent,
@@ -62,6 +67,12 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(0.5),
     alignItems: "center",
     borderBottom: `1px solid ${theme.palette.divider}`,
+  },
+  deleteAllButton: {
+    alignSelf: "stretch",
+    flexShrink: 0,
+    margin: 0,
+    whiteSpace: "nowrap",
   },
   root: {
     backgroundColor: theme.palette.background.paper,
@@ -124,6 +135,7 @@ const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.se
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectSetToModifyEvent = (store: EventsStore) => store.setToModifyEvent;
 const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
@@ -131,6 +143,10 @@ const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeDat
 
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
+const selectSetEventsAtHoverValue = (store: TimelineInteractionStateStore) =>
+  store.setEventsAtHoverValue;
+const selectProject = (store: CoreDataStore) => store.project;
+const selectRecord = (store: CoreDataStore) => store.record;
 
 export function EventsList(): React.JSX.Element {
   const consoleApi = useConsoleApi();
@@ -138,6 +154,7 @@ export function EventsList(): React.JSX.Element {
   const events = useEvents(selectEvents);
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
+  const refreshEvents = useEvents(selectRefreshEvents);
   const { formatTime } = useAppTimeFormat();
 
   const seek = useMessagePipeline(selectSeek);
@@ -152,16 +169,25 @@ export function EventsList(): React.JSX.Element {
 
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+  const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
 
   const [momentVariant, setMomentVariant] = useState<"small" | "learge">("learge");
 
-  const { t } = useTranslation("cosEvent");
+  const { t } = useTranslation("event");
   const confirm = useConfirm();
 
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
   const setEventMarks = useEvents(selectSetEventMarks);
 
   const [disabledScroll, setDisabledScroll] = useState(false);
+  const [isDeletingAllEvents, setIsDeletingAllEvents] = useState(false);
+  const allEventCount = events.value?.length ?? 0;
+  const canDeleteEvents =
+    consoleApi.deleteEvent.permission() &&
+    project.value?.isArchived === false &&
+    record.value?.isArchived === false;
 
   const timestampedEvents = useMemo(() => {
     const classifiedEvents = new Map<
@@ -222,6 +248,65 @@ export function EventsList(): React.JSX.Element {
     [setHoveredEvent],
   );
 
+  const onDeleteAllEvents = useCallback(async () => {
+    if (!canDeleteEvents) {
+      return;
+    }
+
+    const eventsToDelete = events.value ?? [];
+    if (eventsToDelete.length === 0) {
+      return;
+    }
+
+    const response = await confirm({
+      title: t("deleteAllConfirmTitle"),
+      prompt: t("deleteAllConfirmPrompt"),
+      ok: t("delete"),
+      cancel: t("cancel"),
+      variant: "danger",
+    });
+    if (response !== "ok") {
+      return;
+    }
+
+    setIsDeletingAllEvents(true);
+
+    try {
+      const results = await Promise.allSettled(
+        eventsToDelete.map(async (event) => {
+          await deleteEventWithFile({ consoleApi, event });
+        }),
+      );
+      const failureCount = results.filter((result) => result.status === "rejected").length;
+      const successCount = results.length - failureCount;
+
+      selectEvent(undefined);
+      setHoveredEvent(undefined);
+      setEventsAtHoverValue([]);
+      setLoopedEvent(undefined);
+      refreshEvents();
+
+      if (failureCount === 0) {
+        toast.success(t("allMomentsDeleted", { count: successCount }));
+      } else {
+        toast.error(t("deleteAllMomentsPartialFailed", { failureCount, successCount }));
+      }
+    } finally {
+      setIsDeletingAllEvents(false);
+    }
+  }, [
+    canDeleteEvents,
+    confirm,
+    consoleApi,
+    events.value,
+    refreshEvents,
+    selectEvent,
+    setEventsAtHoverValue,
+    setHoveredEvent,
+    setLoopedEvent,
+    t,
+  ]);
+
   const { classes } = useStyles();
 
   const [diagnosisRuleData, getDiagnosisRule] = useAsyncFn(async () => {
@@ -281,6 +366,25 @@ export function EventsList(): React.JSX.Element {
             {t("showDetail")}
           </MenuItem>
         </Select>
+        {canDeleteEvents && allEventCount > 0 && (
+          <Button
+            className={classes.deleteAllButton}
+            color="error"
+            disabled={isDeletingAllEvents || events.loading}
+            onClick={() => void onDeleteAllEvents()}
+            size="small"
+            startIcon={
+              isDeletingAllEvents ? (
+                <CircularProgress color="inherit" size={16} />
+              ) : (
+                <DeleteSweepIcon fontSize="small" />
+              )
+            }
+            variant="outlined"
+          >
+            {t("deleteAll")}
+          </Button>
+        )}
       </AppBar>
       {events.loading && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">

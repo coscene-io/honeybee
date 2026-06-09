@@ -16,12 +16,13 @@ import { Bounds } from "@foxglove/studio-base/types/Bounds";
 import type { Service } from "./StateTransitionsChart.worker";
 import {
   Dataset,
-  Datum,
   HoverElement,
   Scale,
   StateTransitionsChartRenderer,
   UpdateAction,
 } from "./StateTransitionsChartRenderer";
+import { Viewport } from "./downsampleStates";
+import { Datum } from "./types";
 
 const log = Logger.getLogger(__filename);
 
@@ -99,11 +100,14 @@ export class StateTransitionsRenderer {
     return await (await this.#remote).getElementsAtPixel(pixel);
   }
 
-  public async updateDatasets(datasets: Dataset[]): Promise<Scale | undefined> {
+  public async updateDatasets(
+    datasets: Dataset[],
+    viewport?: Viewport,
+  ): Promise<Scale | undefined> {
     if (this.#destroyed) {
       return undefined;
     }
-    return await (await this.#remote).updateDatasets(datasets);
+    return await (await this.#remote).updateDatasets(datasets, viewport);
   }
 
   public async getDatalabelAtEvent(pixel: { x: number; y: number }): Promise<Datum | undefined> {

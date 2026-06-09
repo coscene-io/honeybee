@@ -26,7 +26,7 @@ export function ProjectVisibilityChip({
 }: {
   visibility: ProjectVisibilityEnum_ProjectVisibility;
 }): React.JSX.Element | undefined {
-  const { t } = useTranslation("cosProject");
+  const { t } = useTranslation("project");
   const { classes } = useStyles();
 
   switch (visibility) {

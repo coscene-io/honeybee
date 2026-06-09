@@ -13,6 +13,7 @@ import { File } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha
 import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
@@ -20,6 +21,10 @@ import { Auth } from "@foxglove/studio-desktop/src/common/types";
 export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
+
+export function isAuthlessDataSource(): boolean {
+  return false;
+}
 
 // window.navigator.platform is not reliable, use this function to check os
 export function getOS(): string | undefined {
@@ -62,7 +67,7 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === Code.Unauthenticated) {
-      if (window.location.pathname !== "/login") {
+      if (window.location.pathname !== "/login" && !isAuthlessDataSource()) {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {
@@ -97,10 +102,31 @@ export function getPromiseClient<T extends DescService>(service: T): Client<T> {
   return createClient(
     service,
     createGrpcWebTransport({
-      baseUrl: window.cosConfig?.VITE_APP_BASE_API_URL ?? "https://api.coscene.cn",
+      baseUrl: getAppConfig().VITE_APP_BASE_API_URL ?? "https://api.dev.coscene.cn",
       interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
     }),
   );
+}
+
+export function replaceNullWithUndefined(obj: unknown): unknown {
+  // eslint-disable-next-line no-restricted-syntax
+  if (obj == null) {
+    return undefined;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullWithUndefined);
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = replaceNullWithUndefined(value);
+    }
+    return result;
+  }
+
+  return obj;
 }
 
 // 将任意字符串映射为一颜色

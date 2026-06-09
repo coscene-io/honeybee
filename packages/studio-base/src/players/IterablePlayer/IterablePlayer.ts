@@ -38,6 +38,7 @@ import {
   PlayerStateActiveData,
   Progress,
   PublishPayload,
+  SubscribeMessageRangeArgs,
   SubscribePayload,
   Topic,
   TopicSelection,
@@ -51,6 +52,7 @@ import { BufferedIterableSource } from "./BufferedIterableSource";
 import { DeserializingIterableSource } from "./DeserializingIterableSource";
 import {
   IDeserializedIterableSource,
+  IIterableSource,
   ISerializedIterableSource,
   IteratorResult,
 } from "./IIterableSource";
@@ -61,6 +63,7 @@ const log = Log.getLogger(__filename);
 // Setting this to higher than 1.5GB caused the renderer process to crash on linux.
 // See: https://github.com/foxglove/studio/pull/1733
 const DEFAULT_CACHE_SIZE_BYTES = 1.0e9;
+const DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES = 25 * 1024 * 1024 * 1024;
 
 // Amount to wait until panels have had the chance to subscribe to topics before
 // we start playback
@@ -73,11 +76,12 @@ const MIN_MEM_CACHE_BLOCK_SIZE_NS = 0.1e9;
 // Preloading algorithms slow when there are too many blocks.
 // Adaptive block sizing is simpler than using a tree structure for immutable updates but
 // less flexible, so we may want to move away from a single-level block structure in the future.
-const MAX_BLOCKS = 400;
+const MAX_BLOCKS = 100;
 
 // Amount to seek into the data source from the start when loading the player. The purpose of this
 // is to provide some initial data to subscribers.
-const SEEK_ON_START_NS = BigInt(99 * 1e6);
+export const SEEK_ON_START_NS = BigInt(99 * 1e6);
+const MESSAGE_RANGE_BATCH_SIZE = 512;
 
 const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
 
@@ -104,6 +108,9 @@ type IterablePlayerOptions = {
 
   // Max. time that messages will be buffered ahead for smoother playback. (default: 10sec)
   readAheadDuration?: Time;
+
+  enablePlaybackSpillCache?: boolean;
+  playbackSpillCacheSourceKey?: string;
 };
 
 type IterablePlayerState =
@@ -178,7 +185,10 @@ export class IterablePlayer implements Player {
   #iterableSource: IDeserializedIterableSource | ISerializedIterableSource;
 
   // Buffered source used for playback.
-  #bufferedSource: IDeserializedIterableSource;
+  #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
+
+  // Independent deserialized source used only for bounded panel-owned message range reads.
+  #messageRangeSource?: IDeserializedIterableSource;
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -188,6 +198,7 @@ export class IterablePlayer implements Player {
 
   // The iterator for reading messages during playback
   #playbackIterator?: AsyncIterator<Readonly<IteratorResult>>;
+  #playbackIteratorAbort?: AbortController;
 
   #blockLoader?: BlockLoader;
   #blockLoadingProcess?: Promise<void>;
@@ -214,23 +225,34 @@ export class IterablePlayer implements Player {
       enablePreload,
       sourceId,
       readAheadDuration = getReadAheadDurationDefaultTime(),
+      enablePlaybackSpillCache = false,
+      playbackSpillCacheSourceKey,
     } = options;
 
     this.#iterableSource = source;
+    const spillCache = enablePlaybackSpillCache
+      ? {
+          sourceId,
+          sourceKey: playbackSpillCacheSourceKey ?? JSON.stringify({ sourceId, urlParams }),
+          maxCacheSize: DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES,
+        }
+      : undefined;
     if (source.sourceType === "deserialized") {
-      this.#bufferImpl = new BufferedIterableSource(source, {
+      const slicingSource = new DeserializedSourceWrapper(source);
+      this.#bufferImpl = new BufferedIterableSource(slicingSource, {
         readAheadDuration,
+        spillCache,
       });
-      this.#bufferedSource = new DeserializedSourceWrapper(this.#bufferImpl);
     } else {
       const MEGABYTE_IN_BYTES = 1024 * 1024;
-      const bufferInterface = new BufferedIterableSource(source, {
+      const deserializingSource = new DeserializingIterableSource(source);
+      this.#bufferImpl = new BufferedIterableSource(deserializingSource, {
         readAheadDuration,
-        maxCacheSizeBytes: 600 * MEGABYTE_IN_BYTES,
+        maxCacheSizeBytes: 300 * MEGABYTE_IN_BYTES,
+        spillCache,
       });
-      this.#bufferImpl = bufferInterface;
-      this.#bufferedSource = new DeserializingIterableSource(bufferInterface);
     }
+    this.#bufferedSource = this.#bufferImpl;
 
     this.#name = name;
     this.#urlParams = urlParams;
@@ -414,6 +436,57 @@ export class IterablePlayer implements Player {
     }
   }
 
+  public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
+    const source = this.#messageRangeSource;
+    if (source == undefined) {
+      return undefined;
+    }
+
+    const abortController = new AbortController();
+    let iterator: AsyncIterableIterator<Readonly<IteratorResult>> | undefined;
+
+    const rangeIterator = (async function* (): AsyncIterableIterator<readonly MessageEvent[]> {
+      let messages: MessageEvent[] = [];
+      iterator = source.messageIterator({
+        topics: new Map([[args.topic, { topic: args.topic }]]),
+        start: args.timeRange.start,
+        end: args.timeRange.end,
+        consumptionType: "full",
+        abortSignal: abortController.signal,
+      });
+
+      try {
+        for await (const result of iterator) {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          if (result.type === "message-event" && result.msgEvent.topic === args.topic) {
+            messages.push(result.msgEvent);
+            if (messages.length >= MESSAGE_RANGE_BATCH_SIZE) {
+              yield messages;
+              messages = [];
+            }
+          }
+        }
+      } finally {
+        await iterator.return?.();
+      }
+
+      if (!abortController.signal.aborted && messages.length > 0) {
+        yield messages;
+      }
+    })();
+
+    Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch((err: unknown) => {
+      log.warn(`Message range subscription failed: ${String(err)}`);
+    });
+
+    return () => {
+      abortController.abort();
+      void iterator?.return?.();
+    };
+  }
+
   public setPublishers(_publishers: AdvertiseOptions[]): void {
     // no-op
   }
@@ -458,7 +531,15 @@ export class IterablePlayer implements Player {
     this.#nextState = newState;
     this.#abort?.abort();
     this.#abort = undefined;
+    if (newState !== "idle" && newState !== "play") {
+      this.#abortPlaybackIterator();
+    }
     void this.#runState();
+  }
+
+  #abortPlaybackIterator(): void {
+    this.#playbackIteratorAbort?.abort();
+    this.#playbackIteratorAbort = undefined;
   }
 
   /**
@@ -483,6 +564,7 @@ export class IterablePlayer implements Player {
         // we will need to make a new one.
         if (state !== "idle" && state !== "play" && this.#playbackIterator) {
           log.debug("Ending playback iterator because next state is not IDLE or PLAY");
+          this.#abortPlaybackIterator();
           await this.#playbackIterator.return?.();
           this.#playbackIterator = undefined;
         }
@@ -605,13 +687,14 @@ export class IterablePlayer implements Player {
       if (this.#enablePreload) {
         // --- setup block loader which loads messages for _full_ subscriptions in the "background"
         try {
-          let blockLoaderSource;
+          let blockLoaderSource: IDeserializedIterableSource;
           if (this.#iterableSource.sourceType === "deserialized") {
-            blockLoaderSource = this.#iterableSource;
+            // Wrap the source with DeserializedSourceWrapper to support field slicing
+            blockLoaderSource = new DeserializedSourceWrapper(this.#iterableSource);
           } else {
             blockLoaderSource = new DeserializingIterableSource(this.#iterableSource);
             // We must not call initialize() here, as the #iterableSource was already initialized above.
-            blockLoaderSource.initializeDeserializers(initResult);
+            blockLoaderSource.initializeDeserializers?.(initResult);
           }
 
           this.#blockLoader = new BlockLoader({
@@ -636,6 +719,15 @@ export class IterablePlayer implements Player {
             error: err,
           });
         }
+      }
+
+      if (this.#iterableSource.sourceType === "deserialized") {
+        this.#messageRangeSource = new DeserializedSourceWrapper(this.#iterableSource);
+      } else {
+        const messageRangeSource = new DeserializingIterableSource(this.#iterableSource);
+        // Do not call initialize(); the underlying source was initialized via #bufferedSource above.
+        messageRangeSource.initializeDeserializers(initResult);
+        this.#messageRangeSource = messageRangeSource;
       }
 
       this.#presence = PlayerPresence.PRESENT;
@@ -679,18 +771,30 @@ export class IterablePlayer implements Player {
         : add(this.#currentTime, { sec: 0, nsec: 1 });
 
     log.debug("Ending previous iterator");
+    this.#abortPlaybackIterator();
     await this.#playbackIterator?.return?.();
 
     // set the playIterator to the seek time
     await this.#bufferImpl.stopProducer();
 
     log.debug("Initializing forward iterator from", next);
+    const playbackIteratorAbort = new AbortController();
+    this.#playbackIteratorAbort = playbackIteratorAbort;
     this.#playbackIterator = this.#bufferedSource.messageIterator({
       topics: this.#allTopics,
       start: next,
       consumptionType: "partial",
       fetchCompleteTopicState,
+      abortSignal: playbackIteratorAbort.signal,
     });
+
+    // Yield to the macrotask queue so that all pending microtasks from the new
+    // producer's initial cache population in CachingIterableSource settle before
+    // we return. Without this, the async generator chain (BufferedIterableSource →
+    // CachingIterableSource → source) may still have pending microtasks that emit
+    // "loadedRangesChange" events. If those fire after #stateIdle registers its
+    // rangeChangeHandler, they cause unexpected state emissions.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
   async #stateResetPlaybackIterator() {
@@ -703,7 +807,10 @@ export class IterablePlayer implements Player {
     }
 
     await this.#resetPlaybackIterator("complete");
-    this.#setState(this.#isPlaying ? "play" : "idle");
+    // Only transition if no external action has set a nextState during resetPlaybackIterator.
+    if (!this.#nextState) {
+      this.#setState(this.#isPlaying ? "play" : "idle");
+    }
   }
 
   // Read a small amount of data from the data source with the hope of producing a message or two.
@@ -736,7 +843,8 @@ export class IterablePlayer implements Player {
     }
 
     // Ensure the seek time is always within the data source bounds
-    const targetTime = clampTime(this.#seekTarget, this.#start, this.#end);
+    const startTime = this.#start;
+    const targetTime = clampTime(this.#seekTarget, startTime, this.#end);
 
     this.#lastMessageEvent = undefined;
 
@@ -754,10 +862,11 @@ export class IterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
+      const abortSignal = this.#abort.signal;
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
-        abortSignal: this.#abort.signal,
+        abortSignal,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout
@@ -779,7 +888,13 @@ export class IterablePlayer implements Player {
 
       this.#queueEmitState();
       await this.#resetPlaybackIterator();
-      this.#setState(this.#isPlaying ? "play" : "idle");
+      // Only transition to idle/play if no external action (e.g. setSubscriptions,
+      // seekPlayback) has set a nextState during resetPlaybackIterator's async work.
+      // The await above yields control, so #nextState may have been set externally.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
+      if (!this.#nextState) {
+        this.#setState(this.#isPlaying ? "play" : "idle");
+      }
     } catch (err) {
       if (this.#nextState && err.name === "AbortError") {
         log.debug("Aborted backfill");
@@ -1147,10 +1262,12 @@ export class IterablePlayer implements Player {
 
   async #stateClose() {
     this.#isPlaying = false;
+    this.#abortPlaybackIterator();
     await this.#blockLoader?.stopLoading();
     await this.#blockLoadingProcess;
+    // Note: #bufferedSource and #bufferImpl are the same object now,
+    // so we only need to terminate once
     await this.#bufferImpl.terminate();
-    await this.#bufferedSource.terminate?.();
     await this.#playbackIterator?.return?.();
     this.#playbackIterator = undefined;
     await this.#iterableSource.terminate?.();

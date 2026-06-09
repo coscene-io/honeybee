@@ -7,356 +7,459 @@
 
 import * as Comlink from "@coscene-io/comlink";
 
+import { H264, H265, type QueuedVideoFrame, VideoPlayer } from "@foxglove/den/video";
 import Logger from "@foxglove/log";
-import { isLessThan, Time, toMicroSec } from "@foxglove/rostime";
-import type { RawImage } from "@foxglove/schemas";
+import { isLessThan, Time, toMicroSec, toNanoSec } from "@foxglove/rostime";
 
-import { decodeRawImage, RawImageOptions } from "./decodeImage";
-import type { Image as RosImage } from "../../ros";
+import type { CompressedVideo } from "./ImageTypes";
 
 const log = Logger.getLogger(__filename);
+const TARGET_FRAME_TIMEOUT_MS = 1000;
+const ANY_FRAME_TIMEOUT_MS = 2000;
 
-let h264Decoder: VideoDecoder | undefined;
+let videoPlayer: VideoPlayer | undefined;
+let initPromise: Promise<void> | undefined;
+/** Track the last decoded frame's timestamp to detect out-of-order frames */
+let lastDecodeTime: Time = { sec: 0, nsec: 0 };
+let activeBatchAbort: (() => void) | undefined;
+let streamBaseTimestampMicros: number | undefined;
+let lastQueuedTimestampMicros: number | undefined;
+let pendingTargetFrame: PendingTargetFrame | undefined;
 
-let H264Frames: VideoFrame[] = [];
+export type DecodeVideoFrameInput = {
+  frame: CompressedVideo;
+  receiveTime: bigint;
+};
 
-let foundKeyFrame = false;
+export type DecodeVideoFramesArgs = {
+  frames: DecodeVideoFrameInput[];
+  requestId: number;
+  targetFrameTimeoutMs?: number;
+  anyFrameTimeoutMs?: number;
+};
 
-function decode(image: RosImage | RawImage, options: Partial<RawImageOptions>): ImageData {
-  const result = new ImageData(image.width, image.height);
-  decodeRawImage(image, options, result.data);
-  return Comlink.transfer(result, [result.data.buffer]);
-}
-
-// H.264 NALU type constants (for documentation)
-// 0: Unspecified, 1: Non-IDR coded slice, 2-4: Data partition slices, 5: IDR coded slice
-// 6: SEI, 7: SPS, 8: PPS, 9: AUD, 10: End of sequence, 11: End of stream, 12: Filler data
-
-// H.264 Slice type enumeration
-enum H264SliceType {
-  P = 0, // P slice
-  B = 1, // B slice
-  I = 2, // I slice
-  SP = 3, // SP slice
-  SI = 4, // SI slice
-  P_IDR = 5, // P slice (IDR)
-  B_IDR = 6, // B slice (IDR)
-  I_IDR = 7, // I slice (IDR)
-  SP_IDR = 8, // SP slice (IDR)
-  SI_IDR = 9, // SI slice (IDR)
-}
-
-/**
- * Parse unsigned integer in UE(v) format (Exponential Golomb encoding)
- * @param data Data buffer
- * @param bitOffset Bit offset
- * @returns {value: number, bitsRead: number}
- */
-function parseUEV(data: Uint8Array, bitOffset: number): { value: number; bitsRead: number } {
-  let leadingZeros = 0;
-  let currentBit = bitOffset;
-
-  // Count the number of leading zeros
-  while (currentBit < data.length * 8) {
-    const byteIndex = Math.floor(currentBit / 8);
-    const bitIndex = 7 - (currentBit % 8);
-    const bit = (data[byteIndex]! >> bitIndex) & 1;
-
-    if (bit === 1) {
-      break;
+export type DecodeVideoFramesResult =
+  | {
+      type: "TargetFrame" | "IntermediateFrame";
+      requestId: number;
+      frame: VideoFrame;
+      originalTimestamp: bigint;
+      receiveTime: bigint;
     }
-    leadingZeros++;
-    currentBit++;
-  }
+  | { type: "Timeout" | "Aborted" | "FrameOutOfOrder"; requestId: number };
 
-  if (currentBit >= data.length * 8) {
-    return { value: 0, bitsRead: currentBit - bitOffset };
-  }
+export type AwaitTargetFrameArgs = {
+  requestId: number;
+};
 
-  // Skip the identifier bit 1
-  currentBit++;
-
-  // Read data bits
-  let value = 0;
-  for (let i = 0; i < leadingZeros; i++) {
-    if (currentBit >= data.length * 8) {
-      break;
+export type AwaitTargetFrameResult =
+  | {
+      type: "TargetFrame";
+      requestId: number;
+      frame: VideoFrame;
+      originalTimestamp: bigint;
+      receiveTime: bigint;
     }
+  | { type: "Aborted"; requestId: number };
 
-    const byteIndex = Math.floor(currentBit / 8);
-    const bitIndex = 7 - (currentBit % 8);
-    const bit = (data[byteIndex]! >> bitIndex) & 1;
+type DecodedVideoFrameResult = {
+  frame: VideoFrame;
+  originalTimestamp: bigint;
+  receiveTime: bigint;
+};
 
-    value = (value << 1) | bit;
-    currentBit++;
+type PendingTargetFrame = {
+  requestId: number;
+  originalTimestamp: bigint;
+  receiveTime: bigint;
+  retainedFrame?: DecodedVideoFrameResult;
+  resolve?: (result: AwaitTargetFrameResult) => void;
+};
+
+function getVideoPlayer(): VideoPlayer {
+  if (!videoPlayer) {
+    videoPlayer = new VideoPlayer();
   }
-
-  return {
-    value: (1 << leadingZeros) - 1 + value,
-    bitsRead: currentBit - bitOffset,
-  };
+  return videoPlayer;
 }
 
 /**
- * Parse slice type from H.264 slice header
- * @param data NAL unit data (excluding start code)
- * @returns Slice type or undefined (if parsing failed)
+ * Reset the video player when we detect out-of-order frames (e.g., seek backwards, or a GOP replay
+ * on seek that starts before the last decoded frame). Keep the current decoder config so deltas in
+ * the replayed GOP don't arrive while the decoder is cold-starting.
  */
-function parseSliceType(data: Uint8Array): H264SliceType | undefined {
-  if (data.length < 2) {
-    return undefined;
-  }
-
-  // Skip NAL header (1 byte)
-  let bitOffset = 8;
-
-  try {
-    // Parse first_mb_in_slice (UE(v))
-    const firstMb = parseUEV(data, bitOffset);
-    bitOffset += firstMb.bitsRead;
-
-    // Parse slice_type (UE(v))
-    const sliceTypeResult = parseUEV(data, bitOffset);
-    const sliceType = sliceTypeResult.value;
-
-    // slice_type value might be greater than 9, need to take modulo
-    const normalizedSliceType = sliceType % 5;
-
-    // Map slice_type to corresponding enum value
-    switch (normalizedSliceType) {
-      case 0:
-        return sliceType >= 5 ? H264SliceType.P_IDR : H264SliceType.P;
-      case 1:
-        return sliceType >= 5 ? H264SliceType.B_IDR : H264SliceType.B;
-      case 2:
-        return sliceType >= 5 ? H264SliceType.I_IDR : H264SliceType.I;
-      case 3:
-        return sliceType >= 5 ? H264SliceType.SP_IDR : H264SliceType.SP;
-      case 4:
-        return sliceType >= 5 ? H264SliceType.SI_IDR : H264SliceType.SI;
-      default:
-        return undefined;
-    }
-  } catch {
-    return undefined;
-  }
+function resetVideoPlayerForDisorder(): void {
+  log.info("Received out-of-order frame, resetting video decoder");
+  videoPlayer?.resetForSeek();
+  initPromise = undefined;
+  lastDecodeTime = { sec: 0, nsec: 0 };
+  streamBaseTimestampMicros = undefined;
+  lastQueuedTimestampMicros = undefined;
 }
 
-/**
- * Find the start position of the next NAL unit
- * @param data Data buffer
- * @param startPos Position to start searching from
- * @returns Start position of next NAL unit, returns -1 if not found
- */
-function findNextNalStart(data: Uint8Array, startPos: number): number {
-  for (let i = startPos; i <= data.length - 4; i++) {
-    if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 1) {
-      return i + 4; // 4-byte start code
-    }
-    if (i <= data.length - 3 && data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 1) {
-      return i + 3; // 3-byte start code
-    }
-  }
-  return -1;
+function closeDecodedVideoFrameResult(result: DecodedVideoFrameResult | undefined): void {
+  result?.frame.close();
 }
 
-/**
- * Parse the type of a single NAL unit
- * @param frame Complete frame data
- * @param nalStart NAL unit start position
- * @returns Frame type or undefined (if need to check next NAL unit)
- */
-function parseNalUnit(
-  frame: Uint8Array,
-  nalStart: number,
-): "key" | "delta" | "b frame" | "unknown frame" | undefined {
-  if (nalStart >= frame.length) {
-    return "unknown frame";
-  }
-
-  // Get NAL unit type (lower 5 bits)
-  const nalType = frame[nalStart]! & 0x1f;
-
-  // Determine based on NAL unit type
-  if (nalType === 5) {
-    // IDR frames are always key frames
-    return "key";
-  } else if (nalType === 7 || nalType === 8) {
-    // SPS and PPS are crucial for decoding, treated as key frames
-    return "key";
-  } else if (nalType === 9) {
-    // Access Unit Delimiter, need to check subsequent NAL units
-    log.debug("Found AUD (Access Unit Delimiter), looking for next NAL unit...");
-    return undefined; // Return undefined to indicate need to check next NAL unit
-  } else if (nalType === 6 || nalType === 12) {
-    // SEI and filler data are not image data, need to check subsequent NAL units
-    log.debug(`Found SEI/Filler (type ${nalType}), looking for next NAL unit...`);
-    return undefined;
-  } else if (nalType === 1 || nalType === 2 || nalType === 3 || nalType === 4) {
-    // Non-IDR coded slices - these are never true key frames even if they contain I slices
-    // Only IDR frames (NAL type 5) are true random access points for decoder initialization
-    const sliceType = parseSliceType(frame.subarray(nalStart));
-
-    if (sliceType == undefined) {
-      return "unknown frame";
-    }
-
-    // Determine slice type - but note that non-IDR slices are never "key" frames
-    switch (sliceType) {
-      case H264SliceType.I:
-      case H264SliceType.I_IDR:
-      case H264SliceType.SI:
-      case H264SliceType.SI_IDR:
-        // Non-IDR I and SI slices can still depend on previous frames
-        // They should not be used as decoder initialization points
-        return "delta";
-
-      case H264SliceType.B:
-      case H264SliceType.B_IDR:
-        return "b frame"; // B frames
-
-      case H264SliceType.P:
-      case H264SliceType.P_IDR:
-      case H264SliceType.SP:
-      case H264SliceType.SP_IDR:
-        return "delta"; // P and SP frames are predictive frames
-
-      default:
-        return "unknown frame";
-    }
-  } else if (nalType === 10 || nalType === 11) {
-    // End of sequence and end of stream markers
-    return "unknown frame";
-  } else {
-    // Unknown or reserved NAL unit type, continue to check next one
-    log.debug(`Unknown NAL type: ${nalType}, looking for next NAL unit...`);
-    return undefined;
-  }
-}
-
-/**
- * Determine H.264 frame type
- * @param frame Complete H.264 frame data
- * @returns Frame type: "key"(key frame), "delta"(non-key frame), "b frame"(B frame), "unknown frame"(unknown)
- */
-function isKeyFrame(frame: Uint8Array): "key" | "delta" | "b frame" | "unknown frame" {
-  if (frame.length < 5) {
-    return "unknown frame"; // Frame too short to determine
-  }
-
-  let nalStart = 0;
-  let searchAttempts = 0;
-  const MAX_NAL_SEARCH_ATTEMPTS = 10; // Safety limit to prevent infinite loops
-
-  // Find the first NAL unit start code
-  if (frame[0] === 0 && frame[1] === 0 && frame[2] === 0 && frame[3] === 1) {
-    nalStart = 4; // 4-byte start code 0x00000001
-  } else if (frame[0] === 0 && frame[1] === 0 && frame[2] === 1) {
-    nalStart = 3; // 3-byte start code 0x000001
-  } else {
-    // May not have start code, start from beginning
-    nalStart = 0;
-  }
-
-  // Traverse NAL units with safety limit
-  while (nalStart >= 0 && nalStart < frame.length && searchAttempts < MAX_NAL_SEARCH_ATTEMPTS) {
-    searchAttempts++;
-    const result = parseNalUnit(frame, nalStart);
-
-    if (result != undefined) {
-      // Found definitive frame type
-      return result;
-    }
-
-    // Need to check next NAL unit
-    nalStart = findNextNalStart(frame, nalStart + 1);
-  }
-
-  // Safety mechanism triggered or traversed all NAL units without finding definitive frame type
-  if (searchAttempts >= MAX_NAL_SEARCH_ATTEMPTS) {
-    log.warn(
-      `Reached maximum NAL search attempts (${MAX_NAL_SEARCH_ATTEMPTS}), defaulting to unknown frame`,
-    );
-  }
-
-  return "unknown frame";
-}
-
-function getH264Decoder(): VideoDecoder {
-  if (!h264Decoder) {
-    h264Decoder = new VideoDecoder({
-      output: (frame: VideoFrame) => {
-        H264Frames.push(frame);
-      },
-      error: (error: Error) => {
-        log.error(error.message);
-      },
-    });
-
-    h264Decoder.configure({
-      codec: "avc1.640028",
-      optimizeForLatency: true,
-    });
-  }
-  return h264Decoder;
-}
-
-let lastDecodeTime = { sec: 0, nsec: 0 };
-
-function decodeH264Frame(data: Uint8Array | Int8Array, receiveTime: Time): void {
-  // prevent disordered frames
-  if (isLessThan(receiveTime, lastDecodeTime)) {
-    log.info("received image disordered", receiveTime, lastDecodeTime);
-    h264Decoder?.close();
-    h264Decoder = undefined;
-    foundKeyFrame = false;
-  }
-
-  lastDecodeTime = receiveTime;
-
-  let type: "delta" | "key" | "unknown frame" | "b frame" = "delta";
-  if (data.length > 4) {
-    type = isKeyFrame(data as Uint8Array);
-  }
-
-  if (type === "key" && !foundKeyFrame) {
-    foundKeyFrame = true;
-  }
-
-  if (!foundKeyFrame) {
+function abortPendingTargetFrame(): void {
+  const pending = pendingTargetFrame;
+  if (pending == undefined) {
     return;
   }
-
-  const decoder = getH264Decoder();
-
-  const chunk = new EncodedVideoChunk({
-    timestamp: toMicroSec(receiveTime),
-    type: type === "key" ? "key" : "delta",
-    data,
-  });
-  try {
-    decoder.decode(chunk);
-  } catch (error) {
-    log.error("Decode error:", error);
-  }
+  pendingTargetFrame = undefined;
+  closeDecodedVideoFrameResult(pending.retainedFrame);
+  pending.resolve?.({ type: "Aborted", requestId: pending.requestId });
 }
 
-function getH264Frames(): VideoFrame | undefined {
-  const frame = H264Frames.pop();
-  if (frame) {
-    H264Frames.forEach((uselessFrame) => {
-      uselessFrame.close();
-    });
-    H264Frames = [];
-    return Comlink.transfer(frame, [frame]);
+function retainOrResolveTargetFrame(
+  requestId: number,
+  decodedFrame: DecodedVideoFrameResult,
+): boolean {
+  const pending = pendingTargetFrame;
+  if (
+    pending == undefined ||
+    pending.requestId !== requestId ||
+    pending.originalTimestamp !== decodedFrame.originalTimestamp ||
+    pending.receiveTime !== decodedFrame.receiveTime
+  ) {
+    return false;
   }
 
+  if (pending.resolve != undefined) {
+    pendingTargetFrame = undefined;
+    pending.resolve(
+      Comlink.transfer({ type: "TargetFrame", requestId, ...decodedFrame }, [
+        decodedFrame.frame,
+      ]) as AwaitTargetFrameResult,
+    );
+  } else {
+    closeDecodedVideoFrameResult(pending.retainedFrame);
+    pending.retainedFrame = decodedFrame;
+  }
+  return true;
+}
+
+async function ensureInitialized(
+  player: VideoPlayer,
+  frame: CompressedVideo,
+  chunkType: "key" | "delta",
+): Promise<boolean> {
+  if (player.isInitialized()) {
+    return true;
+  }
+
+  if (initPromise != undefined) {
+    await initPromise;
+    return player.isInitialized();
+  }
+
+  const decoderConfig = getDecoderConfig(frame);
+  if (!decoderConfig || chunkType !== "key") {
+    return false;
+  }
+
+  initPromise = player.init(decoderConfig).finally(() => {
+    initPromise = undefined;
+  });
+  await initPromise;
+  return player.isInitialized();
+}
+
+async function decodeVideoFrame(frame: CompressedVideo): Promise<VideoFrame | undefined> {
+  const result = await decodeVideoFrames({
+    frames: [{ frame, receiveTime: 0n }],
+    requestId: 0,
+  });
+  if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
+    return result.frame;
+  }
   return undefined;
 }
 
+async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
+  abortPendingTargetFrame();
+
+  const {
+    frames,
+    requestId,
+    targetFrameTimeoutMs = TARGET_FRAME_TIMEOUT_MS,
+    anyFrameTimeoutMs = ANY_FRAME_TIMEOUT_MS,
+  } = args;
+  if (frames.length === 0) {
+    return { type: "Timeout", requestId };
+  }
+
+  const batchState = { aborted: false, finished: false };
+  let finishBatch: ((result: DecodeVideoFramesResult) => void) | undefined;
+  const abortThisBatch = () => {
+    batchState.aborted = true;
+    videoPlayer?.resetForSeek();
+    streamBaseTimestampMicros = undefined;
+    lastQueuedTimestampMicros = undefined;
+    abortPendingTargetFrame();
+    finishBatch?.({ type: "Aborted", requestId });
+  };
+  activeBatchAbort = abortThisBatch;
+
+  try {
+    const player = getVideoPlayer();
+    const queuedFrames: Array<
+      QueuedVideoFrame<{ originalTimestamp: bigint; receiveTime: bigint }>
+    > = [];
+    let previousBatchFrameTime: Time | undefined;
+
+    for (const entry of frames) {
+      if (isBatchAborted(batchState)) {
+        return { type: "Aborted", requestId };
+      }
+
+      const frame = entry.frame;
+      if (
+        previousBatchFrameTime != undefined &&
+        isLessThan(frame.timestamp, previousBatchFrameTime)
+      ) {
+        resetVideoPlayerForDisorder();
+        return { type: "FrameOutOfOrder", requestId };
+      }
+      previousBatchFrameTime = frame.timestamp;
+
+      // Detect out-of-order frames (e.g., from seek backwards or GOP replay).
+      if (isLessThan(frame.timestamp, lastDecodeTime)) {
+        resetVideoPlayerForDisorder();
+      }
+      lastDecodeTime = frame.timestamp;
+
+      const frameInfo = getVideoFrameInfo(frame);
+      if (frameInfo == undefined) {
+        continue;
+      }
+
+      if (!(await ensureInitialized(player, frame, frameInfo.type))) {
+        continue;
+      }
+
+      streamBaseTimestampMicros ??= toMicroSec(frame.timestamp);
+      let timestampMicros = toMicroSec(frame.timestamp) - streamBaseTimestampMicros;
+      if (timestampMicros < 0) {
+        resetVideoPlayerForDisorder();
+        return { type: "FrameOutOfOrder", requestId };
+      }
+
+      if (lastQueuedTimestampMicros != undefined && timestampMicros <= lastQueuedTimestampMicros) {
+        timestampMicros = lastQueuedTimestampMicros + 1;
+      }
+      lastQueuedTimestampMicros = timestampMicros;
+
+      const frameData =
+        frame.format === "h264" && frameInfo.mayNeedRewrite
+          ? H264.RewriteForLowLatencyDecoding(frame.data) ?? frame.data
+          : frame.data;
+
+      queuedFrames.push({
+        data: frameData,
+        timestampMicros,
+        type: frameInfo.type,
+        metadata: {
+          originalTimestamp: toNanoSec(frame.timestamp),
+          receiveTime: entry.receiveTime,
+        },
+      });
+    }
+
+    if (queuedFrames.length === 0) {
+      return { type: "Timeout", requestId };
+    }
+
+    const targetOriginalTimestamp =
+      queuedFrames[queuedFrames.length - 1]!.metadata.originalTimestamp;
+    const targetReceiveTime = queuedFrames[queuedFrames.length - 1]!.metadata.receiveTime;
+    pendingTargetFrame = {
+      requestId,
+      originalTimestamp: targetOriginalTimestamp,
+      receiveTime: targetReceiveTime,
+    };
+    let latestFrame:
+      | {
+          frame: VideoFrame;
+          originalTimestamp: bigint;
+          receiveTime: bigint;
+        }
+      | undefined;
+    let targetTimedOut = false;
+    let targetTimer: ReturnType<typeof setTimeout> | undefined;
+    let anyFrameTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const closeLatestFrame = () => {
+      latestFrame?.frame.close();
+      latestFrame = undefined;
+    };
+
+    const clearTimers = () => {
+      if (targetTimer != undefined) {
+        clearTimeout(targetTimer);
+        targetTimer = undefined;
+      }
+      if (anyFrameTimer != undefined) {
+        clearTimeout(anyFrameTimer);
+        anyFrameTimer = undefined;
+      }
+    };
+
+    const result = await new Promise<DecodeVideoFramesResult>((resolve) => {
+      const finish = (resultToResolve: DecodeVideoFramesResult) => {
+        if (batchState.finished) {
+          closeDecodeResultFrame(resultToResolve);
+          return;
+        }
+        batchState.finished = true;
+        clearTimers();
+        finishBatch = undefined;
+        if (
+          resultToResolve.type !== "TargetFrame" &&
+          resultToResolve.type !== "IntermediateFrame"
+        ) {
+          closeLatestFrame();
+        } else if (latestFrame?.frame === resultToResolve.frame) {
+          latestFrame = undefined;
+        }
+        resolve(resultToResolve);
+      };
+
+      finishBatch = finish;
+      player.queueFrames(queuedFrames, (decodedFrame) => {
+        if (batchState.finished || batchState.aborted) {
+          if (
+            !retainOrResolveTargetFrame(requestId, {
+              frame: decodedFrame.frame,
+              ...decodedFrame.metadata,
+            })
+          ) {
+            decodedFrame.frame.close();
+          }
+          return;
+        }
+
+        closeLatestFrame();
+        latestFrame = { frame: decodedFrame.frame, ...decodedFrame.metadata };
+
+        if (
+          decodedFrame.metadata.originalTimestamp === targetOriginalTimestamp &&
+          decodedFrame.metadata.receiveTime === targetReceiveTime
+        ) {
+          pendingTargetFrame = undefined;
+          finish({ type: "TargetFrame", requestId, ...latestFrame });
+          return;
+        }
+
+        if (targetTimedOut) {
+          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+        }
+      });
+
+      targetTimer = setTimeout(() => {
+        targetTimer = undefined;
+        targetTimedOut = true;
+        if (latestFrame != undefined) {
+          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+        } else if (anyFrameTimer == undefined) {
+          finish({ type: "Timeout", requestId });
+        }
+      }, targetFrameTimeoutMs);
+
+      anyFrameTimer = setTimeout(() => {
+        anyFrameTimer = undefined;
+        if (latestFrame != undefined) {
+          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+        } else {
+          finish({ type: "Timeout", requestId });
+        }
+      }, anyFrameTimeoutMs);
+    });
+
+    if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
+      return Comlink.transfer(result, [result.frame]) as DecodeVideoFramesResult;
+    }
+    return result;
+  } finally {
+    if (activeBatchAbort === abortThisBatch) {
+      activeBatchAbort = undefined;
+    }
+  }
+}
+
+function isBatchAborted(batchState: { aborted: boolean }): boolean {
+  return batchState.aborted;
+}
+
+async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
+  const pending = pendingTargetFrame;
+  if (pending == undefined || pending.requestId !== args.requestId) {
+    return { type: "Aborted", requestId: args.requestId };
+  }
+
+  const retainedFrame = pending.retainedFrame;
+  if (retainedFrame != undefined) {
+    pendingTargetFrame = undefined;
+    return Comlink.transfer({ type: "TargetFrame", requestId: args.requestId, ...retainedFrame }, [
+      retainedFrame.frame,
+    ]) as AwaitTargetFrameResult;
+  }
+
+  return await new Promise<AwaitTargetFrameResult>((resolve) => {
+    pending.resolve = resolve;
+  });
+}
+
+function getVideoFrameInfo(
+  frame: CompressedVideo,
+): { type: "key" | "delta"; mayNeedRewrite: boolean } | undefined {
+  switch (frame.format) {
+    case "h264": {
+      const info = H264.GetFrameInfo(frame.data);
+      return {
+        type: info.isKeyFrame ? "key" : "delta",
+        mayNeedRewrite: info.mayNeedRewrite,
+      };
+    }
+    case "h265":
+      return { type: H265.IsKeyframe(frame.data) ? "key" : "delta", mayNeedRewrite: false };
+    default:
+      return undefined;
+  }
+}
+
+function getDecoderConfig(frame: CompressedVideo): VideoDecoderConfig | undefined {
+  switch (frame.format) {
+    case "h264":
+      return H264.ParseDecoderConfig(frame.data);
+    case "h265":
+      return H265.ParseDecoderConfig(frame.data);
+    default:
+      return undefined;
+  }
+}
+
+function resetVideoDecoder(): void {
+  activeBatchAbort?.();
+  activeBatchAbort = undefined;
+  abortPendingTargetFrame();
+  videoPlayer?.resetForSeek();
+  initPromise = undefined;
+  lastDecodeTime = { sec: 0, nsec: 0 };
+  streamBaseTimestampMicros = undefined;
+  lastQueuedTimestampMicros = undefined;
+}
+
+function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
+  if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
+    result.frame.close();
+  }
+}
+
 export const service = {
-  decode,
-  decodeH264Frame,
-  getH264Frames,
+  decodeVideoFrame,
+  decodeVideoFrames,
+  awaitTargetFrame,
+  resetVideoDecoder,
 };
 Comlink.expose(service);

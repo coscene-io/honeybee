@@ -9,12 +9,10 @@
 import { useEffect } from "react";
 import { useDebounce } from "use-debounce";
 
-// import { useDeepMemo } from "@foxglove/hooks";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-// import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -26,8 +24,6 @@ const selectCanSeek = (ctx: MessagePipelineContext) =>
   ctx.playerState.capabilities.includes(PlayerCapabilities.playbackControl);
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
 const selectLayoutId = (layoutState: LayoutState) => layoutState.selectedLayout?.id;
-// const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
-// const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 
 function updateUrl(newState: AppURLState) {
   const newStateUrl = updateAppURLState(new URL(window.location.href), newState);
@@ -39,13 +35,10 @@ function updateUrl(newState: AppURLState) {
  * CoScene do not sync stablePlayerUrlState.parameters
  */
 export function useStateToURLSynchronization(): void {
-  // const playerUrlState = useMessagePipeline(selectUrlState);
-  // const stablePlayerUrlState = useDeepMemo(playerUrlState);
   const canSeek = useMessagePipeline(selectCanSeek);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [debouncedCurrentTime] = useDebounce(currentTime, 500, { maxWait: 500 });
   const layoutId = useCurrentLayoutSelector(selectLayoutId);
-  // const selectedEventId = useEvents(selectSelectedEventId);
 
   // Sync layoutId with the url.
   useEffect(() => {
@@ -62,22 +55,4 @@ export function useStateToURLSynchronization(): void {
       time: canSeek ? debouncedCurrentTime : undefined,
     });
   }, [canSeek, debouncedCurrentTime]);
-
-  // Sync player state with the url.
-  // useEffect(() => {
-  //   if (stablePlayerUrlState == undefined) {
-  //     return;
-  //   }
-
-  //   updateUrl({
-  //     ds: stablePlayerUrlState.sourceId,
-  //     dsParams: _.pickBy(
-  //       {
-  //         ...stablePlayerUrlState.parameters,
-  //         eventId: selectedEventId,
-  //       },
-  //       _.isString,
-  //     ),
-  //   });
-  // }, [selectedEventId, stablePlayerUrlState]);
 }

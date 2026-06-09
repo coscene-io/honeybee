@@ -8,11 +8,16 @@
 // We keep some slow lint rules here, and only run them in CI.
 // Please only add rules here if they are unlikely to be encountered
 // during normal development.
+const prettierPlugin = require("eslint-plugin-prettier");
+
 const baseConfig = require("./eslint.config.cjs");
 
 module.exports = [
   ...baseConfig,
   {
+    plugins: {
+      prettier: prettierPlugin,
+    },
     rules: {
       // disable progress spinner
       "file-progress/activate": "off",
@@ -22,6 +27,12 @@ module.exports = [
       "import/no-self-import": "error",
       // https://github.com/import-js/eslint-plugin-import/issues/242#issuecomment-230118951
       "import/no-duplicates": "error",
+    },
+  },
+  {
+    files: ["**/*.@(js|jsx|ts|tsx)"],
+    ignores: ["**/*.test.@(js|jsx|ts|tsx)", "**/*.stories.@(js|jsx|ts|tsx)", "**/__tests__/**"],
+    rules: {
       // https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-cycle.md
       "import/no-cycle": [
         "error",

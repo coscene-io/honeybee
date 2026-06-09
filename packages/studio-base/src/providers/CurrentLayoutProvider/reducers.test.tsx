@@ -25,13 +25,12 @@ import { MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
-import panelsReducer, { defaultPlaybackConfig } from "./reducers";
+import panelsReducer from "./reducers";
 
 const emptyLayout: LayoutData = {
   configById: {},
   globalVariables: {},
   userNodes: {},
-  playbackConfig: defaultPlaybackConfig,
 };
 
 describe("layout reducers", () => {
@@ -136,7 +135,6 @@ describe("layout reducers", () => {
           destinationPath: [],
           position: "right",
           config: { foo: "bar" },
-          relatedConfigs: undefined,
         },
       });
 
@@ -158,7 +156,6 @@ describe("layout reducers", () => {
           destinationPath: [],
           position: "right",
           config: { activeTabIdx: 0, tabs: [{ title: "A", layout: "Audio!b" }] },
-          relatedConfigs: { "Audio!b": { foo: "baz" } },
         },
       });
       const { configById } = panels;
@@ -175,7 +172,6 @@ describe("layout reducers", () => {
 
       const newAudioId = tabs[0]?.layout as string;
       expect(getPanelTypeFromId(newAudioId)).toEqual("Audio");
-      expect(configById[newAudioId]).toEqual({ foo: "baz" });
     });
     it("drops panel into empty Tab layout", () => {
       let panels: LayoutData = {
@@ -193,7 +189,6 @@ describe("layout reducers", () => {
           position: "right",
           tabId: "Tab!a",
           config: { foo: "bar" },
-          relatedConfigs: undefined,
         },
       });
       const { layout, configById } = panels;
@@ -221,7 +216,6 @@ describe("layout reducers", () => {
           position: "right",
           tabId: "Tab!b",
           config: { foo: "bar" },
-          relatedConfigs: undefined,
         },
       });
       const { layout, configById } = panels;
@@ -246,9 +240,6 @@ describe("layout reducers", () => {
           destinationPath: [],
           position: "right",
           config: { activeTabIdx: 0, tabs: [{ title: "A", layout: "Tab!b" }] },
-          relatedConfigs: {
-            "Tab!b": { activeTabIdx: 0, tabs: [{ title: "B", layout: "Plot!a" }] },
-          },
         },
       });
       const { configById } = panels;
@@ -262,11 +253,6 @@ describe("layout reducers", () => {
 
       const childTabId = parentTabConfig.tabs[0]!.layout as string;
       expect(getPanelTypeFromId(childTabId)).toEqual("Tab");
-      const childTabProps = configById[childTabId] as TabPanelConfig;
-      expect(childTabProps.activeTabIdx).toEqual(0);
-      expect(childTabProps.tabs.length).toEqual(1);
-      expect(childTabProps.tabs[0]!.title).toEqual("B");
-      expect(getPanelTypeFromId(childTabProps.tabs[0]!.layout as string)).toEqual("Plot");
     });
   });
 
@@ -546,7 +532,6 @@ describe("layout reducers", () => {
         type: "SPLIT_PANEL",
         payload: {
           id: "Audio!a",
-          config: audioConfig,
           direction: "row",
           path: [],
           root: "Audio!a",
@@ -573,7 +558,6 @@ describe("layout reducers", () => {
         type: "SPLIT_PANEL",
         payload: {
           id: "Tab!a",
-          config: tabConfig,
           direction: "row",
           path: [],
           root: "Tab!a",
@@ -607,7 +591,6 @@ describe("layout reducers", () => {
         payload: {
           id: "Audio!a",
           tabId: "Tab!a",
-          config: audioConfig,
           direction: "row",
           path: [],
           root: "Audio!a",
@@ -652,7 +635,6 @@ describe("layout reducers", () => {
     it("can swap panel for a Tab panel", () => {
       const audioConfig = { foo: "bar" };
       const tabConfig = { activeTabIdx: 0, tabs: [{ title: "A", layout: "RawMessages!a" }] };
-      const rawMessagesConfig = { path: "foo" };
       let panels: LayoutData = {
         ...emptyLayout,
         layout: "Audio!a",
@@ -664,7 +646,6 @@ describe("layout reducers", () => {
           originalId: "Audio!a",
           type: "Tab",
           config: tabConfig,
-          relatedConfigs: { "RawMessages!a": rawMessagesConfig },
           path: [],
           root: "Audio!a",
         },
@@ -675,7 +656,6 @@ describe("layout reducers", () => {
       expect(getPanelTypeFromId(layout)).toEqual("Tab");
       const tabLayout = (configById[layout] as TabPanelConfig).tabs[0]!.layout!;
       expect(getPanelTypeFromId(tabLayout as string)).toEqual("RawMessages");
-      expect(configById[tabLayout as string]).toEqual(rawMessagesConfig);
     });
 
     it("can swap panel inside a Tab", () => {

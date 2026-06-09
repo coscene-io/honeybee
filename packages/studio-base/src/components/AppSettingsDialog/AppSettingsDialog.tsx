@@ -48,6 +48,7 @@ import {
   InactivityTimeout,
   RetentionWindowMs,
   RequestWindow,
+  ManifestStorageSourceSettings,
   ReadAheadDuration,
   StudioRemoteConfigUrl,
   AutoConnectToLan,
@@ -144,7 +145,7 @@ export function AppSettingsDialog(
     SectionKey,
     {
       subheader: string;
-      links: { title: string; url?: string }[];
+      links: { title: string; url?: string; target: "_blank" | "_self" }[];
     }
   >([
     [
@@ -155,6 +156,7 @@ export function AppSettingsDialog(
           {
             title: CONTACT_EMAIL,
             url: `mailto:${CONTACT_EMAIL}?subject=Support%20Request&body=Hello%20Support%20Team`,
+            target: "_self",
           },
         ],
       },
@@ -167,18 +169,22 @@ export function AppSettingsDialog(
           {
             title: t("licenseTerms"),
             url: LICENSE_URL,
+            target: "_blank",
           },
           {
             title: t("privacyPolicy"),
             url: getLegalDocsLink("privacy"),
+            target: "_blank",
           },
           {
             title: t("termsOfService"),
             url: getLegalDocsLink("terms"),
+            target: "_blank",
           },
           {
             title: t("security"),
             url: getLegalDocsLink("security"),
+            target: "_blank",
           },
         ],
       },
@@ -252,6 +258,7 @@ export function AppSettingsDialog(
               <RetentionWindowMs />
               <InactivityTimeout />
               <RequestWindow />
+              <ManifestStorageSourceSettings />
               <ReadAheadDuration />
               {showLanguageOptions && <LanguageSettings />}
               <IsRenderAllTabs />
@@ -333,7 +340,7 @@ export function AppSettingsDialog(
                         key={link.title}
                         data-testid={link.title}
                         href={link.url}
-                        target="_blank"
+                        target={link.target}
                       >
                         {link.title}
                       </Link>

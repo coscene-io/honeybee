@@ -89,6 +89,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     position: "relative",
     zIndex: 1,
     fontSize: ICON_SIZE - 2,
+    WebkitAppRegion: "no-drag", // make button clickable for desktop app
 
     "svg:not(.MuiSvgIcon-root)": {
       fontSize: "1rem",
@@ -499,7 +500,7 @@ export function DataSource(): React.JSX.Element {
               case "coscene-websocket":
                 return <RealTimeVizDataSource />;
               case "persistent-cache":
-                return <>{t("realTimeVizPlayback", { ns: "cosWebsocket" })}</>;
+                return <>{t("realTimeVizPlayback", { ns: "websocket" })}</>;
               case "coscene-data-platform":
                 return <DataPlatformSource />;
               default:

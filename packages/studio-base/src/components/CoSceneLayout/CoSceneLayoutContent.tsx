@@ -214,7 +214,7 @@ export function CoSceneLayoutContent({
   const loginStatus = useCurrentUser(selectLoginStatus);
   const noProject = useCoreData(selectNoProject);
 
-  const { t, i18n } = useTranslation(["cosLayout", "openDialog"]);
+  const { t, i18n } = useTranslation(["layout", "openDialog"]);
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
     category: "all" | "personal" | "project";

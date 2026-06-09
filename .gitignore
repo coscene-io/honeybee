@@ -1,5 +1,6 @@
 *.log
 *.tsbuildinfo
+.eslintcache
 .idea/
 .DS_Store
 .webpack/
@@ -8,6 +9,7 @@ dist/
 node_modules/
 storybook-screenshots/
 storybook-static/
+temp/
 # for jest --coverage
 coverage/
 

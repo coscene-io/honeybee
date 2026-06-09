@@ -32,6 +32,7 @@ import {
   IRemoteLayoutStorage,
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
+import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { NamespacedLayoutStorage } from "./CoSceneNamespacedLayoutStorage";
 import WriteThroughLayoutCache from "./CoSceneWriteThroughLayoutCache";
@@ -228,6 +229,24 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     if (existingLocal) {
       if (layoutAppearsDeleted(existingLocal)) {
         return undefined;
+      }
+
+      try {
+        existingLocal.baseline.data = replaceNullWithUndefined(
+          existingLocal.baseline.data,
+        ) as LayoutData;
+      } catch (err) {
+        throw new Error(`Invalid layout baseline data for ${existingLocal.id}: ${err}`);
+      }
+
+      if (existingLocal.working?.data) {
+        try {
+          existingLocal.working.data = replaceNullWithUndefined(
+            existingLocal.working.data,
+          ) as LayoutData;
+        } catch (err) {
+          throw new Error(`Invalid layout working data for ${existingLocal.id}: ${err}`);
+        }
       }
 
       return existingLocal;

@@ -59,6 +59,8 @@ export { default as ConsoleApi } from "@foxglove/studio-base/services/api/CoScen
 export type { LayoutID } from "./context/CurrentLayoutContext";
 export { IdbExtensionLoader } from "./services/IdbExtensionLoader";
 export type { IUrdfStorage } from "./services/IUrdfStorage";
+export { S3FileService } from "./services/S3FileService";
+export type { S3GetObjectResult } from "./services/S3FileService";
 
 export type { AppBarProps } from "./components/AppBar";
 

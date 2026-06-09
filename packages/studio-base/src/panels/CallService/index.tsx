@@ -19,7 +19,7 @@ import { CallService } from "./CallService";
 import { Config } from "./types";
 
 function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionContext) {
-  // eslint-disable-next-line react/no-deprecated
+  // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
   ReactDOM.render(
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
@@ -29,7 +29,7 @@ function initPanel(crash: ReturnType<typeof useCrash>, context: PanelExtensionCo
     context.panelElement,
   );
   return () => {
-    // eslint-disable-next-line react/no-deprecated
+    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
     ReactDOM.unmountComponentAtNode(context.panelElement);
   };
 }

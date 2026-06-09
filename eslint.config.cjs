@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+const prettierPlugin = require("eslint-plugin-prettier");
 const tssUnusedClasses = require("eslint-plugin-tss-unused-classes");
 const globals = require("globals");
 const tslintPlugin = require("typescript-eslint");
@@ -88,6 +89,7 @@ module.exports = tslintPlugin.config(
 
   {
     plugins: {
+      prettier: prettierPlugin,
       "tss-unused-classes": tssUnusedClasses,
       "@foxglove/studio": foxgloveEslintPluginStudio,
     },
@@ -105,6 +107,8 @@ module.exports = tslintPlugin.config(
       "id-denylist": ["error", "useEffectOnce", "window"],
       "no-console": "off",
       "@foxglove/studio/license-header": "error",
+      "@foxglove/studio/link-target": "error",
+      "@foxglove/studio/lodash-ramda-imports": "error",
 
       "no-restricted-syntax": [
         "error",
@@ -194,6 +198,9 @@ module.exports = tslintPlugin.config(
         },
       ],
       "no-warning-comments": "off",
+
+      "@foxglove/studio/ramda-usage": "error",
+      "@foxglove/studio/no-map-type-argument": "error",
     },
   },
   {

@@ -39,6 +39,12 @@ type Options = {
   minReadAheadDuration?: Time;
   // Max. cache size in bytes
   maxCacheSizeBytes?: number;
+  // Optional IndexedDB-backed overflow cache for evicted playback ranges.
+  spillCache?: {
+    sourceId: string;
+    sourceKey?: string;
+    maxCacheSize?: number;
+  };
 };
 
 interface EventTypes {
@@ -58,6 +64,7 @@ class BufferedIterableSource<MessageType = unknown>
   extends EventEmitter<EventTypes>
   implements IIterableSource<MessageType>
 {
+  public readonly sourceType: "serialized" | "deserialized";
   #source: CachingIterableSource<MessageType>;
 
   #readDone = false;
@@ -78,6 +85,7 @@ class BufferedIterableSource<MessageType = unknown>
   // The promise for the current producer. The message generator starts a producer and awaits the
   // producer before exiting.
   #producer?: Promise<void>;
+  #producerAbortController?: AbortController;
 
   #initResult?: Initalization;
 
@@ -87,13 +95,18 @@ class BufferedIterableSource<MessageType = unknown>
   // The minimum duration to buffer before playback resumes
   #minReadAheadDuration: Time;
 
-  public constructor(source: IIterableSource<MessageType>, opt?: Options) {
+  public constructor(
+    source: IIterableSource<MessageType> & { sourceType?: "serialized" | "deserialized" },
+    opt?: Options,
+  ) {
     super();
 
+    this.sourceType = source.sourceType ?? "deserialized";
     this.#readAheadDuration = opt?.readAheadDuration ?? DEFAULT_READ_AHEAD_DURATION;
     this.#minReadAheadDuration = opt?.minReadAheadDuration ?? DEFAULT_MIN_READ_AHEAD_DURATION;
     this.#source = new CachingIterableSource<MessageType>(source, {
       maxTotalSize: opt?.maxCacheSizeBytes,
+      spillCache: opt?.spillCache,
     });
 
     if (compare(this.#readAheadDuration, this.#minReadAheadDuration) < 0) {
@@ -125,12 +138,28 @@ class BufferedIterableSource<MessageType = unknown>
     // the start of the array.
     this.#cache.clear();
 
+    const producerAbortController = new AbortController();
+    this.#producerAbortController = producerAbortController;
+    const abortProducer = () => {
+      this.#aborted = true;
+      producerAbortController.abort();
+      this.#readSignal.notifyAll();
+      this.#writeSignal.notifyAll();
+    };
+
+    if (args.abortSignal?.aborted === true) {
+      abortProducer();
+    } else {
+      args.abortSignal?.addEventListener("abort", abortProducer, { once: true });
+    }
+
     try {
       const sourceIterator = this.#source.messageIterator({
         topics: args.topics,
         start: this.#readHead,
         consumptionType: "partial",
         fetchCompleteTopicState: args.fetchCompleteTopicState,
+        abortSignal: producerAbortController.signal,
       });
 
       // Messages are read from the source until reaching the readUntil time. Then we wait for the read head
@@ -218,6 +247,10 @@ class BufferedIterableSource<MessageType = unknown>
         await this.#writeSignal.wait();
       }
     } finally {
+      args.abortSignal?.removeEventListener("abort", abortProducer);
+      if (this.#producerAbortController === producerAbortController) {
+        this.#producerAbortController = undefined;
+      }
       // Indicate to the consumer that it can try reading again
       this.#readSignal.notifyAll();
       this.#readDone = true;
@@ -237,6 +270,8 @@ class BufferedIterableSource<MessageType = unknown>
   public async stopProducer(): Promise<void> {
     log.debug("Stopping producer");
     this.#aborted = true;
+    this.#producerAbortController?.abort();
+    this.#readSignal.notifyAll();
     this.#writeSignal.notifyAll();
     await this.#producer;
     this.#producer = undefined;

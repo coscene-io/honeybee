@@ -69,6 +69,14 @@ export const appSettings = {
     "Sets how many seconds of data the player preloads ahead of playback. Higher values smooth playback but use more memory.",
   readAheadDurationNextEffectiveNotice:
     "Setting updated, will take effect the next time visualization starts. <Link>Refresh now</Link>",
+  manifestStorageSource: "Manifest and MCAP request host",
+  manifestStorageSourceDescription:
+    "Selects the host used to fetch manifest files and relative MCAP shard files for data-platform playback.",
+  manifestStorageSourceDefaultTag: "default",
+  manifestStorageSourceChecking: "Checking whether this address can play the current file.",
+  manifestStorageSourceUnavailable: "This address cannot play the current file.",
+  manifestStorageSourceNextEffectiveNotice:
+    "Setting updated, will take effect the next time visualization starts. <Link>Refresh now</Link>",
   autoConnectToLan: "Real-time visualization auto connect to LAN",
   autoConnectToLanDescription:
     "When detected to be on the same LAN as the device, automatically connect to the LAN address, no need to manually confirm",

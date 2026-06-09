@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
+import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import { LabelPool } from "@foxglove/three-text";
 
@@ -96,6 +97,8 @@ export type ImageModeConfig = Partial<ColorModeSettings> & {
   synchronize?: boolean;
   /** Rotation */
   rotation?: 0 | 90 | 180 | 270;
+  brightness?: number;
+  contrast?: number;
   flipHorizontal?: boolean;
   flipVertical?: boolean;
   /** Minimum (black) value for single-channel images */
@@ -103,7 +106,6 @@ export type ImageModeConfig = Partial<ColorModeSettings> & {
   /** Maximum (white) value for single-channel images */
   maxValue?: number;
 };
-
 export type RendererConfig = {
   /** Camera settings for the currently rendering scene */
   cameraState: CameraState;
@@ -256,6 +258,8 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   transformTree: TransformTree;
   coordinateFrameList: SelectEntry[];
   currentTime: bigint;
+  startTime: bigint | undefined;
+  subscribeMessageRange: SubscribeMessageRange | undefined;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */
   fixedFrameId: string | undefined;
   /**
