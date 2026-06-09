@@ -240,6 +240,18 @@ describe("MessageHandler: synchronized = false", () => {
     messageHandler.setConfig({ ...initConfig, annotations: { annotations: { visible: false } } });
     expect(listener).toHaveBeenCalledTimes(4);
   });
+  it("notifies listeners when image state is updated directly", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler({ synchronize: false, imageTopic: "image" }, hud);
+    const listener = jest.fn();
+    const image = wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 0n);
+
+    messageHandler.addListener(listener);
+    messageHandler.updateImageState(image, image.message as RawImage);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0]![0].image?.message).toBe(image.message);
+  });
   it("should keep image and camera info if switching from unsync to sync to sync", () => {
     const hud = new HUDItemManager(() => {});
     const initConfig = { synchronize: false, imageTopic: "image", calibrationTopic: "calib" };
@@ -687,6 +699,39 @@ describe("MessageHandler: synchronized = true", () => {
       calibrationTopic: "calibration",
     });
     expect(listener).toHaveBeenCalledTimes(4);
+  });
+
+  it("notifies listeners with synchronized annotations when image state is updated directly", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        imageTopic: "image",
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    const time = 2n;
+    const listener = jest.fn();
+    const annotation = createCircleAnnotations([time]);
+    const annotationMessage = wrapInMessageEvent(
+      "annotations",
+      "foxglove.ImageAnnotations",
+      0n,
+      annotation,
+    );
+    const image = wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 0n, {
+      timestamp: fromNanoSec(time),
+    });
+
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    messageHandler.handleAnnotations(annotationMessage as MessageEvent<ImageAnnotations>);
+    messageHandler.addListener(listener);
+    messageHandler.updateImageState(image, image.message as RawImage);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0]![0].image?.message).toBe(image.message);
+    expect(listener.mock.calls[0]![0].annotationsByTopic?.get("annotations")).not.toBeUndefined();
   });
 });
 

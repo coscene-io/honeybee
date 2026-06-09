@@ -5,7 +5,102 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { H264 } from "./H264";
+import { H264, H264NaluType } from "./H264";
+import { SPS } from "./SPS";
+import { BitstreamWriter } from "../h26x/Bitstream";
+
+const SAMPLE_SPS_FRAME = new Uint8Array([
+  0x00, 0x00, 0x01, 0x67, 0x64, 0x0, 0x1e, 0xac, 0xb2, 0x1, 0x40, 0x5f, 0xf2, 0xe0, 0x2d, 0x40,
+  0x40, 0x40, 0x50, 0x0, 0x0, 0x3, 0x0, 0x10, 0x0, 0x0, 0x3, 0x3, 0x20, 0xf1, 0x62, 0xe4, 0x80,
+]);
+
+const SAMPLE_SPS_IDR_FRAME = new Uint8Array([
+  ...SAMPLE_SPS_FRAME,
+  0x00,
+  0x00,
+  0x01,
+  0x65,
+  0x88,
+  0x84,
+  0x21,
+]);
+
+const SAMPLE_NON_LOW_LATENCY_SPS_IDR_FRAME = new Uint8Array([
+  0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2, 0x00, 0x00, 0x01, 0x65, 0x88,
+]);
+
+function writeBytesWithBitstreamWriter(input: number[]): Uint8Array {
+  const buffer = new Uint8Array(input.length * 2);
+  const writer = new BitstreamWriter(buffer);
+  for (const byte of input) {
+    writer.u_8(byte);
+  }
+  writer.finish();
+  return buffer.subarray(0, writer.bytesWritten());
+}
+
+function containsUnescapedStartCodeLikeSequence(data: Uint8Array): boolean {
+  for (let i = 0; i <= data.length - 3; i++) {
+    if (data[i] === 0x00 && data[i + 1] === 0x00 && data[i + 2]! <= 0x02) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function createScalingMatrixSpsNalu(): { nalu: Uint8Array; list0: number[]; list1: number[] } {
+  const list0 = new Array<number>(16).fill(0);
+  const list1 = Array.from({ length: 16 }, (_, index) => (index % 2 === 0 ? 1 : -1));
+  const buffer = new Uint8Array(128);
+  const writer = new BitstreamWriter(buffer);
+
+  writer.u_1(0);
+  writer.u_2(3);
+  writer.u(5, 7);
+  writer.u_8(100);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_2(0);
+  writer.u_8(30);
+  writer.ue_v(0);
+
+  writer.ue_v(1);
+  writer.ue_v(0);
+  writer.ue_v(0);
+  writer.u_1(0);
+  writer.u_1(1);
+  writer.u_1(1);
+  for (const deltaScale of list0) {
+    writer.se_v(deltaScale);
+  }
+  writer.u_1(1);
+  for (const deltaScale of list1) {
+    writer.se_v(deltaScale);
+  }
+  for (let i = 2; i < 8; i++) {
+    writer.u_1(0);
+  }
+
+  writer.ue_v(0);
+  writer.ue_v(0);
+  writer.ue_v(0);
+  writer.ue_v(1);
+  writer.u_1(0);
+  writer.ue_v(7);
+  writer.ue_v(5);
+  writer.u_1(1);
+  writer.u_1(1);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(1);
+  writer.finish();
+
+  return { nalu: buffer.subarray(0, writer.bytesWritten()), list0, list1 };
+}
 
 describe("H264", () => {
   it("FindNextStartCode", () => {
@@ -154,5 +249,94 @@ describe("H264", () => {
     const keyframeData = new Uint8Array([0x00]); // data length < 5
 
     expect(H264.IsKeyframe(keyframeData)).toBe(false);
+  });
+
+  it("GetFrameInfo identifies keyframes, SPS, delta frames, and non-AnnexB data", () => {
+    expect(
+      H264.GetFrameInfo(
+        new Uint8Array([
+          0x00, 0x00, 0x00, 0x01, 0x65, 0x88, 0x84, 0x21, 0x00, 0x00, 0x00, 0x01, 0x41,
+        ]),
+      ),
+    ).toEqual({ isKeyFrame: true, mayNeedRewrite: true });
+    expect(H264.GetFrameInfo(SAMPLE_SPS_FRAME)).toEqual({
+      isKeyFrame: false,
+      mayNeedRewrite: true,
+    });
+    expect(H264.GetFrameInfo(new Uint8Array([0x00, 0x00, 0x01, 0x41, 0x88]))).toEqual({
+      isKeyFrame: false,
+      mayNeedRewrite: false,
+    });
+    expect(H264.GetFrameInfo(new Uint8Array([0x01, 0x67, 0x42, 0x00]))).toEqual({
+      isKeyFrame: false,
+      mayNeedRewrite: false,
+    });
+  });
+
+  it("BitstreamWriter inserts emulation prevention bytes for dangerous byte sequences", () => {
+    expect(writeBytesWithBitstreamWriter([0x00, 0x00, 0x00])).toEqual(
+      new Uint8Array([0x00, 0x00, 0x03, 0x00]),
+    );
+    expect(writeBytesWithBitstreamWriter([0x00, 0x00, 0x01])).toEqual(
+      new Uint8Array([0x00, 0x00, 0x03, 0x01]),
+    );
+    expect(writeBytesWithBitstreamWriter([0x00, 0x00, 0x02])).toEqual(
+      new Uint8Array([0x00, 0x00, 0x03, 0x02]),
+    );
+    expect(writeBytesWithBitstreamWriter([0x00, 0x00, 0x03])).toEqual(
+      new Uint8Array([0x00, 0x00, 0x03, 0x03]),
+    );
+    expect(writeBytesWithBitstreamWriter([0x00, 0x00, 0x00, 0x00, 0x01])).toEqual(
+      new Uint8Array([0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x01]),
+    );
+  });
+
+  it("RewriteForLowLatencyDecoding rewrites SPS bitstream restriction fields", () => {
+    const rewritten = H264.RewriteForLowLatencyDecoding(SAMPLE_NON_LOW_LATENCY_SPS_IDR_FRAME);
+    expect(rewritten).toBeDefined();
+
+    const decoderConfig = H264.ParseDecoderConfig(rewritten!);
+    expect(decoderConfig).toEqual({
+      codec: "avc1.42000A",
+      codedWidth: 128,
+      codedHeight: 96,
+    });
+    expect(H264.GetFirstNALUOfType(rewritten!, H264NaluType.IDR)?.[0]).toBe(0x65);
+
+    const spsData = H264.GetFirstNALUOfType(rewritten!, H264NaluType.SPS);
+    expect(spsData).toBeDefined();
+    expect(containsUnescapedStartCodeLikeSequence(spsData!)).toBe(false);
+    const sps = new SPS(spsData!);
+    expect(sps.vui_parameters_present_flag).toBe(1);
+    expect(sps.bitstream_restriction_flag).toBe(1);
+    expect(sps.max_num_reorder_frames).toBe(0);
+    expect(sps.max_dec_frame_buffering).toBe(sps.max_num_ref_frames);
+  });
+
+  it("RewriteForLowLatencyDecoding preserves SPS scaling lists and IDR NALU", () => {
+    const { nalu, list0, list1 } = createScalingMatrixSpsNalu();
+    const frame = new Uint8Array([0x00, 0x00, 0x01, ...nalu, 0x00, 0x00, 0x01, 0x65, 0x88]);
+
+    const rewritten = H264.RewriteForLowLatencyDecoding(frame);
+
+    expect(rewritten).toBeDefined();
+    expect(H264.GetFirstNALUOfType(rewritten!, H264NaluType.IDR)?.[0]).toBe(0x65);
+    const spsData = H264.GetFirstNALUOfType(rewritten!, H264NaluType.SPS);
+    expect(spsData).toBeDefined();
+    const sps = new SPS(spsData!);
+    expect(sps.seq_scaling_list_present_flag).toEqual([1, 1, 0, 0, 0, 0, 0, 0]);
+    expect(sps.seq_scaling_list?.[0]).toEqual(list0);
+    expect(sps.seq_scaling_list?.[1]).toEqual(list1);
+    expect(sps.bitstream_restriction_flag).toBe(1);
+    expect(sps.max_num_reorder_frames).toBe(0);
+    expect(sps.max_dec_frame_buffering).toBe(sps.max_num_ref_frames);
+  });
+
+  it("RewriteForLowLatencyDecoding returns undefined for already low-latency SPS", () => {
+    const rewritten = H264.RewriteForLowLatencyDecoding(SAMPLE_NON_LOW_LATENCY_SPS_IDR_FRAME);
+    expect(rewritten).toBeDefined();
+
+    expect(H264.RewriteForLowLatencyDecoding(rewritten!)).toBeUndefined();
+    expect(H264.RewriteForLowLatencyDecoding(SAMPLE_SPS_IDR_FRAME)).toBeUndefined();
   });
 });

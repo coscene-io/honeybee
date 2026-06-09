@@ -111,6 +111,10 @@ export class SceneExtension<
     this.updateSettingsTree();
   }
 
+  public handleSeek(oldTimeNs: bigint): void {
+    void oldTimeNs;
+  }
+
   /** Allows SceneExtensions to add options to the context menu. */
   public getContextMenuItems(): readonly PanelContextMenuItem[] {
     return [];
