@@ -65,6 +65,16 @@ describe("VideoGopCache", () => {
     expect(cache.framesForPublishTime(TOPIC, t(102))).toEqual([key, middle, delta]);
   });
 
+  it("replays only frames after the previous publishTime when requested", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const middle = h264Frame(11, 101, "delta");
+    const delta = h264Frame(12, 102, "delta");
+    cache.addFrames([key, middle, delta]);
+
+    expect(cache.framesForPublishTime(TOPIC, t(102), t(100))).toEqual([middle, delta]);
+  });
+
   it("dedupes duplicate publish timestamps by keeping the last write", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
@@ -86,6 +96,65 @@ describe("VideoGopCache", () => {
     cache.addFrame(targetDelta);
 
     expect(cache.framesForReceiveTime(TOPIC, t(50))).toBeUndefined();
+  });
+
+  it("does not stitch a post-seek publish-time delta onto an older cached range", () => {
+    const cache = new VideoGopCache();
+    const oldKey = h264Frame(10, 100, "key");
+    const oldDelta = h264Frame(11, 101, "delta");
+    const targetDelta = h264Frame(50, 150, "delta");
+    cache.addFrames([oldKey, oldDelta]);
+
+    cache.handleSeek(t(50));
+    cache.addFrame(targetDelta);
+
+    expect(cache.framesForPublishTime(TOPIC, t(150))).toBeUndefined();
+  });
+
+  it("continues appending deltas to the GOP selected by a cached receive-time seek", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const seekDelta = h264Frame(11, 101, "delta");
+    const nextDelta = h264Frame(12, 102, "delta");
+    cache.addFrames([key, seekDelta]);
+
+    cache.handleSeek(t(11));
+    expect(cache.seekAndReturnFramesForReceiveTime(TOPIC, t(11))).toEqual([key, seekDelta]);
+    cache.addFrame(nextDelta);
+
+    expect(cache.framesForPublishTime(TOPIC, t(102))).toEqual([key, seekDelta, nextDelta]);
+  });
+
+  it("replaces a target-only delta range when adding a lookback GOP range", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const middle = h264Frame(11, 101, "delta");
+    const targetDelta = h264Frame(50, 150, "delta");
+
+    cache.handleSeek(t(50));
+    cache.addFrame(targetDelta);
+    expect(cache.framesForPublishTime(TOPIC, t(150))).toBeUndefined();
+
+    cache.addFrameRange([key, middle, targetDelta]);
+
+    expect(cache.framesForPublishTime(TOPIC, t(150))).toEqual([key, middle, targetDelta]);
+  });
+
+  it("replays from a keyframe when afterTime is outside the publish-time range", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const delta = h264Frame(11, 101, "delta");
+    cache.addFrames([key, delta]);
+
+    expect(cache.framesForPublishTime(TOPIC, t(101), t(50))).toEqual([key, delta]);
+  });
+
+  it("does not return a delta-only publish-time sequence when afterTime is outside the range", () => {
+    const cache = new VideoGopCache();
+    const delta = h264Frame(10, 100, "delta");
+    cache.addFrame(delta);
+
+    expect(cache.framesForPublishTime(TOPIC, t(100), t(50))).toBeUndefined();
   });
 
   it("merges overlapping cached ranges and replays from the nearest keyframe", () => {

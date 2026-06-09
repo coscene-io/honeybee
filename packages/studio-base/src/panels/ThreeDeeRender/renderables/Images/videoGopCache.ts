@@ -59,7 +59,7 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
 
   try {
     switch (message.format) {
-      case "h264":
+      case "h264": {
         if (!H264.IsAnnexB(message.data)) {
           return undefined;
         }
@@ -70,6 +70,7 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
           mayNeedRewrite: h264Info.mayNeedRewrite,
           byteLength: message.data.byteLength,
         };
+      }
       case "h265":
         if (!H265.IsAnnexB(message.data)) {
           return undefined;
@@ -100,25 +101,15 @@ export class VideoGopCache {
   }
 
   public addFrame(msg: MessageEvent): boolean {
-    const frameInfo = parseVideoFrameInfo(msg);
-    if (frameInfo == undefined) {
+    const cachedFrame = cachedVideoFrame(msg);
+    if (cachedFrame == undefined) {
       return false;
     }
 
-    const receiveTimeNs = toNanoSec(msg.receiveTime);
-    const publishTimeNs = toNanoSec(frameInfo.frame.timestamp);
-    const cachedFrame: CachedVideoFrame = {
-      messageEvent: msg,
-      receiveTimeNs,
-      publishTimeNs,
-      isKeyframe: frameInfo.isKeyframe,
-      byteLength: frameInfo.byteLength,
-    };
-
-    this.#targetReceiveTimeNs = receiveTimeNs;
+    this.#targetReceiveTimeNs = cachedFrame.receiveTimeNs;
 
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
-    let range = ranges.find((entry) => entry.overlapsPublishTime(publishTimeNs));
+    let range = ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
     if (range == undefined) {
       range = this.#activeRangeByTopic.get(msg.topic);
     }
@@ -145,11 +136,37 @@ export class VideoGopCache {
       return;
     }
 
-    const firstVideoFrame = messages.find((msg) => parseVideoFrameInfo(msg) != undefined);
-    if (firstVideoFrame != undefined) {
-      this.#activeRangeByTopic.delete(firstVideoFrame.topic);
+    const framesByTopic = new Map<string, CachedVideoFrame[]>();
+    for (const msg of messages) {
+      const frame = cachedVideoFrame(msg);
+      if (frame == undefined) {
+        continue;
+      }
+      const frames = framesByTopic.get(msg.topic) ?? [];
+      frames.push(frame);
+      framesByTopic.set(msg.topic, frames);
     }
-    this.addFrames(messages);
+
+    for (const [topic, frames] of framesByTopic) {
+      if (frames.length === 0) {
+        continue;
+      }
+      let ranges = this.#rangesByTopic.get(topic);
+      if (ranges == undefined) {
+        ranges = [];
+        this.#rangesByTopic.set(topic, ranges);
+      }
+
+      const range = new CachedVideoRange();
+      for (const frame of frames) {
+        this.#byteSize += range.addFrame(frame);
+      }
+      ranges.push(range);
+      this.#activeRangeByTopic.set(topic, range);
+      this.#targetReceiveTimeNs = range.lastReceiveTime();
+      this.#mergeOverlappingRanges(topic);
+      this.#pruneToBudget();
+    }
   }
 
   public addFrames(messages: readonly MessageEvent[]): void {
@@ -174,7 +191,54 @@ export class VideoGopCache {
     return replayableFrames.length > 0 ? replayableFrames : undefined;
   }
 
-  public framesForPublishTime(topic: string, targetTime: Time): MessageEvent[] | undefined {
+  public seekAndReturnFramesForReceiveTime(
+    topic: string,
+    targetTime: Time,
+  ): MessageEvent[] | undefined {
+    const targetNs = toNanoSec(targetTime);
+    const ranges = this.#rangesByTopic.get(topic);
+    if (ranges == undefined || ranges.length === 0) {
+      return undefined;
+    }
+
+    const range = ranges.find((entry) => entry.overlapsReceiveTime(targetNs));
+    if (range == undefined) {
+      return undefined;
+    }
+
+    const replayableFrames = range.framesForReceiveTime(targetNs);
+    if (replayableFrames.length === 0) {
+      return undefined;
+    }
+    this.#activeRangeByTopic.set(topic, range);
+    return replayableFrames;
+  }
+
+  public framesForPublishTime(
+    topic: string,
+    targetTime: Time,
+    afterTime?: Time,
+  ): MessageEvent[] | undefined {
+    const targetNs = toNanoSec(targetTime);
+    const afterNs = afterTime != undefined ? toNanoSec(afterTime) : undefined;
+    const ranges = this.#rangesByTopic.get(topic);
+    if (ranges == undefined || ranges.length === 0) {
+      return undefined;
+    }
+
+    const range = ranges.find((entry) => entry.overlapsPublishTime(targetNs));
+    if (range == undefined) {
+      return undefined;
+    }
+
+    const replayableFrames = range.framesForPublishTime(targetNs, afterNs);
+    return replayableFrames.length > 0 ? replayableFrames : undefined;
+  }
+
+  public seekAndReturnFramesForPublishTime(
+    topic: string,
+    targetTime: Time,
+  ): MessageEvent[] | undefined {
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
@@ -187,7 +251,11 @@ export class VideoGopCache {
     }
 
     const replayableFrames = range.framesForPublishTime(targetNs);
-    return replayableFrames.length > 0 ? replayableFrames : undefined;
+    if (replayableFrames.length === 0) {
+      return undefined;
+    }
+    this.#activeRangeByTopic.set(topic, range);
+    return replayableFrames;
   }
 
   public clear(): void {
@@ -351,35 +419,8 @@ class CachedVideoRange {
     return replayableFrames;
   }
 
-  public framesForPublishTime(targetNs: bigint): MessageEvent[] {
-    let targetIndex = -1;
-    for (let i = 0; i < this.frames.length; i++) {
-      const frame = this.frames[i]!;
-      if (frame.publishTimeNs <= targetNs) {
-        targetIndex = i;
-      } else {
-        break;
-      }
-    }
-    return targetIndex >= 0 ? this.#framesForTargetIndex(targetIndex) : [];
-  }
-
-  #framesForTargetIndex(targetIndex: number): MessageEvent[] {
-    let keyframeIndex = -1;
-    for (let i = targetIndex; i >= 0; i--) {
-      const frame = this.frames[i]!;
-      if (frame.isKeyframe) {
-        keyframeIndex = i;
-        break;
-      }
-    }
-    if (keyframeIndex < 0) {
-      return [];
-    }
-
-    return this.frames
-      .slice(keyframeIndex, targetIndex + 1)
-      .map((frame) => frame.messageEvent);
+  public framesForPublishTime(targetNs: bigint, afterNs?: bigint): MessageEvent[] {
+    return framesForPublishTime(this.frames, targetNs, afterNs);
   }
 
   public trimFurthestFromReceiveTime(targetNs: bigint): number {
@@ -509,6 +550,65 @@ function absBigInt(value: bigint): bigint {
 
 function sumByteLength(frames: readonly CachedVideoFrame[]): number {
   return frames.reduce((sum, frame) => sum + frame.byteLength, 0);
+}
+
+function cachedVideoFrame(msg: MessageEvent): CachedVideoFrame | undefined {
+  const frameInfo = parseVideoFrameInfo(msg);
+  if (frameInfo == undefined) {
+    return undefined;
+  }
+  return {
+    messageEvent: msg,
+    receiveTimeNs: toNanoSec(msg.receiveTime),
+    publishTimeNs: toNanoSec(frameInfo.frame.timestamp),
+    isKeyframe: frameInfo.isKeyframe,
+    byteLength: frameInfo.byteLength,
+  };
+}
+
+function framesForPublishTime(
+  frames: readonly CachedVideoFrame[],
+  targetNs: bigint,
+  afterNs?: bigint,
+): MessageEvent[] {
+  let targetIndex = -1;
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i]!;
+    if (frame.publishTimeNs <= targetNs) {
+      targetIndex = i;
+    } else {
+      break;
+    }
+  }
+  if (targetIndex < 0) {
+    return [];
+  }
+
+  const framesThroughTarget = frames.slice(0, targetIndex + 1);
+  const keyframeIndex = findLastIndex(framesThroughTarget, (frame) => frame.isKeyframe);
+
+  if (afterNs != undefined) {
+    const afterIndex = findLastIndex(
+      framesThroughTarget,
+      (frame) => frame.publishTimeNs <= afterNs,
+    );
+    if (afterIndex >= 0) {
+      const startIndex =
+        keyframeIndex >= 0 ? Math.max(afterIndex + 1, keyframeIndex) : afterIndex + 1;
+      return frames.slice(startIndex, targetIndex + 1).map((frame) => frame.messageEvent);
+    }
+
+    if (keyframeIndex >= 0) {
+      return frames.slice(keyframeIndex, targetIndex + 1).map((frame) => frame.messageEvent);
+    }
+    return [];
+  }
+
+  if (keyframeIndex < 0) {
+    return [];
+  }
+
+  return frames.slice(keyframeIndex, targetIndex + 1).map((frame) => frame.messageEvent);
 }
 
 function minBigInt(values: readonly bigint[]): bigint {

@@ -48,6 +48,60 @@ function containsUnescapedStartCodeLikeSequence(data: Uint8Array): boolean {
   return false;
 }
 
+function createScalingMatrixSpsNalu(): { nalu: Uint8Array; list0: number[]; list1: number[] } {
+  const list0 = new Array<number>(16).fill(0);
+  const list1 = Array.from({ length: 16 }, (_, index) => (index % 2 === 0 ? 1 : -1));
+  const buffer = new Uint8Array(128);
+  const writer = new BitstreamWriter(buffer);
+
+  writer.u_1(0);
+  writer.u_2(3);
+  writer.u(5, 7);
+  writer.u_8(100);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_2(0);
+  writer.u_8(30);
+  writer.ue_v(0);
+
+  writer.ue_v(1);
+  writer.ue_v(0);
+  writer.ue_v(0);
+  writer.u_1(0);
+  writer.u_1(1);
+  writer.u_1(1);
+  for (const deltaScale of list0) {
+    writer.se_v(deltaScale);
+  }
+  writer.u_1(1);
+  for (const deltaScale of list1) {
+    writer.se_v(deltaScale);
+  }
+  for (let i = 2; i < 8; i++) {
+    writer.u_1(0);
+  }
+
+  writer.ue_v(0);
+  writer.ue_v(0);
+  writer.ue_v(0);
+  writer.ue_v(1);
+  writer.u_1(0);
+  writer.ue_v(7);
+  writer.ue_v(5);
+  writer.u_1(1);
+  writer.u_1(1);
+  writer.u_1(0);
+  writer.u_1(0);
+  writer.u_1(1);
+  writer.finish();
+
+  return { nalu: buffer.subarray(0, writer.bytesWritten()), list0, list1 };
+}
+
 describe("H264", () => {
   it("FindNextStartCode", () => {
     const NALU1 = new Uint8Array([0x00, 0x00, 0x00, 0x01, 0x02, 0x03]);
@@ -254,6 +308,25 @@ describe("H264", () => {
     expect(containsUnescapedStartCodeLikeSequence(spsData!)).toBe(false);
     const sps = new SPS(spsData!);
     expect(sps.vui_parameters_present_flag).toBe(1);
+    expect(sps.bitstream_restriction_flag).toBe(1);
+    expect(sps.max_num_reorder_frames).toBe(0);
+    expect(sps.max_dec_frame_buffering).toBe(sps.max_num_ref_frames);
+  });
+
+  it("RewriteForLowLatencyDecoding preserves SPS scaling lists and IDR NALU", () => {
+    const { nalu, list0, list1 } = createScalingMatrixSpsNalu();
+    const frame = new Uint8Array([0x00, 0x00, 0x01, ...nalu, 0x00, 0x00, 0x01, 0x65, 0x88]);
+
+    const rewritten = H264.RewriteForLowLatencyDecoding(frame);
+
+    expect(rewritten).toBeDefined();
+    expect(H264.GetFirstNALUOfType(rewritten!, H264NaluType.IDR)?.[0]).toBe(0x65);
+    const spsData = H264.GetFirstNALUOfType(rewritten!, H264NaluType.SPS);
+    expect(spsData).toBeDefined();
+    const sps = new SPS(spsData!);
+    expect(sps.seq_scaling_list_present_flag).toEqual([1, 1, 0, 0, 0, 0, 0, 0]);
+    expect(sps.seq_scaling_list?.[0]).toEqual(list0);
+    expect(sps.seq_scaling_list?.[1]).toEqual(list1);
     expect(sps.bitstream_restriction_flag).toBe(1);
     expect(sps.max_num_reorder_frames).toBe(0);
     expect(sps.max_dec_frame_buffering).toBe(sps.max_num_ref_frames);

@@ -75,7 +75,7 @@ export class SPS {
   public bitDepthChroma: number | undefined;
   public seq_scaling_matrix_present_flag: number | undefined;
   public seq_scaling_list_present_flag: Array<number> | undefined;
-  public seq_scaling_list: Array<number[]> | undefined;
+  public seq_scaling_list: Array<number[] | undefined> | undefined;
   public log2_max_frame_num_minus4: number | undefined;
   public maxFrameNum: number;
   public pic_order_cnt_type: number;
@@ -205,7 +205,7 @@ export class SPS {
       if (this.seq_scaling_matrix_present_flag !== 0) {
         const n_ScalingList = this.chroma_format_idc !== 3 ? 8 : 12;
         this.seq_scaling_list_present_flag = [];
-        this.seq_scaling_list = [];
+        this.seq_scaling_list = new Array<number[] | undefined>(n_ScalingList);
         for (let i = 0; i < n_ScalingList; i++) {
           const seqScalingListPresentFlag = bitstream.u_1();
           this.seq_scaling_list_present_flag.push(seqScalingListPresentFlag);
@@ -213,16 +213,16 @@ export class SPS {
             const sizeOfScalingList = i < 6 ? 16 : 64;
             let nextScale = 8;
             let lastScale = 8;
-            const delta_scale = [];
+            const deltaScaleValues: number[] = [];
             for (let j = 0; j < sizeOfScalingList; j++) {
               if (nextScale !== 0) {
                 const deltaScale = bitstream.se_v();
-                delta_scale.push(deltaScale);
+                deltaScaleValues.push(deltaScale);
                 nextScale = (lastScale + deltaScale + 256) % 256;
               }
               lastScale = nextScale === 0 ? lastScale : nextScale;
-              this.seq_scaling_list.push(delta_scale);
             }
+            this.seq_scaling_list[i] = deltaScaleValues;
           }
         }
       }
@@ -448,7 +448,11 @@ export class SPS {
           const present = flags[i] ?? 0;
           bitstream.u_1(present);
           if (present !== 0) {
-            for (const value of lists[i] ?? []) {
+            const list = lists[i];
+            if (list == undefined) {
+              throw new Error(`SPS error: missing scaling list ${i}`);
+            }
+            for (const value of list) {
               bitstream.se_v(value);
             }
           }

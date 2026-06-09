@@ -12,6 +12,7 @@ import { PinholeCameraModel } from "@foxglove/den/image";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 
 import {
+  type CompressedVideoFrameEvent,
   ImageRenderable,
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageSetImageResult,
@@ -92,6 +93,27 @@ function videoFrame(timestampNsec: number, kind: "key" | "delta"): CompressedVid
     ...sampleVideo,
     data: new Uint8Array([0, 0, 0, 1, kind === "key" ? 0x65 : 0x41]),
     timestamp: { sec: 0, nsec: timestampNsec },
+  };
+}
+
+function timeFromNanoseconds(timestamp: bigint) {
+  return {
+    sec: Number(timestamp / 1_000_000_000n),
+    nsec: Number(timestamp % 1_000_000_000n),
+  };
+}
+
+function videoFrameEvent(
+  receiveTimestamp: bigint,
+  timestampNsec: number,
+  kind: "key" | "delta",
+): CompressedVideoFrameEvent {
+  return {
+    topic: mockUserData.topic,
+    schemaName: "foxglove.CompressedVideo",
+    receiveTime: timeFromNanoseconds(receiveTimestamp),
+    message: videoFrame(timestampNsec, kind),
+    sizeInBytes: 1,
   };
 }
 
@@ -544,6 +566,88 @@ describe("ImageRenderable", () => {
     }
   });
 
+  it("decodes explicit compressed video frame batches with one worker call", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({
+          type: "TargetFrame",
+          requestId,
+          frame,
+          originalTimestamp: 2n,
+          receiveTime: 20n,
+        }),
+      );
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      const keyframe = videoFrameEvent(10n, 1, "key");
+      const delta = videoFrameEvent(20n, 2, "delta");
+      const updateImageState = jest.fn();
+
+      await expect(
+        renderable.setCompressedVideoFrames([keyframe, delta], { updateImageState }),
+      ).resolves.toEqual<ImageSetImageResult>({ ok: true });
+
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+      expect(decodeVideoFrames.mock.calls[0]![0].frames.map((entry) => entry.receiveTime)).toEqual([
+        10n,
+        20n,
+      ]);
+      expect(renderable.getDecodedImage()).toBe(frame);
+      expect(renderable.userData.image).toBe(delta.message);
+      expect(updateImageState).toHaveBeenCalledTimes(1);
+      expect(updateImageState).toHaveBeenCalledWith(delta);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("passes compressed video decode timeout options to the worker", async () => {
+    const time = mockDateNow();
+    try {
+      const frame = new MockVideoFrame() as unknown as VideoFrame;
+      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({
+          type: "TargetFrame",
+          requestId,
+          frame,
+          originalTimestamp: 2n,
+          receiveTime: 20n,
+        }),
+      );
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      const keyframe = videoFrameEvent(10n, 1, "key");
+      const delta = videoFrameEvent(20n, 2, "delta");
+
+      await renderable.setCompressedVideoFrames([keyframe, delta], {
+        targetFrameTimeoutMs: 123,
+        anyFrameTimeoutMs: 456,
+      });
+
+      expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+      expect(decodeVideoFrames.mock.calls[0]![0]).toEqual(
+        expect.objectContaining({
+          targetFrameTimeoutMs: 123,
+          anyFrameTimeoutMs: 456,
+        }),
+      );
+    } finally {
+      time.restore();
+    }
+  });
+
   it("serializes compressed video decode batches while a previous worker decode is pending", async () => {
     const time = mockDateNow();
     try {
@@ -563,10 +667,11 @@ describe("ImageRenderable", () => {
           originalTimestamp: 2n,
           receiveTime: 20n,
         });
+      const resetVideoDecoder = jest.fn();
       const decoder = {
         decodeVideoFrames,
         awaitTargetFrame: abortAwaitTargetFrame(),
-        resetVideoDecoder: jest.fn(),
+        resetVideoDecoder,
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
       const renderable = new TestVideoBatchRenderable(decoder);
@@ -583,7 +688,7 @@ describe("ImageRenderable", () => {
       await flushPromises();
 
       expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
-      expect(decoder.resetVideoDecoder).not.toHaveBeenCalled();
+      expect(resetVideoDecoder).not.toHaveBeenCalled();
 
       resolveFirstDecode({
         type: "TargetFrame",
@@ -627,10 +732,11 @@ describe("ImageRenderable", () => {
           originalTimestamp: 2n,
           receiveTime: 20n,
         });
+      const resetVideoDecoder = jest.fn();
       const decoder = {
         decodeVideoFrames,
         awaitTargetFrame: abortAwaitTargetFrame(),
-        resetVideoDecoder: jest.fn(),
+        resetVideoDecoder,
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
       const renderable = new TestVideoBatchRenderable(decoder);
@@ -650,7 +756,7 @@ describe("ImageRenderable", () => {
 
       await expect(activeResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
       await expect(queuedResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
-      expect(decoder.resetVideoDecoder).toHaveBeenCalledTimes(1);
+      expect(resetVideoDecoder).toHaveBeenCalledTimes(1);
 
       resolveFirstDecode({
         type: "TargetFrame",
@@ -733,7 +839,7 @@ describe("ImageRenderable", () => {
             receiveTime: 10n,
           }),
         ),
-        awaitTargetFrame: jest.fn(() => targetPromise),
+        awaitTargetFrame: jest.fn(async () => await targetPromise),
         resetVideoDecoder: jest.fn(),
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
@@ -794,7 +900,7 @@ describe("ImageRenderable", () => {
         });
       const decoder = {
         decodeVideoFrames,
-        awaitTargetFrame: jest.fn(() => staleTargetPromise),
+        awaitTargetFrame: jest.fn(async () => await staleTargetPromise),
         resetVideoDecoder: jest.fn(),
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;

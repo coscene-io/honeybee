@@ -55,14 +55,17 @@ import {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/types";
 import {
   CompressedVideoController,
-  type VideoDisplayMode,
+  type CompressedVideoDisplayFrames,
+  type GetSeekReplayTarget,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
 import {
+  type CompressedVideoFrameEvent,
   IMAGE_RENDERABLE_DEFAULT_SETTINGS,
   ImageRenderable,
   ImageRenderableSettings,
   ImageSetImageResult,
   ImageUserData,
+  type SetCompressedVideoFramesOptions,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageRenderable";
 import {
   AnyImage,
@@ -101,6 +104,7 @@ import {
 } from "../../ros";
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
+import { normalizeCompressedVideo } from "../Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
 import { filterCompressedVideoQueue } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
@@ -127,8 +131,9 @@ export class ImageMode
   #lastSetImageResult: Promise<ImageSetImageResult> | undefined;
 
   protected readonly messageHandler: IMessageHandler;
-  #compressedVideoController: CompressedVideoController;
   #compressedVideoTopic: string | undefined;
+  #compressedVideoController: CompressedVideoController | undefined;
+  #directlyDisplayedSeekImages = new WeakSet<AnyImage>();
 
   protected readonly supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
@@ -150,21 +155,6 @@ export class ImageMode
     this.#camera.setFlipVertical(config.flipVertical);
 
     this.messageHandler = this.initMessageHandler(config);
-    this.#compressedVideoController = new CompressedVideoController({
-      renderer,
-      displayFrame: this.#displayCompressedVideoFrame,
-      resetDecoder: () => {
-        this.imageRenderable?.resetForSeek();
-      },
-      getSeekReplayTarget: (messageEvent) => {
-        if (this.renderer.config.imageMode.synchronize !== true) {
-          return undefined;
-        }
-        return messageEvent != undefined
-          ? { type: "publish", time: messageEvent.message.timestamp }
-          : "defer";
-      },
-    });
     this.messageHandler.addListener(this.#updateFromMessageState);
 
     renderer.settings.errors.on("update", this.#handleErrorChange);
@@ -316,14 +306,18 @@ export class ImageMode
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
-    this.#compressedVideoController.dispose();
+    this.#compressedVideoController?.dispose();
     this.#annotations.dispose();
     this.imageRenderable?.dispose();
     super.dispose();
   }
 
   public override handleSeek(): void {
-    this.#compressedVideoController.handleSeek();
+    const topic = this.#compressedVideoTopic;
+    if (topic == undefined) {
+      return;
+    }
+    this.#compressedVideoControllerForTopic(topic).handleSeek();
   }
 
   public override removeAllRenderables(): void {
@@ -337,9 +331,7 @@ export class ImageMode
         this.renderer.queueAnimationFrame();
       }, REMOVE_IMAGE_TIMEOUT_MS);
     }
-    // Reset video player state for seek operations to ensure proper timestamp
-    // handling and decoder state when seeking backwards
-    this.imageRenderable?.resetForSeek();
+    this.#compressedVideoController?.resetPlaybackState();
     // fallback camera model shouldn't ever be stale so we don't need to clear it
     if (!this.#fallbackCameraModelActive()) {
       this.#clearCameraModel();
@@ -381,20 +373,29 @@ export class ImageMode
   };
 
   #setCompressedVideoTopic(topic: string | undefined): void {
-    if (this.#compressedVideoTopic === topic) {
-      if (topic != undefined) {
-        this.#compressedVideoController.registerTopic(topic);
-      }
+    const compressedVideoTopic = this.#compressedVideoTopicFor(topic);
+
+    if (this.#compressedVideoTopic === compressedVideoTopic) {
       return;
     }
 
-    if (this.#compressedVideoTopic != undefined) {
-      this.#compressedVideoController.clearTopic(this.#compressedVideoTopic);
+    this.#compressedVideoController?.dispose();
+    this.#compressedVideoController = undefined;
+    this.#compressedVideoTopic = compressedVideoTopic;
+  }
+
+  #compressedVideoTopicFor(topicName: string | undefined): string | undefined {
+    if (topicName == undefined) {
+      return undefined;
     }
-    this.#compressedVideoTopic = topic;
-    if (topic != undefined) {
-      this.#compressedVideoController.registerTopic(topic);
+
+    const topic =
+      this.renderer.topicsByName?.get(topicName) ??
+      this.renderer.topics?.find((candidate) => candidate.name === topicName);
+    if (topic == undefined || !topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
+      return undefined;
     }
+    return topicName;
   }
 
   /** Sets specified image topic on the config and updates calibration topic if a match is found.
@@ -733,26 +734,121 @@ export class ImageMode
   };
 
   #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
-    this.#compressedVideoController.processMessage(messageEvent);
+    const normalizedEvent = {
+      ...messageEvent,
+      message: normalizeCompressedVideo(messageEvent.message),
+    } as MessageEvent<CompressedVideo>;
+    this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent);
   };
 
-  #displayCompressedVideoFrame = async (
-    messageEvent: PartialMessageEvent<CompressedVideo>,
-    image: CompressedVideo,
-    mode: VideoDisplayMode,
+  #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (
+    frames,
+    mode,
+    options,
   ): Promise<ImageSetImageResult> => {
+    const targetFrame = frames[frames.length - 1];
+    if (targetFrame == undefined) {
+      return { ok: false };
+    }
+
+    if (mode === "direct") {
+      return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
+    }
+
     if (mode === "seek") {
-      const result = await this.#setImageOnRenderable(messageEvent, image);
-      if (result.ok) {
-        this.messageHandler.updateImageState(messageEvent, image);
-      }
-      return result;
+      return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
     }
 
     this.#lastSetImageResult = Promise.resolve({ ok: false });
-    this.messageHandler.handleCompressedVideo(messageEvent);
+    this.messageHandler.handleCompressedVideo(targetFrame);
     return await this.#lastSetImageResult;
   };
+
+  #getCompressedVideoSeekReplayTarget: GetSeekReplayTarget = (messageEvent) => {
+    if (this.renderer.config.imageMode.synchronize !== true) {
+      return undefined;
+    }
+    return messageEvent != undefined
+      ? { type: "publish", time: messageEvent.message.timestamp }
+      : "defer";
+  };
+
+  #compressedVideoControllerForTopic(topic: string): CompressedVideoController {
+    if (this.#compressedVideoTopic !== topic) {
+      this.#setCompressedVideoTopic(topic);
+    }
+    if (this.#compressedVideoController == undefined) {
+      this.#compressedVideoController = new CompressedVideoController({
+        topic,
+        renderer: this.renderer,
+        displayFrames: this.#displayCompressedVideoFrames,
+        resetDecoder: () => {
+          this.imageRenderable?.resetForSeek();
+        },
+        getSeekReplayTarget: this.#getCompressedVideoSeekReplayTarget,
+      });
+    } else {
+      this.#compressedVideoController.updateOptions({
+        displayFrames: this.#displayCompressedVideoFrames,
+        resetDecoder: () => {
+          this.imageRenderable?.resetForSeek();
+        },
+        getSeekReplayTarget: this.#getCompressedVideoSeekReplayTarget,
+      });
+    }
+    return this.#compressedVideoController;
+  }
+
+  async #setCompressedVideoFramesOnRenderable(
+    frames: readonly CompressedVideoFrameEvent[],
+    mode: "direct" | "seek",
+    options?: SetCompressedVideoFramesOptions,
+  ): Promise<ImageSetImageResult> {
+    const targetFrame = frames[frames.length - 1];
+    if (targetFrame == undefined) {
+      return { ok: false };
+    }
+
+    const image = targetFrame.message;
+    const topic = targetFrame.topic;
+    const receiveTime = toNanoSec(targetFrame.receiveTime);
+    const frameId = image.frame_id;
+
+    if (this.#removeImageTimeout != undefined) {
+      clearTimeout(this.#removeImageTimeout);
+      this.#removeImageTimeout = undefined;
+    }
+
+    const renderable = this.#getImageRenderable(topic, receiveTime, image, frameId);
+
+    if (this.#cameraModel) {
+      renderable.userData.cameraInfo = this.#cameraModel.info;
+      renderable.setCameraModel(this.#cameraModel.model);
+    }
+
+    renderable.userData.receiveTime = receiveTime;
+    return await renderable.setCompressedVideoFrames(frames, {
+      ...options,
+      onDecoded: () => {
+        options?.onDecoded?.();
+        if (this.#fallbackCameraModelActive()) {
+          this.#updateFallbackCameraModel(renderable);
+          this.#updateViewAndRenderables();
+        }
+      },
+      updateImageState:
+        mode === "seek"
+          ? (event) => {
+              this.#directlyDisplayedSeekImages.add(event.message);
+              try {
+                this.messageHandler.updateImageState(event, event.message);
+              } finally {
+                this.#directlyDisplayedSeekImages.delete(event.message);
+              }
+            }
+          : options?.updateImageState,
+    });
+  }
 
   #updateFromMessageState = (
     newState: MessageRenderState,
@@ -761,13 +857,41 @@ export class ImageMode
     if (newState.missingAnnotationTopics) {
       this.#removeImageRenderable();
     }
-    if (newState.image != undefined && newState.image.message !== oldState?.image?.message) {
-      this.#handleImageChange(newState.image, newState.image.message);
+    const displayedImage = this.imageRenderable?.userData.image;
+    if (
+      newState.image != undefined &&
+      newState.image.message !== oldState?.image?.message &&
+      newState.image.message !== displayedImage &&
+      !this.#directlyDisplayedSeekImages.has(newState.image.message)
+    ) {
+      if (this.#shouldReplaySynchronizedCompressedVideo(newState.image)) {
+        const image = normalizeCompressedVideo(newState.image.message);
+        const messageEvent = {
+          ...newState.image,
+          message: image,
+        } as MessageEvent<CompressedVideo>;
+        this.#lastSetImageResult = this.#compressedVideoControllerForTopic(
+          messageEvent.topic,
+        ).displayPublishTimeTarget(messageEvent);
+      } else {
+        this.#handleImageChange(newState.image, newState.image.message);
+      }
     }
     if (newState.cameraInfo != undefined && newState.cameraInfo !== oldState?.cameraInfo) {
       this.#handleCameraInfoChange(newState.cameraInfo);
     }
   };
+
+  #shouldReplaySynchronizedCompressedVideo(
+    messageEvent: PartialMessageEvent<AnyImage>,
+  ): messageEvent is PartialMessageEvent<CompressedVideo> {
+    return (
+      this.renderer.config.imageMode.synchronize === true &&
+      this.#compressedVideoTopicFor(messageEvent.topic) != undefined &&
+      "format" in messageEvent.message &&
+      "data" in messageEvent.message
+    );
+  }
 
   /** Processes camera info messages and updates state */
   #handleCameraInfoChange = (cameraInfo: CameraInfo): void => {

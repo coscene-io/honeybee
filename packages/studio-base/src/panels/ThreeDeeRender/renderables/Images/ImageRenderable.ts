@@ -12,6 +12,7 @@ import { assert } from "ts-essentials";
 import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
 import { toNanoSec } from "@foxglove/rostime";
+import type { MessageEvent } from "@foxglove/studio";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
 import { BaseUserData, Renderable } from "@foxglove/studio-base/panels/ThreeDeeRender/Renderable";
 import { stringToRgba } from "@foxglove/studio-base/panels/ThreeDeeRender/color";
@@ -75,6 +76,16 @@ type DecodedImageResult = {
 
 export type ImageSetImageResult = {
   ok: boolean;
+};
+
+export type CompressedVideoFrameEvent = MessageEvent<CompressedVideo>;
+
+export type SetCompressedVideoFramesOptions = {
+  resizeWidth?: number;
+  onDecoded?: () => void;
+  updateImageState?: (event: CompressedVideoFrameEvent) => void;
+  targetFrameTimeoutMs?: number;
+  anyFrameTimeoutMs?: number;
 };
 
 type PendingDecodedImage = {
@@ -282,6 +293,65 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           // avoid needing to recreate error image if it already shown
           if (!this.#showingErrorImage) {
             void this.#setErrorImage(seq, onDecoded);
+          }
+          this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
+          resolve({ ok: false });
+        });
+    });
+  }
+
+  public async setCompressedVideoFrames(
+    frames: readonly CompressedVideoFrameEvent[],
+    options: SetCompressedVideoFramesOptions = {},
+  ): Promise<ImageSetImageResult> {
+    const targetFrame = frames[frames.length - 1];
+    if (targetFrame == undefined) {
+      return { ok: false };
+    }
+
+    this.userData.image = targetFrame.message;
+    this.userData.receiveTime = toNanoSec(targetFrame.receiveTime);
+
+    if (!VIDEO_FORMATS.has(targetFrame.message.format)) {
+      const result = await this.setImage(
+        targetFrame.message,
+        options.resizeWidth,
+        options.onDecoded,
+      );
+      if (result.ok) {
+        options.updateImageState?.(targetFrame);
+      }
+      return result;
+    }
+
+    const seq = ++this.#receivedImageSequenceNumber;
+    const decoder = (this.decoder ??= new WorkerImageDecoder());
+    const decodePromise = this.#decodeCompressedVideoFrames(
+      decoder,
+      frames,
+      seq,
+      options.onDecoded,
+      options,
+    );
+
+    return await new Promise<ImageSetImageResult>((resolve) => {
+      decodePromise
+        .then((result) => {
+          this.#handleDecodedImage(seq, result, options.onDecoded, (displayResult) => {
+            if (displayResult.ok) {
+              options.updateImageState?.(targetFrame);
+            }
+            resolve(displayResult);
+          });
+        })
+        .catch((err: unknown) => {
+          log.error(err);
+          if (this.isDisposed()) {
+            resolve({ ok: false });
+            return;
+          }
+          if (!this.#showingErrorImage) {
+            void this.#setErrorImage(seq, options.onDecoded);
           }
           this.addError(DECODE_IMAGE_ERR_KEY, `Error decoding image: ${(err as Error).message}`);
           resolve({ ok: false });
@@ -518,9 +588,51 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     await queuedDecode;
   }
 
+  async #decodeCompressedVideoFrames(
+    decoder: WorkerImageDecoder,
+    frames: readonly CompressedVideoFrameEvent[],
+    seq: number,
+    onDecoded: (() => void) | undefined,
+    options: SetCompressedVideoFramesOptions,
+  ): Promise<DecodedImageResult> {
+    let resolveTarget!: (result: DecodedImageResult) => void;
+    const targetResult = new Promise<DecodedImageResult>((resolve) => {
+      resolveTarget = resolve;
+    });
+    const targetIndex = frames.length - 1;
+    const entries: PendingVideoDecode[] = frames.map((frame, index) => ({
+      seq: index === targetIndex ? seq : 0,
+      frame: frame.message,
+      receiveTime: toNanoSec(frame.receiveTime),
+      onDecoded: index === targetIndex ? onDecoded : undefined,
+      settled: false,
+      resolve: index === targetIndex ? resolveTarget : () => {},
+    }));
+
+    this.#queuedVideoDecodeBatches.add(entries);
+    const runBatch = async () => {
+      try {
+        if (entries.every((entry) => entry.settled)) {
+          return;
+        }
+        await this.#runVideoDecodeBatch(decoder, entries, options);
+      } finally {
+        this.#queuedVideoDecodeBatches.delete(entries);
+      }
+    };
+    const queuedDecode = this.#videoDecodeQueue.then(runBatch, runBatch);
+    this.#videoDecodeQueue = queuedDecode.catch(() => {});
+    void queuedDecode;
+    return await targetResult;
+  }
+
   async #runVideoDecodeBatch(
     decoder: WorkerImageDecoder,
     entries: PendingVideoDecode[],
+    options: Pick<
+      SetCompressedVideoFramesOptions,
+      "targetFrameTimeoutMs" | "anyFrameTimeoutMs"
+    > = {},
   ): Promise<void> {
     const requestId = ++this.#videoDecodeRequestId;
     let result: DecodeVideoFramesResult;
@@ -528,6 +640,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       result = await decoder.decodeVideoFrames({
         requestId,
         frames: entries.map((entry) => ({ frame: entry.frame, receiveTime: entry.receiveTime })),
+        targetFrameTimeoutMs: options.targetFrameTimeoutMs,
+        anyFrameTimeoutMs: options.anyFrameTimeoutMs,
       });
     } catch {
       for (const entry of entries) {

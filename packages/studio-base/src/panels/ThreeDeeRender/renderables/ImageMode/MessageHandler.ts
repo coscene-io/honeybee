@@ -215,7 +215,7 @@ export class MessageHandler implements IMessageHandler {
     image: AnyImage,
   ): void => {
     this.#recordImage(messageEvent, image);
-    this.getRenderStateAndUpdateHUD();
+    this.#emitState();
   };
 
   protected handleImage(message: PartialMessageEvent<AnyImage>, image: AnyImage): void {
