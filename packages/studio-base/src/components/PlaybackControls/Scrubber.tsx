@@ -53,8 +53,10 @@ import { ProgressPlot } from "./ProgressPlot";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
 import {
+  clampTimelineViewport,
   clientXToTime,
   getTimelineViewportZoomPercent,
+  isViewportZoomed,
   makeTimelineViewport,
   panViewportBySeconds,
   setTimelineViewportZoomPercentAtTime,
@@ -73,7 +75,7 @@ const EVENT_LANE_LAYER_TOP_PX: number =
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 
 function isTimelineZoomEnabled(): boolean {
-  return false;
+  return true;
 }
 
 const useStyles = makeStyles()((theme) => ({
@@ -308,6 +310,43 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const resolvedViewport = viewport ?? defaultViewport;
   const latestViewport = useLatest(resolvedViewport);
   const scrubberRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+
+  // Keep the playhead visible while zoomed in: when the current time leaves the visible
+  // window, page the window so the playhead lands back at its left edge. For forward
+  // playback this means the playhead sweeps across the window, and the moment it crosses
+  // the right edge the window jumps forward ~one width and the playhead reappears at the
+  // start. Only runs on currentTime changes, so panning/zooming while paused is untouched.
+  useEffect(() => {
+    const currentViewport = latestViewport.current;
+    const start = latestStartTime.current;
+    if (currentViewport == undefined || start == undefined || currentTime == undefined) {
+      return;
+    }
+    // When fully zoomed out the playhead is always visible, so there is nothing to follow.
+    if (!isViewportZoomed(currentViewport)) {
+      return;
+    }
+
+    const playheadSec = toSec(subtractTimes(currentTime, start));
+    if (
+      playheadSec >= currentViewport.visibleStartSec &&
+      playheadSec <= currentViewport.visibleEndSec
+    ) {
+      return;
+    }
+
+    const visibleDuration = currentViewport.visibleEndSec - currentViewport.visibleStartSec;
+    const nextViewport = clampTimelineViewport({
+      ...currentViewport,
+      visibleStartSec: playheadSec,
+      visibleEndSec: playheadSec + visibleDuration,
+    });
+
+    setViewport((oldViewport) => {
+      const sourceViewport = oldViewport ?? currentViewport;
+      return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+    });
+  }, [currentTime, latestViewport, latestStartTime]);
 
   const onChange = useCallback(
     (playbackSeconds: number) => {
