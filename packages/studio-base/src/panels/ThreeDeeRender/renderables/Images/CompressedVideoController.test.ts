@@ -15,6 +15,7 @@ import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import {
   CompressedVideoController,
   type CompressedVideoDisplayFrames,
+  type SeekKeyframeSearchChange,
   type VideoDisplayMode,
 } from "./CompressedVideoController";
 import { type CompressedVideoFrameEvent, type ImageSetImageResult } from "./ImageRenderable";
@@ -73,7 +74,7 @@ function makeRenderer(
 function makeController(args: {
   renderer?: ReturnType<typeof makeRenderer>;
   displayFrames?: CompressedVideoDisplayFrames;
-  onSeekKeyframeSearchChange?: (active: boolean) => void;
+  onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   getSeekReplayTarget?: ConstructorParameters<
     typeof CompressedVideoController
   >[0]["getSeekReplayTarget"];
@@ -458,7 +459,10 @@ describe("CompressedVideoController", () => {
     controller.handleSeek();
     await flushAsyncWork();
 
-    expect(onSeekKeyframeSearchChange.mock.calls).toEqual([[true], [false]]);
+    expect(onSeekKeyframeSearchChange.mock.calls).toEqual([
+      [{ active: true }],
+      [{ active: false }],
+    ]);
   });
 
   it("does not notify keyframe search for cached GOP seek replay", () => {
@@ -515,7 +519,7 @@ describe("CompressedVideoController", () => {
     );
     await flushAsyncWork();
 
-    expect(onSeekKeyframeSearchChange.mock.calls).toEqual([[false]]);
+    expect(onSeekKeyframeSearchChange.mock.calls).toEqual([[{ active: false }]]);
   });
 
   it("retries seek lookback when the range subscription is not ready yet", async () => {

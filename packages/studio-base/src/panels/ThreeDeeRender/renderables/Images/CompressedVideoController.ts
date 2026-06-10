@@ -47,7 +47,9 @@ export type GetSeekReplayTarget = (
   messageEvent: MessageEvent<CompressedVideo> | undefined,
 ) => VideoSeekReplayTarget | "defer" | undefined;
 
-export type SeekKeyframeSearchChange = (active: boolean) => void;
+export type SeekKeyframeSearchState = { active: boolean };
+
+export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
 
 type ControllerState = {
   lookbackCancel?: () => void;
@@ -600,7 +602,7 @@ export class CompressedVideoController {
       return;
     }
     this.#seekKeyframeSearchActive = true;
-    this.#onSeekKeyframeSearchChange?.(true);
+    this.#onSeekKeyframeSearchChange?.({ active: true });
   }
 
   #endSeekKeyframeSearch(generation?: number): void {
@@ -616,7 +618,7 @@ export class CompressedVideoController {
       return;
     }
     this.#seekKeyframeSearchActive = false;
-    this.#onSeekKeyframeSearchChange?.(false);
+    this.#onSeekKeyframeSearchChange?.({ active: false });
   }
 
   #isCurrentLookback(generation: number): boolean {

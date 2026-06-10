@@ -60,6 +60,7 @@ import {
   CompressedVideoController,
   type CompressedVideoDisplayFrames,
   type GetSeekReplayTarget,
+  type SeekKeyframeSearchState,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
 import {
   type CompressedVideoFrameEvent,
@@ -805,7 +806,7 @@ export class ImageMode
     return this.#compressedVideoController;
   }
 
-  #handleSeekKeyframeSearchChange = (active: boolean): void => {
+  #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
     this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
     if (!active) {
       return;

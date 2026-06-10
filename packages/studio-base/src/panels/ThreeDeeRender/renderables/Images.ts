@@ -22,6 +22,7 @@ import {
 import {
   CompressedVideoController,
   type CompressedVideoDisplayFrames,
+  type SeekKeyframeSearchState,
 } from "./Images/CompressedVideoController";
 import { ALL_CAMERA_INFO_SCHEMAS, AnyImage, CompressedVideo } from "./Images/ImageTypes";
 import {
@@ -440,7 +441,7 @@ export class Images extends SceneExtension<ImageRenderable> {
     return controller;
   }
 
-  #handleSeekKeyframeSearchChange = (active: boolean): void => {
+  #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
     this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
   };
 
