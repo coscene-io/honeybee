@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { existsSync, Dirent } from "fs";
+import { existsSync, type Dirent } from "fs";
 import { readFile, readdir } from "fs/promises";
 
 import { fetchLayouts } from "./layouts";
@@ -22,7 +22,9 @@ jest.mock("fs/promises", () => ({
 
 describe("fetchLayouts", () => {
   const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
-  const mockReaddir = readdir as jest.MockedFunction<typeof readdir>;
+  const mockReaddir = readdir as unknown as jest.MockedFunction<
+    (path: string, options: { withFileTypes: true }) => Promise<Dirent[]>
+  >;
   const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
 
   beforeEach(() => {
