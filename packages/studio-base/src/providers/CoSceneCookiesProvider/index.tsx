@@ -5,19 +5,24 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { useEffect } from "react";
 import { CookiesProvider } from "react-cookie";
 
 import { AuthSignOutListener } from "@foxglove/studio-base/providers/CoSceneCookiesProvider/AuthSignOutListener";
 
-import { cookieSetOptions } from "./constant";
+import { cleanupLegacyAuthStatusCookie, getCookieSetOptions } from "./constant";
 
 export default function CoSceneCookiesProvider({
   children,
 }: {
   children?: React.PropsWithChildren;
 }): React.JSX.Element {
+  useEffect(() => {
+    cleanupLegacyAuthStatusCookie();
+  }, []);
+
   return (
-    <CookiesProvider defaultSetOptions={cookieSetOptions}>
+    <CookiesProvider defaultSetOptions={getCookieSetOptions()}>
       <AuthSignOutListener />
       {children}
     </CookiesProvider>
