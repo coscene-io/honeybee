@@ -17,9 +17,11 @@ import * as palette from "@foxglove/theme/src/palette";
 
 export interface RspackConfiguration extends Configuration {
   devServer?: {
-    static?: {
-      directory?: string;
-    };
+    static?:
+      | false
+      | {
+          directory?: string;
+        };
     historyApiFallback?: ConnectHistoryApiFallbackOptions;
     hot?: boolean;
     allowedHosts?: string | string[];
@@ -80,9 +82,7 @@ export const devServerConfig = (params: ConfigParams): RspackConfiguration => ({
   },
 
   devServer: {
-    static: {
-      directory: params.outputPath,
-    },
+    static: false,
     historyApiFallback: params.historyApiFallback,
     hot: true,
     // The problem and solution are described at <https://github.com/webpack/webpack-dev-server/issues/1604>.
@@ -213,6 +213,7 @@ export const mainConfig =
       target: "web",
       context: params.contextPath,
       entry: params.entrypoint,
+      lazyCompilation: false,
       devtool: isDev
         ? "eval-cheap-module-source-map"
         : (params.prodSourceMap as Configuration["devtool"]),
