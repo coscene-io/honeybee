@@ -73,16 +73,19 @@ function makeRenderer(
 function makeController(args: {
   renderer?: ReturnType<typeof makeRenderer>;
   displayFrames?: CompressedVideoDisplayFrames;
+  onSeekKeyframeSearchChange?: (active: boolean) => void;
   getSeekReplayTarget?: ConstructorParameters<
     typeof CompressedVideoController
   >[0]["getSeekReplayTarget"];
 }) {
-  return new CompressedVideoController({
+  const controllerArgs = {
     topic: "/camera",
     renderer: args.renderer ?? makeRenderer(),
     displayFrames: args.displayFrames ?? (async () => ({ ok: true })),
+    onSeekKeyframeSearchChange: args.onSeekKeyframeSearchChange,
     getSeekReplayTarget: args.getSeekReplayTarget,
-  });
+  };
+  return new CompressedVideoController(controllerArgs);
 }
 
 function makeSuccessfulDisplayFrames() {
@@ -427,6 +430,92 @@ describe("CompressedVideoController", () => {
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n],
     ]);
+  });
+
+  it("notifies while a seek lookback is searching for a keyframe", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const onSeekKeyframeSearchChange = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, delta];
+        })(),
+      );
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ currentTime: 10_000_000n, subscribeMessageRange });
+    const controller = makeController({
+      renderer,
+      displayFrames,
+      onSeekKeyframeSearchChange,
+    });
+
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    expect(onSeekKeyframeSearchChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("does not notify keyframe search for cached GOP seek replay", () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const onSeekKeyframeSearchChange = jest.fn();
+    const renderer = makeRenderer();
+    const controller = makeController({ renderer, onSeekKeyframeSearchChange });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(delta);
+
+    renderer.currentTime = 10_000_000n;
+    controller.handleSeek();
+
+    expect(onSeekKeyframeSearchChange).not.toHaveBeenCalled();
+  });
+
+  it("does not let stale lookback completion clear a newer keyframe search", async () => {
+    const firstKeyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const secondKeyframe = makeVideoMessage(20_000_000n, "key");
+    const secondDelta = makeVideoMessage(30_000_000n, "delta");
+    const onSeekKeyframeSearchChange = jest.fn();
+    const iterators: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"][] = [];
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((args) => {
+      iterators.push(args.onNewRangeIterator);
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ currentTime: 10_000_000n, subscribeMessageRange });
+    const controller = makeController({ renderer, onSeekKeyframeSearchChange });
+
+    controller.handleSeek();
+    renderer.currentTime = 30_000_000n;
+    controller.handleSeek();
+    onSeekKeyframeSearchChange.mockClear();
+
+    await iterators[0]?.(
+      (async function* () {
+        yield [firstKeyframe, firstDelta];
+      })(),
+    );
+    await flushAsyncWork();
+
+    expect(onSeekKeyframeSearchChange).not.toHaveBeenCalled();
+
+    await iterators[1]?.(
+      (async function* () {
+        yield [secondKeyframe, secondDelta];
+      })(),
+    );
+    await flushAsyncWork();
+
+    expect(onSeekKeyframeSearchChange.mock.calls).toEqual([[false]]);
   });
 
   it("retries seek lookback when the range subscription is not ready yet", async () => {

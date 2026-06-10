@@ -52,9 +52,14 @@ function timestampFromImage(image: AnyImage): Time {
   return "header" in image ? image.header.stamp : image.timestamp;
 }
 
+async function flushAsyncWork(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
 class TestImageRenderable extends ImageRenderable {
   public readonly setImageCalls: AnyImage[] = [];
   public readonly setCompressedVideoFrameBatches: AnyImage[][] = [];
+  public disposed = false;
 
   public override async setImage(
     image: AnyImage,
@@ -79,6 +84,11 @@ class TestImageRenderable extends ImageRenderable {
     options?.onDecoded?.();
     options?.updateImageState?.(targetFrame);
     return { ok: true };
+  }
+
+  public override dispose(): void {
+    this.disposed = true;
+    super.dispose();
   }
 }
 
@@ -276,5 +286,60 @@ describe("Images compressed video seek lookback", () => {
       [delta.message.timestamp],
       [keyframe.message.timestamp, delta.message.timestamp],
     ]);
+  });
+
+  it("keeps visible compressed video renderables and shows keyframe search notice during seek lookback", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const targetDelta = makeVideoMessage(20_000_000n, "delta");
+    let onNewRangeIterator: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"] | undefined;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((args) => {
+      onNewRangeIterator = args.onNewRangeIterator;
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ subscribeMessageRange });
+    renderer.currentTime = 20_000_000n;
+    const images = new TestImages(renderer);
+    const subscription = compressedVideoSubscription(images);
+
+    subscription.handler(keyframe);
+    subscription.handler(delta);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const previousRenderable = images.renderables.get("/video") as TestImageRenderable | undefined;
+    expect(previousRenderable).toBeDefined();
+
+    (
+      images as unknown as {
+        removeAllRenderables(args?: { reason?: "seek" }): void;
+      }
+    ).removeAllRenderables({ reason: "seek" });
+    images.handleSeek();
+
+    expect(images.renderables.get("/video")).toBe(previousRenderable);
+    expect(previousRenderable?.disposed).toBe(false);
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("SEEK_KEYFRAME_SEARCH");
+
+    await onNewRangeIterator?.(
+      (async function* () {
+        yield [keyframe, delta, targetDelta];
+      })(),
+    );
+    await flushAsyncWork();
+
+    expect(
+      previousRenderable?.setCompressedVideoFrameBatches.map((batch) =>
+        batch.map(timestampFromImage),
+      ),
+    ).toContainEqual([
+      keyframe.message.timestamp,
+      delta.message.timestamp,
+      targetDelta.message.timestamp,
+    ]);
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
   });
 });

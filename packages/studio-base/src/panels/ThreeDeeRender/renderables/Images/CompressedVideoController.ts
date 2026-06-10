@@ -47,6 +47,8 @@ export type GetSeekReplayTarget = (
   messageEvent: MessageEvent<CompressedVideo> | undefined,
 ) => VideoSeekReplayTarget | "defer" | undefined;
 
+export type SeekKeyframeSearchChange = (active: boolean) => void;
+
 type ControllerState = {
   lookbackCancel?: () => void;
   lookbackGeneration?: number;
@@ -71,8 +73,11 @@ export class CompressedVideoController {
   #displayFrames: CompressedVideoDisplayFrames;
   #resetDecoder?: () => void;
   #getSeekReplayTarget?: GetSeekReplayTarget;
+  #onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   #generation = 0;
   #seekTargetNs: bigint | undefined;
+  #seekKeyframeSearchActive = false;
+  #seekKeyframeSearchGeneration: number | undefined;
 
   public constructor(args: {
     topic: string;
@@ -80,24 +85,30 @@ export class CompressedVideoController {
     displayFrames: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     getSeekReplayTarget?: GetSeekReplayTarget;
+    onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   }) {
     this.#topic = args.topic;
     this.#renderer = args.renderer;
     this.#displayFrames = args.displayFrames;
     this.#resetDecoder = args.resetDecoder;
     this.#getSeekReplayTarget = args.getSeekReplayTarget;
+    this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
   }
 
   public updateOptions(args: {
     displayFrames?: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     getSeekReplayTarget?: GetSeekReplayTarget;
+    onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   }): void {
     if (args.displayFrames != undefined) {
       this.#displayFrames = args.displayFrames;
     }
     if (args.resetDecoder != undefined) {
       this.#resetDecoder = args.resetDecoder;
+    }
+    if ("onSeekKeyframeSearchChange" in args) {
+      this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
     }
     this.#getSeekReplayTarget = args.getSeekReplayTarget;
   }
@@ -265,6 +276,7 @@ export class CompressedVideoController {
     this.#generation++;
     this.#cancelLookback();
     this.#cache.clearTopic(this.#topic);
+    this.#endSeekKeyframeSearch();
   }
 
   public dispose(): void {
@@ -438,56 +450,61 @@ export class CompressedVideoController {
     lookbackTargetNs: bigint,
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
+    this.#beginSeekKeyframeSearch(generation);
     const requestedStart = this.#state.successfulWindowSeconds ?? LOOKBACK_WINDOWS_SEC[0];
     const startIndex = Math.max(
       0,
       LOOKBACK_WINDOWS_SEC.findIndex((windowSec) => windowSec >= requestedStart),
     );
 
-    for (const lookbackSec of LOOKBACK_WINDOWS_SEC.slice(startIndex)) {
-      if (!this.#isCurrentLookback(generation)) {
-        return false;
+    try {
+      for (const lookbackSec of LOOKBACK_WINDOWS_SEC.slice(startIndex)) {
+        if (!this.#isCurrentLookback(generation)) {
+          return false;
+        }
+
+        const frames = await this.#readLookbackWindowWithRetries(
+          generation,
+          lookbackSec,
+          lookbackTargetNs,
+        );
+        if (!this.#isCurrentLookback(generation)) {
+          return false;
+        }
+        if (frames == undefined) {
+          break;
+        }
+        if (frames.length === 0) {
+          continue;
+        }
+
+        this.#cache.addFrameRange(frames);
+        const replayFrames = framesForLookbackReplayTarget(frames, replayTarget);
+
+        const ok = await this.#displayReplayFrames(replayFrames, generation, "seek", options);
+        if (!this.#isCurrentLookback(generation)) {
+          return false;
+        }
+        if (!ok) {
+          this.#resetDecoderForReplay();
+          continue;
+        }
+
+        this.#state.successfulWindowSeconds = lookbackSec;
+        this.#state.completedSeekGeneration = generation;
+        this.#recordLastDisplayedPublishTime(replayFrames);
+        this.#state.lookbackCancel = undefined;
+        this.#state.lookbackGeneration = undefined;
+        this.#renderer.queueAnimationFrame();
+        return true;
       }
 
-      const frames = await this.#readLookbackWindowWithRetries(
-        generation,
-        lookbackSec,
-        lookbackTargetNs,
-      );
-      if (!this.#isCurrentLookback(generation)) {
-        return false;
-      }
-      if (frames == undefined) {
-        break;
-      }
-      if (frames.length === 0) {
-        continue;
-      }
-
-      this.#cache.addFrameRange(frames);
-      const replayFrames = framesForLookbackReplayTarget(frames, replayTarget);
-
-      const ok = await this.#displayReplayFrames(replayFrames, generation, "seek", options);
-      if (!this.#isCurrentLookback(generation)) {
-        return false;
-      }
-      if (!ok) {
-        this.#resetDecoderForReplay();
-        continue;
-      }
-
-      this.#state.successfulWindowSeconds = lookbackSec;
-      this.#state.completedSeekGeneration = generation;
-      this.#recordLastDisplayedPublishTime(replayFrames);
       this.#state.lookbackCancel = undefined;
       this.#state.lookbackGeneration = undefined;
-      this.#renderer.queueAnimationFrame();
-      return true;
+      return false;
+    } finally {
+      this.#endSeekKeyframeSearch(generation);
     }
-
-    this.#state.lookbackCancel = undefined;
-    this.#state.lookbackGeneration = undefined;
-    return false;
   }
 
   async #readLookbackWindowWithRetries(
@@ -567,9 +584,39 @@ export class CompressedVideoController {
   }
 
   #cancelLookback(): void {
+    const generation = this.#state.lookbackGeneration;
     this.#state.lookbackCancel?.();
     this.#state.lookbackCancel = undefined;
     this.#state.lookbackGeneration = undefined;
+    this.#endSeekKeyframeSearch(generation);
+  }
+
+  #beginSeekKeyframeSearch(generation: number): void {
+    if (!this.#isCurrentGeneration(generation)) {
+      return;
+    }
+    this.#seekKeyframeSearchGeneration = generation;
+    if (this.#seekKeyframeSearchActive) {
+      return;
+    }
+    this.#seekKeyframeSearchActive = true;
+    this.#onSeekKeyframeSearchChange?.(true);
+  }
+
+  #endSeekKeyframeSearch(generation?: number): void {
+    if (
+      generation != undefined &&
+      this.#seekKeyframeSearchGeneration != undefined &&
+      generation !== this.#seekKeyframeSearchGeneration
+    ) {
+      return;
+    }
+    this.#seekKeyframeSearchGeneration = undefined;
+    if (!this.#seekKeyframeSearchActive) {
+      return;
+    }
+    this.#seekKeyframeSearchActive = false;
+    this.#onSeekKeyframeSearchChange?.(false);
   }
 
   #isCurrentLookback(generation: number): boolean {

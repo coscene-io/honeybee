@@ -483,7 +483,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public handleSeek(oldTimeNs: bigint): void {
     const movedBack = this.currentTime < oldTimeNs;
     // want to clear transforms and reset the cursor if we seek backwards
-    this.clear({ clearTransforms: movedBack, resetAllFramesCursor: movedBack });
+    this.clear({ clearTransforms: movedBack, resetAllFramesCursor: movedBack, reason: "seek" });
     for (const extension of this.sceneExtensions.values()) {
       extension.handleSeek(oldTimeNs);
     }
@@ -507,10 +507,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       clearTransforms,
       resetAllFramesCursor,
       clearImageModeExtension = true,
+      reason,
     }: {
       clearTransforms?: boolean;
       resetAllFramesCursor?: boolean;
       clearImageModeExtension?: boolean;
+      reason?: "seek";
     } = {
       clearTransforms: false,
       resetAllFramesCursor: false,
@@ -530,7 +532,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       if (!clearImageModeExtension && extension === this.#imageModeExtension) {
         continue;
       }
-      extension.removeAllRenderables();
+      extension.removeAllRenderables({ reason });
     }
     this.queueAnimationFrame();
   }

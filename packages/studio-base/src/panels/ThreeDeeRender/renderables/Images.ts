@@ -14,7 +14,10 @@ import Logger from "@foxglove/log";
 import { toNanoSec } from "@foxglove/rostime";
 import { CameraCalibration, CompressedImage, RawImage } from "@foxglove/schemas";
 import { MessageEvent, SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
-import { ALL_SUPPORTED_IMAGE_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
+import {
+  ALL_SUPPORTED_IMAGE_SCHEMAS,
+  SEEK_KEYFRAME_SEARCH_HUD_ITEM,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 
 import {
   CompressedVideoController,
@@ -32,7 +35,12 @@ import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPre
 import { filterCompressedVideoQueue } from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
-import { PartialMessageEvent, SceneExtension, onlyLastByTopicMessage } from "../SceneExtension";
+import {
+  PartialMessageEvent,
+  SceneExtension,
+  type RemoveAllRenderablesOptions,
+  onlyLastByTopicMessage,
+} from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 import {
   CAMERA_CALIBRATION_DATATYPES,
@@ -106,7 +114,26 @@ export class Images extends SceneExtension<ImageRenderable> {
       controller.dispose();
     }
     this.#compressedVideoControllers.clear();
+    this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
     super.dispose();
+  }
+
+  public override removeAllRenderables(options: RemoveAllRenderablesOptions = {}): void {
+    if (options.reason !== "seek") {
+      super.removeAllRenderables(options);
+      return;
+    }
+
+    const preservedTopics = this.#visibleCompressedVideoTopics();
+    for (const [topic, renderable] of this.renderables) {
+      if (preservedTopics.has(topic)) {
+        continue;
+      }
+      renderable.dispose();
+      this.remove(renderable);
+      this.renderables.delete(topic);
+    }
+    this.updateSettingsTree();
   }
 
   public override handleSeek(): void {
@@ -398,6 +425,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         resetDecoder: () => {
           this.renderables.get(topic)?.resetForSeek();
         },
+        onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
       });
       this.#compressedVideoControllers.set(topic, controller);
     } else {
@@ -406,10 +434,15 @@ export class Images extends SceneExtension<ImageRenderable> {
         resetDecoder: () => {
           this.renderables.get(topic)?.resetForSeek();
         },
+        onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
       });
     }
     return controller;
   }
+
+  #handleSeekKeyframeSearchChange = (active: boolean): void => {
+    this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
+  };
 
   #prepareImageRenderable(
     messageEvent: PartialMessageEvent<AnyImage>,

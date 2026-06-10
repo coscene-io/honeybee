@@ -160,6 +160,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   yDeviation: "Y 偏差",
   yDeviationHelp: "与姿势估计值一起发布的 Y 标准偏差",
   waitingForImages: "等待图片信息中...",
+  searchingForKeyframe: "正在查找关键帧......",
 
   // URDF
   displayMode: "显示模式",
