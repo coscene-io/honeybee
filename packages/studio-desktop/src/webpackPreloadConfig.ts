@@ -9,7 +9,7 @@ import { rspack, type Configuration } from "@rspack/core";
 import path from "path";
 import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
-import { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
 
@@ -58,10 +58,6 @@ export const webpackPreloadConfig =
             },
           },
         ],
-      },
-
-      optimization: {
-        removeAvailableModules: true,
       },
 
       plugins: [
