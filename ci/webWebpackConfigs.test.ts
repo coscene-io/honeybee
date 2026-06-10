@@ -9,13 +9,13 @@ import path from "path";
 
 jest.mock("@rspack/core", () => ({
   rspack: {
-    CopyRspackPlugin: class CopyRspackPlugin {},
-    DefinePlugin: class DefinePlugin {},
-    HtmlRspackPlugin: class HtmlRspackPlugin {},
+    CopyRspackPlugin: jest.fn(() => ({})),
+    DefinePlugin: jest.fn(() => ({})),
+    HtmlRspackPlugin: jest.fn(() => ({})),
   },
 }));
 jest.mock("@rspack/plugin-react-refresh", () => ({
-  ReactRefreshRspackPlugin: class ReactRefreshRspackPlugin {},
+  ReactRefreshRspackPlugin: jest.fn(() => ({})),
 }));
 jest.mock("@sentry/webpack-plugin", () => ({
   sentryWebpackPlugin: jest.fn(() => ({})),
@@ -32,9 +32,9 @@ jest.mock("@foxglove/theme/src/palette", () => ({
   light: { background: { default: "#f4f4f5" }, text: { primary: "#393939" } },
 }));
 
-const { devServerConfig, mainConfig } = jest.requireActual(
-  "../packages/studio-web/src/webpackConfigs",
-) as typeof import("../packages/studio-web/src/webpackConfigs");
+const { devServerConfig, mainConfig } = jest.requireActual<
+  typeof import("../packages/studio-web/src/webpackConfigs")
+>("../packages/studio-web/src/webpackConfigs");
 
 const params = {
   contextPath: path.resolve(__dirname, "../web/src"),
