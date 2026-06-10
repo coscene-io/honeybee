@@ -11,7 +11,7 @@ import MonacoWebpackPlugin from "monaco-editor-webpack-plugin";
 import path from "path";
 import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
-import { WebpackArgv } from "./WebpackArgv";
+import { isRspackServe, type WebpackArgv } from "./WebpackArgv";
 
 if (monacoPkg.version !== "0.40.0") {
   throw new Error(`
@@ -43,9 +43,9 @@ export function makeConfig(
   _: unknown,
   argv: WebpackArgv,
   options: Options,
-): Pick<Configuration, "resolve" | "module" | "optimization" | "plugins" | "node"> {
+): Pick<Configuration, "resolve" | "module" | "plugins" | "node"> {
   const isDev = argv.mode === "development";
-  const isServe = argv.env?.WEBPACK_SERVE === "true";
+  const isServe = isRspackServe(argv);
 
   const { allowUnusedVariables = isDev && isServe, version, tsconfigPath } = options;
 
@@ -213,9 +213,6 @@ export function makeConfig(
           },
         },
       ],
-    },
-    optimization: {
-      removeAvailableModules: true,
     },
     plugins: [
       new rspack.ProvidePlugin({
