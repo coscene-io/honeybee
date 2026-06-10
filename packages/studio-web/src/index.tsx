@@ -55,6 +55,7 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   );
 
   if (!canRender) {
+    const root = createRoot(rootEl);
     root.render(
       <StrictMode>
         <LogAfterRender>
