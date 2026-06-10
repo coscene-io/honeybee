@@ -1258,6 +1258,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         }
 
         const clientX = getPointerClientX(event);
+        const rect = rootRef.current.getBoundingClientRect();
         const movedBeyondClickThreshold =
           currentDrag.movedBeyondClickThreshold ||
           Math.abs(clientX - currentDrag.initialClientX) > EVENT_CLICK_DRAG_THRESHOLD_PX;
@@ -1267,7 +1268,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
             setLoopedEvent(undefined);
           }
         }
-        const pointerFraction = clientXToFraction(clientX, rootRef.current.getBoundingClientRect());
+        const pointerFraction = clientXToFraction(clientX, rect);
         const nextRange =
           currentDrag.kind === "body" && currentDrag.anchor != undefined
             ? calculateBodyDragRange({
@@ -1301,6 +1302,15 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           movedBeyondClickThreshold,
           range: snappedRange,
         };
+        if (movedBeyondClickThreshold) {
+          onSeek?.(
+            currentDrag.kind === "body"
+              ? clientXToTime(clientX, rect, viewport)
+              : currentDrag.edge === "start"
+              ? snappedRange.startSec
+              : snappedRange.endSec,
+          );
+        }
         eventDragRef.current = updatedDrag;
         setEventDrag(updatedDrag);
       };
@@ -1593,6 +1603,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         rollingEdit.pair,
         clientXToTime(getPointerClientX(event), rootRef.current.getBoundingClientRect(), viewport),
       );
+      onSeek?.(boundarySec);
       setRollingEdit({ pair: rollingEdit.pair, boundarySec });
     };
 
@@ -1608,7 +1619,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [commitRollingEdit, rollingEdit, rollingEditEnabled, viewport]);
+  }, [commitRollingEdit, onSeek, rollingEdit, rollingEditEnabled, viewport]);
 
   const editEvent = useCallback(
     (targetEvent: TimelinePositionedEvent): void => {
