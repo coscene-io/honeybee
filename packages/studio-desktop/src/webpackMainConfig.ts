@@ -9,14 +9,14 @@ import { rspack, type Configuration, type ResolveOptions } from "@rspack/core";
 import path from "path";
 import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
-import { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
 
 export const webpackMainConfig =
   (params: WebpackConfigParams) =>
   (_: unknown, argv: WebpackArgv): Configuration => {
-    const isServe = argv.env?.WEBPACK_SERVE ?? false;
+    const isServe = isRspackServe(argv);
 
     const isDev = argv.mode === "development";
 
@@ -34,7 +34,6 @@ export const webpackMainConfig =
     // When running under a development server the renderer entry comes from the server.
     // When making static builds (for packaging), the renderer entry is a file on disk.
     // This switches between the two and is injected below via DefinePlugin as MAIN_WINDOW_WEBPACK_ENTRY
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     const rendererEntry = isServe
       ? `"http://${argv.host ?? "localhost"}:8080/renderer/index.html"`
       : "`file://${require('path').join(__dirname, '..', 'renderer', 'index.html')}`";
@@ -82,10 +81,6 @@ export const webpackMainConfig =
             },
           },
         ],
-      },
-
-      optimization: {
-        removeAvailableModules: true,
       },
 
       plugins: [
