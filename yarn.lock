@@ -6608,7 +6608,7 @@ __metadata:
     eventemitter3: 5.0.1
     jszip: 3.10.1
     path-browserify: 1.0.1
-    plist: 3.1.0
+    plist: 5.0.0
     pngjs: 7.0.0
     quicklookjs: 1.0.1
     react: 18.3.1
@@ -12741,6 +12741,13 @@ __metadata:
   version: 0.8.10
   resolution: "@xmldom/xmldom@npm:0.8.10"
   checksum: 4c136aec31fb3b49aaa53b6fcbfe524d02a1dc0d8e17ee35bd3bf35e9ce1344560481cd1efd086ad1a4821541482528672306d5e37cdbd187f33d7fadd3e2cf0
+  languageName: node
+  linkType: hard
+
+"@xmldom/xmldom@npm:^0.9.10":
+  version: 0.9.10
+  resolution: "@xmldom/xmldom@npm:0.9.10"
+  checksum: 420f3ba52316163384ce626cda087d06b0eb5888d393b00bbc5f56489bbaccc8633e9b078942ee05facda93fbf813b209a5deb5044f89a6e04373305a0e573c0
   languageName: node
   linkType: hard
 
@@ -25020,6 +25027,16 @@ __metadata:
     base64-js: ^1.5.1
     xmlbuilder: ^15.1.1
   checksum: c8ea013da8646d4c50dff82f9be39488054621cc229957621bb00add42b5d4ce3657cf58d4b10c50f7dea1a81118f825838f838baeb4e6f17fab453ecf91d424
+  languageName: node
+  linkType: hard
+
+"plist@npm:5.0.0":
+  version: 5.0.0
+  resolution: "plist@npm:5.0.0"
+  dependencies:
+    "@xmldom/xmldom": ^0.9.10
+    xmlbuilder: ^15.1.1
+  checksum: e495209e27b5eb9bd56910d34c6446677f75f7779ec867faf239449dd340a055a761c9214af39be852bbfcdc9323bce3c306ba909fcd18fff96e39a33633e069
   languageName: node
   linkType: hard
 
