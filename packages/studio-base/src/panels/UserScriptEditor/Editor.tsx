@@ -18,8 +18,10 @@ import { useTheme } from "@mui/material";
 // @ts-expect-error ICodeEditorService does not have type information in the monaco-editor package
 import { ICodeEditorService } from "monaco-editor/esm/vs/editor/browser/services/codeEditorService";
 import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api";
+import type * as monacoMain from "monaco-editor/esm/vs/editor/editor.main";
 // @ts-expect-error StandaloneService does not have type information in the monaco-editor package
 import { StandaloneServices } from "monaco-editor/esm/vs/editor/standalone/browser/standaloneServices";
+import * as monacoTypescript from "monaco-editor/esm/vs/language/typescript/monaco.contribution";
 import * as path from "path";
 import React, { Suspense, ReactElement, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,6 +41,9 @@ import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActually
 import { themes } from "./theme";
 
 const codeEditorService = StandaloneServices.get(ICodeEditorService);
+// Monaco 0.55's per-language contribution declarations are empty, but editor.main exposes the
+// same TypeScript contribution shape.
+const monacoTypescriptContribution = monacoTypescript as unknown as typeof monacoMain.typescript;
 
 type CodeEditor = monacoApi.editor.ICodeEditor;
 
@@ -100,7 +105,7 @@ const Editor = ({
   const editorTheme = useTheme().palette.mode === "dark" ? "vs-studio-dark" : "vs-studio-light";
 
   React.useEffect(() => {
-    const disposable = monacoApi.languages.typescript.typescriptDefaults.addExtraLib(
+    const disposable = monacoTypescriptContribution.typescriptDefaults.addExtraLib(
       rosLib,
       `file:///node_modules/@types/${projectConfig.rosLib.fileName}`,
     );
@@ -214,8 +219,8 @@ const Editor = ({
       }
 
       // Set eager model sync to enable intellisense between the user code and utility files
-      monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-      monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+      monacoTypescriptContribution.typescriptDefaults.setEagerModelSync(true);
+      monacoTypescriptContribution.javascriptDefaults.setEagerModelSync(true);
 
       monaco.languages.registerDocumentFormattingEditProvider("typescript", {
         provideDocumentFormattingEdits: async (model) => {
@@ -235,7 +240,7 @@ const Editor = ({
 
       // Disable validation in screenshots to avoid flaky tests
       if (inScreenshotTests()) {
-        monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        monacoTypescriptContribution.typescriptDefaults.setDiagnosticsOptions({
           noSyntaxValidation: true,
           noSemanticValidation: true,
         });
@@ -250,19 +255,19 @@ const Editor = ({
       // typescript language service does not expose such a method.
       projectConfig.declarations.forEach((lib) => {
         if (lib.fileName.startsWith("@foxglove/schemas")) {
-          monaco.languages.typescript.typescriptDefaults.addExtraLib(
+          monacoTypescriptContribution.typescriptDefaults.addExtraLib(
             lib.sourceCode,
             `file:///node_modules/${lib.fileName}`,
           );
         } else {
-          monaco.languages.typescript.typescriptDefaults.addExtraLib(
+          monacoTypescriptContribution.typescriptDefaults.addExtraLib(
             lib.sourceCode,
             `file:///node_modules/@types/${lib.fileName}`,
           );
         }
       });
-      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-        ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+      monacoTypescriptContribution.typescriptDefaults.setCompilerOptions({
+        ...monacoTypescriptContribution.typescriptDefaults.getCompilerOptions(),
         // This is needed for @foxglove/schemas to resolve correctly in the editor.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         moduleResolution: ModuleResolutionKind.NodeNext as any,
