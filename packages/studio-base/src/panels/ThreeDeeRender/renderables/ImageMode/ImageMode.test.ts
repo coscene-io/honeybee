@@ -28,6 +28,7 @@ import {
   IMessageHandler,
   MessageRenderState,
   WAITING_FOR_IMAGE_EMPTY_HUD_ITEM,
+  WAITING_FOR_IMAGE_NOTICE_HUD_ITEM,
 } from "./MessageHandler";
 import { ConfigWithDefaults } from "./types";
 import { AnyImage, CompressedVideo } from "../Images/ImageTypes";
@@ -75,6 +76,7 @@ class FakeMessageHandler implements IMessageHandler {
   public readonly clear: IMessageHandler["clear"] = jest.fn();
   public readonly getRenderStateAndUpdateHUD: IMessageHandler["getRenderStateAndUpdateHUD"] =
     jest.fn((): MessageRenderState => ({ annotationsByTopic: new Map() }));
+  public readonly refreshHUD: IMessageHandler["refreshHUD"] = jest.fn();
   public readonly setAvailableAnnotationTopics: IMessageHandler["setAvailableAnnotationTopics"] =
     jest.fn();
 
@@ -377,7 +379,10 @@ describe("ImageMode compressed video seek replay", () => {
 
     renderer.currentTime = 10_000_000n;
     imageMode.removeAllRenderables();
-    expect(renderer.hud.getHUDItems()).toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
+    // The previous image is retained on the canvas during the seek, so we show the non-blocking
+    // notice rather than the full-panel empty state that would paint over it.
+    expect(renderer.hud.getHUDItems()).toContainEqual(WAITING_FOR_IMAGE_NOTICE_HUD_ITEM);
+    expect(renderer.hud.getHUDItems()).not.toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
 
     imageMode.handleSeek();
     await flushAsyncWork();

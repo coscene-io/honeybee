@@ -433,6 +433,42 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("reads the first frame when seeking to the recording start", async () => {
+    // At the data start every lookback window clamps to [start, start]; we must still issue the
+    // read so the first frame (typically a keyframe) can be decoded and displayed.
+    const keyframe = makeVideoMessage(0n, "key");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe];
+        })(),
+      );
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ currentTime: 0n, startTime: 0n, subscribeMessageRange });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/camera",
+        timeRange: {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 0, nsec: 0 },
+        },
+      }),
+    );
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n],
+    ]);
+  });
+
   it("notifies while a seek lookback is searching for a keyframe", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
@@ -618,10 +654,12 @@ describe("CompressedVideoController", () => {
     expect(subscribeMessageRange).toHaveBeenCalled();
   });
 
-  it("continues to wider lookback windows when replayed frames fail to decode", async () => {
+  it("expands through non-overlapping lookback windows when replayed frames fail to decode", async () => {
     for (const mode of ["publish-target", "seek-backfill"] as const) {
+      // Keyframe at the start, target 30s later: the keyframe only falls into the widest window, so
+      // the lookback must expand backwards before it can replay.
       const keyframe = makeVideoMessage(0n, "key");
-      const delta = makeVideoMessage(20_000_000n, "delta");
+      const delta = makeVideoMessage(30_000_000_000n, "delta");
       const displayFrames = jest.fn<
         Promise<ImageSetImageResult>,
         Parameters<CompressedVideoDisplayFrames>
@@ -640,7 +678,7 @@ describe("CompressedVideoController", () => {
         );
         return unsubscribe;
       });
-      const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+      const renderer = makeRenderer({ currentTime: 30_000_000_000n, subscribeMessageRange });
       const controller = makeController({ renderer, displayFrames });
 
       if (mode === "publish-target") {
@@ -651,16 +689,62 @@ describe("CompressedVideoController", () => {
         await flushAsyncWork();
       }
 
-      expect(subscribeMessageRange.mock.calls.length).toBeGreaterThan(1);
-      expect(subscribeMessageRange.mock.calls[0]![0].timeRange.end).toEqual({
-        sec: 0,
-        nsec: 20_000_000,
-      });
+      const ranges = subscribeMessageRange.mock.calls.map((call) => call[0].timeRange);
+      expect(ranges.length).toBeGreaterThan(1);
+      // The first window ends at the target, and each subsequent window reads only the newly-exposed
+      // older slice — they are contiguous and never re-read an already-read range.
+      expect(ranges[0]!.end).toEqual({ sec: 30, nsec: 0 });
+      for (let i = 1; i < ranges.length; i++) {
+        expect(ranges[i]!.end).toEqual(ranges[i - 1]!.start);
+      }
       expect(unsubscribes).toHaveLength(subscribeMessageRange.mock.calls.length);
       for (const unsubscribe of unsubscribes) {
         expect(unsubscribe).toHaveBeenCalledTimes(1);
       }
     }
+  });
+
+  it("reads a single [keyframe, target] range on seek using the persisted keyframe index", async () => {
+    // Keyframe observed during playback, then a seek 30s ahead to a delta in the same GOP. A cold
+    // lookback would walk the 5s/10s/20s windows; the index lets us read the exact GOP in one request.
+    const keyframe = makeVideoMessage(0n, "key");
+    const seekDelta = makeVideoMessage(30_000_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, seekDelta];
+        })(),
+      );
+      return unsubscribe;
+    });
+    const renderer = makeRenderer({ subscribeMessageRange });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.processMessage(keyframe);
+    displayFrames.mockClear();
+
+    renderer.currentTime = 30_000_000_000n;
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/camera",
+        timeRange: {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 30, nsec: 0 },
+        },
+      }),
+    );
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 30_000_000_000n],
+    ]);
   });
 
   it("uses publish-time GOPs when the replay target is a synchronized video timestamp", async () => {
@@ -761,7 +845,9 @@ describe("CompressedVideoController", () => {
     await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames)).toHaveLength(0);
-    expect(subscribeMessageRange).toHaveBeenCalledTimes(5);
+    // The receive-time GOP is rooted at a keyframe published after the target, so nothing is
+    // displayed. Every window clamps back to the start time, so the range is read exactly once.
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
   });
 
   it("ignores stale publish-time replay completion after a newer target supersedes it", async () => {
