@@ -453,35 +453,67 @@ export class CompressedVideoController {
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
     this.#beginSeekKeyframeSearch(generation);
-    const requestedStart = this.#state.successfulWindowSeconds ?? LOOKBACK_WINDOWS_SEC[0];
-    const startIndex = Math.max(
-      0,
-      LOOKBACK_WINDOWS_SEC.findIndex((windowSec) => windowSec >= requestedStart),
-    );
-
     try {
-      for (const lookbackSec of LOOKBACK_WINDOWS_SEC.slice(startIndex)) {
+      const seekTime = fromNanoSec(lookbackTargetNs);
+      const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
+
+      // Ordered list of window starts to try, expanding backwards from the target. When we already
+      // know a keyframe at/before the target we try it first: that reads exactly [keyframe, target]
+      // in a single range request instead of walking the window ladder. The cold windows remain as
+      // a fallback for regions we have never read.
+      const windowStarts: { time: Time; windowSec?: number }[] = [];
+      const knownKeyframe = this.#cache.nearestKeyframeReceiveTimeAtOrBefore(this.#topic, seekTime);
+      if (knownKeyframe != undefined && compare(knownKeyframe, startTime) >= 0) {
+        windowStarts.push({ time: knownKeyframe });
+      }
+      const requestedStart = this.#state.successfulWindowSeconds ?? LOOKBACK_WINDOWS_SEC[0];
+      const startIndex = Math.max(
+        0,
+        LOOKBACK_WINDOWS_SEC.findIndex((windowSec) => windowSec >= requestedStart),
+      );
+      for (const windowSec of LOOKBACK_WINDOWS_SEC.slice(startIndex)) {
+        const windowStart = clampTime(subtract(seekTime, fromSec(windowSec)), startTime, seekTime);
+        windowStarts.push({ time: windowStart, windowSec });
+      }
+
+      // We read each byte range at most once: `coveredStartNs` tracks the oldest receive time we
+      // have already read back to, and each window only fills the newly-exposed older slice.
+      let collected: MessageEvent[] = [];
+      let coveredStartNs = lookbackTargetNs;
+
+      for (const { time: windowStart, windowSec } of windowStarts) {
         if (!this.#isCurrentLookback(generation)) {
           return false;
         }
+        const windowStartNs = toNanoSec(windowStart);
+        if (windowStartNs >= coveredStartNs) {
+          continue;
+        }
 
-        const frames = await this.#readLookbackWindowWithRetries(
+        const slice = await this.#readRangeWithRetries(
           generation,
-          lookbackSec,
-          lookbackTargetNs,
+          windowStart,
+          fromNanoSec(coveredStartNs),
         );
         if (!this.#isCurrentLookback(generation)) {
           return false;
         }
-        if (frames == undefined) {
+        if (slice == undefined) {
           break;
         }
-        if (frames.length === 0) {
+        coveredStartNs = windowStartNs;
+        if (slice.length === 0) {
           continue;
         }
 
-        this.#cache.addFrameRange(frames);
-        const replayFrames = framesForLookbackReplayTarget(frames, replayTarget);
+        collected = mergeFramesByReceiveTime(slice, collected);
+        const gop = gopEndingAt(collected, this.#topic, seekTime);
+        if (gop.length === 0) {
+          continue;
+        }
+
+        const replayFrames = framesForLookbackReplayTarget(gop, replayTarget);
+        this.#cache.addFrameRange(collected);
 
         const ok = await this.#displayReplayFrames(replayFrames, generation, "seek", options);
         if (!this.#isCurrentLookback(generation)) {
@@ -492,7 +524,8 @@ export class CompressedVideoController {
           continue;
         }
 
-        this.#state.successfulWindowSeconds = lookbackSec;
+        this.#state.successfulWindowSeconds =
+          windowSec ?? this.#windowSecondsForSpan(lookbackTargetNs - windowStartNs);
         this.#state.completedSeekGeneration = generation;
         this.#recordLastDisplayedPublishTime(replayFrames);
         this.#state.lookbackCancel = undefined;
@@ -509,12 +542,23 @@ export class CompressedVideoController {
     }
   }
 
-  async #readLookbackWindowWithRetries(
+  /** Smallest configured lookback window (seconds) that covers `spanNs`. */
+  #windowSecondsForSpan(spanNs: bigint): number {
+    const spanSec = Number(spanNs / 1_000_000_000n);
+    for (const windowSec of LOOKBACK_WINDOWS_SEC) {
+      if (windowSec >= spanSec) {
+        return windowSec;
+      }
+    }
+    return LOOKBACK_WINDOWS_SEC[LOOKBACK_WINDOWS_SEC.length - 1]!;
+  }
+
+  async #readRangeWithRetries(
     generation: number,
-    lookbackSec: number,
-    lookbackTargetNs: bigint,
+    startTime: Time,
+    endTime: Time,
   ): Promise<MessageEvent[] | undefined> {
-    let frames = await this.#readLookbackWindow(generation, lookbackSec, lookbackTargetNs);
+    let frames = await this.#readRange(generation, startTime, endTime);
     for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
       if (frames != undefined || !this.#isCurrentLookback(generation)) {
         return frames;
@@ -523,24 +567,20 @@ export class CompressedVideoController {
       if (!this.#isCurrentLookback(generation)) {
         return undefined;
       }
-      frames = await this.#readLookbackWindow(generation, lookbackSec, lookbackTargetNs);
+      frames = await this.#readRange(generation, startTime, endTime);
     }
     return frames;
   }
 
-  async #readLookbackWindow(
+  async #readRange(
     generation: number,
-    lookbackSec: number,
-    lookbackTargetNs: bigint,
+    startTime: Time,
+    endTime: Time,
   ): Promise<MessageEvent[] | undefined> {
     const subscribeMessageRange = this.#renderer.subscribeMessageRange;
     if (subscribeMessageRange == undefined) {
       return [];
     }
-
-    const seekTime = fromNanoSec(lookbackTargetNs);
-    const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
-    const lookbackStart = clampTime(subtract(seekTime, fromSec(lookbackSec)), startTime, seekTime);
 
     return await new Promise<MessageEvent[] | undefined>((resolve) => {
       let finished = false;
@@ -564,10 +604,10 @@ export class CompressedVideoController {
       this.#state.lookbackCancel = currentCancel;
       unsubscribe = subscribeMessageRange({
         topic: this.#topic,
-        timeRange: { start: lookbackStart, end: seekTime },
+        timeRange: { start: startTime, end: endTime },
         onNewRangeIterator: async (iterator) => {
           try {
-            const frames = await collectReplayableFrames(iterator, this.#topic, seekTime);
+            const frames = await collectFramesInRange(iterator, this.#topic, startTime, endTime);
             if (this.#isCurrentLookback(generation)) {
               finish(frames);
             }
@@ -689,33 +729,91 @@ export class CompressedVideoController {
   }
 }
 
-async function collectReplayableFrames(
+/** Collect every video frame on `topic` with a receive time within `[startTime, endTime]`. */
+async function collectFramesInRange(
   iterator: AsyncIterable<readonly MessageEvent[]>,
   topic: string,
-  seekTime: Time,
+  startTime: Time,
+  endTime: Time,
 ): Promise<MessageEvent[]> {
-  let currentGop: MessageEvent[] = [];
+  const frames: MessageEvent[] = [];
   for await (const batch of iterator) {
     for (const messageEvent of batch) {
       if (messageEvent.topic !== topic) {
         continue;
       }
-      if (compare(messageEvent.receiveTime, seekTime) > 0) {
+      if (
+        compare(messageEvent.receiveTime, startTime) < 0 ||
+        compare(messageEvent.receiveTime, endTime) > 0
+      ) {
         continue;
       }
       const frameInfo = parseVideoFrameInfo(messageEvent);
       if (frameInfo == undefined) {
         continue;
       }
-      if (frameInfo.isKeyframe) {
-        currentGop = [];
-      } else if (currentGop.length === 0) {
-        continue;
-      }
-      currentGop.push(normalizeVideoMessageEvent(messageEvent as MessageEvent<CompressedVideo>));
+      frames.push(normalizeVideoMessageEvent(messageEvent as MessageEvent<CompressedVideo>));
     }
   }
+  return frames;
+}
+
+/**
+ * Extract the GOP ending at `seekTime` from receive-time-ordered `frames`: the run from the last
+ * keyframe at or before `seekTime` through the final frame at or before it. Returns [] if no
+ * keyframe precedes the target.
+ */
+function gopEndingAt(
+  frames: readonly MessageEvent[],
+  topic: string,
+  seekTime: Time,
+): MessageEvent[] {
+  let currentGop: MessageEvent[] = [];
+  for (const messageEvent of frames) {
+    if (messageEvent.topic !== topic) {
+      continue;
+    }
+    if (compare(messageEvent.receiveTime, seekTime) > 0) {
+      break;
+    }
+    const frameInfo = parseVideoFrameInfo(messageEvent);
+    if (frameInfo == undefined) {
+      continue;
+    }
+    if (frameInfo.isKeyframe) {
+      currentGop = [];
+    } else if (currentGop.length === 0) {
+      continue;
+    }
+    currentGop.push(messageEvent);
+  }
   return currentGop;
+}
+
+/**
+ * Merge two frame lists into a single receive-time-ascending list, dropping duplicates by receive
+ * time (the slice boundary frame is read by both adjacent windows).
+ */
+function mergeFramesByReceiveTime(
+  a: readonly MessageEvent[],
+  b: readonly MessageEvent[],
+): MessageEvent[] {
+  const seen = new Set<bigint>();
+  const merged: MessageEvent[] = [];
+  for (const frame of [...a, ...b]) {
+    const key = toNanoSec(frame.receiveTime);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(frame);
+  }
+  merged.sort((left, right) => {
+    const leftNs = toNanoSec(left.receiveTime);
+    const rightNs = toNanoSec(right.receiveTime);
+    return leftNs < rightNs ? -1 : leftNs > rightNs ? 1 : 0;
+  });
+  return merged;
 }
 
 function framesForLookbackReplayTarget(
