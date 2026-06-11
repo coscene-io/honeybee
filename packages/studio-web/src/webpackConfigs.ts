@@ -8,6 +8,7 @@
 import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
 import { ReactRefreshRspackPlugin } from "@rspack/plugin-react-refresh";
 import { sentryWebpackPlugin } from "@sentry/webpack-plugin";
+// foxglove-depcheck-used: webpack
 import path from "path";
 import type { ConnectHistoryApiFallbackOptions } from "webpack-dev-server";
 
