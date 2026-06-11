@@ -32,7 +32,6 @@ import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
 import { Script } from "@foxglove/studio-base/panels/UserScriptEditor/script";
 import { getUserScriptProjectConfig } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/projectConfig";
-import inScreenshotTests from "@foxglove/studio-base/stories/inScreenshotTests";
 import { DEFAULT_STUDIO_SCRIPT_PREFIX } from "@foxglove/studio-base/util/globalConstants";
 import { mightActuallyBePartial } from "@foxglove/studio-base/util/mightActuallyBePartial";
 
@@ -232,14 +231,6 @@ const Editor = ({
           }
         },
       });
-
-      // Disable validation in screenshots to avoid flaky tests
-      if (inScreenshotTests()) {
-        monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-          noSyntaxValidation: true,
-          noSemanticValidation: true,
-        });
-      }
 
       // Load declarations and additional utility files from project config
 

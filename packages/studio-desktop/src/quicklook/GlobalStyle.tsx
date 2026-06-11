@@ -27,7 +27,7 @@ export function GlobalStyle(): React.JSX.Element {
           },
         },
         body: {
-          padding: `${BODY_PADDING}px !important`, // important for Storybook
+          padding: `${BODY_PADDING}px !important`,
           minWidth: 150,
           fontFamily: "ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif",
 

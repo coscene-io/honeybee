@@ -253,7 +253,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   #fetchAsset: BuiltinPanelExtensionContext["unstable_fetchAsset"];
 
   public readonly displayTemporaryError?: (str: string) => void;
-  /** Options passed for local testing and storybook. */
+  /** Options passed for local testing. */
   public readonly testOptions: TestOptions;
   public analytics?: IAnalytics;
 
