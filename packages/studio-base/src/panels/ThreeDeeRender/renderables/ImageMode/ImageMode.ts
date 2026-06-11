@@ -224,7 +224,7 @@ export class ImageMode
   }
 
   protected initMessageHandler(config: Immutable<ConfigWithDefaults>): IMessageHandler {
-    return new MessageHandler(config, this.hud);
+    return new MessageHandler(config, this.hud, () => this.imageRenderable != undefined);
   }
 
   public hasModifiedView(): boolean {
@@ -347,9 +347,15 @@ export class ImageMode
   }
 
   #removeImageRenderable(): void {
+    const hadImage = this.imageRenderable != undefined;
     this.imageRenderable?.dispose();
     this.imageRenderable?.removeFromParent();
     this.imageRenderable = undefined;
+    // The retained image just left the canvas; re-evaluate the "waiting for image" overlay so it
+    // can switch from the non-blocking notice to the full-panel empty state.
+    if (hadImage) {
+      this.messageHandler.refreshHUD();
+    }
   }
 
   /**

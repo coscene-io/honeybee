@@ -167,13 +167,26 @@ export class MessageHandler implements IMessageHandler {
    */
   #availableAnnotationTopics: Set<string>;
 
+  /** Returns whether an image renderable is currently displayed on the canvas. While an image is
+   * still shown (e.g. the previous frame retained during a seek), "waiting for image" should be a
+   * non-blocking notice rather than a full-panel empty state that would paint over it.
+   */
+  #hasDisplayableImage: () => boolean;
+
   /**
    *
    * @param config - subset of ImageMode settings required for message handling
+   * @param hud - manager for overlay items shown on top of the canvas
+   * @param hasDisplayableImage - whether an image is currently on the canvas (defaults to false)
    */
-  public constructor(config: Immutable<Config>, hud: HUDItemManager) {
+  public constructor(
+    config: Immutable<Config>,
+    hud: HUDItemManager,
+    hasDisplayableImage: () => boolean = () => false,
+  ) {
     this.#config = config;
     this.#hud = hud;
+    this.#hasDisplayableImage = hasDisplayableImage;
     this.#lastReceivedMessages = {
       annotationsByTopic: new Map(),
     };
@@ -393,6 +406,15 @@ export class MessageHandler implements IMessageHandler {
     return state;
   }
 
+  /** Re-evaluate HUD overlay items from the most recent render state without a new message.
+   * Used when display state outside the message stream changes (e.g. a retained image renderable
+   * is finally removed from the canvas), so the "waiting for image" overlay can switch between the
+   * non-blocking notice and the full-panel empty state.
+   */
+  public refreshHUD(): void {
+    this.#updateHUDFromState(this.#oldRenderState ?? this.#lastReceivedMessages);
+  }
+
   #updateHUDFromState(state: MessageRenderState): void {
     const calibrationRequired = this.#config.calibrationTopic != undefined;
 
@@ -403,6 +425,10 @@ export class MessageHandler implements IMessageHandler {
 
     const waitingForBoth = waitingForImage && waitingForCalibration;
 
+    // While a previous image is still on the canvas (e.g. retained during a seek), use the
+    // non-blocking notice instead of the full-panel empty state so we don't paint over it.
+    const imageDisplayed = this.#hasDisplayableImage();
+
     this.#hud.displayIfTrue(waitingForBoth, WAITING_FOR_BOTH_HUD_ITEM);
 
     // don't show other empty states when waiting for both to reduce noise
@@ -411,11 +437,11 @@ export class MessageHandler implements IMessageHandler {
       WAITING_FOR_CALIBRATION_HUD_ITEM,
     );
     this.#hud.displayIfTrue(
-      waitingForImage && !calibrationRequired && !waitingForBoth,
+      waitingForImage && !calibrationRequired && !waitingForBoth && !imageDisplayed,
       WAITING_FOR_IMAGE_EMPTY_HUD_ITEM,
     );
     this.#hud.displayIfTrue(
-      waitingForImage && calibrationRequired,
+      waitingForImage && (calibrationRequired || imageDisplayed),
       WAITING_FOR_IMAGE_NOTICE_HUD_ITEM,
     );
 
@@ -484,6 +510,8 @@ export interface IMessageHandler {
   setConfig(newConfig: Immutable<Partial<ImageModeConfig>>): void;
   clear(): void;
   getRenderStateAndUpdateHUD(): Readonly<Partial<MessageHandlerState>>;
+  /** Re-evaluate HUD overlay items from the most recent render state without a new message. */
+  refreshHUD(): void;
 
   /**
    * Set what topics are available on the current source.

@@ -221,4 +221,46 @@ describe("VideoGopCache", () => {
       h264Frame(11, 11, "delta", 8),
     ]);
   });
+
+  it("indexes keyframe receive times and finds the nearest at or before a target", () => {
+    const cache = new VideoGopCache();
+    cache.addFrames([
+      h264Frame(10, 100, "key"),
+      h264Frame(11, 101, "delta"),
+      h264Frame(20, 200, "key"),
+      h264Frame(21, 201, "delta"),
+    ]);
+
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(15))).toEqual(t(10));
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(20))).toEqual(t(20));
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(25))).toEqual(t(20));
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(5))).toBeUndefined();
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore("/other", t(15))).toBeUndefined();
+  });
+
+  it("records keyframes added via addFrameRange and clears them with the topic", () => {
+    const cache = new VideoGopCache();
+    cache.addFrameRange([h264Frame(10, 100, "key"), h264Frame(11, 101, "delta")]);
+
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(11))).toEqual(t(10));
+
+    cache.clearTopic(TOPIC);
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(11))).toBeUndefined();
+  });
+
+  it("retains keyframe times in the index after frame data is evicted", () => {
+    const cache = new VideoGopCache({ maxBytes: 18 });
+    const oldKey = h264Frame(1, 1, "key", 8);
+    const oldDelta = h264Frame(2, 2, "delta", 8);
+    const newKey = h264Frame(3, 3, "key", 8);
+    const newDelta = h264Frame(4, 4, "delta", 8);
+
+    cache.addFrames([oldKey, oldDelta, newKey, newDelta]);
+
+    // The old GOP's frame data has been evicted by the byte budget...
+    expect(cache.framesForReceiveTime(TOPIC, t(2))).toBeUndefined();
+    // ...but its keyframe location survives, so a later seek can read exactly that GOP.
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(2))).toEqual(t(1));
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(4))).toEqual(t(3));
+  });
 });
