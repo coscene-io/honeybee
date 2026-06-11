@@ -483,16 +483,21 @@ export class CompressedVideoController {
       // have already read back to, and each window only fills the newly-exposed older slice.
       let collected: MessageEvent[] = [];
       let coveredStartNs = lookbackTargetNs;
+      let issuedRead = false;
 
       for (const { time: windowStart, windowSec } of windowStarts) {
         if (!this.#isCurrentLookback(generation)) {
           return false;
         }
         const windowStartNs = toNanoSec(windowStart);
-        if (windowStartNs >= coveredStartNs) {
+        // Skip windows that expose no older data we haven't already read. We must still issue at
+        // least one read, though: seeking to the data start clamps every window to [start, start],
+        // and that first frame (typically a keyframe) still needs to be fetched and displayed.
+        if (issuedRead && windowStartNs >= coveredStartNs) {
           continue;
         }
 
+        issuedRead = true;
         const slice = await this.#readRangeWithRetries(
           generation,
           windowStart,
