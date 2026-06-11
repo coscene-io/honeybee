@@ -35,6 +35,7 @@ export const WAITING_FOR_IMAGES_EMPTY_HUD_ID = "WAITING_FOR_IMAGES_EMPTY";
 export const WAITING_FOR_BOTH_MESSAGES_HUD_ID = "WAITING_FOR_BOTH_MESSAGES";
 export const WAITING_FOR_CALIBRATION_HUD_ID = "WAITING_FOR_CALIBRATION";
 export const WAITING_FOR_IMAGES_NOTICE_ID = "WAITING_FOR_IMAGES_NOTICE";
+export const SEEK_KEYFRAME_SEARCH_HUD_ID = "SEEK_KEYFRAME_SEARCH";
 
 export const CALIBRATION_TOPIC_PATH = ["imageMode", "calibrationTopic"];
 export const IMAGE_TOPIC_UNAVAILABLE = "IMAGE_TOPIC_UNAVAILABLE";
@@ -86,6 +87,13 @@ export const NO_IMAGE_TOPICS_HUD_ITEM: HUDItem = {
   group: IMAGE_MODE_HUD_GROUP_ID,
   getMessage: () => t3D("noImageTopicsAvailable"),
   displayType: "empty",
+};
+
+export const SEEK_KEYFRAME_SEARCH_HUD_ITEM: HUDItem = {
+  id: SEEK_KEYFRAME_SEARCH_HUD_ID,
+  group: IMAGE_MODE_HUD_GROUP_ID,
+  getMessage: () => t3D("searchingForKeyframe"),
+  displayType: "notice",
 };
 
 export const DEFAULT_IMAGE_CONFIG = {

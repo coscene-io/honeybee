@@ -306,7 +306,12 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
    * order to flush potential future state to the newly set time.
    * @param {boolean} params.resetAllFramesCursor - whether to reset the cursor for the allFrames array.
    */
-  clear(args: { clearTransforms?: boolean; resetAllFramesCursor?: boolean }): void;
+  clear(args: {
+    clearTransforms?: boolean;
+    resetAllFramesCursor?: boolean;
+    clearImageModeExtension?: boolean;
+    reason?: "seek";
+  }): void;
 
   /**
    * Iterates through allFrames and handles messages with a receiveTime <= currentTime

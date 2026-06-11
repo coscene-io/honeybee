@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { H264, H265 } from "@foxglove/den/video";
-import { Time, toNanoSec } from "@foxglove/rostime";
+import { Time, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
@@ -92,6 +92,10 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
 export class VideoGopCache {
   readonly #rangesByTopic = new Map<string, CachedVideoRange[]>();
   readonly #activeRangeByTopic = new Map<string, CachedVideoRange>();
+  // Sorted keyframe receive times per topic. Kept independent of the frame LRU so it survives
+  // #pruneToBudget eviction: even after a region's frame data is evicted we still know where the
+  // keyframes are, so a later seek can read exactly [keyframe, target] instead of guessing windows.
+  readonly #keyframeReceiveTimesByTopic = new Map<string, bigint[]>();
   readonly #maxBytes: number;
   #byteSize = 0;
   #targetReceiveTimeNs = 0n;
@@ -107,6 +111,7 @@ export class VideoGopCache {
     }
 
     this.#targetReceiveTimeNs = cachedFrame.receiveTimeNs;
+    this.#recordKeyframe(cachedFrame);
 
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
     let range = ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
@@ -142,6 +147,7 @@ export class VideoGopCache {
       if (frame == undefined) {
         continue;
       }
+      this.#recordKeyframe(frame);
       const frames = framesByTopic.get(msg.topic) ?? [];
       frames.push(frame);
       framesByTopic.set(msg.topic, frames);
@@ -258,13 +264,29 @@ export class VideoGopCache {
     return replayableFrames;
   }
 
+  /**
+   * Largest known keyframe receive time at or before `target`, or undefined if none is known.
+   * Backed by {@link #keyframeReceiveTimesByTopic}, which outlives frame eviction, so this can
+   * point a cold seek at the exact GOP start even when the frame data is no longer cached.
+   */
+  public nearestKeyframeReceiveTimeAtOrBefore(topic: string, target: Time): Time | undefined {
+    const times = this.#keyframeReceiveTimesByTopic.get(topic);
+    if (times == undefined || times.length === 0) {
+      return undefined;
+    }
+    const found = largestAtOrBefore(times, toNanoSec(target));
+    return found != undefined ? fromNanoSec(found) : undefined;
+  }
+
   public clear(): void {
     this.#rangesByTopic.clear();
     this.#activeRangeByTopic.clear();
+    this.#keyframeReceiveTimesByTopic.clear();
     this.#byteSize = 0;
   }
 
   public clearTopic(topic: string): void {
+    this.#keyframeReceiveTimesByTopic.delete(topic);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined) {
       return;
@@ -274,6 +296,19 @@ export class VideoGopCache {
     }
     this.#rangesByTopic.delete(topic);
     this.#activeRangeByTopic.delete(topic);
+  }
+
+  #recordKeyframe(frame: CachedVideoFrame): void {
+    if (!frame.isKeyframe) {
+      return;
+    }
+    const topic = frame.messageEvent.topic;
+    let times = this.#keyframeReceiveTimesByTopic.get(topic);
+    if (times == undefined) {
+      times = [];
+      this.#keyframeReceiveTimesByTopic.set(topic, times);
+    }
+    sortedInsertUnique(times, frame.receiveTimeNs);
   }
 
   public byteSize(): number {
@@ -533,6 +568,43 @@ function compareRangesByPublishTime(a: CachedVideoRange, b: CachedVideoRange): n
     return 1;
   }
   return 0;
+}
+
+/** Insert `value` into the ascending array `arr`, skipping it if already present. */
+function sortedInsertUnique(arr: bigint[], value: bigint): void {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    const current = arr[mid]!;
+    if (current === value) {
+      return;
+    }
+    if (current < value) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  arr.splice(lo, 0, value);
+}
+
+/** Largest entry of the ascending array `arr` that is `<= value`, or undefined if none. */
+function largestAtOrBefore(arr: readonly bigint[], value: bigint): bigint | undefined {
+  let lo = 0;
+  let hi = arr.length;
+  let result: bigint | undefined;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    const current = arr[mid]!;
+    if (current <= value) {
+      result = current;
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return result;
 }
 
 function findLastIndex<T>(items: readonly T[], predicate: (item: T) => boolean): number {

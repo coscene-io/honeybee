@@ -16,7 +16,7 @@ import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
 
-import { add, fromSec } from "@foxglove/rostime";
+import { add, fromSec, type Time } from "@foxglove/rostime";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -201,10 +201,12 @@ function Wrapper({
   children,
   consoleApi = makeConsoleApiMock(),
   eventsStore,
+  seekPlayback,
   timelineInteractionStore,
 }: React.PropsWithChildren<{
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   eventsStore: StoreApi<EventsStore>;
+  seekPlayback?: (arg0: Time) => void;
   timelineInteractionStore: StoreApi<TimelineInteractionStateStore>;
 }>): React.JSX.Element {
   return (
@@ -215,6 +217,7 @@ function Wrapper({
             startTime={{ sec: 0, nsec: 0 }}
             endTime={{ sec: 10, nsec: 0 }}
             currentTime={{ sec: 1, nsec: 0 }}
+            seekPlayback={seekPlayback}
           >
             <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
               <EventsContext.Provider value={eventsStore}>{children}</EventsContext.Provider>
@@ -262,6 +265,47 @@ function firePointerMove(clientX: number): void {
 
 function firePointerUp(clientX: number): void {
   fireEvent(window, new MouseEvent("pointerup", { bubbles: true, clientX }));
+}
+
+function renderOverlayWithSeek({
+  consoleApi = makeConsoleApiMock({ updateEvent: jest.fn().mockResolvedValue({}) }),
+  events,
+  seekPlayback = jest.fn<void, [Time]>(),
+}: {
+  consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
+  events: TimelinePositionedEvent[];
+  seekPlayback?: jest.Mock<void, [Time]>;
+}): { eventsStore: StoreApi<EventsStore>; seekPlayback: jest.Mock<void, [Time]> } {
+  const eventsStore = makeEventsStore({
+    events,
+    eventMarks: [],
+    setEventMarks: jest.fn(),
+  });
+  const timelineInteractionStore = makeTimelineInteractionStore();
+
+  render(
+    <Wrapper
+      consoleApi={consoleApi}
+      eventsStore={eventsStore}
+      seekPlayback={seekPlayback}
+      timelineInteractionStore={timelineInteractionStore}
+    >
+      <EventsOverlay
+        componentId="test-component"
+        canWriteEvents
+        isDragging={false}
+        eventContextMenuRequest={undefined}
+        onEventContextMenuHandled={jest.fn()}
+        onSeek={(playbackSeconds) => {
+          seekPlayback(fromSec(playbackSeconds));
+        }}
+        setCursor={jest.fn()}
+        viewport={viewport}
+      />
+    </Wrapper>,
+  );
+
+  return { eventsStore, seekPlayback };
 }
 
 async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
@@ -467,6 +511,99 @@ describe("<EventsOverlay />", () => {
       { key: "start", position: 0.2, time: { sec: 2, nsec: 0 } },
       { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
     ]);
+  });
+
+  it("seeks to the pointer time while dragging a moment body", async () => {
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+
+    await act(async () => {
+      firePointerDown(screen.getByTestId("timeline-event"), 100);
+    });
+    await act(async () => {
+      firePointerMove(400);
+    });
+
+    expect(seekPlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(4));
+
+    await act(async () => {
+      firePointerUp(400);
+    });
+  });
+
+  it.each([
+    ["timeline-event-start-handle", 100, 200, 2],
+    ["timeline-event-end-handle", 300, 400, 4],
+  ])(
+    "seeks to the edited boundary while dragging the %s",
+    async (handleTestId, initialClientX, targetClientX, expectedSec) => {
+      const { seekPlayback } = renderOverlayWithSeek({
+        events: [makeEvent("events/edge", 1, 2)],
+      });
+      mockTimelineRect(screen.getByTestId("events-overlay"));
+
+      await act(async () => {
+        firePointerDown(screen.getByTestId(handleTestId), initialClientX);
+      });
+      await act(async () => {
+        firePointerMove(targetClientX);
+      });
+
+      expect(seekPlayback).toHaveBeenCalledTimes(1);
+      expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(expectedSec));
+
+      await act(async () => {
+        firePointerUp(targetClientX);
+      });
+    },
+  );
+
+  it("seeks to the rolling edit boundary while dragging adjacent moments", async () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+    });
+    mockTimelineRect();
+
+    await act(async () => {
+      firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 500);
+    });
+    await act(async () => {
+      firePointerMove(600);
+    });
+
+    expect(seekPlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(6));
+
+    await act(async () => {
+      firePointerUp(600);
+    });
+  });
+
+  it("does not seek while a moment body move stays under the drag threshold", async () => {
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+
+    await act(async () => {
+      firePointerDown(screen.getByTestId("timeline-event"), 100);
+    });
+    await act(async () => {
+      firePointerMove(103);
+    });
+
+    expect(seekPlayback).not.toHaveBeenCalled();
+
+    await act(async () => {
+      firePointerUp(103);
+    });
+    expect(seekPlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(1.03));
   });
 
   it("optimistically updates adjacent moments while a rolling edit request is pending", async () => {

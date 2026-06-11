@@ -28,6 +28,7 @@ import {
   IMessageHandler,
   MessageRenderState,
   WAITING_FOR_IMAGE_EMPTY_HUD_ITEM,
+  WAITING_FOR_IMAGE_NOTICE_HUD_ITEM,
 } from "./MessageHandler";
 import { ConfigWithDefaults } from "./types";
 import { AnyImage, CompressedVideo } from "../Images/ImageTypes";
@@ -75,6 +76,7 @@ class FakeMessageHandler implements IMessageHandler {
   public readonly clear: IMessageHandler["clear"] = jest.fn();
   public readonly getRenderStateAndUpdateHUD: IMessageHandler["getRenderStateAndUpdateHUD"] =
     jest.fn((): MessageRenderState => ({ annotationsByTopic: new Map() }));
+  public readonly refreshHUD: IMessageHandler["refreshHUD"] = jest.fn();
   public readonly setAvailableAnnotationTopics: IMessageHandler["setAvailableAnnotationTopics"] =
     jest.fn();
 
@@ -120,10 +122,18 @@ class SynchronizingCompressedVideoMessageHandler extends FakeMessageHandler {
     });
 }
 
+class PlaybackCompressedVideoMessageHandler extends FakeMessageHandler {
+  public override readonly handleCompressedVideo: IMessageHandler["handleCompressedVideo"] =
+    jest.fn((messageEvent) => {
+      this.emitState({ image: messageEvent as MessageEvent<AnyImage> }, undefined);
+    });
+}
+
 class TestImageRenderable extends ImageRenderable {
   public readonly setImageCalls: AnyImage[] = [];
   public readonly setCompressedVideoFrameBatches: AnyImage[][] = [];
   public resetForSeekCalls = 0;
+  public disposed = false;
 
   public override async setImage(
     image: AnyImage,
@@ -154,6 +164,11 @@ class TestImageRenderable extends ImageRenderable {
   public override resetForSeek(): void {
     this.resetForSeekCalls++;
   }
+
+  public override dispose(): void {
+    this.disposed = true;
+    super.dispose();
+  }
 }
 
 let nextMessageHandler: IMessageHandler | undefined;
@@ -172,6 +187,10 @@ class TestImageMode extends ImageMode {
     const renderable = new TestImageRenderable(topicName, this.renderer, userData);
     this.createdRenderables.push(renderable);
     return renderable;
+  }
+
+  public currentImageRenderable(): TestImageRenderable | undefined {
+    return this.imageRenderable as TestImageRenderable | undefined;
   }
 }
 
@@ -360,7 +379,10 @@ describe("ImageMode compressed video seek replay", () => {
 
     renderer.currentTime = 10_000_000n;
     imageMode.removeAllRenderables();
-    expect(renderer.hud.getHUDItems()).toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
+    // The previous image is retained on the canvas during the seek, so we show the non-blocking
+    // notice rather than the full-panel empty state that would paint over it.
+    expect(renderer.hud.getHUDItems()).toContainEqual(WAITING_FOR_IMAGE_NOTICE_HUD_ITEM);
+    expect(renderer.hud.getHUDItems()).not.toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
 
     imageMode.handleSeek();
     await flushAsyncWork();
@@ -458,6 +480,64 @@ describe("ImageMode compressed video seek replay", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it("keeps the previous image and shows a keyframe search notice during delayed seek lookback", async () => {
+    const messageHandler = new PlaybackCompressedVideoMessageHandler();
+    nextMessageHandler = messageHandler;
+    const renderer = makeRenderer();
+    const imageMode = new TestImageMode(renderer);
+    const subscription = compressedVideoSubscription(imageMode);
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const targetDelta = makeVideoMessage(20_000_000n, "delta");
+    let onNewRangeIterator: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"] | undefined;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((args) => {
+      onNewRangeIterator = args.onNewRangeIterator;
+      return jest.fn();
+    });
+
+    subscription.handler(keyframe);
+    subscription.handler(delta);
+    await flushAsyncWork();
+    const previousRenderable = imageMode.currentImageRenderable();
+    expect(previousRenderable).toBeDefined();
+
+    renderer.subscribeMessageRange = subscribeMessageRange;
+    renderer.currentTime = 20_000_000n;
+
+    jest.useFakeTimers();
+    try {
+      imageMode.removeAllRenderables();
+      imageMode.handleSeek();
+
+      jest.advanceTimersByTime(51);
+      expect(imageMode.currentImageRenderable()).toBe(previousRenderable);
+      expect(previousRenderable?.disposed).toBe(false);
+      expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("SEEK_KEYFRAME_SEARCH");
+      expect(renderer.hud.getHUDItems()).not.toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
+    } finally {
+      jest.useRealTimers();
+    }
+
+    await onNewRangeIterator?.(
+      (async function* () {
+        yield [keyframe, delta, targetDelta];
+      })(),
+    );
+    await flushAsyncWork();
+
+    expect(
+      imageMode
+        .currentImageRenderable()
+        ?.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
+    ).toEqual([
+      [keyframe.message.timestamp, delta.message.timestamp, targetDelta.message.timestamp],
+    ]);
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
   });
 
   it("does not look back for a selected non-video image topic", async () => {

@@ -745,6 +745,20 @@ describe("MessageHandler: hud item display", () => {
     const hudItems = _.sortBy(hud.getHUDItems(), "id");
     expect(hudItems).toEqual([WAITING_FOR_IMAGE_EMPTY_HUD_ITEM]);
   });
+  it("waiting for image is a notice (not empty state) while an image is still displayed", () => {
+    const hud = new HUDItemManager(() => {});
+    let imageDisplayed = true;
+    const messageHandler = new MessageHandler({ synchronize: false }, hud, () => imageDisplayed);
+
+    // A previous image is retained on the canvas (e.g. during a seek) so we must not paint over it.
+    messageHandler.getRenderStateAndUpdateHUD();
+    expect(_.sortBy(hud.getHUDItems(), "id")).toEqual([WAITING_FOR_IMAGE_NOTICE_HUD_ITEM]);
+
+    // Once the retained image leaves the canvas, refreshHUD switches to the full-panel empty state.
+    imageDisplayed = false;
+    messageHandler.refreshHUD();
+    expect(_.sortBy(hud.getHUDItems(), "id")).toEqual([WAITING_FOR_IMAGE_EMPTY_HUD_ITEM]);
+  });
   it("init: waiting for both if calibration topic specified", () => {
     const hud = new HUDItemManager(() => {});
     const messageHandler = new MessageHandler(

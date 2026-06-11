@@ -155,6 +155,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   xDeviationHelp: "ポーズ推定で公開するXの標準偏差",
   yDeviation: "Y偏差",
   yDeviationHelp: "ポーズ推定で公開するYの標準偏差",
+  searchingForKeyframe: "キーフレームを検索中......",
 
   // URDF
   displayMode: "表示モード",
