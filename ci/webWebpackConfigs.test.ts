@@ -35,6 +35,9 @@ jest.mock("@foxglove/theme/src/palette", () => ({
 const { devServerConfig, mainConfig } = jest.requireActual<
   typeof import("../packages/studio-web/src/webpackConfigs")
 >("../packages/studio-web/src/webpackConfigs");
+const { ReactRefreshRspackPlugin } = jest.requireMock<
+  typeof import("@rspack/plugin-react-refresh")
+>("@rspack/plugin-react-refresh");
 
 const params = {
   contextPath: path.resolve(__dirname, "../web/src"),
@@ -45,6 +48,10 @@ const params = {
 };
 
 describe("web webpack configs", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("does not serve stale disk build files from the dev server", () => {
     expect(devServerConfig(params).devServer?.static).toBe(false);
   });
@@ -56,5 +63,16 @@ describe("web webpack configs", () => {
     });
 
     expect(config.lazyCompilation).toBe(false);
+  });
+
+  it("does not run React Refresh on raw source imports", () => {
+    mainConfig(params)(undefined, {
+      mode: "development",
+      env: { RSPACK_SERVE: "true" },
+    });
+
+    expect(ReactRefreshRspackPlugin).toHaveBeenCalledWith({
+      resourceQuery: { not: [/raw/] },
+    });
   });
 });

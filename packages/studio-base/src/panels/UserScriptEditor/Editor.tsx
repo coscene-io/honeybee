@@ -28,7 +28,7 @@ import { useTranslation } from "react-i18next";
 import MonacoEditor, { EditorDidMount, EditorWillMount } from "react-monaco-editor";
 import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
-import { ModuleResolutionKind } from "typescript";
+import { ModuleKind, ModuleResolutionKind } from "typescript";
 
 import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
@@ -88,6 +88,9 @@ const gotoSelection = (editor: monacoApi.editor.IEditor, selection?: monacoApi.I
 };
 
 const projectConfig = getUserScriptProjectConfig();
+// TypeScript suggestion diagnostic: "All imports in import declaration are unused."
+// This is noisy when users uncomment template imports before wiring them into their script.
+const ignoredTypeScriptDiagnosticCodes = [6192];
 const Editor = ({
   autoFormatOnSave,
   script,
@@ -238,12 +241,17 @@ const Editor = ({
         },
       });
 
+      const diagnosticOptions = { diagnosticCodesToIgnore: ignoredTypeScriptDiagnosticCodes };
+
       // Disable validation in screenshots to avoid flaky tests
       if (inScreenshotTests()) {
         monacoTypescriptContribution.typescriptDefaults.setDiagnosticsOptions({
+          ...diagnosticOptions,
           noSyntaxValidation: true,
           noSemanticValidation: true,
         });
+      } else {
+        monacoTypescriptContribution.typescriptDefaults.setDiagnosticsOptions(diagnosticOptions);
       }
 
       // Load declarations and additional utility files from project config
@@ -268,9 +276,18 @@ const Editor = ({
       });
       monacoTypescriptContribution.typescriptDefaults.setCompilerOptions({
         ...monacoTypescriptContribution.typescriptDefaults.getCompilerOptions(),
-        // This is needed for @foxglove/schemas to resolve correctly in the editor.
+        // User script files are backed by Monaco virtual file:// models, not a real Node package
+        // tree. Bundler resolution keeps extensionless local imports working while paths maps the
+        // virtual @foxglove/schemas package root to its generated index file.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        moduleResolution: ModuleResolutionKind.NodeNext as any,
+        module: ModuleKind.ESNext as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        moduleResolution: ModuleResolutionKind.Bundler as any,
+        baseUrl: "file:///",
+        paths: {
+          "@foxglove/schemas": ["node_modules/@foxglove/schemas/index.ts"],
+          "@foxglove/schemas/*": ["node_modules/@foxglove/schemas/*.ts"],
+        },
       });
       projectConfig.utilityFiles.forEach((sourceFile) => {
         const filePath = monacoApi.Uri.parse(`file://${sourceFile.filePath}`);
