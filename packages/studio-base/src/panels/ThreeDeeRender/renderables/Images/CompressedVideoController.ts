@@ -27,7 +27,10 @@ import { VideoGopCache, parseVideoFrameInfo } from "./videoGopCache";
 import { IRenderer } from "../../IRenderer";
 import { PartialMessageEvent } from "../../SceneExtension";
 
-const LOOKBACK_WINDOWS_SEC = [5, 10, 20, 40, 60] as const;
+// Window ladder (seconds) tried when seeking back to find a keyframe, expanding from the target.
+// The first rung is the cold-seek floor: typical H.264/H.265 GOPs are ~1-2s, so we probe a small
+// range first and only walk outward for sparser-keyframe streams (one extra range read each step).
+const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 
 export type VideoDisplayMode = "playback" | "seek" | "direct";
