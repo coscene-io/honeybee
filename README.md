@@ -44,9 +44,6 @@ yarn web:serve
 # Desktop app (run in two terminals)
 yarn desktop:serve
 yarn desktop:start
-
-# Storybook
-yarn storybook
 ```
 
 For advanced desktop debugging across different machines or VMs on the same network:

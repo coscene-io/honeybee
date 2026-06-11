@@ -88,7 +88,7 @@ function Wrapper({
           }
         >
           <CoreDataProvider>
-            <WorkspaceContextProvider disablePersistenceForStorybook>
+            <WorkspaceContextProvider disablePersistence>
               <MockMessagePipelineProvider
                 startTime={{ sec: 0, nsec: 0 }}
                 endTime={{ sec: 10, nsec: 0 }}

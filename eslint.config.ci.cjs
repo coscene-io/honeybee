@@ -31,7 +31,7 @@ module.exports = [
   },
   {
     files: ["**/*.@(js|jsx|ts|tsx)"],
-    ignores: ["**/*.test.@(js|jsx|ts|tsx)", "**/*.stories.@(js|jsx|ts|tsx)", "**/__tests__/**"],
+    ignores: ["**/*.test.@(js|jsx|ts|tsx)", "**/__tests__/**"],
     rules: {
       // https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-cycle.md
       "import/no-cycle": [

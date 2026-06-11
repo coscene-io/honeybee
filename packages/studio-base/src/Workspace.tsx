@@ -104,7 +104,7 @@ type WorkspaceProps = CustomWindowControlsProps & {
   appBarLeftInset?: number;
   onAppBarDoubleClick?: () => void;
   // eslint-disable-next-line react/no-unused-prop-types
-  disablePersistenceForStorybook?: boolean;
+  disablePersistence?: boolean;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
 };
 
@@ -529,7 +529,7 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
     <WorkspaceContextProvider
       initialState={initialState}
       workspaceStoreCreator={workspaceStoreCreator}
-      disablePersistenceForStorybook={props.disablePersistenceForStorybook}
+      disablePersistence={props.disablePersistence}
     >
       <WorkspaceContent {...props} />
     </WorkspaceContextProvider>
