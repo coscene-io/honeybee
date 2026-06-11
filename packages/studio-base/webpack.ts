@@ -13,7 +13,7 @@ import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import { isRspackServe, type WebpackArgv } from "./WebpackArgv";
 
-if (monacoPkg.version !== "0.40.0") {
+if (monacoPkg.version !== "0.55.1") {
   throw new Error(`
     It looks like you are trying to change the version of Monaco.
     Please make a User Script and confirm that loading a data source properly updates
