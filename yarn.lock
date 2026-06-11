@@ -6435,7 +6435,7 @@ __metadata:
     "@foxglove/wasm-bz2": 0.3.0
     "@foxglove/wasm-lz4": 1.0.2
     "@foxglove/ws-protocol": "workspace:*"
-    "@growthbook/growthbook-react": 1.4.1
+    "@growthbook/growthbook-react": 1.6.5
     "@mcap/core": 2.1.7
     "@mui/icons-material": 7.3.11
     "@mui/material": 7.3.11
@@ -6807,23 +6807,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@growthbook/growthbook-react@npm:1.4.1":
-  version: 1.4.1
-  resolution: "@growthbook/growthbook-react@npm:1.4.1"
+"@growthbook/growthbook-react@npm:1.6.5":
+  version: 1.6.5
+  resolution: "@growthbook/growthbook-react@npm:1.6.5"
   dependencies:
-    "@growthbook/growthbook": ^1.4.1
+    "@growthbook/growthbook": ^1.6.5
   peerDependencies:
-    react: ^16.8.0-0 || ^17.0.0-0 || ^18.0.0-0
-  checksum: 2f4a04197ff5de60eb848e225fa3ae5f92274f3398ca6102fb59427d5335056b8f7125024ef8021d0e7a8187080f01a96f2978f456d22a4f4c662aa3533144e4
+    react: ^16.8.0-0 || ^17.0.0-0 || ^18.0.0-0 || ^19.0.0-0
+  checksum: 7d7a6bb2e00f132b8afe854b89b36be9545235f8ac4dfb035f05b078fd7a154186b0a67b2ead364de9dc19d60c516adf34b7a62a2ce6764f27b233ee15539e79
   languageName: node
   linkType: hard
 
-"@growthbook/growthbook@npm:^1.4.1":
-  version: 1.6.0
-  resolution: "@growthbook/growthbook@npm:1.6.0"
+"@growthbook/growthbook@npm:^1.6.5":
+  version: 1.6.5
+  resolution: "@growthbook/growthbook@npm:1.6.5"
   dependencies:
     dom-mutator: ^0.6.0
-  checksum: 26e3a871b1b25ce962c041cf02634c17eccffe1f0c6fe5c8fc994afa41c31af6513c1d298a5d3b1afbc7a4359a9f0f44854de10dc0035813685c60b49bc3cd26
+  checksum: e79a55ed636b32e56acf395cd6844cf89fe14f357bcdab977a4f1e9925494dbf74dd879ca49884cd909af73608adb4d1b679799d1fe2f8d3f77c721b82ebb117
   languageName: node
   linkType: hard
 
