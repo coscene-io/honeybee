@@ -40,6 +40,17 @@ export type PlaybackSpeed = 0.01 | 0.02 | 0.05 | 0.1 | 0.2 | 0.5 | 0.8 | 1 | 2 |
 
 export type TopicSelection = Map<string, SubscribePayload>;
 
+export type SubscribeMessageRangeArgs = {
+  topic: string;
+  timeRange: {
+    start: Time;
+    end: Time;
+  };
+  onNewRangeIterator: (iterator: AsyncIterable<readonly MessageEvent[]>) => void | Promise<void>;
+};
+
+export type SubscribeMessageRange = (args: SubscribeMessageRangeArgs) => (() => void) | undefined;
+
 // A `Player` is a class that manages playback state. It manages subscriptions,
 // current time, which topics and datatypes are available, and so on.
 // For more details, see the types below.
@@ -69,6 +80,7 @@ export interface Player {
   // 设置一组新的订阅/广告商。这可能会触发获取新数据，
   // 进而可能触发消息的回填。
   setSubscriptions(subscriptions: Immutable<SubscribePayload[]>): void;
+  subscribeMessageRange?: SubscribeMessageRange;
   setPublishers(publishers: AdvertiseOptions[]): void;
   // Modify a remote parameter such as a rosparam.
   // 修改远程参数，例如 rosparam。

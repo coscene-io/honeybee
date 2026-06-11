@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
+import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import { LabelPool } from "@foxglove/three-text";
 
@@ -257,6 +258,8 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   transformTree: TransformTree;
   coordinateFrameList: SelectEntry[];
   currentTime: bigint;
+  startTime: bigint | undefined;
+  subscribeMessageRange: SubscribeMessageRange | undefined;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */
   fixedFrameId: string | undefined;
   /**
@@ -303,7 +306,12 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
    * order to flush potential future state to the newly set time.
    * @param {boolean} params.resetAllFramesCursor - whether to reset the cursor for the allFrames array.
    */
-  clear(args: { clearTransforms?: boolean; resetAllFramesCursor?: boolean }): void;
+  clear(args: {
+    clearTransforms?: boolean;
+    resetAllFramesCursor?: boolean;
+    clearImageModeExtension?: boolean;
+    reason?: "seek";
+  }): void;
 
   /**
    * Iterates through allFrames and handles messages with a receiveTime <= currentTime

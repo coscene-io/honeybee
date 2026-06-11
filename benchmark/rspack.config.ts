@@ -6,10 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
-import ReactRefreshPlugin from "@rspack/plugin-react-refresh";
+import { ReactRefreshRspackPlugin } from "@rspack/plugin-react-refresh";
 import path from "path";
 
-import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 import { makeConfig } from "@foxglove/studio-base/webpack";
 
 const devServerConfig: Configuration = {
@@ -46,14 +46,14 @@ const devServerConfig: Configuration = {
 
 const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   const isDev = argv.mode === "development";
-  const isServe = argv.env?.WEBPACK_SERVE === "true";
+  const isServe = isRspackServe(argv);
 
   const allowUnusedVariables = isDev;
 
   const plugins: RspackPluginInstance[] = [];
 
   if (isServe) {
-    plugins.push(new ReactRefreshPlugin());
+    plugins.push(new ReactRefreshRspackPlugin());
   }
 
   const appWebpackConfig = makeConfig(env, argv, {

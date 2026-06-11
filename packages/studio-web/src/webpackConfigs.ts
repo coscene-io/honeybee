@@ -6,20 +6,22 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
-import ReactRefreshPlugin from "@rspack/plugin-react-refresh";
+import { ReactRefreshRspackPlugin } from "@rspack/plugin-react-refresh";
 import { sentryWebpackPlugin } from "@sentry/webpack-plugin";
 import path from "path";
 import type { ConnectHistoryApiFallbackOptions } from "webpack-dev-server";
 
-import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 import { makeConfig } from "@foxglove/studio-base/webpack";
 import * as palette from "@foxglove/theme/src/palette";
 
 export interface RspackConfiguration extends Configuration {
   devServer?: {
-    static?: {
-      directory?: string;
-    };
+    static?:
+      | false
+      | {
+          directory?: string;
+        };
     historyApiFallback?: ConnectHistoryApiFallbackOptions;
     hot?: boolean;
     allowedHosts?: string | string[];
@@ -80,9 +82,7 @@ export const devServerConfig = (params: ConfigParams): RspackConfiguration => ({
   },
 
   devServer: {
-    static: {
-      directory: params.outputPath,
-    },
+    static: false,
     historyApiFallback: params.historyApiFallback,
     hot: true,
     // The problem and solution are described at <https://github.com/webpack/webpack-dev-server/issues/1604>.
@@ -157,7 +157,7 @@ export const mainConfig =
   (params: ConfigParams) =>
   (env: unknown, argv: WebpackArgv): Configuration => {
     const isDev = argv.mode === "development";
-    const isServe = argv.env?.WEBPACK_SERVE === "true";
+    const isServe = isRspackServe(argv);
 
     const allowUnusedVariables = isDev;
 
@@ -173,7 +173,7 @@ export const mainConfig =
     ];
 
     if (isServe) {
-      plugins.push(new ReactRefreshPlugin());
+      plugins.push(new ReactRefreshRspackPlugin());
     }
 
     // Source map upload if configuration permits
@@ -213,6 +213,7 @@ export const mainConfig =
       target: "web",
       context: params.contextPath,
       entry: params.entrypoint,
+      lazyCompilation: false,
       devtool: isDev
         ? "eval-cheap-module-source-map"
         : (params.prodSourceMap as Configuration["devtool"]),

@@ -38,6 +38,7 @@ import {
   PlayerStateActiveData,
   Progress,
   PublishPayload,
+  SubscribeMessageRangeArgs,
   SubscribePayload,
   Topic,
   TopicSelection,
@@ -80,6 +81,7 @@ const MAX_BLOCKS = 100;
 // Amount to seek into the data source from the start when loading the player. The purpose of this
 // is to provide some initial data to subscribers.
 export const SEEK_ON_START_NS = BigInt(99 * 1e6);
+const MESSAGE_RANGE_BATCH_SIZE = 512;
 
 const MEMORY_INFO_BUFFERED_MSGS = "Buffered messages";
 
@@ -184,6 +186,9 @@ export class IterablePlayer implements Player {
 
   // Buffered source used for playback.
   #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
+
+  // Independent deserialized source used only for bounded panel-owned message range reads.
+  #messageRangeSource?: IDeserializedIterableSource;
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -431,6 +436,57 @@ export class IterablePlayer implements Player {
     }
   }
 
+  public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
+    const source = this.#messageRangeSource;
+    if (source == undefined) {
+      return undefined;
+    }
+
+    const abortController = new AbortController();
+    let iterator: AsyncIterableIterator<Readonly<IteratorResult>> | undefined;
+
+    const rangeIterator = (async function* (): AsyncIterableIterator<readonly MessageEvent[]> {
+      let messages: MessageEvent[] = [];
+      iterator = source.messageIterator({
+        topics: new Map([[args.topic, { topic: args.topic }]]),
+        start: args.timeRange.start,
+        end: args.timeRange.end,
+        consumptionType: "full",
+        abortSignal: abortController.signal,
+      });
+
+      try {
+        for await (const result of iterator) {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          if (result.type === "message-event" && result.msgEvent.topic === args.topic) {
+            messages.push(result.msgEvent);
+            if (messages.length >= MESSAGE_RANGE_BATCH_SIZE) {
+              yield messages;
+              messages = [];
+            }
+          }
+        }
+      } finally {
+        await iterator.return?.();
+      }
+
+      if (!abortController.signal.aborted && messages.length > 0) {
+        yield messages;
+      }
+    })();
+
+    Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch((err: unknown) => {
+      log.warn(`Message range subscription failed: ${String(err)}`);
+    });
+
+    return () => {
+      abortController.abort();
+      void iterator?.return?.();
+    };
+  }
+
   public setPublishers(_publishers: AdvertiseOptions[]): void {
     // no-op
   }
@@ -665,6 +721,15 @@ export class IterablePlayer implements Player {
         }
       }
 
+      if (this.#iterableSource.sourceType === "deserialized") {
+        this.#messageRangeSource = new DeserializedSourceWrapper(this.#iterableSource);
+      } else {
+        const messageRangeSource = new DeserializingIterableSource(this.#iterableSource);
+        // Do not call initialize(); the underlying source was initialized via #bufferedSource above.
+        messageRangeSource.initializeDeserializers(initResult);
+        this.#messageRangeSource = messageRangeSource;
+      }
+
       this.#presence = PlayerPresence.PRESENT;
     } catch (error) {
       this.#setError(`Error initializing: ${error.message}`, error);
@@ -778,7 +843,8 @@ export class IterablePlayer implements Player {
     }
 
     // Ensure the seek time is always within the data source bounds
-    const targetTime = clampTime(this.#seekTarget, this.#start, this.#end);
+    const startTime = this.#start;
+    const targetTime = clampTime(this.#seekTarget, startTime, this.#end);
 
     this.#lastMessageEvent = undefined;
 
@@ -796,10 +862,11 @@ export class IterablePlayer implements Player {
 
     try {
       this.#abort = new AbortController();
+      const abortSignal = this.#abort.signal;
       const messages = await this.#bufferedSource.getBackfillMessages({
         topics: this.#allTopics,
         time: targetTime,
-        abortSignal: this.#abort.signal,
+        abortSignal,
       });
 
       // We've successfully loaded the messages and will emit those, no longer need the ackTimeout

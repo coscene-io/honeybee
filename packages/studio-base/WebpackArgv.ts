@@ -8,6 +8,7 @@
 type WebpackArgv = {
   mode?: string;
   env?: {
+    RSPACK_SERVE?: "true" | "false";
     WEBPACK_SERVE?: "true" | "false";
     WEBPACK_BUNDLE?: boolean;
     WEBPACK_BUILD?: boolean;
@@ -15,4 +16,9 @@ type WebpackArgv = {
   host?: string;
 };
 
+function isRspackServe(argv: WebpackArgv): boolean {
+  return argv.env?.RSPACK_SERVE === "true" || argv.env?.WEBPACK_SERVE === "true";
+}
+
 export type { WebpackArgv };
+export { isRspackServe };

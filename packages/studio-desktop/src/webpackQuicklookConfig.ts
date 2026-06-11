@@ -6,11 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
-import ReactRefreshPlugin from "@rspack/plugin-react-refresh";
+import { ReactRefreshRspackPlugin } from "@rspack/plugin-react-refresh";
 import path from "path";
 import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
-import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
 
@@ -18,7 +18,7 @@ export const webpackQuicklookConfig =
   (params: WebpackConfigParams) =>
   (_env: unknown, argv: WebpackArgv): Configuration => {
     const isDev = argv.mode === "development";
-    const isServe = argv.env?.WEBPACK_SERVE === "true";
+    const isServe = isRspackServe(argv);
 
     const allowUnusedVariables = isDev && isServe;
 
@@ -55,7 +55,7 @@ export const webpackQuicklookConfig =
     ];
 
     if (isServe) {
-      plugins.push(new ReactRefreshPlugin());
+      plugins.push(new ReactRefreshRspackPlugin());
     }
 
     return {
@@ -111,10 +111,6 @@ export const webpackQuicklookConfig =
             },
           },
         ],
-      },
-
-      optimization: {
-        removeAvailableModules: true,
       },
 
       plugins,
