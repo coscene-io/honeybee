@@ -47,7 +47,10 @@ import {
   MISSING_CAMERA_INFO,
   NO_IMAGE_TOPICS_HUD_ITEM,
   REMOVE_IMAGE_TIMEOUT_MS,
+  SEEK_KEYFRAME_SEARCH_HUD_ITEM,
   SUPPORTED_RAW_IMAGE_SCHEMAS,
+  WAITING_FOR_IMAGES_EMPTY_HUD_ID,
+  WAITING_FOR_IMAGES_NOTICE_ID,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 import {
   ConfigWithDefaults,
@@ -57,6 +60,7 @@ import {
   CompressedVideoController,
   type CompressedVideoDisplayFrames,
   type GetSeekReplayTarget,
+  type SeekKeyframeSearchState,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/CompressedVideoController";
 import {
   type CompressedVideoFrameEvent,
@@ -220,7 +224,7 @@ export class ImageMode
   }
 
   protected initMessageHandler(config: Immutable<ConfigWithDefaults>): IMessageHandler {
-    return new MessageHandler(config, this.hud);
+    return new MessageHandler(config, this.hud, () => this.imageRenderable != undefined);
   }
 
   public hasModifiedView(): boolean {
@@ -307,6 +311,7 @@ export class ImageMode
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
     this.#compressedVideoController?.dispose();
+    this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
     this.#annotations.dispose();
     this.imageRenderable?.dispose();
     super.dispose();
@@ -342,9 +347,15 @@ export class ImageMode
   }
 
   #removeImageRenderable(): void {
+    const hadImage = this.imageRenderable != undefined;
     this.imageRenderable?.dispose();
     this.imageRenderable?.removeFromParent();
     this.imageRenderable = undefined;
+    // The retained image just left the canvas; re-evaluate the "waiting for image" overlay so it
+    // can switch from the non-blocking notice to the full-panel empty state.
+    if (hadImage) {
+      this.messageHandler.refreshHUD();
+    }
   }
 
   /**
@@ -786,6 +797,7 @@ export class ImageMode
           this.imageRenderable?.resetForSeek();
         },
         getSeekReplayTarget: this.#getCompressedVideoSeekReplayTarget,
+        onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
       });
     } else {
       this.#compressedVideoController.updateOptions({
@@ -794,10 +806,25 @@ export class ImageMode
           this.imageRenderable?.resetForSeek();
         },
         getSeekReplayTarget: this.#getCompressedVideoSeekReplayTarget,
+        onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
       });
     }
     return this.#compressedVideoController;
   }
+
+  #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
+    this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
+    if (!active) {
+      return;
+    }
+
+    if (this.#removeImageTimeout != undefined) {
+      clearTimeout(this.#removeImageTimeout);
+      this.#removeImageTimeout = undefined;
+    }
+    this.hud.removeHUDItem(WAITING_FOR_IMAGES_EMPTY_HUD_ID);
+    this.hud.removeHUDItem(WAITING_FOR_IMAGES_NOTICE_ID);
+  };
 
   async #setCompressedVideoFramesOnRenderable(
     frames: readonly CompressedVideoFrameEvent[],

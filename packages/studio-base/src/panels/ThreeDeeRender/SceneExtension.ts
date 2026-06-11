@@ -25,6 +25,10 @@ export type PartialMessage<T> = DeepPartial<T>;
 
 export type PartialMessageEvent<T> = MessageEvent<DeepPartial<T>>;
 
+export type RemoveAllRenderablesOptions = {
+  reason?: "seek";
+};
+
 /**
  * SceneExtension is a base class for extending the 3D scene. It extends THREE.Object3D and is a
  * child of the THREE.Scene with an identity position and orientation (origin is the render frame
@@ -102,7 +106,7 @@ export class SceneExtension<
    * Called when seeking or a new data source is loaded. The base class implementation removes all
    * `renderables` and calls `updateSettingsTree()`.
    */
-  public removeAllRenderables(): void {
+  public removeAllRenderables(_options: RemoveAllRenderablesOptions = {}): void {
     for (const renderable of this.renderables.values()) {
       renderable.dispose();
       this.remove(renderable);

@@ -173,6 +173,7 @@ export const threeDee = {
   waitingForCalibration: "Waiting for calibration messages…",
   waitingForImages: "Waiting for image messages…",
   waitingForSyncAnnotations: "Waiting for synchronized annotations…",
+  searchingForKeyframe: "Searching for keyframe......",
 
   // URDF
   displayMode: "Display mode",

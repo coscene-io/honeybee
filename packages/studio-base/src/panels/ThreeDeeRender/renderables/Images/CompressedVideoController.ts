@@ -27,7 +27,10 @@ import { VideoGopCache, parseVideoFrameInfo } from "./videoGopCache";
 import { IRenderer } from "../../IRenderer";
 import { PartialMessageEvent } from "../../SceneExtension";
 
-const LOOKBACK_WINDOWS_SEC = [5, 10, 20, 40, 60] as const;
+// Window ladder (seconds) tried when seeking back to find a keyframe, expanding from the target.
+// The first rung is the cold-seek floor: typical H.264/H.265 GOPs are ~1-2s, so we probe a small
+// range first and only walk outward for sparser-keyframe streams (one extra range read each step).
+const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 
 export type VideoDisplayMode = "playback" | "seek" | "direct";
@@ -46,6 +49,10 @@ export type VideoSeekReplayTarget = {
 export type GetSeekReplayTarget = (
   messageEvent: MessageEvent<CompressedVideo> | undefined,
 ) => VideoSeekReplayTarget | "defer" | undefined;
+
+export type SeekKeyframeSearchState = { active: boolean };
+
+export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
 
 type ControllerState = {
   lookbackCancel?: () => void;
@@ -71,8 +78,11 @@ export class CompressedVideoController {
   #displayFrames: CompressedVideoDisplayFrames;
   #resetDecoder?: () => void;
   #getSeekReplayTarget?: GetSeekReplayTarget;
+  #onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   #generation = 0;
   #seekTargetNs: bigint | undefined;
+  #seekKeyframeSearchActive = false;
+  #seekKeyframeSearchGeneration: number | undefined;
 
   public constructor(args: {
     topic: string;
@@ -80,24 +90,30 @@ export class CompressedVideoController {
     displayFrames: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     getSeekReplayTarget?: GetSeekReplayTarget;
+    onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   }) {
     this.#topic = args.topic;
     this.#renderer = args.renderer;
     this.#displayFrames = args.displayFrames;
     this.#resetDecoder = args.resetDecoder;
     this.#getSeekReplayTarget = args.getSeekReplayTarget;
+    this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
   }
 
   public updateOptions(args: {
     displayFrames?: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     getSeekReplayTarget?: GetSeekReplayTarget;
+    onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   }): void {
     if (args.displayFrames != undefined) {
       this.#displayFrames = args.displayFrames;
     }
     if (args.resetDecoder != undefined) {
       this.#resetDecoder = args.resetDecoder;
+    }
+    if ("onSeekKeyframeSearchChange" in args) {
+      this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
     }
     this.#getSeekReplayTarget = args.getSeekReplayTarget;
   }
@@ -265,6 +281,7 @@ export class CompressedVideoController {
     this.#generation++;
     this.#cancelLookback();
     this.#cache.clearTopic(this.#topic);
+    this.#endSeekKeyframeSearch();
   }
 
   public dispose(): void {
@@ -438,64 +455,118 @@ export class CompressedVideoController {
     lookbackTargetNs: bigint,
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
-    const requestedStart = this.#state.successfulWindowSeconds ?? LOOKBACK_WINDOWS_SEC[0];
-    const startIndex = Math.max(
-      0,
-      LOOKBACK_WINDOWS_SEC.findIndex((windowSec) => windowSec >= requestedStart),
-    );
+    this.#beginSeekKeyframeSearch(generation);
+    try {
+      const seekTime = fromNanoSec(lookbackTargetNs);
+      const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
 
-    for (const lookbackSec of LOOKBACK_WINDOWS_SEC.slice(startIndex)) {
-      if (!this.#isCurrentLookback(generation)) {
-        return false;
+      // Ordered list of window starts to try, expanding backwards from the target. When we already
+      // know a keyframe at/before the target we try it first: that reads exactly [keyframe, target]
+      // in a single range request instead of walking the window ladder. The cold windows remain as
+      // a fallback for regions we have never read.
+      const windowStarts: { time: Time; windowSec?: number }[] = [];
+      const knownKeyframe = this.#cache.nearestKeyframeReceiveTimeAtOrBefore(this.#topic, seekTime);
+      if (knownKeyframe != undefined && compare(knownKeyframe, startTime) >= 0) {
+        windowStarts.push({ time: knownKeyframe });
       }
-
-      const frames = await this.#readLookbackWindowWithRetries(
-        generation,
-        lookbackSec,
-        lookbackTargetNs,
+      const requestedStart = this.#state.successfulWindowSeconds ?? LOOKBACK_WINDOWS_SEC[0];
+      const startIndex = Math.max(
+        0,
+        LOOKBACK_WINDOWS_SEC.findIndex((windowSec) => windowSec >= requestedStart),
       );
-      if (!this.#isCurrentLookback(generation)) {
-        return false;
-      }
-      if (frames == undefined) {
-        break;
-      }
-      if (frames.length === 0) {
-        continue;
+      for (const windowSec of LOOKBACK_WINDOWS_SEC.slice(startIndex)) {
+        const windowStart = clampTime(subtract(seekTime, fromSec(windowSec)), startTime, seekTime);
+        windowStarts.push({ time: windowStart, windowSec });
       }
 
-      this.#cache.addFrameRange(frames);
-      const replayFrames = framesForLookbackReplayTarget(frames, replayTarget);
+      // We read each byte range at most once: `coveredStartNs` tracks the oldest receive time we
+      // have already read back to, and each window only fills the newly-exposed older slice.
+      let collected: MessageEvent[] = [];
+      let coveredStartNs = lookbackTargetNs;
+      let issuedRead = false;
 
-      const ok = await this.#displayReplayFrames(replayFrames, generation, "seek", options);
-      if (!this.#isCurrentLookback(generation)) {
-        return false;
-      }
-      if (!ok) {
-        this.#resetDecoderForReplay();
-        continue;
+      for (const { time: windowStart, windowSec } of windowStarts) {
+        if (!this.#isCurrentLookback(generation)) {
+          return false;
+        }
+        const windowStartNs = toNanoSec(windowStart);
+        // Skip windows that expose no older data we haven't already read. We must still issue at
+        // least one read, though: seeking to the data start clamps every window to [start, start],
+        // and that first frame (typically a keyframe) still needs to be fetched and displayed.
+        if (issuedRead && windowStartNs >= coveredStartNs) {
+          continue;
+        }
+
+        issuedRead = true;
+        const slice = await this.#readRangeWithRetries(
+          generation,
+          windowStart,
+          fromNanoSec(coveredStartNs),
+        );
+        if (!this.#isCurrentLookback(generation)) {
+          return false;
+        }
+        if (slice == undefined) {
+          break;
+        }
+        coveredStartNs = windowStartNs;
+        if (slice.length === 0) {
+          continue;
+        }
+
+        collected = mergeFramesByReceiveTime(slice, collected);
+        const gop = gopEndingAt(collected, this.#topic, seekTime);
+        if (gop.length === 0) {
+          continue;
+        }
+
+        const replayFrames = framesForLookbackReplayTarget(gop, replayTarget);
+        this.#cache.addFrameRange(collected);
+
+        const ok = await this.#displayReplayFrames(replayFrames, generation, "seek", options);
+        if (!this.#isCurrentLookback(generation)) {
+          return false;
+        }
+        if (!ok) {
+          this.#resetDecoderForReplay();
+          continue;
+        }
+
+        this.#state.successfulWindowSeconds =
+          windowSec ?? this.#windowSecondsForSpan(lookbackTargetNs - windowStartNs);
+        this.#state.completedSeekGeneration = generation;
+        this.#recordLastDisplayedPublishTime(replayFrames);
+        this.#state.lookbackCancel = undefined;
+        this.#state.lookbackGeneration = undefined;
+        this.#renderer.queueAnimationFrame();
+        return true;
       }
 
-      this.#state.successfulWindowSeconds = lookbackSec;
-      this.#state.completedSeekGeneration = generation;
-      this.#recordLastDisplayedPublishTime(replayFrames);
       this.#state.lookbackCancel = undefined;
       this.#state.lookbackGeneration = undefined;
-      this.#renderer.queueAnimationFrame();
-      return true;
+      return false;
+    } finally {
+      this.#endSeekKeyframeSearch(generation);
     }
-
-    this.#state.lookbackCancel = undefined;
-    this.#state.lookbackGeneration = undefined;
-    return false;
   }
 
-  async #readLookbackWindowWithRetries(
+  /** Smallest configured lookback window (seconds) that covers `spanNs`. */
+  #windowSecondsForSpan(spanNs: bigint): number {
+    const spanSec = Number(spanNs / 1_000_000_000n);
+    for (const windowSec of LOOKBACK_WINDOWS_SEC) {
+      if (windowSec >= spanSec) {
+        return windowSec;
+      }
+    }
+    return LOOKBACK_WINDOWS_SEC[LOOKBACK_WINDOWS_SEC.length - 1]!;
+  }
+
+  async #readRangeWithRetries(
     generation: number,
-    lookbackSec: number,
-    lookbackTargetNs: bigint,
+    startTime: Time,
+    endTime: Time,
   ): Promise<MessageEvent[] | undefined> {
-    let frames = await this.#readLookbackWindow(generation, lookbackSec, lookbackTargetNs);
+    let frames = await this.#readRange(generation, startTime, endTime);
     for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
       if (frames != undefined || !this.#isCurrentLookback(generation)) {
         return frames;
@@ -504,24 +575,20 @@ export class CompressedVideoController {
       if (!this.#isCurrentLookback(generation)) {
         return undefined;
       }
-      frames = await this.#readLookbackWindow(generation, lookbackSec, lookbackTargetNs);
+      frames = await this.#readRange(generation, startTime, endTime);
     }
     return frames;
   }
 
-  async #readLookbackWindow(
+  async #readRange(
     generation: number,
-    lookbackSec: number,
-    lookbackTargetNs: bigint,
+    startTime: Time,
+    endTime: Time,
   ): Promise<MessageEvent[] | undefined> {
     const subscribeMessageRange = this.#renderer.subscribeMessageRange;
     if (subscribeMessageRange == undefined) {
       return [];
     }
-
-    const seekTime = fromNanoSec(lookbackTargetNs);
-    const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
-    const lookbackStart = clampTime(subtract(seekTime, fromSec(lookbackSec)), startTime, seekTime);
 
     return await new Promise<MessageEvent[] | undefined>((resolve) => {
       let finished = false;
@@ -545,10 +612,10 @@ export class CompressedVideoController {
       this.#state.lookbackCancel = currentCancel;
       unsubscribe = subscribeMessageRange({
         topic: this.#topic,
-        timeRange: { start: lookbackStart, end: seekTime },
+        timeRange: { start: startTime, end: endTime },
         onNewRangeIterator: async (iterator) => {
           try {
-            const frames = await collectReplayableFrames(iterator, this.#topic, seekTime);
+            const frames = await collectFramesInRange(iterator, this.#topic, startTime, endTime);
             if (this.#isCurrentLookback(generation)) {
               finish(frames);
             }
@@ -567,9 +634,39 @@ export class CompressedVideoController {
   }
 
   #cancelLookback(): void {
+    const generation = this.#state.lookbackGeneration;
     this.#state.lookbackCancel?.();
     this.#state.lookbackCancel = undefined;
     this.#state.lookbackGeneration = undefined;
+    this.#endSeekKeyframeSearch(generation);
+  }
+
+  #beginSeekKeyframeSearch(generation: number): void {
+    if (!this.#isCurrentGeneration(generation)) {
+      return;
+    }
+    this.#seekKeyframeSearchGeneration = generation;
+    if (this.#seekKeyframeSearchActive) {
+      return;
+    }
+    this.#seekKeyframeSearchActive = true;
+    this.#onSeekKeyframeSearchChange?.({ active: true });
+  }
+
+  #endSeekKeyframeSearch(generation?: number): void {
+    if (
+      generation != undefined &&
+      this.#seekKeyframeSearchGeneration != undefined &&
+      generation !== this.#seekKeyframeSearchGeneration
+    ) {
+      return;
+    }
+    this.#seekKeyframeSearchGeneration = undefined;
+    if (!this.#seekKeyframeSearchActive) {
+      return;
+    }
+    this.#seekKeyframeSearchActive = false;
+    this.#onSeekKeyframeSearchChange?.({ active: false });
   }
 
   #isCurrentLookback(generation: number): boolean {
@@ -640,33 +737,91 @@ export class CompressedVideoController {
   }
 }
 
-async function collectReplayableFrames(
+/** Collect every video frame on `topic` with a receive time within `[startTime, endTime]`. */
+async function collectFramesInRange(
   iterator: AsyncIterable<readonly MessageEvent[]>,
   topic: string,
-  seekTime: Time,
+  startTime: Time,
+  endTime: Time,
 ): Promise<MessageEvent[]> {
-  let currentGop: MessageEvent[] = [];
+  const frames: MessageEvent[] = [];
   for await (const batch of iterator) {
     for (const messageEvent of batch) {
       if (messageEvent.topic !== topic) {
         continue;
       }
-      if (compare(messageEvent.receiveTime, seekTime) > 0) {
+      if (
+        compare(messageEvent.receiveTime, startTime) < 0 ||
+        compare(messageEvent.receiveTime, endTime) > 0
+      ) {
         continue;
       }
       const frameInfo = parseVideoFrameInfo(messageEvent);
       if (frameInfo == undefined) {
         continue;
       }
-      if (frameInfo.isKeyframe) {
-        currentGop = [];
-      } else if (currentGop.length === 0) {
-        continue;
-      }
-      currentGop.push(normalizeVideoMessageEvent(messageEvent as MessageEvent<CompressedVideo>));
+      frames.push(normalizeVideoMessageEvent(messageEvent as MessageEvent<CompressedVideo>));
     }
   }
+  return frames;
+}
+
+/**
+ * Extract the GOP ending at `seekTime` from receive-time-ordered `frames`: the run from the last
+ * keyframe at or before `seekTime` through the final frame at or before it. Returns [] if no
+ * keyframe precedes the target.
+ */
+function gopEndingAt(
+  frames: readonly MessageEvent[],
+  topic: string,
+  seekTime: Time,
+): MessageEvent[] {
+  let currentGop: MessageEvent[] = [];
+  for (const messageEvent of frames) {
+    if (messageEvent.topic !== topic) {
+      continue;
+    }
+    if (compare(messageEvent.receiveTime, seekTime) > 0) {
+      break;
+    }
+    const frameInfo = parseVideoFrameInfo(messageEvent);
+    if (frameInfo == undefined) {
+      continue;
+    }
+    if (frameInfo.isKeyframe) {
+      currentGop = [];
+    } else if (currentGop.length === 0) {
+      continue;
+    }
+    currentGop.push(messageEvent);
+  }
   return currentGop;
+}
+
+/**
+ * Merge two frame lists into a single receive-time-ascending list, dropping duplicates by receive
+ * time (the slice boundary frame is read by both adjacent windows).
+ */
+function mergeFramesByReceiveTime(
+  a: readonly MessageEvent[],
+  b: readonly MessageEvent[],
+): MessageEvent[] {
+  const seen = new Set<bigint>();
+  const merged: MessageEvent[] = [];
+  for (const frame of [...a, ...b]) {
+    const key = toNanoSec(frame.receiveTime);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(frame);
+  }
+  merged.sort((left, right) => {
+    const leftNs = toNanoSec(left.receiveTime);
+    const rightNs = toNanoSec(right.receiveTime);
+    return leftNs < rightNs ? -1 : leftNs > rightNs ? 1 : 0;
+  });
+  return merged;
 }
 
 function framesForLookbackReplayTarget(
