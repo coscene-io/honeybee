@@ -4736,6 +4736,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/runtime@npm:^7.29.2":
+  version: 7.29.7
+  resolution: "@babel/runtime@npm:7.29.7"
+  checksum: bc311855c6dbf5356030979584ca0f8b6cee39fe058175b02e85a73e246fc76ae30248b0d40e70c2652101faeb43279468ed2d086a670673eb9783c1fee1df2b
+  languageName: node
+  linkType: hard
+
 "@babel/template@npm:^7.22.15, @babel/template@npm:^7.22.5":
   version: 7.22.15
   resolution: "@babel/template@npm:7.22.15"
@@ -6430,7 +6437,7 @@ __metadata:
     "@foxglove/ws-protocol": "workspace:*"
     "@growthbook/growthbook-react": 1.4.1
     "@mcap/core": 2.1.7
-    "@mui/icons-material": 7.2.0
+    "@mui/icons-material": 9.1.1
     "@mui/material": 7.2.0
     "@mui/x-data-grid": 7.25.0
     "@mui/x-date-pickers": 8.8.0
@@ -6662,7 +6669,7 @@ __metadata:
     "@emotion/styled": 11.14.1
     "@fluentui/react-icons": 2.0.227
     "@foxglove/tsconfig": 3.2.0
-    "@mui/icons-material": 7.2.0
+    "@mui/icons-material": 9.1.1
     "@mui/lab": 7.0.0-beta.14
     "@mui/material": 7.2.0
     "@mui/x-data-grid": 7.25.0
@@ -7751,19 +7758,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mui/icons-material@npm:7.2.0":
-  version: 7.2.0
-  resolution: "@mui/icons-material@npm:7.2.0"
+"@mui/icons-material@npm:9.1.1":
+  version: 9.1.1
+  resolution: "@mui/icons-material@npm:9.1.1"
   dependencies:
-    "@babel/runtime": ^7.27.6
+    "@babel/runtime": ^7.29.2
   peerDependencies:
-    "@mui/material": ^7.2.0
+    "@mui/material": ^9.1.1
     "@types/react": ^17.0.0 || ^18.0.0 || ^19.0.0
     react: ^17.0.0 || ^18.0.0 || ^19.0.0
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 35dd8dde0a4f4f42b04e7e15878c6f99f3ae3c8bd1cba3efac9d178babd7fa21b6b962f2479cfd31a282aa51c1f35a75c239de84b2d9c0b1997054c86eb293e6
+  checksum: e50eb3c596cee2af5becee1ec000884ea25ed19b499677f0466bca01db2850b98622cae54bc16be39c28e74c2af5fd17181d93ac0d857d0ef77cc99fdac02d80
   languageName: node
   linkType: hard
 
