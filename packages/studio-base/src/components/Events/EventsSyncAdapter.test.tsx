@@ -30,6 +30,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 
 import { EventsSyncAdapter } from "./EventsSyncAdapter";
 
@@ -169,7 +170,9 @@ function Wrapper({
             currentTime={currentTime}
           >
             <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
-              <EventsContext.Provider value={eventsStore}>{children}</EventsContext.Provider>
+              <EventsContext.Provider value={eventsStore}>
+                <DialogsProvider>{children}</DialogsProvider>
+              </EventsContext.Provider>
             </TimelineInteractionStateContext.Provider>
           </MockMessagePipelineProvider>
         </CoScenePlaylistProvider>

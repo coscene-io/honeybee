@@ -8,18 +8,22 @@
 import { create } from "@bufbuild/protobuf";
 import { FileSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { useAsyncFn, useLatest } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
+import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
+import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -37,6 +41,7 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
@@ -156,6 +161,9 @@ const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.looped
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectSetCustomFieldSchema = (store: EventsStore) => store.setCustomFieldSchema;
+const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
+const selectSelectEvent = (store: EventsStore) => store.selectEvent;
+const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
@@ -179,6 +187,11 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
+  const selectedEventId = useEvents(selectSelectedEventId);
+  const selectEvent = useEvents(selectSelectEvent);
+  const refreshEvents = useEvents(selectRefreshEvents);
+  const confirm = useConfirm();
+  const { t } = useTranslation("event");
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
@@ -335,6 +348,9 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const endTimeRef = useLatest(endTime);
   const eventMarksRef = useLatest(eventMarks);
   const pauseRef = useLatest(pause);
+  const selectedEventIdRef = useLatest(selectedEventId);
+  const eventsRef = useLatest(events.value);
+  const seekRef = useLatest(seek);
 
   const handleDigit1 = useCallback(
     (e: KeyboardEvent) => {
@@ -369,11 +385,177 @@ export function EventsSyncAdapter(): React.JSX.Element {
     ],
   );
 
+  const getSelectedEvent = useCallback((): TimelinePositionedEvent | undefined => {
+    const id = selectedEventIdRef.current;
+    if (id == undefined) {
+      return undefined;
+    }
+    return (eventsRef.current ?? []).find((e) => e.event.name === id);
+  }, [eventsRef, selectedEventIdRef]);
+
+  // ↑ / ↓ : select the previous / next moment (events are sorted by start) and seek to it.
+  const selectAdjacentEvent = useCallback(
+    (direction: 1 | -1) => {
+      const list = eventsRef.current ?? [];
+      if (list.length === 0) {
+        return;
+      }
+      const currentId = selectedEventIdRef.current;
+      const currentIndex =
+        currentId == undefined ? -1 : list.findIndex((e) => e.event.name === currentId);
+
+      const nextIndex =
+        currentIndex === -1
+          ? direction === 1
+            ? 0
+            : list.length - 1
+          : Math.min(Math.max(currentIndex + direction, 0), list.length - 1);
+
+      const next = list[nextIndex];
+      if (next == undefined) {
+        return;
+      }
+      selectEvent(next.event.name);
+      seekRef.current?.(next.startTime);
+    },
+    [eventsRef, seekRef, selectEvent, selectedEventIdRef],
+  );
+
+  // I / O : set the selected moment's start / end edge to the current playhead.
+  const setSelectedEventEdgeToPlayhead = useCallback(
+    (edge: "start" | "end") => {
+      if (!consoleApi.updateEvent.permission()) {
+        return;
+      }
+      const event = getSelectedEvent();
+      const current = currentTimeRef.current;
+      const start = startTimeRef.current;
+      if (event == undefined || current == undefined || start == undefined) {
+        return;
+      }
+
+      const playheadSec = toSec(subtract(current, start));
+      const eventStartSec = event.secondsSinceStart;
+      const eventEndSec = event.secondsSinceStart + toSec(subtract(event.endTime, event.startTime));
+
+      const nextStartSec = edge === "start" ? Math.min(playheadSec, eventEndSec) : eventStartSec;
+      const nextEndSec = edge === "end" ? Math.max(playheadSec, eventStartSec) : eventEndSec;
+      if (nextEndSec <= nextStartSec) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          await consoleApi.updateEvent(
+            buildEventTimeUpdate({
+              sourceEvent: event.event,
+              startTime: event.startTime,
+              startTimeOffsetSec: nextStartSec - event.secondsSinceStart,
+              durationSec: nextEndSec - nextStartSec,
+            }),
+          );
+        } catch (error) {
+          log.error(error);
+        } finally {
+          refreshEvents();
+        }
+      })();
+    },
+    [consoleApi, currentTimeRef, getSelectedEvent, refreshEvents, startTimeRef],
+  );
+
+  // Delete / Backspace : delete the selected moment after a confirmation.
+  const deleteSelectedEvent = useCallback(() => {
+    if (!consoleApi.deleteEvent.permission()) {
+      return;
+    }
+    const event = getSelectedEvent();
+    if (event == undefined) {
+      return;
+    }
+    void (async () => {
+      const response = await confirm({
+        title: t("deleteConfirmTitle"),
+        prompt: t("deleteConfirmPrompt"),
+        ok: t("delete"),
+        cancel: t("cancel"),
+        variant: "danger",
+      });
+      if (response !== "ok") {
+        return;
+      }
+      try {
+        await deleteEventWithFile({ consoleApi, event });
+        selectEvent(undefined);
+        toast.success(t("momentDeleted"));
+      } catch (error) {
+        log.error(error);
+        toast.error(t("errorDeletingEvent"));
+      } finally {
+        refreshEvents();
+      }
+    })();
+  }, [confirm, consoleApi, getSelectedEvent, refreshEvents, selectEvent, t]);
+
   const keyDownHandlers = useMemo(
     () => ({
       Digit1: handleDigit1,
+      ArrowUp: (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        selectAdjacentEvent(-1);
+        return true;
+      },
+      ArrowDown: (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        selectAdjacentEvent(1);
+        return true;
+      },
+      Enter: (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        const event = getSelectedEvent();
+        if (event == undefined) {
+          return false;
+        }
+        seekRef.current?.(event.startTime);
+        return true;
+      },
+      KeyI: (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        setSelectedEventEdgeToPlayhead("start");
+        return true;
+      },
+      KeyO: (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        setSelectedEventEdgeToPlayhead("end");
+        return true;
+      },
+      Delete: () => {
+        deleteSelectedEvent();
+        return true;
+      },
+      Backspace: () => {
+        deleteSelectedEvent();
+        return true;
+      },
     }),
-    [handleDigit1],
+    [
+      deleteSelectedEvent,
+      getSelectedEvent,
+      handleDigit1,
+      seekRef,
+      selectAdjacentEvent,
+      setSelectedEventEdgeToPlayhead,
+    ],
   );
 
   return <KeyListener global keyDownHandlers={keyDownHandlers} />;

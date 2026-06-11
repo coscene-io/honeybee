@@ -26,6 +26,7 @@ import {
   Time,
 } from "@foxglove/rostime";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
+import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -73,6 +74,8 @@ const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
 const EVENT_LANE_LAYER_TOP_PX: number =
   TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
+// Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
+const ZOOM_KEY_WHEEL_DELTA: number = 300;
 
 function isTimelineZoomEnabled(): boolean {
   return true;
@@ -516,6 +519,61 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport, zoomAnchorSec],
   );
 
+  // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
+  const zoomAnchorSecRef = useLatest(zoomAnchorSec);
+
+  const zoomTimelineByKey = useCallback(
+    (direction: "in" | "out"): void => {
+      setViewport((oldViewport) => {
+        const sourceViewport = oldViewport ?? latestViewport.current;
+        if (sourceViewport == undefined) {
+          return oldViewport;
+        }
+        const anchorSec =
+          zoomAnchorSecRef.current ??
+          (sourceViewport.visibleStartSec + sourceViewport.visibleEndSec) / 2;
+        const deltaY = direction === "in" ? -ZOOM_KEY_WHEEL_DELTA : ZOOM_KEY_WHEEL_DELTA;
+        const nextViewport = zoomViewportAtTime(sourceViewport, anchorSec, deltaY);
+        return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+      });
+    },
+    [latestViewport, zoomAnchorSecRef],
+  );
+
+  const resetZoom = useCallback((): void => {
+    if (defaultViewport == undefined) {
+      return;
+    }
+    setViewport(defaultViewport);
+  }, [defaultViewport]);
+
+  const zoomKeyDownHandlers = useMemo(
+    () => ({
+      Equal: (e: KeyboardEvent) => {
+        if (!(e.ctrlKey || e.metaKey)) {
+          return false;
+        }
+        zoomTimelineByKey("in");
+        return true;
+      },
+      Minus: (e: KeyboardEvent) => {
+        if (!(e.ctrlKey || e.metaKey)) {
+          return false;
+        }
+        zoomTimelineByKey("out");
+        return true;
+      },
+      KeyZ: (e: KeyboardEvent) => {
+        if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        resetZoom();
+        return true;
+      },
+    }),
+    [resetZoom, zoomTimelineByKey],
+  );
+
   const canCreateEvents =
     enableList.event === "ENABLE" &&
     consoleApi.createEvent.permission() &&
@@ -559,6 +617,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   return (
     <div ref={scrubberRef} className={classes.root} onWheel={onWheel}>
+      {isTimelineZoomEnabled() && <KeyListener global keyDownHandlers={zoomKeyDownHandlers} />}
       <div className={classes.toolbar}>
         <div className={classes.toolbarGroup}>
           {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
