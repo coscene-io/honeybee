@@ -6598,7 +6598,7 @@ __metadata:
     "@rspack/core": 2.0.8
     "@rspack/plugin-react-refresh": 2.0.2
     "@storybook/react": 7.6.10
-    "@types/electron-devtools-installer": 2.2.3
+    "@types/electron-devtools-installer": 4.0.0
     "@types/plist": ^3.0.3
     "@types/pngjs": ^6.0.2
     "@types/tinycolor2": 1.4.4
@@ -10817,10 +10817,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/electron-devtools-installer@npm:2.2.3":
-  version: 2.2.3
-  resolution: "@types/electron-devtools-installer@npm:2.2.3"
-  checksum: c46d7efce5f158acec931b0d2d9676844fd8ff78331d5654d62a74b489bd70f7be35a77b10cabb3dcb860114b749e3826e161e3ad49275e037c776c277031b30
+"@types/electron-devtools-installer@npm:4.0.0":
+  version: 4.0.0
+  resolution: "@types/electron-devtools-installer@npm:4.0.0"
+  dependencies:
+    electron-devtools-installer: "*"
+  checksum: b9f5bcb3d673cc0ebaa47df4a3de5ecfb3f2be9ee47bd48dca13aadba2477b29515c485c624224de465696a918fed412217bf23e8b85d3a586149b853b962640
   languageName: node
   linkType: hard
 
@@ -16683,7 +16685,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron-devtools-installer@npm:4.0.0":
+"electron-devtools-installer@npm:*, electron-devtools-installer@npm:4.0.0":
   version: 4.0.0
   resolution: "electron-devtools-installer@npm:4.0.0"
   dependencies:

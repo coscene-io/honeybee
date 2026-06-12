@@ -19,7 +19,7 @@
     "@rspack/core": "2.0.8",
     "@rspack/plugin-react-refresh": "2.0.2",
     "@storybook/react": "7.6.10",
-    "@types/electron-devtools-installer": "2.2.3",
+    "@types/electron-devtools-installer": "4.0.0",
     "@types/plist": "^3.0.3",
     "@types/pngjs": "^6.0.2",
     "@types/tinycolor2": "1.4.4",
