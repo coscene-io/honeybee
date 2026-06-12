@@ -566,9 +566,11 @@ function EventMark({
         id="event-mark-popper"
         style={{ opacity: isHiddenCreateEventPopper ? 0 : 1 }}
         modifiers={[
-          // Keep at least 20px of breathing room from the window edges so the popper
-          // doesn't snap flush to the left when the mark sits near the start of the timeline.
-          { name: "preventOverflow", options: { altAxis: true, padding: 20 } },
+          // Keep at least 20px of breathing room from the window edges so the popper doesn't
+          // snap flush to the left when the mark sits near the start of the timeline.
+          // tether:false is required — the mark anchor is a ~1px line, and the default tethered
+          // behavior would pin the popper to it and refuse to shift away to clear the padding.
+          { name: "preventOverflow", options: { altAxis: true, tether: false, padding: 20 } },
         ]}
       >
         {({ TransitionProps }) => (
