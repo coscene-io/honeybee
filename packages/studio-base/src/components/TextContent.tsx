@@ -168,7 +168,7 @@ export default function TextContent(
   const handleLink = useContext(LinkHandlerContext);
 
   const linkRenderer = useCallback(
-    (linkProps: { href?: string; children: React.ReactNode }) => {
+    (linkProps: { href?: string; children?: React.ReactNode }) => {
       return (
         <Link
           color="primary"
