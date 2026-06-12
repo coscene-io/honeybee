@@ -175,7 +175,7 @@
     "react-virtualized": "9.22.6",
     "react-window": "1.8.10",
     "readable-stream": "4.7.0",
-    "rehype-raw": "7.0.0",
+    "rehype-raw": "6.1.1",
     "reselect": "5.1.0",
     "sanitize-html": "2.11.0",
     "seedrandom": "3.0.5",
