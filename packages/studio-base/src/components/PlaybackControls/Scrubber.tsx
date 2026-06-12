@@ -78,10 +78,6 @@ const EVENT_LANE_LAYER_TOP_PX: number =
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 // Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
 const ZOOM_KEY_WHEEL_DELTA: number = 300;
-// Fraction of the visible timeline that the annotated moments should span when fitting the
-// view to them (Shift+Z / fit button). Moments are our "clips", so we frame them rather than
-// the whole recording; the remaining width is left as trailing padding. 1.0 = fill the width.
-const MOMENT_FIT_VIEWPORT_FRACTION: number = 0.8;
 
 function isTimelineZoomEnabled(): boolean {
   return true;
@@ -546,38 +542,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport, zoomAnchorSecRef],
   );
 
-  // Fit the annotated moments (treated like video-editor clips) to the visible area: their
-  // combined span fills MOMENT_FIT_VIEWPORT_FRACTION of the width, left-aligned. With no
-  // moments there is nothing to frame, so fall back to the full recording range.
-  const fitMomentsToView = useCallback((): void => {
-    const baseViewport = latestViewport.current ?? defaultViewport;
-    if (baseViewport == undefined) {
+  // Reset the timeline zoom back to the full recording range.
+  const resetZoom = useCallback((): void => {
+    if (defaultViewport == undefined) {
       return;
     }
-    const moments = events.value ?? [];
-    if (moments.length === 0) {
-      if (defaultViewport != undefined) {
-        setViewport(defaultViewport);
-      }
-      return;
-    }
-    let minSec = Infinity;
-    let maxSec = -Infinity;
-    for (const moment of moments) {
-      const startSec = moment.secondsSinceStart;
-      const endSec = startSec + toSec(subtractTimes(moment.endTime, moment.startTime));
-      minSec = Math.min(minSec, startSec);
-      maxSec = Math.max(maxSec, endSec);
-    }
-    const visibleDuration = (maxSec - minSec) / MOMENT_FIT_VIEWPORT_FRACTION;
-    setViewport(
-      clampTimelineViewport({
-        ...baseViewport,
-        visibleStartSec: minSec,
-        visibleEndSec: minSec + visibleDuration,
-      }),
-    );
-  }, [defaultViewport, events.value, latestViewport]);
+    setViewport(defaultViewport);
+  }, [defaultViewport]);
 
   const zoomKeyDownHandlers = useMemo(
     () => ({
@@ -599,11 +570,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
         if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
           return false;
         }
-        fitMomentsToView();
+        resetZoom();
         return true;
       },
     }),
-    [fitMomentsToView, zoomTimelineByKey],
+    [resetZoom, zoomTimelineByKey],
   );
 
   const canCreateEvents =
@@ -683,7 +654,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 title={t("shortcutZoomFit")}
                 aria-label={t("shortcutZoomFit")}
                 icon={<FitScreenIcon fontSize="small" />}
-                onClick={fitMomentsToView}
+                onClick={resetZoom}
               />
             </div>
           )}

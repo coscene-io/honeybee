@@ -565,6 +565,11 @@ function EventMark({
         transition
         id="event-mark-popper"
         style={{ opacity: isHiddenCreateEventPopper ? 0 : 1 }}
+        modifiers={[
+          // Keep at least 20px of breathing room from the window edges so the popper
+          // doesn't snap flush to the left when the mark sits near the start of the timeline.
+          { name: "preventOverflow", options: { altAxis: true, padding: 20 } },
+        ]}
       >
         {({ TransitionProps }) => (
           <Fade {...TransitionProps}>
@@ -1078,7 +1083,10 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     !events.loading &&
     events.error == undefined &&
     events.value != undefined &&
-    renderLaneLayout.items.length === 0 &&
+    // Only when there are no moments at all — not when moments exist but are scrolled or
+    // zoomed out of the current viewport (positionedEvents holds every moment;
+    // renderLaneLayout.items is filtered to the visible range).
+    positionedEvents.length === 0 &&
     eventMarks.length === 0;
 
   useEffect(() => {
