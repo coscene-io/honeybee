@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
+import { isTimelineKeyboardEvent } from "@foxglove/studio-base/components/PlaybackControls/timelineKeyboardFocus";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   CoScenePlaylistStore,
@@ -497,25 +498,35 @@ export function EventsSyncAdapter(): React.JSX.Element {
     })();
   }, [confirm, consoleApi, getSelectedEvent, refreshEvents, selectEvent, t]);
 
+  // The moment-editing shortcuts only respond when focus is on the timeline scrubber, so they
+  // don't fire globally and clash with other panels (e.g. the Table / Raw Message panels' own
+  // arrow-key navigation). Returning false lets the event fall through to those panels.
+  // Letters are keyed by `event.key` ("i"/"o") rather than `event.code` so modifier combos like
+  // Shift+I don't trigger them (matches the Plot panel's v/b convention).
+  const hasPlainModifier = useCallback(
+    (e: KeyboardEvent) => e.ctrlKey || e.metaKey || e.altKey || e.shiftKey,
+    [],
+  );
+
   const keyDownHandlers = useMemo(
     () => ({
       Digit1: handleDigit1,
       ArrowUp: (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) {
+        if (!isTimelineKeyboardEvent(e) || hasPlainModifier(e)) {
           return false;
         }
         selectAdjacentEvent(-1);
         return true;
       },
       ArrowDown: (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) {
+        if (!isTimelineKeyboardEvent(e) || hasPlainModifier(e)) {
           return false;
         }
         selectAdjacentEvent(1);
         return true;
       },
       Enter: (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) {
+        if (!isTimelineKeyboardEvent(e) || hasPlainModifier(e)) {
           return false;
         }
         const event = getSelectedEvent();
@@ -525,25 +536,31 @@ export function EventsSyncAdapter(): React.JSX.Element {
         seekRef.current?.(event.startTime);
         return true;
       },
-      KeyI: (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) {
+      i: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e) || hasPlainModifier(e)) {
           return false;
         }
         setSelectedEventEdgeToPlayhead("start");
         return true;
       },
-      KeyO: (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) {
+      o: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e) || hasPlainModifier(e)) {
           return false;
         }
         setSelectedEventEdgeToPlayhead("end");
         return true;
       },
-      Delete: () => {
+      Delete: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e)) {
+          return false;
+        }
         deleteSelectedEvent();
         return true;
       },
-      Backspace: () => {
+      Backspace: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e)) {
+          return false;
+        }
         deleteSelectedEvent();
         return true;
       },
@@ -552,6 +569,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       deleteSelectedEvent,
       getSelectedEvent,
       handleDigit1,
+      hasPlainModifier,
       seekRef,
       selectAdjacentEvent,
       setSelectedEventEdgeToPlayhead,

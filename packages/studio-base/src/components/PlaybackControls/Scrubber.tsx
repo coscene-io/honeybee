@@ -55,6 +55,7 @@ import { ProgressPlot } from "./ProgressPlot";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
   clampTimelineViewport,
   clientXToTime,
@@ -91,6 +92,9 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: 0,
     minWidth: 0,
     position: "relative",
+    // Focusable so timeline keyboard shortcuts can scope to "focus on the timeline"; the
+    // default focus ring around the whole strip would be noisy, so suppress it.
+    outline: "none",
   },
   toolbar: {
     alignItems: "center",
@@ -550,24 +554,26 @@ export default function Scrubber(props: Props): React.JSX.Element {
     setViewport(defaultViewport);
   }, [defaultViewport]);
 
+  // Zoom shortcuts only respond when focus is on the timeline scrubber, so they don't fire
+  // globally (Ctrl/Cmd +/- otherwise also fights the browser's own zoom elsewhere).
   const zoomKeyDownHandlers = useMemo(
     () => ({
       Equal: (e: KeyboardEvent) => {
-        if (!(e.ctrlKey || e.metaKey)) {
+        if (!isTimelineKeyboardEvent(e) || !(e.ctrlKey || e.metaKey)) {
           return false;
         }
         zoomTimelineByKey("in");
         return true;
       },
       Minus: (e: KeyboardEvent) => {
-        if (!(e.ctrlKey || e.metaKey)) {
+        if (!isTimelineKeyboardEvent(e) || !(e.ctrlKey || e.metaKey)) {
           return false;
         }
         zoomTimelineByKey("out");
         return true;
       },
       KeyZ: (e: KeyboardEvent) => {
-        if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+        if (!isTimelineKeyboardEvent(e) || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
           return false;
         }
         resetZoom();
@@ -619,7 +625,21 @@ export default function Scrubber(props: Props): React.JSX.Element {
   }, []);
 
   return (
-    <div ref={scrubberRef} className={classes.root} onWheel={onWheel}>
+    <div
+      ref={scrubberRef}
+      className={classes.root}
+      onWheel={onWheel}
+      tabIndex={0}
+      data-timeline-scrubber="true"
+      // Focus the timeline on any pointer interaction so its keyboard shortcuts activate.
+      // Deferred to the next frame because the slider's mousedown preventDefault would
+      // otherwise cancel the focus; capture phase so a child stopPropagation can't block it.
+      onPointerDownCapture={() => {
+        requestAnimationFrame(() => {
+          scrubberRef.current?.focus({ preventScroll: true });
+        });
+      }}
+    >
       {isTimelineZoomEnabled() && <KeyListener global keyDownHandlers={zoomKeyDownHandlers} />}
       <div className={classes.toolbar}>
         <div className={classes.toolbarGroup}>
