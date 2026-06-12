@@ -6001,7 +6001,7 @@ __metadata:
   dependencies:
     "@coscene-io/comlink": 4.4.1
     "@foxglove/tsconfig": 3.2.0
-    async-mutex: 0.4.1
+    async-mutex: 0.5.0
     xacro-parser: 0.3.9
   languageName: unknown
   linkType: soft
@@ -6605,7 +6605,7 @@ __metadata:
     "@types/utif": ^3.0.2
     "@xmldom/xmldom": 0.8.10
     app-builder-lib: 26.0.11
-    async-mutex: 0.4.0
+    async-mutex: 0.5.0
     builder-util: "*"
     electron: 35.0.3
     electron-builder: 26.0.11
@@ -13702,21 +13702,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"async-mutex@npm:0.4.0":
-  version: 0.4.0
-  resolution: "async-mutex@npm:0.4.0"
+"async-mutex@npm:0.5.0":
+  version: 0.5.0
+  resolution: "async-mutex@npm:0.5.0"
   dependencies:
     tslib: ^2.4.0
-  checksum: 813a71728b35a4fbfd64dba719f04726d9133c67b577fcd951b7028c4a675a13ee34e69beb82d621f87bf81f5d4f135c4c44be0448550c7db728547244ef71fc
-  languageName: node
-  linkType: hard
-
-"async-mutex@npm:0.4.1":
-  version: 0.4.1
-  resolution: "async-mutex@npm:0.4.1"
-  dependencies:
-    tslib: ^2.4.0
-  checksum: cb529c0d257c8ff8e5b26c81b36127a255e545edee2c42c76247d533b89a7664037d95f33130f964de49b111ad3324ead8dcccd419c47acdfeb7413ed93063a1
+  checksum: be1587f4875f3bb15e34e9fcce82eac2966daef4432c8d0046e61947fb9a1b95405284601bc7ce4869319249bc07c75100880191db6af11d1498931ac2a2f9ea
   languageName: node
   linkType: hard
 
