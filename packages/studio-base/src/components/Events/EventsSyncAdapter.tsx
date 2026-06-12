@@ -165,6 +165,9 @@ const selectSetCustomFieldSchema = (store: EventsStore) => store.setCustomFieldS
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
+const selectEnableList = (store: CoreDataStore) => store.getEnableList();
+const selectProject = (store: CoreDataStore) => store.project;
+const selectRecord = (store: CoreDataStore) => store.record;
 
 /**
  * Syncs events from server and syncs hovered event with hovered time.
@@ -195,6 +198,22 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const { t } = useTranslation("event");
 
   const externalInitConfig = useCoreData(selectExternalInitConfig);
+  const enableList = useCoreData(selectEnableList);
+  const project = useCoreData(selectProject);
+  const record = useCoreData(selectRecord);
+
+  // Mirror Scrubber.tsx: editing/deleting moments requires the feature enabled, the matching
+  // permission, and a non-archived project and record.
+  const canWriteEvents =
+    enableList.event === "ENABLE" &&
+    consoleApi.updateEvent.permission() &&
+    project.value?.isArchived === false &&
+    record.value?.isArchived === false;
+  const canDeleteEvents =
+    enableList.event === "ENABLE" &&
+    consoleApi.deleteEvent.permission() &&
+    project.value?.isArchived === false &&
+    record.value?.isArchived === false;
 
   const [, getMomentCustomFieldValues] = useAsyncFn(async () => {
     if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
@@ -425,7 +444,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
   // I / O : set the selected moment's start / end edge to the current playhead.
   const setSelectedEventEdgeToPlayhead = useCallback(
     (edge: "start" | "end") => {
-      if (!consoleApi.updateEvent.permission()) {
+      if (!canWriteEvents) {
         return;
       }
       const event = getSelectedEvent();
@@ -462,12 +481,12 @@ export function EventsSyncAdapter(): React.JSX.Element {
         }
       })();
     },
-    [consoleApi, currentTimeRef, getSelectedEvent, refreshEvents, startTimeRef],
+    [canWriteEvents, consoleApi, currentTimeRef, getSelectedEvent, refreshEvents, startTimeRef],
   );
 
   // Delete / Backspace : delete the selected moment after a confirmation.
   const deleteSelectedEvent = useCallback(() => {
-    if (!consoleApi.deleteEvent.permission()) {
+    if (!canDeleteEvents) {
       return;
     }
     const event = getSelectedEvent();
@@ -496,7 +515,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
         refreshEvents();
       }
     })();
-  }, [confirm, consoleApi, getSelectedEvent, refreshEvents, selectEvent, t]);
+  }, [canDeleteEvents, confirm, consoleApi, getSelectedEvent, refreshEvents, selectEvent, t]);
 
   // The moment-editing shortcuts only respond when focus is on the timeline scrubber, so they
   // don't fire globally and clash with other panels (e.g. the Table / Raw Message panels' own
