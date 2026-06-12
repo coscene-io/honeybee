@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import FitScreenIcon from "@mui/icons-material/FitScreen";
 import LinkIcon from "@mui/icons-material/Link";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
@@ -77,6 +78,10 @@ const EVENT_LANE_LAYER_TOP_PX: number =
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 // Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
 const ZOOM_KEY_WHEEL_DELTA: number = 300;
+// Fraction of the visible timeline that the annotated moments should span when fitting the
+// view to them (Shift+Z / fit button). Moments are our "clips", so we frame them rather than
+// the whole recording; the remaining width is left as trailing padding. 1.0 = fill the width.
+const MOMENT_FIT_VIEWPORT_FRACTION: number = 0.8;
 
 function isTimelineZoomEnabled(): boolean {
   return true;
@@ -118,8 +123,8 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.text.secondary,
     display: "flex",
     gap: theme.spacing(0.75),
-    minWidth: 160,
-    width: 220,
+    minWidth: 240,
+    width: 320,
   },
   zoomIcon: {
     color: "currentColor",
@@ -541,12 +546,38 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport, zoomAnchorSecRef],
   );
 
-  const resetZoom = useCallback((): void => {
-    if (defaultViewport == undefined) {
+  // Fit the annotated moments (treated like video-editor clips) to the visible area: their
+  // combined span fills MOMENT_FIT_VIEWPORT_FRACTION of the width, left-aligned. With no
+  // moments there is nothing to frame, so fall back to the full recording range.
+  const fitMomentsToView = useCallback((): void => {
+    const baseViewport = latestViewport.current ?? defaultViewport;
+    if (baseViewport == undefined) {
       return;
     }
-    setViewport(defaultViewport);
-  }, [defaultViewport]);
+    const moments = events.value ?? [];
+    if (moments.length === 0) {
+      if (defaultViewport != undefined) {
+        setViewport(defaultViewport);
+      }
+      return;
+    }
+    let minSec = Infinity;
+    let maxSec = -Infinity;
+    for (const moment of moments) {
+      const startSec = moment.secondsSinceStart;
+      const endSec = startSec + toSec(subtractTimes(moment.endTime, moment.startTime));
+      minSec = Math.min(minSec, startSec);
+      maxSec = Math.max(maxSec, endSec);
+    }
+    const visibleDuration = (maxSec - minSec) / MOMENT_FIT_VIEWPORT_FRACTION;
+    setViewport(
+      clampTimelineViewport({
+        ...baseViewport,
+        visibleStartSec: minSec,
+        visibleEndSec: minSec + visibleDuration,
+      }),
+    );
+  }, [defaultViewport, events.value, latestViewport]);
 
   const zoomKeyDownHandlers = useMemo(
     () => ({
@@ -568,11 +599,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
         if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
           return false;
         }
-        resetZoom();
+        fitMomentsToView();
         return true;
       },
     }),
-    [resetZoom, zoomTimelineByKey],
+    [fitMomentsToView, zoomTimelineByKey],
   );
 
   const canCreateEvents =
@@ -647,6 +678,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
               <Tooltip title={t("zoomIn")}>
                 <ZoomInIcon className={classes.zoomIcon} />
               </Tooltip>
+              <HoverableIconButton
+                size="small"
+                title={t("shortcutZoomFit")}
+                aria-label={t("shortcutZoomFit")}
+                icon={<FitScreenIcon fontSize="small" />}
+                onClick={fitMomentsToView}
+              />
             </div>
           )}
           {enableList.event === "ENABLE" && (

@@ -68,6 +68,6 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   shortcutSetInOut: "设置所选一刻的入点 / 出点",
   shortcutDeleteMoment: "删除所选一刻",
   shortcutZoom: "放大 / 缩小",
-  shortcutZoomFit: "缩放以适应",
+  shortcutZoomFit: "缩放以适应一刻",
   shortcutZoomCursor: "在光标处缩放",
 };

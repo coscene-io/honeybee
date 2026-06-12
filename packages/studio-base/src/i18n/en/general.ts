@@ -68,6 +68,6 @@ export const general = {
   shortcutSetInOut: "Set selected moment in / out point",
   shortcutDeleteMoment: "Delete selected moment",
   shortcutZoom: "Zoom in / out",
-  shortcutZoomFit: "Zoom to fit",
+  shortcutZoomFit: "Fit moments to view",
   shortcutZoomCursor: "Zoom at cursor",
 };
