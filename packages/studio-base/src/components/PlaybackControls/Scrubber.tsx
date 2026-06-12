@@ -51,6 +51,7 @@ import { EventsOverlay } from "./EventsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
+import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
 import {
@@ -672,6 +673,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               onClick={toggleRollingEdit}
             />
           )}
+          <ShortcutsHelpButton />
         </div>
       </div>
       <Tooltip
