@@ -13,7 +13,14 @@ import crypto from "crypto";
 import { AfterPackContext } from "electron-builder";
 import fs from "fs/promises";
 import path from "path";
-import plist, { PlistObject } from "plist";
+import type { PlistValue } from "plist";
+
+type PlistObject = Record<string, PlistValue>;
+
+// ts-node/register compiles this hook as CommonJS, so plain import("plist") becomes require("plist"),
+// which cannot load plist v5's ESM-only export.
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve native import() for plist's ESM-only export.
+const importPlist = new Function("return import('plist')") as () => Promise<typeof import("plist")>;
 
 async function getKeychainFile(context: AfterPackContext): Promise<string | undefined> {
   const macPackager = context.packager as unknown as MacPackager;
@@ -119,10 +126,11 @@ async function configureQuickLookExtension(context: AfterPackContext) {
   const appexInfoPlist = path.join(appexContents, "Info.plist");
   const appexExecutablePath = path.join(appexContents, "MacOS", "PreviewExtension");
 
+  const plist = await importPlist();
   const originalInfo = plist.parse(
     await fs.readFile(appexInfoPlist, { encoding: "utf-8" }),
   ) as PlistObject;
-  const newInfo = {
+  const newInfo: PlistObject = {
     ...originalInfo,
     CFBundleIdentifier: `${appBundleId}.quicklook`,
     NSExtension: {
