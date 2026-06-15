@@ -6621,7 +6621,7 @@ __metadata:
     quicklookjs: 1.0.1
     react: 18.3.1
     react-dom: 18.3.1
-    react-refresh: 0.16.0
+    react-refresh: 0.18.0
     tinycolor2: 1.6.0
     ts-checker-rspack-plugin: 1.4.0
     tss-react: 4.9.2
@@ -6649,7 +6649,7 @@ __metadata:
     react: 18.3.1
     react-dom: 18.3.1
     react-i18next: 14.0.5
-    react-refresh: 0.16.0
+    react-refresh: 0.18.0
     tss-react: 4.9.3
     webpack: 5.97.1
     webpack-dev-server: 5.2.0
@@ -14056,7 +14056,7 @@ __metadata:
     mathjs: 11.11.1
     react: 18.3.1
     react-dom: 18.3.1
-    react-refresh: 0.16.0
+    react-refresh: 0.18.0
   languageName: unknown
   linkType: soft
 
@@ -26083,10 +26083,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-refresh@npm:0.16.0":
-  version: 0.16.0
-  resolution: "react-refresh@npm:0.16.0"
-  checksum: becff1ced3c9eb3631e06e038d7238c1badb329c1232a34694cc9983b1d176b6ffb74560d2dc4cc5e3353aa0041503ae2e71d5043ac82a2bcfb1fdf529dbe8b0
+"react-refresh@npm:0.18.0":
+  version: 0.18.0
+  resolution: "react-refresh@npm:0.18.0"
+  checksum: c27d236e7b38f4a09c2b0134e6227fa62e2b71edad5f22bab40962fc0deba9e0f16930609a82b6a021ef4b4f0a4d405cf0fbb2b51a0f478809619a8226f20379
   languageName: node
   linkType: hard
 
