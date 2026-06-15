@@ -6496,7 +6496,7 @@ __metadata:
     css-loader: 6.10.0
     cytoscape: 3.31.0
     cytoscape-dagre: 2.5.0
-    dayjs: ^1.11.7
+    dayjs: ^1.11.21
     eventemitter3: 5.0.1
     fake-indexeddb: 4.0.2
     fuzzysort: 3.1.0
@@ -15876,10 +15876,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dayjs@npm:^1.11.7":
-  version: 1.11.13
-  resolution: "dayjs@npm:1.11.13"
-  checksum: f388db88a6aa93956c1f6121644e783391c7b738b73dbc54485578736565c8931bdfba4bb94e9b1535c6e509c97d5deb918bbe1ae6b34358d994de735055cca9
+"dayjs@npm:^1.11.21":
+  version: 1.11.21
+  resolution: "dayjs@npm:1.11.21"
+  checksum: f168e00e88c5bf5a1153090f2fb279e0f7b5f0ee332062abfd5c6e2e8e0f1ba27c3f278183d73668cdfeefdd50b1d13346fdc2ace441962fc9ca6363f902ad05
   languageName: node
   linkType: hard
 
