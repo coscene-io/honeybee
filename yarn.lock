@@ -6571,7 +6571,7 @@ __metadata:
     ts-key-enum: 2.0.12
     tss-react: 4.9.3
     typescript: 5.9.3
-    use-debounce: 10.0.0
+    use-debounce: 10.1.1
     use-immer: 0.9.0
     use-sync-external-store: 1.6.0
     uuid: 11.0.5
@@ -30072,12 +30072,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"use-debounce@npm:10.0.0":
-  version: 10.0.0
-  resolution: "use-debounce@npm:10.0.0"
+"use-debounce@npm:10.1.1":
+  version: 10.1.1
+  resolution: "use-debounce@npm:10.1.1"
   peerDependencies:
-    react: ">=16.8.0"
-  checksum: b296fedba916ca721eeb7117f29a13c252966d03411abccc5e5894ed4de0f32b9cb6f6b150555b8b4cb9b0acf53b84022ad4cd43b89253389e9cd13779eebca7
+    react: "*"
+  checksum: 481ea2e1ff1ac0017bfcf94b1066e9b5b81a2197e5b505c627c5160a4526bbab5893b3d20d04b7b04a5ca9a6fbf538ce193474b5292b6092b8930a9825884293
   languageName: node
   linkType: hard
 
