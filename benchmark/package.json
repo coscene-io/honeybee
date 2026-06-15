@@ -10,7 +10,7 @@
     "@foxglove/rostime": "1.1.3",
     "@foxglove/schemas": "2.0.0",
     "@foxglove/studio": "workspace:*",
-    "@rspack/core": "2.0.6",
+    "@rspack/core": "2.0.8",
     "@rspack/plugin-react-refresh": "2.0.2",
     "@types/react": "18.3.27",
     "@types/react-dom": "18.2.7",

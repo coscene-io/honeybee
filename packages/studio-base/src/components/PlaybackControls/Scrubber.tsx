@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import FitScreenIcon from "@mui/icons-material/FitScreen";
 import LinkIcon from "@mui/icons-material/Link";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
@@ -26,6 +27,7 @@ import {
   Time,
 } from "@foxglove/rostime";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
+import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -50,11 +52,15 @@ import { EventsOverlay } from "./EventsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
+import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
+  clampTimelineViewport,
   clientXToTime,
   getTimelineViewportZoomPercent,
+  isViewportZoomed,
   makeTimelineViewport,
   panViewportBySeconds,
   setTimelineViewportZoomPercentAtTime,
@@ -71,9 +77,11 @@ const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
 const EVENT_LANE_LAYER_TOP_PX: number =
   TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
 const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
+// Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
+const ZOOM_KEY_WHEEL_DELTA: number = 300;
 
 function isTimelineZoomEnabled(): boolean {
-  return false;
+  return true;
 }
 
 const useStyles = makeStyles()((theme) => ({
@@ -84,6 +92,9 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: 0,
     minWidth: 0,
     position: "relative",
+    // Focusable so timeline keyboard shortcuts can scope to "focus on the timeline"; the
+    // default focus ring around the whole strip would be noisy, so suppress it.
+    outline: "none",
   },
   toolbar: {
     alignItems: "center",
@@ -112,8 +123,8 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.text.secondary,
     display: "flex",
     gap: theme.spacing(0.75),
-    minWidth: 160,
-    width: 220,
+    minWidth: 240,
+    width: 320,
   },
   zoomIcon: {
     color: "currentColor",
@@ -309,6 +320,43 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const latestViewport = useLatest(resolvedViewport);
   const scrubberRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
 
+  // Keep the playhead visible while zoomed in: when the current time leaves the visible
+  // window, page the window so the playhead lands back at its left edge. For forward
+  // playback this means the playhead sweeps across the window, and the moment it crosses
+  // the right edge the window jumps forward ~one width and the playhead reappears at the
+  // start. Only runs on currentTime changes, so panning/zooming while paused is untouched.
+  useEffect(() => {
+    const currentViewport = latestViewport.current;
+    const start = latestStartTime.current;
+    if (currentViewport == undefined || start == undefined || currentTime == undefined) {
+      return;
+    }
+    // When fully zoomed out the playhead is always visible, so there is nothing to follow.
+    if (!isViewportZoomed(currentViewport)) {
+      return;
+    }
+
+    const playheadSec = toSec(subtractTimes(currentTime, start));
+    if (
+      playheadSec >= currentViewport.visibleStartSec &&
+      playheadSec <= currentViewport.visibleEndSec
+    ) {
+      return;
+    }
+
+    const visibleDuration = currentViewport.visibleEndSec - currentViewport.visibleStartSec;
+    const nextViewport = clampTimelineViewport({
+      ...currentViewport,
+      visibleStartSec: playheadSec,
+      visibleEndSec: playheadSec + visibleDuration,
+    });
+
+    setViewport((oldViewport) => {
+      const sourceViewport = oldViewport ?? currentViewport;
+      return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+    });
+  }, [currentTime, latestViewport, latestStartTime]);
+
   const onChange = useCallback(
     (playbackSeconds: number) => {
       if (!latestStartTime.current || !latestEndTime.current) {
@@ -477,6 +525,64 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport, zoomAnchorSec],
   );
 
+  // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
+  const zoomAnchorSecRef = useLatest(zoomAnchorSec);
+
+  const zoomTimelineByKey = useCallback(
+    (direction: "in" | "out"): void => {
+      setViewport((oldViewport) => {
+        const sourceViewport = oldViewport ?? latestViewport.current;
+        if (sourceViewport == undefined) {
+          return oldViewport;
+        }
+        const anchorSec =
+          zoomAnchorSecRef.current ??
+          (sourceViewport.visibleStartSec + sourceViewport.visibleEndSec) / 2;
+        const deltaY = direction === "in" ? -ZOOM_KEY_WHEEL_DELTA : ZOOM_KEY_WHEEL_DELTA;
+        const nextViewport = zoomViewportAtTime(sourceViewport, anchorSec, deltaY);
+        return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+      });
+    },
+    [latestViewport, zoomAnchorSecRef],
+  );
+
+  // Reset the timeline zoom back to the full recording range.
+  const resetZoom = useCallback((): void => {
+    if (defaultViewport == undefined) {
+      return;
+    }
+    setViewport(defaultViewport);
+  }, [defaultViewport]);
+
+  // Zoom shortcuts only respond when focus is on the timeline scrubber, so they don't fire
+  // globally (Ctrl/Cmd +/- otherwise also fights the browser's own zoom elsewhere).
+  const zoomKeyDownHandlers = useMemo(
+    () => ({
+      Equal: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e) || !(e.ctrlKey || e.metaKey)) {
+          return false;
+        }
+        zoomTimelineByKey("in");
+        return true;
+      },
+      Minus: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e) || !(e.ctrlKey || e.metaKey)) {
+          return false;
+        }
+        zoomTimelineByKey("out");
+        return true;
+      },
+      KeyZ: (e: KeyboardEvent) => {
+        if (!isTimelineKeyboardEvent(e) || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+          return false;
+        }
+        resetZoom();
+        return true;
+      },
+    }),
+    [resetZoom, zoomTimelineByKey],
+  );
+
   const canCreateEvents =
     enableList.event === "ENABLE" &&
     consoleApi.createEvent.permission() &&
@@ -519,7 +625,22 @@ export default function Scrubber(props: Props): React.JSX.Element {
   }, []);
 
   return (
-    <div ref={scrubberRef} className={classes.root} onWheel={onWheel}>
+    <div
+      ref={scrubberRef}
+      className={classes.root}
+      onWheel={onWheel}
+      tabIndex={0}
+      data-timeline-scrubber="true"
+      // Focus the timeline on any pointer interaction so its keyboard shortcuts activate.
+      // Deferred to the next frame because the slider's mousedown preventDefault would
+      // otherwise cancel the focus; capture phase so a child stopPropagation can't block it.
+      onPointerDownCapture={() => {
+        requestAnimationFrame(() => {
+          scrubberRef.current?.focus({ preventScroll: true });
+        });
+      }}
+    >
+      {isTimelineZoomEnabled() && <KeyListener global keyDownHandlers={zoomKeyDownHandlers} />}
       <div className={classes.toolbar}>
         <div className={classes.toolbarGroup}>
           {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
@@ -548,6 +669,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
               <Tooltip title={t("zoomIn")}>
                 <ZoomInIcon className={classes.zoomIcon} />
               </Tooltip>
+              <HoverableIconButton
+                size="small"
+                title={t("shortcutZoomFit")}
+                aria-label={t("shortcutZoomFit")}
+                icon={<FitScreenIcon fontSize="small" />}
+                onClick={resetZoom}
+              />
             </div>
           )}
           {enableList.event === "ENABLE" && (
@@ -574,6 +702,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               onClick={toggleRollingEdit}
             />
           )}
+          <ShortcutsHelpButton />
         </div>
       </div>
       <Tooltip

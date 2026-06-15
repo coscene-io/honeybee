@@ -174,7 +174,7 @@ export const mainConfig =
     ];
 
     if (isServe) {
-      plugins.push(new ReactRefreshRspackPlugin());
+      plugins.push(new ReactRefreshRspackPlugin({ resourceQuery: { not: [/raw/] } }));
     }
 
     // Source map upload if configuration permits
