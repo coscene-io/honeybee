@@ -17675,15 +17675,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-file-progress@npm:3.0.2":
-  version: 3.0.2
-  resolution: "eslint-plugin-file-progress@npm:3.0.2"
+"eslint-plugin-file-progress@npm:4.0.0":
+  version: 4.0.0
+  resolution: "eslint-plugin-file-progress@npm:4.0.0"
   dependencies:
-    nanospinner: ^1.2.0
+    nanospinner: ^1.2.2
     picocolors: ^1.1.1
   peerDependencies:
-    eslint: ^9.0.0
-  checksum: eb5d65a8b9745699ba2c93eb9a08843a4da3c0939b659d0c04a0a5dc3e13a36398673b74e6b91010d6bbe6d0f916bd5034564db178fa05301d7b5376905a2bd5
+    eslint: ^10.0.0
+  checksum: 875de5c1c639dac5c7dbe459c24a4476c3a0185a6dfd7eda3562b46a321548ffda80218fd8e6a2aebd50f7d3ba683460c7996cf7efee5adb582318840c102f8e
   languageName: node
   linkType: hard
 
@@ -20065,7 +20065,7 @@ __metadata:
     electron-builder: 26.0.11
     eslint: 9.39.4
     eslint-import-resolver-webpack: 0.13.11
-    eslint-plugin-file-progress: 3.0.2
+    eslint-plugin-file-progress: 4.0.0
     eslint-plugin-import: 2.32.0
     eslint-plugin-prettier: 5.5.6
     eslint-plugin-storybook: 0.11.1
@@ -23978,7 +23978,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanospinner@npm:^1.2.0":
+"nanospinner@npm:^1.2.2":
   version: 1.2.2
   resolution: "nanospinner@npm:1.2.2"
   dependencies:
