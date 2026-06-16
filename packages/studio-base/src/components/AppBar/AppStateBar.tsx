@@ -28,6 +28,10 @@ import {
   BagFileInfo,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  selectIsKeyframeSearchActive,
+  usePlaybackInteractionState,
+} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
@@ -76,6 +80,7 @@ export function AppStateBar(): React.JSX.Element {
   const { classes, theme } = useStyles();
   const { t } = useTranslation("appBar");
   const presence = useMessagePipeline(selectPresence);
+  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
   const confirm = useConfirm();
   const [timeoutMinutes] = useAppConfigurationValue<number>(AppSetting.TIMEOUT);
   const dataSource = useCoreData(selectDataSource);
@@ -143,7 +148,10 @@ export function AppStateBar(): React.JSX.Element {
     normalBagFileCount + generatedMediaCount + errorMediaCount === bagFileCount &&
     errorMediaCount > 0;
 
-  const loading = presence === PlayerPresence.INITIALIZING || presence === PlayerPresence.BUFFERING;
+  const loading =
+    presence === PlayerPresence.INITIALIZING ||
+    presence === PlayerPresence.BUFFERING ||
+    isKeyframeSearchActive;
 
   useEffect(() => {
     if (presence === PlayerPresence.INITIALIZING) {
