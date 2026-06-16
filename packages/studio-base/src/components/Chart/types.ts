@@ -7,10 +7,19 @@
 
 import { ScatterDataPoint, ChartData as ChartJsChartData } from "chart.js";
 
+// chart.js v4.5 widened `Point.x`/`y` (and therefore `ScatterDataPoint`) to
+// `number | null` to model dataset gaps. We model gaps as whole `null` entries
+// in the data array (see `ObjectData` below), so an individual datum always has
+// numeric coordinates. Derive a non-null point from chart.js's own type rather
+// than re-declaring `{ x: number; y: number }`, so it tracks the upstream shape.
+export type ScatterPoint = {
+  [K in keyof ScatterDataPoint]-?: NonNullable<ScatterDataPoint[K]>;
+};
+
 // Chartjs typings use _null_ to indicate _gaps_ in the dataset
 // eslint-disable-next-line no-restricted-syntax
 type ChartNull = null;
-type Datum = ScatterDataPoint & {
+type Datum = ScatterPoint & {
   // chart.js supported properties to show a label above the datapoint
   // used by the state transition panel to show a label above the transition datum
   label?: string;
