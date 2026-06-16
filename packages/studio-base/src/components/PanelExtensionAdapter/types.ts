@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { PanelExtensionContext } from "@foxglove/studio";
+import { AcquireKeyframeSearchLockArgs } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 /**
@@ -83,6 +84,15 @@ export type BuiltinPanelExtensionContext = {
   ) => Promise<Asset>;
 
   unstable_subscribeMessageRange?: SubscribeMessageRange;
+
+  /**
+   * Built-in panels may need to coordinate async work with global playback controls.
+   * These remain internal because third-party panels should not control global playback directly.
+   */
+  unstable_acquireKeyframeSearchLock?: (args?: AcquireKeyframeSearchLockArgs) => () => void;
+  unstable_getPlaybackIsPlaying?: () => boolean;
+  unstable_pausePlayback?: () => void;
+  unstable_startPlayback?: () => void;
 
   /**
    * Updates the configuration for message path drag & drop support. A value of `undefined`

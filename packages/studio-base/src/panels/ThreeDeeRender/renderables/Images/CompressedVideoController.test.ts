@@ -61,12 +61,14 @@ function makeRenderer(
     currentTime?: bigint;
     startTime?: bigint;
     subscribeMessageRange?: SubscribeMessageRange;
+    acquireSeekKeyframeSearchPlaybackPause?: () => () => void;
   } = {},
 ) {
   return {
     currentTime: options.currentTime ?? 0n,
     startTime: options.startTime ?? 0n,
     subscribeMessageRange: options.subscribeMessageRange,
+    acquireSeekKeyframeSearchPlaybackPause: options.acquireSeekKeyframeSearchPlaybackPause,
     queueAnimationFrame: jest.fn(),
   };
 }
@@ -501,11 +503,46 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("acquires a playback pause lock while a seek lookback is searching for a keyframe", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const releasePlaybackPause = jest.fn();
+    const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => releasePlaybackPause);
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, delta];
+        })(),
+      );
+      return jest.fn();
+    });
+    const renderer = makeRenderer({
+      currentTime: 10_000_000n,
+      subscribeMessageRange,
+      acquireSeekKeyframeSearchPlaybackPause,
+    });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek();
+
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
+    expect(releasePlaybackPause).not.toHaveBeenCalled();
+
+    await flushAsyncWork();
+
+    expect(releasePlaybackPause).toHaveBeenCalledTimes(1);
+  });
+
   it("does not notify keyframe search for cached GOP seek replay", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const onSeekKeyframeSearchChange = jest.fn();
-    const renderer = makeRenderer();
+    const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => jest.fn());
+    const renderer = makeRenderer({ acquireSeekKeyframeSearchPlaybackPause });
     const controller = makeController({ renderer, onSeekKeyframeSearchChange });
 
     controller.processMessage(keyframe);
@@ -515,6 +552,7 @@ describe("CompressedVideoController", () => {
     controller.handleSeek();
 
     expect(onSeekKeyframeSearchChange).not.toHaveBeenCalled();
+    expect(acquireSeekKeyframeSearchPlaybackPause).not.toHaveBeenCalled();
   });
 
   it("does not let stale lookback completion clear a newer keyframe search", async () => {
@@ -592,21 +630,35 @@ describe("CompressedVideoController", () => {
   it("cancels pending lookback when a newer seek starts", () => {
     const seekDelta = makeVideoMessage(20_000_000n, "delta");
     const cancel = jest.fn();
+    const firstReleasePlaybackPause = jest.fn();
+    const secondReleasePlaybackPause = jest.fn();
+    const acquireSeekKeyframeSearchPlaybackPause = jest
+      .fn()
+      .mockReturnValueOnce(firstReleasePlaybackPause)
+      .mockReturnValueOnce(secondReleasePlaybackPause);
     const subscribeMessageRange = jest.fn<
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(() => cancel);
-    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+    const renderer = makeRenderer({
+      currentTime: 20_000_000n,
+      subscribeMessageRange,
+      acquireSeekKeyframeSearchPlaybackPause,
+    });
     const controller = makeController({ renderer });
 
     controller.handleSeek();
     controller.processMessage(seekDelta);
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
     expect(cancel).not.toHaveBeenCalled();
 
     renderer.currentTime = 30_000_000n;
     controller.handleSeek();
 
     expect(cancel).toHaveBeenCalledTimes(1);
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(2);
+    expect(firstReleasePlaybackPause).toHaveBeenCalledTimes(1);
+    expect(secondReleasePlaybackPause).not.toHaveBeenCalled();
   });
 
   it("does not display or cache a seek delta when no range API is available", () => {
@@ -620,6 +672,59 @@ describe("CompressedVideoController", () => {
     controller.handleSeek();
 
     expect(nonResetCalls(displayFrames)).toHaveLength(0);
+  });
+
+  it("releases the playback pause lock when a lookback range read fails", async () => {
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const releasePlaybackPause = jest.fn();
+    const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => releasePlaybackPause);
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          throw new Error("range read failed");
+        })(),
+      );
+      return jest.fn();
+    });
+    const renderer = makeRenderer({
+      currentTime: 20_000_000n,
+      subscribeMessageRange,
+      acquireSeekKeyframeSearchPlaybackPause,
+    });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
+    expect(releasePlaybackPause).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the playback pause lock once when disposed during keyframe search", () => {
+    const releasePlaybackPause = jest.fn();
+    const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => releasePlaybackPause);
+    const cancel = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => cancel);
+    const renderer = makeRenderer({
+      currentTime: 20_000_000n,
+      subscribeMessageRange,
+      acquireSeekKeyframeSearchPlaybackPause,
+    });
+    const controller = makeController({ renderer });
+
+    controller.handleSeek();
+    controller.dispose();
+    controller.dispose();
+
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(releasePlaybackPause).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to lookback when cached replay fails to decode", async () => {

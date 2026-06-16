@@ -14,6 +14,7 @@ import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootCo
 import { UserScriptStateProvider } from "@foxglove/studio-base/context/UserScriptStateContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
 import TasksProvider from "@foxglove/studio-base/providers/TasksProvider";
@@ -62,6 +63,7 @@ export function StudioApp(): React.JSX.Element {
 
   const providers = [
     /* eslint-disable react/jsx-key */
+    <PlaybackInteractionStateProvider />,
     <TimelineInteractionStateProvider />,
     <UserScriptStateProvider />,
     <ExtensionMarketplaceProvider />,

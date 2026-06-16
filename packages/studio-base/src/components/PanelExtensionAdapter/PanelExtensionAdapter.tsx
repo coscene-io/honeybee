@@ -44,6 +44,10 @@ import {
   useHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import {
+  PlaybackInteractionStateStore,
+  usePlaybackInteractionState,
+} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
   AdvertiseOptions,
@@ -108,6 +112,9 @@ function selectContext(ctx: MessagePipelineContext) {
 function selectInstalledMessageConverters(state: ExtensionCatalog) {
   return state.installedMessageConverters;
 }
+
+const selectAcquireKeyframeSearchLock = (store: PlaybackInteractionStateStore) =>
+  store.acquireKeyframeSearchLock;
 
 type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
 /**
@@ -178,6 +185,7 @@ function PanelExtensionAdapter(
   //
   // This getter allows the extension context to remain stable through pipeline changes
   const getMessagePipelineContext = useMessagePipelineGetter();
+  const acquireKeyframeSearchLock = usePlaybackInteractionState(selectAcquireKeyframeSearchLock);
 
   // initRenderStateBuilder render produces a function which computes the latest render state from a set of inputs
   // Spiritually its like a reducer
@@ -396,6 +404,25 @@ function PanelExtensionAdapter(
           }
         : undefined,
 
+      unstable_getPlaybackIsPlaying: () =>
+        getMessagePipelineContext().playerState.activeData?.isPlaying === true,
+
+      unstable_acquireKeyframeSearchLock: acquireKeyframeSearchLock,
+
+      unstable_pausePlayback: () => {
+        if (!isMounted()) {
+          return;
+        }
+        getMessagePipelineContext().pausePlayback?.();
+      },
+
+      unstable_startPlayback: () => {
+        if (!isMounted()) {
+          return;
+        }
+        getMessagePipelineContext().startPlayback?.();
+      },
+
       dataSourceProfile,
 
       setParameter: (name: string, value: ParameterValue) => {
@@ -600,6 +627,7 @@ function PanelExtensionAdapter(
     saveConfig,
     stableSettingsActionHandler,
     getMessagePipelineContext,
+    acquireKeyframeSearchLock,
     setGlobalVariables,
     clearHoverValue,
     setHoverValue,
