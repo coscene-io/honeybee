@@ -14,7 +14,6 @@ import {
   MessageEvent,
   PlayerState,
   PlayerStateActiveData,
-  SubscribeMessageRange,
   Topic,
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
@@ -197,85 +196,6 @@ describe("UserScriptPlayer", () => {
       expect(fakePlayer.seekPlayback).not.toHaveBeenCalled();
       userScriptPlayer.seekPlayback({ sec: 2, nsec: 2 });
       expect(fakePlayer.seekPlayback).toHaveBeenCalledWith({ sec: 2, nsec: 2 });
-    });
-
-    it("maps message range subscriptions for user script output topics", async () => {
-      const fakePlayer = new FakePlayer();
-      const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
-      const [done] = setListenerHelper(userScriptPlayer);
-
-      await userScriptPlayer.setUserScripts({
-        nodeId: { name: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`, sourceCode: nodeUserCode },
-      });
-      await fakePlayer.emit({
-        activeData: {
-          ...basicPlayerState,
-          messages: [],
-          currentTime: { sec: 0, nsec: 0 },
-          topics: [{ name: "/np_input", schemaName: "/np_input_datatype" }],
-          datatypes: new Map(Object.entries({ foo: { definitions: [] } })),
-        },
-      });
-      await done;
-
-      userScriptPlayer.setSubscriptions([{ topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1` }]);
-      await Promise.resolve();
-
-      const unsubscribe = jest.fn();
-      const subscribeMessageRange = jest.fn<
-        ReturnType<SubscribeMessageRange>,
-        Parameters<SubscribeMessageRange>
-      >(({ onNewRangeIterator }) => {
-        void onNewRangeIterator(
-          (async function* () {
-            yield [upstreamFirst, upstreamSecond];
-          })(),
-        );
-        return unsubscribe;
-      });
-      (
-        fakePlayer as unknown as { subscribeMessageRange: typeof subscribeMessageRange }
-      ).subscribeMessageRange = subscribeMessageRange;
-
-      const outputMessages: MessageEvent[] = [];
-      const rangeUnsubscribe = userScriptPlayer.subscribeMessageRange({
-        topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-        timeRange: { start: { sec: 0, nsec: 0 }, end: { sec: 1, nsec: 0 } },
-        onNewRangeIterator: async (iterator) => {
-          for await (const batch of iterator) {
-            outputMessages.push(...batch);
-          }
-        },
-      });
-
-      await delay(0);
-
-      expect(rangeUnsubscribe).toEqual(expect.any(Function));
-      expect(subscribeMessageRange).toHaveBeenCalledWith(
-        expect.objectContaining({
-          topic: "/np_input",
-          timeRange: { start: { sec: 0, nsec: 0 }, end: { sec: 1, nsec: 0 } },
-        }),
-      );
-      expect(outputMessages).toEqual([
-        expect.objectContaining({
-          topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-          receiveTime: upstreamFirst.receiveTime,
-          message: expect.objectContaining({ custom_np_field: "abc", value: "bar" }),
-          schemaName: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-          sizeInBytes: 0,
-        }),
-        expect.objectContaining({
-          topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-          receiveTime: upstreamSecond.receiveTime,
-          message: expect.objectContaining({ custom_np_field: "abc", value: "baz" }),
-          schemaName: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
-          sizeInBytes: 0,
-        }),
-      ]);
-
-      rangeUnsubscribe?.();
-      expect(unsubscribe).toHaveBeenCalled();
     });
 
     it("delegates publishing to underlying player", () => {

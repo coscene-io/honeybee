@@ -14,42 +14,6 @@ import type { CompressedVideo } from "./ImageTypes";
 import { decodeRawImage, RawImageOptions } from "./decodeImage";
 import { Image as RosImage } from "../../ros";
 
-export type DecodeVideoFrameInput = {
-  frame: CompressedVideo;
-  receiveTime: bigint;
-};
-
-export type DecodeVideoFramesArgs = {
-  frames: DecodeVideoFrameInput[];
-  requestId: number;
-  targetFrameTimeoutMs?: number;
-  anyFrameTimeoutMs?: number;
-};
-
-export type DecodeVideoFramesResult =
-  | {
-      type: "TargetFrame" | "IntermediateFrame";
-      requestId: number;
-      frame: VideoFrame;
-      originalTimestamp: bigint;
-      receiveTime: bigint;
-    }
-  | { type: "Timeout" | "Aborted" | "FrameOutOfOrder"; requestId: number };
-
-export type AwaitTargetFrameArgs = {
-  requestId: number;
-};
-
-export type AwaitTargetFrameResult =
-  | {
-      type: "TargetFrame";
-      requestId: number;
-      frame: VideoFrame;
-      originalTimestamp: bigint;
-      receiveTime: bigint;
-    }
-  | { type: "Aborted"; requestId: number };
-
 /**
  * Provides a worker that can process RawImages on a background thread.
  *
@@ -90,17 +54,16 @@ export class WorkerImageDecoder {
 
   public async decodeVideoFrame(
     frame: CompressedVideo,
-    _firstMessageTime?: bigint,
+    firstMessageTime: bigint,
   ): Promise<VideoFrame | undefined> {
-    return await this.#remote.decodeVideoFrame(frame);
-  }
+    // Split into two separate Comlink calls to allow WebCodecs output callback to execute.
+    // WebCodecs VideoDecoder.decode() is async - the output callback fires after the current
+    // JS execution context completes. By making two independent RPC calls, we create an
+    // event loop gap between frame submission and retrieval, giving the decoder time to
+    // process and output the frame before we try to fetch it.
+    await this.#remote.decodeVideoFrame(frame, firstMessageTime);
 
-  public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
-    return await this.#remote.decodeVideoFrames(args);
-  }
-
-  public async awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
-    return await this.#remote.awaitTargetFrame(args);
+    return await this.#remote.getLatestVideoFrame();
   }
 
   public async resetVideoDecoder(): Promise<void> {

@@ -142,7 +142,6 @@ export function createMessagePipelineStore({
           sortedTopics: [],
           datatypes: new Map(),
           startPlayback: undefined,
-          subscribeMessageRange: undefined,
           playUntil: undefined,
           pausePlayback: undefined,
           setPlaybackSpeed: undefined,
@@ -160,13 +159,6 @@ export function createMessagePipelineStore({
       datatypes: new Map(),
       setSubscriptions(id, payloads) {
         get().dispatch({ type: "update-subscriber", id, payloads });
-      },
-      subscribeMessageRange(args) {
-        const player = get().player;
-        if (player?.subscribeMessageRange == undefined) {
-          return undefined;
-        }
-        return player.subscribeMessageRange(args);
       },
       setPublishers(id, payloads) {
         get().dispatch({ type: "set-publishers", id, payloads });

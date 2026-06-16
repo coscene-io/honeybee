@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { SPS } from "./SPS";
-import { BitstreamWriter } from "../h26x/Bitstream";
 
 describe("SPS", () => {
   function createValidNALU() {
@@ -14,64 +13,6 @@ describe("SPS", () => {
       0x67, 0x64, 0x0, 0x1e, 0xac, 0xb2, 0x1, 0x40, 0x5f, 0xf2, 0xe0, 0x2d, 0x40, 0x40, 0x40, 0x50,
       0x0, 0x0, 0x3, 0x0, 0x10, 0x0, 0x0, 0x3, 0x3, 0x20, 0xf1, 0x62, 0xe4, 0x80,
     ];
-  }
-
-  function createScalingMatrixNALU() {
-    const list0 = new Array<number>(16).fill(0);
-    const list1 = Array.from({ length: 16 }, (_, index) => (index % 2 === 0 ? 1 : -1));
-    const buffer = new Uint8Array(128);
-    const writer = new BitstreamWriter(buffer);
-
-    writer.u_1(0);
-    writer.u_2(3);
-    writer.u(5, 7);
-    writer.u_8(100);
-    writer.u_1(0);
-    writer.u_1(0);
-    writer.u_1(0);
-    writer.u_1(0);
-    writer.u_1(0);
-    writer.u_1(0);
-    writer.u_2(0);
-    writer.u_8(30);
-    writer.ue_v(0);
-
-    writer.ue_v(1);
-    writer.ue_v(0);
-    writer.ue_v(0);
-    writer.u_1(0);
-    writer.u_1(1);
-    writer.u_1(1);
-    for (const deltaScale of list0) {
-      writer.se_v(deltaScale);
-    }
-    writer.u_1(1);
-    for (const deltaScale of list1) {
-      writer.se_v(deltaScale);
-    }
-    for (let i = 2; i < 8; i++) {
-      writer.u_1(0);
-    }
-
-    writer.ue_v(0);
-    writer.ue_v(0);
-    writer.ue_v(0);
-    writer.ue_v(1);
-    writer.u_1(0);
-    writer.ue_v(7);
-    writer.ue_v(5);
-    writer.u_1(1);
-    writer.u_1(1);
-    writer.u_1(0);
-    writer.u_1(0);
-    writer.u_1(1);
-    writer.finish();
-
-    return {
-      nalu: buffer.subarray(0, writer.bytesWritten()),
-      list0,
-      list1,
-    };
   }
 
   it("Parses a simple SPS NALU correctly", () => {
@@ -256,24 +197,6 @@ describe("SPS", () => {
 
     expect(sps.profileCompatibility()).toBe(0);
     expect(sps.MIME()).toBe("avc1.64001E");
-  });
-
-  it("parses scaling lists by scaling-list index", () => {
-    const { nalu, list0, list1 } = createScalingMatrixNALU();
-    const sps = new SPS(nalu);
-
-    expect(sps.seq_scaling_matrix_present_flag).toBe(1);
-    expect(sps.seq_scaling_list_present_flag).toEqual([1, 1, 0, 0, 0, 0, 0, 0]);
-    expect(sps.seq_scaling_list?.[0]).toEqual(list0);
-    expect(sps.seq_scaling_list?.[1]).toEqual(list1);
-    expect(sps.seq_scaling_list?.slice(2)).toEqual([
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-    ]);
   });
 
   describe("SPS > profile_idc parsing", () => {

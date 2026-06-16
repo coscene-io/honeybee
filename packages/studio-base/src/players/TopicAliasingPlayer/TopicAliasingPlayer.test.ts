@@ -72,58 +72,6 @@ describe("TopicAliasingPlayer", () => {
     ]);
   });
 
-  it("maps message range subscriptions and returned messages", async () => {
-    const fakePlayer = new FakePlayer();
-    const originalMessage = mockMessage("message", { topic: "/original_topic_1" });
-    let rangeDone: Promise<void> | undefined;
-    const unsubscribe = jest.fn();
-    (fakePlayer as any).subscribeMessageRange = jest.fn(({ onNewRangeIterator }: any) => {
-      rangeDone = onNewRangeIterator(
-        (async function* () {
-          yield [originalMessage];
-        })(),
-      );
-      return unsubscribe;
-    });
-    const mappers: TopicAliasFunctions = [
-      {
-        extensionId: "anh",
-        aliasFunction: () => [{ sourceTopicName: "/original_topic_1", name: "/renamed_topic_1" }],
-      },
-    ];
-    const player = new TopicAliasingPlayer(fakePlayer);
-    player.setAliasFunctions(mappers);
-    player.setListener(async () => {});
-    await fakePlayer.emit(
-      mockPlayerState(undefined, {
-        topics: [{ name: "/original_topic_1", schemaName: "any.schema" }],
-      }),
-    );
-
-    const receivedBatches: unknown[] = [];
-    const rangeUnsubscribe = player.subscribeMessageRange({
-      topic: "/renamed_topic_1",
-      timeRange: {
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 1, nsec: 0 },
-      },
-      onNewRangeIterator: async (iterator) => {
-        for await (const batch of iterator) {
-          receivedBatches.push(batch);
-        }
-      },
-    });
-    await rangeDone;
-
-    expect((fakePlayer as any).subscribeMessageRange).toHaveBeenCalledWith(
-      expect.objectContaining({ topic: "/original_topic_1" }),
-    );
-    expect(receivedBatches).toEqual([[{ ...originalMessage, topic: "/renamed_topic_1" }]]);
-
-    rangeUnsubscribe?.();
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-  });
-
   it("maps messages", async () => {
     const fakePlayer = new FakePlayer();
     const mappers: TopicAliasFunctions = [

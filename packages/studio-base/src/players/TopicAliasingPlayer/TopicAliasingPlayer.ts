@@ -14,12 +14,10 @@ import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
   AdvertiseOptions,
-  MessageEvent,
   PlaybackSpeed,
   Player,
   PlayerState,
   PublishPayload,
-  SubscribeMessageRangeArgs,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 
@@ -97,23 +95,6 @@ export class TopicAliasingPlayer implements Player {
     this.#subscriptions = subscriptions;
     this.#aliasedSubscriptions = this.#stateProcessor.aliasSubscriptions(subscriptions);
     this.#player.setSubscriptions(this.#aliasedSubscriptions);
-  }
-
-  public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
-    const subscribeMessageRange = this.#player.subscribeMessageRange;
-    if (subscribeMessageRange == undefined) {
-      return undefined;
-    }
-
-    const aliasedSubscription = this.#stateProcessor.aliasSubscriptions([{ topic: args.topic }])[0];
-    const sourceTopic = aliasedSubscription?.topic ?? args.topic;
-    return subscribeMessageRange.call(this.#player, {
-      ...args,
-      topic: sourceTopic,
-      onNewRangeIterator: async (iterator) => {
-        await args.onNewRangeIterator(aliasRangeIterator(iterator, sourceTopic, args.topic));
-      },
-    });
   }
 
   public setPublishers(publishers: AdvertiseOptions[]): void {
@@ -260,19 +241,5 @@ export class TopicAliasingPlayer implements Player {
 
   public reOpen(): void {
     this.#player.reOpen();
-  }
-}
-
-async function* aliasRangeIterator(
-  iterator: AsyncIterable<readonly MessageEvent[]>,
-  sourceTopic: string,
-  requestedTopic: string,
-): AsyncIterableIterator<readonly MessageEvent[]> {
-  for await (const batch of iterator) {
-    yield batch.map((messageEvent) =>
-      messageEvent.topic === sourceTopic
-        ? { ...messageEvent, topic: requestedTopic }
-        : messageEvent,
-    );
   }
 }

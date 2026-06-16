@@ -121,7 +121,6 @@ export function ThreeDeeRender(props: {
     initialState,
     saveState,
     unstable_fetchAsset: fetchAsset,
-    unstable_subscribeMessageRange: subscribeMessageRange,
     unstable_setMessagePathDropConfig: setMessagePathDropConfig,
   } = context;
   const analytics = useAnalytics();
@@ -232,7 +231,6 @@ export function ThreeDeeRender(props: {
   const [currentFrameMessages, setCurrentFrameMessages] = useState<
     ReadonlyArray<MessageEvent> | undefined
   >();
-  const [startTime, setStartTime] = useState<Time | undefined>();
   const [currentTime, setCurrentTime] = useState<Time | undefined>();
   const [didSeek, setDidSeek] = useState<boolean>(false);
   const [sharedPanelState, setSharedPanelState] = useState<undefined | Shared3DPanelState>();
@@ -398,9 +396,6 @@ export function ThreeDeeRender(props: {
         if (renderState.currentTime) {
           setCurrentTime(renderState.currentTime);
         }
-        if (renderState.startTime) {
-          setStartTime(renderState.startTime);
-        }
 
         // Check if didSeek is set to true to reset the preloadedMessageTime and
         // trigger a state flush in Renderer
@@ -443,7 +438,6 @@ export function ThreeDeeRender(props: {
     context.watch("allFrames");
     context.watch("colorScheme");
     context.watch("currentFrame");
-    context.watch("startTime");
     context.watch("currentTime");
     context.watch("didSeek");
     context.watch("parameters");
@@ -536,12 +530,6 @@ export function ThreeDeeRender(props: {
     }
   }, [parameters, renderer]);
 
-  useEffect(() => {
-    if (renderer) {
-      renderer.subscribeMessageRange = subscribeMessageRange;
-    }
-  }, [renderer, subscribeMessageRange]);
-
   // Keep the renderer currentTime up to date and handle seeking
   useEffect(() => {
     const newTimeNs = currentTime ? toNanoSec(currentTime) : undefined;
@@ -573,12 +561,6 @@ export function ThreeDeeRender(props: {
       renderRef.current.needsRender = true;
     }
   }, [backgroundColor, colorScheme, renderer]);
-
-  useEffect(() => {
-    if (renderer) {
-      renderer.startTime = startTime ? toNanoSec(startTime) : undefined;
-    }
-  }, [renderer, startTime]);
 
   // Handle preloaded messages and render a frame if new messages are available
   // Should be called before `messages` is handled

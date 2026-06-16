@@ -38,7 +38,6 @@ import {
 import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { LayerErrors } from "@foxglove/studio-base/panels/ThreeDeeRender/LayerErrors";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
-import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import { palette, fontMonospace } from "@foxglove/theme";
 import { LabelMaterial, LabelPool } from "@foxglove/three-text";
@@ -235,8 +234,6 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
   public coordinateFrameList: SelectEntry[] = [];
   public currentTime = 0n;
-  public startTime: bigint | undefined;
-  public subscribeMessageRange: SubscribeMessageRange | undefined;
   public fixedFrameId: string | undefined;
   public followFrameId: string | undefined;
 
@@ -484,9 +481,6 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     const movedBack = this.currentTime < oldTimeNs;
     // want to clear transforms and reset the cursor if we seek backwards
     this.clear({ clearTransforms: movedBack, resetAllFramesCursor: movedBack });
-    for (const extension of this.sceneExtensions.values()) {
-      extension.handleSeek(oldTimeNs);
-    }
   }
 
   /**

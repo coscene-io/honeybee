@@ -13,13 +13,14 @@ import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
 import { toNanoSec } from "@foxglove/rostime";
 import { CameraCalibration, CompressedImage, RawImage } from "@foxglove/schemas";
-import { MessageEvent, SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
+import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
 import { ALL_SUPPORTED_IMAGE_SCHEMAS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 
 import {
-  CompressedVideoController,
-  type CompressedVideoDisplayFrames,
-} from "./Images/CompressedVideoController";
+  IMAGE_RENDERABLE_DEFAULT_SETTINGS,
+  ImageRenderable,
+  ImageUserData,
+} from "./Images/ImageRenderable";
 import { ALL_CAMERA_INFO_SCHEMAS, AnyImage, CompressedVideo } from "./Images/ImageTypes";
 import {
   normalizeCompressedImage,
@@ -51,12 +52,6 @@ import {
 import { BaseSettings, PRECISION_DISTANCE } from "../settings";
 import { topicIsConvertibleToSchema } from "../topicIsConvertibleToSchema";
 import { makePose } from "../transforms";
-import {
-  IMAGE_RENDERABLE_DEFAULT_SETTINGS,
-  ImageRenderable,
-  ImageSetImageResult,
-  ImageUserData,
-} from "./Images/ImageRenderable";
 
 const log = Logger.getLogger(__filename);
 void log;
@@ -90,7 +85,6 @@ export class Images extends SceneExtension<ImageRenderable> {
    * This stores the last camera info message on each topic so it can be applied when rendering the image
    */
   #cameraInfoByTopic = new Map<string, CameraInfo>();
-  #compressedVideoControllers = new Map<string, CompressedVideoController>();
 
   protected supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
@@ -102,19 +96,7 @@ export class Images extends SceneExtension<ImageRenderable> {
 
   public override dispose(): void {
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
-    for (const controller of this.#compressedVideoControllers.values()) {
-      controller.dispose();
-    }
-    this.#compressedVideoControllers.clear();
     super.dispose();
-  }
-
-  public override handleSeek(): void {
-    for (const topic of this.#visibleCompressedVideoTopics()) {
-      this.#compressedVideoControllerForTopic(topic).handleSeek({
-        resizeWidth: DEFAULT_BITMAP_WIDTH,
-      });
-    }
   }
 
   public override getSubscriptions(): readonly AnyRendererSubscription[] {
@@ -172,11 +154,7 @@ export class Images extends SceneExtension<ImageRenderable> {
    */
   #handleTopicsChanged = () => {
     this.#cameraInfoTopics = new Set();
-    const compressedVideoTopics = new Set<string>();
     for (const topic of this.renderer.topics ?? []) {
-      if (topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
-        compressedVideoTopics.add(topic.name);
-      }
       if (
         topicIsConvertibleToSchema(topic, CAMERA_INFO_DATATYPES) ||
         topicIsConvertibleToSchema(topic, CAMERA_CALIBRATION_DATATYPES)
@@ -184,29 +162,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         this.#cameraInfoTopics.add(topic.name);
       }
     }
-    for (const [topic, controller] of this.#compressedVideoControllers) {
-      if (!compressedVideoTopics.has(topic)) {
-        controller.dispose();
-        this.#compressedVideoControllers.delete(topic);
-      }
-    }
   };
-
-  #visibleCompressedVideoTopics(): Set<string> {
-    const topics = new Set<string>();
-    for (const topic of this.renderer.topics ?? []) {
-      if (!topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
-        continue;
-      }
-      const settings = this.renderer.config.topics[topic.name] as
-        | Partial<LayerSettingsImage>
-        | undefined;
-      if (settings?.visible === true) {
-        topics.add(topic.name);
-      }
-    }
-    return topics;
-  }
 
   public override settingsNodes(): SettingsTreeEntry[] {
     const configTopics = this.renderer.config.topics;
@@ -343,78 +299,26 @@ export class Images extends SceneExtension<ImageRenderable> {
   };
 
   #handleRosRawImage = (messageEvent: PartialMessageEvent<RosImage>): void => {
-    void this.handleImage(messageEvent, normalizeRosImage(messageEvent.message));
+    this.handleImage(messageEvent, normalizeRosImage(messageEvent.message));
   };
 
   #handleRosCompressedImage = (messageEvent: PartialMessageEvent<RosCompressedImage>): void => {
-    void this.handleImage(messageEvent, normalizeRosCompressedImage(messageEvent.message));
+    this.handleImage(messageEvent, normalizeRosCompressedImage(messageEvent.message));
   };
 
   #handleRawImage = (messageEvent: PartialMessageEvent<RawImage>): void => {
-    void this.handleImage(messageEvent, normalizeRawImage(messageEvent.message));
+    this.handleImage(messageEvent, normalizeRawImage(messageEvent.message));
   };
 
   #handleCompressedImage = (messageEvent: PartialMessageEvent<CompressedImage>): void => {
-    void this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
+    this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
   };
 
   #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
-    const normalizedEvent = {
-      ...messageEvent,
-      message: normalizeCompressedVideo(messageEvent.message),
-    } as MessageEvent<CompressedVideo>;
-    this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent, {
-      resizeWidth: DEFAULT_BITMAP_WIDTH,
-    });
+    this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
   };
 
-  protected handleImage = async (
-    messageEvent: PartialMessageEvent<AnyImage>,
-    image: AnyImage,
-  ): Promise<ImageSetImageResult> => {
-    const renderable = this.#prepareImageRenderable(messageEvent, image);
-    return await renderable.setImage(image, DEFAULT_BITMAP_WIDTH);
-  };
-
-  #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (frames, _mode, options) => {
-    const targetFrame = frames[frames.length - 1];
-    if (targetFrame == undefined) {
-      return { ok: false };
-    }
-    const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message);
-    return await renderable.setCompressedVideoFrames(frames, {
-      ...options,
-      resizeWidth: options?.resizeWidth ?? DEFAULT_BITMAP_WIDTH,
-    });
-  };
-
-  #compressedVideoControllerForTopic(topic: string): CompressedVideoController {
-    let controller = this.#compressedVideoControllers.get(topic);
-    if (controller == undefined) {
-      controller = new CompressedVideoController({
-        topic,
-        renderer: this.renderer,
-        displayFrames: this.#displayCompressedVideoFrames,
-        resetDecoder: () => {
-          this.renderables.get(topic)?.resetForSeek();
-        },
-      });
-      this.#compressedVideoControllers.set(topic, controller);
-    } else {
-      controller.updateOptions({
-        displayFrames: this.#displayCompressedVideoFrames,
-        resetDecoder: () => {
-          this.renderables.get(topic)?.resetForSeek();
-        },
-      });
-    }
-    return controller;
-  }
-
-  #prepareImageRenderable(
-    messageEvent: PartialMessageEvent<AnyImage>,
-    image: AnyImage,
-  ): ImageRenderable {
+  protected handleImage = (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage): void => {
     const imageTopic = messageEvent.topic;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
     const frameId = "header" in image ? image.header.frame_id : image.frame_id;
@@ -422,6 +326,7 @@ export class Images extends SceneExtension<ImageRenderable> {
     const renderable = this.#getImageRenderable(imageTopic, receiveTime, image, frameId);
 
     renderable.userData.receiveTime = receiveTime;
+    renderable.setImage(image, DEFAULT_BITMAP_WIDTH);
     // Auto-select settings.cameraInfoTopic if it's not already set
     const settings = renderable.userData.settings;
     if (settings.cameraInfoTopic == undefined) {
@@ -443,7 +348,7 @@ export class Images extends SceneExtension<ImageRenderable> {
           NO_CAMERA_INFO_ERR,
           "No CameraInfo topic found",
         );
-        return renderable;
+        return;
       }
 
       // We auto-selected a camera info topic for this image topic so we need to add the lookup.
@@ -473,9 +378,7 @@ export class Images extends SceneExtension<ImageRenderable> {
     } else {
       this.#recomputeCameraModel(renderable, cameraInfo);
     }
-
-    return renderable;
-  }
+  };
 
   #handleCameraInfo = (
     messageEvent: PartialMessageEvent<CameraInfo> & PartialMessageEvent<CameraCalibration>,

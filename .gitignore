@@ -9,7 +9,6 @@ dist/
 node_modules/
 storybook-screenshots/
 storybook-static/
-temp/
 # for jest --coverage
 coverage/
 

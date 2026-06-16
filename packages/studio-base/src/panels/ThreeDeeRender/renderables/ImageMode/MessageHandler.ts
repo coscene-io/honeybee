@@ -210,20 +210,7 @@ export class MessageHandler implements IMessageHandler {
     this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
   };
 
-  public updateImageState = (
-    messageEvent: PartialMessageEvent<AnyImage>,
-    image: AnyImage,
-  ): void => {
-    this.#recordImage(messageEvent, image);
-    this.#emitState();
-  };
-
   protected handleImage(message: PartialMessageEvent<AnyImage>, image: AnyImage): void {
-    this.#recordImage(message, image);
-    this.#emitState();
-  }
-
-  #recordImage(message: PartialMessageEvent<AnyImage>, image: AnyImage): void {
     const normalizedImageMessage: MessageEvent<AnyImage> = {
       ...message,
       message: image,
@@ -231,10 +218,12 @@ export class MessageHandler implements IMessageHandler {
 
     this.#lastReceivedMessages.image = normalizedImageMessage;
     if (this.#config.synchronize !== true) {
+      this.#emitState();
       return;
     }
     // Update the image at the stamp time
     this.#addImageToTree(normalizedImageMessage);
+    this.#emitState();
   }
 
   #addImageToTree(normalizedImageMessage: MessageEvent<AnyImage>) {
@@ -469,7 +458,6 @@ export interface IMessageHandler {
   handleRawImage: (messageEvent: PartialMessageEvent<RawImage>) => void;
   handleCompressedImage: (messageEvent: PartialMessageEvent<CompressedImage>) => void;
   handleCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
-  updateImageState: (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage) => void;
   handleCameraInfo: (message: PartialMessageEvent<CameraInfo>) => void;
   handleAnnotations: (
     messageEvent: MessageEvent<FoxgloveImageAnnotations | RosImageMarker | RosImageMarkerArray>,
