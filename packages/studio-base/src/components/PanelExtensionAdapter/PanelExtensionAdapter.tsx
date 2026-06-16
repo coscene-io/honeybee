@@ -40,14 +40,14 @@ import {
   useExtensionCatalog,
 } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
+  PlaybackInteractionStateStore,
+  usePlaybackInteractionState,
+} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import {
   useClearHoverValue,
   useHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import {
-  PlaybackInteractionStateStore,
-  usePlaybackInteractionState,
-} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
   AdvertiseOptions,

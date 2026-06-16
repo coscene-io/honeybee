@@ -13,8 +13,8 @@ import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsC
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
 import { UserScriptStateProvider } from "@foxglove/studio-base/context/UserScriptStateContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
-import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
+import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
 import TasksProvider from "@foxglove/studio-base/providers/TasksProvider";

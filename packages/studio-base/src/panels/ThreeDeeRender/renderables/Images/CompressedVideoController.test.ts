@@ -682,11 +682,15 @@ describe("CompressedVideoController", () => {
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ onNewRangeIterator }) => {
-      void onNewRangeIterator(
-        (async function* () {
-          throw new Error("range read failed");
-        })(),
-      );
+      void onNewRangeIterator({
+        [Symbol.asyncIterator]() {
+          return {
+            async next(): Promise<IteratorResult<readonly MessageEvent[]>> {
+              throw new Error("range read failed");
+            },
+          };
+        },
+      });
       return jest.fn();
     });
     const renderer = makeRenderer({

@@ -36,6 +36,7 @@ export const selectIsKeyframeSearchActive = (store: PlaybackInteractionStateStor
 export function usePlaybackInteractionState<T>(
   selector: (store: PlaybackInteractionStateStore) => T,
 ): T {
-  const context = useContext(PlaybackInteractionStateContext) ?? defaultPlaybackInteractionStateStore;
+  const context =
+    useContext(PlaybackInteractionStateContext) ?? defaultPlaybackInteractionStateStore;
   return useStore(context, selector);
 }
