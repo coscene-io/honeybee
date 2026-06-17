@@ -128,12 +128,12 @@ export function CallService(props: Props): React.JSX.Element {
 
   const canCallService = Boolean(
     supportCallService &&
-      requestPayload &&
-      parsedObject != undefined &&
-      state?.status !== "requesting" &&
-      // If endCollection or cancelCollection is requesting, disable both of them
-      // startCollection is not affected by this restriction
-      !(isEndOrCancelRequesting && (type === "endCollection" || type === "cancelCollection")),
+    requestPayload &&
+    parsedObject != undefined &&
+    state?.status !== "requesting" &&
+    // If endCollection or cancelCollection is requesting, disable both of them
+    // startCollection is not affected by this restriction
+    !(isEndOrCancelRequesting && (type === "endCollection" || type === "cancelCollection")),
   );
 
   return (

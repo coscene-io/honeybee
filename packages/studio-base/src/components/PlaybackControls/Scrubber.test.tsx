@@ -54,10 +54,14 @@ jest.mock("./Slider", () => ({
 
 function SeedEventFeature({ enabled }: { enabled: boolean }): ReactNull {
   const setDataSource = useCoreData((store: CoreDataStore) => store.setDataSource);
+  const setProject = useCoreData((store: CoreDataStore) => store.setProject);
+  const setRecord = useCoreData((store: CoreDataStore) => store.setRecord);
 
   useEffect(() => {
     setDataSource(enabled ? { id: "coscene-data-platform", type: "connection" } : undefined);
-  }, [enabled, setDataSource]);
+    setProject({ loading: false, value: enabled ? ({ isArchived: false } as never) : undefined });
+    setRecord({ loading: false, value: enabled ? ({ isArchived: false } as never) : undefined });
+  }, [enabled, setDataSource, setProject, setRecord]);
 
   return ReactNull;
 }
@@ -88,16 +92,22 @@ function KeyframeSearchLock(): ReactNull {
 
 function Wrapper({
   children,
+  createEventAllowed = false,
   eventEnabled = false,
-}: React.PropsWithChildren<{ eventEnabled?: boolean }>): React.JSX.Element {
+  updateEventAllowed = false,
+}: React.PropsWithChildren<{
+  createEventAllowed?: boolean;
+  eventEnabled?: boolean;
+  updateEventAllowed?: boolean;
+}>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
       <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
         <CoSceneConsoleApiContext.Provider
           value={
             {
-              createEvent: { permission: () => false },
-              updateEvent: { permission: () => false },
+              createEvent: { permission: () => createEventAllowed },
+              updateEvent: { permission: () => updateEventAllowed },
             } as never
           }
         >
@@ -200,5 +210,20 @@ describe("<Scrubber />", () => {
     expect(await screen.findByLabelText("Enable moment subtitles")).toBeTruthy();
     expect(screen.queryByLabelText("Enable linked event adjustment")).toBeNull();
     expect(screen.queryByLabelText("Disable linked event adjustment")).toBeNull();
+  });
+
+  it("renders svg toolbar icons for event creation and linked event adjustment", async () => {
+    render(
+      <Wrapper eventEnabled createEventAllowed updateEventAllowed>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    expect(await screen.findByTestId("event-create-icon")).toBeTruthy();
+    expect(screen.getByTestId("rolling-edit-icon-active").tagName.toLowerCase()).toBe("span");
+
+    fireEvent.click(screen.getByLabelText("Disable linked event adjustment"));
+
+    expect(screen.getByTestId("rolling-edit-icon-inactive").tagName.toLowerCase()).toBe("span");
   });
 });

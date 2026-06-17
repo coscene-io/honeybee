@@ -65,7 +65,7 @@ declare global {
 }
 
 export function getAppConfig(): NonNullable<Window["cosConfig"]> {
-  const cosConfig = typeof window !== "undefined" ? window.cosConfig ?? {} : {};
+  const cosConfig = typeof window !== "undefined" ? (window.cosConfig ?? {}) : {};
 
   const appConfig = {
     VITE_APP_BASE_API_PORT:

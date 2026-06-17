@@ -264,8 +264,9 @@ function makeRenderer(
 function compressedVideoSubscription(imageMode: ImageMode) {
   const subscription = imageMode
     .getSubscriptions()
-    .find((entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"))
-    ?.subscription;
+    .find(
+      (entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"),
+    )?.subscription;
   if (subscription == undefined) {
     throw new Error("Missing compressed video subscription");
   }

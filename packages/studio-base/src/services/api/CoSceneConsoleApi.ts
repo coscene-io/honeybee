@@ -760,8 +760,8 @@ class CoSceneConsoleApi {
         customHost != undefined && customHost
           ? url
           : url.startsWith("/bff")
-          ? `${this.#bffUrl}${url}`
-          : `${this.#baseUrl}${url}`;
+            ? `${this.#bffUrl}${url}`
+            : `${this.#baseUrl}${url}`;
     }
 
     const fullConfig: RequestInit = {

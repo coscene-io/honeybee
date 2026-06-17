@@ -177,8 +177,9 @@ describe("Images compressed video seek lookback", () => {
   function compressedVideoSubscription(images: Images) {
     const subscription = images
       .getSubscriptions()
-      .find((entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"))
-      ?.subscription;
+      .find(
+        (entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"),
+      )?.subscription;
     if (subscription == undefined) {
       throw new Error("Missing compressed video subscription");
     }

@@ -597,16 +597,16 @@ export function CoSceneLayoutContent({
                     {selectedFolder.category === "personal"
                       ? t("personalLayout")
                       : selectedFolder.category === "project"
-                      ? t("projectLayout")
-                      : t("allLayout")}
+                        ? t("projectLayout")
+                        : t("allLayout")}
                   </Link>
                 ) : (
                   <Typography>
                     {selectedFolder.category === "personal"
                       ? t("personalLayout")
                       : selectedFolder.category === "project"
-                      ? t("projectLayout")
-                      : t("allLayout")}
+                        ? t("projectLayout")
+                        : t("allLayout")}
                   </Typography>
                 )}
                 {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}

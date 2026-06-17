@@ -106,7 +106,7 @@ export function useVizTargetSource(): (
 
         const public_key =
           coordinatorConfig?.enabled === true
-            ? targetDevice.tags.colink_pubkey ?? targetDevice.tags.virmesh_pubkey ?? ""
+            ? (targetDevice.tags.colink_pubkey ?? targetDevice.tags.virmesh_pubkey ?? "")
             : "";
 
         const proxy_server =

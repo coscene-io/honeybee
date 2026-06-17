@@ -124,8 +124,8 @@ export function openUserFeedback(): void {
     appConfig.VITE_APP_PROJECT_ENV === "aws" || appConfig.VITE_APP_PROJECT_ENV === "gcp"
       ? "https://form.typeform.com/to/mEjmjcNJ"
       : i18next.language === "zh"
-      ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"
-      : "https://coscene0.feishu.cn/share/base/form/shrcnWeMYQ3872PQYD5x73EJIYc";
+        ? "https://coscene0.feishu.cn/share/base/form/shrcnlWpp89ToqBDtXhwa8dCrgh"
+        : "https://coscene0.feishu.cn/share/base/form/shrcnWeMYQ3872PQYD5x73EJIYc";
 
   window.open(url, "_blank");
 }
