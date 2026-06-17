@@ -15,7 +15,6 @@
 //   You may not use this file except in compliance with the License.
 
 import { MessageEvent } from "@foxglove/studio-base/players/types";
-import { Fixture } from "@foxglove/studio-base/stories/PanelSetup";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 export const datatypes: RosDatatypes = new Map(
@@ -47,74 +46,3 @@ export const messages = Object.freeze<MessageEvent[]>([
     sizeInBytes: 0,
   },
 ]);
-
-export const MessagePathInputStoryFixture: Fixture = {
-  datatypes: new Map(
-    Object.entries({
-      "msgs/PoseDebug": {
-        definitions: [
-          { name: "header", type: "std_msgs/Header", isArray: false },
-          { name: "pose", type: "msgs/Pose", isArray: false },
-        ],
-      },
-      "msgs/Pose": {
-        definitions: [
-          { name: "header", type: "std_msgs/Header", isArray: false },
-          { name: "x", type: "float64", isArray: false },
-          { name: "y", type: "float64", isArray: false },
-          { name: "travel", type: "float64", isArray: false },
-          { name: "velocity", type: "float64", isArray: false },
-          { name: "acceleration", type: "float64", isArray: false },
-          { name: "heading", type: "float64", isArray: false },
-        ],
-      },
-      "msgs/State": {
-        definitions: [
-          { name: "header", type: "std_msgs/Header", isArray: false },
-          { name: "items", type: "msgs/OtherState", isArray: true },
-          { name: "foo_id", type: "uint32", isArray: false },
-        ],
-      },
-      "msgs/StateData": {
-        definitions: [{ name: "value", type: "float32", isArray: false }],
-      },
-      "msgs/OtherState": {
-        definitions: [
-          { name: "id", type: "int32", isArray: false },
-          { name: "speed", type: "float32", isArray: false },
-          { name: "name", type: "string", isArray: false },
-          { name: "valid", type: "bool", isArray: false },
-          { name: "data", type: "msgs/StateData", isArray: true },
-        ],
-      },
-      "msgs/Log": {
-        definitions: [
-          { name: "id", type: "int32", isArray: false },
-          { name: "severity", type: "float32", isArray: false },
-        ],
-      },
-      "std_msgs/Header": {
-        definitions: [
-          { name: "seq", type: "uint32", isArray: false },
-          {
-            name: "stamp",
-            type: "time",
-            isArray: false,
-          },
-          { name: "frame_id", type: "string", isArray: false },
-        ],
-      },
-    }),
-  ),
-  topics: [
-    { name: "/some_topic/location", schemaName: "msgs/PoseDebug" },
-    { name: "/some_topic/state", schemaName: "msgs/State" },
-    {
-      name: "/very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_very_long_topic_name/state",
-      schemaName: "msgs/State",
-    },
-    { name: "/some_logs_topic", schemaName: "msgs/Log" },
-  ],
-  frame: {},
-  globalVariables: { global_var_1: 42, global_var_2: 10 },
-};

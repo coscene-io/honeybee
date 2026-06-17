@@ -22,7 +22,6 @@ async function main(): Promise<void> {
   ]);
   const ignorePathsRegex = new RegExp(
     [
-      String.raw`\.stories\.tsx?$`,
       String.raw`packages/studio-base/src/index\.ts`,
       String.raw`packages/studio-base/src/panels/ThreeDeeRender/transforms/index\.ts`, // `export *` is not correctly analyzed <https://github.com/pzavolinsky/ts-unused-exports/issues/286>
       String.raw`packages/studio-base/src/test/`,

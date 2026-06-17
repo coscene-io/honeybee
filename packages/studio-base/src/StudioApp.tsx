@@ -13,6 +13,7 @@ import { DialogsStore, useDialogs } from "@foxglove/studio-base/context/DialogsC
 import { useSharedRootContext } from "@foxglove/studio-base/context/SharedRootContext";
 import { UserScriptStateProvider } from "@foxglove/studio-base/context/UserScriptStateContext";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import ProblemsContextProvider from "@foxglove/studio-base/providers/ProblemsContextProvider";
 import { StudioLogsSettingsProvider } from "@foxglove/studio-base/providers/StudioLogsSettingsProvider";
 import SubscriptionEntitlementProvider from "@foxglove/studio-base/providers/SubscriptionEntitlementProvider";
@@ -62,6 +63,7 @@ export function StudioApp(): React.JSX.Element {
 
   const providers = [
     /* eslint-disable react/jsx-key */
+    <PlaybackInteractionStateProvider />,
     <TimelineInteractionStateProvider />,
     <UserScriptStateProvider />,
     <ExtensionMarketplaceProvider />,
