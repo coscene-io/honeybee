@@ -4891,6 +4891,7 @@ __metadata:
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
     "@rspack/core": 2.0.8
+    "@sentry/browser": 8.24.0
     "@sentry/core": 8.24.0
     "@sentry/types": 8.24.0
     "@svgr/webpack": 8.1.0
@@ -5082,6 +5083,7 @@ __metadata:
     "@mui/material": 7.3.11
     "@rspack/core": 2.0.8
     "@rspack/plugin-react-refresh": 2.0.2
+    "@sentry/webpack-plugin": 2.22.0
     "@types/react-refresh": ^0
     assert: 2.1.0
     react: 18.3.1
@@ -5089,6 +5091,8 @@ __metadata:
     react-i18next: 14.0.5
     react-refresh: 0.16.0
     tss-react: 4.9.3
+    webpack: 5.97.1
+    webpack-dev-server: 5.2.0
   languageName: unknown
   linkType: soft
 
@@ -11000,8 +11004,6 @@ __metadata:
     "@foxglove/schemas": 2.0.0
     "@foxglove/studio": "workspace:*"
     "@foxglove/studio-base": "workspace:*"
-    "@foxglove/tsconfig": 3.2.0
-    "@rspack/cli": 2.0.8
     "@rspack/core": 2.0.8
     "@rspack/plugin-react-refresh": 2.0.2
     "@types/react": 18.3.27
@@ -12915,8 +12917,8 @@ __metadata:
     "@foxglove/log": "workspace:*"
     "@foxglove/studio-base": "workspace:*"
     "@foxglove/studio-desktop": "workspace:*"
-    "@foxglove/tsconfig": 3.2.0
     "@foxglove/ws-protocol": 0.1.2
+    "@rspack/cli": 2.0.8
     "@rspack/core": 2.0.8
     "@types/ws": ^8
     electron: 35.0.3
@@ -25375,16 +25377,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "web@workspace:web"
   dependencies:
+    "@foxglove/den": "workspace:*"
     "@foxglove/log": "workspace:*"
+    "@foxglove/studio-desktop": "workspace:*"
     "@foxglove/studio-web": "workspace:*"
-    "@foxglove/tsconfig": 3.2.0
-    "@sentry/browser": 8.24.0
-    "@sentry/webpack-plugin": 2.22.0
+    "@rspack/cli": 2.0.8
+    "@rspack/core": 2.0.8
     "@types/serve-handler": ^6
+    electron: 35.0.3
     playwright: 1.60.0
     serve-handler: 6.1.5
-    webpack: 5.97.1
-    webpack-dev-server: 5.2.0
   languageName: unknown
   linkType: soft
 

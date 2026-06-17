@@ -37,6 +37,10 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { type EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
+  selectIsKeyframeSearchActive,
+  usePlaybackInteractionState,
+} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import {
   useClearHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
@@ -400,8 +404,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const min = useMemo(() => startTime && toSec(startTime), [startTime]);
   const max = useMemo(() => endTime && toSec(endTime), [endTime]);
 
-  const loading = presence === PlayerPresence.INITIALIZING || presence === PlayerPresence.BUFFERING;
-  const disableControls = presence === PlayerPresence.ERROR;
+  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
+  const loading =
+    presence === PlayerPresence.INITIALIZING ||
+    presence === PlayerPresence.BUFFERING ||
+    isKeyframeSearchActive;
+  const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
 
   const popperRef = React.useRef<Instance>(ReactNull);
 
@@ -746,7 +754,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
             <Stack fullHeight fullWidth position="absolute" flex={1}>
               {resolvedViewport && (
                 <Slider
-                  disabled={min == undefined || max == undefined}
+                  disabled={disableControls || min == undefined || max == undefined}
                   onContextMenu={onContextMenu}
                   onHoverOver={onHoverOver}
                   onHoverOut={onHoverOut}

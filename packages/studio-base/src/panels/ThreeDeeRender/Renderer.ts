@@ -237,6 +237,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public currentTime = 0n;
   public startTime: bigint | undefined;
   public subscribeMessageRange: SubscribeMessageRange | undefined;
+  public acquireSeekKeyframeSearchPlaybackPause?: IRenderer["acquireSeekKeyframeSearchPlaybackPause"];
   public fixedFrameId: string | undefined;
   public followFrameId: string | undefined;
 

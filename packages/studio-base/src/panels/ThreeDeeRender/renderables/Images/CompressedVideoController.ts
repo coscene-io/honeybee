@@ -66,7 +66,11 @@ type ControllerState = {
 
 type ControllerRenderer = Pick<
   IRenderer,
-  "currentTime" | "startTime" | "subscribeMessageRange" | "queueAnimationFrame"
+  | "currentTime"
+  | "startTime"
+  | "subscribeMessageRange"
+  | "acquireSeekKeyframeSearchPlaybackPause"
+  | "queueAnimationFrame"
 >;
 
 export class CompressedVideoController {
@@ -83,6 +87,7 @@ export class CompressedVideoController {
   #seekTargetNs: bigint | undefined;
   #seekKeyframeSearchActive = false;
   #seekKeyframeSearchGeneration: number | undefined;
+  #releaseSeekKeyframeSearchPlaybackPause: (() => void) | undefined;
 
   public constructor(args: {
     topic: string;
@@ -650,6 +655,8 @@ export class CompressedVideoController {
       return;
     }
     this.#seekKeyframeSearchActive = true;
+    this.#releaseSeekKeyframeSearchPlaybackPause =
+      this.#renderer.acquireSeekKeyframeSearchPlaybackPause?.();
     this.#onSeekKeyframeSearchChange?.({ active: true });
   }
 
@@ -666,6 +673,9 @@ export class CompressedVideoController {
       return;
     }
     this.#seekKeyframeSearchActive = false;
+    const releaseSeekKeyframeSearchPlaybackPause = this.#releaseSeekKeyframeSearchPlaybackPause;
+    this.#releaseSeekKeyframeSearchPlaybackPause = undefined;
+    releaseSeekKeyframeSearchPlaybackPause?.();
     this.#onSeekKeyframeSearchChange?.({ active: false });
   }
 

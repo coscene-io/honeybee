@@ -2,15 +2,15 @@
   "name": "web",
   "private": true,
   "devDependencies": {
+    "@foxglove/den": "workspace:*",
     "@foxglove/log": "workspace:*",
+    "@foxglove/studio-desktop": "workspace:*",
     "@foxglove/studio-web": "workspace:*",
-    "@foxglove/tsconfig": "3.2.0",
-    "@sentry/browser": "8.24.0",
-    "@sentry/webpack-plugin": "2.22.0",
+    "@rspack/cli": "2.0.8",
+    "@rspack/core": "2.0.8",
     "@types/serve-handler": "^6",
+    "electron": "35.0.3",
     "playwright": "1.60.0",
-    "serve-handler": "6.1.5",
-    "webpack": "5.97.1",
-    "webpack-dev-server": "5.2.0"
+    "serve-handler": "6.1.5"
   }
 }

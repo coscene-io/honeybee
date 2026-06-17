@@ -7,12 +7,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
@@ -50,6 +53,18 @@ function TimelineHeightObserver(): React.JSX.Element {
   return <div data-testid="timeline-height">{timelineHeight}</div>;
 }
 
+function KeyframeSearchLock(): ReactNull {
+  const acquireKeyframeSearchLock = usePlaybackInteractionState(
+    (store) => store.acquireKeyframeSearchLock,
+  );
+
+  useEffect(() => {
+    return acquireKeyframeSearchLock({ isPlaying: false });
+  }, [acquireKeyframeSearchLock]);
+
+  return ReactNull;
+}
+
 function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -68,11 +83,13 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
               disablePersistence
               initialState={{ playbackControls: { repeat: false, speed: 1 } }}
             >
-              <MockMessagePipelineProvider>
-                {children}
-                <SpeedObserver />
-                <TimelineHeightObserver />
-              </MockMessagePipelineProvider>
+              <PlaybackInteractionStateProvider>
+                <MockMessagePipelineProvider>
+                  {children}
+                  <SpeedObserver />
+                  <TimelineHeightObserver />
+                </MockMessagePipelineProvider>
+              </PlaybackInteractionStateProvider>
             </WorkspaceContextProvider>
           </CoreDataProvider>
         </CoSceneConsoleApiContext.Provider>
@@ -159,6 +176,90 @@ describe("<PlaybackControls />", () => {
       );
     });
 
+    expect(screen.getByTestId("playback-speed").textContent).toBe("1");
+  });
+
+  it("disables play controls and ignores spacebar playback while keyframe search is active", () => {
+    const play = jest.fn();
+    const { container } = render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={play}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    expect(container.querySelector<HTMLButtonElement>("#play-pause-button")?.disabled).toBe(true);
+    jest.mocked(console.warn).mockClear();
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          code: "Space",
+          key: " ",
+        }),
+      );
+    });
+
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it("ignores seek and speed keyboard shortcuts while keyframe search is active", () => {
+    const seek = jest.fn();
+    render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({
+            startTime: { sec: 0, nsec: 0 },
+            endTime: { sec: 10, nsec: 0 },
+            currentTime: { sec: 1, nsec: 0 },
+          })}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={seek}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+    jest.mocked(console.warn).mockClear();
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          code: "ArrowRight",
+          key: "ArrowRight",
+        }),
+      );
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          code: "ArrowLeft",
+          key: "ArrowLeft",
+        }),
+      );
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          code: "Equal",
+          key: "+",
+          shiftKey: true,
+        }),
+      );
+    });
+
+    expect(seek).not.toHaveBeenCalled();
     expect(screen.getByTestId("playback-speed").textContent).toBe("1");
   });
 
