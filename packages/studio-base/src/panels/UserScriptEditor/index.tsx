@@ -198,7 +198,7 @@ function UserScriptEditor(props: Props) {
   const { config, saveConfig } = props;
   const { classes, theme } = useStyles();
   const { t } = useTranslation("userScriptEditor");
-  const { autoFormatOnSave = false, selectedNodeId, editorForStorybook } = config;
+  const { autoFormatOnSave = false, selectedNodeId } = config;
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
   const userScripts = useCurrentLayoutSelector(selectUserScripts);
@@ -256,13 +256,11 @@ function UserScriptEditor(props: Props) {
 
   useLayoutEffect(() => {
     if (selectedScript) {
-      const testItems = props.config.additionalBackStackItems ?? [];
       setScriptBackStack([
         { filePath: selectedScript.name, code: selectedScript.sourceCode, readOnly: false },
-        ...testItems,
       ]);
     }
-  }, [props.config.additionalBackStackItems, selectedScript]);
+  }, [selectedScript]);
 
   useLayoutEffect(() => {
     setInputTitle(() => {
@@ -434,17 +432,15 @@ function UserScriptEditor(props: Props) {
                   </Stack>
                 }
               >
-                {editorForStorybook ?? (
-                  <Editor
-                    autoFormatOnSave={autoFormatOnSave}
-                    script={currentScript}
-                    setScriptCode={setScriptCode}
-                    setScriptOverride={setScriptOverride}
-                    rosLib={rosLib}
-                    typesLib={typesLib}
-                    save={saveNode}
-                  />
-                )}
+                <Editor
+                  autoFormatOnSave={autoFormatOnSave}
+                  script={currentScript}
+                  setScriptCode={setScriptCode}
+                  setScriptOverride={setScriptOverride}
+                  rosLib={rosLib}
+                  typesLib={typesLib}
+                  save={saveNode}
+                />
               </Suspense>
             </ResizablePanel>
             <PanelResizeHandle className={classes.resizeHandle} />

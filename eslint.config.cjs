@@ -20,8 +20,6 @@ module.exports = tslintPlugin.config(
       "**/out",
       "**/template",
       "packages/**/wasm/*.js",
-      "!**/.storybook",
-      "**/storybook-static",
       "**/.webpack/**",
       "**/.yarn/**",
     ],
@@ -204,17 +202,10 @@ module.exports = tslintPlugin.config(
     },
   },
   {
-    files: ["**/*.stories.tsx", "**/*.test.tsx", "**/*.test.ts"],
+    files: ["**/*.test.tsx", "**/*.test.ts"],
 
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
-    },
-  },
-  {
-    files: ["**/*.stories.tsx"],
-
-    rules: {
-      "react/forbid-component-props": "off",
     },
   },
   {

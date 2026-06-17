@@ -90,7 +90,7 @@ function renderMomentSubtitleOverlay({
   render(
     <ThemeProvider isDark>
       <WorkspaceContextProvider
-        disablePersistenceForStorybook
+        disablePersistence
         initialState={
           {
             playbackControls: {
