@@ -295,7 +295,7 @@ export function getMessagePathDataItems(
             const formattedValue =
               typeof filterValue === "bigint"
                 ? filterValue.toString()
-                : JSON.stringify(filterValue) ?? "";
+                : (JSON.stringify(filterValue) ?? "");
             newPath = `${path}[:]{${name}==${formattedValue}}`;
           } else {
             // Use `i` here instead of `index`, since it's only different when `i` is negative,

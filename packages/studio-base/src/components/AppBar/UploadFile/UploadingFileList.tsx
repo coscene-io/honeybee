@@ -56,8 +56,8 @@ export function UploadingFileList({
                   status.status === "uploading"
                     ? "primary"
                     : status.status === "failed"
-                    ? "error"
-                    : "success"
+                      ? "error"
+                      : "success"
                 }
                 value={status.progress}
               />

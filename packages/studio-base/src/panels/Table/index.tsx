@@ -89,7 +89,7 @@ function TablePanel({ config, saveConfig }: Props) {
   const effectiveMessages = getEffectiveMessages(messageDataItems);
   const cachedMessages =
     effectiveMessages.length > 0
-      ? effectiveMessages[effectiveMessages.length - 1]?.queriedData ?? []
+      ? (effectiveMessages[effectiveMessages.length - 1]?.queriedData ?? [])
       : [];
 
   // Update rendered time for frame navigation

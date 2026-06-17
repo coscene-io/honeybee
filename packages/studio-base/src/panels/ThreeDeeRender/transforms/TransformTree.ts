@@ -103,8 +103,8 @@ export class TransformTree {
     return cycleDetected
       ? AddTransformResult.CYCLE_DETECTED
       : updated
-      ? AddTransformResult.UPDATED
-      : AddTransformResult.NOT_UPDATED;
+        ? AddTransformResult.UPDATED
+        : AddTransformResult.NOT_UPDATED;
   }
 
   /**

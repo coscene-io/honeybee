@@ -215,8 +215,8 @@ class BufferedIterableSource<MessageType = unknown>
           result.type === "message-event"
             ? result.msgEvent.receiveTime
             : result.type === "stamp"
-            ? result.stamp
-            : undefined;
+              ? result.stamp
+              : undefined;
 
         // Make sure that we have buffered enough ahead before telling the consumer to try reading again.
         const minReadAheadUntil = addTime(this.#readHead, this.#minReadAheadDuration);

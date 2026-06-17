@@ -163,10 +163,10 @@ function Publish(props: Props) {
 
   const canPublish = Boolean(
     capabilities.includes(PlayerCapabilities.advertise) &&
-      config.value &&
-      config.topicName &&
-      config.datatype &&
-      parsedObject != undefined,
+    config.value &&
+    config.topicName &&
+    config.datatype &&
+    parsedObject != undefined,
   );
 
   const statusMessage = useMemo(() => {

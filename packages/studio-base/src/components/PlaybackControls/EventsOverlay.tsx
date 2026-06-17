@@ -924,8 +924,8 @@ function snapRangeToLaneBoundaries({
       edge == undefined
         ? (["start", "end"] as const)
         : edge === "start"
-        ? (["start"] as const)
-        : (["end"] as const);
+          ? (["start"] as const)
+          : (["end"] as const);
 
     for (const edgeToCheck of edgesToCheck) {
       const edgeSec = edgeToCheck === "start" ? range.startSec : range.endSec;
@@ -1317,8 +1317,8 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
             currentDrag.kind === "body"
               ? clientXToTime(clientX, rect, viewport)
               : currentDrag.edge === "start"
-              ? snappedRange.startSec
-              : snappedRange.endSec,
+                ? snappedRange.startSec
+                : snappedRange.endSec,
           );
         }
         eventDragRef.current = updatedDrag;
@@ -1721,8 +1721,8 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
             (isPreviousPreview
               ? { startSec: item.startSec, endSec: rollingEdit.boundarySec }
               : isNextPreview
-              ? { startSec: rollingEdit.boundarySec, endSec: item.endSec }
-              : undefined);
+                ? { startSec: rollingEdit.boundarySec, endSec: item.endSec }
+                : undefined);
           const renderItem =
             previewRange != undefined
               ? getEventLayoutWithRange(item, previewRange, viewport)

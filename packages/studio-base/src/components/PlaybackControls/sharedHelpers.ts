@@ -39,7 +39,7 @@ export const jumpSeek = (
     modifierKeys?.altKey === true
       ? ARROW_SEEK_BIG_MS
       : modifierKeys?.shiftKey === true
-      ? ARROW_SEEK_SMALL_MS
-      : defaultMs;
+        ? ARROW_SEEK_SMALL_MS
+        : defaultMs;
   return fromSec(timeSec + (deltaMs / 1000) * directionSign);
 };

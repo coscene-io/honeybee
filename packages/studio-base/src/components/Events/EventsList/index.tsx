@@ -436,9 +436,9 @@ export function EventsList(): React.JSX.Element {
                     <Stack
                       flex={1}
                       overflow="hidden"
-                      title={`${t("from", { ns: "general" })} ${timestampedEvents.get(
-                        recordTitle,
-                      )?.[0]?.projectDisplayName} ${t("project", { ns: "general" })}`}
+                      title={`${t("from", { ns: "general" })} ${
+                        timestampedEvents.get(recordTitle)?.[0]?.projectDisplayName
+                      } ${t("project", { ns: "general" })}`}
                     >
                       <Typography noWrap>
                         {timestampedEvents.get(recordTitle)?.[0]?.recordDisplayName}

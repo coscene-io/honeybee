@@ -161,7 +161,7 @@ export function TaskForm({ form, onMetaDataKeyDown }: TaskFormProps): React.Reac
       )}
 
       <Stack paddingTop={2}>
-        {syncedTask?.enabled ?? false ? (
+        {(syncedTask?.enabled ?? false) ? (
           <Controller
             name="needSyncTask"
             control={control}

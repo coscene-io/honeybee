@@ -172,8 +172,9 @@ export function PlaylistSyncAdapter(): ReactNull {
       }
 
       const newStateRecordBagFiles = playListFiles.map((ele) => {
-        const currentStatus = mediaStatusList.find((media) => media.filename === ele.source)
-          ?.status;
+        const currentStatus = mediaStatusList.find(
+          (media) => media.filename === ele.source,
+        )?.status;
         return positionBag({
           ...ele,
           startTime,
@@ -183,7 +184,7 @@ export function PlaylistSyncAdapter(): ReactNull {
           mediaStatus:
             ele.mediaStatus === "GENERATING" && currentStatus === "NORMAL"
               ? "GENERATED_SUCCESS"
-              : currentStatus ?? "GENERATE_INCAPABLE",
+              : (currentStatus ?? "GENERATE_INCAPABLE"),
         });
       });
 

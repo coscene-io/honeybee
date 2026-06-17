@@ -672,11 +672,11 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     const resultEntry =
       result.type === "IntermediateFrame"
         ? targetEntry
-        : entries.find(
+        : (entries.find(
             (entry) =>
               toNanoSec(entry.frame.timestamp) === result.originalTimestamp &&
               entry.receiveTime === result.receiveTime,
-          ) ?? targetEntry;
+          ) ?? targetEntry);
 
     for (const entry of entries) {
       if (entry === resultEntry) {

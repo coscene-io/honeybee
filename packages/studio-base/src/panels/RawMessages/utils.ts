@@ -32,9 +32,9 @@ ROS1_COMMON_MSG_PACKAGES.add("turtlesim");
 function isTypedArray(obj: unknown) {
   return Boolean(
     obj != undefined &&
-      typeof obj === "object" &&
-      ArrayBuffer.isView(obj) &&
-      !(obj instanceof DataView),
+    typeof obj === "object" &&
+    ArrayBuffer.isView(obj) &&
+    !(obj instanceof DataView),
   );
 }
 
