@@ -4970,7 +4970,7 @@ __metadata:
     race-as-promised: 0.0.3
     ramda: 0.29.1
     react: ^18.3.1
-    react-colorful: 5.6.1
+    react-colorful: 5.7.0
     react-cookie: 7.2.0
     react-dnd: 16.0.1
     react-dnd-html5-backend: 16.0.1
@@ -21221,13 +21221,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-colorful@npm:5.6.1":
-  version: 5.6.1
-  resolution: "react-colorful@npm:5.6.1"
+"react-colorful@npm:5.7.0":
+  version: 5.7.0
+  resolution: "react-colorful@npm:5.7.0"
   peerDependencies:
     react: ">=16.8.0"
     react-dom: ">=16.8.0"
-  checksum: e432b7cb0df57e8f0bcdc3b012d2e93fcbcb6092c9e0f85654788d5ebfc4442536d8cc35b2418061ba3c4afb8b7788cc101c606d86a1732407921de7a9244c8d
+  checksum: 4d005b907256d97776a356eb8fb491824b3a6b08e6a15580ba92f78de066bd55285608987a54f71310b4413556407d0745ba34cd7b847129bbb7d8081454275c
   languageName: node
   linkType: hard
 
