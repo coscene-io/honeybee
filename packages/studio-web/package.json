@@ -15,7 +15,6 @@
     "@rspack/core": "2.0.8",
     "@rspack/plugin-react-refresh": "2.0.2",
     "@sentry/webpack-plugin": "2.22.0",
-    "@storybook/react": "8.2.8",
     "@types/react-refresh": "^0",
     "assert": "2.1.0",
     "react": "18.3.1",

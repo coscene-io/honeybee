@@ -21,7 +21,7 @@ import { useEffect } from "react";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { PanelsActions } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
+import PanelSetup from "@foxglove/studio-base/test/PanelSetup";
 
 type DummyConfig = { someString: string };
 type DummyProps = { config: DummyConfig; saveConfig: (arg0: Partial<DummyConfig>) => void };

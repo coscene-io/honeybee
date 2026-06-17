@@ -542,6 +542,31 @@ export function ThreeDeeRender(props: {
     }
   }, [renderer, subscribeMessageRange]);
 
+  const acquireSeekKeyframeSearchPlaybackPause = useCallback(() => {
+    return (
+      context.unstable_acquireKeyframeSearchLock?.({
+        isPlaying: context.unstable_getPlaybackIsPlaying?.() ?? false,
+        pausePlayback: context.unstable_pausePlayback,
+        startPlayback: context.unstable_startPlayback,
+      }) ?? (() => {})
+    );
+  }, [context]);
+
+  useEffect(() => {
+    if (!renderer) {
+      return;
+    }
+
+    renderer.acquireSeekKeyframeSearchPlaybackPause = acquireSeekKeyframeSearchPlaybackPause;
+    return () => {
+      if (
+        renderer.acquireSeekKeyframeSearchPlaybackPause === acquireSeekKeyframeSearchPlaybackPause
+      ) {
+        renderer.acquireSeekKeyframeSearchPlaybackPause = undefined;
+      }
+    };
+  }, [acquireSeekKeyframeSearchPlaybackPause, renderer]);
+
   // Keep the renderer currentTime up to date and handle seeking
   useEffect(() => {
     const newTimeNs = currentTime ? toNanoSec(currentTime) : undefined;

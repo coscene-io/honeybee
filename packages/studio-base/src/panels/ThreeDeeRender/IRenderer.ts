@@ -81,7 +81,7 @@ export type ImageAnnotationSettings = {
 
 /** Arguments that can be passed to the renderer for local testing */
 export type TestOptions = {
-  /** Override default downloading behavior, used for Storybook */
+  /** Override default downloading behavior for tests. */
   onDownloadImage?: (blob: Blob, fileName: string) => void;
   debugPicking?: boolean;
 };
@@ -190,6 +190,9 @@ export type RendererSubscription<T = unknown> = {
   filterQueue?: (queue: MessageEvent<T>[]) => MessageEvent<T>[];
 };
 
+export type ReleaseSeekKeyframeSearchPlaybackPause = () => void;
+export type AcquireSeekKeyframeSearchPlaybackPause = () => ReleaseSeekKeyframeSearchPlaybackPause;
+
 export type AnyRendererSubscription = Immutable<
   | {
       type: "schema";
@@ -260,6 +263,7 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   currentTime: bigint;
   startTime: bigint | undefined;
   subscribeMessageRange: SubscribeMessageRange | undefined;
+  acquireSeekKeyframeSearchPlaybackPause?: AcquireSeekKeyframeSearchPlaybackPause;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */
   fixedFrameId: string | undefined;
   /**

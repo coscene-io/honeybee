@@ -14,10 +14,12 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
@@ -38,15 +40,15 @@ jest.mock("./PlaybackBarHoverTicks", () => ({
 }));
 
 jest.mock("./ProgressPlot", () => ({
-  ProgressPlot: function MockProgressPlot(): React.JSX.Element {
-    return <div data-testid="progress-plot" />;
+  ProgressPlot: function MockProgressPlot({ loading }: { loading: boolean }): React.JSX.Element {
+    return <div data-testid={loading ? "timeline-progress-loading" : "progress-plot"} />;
   },
 }));
 
 jest.mock("./Slider", () => ({
   __esModule: true,
-  default: function MockSlider(): React.JSX.Element {
-    return <div data-testid="scrubber-slider" />;
+  default: function MockSlider({ disabled }: { disabled?: boolean }): React.JSX.Element {
+    return <div data-testid="scrubber-slider" data-disabled={String(disabled)} />;
   },
 }));
 
@@ -72,6 +74,18 @@ function MomentSubtitleStateProbe(): React.JSX.Element {
   return <div data-testid="moment-subtitle-enabled">{String(enabled)}</div>;
 }
 
+function KeyframeSearchLock(): ReactNull {
+  const acquireKeyframeSearchLock = usePlaybackInteractionState(
+    (store) => store.acquireKeyframeSearchLock,
+  );
+
+  useEffect(() => {
+    return acquireKeyframeSearchLock({ isPlaying: false });
+  }, [acquireKeyframeSearchLock]);
+
+  return ReactNull;
+}
+
 function Wrapper({
   children,
   eventEnabled = false,
@@ -88,21 +102,23 @@ function Wrapper({
           }
         >
           <CoreDataProvider>
-            <WorkspaceContextProvider disablePersistenceForStorybook>
+            <WorkspaceContextProvider disablePersistence>
               <MockMessagePipelineProvider
                 startTime={{ sec: 0, nsec: 0 }}
                 endTime={{ sec: 10, nsec: 0 }}
                 currentTime={{ sec: 1, nsec: 0 }}
               >
-                <TimelineInteractionStateProvider>
-                  <CoScenePlaylistProvider>
-                    <EventsProvider>
-                      <SeedEventFeature enabled={eventEnabled} />
-                      {children}
-                      <MomentSubtitleStateProbe />
-                    </EventsProvider>
-                  </CoScenePlaylistProvider>
-                </TimelineInteractionStateProvider>
+                <PlaybackInteractionStateProvider>
+                  <TimelineInteractionStateProvider>
+                    <CoScenePlaylistProvider>
+                      <EventsProvider>
+                        <SeedEventFeature enabled={eventEnabled} />
+                        {children}
+                        <MomentSubtitleStateProbe />
+                      </EventsProvider>
+                    </CoScenePlaylistProvider>
+                  </TimelineInteractionStateProvider>
+                </PlaybackInteractionStateProvider>
               </MockMessagePipelineProvider>
             </WorkspaceContextProvider>
           </CoreDataProvider>
@@ -129,6 +145,28 @@ describe("<Scrubber />", () => {
     );
 
     expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
+  });
+
+  it("shows timeline loading while keyframe search is active", () => {
+    render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("timeline-progress-loading")).toBeTruthy();
+  });
+
+  it("disables the timeline slider while keyframe search is active", () => {
+    render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("scrubber-slider").dataset.disabled).toBe("true");
   });
 
   it("renders and toggles the moment subtitle button when events are enabled", async () => {
