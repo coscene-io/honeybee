@@ -4930,7 +4930,7 @@ __metadata:
     crypto-browserify: 3.12.0
     css-loader: 7.1.4
     cytoscape: 3.31.0
-    cytoscape-dagre: 2.5.0
+    cytoscape-dagre: 4.0.0
     dayjs: ^1.11.21
     eventemitter3: 5.0.1
     fake-indexeddb: 4.0.2
@@ -12525,14 +12525,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cytoscape-dagre@npm:2.5.0":
-  version: 2.5.0
-  resolution: "cytoscape-dagre@npm:2.5.0"
-  dependencies:
-    dagre: ^0.8.5
+"cytoscape-dagre@npm:4.0.0":
+  version: 4.0.0
+  resolution: "cytoscape-dagre@npm:4.0.0"
   peerDependencies:
     cytoscape: ^3.2.22
-  checksum: 0a115b41c2b2123f14110281105547bb0718c2d1f3988f266096e5b6cbd693ae765d4c570de30844c5b0d0cc18ffe81d5fe74115928eb86a41378834b9b3edce
+  checksum: 09e9740579f243b05cfccd67f443e9bee886212c9c3d373acd329ec10ecc773f26e3f2c9e2a7e534613ecad3db1916b061e3c62a8f704f68eebbbddae97550e5
   languageName: node
   linkType: hard
 
@@ -12540,16 +12538,6 @@ __metadata:
   version: 3.31.0
   resolution: "cytoscape@npm:3.31.0"
   checksum: 842485dd8b3b2078236984eee0966f6e0b0a59e0e4ad72c6c384eeaa5201fcbb0b51223ad1aabd7429191d99ae878d43fdb96785ce0bac20671dcc8c2cd24ed0
-  languageName: node
-  linkType: hard
-
-"dagre@npm:^0.8.5":
-  version: 0.8.5
-  resolution: "dagre@npm:0.8.5"
-  dependencies:
-    graphlib: ^2.1.8
-    lodash: ^4.17.15
-  checksum: b9fabd425466d7b662381c2e457b1adda996bc4169aa60121d4de50250d83a6bb4b77d559e2f887c9c564caea781c2a377fd4de2a76c15f8f04ec3d086ca95f9
   languageName: node
   linkType: hard
 
@@ -15656,15 +15644,6 @@ __metadata:
   version: 1.4.0
   resolution: "graphemer@npm:1.4.0"
   checksum: bab8f0be9b568857c7bec9fda95a89f87b783546d02951c40c33f84d05bb7da3fd10f863a9beb901463669b6583173a8c8cc6d6b306ea2b9b9d5d3d943c3a673
-  languageName: node
-  linkType: hard
-
-"graphlib@npm:^2.1.8":
-  version: 2.1.8
-  resolution: "graphlib@npm:2.1.8"
-  dependencies:
-    lodash: ^4.17.15
-  checksum: 1e0db4dea1c8187d59103d5582ecf32008845ebe2103959a51d22cb6dae495e81fb9263e22c922bca3aaecb56064a45cd53424e15a4626cfb5a0c52d0aff61a8
   languageName: node
   linkType: hard
 
