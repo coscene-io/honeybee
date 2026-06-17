@@ -252,7 +252,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
 
       const frameData =
         frame.format === "h264" && frameInfo.mayNeedRewrite
-          ? H264.RewriteForLowLatencyDecoding(frame.data) ?? frame.data
+          ? (H264.RewriteForLowLatencyDecoding(frame.data) ?? frame.data)
           : frame.data;
 
       queuedFrames.push({

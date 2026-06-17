@@ -151,10 +151,10 @@ function getPublicState(
     subscriptions: [],
     sortedTopics:
       props.topics === prevState?.mockProps.topics
-        ? prevState?.public.sortedTopics ?? []
+        ? (prevState?.public.sortedTopics ?? [])
         : props.topics
-        ? [...props.topics].sort((a, b) => a.name.localeCompare(b.name))
-        : [],
+          ? [...props.topics].sort((a, b) => a.name.localeCompare(b.name))
+          : [],
     datatypes: props.datatypes ?? NO_DATATYPES,
     setSubscriptions:
       (props.setSubscriptions === prevState?.mockProps.setSubscriptions

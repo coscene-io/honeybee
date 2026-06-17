@@ -243,7 +243,7 @@ export function Indicator({ context }: Props): React.JSX.Element {
         padding={1}
         style={{
           backgroundColor:
-            style === "background" ? matchingRule?.color ?? fallbackColor : undefined,
+            style === "background" ? (matchingRule?.color ?? fallbackColor) : undefined,
         }}
       >
         <Stack direction="row" alignItems="center" gap={2}>
@@ -259,7 +259,7 @@ export function Indicator({ context }: Props): React.JSX.Element {
                 ? augmentColor({
                     color: { main: matchingRule?.color ?? fallbackColor },
                   }).contrastText
-                : matchingRule?.color ?? fallbackColor
+                : (matchingRule?.color ?? fallbackColor)
             }
             fontFamily="fontMonospace"
             variant="h1"

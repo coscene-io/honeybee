@@ -301,7 +301,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async saveNewLayout({
     folder,
     name,
@@ -313,7 +313,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     data: LayoutData;
     permission: LayoutPermission;
   }): Promise<Layout> {
-    const parent = permission === "PERSONAL_WRITE" ? this.userName ?? "" : this.projectName ?? "";
+    const parent =
+      permission === "PERSONAL_WRITE" ? (this.userName ?? "") : (this.projectName ?? "");
 
     const data = migratePanelsState(unmigratedData);
     if (layoutPermissionIsProject(permission)) {
@@ -387,7 +388,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     return newLayout;
   }
 
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async updateLayout({
     id,
     name,
@@ -414,8 +415,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       data == undefined
         ? localLayout.working
         : isLayoutEqual(localLayout.baseline.data, data)
-        ? undefined
-        : { data, savedAt: now };
+          ? undefined
+          : { data, savedAt: now };
 
     // Renames of shared layouts go directly to the server
     if ((folder != undefined || name != undefined) && layoutIsProject(localLayout)) {
@@ -495,7 +496,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
   }
 
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async deleteLayout({ id }: { id: LayoutID }): Promise<void> {
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
     if (!localLayout) {
@@ -534,7 +535,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     this.#notifyChangeListeners({ type: "delete", layoutId: id });
   }
 
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async overwriteLayout({ id }: { id: LayoutID }): Promise<Layout> {
     const localLayout = await this.#local.runExclusive(async (local) => await local.get(id));
     if (!localLayout) {
@@ -603,7 +604,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
   }
 
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async revertLayout({ id }: { id: LayoutID }): Promise<Layout> {
     const result = await this.#local.runExclusive(async (local) => {
       const layout = await local.get(id);
@@ -619,7 +620,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     return result;
   }
 
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async makePersonalCopy({ id, name }: { id: LayoutID; name: string }): Promise<Layout> {
     const now = new Date().toISOString() as ISO8601Timestamp;
 
@@ -660,7 +661,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
    * the cached and remote layout lists; it may also involve modifications to the cache, remote
    * storage, or both.
    */
-  @CoSceneLayoutManager.#withBusyStatus
+  @(CoSceneLayoutManager.#withBusyStatus)
   public async syncWithRemote(abortSignal: AbortSignal): Promise<void> {
     if (this.#currentSync) {
       log.debug("Layout sync is already in progress");
