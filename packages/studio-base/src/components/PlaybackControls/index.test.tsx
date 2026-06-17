@@ -80,7 +80,7 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
         >
           <CoreDataProvider>
             <WorkspaceContextProvider
-              disablePersistenceForStorybook
+              disablePersistence
               initialState={{ playbackControls: { repeat: false, speed: 1 } }}
             >
               <PlaybackInteractionStateProvider>

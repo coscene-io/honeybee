@@ -37,8 +37,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 /**
- * Remove source locations (which often include file hashes) so storybook screenshots can be
- * deterministic.
+ * Remove source locations (which often include file hashes) so snapshots can be deterministic.
  */
 function sanitizeStack(stack: string) {
   return stack.replace(/\s+\(.+\)$/gm, "").replace(/\s+https?:\/\/.+$/gm, "");

@@ -398,7 +398,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
     setHoverInfo(undefined);
   }, [clearHoverValue, hoverComponentId]);
 
-  // Clean up the hover value when we are unmounted -- important for storybook.
+  // Clean up the hover value when we are unmounted.
   useEffect(() => onHoverOut, [onHoverOut]);
 
   const min = useMemo(() => startTime && toSec(startTime), [startTime]);

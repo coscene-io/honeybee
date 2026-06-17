@@ -81,7 +81,7 @@ export type ImageAnnotationSettings = {
 
 /** Arguments that can be passed to the renderer for local testing */
 export type TestOptions = {
-  /** Override default downloading behavior, used for Storybook */
+  /** Override default downloading behavior for tests. */
   onDownloadImage?: (blob: Blob, fileName: string) => void;
   debugPicking?: boolean;
 };

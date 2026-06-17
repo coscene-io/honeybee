@@ -68,7 +68,7 @@ export function makeWorkspaceContextInitialState(): WorkspaceContextStore {
 
 function createWorkspaceContextStore(
   initialState?: DeepPartial<WorkspaceContextStore>,
-  options?: { disablePersistenceForStorybook?: boolean },
+  options?: { disablePersistence?: boolean },
 ): StoreApi<WorkspaceContextStore> {
   const stateCreator = () => {
     const store: WorkspaceContextStore = _.merge(
@@ -78,7 +78,7 @@ function createWorkspaceContextStore(
     );
     return store;
   };
-  if (options?.disablePersistenceForStorybook === true) {
+  if (options?.disablePersistence === true) {
     return createStore<WorkspaceContextStore>()(stateCreator);
   }
   return createStore<WorkspaceContextStore>()(
@@ -102,23 +102,23 @@ function createWorkspaceContextStore(
 
 export type WorkspaceContextProviderProps = {
   children?: ReactNode;
-  disablePersistenceForStorybook?: boolean;
+  disablePersistence?: boolean;
   initialState?: DeepPartial<WorkspaceContextStore>;
   workspaceStoreCreator?: (
     initialState?: DeepPartial<WorkspaceContextStore>,
-    options?: { disablePersistenceForStorybook?: boolean },
+    options?: { disablePersistence?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
 };
 
 export default function WorkspaceContextProvider(
   props: WorkspaceContextProviderProps,
 ): React.JSX.Element {
-  const { children, initialState, workspaceStoreCreator, disablePersistenceForStorybook } = props;
+  const { children, initialState, workspaceStoreCreator, disablePersistence } = props;
 
   const [store] = useState(() =>
     workspaceStoreCreator
-      ? workspaceStoreCreator(initialState, { disablePersistenceForStorybook })
-      : createWorkspaceContextStore(initialState, { disablePersistenceForStorybook }),
+      ? workspaceStoreCreator(initialState, { disablePersistence })
+      : createWorkspaceContextStore(initialState, { disablePersistence }),
   );
 
   return <WorkspaceContext.Provider value={store}>{children}</WorkspaceContext.Provider>;
