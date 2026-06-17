@@ -37,6 +37,10 @@ export type HoverOverEvent = {
 
 export type ContextMenuEvent = HoverOverEvent;
 
+type PendingHoverEvent = {
+  clientX: number;
+};
+
 type Props = {
   disabled?: boolean;
   onChange: (playbackSeconds: number) => void;
@@ -108,16 +112,66 @@ function Slider(props: Props): React.JSX.Element {
   const { classes, cx } = useStyles({ cursor });
 
   const elRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+  const pendingHoverRef = useRef<PendingHoverEvent | undefined>();
+  const hoverAnimationFrameRef = useRef<number | undefined>();
 
-  const getPlaybackSecondsAtMouse = useCallback(
-    (ev: React.MouseEvent | MouseEvent): number => {
+  const getPlaybackSecondsAtClientX = useCallback(
+    (clientX: number): number => {
       if (!elRef.current) {
         return 0;
       }
       const rect = elRef.current.getBoundingClientRect();
-      return fractionToTime(clientXToFraction(ev.clientX, rect), viewport);
+      return fractionToTime(clientXToFraction(clientX, rect), viewport);
     },
     [viewport],
+  );
+
+  const getPlaybackSecondsAtMouse = useCallback(
+    (ev: React.MouseEvent | MouseEvent): number => {
+      return getPlaybackSecondsAtClientX(ev.clientX);
+    },
+    [getPlaybackSecondsAtClientX],
+  );
+
+  const cancelPendingHover = useCallback(() => {
+    if (hoverAnimationFrameRef.current != undefined) {
+      cancelAnimationFrame(hoverAnimationFrameRef.current);
+      hoverAnimationFrameRef.current = undefined;
+    }
+    pendingHoverRef.current = undefined;
+  }, []);
+
+  const flushPendingHover = useCallback(() => {
+    hoverAnimationFrameRef.current = undefined;
+
+    const pendingHover = pendingHoverRef.current;
+    pendingHoverRef.current = undefined;
+
+    const target = elRef.current;
+    if (pendingHover == undefined || target == undefined || disabled) {
+      return;
+    }
+
+    const elRect = target.getBoundingClientRect();
+    onHoverOver?.({
+      playbackSeconds: getPlaybackSecondsAtClientX(pendingHover.clientX),
+      clientX: pendingHover.clientX,
+      clientY: elRect.y + TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX / 2,
+    });
+  }, [disabled, getPlaybackSecondsAtClientX, onHoverOver]);
+
+  const scheduleHoverOver = useCallback(
+    (clientX: number) => {
+      if (onHoverOver == undefined) {
+        cancelPendingHover();
+        return;
+      }
+      pendingHoverRef.current = { clientX };
+      if (hoverAnimationFrameRef.current == undefined) {
+        hoverAnimationFrameRef.current = requestAnimationFrame(flushPendingHover);
+      }
+    },
+    [cancelPendingHover, flushPendingHover, onHoverOver],
   );
 
   const [mouseDown, setMouseDown] = useState(false);
@@ -139,16 +193,18 @@ function Slider(props: Props): React.JSX.Element {
   const onMouseLeave = useCallback(() => {
     setMouseInside(false);
     if (!mouseDownRef.current) {
+      cancelPendingHover();
       onHoverOut?.();
     }
-  }, [onHoverOut]);
+  }, [cancelPendingHover, onHoverOut]);
 
   const onPointerUp = useCallback((): void => {
     setMouseDown(false);
     if (!mouseInsideRef.current) {
+      cancelPendingHover();
       onHoverOut?.();
     }
-  }, [onHoverOut]);
+  }, [cancelPendingHover, onHoverOut]);
 
   const onPointerMove = useCallback(
     (ev: React.PointerEvent | PointerEvent): void => {
@@ -162,21 +218,14 @@ function Slider(props: Props): React.JSX.Element {
         return;
       }
 
-      const playbackSeconds = getPlaybackSecondsAtMouse(ev);
-      if (elRef.current) {
-        const elRect = elRef.current.getBoundingClientRect();
-        onHoverOver?.({
-          playbackSeconds,
-          clientX: ev.clientX,
-          clientY: elRect.y + TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX / 2,
-        });
-      }
+      scheduleHoverOver(ev.clientX);
       if (!mouseDownRef.current) {
         return;
       }
+      const playbackSeconds = getPlaybackSecondsAtMouse(ev);
       onChange(playbackSeconds);
     },
-    [disabled, getPlaybackSecondsAtMouse, onChange, onHoverOver],
+    [disabled, getPlaybackSecondsAtMouse, onChange, scheduleHoverOver],
   );
 
   const onPointerDown = useCallback(
@@ -222,6 +271,10 @@ function Slider(props: Props): React.JSX.Element {
     }
     return undefined;
   }, [mouseDown, onPointerMove, onPointerUp]);
+
+  useEffect(() => {
+    return cancelPendingHover;
+  }, [cancelPendingHover]);
 
   return (
     <div
