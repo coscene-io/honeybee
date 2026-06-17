@@ -45,6 +45,10 @@ import PlaybackSpeedControls from "@foxglove/studio-base/components/PlaybackSpee
 import Stack from "@foxglove/studio-base/components/Stack";
 import { stepPlaybackSpeed } from "@foxglove/studio-base/components/playbackSpeed";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  selectIsKeyframeSearchActive,
+  usePlaybackInteractionState,
+} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   WorkspaceContextStore,
@@ -165,6 +169,7 @@ export default function PlaybackControls(props: {
   } = props;
   const presence = useMessagePipeline(selectPresence);
   const urlState = useMessagePipeline(selectUrlState);
+  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
 
   const dataSource = useCoreData(selectDataSource);
   const { selectRecent } = usePlayerSelection();
@@ -201,6 +206,10 @@ export default function PlaybackControls(props: {
   }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
   const togglePlayPause = useCallback(() => {
+    if (isKeyframeSearchActive) {
+      return;
+    }
+
     if (isPlaying) {
       pause();
     } else {
@@ -211,7 +220,7 @@ export default function PlaybackControls(props: {
       }
       play();
     }
-  }, [isPlaying, pause, getTimeInfo, play, seek]);
+  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, play, seek]);
 
   // Track SeekStep editing state for KeyListener management
   const [seekStepEditing, setSeekStepEditing] = useState(false);
@@ -225,6 +234,10 @@ export default function PlaybackControls(props: {
 
   const seekForwardAction = useCallback(
     (ev?: KeyboardEvent) => {
+      if (isKeyframeSearchActive) {
+        return;
+      }
+
       const { currentTime, startTime: start, endTime: end } = getTimeInfo();
       if (!currentTime || !start || !end) {
         return;
@@ -252,25 +265,33 @@ export default function PlaybackControls(props: {
         seek(clampedTargetTime);
       }
     },
-    [getTimeInfo, playUntil, seek, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, playUntil, seek, effectiveSeekMs],
   );
 
   const seekBackwardAction = useCallback(
     (ev?: KeyboardEvent) => {
+      if (isKeyframeSearchActive) {
+        return;
+      }
+
       const { currentTime } = getTimeInfo();
       if (!currentTime) {
         return;
       }
       seek(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
     },
-    [getTimeInfo, seek, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, seek, effectiveSeekMs],
   );
 
   const adjustPlaybackSpeed = useCallback(
     (direction: "decrease" | "increase") => {
+      if (isKeyframeSearchActive) {
+        return;
+      }
+
       setSpeed(stepPlaybackSpeed(playbackSpeed, direction));
     },
-    [playbackSpeed, setSpeed],
+    [isKeyframeSearchActive, playbackSpeed, setSpeed],
   );
 
   const startTimelineResize = useCallback(
@@ -351,7 +372,7 @@ export default function PlaybackControls(props: {
     ],
   );
 
-  const disableControls = presence === PlayerPresence.ERROR;
+  const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
 
   return (
     <>

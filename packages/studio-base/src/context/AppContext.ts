@@ -36,7 +36,7 @@ interface IAppContext {
   ) => React.JSX.Element | undefined;
   workspaceStoreCreator?: (
     initialState?: DeepPartial<WorkspaceContextStore>,
-    options?: { disablePersistenceForStorybook?: boolean },
+    options?: { disablePersistence?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
   PerformanceSidebarComponent?: React.ComponentType;
   extraPanels?: PanelInfo[];

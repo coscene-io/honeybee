@@ -109,7 +109,7 @@ export interface PanelStatics<Config> {
   defaultConfig: Config;
 }
 
-/** Used in storybook when panels are renered outside of a <PanelLayout/> */
+/** Used when panels are rendered outside of a <PanelLayout/> */
 const FALLBACK_PANEL_ID = "$unknown_id";
 
 // HOC that wraps panel in an error boundary and flex box.
