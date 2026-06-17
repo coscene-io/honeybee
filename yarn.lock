@@ -5036,7 +5036,7 @@ __metadata:
     "@types/electron-devtools-installer": 2.2.3
     "@types/plist": ^3.0.3
     "@types/pngjs": ^6.0.2
-    "@types/tinycolor2": 1.4.4
+    "@types/tinycolor2": 1.4.6
     "@types/utif": ^3.0.2
     "@xmldom/xmldom": 0.8.10
     app-builder-lib: 26.0.11
@@ -8929,13 +8929,6 @@ __metadata:
     fflate: ~0.8.2
     meshoptimizer: ~0.18.1
   checksum: 18ac4b6d910ccc56e966d886ccc2b4627d63ae21a632df7e4799a9bd272aea55747916a6a87114eaf8d994eff15e5df14e2bdcb9a681ca03ce8518b73da8402d
-  languageName: node
-  linkType: hard
-
-"@types/tinycolor2@npm:1.4.4":
-  version: 1.4.4
-  resolution: "@types/tinycolor2@npm:1.4.4"
-  checksum: cf92f3b7c11750a4a8fe7ba2292fb9a795f5a0eeec39c69cf7e3fc3bbc3467a02c4eaf42d9eb258f63cd6a1c64448cfcf17301bacaa67e87cd0eacc93d25e12a
   languageName: node
   linkType: hard
 
