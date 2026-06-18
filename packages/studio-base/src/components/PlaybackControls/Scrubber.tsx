@@ -6,9 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import FitScreenIcon from "@mui/icons-material/FitScreen";
-import LinkIcon from "@mui/icons-material/Link";
-import LinkOffIcon from "@mui/icons-material/LinkOff";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import { alpha, Slider as MuiSlider, Tooltip } from "@mui/material";
@@ -82,8 +79,11 @@ import {
   zoomViewportAtTime,
   type TimelineViewport,
 } from "./timelineViewport";
+import EventCreateInactiveIcon from "../../assets/event-create-inactive.svg";
 import MomentSubtitleActiveIcon from "../../assets/moment-subtitle-active.svg";
 import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.svg";
+import RollingEditActiveIcon from "../../assets/rolling-edit-active.svg";
+import RollingEditInactiveIcon from "../../assets/rolling-edit-inactive.svg";
 
 const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
 const TIMELINE_RULER_HEIGHT_PX: number = 14;
@@ -343,6 +343,14 @@ function dispatchCreateMomentShortcut(): void {
   document.dispatchEvent(event);
 }
 
+function EventIcon(): React.JSX.Element {
+  return (
+    <span aria-hidden="true" data-testid="event-create-icon" style={{ display: "inline-flex" }}>
+      <EventCreateInactiveIcon focusable="false" />
+    </span>
+  );
+}
+
 function EventButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
   const { t } = useTranslation("event");
   const label = t("createMomentTips");
@@ -353,7 +361,7 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
       disabled={disableControls}
       size="small"
       title={label}
-      icon={<ShieldOutlinedIcon fontSize="small" />}
+      icon={<EventIcon />}
       onClick={dispatchCreateMomentShortcut}
     />
   );
@@ -398,6 +406,20 @@ function MomentSubtitleButton({
 }
 
 const MemoedMomentSubtitleButton = React.memo(MomentSubtitleButton);
+
+function RollingEditIcon({ active }: { active: boolean }): React.JSX.Element {
+  const Icon = active ? RollingEditActiveIcon : RollingEditInactiveIcon;
+
+  return (
+    <span
+      aria-hidden="true"
+      data-testid={active ? "rolling-edit-icon-active" : "rolling-edit-icon-inactive"}
+      style={{ display: "inline-flex" }}
+    >
+      <Icon focusable="false" />
+    </span>
+  );
+}
 
 export default function Scrubber(props: Props): React.JSX.Element {
   const { onSeek } = props;
@@ -951,14 +973,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 rollingEditEnabled ? "disableLinkedEventAdjustment" : "enableLinkedEventAdjustment",
                 { ns: "event" },
               )}
-              color={rollingEditEnabled ? "primary" : "inherit"}
-              icon={
-                rollingEditEnabled ? (
-                  <LinkIcon data-testid="rolling-edit-icon-active" fontSize="small" />
-                ) : (
-                  <LinkOffIcon data-testid="rolling-edit-icon-inactive" fontSize="small" />
-                )
-              }
+              icon={<RollingEditIcon active={rollingEditEnabled} />}
               onClick={toggleRollingEdit}
             />
           )}

@@ -103,10 +103,14 @@ jest.mock("./ShortcutsHelpButton", () => ({
 
 function SeedEventFeature({ enabled }: { enabled: boolean }): ReactNull {
   const setDataSource = useCoreData((store: CoreDataStore) => store.setDataSource);
+  const setProject = useCoreData((store: CoreDataStore) => store.setProject);
+  const setRecord = useCoreData((store: CoreDataStore) => store.setRecord);
 
   useEffect(() => {
     setDataSource(enabled ? { id: "coscene-data-platform", type: "connection" } : undefined);
-  }, [enabled, setDataSource]);
+    setProject({ loading: false, value: enabled ? ({ isArchived: false } as never) : undefined });
+    setRecord({ loading: false, value: enabled ? ({ isArchived: false } as never) : undefined });
+  }, [enabled, setDataSource, setProject, setRecord]);
 
   return ReactNull;
 }
@@ -153,19 +157,28 @@ function MessagePipelineStoreProbe({
 
 function Wrapper({
   children,
-  consoleApi = {
-    createEvent: { permission: () => false },
-    updateEvent: { permission: () => false },
-  } as never,
+  createEventAllowed = false,
+  consoleApi,
   eventEnabled = false,
+  updateEventAllowed = false,
 }: React.PropsWithChildren<{
+  createEventAllowed?: boolean;
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   eventEnabled?: boolean;
+  updateEventAllowed?: boolean;
 }>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
       <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
-        <CoSceneConsoleApiContext.Provider value={consoleApi}>
+        <CoSceneConsoleApiContext.Provider
+          value={
+            consoleApi ??
+            ({
+              createEvent: { permission: () => createEventAllowed },
+              updateEvent: { permission: () => updateEventAllowed },
+            } as never)
+          }
+        >
           <CoreDataProvider>
             <WorkspaceContextProvider disablePersistence>
               <MockMessagePipelineProvider
@@ -315,6 +328,21 @@ describe("<Scrubber />", () => {
 
     expect(createPermission).not.toHaveBeenCalled();
     expect(updatePermission).not.toHaveBeenCalled();
+  });
+
+  it("renders svg toolbar icons for event creation and linked event adjustment", async () => {
+    render(
+      <Wrapper eventEnabled createEventAllowed updateEventAllowed>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    expect(await screen.findByTestId("event-create-icon")).toBeTruthy();
+    expect(screen.getByTestId("rolling-edit-icon-active").tagName.toLowerCase()).toBe("span");
+
+    fireEvent.click(screen.getByLabelText("Disable linked event adjustment"));
+
+    expect(screen.getByTestId("rolling-edit-icon-inactive").tagName.toLowerCase()).toBe("span");
   });
 
   it("shows and hides the lightweight hover tooltip without relying on the slider subtree", () => {
@@ -497,10 +525,7 @@ describe("<Scrubber />", () => {
         eventsOverlay,
         new MouseEvent("pointerdown", { bubbles: true, clientX: 200, clientY: 60 }),
       );
-      fireEvent(
-        window,
-        new MouseEvent("pointerup", { bubbles: true, clientX: 200, clientY: 140 }),
-      );
+      fireEvent(window, new MouseEvent("pointerup", { bubbles: true, clientX: 200, clientY: 140 }));
     });
 
     expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
