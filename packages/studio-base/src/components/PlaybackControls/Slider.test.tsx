@@ -78,7 +78,7 @@ describe("<Slider />", () => {
     });
   });
 
-  function firePointerEvent(target: EventTarget, type: string, clientX: number): void {
+  function firePointerEvent(target: Element | Window, type: string, clientX: number): void {
     fireEvent(target, new MouseEvent(type, { bubbles: true, clientX }));
   }
 

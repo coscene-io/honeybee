@@ -21,6 +21,7 @@ import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
   useMessagePipeline,
+  useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
@@ -169,11 +170,36 @@ const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
 
+function LoopedEventPlaybackSync(): ReactNull {
+  const currentTime = useMessagePipeline(selectCurrentTime);
+  const seek = useMessagePipeline(selectSeek);
+  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
+  const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
+
+  useEffect(() => {
+    if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
+      if (
+        toSec(subtract(currentTime, loopedEvent.endTime)) > 0.1 ||
+        toSec(subtract(loopedEvent.startTime, currentTime)) > 0.1
+      ) {
+        setLoopedEvent(undefined);
+      } else {
+        if (!isTimeInRangeInclusive(currentTime, loopedEvent.startTime, loopedEvent.endTime)) {
+          seek(loopedEvent.startTime);
+        }
+      }
+    }
+  }, [currentTime, loopedEvent, seek, setLoopedEvent]);
+
+  return ReactNull;
+}
+
 /**
  * Syncs events from server and syncs hovered event with hovered time.
  */
 export function EventsSyncAdapter(): React.JSX.Element {
   const consoleApi = useConsoleApi();
+  const getMessagePipeline = useMessagePipelineGetter();
   const setEvents = useEvents(selectSetEvents);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
   const eventMarks = useEvents(selectEventMarks);
@@ -185,11 +211,8 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
   const bagFiles = usePlaylist(selectBagFiles);
-  const currentTime = useMessagePipeline(selectCurrentTime);
   const pause = useMessagePipeline(selectPause);
   const seek = useMessagePipeline(selectSeek);
-  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
-  const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
@@ -204,16 +227,22 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   // Mirror Scrubber.tsx: editing/deleting moments requires the feature enabled, the matching
   // permission, and a non-archived project and record.
-  const canWriteEvents =
-    enableList.event === "ENABLE" &&
-    consoleApi.updateEvent.permission() &&
-    project.value?.isArchived === false &&
-    record.value?.isArchived === false;
-  const canDeleteEvents =
-    enableList.event === "ENABLE" &&
-    consoleApi.deleteEvent.permission() &&
-    project.value?.isArchived === false &&
-    record.value?.isArchived === false;
+  const canWriteEvents = useMemo(
+    () =>
+      enableList.event === "ENABLE" &&
+      consoleApi.updateEvent.permission() &&
+      project.value?.isArchived === false &&
+      record.value?.isArchived === false,
+    [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
+  );
+  const canDeleteEvents = useMemo(
+    () =>
+      enableList.event === "ENABLE" &&
+      consoleApi.deleteEvent.permission() &&
+      project.value?.isArchived === false &&
+      record.value?.isArchived === false,
+    [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
+  );
 
   const [, getMomentCustomFieldValues] = useAsyncFn(async () => {
     if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
@@ -239,21 +268,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
       });
     }
   }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, getMomentCustomFieldValues]);
-
-  useEffect(() => {
-    if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
-      if (
-        toSec(subtract(currentTime, loopedEvent.endTime)) > 0.1 ||
-        toSec(subtract(loopedEvent.startTime, currentTime)) > 0.1
-      ) {
-        setLoopedEvent(undefined);
-      } else {
-        if (!isTimeInRangeInclusive(currentTime, loopedEvent.startTime, loopedEvent.endTime)) {
-          seek(loopedEvent.startTime);
-        }
-      }
-    }
-  }, [currentTime, loopedEvent, seek, setLoopedEvent]);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -363,7 +377,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
     }
   }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
 
-  const currentTimeRef = useLatest(currentTime);
   const startTimeRef = useLatest(startTime);
   const endTimeRef = useLatest(endTime);
   const eventMarksRef = useLatest(eventMarks);
@@ -374,7 +387,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   const handleDigit1 = useCallback(
     (e: KeyboardEvent) => {
-      const current = currentTimeRef.current;
+      const current = getMessagePipeline().playerState.activeData?.currentTime;
       const start = startTimeRef.current;
       const end = endTimeRef.current;
       const marks = eventMarksRef.current;
@@ -395,10 +408,10 @@ export function EventsSyncAdapter(): React.JSX.Element {
       setEventMarks(nextMarks);
     },
     [
-      currentTimeRef,
       endTimeRef,
       eventMarksRef,
       events.value,
+      getMessagePipeline,
       pauseRef,
       setEventMarks,
       startTimeRef,
@@ -448,7 +461,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
         return;
       }
       const event = getSelectedEvent();
-      const current = currentTimeRef.current;
+      const current = getMessagePipeline().playerState.activeData?.currentTime;
       const start = startTimeRef.current;
       if (event == undefined || current == undefined || start == undefined) {
         return;
@@ -481,7 +494,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
         }
       })();
     },
-    [canWriteEvents, consoleApi, currentTimeRef, getSelectedEvent, refreshEvents, startTimeRef],
+    [canWriteEvents, consoleApi, getMessagePipeline, getSelectedEvent, refreshEvents, startTimeRef],
   );
 
   // Delete / Backspace : delete the selected moment after a confirmation.
@@ -595,5 +608,10 @@ export function EventsSyncAdapter(): React.JSX.Element {
     ],
   );
 
-  return <KeyListener global keyDownHandlers={keyDownHandlers} />;
+  return (
+    <>
+      <LoopedEventPlaybackSync />
+      <KeyListener global keyDownHandlers={keyDownHandlers} />
+    </>
+  );
 }

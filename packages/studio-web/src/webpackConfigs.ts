@@ -38,6 +38,7 @@ export interface RspackConfiguration extends Configuration {
         runtimeErrors?: (error: Error) => boolean;
       };
     };
+    // server?: "http" | "https";
   };
 }
 
@@ -86,6 +87,7 @@ export const devServerConfig = (params: ConfigParams): RspackConfiguration => ({
     static: false,
     historyApiFallback: params.historyApiFallback,
     hot: true,
+    // server: "https",
     // The problem and solution are described at <https://github.com/webpack/webpack-dev-server/issues/1604>.
     // When running in dev mode two errors are logged to the dev console:
     //  "Invalid Host/Origin header"
