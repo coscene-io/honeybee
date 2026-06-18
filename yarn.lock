@@ -5188,7 +5188,7 @@ __metadata:
     "@foxglove/tsconfig": 3.2.0
     "@types/jest": ^30.0.0
     "@types/lodash": 4.17.15
-    "@types/node": ^24.13.1
+    "@types/node": ^25.9.3
     eslint: 9.39.2
     eventemitter3: ^5.0.1
     jest: 30.4.2
@@ -8594,12 +8594,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:24.13.1":
-  version: 24.13.1
-  resolution: "@types/node@npm:24.13.1"
+"@types/node@npm:25.9.3":
+  version: 25.9.3
+  resolution: "@types/node@npm:25.9.3"
   dependencies:
-    undici-types: ~7.18.0
-  checksum: 3baef0e2d2ff1eb1f65d14975d539bbf2a0ec35d019efbbe5befdec28c45c572e992367ff0f08b56c7d231f86ade96adf303139ae6492ae6c550690e38792bad
+    undici-types: ">=7.24.0 <7.24.7"
+  checksum: 78b30ba6812d330062ddff63e3f0b20ec4cadfc6f96380dc87988b5d67efc99a6ffbf117e638574bba5397527279c8f6b754784fae907a5b76bd69e315631f00
   languageName: node
   linkType: hard
 
@@ -16112,7 +16112,7 @@ __metadata:
     "@types/case-sensitive-paths-webpack-plugin": 2.1.9
     "@types/jest": 30.0.0
     "@types/license-checker": ^25.0.6
-    "@types/node": 24.13.1
+    "@types/node": 25.9.3
     "@types/semver": ^7.5.6
     babel-plugin-transform-import-meta: 2.3.3
     cross-env: 7.0.3
@@ -24689,10 +24689,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici-types@npm:~7.18.0":
-  version: 7.18.2
-  resolution: "undici-types@npm:7.18.2"
-  checksum: 23da306c8366574adec305b06a8519ab5c7d09e3f5d16c1a98709a34fae17da09ec95198f30f86c00055e02efa8bfcc843e84e8aebeb9b8d6bb3e06afccae07a
+"undici-types@npm:>=7.24.0 <7.24.7":
+  version: 7.24.6
+  resolution: "undici-types@npm:7.24.6"
+  checksum: e79802e37dc472c6324850d938b5df6b9e796f6a1bb5f8ccd24f3a6d17eae94a9cc125506c8b339a3293ffbad81daeba30b843e564c1d237b3c8deafd98b6267
   languageName: node
   linkType: hard
 
