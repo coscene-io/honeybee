@@ -111,7 +111,7 @@
     "crypto-browserify": "3.12.0",
     "css-loader": "7.1.4",
     "cytoscape": "3.31.0",
-    "cytoscape-dagre": "2.5.0",
+    "cytoscape-dagre": "4.0.0",
     "dayjs": "^1.11.21",
     "eventemitter3": "5.0.1",
     "fake-indexeddb": "4.0.2",
