@@ -6,10 +6,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
+import { useSetHoverValue } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
@@ -21,6 +23,24 @@ import { ProgressPlot } from "./ProgressPlot";
 import { makeTimelineViewport } from "./timelineViewport";
 
 const viewport = makeTimelineViewport(0, 10);
+let mockResizeDetectorWidth: number | undefined = 200;
+
+jest.mock("react-resize-detector", () => ({
+  useResizeDetector: () => ({
+    width: mockResizeDetectorWidth,
+    ref: jest.fn(),
+  }),
+}));
+
+function SeedHoverValue({ value = 5 }: { value?: number }): ReactNull {
+  const setHoverValue = useSetHoverValue();
+
+  useEffect(() => {
+    setHoverValue({ componentId: "other-component", type: "PLAYBACK_SECONDS", value });
+  }, [setHoverValue, value]);
+
+  return ReactNull;
+}
 
 function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
   return (
@@ -41,6 +61,10 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
 }
 
 describe("Playback bar pointer events", () => {
+  beforeEach(() => {
+    mockResizeDetectorWidth = 200;
+  });
+
   it("keeps progress plot visual layers out of hit testing", () => {
     const { container } = render(
       <Wrapper>
@@ -82,5 +106,75 @@ describe("Playback bar pointer events", () => {
     const root = container.firstElementChild;
     expect(root).not.toBeNull();
     expect(getComputedStyle(root!).pointerEvents).toBe("none");
+  });
+
+  it("shows an inline hover time label for external playback hover values", () => {
+    render(
+      <Wrapper>
+        <SeedHoverValue />
+        <PlaybackBarHoverTicks componentId="test-component" viewport={viewport} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("playback-hover-time-indicator")).toBeTruthy();
+    expect(screen.getByTestId("playback-hover-time-label")).toBeTruthy();
+  });
+
+  it("clamps the external hover time label inside the timeline edges", () => {
+    const getBoundingClientRect = jest
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function getBoundingClientRectMock(this: HTMLElement) {
+        if (this.dataset.testid === "playback-hover-time-label") {
+          return {
+            bottom: 20,
+            height: 20,
+            left: 0,
+            right: 80,
+            top: 0,
+            width: 80,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          };
+        }
+
+        return {
+          bottom: 0,
+          height: 0,
+          left: 0,
+          right: 0,
+          top: 0,
+          width: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      });
+
+    try {
+      const { rerender } = render(
+        <Wrapper>
+          <SeedHoverValue value={0} />
+          <PlaybackBarHoverTicks componentId="test-component" viewport={viewport} />
+        </Wrapper>,
+      );
+
+      expect(screen.getByTestId("playback-hover-time-label").style.transform).toBe(
+        "translateX(0px)",
+      );
+
+      rerender(
+        <Wrapper>
+          <SeedHoverValue value={10} />
+          <PlaybackBarHoverTicks componentId="test-component" viewport={viewport} />
+        </Wrapper>,
+      );
+
+      expect(screen.getByTestId("playback-hover-time-label").style.transform).toBe(
+        "translateX(-80px)",
+      );
+    } finally {
+      getBoundingClientRect.mockRestore();
+    }
   });
 });
