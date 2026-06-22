@@ -73,8 +73,8 @@ import {
   timelinePointToPercent,
   type TimelineViewport,
 } from "./timelineViewport";
-import EventMarkIcon from "../../assets/event-mark.svg";
 import EventCreateInactiveIcon from "../../assets/event-create-inactive.svg";
+import EventMarkIcon from "../../assets/event-mark.svg";
 
 const HOTSPOT_WIDTH_PER_CENT = 0.01;
 const EVENT_CLICK_DRAG_THRESHOLD_PX = 4;
