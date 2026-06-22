@@ -110,7 +110,7 @@ function parseInertial(xml: Element): UrdfInertial {
         origin = parsePose(child);
         break;
       case "mass":
-        mass = parseFloatContent(child);
+        mass = parseFloatAttributeOptional(child, "value") ?? parseFloatContent(child);
         break;
       case "inertia":
         inertia = parseInertia(child);
