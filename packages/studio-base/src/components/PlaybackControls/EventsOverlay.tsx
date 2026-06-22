@@ -7,7 +7,6 @@
 
 import { create } from "@bufbuild/protobuf";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import { alpha, Menu, MenuItem, type PopoverPosition, Tooltip } from "@mui/material";
 import Fade from "@mui/material/Fade";
 import Popper from "@mui/material/Popper";
@@ -74,6 +73,7 @@ import {
   timelinePointToPercent,
   type TimelineViewport,
 } from "./timelineViewport";
+import EventCreateInactiveIcon from "../../assets/event-create-inactive.svg";
 import EventMarkIcon from "../../assets/event-mark.svg";
 
 const HOTSPOT_WIDTH_PER_CENT = 0.01;
@@ -153,6 +153,7 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
   },
   emptyEventHintIcon: {
     color: "currentColor",
+    display: "inline-flex",
     flex: "0 0 auto",
     fontSize: 16,
   },
@@ -1706,7 +1707,13 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         ))}
         {showEmptyEventHint && (
           <div className={classes.emptyEventHint} data-testid="timeline-empty-event-hint">
-            <ShieldOutlinedIcon className={classes.emptyEventHintIcon} />
+            <span
+              aria-hidden="true"
+              className={classes.emptyEventHintIcon}
+              data-testid="timeline-empty-event-create-icon"
+            >
+              <EventCreateInactiveIcon focusable="false" />
+            </span>
             <span className={classes.emptyEventHintText}>{t("emptyTimelineHint")}</span>
           </div>
         )}
