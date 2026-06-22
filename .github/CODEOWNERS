@@ -1,0 +1,24 @@
+# CODEOWNERS for honeybee.
+# Generated from recent module-level Git history; keep broad by design.
+# More specific rules below override the broad defaults (last match wins).
+
+* @Woodii1998
+
+/packages/ @Woodii1998
+/web/ @Woodii1998
+/desktop/ @Woodii1998
+/benchmark/ @Woodii1998
+/ci/ @Woodii1998
+
+# Module ownership derived from recent contribution history.
+
+# Timeline & playback controls (PRs #1337, #1321)
+/packages/studio-base/src/components/PlaybackControls/ @Woodii1998 @zhigang1992
+/packages/studio-base/src/components/Events/ @Woodii1998 @zhigang1992
+
+# Image & compressed-video rendering (PR #1326)
+/packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/ @Woodii1998 @zhigang1992
+/packages/studio-base/src/panels/ThreeDeeRender/renderables/Images/ @Woodii1998 @zhigang1992
+
+# Localization strings (PRs #1337, #1321)
+/packages/studio-base/src/i18n/ @Woodii1998 @zhigang1992
