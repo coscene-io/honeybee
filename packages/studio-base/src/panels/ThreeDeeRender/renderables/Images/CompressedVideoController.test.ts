@@ -773,6 +773,105 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("rearms playback stabilization after a failed post-seek replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const firstPlaybackDelta = makeVideoMessage(20_000_000n, "delta");
+    const secondPlaybackDelta = makeVideoMessage(30_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames, mode) => {
+      if (mode === "seek" && frameReceiveTimes(frames).at(-1) === 20_000_000n) {
+        return { ok: false };
+      }
+      return { ok: true };
+    });
+    const renderer = makeRenderer();
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(delta);
+    await flushAsyncWork();
+
+    renderer.currentTime = 10_000_000n;
+    controller.handleSeek();
+    await flushAsyncWork();
+    displayFrames.mockClear();
+
+    controller.processMessage(firstPlaybackDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek"]);
+
+    displayFrames.mockClear();
+    controller.processMessage(secondPlaybackDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek"]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false]);
+  });
+
+  it("retries the latest pending playback frame after a failed post-seek replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const firstPlaybackDelta = makeVideoMessage(20_000_000n, "delta");
+    const secondPlaybackDelta = makeVideoMessage(30_000_000n, "delta");
+    let resolveStabilization!: (result: ImageSetImageResult) => void;
+    const stabilizationPromise = new Promise<ImageSetImageResult>((resolve) => {
+      resolveStabilization = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames, mode) => {
+      if (mode === "seek" && frameReceiveTimes(frames).at(-1) === 20_000_000n) {
+        return await stabilizationPromise;
+      }
+      return { ok: true };
+    });
+    const renderer = makeRenderer();
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(delta);
+    await flushAsyncWork();
+
+    renderer.currentTime = 10_000_000n;
+    controller.handleSeek();
+    await flushAsyncWork();
+    displayFrames.mockClear();
+
+    controller.processMessage(firstPlaybackDelta);
+    controller.processMessage(secondPlaybackDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek"]);
+
+    resolveStabilization({ ok: false });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "seek"]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false, false]);
+  });
+
   it("does not let stale lookback completion clear a newer keyframe search", async () => {
     const firstKeyframe = makeVideoMessage(0n, "key");
     const firstDelta = makeVideoMessage(10_000_000n, "delta");
