@@ -188,6 +188,9 @@ export class CompressedVideoController {
     }
 
     this.#cache.addFrame(normalizedEvent);
+    if (this.#suppressPlaybackDuringPendingSeekReplay(receiveTimeNs)) {
+      return;
+    }
     if (this.#displayStabilizedPlaybackAfterSeek(normalizedEvent, receiveTimeNs, options)) {
       return;
     }
@@ -424,7 +427,7 @@ export class CompressedVideoController {
 
       this.#state.replayGeneration = undefined;
       if (ok) {
-        this.#markSeekReplayComplete(generation, frames);
+        this.#markSeekReplayComplete(generation, frames, options);
         return;
       }
 
@@ -563,7 +566,7 @@ export class CompressedVideoController {
 
         this.#state.successfulWindowSeconds =
           windowSec ?? this.#windowSecondsForSpan(lookbackTargetNs - windowStartNs);
-        this.#markSeekReplayComplete(generation, replayFrames);
+        this.#markSeekReplayComplete(generation, replayFrames, options);
         this.#state.lookbackCancel = undefined;
         this.#state.lookbackGeneration = undefined;
         return true;
@@ -577,11 +580,55 @@ export class CompressedVideoController {
     }
   }
 
-  #markSeekReplayComplete(generation: number, frames: readonly MessageEvent[]): void {
+  #markSeekReplayComplete(
+    generation: number,
+    frames: readonly MessageEvent[],
+    options?: SetCompressedVideoFramesOptions,
+  ): void {
     this.#state.completedSeekGeneration = generation;
     this.#state.playbackStabilizationGeneration = generation;
     this.#recordLastDisplayedPublishTime(frames);
     this.#renderer.queueAnimationFrame();
+    this.#startPendingPlaybackStabilizationAfterSeekReplay(generation, frames, options);
+  }
+
+  #suppressPlaybackDuringPendingSeekReplay(receiveTimeNs: bigint): boolean {
+    if (
+      this.#state.replayGeneration !== this.#generation &&
+      this.#state.lookbackGeneration !== this.#generation
+    ) {
+      return false;
+    }
+
+    this.#recordPendingPlaybackStabilizationReceiveTime(receiveTimeNs);
+    return true;
+  }
+
+  #startPendingPlaybackStabilizationAfterSeekReplay(
+    generation: number,
+    frames: readonly MessageEvent[],
+    options?: SetCompressedVideoFramesOptions,
+  ): void {
+    const targetFrame = frames[frames.length - 1];
+    const targetReceiveTimeNs =
+      targetFrame != undefined ? toNanoSec(targetFrame.receiveTime) : undefined;
+    const pendingReceiveTimeNs = this.#state.pendingPlaybackStabilizationReceiveTimeNs;
+    if (pendingReceiveTimeNs == undefined || targetReceiveTimeNs == undefined) {
+      return;
+    }
+
+    this.#state.pendingPlaybackStabilizationReceiveTimeNs = undefined;
+    if (pendingReceiveTimeNs <= targetReceiveTimeNs) {
+      return;
+    }
+
+    const pendingFrames = this.#cache.framesForReceiveTime(
+      this.#topic,
+      fromNanoSec(pendingReceiveTimeNs),
+    );
+    if (pendingFrames != undefined) {
+      this.#startPlaybackStabilization(pendingFrames, generation, options);
+    }
   }
 
   #displayStabilizedPlaybackAfterSeek(
