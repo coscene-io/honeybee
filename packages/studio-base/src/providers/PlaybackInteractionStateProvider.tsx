@@ -25,9 +25,11 @@ export function createPlaybackInteractionStateStore(): StoreApi<PlaybackInteract
         const wasInactive = get().keyframeSearchLockCount === 0;
         set((store) => ({ keyframeSearchLockCount: store.keyframeSearchLockCount + 1 }));
 
-        if (wasInactive && args?.isPlaying === true && args.pausePlayback != undefined) {
+        if (args?.pausePlayback != undefined && (wasInactive || args.isPlaying === true)) {
           args.pausePlayback();
-          resumePlaybackAfterKeyframeSearch = args.startPlayback;
+        }
+        if (args?.isPlaying === true) {
+          resumePlaybackAfterKeyframeSearch ??= args.startPlayback;
         }
 
         let released = false;

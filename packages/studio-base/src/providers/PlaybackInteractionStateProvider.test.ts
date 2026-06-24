@@ -10,7 +10,7 @@ import { selectIsKeyframeSearchActive } from "@foxglove/studio-base/context/Play
 import { createPlaybackInteractionStateStore } from "./PlaybackInteractionStateProvider";
 
 describe("PlaybackInteractionStateProvider", () => {
-  it("pauses playback once and resumes after the final keyframe search lock releases", () => {
+  it("pauses playback while keyframe search locks are acquired and resumes after the final release", () => {
     const store = createPlaybackInteractionStateStore();
     const pausePlayback = jest.fn();
     const startPlayback = jest.fn();
@@ -28,7 +28,7 @@ describe("PlaybackInteractionStateProvider", () => {
 
     expect(selectIsKeyframeSearchActive(store.getState())).toBe(true);
     expect(store.getState().keyframeSearchLockCount).toBe(2);
-    expect(pausePlayback).toHaveBeenCalledTimes(1);
+    expect(pausePlayback).toHaveBeenCalledTimes(2);
     expect(startPlayback).not.toHaveBeenCalled();
 
     releaseFirst();
@@ -41,7 +41,7 @@ describe("PlaybackInteractionStateProvider", () => {
 
     expect(selectIsKeyframeSearchActive(store.getState())).toBe(false);
     expect(store.getState().keyframeSearchLockCount).toBe(0);
-    expect(pausePlayback).toHaveBeenCalledTimes(1);
+    expect(pausePlayback).toHaveBeenCalledTimes(2);
     expect(startPlayback).toHaveBeenCalledTimes(1);
 
     releaseSecond();
@@ -50,7 +50,7 @@ describe("PlaybackInteractionStateProvider", () => {
     expect(startPlayback).toHaveBeenCalledTimes(1);
   });
 
-  it("does not pause or resume when the keyframe search starts while playback is paused", () => {
+  it("does not resume when the keyframe search starts while playback is paused", () => {
     const store = createPlaybackInteractionStateStore();
     const pausePlayback = jest.fn();
     const startPlayback = jest.fn();
@@ -62,11 +62,37 @@ describe("PlaybackInteractionStateProvider", () => {
     });
 
     expect(selectIsKeyframeSearchActive(store.getState())).toBe(true);
-    expect(pausePlayback).not.toHaveBeenCalled();
+    expect(pausePlayback).toHaveBeenCalledTimes(1);
 
     release();
 
     expect(selectIsKeyframeSearchActive(store.getState())).toBe(false);
     expect(startPlayback).not.toHaveBeenCalled();
+  });
+
+  it("pauses again if a later keyframe search lock observes playback active", () => {
+    const store = createPlaybackInteractionStateStore();
+    const pausePlayback = jest.fn();
+    const startPlayback = jest.fn();
+
+    const releaseFirst = store.getState().acquireKeyframeSearchLock({
+      isPlaying: false,
+      pausePlayback,
+      startPlayback,
+    });
+    const releaseSecond = store.getState().acquireKeyframeSearchLock({
+      isPlaying: true,
+      pausePlayback,
+      startPlayback,
+    });
+
+    expect(store.getState().keyframeSearchLockCount).toBe(2);
+    expect(pausePlayback).toHaveBeenCalledTimes(2);
+
+    releaseFirst();
+    releaseSecond();
+
+    expect(store.getState().keyframeSearchLockCount).toBe(0);
+    expect(startPlayback).toHaveBeenCalledTimes(1);
   });
 });

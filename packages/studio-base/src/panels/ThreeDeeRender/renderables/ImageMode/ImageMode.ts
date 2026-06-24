@@ -856,6 +856,7 @@ export class ImageMode
     renderable.userData.receiveTime = receiveTime;
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
+      allowIntermediateVideoFrame: false,
       onDecoded: () => {
         options?.onDecoded?.();
         if (this.#fallbackCameraModelActive()) {

@@ -132,6 +132,8 @@ class PlaybackCompressedVideoMessageHandler extends FakeMessageHandler {
 class TestImageRenderable extends ImageRenderable {
   public readonly setImageCalls: AnyImage[] = [];
   public readonly setCompressedVideoFrameBatches: AnyImage[][] = [];
+  public readonly setCompressedVideoFrameOptions: (SetCompressedVideoFramesOptions | undefined)[] =
+    [];
   public resetForSeekCalls = 0;
   public disposed = false;
 
@@ -156,6 +158,7 @@ class TestImageRenderable extends ImageRenderable {
 
     this.userData.image = targetFrame.message;
     this.setCompressedVideoFrameBatches.push(frames.map((frame) => frame.message));
+    this.setCompressedVideoFrameOptions.push(options);
     options?.onDecoded?.();
     options?.updateImageState?.(targetFrame);
     return { ok: true };
@@ -313,6 +316,11 @@ describe("ImageMode compressed video seek replay", () => {
         batch.map(timestampFromImage),
       ),
     ).toEqual([[keyframe.message.timestamp, delta.message.timestamp]]);
+    expect(
+      imageMode.createdRenderables[0]!.setCompressedVideoFrameOptions.map(
+        (options) => options?.allowIntermediateVideoFrame,
+      ),
+    ).toEqual([false]);
     expect(imageMode.createdRenderables[0]!.setImageCalls).toEqual([]);
   });
 
@@ -362,6 +370,11 @@ describe("ImageMode compressed video seek replay", () => {
         batch.map(timestampFromImage),
       ),
     ).toEqual([[keyframe.message.timestamp, middle.message.timestamp, delta.message.timestamp]]);
+    expect(
+      imageMode.createdRenderables[0]!.setCompressedVideoFrameOptions.map(
+        (options) => options?.allowIntermediateVideoFrame,
+      ),
+    ).toEqual([false]);
     expect(messageHandler.updateImageState).not.toHaveBeenCalled();
   });
 

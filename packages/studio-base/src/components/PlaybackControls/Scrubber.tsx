@@ -454,6 +454,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const latestStartTime = useLatest(startTime);
   const latestEndTime = useLatest(endTime);
 
+  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
+  const loading =
+    presence === PlayerPresence.INITIALIZING ||
+    presence === PlayerPresence.BUFFERING ||
+    isKeyframeSearchActive;
+  const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
+
   const defaultViewport = useMemo<TimelineViewport | undefined>(() => {
     if (startTime == undefined || endTime == undefined) {
       return undefined;
@@ -518,12 +525,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const onChange = useCallback(
     (playbackSeconds: number) => {
-      if (!latestStartTime.current || !latestEndTime.current) {
+      if (disableControls || !latestStartTime.current || !latestEndTime.current) {
         return;
       }
       onSeek(addTimes(latestStartTime.current, fromSec(playbackSeconds)));
     },
-    [onSeek, latestEndTime, latestStartTime],
+    [disableControls, onSeek, latestEndTime, latestStartTime],
   );
 
   const onHoverOver = useCallback(
@@ -562,13 +569,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const min = useMemo(() => startTime && toSec(startTime), [startTime]);
   const max = useMemo(() => endTime && toSec(endTime), [endTime]);
-
-  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
-  const loading =
-    presence === PlayerPresence.INITIALIZING ||
-    presence === PlayerPresence.BUFFERING ||
-    isKeyframeSearchActive;
-  const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
 
   const [isDragging, setIsDragging] = useState(false);
 
