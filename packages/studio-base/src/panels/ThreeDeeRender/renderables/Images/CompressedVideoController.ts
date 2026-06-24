@@ -718,7 +718,7 @@ export class CompressedVideoController {
         return;
       }
 
-      this.#resetDecoderForReplay();
+      continuingStabilization = this.#recoverPlaybackStabilizationAfterFailure(generation, options);
     } finally {
       if (
         !continuingStabilization &&
@@ -727,6 +727,31 @@ export class CompressedVideoController {
         this.#state.playbackStabilizationInFlightGeneration = undefined;
       }
     }
+  }
+
+  #recoverPlaybackStabilizationAfterFailure(
+    generation: number,
+    options?: SetCompressedVideoFramesOptions,
+  ): boolean {
+    this.#resetDecoderForReplayableFrames();
+    this.#state.decoderResetGeneration = undefined;
+    this.#state.lastDisplayedPublishTimeNs = undefined;
+
+    const pendingReceiveTimeNs = this.#state.pendingPlaybackStabilizationReceiveTimeNs;
+    if (pendingReceiveTimeNs != undefined) {
+      this.#state.pendingPlaybackStabilizationReceiveTimeNs = undefined;
+      const pendingFrames = this.#cache.framesForReceiveTime(
+        this.#topic,
+        fromNanoSec(pendingReceiveTimeNs),
+      );
+      if (pendingFrames != undefined) {
+        void this.#displayStabilizedPlaybackFrames(pendingFrames, generation, options);
+        return true;
+      }
+    }
+
+    this.#state.playbackStabilizationGeneration = generation;
+    return false;
   }
 
   /** Smallest configured lookback window (seconds) that covers `spanNs`. */
