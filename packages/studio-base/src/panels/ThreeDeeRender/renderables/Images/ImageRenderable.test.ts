@@ -6,6 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import race from "race-as-promised";
 import * as THREE from "three";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
@@ -954,10 +955,11 @@ describe("ImageRenderable", () => {
           originalTimestamp: 1n,
           receiveTime: 10n,
         });
+      const resetVideoDecoder = jest.fn();
       const decoder = {
         decodeVideoFrames,
         awaitTargetFrame: jest.fn(async () => await targetPromise),
-        resetVideoDecoder: jest.fn(),
+        resetVideoDecoder,
         terminate: jest.fn(),
       } as unknown as WorkerImageDecoder;
       const renderable = new TestVideoBatchRenderable(decoder);
@@ -979,11 +981,11 @@ describe("ImageRenderable", () => {
       await jest.advanceTimersByTimeAsync(25);
       await flushPromises();
 
-      await expect(Promise.race([replayResult, Promise.resolve("pending")])).resolves.toEqual<
-        ImageSetImageResult
-      >({ ok: false });
+      await expect(
+        race([replayResult, Promise.resolve("pending")]),
+      ).resolves.toEqual<ImageSetImageResult>({ ok: false });
       expect(renderable.getDecodedImage()).toBe(currentFrame);
-      expect(decoder.resetVideoDecoder).toHaveBeenCalledTimes(1);
+      expect(resetVideoDecoder).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }

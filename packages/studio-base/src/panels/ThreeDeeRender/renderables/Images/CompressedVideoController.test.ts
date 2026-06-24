@@ -606,13 +606,14 @@ describe("CompressedVideoController", () => {
     const delta = makeVideoMessage(10_000_000n, "delta");
     const nextDelta = makeVideoMessage(20_000_000n, "delta");
     const displayFrames = makeSuccessfulDisplayFrames();
-    let controller: CompressedVideoController | undefined;
+    const controllerRef: { current?: CompressedVideoController } = {};
     const releasePlaybackPause = jest.fn(() => {
-      controller?.processMessage(nextDelta);
+      controllerRef.current?.processMessage(nextDelta);
     });
     const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => releasePlaybackPause);
     const renderer = makeRenderer({ acquireSeekKeyframeSearchPlaybackPause });
-    controller = makeController({ renderer, displayFrames });
+    const controller = makeController({ renderer, displayFrames });
+    controllerRef.current = controller;
 
     controller.processMessage(keyframe);
     controller.processMessage(delta);

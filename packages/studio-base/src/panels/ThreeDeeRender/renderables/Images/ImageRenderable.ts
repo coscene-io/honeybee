@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
+import race from "race-as-promised";
 import * as THREE from "three";
 import { assert } from "ts-essentials";
 
@@ -1151,7 +1152,7 @@ async function awaitTargetFrameWithTimeout(
 ): Promise<Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>> | undefined> {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
+    return await race([
       decoder.awaitTargetFrame({ requestId }),
       new Promise<undefined>((resolve) => {
         timeout = setTimeout(() => {

@@ -27,7 +27,12 @@ jest.mock("./PlaybackTimeDisplay", () => ({
   __esModule: true,
   default: function MockPlaybackTimeDisplay({ onSeek }: { onSeek: (seekTo: Time) => void }) {
     return (
-      <button data-testid="playback-time-display" onClick={() => onSeek({ sec: 3, nsec: 0 })}>
+      <button
+        data-testid="playback-time-display"
+        onClick={() => {
+          onSeek({ sec: 3, nsec: 0 });
+        }}
+      >
         time
       </button>
     );
@@ -37,7 +42,12 @@ jest.mock("./Scrubber", () => ({
   __esModule: true,
   default: function MockScrubber({ onSeek }: { onSeek: (seekTo: Time) => void }) {
     return (
-      <button data-testid="scrubber" onClick={() => onSeek({ sec: 2, nsec: 0 })}>
+      <button
+        data-testid="scrubber"
+        onClick={() => {
+          onSeek({ sec: 2, nsec: 0 });
+        }}
+      >
         scrubber
       </button>
     );
@@ -249,7 +259,7 @@ describe("<PlaybackControls />", () => {
   it("does not own playback resume after keyframe search ends", () => {
     const play = jest.fn();
     const pause = jest.fn();
-    const renderControls = (active: boolean, isPlaying: boolean) => (
+    const renderControls = ({ active, isPlaying }: { active: boolean; isPlaying: boolean }) => (
       <Wrapper>
         <KeyframeSearchLock active={active} />
         <PlaybackControls
@@ -264,17 +274,17 @@ describe("<PlaybackControls />", () => {
       </Wrapper>
     );
 
-    const { rerender } = render(renderControls(true, true));
+    const { rerender } = render(renderControls({ active: true, isPlaying: true }));
     jest.mocked(console.warn).mockClear();
 
     expect(pause).not.toHaveBeenCalled();
     expect(play).not.toHaveBeenCalled();
 
-    rerender(renderControls(true, false));
+    rerender(renderControls({ active: true, isPlaying: false }));
     jest.mocked(console.warn).mockClear();
     expect(play).not.toHaveBeenCalled();
 
-    rerender(renderControls(false, false));
+    rerender(renderControls({ active: false, isPlaying: false }));
     jest.mocked(console.warn).mockClear();
     expect(play).not.toHaveBeenCalled();
   });
