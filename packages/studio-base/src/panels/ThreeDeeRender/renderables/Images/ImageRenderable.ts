@@ -67,6 +67,7 @@ export const IMAGE_RENDERABLE_DEFAULT_SETTINGS: ImageRenderableSettings = {
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 const MIN_IMAGE_RENDER_INTERVAL_MS = 16;
+const DEFAULT_TARGET_FRAME_TIMEOUT_MS = 1000;
 
 type DecodedImageResource = ImageBitmap | ImageData | VideoFrame;
 type DecodedImageResult = {
@@ -86,6 +87,7 @@ export type SetCompressedVideoFramesOptions = {
   updateImageState?: (event: CompressedVideoFrameEvent) => void;
   targetFrameTimeoutMs?: number;
   anyFrameTimeoutMs?: number;
+  allowIntermediateVideoFrame?: boolean;
 };
 
 type PendingDecodedImage = {
@@ -631,7 +633,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     entries: PendingVideoDecode[],
     options: Pick<
       SetCompressedVideoFramesOptions,
-      "targetFrameTimeoutMs" | "anyFrameTimeoutMs"
+      "targetFrameTimeoutMs" | "anyFrameTimeoutMs" | "allowIntermediateVideoFrame"
     > = {},
   ): Promise<void> {
     const requestId = ++this.#videoDecodeRequestId;
@@ -669,6 +671,21 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
 
     const targetEntry = entries[entries.length - 1]!;
+    if (result.type === "IntermediateFrame" && options.allowIntermediateVideoFrame === false) {
+      result.frame.close();
+      for (const entry of entries) {
+        if (entry === targetEntry) {
+          continue;
+        }
+        this.#settleVideoDecode(entry, this.#failedVideoFrameResult());
+      }
+      void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry, {
+        settleTargetEntry: true,
+        targetFrameTimeoutMs: options.targetFrameTimeoutMs,
+      });
+      return;
+    }
+
     const resultEntry =
       result.type === "IntermediateFrame"
         ? targetEntry
@@ -694,14 +711,35 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     decoder: WorkerImageDecoder,
     requestId: number,
     targetEntry: PendingVideoDecode,
+    options: { settleTargetEntry?: boolean; targetFrameTimeoutMs?: number } = {},
   ): Promise<void> {
-    let result: Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>>;
+    let result: Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>> | undefined;
+    const timeoutMs =
+      options.settleTargetEntry === true
+        ? (options.targetFrameTimeoutMs ?? DEFAULT_TARGET_FRAME_TIMEOUT_MS)
+        : undefined;
     try {
-      result = await decoder.awaitTargetFrame({ requestId });
+      result =
+        timeoutMs != undefined
+          ? await awaitTargetFrameWithTimeout(decoder, requestId, timeoutMs)
+          : await decoder.awaitTargetFrame({ requestId });
     } catch {
+      if (options.settleTargetEntry === true) {
+        this.#settleVideoDecode(targetEntry, this.#failedVideoFrameResult());
+      }
+      return;
+    }
+    if (result == undefined) {
+      void Promise.resolve(decoder.resetVideoDecoder()).catch(() => {});
+      if (options.settleTargetEntry === true) {
+        this.#settleVideoDecode(targetEntry, this.#failedVideoFrameResult());
+      }
       return;
     }
     if (result.type !== "TargetFrame") {
+      if (options.settleTargetEntry === true) {
+        this.#settleVideoDecode(targetEntry, this.#failedVideoFrameResult());
+      }
       return;
     }
     if (
@@ -710,6 +748,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       targetEntry.seq !== this.#receivedImageSequenceNumber
     ) {
       result.frame.close();
+      if (options.settleTargetEntry === true) {
+        this.#settleVideoDecode(targetEntry, this.#failedVideoFrameResult());
+      }
+      return;
+    }
+
+    if (options.settleTargetEntry === true) {
+      this.#settleVideoDecode(targetEntry, { image: result.frame, ok: true });
       return;
     }
 
@@ -1095,6 +1141,28 @@ function closeDecodedImageResource(resource: unknown): void {
 function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
   if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
     result.frame.close();
+  }
+}
+
+async function awaitTargetFrameWithTimeout(
+  decoder: WorkerImageDecoder,
+  requestId: number,
+  timeoutMs: number,
+): Promise<Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>> | undefined> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      decoder.awaitTargetFrame({ requestId }),
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => {
+          resolve(undefined);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout != undefined) {
+      clearTimeout(timeout);
+    }
   }
 }
 

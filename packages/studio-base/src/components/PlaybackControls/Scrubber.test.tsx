@@ -50,6 +50,7 @@ function dispatchMockPipelineProps(store: MockPipelineStore, mockProps: MockPipe
 let mockSliderProps:
   | {
       disabled?: boolean;
+      onChange?: (playbackSeconds: number) => void;
       onHoverOver?: (event: HoverOverEvent) => void;
       onHoverOut?: () => void;
     }
@@ -85,6 +86,7 @@ jest.mock("./Slider", () => ({
   __esModule: true,
   default: function MockSlider(props: {
     disabled?: boolean;
+    onChange?: (playbackSeconds: number) => void;
     onHoverOver?: (event: HoverOverEvent) => void;
     onHoverOut?: () => void;
   }): React.JSX.Element {
@@ -247,6 +249,22 @@ describe("<Scrubber />", () => {
     );
 
     expect(screen.getByTestId("scrubber-slider").dataset.disabled).toBe("true");
+  });
+
+  it("ignores timeline seek changes while keyframe search is active", () => {
+    const onSeek = jest.fn();
+    render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <Scrubber onSeek={onSeek} />
+      </Wrapper>,
+    );
+
+    act(() => {
+      mockSliderProps?.onChange?.(5);
+    });
+
+    expect(onSeek).not.toHaveBeenCalled();
   });
 
   it("renders and toggles the moment subtitle button when events are enabled", async () => {

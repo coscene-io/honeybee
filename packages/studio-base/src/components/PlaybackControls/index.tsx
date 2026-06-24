@@ -205,6 +205,16 @@ export default function PlaybackControls(props: {
     }
   }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
+  const seekIfAllowed = useCallback(
+    (seekTo: Time) => {
+      if (isKeyframeSearchActive) {
+        return;
+      }
+      seek(seekTo);
+    },
+    [isKeyframeSearchActive, seek],
+  );
+
   const togglePlayPause = useCallback(() => {
     if (isKeyframeSearchActive) {
       return;
@@ -216,11 +226,11 @@ export default function PlaybackControls(props: {
       const { startTime: start, endTime: end, currentTime: current } = getTimeInfo();
       // if we are at the end, we need to go back to start
       if (current && end && start && compare(current, end) >= 0) {
-        seek(start);
+        seekIfAllowed(start);
       }
       play();
     }
-  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, play, seek]);
+  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, seekIfAllowed, play]);
 
   // Track SeekStep editing state for KeyListener management
   const [seekStepEditing, setSeekStepEditing] = useState(false);
@@ -262,10 +272,10 @@ export default function PlaybackControls(props: {
       if (playUntil) {
         playUntil(clampedTargetTime);
       } else {
-        seek(clampedTargetTime);
+        seekIfAllowed(clampedTargetTime);
       }
     },
-    [isKeyframeSearchActive, getTimeInfo, playUntil, seek, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, playUntil, seekIfAllowed, effectiveSeekMs],
   );
 
   const seekBackwardAction = useCallback(
@@ -278,9 +288,9 @@ export default function PlaybackControls(props: {
       if (!currentTime) {
         return;
       }
-      seek(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
+      seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
     },
-    [isKeyframeSearchActive, getTimeInfo, seek, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, seekIfAllowed, effectiveSeekMs],
   );
 
   const adjustPlaybackSpeed = useCallback(
@@ -389,7 +399,7 @@ export default function PlaybackControls(props: {
           data-testid="playback-controls-resize-handle"
           onPointerDown={startTimelineResize}
         />
-        <Scrubber onSeek={seek} />
+        <Scrubber onSeek={seekIfAllowed} />
         <Stack className={classes.controlsRow} direction="row" alignItems="center" gap={1}>
           <Stack direction="row" flex={1} gap={0.5}>
             <Tooltip
@@ -415,7 +425,7 @@ export default function PlaybackControls(props: {
                 icon={<Info20Regular />}
               />
             </Tooltip>
-            <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
+            <PlaybackTimeDisplay onSeek={seekIfAllowed} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
                 <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "websocket" })}>
