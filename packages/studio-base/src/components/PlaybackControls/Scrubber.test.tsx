@@ -55,20 +55,32 @@ let mockSliderProps:
       onHoverOut?: () => void;
     }
   | undefined;
+let mockRenderPortalledEventsOverlay = false;
 let mockShortcutsHelpButtonRenderCount = 0;
 
-jest.mock("./EventsOverlay", () => ({
-  EventsOverlay: function MockEventsOverlay(): React.JSX.Element {
-    return (
-      <div
-        data-testid="events-overlay"
-        onPointerDown={(event) => {
-          event.stopPropagation();
-        }}
-      />
-    );
-  },
-}));
+jest.mock("./EventsOverlay", () => {
+  const { createPortal } = jest.requireActual<typeof import("react-dom")>("react-dom");
+
+  return {
+    EventsOverlay: function MockEventsOverlay(): React.JSX.Element {
+      if (mockRenderPortalledEventsOverlay) {
+        return createPortal(
+          <input aria-label="Portalled event form input" />,
+          globalThis.document.body,
+        ) as React.JSX.Element;
+      }
+
+      return (
+        <div
+          data-testid="events-overlay"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+          }}
+        />
+      );
+    },
+  };
+});
 
 jest.mock("./PlaybackBarHoverTicks", () => ({
   PlaybackBarHoverTicks: function MockPlaybackBarHoverTicks(): React.JSX.Element {
@@ -211,6 +223,7 @@ function Wrapper({
 describe("<Scrubber />", () => {
   beforeEach(async () => {
     mockSliderProps = undefined;
+    mockRenderPortalledEventsOverlay = false;
     mockShortcutsHelpButtonRenderCount = 0;
     await i18n.changeLanguage("en");
   });
@@ -286,6 +299,36 @@ describe("<Scrubber />", () => {
     expect(screen.getByLabelText("Disable moment subtitles")).toBeTruthy();
     expect(within(subtitleButton).getByTestId("moment-subtitle-icon-active")).toBeTruthy();
     expect(within(subtitleButton).queryByTestId("moment-subtitle-icon-inactive")).toBeNull();
+  });
+
+  it("keeps focus inside portalled event controls when they are clicked", () => {
+    mockRenderPortalledEventsOverlay = true;
+    const requestAnimationFrame = jest
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        callback(0);
+        return 0;
+      });
+
+    try {
+      render(
+        <Wrapper eventEnabled>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+
+      const input = screen.getByRole("textbox", { name: "Portalled event form input" });
+      input.focus();
+
+      fireEvent.pointerDown(input, {
+        clientX: 100,
+        clientY: 20,
+      });
+
+      expect(document.activeElement).toBe(input);
+    } finally {
+      requestAnimationFrame.mockRestore();
+    }
   });
 
   it("shows the moment subtitle toggle without event write permission", async () => {

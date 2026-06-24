@@ -704,6 +704,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const onScrubberPointerDownCapture = useCallback(
     (event: React.PointerEvent<HTMLDivElement>): void => {
+      const scrubber = scrubberRef.current;
+      const target = event.target;
+      if (scrubber == undefined || !(target instanceof Node) || !scrubber.contains(target)) {
+        return;
+      }
+
       requestAnimationFrame(() => {
         scrubberRef.current?.focus({ preventScroll: true });
       });
