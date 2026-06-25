@@ -84,6 +84,14 @@ export type MessageIteratorArgs = {
    * next result may be blocked on network I/O.
    */
   abortSignal?: AbortSignal;
+
+  /**
+   * Hint that this read fills the preload cache (full-range block loading) and may be downsampled
+   * by the source to bound memory for very high-rate topics. Only set by the block loader; reads
+   * that need every message (playback, message-range/backfill) leave it unset. Sources that do not
+   * downsample ignore it.
+   */
+  allowDownsampling?: boolean;
 };
 
 /**
