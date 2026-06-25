@@ -68,6 +68,7 @@ import {
 import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { UserScripts } from "@foxglove/studio-base/types/panels";
+import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 const log = Logger.getLogger(__filename);
 
@@ -424,13 +425,16 @@ export default function PlayerManager(
 
             constructPlayers(newPlayer);
 
-            const recentId = addRecent({
-              type: "connection",
-              sourceId: foundSource.id,
-              title: args.params?.url ?? t("onlineData"),
-              label: foundSource.displayName,
-              extra: args.params,
-            });
+            const recentId =
+              sourceId === SHARE_MANIFEST_DATA_SOURCE_ID
+                ? undefined
+                : addRecent({
+                    type: "connection",
+                    sourceId: foundSource.id,
+                    title: args.params?.url ?? t("onlineData"),
+                    label: foundSource.displayName,
+                    extra: args.params,
+                  });
 
             setDataSource({
               id: sourceId,

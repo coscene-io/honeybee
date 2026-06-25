@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
+import { isShareManifestUrl } from "@foxglove/studio-base/util/shareManifest";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 export * from "./cosel";
@@ -23,7 +24,14 @@ export * from "./cosel";
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
 export function isAuthlessDataSource(): boolean {
-  return false;
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return isShareManifestUrl(new URL(window.location.href));
+  } catch {
+    return false;
+  }
 }
 
 // window.navigator.platform is not reliable, use this function to check os

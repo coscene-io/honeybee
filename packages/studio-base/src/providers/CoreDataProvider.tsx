@@ -26,6 +26,7 @@ import {
   CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
+import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 const defaultCoreDataStore = {
   showtUrlKey: undefined,
@@ -134,6 +135,28 @@ function CreateCoreDataStore() {
 
     getEnableList: () => {
       const { dataSource, project, externalInitConfig } = get();
+
+      if (dataSource?.id === SHARE_MANIFEST_DATA_SOURCE_ID) {
+        const next: EnableList = {
+          event: "DISABLE",
+          playlist: "DISABLE",
+          task: "DISABLE",
+          layoutSync: "DISABLE",
+          recordInfo: "DISABLE",
+        };
+        if (
+          cachedEnableList &&
+          cachedEnableList.event === next.event &&
+          cachedEnableList.playlist === next.playlist &&
+          cachedEnableList.task === next.task &&
+          cachedEnableList.layoutSync === next.layoutSync &&
+          cachedEnableList.recordInfo === next.recordInfo
+        ) {
+          return cachedEnableList;
+        }
+        cachedEnableList = next;
+        return next;
+      }
 
       const next: EnableList = {
         event:

@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -38,6 +39,11 @@ import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import {
+  SHARE_MANIFEST_DATA_SOURCE_ID,
+  SHARE_MANIFEST_HASH_PARAM,
+  parseShareManifestFromUrl,
+} from "@foxglove/studio-base/util/shareManifest";
 
 const log = Logger.getLogger(__filename);
 
@@ -48,6 +54,17 @@ const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
+
+function ExpiredShareManifestDialog(): React.JSX.Element {
+  return (
+    <Dialog open disableEscapeKeyDown>
+      <DialogTitle>分享链接已过期</DialogTitle>
+      <DialogContent>
+        <Typography>该分享链接已过期，请联系分享者获取新的链接。</Typography>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 /**
  * DeepLinksSyncAdapter
@@ -61,7 +78,7 @@ export function DeepLinksSyncAdapter({
   deepLinks = DEFAULT_DEEPLINKS,
 }: {
   deepLinks?: readonly string[];
-}): ReactNull {
+}): React.JSX.Element | ReactNull {
   // ========== 依赖和状态 ==========
   const { t } = useTranslation("workspace");
   const domainConfig = getDomainConfig();
@@ -83,10 +100,35 @@ export function DeepLinksSyncAdapter({
     }
 
     const url = new URL(deepLinks[0]);
+    const shareManifest = parseShareManifestFromUrl(url);
+    if (shareManifest.status === "valid") {
+      return {
+        ds: SHARE_MANIFEST_DATA_SOURCE_ID,
+        dsParams: { [SHARE_MANIFEST_HASH_PARAM]: shareManifest.encodedManifest },
+      };
+    }
+    if (shareManifest.status === "expired") {
+      return undefined;
+    }
+
     const parsedUrl = parseAppURLState(url);
 
     return parsedUrl;
   }, [deepLinks]);
+
+  const targetShareManifest = useMemo(() => {
+    if (deepLinks[0] == undefined) {
+      return undefined;
+    }
+    try {
+      const result = parseShareManifestFromUrl(new URL(deepLinks[0]));
+      return result.status === "missing" || result.status === "invalid" ? undefined : result;
+    } catch {
+      return undefined;
+    }
+  }, [deepLinks]);
+
+  const shareManifestExpired = targetShareManifest?.status === "expired";
 
   // ========== 状态管理 ==========
   // 待应用的数据源参数（只在组件挂载时从 URL 初始化一次）
@@ -249,8 +291,17 @@ export function DeepLinksSyncAdapter({
       return;
     }
 
+    if (shareManifestExpired) {
+      isSourceProcessed.current = true;
+      if (dataSourceDialog.open) {
+        dialogActions.dataSource.close();
+      }
+      setUnappliedSourceArgs(undefined);
+      return;
+    }
+
     // Authless data sources bypass the login gate.
-    const authless = isAuthlessDataSource();
+    const authless = targetShareManifest?.status === "valid" || isAuthlessDataSource();
 
     // 特殊情况：用户未登录但试图访问需要登录的数据源
     if (loginStatus === "notLogin" && unappliedSourceArgs?.ds && !authless) {
@@ -318,6 +369,8 @@ export function DeepLinksSyncAdapter({
     debouncedPleaseLoginFirstToast,
     loadLastExternalInitConfig,
     setIsReadyForSyncLayout,
+    shareManifestExpired,
+    targetShareManifest?.status,
   ]);
 
   /**
@@ -333,8 +386,8 @@ export function DeepLinksSyncAdapter({
    * 同步 layout 和播放时间
    * 这些 hooks 会等待 isReadyForSyncLayout 标志后再执行
    */
-  useSyncLayoutFromUrl(targetUrlState);
-  useSyncTimeFromUrl(targetUrlState);
+  useSyncLayoutFromUrl(shareManifestExpired ? undefined : targetUrlState);
+  useSyncTimeFromUrl(shareManifestExpired ? undefined : targetUrlState);
 
-  return ReactNull;
+  return shareManifestExpired ? <ExpiredShareManifestDialog /> : ReactNull;
 }

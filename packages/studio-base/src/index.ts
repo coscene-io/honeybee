@@ -40,6 +40,7 @@ export { default as RemoteDataSourceFactory } from "./dataSources/RemoteDataSour
 export { default as McapLocalDataSourceFactory } from "./dataSources/McapLocalDataSourceFactory";
 export { default as SampleNuscenesDataSourceFactory } from "./dataSources/SampleNuscenesDataSourceFactory";
 export { default as PersistentCacheDataSourceFactory } from "./dataSources/PersistentCacheDataSourceFactory";
+export { default as CoSceneShareManifestDataSourceFactory } from "./dataSources/CoSceneShareManifestDataSourceFactory";
 export { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";

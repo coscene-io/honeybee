@@ -320,6 +320,48 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("does not save transient layout updates into LayoutStorage", async () => {
+    jest.useFakeTimers();
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.updateLayout.mockResolvedValue(undefined);
+
+    const { result } = renderTest({ mockLayoutManager });
+
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: "share-layout" as LayoutID,
+        data: TEST_LAYOUT,
+        name: "Shared layout",
+        transient: true,
+      });
+    });
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { foo: "bar" } }],
+      });
+    });
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {});
+
+    expect(mockLayoutManager.updateLayout).not.toHaveBeenCalled();
+    expect(result.current.layoutState.selectedLayout).toMatchObject({
+      id: "share-layout",
+      name: "Shared layout",
+      edited: true,
+      transient: true,
+      data: {
+        configById: { "ExamplePanel!1": { foo: "bar" } },
+      },
+    });
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
   it("keeps identity of action functions when modifying layout", async () => {
     jest.useFakeTimers();
     const condvar = new Condvar();
