@@ -22,7 +22,7 @@ import {
   useCoreData,
 } from "@foxglove/studio-base/context/CoreDataContext";
 import PlayerSelectionContext from "@foxglove/studio-base/context/PlayerSelectionContext";
-import type { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import type { ConfirmOptions, confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import MockCoSceneCurrentUserProvider from "@foxglove/studio-base/providers/MockCoSceneCurrentUserProvider";
@@ -80,7 +80,9 @@ function renderBagView({
   setExternalInitConfig: jest.Mock;
   updateUrl: jest.Mock;
 } {
-  const confirm = jest.fn(async () => confirmResult) as jest.MockedFunction<confirmTypes>;
+  const confirm: jest.MockedFunction<confirmTypes> = jest.fn(
+    async (_options: ConfirmOptions) => confirmResult,
+  );
   const selectSource = jest.fn();
   const setExternalInitConfig = jest.fn(async () => "new-key");
   const updateUrl = jest.fn();

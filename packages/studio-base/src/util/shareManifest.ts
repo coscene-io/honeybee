@@ -113,10 +113,14 @@ export function parseEncodedShareManifest(
   }
 
   if (isRecord(raw)) {
-    const expireTimeMs =
-      typeof raw.expireTime === "string" ? Date.parse(raw.expireTime) : Number.NaN;
-    if (Number.isFinite(expireTimeMs) && expireTimeMs <= now.getTime()) {
-      return { status: "expired", encodedManifest, expireTime: raw.expireTime };
+    const { expireTime } = raw;
+    const expireTimeMs = typeof expireTime === "string" ? Date.parse(expireTime) : Number.NaN;
+    if (
+      typeof expireTime === "string" &&
+      Number.isFinite(expireTimeMs) &&
+      expireTimeMs <= now.getTime()
+    ) {
+      return { status: "expired", encodedManifest, expireTime };
     }
   }
 
