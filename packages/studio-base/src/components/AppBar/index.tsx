@@ -350,7 +350,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                 >
                   <SlideAdd24Regular color={theme.palette.appBar.icon} />
                 </AppBarIconButton>
-                {checkSupportCoStudioDownload() && (
+                {!isShareManifestSource && checkSupportCoStudioDownload() && (
                   <AppBarIconButton
                     title={t("openInCoStudio")}
                     aria-label={t("openInCoStudio")}

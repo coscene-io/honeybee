@@ -41,6 +41,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
       throw result.error;
     }
 
+    const miniMcapUrl = result.manifest.links.mini_mcap;
     const source = new WorkerSerializedIterableSource({
       initWorker: () => {
         return new Worker(
@@ -51,7 +52,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
           ),
         );
       },
-      initArgs: { url: result.manifest.links.mini_mcap },
+      initArgs: { url: miniMcapUrl },
     });
 
     return new IterablePlayer({
@@ -61,6 +62,8 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
       name: "Shared MCAP",
       urlParams: { [SHARE_MANIFEST_HASH_PARAM]: encodedManifest },
       readAheadDuration: { sec: 10, nsec: 0 },
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: JSON.stringify({ sourceId: this.id, url: miniMcapUrl }),
     });
   }
 }

@@ -79,9 +79,12 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
       sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
       urlParams: { manifest: encodedManifest },
       name: "Shared MCAP",
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: JSON.stringify({
+        sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
+        url: manifest.links.mini_mcap,
+      }),
     });
-    expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toHaveProperty("enablePlaybackSpillCache");
-    expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toHaveProperty("playbackSpillCacheSourceKey");
   });
 
   it("rejects expired manifests before constructing a player", () => {
