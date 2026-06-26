@@ -86,7 +86,7 @@ function encodeBase64Url(value: unknown): string {
 function shareUrl(expiresAt: string): { url: string; encodedManifest: string } {
   const encodedManifest = encodeBase64Url({
     version: 1,
-    expires_at: expiresAt,
+    expireTime: expiresAt,
     links: {
       mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap?sig=playback",
       layout: "https://mock-storage.example.com/shares/layout.json?sig=layout",

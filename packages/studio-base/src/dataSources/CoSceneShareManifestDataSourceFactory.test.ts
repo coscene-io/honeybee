@@ -35,7 +35,7 @@ function encodeBase64Url(value: unknown): string {
 describe("CoSceneShareManifestDataSourceFactory", () => {
   const manifest: ShareManifest = {
     version: 1,
-    expires_at: "2026-06-30T10:00:00Z",
+    expireTime: "2026-06-30T10:00:00Z",
     links: {
       mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap?sig=playback",
       layout: "https://mock-storage.example.com/shares/layout.json?sig=layout",
@@ -87,7 +87,7 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
   it("rejects expired manifests before constructing a player", () => {
     const encodedManifest = encodeBase64Url({
       ...manifest,
-      expires_at: "2026-06-20T10:00:00Z",
+      expireTime: "2026-06-20T10:00:00Z",
     });
     const factory = new CoSceneShareManifestDataSourceFactory();
 

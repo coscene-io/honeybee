@@ -35,7 +35,7 @@ describe("share manifest URL parsing", () => {
   it("parses only the manifest hash parameter", () => {
     const manifest = {
       version: 1,
-      expires_at: future,
+      expireTime: future,
       links: {
         mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap?sig=1",
         layout: "https://mock-storage.example.com/shares/layout.json?sig=2",
@@ -52,10 +52,27 @@ describe("share manifest URL parsing", () => {
     });
   });
 
-  it("does not treat a bare base64 hash as a share manifest", () => {
+  it("does not accept expires_at as the expiration field", () => {
     const encoded = encodeBase64Url({
       version: 1,
       expires_at: future,
+      links: {
+        mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap",
+        layout: "https://mock-storage.example.com/shares/layout.json",
+      },
+    });
+
+    expect(
+      parseShareManifestFromUrl(new URL(`https://example.com/viz#manifest=${encoded}`), now),
+    ).toMatchObject({
+      status: "invalid",
+    });
+  });
+
+  it("does not treat a bare base64 hash as a share manifest", () => {
+    const encoded = encodeBase64Url({
+      version: 1,
+      expireTime: future,
       links: {
         mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap",
         layout: "https://mock-storage.example.com/shares/layout.json",
@@ -70,7 +87,7 @@ describe("share manifest URL parsing", () => {
   it("rejects standard base64 manifest hash parameters", () => {
     const encoded = encodeBase64({
       version: 1,
-      expires_at: future,
+      expireTime: future,
       links: {
         mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap",
         layout: "https://mock-storage.example.com/shares/layout.json",
@@ -89,7 +106,7 @@ describe("share manifest URL parsing", () => {
 
   it("returns expired before validating other manifest fields", () => {
     const encoded = encodeBase64Url({
-      expires_at: past,
+      expireTime: past,
       links: {
         mini_mcap: "not-a-url",
       },
@@ -100,14 +117,14 @@ describe("share manifest URL parsing", () => {
     ).toEqual({
       status: "expired",
       encodedManifest: encoded,
-      expiresAt: past,
+      expireTime: past,
     });
   });
 
   it("rejects malformed non-expired manifests", () => {
     const encoded = encodeBase64Url({
       version: 2,
-      expires_at: future,
+      expireTime: future,
       links: {
         mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap",
         layout: "https://mock-storage.example.com/shares/layout.json",
@@ -124,13 +141,13 @@ describe("share manifest URL parsing", () => {
   it("treats valid and expired share URLs as authless entries", () => {
     const validEncoded = encodeBase64Url({
       version: 1,
-      expires_at: future,
+      expireTime: future,
       links: {
         mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap",
         layout: "https://mock-storage.example.com/shares/layout.json",
       },
     });
-    const expiredEncoded = encodeBase64Url({ expires_at: past });
+    const expiredEncoded = encodeBase64Url({ expireTime: past });
 
     expect(SHARE_MANIFEST_DATA_SOURCE_ID).toBe("coscene-share-manifest");
     expect(

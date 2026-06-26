@@ -54,7 +54,7 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
     } as Response);
     const manifest = encodeBase64Url({
       version: 1,
-      expires_at: "2026-06-30T10:00:00Z",
+      expireTime: "2026-06-30T10:00:00Z",
       links: {
         mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap?sig=playback",
         layout: layoutUrl,

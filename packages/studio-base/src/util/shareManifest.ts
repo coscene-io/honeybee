@@ -10,7 +10,7 @@ export const SHARE_MANIFEST_HASH_PARAM = "manifest";
 
 export type ShareManifest = {
   version: 1;
-  expires_at: string;
+  expireTime: string;
   links: {
     mini_mcap: string;
     layout: string;
@@ -19,7 +19,7 @@ export type ShareManifest = {
 
 export type ShareManifestParseResult =
   | { status: "missing" }
-  | { status: "expired"; encodedManifest: string; expiresAt: string }
+  | { status: "expired"; encodedManifest: string; expireTime: string }
   | { status: "invalid"; encodedManifest: string; error: Error }
   | { status: "valid"; encodedManifest: string; manifest: ShareManifest };
 
@@ -62,8 +62,8 @@ function asShareManifest(raw: unknown): ShareManifest {
   if (raw.version !== 1) {
     throw new Error("Share manifest version must be 1");
   }
-  if (typeof raw.expires_at !== "string" || Number.isNaN(Date.parse(raw.expires_at))) {
-    throw new Error("Share manifest expires_at must be a valid date string");
+  if (typeof raw.expireTime !== "string" || Number.isNaN(Date.parse(raw.expireTime))) {
+    throw new Error("Share manifest expireTime must be a valid date string");
   }
   if (!isRecord(raw.links)) {
     throw new Error("Share manifest links must be an object");
@@ -77,7 +77,7 @@ function asShareManifest(raw: unknown): ShareManifest {
 
   return {
     version: 1,
-    expires_at: raw.expires_at,
+    expireTime: raw.expireTime,
     links: {
       mini_mcap: raw.links.mini_mcap,
       layout: raw.links.layout,
@@ -112,10 +112,11 @@ export function parseEncodedShareManifest(
     };
   }
 
-  if (isRecord(raw) && typeof raw.expires_at === "string") {
-    const expiresAtMs = Date.parse(raw.expires_at);
-    if (Number.isFinite(expiresAtMs) && expiresAtMs <= now.getTime()) {
-      return { status: "expired", encodedManifest, expiresAt: raw.expires_at };
+  if (isRecord(raw)) {
+    const expireTimeMs =
+      typeof raw.expireTime === "string" ? Date.parse(raw.expireTime) : Number.NaN;
+    if (Number.isFinite(expireTimeMs) && expireTimeMs <= now.getTime()) {
+      return { status: "expired", encodedManifest, expireTime: raw.expireTime };
     }
   }
 
