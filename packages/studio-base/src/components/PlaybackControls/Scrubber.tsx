@@ -732,8 +732,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [beginTimelinePointerInteraction],
   );
 
+  // Attached as a non-passive native listener (see the effect below) rather than via React's
+  // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
+  // no-op. Without it the browser's own Ctrl+wheel page-zoom fires on Windows/Linux (on macOS
+  // Ctrl+wheel isn't a page-zoom gesture, so the bug only shows up off-Mac).
   const onWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>): void => {
+    (event: WheelEvent): void => {
       const currentViewport = latestViewport.current;
       const target = scrubberRef.current;
       if (currentViewport == undefined || target == undefined) {
@@ -769,6 +773,19 @@ export default function Scrubber(props: Props): React.JSX.Element {
     },
     [latestViewport],
   );
+
+  // Register the wheel handler natively with `{ passive: false }` so the `preventDefault()` calls
+  // above actually suppress the browser default (Ctrl+wheel page zoom, horizontal trackpad scroll).
+  useEffect(() => {
+    const target = scrubberRef.current;
+    if (target == undefined) {
+      return;
+    }
+    target.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      target.removeEventListener("wheel", onWheel);
+    };
+  }, [onWheel]);
 
   const zoomPercent = useMemo(
     () =>
@@ -808,6 +825,14 @@ export default function Scrubber(props: Props): React.JSX.Element {
     },
     [latestViewport, zoomAnchorSec],
   );
+
+  // After a mouse drag on the zoom slider, MUI releases focus to <body>, which sits outside the
+  // [data-timeline-scrubber] subtree. The timeline zoom shortcuts (Shift+Z, Ctrl/Cmd +/-) gate on
+  // focus being inside that subtree, so they'd go dead right after the user tweaks zoom via the
+  // slider. Return focus to the scrubber on drag-commit so the shortcuts stay active.
+  const restoreScrubberFocus = useCallback((): void => {
+    scrubberRef.current?.focus({ preventScroll: true });
+  }, []);
 
   // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
   const zoomAnchorSecRef = useLatest(zoomAnchorSec);
@@ -918,7 +943,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
     <div
       ref={scrubberRef}
       className={classes.root}
-      onWheel={onWheel}
       onPointerMoveCapture={onScrubberPointerMoveCapture}
       tabIndex={0}
       data-timeline-scrubber="true"
@@ -953,6 +977,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 size="small"
                 value={zoomPercent ?? 0}
                 onChange={onZoomSliderChange}
+                onChangeCommitted={restoreScrubberFocus}
               />
               <Tooltip title={t("zoomIn")}>
                 <ZoomInIcon className={classes.zoomIcon} />
