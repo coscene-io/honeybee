@@ -61,6 +61,7 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
 import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
+import { SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
 const TIMELINE_MIN_HEIGHT_PX = 126;
@@ -449,9 +450,13 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title={t("seekBackward", {
-                ns: "general",
-              })}
+              aria-label={t("seekBackward", { ns: "general" })}
+              title={
+                <ShortcutHint
+                  label={t("seekBackward", { ns: "general" })}
+                  keys={SHORTCUTS.seekBackward}
+                />
+              }
               icon={<Previous20Regular />}
               activeIcon={<Previous20Filled />}
               onClick={() => {
@@ -462,14 +467,12 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               id="play-pause-button"
+              aria-label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
               title={
-                isPlaying
-                  ? t("pause", {
-                      ns: "general",
-                    })
-                  : t("play", {
-                      ns: "general",
-                    })
+                <ShortcutHint
+                  label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
+                  keys={SHORTCUTS.playPause}
+                />
               }
               onClick={togglePlayPause}
               icon={isPlaying ? <Pause20Regular /> : <Play20Regular />}
@@ -478,9 +481,13 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title={t("seekForward", {
-                ns: "general",
-              })}
+              aria-label={t("seekForward", { ns: "general" })}
+              title={
+                <ShortcutHint
+                  label={t("seekForward", { ns: "general" })}
+                  keys={SHORTCUTS.seekForward}
+                />
+              }
               icon={<Next20Regular />}
               activeIcon={<Next20Filled />}
               onClick={() => {

@@ -46,7 +46,6 @@ export const general = {
   loopPlayback: "Loop playback",
   invalidSeekStep: "Seek step must be >= 1e-6s and <= 1 hour. Reset to 0.1 s.",
   playbackSpeed: "Playback speed",
-  playbackSpeedShortcut: "Playback speed (- / +)",
   enableMomentSubtitles: "Enable moment subtitles",
   disableMomentSubtitles: "Disable moment subtitles",
   decreaseMomentSubtitleFontSize: "Decrease subtitle font size",

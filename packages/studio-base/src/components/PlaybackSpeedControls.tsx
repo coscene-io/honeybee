@@ -14,6 +14,10 @@ import { makeStyles } from "tss-react/mui";
 
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import {
+  SHORTCUTS,
+  ShortcutHint,
+} from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcuts";
+import {
   formatPlaybackSpeed,
   PLAYBACK_SPEED_OPTIONS,
 } from "@foxglove/studio-base/components/playbackSpeed";
@@ -64,10 +68,18 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
 
   return (
     <>
-      <Tooltip title={t("playbackSpeedShortcut", { ns: "general" })}>
+      <Tooltip
+        title={
+          <ShortcutHint
+            label={t("playbackSpeed", { ns: "general" })}
+            keys={SHORTCUTS.playbackSpeed}
+          />
+        }
+      >
         <Button
           className={classes.button}
           id="playback-speed-button"
+          aria-label={t("playbackSpeed", { ns: "general" })}
           aria-controls={open ? "playback-speed-menu" : undefined}
           aria-haspopup="true"
           aria-expanded={open ? "true" : undefined}

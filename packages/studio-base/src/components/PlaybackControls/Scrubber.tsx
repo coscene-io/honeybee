@@ -67,6 +67,7 @@ import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX } from "./TimelinePositionIndicator";
 import TimelineScrollbar from "./TimelineScrollbar";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
   clampTimelineViewport,
@@ -362,7 +363,7 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
       aria-label={label}
       disabled={disableControls}
       size="small"
-      title={label}
+      title={<ShortcutHint label={label} keys={SHORTCUTS.createMoment} />}
       icon={<EventIcon />}
       onClick={dispatchCreateMomentShortcut}
     />
@@ -836,6 +837,24 @@ export default function Scrubber(props: Props): React.JSX.Element {
     scrubberRef.current?.focus({ preventScroll: true });
   }, []);
 
+  // Surface the Ctrl/Cmd + scroll quick-zoom hint on the zoom slider — both on hover and while the
+  // user drags the thumb, since dragging is the moment they're most likely wanting a faster way.
+  const [zoomSliderHovered, setZoomSliderHovered] = useState(false);
+  const [zoomSliderDragging, setZoomSliderDragging] = useState(false);
+
+  const handleZoomSliderChange = useCallback(
+    (event: Event, value: number | number[]): void => {
+      setZoomSliderDragging(true);
+      onZoomSliderChange(event, value);
+    },
+    [onZoomSliderChange],
+  );
+
+  const handleZoomSliderChangeCommitted = useCallback((): void => {
+    setZoomSliderDragging(false);
+    restoreScrubberFocus();
+  }, [restoreScrubberFocus]);
+
   // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
   const zoomAnchorSecRef = useLatest(zoomAnchorSec);
 
@@ -979,31 +998,50 @@ export default function Scrubber(props: Props): React.JSX.Element {
         <div className={classes.toolbarActions}>
           {isTimelineZoomEnabled() && (
             <div className={classes.zoomControl}>
-              <Tooltip title={t("zoomOut")}>
+              <Tooltip title={<ShortcutHint label={t("zoomOut")} keys={SHORTCUTS.zoomOut} />}>
                 <ZoomOutIcon className={classes.zoomIcon} />
               </Tooltip>
-              <MuiSlider
-                aria-label={t("timelineZoom")}
-                className={classes.zoomSlider}
-                disabled={
-                  zoomPercent == undefined ||
-                  zoomAnchorSec == undefined ||
-                  startTime == undefined ||
-                  endTime == undefined
+              <Tooltip
+                // The slider is already labeled "Timeline zoom"; surface the quick-zoom hint as a
+                // description so it doesn't override the slider's accessible name.
+                describeChild
+                open={zoomSliderHovered || zoomSliderDragging}
+                title={
+                  <ShortcutHint
+                    label={t("shortcutZoomCursor")}
+                    keys={[`${MOD} + ${t("mouseWheel")}`]}
+                  />
                 }
-                min={0}
-                max={100}
-                size="small"
-                value={zoomPercent ?? 0}
-                onChange={onZoomSliderChange}
-                onChangeCommitted={restoreScrubberFocus}
-              />
-              <Tooltip title={t("zoomIn")}>
+              >
+                <MuiSlider
+                  aria-label={t("timelineZoom")}
+                  className={classes.zoomSlider}
+                  disabled={
+                    zoomPercent == undefined ||
+                    zoomAnchorSec == undefined ||
+                    startTime == undefined ||
+                    endTime == undefined
+                  }
+                  min={0}
+                  max={100}
+                  size="small"
+                  value={zoomPercent ?? 0}
+                  onChange={handleZoomSliderChange}
+                  onChangeCommitted={handleZoomSliderChangeCommitted}
+                  onMouseEnter={() => {
+                    setZoomSliderHovered(true);
+                  }}
+                  onMouseLeave={() => {
+                    setZoomSliderHovered(false);
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title={<ShortcutHint label={t("zoomIn")} keys={SHORTCUTS.zoomIn} />}>
                 <ZoomInIcon className={classes.zoomIcon} />
               </Tooltip>
               <HoverableIconButton
                 size="small"
-                title={t("shortcutZoomFit")}
+                title={<ShortcutHint label={t("shortcutZoomFit")} keys={SHORTCUTS.zoomFit} />}
                 aria-label={t("shortcutZoomFit")}
                 icon={<FitScreenIcon fontSize="small" />}
                 onClick={resetZoom}
