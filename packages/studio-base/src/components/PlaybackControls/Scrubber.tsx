@@ -834,6 +834,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
   // focus being inside that subtree, so they'd go dead right after the user tweaks zoom via the
   // slider. Return focus to the scrubber on drag-commit so the shortcuts stay active.
   const restoreScrubberFocus = useCallback((): void => {
+    // Only reclaim focus when the slider released it to <body> (the end of a pointer drag).
+    // Keyboard slider changes also fire onChangeCommitted but keep focus on the slider thumb;
+    // stealing it there would break repeated Arrow/Page/Home/End zoom adjustments.
+    if (document.activeElement !== document.body) {
+      return;
+    }
     scrubberRef.current?.focus({ preventScroll: true });
   }, []);
 

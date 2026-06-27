@@ -79,7 +79,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         <Button
           className={classes.button}
           id="playback-speed-button"
-          aria-label={t("playbackSpeed", { ns: "general" })}
+          aria-label={`${t("playbackSpeed", { ns: "general" })} ${formatPlaybackSpeed(speed)}`}
           aria-controls={open ? "playback-speed-menu" : undefined}
           aria-haspopup="true"
           aria-expanded={open ? "true" : undefined}

@@ -238,6 +238,9 @@ function TimelineScrollbar(props: Props): React.JSX.Element {
       }
 
       event.preventDefault();
+      // Stop the handled key from bubbling to the document-level KeyListener, whose Arrow handlers
+      // seek playback — otherwise panning the zoomed timeline would also move the playhead.
+      event.stopPropagation();
       onScrollRef.current(target);
     },
     [disabled, latestViewport, onScrollRef],
