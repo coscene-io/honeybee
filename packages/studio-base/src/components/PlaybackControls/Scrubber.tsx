@@ -65,6 +65,7 @@ import { ProgressPlot } from "./ProgressPlot";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX } from "./TimelinePositionIndicator";
+import TimelineScrollbar from "./TimelineScrollbar";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
@@ -75,6 +76,7 @@ import {
   makeTimelineViewport,
   panViewportBySeconds,
   setTimelineViewportZoomPercentAtTime,
+  setViewportVisibleStartSec,
   viewportEquals,
   zoomViewportAtTime,
   type TimelineViewport,
@@ -863,6 +865,23 @@ export default function Scrubber(props: Props): React.JSX.Element {
     setViewport(defaultViewport);
   }, [defaultViewport]);
 
+  // Pan the visible window to start at the position requested by the horizontal scrollbar.
+  const onScrollbarScroll = useCallback(
+    (visibleStartSec: number): void => {
+      setViewport((oldViewport) => {
+        const sourceViewport = oldViewport ?? latestViewport.current;
+        if (sourceViewport == undefined) {
+          return oldViewport;
+        }
+        const nextViewport = setViewportVisibleStartSec(sourceViewport, visibleStartSec);
+        return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+      });
+    },
+    [latestViewport],
+  );
+
+  const isZoomed = resolvedViewport != undefined && isViewportZoomed(resolvedViewport);
+
   // Zoom shortcuts only respond when focus is on the timeline scrubber, so they don't fire
   // globally (Ctrl/Cmd +/- otherwise also fights the browser's own zoom elsewhere).
   const zoomKeyDownHandlers = useMemo(
@@ -1014,6 +1033,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       <div className={classes.timelineViewport}>
         <div
           ref={timelineContentRef}
+          id="timeline-content"
           className={classes.timelineContent}
           data-testid="timeline-content"
           style={{ minHeight: timelineContentHeight }}
@@ -1084,6 +1104,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
           )}
         </div>
       </div>
+      {isZoomed && (
+        <TimelineScrollbar
+          viewport={resolvedViewport}
+          onScroll={onScrollbarScroll}
+          disabled={disableControls}
+        />
+      )}
     </div>
   );
 }

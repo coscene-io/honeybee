@@ -53,6 +53,7 @@ export const general = {
   increaseMomentSubtitleFontSize: "Increase subtitle font size",
   resetMomentSubtitlePosition: "Reset subtitle position",
   timelineZoom: "Timeline zoom",
+  panTimeline: "Pan timeline",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
   keyboardShortcuts: "Keyboard shortcuts",

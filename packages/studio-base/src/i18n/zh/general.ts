@@ -53,6 +53,7 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   increaseMomentSubtitleFontSize: "增大字幕字号",
   resetMomentSubtitlePosition: "重置位置",
   timelineZoom: "时间轴缩放",
+  panTimeline: "平移时间轴",
   zoomIn: "放大",
   zoomOut: "缩小",
   keyboardShortcuts: "键盘快捷键",
