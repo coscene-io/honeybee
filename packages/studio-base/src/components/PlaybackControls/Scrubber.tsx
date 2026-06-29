@@ -65,7 +65,9 @@ import { ProgressPlot } from "./ProgressPlot";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX } from "./TimelinePositionIndicator";
+import TimelineScrollbar from "./TimelineScrollbar";
 import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
   clampTimelineViewport,
@@ -75,6 +77,7 @@ import {
   makeTimelineViewport,
   panViewportBySeconds,
   setTimelineViewportZoomPercentAtTime,
+  setViewportVisibleStartSec,
   viewportEquals,
   zoomViewportAtTime,
   type TimelineViewport,
@@ -360,7 +363,7 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
       aria-label={label}
       disabled={disableControls}
       size="small"
-      title={label}
+      title={<ShortcutHint label={label} keys={SHORTCUTS.createMoment} />}
       icon={<EventIcon />}
       onClick={dispatchCreateMomentShortcut}
     />
@@ -732,8 +735,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [beginTimelinePointerInteraction],
   );
 
+  // Attached as a non-passive native listener (see the effect below) rather than via React's
+  // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
+  // no-op. Without it the browser's own Ctrl+wheel page-zoom fires on Windows/Linux (on macOS
+  // Ctrl+wheel isn't a page-zoom gesture, so the bug only shows up off-Mac).
   const onWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>): void => {
+    (event: WheelEvent): void => {
       const currentViewport = latestViewport.current;
       const target = scrubberRef.current;
       if (currentViewport == undefined || target == undefined) {
@@ -769,6 +776,19 @@ export default function Scrubber(props: Props): React.JSX.Element {
     },
     [latestViewport],
   );
+
+  // Register the wheel handler natively with `{ passive: false }` so the `preventDefault()` calls
+  // above actually suppress the browser default (Ctrl+wheel page zoom, horizontal trackpad scroll).
+  useEffect(() => {
+    const target = scrubberRef.current;
+    if (target == undefined) {
+      return;
+    }
+    target.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      target.removeEventListener("wheel", onWheel);
+    };
+  }, [onWheel]);
 
   const zoomPercent = useMemo(
     () =>
@@ -809,6 +829,38 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport, zoomAnchorSec],
   );
 
+  // After a mouse drag on the zoom slider, MUI releases focus to <body>, which sits outside the
+  // [data-timeline-scrubber] subtree. The timeline zoom shortcuts (Shift+Z, Ctrl/Cmd +/-) gate on
+  // focus being inside that subtree, so they'd go dead right after the user tweaks zoom via the
+  // slider. Return focus to the scrubber on drag-commit so the shortcuts stay active.
+  const restoreScrubberFocus = useCallback((): void => {
+    // Only reclaim focus when the slider released it to <body> (the end of a pointer drag).
+    // Keyboard slider changes also fire onChangeCommitted but keep focus on the slider thumb;
+    // stealing it there would break repeated Arrow/Page/Home/End zoom adjustments.
+    if (document.activeElement !== document.body) {
+      return;
+    }
+    scrubberRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // Surface the Ctrl/Cmd + scroll quick-zoom hint on the zoom slider — both on hover and while the
+  // user drags the thumb, since dragging is the moment they're most likely wanting a faster way.
+  const [zoomSliderHovered, setZoomSliderHovered] = useState(false);
+  const [zoomSliderDragging, setZoomSliderDragging] = useState(false);
+
+  const handleZoomSliderChange = useCallback(
+    (event: Event, value: number | number[]): void => {
+      setZoomSliderDragging(true);
+      onZoomSliderChange(event, value);
+    },
+    [onZoomSliderChange],
+  );
+
+  const handleZoomSliderChangeCommitted = useCallback((): void => {
+    setZoomSliderDragging(false);
+    restoreScrubberFocus();
+  }, [restoreScrubberFocus]);
+
   // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
   const zoomAnchorSecRef = useLatest(zoomAnchorSec);
 
@@ -837,6 +889,23 @@ export default function Scrubber(props: Props): React.JSX.Element {
     }
     setViewport(defaultViewport);
   }, [defaultViewport]);
+
+  // Pan the visible window to start at the position requested by the horizontal scrollbar.
+  const onScrollbarScroll = useCallback(
+    (visibleStartSec: number): void => {
+      setViewport((oldViewport) => {
+        const sourceViewport = oldViewport ?? latestViewport.current;
+        if (sourceViewport == undefined) {
+          return oldViewport;
+        }
+        const nextViewport = setViewportVisibleStartSec(sourceViewport, visibleStartSec);
+        return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+      });
+    },
+    [latestViewport],
+  );
+
+  const isZoomed = resolvedViewport != undefined && isViewportZoomed(resolvedViewport);
 
   // Zoom shortcuts only respond when focus is on the timeline scrubber, so they don't fire
   // globally (Ctrl/Cmd +/- otherwise also fights the browser's own zoom elsewhere).
@@ -918,7 +987,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
     <div
       ref={scrubberRef}
       className={classes.root}
-      onWheel={onWheel}
       onPointerMoveCapture={onScrubberPointerMoveCapture}
       tabIndex={0}
       data-timeline-scrubber="true"
@@ -936,30 +1004,50 @@ export default function Scrubber(props: Props): React.JSX.Element {
         <div className={classes.toolbarActions}>
           {isTimelineZoomEnabled() && (
             <div className={classes.zoomControl}>
-              <Tooltip title={t("zoomOut")}>
+              <Tooltip title={<ShortcutHint label={t("zoomOut")} keys={SHORTCUTS.zoomOut} />}>
                 <ZoomOutIcon className={classes.zoomIcon} />
               </Tooltip>
-              <MuiSlider
-                aria-label={t("timelineZoom")}
-                className={classes.zoomSlider}
-                disabled={
-                  zoomPercent == undefined ||
-                  zoomAnchorSec == undefined ||
-                  startTime == undefined ||
-                  endTime == undefined
+              <Tooltip
+                // The slider is already labeled "Timeline zoom"; surface the quick-zoom hint as a
+                // description so it doesn't override the slider's accessible name.
+                describeChild
+                open={zoomSliderHovered || zoomSliderDragging}
+                title={
+                  <ShortcutHint
+                    label={t("shortcutZoomCursor")}
+                    keys={[`${MOD} + ${t("mouseWheel")}`]}
+                  />
                 }
-                min={0}
-                max={100}
-                size="small"
-                value={zoomPercent ?? 0}
-                onChange={onZoomSliderChange}
-              />
-              <Tooltip title={t("zoomIn")}>
+              >
+                <MuiSlider
+                  aria-label={t("timelineZoom")}
+                  className={classes.zoomSlider}
+                  disabled={
+                    zoomPercent == undefined ||
+                    zoomAnchorSec == undefined ||
+                    startTime == undefined ||
+                    endTime == undefined
+                  }
+                  min={0}
+                  max={100}
+                  size="small"
+                  value={zoomPercent ?? 0}
+                  onChange={handleZoomSliderChange}
+                  onChangeCommitted={handleZoomSliderChangeCommitted}
+                  onMouseEnter={() => {
+                    setZoomSliderHovered(true);
+                  }}
+                  onMouseLeave={() => {
+                    setZoomSliderHovered(false);
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title={<ShortcutHint label={t("zoomIn")} keys={SHORTCUTS.zoomIn} />}>
                 <ZoomInIcon className={classes.zoomIcon} />
               </Tooltip>
               <HoverableIconButton
                 size="small"
-                title={t("shortcutZoomFit")}
+                title={<ShortcutHint label={t("shortcutZoomFit")} keys={SHORTCUTS.zoomFit} />}
                 aria-label={t("shortcutZoomFit")}
                 icon={<FitScreenIcon fontSize="small" />}
                 onClick={resetZoom}
@@ -989,6 +1077,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       <div className={classes.timelineViewport}>
         <div
           ref={timelineContentRef}
+          id="timeline-content"
           className={classes.timelineContent}
           data-testid="timeline-content"
           style={{ minHeight: timelineContentHeight }}
@@ -1059,6 +1148,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
           )}
         </div>
       </div>
+      {isZoomed && (
+        <TimelineScrollbar
+          viewport={resolvedViewport}
+          onScroll={onScrollbarScroll}
+          disabled={disableControls}
+        />
+      )}
     </div>
   );
 }

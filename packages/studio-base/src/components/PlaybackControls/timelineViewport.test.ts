@@ -8,9 +8,11 @@
 import {
   clientXToTime,
   getTimelineViewportZoomPercent,
+  getViewportScrollMetrics,
   makeTimelineViewport,
   panViewportBySeconds,
   setTimelineViewportZoomPercentAtTime,
+  setViewportVisibleStartSec,
   timeToFraction,
   timelineRangeToStyle,
   zoomViewportAtTime,
@@ -79,6 +81,72 @@ describe("timelineViewport", () => {
       visibleStartSec: 0,
       visibleEndSec: 20,
     });
+  });
+
+  it("moves the visible window start while preserving its duration", () => {
+    const viewport = {
+      ...makeTimelineViewport(0, 100),
+      visibleStartSec: 20,
+      visibleEndSec: 40,
+    };
+
+    expect(setViewportVisibleStartSec(viewport, 50)).toEqual({
+      totalStartSec: 0,
+      totalEndSec: 100,
+      visibleStartSec: 50,
+      visibleEndSec: 70,
+    });
+  });
+
+  it("clamps the visible window start to the total bounds", () => {
+    const viewport = {
+      ...makeTimelineViewport(0, 100),
+      visibleStartSec: 20,
+      visibleEndSec: 40,
+    };
+
+    expect(setViewportVisibleStartSec(viewport, 90)).toEqual({
+      totalStartSec: 0,
+      totalEndSec: 100,
+      visibleStartSec: 80,
+      visibleEndSec: 100,
+    });
+    expect(setViewportVisibleStartSec(viewport, -10)).toEqual({
+      totalStartSec: 0,
+      totalEndSec: 100,
+      visibleStartSec: 0,
+      visibleEndSec: 20,
+    });
+  });
+
+  it("reports scrollbar thumb position and size from the visible window", () => {
+    expect(getViewportScrollMetrics(makeTimelineViewport(0, 100))).toEqual({
+      thumbStartFraction: 0,
+      thumbSizeFraction: 1,
+    });
+
+    const viewport = {
+      ...makeTimelineViewport(0, 100),
+      visibleStartSec: 20,
+      visibleEndSec: 40,
+    };
+    expect(getViewportScrollMetrics(viewport)).toEqual({
+      thumbStartFraction: 0.2,
+      thumbSizeFraction: 0.2,
+    });
+  });
+
+  it("clamps the scrollbar thumb within the track at the end of the range", () => {
+    const viewport = {
+      ...makeTimelineViewport(0, 100),
+      visibleStartSec: 80,
+      visibleEndSec: 100,
+    };
+
+    const { thumbStartFraction, thumbSizeFraction } = getViewportScrollMetrics(viewport);
+    expect(thumbSizeFraction).toBeCloseTo(0.2);
+    expect(thumbStartFraction).toBeCloseTo(0.8);
+    expect(thumbStartFraction + thumbSizeFraction).toBeLessThanOrEqual(1);
   });
 
   it("clips ranges to the visible window", () => {
