@@ -159,6 +159,30 @@ export default function CurrentLayoutProvider({
     [enqueueSnackbar, isMounted, layoutManager, setLayoutState],
   );
 
+  const setCurrentLayout = useCallback<ICurrentLayout["actions"]["setCurrentLayout"]>(
+    (newLayout) => {
+      if (newLayout == undefined) {
+        setLayoutState({ selectedLayout: undefined });
+        return;
+      }
+      setIncompatibleLayoutVersionError(false);
+      const selectedLayout: NonNullable<LayoutState["selectedLayout"]> = {
+        loading: false,
+        id: newLayout.id ?? (uuidv4() as LayoutID),
+        data: newLayout.data,
+        name: newLayout.name,
+        edited: newLayout.edited,
+      };
+      if (newLayout.transient === true) {
+        selectedLayout.transient = true;
+      }
+      setLayoutState({
+        selectedLayout,
+      });
+    },
+    [setLayoutState],
+  );
+
   const performAction = useCallback(
     (action: PanelsActions) => {
       if (
@@ -184,6 +208,7 @@ export default function CurrentLayoutProvider({
           loading: false,
           name: layoutStateRef.current.selectedLayout.name,
           edited: true,
+          ...(layoutStateRef.current.selectedLayout.transient === true ? { transient: true } : {}),
         },
       });
     },
@@ -252,7 +277,7 @@ export default function CurrentLayoutProvider({
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
       updateSharedPanelState,
-      setCurrentLayout: () => {},
+      setCurrentLayout,
       setSelectedLayoutId,
       getCurrentLayoutState: () => layoutStateRef.current,
 
@@ -339,7 +364,14 @@ export default function CurrentLayoutProvider({
         performAction({ type: "END_DRAG", payload });
       },
     }),
-    [analytics, performAction, setSelectedLayoutId, setSelectedPanelIds, updateSharedPanelState],
+    [
+      analytics,
+      performAction,
+      setCurrentLayout,
+      setSelectedLayoutId,
+      setSelectedPanelIds,
+      updateSharedPanelState,
+    ],
   );
 
   const value: ICurrentLayout = useShallowMemo({

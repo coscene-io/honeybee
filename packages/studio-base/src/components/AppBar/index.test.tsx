@@ -6,7 +6,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import MultiProvider from "@foxglove/studio-base/components/MultiProvider";
@@ -14,6 +15,7 @@ import StudioToastProvider from "@foxglove/studio-base/components/StudioToastPro
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
+import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
@@ -28,6 +30,7 @@ import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleAp
 import { setupTestAppConfig } from "@foxglove/studio-base/test/mocks/setupTestAppConfig";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
+import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 // MockCoSceneLayoutManager
 
 import { AppBar } from ".";
@@ -63,6 +66,16 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
     /* eslint-enable react/jsx-key */
   ];
   return <MultiProvider providers={providers}>{children}</MultiProvider>;
+}
+
+function SelectShareManifestSource(): ReactNull {
+  const setDataSource = useCoreData((state) => state.setDataSource);
+
+  useEffect(() => {
+    setDataSource({ id: SHARE_MANIFEST_DATA_SOURCE_ID, type: "connection" });
+  }, [setDataSource]);
+
+  return ReactNull;
 }
 
 describe("<AppBar />", () => {
@@ -117,5 +130,31 @@ describe("<AppBar />", () => {
     expect(mockClose).toHaveBeenCalled();
 
     root.unmount();
+  });
+
+  it("hides the open in CoStudio button for share manifest playback", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue({
+      text: async () => "version: 1.0.0",
+    } as Response);
+    window.cosConfig = {
+      ...window.cosConfig,
+      COSTUDIO_DOWNLOAD_URL: "https://download.example.com",
+    };
+
+    try {
+      const root = render(
+        <Wrapper>
+          <SelectShareManifestSource />
+          <AppBar />
+        </Wrapper>,
+      );
+
+      await waitFor(() => {
+        expect(root.container.querySelector('[data-tourid="open-in-coStudio"]')).toBeNull();
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 });

@@ -21,9 +21,14 @@ import { Auth } from "@foxglove/studio-desktop/src/common/types";
 export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
+let authlessDataSource = false;
 
 export function isAuthlessDataSource(): boolean {
-  return false;
+  return authlessDataSource;
+}
+
+export function setAuthlessDataSource({ authless }: { authless: boolean }): void {
+  authlessDataSource = authless;
 }
 
 // window.navigator.platform is not reliable, use this function to check os

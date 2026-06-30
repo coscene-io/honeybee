@@ -7,11 +7,13 @@
 
 import { useMemo } from "react";
 
+import { AuthlessDataSourceSyncAdapter } from "@foxglove/studio-base/components/AuthlessDataSourceSyncAdapter";
 import { CurrentLayoutSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentLayoutSyncAdapter";
 import { CoSceneCurrentUserSyncAdapter } from "@foxglove/studio-base/components/CoSceneCurrentUserSyncAdapter";
 import { PlaylistSyncAdapter } from "@foxglove/studio-base/components/CoScenePlaylistSyncAdapter";
 import { CoreDataSyncAdapter } from "@foxglove/studio-base/components/CoreDataSyncAdapter";
 import { EventsSyncAdapter } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
+import { ShareManifestLayoutSyncAdapter } from "@foxglove/studio-base/components/ShareManifestLayoutSyncAdapter";
 import { SubscriptionEntitlementSyncAdapter } from "@foxglove/studio-base/components/SubscriptionEntitlementSyncAdapter";
 import { TasksSyncAdapter } from "@foxglove/studio-base/components/Tasks/TasksSyncAdapter";
 import { URLStateSyncAdapter } from "@foxglove/studio-base/components/URLStateSyncAdapter";
@@ -29,11 +31,13 @@ export function SyncAdapters(): React.JSX.Element {
 
     return (
       <>
+        <AuthlessDataSourceSyncAdapter />
         <CoSceneCurrentUserSyncAdapter />
         <EventsSyncAdapter />
         <TasksSyncAdapter />
         <PlaylistSyncAdapter />
         <URLStateSyncAdapter />
+        <ShareManifestLayoutSyncAdapter />
         <CurrentLayoutSyncAdapter />
         <CoreDataSyncAdapter />
         <SubscriptionEntitlementSyncAdapter />

@@ -66,13 +66,21 @@ export default function MockCurrentLayoutProvider({
 
   const setCurrentLayout = useCallback(
     (newLayout: SelectedLayout | undefined) => {
+      if (newLayout == undefined) {
+        setLayoutState({ selectedLayout: undefined });
+        return;
+      }
+      const selectedLayout: NonNullable<LayoutState["selectedLayout"]> = {
+        data: newLayout.data,
+        id: newLayout.id ?? ("mock-id" as LayoutID),
+        edited: newLayout.edited,
+        name: newLayout.name,
+      };
+      if (newLayout.transient === true) {
+        selectedLayout.transient = true;
+      }
       setLayoutState({
-        selectedLayout: {
-          data: newLayout?.data,
-          id: "mock-id" as LayoutID,
-          edited: newLayout?.edited,
-          name: newLayout?.name,
-        },
+        selectedLayout,
       });
     },
     [setLayoutState],
