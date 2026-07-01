@@ -15,10 +15,14 @@ import {
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import {
+  SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM,
+  SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM,
   SHARE_MANIFEST_DATA_SOURCE_ID,
   SHARE_MANIFEST_HASH_PARAM,
-  parseEncodedShareManifest,
+  parseShareManifestParams,
 } from "@foxglove/studio-base/util/shareManifest";
+
+import { createShardManifestPlayer } from "./createShardManifestPlayer";
 
 class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
   public id = SHARE_MANIFEST_DATA_SOURCE_ID;
@@ -28,17 +32,34 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
   public hidden = true;
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
-    const encodedManifest = args.params?.[SHARE_MANIFEST_HASH_PARAM];
-    if (!encodedManifest) {
+    const result = parseShareManifestParams(args.params);
+    if (result.status === "missing") {
       throw new Error("Missing share manifest argument");
     }
-
-    const result = parseEncodedShareManifest(encodedManifest);
     if (result.status === "expired") {
       throw new Error("Share manifest has expired");
     }
     if (result.status === "invalid") {
       throw result.error;
+    }
+
+    if (result.kind === "direct") {
+      return createShardManifestPlayer({
+        metricsCollector: args.metricsCollector,
+        sourceId: this.id,
+        manifestUrl: result.manifestUrl,
+        profile: result.profile,
+        name: result.profile
+          ? `Shared shard manifest (${result.profile})`
+          : "Shared shard manifest",
+        urlParams: {
+          [SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM]: result.manifestUrl,
+          ...(result.layoutUrl != undefined
+            ? { [SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM]: result.layoutUrl }
+            : {}),
+          ...(result.profile != undefined ? { profile: result.profile } : {}),
+        },
+      });
     }
 
     const miniMcapUrl = result.manifest.links.mini_mcap;
@@ -60,7 +81,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
       source,
       sourceId: this.id,
       name: "Shared MCAP",
-      urlParams: { [SHARE_MANIFEST_HASH_PARAM]: encodedManifest },
+      urlParams: { [SHARE_MANIFEST_HASH_PARAM]: result.encodedManifest },
       readAheadDuration: { sec: 10, nsec: 0 },
       enablePlaybackSpillCache: true,
       playbackSpillCacheSourceKey: JSON.stringify({ sourceId: this.id, url: miniMcapUrl }),
