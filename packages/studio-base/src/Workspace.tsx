@@ -78,6 +78,7 @@ import { Language } from "@foxglove/studio-base/i18n";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useSubscriptionEntitlement } from "./context/SubscriptionEntitlementContext";
@@ -476,7 +477,7 @@ export default function Workspace(props: WorkspaceProps): React.JSX.Element {
 
   const syncLanguageWithOrgConfigMap = useCallback(async () => {
     // Only sync language if user is logged in
-    if (loginStatus !== "alreadyLogin" || !currentUser?.userId) {
+    if (loginStatus !== "alreadyLogin" || !currentUser?.userId || isAuthlessDataSource()) {
       return;
     }
 
