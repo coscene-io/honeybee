@@ -34,6 +34,14 @@ const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
 
+// Bound how long a playback display can occupy the single in-flight slot. If the worker cannot
+// produce the target frame promptly (e.g. frames were dropped by the keyframe gate after a decoder
+// reset), fail fast so the flush loop can chase the latest pending target instead of stalling
+// behind the worker's default 1s/2s frame timeouts. A failed result clears the recorded decoder
+// progress, so the next flush recovers by replaying the full GOP.
+const PLAYBACK_TARGET_FRAME_TIMEOUT_MS = 250;
+const PLAYBACK_ANY_FRAME_TIMEOUT_MS = 500;
+
 export type VideoDisplayMode = "playback" | "seek" | "direct";
 
 export type CompressedVideoDisplayFrames = (
@@ -397,10 +405,16 @@ export class CompressedVideoController {
     messageEvent: MessageEvent<CompressedVideo>,
     options: SetCompressedVideoFramesOptions | undefined,
   ): void {
+    // Newer pending targets overwrite older ones (latest-wins conflation), but the request id is
+    // intentionally NOT bumped here: an in-flight display must stay current when newer messages
+    // merely arrive, otherwise sustained input pressure would mark every completed decode stale
+    // and nothing would ever be displayed. Each completed target is committed, and the flush loop
+    // then chases the latest pending target. The request id is bumped only by
+    // #invalidatePlayback() (seek/direct/sync/clear), which is when in-flight work becomes stale.
     this.#state.pendingPlaybackTarget = {
       messageEvent,
       generation: this.#generation,
-      requestId: ++this.#playbackRequestId,
+      requestId: this.#playbackRequestId,
       options,
     };
     this.#schedulePlaybackFlush();
@@ -471,6 +485,9 @@ export class CompressedVideoController {
     return {
       ...target.options,
       allowIntermediateVideoFrame: false,
+      targetFrameTimeoutMs:
+        target.options?.targetFrameTimeoutMs ?? PLAYBACK_TARGET_FRAME_TIMEOUT_MS,
+      anyFrameTimeoutMs: target.options?.anyFrameTimeoutMs ?? PLAYBACK_ANY_FRAME_TIMEOUT_MS,
       isVideoFrameRequestCurrent: () =>
         (upstreamGuard?.() ?? true) && this.#isCurrentPlaybackTarget(target),
     };

@@ -197,7 +197,7 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
-  it("treats stale playback results as superseded and then displays the latest pending target", async () => {
+  it("keeps an in-flight playback target current when newer messages arrive and commits it before chasing the latest", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const firstTarget = makeVideoMessage(10_000_000n, "delta");
     const latestTarget = makeVideoMessage(20_000_000n, "delta");
@@ -208,13 +208,9 @@ describe("CompressedVideoController", () => {
     const displayFrames = jest.fn<
       Promise<ImageSetImageResult>,
       Parameters<CompressedVideoDisplayFrames>
-    >(async (_frames, _mode, options) => {
+    >(async () => {
       if (displayFrames.mock.calls.length === 1) {
-        return await firstDisplay.then(() =>
-          options?.isVideoFrameRequestCurrent?.() === false
-            ? { ok: false, reason: "stale" }
-            : { ok: true },
-        );
+        return await firstDisplay;
       }
       return { ok: true };
     });
@@ -226,17 +222,66 @@ describe("CompressedVideoController", () => {
     await flushAsyncWork();
     expect(nonResetCalls(displayFrames)).toHaveLength(1);
 
+    // A newer message arriving must NOT mark the in-flight display stale — under sustained input
+    // pressure that would starve the display entirely. The in-flight target stays current, its
+    // decoded frame is committed, and only then does the flush loop chase the latest target.
     controller.processMessage(latestTarget);
-    expect(nonResetCalls(displayFrames)[0]?.[2]?.isVideoFrameRequestCurrent?.()).toBe(false);
+    expect(nonResetCalls(displayFrames)[0]?.[2]?.isVideoFrameRequestCurrent?.()).toBe(true);
 
-    resolveFirstDisplay({ ok: false, reason: "stale" });
+    resolveFirstDisplay({ ok: true });
     await flushAsyncWork();
 
     expect(resetDecoder).not.toHaveBeenCalled();
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n],
-      [0n, 10_000_000n, 20_000_000n],
+      // Incremental continuation from the committed first target within the same GOP.
+      [20_000_000n],
     ]);
+  });
+
+  it("marks in-flight playback work stale when playback is invalidated", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstTarget = makeVideoMessage(10_000_000n, "delta");
+    let resolveFirstDisplay!: (result: ImageSetImageResult) => void;
+    const firstDisplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstDisplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames, mode) => {
+      if (mode === "playback" && frames.length > 0) {
+        return await firstDisplay;
+      }
+      return { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstTarget);
+    await flushAsyncWork();
+    const playbackCall = nonResetCalls(displayFrames).find((call) => call[1] === "playback");
+    expect(playbackCall?.[2]?.isVideoFrameRequestCurrent?.()).toBe(true);
+
+    controller.resetPlaybackState();
+
+    expect(playbackCall?.[2]?.isVideoFrameRequestCurrent?.()).toBe(false);
+    resolveFirstDisplay({ ok: false, reason: "stale", staleTargetDecoded: true });
+    await flushAsyncWork();
+  });
+
+  it("bounds playback frame timeouts so a stalled target cannot hold the in-flight slot", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.targetFrameTimeoutMs)).toEqual([
+      250,
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.anyFrameTimeoutMs)).toEqual([500]);
   });
 
   it("continues playback after a superseded target that still decoded successfully", async () => {
