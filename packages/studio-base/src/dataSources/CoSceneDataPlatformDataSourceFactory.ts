@@ -15,11 +15,7 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import {
-  IterablePlayer,
-  WorkerIterableSource,
-  WorkerSerializedIterableSource,
-} from "@foxglove/studio-base/players/IterablePlayer";
+import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import {
   findMatchingShardProfilePreference,
   loadShardProfilePreference,
@@ -33,49 +29,23 @@ import type {
 import { Player } from "@foxglove/studio-base/players/types";
 import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import {
+  MANIFEST_URL_PARAM,
+  SHARD_MODE_RAW,
+  SHARD_MODE_PARAM,
+} from "@foxglove/studio-base/util/shardManifestUrlParams";
 
+import {
+  createShardManifestPlayer,
+  definedUrlParams,
+  stableJsonStringify,
+} from "./createShardManifestPlayer";
 import { buildManifestUrl, getManifestStorageBaseUrl, manifestExists } from "./manifestStorage";
 
 export { buildManifestUrl } from "./manifestStorage";
 
-const SHARD_MODE_PARAM = "shardMode";
-const SHARD_MODE_MANIFEST = "manifest";
-const SHARD_MODE_RAW = "raw";
-const MANIFEST_URL_PARAM = "manifestUrl";
-
 interface MinimalManifest {
   profiles?: ManifestProfile[];
-}
-
-function definedUrlParams(params?: Record<string, string | undefined>): Record<string, string> {
-  const definedParams: Record<string, string> = {};
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value != undefined) {
-        definedParams[key] = value;
-      }
-    }
-  }
-  return definedParams;
-}
-
-function sortJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sortJsonValue);
-  }
-  if (value != undefined && typeof value === "object") {
-    const input = value as Record<string, unknown>;
-    const output: Record<string, unknown> = {};
-    for (const key of Object.keys(input).sort()) {
-      output[key] = sortJsonValue(input[key]);
-    }
-    return output;
-  }
-  return value;
-}
-
-function stableJsonStringify(value: unknown): string {
-  return JSON.stringify(sortJsonValue(value)) ?? "";
 }
 
 async function fetchShardProfileOptions(manifestUrl: string): Promise<ShardProfileOption[]> {
@@ -286,40 +256,13 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     manifestUrl: string,
   ): Player | undefined {
     const profile = args.params?.profile;
-    const params: Record<string, string> = { url: manifestUrl };
-    if (profile != undefined) {
-      params.profile = profile;
-    }
-
-    const source = new WorkerSerializedIterableSource({
-      initWorker: () => {
-        // foxglove-depcheck-used: babel-plugin-transform-import-meta
-        return new Worker(
-          new URL(
-            "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/ShardManifestIterableSource.worker",
-            import.meta.url,
-          ),
-        );
-      },
-      initArgs: { params },
-    });
-
-    return new IterablePlayer({
+    return createShardManifestPlayer({
       metricsCollector: args.metricsCollector,
-      source,
       sourceId: this.id,
-      urlParams: {
-        ...definedUrlParams(args.params),
-        [SHARD_MODE_PARAM]: SHARD_MODE_MANIFEST,
-        [MANIFEST_URL_PARAM]: manifestUrl,
-      },
-      readAheadDuration: { sec: 10, nsec: 0 },
+      manifestUrl,
+      profile,
       name: profile ? `Shard manifest (${profile})` : "Shard manifest",
-      enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: stableJsonStringify({
-        sourceId: this.id,
-        params,
-      }),
+      urlParams: args.params,
     });
   }
 }

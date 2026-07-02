@@ -25,6 +25,50 @@ import {
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 const SHARE_LAYOUT_ID = "share-manifest-layout" as LayoutID;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value != undefined && !Array.isArray(value);
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function setBlankSharedLayout(
+  setCurrentLayout: ReturnType<typeof useCurrentLayoutActions>["setCurrentLayout"],
+) {
+  setCurrentLayout({
+    id: SHARE_LAYOUT_ID,
+    name: "Shared layout",
+    data: {
+      configById: {},
+      globalVariables: {},
+      userNodes: {},
+    },
+    transient: true,
+  });
+}
+
+async function fetchDirectManifestLayoutUrl(
+  manifestUrl: string,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  const response = await fetch(manifestUrl, { signal });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const rawManifest = await response.json();
+  if (!isRecord(rawManifest) || !isRecord(rawManifest.links)) {
+    return undefined;
+  }
+  const layout = rawManifest.links.layout;
+  return typeof layout === "string" && isHttpUrl(layout) ? layout : undefined;
+}
+
 export function ShareManifestLayoutSyncAdapter(): ReactNull {
   const dataSource = useCoreData(selectDataSource);
   const { setCurrentLayout } = useCurrentLayoutActions();
@@ -43,9 +87,17 @@ export function ShareManifestLayoutSyncAdapter(): ReactNull {
       }
 
       try {
-        const response = await fetch(manifestResult.manifest.links.layout, {
-          signal: controller.signal,
-        });
+        const layoutUrl =
+          manifestResult.kind === "encoded"
+            ? manifestResult.manifest.links.layout
+            : (manifestResult.layoutUrl ??
+              (await fetchDirectManifestLayoutUrl(manifestResult.manifestUrl, controller.signal)));
+        if (layoutUrl == undefined) {
+          setBlankSharedLayout(setCurrentLayout);
+          return;
+        }
+
+        const response = await fetch(layoutUrl, { signal: controller.signal });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -64,6 +116,7 @@ export function ShareManifestLayoutSyncAdapter(): ReactNull {
         enqueueSnackbar(`Shared layout could not be loaded. ${(error as Error).message}`, {
           variant: "error",
         });
+        setBlankSharedLayout(setCurrentLayout);
       }
     })();
 

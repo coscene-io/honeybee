@@ -21,7 +21,7 @@ import {
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
+import { isAuthlessDataSource, replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
@@ -97,6 +97,10 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   ) {}
 
   public async getLayouts(): Promise<readonly RemoteLayout[]> {
+    if (isAuthlessDataSource()) {
+      return [];
+    }
+
     try {
       const parents = [this.userName];
       if (this.projectName) {

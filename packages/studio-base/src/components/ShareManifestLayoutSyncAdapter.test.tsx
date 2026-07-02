@@ -37,7 +37,19 @@ function encodeBase64Url(value: unknown): string {
 
 describe("<ShareManifestLayoutSyncAdapter />", () => {
   const layoutUrl = "https://mock-storage.example.com/shares/layout.json?sig=layout";
+  const manifestUrl = "https://mock-storage.example.com/public/shards/manifest.json";
+  const directLayoutUrl = "https://mock-storage.example.com/public/layouts/share.json";
   const originalFetch = global.fetch;
+  const expectedBlankLayout = {
+    id: "share-manifest-layout",
+    name: "Shared layout",
+    transient: true,
+    data: {
+      configById: {},
+      globalVariables: {},
+      userNodes: {},
+    },
+  };
 
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date("2026-06-25T00:00:00Z") });
@@ -90,5 +102,130 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
     });
     expect(global.fetch).toHaveBeenCalledWith(layoutUrl, { signal: expect.any(AbortSignal) });
     expect(SHARE_MANIFEST_DATA_SOURCE_ID).toBe("coscene-share-manifest");
+  });
+
+  it("loads direct layoutUrl as the highest priority transient layout", async () => {
+    window.history.replaceState(
+      undefined,
+      "",
+      `${window.location.origin}/viz?ds=coscene-share-manifest#manifestUrl=${encodeURIComponent(
+        manifestUrl,
+      )}&layoutUrl=${encodeURIComponent(directLayoutUrl)}`,
+    );
+
+    render(<ShareManifestLayoutSyncAdapter />);
+
+    await waitFor(() => {
+      expect(mockSetCurrentLayout).toHaveBeenCalledWith({
+        id: "share-manifest-layout",
+        name: "Shared layout",
+        transient: true,
+        data: {
+          layout: "RawMessages!1",
+          configById: { "RawMessages!1": { diffEnabled: true } },
+          globalVariables: {},
+          userNodes: {},
+        },
+      });
+    });
+    expect(global.fetch).toHaveBeenCalledWith(directLayoutUrl, {
+      signal: expect.any(AbortSignal),
+    });
+    expect(global.fetch).not.toHaveBeenCalledWith(manifestUrl, {
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("loads direct shard manifest links.layout when layoutUrl is missing", async () => {
+    window.history.replaceState(
+      undefined,
+      "",
+      `${window.location.origin}/viz?ds=coscene-share-manifest#manifestUrl=${encodeURIComponent(
+        manifestUrl,
+      )}`,
+    );
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          links: { layout: directLayoutUrl },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          layout: "RawMessages!1",
+          savedProps: { "RawMessages!1": { diffEnabled: true } },
+          globalVariables: {},
+          userNodes: {},
+        }),
+      } as Response);
+
+    render(<ShareManifestLayoutSyncAdapter />);
+
+    await waitFor(() => {
+      expect(mockSetCurrentLayout).toHaveBeenCalledWith({
+        id: "share-manifest-layout",
+        name: "Shared layout",
+        transient: true,
+        data: {
+          layout: "RawMessages!1",
+          configById: { "RawMessages!1": { diffEnabled: true } },
+          globalVariables: {},
+          userNodes: {},
+        },
+      });
+    });
+    expect(global.fetch).toHaveBeenNthCalledWith(1, manifestUrl, {
+      signal: expect.any(AbortSignal),
+    });
+    expect(global.fetch).toHaveBeenNthCalledWith(2, directLayoutUrl, {
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("falls back to a blank transient layout when no layout URL is available", async () => {
+    window.history.replaceState(
+      undefined,
+      "",
+      `${window.location.origin}/viz?ds=coscene-share-manifest#manifestUrl=${encodeURIComponent(
+        manifestUrl,
+      )}`,
+    );
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ links: {} }),
+    } as Response);
+
+    render(<ShareManifestLayoutSyncAdapter />);
+
+    await waitFor(() => {
+      expect(mockSetCurrentLayout).toHaveBeenCalledWith(expectedBlankLayout);
+    });
+  });
+
+  it("reports layout fetch failures and falls back to a blank transient layout", async () => {
+    window.history.replaceState(
+      undefined,
+      "",
+      `${window.location.origin}/viz?ds=coscene-share-manifest#manifestUrl=${encodeURIComponent(
+        manifestUrl,
+      )}&layoutUrl=${encodeURIComponent(directLayoutUrl)}`,
+    );
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+    } as Response);
+
+    render(<ShareManifestLayoutSyncAdapter />);
+
+    await waitFor(() => {
+      expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+        "Shared layout could not be loaded. HTTP 403",
+        { variant: "error" },
+      );
+      expect(mockSetCurrentLayout).toHaveBeenCalledWith(expectedBlankLayout);
+    });
   });
 });

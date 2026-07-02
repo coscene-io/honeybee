@@ -78,4 +78,22 @@ describe("<AuthlessDataSourceSyncAdapter />", () => {
       expect(isAuthlessDataSource()).toBe(true);
     });
   });
+
+  it("treats direct share manifest URLs as authless before source selection", async () => {
+    const manifestUrl = "https://mock-storage.example.com/public/shards/manifest.json";
+    const layoutUrl = "https://mock-storage.example.com/public/layouts/share.json";
+    window.history.replaceState(
+      undefined,
+      "",
+      `${window.location.origin}/viz?ds=coscene-share-manifest#manifestUrl=${encodeURIComponent(
+        manifestUrl,
+      )}&layoutUrl=${encodeURIComponent(layoutUrl)}`,
+    );
+
+    renderWithSource(undefined);
+
+    await waitFor(() => {
+      expect(isAuthlessDataSource()).toBe(true);
+    });
+  });
 });
