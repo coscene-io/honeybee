@@ -9,7 +9,7 @@ import { McapIndexedReader, McapTypes } from "@mcap/core";
 
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers } from "@foxglove/mcap-support";
-import { compare, fromNanoSec } from "@foxglove/rostime";
+import { compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import {
   GetBackfillMessagesArgs,
@@ -96,6 +96,41 @@ function readAheadBytesForShard(shard: ShardEntry): number {
   return Math.max(READ_AHEAD_MIN_BYTES, Math.min(READ_AHEAD_MAX_BYTES, target));
 }
 
+// Target number of messages to keep per topic across the whole recording when
+// filling the preload cache (full-range plots). Bounds cache memory for very
+// high-rate topics (e.g. 1 kHz control streams) regardless of duration. Only
+// topics whose message count exceeds this budget are decimated; live playback
+// and message-range/backfill reads are never decimated.
+const PRELOAD_POINTS_BUDGET_PER_TOPIC = 12_000;
+
+// Decimate a time-ordered, merged result stream to at most one message per topic
+// per time bucket, using a per-topic bucket interval. Topics absent from
+// `intervalByTopic` pass through untouched. Buckets are aligned to a global grid
+// (startNs + k*interval) so the result is consistent across the block loader's
+// per-block reads. Non-message results (problems/stamps) always pass through.
+async function* decimateByTime(
+  iter: AsyncIterable<Readonly<IteratorResult<Uint8Array>>>,
+  startNs: bigint,
+  intervalByTopic: ReadonlyMap<string, bigint>,
+): AsyncIterableIterator<Readonly<IteratorResult<Uint8Array>>> {
+  const lastBucketByTopic = new Map<string, bigint>();
+  for await (const result of iter) {
+    if (result.type === "message-event") {
+      const topic = result.msgEvent.topic;
+      const interval = intervalByTopic.get(topic);
+      if (interval != undefined) {
+        const t = toNanoSec(result.msgEvent.receiveTime);
+        const bucket = (t - startNs) / interval;
+        if (lastBucketByTopic.get(topic) === bucket) {
+          continue;
+        }
+        lastBucketByTopic.set(topic, bucket);
+      }
+    }
+    yield result;
+  }
+}
+
 export class ShardManifestIterableSource implements ISerializedIterableSource {
   public readonly sourceType = "serialized";
 
@@ -105,6 +140,12 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
   #manifest?: Manifest;
   #activeShards: ShardEntry[] = [];
   #decompressHandlers?: McapTypes.DecompressHandlers;
+
+  // Preload decimation grid: the recording start (bucket origin) and, for each
+  // topic that exceeds the points budget, the per-topic bucket interval (ns).
+  // Topics not in the map are never decimated.
+  #rangeStartNs?: bigint;
+  #decimationIntervalByTopic = new Map<string, bigint>();
 
   // Promise cache so concurrent ensureOpen() calls for the same shard share
   // a single open. Resolved children are stored in #openChildren too.
@@ -276,6 +317,49 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     const start = startNs != undefined ? fromNanoSec(startNs) : { sec: 0, nsec: 0 };
     const end = endNs != undefined ? fromNanoSec(endNs) : { sec: 0, nsec: 0 };
 
+    // Build the preload decimation grid. Per topic, sum the message count and the
+    // active time span across the active shards; only decimate topics whose count
+    // exceeds the budget. Basing the interval on active span (sum of shard spans)
+    // rather than the wall-clock range keeps gaps between shards/files from
+    // inflating the bucket width and starving full-range plots.
+    this.#rangeStartNs = startNs;
+    this.#decimationIntervalByTopic = new Map();
+    const countByTopic = new Map<string, number>();
+    const activeSpanNsByTopic = new Map<string, bigint>();
+    for (const shard of this.#activeShards) {
+      let shardSpanNs: bigint;
+      try {
+        shardSpanNs = BigInt(shard.timeRange.endNs) - BigInt(shard.timeRange.startNs);
+      } catch {
+        shardSpanNs = 0n;
+      }
+      if (shardSpanNs < 0n) {
+        shardSpanNs = 0n;
+      }
+      const add = (name: string, count: number) => {
+        countByTopic.set(name, (countByTopic.get(name) ?? 0) + count);
+        activeSpanNsByTopic.set(name, (activeSpanNsByTopic.get(name) ?? 0n) + shardSpanNs);
+      };
+      if (shard.kind === "tail") {
+        for (const t of shard.topics) {
+          add(t.name, t.messageCount);
+        }
+      } else if (shard.topic != undefined) {
+        add(shard.topic, shard.messageCount ?? shard.topics[0]?.messageCount ?? 0);
+      }
+    }
+    for (const [topic, count] of countByTopic) {
+      if (count <= PRELOAD_POINTS_BUDGET_PER_TOPIC) {
+        continue;
+      }
+      const spanNs = activeSpanNsByTopic.get(topic) ?? 0n;
+      if (spanNs <= 0n) {
+        continue;
+      }
+      const interval = spanNs / BigInt(PRELOAD_POINTS_BUDGET_PER_TOPIC);
+      this.#decimationIntervalByTopic.set(topic, interval > 0n ? interval : 1n);
+    }
+
     return {
       start,
       end,
@@ -429,7 +513,23 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     if (iterators.length === 0) {
       return;
     }
-    yield* mergeShards<Uint8Array>(iterators, args.abortSignal);
+
+    const merged = mergeShards<Uint8Array>(iterators, args.abortSignal);
+
+    // Downsample only when the block loader fills the preload cache
+    // (allowDownsampling), and only for the high-rate topics in the decimation
+    // map. Live playback and message-range/backfill reads pass through at full
+    // fidelity. Keeps full-range plots bounded in memory.
+    if (
+      args.allowDownsampling === true &&
+      this.#rangeStartNs != undefined &&
+      this.#decimationIntervalByTopic.size > 0
+    ) {
+      yield* decimateByTime(merged, this.#rangeStartNs, this.#decimationIntervalByTopic);
+      return;
+    }
+
+    yield* merged;
   }
 
   public async getBackfillMessages(
