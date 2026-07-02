@@ -29,12 +29,14 @@ class MockVideoDecoder {
 
   public state: CodecState = "unconfigured";
   public readonly chunks: MockEncodedVideoChunk[] = [];
+  public configuredConfig: VideoDecoderConfig | undefined;
 
   public constructor(private readonly init: VideoDecoderInit) {
     MockVideoDecoder.instances.push(this);
   }
 
-  public configure(_config: VideoDecoderConfig): void {
+  public configure(config: VideoDecoderConfig): void {
+    this.configuredConfig = config;
     this.state = "configured";
   }
 
@@ -89,6 +91,27 @@ describe("VideoPlayer", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it("configures the decoder with the supported hardware acceleration preference", async () => {
+    const player = new VideoPlayer();
+    await player.init({ codec: "avc1.640028" });
+
+    const decoder = MockVideoDecoder.instances[0];
+    if (decoder == undefined) {
+      throw new Error("Expected a VideoDecoder instance");
+    }
+
+    expect(MockVideoDecoder.isConfigSupported).toHaveBeenCalledWith({
+      codec: "avc1.640028",
+      optimizeForLatency: true,
+      hardwareAcceleration: "prefer-hardware",
+    });
+    expect(decoder.configuredConfig).toEqual({
+      codec: "avc1.640028",
+      optimizeForLatency: true,
+      hardwareAcceleration: "prefer-hardware",
+    });
   });
 
   it("resolves decodeAndWaitForFrame with the frame matching the submitted timestamp", async () => {

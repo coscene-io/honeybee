@@ -301,15 +301,16 @@ describe("ImageMode compressed video seek replay", () => {
 
     subscription.handler(keyframe);
     subscription.handler(delta);
+    await flushAsyncWork();
 
-    expect(messageHandler.handleCompressedVideo).toHaveBeenCalledTimes(2);
+    expect(messageHandler.handleCompressedVideo).toHaveBeenCalledTimes(1);
     expect(imageMode.createdRenderables).toHaveLength(0);
 
     renderer.currentTime = 10_000_000n;
     imageMode.handleSeek();
     await flushAsyncWork();
 
-    expect(messageHandler.handleCompressedVideo).toHaveBeenCalledTimes(2);
+    expect(messageHandler.handleCompressedVideo).toHaveBeenCalledTimes(1);
     expect(imageMode.createdRenderables).toHaveLength(1);
     expect(
       imageMode.createdRenderables[0]!.setCompressedVideoFrameBatches.map((batch) =>
@@ -402,7 +403,6 @@ describe("ImageMode compressed video seek replay", () => {
     await flushAsyncWork();
 
     expect(imageMode.createdRenderables[0]!.setImageCalls.map(timestampFromImage)).toEqual([
-      keyframe.message.timestamp,
       delta.message.timestamp,
     ]);
     expect(

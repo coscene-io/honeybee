@@ -131,6 +131,10 @@ export class VideoGopCache {
     return true;
   }
 
+  public addKnownKeyframeReceiveTime(topic: string, receiveTime: Time): void {
+    this.#recordKeyframeReceiveTime(topic, toNanoSec(receiveTime));
+  }
+
   public handleSeek(targetTime: Time): void {
     this.#targetReceiveTimeNs = toNanoSec(targetTime);
     this.#activeRangeByTopic.clear();
@@ -302,13 +306,16 @@ export class VideoGopCache {
     if (!frame.isKeyframe) {
       return;
     }
-    const topic = frame.messageEvent.topic;
+    this.#recordKeyframeReceiveTime(frame.messageEvent.topic, frame.receiveTimeNs);
+  }
+
+  #recordKeyframeReceiveTime(topic: string, receiveTimeNs: bigint): void {
     let times = this.#keyframeReceiveTimesByTopic.get(topic);
     if (times == undefined) {
       times = [];
       this.#keyframeReceiveTimesByTopic.set(topic, times);
     }
-    sortedInsertUnique(times, frame.receiveTimeNs);
+    sortedInsertUnique(times, receiveTimeNs);
   }
 
   public byteSize(): number {

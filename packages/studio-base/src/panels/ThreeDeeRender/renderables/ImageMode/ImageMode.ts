@@ -110,7 +110,7 @@ import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { normalizeCompressedVideo } from "../Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
-import { filterCompressedVideoQueue } from "../Images/videoMessageQueue";
+import { recordKeyframesAndFilterCompressedVideoQueue } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
@@ -290,7 +290,7 @@ export class ImageMode
         subscription: {
           handler: this.#handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
-          filterQueue: filterCompressedVideoQueue,
+          filterQueue: this.#filterCompressedVideoQueue,
         },
       },
     ];
@@ -750,6 +750,14 @@ export class ImageMode
       message: normalizeCompressedVideo(messageEvent.message),
     } as MessageEvent<CompressedVideo>;
     this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent);
+  };
+
+  #filterCompressedVideoQueue = (
+    queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
+  ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
+    return recordKeyframesAndFilterCompressedVideoQueue(queue, (messageEvent) => {
+      this.#compressedVideoControllerForTopic(messageEvent.topic).recordKeyframeIndex(messageEvent);
+    });
   };
 
   #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (

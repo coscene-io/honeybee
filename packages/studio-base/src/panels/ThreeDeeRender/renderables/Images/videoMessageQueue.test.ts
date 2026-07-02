@@ -12,7 +12,10 @@ import { Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
 import { CompressedVideo } from "./ImageTypes";
-import { filterCompressedVideoQueue } from "./videoMessageQueue";
+import {
+  filterCompressedVideoQueue,
+  recordKeyframesAndFilterCompressedVideoQueue,
+} from "./videoMessageQueue";
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -126,5 +129,34 @@ describe("filterCompressedVideoQueue", () => {
     const result = filterCompressedVideoQueue([]);
 
     expect(result).toEqual([]);
+  });
+});
+
+describe("recordKeyframesAndFilterCompressedVideoQueue", () => {
+  beforeEach(() => {
+    jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("records every keyframe before filtering while returning only the newest GOP", () => {
+    const firstKeyframe = makeMessage("/camera", 0n, "key");
+    const firstDelta = makeMessage("/camera", 10_000_000n, "delta");
+    const secondKeyframe = makeMessage("/camera", 20_000_000n, "key");
+    const secondDelta = makeMessage("/camera", 30_000_000n, "delta");
+    const recordedKeyframes: MessageEvent<CompressedVideo>[] = [];
+
+    const result = recordKeyframesAndFilterCompressedVideoQueue(
+      [firstKeyframe, firstDelta, secondKeyframe, secondDelta],
+      (messageEvent) => {
+        recordedKeyframes.push(messageEvent as MessageEvent<CompressedVideo>);
+      },
+    );
+
+    expect(result).toEqual([secondKeyframe, secondDelta]);
+    expect(recordedKeyframes).toEqual([firstKeyframe, secondKeyframe]);
+    expect(H264.IsKeyframe).toHaveBeenCalledTimes(4);
   });
 });

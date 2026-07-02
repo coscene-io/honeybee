@@ -74,10 +74,12 @@ type DecodedImageResource = ImageBitmap | ImageData | VideoFrame;
 type DecodedImageResult = {
   image?: DecodedImageResource;
   ok: boolean;
+  stale?: boolean;
 };
 
 export type ImageSetImageResult = {
   ok: boolean;
+  stale?: boolean;
 };
 
 export type CompressedVideoFrameEvent = MessageEvent<CompressedVideo>;
@@ -89,12 +91,14 @@ export type SetCompressedVideoFramesOptions = {
   targetFrameTimeoutMs?: number;
   anyFrameTimeoutMs?: number;
   allowIntermediateVideoFrame?: boolean;
+  isVideoFrameRequestCurrent?: () => boolean;
 };
 
 type PendingDecodedImage = {
   seq: number;
   result: DecodedImageResource;
   ok: boolean;
+  isRequestCurrent: (() => boolean) | undefined;
   onDecoded: (() => void) | undefined;
   resolve: (result: ImageSetImageResult) => void;
 };
@@ -340,12 +344,18 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     return await new Promise<ImageSetImageResult>((resolve) => {
       decodePromise
         .then((result) => {
-          this.#handleDecodedImage(seq, result, options.onDecoded, (displayResult) => {
-            if (displayResult.ok) {
-              options.updateImageState?.(targetFrame);
-            }
-            resolve(displayResult);
-          });
+          this.#handleDecodedImage(
+            seq,
+            result,
+            options.onDecoded,
+            (displayResult) => {
+              if (displayResult.ok) {
+                options.updateImageState?.(targetFrame);
+              }
+              resolve(displayResult);
+            },
+            options.isVideoFrameRequestCurrent,
+          );
         })
         .catch((err: unknown) => {
           log.error(err);
@@ -367,10 +377,23 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     decoded: DecodedImageResult,
     onDecoded: (() => void) | undefined,
     resolve: (result: ImageSetImageResult) => void,
+    isRequestCurrent?: () => boolean,
   ): void {
     const result = decoded.image;
     if (result == undefined) {
-      resolve({ ok: decoded.ok });
+      resolve({ ok: decoded.ok, stale: decoded.stale });
+      return;
+    }
+
+    if (decoded.stale === true) {
+      this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false, stale: true });
+      return;
+    }
+
+    if (isRequestCurrent?.() === false) {
+      this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false, stale: true });
       return;
     }
 
@@ -403,7 +426,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     const nextRenderDelayMs = this.#lastRenderImage + MIN_IMAGE_RENDER_INTERVAL_MS - Date.now();
     if (nextRenderDelayMs > 0) {
-      this.#setPendingDecodedImage({ seq, result, ok: decoded.ok, onDecoded, resolve });
+      this.#setPendingDecodedImage({
+        seq,
+        result,
+        ok: decoded.ok,
+        isRequestCurrent,
+        onDecoded,
+        resolve,
+      });
       this.#pendingRenderTimeout ??= setTimeout(() => {
         this.#pendingRenderTimeout = undefined;
         this.#flushPendingDecodedImage();
@@ -411,7 +441,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return;
     }
 
-    this.#displayDecodedImage(seq, decoded, onDecoded, resolve);
+    this.#displayDecodedImage(seq, decoded, onDecoded, resolve, isRequestCurrent);
   }
 
   #displayDecodedImage(
@@ -419,10 +449,23 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     decoded: DecodedImageResult,
     onDecoded: (() => void) | undefined,
     resolve: (result: ImageSetImageResult) => void,
+    isRequestCurrent?: () => boolean,
   ): void {
     const result = decoded.image;
     if (result == undefined) {
-      resolve({ ok: decoded.ok });
+      resolve({ ok: decoded.ok, stale: decoded.stale });
+      return;
+    }
+
+    if (decoded.stale === true) {
+      this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false, stale: true });
+      return;
+    }
+
+    if (isRequestCurrent?.() === false) {
+      this.#closeDecodedImageIfUnused(result);
+      resolve({ ok: false, stale: true });
       return;
     }
 
@@ -461,6 +504,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       { image: pending.result, ok: pending.ok },
       pending.onDecoded,
       pending.resolve,
+      pending.isRequestCurrent,
     );
   }
 
@@ -472,7 +516,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.#pendingDecodedImage = undefined;
     if (pending.result !== keep) {
       this.#closeDecodedImageIfUnused(pending.result);
-      pending.resolve({ ok: false });
+      pending.resolve(
+        pending.isRequestCurrent?.() === false ? { ok: false, stale: true } : { ok: false },
+      );
     }
   }
 
@@ -634,7 +680,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     entries: PendingVideoDecode[],
     options: Pick<
       SetCompressedVideoFramesOptions,
-      "targetFrameTimeoutMs" | "anyFrameTimeoutMs" | "allowIntermediateVideoFrame"
+      | "targetFrameTimeoutMs"
+      | "anyFrameTimeoutMs"
+      | "allowIntermediateVideoFrame"
+      | "isVideoFrameRequestCurrent"
     > = {},
   ): Promise<void> {
     const requestId = ++this.#videoDecodeRequestId;
@@ -655,8 +704,19 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     if (this.isDisposed() || result.requestId !== this.#videoDecodeRequestId) {
       closeDecodeResultFrame(result);
+      const staleResult = this.#videoFrameRequestIsCurrent(options)
+        ? this.#failedVideoFrameResult()
+        : this.#staleVideoFrameResult();
       for (const entry of entries) {
-        this.#settleVideoDecode(entry, this.#failedVideoFrameResult());
+        this.#settleVideoDecode(entry, staleResult);
+      }
+      return;
+    }
+
+    if (!this.#videoFrameRequestIsCurrent(options)) {
+      closeDecodeResultFrame(result);
+      for (const entry of entries) {
+        this.#settleVideoDecode(entry, this.#staleVideoFrameResult());
       }
       return;
     }
@@ -666,7 +726,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         this.#settleVideoDecode(entry, this.#failedVideoFrameResult());
       }
       if (result.type === "Timeout") {
-        void this.#awaitTargetVideoFrame(decoder, requestId, entries[entries.length - 1]!);
+        void this.#awaitTargetVideoFrame(decoder, requestId, entries[entries.length - 1]!, {
+          isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
+        });
       }
       return;
     }
@@ -683,6 +745,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry, {
         settleTargetEntry: true,
         targetFrameTimeoutMs: options.targetFrameTimeoutMs,
+        isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
       });
       return;
     }
@@ -704,7 +767,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
     this.#settleVideoDecode(resultEntry, { image: result.frame, ok: true });
     if (result.type === "IntermediateFrame") {
-      void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry);
+      void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry, {
+        isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
+      });
     }
   }
 
@@ -712,7 +777,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     decoder: WorkerImageDecoder,
     requestId: number,
     targetEntry: PendingVideoDecode,
-    options: { settleTargetEntry?: boolean; targetFrameTimeoutMs?: number } = {},
+    options: Pick<SetCompressedVideoFramesOptions, "isVideoFrameRequestCurrent"> & {
+      settleTargetEntry?: boolean;
+      targetFrameTimeoutMs?: number;
+    } = {},
   ): Promise<void> {
     let result: Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>> | undefined;
     const timeoutMs =
@@ -749,8 +817,21 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       targetEntry.seq !== this.#receivedImageSequenceNumber
     ) {
       result.frame.close();
+      const staleResult =
+        options.isVideoFrameRequestCurrent != undefined &&
+        !this.#videoFrameRequestIsCurrent(options)
+          ? this.#staleVideoFrameResult()
+          : this.#failedVideoFrameResult();
       if (options.settleTargetEntry === true) {
-        this.#settleVideoDecode(targetEntry, this.#failedVideoFrameResult());
+        this.#settleVideoDecode(targetEntry, staleResult);
+      }
+      return;
+    }
+
+    if (!this.#videoFrameRequestIsCurrent(options)) {
+      result.frame.close();
+      if (options.settleTargetEntry === true) {
+        this.#settleVideoDecode(targetEntry, this.#staleVideoFrameResult());
       }
       return;
     }
@@ -765,6 +846,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       { image: result.frame, ok: true },
       targetEntry.onDecoded,
       () => {},
+      options.isVideoFrameRequestCurrent,
     );
   }
 
@@ -794,6 +876,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
   #failedVideoFrameResult(): DecodedImageResult {
     return { ok: false };
+  }
+
+  #staleVideoFrameResult(): DecodedImageResult {
+    return { ok: false, stale: true };
+  }
+
+  #videoFrameRequestIsCurrent(
+    options: Pick<SetCompressedVideoFramesOptions, "isVideoFrameRequestCurrent">,
+  ): boolean {
+    return options.isVideoFrameRequestCurrent?.() ?? true;
   }
 
   public update(): void {

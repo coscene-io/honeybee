@@ -66,6 +66,16 @@ type ControllerState = {
   playbackStabilizationGeneration?: number;
   playbackStabilizationInFlightGeneration?: number;
   pendingPlaybackStabilizationReceiveTimeNs?: bigint;
+  pendingPlaybackTarget?: PlaybackTarget;
+  playbackFlushScheduled?: boolean;
+  playbackInFlightRequestId?: number;
+};
+
+type PlaybackTarget = {
+  messageEvent: MessageEvent<CompressedVideo>;
+  generation: number;
+  requestId: number;
+  options: SetCompressedVideoFramesOptions | undefined;
 };
 
 type ControllerRenderer = Pick<
@@ -94,6 +104,7 @@ export class CompressedVideoController {
   #releaseSeekKeyframeSearchPlaybackPause: (() => void) | undefined;
   #seekReplayPlaybackPauseGeneration: number | undefined;
   #releaseSeekReplayPlaybackPause: (() => void) | undefined;
+  #playbackRequestId = 0;
 
   public constructor(args: {
     topic: string;
@@ -194,7 +205,14 @@ export class CompressedVideoController {
     if (this.#displayStabilizedPlaybackAfterSeek(normalizedEvent, receiveTimeNs, options)) {
       return;
     }
-    void this.#displayReplayFrames([normalizedEvent], this.#generation, "playback", options);
+    this.#queuePlaybackTarget(normalizedEvent, options);
+  }
+
+  public recordKeyframeIndex(messageEvent: Pick<MessageEvent, "topic" | "receiveTime">): void {
+    if (messageEvent.topic !== this.#topic) {
+      return;
+    }
+    this.#cache.addKnownKeyframeReceiveTime(messageEvent.topic, messageEvent.receiveTime);
   }
 
   public async displayPublishTimeTarget(
@@ -272,6 +290,7 @@ export class CompressedVideoController {
 
   public handleSeek(options?: SetCompressedVideoFramesOptions): void {
     this.#generation++;
+    this.#invalidatePlayback();
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cache.handleSeek(fromNanoSec(this.#renderer.currentTime));
 
@@ -285,6 +304,7 @@ export class CompressedVideoController {
 
   public resetPlaybackState(): void {
     this.#generation++;
+    this.#invalidatePlayback();
     this.#seekTargetNs = undefined;
     this.#cancelLookback();
     this.#endSeekReplayPlaybackPause();
@@ -297,6 +317,7 @@ export class CompressedVideoController {
 
   public clear(): void {
     this.#generation++;
+    this.#invalidatePlayback();
     this.#cancelLookback();
     this.#endSeekReplayPlaybackPause();
     this.#cache.clearTopic(this.#topic);
@@ -333,6 +354,7 @@ export class CompressedVideoController {
 
   #startImplicitSeekBackfill(): void {
     this.#generation++;
+    this.#invalidatePlayback();
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cache.handleSeek(fromNanoSec(this.#seekTargetNs));
     this.#cancelLookback();
@@ -341,6 +363,7 @@ export class CompressedVideoController {
 
   #beginReplayGeneration(): number {
     const generation = ++this.#generation;
+    this.#invalidatePlayback();
     this.#cancelLookback();
     this.#state.replayGeneration = undefined;
     this.#state.completedSeekGeneration = undefined;
@@ -348,6 +371,86 @@ export class CompressedVideoController {
     this.#state.playbackStabilizationInFlightGeneration = undefined;
     this.#state.pendingPlaybackStabilizationReceiveTimeNs = undefined;
     return generation;
+  }
+
+  #invalidatePlayback(): void {
+    this.#playbackRequestId++;
+    this.#state.pendingPlaybackTarget = undefined;
+    this.#state.playbackFlushScheduled = false;
+  }
+
+  #queuePlaybackTarget(
+    messageEvent: MessageEvent<CompressedVideo>,
+    options: SetCompressedVideoFramesOptions | undefined,
+  ): void {
+    this.#state.pendingPlaybackTarget = {
+      messageEvent,
+      generation: this.#generation,
+      requestId: ++this.#playbackRequestId,
+      options,
+    };
+    this.#schedulePlaybackFlush();
+  }
+
+  #schedulePlaybackFlush(): void {
+    if (
+      this.#state.playbackFlushScheduled === true ||
+      this.#state.playbackInFlightRequestId != undefined
+    ) {
+      return;
+    }
+
+    this.#state.playbackFlushScheduled = true;
+    queueMicrotask(() => {
+      this.#state.playbackFlushScheduled = false;
+      void this.#flushPlaybackTarget();
+    });
+  }
+
+  async #flushPlaybackTarget(): Promise<void> {
+    if (this.#state.playbackInFlightRequestId != undefined) {
+      return;
+    }
+
+    const target = this.#state.pendingPlaybackTarget;
+    if (target == undefined) {
+      return;
+    }
+    this.#state.pendingPlaybackTarget = undefined;
+    if (!this.#isCurrentPlaybackTarget(target)) {
+      return;
+    }
+
+    const frames = this.#cache.framesForReceiveTime(
+      this.#topic,
+      target.messageEvent.receiveTime,
+    ) ?? [target.messageEvent];
+    this.#state.playbackInFlightRequestId = target.requestId;
+    try {
+      const options = this.#playbackDisplayOptions(target);
+      await this.#displayReplayFrames(frames, target.generation, "playback", options);
+    } finally {
+      if (this.#state.playbackInFlightRequestId === target.requestId) {
+        this.#state.playbackInFlightRequestId = undefined;
+      }
+      this.#schedulePlaybackFlush();
+    }
+  }
+
+  #playbackDisplayOptions(target: PlaybackTarget): SetCompressedVideoFramesOptions {
+    const upstreamGuard = target.options?.isVideoFrameRequestCurrent;
+    return {
+      ...target.options,
+      allowIntermediateVideoFrame: false,
+      isVideoFrameRequestCurrent: () =>
+        (upstreamGuard?.() ?? true) && this.#isCurrentPlaybackTarget(target),
+    };
+  }
+
+  #isCurrentPlaybackTarget(target: PlaybackTarget): boolean {
+    return (
+      target.requestId === this.#playbackRequestId && this.#isCurrentGeneration(target.generation)
+    );
   }
 
   #resetDecoderForSeek(generation: number): void {

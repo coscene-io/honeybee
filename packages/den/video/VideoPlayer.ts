@@ -134,22 +134,24 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     await this.#mutex.runExclusive(async () => {
       // Optimize for latency means we do not have to call flush() in every decode() call
       // See <https://github.com/w3c/webcodecs/issues/206>
-      decoderConfig.optimizeForLatency = true;
+      const latencyConfig: VideoDecoderConfig = { ...decoderConfig, optimizeForLatency: true };
 
       // Try with 'prefer-hardware' first
-      let modifiedConfig = { ...decoderConfig };
-      modifiedConfig.hardwareAcceleration = "prefer-hardware";
+      let selectedConfig: VideoDecoderConfig = {
+        ...latencyConfig,
+        hardwareAcceleration: "prefer-hardware",
+      };
 
-      let support = await VideoDecoder.isConfigSupported(modifiedConfig);
+      let support = await VideoDecoder.isConfigSupported(selectedConfig);
       if (support.supported !== true) {
         log.warn(
           `VideoDecoder does not support configuration ${JSON.stringify(
-            modifiedConfig,
+            selectedConfig,
           )}. Trying without 'prefer-hardware'`,
         );
         // If 'prefer-hardware' is not supported, try without it
-        modifiedConfig = { ...decoderConfig };
-        support = await VideoDecoder.isConfigSupported(modifiedConfig);
+        selectedConfig = latencyConfig;
+        support = await VideoDecoder.isConfigSupported(selectedConfig);
       }
 
       if (support.supported !== true) {
@@ -165,12 +167,12 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
         this.#decoder = new VideoDecoder(this.#decoderInit);
       }
 
-      this.emit("debug", `Configuring VideoDecoder with ${JSON.stringify(decoderConfig)}`);
-      this.#decoder.configure(decoderConfig);
-      this.#decoderConfig = decoderConfig;
+      this.emit("debug", `Configuring VideoDecoder with ${JSON.stringify(selectedConfig)}`);
+      this.#decoder.configure(selectedConfig);
+      this.#decoderConfig = selectedConfig;
       this.#codedSize = undefined;
-      if (decoderConfig.codedWidth != undefined && decoderConfig.codedHeight != undefined) {
-        this.#codedSize = { width: decoderConfig.codedWidth, height: decoderConfig.codedHeight };
+      if (selectedConfig.codedWidth != undefined && selectedConfig.codedHeight != undefined) {
+        this.#codedSize = { width: selectedConfig.codedWidth, height: selectedConfig.codedHeight };
       }
     });
   }

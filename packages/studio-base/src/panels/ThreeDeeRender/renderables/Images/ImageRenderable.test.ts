@@ -781,6 +781,42 @@ describe("ImageRenderable", () => {
     }
   });
 
+  it("closes stale playback target frames without updating texture or reporting decode failure", async () => {
+    const staleFrame = new MockVideoFrame() as unknown as VideoFrame;
+    const onDecoded = jest.fn();
+    const resetVideoDecoder = jest.fn();
+    const decoder = {
+      decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({
+          type: "TargetFrame",
+          requestId,
+          frame: staleFrame,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+        }),
+      ),
+      awaitTargetFrame: abortAwaitTargetFrame(),
+      resetVideoDecoder,
+      terminate: jest.fn(),
+    } as unknown as WorkerImageDecoder;
+    const renderable = new TestVideoBatchRenderable(decoder);
+
+    jest.clearAllMocks();
+    await expect(
+      renderable.setCompressedVideoFrames([videoFrameEvent(10n, 1, "key")], {
+        onDecoded,
+        isVideoFrameRequestCurrent: () => false,
+      }),
+    ).resolves.toEqual<ImageSetImageResult>({ ok: false, stale: true });
+
+    expect(renderable.getDecodedImage()).toBeUndefined();
+    expect(renderable.userData.texture).toBeUndefined();
+    expect((staleFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+    expect(onDecoded).not.toHaveBeenCalled();
+    expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+    expect(resetVideoDecoder).not.toHaveBeenCalled();
+  });
+
   it("replaces an intermediate video frame when the target frame arrives later", async () => {
     const time = mockDateNow();
     try {

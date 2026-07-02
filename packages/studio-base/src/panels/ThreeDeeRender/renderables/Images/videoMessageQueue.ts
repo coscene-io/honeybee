@@ -14,6 +14,8 @@ import { PartialMessage } from "../../SceneExtension";
 
 export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<CompressedVideo>>;
 
+export type RecordCompressedVideoKeyframe = (messageEvent: CompressedVideoMessageEvent) => void;
+
 /**
  * Compressed video frames depend on previous frames. Keep the newest decodable GOP instead of
  * keeping only the last message. If a newer keyframe arrives, older frames on the same topic can be
@@ -22,32 +24,60 @@ export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<Compressed
 export function filterCompressedVideoQueue(
   queue: CompressedVideoMessageEvent[],
 ): CompressedVideoMessageEvent[] {
+  return filterCompressedVideoQueueWithKeyframes(queue).messages;
+}
+
+export function recordKeyframesAndFilterCompressedVideoQueue(
+  queue: CompressedVideoMessageEvent[],
+  recordKeyframe: RecordCompressedVideoKeyframe,
+): CompressedVideoMessageEvent[] {
+  const result = filterCompressedVideoQueueWithKeyframes(queue);
+  for (const keyframe of result.keyframes) {
+    recordKeyframe(keyframe);
+  }
+  return result.messages;
+}
+
+function filterCompressedVideoQueueWithKeyframes(queue: CompressedVideoMessageEvent[]): {
+  messages: CompressedVideoMessageEvent[];
+  keyframes: CompressedVideoMessageEvent[];
+} {
   const selectedMessages = new Set<CompressedVideoMessageEvent>();
-  const messagesByTopic = new Map<string, CompressedVideoMessageEvent[]>();
+  const keyframes: CompressedVideoMessageEvent[] = [];
+  const messagesByTopic = new Map<
+    string,
+    { messageEvent: CompressedVideoMessageEvent; isKeyframe: boolean }[]
+  >();
 
   for (const messageEvent of queue) {
+    const normalizedMessage = normalizeCompressedVideo(messageEvent.message);
+    const isKeyframe = isVideoKeyframe(normalizedMessage);
+    if (isKeyframe) {
+      keyframes.push(messageEvent);
+    }
+
     const topicMessages = messagesByTopic.get(messageEvent.topic);
     if (topicMessages) {
-      topicMessages.push(messageEvent);
+      topicMessages.push({ messageEvent, isKeyframe });
     } else {
-      messagesByTopic.set(messageEvent.topic, [messageEvent]);
+      messagesByTopic.set(messageEvent.topic, [{ messageEvent, isKeyframe }]);
     }
   }
 
   for (const topicMessages of messagesByTopic.values()) {
-    const normalizedMessages = topicMessages.map((messageEvent) =>
-      normalizeCompressedVideo(messageEvent.message),
-    );
-    const lastKeyframeIndex = findLastIndex(normalizedMessages, isVideoKeyframe);
+    const lastKeyframeIndex = findLastIndex(topicMessages, (message) => message.isKeyframe);
 
     const selectedTopicMessages =
       lastKeyframeIndex >= 0 ? topicMessages.slice(lastKeyframeIndex) : topicMessages;
-    for (const messageEvent of selectedTopicMessages) {
+    for (const { messageEvent } of selectedTopicMessages) {
       selectedMessages.add(messageEvent);
     }
   }
 
-  return queue.filter((messageEvent) => selectedMessages.has(messageEvent));
+  return {
+    messages: queue.filter((messageEvent) => selectedMessages.has(messageEvent)),
+    keyframes,
+  };
 }
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {

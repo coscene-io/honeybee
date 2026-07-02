@@ -248,6 +248,16 @@ describe("VideoGopCache", () => {
     expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(11))).toBeUndefined();
   });
 
+  it("indexes a known keyframe receive time without caching GOP frame data", () => {
+    const cache = new VideoGopCache();
+
+    cache.addKnownKeyframeReceiveTime(TOPIC, t(10));
+
+    expect(cache.byteSize()).toBe(0);
+    expect(cache.framesForReceiveTime(TOPIC, t(10))).toBeUndefined();
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(12))).toEqual(t(10));
+  });
+
   it("retains keyframe times in the index after frame data is evicted", () => {
     const cache = new VideoGopCache({ maxBytes: 18 });
     const oldKey = h264Frame(1, 1, "key", 8);

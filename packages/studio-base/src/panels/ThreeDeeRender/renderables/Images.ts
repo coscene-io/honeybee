@@ -33,7 +33,7 @@ import {
   normalizeRosImage,
 } from "./Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPrefixMatching";
-import { filterCompressedVideoQueue } from "./Images/videoMessageQueue";
+import { recordKeyframesAndFilterCompressedVideoQueue } from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import {
@@ -189,7 +189,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
           handler: this.#handleCompressedVideo,
-          filterQueue: filterCompressedVideoQueue,
+          filterQueue: this.#filterCompressedVideoQueue,
         },
       },
     ];
@@ -413,6 +413,14 @@ export class Images extends SceneExtension<ImageRenderable> {
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
       resizeWidth: options?.resizeWidth ?? DEFAULT_BITMAP_WIDTH,
+    });
+  };
+
+  #filterCompressedVideoQueue = (
+    queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
+  ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
+    return recordKeyframesAndFilterCompressedVideoQueue(queue, (messageEvent) => {
+      this.#compressedVideoControllerForTopic(messageEvent.topic).recordKeyframeIndex(messageEvent);
     });
   };
 
