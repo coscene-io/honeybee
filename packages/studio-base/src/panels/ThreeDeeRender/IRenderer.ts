@@ -262,8 +262,6 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   coordinateFrameList: SelectEntry[];
   currentTime: bigint;
   startTime: bigint | undefined;
-  /** Current playback speed multiplier (1 = realtime). Used for playback load shedding. */
-  playbackSpeed: number;
   subscribeMessageRange: SubscribeMessageRange | undefined;
   acquireSeekKeyframeSearchPlaybackPause?: AcquireSeekKeyframeSearchPlaybackPause;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */
@@ -293,9 +291,6 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
    * @param currentTime what renderer.currentTime will be set to
    */
   setCurrentTime(newTimeNs: bigint): void;
-
-  /** Update the current playback speed multiplier (1 = realtime). */
-  setPlaybackSpeed(speed: number): void;
 
   /**
    * Updates renderer state according to seek delta. Handles clearing of future state and resetting of allFrames cursor if seeked backwards

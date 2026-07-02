@@ -236,7 +236,6 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public coordinateFrameList: SelectEntry[] = [];
   public currentTime = 0n;
   public startTime: bigint | undefined;
-  public playbackSpeed = 1;
   public subscribeMessageRange: SubscribeMessageRange | undefined;
   public acquireSeekKeyframeSearchPlaybackPause?: IRenderer["acquireSeekKeyframeSearchPlaybackPause"];
   public fixedFrameId: string | undefined;
@@ -476,10 +475,6 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
    */
   public setCurrentTime(newTimeNs: bigint): void {
     this.currentTime = newTimeNs;
-  }
-
-  public setPlaybackSpeed(speed: number): void {
-    this.playbackSpeed = speed;
   }
   /**
    * Updates renderer state according to seek delta. Handles clearing of future state and resetting of allFrames cursor if seeked backwards

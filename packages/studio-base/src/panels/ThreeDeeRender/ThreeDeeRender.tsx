@@ -234,7 +234,6 @@ export function ThreeDeeRender(props: {
   >();
   const [startTime, setStartTime] = useState<Time | undefined>();
   const [currentTime, setCurrentTime] = useState<Time | undefined>();
-  const [playbackSpeed, setPlaybackSpeed] = useState<number | undefined>();
   const [didSeek, setDidSeek] = useState<boolean>(false);
   const [sharedPanelState, setSharedPanelState] = useState<undefined | Shared3DPanelState>();
   const [allFrames, setAllFrames] = useState<readonly MessageEvent[] | undefined>(undefined);
@@ -402,7 +401,6 @@ export function ThreeDeeRender(props: {
         if (renderState.startTime) {
           setStartTime(renderState.startTime);
         }
-        setPlaybackSpeed(renderState.playbackSpeed);
 
         // Check if didSeek is set to true to reset the preloadedMessageTime and
         // trigger a state flush in Renderer
@@ -447,7 +445,6 @@ export function ThreeDeeRender(props: {
     context.watch("currentFrame");
     context.watch("startTime");
     context.watch("currentTime");
-    context.watch("playbackSpeed");
     context.watch("didSeek");
     context.watch("parameters");
     context.watch("sharedPanelState");
@@ -593,13 +590,6 @@ export function ThreeDeeRender(props: {
       setDidSeek(false);
     }
   }, [currentTime, renderer, didSeek]);
-
-  // Keep the renderer playback speed up to date so compressed video load shedding can adapt
-  useEffect(() => {
-    if (renderer) {
-      renderer.setPlaybackSpeed(playbackSpeed ?? 1);
-    }
-  }, [playbackSpeed, renderer]);
 
   // Keep the renderer colorScheme and backgroundColor up to date
   useEffect(() => {

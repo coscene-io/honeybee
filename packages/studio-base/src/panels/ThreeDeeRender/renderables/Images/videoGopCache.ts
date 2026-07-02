@@ -11,6 +11,7 @@ import { MessageEvent } from "@foxglove/studio";
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+export const DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC = 20_000;
 
 type CompressedVideoLike = {
   timestamp: Time;
@@ -97,11 +98,16 @@ export class VideoGopCache {
   // keyframes are, so a later seek can read exactly [keyframe, target] instead of guessing windows.
   readonly #keyframeReceiveTimesByTopic = new Map<string, bigint[]>();
   readonly #maxBytes: number;
+  readonly #maxKeyframeIndexEntriesPerTopic: number;
   #byteSize = 0;
   #targetReceiveTimeNs = 0n;
 
-  public constructor(options: { maxBytes?: number } = {}) {
+  public constructor(
+    options: { maxBytes?: number; maxKeyframeIndexEntriesPerTopic?: number } = {},
+  ) {
     this.#maxBytes = options.maxBytes ?? DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES;
+    this.#maxKeyframeIndexEntriesPerTopic =
+      options.maxKeyframeIndexEntriesPerTopic ?? DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC;
   }
 
   public addFrame(msg: MessageEvent): boolean {
@@ -129,6 +135,10 @@ export class VideoGopCache {
     this.#mergeOverlappingRanges(msg.topic);
     this.#pruneToBudget();
     return true;
+  }
+
+  public addKnownKeyframeReceiveTime(topic: string, receiveTime: Time): void {
+    this.#recordKeyframeReceiveTime(topic, toNanoSec(receiveTime));
   }
 
   public handleSeek(targetTime: Time): void {
@@ -302,13 +312,19 @@ export class VideoGopCache {
     if (!frame.isKeyframe) {
       return;
     }
-    const topic = frame.messageEvent.topic;
+    this.#recordKeyframeReceiveTime(frame.messageEvent.topic, frame.receiveTimeNs);
+  }
+
+  #recordKeyframeReceiveTime(topic: string, receiveTimeNs: bigint): void {
     let times = this.#keyframeReceiveTimesByTopic.get(topic);
     if (times == undefined) {
       times = [];
       this.#keyframeReceiveTimesByTopic.set(topic, times);
     }
-    sortedInsertUnique(times, frame.receiveTimeNs);
+    sortedInsertUnique(times, receiveTimeNs);
+    if (times.length > this.#maxKeyframeIndexEntriesPerTopic) {
+      times.splice(0, times.length - this.#maxKeyframeIndexEntriesPerTopic);
+    }
   }
 
   public byteSize(): number {
