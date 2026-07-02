@@ -47,6 +47,99 @@ describe("share manifest URL parsing", () => {
       parseShareManifestFromUrl(new URL(`https://example.com/viz#manifest=${encoded}`), now),
     ).toEqual({
       status: "valid",
+      kind: "encoded",
+      encodedManifest: encoded,
+      manifest,
+    });
+  });
+
+  it("parses direct shard manifest hash parameters", () => {
+    expect(
+      parseShareManifestFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest&ds.profile=720p#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fshards%2Fmanifest.json&layoutUrl=https%3A%2F%2Fstorage.example.com%2Flayouts%2Fshare.json",
+        ),
+        now,
+      ),
+    ).toEqual({
+      status: "valid",
+      kind: "direct",
+      manifestUrl: "https://storage.example.com/shards/manifest.json",
+      layoutUrl: "https://storage.example.com/layouts/share.json",
+      profile: "720p",
+    });
+  });
+
+  it("allows direct shard manifest URLs without layout URLs", () => {
+    expect(
+      parseShareManifestFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fshards%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toEqual({
+      status: "valid",
+      kind: "direct",
+      manifestUrl: "https://storage.example.com/shards/manifest.json",
+    });
+  });
+
+  it("ignores raw profile on direct shard manifest URLs", () => {
+    expect(
+      parseShareManifestFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest&ds.profile=raw#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fshards%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toEqual({
+      status: "valid",
+      kind: "direct",
+      manifestUrl: "https://storage.example.com/shards/manifest.json",
+    });
+  });
+
+  it("rejects direct shard manifest URLs with non-http URLs", () => {
+    expect(
+      parseShareManifestFromUrl(
+        new URL(
+          "https://example.com/viz#manifestUrl=file%3A%2F%2Fstorage.example.com%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toMatchObject({ status: "invalid" });
+    expect(
+      parseShareManifestFromUrl(
+        new URL(
+          "https://example.com/viz#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json&layoutUrl=ftp%3A%2F%2Fstorage.example.com%2Flayout.json",
+        ),
+        now,
+      ),
+    ).toMatchObject({ status: "invalid" });
+  });
+
+  it("prefers encoded manifests when both encoded and direct parameters exist", () => {
+    const manifest = {
+      version: 1,
+      expireTime: future,
+      links: {
+        mini_mcap: "https://mock-storage.example.com/artifacts/process.mini.mcap?sig=1",
+        layout: "https://mock-storage.example.com/shares/layout.json?sig=2",
+      },
+    };
+    const encoded = encodeBase64Url(manifest);
+
+    expect(
+      parseShareManifestFromUrl(
+        new URL(
+          `https://example.com/viz#manifest=${encoded}&manifestUrl=https%3A%2F%2Fstorage.example.com%2Fshards%2Fmanifest.json`,
+        ),
+        now,
+      ),
+    ).toEqual({
+      status: "valid",
+      kind: "encoded",
       encodedManifest: encoded,
       manifest,
     });
@@ -157,5 +250,13 @@ describe("share manifest URL parsing", () => {
       isShareManifestUrl(new URL(`https://example.com/viz#manifest=${expiredEncoded}`), now),
     ).toBe(true);
     expect(isShareManifestUrl(new URL(`https://example.com/viz#${validEncoded}`), now)).toBe(false);
+    expect(
+      isShareManifestUrl(
+        new URL(
+          "https://example.com/viz#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toBe(true);
   });
 });

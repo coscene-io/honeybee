@@ -85,6 +85,77 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
         url: manifest.links.mini_mcap,
       }),
     });
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toMatchObject({
+      urlParams: { shardMode: "manifest" },
+    });
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toMatchObject({
+      urlParams: { manifestUrl: expect.any(String) },
+    });
+  });
+
+  it("uses direct manifestUrl params as a shard manifest source", () => {
+    const manifestUrl = "https://mock-storage.example.com/public/shards/manifest.json";
+    const layoutUrl = "https://mock-storage.example.com/public/layouts/share.json";
+    const factory = new CoSceneShareManifestDataSourceFactory();
+
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: {
+        manifestUrl,
+        layoutUrl,
+        profile: "720p",
+      },
+    });
+
+    expect(mockWorkerSerializedIterableSource).toHaveBeenCalledTimes(1);
+    expect(mockWorkerSerializedIterableSource.mock.calls[0]?.[0]).toMatchObject({
+      initArgs: { params: { url: manifestUrl, profile: "720p" } },
+    });
+    expect(mockIterablePlayer).toHaveBeenCalledTimes(1);
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
+      urlParams: {
+        shardMode: "manifest",
+        manifestUrl,
+        layoutUrl,
+        profile: "720p",
+      },
+      name: "Shared shard manifest (720p)",
+      enablePlaybackSpillCache: true,
+      playbackSpillCacheSourceKey: JSON.stringify({
+        params: { profile: "720p", url: manifestUrl },
+        sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
+      }),
+    });
+  });
+
+  it("ignores raw profile params for direct shard manifest sources", () => {
+    const manifestUrl = "https://mock-storage.example.com/public/shards/manifest.json";
+    const factory = new CoSceneShareManifestDataSourceFactory();
+
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: {
+        manifestUrl,
+        profile: "raw",
+      },
+    });
+
+    expect(mockWorkerSerializedIterableSource.mock.calls[0]?.[0]).toMatchObject({
+      initArgs: { params: { url: manifestUrl } },
+    });
+    expect(mockWorkerSerializedIterableSource.mock.calls[0]?.[0]).not.toMatchObject({
+      initArgs: { params: { profile: "raw" } },
+    });
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      urlParams: {
+        shardMode: "manifest",
+        manifestUrl,
+      },
+    });
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toMatchObject({
+      urlParams: { profile: "raw" },
+    });
   });
 
   it("rejects expired manifests before constructing a player", () => {

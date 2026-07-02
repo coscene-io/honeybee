@@ -7,6 +7,11 @@
 
 export const SHARE_MANIFEST_DATA_SOURCE_ID = "coscene-share-manifest";
 export const SHARE_MANIFEST_HASH_PARAM = "manifest";
+export const SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM = "manifestUrl";
+export const SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM = "layoutUrl";
+const SHARE_MANIFEST_PROFILE_PARAM = "profile";
+const URL_PROFILE_PARAM = "ds.profile";
+const RAW_PROFILE_ID = "raw";
 
 export type ShareManifest = {
   version: 1;
@@ -17,11 +22,24 @@ export type ShareManifest = {
   };
 };
 
-export type ShareManifestParseResult =
-  | { status: "missing" }
+export type EncodedShareManifestParseResult =
   | { status: "expired"; encodedManifest: string; expireTime: string }
   | { status: "invalid"; encodedManifest: string; error: Error }
-  | { status: "valid"; encodedManifest: string; manifest: ShareManifest };
+  | { status: "valid"; kind: "encoded"; encodedManifest: string; manifest: ShareManifest };
+
+export type DirectShareManifestParseResult = {
+  status: "valid";
+  kind: "direct";
+  manifestUrl: string;
+  layoutUrl?: string;
+  profile?: string;
+};
+
+export type ShareManifestParseResult =
+  | { status: "missing" }
+  | EncodedShareManifestParseResult
+  | { status: "invalid"; encodedManifest?: string; error: Error }
+  | DirectShareManifestParseResult;
 
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -50,9 +68,15 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-function getManifestHashParam(url: URL): string | undefined {
-  const params = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
-  return params.get(SHARE_MANIFEST_HASH_PARAM) ?? undefined;
+function getHashParams(url: URL): URLSearchParams {
+  return new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
+}
+
+function cleanShareProfile(profile: string | undefined): string | undefined {
+  if (profile == undefined || profile.length === 0 || profile === RAW_PROFILE_ID) {
+    return undefined;
+  }
+  return profile;
 }
 
 function asShareManifest(raw: unknown): ShareManifest {
@@ -89,18 +113,65 @@ export function parseShareManifestFromUrl(
   url: URL,
   now: Date = new Date(),
 ): ShareManifestParseResult {
-  const encodedManifest = getManifestHashParam(url);
-  if (encodedManifest == undefined || encodedManifest.length === 0) {
-    return { status: "missing" };
+  const hashParams = getHashParams(url);
+  return parseShareManifestParams(
+    {
+      [SHARE_MANIFEST_HASH_PARAM]: hashParams.get(SHARE_MANIFEST_HASH_PARAM) ?? undefined,
+      [SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM]:
+        hashParams.get(SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM) ?? undefined,
+      [SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM]:
+        hashParams.get(SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM) ?? undefined,
+      [SHARE_MANIFEST_PROFILE_PARAM]: url.searchParams.get(URL_PROFILE_PARAM) ?? undefined,
+    },
+    now,
+  );
+}
+
+export function parseShareManifestParams(
+  params: Record<string, string | undefined> | undefined,
+  now: Date = new Date(),
+): ShareManifestParseResult {
+  const encodedManifest = params?.[SHARE_MANIFEST_HASH_PARAM];
+  if (encodedManifest != undefined && encodedManifest.length > 0) {
+    return parseEncodedShareManifest(encodedManifest, now);
   }
 
-  return parseEncodedShareManifest(encodedManifest, now);
+  const manifestUrl = params?.[SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM];
+  if (manifestUrl == undefined) {
+    return { status: "missing" };
+  }
+  if (!isHttpUrl(manifestUrl)) {
+    return {
+      status: "invalid",
+      error: new Error("Share manifestUrl must be an HTTP(S) URL"),
+    };
+  }
+
+  const rawLayoutUrl = params?.[SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM];
+  const layoutUrl = rawLayoutUrl != undefined && rawLayoutUrl.length > 0 ? rawLayoutUrl : undefined;
+  if (layoutUrl != undefined && !isHttpUrl(layoutUrl)) {
+    return {
+      status: "invalid",
+      error: new Error("Share layoutUrl must be an HTTP(S) URL"),
+    };
+  }
+
+  return {
+    status: "valid",
+    kind: "direct",
+    manifestUrl,
+    ...(layoutUrl != undefined ? { layoutUrl } : {}),
+    ...(() => {
+      const profile = cleanShareProfile(params?.[SHARE_MANIFEST_PROFILE_PARAM]);
+      return profile != undefined ? { profile } : {};
+    })(),
+  };
 }
 
 export function parseEncodedShareManifest(
   encodedManifest: string,
   now: Date = new Date(),
-): Exclude<ShareManifestParseResult, { status: "missing" }> {
+): EncodedShareManifestParseResult {
   let raw: unknown;
   try {
     raw = decodeBase64UrlJson(encodedManifest);
@@ -125,7 +196,7 @@ export function parseEncodedShareManifest(
   }
 
   try {
-    return { status: "valid", encodedManifest, manifest: asShareManifest(raw) };
+    return { status: "valid", kind: "encoded", encodedManifest, manifest: asShareManifest(raw) };
   } catch (error) {
     return {
       status: "invalid",

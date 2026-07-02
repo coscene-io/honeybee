@@ -27,15 +27,17 @@ import type {
   ManifestProfile,
   ShardProfileOption,
 } from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
+import {
+  MANIFEST_URL_PARAM,
+  SHARD_MODE_MANIFEST,
+  SHARD_MODE_PARAM,
+  SHARD_MODE_RAW,
+} from "@foxglove/studio-base/util/shardManifestUrlParams";
+import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 interface MinimalManifest {
   profiles?: ManifestProfile[];
 }
-
-const SHARD_MODE_PARAM = "shardMode";
-const SHARD_MODE_MANIFEST = "manifest";
-const SHARD_MODE_RAW = "raw";
-const MANIFEST_URL_PARAM = "manifestUrl";
 
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
 
@@ -55,12 +57,20 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   const { t } = useTranslation("appBar");
   const urlState = useMessagePipeline(selectUrlState);
 
-  const isShardManifest =
-    urlState?.sourceId === "coscene-data-platform" &&
-    (urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_MANIFEST ||
-      urlState.parameters?.[SHARD_MODE_PARAM] === SHARD_MODE_RAW);
+  const sourceId = urlState?.sourceId;
+  const shardMode = urlState?.parameters?.[SHARD_MODE_PARAM];
   const manifestUrl = urlState?.parameters?.[MANIFEST_URL_PARAM] ?? "";
-  const currentProfile = urlState?.parameters?.profile ?? "";
+  const isDataPlatformShardManifest =
+    sourceId === "coscene-data-platform" &&
+    (shardMode === SHARD_MODE_MANIFEST || shardMode === SHARD_MODE_RAW);
+  const isShareDirectShardManifest =
+    sourceId === SHARE_MANIFEST_DATA_SOURCE_ID &&
+    shardMode === SHARD_MODE_MANIFEST &&
+    manifestUrl !== "";
+  const isShardManifest = isDataPlatformShardManifest || isShareDirectShardManifest;
+  const allowRawProfile = isDataPlatformShardManifest;
+  const profileParam = urlState?.parameters?.profile ?? "";
+  const currentProfile = !allowRawProfile && profileParam === RAW_PROFILE ? "" : profileParam;
   const rawOption = useMemo<ShardProfileOption>(
     () => ({ value: RAW_PROFILE, label: t("rawData") }),
     [t],
@@ -103,11 +113,17 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
   }, [isShardManifest, manifestUrl]);
 
   const options = useMemo(() => {
+    if (!allowRawProfile) {
+      return profileOptions;
+    }
     if (profileOptions.some((opt) => opt.value === RAW_PROFILE)) {
       return profileOptions;
     }
     return [...profileOptions, rawOption];
-  }, [profileOptions, rawOption]);
+  }, [allowRawProfile, profileOptions, rawOption]);
+
+  const selectorVisible =
+    isDataPlatformShardManifest || (isShareDirectShardManifest && options.length > 1);
 
   const selectedValue =
     currentProfile !== "" && options.some((option) => option.value === currentProfile)
@@ -115,7 +131,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
       : defaultProfile;
 
   useEffect(() => {
-    if (!isShardManifest || options.length === 0) {
+    if (!selectorVisible || options.length === 0) {
       return;
     }
     const hasCurrentProfile =
@@ -137,7 +153,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
       next.set("ds.profile", savedOption.value);
     }
     window.location.search = next.toString();
-  }, [currentProfile, defaultProfile, isShardManifest, options]);
+  }, [currentProfile, defaultProfile, options, selectorVisible]);
 
   const onChange = useCallback(
     (value: string) => {
@@ -156,7 +172,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
     [defaultProfile, options],
   );
 
-  if (!isShardManifest) {
+  if (!selectorVisible) {
     return ReactNull;
   }
 

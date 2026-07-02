@@ -98,6 +98,18 @@ function shareUrl(expiresAt: string): { url: string; encodedManifest: string } {
   };
 }
 
+function directShareUrl(profile?: string): string {
+  const search = new URLSearchParams({ ds: SHARE_MANIFEST_DATA_SOURCE_ID });
+  if (profile != undefined) {
+    search.set("ds.profile", profile);
+  }
+  const hash = new URLSearchParams({
+    manifestUrl: "https://mock-storage.example.com/public/shards/manifest.json",
+    layoutUrl: "https://mock-storage.example.com/public/layouts/share.json",
+  });
+  return `${window.location.origin}/viz?${search.toString()}#${hash.toString()}`;
+}
+
 describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date("2026-06-25T00:00:00Z") });
@@ -125,6 +137,42 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
       });
     });
     expect(mockDataSourceClose).toHaveBeenCalled();
+  });
+
+  it("initializes direct shard share manifest URLs without login", async () => {
+    const url = directShareUrl("720p");
+    window.history.replaceState(undefined, "", url);
+
+    render(<DeepLinksSyncAdapter deepLinks={[url]} />);
+
+    await waitFor(() => {
+      expect(mockSelectSource).toHaveBeenCalledWith(SHARE_MANIFEST_DATA_SOURCE_ID, {
+        type: "connection",
+        params: {
+          manifestUrl: "https://mock-storage.example.com/public/shards/manifest.json",
+          layoutUrl: "https://mock-storage.example.com/public/layouts/share.json",
+          profile: "720p",
+        },
+      });
+    });
+    expect(mockDataSourceClose).toHaveBeenCalled();
+  });
+
+  it("drops raw profile from direct shard share manifest URLs", async () => {
+    const url = directShareUrl("raw");
+    window.history.replaceState(undefined, "", url);
+
+    render(<DeepLinksSyncAdapter deepLinks={[url]} />);
+
+    await waitFor(() => {
+      expect(mockSelectSource).toHaveBeenCalledWith(SHARE_MANIFEST_DATA_SOURCE_ID, {
+        type: "connection",
+        params: {
+          manifestUrl: "https://mock-storage.example.com/public/shards/manifest.json",
+          layoutUrl: "https://mock-storage.example.com/public/layouts/share.json",
+        },
+      });
+    });
   });
 
   it("shows a non-dismissible expired dialog and does not initialize playback", async () => {

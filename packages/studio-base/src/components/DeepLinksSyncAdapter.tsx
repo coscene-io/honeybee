@@ -37,9 +37,12 @@ import { useSyncLayoutFromUrl } from "@foxglove/studio-base/hooks/useSyncLayoutF
 import { useSyncTimeFromUrl } from "@foxglove/studio-base/hooks/useSyncTimeFromUrl";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import type { AppURLState } from "@foxglove/studio-base/util/appURLState";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
+  SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM,
+  SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM,
   SHARE_MANIFEST_DATA_SOURCE_ID,
   SHARE_MANIFEST_HASH_PARAM,
   parseShareManifestFromUrl,
@@ -94,7 +97,7 @@ export function DeepLinksSyncAdapter({
   const selectEvent = useEvents(selectSelectEvent);
 
   // ========== URL 解析和验证 ==========
-  const targetUrlState = useMemo(() => {
+  const targetUrlState = useMemo<AppURLState | undefined>(() => {
     if (deepLinks[0] == undefined) {
       return undefined;
     }
@@ -102,9 +105,21 @@ export function DeepLinksSyncAdapter({
     const url = new URL(deepLinks[0]);
     const shareManifest = parseShareManifestFromUrl(url);
     if (shareManifest.status === "valid") {
+      const dsParams: Record<string, string> = {};
+      if (shareManifest.kind === "encoded") {
+        dsParams[SHARE_MANIFEST_HASH_PARAM] = shareManifest.encodedManifest;
+      } else {
+        dsParams[SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM] = shareManifest.manifestUrl;
+        if (shareManifest.layoutUrl != undefined) {
+          dsParams[SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM] = shareManifest.layoutUrl;
+        }
+        if (shareManifest.profile != undefined) {
+          dsParams.profile = shareManifest.profile;
+        }
+      }
       return {
         ds: SHARE_MANIFEST_DATA_SOURCE_ID,
-        dsParams: { [SHARE_MANIFEST_HASH_PARAM]: shareManifest.encodedManifest },
+        dsParams,
       };
     }
     if (shareManifest.status === "expired") {
