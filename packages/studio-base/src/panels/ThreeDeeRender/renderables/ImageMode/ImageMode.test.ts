@@ -153,7 +153,7 @@ class TestImageRenderable extends ImageRenderable {
   ): Promise<ImageSetImageResult> {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
 
     this.userData.image = targetFrame.message;

@@ -5,7 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { MessageEvent } from "@foxglove/studio";
+import type { Time } from "@foxglove/rostime";
+import type { MessageEvent } from "@foxglove/studio";
 
 import { CompressedVideo } from "./ImageTypes";
 import { isVideoKeyframe } from "./decodeImage";
@@ -14,7 +15,7 @@ import { PartialMessage } from "../../SceneExtension";
 
 export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<CompressedVideo>>;
 
-export type RecordCompressedVideoKeyframe = (messageEvent: CompressedVideoMessageEvent) => void;
+export type RecordCompressedVideoKeyframe = (topic: string, receiveTime: Time) => void;
 
 /**
  * Compressed video frames depend on previous frames. Keep the newest decodable GOP instead of
@@ -24,26 +25,21 @@ export type RecordCompressedVideoKeyframe = (messageEvent: CompressedVideoMessag
 export function filterCompressedVideoQueue(
   queue: CompressedVideoMessageEvent[],
 ): CompressedVideoMessageEvent[] {
-  return filterCompressedVideoQueueWithKeyframes(queue).messages;
+  return filterCompressedVideoQueueWithKeyframes(queue);
 }
 
 export function recordKeyframesAndFilterCompressedVideoQueue(
   queue: CompressedVideoMessageEvent[],
   recordKeyframe: RecordCompressedVideoKeyframe,
 ): CompressedVideoMessageEvent[] {
-  const result = filterCompressedVideoQueueWithKeyframes(queue);
-  for (const keyframe of result.keyframes) {
-    recordKeyframe(keyframe);
-  }
-  return result.messages;
+  return filterCompressedVideoQueueWithKeyframes(queue, recordKeyframe);
 }
 
-function filterCompressedVideoQueueWithKeyframes(queue: CompressedVideoMessageEvent[]): {
-  messages: CompressedVideoMessageEvent[];
-  keyframes: CompressedVideoMessageEvent[];
-} {
+function filterCompressedVideoQueueWithKeyframes(
+  queue: CompressedVideoMessageEvent[],
+  recordKeyframe?: RecordCompressedVideoKeyframe,
+): CompressedVideoMessageEvent[] {
   const selectedMessages = new Set<CompressedVideoMessageEvent>();
-  const keyframes: CompressedVideoMessageEvent[] = [];
   const messagesByTopic = new Map<
     string,
     { messageEvent: CompressedVideoMessageEvent; isKeyframe: boolean }[]
@@ -53,7 +49,7 @@ function filterCompressedVideoQueueWithKeyframes(queue: CompressedVideoMessageEv
     const normalizedMessage = normalizeCompressedVideo(messageEvent.message);
     const isKeyframe = isVideoKeyframe(normalizedMessage);
     if (isKeyframe) {
-      keyframes.push(messageEvent);
+      recordKeyframe?.(messageEvent.topic, messageEvent.receiveTime);
     }
 
     const topicMessages = messagesByTopic.get(messageEvent.topic);
@@ -74,10 +70,7 @@ function filterCompressedVideoQueueWithKeyframes(queue: CompressedVideoMessageEv
     }
   }
 
-  return {
-    messages: queue.filter((messageEvent) => selectedMessages.has(messageEvent)),
-    keyframes,
-  };
+  return queue.filter((messageEvent) => selectedMessages.has(messageEvent));
 }
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {

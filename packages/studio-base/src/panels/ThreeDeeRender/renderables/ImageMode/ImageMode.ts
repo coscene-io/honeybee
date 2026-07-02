@@ -755,8 +755,11 @@ export class ImageMode
   #filterCompressedVideoQueue = (
     queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
   ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
-    return recordKeyframesAndFilterCompressedVideoQueue(queue, (messageEvent) => {
-      this.#compressedVideoControllerForTopic(messageEvent.topic).recordKeyframeIndex(messageEvent);
+    return recordKeyframesAndFilterCompressedVideoQueue(queue, (topic, receiveTime) => {
+      this.#compressedVideoControllerForTopic(topic).recordKnownKeyframeReceiveTime(
+        topic,
+        receiveTime,
+      );
     });
   };
 
@@ -767,7 +770,7 @@ export class ImageMode
   ): Promise<ImageSetImageResult> => {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
 
     if (mode === "direct") {
@@ -778,7 +781,7 @@ export class ImageMode
       return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
     }
 
-    this.#lastSetImageResult = Promise.resolve({ ok: false });
+    this.#lastSetImageResult = Promise.resolve({ ok: false, reason: "failed" });
     this.messageHandler.handleCompressedVideo(targetFrame);
     return await this.#lastSetImageResult;
   };
@@ -841,7 +844,7 @@ export class ImageMode
   ): Promise<ImageSetImageResult> {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
 
     const image = targetFrame.message;

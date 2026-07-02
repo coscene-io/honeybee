@@ -146,17 +146,20 @@ describe("recordKeyframesAndFilterCompressedVideoQueue", () => {
     const firstDelta = makeMessage("/camera", 10_000_000n, "delta");
     const secondKeyframe = makeMessage("/camera", 20_000_000n, "key");
     const secondDelta = makeMessage("/camera", 30_000_000n, "delta");
-    const recordedKeyframes: MessageEvent<CompressedVideo>[] = [];
+    const recordedKeyframes: { topic: string; receiveTime: Time }[] = [];
 
     const result = recordKeyframesAndFilterCompressedVideoQueue(
       [firstKeyframe, firstDelta, secondKeyframe, secondDelta],
-      (messageEvent) => {
-        recordedKeyframes.push(messageEvent as MessageEvent<CompressedVideo>);
+      (topic, receiveTime) => {
+        recordedKeyframes.push({ topic, receiveTime });
       },
     );
 
     expect(result).toEqual([secondKeyframe, secondDelta]);
-    expect(recordedKeyframes).toEqual([firstKeyframe, secondKeyframe]);
+    expect(recordedKeyframes).toEqual([
+      { topic: firstKeyframe.topic, receiveTime: firstKeyframe.receiveTime },
+      { topic: secondKeyframe.topic, receiveTime: secondKeyframe.receiveTime },
+    ]);
     expect(H264.IsKeyframe).toHaveBeenCalledTimes(4);
   });
 });

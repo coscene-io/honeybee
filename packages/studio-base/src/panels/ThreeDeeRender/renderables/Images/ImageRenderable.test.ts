@@ -163,7 +163,7 @@ class TestImageRenderable extends ImageRenderable {
   protected override async decodeImageWithResult(
     image: AnyImage,
     resizeWidth?: number,
-  ): Promise<{ image: TestDecodedImage; ok: boolean }> {
+  ): Promise<{ image: TestDecodedImage; ok: true }> {
     return { image: await this.decodeImage(image, resizeWidth), ok: true };
   }
 }
@@ -560,7 +560,7 @@ describe("ImageRenderable", () => {
         20n,
       ]);
       expect(renderable.getDecodedImage()).toBe(frame);
-      await expect(keyResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      await expect(keyResult).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
       await expect(deltaResult).resolves.toEqual<ImageSetImageResult>({ ok: true });
     } finally {
       time.restore();
@@ -665,7 +665,7 @@ describe("ImageRenderable", () => {
       expect(decodeVideoFrames.mock.calls[1]![0].frames.map((entry) => entry.receiveTime)).toEqual([
         20n,
       ]);
-      await expect(firstResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      await expect(firstResult).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
       await expect(secondResult).resolves.toEqual<ImageSetImageResult>({ ok: true });
       expect(renderable.getDecodedImage()).toBe(secondFrame);
       expect((firstFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
@@ -715,8 +715,8 @@ describe("ImageRenderable", () => {
 
       renderable.resetForSeek();
 
-      await expect(activeResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
-      await expect(queuedResult).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      await expect(activeResult).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
+      await expect(queuedResult).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
       expect(resetVideoDecoder).toHaveBeenCalledTimes(1);
 
       resolveFirstDecode({
@@ -770,7 +770,7 @@ describe("ImageRenderable", () => {
       renderable.userData.receiveTime = 20n;
       await expect(
         renderable.setImage(videoFrame(2, "delta")),
-      ).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      ).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
 
       expect(renderable.getDecodedImage()).toBe(currentFrame);
       expect(renderable.userData.texture?.image).toBe(currentFrame);
@@ -807,7 +807,11 @@ describe("ImageRenderable", () => {
         onDecoded,
         isVideoFrameRequestCurrent: () => false,
       }),
-    ).resolves.toEqual<ImageSetImageResult>({ ok: false, stale: true });
+    ).resolves.toEqual<ImageSetImageResult>({
+      ok: false,
+      reason: "stale",
+      staleTargetDecoded: true,
+    });
 
     expect(renderable.getDecodedImage()).toBeUndefined();
     expect(renderable.userData.texture).toBeUndefined();
@@ -964,7 +968,7 @@ describe("ImageRenderable", () => {
         [videoFrameEvent(10n, 1, "key"), videoFrameEvent(20n, 2, "delta")],
         { allowIntermediateVideoFrame: false },
       ),
-    ).resolves.toEqual<ImageSetImageResult>({ ok: false });
+    ).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
     expect(renderable.getDecodedImage()).toBeUndefined();
     expect((intermediateFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
   });
@@ -1019,9 +1023,60 @@ describe("ImageRenderable", () => {
 
       await expect(
         race([replayResult, Promise.resolve("pending")]),
-      ).resolves.toEqual<ImageSetImageResult>({ ok: false });
+      ).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "failed" });
       expect(renderable.getDecodedImage()).toBe(currentFrame);
       expect(resetVideoDecoder).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("resolves stale without resetting the decoder when a superseded no-intermediate target waits", async () => {
+    jest.useFakeTimers();
+    try {
+      const intermediateFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const targetPromise = new Promise<AwaitTargetFrameResult>(() => {});
+      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({
+          type: "IntermediateFrame",
+          requestId,
+          frame: intermediateFrame,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+        }),
+      );
+      const resetVideoDecoder = jest.fn();
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: jest.fn(async () => await targetPromise),
+        resetVideoDecoder,
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      let isCurrent = true;
+
+      const replayResult = renderable.setCompressedVideoFrames(
+        [videoFrameEvent(10n, 1, "key"), videoFrameEvent(20n, 2, "delta")],
+        {
+          allowIntermediateVideoFrame: false,
+          isVideoFrameRequestCurrent: () => isCurrent,
+          targetFrameTimeoutMs: 25,
+        },
+      );
+      await flushPromises();
+      await flushPromises();
+
+      isCurrent = false;
+      await jest.advanceTimersByTimeAsync(25);
+      await flushPromises();
+
+      await expect(replayResult).resolves.toEqual<ImageSetImageResult>({
+        ok: false,
+        reason: "stale",
+      });
+      expect(renderable.getDecodedImage()).toBeUndefined();
+      expect((intermediateFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect(resetVideoDecoder).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }

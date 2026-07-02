@@ -69,6 +69,7 @@ type ControllerState = {
   pendingPlaybackTarget?: PlaybackTarget;
   playbackFlushScheduled?: boolean;
   playbackInFlightRequestId?: number;
+  playbackDecoderProgress?: PlaybackDecoderProgress;
 };
 
 type PlaybackTarget = {
@@ -76,6 +77,12 @@ type PlaybackTarget = {
   generation: number;
   requestId: number;
   options: SetCompressedVideoFramesOptions | undefined;
+};
+
+type PlaybackDecoderProgress = {
+  generation: number;
+  keyframeReceiveTimeNs: bigint;
+  decodedThroughReceiveTimeNs: bigint;
 };
 
 type ControllerRenderer = Pick<
@@ -208,11 +215,11 @@ export class CompressedVideoController {
     this.#queuePlaybackTarget(normalizedEvent, options);
   }
 
-  public recordKeyframeIndex(messageEvent: Pick<MessageEvent, "topic" | "receiveTime">): void {
-    if (messageEvent.topic !== this.#topic) {
+  public recordKnownKeyframeReceiveTime(topic: string, receiveTime: Time): void {
+    if (topic !== this.#topic) {
       return;
     }
-    this.#cache.addKnownKeyframeReceiveTime(messageEvent.topic, messageEvent.receiveTime);
+    this.#cache.addKnownKeyframeReceiveTime(topic, receiveTime);
   }
 
   public async displayPublishTimeTarget(
@@ -221,14 +228,14 @@ export class CompressedVideoController {
   ): Promise<ImageSetImageResult> {
     const normalizedEvent = normalizeVideoMessageEvent(messageEvent);
     if (normalizedEvent.topic !== this.#topic) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
 
     const generation = this.#beginReplayGeneration();
     const frameInfo = parseVideoFrameInfo(normalizedEvent);
     if (frameInfo == undefined) {
       const ok = await this.#displayReplayFrames([normalizedEvent], generation, "direct", options);
-      return { ok };
+      return ok ? { ok: true } : { ok: false, reason: "failed" };
     }
 
     this.#cache.addFrame(normalizedEvent);
@@ -248,7 +255,7 @@ export class CompressedVideoController {
     if (incrementalFrames != undefined) {
       const ok = await this.#displayReplayFrames(incrementalFrames, generation, "direct", options);
       if (!this.#isCurrentGeneration(generation)) {
-        return { ok: false };
+        return { ok: false, reason: "failed" };
       }
       if (ok) {
         this.#state.lastDisplayedPublishTimeNs = toNanoSec(frameInfo.frame.timestamp);
@@ -265,7 +272,7 @@ export class CompressedVideoController {
     if (frames != undefined) {
       const ok = await this.#displayReplayFrames(frames, generation, "direct", options);
       if (!this.#isCurrentGeneration(generation)) {
-        return { ok: false };
+        return { ok: false, reason: "failed" };
       }
       if (ok) {
         this.#state.lastDisplayedPublishTimeNs = toNanoSec(frameInfo.frame.timestamp);
@@ -275,17 +282,16 @@ export class CompressedVideoController {
       this.#resetDecoderForReplay();
     }
 
-    return {
-      ok: await this.#lookBackPublishTimeTarget(
-        normalizedEvent,
-        generation,
-        {
-          type: "publish",
-          time: frameInfo.frame.timestamp,
-        },
-        options,
-      ),
-    };
+    const ok = await this.#lookBackPublishTimeTarget(
+      normalizedEvent,
+      generation,
+      {
+        type: "publish",
+        time: frameInfo.frame.timestamp,
+      },
+      options,
+    );
+    return ok ? { ok: true } : { ok: false, reason: "failed" };
   }
 
   public handleSeek(options?: SetCompressedVideoFramesOptions): void {
@@ -377,6 +383,7 @@ export class CompressedVideoController {
     this.#playbackRequestId++;
     this.#state.pendingPlaybackTarget = undefined;
     this.#state.playbackFlushScheduled = false;
+    this.#state.playbackDecoderProgress = undefined;
   }
 
   #queuePlaybackTarget(
@@ -421,14 +428,29 @@ export class CompressedVideoController {
       return;
     }
 
-    const frames = this.#cache.framesForReceiveTime(
-      this.#topic,
-      target.messageEvent.receiveTime,
-    ) ?? [target.messageEvent];
+    const frames = this.#playbackFramesForTarget(target);
+    if (frames.length === 0) {
+      return;
+    }
     this.#state.playbackInFlightRequestId = target.requestId;
     try {
       const options = this.#playbackDisplayOptions(target);
-      await this.#displayReplayFrames(frames, target.generation, "playback", options);
+      const result = await this.#displayReplayFramesResult(
+        frames,
+        target.generation,
+        "playback",
+        options,
+      );
+      if (
+        result.ok ||
+        (result.reason === "stale" &&
+          result.staleTargetDecoded === true &&
+          this.#isCurrentGeneration(target.generation))
+      ) {
+        this.#recordPlaybackDecoderProgress(frames, target);
+      } else if (result.reason === "failed") {
+        this.#state.playbackDecoderProgress = undefined;
+      }
     } finally {
       if (this.#state.playbackInFlightRequestId === target.requestId) {
         this.#state.playbackInFlightRequestId = undefined;
@@ -451,6 +473,50 @@ export class CompressedVideoController {
     return (
       target.requestId === this.#playbackRequestId && this.#isCurrentGeneration(target.generation)
     );
+  }
+
+  #playbackFramesForTarget(target: PlaybackTarget): readonly MessageEvent[] {
+    const gopFrames = this.#cache.framesForReceiveTime(this.#topic, target.messageEvent.receiveTime);
+    if (gopFrames == undefined) {
+      this.#state.playbackDecoderProgress = undefined;
+      return [target.messageEvent];
+    }
+
+    const keyframe = gopFrames[0];
+    const keyframeReceiveTimeNs =
+      keyframe != undefined ? toNanoSec(keyframe.receiveTime) : undefined;
+    const progress = this.#state.playbackDecoderProgress;
+    if (
+      keyframeReceiveTimeNs == undefined ||
+      progress == undefined ||
+      progress.generation !== target.generation ||
+      progress.keyframeReceiveTimeNs !== keyframeReceiveTimeNs
+    ) {
+      return gopFrames;
+    }
+
+    const nextFrames = gopFrames.filter(
+      (frame) => toNanoSec(frame.receiveTime) > progress.decodedThroughReceiveTimeNs,
+    );
+    return nextFrames;
+  }
+
+  #recordPlaybackDecoderProgress(
+    frames: readonly MessageEvent[],
+    target: PlaybackTarget,
+  ): void {
+    const firstFrame = frames[0];
+    if (firstFrame == undefined || !this.#isCurrentGeneration(target.generation)) {
+      return;
+    }
+
+    const gopFrames = this.#cache.framesForReceiveTime(this.#topic, target.messageEvent.receiveTime);
+    const keyframe = gopFrames?.[0] ?? firstFrame;
+    this.#state.playbackDecoderProgress = {
+      generation: target.generation,
+      keyframeReceiveTimeNs: toNanoSec(keyframe.receiveTime),
+      decodedThroughReceiveTimeNs: toNanoSec(target.messageEvent.receiveTime),
+    };
   }
 
   #resetDecoderForSeek(generation: number): void {
@@ -1030,8 +1096,18 @@ export class CompressedVideoController {
     mode: VideoDisplayMode,
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
+    const result = await this.#displayReplayFramesResult(frames, generation, mode, options);
+    return result.ok;
+  }
+
+  async #displayReplayFramesResult(
+    frames: readonly MessageEvent[],
+    generation: number,
+    mode: VideoDisplayMode,
+    options?: SetCompressedVideoFramesOptions,
+  ): Promise<ImageSetImageResult> {
     if (frames.length === 0) {
-      return false;
+      return { ok: false, reason: "failed" };
     }
 
     try {
@@ -1043,9 +1119,15 @@ export class CompressedVideoController {
         mode,
         displayOptionsForMode(mode, options),
       );
-      return this.#isCurrentGeneration(generation) && result.ok;
+      if (!this.#isCurrentGeneration(generation)) {
+        return {
+          ok: false,
+          reason: mode === "playback" ? "stale" : "failed",
+        };
+      }
+      return result;
     } catch {
-      return false;
+      return { ok: false, reason: "failed" };
     }
   }
 

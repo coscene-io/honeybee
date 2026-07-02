@@ -407,7 +407,7 @@ export class Images extends SceneExtension<ImageRenderable> {
   #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (frames, _mode, options) => {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
     const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message);
     return await renderable.setCompressedVideoFrames(frames, {
@@ -419,8 +419,11 @@ export class Images extends SceneExtension<ImageRenderable> {
   #filterCompressedVideoQueue = (
     queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
   ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
-    return recordKeyframesAndFilterCompressedVideoQueue(queue, (messageEvent) => {
-      this.#compressedVideoControllerForTopic(messageEvent.topic).recordKeyframeIndex(messageEvent);
+    return recordKeyframesAndFilterCompressedVideoQueue(queue, (topic, receiveTime) => {
+      this.#compressedVideoControllerForTopic(topic).recordKnownKeyframeReceiveTime(
+        topic,
+        receiveTime,
+      );
     });
   };
 
