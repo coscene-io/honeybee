@@ -219,6 +219,49 @@ describe("renderState", () => {
     });
   });
 
+  it("should provide the playback speed when watched", () => {
+    const buildRenderState = initRenderStateBuilder();
+    const initialState: Parameters<typeof buildRenderState>[0] = {
+      watchedFields: new Set(["playbackSpeed"]),
+      appSettings: undefined,
+      currentFrame: [],
+      playerState: {
+        presence: PlayerPresence.PRESENT,
+        progress: {},
+        capabilities: [],
+        profile: "test",
+        playerId: "123",
+        activeData: {
+          datatypes: new Map(),
+          lastSeekTime: 1,
+          currentTime: { sec: 33, nsec: 1 },
+          endTime: { sec: 100, nsec: 1 },
+          startTime: { sec: 1, nsec: 1 },
+          isPlaying: true,
+          repeatEnabled: false,
+          messages: [],
+          speed: 5,
+          topics: [],
+          topicStats: new Map(),
+          totalBytesReceived: 0,
+        },
+      },
+      colorScheme: undefined,
+      globalVariables: {},
+      hoverValue: undefined,
+      sharedPanelState: {},
+      sortedTopics: [],
+      subscriptions: [],
+    };
+
+    const firstRenderState = buildRenderState(initialState);
+    expect(firstRenderState).toEqual({ playbackSpeed: 5 });
+
+    // Unchanged speed does not produce a new render state
+    const secondRenderState = buildRenderState(initialState);
+    expect(secondRenderState).toBeUndefined();
+  });
+
   it("should avoid conversion if the topic schema is already the desired convertTo schema", () => {
     const buildRenderState = initRenderStateBuilder();
     const state = buildRenderState({

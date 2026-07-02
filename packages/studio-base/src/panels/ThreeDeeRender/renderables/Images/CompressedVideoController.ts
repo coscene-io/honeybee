@@ -34,6 +34,18 @@ const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
 
+// Playback load shedding: at playback speeds above 1x we don't need to display every video frame.
+// We keep the displayed rate near the stream's native (1x) frame rate by selecting roughly
+// 1/speed of the incoming messages as display targets. Suppressed frames are accumulated and sent
+// as the delta prefix of the next display batch so the decoder never sees a reference gap.
+//
+// If no display happens for this long while frames are pending (pause, stream end, single-step),
+// the newest pending frame is flushed so the displayed image never goes stale.
+const PLAYBACK_PENDING_FLUSH_DELAY_MS = 200;
+// Upper bound for accumulated suppressed frames; a display is forced when reached. Normally the
+// buffer is trimmed on every keyframe arrival, so this only matters for very long GOPs.
+const MAX_PLAYBACK_PENDING_FRAMES = 64;
+
 export type VideoDisplayMode = "playback" | "seek" | "direct";
 
 export type CompressedVideoDisplayFrames = (
@@ -72,6 +84,7 @@ type ControllerRenderer = Pick<
   IRenderer,
   | "currentTime"
   | "startTime"
+  | "playbackSpeed"
   | "subscribeMessageRange"
   | "acquireSeekKeyframeSearchPlaybackPause"
   | "queueAnimationFrame"
@@ -94,6 +107,10 @@ export class CompressedVideoController {
   #releaseSeekKeyframeSearchPlaybackPause: (() => void) | undefined;
   #seekReplayPlaybackPauseGeneration: number | undefined;
   #releaseSeekReplayPlaybackPause: (() => void) | undefined;
+  #playbackPendingFrames: MessageEvent<CompressedVideo>[] = [];
+  #playbackDisplayCredit = 0;
+  #playbackGatingSpeed: number | undefined;
+  #playbackFlushTimer: ReturnType<typeof setTimeout> | undefined;
 
   public constructor(args: {
     topic: string;
@@ -194,7 +211,99 @@ export class CompressedVideoController {
     if (this.#displayStabilizedPlaybackAfterSeek(normalizedEvent, receiveTimeNs, options)) {
       return;
     }
-    void this.#displayReplayFrames([normalizedEvent], this.#generation, "playback", options);
+    this.#displayGatedPlaybackFrame(normalizedEvent, { isKeyframe: frameInfo.isKeyframe }, options);
+  }
+
+  /**
+   * Display a frame during normal continuous playback, shedding load at playback speeds above 1x.
+   *
+   * At speed `s > 1` roughly every `s`-th message becomes a display target so the displayed rate
+   * stays near the stream's native (1x) frame rate. Suppressed frames are accumulated and sent as
+   * the delta prefix of the next display batch, preserving the decoder's reference chain. When a
+   * keyframe arrives, accumulated frames from the previous GOP are dropped unsent — they are
+   * neither displayed nor needed as references, which is where the decode-load saving comes from.
+   *
+   * Gating is bypassed at speeds <= 1 and whenever a seek replay target provider is active
+   * (synchronized display), where frame-accurate semantics must be preserved.
+   */
+  #displayGatedPlaybackFrame(
+    messageEvent: MessageEvent<CompressedVideo>,
+    frameInfo: { isKeyframe: boolean },
+    options?: SetCompressedVideoFramesOptions,
+  ): void {
+    const speed = this.#renderer.playbackSpeed;
+    const frameAccurate = this.#getSeekReplayTarget?.(messageEvent) != undefined;
+    if (!(speed > 1) || frameAccurate) {
+      // No gating. Include any accumulated frames so the decoder never sees a reference gap.
+      const frames = this.#takePlaybackPendingFrames();
+      frames.push(messageEvent);
+      this.#playbackDisplayCredit = 0;
+      this.#playbackGatingSpeed = undefined;
+      void this.#displayReplayFrames(frames, this.#generation, "playback", options);
+      return;
+    }
+
+    if (frameInfo.isKeyframe) {
+      // A keyframe starts a new decodable segment: suppressed tail frames of the previous GOP
+      // will never be displayed and are no longer needed as references. Drop them unsent.
+      this.#playbackPendingFrames = [];
+    }
+
+    if (this.#playbackGatingSpeed !== speed) {
+      this.#playbackGatingSpeed = speed;
+      this.#playbackDisplayCredit = 0;
+    }
+
+    this.#playbackDisplayCredit += 1 / speed;
+    if (
+      this.#playbackDisplayCredit >= 1 ||
+      this.#playbackPendingFrames.length >= MAX_PLAYBACK_PENDING_FRAMES
+    ) {
+      this.#playbackDisplayCredit =
+        this.#playbackDisplayCredit >= 1 ? Math.min(this.#playbackDisplayCredit - 1, 1) : 0;
+      const frames = this.#takePlaybackPendingFrames();
+      frames.push(messageEvent);
+      void this.#displayReplayFrames(frames, this.#generation, "playback", options);
+      return;
+    }
+
+    this.#playbackPendingFrames.push(messageEvent);
+    this.#armPlaybackPendingFlush(options);
+  }
+
+  /** Take ownership of the accumulated suppressed frames and disarm the pending flush timer. */
+  #takePlaybackPendingFrames(): MessageEvent<CompressedVideo>[] {
+    this.#clearPlaybackPendingFlush();
+    const frames = this.#playbackPendingFrames;
+    this.#playbackPendingFrames = [];
+    return frames;
+  }
+
+  #armPlaybackPendingFlush(options?: SetCompressedVideoFramesOptions): void {
+    this.#clearPlaybackPendingFlush();
+    const generation = this.#generation;
+    this.#playbackFlushTimer = setTimeout(() => {
+      this.#playbackFlushTimer = undefined;
+      if (!this.#isCurrentGeneration(generation) || this.#playbackPendingFrames.length === 0) {
+        return;
+      }
+      const frames = this.#takePlaybackPendingFrames();
+      void this.#displayReplayFrames(frames, generation, "playback", options);
+    }, PLAYBACK_PENDING_FLUSH_DELAY_MS);
+  }
+
+  #clearPlaybackPendingFlush(): void {
+    if (this.#playbackFlushTimer != undefined) {
+      clearTimeout(this.#playbackFlushTimer);
+      this.#playbackFlushTimer = undefined;
+    }
+  }
+
+  #resetPlaybackGating(): void {
+    this.#clearPlaybackPendingFlush();
+    this.#playbackPendingFrames = [];
+    this.#playbackDisplayCredit = 0;
+    this.#playbackGatingSpeed = undefined;
   }
 
   public async displayPublishTimeTarget(
@@ -275,6 +384,7 @@ export class CompressedVideoController {
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cache.handleSeek(fromNanoSec(this.#renderer.currentTime));
 
+    this.#resetPlaybackGating();
     this.#cancelLookback();
     this.#state.lastDisplayedPublishTimeNs = undefined;
     this.#resetDecoderForSeek(this.#generation);
@@ -286,6 +396,7 @@ export class CompressedVideoController {
   public resetPlaybackState(): void {
     this.#generation++;
     this.#seekTargetNs = undefined;
+    this.#resetPlaybackGating();
     this.#cancelLookback();
     this.#endSeekReplayPlaybackPause();
     this.#state.replayGeneration = undefined;
@@ -297,6 +408,7 @@ export class CompressedVideoController {
 
   public clear(): void {
     this.#generation++;
+    this.#resetPlaybackGating();
     this.#cancelLookback();
     this.#endSeekReplayPlaybackPause();
     this.#cache.clearTopic(this.#topic);
@@ -335,12 +447,14 @@ export class CompressedVideoController {
     this.#generation++;
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cache.handleSeek(fromNanoSec(this.#seekTargetNs));
+    this.#resetPlaybackGating();
     this.#cancelLookback();
     this.#state.lastDisplayedPublishTimeNs = undefined;
   }
 
   #beginReplayGeneration(): number {
     const generation = ++this.#generation;
+    this.#resetPlaybackGating();
     this.#cancelLookback();
     this.#state.replayGeneration = undefined;
     this.#state.completedSeekGeneration = undefined;

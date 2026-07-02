@@ -238,6 +238,12 @@ export type RenderState = {
   currentTime?: Time;
 
   /**
+   * The current playback speed multiplier (1 = realtime). Only present for data sources that
+   * support playback speed control.
+   */
+  playbackSpeed?: number;
+
+  /**
    * The start timestamp of the playback range for the current data source. For offline files it
    * is expected to be present. For live connections, the start time may or may not be present
    * depending on the data source.

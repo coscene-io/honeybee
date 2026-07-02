@@ -60,6 +60,7 @@ function makeRenderer(
   options: {
     currentTime?: bigint;
     startTime?: bigint;
+    playbackSpeed?: number;
     subscribeMessageRange?: SubscribeMessageRange;
     acquireSeekKeyframeSearchPlaybackPause?: () => () => void;
   } = {},
@@ -67,6 +68,7 @@ function makeRenderer(
   return {
     currentTime: options.currentTime ?? 0n,
     startTime: options.startTime ?? 0n,
+    playbackSpeed: options.playbackSpeed ?? 1,
     subscribeMessageRange: options.subscribeMessageRange,
     acquireSeekKeyframeSearchPlaybackPause: options.acquireSeekKeyframeSearchPlaybackPause,
     queueAnimationFrame: jest.fn(),
@@ -1356,6 +1358,142 @@ describe("CompressedVideoController", () => {
 
     expect(resetCallCount(displayFrames)).toBe(0);
     expect(renderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
+  });
+
+  describe("playback load shedding", () => {
+    it("selects roughly every speed-th frame as a display target and sends suppressed frames as the batch prefix", () => {
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 5 });
+      const controller = makeController({ renderer, displayFrames });
+
+      const messages = [
+        makeVideoMessage(0n, "key"),
+        ...Array.from({ length: 9 }, (_, i) =>
+          makeVideoMessage(BigInt(i + 1) * 10_000_000n, "delta"),
+        ),
+      ];
+      for (const message of messages) {
+        controller.processMessage(message);
+      }
+
+      expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+        [0n, 10_000_000n, 20_000_000n, 30_000_000n, 40_000_000n],
+        [50_000_000n, 60_000_000n, 70_000_000n, 80_000_000n, 90_000_000n],
+      ]);
+      expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback", "playback"]);
+    });
+
+    it("drops suppressed tail frames of the previous GOP when a keyframe arrives", () => {
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 4 });
+      const controller = makeController({ renderer, displayFrames });
+
+      controller.processMessage(makeVideoMessage(0n, "key"));
+      controller.processMessage(makeVideoMessage(10_000_000n, "delta"));
+      controller.processMessage(makeVideoMessage(20_000_000n, "delta"));
+      controller.processMessage(makeVideoMessage(30_000_000n, "key"));
+
+      // The three suppressed frames of the first GOP are dropped unsent; the new keyframe becomes
+      // the display target on its own.
+      expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+        [30_000_000n],
+      ]);
+    });
+
+    it("flushes the pending frames when playback stops delivering messages", async () => {
+      jest.useFakeTimers();
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 5 });
+      const controller = makeController({ renderer, displayFrames });
+
+      controller.processMessage(makeVideoMessage(0n, "key"));
+      controller.processMessage(makeVideoMessage(10_000_000n, "delta"));
+      expect(nonResetCalls(displayFrames)).toHaveLength(0);
+
+      await jest.advanceTimersByTimeAsync(250);
+
+      expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+        [0n, 10_000_000n],
+      ]);
+      expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback"]);
+    });
+
+    it("includes previously suppressed frames when gating turns off after a speed change", () => {
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 5 });
+      const controller = makeController({ renderer, displayFrames });
+
+      controller.processMessage(makeVideoMessage(0n, "key"));
+      controller.processMessage(makeVideoMessage(10_000_000n, "delta"));
+      expect(nonResetCalls(displayFrames)).toHaveLength(0);
+
+      renderer.playbackSpeed = 1;
+      controller.processMessage(makeVideoMessage(20_000_000n, "delta"));
+
+      // The suppressed frames must precede the new target so the decoder sees no reference gap.
+      expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+        [0n, 10_000_000n, 20_000_000n],
+      ]);
+    });
+
+    it("does not gate playback when a seek replay target provider is active (synchronized mode)", () => {
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 5 });
+      const controller = makeController({
+        renderer,
+        displayFrames,
+        getSeekReplayTarget: (messageEvent) =>
+          messageEvent == undefined
+            ? "defer"
+            : { type: "publish", time: messageEvent.message.timestamp },
+      });
+
+      controller.processMessage(makeVideoMessage(0n, "key"));
+      controller.processMessage(makeVideoMessage(10_000_000n, "delta"));
+
+      expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+        [0n],
+        [10_000_000n],
+      ]);
+    });
+
+    it("forces a display when the pending buffer reaches its cap", () => {
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 1000 });
+      const controller = makeController({ renderer, displayFrames });
+
+      controller.processMessage(makeVideoMessage(0n, "key"));
+      for (let i = 1; i <= 64; i++) {
+        controller.processMessage(makeVideoMessage(BigInt(i) * 10_000_000n, "delta"));
+      }
+
+      const calls = nonResetCalls(displayFrames);
+      expect(calls).toHaveLength(1);
+      const frames = calls[0]![0];
+      expect(frames).toHaveLength(65);
+      expect(frameReceiveTimes(frames)[0]).toBe(0n);
+      expect(frameReceiveTimes(frames)[64]).toBe(640_000_000n);
+    });
+
+    it("clears pending playback frames on seek", () => {
+      const displayFrames = makeSuccessfulDisplayFrames();
+      const renderer = makeRenderer({ playbackSpeed: 5 });
+      const controller = makeController({ renderer, displayFrames });
+
+      controller.processMessage(makeVideoMessage(0n, "key"));
+      controller.processMessage(makeVideoMessage(10_000_000n, "delta"));
+      expect(nonResetCalls(displayFrames)).toHaveLength(0);
+
+      renderer.currentTime = 10_000_000n;
+      controller.handleSeek();
+      displayFrames.mockClear();
+
+      // After the seek replayed the cached GOP, playback resumes with a fresh gating state: the
+      // next keyframe starts accumulating again instead of inheriting stale pending frames.
+      controller.processMessage(makeVideoMessage(20_000_000n, "key"));
+      const playbackCalls = nonResetCalls(displayFrames).filter((call) => call[1] === "playback");
+      expect(playbackCalls).toHaveLength(0);
+    });
   });
 
   it("ignores a cancelled lookback iterator that returns after a newer target starts", async () => {

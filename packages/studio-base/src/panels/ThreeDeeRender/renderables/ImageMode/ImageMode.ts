@@ -770,6 +770,20 @@ export class ImageMode
       return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
     }
 
+    if (frames.length > 1) {
+      // Batched playback from speed-aware load shedding: the earlier frames are the delta prefix
+      // required to decode the target frame. Decode the whole batch on the renderable, then record
+      // only the displayed target frame in the message handler state.
+      const result = this.#setCompressedVideoFramesOnRenderable(frames, mode, {
+        ...options,
+        updateImageState: (event) => {
+          this.messageHandler.updateImageState(event, event.message);
+        },
+      });
+      this.#lastSetImageResult = result;
+      return await result;
+    }
+
     this.#lastSetImageResult = Promise.resolve({ ok: false });
     this.messageHandler.handleCompressedVideo(targetFrame);
     return await this.#lastSetImageResult;
@@ -828,7 +842,7 @@ export class ImageMode
 
   async #setCompressedVideoFramesOnRenderable(
     frames: readonly CompressedVideoFrameEvent[],
-    mode: "direct" | "seek",
+    mode: "direct" | "seek" | "playback",
     options?: SetCompressedVideoFramesOptions,
   ): Promise<ImageSetImageResult> {
     const targetFrame = frames[frames.length - 1];
@@ -856,7 +870,10 @@ export class ImageMode
     renderable.userData.receiveTime = receiveTime;
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
-      allowIntermediateVideoFrame: false,
+      // Playback keeps intermediate-frame display allowed (load shedding favors showing the
+      // latest decodable frame); seek/direct require the exact target frame.
+      allowIntermediateVideoFrame:
+        mode === "playback" ? options?.allowIntermediateVideoFrame : false,
       onDecoded: () => {
         options?.onDecoded?.();
         if (this.#fallbackCameraModelActive()) {

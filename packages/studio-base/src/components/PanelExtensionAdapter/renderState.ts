@@ -315,6 +315,13 @@ function initRenderStateBuilder(): BuildRenderStateFn {
       }
     }
 
+    if (watchedFields.has("playbackSpeed")) {
+      if (renderState.playbackSpeed !== activeData?.speed) {
+        renderState.playbackSpeed = activeData?.speed;
+        shouldRender = true;
+      }
+    }
+
     if (watchedFields.has("startTime")) {
       if (renderState.startTime !== activeData?.startTime) {
         renderState.startTime = activeData?.startTime;

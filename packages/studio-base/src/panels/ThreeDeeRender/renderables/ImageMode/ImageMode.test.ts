@@ -227,6 +227,7 @@ function makeRenderer(
     topicsByName: new Map(topics.map((topic) => [topic.name, topic])),
     currentTime: 0n,
     startTime: 0n,
+    playbackSpeed: 1,
     subscribeMessageRange: undefined,
     input: {
       canvasSize: { width: 640, height: 480 },
