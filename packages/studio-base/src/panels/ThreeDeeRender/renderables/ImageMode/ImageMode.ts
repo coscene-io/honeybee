@@ -110,7 +110,7 @@ import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { normalizeCompressedVideo } from "../Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
-import { filterCompressedVideoQueue } from "../Images/videoMessageQueue";
+import { recordKeyframesAndFilterCompressedVideoQueue } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
@@ -290,7 +290,7 @@ export class ImageMode
         subscription: {
           handler: this.#handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
-          filterQueue: filterCompressedVideoQueue,
+          filterQueue: this.#filterCompressedVideoQueue,
         },
       },
     ];
@@ -752,6 +752,17 @@ export class ImageMode
     this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent);
   };
 
+  #filterCompressedVideoQueue = (
+    queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
+  ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
+    return recordKeyframesAndFilterCompressedVideoQueue(queue, (topic, receiveTime) => {
+      this.#compressedVideoControllerForTopic(topic).recordKnownKeyframeReceiveTime(
+        topic,
+        receiveTime,
+      );
+    });
+  };
+
   #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (
     frames,
     mode,
@@ -759,7 +770,7 @@ export class ImageMode
   ): Promise<ImageSetImageResult> => {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
 
     if (mode === "direct") {
@@ -770,9 +781,26 @@ export class ImageMode
       return await this.#setCompressedVideoFramesOnRenderable(frames, mode, options);
     }
 
-    this.#lastSetImageResult = Promise.resolve({ ok: false });
-    this.messageHandler.handleCompressedVideo(targetFrame);
-    return await this.#lastSetImageResult;
+    if (this.renderer.config.imageMode.synchronize === true) {
+      // Synchronized display: feed the target into the message handler so the image/annotation
+      // synchronization state decides what to display (via frame-accurate publish-time replay).
+      this.#lastSetImageResult = Promise.resolve({ ok: false, reason: "failed" });
+      this.messageHandler.handleCompressedVideo(targetFrame);
+      return await this.#lastSetImageResult;
+    }
+
+    // Normal playback: the batch may contain delta-prefix frames that the target depends on.
+    // They must all reach the decoder — only the target frame is displayed. Routing just the
+    // target through the message handler would drop the prefix and break the H.264/H.265
+    // reference chain.
+    const result = this.#setCompressedVideoFramesOnRenderable(frames, mode, {
+      ...options,
+      updateImageState: (event) => {
+        this.messageHandler.updateImageState(event, event.message);
+      },
+    });
+    this.#lastSetImageResult = result;
+    return await result;
   };
 
   #getCompressedVideoSeekReplayTarget: GetSeekReplayTarget = (messageEvent) => {
@@ -828,12 +856,12 @@ export class ImageMode
 
   async #setCompressedVideoFramesOnRenderable(
     frames: readonly CompressedVideoFrameEvent[],
-    mode: "direct" | "seek",
+    mode: "direct" | "seek" | "playback",
     options?: SetCompressedVideoFramesOptions,
   ): Promise<ImageSetImageResult> {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
 
     const image = targetFrame.message;
@@ -856,7 +884,10 @@ export class ImageMode
     renderable.userData.receiveTime = receiveTime;
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
-      allowIntermediateVideoFrame: false,
+      // Playback keeps the option provided by the controller (conflated playback disallows
+      // intermediate frames itself); seek/direct always require the exact target frame.
+      allowIntermediateVideoFrame:
+        mode === "playback" ? options?.allowIntermediateVideoFrame : false,
       onDecoded: () => {
         options?.onDecoded?.();
         if (this.#fallbackCameraModelActive()) {

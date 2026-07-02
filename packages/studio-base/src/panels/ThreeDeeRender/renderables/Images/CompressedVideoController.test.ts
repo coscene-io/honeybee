@@ -76,6 +76,7 @@ function makeRenderer(
 function makeController(args: {
   renderer?: ReturnType<typeof makeRenderer>;
   displayFrames?: CompressedVideoDisplayFrames;
+  resetDecoder?: () => void;
   onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   getSeekReplayTarget?: ConstructorParameters<
     typeof CompressedVideoController
@@ -85,6 +86,7 @@ function makeController(args: {
     topic: "/camera",
     renderer: args.renderer ?? makeRenderer(),
     displayFrames: args.displayFrames ?? (async () => ({ ok: true })),
+    resetDecoder: args.resetDecoder,
     onSeekKeyframeSearchChange: args.onSeekKeyframeSearchChange,
     getSeekReplayTarget: args.getSeekReplayTarget,
   };
@@ -136,20 +138,258 @@ describe("CompressedVideoController", () => {
     jest.restoreAllMocks();
   });
 
-  it("marks non-seek frames as playback display mode", () => {
+  it("marks non-seek frames as playback display mode", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const displayFrames = makeSuccessfulDisplayFrames();
     const controller = makeController({ displayFrames });
 
     controller.processMessage(keyframe);
+    await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback"]);
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n],
     ]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false]);
   });
 
-  it("replays cached GOP frames on seek", () => {
+  it("coalesces playback frames to the latest target while preserving GOP dependencies", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const middle = makeVideoMessage(10_000_000n, "delta");
+    const target = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(middle);
+    controller.processMessage(target);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames)).toHaveLength(1);
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback"]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false]);
+  });
+
+  it("continues playback decoding from the previous successful target in the same GOP", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const middle = makeVideoMessage(10_000_000n, "delta");
+    const target = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(middle);
+    await flushAsyncWork();
+    displayFrames.mockClear();
+
+    controller.processMessage(target);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [20_000_000n],
+    ]);
+  });
+
+  it("keeps an in-flight playback target current when newer messages arrive and commits it before chasing the latest", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstTarget = makeVideoMessage(10_000_000n, "delta");
+    const latestTarget = makeVideoMessage(20_000_000n, "delta");
+    let resolveFirstDisplay!: (result: ImageSetImageResult) => void;
+    const firstDisplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstDisplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async () => {
+      if (displayFrames.mock.calls.length === 1) {
+        return await firstDisplay;
+      }
+      return { ok: true };
+    });
+    const resetDecoder = jest.fn();
+    const controller = makeController({ displayFrames, resetDecoder });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstTarget);
+    await flushAsyncWork();
+    expect(nonResetCalls(displayFrames)).toHaveLength(1);
+
+    // A newer message arriving must NOT mark the in-flight display stale — under sustained input
+    // pressure that would starve the display entirely. The in-flight target stays current, its
+    // decoded frame is committed, and only then does the flush loop chase the latest target.
+    controller.processMessage(latestTarget);
+    expect(nonResetCalls(displayFrames)[0]?.[2]?.isVideoFrameRequestCurrent?.()).toBe(true);
+
+    resolveFirstDisplay({ ok: true });
+    await flushAsyncWork();
+
+    expect(resetDecoder).not.toHaveBeenCalled();
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      // Incremental continuation from the committed first target within the same GOP.
+      [20_000_000n],
+    ]);
+  });
+
+  it("marks in-flight playback work stale when playback is invalidated", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstTarget = makeVideoMessage(10_000_000n, "delta");
+    let resolveFirstDisplay!: (result: ImageSetImageResult) => void;
+    const firstDisplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstDisplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames, mode) => {
+      if (mode === "playback" && frames.length > 0) {
+        return await firstDisplay;
+      }
+      return { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstTarget);
+    await flushAsyncWork();
+    const playbackCall = nonResetCalls(displayFrames).find((call) => call[1] === "playback");
+    expect(playbackCall?.[2]?.isVideoFrameRequestCurrent?.()).toBe(true);
+
+    controller.resetPlaybackState();
+
+    expect(playbackCall?.[2]?.isVideoFrameRequestCurrent?.()).toBe(false);
+    resolveFirstDisplay({ ok: false, reason: "stale", staleTargetDecoded: true });
+    await flushAsyncWork();
+  });
+
+  it("bounds playback frame timeouts so a stalled target cannot hold the in-flight slot", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.targetFrameTimeoutMs)).toEqual([
+      250,
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.anyFrameTimeoutMs)).toEqual([500]);
+  });
+
+  it("continues playback after a superseded target that still decoded successfully", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstTarget = makeVideoMessage(10_000_000n, "delta");
+    const latestTarget = makeVideoMessage(20_000_000n, "delta");
+    let resolveFirstDisplay!: (result: ImageSetImageResult) => void;
+    const firstDisplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstDisplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async () => {
+      if (displayFrames.mock.calls.length === 1) {
+        return await firstDisplay;
+      }
+      return { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstTarget);
+    await flushAsyncWork();
+
+    controller.processMessage(latestTarget);
+    resolveFirstDisplay({ ok: false, reason: "stale", staleTargetDecoded: true });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [20_000_000n],
+    ]);
+  });
+
+  it("does not coalesce playback frames when a seek replay target provider is active (synchronized mode)", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const middle = makeVideoMessage(10_000_000n, "delta");
+    const target = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({
+      displayFrames,
+      getSeekReplayTarget: (messageEvent) =>
+        messageEvent == undefined
+          ? "defer"
+          : { type: "publish", time: messageEvent.message.timestamp },
+    });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(middle);
+    controller.processMessage(target);
+    await flushAsyncWork();
+
+    // Synchronized display needs every frame in the synchronization state; playback conflation
+    // must not drop intermediate frames there.
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n],
+      [10_000_000n],
+      [20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
+      "playback",
+      "playback",
+      "playback",
+    ]);
+  });
+
+  it("uses keyframe indexes recorded before playback filtering as seek range hints", async () => {
+    const skippedKeyframe = makeVideoMessage(10_000_000_000n, "key");
+    const skippedDelta = makeVideoMessage(12_000_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [skippedKeyframe, skippedDelta];
+        })(),
+      );
+      return unsubscribe;
+    });
+    const renderer = makeRenderer({
+      currentTime: 12_000_000_000n,
+      subscribeMessageRange,
+    });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.recordKnownKeyframeReceiveTime(skippedKeyframe.topic, skippedKeyframe.receiveTime);
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    expect(subscribeMessageRange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: "/camera",
+        timeRange: {
+          start: { sec: 10, nsec: 0 },
+          end: { sec: 12, nsec: 0 },
+        },
+      }),
+    );
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [10_000_000_000n, 12_000_000_000n],
+    ]);
+  });
+
+  it("replays cached GOP frames on seek", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const displayFrames = makeSuccessfulDisplayFrames();
@@ -158,6 +398,7 @@ describe("CompressedVideoController", () => {
 
     controller.processMessage(keyframe);
     controller.processMessage(delta);
+    await flushAsyncWork();
     displayFrames.mockClear();
 
     renderer.currentTime = 10_000_000n;
@@ -183,6 +424,7 @@ describe("CompressedVideoController", () => {
 
     controller.processMessage(keyframe);
     controller.processMessage(middle);
+    await flushAsyncWork();
     displayFrames.mockClear();
 
     await controller.displayPublishTimeTarget(delta);
@@ -207,6 +449,7 @@ describe("CompressedVideoController", () => {
     controller.processMessage(keyframe);
     controller.processMessage(middle);
     controller.processMessage(delta);
+    await flushAsyncWork();
     displayFrames.mockClear();
 
     await controller.displayPublishTimeTarget(middle);
@@ -273,11 +516,13 @@ describe("CompressedVideoController", () => {
     controller.processMessage(keyframe);
     controller.processMessage(middle);
     controller.processMessage(delta);
+    await flushAsyncWork();
     displayFrames.mockClear();
 
     await controller.displayPublishTimeTarget(middle);
     renderer.currentTime = 20_000_000n;
     controller.handleSeek();
+    await flushAsyncWork();
     displayFrames.mockClear();
 
     await controller.displayPublishTimeTarget(delta);
@@ -295,6 +540,7 @@ describe("CompressedVideoController", () => {
     const controller = makeController({ displayFrames });
 
     controller.processMessage(keyframe);
+    await flushAsyncWork();
     displayFrames.mockClear();
 
     await controller.displayPublishTimeTarget(middle);
@@ -308,7 +554,7 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
-  it("resets the decoder before replaying cached GOP frames on seek", () => {
+  it("resets the decoder before replaying cached GOP frames on seek", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const events: string[] = [];
@@ -318,13 +564,14 @@ describe("CompressedVideoController", () => {
           ? "reset"
           : `display:${frames.map((frame) => toNanoSec(frame.receiveTime)).join(",")}`,
       );
-      return { ok: true };
+      return { ok: true as const };
     });
     const renderer = makeRenderer();
     const controller = makeController({ renderer, displayFrames });
 
     controller.processMessage(keyframe);
     controller.processMessage(delta);
+    await flushAsyncWork();
     displayFrames.mockClear();
     events.length = 0;
 
@@ -764,7 +1011,7 @@ describe("CompressedVideoController", () => {
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n, 20_000_000n],
       [0n, 10_000_000n, 20_000_000n, 30_000_000n],
-      [40_000_000n],
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n, 40_000_000n],
     ]);
     expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
       "seek",
@@ -783,7 +1030,7 @@ describe("CompressedVideoController", () => {
       Parameters<CompressedVideoDisplayFrames>
     >(async (frames, mode) => {
       if (mode === "seek" && frameReceiveTimes(frames).at(-1) === 20_000_000n) {
-        return { ok: false };
+        return { ok: false, reason: "failed" };
       }
       return { ok: true };
     });
@@ -859,7 +1106,7 @@ describe("CompressedVideoController", () => {
     ]);
     expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek"]);
 
-    resolveStabilization({ ok: false });
+    resolveStabilization({ ok: false, reason: "failed" });
     await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
@@ -1091,7 +1338,7 @@ describe("CompressedVideoController", () => {
     const displayFrames = jest.fn<
       Promise<ImageSetImageResult>,
       Parameters<CompressedVideoDisplayFrames>
-    >(async () => ({ ok: false }));
+    >(async () => ({ ok: false, reason: "failed" }));
     const subscribeMessageRange = jest.fn<
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
@@ -1126,7 +1373,7 @@ describe("CompressedVideoController", () => {
       const displayFrames = jest.fn<
         Promise<ImageSetImageResult>,
         Parameters<CompressedVideoDisplayFrames>
-      >(async () => ({ ok: false }));
+      >(async () => ({ ok: false, reason: "failed" }));
       const unsubscribes: jest.Mock[] = [];
       const subscribeMessageRange = jest.fn<
         ReturnType<SubscribeMessageRange>,
@@ -1323,7 +1570,7 @@ describe("CompressedVideoController", () => {
       Parameters<CompressedVideoDisplayFrames>
     >(async (frames, mode) => {
       if (frames.length === 0 || mode === "playback") {
-        return { ok: false };
+        return { ok: false, reason: "failed" };
       }
       return await new Promise<ImageSetImageResult>((resolve) => {
         pendingDisplays.push(resolve);
@@ -1351,8 +1598,8 @@ describe("CompressedVideoController", () => {
     pendingDisplays[1]?.({ ok: true });
     await expect(secondResult).resolves.toEqual({ ok: true });
 
-    pendingDisplays[0]?.({ ok: false });
-    await expect(firstResult).resolves.toEqual({ ok: false });
+    pendingDisplays[0]?.({ ok: false, reason: "failed" });
+    await expect(firstResult).resolves.toEqual({ ok: false, reason: "failed" });
 
     expect(resetCallCount(displayFrames)).toBe(0);
     expect(renderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
@@ -1400,7 +1647,7 @@ describe("CompressedVideoController", () => {
     );
     await flushAsyncWork();
 
-    await expect(firstResult).resolves.toEqual({ ok: false });
+    await expect(firstResult).resolves.toEqual({ ok: false, reason: "failed" });
     await expect(secondResult).resolves.toEqual({ ok: true });
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [20_000_000n, 30_000_000n],

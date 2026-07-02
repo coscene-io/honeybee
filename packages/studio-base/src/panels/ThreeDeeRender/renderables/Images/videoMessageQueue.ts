@@ -5,7 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { MessageEvent } from "@foxglove/studio";
+import type { Time } from "@foxglove/rostime";
+import type { MessageEvent } from "@foxglove/studio";
 
 import { CompressedVideo } from "./ImageTypes";
 import { isVideoKeyframe } from "./decodeImage";
@@ -13,6 +14,8 @@ import { normalizeCompressedVideo } from "./imageNormalizers";
 import { PartialMessage } from "../../SceneExtension";
 
 export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<CompressedVideo>>;
+
+export type RecordCompressedVideoKeyframe = (topic: string, receiveTime: Time) => void;
 
 /**
  * Compressed video frames depend on previous frames. Keep the newest decodable GOP instead of
@@ -22,27 +25,47 @@ export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<Compressed
 export function filterCompressedVideoQueue(
   queue: CompressedVideoMessageEvent[],
 ): CompressedVideoMessageEvent[] {
+  return filterCompressedVideoQueueWithKeyframes(queue);
+}
+
+export function recordKeyframesAndFilterCompressedVideoQueue(
+  queue: CompressedVideoMessageEvent[],
+  recordKeyframe: RecordCompressedVideoKeyframe,
+): CompressedVideoMessageEvent[] {
+  return filterCompressedVideoQueueWithKeyframes(queue, recordKeyframe);
+}
+
+function filterCompressedVideoQueueWithKeyframes(
+  queue: CompressedVideoMessageEvent[],
+  recordKeyframe?: RecordCompressedVideoKeyframe,
+): CompressedVideoMessageEvent[] {
   const selectedMessages = new Set<CompressedVideoMessageEvent>();
-  const messagesByTopic = new Map<string, CompressedVideoMessageEvent[]>();
+  const messagesByTopic = new Map<
+    string,
+    { messageEvent: CompressedVideoMessageEvent; isKeyframe: boolean }[]
+  >();
 
   for (const messageEvent of queue) {
+    const normalizedMessage = normalizeCompressedVideo(messageEvent.message);
+    const isKeyframe = isVideoKeyframe(normalizedMessage);
+    if (isKeyframe) {
+      recordKeyframe?.(messageEvent.topic, messageEvent.receiveTime);
+    }
+
     const topicMessages = messagesByTopic.get(messageEvent.topic);
     if (topicMessages) {
-      topicMessages.push(messageEvent);
+      topicMessages.push({ messageEvent, isKeyframe });
     } else {
-      messagesByTopic.set(messageEvent.topic, [messageEvent]);
+      messagesByTopic.set(messageEvent.topic, [{ messageEvent, isKeyframe }]);
     }
   }
 
   for (const topicMessages of messagesByTopic.values()) {
-    const normalizedMessages = topicMessages.map((messageEvent) =>
-      normalizeCompressedVideo(messageEvent.message),
-    );
-    const lastKeyframeIndex = findLastIndex(normalizedMessages, isVideoKeyframe);
+    const lastKeyframeIndex = findLastIndex(topicMessages, (message) => message.isKeyframe);
 
     const selectedTopicMessages =
       lastKeyframeIndex >= 0 ? topicMessages.slice(lastKeyframeIndex) : topicMessages;
-    for (const messageEvent of selectedTopicMessages) {
+    for (const { messageEvent } of selectedTopicMessages) {
       selectedMessages.add(messageEvent);
     }
   }

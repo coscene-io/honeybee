@@ -77,7 +77,7 @@ class TestImageRenderable extends ImageRenderable {
   ): Promise<ImageSetImageResult> {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
     this.userData.image = targetFrame.message;
     this.setCompressedVideoFrameBatches.push(frames.map((frame) => frame.message));
@@ -271,8 +271,7 @@ describe("Images compressed video seek lookback", () => {
 
     subscription.handler(keyframe);
     subscription.handler(delta);
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushAsyncWork();
 
     images.removeAllRenderables();
     images.handleSeek();
@@ -283,8 +282,7 @@ describe("Images compressed video seek lookback", () => {
       renderable.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
     );
     expect(displayedBatches).toEqual([
-      [keyframe.message.timestamp],
-      [delta.message.timestamp],
+      [keyframe.message.timestamp, delta.message.timestamp],
       [keyframe.message.timestamp, delta.message.timestamp],
     ]);
   });
@@ -302,14 +300,13 @@ describe("Images compressed video seek lookback", () => {
       return jest.fn();
     });
     const renderer = makeRenderer({ subscribeMessageRange });
-    renderer.currentTime = 20_000_000n;
+    renderer.currentTime = 0n;
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
 
     subscription.handler(keyframe);
     subscription.handler(delta);
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushAsyncWork();
 
     const previousRenderable = images.renderables.get("/video") as TestImageRenderable | undefined;
     expect(previousRenderable).toBeDefined();
@@ -319,6 +316,7 @@ describe("Images compressed video seek lookback", () => {
         removeAllRenderables(args?: { reason?: "seek" }): void;
       }
     ).removeAllRenderables({ reason: "seek" });
+    renderer.currentTime = 20_000_000n;
     images.handleSeek();
 
     expect(images.renderables.get("/video")).toBe(previousRenderable);
