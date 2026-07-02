@@ -61,6 +61,10 @@ export function makeConfig(
         zlib: require.resolve("browserify-zlib"),
         crypto: require.resolve("crypto-browserify"),
 
+        // asn1.js (via the crypto-browserify chain) does `try { require("vm") } catch {}`
+        // as a Node-only fast path; tell webpack there is intentionally no browser `vm`.
+        vm: false,
+
         // TypeScript tries to use this when running in node
         perf_hooks: false,
         // Yarn patches these imports into TypeScript for PnP support
