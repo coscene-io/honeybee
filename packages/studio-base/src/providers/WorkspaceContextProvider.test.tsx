@@ -89,13 +89,13 @@ describe("WorkspaceContextProvider share-manifest branch", () => {
     expect(state.timelineHeight).toBe(TIMELINE_MIN_HEIGHT_PX);
   });
 
-  it("applies share defaults for the app-state query form (ds.* params, no hash)", () => {
+  it("uses normal defaults for unsupported ds.* query-form manifest params", () => {
     window.history.replaceState(undefined, "", QUERY_SHARE_URL);
 
     const state = renderWithProvider();
 
-    expect(state.leftOpen).toBe(false);
-    expect(state.timelineHeight).toBe(TIMELINE_MIN_HEIGHT_PX);
+    expect(state.leftOpen).toBe(true);
+    expect(state.timelineHeight).toBe(200);
   });
 
   it("respects the viewer's persisted share-store state on a return share visit", () => {

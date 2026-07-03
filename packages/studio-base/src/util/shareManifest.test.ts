@@ -276,9 +276,7 @@ describe("isShareManifestModeFromUrl", () => {
     ).toBe(true);
   });
 
-  it("is true for the app-state query form (ds=coscene-share-manifest&ds.manifestUrl=…)", () => {
-    // DeepLinksSyncAdapter/parseAppURLState feed `ds.*` params to the factory, which
-    // accepts `manifestUrl` — so the share source loads and the store must match.
+  it("is false for the unsupported app-state query form (ds=coscene-share-manifest&ds.manifestUrl=…)", () => {
     expect(
       isShareManifestModeFromUrl(
         new URL(
@@ -286,7 +284,7 @@ describe("isShareManifestModeFromUrl", () => {
         ),
         now,
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("is false for the app-state query form with a non-http manifest URL", () => {

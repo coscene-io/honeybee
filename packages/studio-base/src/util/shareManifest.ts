@@ -212,46 +212,21 @@ export function isShareManifestUrl(url: URL, now: Date = new Date()): boolean {
 }
 
 /**
- * Extracts the `ds.*` query params (with the `ds.` prefix stripped) that
- * `DeepLinksSyncAdapter` / `parseAppURLState` feed into a data-source factory's
- * `initialize(args.params)`.
- */
-function getDsParams(url: URL): Record<string, string> {
-  const dsParams: Record<string, string> = {};
-  url.searchParams.forEach((value, key) => {
-    if (key.startsWith("ds.") && value.length > 0) {
-      dsParams[key.replace(/^ds\./, "")] = value;
-    }
-  });
-  return dsParams;
-}
-
-/**
  * True when the given URL should open in share-manifest mode — i.e. when it carries
- * a *valid* share-manifest payload. This covers BOTH forms the app can select the
- * share-manifest data source from:
- *   - the hash form (`#manifest=...` / `#manifestUrl=...`), and
- *   - the app-state query form (`?ds=coscene-share-manifest&ds.manifestUrl=...`),
- *     which `DeepLinksSyncAdapter` resolves via `parseAppURLState` + the factory.
+ * a *valid* share-manifest payload in the URL hash (`#manifest=...` or
+ * `#manifestUrl=...`). App-state query params such as
+ * `?ds=coscene-share-manifest&ds.manifestUrl=...` are not a supported share-link
+ * format and must not opt the workspace into the isolated share store.
  *
  * The predicate is deliberately identical to the condition under which
  * `DeepLinksSyncAdapter` / `CoSceneShareManifestDataSourceFactory` actually load the
- * share source: `status === "valid"` only. It intentionally excludes `expired` and
- * `invalid`/`missing` payloads — applying the share panel defaults (sidebars hidden)
- * for a URL that never loads as a share would be a confusing degraded state, and
- * using the normal `fox.workspace` key for a URL that DOES load as a share would let
- * the share session mutate normal-mode panel settings. Keeping this in lockstep with
- * the data-source gate is what prevents the store key/defaults and the AppBar
- * share-only UI from diverging.
+ * share source from legal share links: `status === "valid"` only. It intentionally
+ * excludes `expired` and `invalid`/`missing` payloads — applying the share panel
+ * defaults (sidebars hidden) for a URL that never loads as a legal share would be a
+ * confusing degraded state.
  */
 export function isShareManifestModeFromUrl(url: URL, now: Date = new Date()): boolean {
-  if (parseShareManifestFromUrl(url, now).status === "valid") {
-    return true;
-  }
-  if (url.searchParams.get("ds") === SHARE_MANIFEST_DATA_SOURCE_ID) {
-    return parseShareManifestParams(getDsParams(url), now).status === "valid";
-  }
-  return false;
+  return parseShareManifestFromUrl(url, now).status === "valid";
 }
 
 /**
