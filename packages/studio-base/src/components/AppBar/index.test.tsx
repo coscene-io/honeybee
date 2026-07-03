@@ -174,9 +174,7 @@ describe("<AppBar />", () => {
       </Wrapper>,
     );
     await waitFor(() => {
-      expect(
-        shared.container.querySelector('[data-tourid="reset-panels-button"]'),
-      ).not.toBeNull();
+      expect(shared.container.querySelector('[data-tourid="reset-panels-button"]')).not.toBeNull();
     });
     shared.unmount();
   });

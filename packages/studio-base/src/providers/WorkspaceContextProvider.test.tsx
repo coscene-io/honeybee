@@ -90,7 +90,10 @@ describe("WorkspaceContextProvider share-manifest branch", () => {
   });
 
   it("respects the viewer's persisted share-store state on a return share visit", () => {
-    window.localStorage.setItem(SHARE_KEY, persistedWorkspace({ leftOpen: true, timelineHeight: 250 }));
+    window.localStorage.setItem(
+      SHARE_KEY,
+      persistedWorkspace({ leftOpen: true, timelineHeight: 250 }),
+    );
     window.history.replaceState(undefined, "", SHARE_URL);
 
     const state = renderWithProvider();
@@ -102,7 +105,10 @@ describe("WorkspaceContextProvider share-manifest branch", () => {
 
   it("reads only the share key in share mode, ignoring normal-mode state", () => {
     // Normal-mode store says left CLOSED; share mode must not read it.
-    window.localStorage.setItem(NORMAL_KEY, persistedWorkspace({ leftOpen: false, timelineHeight: 999 }));
+    window.localStorage.setItem(
+      NORMAL_KEY,
+      persistedWorkspace({ leftOpen: false, timelineHeight: 999 }),
+    );
     window.history.replaceState(undefined, "", SHARE_URL);
 
     const state = renderWithProvider();
@@ -123,7 +129,10 @@ describe("WorkspaceContextProvider share-manifest branch", () => {
   });
 
   it("reads only the normal key in normal mode, ignoring share-mode state", () => {
-    window.localStorage.setItem(SHARE_KEY, persistedWorkspace({ leftOpen: false, timelineHeight: 126 }));
+    window.localStorage.setItem(
+      SHARE_KEY,
+      persistedWorkspace({ leftOpen: false, timelineHeight: 126 }),
+    );
     window.history.replaceState(undefined, "", NORMAL_URL);
 
     const state = renderWithProvider();

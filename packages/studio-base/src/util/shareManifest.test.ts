@@ -292,7 +292,9 @@ describe("isShareManifestModeFromUrl", () => {
   it("is false for the app-state query form with a non-http manifest URL", () => {
     expect(
       isShareManifestModeFromUrl(
-        new URL("https://example.com/viz?ds=coscene-share-manifest&ds.manifestUrl=ftp%3A%2F%2Fnope"),
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest&ds.manifestUrl=ftp%3A%2F%2Fnope",
+        ),
         now,
       ),
     ).toBe(false);
@@ -303,10 +305,7 @@ describe("isShareManifestModeFromUrl", () => {
     // a share (DeepLinksSyncAdapter requires a valid manifest), so applying the
     // hidden-sidebar layout would be a confusing degraded state.
     expect(
-      isShareManifestModeFromUrl(
-        new URL("https://example.com/viz?ds=coscene-share-manifest"),
-        now,
-      ),
+      isShareManifestModeFromUrl(new URL("https://example.com/viz?ds=coscene-share-manifest"), now),
     ).toBe(false);
   });
 
@@ -346,10 +345,7 @@ describe("isShareManifestModeFromUrl", () => {
 
   it("is false for a normal data-platform URL", () => {
     expect(
-      isShareManifestModeFromUrl(
-        new URL("https://example.com/viz?ds=coscene-data-platform"),
-        now,
-      ),
+      isShareManifestModeFromUrl(new URL("https://example.com/viz?ds=coscene-data-platform"), now),
     ).toBe(false);
   });
 
