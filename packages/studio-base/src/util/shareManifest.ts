@@ -211,6 +211,38 @@ export function isShareManifestUrl(url: URL, now: Date = new Date()): boolean {
   return result.status === "valid" || result.status === "expired";
 }
 
+/**
+ * True when the given URL should open in share-manifest mode — i.e. when it carries
+ * a *valid* share-manifest payload (encoded hash, direct manifest URL, or the
+ * `ds=coscene-share-manifest` + manifest params combination).
+ *
+ * This predicate is deliberately identical to the condition under which
+ * `DeepLinksSyncAdapter` selects the share-manifest data source: `status === "valid"`
+ * only. It intentionally excludes both `expired` and `invalid`/`missing` payloads.
+ * If it returned true for those, the workspace store would apply the share panel
+ * defaults (both sidebars hidden) for a URL that never actually loads as a share —
+ * a confusing degraded state. Keeping this in lockstep with the data-source gate is
+ * what prevents the store key/defaults and the AppBar share-only UI from diverging.
+ */
+export function isShareManifestModeFromUrl(url: URL, now: Date = new Date()): boolean {
+  return parseShareManifestFromUrl(url, now).status === "valid";
+}
+
+/**
+ * Synchronously detect share-manifest mode from the current window location.
+ * SSR-safe: returns false when `window` is unavailable or the URL cannot be parsed.
+ */
+export function windowIsShareManifestMode(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return isShareManifestModeFromUrl(new URL(window.location.href));
+  } catch {
+    return false;
+  }
+}
+
 export function windowShareManifestParseResult(): ShareManifestParseResult {
   if (typeof window === "undefined") {
     return { status: "missing" };

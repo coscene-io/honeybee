@@ -14,6 +14,7 @@ import {
   QuestionCircle24Regular,
   ChevronDown12Regular,
   Desktop24Regular,
+  ArrowCounterclockwise24Regular,
 } from "@fluentui/react-icons";
 import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography, Divider } from "@mui/material";
@@ -206,7 +207,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const leftSidebarOpen = useWorkspaceStore(selectLeftSidebarOpen);
   const rightSidebarOpen = useWorkspaceStore(selectRightSidebarOpen);
 
-  const { sidebarActions } = useWorkspaceActions();
+  const { sidebarActions, resetPanels } = useWorkspaceActions();
 
   const [appMenuEl, setAppMenuEl] = useState<undefined | HTMLElement>(undefined);
   const [userAnchorEl, setUserAnchorEl] = useState<undefined | HTMLElement>(undefined);
@@ -403,6 +404,18 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                     <PanelRight24Regular color={theme.palette.appBar.icon} />
                   )}
                 </AppBarIconButton>
+                {isShareManifestSource && (
+                  <AppBarIconButton
+                    title={t("resetPanels")}
+                    aria-label={t("resetPanels")}
+                    onClick={() => {
+                      resetPanels();
+                    }}
+                    data-tourid="reset-panels-button"
+                  >
+                    <ArrowCounterclockwise24Regular color={theme.palette.appBar.icon} />
+                  </AppBarIconButton>
+                )}
                 <AppBarIconButton
                   title={t("help")}
                   aria-label={t("help")}

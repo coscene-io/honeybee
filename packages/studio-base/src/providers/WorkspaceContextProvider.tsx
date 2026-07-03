@@ -16,6 +16,11 @@ import {
   WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { migrateV0WorkspaceState } from "@foxglove/studio-base/context/Workspace/migrations";
+import {
+  SHARE_MANIFEST_PANEL_DEFAULTS,
+  SHARE_MANIFEST_WORKSPACE_PERSIST_KEY,
+} from "@foxglove/studio-base/context/Workspace/shareManifestWorkspaceDefaults";
+import { windowIsShareManifestMode } from "@foxglove/studio-base/util/shareManifest";
 
 /**
  * Creates the default initial state for the workspace store.
@@ -70,10 +75,25 @@ function createWorkspaceContextStore(
   initialState?: DeepPartial<WorkspaceContextStore>,
   options?: { disablePersistence?: boolean },
 ): StoreApi<WorkspaceContextStore> {
+  // Share-manifest mode gets its own default panel layout (sidebars hidden, timeline
+  // at minimum height) and a separate persistence key, so the share viewer's own panel
+  // adjustments persist independently and never mutate normal-mode `fox.workspace`.
+  //
+  // Detection MUST stay in lockstep with the AppBar's share-only UI gate
+  // (`dataSource?.id === SHARE_MANIFEST_DATA_SOURCE_ID`); both derive from the same
+  // "valid share manifest" predicate (see `isShareManifestModeFromUrl`). Do not change
+  // one without the other, or the store key/defaults and the share UI can diverge.
+  //
+  // Known limitation: this reads `window.location` at mount. On the Electron desktop
+  // app, an OS-delivered `coscene://` share deeplink may not be reflected in
+  // `window.location`, so desktop share sessions fall back to the normal store. Share
+  // manifests are a web-viewer feature; revisit if desktop share support is added.
+  const shareManifestMode = windowIsShareManifestMode();
   const stateCreator = () => {
     const store: WorkspaceContextStore = _.merge(
       {},
       makeWorkspaceContextInitialState(),
+      shareManifestMode ? SHARE_MANIFEST_PANEL_DEFAULTS : undefined,
       initialState,
     );
     return store;
@@ -83,7 +103,7 @@ function createWorkspaceContextStore(
   }
   return createStore<WorkspaceContextStore>()(
     persist(stateCreator, {
-      name: "fox.workspace",
+      name: shareManifestMode ? SHARE_MANIFEST_WORKSPACE_PERSIST_KEY : "fox.workspace",
       version: 1,
       migrate: migrateV0WorkspaceState,
       partialize: (state) => {
