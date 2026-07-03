@@ -61,11 +61,9 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
 import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
+import { TIMELINE_MIN_HEIGHT_PX, TIMELINE_MAX_HEIGHT_PX } from "./constants";
 import { SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
-
-const TIMELINE_MIN_HEIGHT_PX = 126;
-const TIMELINE_MAX_HEIGHT_PX = 360;
 
 const useStyles = makeStyles()((theme) => ({
   root: {

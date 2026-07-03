@@ -7,6 +7,7 @@
 
 import {
   SHARE_MANIFEST_DATA_SOURCE_ID,
+  isShareManifestModeFromUrl,
   isShareManifestUrl,
   parseShareManifestFromUrl,
 } from "@foxglove/studio-base/util/shareManifest";
@@ -258,5 +259,95 @@ describe("share manifest URL parsing", () => {
         now,
       ),
     ).toBe(true);
+  });
+});
+
+describe("isShareManifestModeFromUrl", () => {
+  const now = new Date("2026-06-25T00:00:00Z");
+
+  it("is true for a valid direct manifest opened with ds=coscene-share-manifest", () => {
+    expect(
+      isShareManifestModeFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for the unsupported app-state query form (ds=coscene-share-manifest&ds.manifestUrl=…)", () => {
+    expect(
+      isShareManifestModeFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest&ds.manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for the app-state query form with a non-http manifest URL", () => {
+    expect(
+      isShareManifestModeFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest&ds.manifestUrl=ftp%3A%2F%2Fnope",
+        ),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for ds=coscene-share-manifest without a manifest payload", () => {
+    // The ds param alone must NOT trigger share defaults: such a URL never loads as
+    // a share (DeepLinksSyncAdapter requires a valid manifest), so applying the
+    // hidden-sidebar layout would be a confusing degraded state.
+    expect(
+      isShareManifestModeFromUrl(new URL("https://example.com/viz?ds=coscene-share-manifest"), now),
+    ).toBe(false);
+  });
+
+  it("is false for ds=coscene-share-manifest with a malformed hash payload", () => {
+    expect(
+      isShareManifestModeFromUrl(
+        new URL("https://example.com/viz?ds=coscene-share-manifest#manifest=!!!not-base64!!!"),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("is true for a hash-based share manifest without the ds query param", () => {
+    expect(
+      isShareManifestModeFromUrl(
+        new URL(
+          "https://example.com/viz#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for an expired hash share manifest (would be a dead-end otherwise)", () => {
+    const expiredEncoded = encodeBase64Url({ expireTime: "2026-06-20T10:00:00Z" });
+    // isShareManifestUrl treats expired as a share URL; mode detection must not.
+    expect(
+      isShareManifestUrl(new URL(`https://example.com/viz#manifest=${expiredEncoded}`), now),
+    ).toBe(true);
+    expect(
+      isShareManifestModeFromUrl(
+        new URL(`https://example.com/viz#manifest=${expiredEncoded}`),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for a normal data-platform URL", () => {
+    expect(
+      isShareManifestModeFromUrl(new URL("https://example.com/viz?ds=coscene-data-platform"), now),
+    ).toBe(false);
+  });
+
+  it("is false when no data source is specified", () => {
+    expect(isShareManifestModeFromUrl(new URL("https://example.com/viz"), now)).toBe(false);
   });
 });

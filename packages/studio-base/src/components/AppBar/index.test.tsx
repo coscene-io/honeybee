@@ -157,4 +157,25 @@ describe("<AppBar />", () => {
       global.fetch = originalFetch;
     }
   });
+
+  it("shows the reset layout button only for share manifest playback", async () => {
+    const normal = render(
+      <Wrapper>
+        <AppBar />
+      </Wrapper>,
+    );
+    expect(normal.container.querySelector('[data-tourid="reset-panels-button"]')).toBeNull();
+    normal.unmount();
+
+    const shared = render(
+      <Wrapper>
+        <SelectShareManifestSource />
+        <AppBar />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(shared.container.querySelector('[data-tourid="reset-panels-button"]')).not.toBeNull();
+    });
+    shared.unmount();
+  });
 });
