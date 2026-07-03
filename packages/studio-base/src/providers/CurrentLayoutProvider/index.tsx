@@ -241,7 +241,6 @@ export default function CurrentLayoutProvider({
       ) {
         const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
         if (
-          event.type === "change" &&
           (event.source === "update" || event.source === "overwrite") &&
           !_.isEqual(layoutStateRef.current.selectedLayout.data, updatedData)
         ) {
