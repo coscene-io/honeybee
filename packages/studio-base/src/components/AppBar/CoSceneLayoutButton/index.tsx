@@ -59,6 +59,7 @@ import LayoutSection from "./LayoutSection";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectedLayoutSelector = (state: LayoutState) => state.selectedLayout;
 // const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectUserRole = (store: UserStore) => store.role;
 
@@ -105,6 +106,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { layoutDrawer } = useWorkspaceActions();
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const selectedLayout = useCurrentLayoutSelector(selectedLayoutSelector);
   const { enqueueSnackbar } = useSnackbar();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -160,6 +162,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
+
+  const getOverwriteLayoutParams = useCallback(
+    (id: LayoutID) => ({
+      id,
+      data: selectedLayout?.id === id ? selectedLayout.data : undefined,
+    }),
+    [selectedLayout],
+  );
 
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
@@ -224,7 +234,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
-              await layoutManager.overwriteLayout({ id: id as LayoutID });
+              await layoutManager.overwriteLayout(getOverwriteLayoutParams(id as LayoutID));
               dispatch({ type: "shift-multi-action" });
               break;
           }
@@ -238,7 +248,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     processAction().catch((err: unknown) => {
       log.error(err);
     });
-  }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
+  }, [dispatch, enqueueSnackbar, getOverwriteLayoutParams, layoutManager, state.multiAction]);
 
   /**
    * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
@@ -268,7 +278,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           });
           return true;
         case "overwrite":
-          await layoutManager.overwriteLayout({ id: currentLayout.id });
+          await layoutManager.overwriteLayout(getOverwriteLayoutParams(currentLayout.id));
           void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
             permission: currentLayout.permission,
             context: "UnsavedChangesPrompt",
@@ -289,7 +299,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       }
     }
     return true;
-  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
+  }, [
+    analytics,
+    currentLayoutId,
+    getOverwriteLayoutParams,
+    layoutManager,
+    openUnsavedChangesPrompt,
+  ]);
 
   const onSelectLayout = useCallbackWithToast(
     async (
@@ -454,10 +470,18 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           return;
         }
       }
-      await layoutManager.overwriteLayout({ id: item.id });
+      await layoutManager.overwriteLayout(getOverwriteLayoutParams(item.id));
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+    [
+      analytics,
+      confirm,
+      dispatch,
+      getOverwriteLayoutParams,
+      layoutManager,
+      state.selectedIds.length,
+      t,
+    ],
   );
 
   const onRevertLayout = useCallbackWithToast(

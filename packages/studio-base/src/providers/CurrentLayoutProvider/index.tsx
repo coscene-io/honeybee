@@ -232,17 +232,27 @@ export default function CurrentLayoutProvider({
   // Changes to the layout storage from external user actions (such as resetting a layout to a
   // previous saved state) need to trigger setLayoutState.
   useEffect(() => {
-    const listener: LayoutManagerEventTypes["change"] = ({ updatedLayout }) => {
+    const listener: LayoutManagerEventTypes["change"] = (event) => {
+      const { updatedLayout } = event;
       if (
         updatedLayout &&
         layoutStateRef.current.selectedLayout &&
         updatedLayout.id === layoutStateRef.current.selectedLayout.id
       ) {
+        const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
+        if (
+          event.type === "change" &&
+          (event.source === "update" || event.source === "overwrite") &&
+          !_.isEqual(layoutStateRef.current.selectedLayout.data, updatedData)
+        ) {
+          return;
+        }
+
         setLayoutState({
           selectedLayout: {
             loading: false,
             id: updatedLayout.id,
-            data: updatedLayout.working?.data ?? updatedLayout.baseline.data,
+            data: updatedData,
             name: updatedLayout.name,
           },
         });

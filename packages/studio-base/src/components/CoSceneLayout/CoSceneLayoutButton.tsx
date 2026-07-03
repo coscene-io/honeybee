@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useEffect, useLayoutEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -40,6 +40,7 @@ const log = Logger.getLogger(__filename);
 
 const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectedLayoutSelector = (state: LayoutState) => state.selectedLayout;
 
 export function CoSceneLayoutButton(): React.JSX.Element {
   const open = useWorkspaceStore(layoutDrawerOpen);
@@ -49,6 +50,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const layouts = useCurrentLayout();
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const selectedLayout = useCurrentLayoutSelector(selectedLayoutSelector);
 
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
@@ -64,6 +66,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
+
+  const getOverwriteLayoutParams = useCallback(
+    (id: LayoutID) => ({
+      id,
+      data: selectedLayout?.id === id ? selectedLayout.data : undefined,
+    }),
+    [selectedLayout],
+  );
 
   useLayoutEffect(() => {
     const busyListener = () => {
@@ -120,7 +130,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
-              await layoutManager.overwriteLayout({ id: id as LayoutID });
+              await layoutManager.overwriteLayout(getOverwriteLayoutParams(id as LayoutID));
               dispatch({ type: "shift-multi-action" });
               break;
           }
@@ -134,7 +144,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     processAction().catch((err: unknown) => {
       log.error(err);
     });
-  }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
+  }, [dispatch, enqueueSnackbar, getOverwriteLayoutParams, layoutManager, state.multiAction]);
 
   const onSelectLayout = useCallbackWithToast(
     async (item: Layout) => {
@@ -228,10 +238,18 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           return;
         }
       }
-      await layoutManager.overwriteLayout({ id: item.id });
+      await layoutManager.overwriteLayout(getOverwriteLayoutParams(item.id));
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+    [
+      analytics,
+      confirm,
+      dispatch,
+      getOverwriteLayoutParams,
+      layoutManager,
+      state.selectedIds.length,
+      t,
+    ],
   );
 
   const onRevertLayout = useCallbackWithToast(

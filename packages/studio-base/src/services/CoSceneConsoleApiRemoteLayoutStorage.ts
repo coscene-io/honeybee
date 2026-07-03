@@ -7,6 +7,7 @@
 
 import { create, JsonObject } from "@bufbuild/protobuf";
 import { FieldMaskSchema, timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { LayoutSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
@@ -28,6 +29,10 @@ import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 const log = Logger.getLogger(__filename);
 
 type LayoutPermission = "PERSONAL_WRITE" | "PROJECT_READ" | "PROJECT_WRITE";
+
+function isNotFoundError(err: unknown): boolean {
+  return ConnectError.from(err).code === Code.NotFound;
+}
 
 function convertGrpcLayoutToRemoteLayout({
   layout,
@@ -96,31 +101,46 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     private api: ConsoleApi,
   ) {}
 
+  async #getLayout(name: LayoutID): Promise<RemoteLayout | undefined> {
+    let layout;
+    if (name.startsWith("users/")) {
+      layout = await this.api.getUserLayout({ name });
+    } else if (name.startsWith("warehouses/")) {
+      layout = await this.api.getProjectLayout({ name });
+    }
+
+    if (layout == undefined) {
+      return undefined;
+    }
+
+    const users = layout.modifier ? await this.api.batchGetUsers([layout.modifier]) : { users: [] };
+    return convertGrpcLayoutToRemoteLayout({
+      layout,
+      users: users.users,
+    });
+  }
+
   public async getLayouts(): Promise<readonly RemoteLayout[]> {
     if (isAuthlessDataSource()) {
       return [];
     }
 
-    try {
-      const parents = [this.userName];
-      if (this.projectName) {
-        parents.push(this.projectName);
-      }
-      if (parents.length === 0) {
-        return [];
-      }
+    const parents = [this.userName];
+    if (this.projectName) {
+      parents.push(this.projectName);
+    }
+    if (parents.length === 0) {
+      return [];
+    }
 
+    try {
       const layouts = await Promise.all(
         parents.map(async (parent) => {
           let allLayouts: Layout[] = [];
-          try {
-            if (parent.startsWith("users/")) {
-              allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
-            } else if (parent.startsWith("warehouses/")) {
-              allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
-            }
-          } catch (err) {
-            log.error("Failed to get layouts for parent:", parent, err);
+          if (parent.startsWith("users/")) {
+            allLayouts = (await this.api.listUserLayouts({ parent })).userLayouts;
+          } else if (parent.startsWith("warehouses/")) {
+            allLayouts = (await this.api.listProjectLayouts({ parent })).projectLayouts;
           }
 
           const modifiers: string[] = allLayouts
@@ -135,30 +155,13 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
       return layouts.flat();
     } catch (err) {
       log.error("Failed to get layouts:", err);
-      return [];
+      throw err;
     }
   }
 
   public async getLayout(name: LayoutID): Promise<RemoteLayout | undefined> {
     try {
-      let layout;
-      if (name.startsWith("users/")) {
-        layout = await this.api.getUserLayout({ name });
-      } else if (name.startsWith("warehouses/")) {
-        layout = await this.api.getProjectLayout({ name });
-      }
-
-      if (layout == undefined) {
-        return undefined;
-      }
-
-      const users = layout.modifier
-        ? await this.api.batchGetUsers([layout.modifier])
-        : { users: [] };
-      return convertGrpcLayoutToRemoteLayout({
-        layout,
-        users: users.users,
-      });
+      return await this.#getLayout(name);
     } catch (err) {
       log.error("Failed to get layout:", err);
       return undefined;
@@ -204,23 +207,34 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     });
   }
 
-  public async updateLayout({
-    id,
-    name,
-    folder,
-    data,
-    permission: _permission,
-  }: {
+  public async updateLayout(params: {
     id: LayoutID;
     name?: string;
     folder?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
+    expectedSavedAt?: ISO8601Timestamp | undefined;
+    expectedUpdatedAt?: ISO8601Timestamp | undefined;
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
+    const { id, name, folder, data, expectedSavedAt, expectedUpdatedAt } = params;
+
     try {
       // First get the existing layout to determine its current resource name
       const existingLayout = await this.getLayout(id);
       if (!existingLayout) {
+        return { status: "conflict" };
+      }
+
+      if (
+        ("expectedSavedAt" in params || expectedSavedAt !== undefined) &&
+        existingLayout.savedAt !== expectedSavedAt
+      ) {
+        return { status: "conflict" };
+      }
+      if (
+        ("expectedUpdatedAt" in params || expectedUpdatedAt !== undefined) &&
+        existingLayout.updatedAt !== expectedUpdatedAt
+      ) {
         return { status: "conflict" };
       }
 
@@ -266,25 +280,55 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     }
   }
 
-  public async deleteLayout(name: LayoutID): Promise<boolean> {
+  public async deleteLayout(
+    name: LayoutID,
+    options: {
+      expectedSavedAt?: ISO8601Timestamp | undefined;
+      expectedUpdatedAt?: ISO8601Timestamp | undefined;
+    } = {},
+  ): Promise<boolean> {
+    // First get the existing layout to determine its type. Return false only when the server says
+    // the layout is absent; propagate conflicts and request failures so local tombstones are kept.
+    let existingLayout;
     try {
-      // First get the existing layout to determine its type
-      const existingLayout = await this.getLayout(name);
-      if (!existingLayout) {
+      existingLayout = await this.#getLayout(name);
+    } catch (err) {
+      if (isNotFoundError(err)) {
         return false;
       }
+      throw err;
+    }
+    if (!existingLayout) {
+      return false;
+    }
 
-      // Use appropriate API based on layout's permission
+    if (
+      ("expectedSavedAt" in options || options.expectedSavedAt !== undefined) &&
+      existingLayout.savedAt !== options.expectedSavedAt
+    ) {
+      throw new Error(`Layout ${name} has changed on the server; local changes were not saved.`);
+    }
+    if (
+      ("expectedUpdatedAt" in options || options.expectedUpdatedAt !== undefined) &&
+      existingLayout.updatedAt !== options.expectedUpdatedAt
+    ) {
+      throw new Error(`Layout ${name} has changed on the server; local changes were not saved.`);
+    }
+
+    // Use appropriate API based on layout's permission
+    try {
       if (existingLayout.permission === "PERSONAL_WRITE") {
         await this.api.deleteUserLayout({ name });
       } else {
         await this.api.deleteProjectLayout({ name });
       }
-
-      return true;
     } catch (err) {
-      log.error("Failed to delete layout:", err);
-      return false;
+      if (isNotFoundError(err)) {
+        return false;
+      }
+      throw err;
     }
+
+    return true;
   }
 }
