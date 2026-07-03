@@ -17,6 +17,8 @@ const NORMAL_KEY = "fox.workspace";
 const SHARE_KEY = "fox.workspace.shareManifest";
 const SHARE_URL =
   "http://localhost/viz?ds=coscene-share-manifest#manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json";
+const QUERY_SHARE_URL =
+  "http://localhost/viz?ds=coscene-share-manifest&ds.manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json";
 const NORMAL_URL = "http://localhost/viz?ds=coscene-data-platform";
 
 function persistedWorkspace({
@@ -75,6 +77,15 @@ describe("WorkspaceContextProvider share-manifest branch", () => {
 
     expect(state.leftOpen).toBe(false);
     expect(state.rightOpen).toBe(false);
+    expect(state.timelineHeight).toBe(TIMELINE_MIN_HEIGHT_PX);
+  });
+
+  it("applies share defaults for the app-state query form (ds.* params, no hash)", () => {
+    window.history.replaceState(undefined, "", QUERY_SHARE_URL);
+
+    const state = renderWithProvider();
+
+    expect(state.leftOpen).toBe(false);
     expect(state.timelineHeight).toBe(TIMELINE_MIN_HEIGHT_PX);
   });
 

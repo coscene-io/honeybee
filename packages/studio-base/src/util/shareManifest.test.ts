@@ -276,6 +276,28 @@ describe("isShareManifestModeFromUrl", () => {
     ).toBe(true);
   });
 
+  it("is true for the app-state query form (ds=coscene-share-manifest&ds.manifestUrl=…)", () => {
+    // DeepLinksSyncAdapter/parseAppURLState feed `ds.*` params to the factory, which
+    // accepts `manifestUrl` — so the share source loads and the store must match.
+    expect(
+      isShareManifestModeFromUrl(
+        new URL(
+          "https://example.com/viz?ds=coscene-share-manifest&ds.manifestUrl=https%3A%2F%2Fstorage.example.com%2Fmanifest.json",
+        ),
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for the app-state query form with a non-http manifest URL", () => {
+    expect(
+      isShareManifestModeFromUrl(
+        new URL("https://example.com/viz?ds=coscene-share-manifest&ds.manifestUrl=ftp%3A%2F%2Fnope"),
+        now,
+      ),
+    ).toBe(false);
+  });
+
   it("is false for ds=coscene-share-manifest without a manifest payload", () => {
     // The ds param alone must NOT trigger share defaults: such a URL never loads as
     // a share (DeepLinksSyncAdapter requires a valid manifest), so applying the
