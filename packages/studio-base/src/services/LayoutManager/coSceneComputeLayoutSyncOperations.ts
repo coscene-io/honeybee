@@ -94,16 +94,16 @@ export default function coSceneComputeLayoutSyncOperations(
           break;
         case "updated":
           if (!layoutIsProject(localLayout)) {
-            ops.push({ local: true, type: "delete-local", localLayout });
+            ops.push({ local: false, type: "upload-new", localLayout });
           } else {
             ops.push({ local: true, type: "mark-deleted", localLayout });
           }
           break;
         case "tracked":
-          if (localLayout.working == undefined || !layoutIsProject(localLayout)) {
-            ops.push({ local: true, type: "delete-local", localLayout });
-          } else {
+          if (localLayout.working != undefined) {
             ops.push({ local: true, type: "mark-deleted", localLayout });
+          } else {
+            ops.push({ local: true, type: "delete-local", localLayout });
           }
           break;
         case "locally-deleted":

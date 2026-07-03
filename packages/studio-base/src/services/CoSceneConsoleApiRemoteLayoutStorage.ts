@@ -218,49 +218,58 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
   }): Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }> {
     const { id, name, folder, data, expectedSavedAt, expectedUpdatedAt } = params;
 
+    let existingLayout;
     try {
-      // First get the existing layout to determine its current resource name
-      const existingLayout = await this.getLayout(id);
-      if (!existingLayout) {
+      // The backend does not provide an atomic compare-and-set update. These timestamp checks are
+      // only a best-effort conflict hint before issuing the write.
+      existingLayout = await this.#getLayout(id);
+    } catch (err) {
+      if (isNotFoundError(err)) {
         return { status: "conflict" };
       }
+      throw err;
+    }
+    if (!existingLayout) {
+      return { status: "conflict" };
+    }
 
-      if (
-        ("expectedSavedAt" in params || expectedSavedAt !== undefined) &&
-        existingLayout.savedAt !== expectedSavedAt
-      ) {
-        return { status: "conflict" };
-      }
-      if (
-        ("expectedUpdatedAt" in params || expectedUpdatedAt !== undefined) &&
-        existingLayout.updatedAt !== expectedUpdatedAt
-      ) {
-        return { status: "conflict" };
-      }
+    if (
+      ("expectedSavedAt" in params || expectedSavedAt != undefined) &&
+      existingLayout.savedAt !== expectedSavedAt
+    ) {
+      return { status: "conflict" };
+    }
+    if (
+      ("expectedUpdatedAt" in params || expectedUpdatedAt != undefined) &&
+      existingLayout.updatedAt !== expectedUpdatedAt
+    ) {
+      return { status: "conflict" };
+    }
 
-      // Create updated layout
-      const updatedLayout = create(LayoutSchema, {
-        name: id,
-      });
+    // Create updated layout
+    const updatedLayout = create(LayoutSchema, {
+      name: id,
+    });
 
-      // Create update mask for the fields we're updating
-      const updateMask = create(FieldMaskSchema);
-      const paths: string[] = [];
-      updateMask.paths = paths;
+    // Create update mask for the fields we're updating
+    const updateMask = create(FieldMaskSchema);
+    const paths: string[] = [];
+    updateMask.paths = paths;
 
-      if (name != undefined && name) {
-        updatedLayout.displayName = name;
-        paths.push("displayName");
-      }
-      if (folder != undefined) {
-        updatedLayout.folder = folder;
-        paths.push("folder");
-      }
-      if (data != undefined) {
-        updatedLayout.data = data as JsonObject;
-        paths.push("data");
-      }
+    if (name != undefined && name) {
+      updatedLayout.displayName = name;
+      paths.push("displayName");
+    }
+    if (folder != undefined) {
+      updatedLayout.folder = folder;
+      paths.push("folder");
+    }
+    if (data != undefined) {
+      updatedLayout.data = data as JsonObject;
+      paths.push("data");
+    }
 
+    try {
       const result =
         existingLayout.permission === "PERSONAL_WRITE"
           ? await this.api.updateUserLayout({ layout: updatedLayout, updateMask })
@@ -275,8 +284,11 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
         }),
       };
     } catch (err) {
+      if (isNotFoundError(err)) {
+        return { status: "conflict" };
+      }
       log.error("Failed to update layout:", err);
-      return { status: "conflict" };
+      throw err;
     }
   }
 
@@ -288,7 +300,8 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     } = {},
   ): Promise<boolean> {
     // First get the existing layout to determine its type. Return false only when the server says
-    // the layout is absent; propagate conflicts and request failures so local tombstones are kept.
+    // the layout is absent; propagate request failures so local tombstones are kept. Timestamp
+    // checks are a best-effort hint only; the backend delete is not an atomic compare-and-set.
     let existingLayout;
     try {
       existingLayout = await this.#getLayout(name);
@@ -303,13 +316,13 @@ export default class CoSceneConsoleApiRemoteLayoutStorage implements IRemoteLayo
     }
 
     if (
-      ("expectedSavedAt" in options || options.expectedSavedAt !== undefined) &&
+      ("expectedSavedAt" in options || options.expectedSavedAt != undefined) &&
       existingLayout.savedAt !== options.expectedSavedAt
     ) {
       throw new Error(`Layout ${name} has changed on the server; local changes were not saved.`);
     }
     if (
-      ("expectedUpdatedAt" in options || options.expectedUpdatedAt !== undefined) &&
+      ("expectedUpdatedAt" in options || options.expectedUpdatedAt != undefined) &&
       existingLayout.updatedAt !== options.expectedUpdatedAt
     ) {
       throw new Error(`Layout ${name} has changed on the server; local changes were not saved.`);

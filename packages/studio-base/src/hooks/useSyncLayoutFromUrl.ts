@@ -12,34 +12,14 @@ import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutMan
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
-  LayoutID,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { ILayoutManager } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 const selectIsReadyForSyncLayout = (state: CoreDataStore) => state.isReadyForSyncLayout;
-
-export async function getFallbackLayoutIdForMissingUrlLayout(
-  layoutManager: Pick<ILayoutManager, "getLayouts" | "getHistory" | "getLayout">,
-): Promise<LayoutID | undefined> {
-  const personalLayout = (await layoutManager.getLayouts()).find(
-    (layout) => layout.permission === "PERSONAL_WRITE",
-  );
-  if (personalLayout) {
-    return personalLayout.id;
-  }
-
-  const historyLayout = await layoutManager.getHistory();
-  if (!historyLayout) {
-    return undefined;
-  }
-
-  return (await layoutManager.getLayout({ id: historyLayout.id }))?.id;
-}
 
 /**
  * Synchronizes the layout from URL state after isReadyForSyncLayout is true
@@ -67,7 +47,6 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
       return;
     }
 
-    // Don't restore the layout if there's one specified in the app state url.
     if (layoutId) {
       const urlLayout = await layoutManager.getLayout({ id: layoutId });
       if (urlLayout) {
@@ -76,19 +55,6 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
         isLayoutIdProcessed.current = true;
         return;
       }
-
-      const fallbackLayoutId = await getFallbackLayoutIdForMissingUrlLayout(layoutManager);
-      if (fallbackLayoutId) {
-        setSelectedLayoutId(fallbackLayoutId);
-        setUnappliedLayoutArgs({ layoutId: undefined });
-        isLayoutIdProcessed.current = true;
-        return;
-      }
-
-      layoutDrawer.open();
-      setUnappliedLayoutArgs({ layoutId: undefined });
-      isLayoutIdProcessed.current = true;
-      return;
     }
 
     // 尝试从历史记录中恢复 layout

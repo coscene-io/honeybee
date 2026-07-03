@@ -366,7 +366,7 @@ describe("CoSceneLayoutManager", () => {
     const localLayout = await manager.getLayout({ id });
     expect(localLayout?.baseline.data).toEqual(layoutData("baseline"));
     expect(localLayout?.working?.data).toEqual(layoutData("local-working"));
-    expect(remoteStorage.updateLayout).not.toHaveBeenCalled();
+    expect(remoteStorage.updateLayout).toHaveBeenCalledTimes(1);
   });
 
   it("persists explicit project overwrite data as working before reporting a remote conflict", async () => {
@@ -404,7 +404,7 @@ describe("CoSceneLayoutManager", () => {
     const localLayout = await manager.getLayout({ id });
     expect(localLayout?.baseline.data).toEqual(layoutData("baseline"));
     expect(localLayout?.working?.data).toEqual(layoutData("current-memory"));
-    expect(remoteStorage.updateLayout).not.toHaveBeenCalled();
+    expect(remoteStorage.updateLayout).toHaveBeenCalledTimes(1);
   });
 
   it("keeps project data autosave local instead of updating remote metadata", async () => {
@@ -425,6 +425,97 @@ describe("CoSceneLayoutManager", () => {
 
     expect(result?.working?.data).toEqual(layoutData("draft"));
     expect(remoteStorage.updateLayout).not.toHaveBeenCalled();
+  });
+
+  it("preserves newer project working data when it changes during overwrite", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("warehouses/w/projects/p/layouts/1");
+    await localStorage.put(
+      `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`,
+      makeLocalLayout({
+        id,
+        parent: "warehouses/w/projects/p",
+        permission: "PROJECT_WRITE",
+        data: layoutData("baseline"),
+        savedAt: ts("2024-01-01T00:00:00.000Z"),
+        updatedAt: ts("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+    remoteStorage.layouts.set(
+      id,
+      makeRemoteLayout({
+        id,
+        parent: "warehouses/w/projects/p",
+        permission: "PROJECT_WRITE",
+        data: layoutData("baseline"),
+        savedAt: ts("2024-01-01T00:00:00.000Z"),
+        updatedAt: ts("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+    remoteStorage.updateLayout.mockImplementationOnce(async (params) => {
+      await manager.updateLayout({ id, data: layoutData("newer-working") });
+      const existing = remoteStorage.layouts.get(id);
+      if (!existing) {
+        return { status: "conflict" as const };
+      }
+      const updated = {
+        ...existing,
+        data: params.data ?? existing.data,
+        savedAt: ts("2024-01-01T00:00:20.000Z"),
+        updatedAt: ts("2024-01-01T00:00:20.000Z"),
+      };
+      remoteStorage.layouts.set(id, clone(updated));
+      return { status: "success" as const, newLayout: clone(updated) };
+    });
+
+    const result = await manager.overwriteLayout({ id, data: layoutData("save-request") });
+
+    expect(result.baseline.data).toEqual(layoutData("save-request"));
+    expect(result.working?.data).toEqual(layoutData("newer-working"));
+    expect(result.syncInfo?.status).toEqual("tracked");
+  });
+
+  it("does not delete a project layout when local data changes during remote delete", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("warehouses/w/projects/p/layouts/1");
+    await localStorage.put(
+      `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`,
+      makeLocalLayout({
+        id,
+        parent: "warehouses/w/projects/p",
+        permission: "PROJECT_WRITE",
+        data: layoutData("baseline"),
+        savedAt: ts("2024-01-01T00:00:00.000Z"),
+        updatedAt: ts("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+    remoteStorage.layouts.set(
+      id,
+      makeRemoteLayout({
+        id,
+        parent: "warehouses/w/projects/p",
+        permission: "PROJECT_WRITE",
+        data: layoutData("baseline"),
+        savedAt: ts("2024-01-01T00:00:00.000Z"),
+        updatedAt: ts("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+    remoteStorage.deleteLayout.mockImplementationOnce(async (deleteId) => {
+      await manager.updateLayout({ id, data: layoutData("newer-working") });
+      remoteStorage.layouts.delete(deleteId);
+      return true;
+    });
+
+    await manager.deleteLayout({ id });
+
+    const localLayout = await manager.getLayout({ id });
+    expect(localLayout?.baseline.data).toEqual(layoutData("baseline"));
+    expect(localLayout?.working?.data).toEqual(layoutData("newer-working"));
+    expect(remoteStorage.layouts.has(id)).toBe(false);
   });
 
   it("does not delete local layouts when remote list fails", async () => {
@@ -462,7 +553,71 @@ describe("CoSceneLayoutManager", () => {
     await manager.syncWithRemote(new AbortController().signal);
 
     const localLayout = await manager.getLayout({ id });
+    expect(localLayout?.syncInfo?.status).toEqual("remotely-deleted");
     expect(localLayout?.working?.data).toEqual(layoutData("draft-during-sync"));
+  });
+
+  it("recreates a remotely deleted personal layout after the user saves its draft", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("users/u/layouts/1");
+    await localStorage.put(
+      `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`,
+      makeLocalLayout({
+        id,
+        working: {
+          data: layoutData("local-draft"),
+          savedAt: ts("2024-01-01T00:00:01.000Z"),
+        },
+      }),
+    );
+
+    await manager.syncWithRemote(new AbortController().signal);
+    await manager.overwriteLayout({ id, data: layoutData("local-draft") });
+    await manager.syncWithRemote(new AbortController().signal);
+
+    const localLayout = await manager.getLayout({ id });
+    expect(remoteStorage.saveNewLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id,
+        data: layoutData("local-draft"),
+        permission: "PERSONAL_WRITE",
+      }),
+    );
+    expect(remoteStorage.layouts.get(id)?.data).toEqual(layoutData("local-draft"));
+    expect(localLayout?.syncInfo?.status).toEqual("tracked");
+    expect(localLayout?.working).toBeUndefined();
+  });
+
+  it("reuploads an updated personal layout when the remote copy is missing", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("users/u/layouts/1");
+    await localStorage.put(
+      `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`,
+      makeLocalLayout({
+        id,
+        data: layoutData("locally-saved"),
+        syncStatus: "updated",
+        savedAt: ts("2024-01-01T00:00:00.000Z"),
+        updatedAt: ts("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+
+    await manager.syncWithRemote(new AbortController().signal);
+
+    const localLayout = await manager.getLayout({ id });
+    expect(remoteStorage.saveNewLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id,
+        data: layoutData("locally-saved"),
+        permission: "PERSONAL_WRITE",
+      }),
+    );
+    expect(remoteStorage.layouts.get(id)?.data).toEqual(layoutData("locally-saved"));
+    expect(localLayout?.syncInfo?.status).toEqual("tracked");
   });
 
   it("does not overwrite a locally updated baseline with a stale sync update-baseline operation", async () => {
@@ -711,7 +866,7 @@ describe("CoSceneLayoutManager", () => {
     await expect(manager.deleteLayout({ id })).rejects.toThrow("changed on the server");
 
     expect(await manager.getLayout({ id })).toBeDefined();
-    expect(remoteStorage.deleteLayout).not.toHaveBeenCalled();
+    expect(remoteStorage.deleteLayout).toHaveBeenCalledTimes(1);
   });
 
   it("passes expected remote timestamps when deleting a project layout", async () => {
