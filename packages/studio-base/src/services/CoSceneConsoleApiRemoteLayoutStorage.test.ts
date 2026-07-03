@@ -118,6 +118,31 @@ describe("CoSceneConsoleApiRemoteLayoutStorage", () => {
     expect(updateUserLayout).toHaveBeenCalledTimes(1);
   });
 
+  it("propagates non-not-found update failures", async () => {
+    const id = layoutId("users/u/layouts/1");
+    const updateUserLayout = jest
+      .fn()
+      .mockRejectedValue(new ConnectError("service unavailable", Code.Unavailable));
+    const storage = makeStorage({
+      getUserLayout: jest.fn().mockResolvedValue(
+        create(LayoutSchema, {
+          name: id,
+          displayName: "Layout",
+          folder: "",
+          data: layoutData as JsonObject,
+        }),
+      ),
+      updateUserLayout,
+    });
+
+    await expect(storage.updateLayout({ id, data: layoutData })).rejects.toThrow(
+      "service unavailable",
+    );
+    jest.mocked(console.error).mockClear();
+
+    expect(updateUserLayout).toHaveBeenCalledTimes(1);
+  });
+
   it("returns false when delete target lookup reports not found", async () => {
     const id = layoutId("users/u/layouts/1");
     const deleteUserLayout = jest.fn();
