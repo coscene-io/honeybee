@@ -6,10 +6,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
+import { useContext } from "react";
+import { StoreApi } from "zustand";
 
 import { TIMELINE_MIN_HEIGHT_PX } from "@foxglove/studio-base/components/PlaybackControls/constants";
-import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { DataSource, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  WorkspaceContext,
+  WorkspaceContextStore,
+  useWorkspaceStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 import WorkspaceContextProvider from "./WorkspaceContextProvider";
 
@@ -140,5 +149,105 @@ describe("WorkspaceContextProvider share-manifest branch", () => {
     // Normal mode must not pick up the share-store's hidden-sidebar state.
     expect(state.leftOpen).toBe(true);
     expect(state.timelineHeight).toBe(200);
+  });
+});
+
+describe("WorkspaceContextProvider data-source-scoped stores", () => {
+  const originalUrl = window.location.href;
+
+  afterEach(() => {
+    window.history.replaceState(undefined, "", originalUrl);
+    window.localStorage.clear();
+  });
+
+  type Harness = {
+    timelineHeight: number;
+    store: StoreApi<WorkspaceContextStore> | undefined;
+    setDataSource: (dataSource: DataSource | undefined) => void;
+  };
+
+  function renderScenario(): Harness {
+    const harness: Harness = {
+      timelineHeight: -1,
+      store: undefined,
+      setDataSource: () => {},
+    };
+    function Capture(): ReactNull {
+      harness.store = useContext(WorkspaceContext);
+      harness.setDataSource = useCoreData((s) => s.setDataSource);
+      harness.timelineHeight = useWorkspaceStore((s) => s.playbackControls.timelineHeight);
+      return ReactNull;
+    }
+    render(
+      <CoreDataProvider>
+        <WorkspaceContextProvider>
+          <Capture />
+        </WorkspaceContextProvider>
+      </CoreDataProvider>,
+    );
+    return harness;
+  }
+
+  it("switches stores on data source change and does not inherit share adjustments", () => {
+    window.localStorage.setItem(
+      NORMAL_KEY,
+      persistedWorkspace({ leftOpen: true, timelineHeight: 300 }),
+    );
+    window.localStorage.setItem(
+      SHARE_KEY,
+      persistedWorkspace({ leftOpen: false, timelineHeight: 140 }),
+    );
+
+    const h = renderScenario();
+
+    // Before a data source resolves, a non-share URL uses the normal store.
+    expect(h.timelineHeight).toBe(300);
+
+    // Switch to share-manifest -> isolated share store.
+    act(() => {
+      h.setDataSource({ id: SHARE_MANIFEST_DATA_SOURCE_ID, type: "connection" });
+    });
+    expect(h.timelineHeight).toBe(140);
+
+    // Switch to another data source -> back to the normal store, NOT the share value.
+    act(() => {
+      h.setDataSource({ id: "coscene-data-platform", type: "connection" });
+    });
+    expect(h.timelineHeight).toBe(300);
+    expect(h.timelineHeight).not.toBe(140);
+  });
+
+  it("a share session never writes the normal key, and vice versa", () => {
+    const h = renderScenario();
+
+    // Normal store active but untouched -> its key is never written.
+    expect(window.localStorage.getItem(NORMAL_KEY)).toBeNull();
+
+    // Switch to share-manifest and mutate -> writes ONLY the share key.
+    act(() => {
+      h.setDataSource({ id: SHARE_MANIFEST_DATA_SOURCE_ID, type: "connection" });
+    });
+    act(() => {
+      h.store?.setState((s) => ({
+        playbackControls: { ...s.playbackControls, timelineHeight: 222 },
+      }));
+    });
+
+    expect(window.localStorage.getItem(NORMAL_KEY)).toBeNull();
+    expect(window.localStorage.getItem(SHARE_KEY)).toContain("222");
+
+    // Switch back to normal and mutate -> writes ONLY the normal key; share key intact.
+    act(() => {
+      h.setDataSource({ id: "coscene-data-platform", type: "connection" });
+    });
+    act(() => {
+      h.store?.setState((s) => ({
+        playbackControls: { ...s.playbackControls, timelineHeight: 333 },
+      }));
+    });
+
+    expect(window.localStorage.getItem(NORMAL_KEY)).toContain("333");
+    expect(window.localStorage.getItem(SHARE_KEY)).toContain("222");
+    expect(window.localStorage.getItem(SHARE_KEY)).not.toContain("333");
   });
 });
