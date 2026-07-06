@@ -1,0 +1,74 @@
+name: deploy-esa
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy web
+    runs-on: gcp
+    environment: saas
+    timeout-minutes: 30
+
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+      ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+      CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
+      ESA_SITE_ID: "152922880180456"
+      ESA_ROUTINE_NAME: honeybee-viz-staging
+      HONEYBEE_WEB_PUBLIC_PATH: /
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Validate deployment configuration
+        run: |
+          set -euo pipefail
+          : "${GH_PACKAGES_ORG_TOKEN:?GH_PACKAGES_ORG_TOKEN secret is required}"
+          : "${ALIBABA_CLOUD_ACCESS_KEY_ID:?ALIBABA_CLOUD_ACCESS_KEY_ID secret is required}"
+          : "${ALIBABA_CLOUD_ACCESS_KEY_SECRET:?ALIBABA_CLOUD_ACCESS_KEY_SECRET secret is required}"
+          : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
+          : "${ESA_ROUTINE_NAME:?ESA_ROUTINE_NAME variable is required}"
+
+      - name: Enable corepack
+        run: corepack enable yarn
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Set cos config file
+        run: |
+          set -euo pipefail
+          curl -fsSL "${CONFIG_FILE_URL}" -o packages/studio-web/public/cos-config.js
+
+      - name: Build web production files
+        run: yarn run web:build:prod
+
+      - name: Validate web artifacts
+        run: |
+          set -euo pipefail
+          test -s web/.webpack/index.html
+          find web/.webpack -type f -name '*.js' -print -quit | grep -q .
+          if grep -q '/viz/cos-config.js' web/.webpack/index.html; then
+            echo "index.html still references /viz/cos-config.js"
+            exit 1
+          fi
+          grep -q '/cos-config.js' web/.webpack/index.html
+
+      - name: Deploy to ESA
+        run: node ci/deploy-esa.mjs
