@@ -42,8 +42,18 @@ import { migratePanelsState } from "../migrateLayout";
 
 const log = Logger.getLogger(__filename);
 
-function remoteConflictError(id: LayoutID): Error {
-  return new Error(`Layout ${id} has changed on the server; local changes were not saved.`);
+class RemoteLayoutConflictError extends Error {
+  public readonly layoutId: LayoutID;
+
+  public constructor(layoutId: LayoutID) {
+    super(`Layout ${layoutId} has changed on the server; local changes were not saved.`);
+    this.name = "RemoteLayoutConflictError";
+    this.layoutId = layoutId;
+  }
+}
+
+function remoteConflictError(id: LayoutID): RemoteLayoutConflictError {
+  return new RemoteLayoutConflictError(id);
 }
 
 function expectedRemoteTimestamps(layout: Layout): {
@@ -847,7 +857,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     storage: MutexLocked<NamespacedLayoutStorage>,
     operations: readonly (SyncOperation & { local: true })[],
     abortSignal: AbortSignal,
-    options: { backupPersonalOnly?: boolean } = {},
+    options: { backupPersonalOnly?: boolean; emitDeleteNotifications?: boolean } = {},
   ): Promise<void> {
     await storage.runExclusive(async (local) => {
       for (const operation of operations) {
@@ -904,7 +914,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               `Deleting local layout ${localLayout.id}, whose sync status was ${localLayout.syncInfo?.status}`,
             );
             await local.delete(localLayout.id);
-            this.#notifyChangeListeners({ type: "delete", layoutId: localLayout.id });
+            if (options.emitDeleteNotifications !== false) {
+              this.#notifyChangeListeners({ type: "delete", layoutId: localLayout.id });
+            }
             break;
           }
 
@@ -998,7 +1010,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
     // Any necessary local cleanups are performed all at once after the server operations, so the
     // server ops can be done without blocking other local sync operations.
-    type CleanupFunction = (local: NamespacedLayoutStorage) => Promise<void>;
+    type CleanupFunction = (local: NamespacedLayoutStorage) => Promise<boolean>;
 
     const cleanupResults = await Promise.allSettled(
       operations.map(async (operation): Promise<CleanupFunction> => {
@@ -1013,12 +1025,14 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             }
             return async (local) => {
               if (abortSignal.aborted) {
-                return;
+                return false;
               }
               const currentLayout = await local.get(localLayout.id);
               if (currentLayout?.syncInfo?.status === localLayout.syncInfo?.status) {
                 await local.delete(localLayout.id);
+                return true;
               }
+              return false;
             };
           }
 
@@ -1037,10 +1051,21 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
               const currentLayout = await local.get(localLayout.id);
               if (!currentLayout) {
-                return;
+                return false;
               }
               if (currentLayout.syncInfo?.status !== localLayout.syncInfo?.status) {
-                return;
+                if (currentLayout.syncInfo?.status === "locally-deleted") {
+                  await local.put({
+                    ...currentLayout,
+                    syncInfo: {
+                      status: "locally-deleted",
+                      lastRemoteSavedAt: newBaseline.savedAt,
+                      lastRemoteUpdatedAt: newBaseline.updatedAt,
+                    },
+                  });
+                  return true;
+                }
+                return false;
               }
               const changedSinceUpload =
                 currentLayout.name !== localLayout.name ||
@@ -1055,27 +1080,76 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                   lastRemoteUpdatedAt: newBaseline.updatedAt,
                 },
               });
+              return true;
             };
           }
 
           case "upload-updated": {
             const { localLayout } = operation;
             log.debug(`Uploading updated layout ${localLayout.id}`);
-            const newBaseline = await updateRemoteLayout(remote, {
-              id: localLayout.id,
-              parent: localLayout.parent,
-              name: localLayout.name,
-              folder: localLayout.folder,
-              data: localLayout.baseline.data,
-              ...expectedRemoteTimestamps(localLayout),
-              // savedAt:
-              //   localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
-            });
+            let newBaseline: RemoteLayout;
+            try {
+              newBaseline = await updateRemoteLayout(remote, {
+                id: localLayout.id,
+                parent: localLayout.parent,
+                name: localLayout.name,
+                folder: localLayout.folder,
+                data: localLayout.baseline.data,
+                ...expectedRemoteTimestamps(localLayout),
+                // savedAt:
+                //   localLayout.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
+              });
+            } catch (error) {
+              if (!(error instanceof RemoteLayoutConflictError)) {
+                throw error;
+              }
+              const remoteLayout = await remote.getLayout(localLayout.id);
+              if (!remoteLayout) {
+                throw error;
+              }
+              return async (local) => {
+                const currentLayout = await local.get(localLayout.id);
+                if (!currentLayout) {
+                  return false;
+                }
+                if (!localLayoutSyncSnapshotMatches(currentLayout, localLayout)) {
+                  return false;
+                }
+                const working =
+                  currentLayout.working ??
+                  (isLayoutEqual(remoteLayout.data, currentLayout.baseline.data)
+                    ? undefined
+                    : {
+                        data: currentLayout.baseline.data,
+                        savedAt: currentLayout.baseline.savedAt,
+                      });
+                await local.put({
+                  ...currentLayout,
+                  parent: remoteLayout.parent,
+                  name: remoteLayout.name,
+                  folder: remoteLayout.folder,
+                  permission: remoteLayout.permission,
+                  baseline: {
+                    data: remoteLayout.data,
+                    savedAt: remoteLayout.savedAt,
+                    modifier: remoteLayout.modifier,
+                    modifierNickname: remoteLayout.modifierNickname,
+                  },
+                  working,
+                  syncInfo: {
+                    status: "tracked",
+                    lastRemoteSavedAt: remoteLayout.savedAt,
+                    lastRemoteUpdatedAt: remoteLayout.updatedAt,
+                  },
+                });
+                return true;
+              };
+            }
             return async (local) => {
               // Don't check abortSignal; we need the cache to be updated to show the layout is tracked
               const currentLayout = await local.get(localLayout.id);
               if (!currentLayout) {
-                return;
+                return false;
               }
               if (
                 currentLayout.syncInfo?.status !== localLayout.syncInfo?.status ||
@@ -1083,7 +1157,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 currentLayout.folder !== localLayout.folder ||
                 !isLayoutEqual(currentLayout.baseline.data, localLayout.baseline.data)
               ) {
-                return;
+                return false;
               }
               await local.put({
                 ...currentLayout,
@@ -1096,6 +1170,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                   lastRemoteUpdatedAt: newBaseline.updatedAt,
                 },
               });
+              return true;
             };
           }
         }
@@ -1108,18 +1183,22 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       )
       .map((result) => result.value);
 
-    await this.#local.runExclusive(async (local) => {
-      await Promise.all(
+    const didApplyCleanup = await this.#local.runExclusive(async (local) => {
+      const cleanupApplied = await Promise.all(
         cleanups.map(async (cleanup) => {
-          await cleanup(local);
+          return await cleanup(local);
         }),
       );
+      return cleanupApplied.some(Boolean);
     });
 
     const failedResult = cleanupResults.find(
       (result): result is PromiseRejectedResult => result.status === "rejected",
     );
     if (failedResult) {
+      if (didApplyCleanup) {
+        this.#notifyChangeListeners({ type: "change", updatedLayout: undefined });
+      }
       throw failedResult.reason;
     }
   }
@@ -1134,6 +1213,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
     await this.#performLocalSyncOperationsInStorage(this.#backupLocal, operations, abortSignal, {
       backupPersonalOnly: true,
+      emitDeleteNotifications: false,
     });
   }
 

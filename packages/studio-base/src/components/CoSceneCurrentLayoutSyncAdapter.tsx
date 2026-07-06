@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as _ from "lodash-es";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useRef, useState } from "react";
 import { useAsync, useMountedState } from "react-use";
@@ -56,7 +57,12 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
       }));
     } else if (selectedLayout?.id != undefined) {
       setUnsavedLayouts((old) => {
-        if (old[selectedLayout.id] == undefined) {
+        const pendingLayout = old[selectedLayout.id];
+        if (
+          pendingLayout == undefined ||
+          selectedLayout.data == undefined ||
+          !_.isEqual(selectedLayout.data, pendingLayout.data)
+        ) {
           return old;
         }
         const newUnsavedLayouts = { ...old };
@@ -100,7 +106,8 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
         log.error("changes could not be saved", error);
 
         if (isMounted()) {
-          enqueueSnackbar(`Your changes could not be saved. ${error.toString()}`, {
+          const message = error instanceof Error ? error.toString() : String(error);
+          enqueueSnackbar(`Your changes could not be saved. ${message}`, {
             variant: "error",
             key: "CurrentLayoutProvider.throttledSave",
           });

@@ -149,7 +149,8 @@ export default function CurrentLayoutProvider({
         }
       } catch (error) {
         console.error(error);
-        enqueueSnackbar(`The layout could not be loaded. ${error.toString()}`, {
+        const message = error instanceof Error ? error.toString() : String(error);
+        enqueueSnackbar(`The layout could not be loaded. ${message}`, {
           variant: "error",
         });
         setIncompatibleLayoutVersionError(false);
@@ -234,16 +235,22 @@ export default function CurrentLayoutProvider({
   useEffect(() => {
     const listener: LayoutManagerEventTypes["change"] = (event) => {
       const { updatedLayout } = event;
-      if (
-        updatedLayout &&
-        layoutStateRef.current.selectedLayout &&
-        updatedLayout.id === layoutStateRef.current.selectedLayout.id
-      ) {
+      const currentSelectedLayout = layoutStateRef.current.selectedLayout;
+      if (updatedLayout && currentSelectedLayout && updatedLayout.id === currentSelectedLayout.id) {
         const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
         if (
           (event.source === "update" || event.source === "overwrite") &&
-          !_.isEqual(layoutStateRef.current.selectedLayout.data, updatedData)
+          currentSelectedLayout.data != undefined &&
+          !_.isEqual(currentSelectedLayout.data, updatedData)
         ) {
+          setLayoutState({
+            selectedLayout: {
+              ...currentSelectedLayout,
+              loading: false,
+              id: updatedLayout.id,
+              name: updatedLayout.name,
+            },
+          });
           return;
         }
 
