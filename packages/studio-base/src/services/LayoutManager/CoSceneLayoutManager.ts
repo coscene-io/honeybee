@@ -568,7 +568,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           throw new Error("Cannot delete a shared layout while offline");
         }
         if (!(await remote.deleteLayout(id, expectedRemoteTimestamps(snapshot)))) {
-          throw remoteConflictError(id);
+          log.debug(`Deleting shared layout ${id} which was already absent in remote storage`);
         }
       }
 
@@ -928,7 +928,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             ) {
               break;
             }
-            if ((await local.get(remoteLayout.id)) != undefined) {
+            const existingLayout = await local.get(remoteLayout.id);
+            if (existingLayout != undefined && options.backupPersonalOnly !== true) {
               break;
             }
             log.debug(`Adding layout to cache: ${remoteLayout.id}`);
@@ -1115,19 +1116,27 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 if (!localLayoutSyncSnapshotMatches(currentLayout, localLayout)) {
                   return false;
                 }
+                const hasDataConflict = !isLayoutEqual(
+                  remoteLayout.data,
+                  currentLayout.baseline.data,
+                );
+                const hasLocalMetadataChanges =
+                  !hasDataConflict &&
+                  (currentLayout.name !== remoteLayout.name ||
+                    currentLayout.folder !== remoteLayout.folder);
                 const working =
                   currentLayout.working ??
-                  (isLayoutEqual(remoteLayout.data, currentLayout.baseline.data)
-                    ? undefined
-                    : {
+                  (hasDataConflict
+                    ? {
                         data: currentLayout.baseline.data,
                         savedAt: currentLayout.baseline.savedAt,
-                      });
+                      }
+                    : undefined);
                 await local.put({
                   ...currentLayout,
                   parent: remoteLayout.parent,
-                  name: remoteLayout.name,
-                  folder: remoteLayout.folder,
+                  name: hasLocalMetadataChanges ? currentLayout.name : remoteLayout.name,
+                  folder: hasLocalMetadataChanges ? currentLayout.folder : remoteLayout.folder,
                   permission: remoteLayout.permission,
                   baseline: {
                     data: remoteLayout.data,
@@ -1137,7 +1146,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                   },
                   working,
                   syncInfo: {
-                    status: "tracked",
+                    status: hasLocalMetadataChanges ? "updated" : "tracked",
                     lastRemoteSavedAt: remoteLayout.savedAt,
                     lastRemoteUpdatedAt: remoteLayout.updatedAt,
                   },
@@ -1151,21 +1160,33 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               if (!currentLayout) {
                 return false;
               }
-              if (
-                currentLayout.syncInfo?.status !== localLayout.syncInfo?.status ||
-                currentLayout.name !== localLayout.name ||
-                currentLayout.folder !== localLayout.folder ||
-                !isLayoutEqual(currentLayout.baseline.data, localLayout.baseline.data)
-              ) {
+              if (currentLayout.syncInfo?.status !== localLayout.syncInfo?.status) {
+                if (currentLayout.syncInfo?.status === "locally-deleted") {
+                  await local.put({
+                    ...currentLayout,
+                    syncInfo: {
+                      status: "locally-deleted",
+                      lastRemoteSavedAt: newBaseline.savedAt,
+                      lastRemoteUpdatedAt: newBaseline.updatedAt,
+                    },
+                  });
+                  return true;
+                }
                 return false;
               }
+              const changedSinceUpload =
+                currentLayout.name !== localLayout.name ||
+                currentLayout.folder !== localLayout.folder ||
+                !isLayoutEqual(currentLayout.baseline.data, localLayout.baseline.data);
               await local.put({
                 ...currentLayout,
-                name: newBaseline.name,
-                folder: newBaseline.folder,
-                baseline: { ...currentLayout.baseline, savedAt: newBaseline.savedAt },
+                name: changedSinceUpload ? currentLayout.name : newBaseline.name,
+                folder: changedSinceUpload ? currentLayout.folder : newBaseline.folder,
+                baseline: changedSinceUpload
+                  ? currentLayout.baseline
+                  : { ...currentLayout.baseline, savedAt: newBaseline.savedAt },
                 syncInfo: {
-                  status: "tracked",
+                  status: changedSinceUpload ? "updated" : "tracked",
                   lastRemoteSavedAt: newBaseline.savedAt,
                   lastRemoteUpdatedAt: newBaseline.updatedAt,
                 },
