@@ -261,6 +261,12 @@ describe("CompressedVideoController", () => {
       [0n, 10_000_000n],
       [0n, 10_000_000n],
     ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.targetFrameTimeoutMs)).toEqual([
+      250, 1000,
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.anyFrameTimeoutMs)).toEqual([
+      500, 1000,
+    ]);
   });
 
   it("skips complete intermediate GOPs when chasing the latest playback target", async () => {

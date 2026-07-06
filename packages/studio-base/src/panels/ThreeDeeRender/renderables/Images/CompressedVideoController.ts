@@ -39,6 +39,7 @@ const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
 // behind the worker's default 1s/2s frame timeouts.
 const PLAYBACK_TARGET_FRAME_TIMEOUT_MS = 250;
 const PLAYBACK_ANY_FRAME_TIMEOUT_MS = 500;
+const PLAYBACK_RETRY_FRAME_TIMEOUT_MS = 1_000;
 
 export type VideoDisplayMode = "playback" | "seek" | "direct";
 
@@ -576,7 +577,19 @@ export class CompressedVideoController {
 
     this.#state.playbackRetryReceiveTimeNs = targetReceiveTimeNs;
     this.#state.playbackDecoderProgress = undefined;
-    this.#state.pendingPlaybackTarget = target;
+    const retryTimeoutMs = Math.max(
+      target.options?.targetFrameTimeoutMs ?? PLAYBACK_TARGET_FRAME_TIMEOUT_MS,
+      target.options?.anyFrameTimeoutMs ?? PLAYBACK_ANY_FRAME_TIMEOUT_MS,
+      PLAYBACK_RETRY_FRAME_TIMEOUT_MS,
+    );
+    this.#state.pendingPlaybackTarget = {
+      ...target,
+      options: {
+        ...target.options,
+        targetFrameTimeoutMs: retryTimeoutMs,
+        anyFrameTimeoutMs: retryTimeoutMs,
+      },
+    };
   }
 
   #resetDecoderForSeek(generation: number): void {
