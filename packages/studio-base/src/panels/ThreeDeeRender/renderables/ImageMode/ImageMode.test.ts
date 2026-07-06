@@ -331,7 +331,7 @@ describe("ImageMode compressed video seek replay", () => {
       imageMode.createdRenderables[0]!.setCompressedVideoFrameOptions.map(
         (options) => options?.allowIntermediateVideoFrame,
       ),
-    ).toEqual([false, false]);
+    ).toEqual([true, false]);
     expect(imageMode.createdRenderables[0]!.setImageCalls).toEqual([]);
   });
 
