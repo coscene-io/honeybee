@@ -170,6 +170,11 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     }),
     [selectedLayout],
   );
+  const getOverwriteLayoutParamsRef = useRef(getOverwriteLayoutParams);
+
+  useEffect(() => {
+    getOverwriteLayoutParamsRef.current = getOverwriteLayoutParams;
+  }, [getOverwriteLayoutParams]);
 
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
@@ -234,12 +239,15 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
-              await layoutManager.overwriteLayout(getOverwriteLayoutParams(id as LayoutID));
+              await layoutManager.overwriteLayout(
+                getOverwriteLayoutParamsRef.current(id as LayoutID),
+              );
               dispatch({ type: "shift-multi-action" });
               break;
           }
         } catch (err) {
-          enqueueSnackbar(`Error processing layouts: ${err.message}`, { variant: "error" });
+          const message = err instanceof Error ? err.message : "Unknown error";
+          enqueueSnackbar(`Error processing layouts: ${message}`, { variant: "error" });
           dispatch({ type: "clear-multi-action" });
         }
       }
@@ -248,7 +256,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     processAction().catch((err: unknown) => {
       log.error(err);
     });
-  }, [dispatch, enqueueSnackbar, getOverwriteLayoutParams, layoutManager, state.multiAction]);
+  }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
 
   /**
    * Don't allow the user to switch away from a personal layout if they have unsaved changes. This

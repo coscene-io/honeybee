@@ -741,13 +741,22 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         if (!layout) {
           throw new Error(`Cannot revert layout id ${id} because it does not exist`);
         }
-        return await local.put({
+        const revertedLayout = await local.put({
           ...layout,
           working: undefined,
         });
+        if (layoutAppearsDeleted(revertedLayout)) {
+          await local.delete(id);
+          return { layout: revertedLayout, deleted: true };
+        }
+        return { layout: revertedLayout, deleted: false };
       });
-      this.#notifyChangeListeners({ type: "change", updatedLayout: result });
-      return result;
+      if (result.deleted) {
+        this.#notifyChangeListeners({ type: "delete", layoutId: id });
+      } else {
+        this.#notifyChangeListeners({ type: "change", updatedLayout: result.layout });
+      }
+      return result.layout;
     });
   }
 
@@ -968,7 +977,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               break;
             }
             if (
-              !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout) ||
+              (options.backupPersonalOnly !== true &&
+                !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout)) ||
               localLayout.syncInfo.status === "updated"
             ) {
               break;
