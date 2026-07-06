@@ -87,6 +87,28 @@ function workingDataEqual(left: Layout["working"], right: Layout["working"]): bo
   return isLayoutEqual(left.data, right.data);
 }
 
+function trackedLayoutFromRemote(remoteLayout: RemoteLayout): Layout {
+  return {
+    id: remoteLayout.id,
+    parent: remoteLayout.parent,
+    folder: remoteLayout.folder,
+    name: remoteLayout.name,
+    permission: remoteLayout.permission,
+    baseline: {
+      data: remoteLayout.data,
+      savedAt: remoteLayout.savedAt,
+      modifier: remoteLayout.modifier,
+      modifierNickname: remoteLayout.modifierNickname,
+    },
+    working: undefined,
+    syncInfo: {
+      status: "tracked",
+      lastRemoteSavedAt: remoteLayout.savedAt,
+      lastRemoteUpdatedAt: remoteLayout.updatedAt,
+    },
+  };
+}
+
 async function updateRemoteLayout(
   remote: IRemoteLayoutStorage,
   params: Parameters<IRemoteLayoutStorage["updateLayout"]>[0],
@@ -301,25 +323,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       }
 
       log.debug(`Adding layout to cache from getLayout: ${remoteLayout.id}`);
-      return await local.put({
-        id: remoteLayout.id,
-        parent: remoteLayout.parent,
-        folder: remoteLayout.folder,
-        name: remoteLayout.name,
-        permission: remoteLayout.permission,
-        baseline: {
-          data: remoteLayout.data,
-          savedAt: remoteLayout.savedAt,
-          modifier: remoteLayout.modifier,
-          modifierNickname: remoteLayout.modifierNickname,
-        },
-        working: undefined,
-        syncInfo: {
-          status: "tracked",
-          lastRemoteSavedAt: remoteLayout.savedAt,
-          lastRemoteUpdatedAt: remoteLayout.updatedAt,
-        },
-      });
+      return await local.put(trackedLayoutFromRemote(remoteLayout));
     });
   }
 
@@ -851,7 +855,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     await Promise.all([
       this.#performLocalSyncOperations(localOps, abortSignal),
       this.#performRemoteSyncOperations(remoteOps, abortSignal),
-      this.#performBackupLocalSyncOperations(localOps, abortSignal),
+      this.#performBackupLocalSyncOperations(remoteLayouts, abortSignal),
     ]);
   }
 
@@ -866,7 +870,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     storage: MutexLocked<NamespacedLayoutStorage>,
     operations: readonly (SyncOperation & { local: true })[],
     abortSignal: AbortSignal,
-    options: { backupPersonalOnly?: boolean; emitDeleteNotifications?: boolean } = {},
   ): Promise<void> {
     await storage.runExclusive(async (local) => {
       for (const operation of operations) {
@@ -900,8 +903,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               break;
             }
             if (
-              (options.backupPersonalOnly !== true &&
-                !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout)) ||
+              !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout) ||
               localLayout.syncInfo?.status === "updated"
             ) {
               break;
@@ -924,62 +926,29 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               `Deleting local layout ${localLayout.id}, whose sync status was ${localLayout.syncInfo?.status}`,
             );
             await local.delete(localLayout.id);
-            if (options.emitDeleteNotifications !== false) {
-              this.#notifyChangeListeners({ type: "delete", layoutId: localLayout.id });
-            }
+            this.#notifyChangeListeners({ type: "delete", layoutId: localLayout.id });
             break;
           }
 
           case "add-to-cache": {
             const { remoteLayout } = operation;
-            if (
-              options.backupPersonalOnly === true &&
-              remoteLayout.permission !== "PERSONAL_WRITE"
-            ) {
-              break;
-            }
             const existingLayout = await local.get(remoteLayout.id);
-            if (existingLayout != undefined && options.backupPersonalOnly !== true) {
+            if (existingLayout != undefined) {
               break;
             }
             log.debug(`Adding layout to cache: ${remoteLayout.id}`);
-            await local.put({
-              id: remoteLayout.id,
-              folder: remoteLayout.folder,
-              name: remoteLayout.name,
-              permission: remoteLayout.permission,
-              baseline: {
-                data: remoteLayout.data,
-                savedAt: remoteLayout.savedAt,
-                modifier: remoteLayout.modifier,
-                modifierNickname: remoteLayout.modifierNickname,
-              },
-              working: undefined,
-              syncInfo: {
-                status: "tracked",
-                lastRemoteSavedAt: remoteLayout.savedAt,
-                lastRemoteUpdatedAt: remoteLayout.updatedAt,
-              },
-              parent: remoteLayout.parent,
-            });
+            await local.put(trackedLayoutFromRemote(remoteLayout));
             break;
           }
 
           case "update-baseline": {
             const { remoteLayout } = operation;
-            if (
-              options.backupPersonalOnly === true &&
-              remoteLayout.permission !== "PERSONAL_WRITE"
-            ) {
-              break;
-            }
             const localLayout = await local.get(operation.localLayout.id);
             if (!localLayout?.syncInfo) {
               break;
             }
             if (
-              (options.backupPersonalOnly !== true &&
-                !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout)) ||
+              !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout) ||
               localLayout.syncInfo.status === "updated"
             ) {
               break;
@@ -1132,9 +1101,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                   currentLayout.baseline.data,
                 );
                 const hasLocalMetadataChanges =
-                  !hasDataConflict &&
-                  (currentLayout.name !== remoteLayout.name ||
-                    currentLayout.folder !== remoteLayout.folder);
+                  currentLayout.name !== remoteLayout.name ||
+                  currentLayout.folder !== remoteLayout.folder;
                 const working =
                   currentLayout.working ??
                   (hasDataConflict
@@ -1237,15 +1205,75 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   // sync remote layouts to local, then user can use layouts in offline status
   async #performBackupLocalSyncOperations(
-    operations: readonly (SyncOperation & { local: true })[],
+    remoteLayouts: readonly RemoteLayout[],
     abortSignal: AbortSignal,
   ): Promise<void> {
     if (!this.#backupLocal) {
       return;
     }
-    await this.#performLocalSyncOperationsInStorage(this.#backupLocal, operations, abortSignal, {
-      backupPersonalOnly: true,
-      emitDeleteNotifications: false,
+    const remotePersonalLayouts = remoteLayouts.filter(
+      (layout) => layout.permission === "PERSONAL_WRITE",
+    );
+    const remotePersonalIds = new Set(remotePersonalLayouts.map((layout) => layout.id));
+
+    await this.#backupLocal.runExclusive(async (local) => {
+      const backupLayouts = await local.list();
+
+      for (const remoteLayout of remotePersonalLayouts) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        const existingLayout = await local.get(remoteLayout.id);
+        if (
+          existingLayout?.syncInfo?.status === "updated" ||
+          existingLayout?.working != undefined
+        ) {
+          continue;
+        }
+        const backupCurrent =
+          existingLayout?.syncInfo?.status === "tracked" &&
+          existingLayout.parent === remoteLayout.parent &&
+          existingLayout.name === remoteLayout.name &&
+          existingLayout.folder === remoteLayout.folder &&
+          existingLayout.permission === remoteLayout.permission &&
+          existingLayout.syncInfo.lastRemoteSavedAt === remoteLayout.savedAt &&
+          existingLayout.syncInfo.lastRemoteUpdatedAt === remoteLayout.updatedAt &&
+          isLayoutEqual(existingLayout.baseline.data, remoteLayout.data);
+        if (backupCurrent) {
+          continue;
+        }
+        await local.put(trackedLayoutFromRemote(remoteLayout));
+      }
+
+      for (const backupLayout of backupLayouts) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        if (backupLayout.permission !== "PERSONAL_WRITE") {
+          continue;
+        }
+        if (remotePersonalIds.has(backupLayout.id) || backupLayout.syncInfo?.status === "updated") {
+          continue;
+        }
+        if (
+          backupLayout.working != undefined &&
+          backupLayout.syncInfo?.status !== "locally-deleted"
+        ) {
+          await local.put({
+            ...backupLayout,
+            syncInfo: {
+              status: "remotely-deleted",
+              lastRemoteSavedAt: undefined,
+              lastRemoteUpdatedAt: undefined,
+            },
+          });
+          continue;
+        }
+        log.debug(
+          `Deleting backup layout ${backupLayout.id}, whose sync status was ${backupLayout.syncInfo?.status}`,
+        );
+        await local.delete(backupLayout.id);
+      }
     });
   }
 
