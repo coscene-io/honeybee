@@ -152,7 +152,10 @@ describe("CompressedVideoController", () => {
     ]);
     expect(
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
-    ).toEqual([false]);
+    ).toEqual([true]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2])).toEqual([
+      expect.objectContaining({ decodeMode: "playback" }),
+    ]);
   });
 
   it("coalesces playback frames to the latest target while preserving GOP dependencies", async () => {
@@ -174,7 +177,10 @@ describe("CompressedVideoController", () => {
     expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback"]);
     expect(
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
-    ).toEqual([false]);
+    ).toEqual([true]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2])).toEqual([
+      expect.objectContaining({ decodeMode: "playback" }),
+    ]);
   });
 
   it("continues playback decoding from the previous successful target in the same GOP", async () => {
@@ -194,6 +200,59 @@ describe("CompressedVideoController", () => {
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [20_000_000n],
+    ]);
+  });
+
+  it("continues playback decoding from the actual displayed intermediate frame", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const middle = makeVideoMessage(10_000_000n, "delta");
+    const target = makeVideoMessage(20_000_000n, "delta");
+    const nextTarget = makeVideoMessage(30_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async () => {
+      if (displayFrames.mock.calls.length === 1) {
+        return { ok: true, decodedFrame: middle };
+      }
+      return { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(middle);
+    controller.processMessage(target);
+    await flushAsyncWork();
+
+    controller.processMessage(nextTarget);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [20_000_000n, 30_000_000n],
+    ]);
+  });
+
+  it("skips complete intermediate GOPs when chasing the latest playback target", async () => {
+    const firstKeyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const skippedKeyframe = makeVideoMessage(20_000_000n, "key");
+    const skippedDelta = makeVideoMessage(30_000_000n, "delta");
+    const latestKeyframe = makeVideoMessage(40_000_000n, "key");
+    const latestTarget = makeVideoMessage(50_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(firstKeyframe);
+    controller.processMessage(firstDelta);
+    controller.processMessage(skippedKeyframe);
+    controller.processMessage(skippedDelta);
+    controller.processMessage(latestKeyframe);
+    controller.processMessage(latestTarget);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [40_000_000n, 50_000_000n],
     ]);
   });
 
@@ -282,6 +341,9 @@ describe("CompressedVideoController", () => {
       250,
     ]);
     expect(nonResetCalls(displayFrames).map((call) => call[2]?.anyFrameTimeoutMs)).toEqual([500]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2])).toEqual([
+      expect.objectContaining({ decodeMode: "playback" }),
+    ]);
   });
 
   it("continues playback after a superseded target that still decoded successfully", async () => {
@@ -346,6 +408,14 @@ describe("CompressedVideoController", () => {
       "playback",
       "playback",
       "playback",
+    ]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false, false, false]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2])).toEqual([
+      expect.objectContaining({ decodeMode: "exact" }),
+      expect.objectContaining({ decodeMode: "exact" }),
+      expect.objectContaining({ decodeMode: "exact" }),
     ]);
   });
 

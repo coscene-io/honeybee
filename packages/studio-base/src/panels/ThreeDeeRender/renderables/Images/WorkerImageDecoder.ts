@@ -19,9 +19,12 @@ export type DecodeVideoFrameInput = {
   receiveTime: bigint;
 };
 
+export type DecodeVideoFramesMode = "exact" | "playback";
+
 export type DecodeVideoFramesArgs = {
   frames: DecodeVideoFrameInput[];
   requestId: number;
+  mode?: DecodeVideoFramesMode;
   targetFrameTimeoutMs?: number;
   anyFrameTimeoutMs?: number;
 };

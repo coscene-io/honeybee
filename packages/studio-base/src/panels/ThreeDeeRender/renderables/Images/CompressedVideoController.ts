@@ -224,7 +224,11 @@ export class CompressedVideoController {
       // A seek replay target provider is active (synchronized display): every frame must reach
       // the synchronization state so image/annotation sets stay frame-accurate. Bypass the
       // playback conflation used for load shedding.
-      void this.#displayReplayFrames([normalizedEvent], this.#generation, "playback", options);
+      void this.#displayReplayFrames([normalizedEvent], this.#generation, "playback", {
+        ...options,
+        decodeMode: "exact",
+        allowIntermediateVideoFrame: false,
+      });
       return;
     }
     this.#queuePlaybackTarget(normalizedEvent, options);
@@ -468,7 +472,7 @@ export class CompressedVideoController {
           result.staleTargetDecoded === true &&
           this.#isCurrentGeneration(target.generation))
       ) {
-        this.#recordPlaybackDecoderProgress(frames, target);
+        this.#recordPlaybackDecoderProgress(frames, target, result);
       } else if (result.reason === "failed") {
         this.#state.playbackDecoderProgress = undefined;
       }
@@ -484,7 +488,8 @@ export class CompressedVideoController {
     const upstreamGuard = target.options?.isVideoFrameRequestCurrent;
     return {
       ...target.options,
-      allowIntermediateVideoFrame: false,
+      decodeMode: "playback",
+      allowIntermediateVideoFrame: true,
       targetFrameTimeoutMs:
         target.options?.targetFrameTimeoutMs ?? PLAYBACK_TARGET_FRAME_TIMEOUT_MS,
       anyFrameTimeoutMs: target.options?.anyFrameTimeoutMs ?? PLAYBACK_ANY_FRAME_TIMEOUT_MS,
@@ -528,7 +533,11 @@ export class CompressedVideoController {
     return nextFrames;
   }
 
-  #recordPlaybackDecoderProgress(frames: readonly MessageEvent[], target: PlaybackTarget): void {
+  #recordPlaybackDecoderProgress(
+    frames: readonly MessageEvent[],
+    target: PlaybackTarget,
+    result: ImageSetImageResult,
+  ): void {
     const firstFrame = frames[0];
     if (firstFrame == undefined || !this.#isCurrentGeneration(target.generation)) {
       return;
@@ -542,7 +551,9 @@ export class CompressedVideoController {
     this.#state.playbackDecoderProgress = {
       generation: target.generation,
       keyframeReceiveTimeNs: toNanoSec(keyframe.receiveTime),
-      decodedThroughReceiveTimeNs: toNanoSec(target.messageEvent.receiveTime),
+      decodedThroughReceiveTimeNs: toNanoSec(
+        result.decodedFrame?.receiveTime ?? target.messageEvent.receiveTime,
+      ),
     };
   }
 
@@ -1204,7 +1215,7 @@ function displayOptionsForMode(
   if (mode === "playback") {
     return options;
   }
-  return { ...options, allowIntermediateVideoFrame: false };
+  return { ...options, decodeMode: "exact", allowIntermediateVideoFrame: false };
 }
 
 /** Collect every video frame on `topic` with a receive time within `[startTime, endTime]`. */

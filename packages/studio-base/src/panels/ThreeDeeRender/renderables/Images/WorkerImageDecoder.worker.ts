@@ -31,9 +31,12 @@ export type DecodeVideoFrameInput = {
   receiveTime: bigint;
 };
 
+export type DecodeVideoFramesMode = "exact" | "playback";
+
 export type DecodeVideoFramesArgs = {
   frames: DecodeVideoFrameInput[];
   requestId: number;
+  mode?: DecodeVideoFramesMode;
   targetFrameTimeoutMs?: number;
   anyFrameTimeoutMs?: number;
 };
@@ -182,6 +185,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
   const {
     frames,
     requestId,
+    mode = "exact",
     targetFrameTimeoutMs = TARGET_FRAME_TIMEOUT_MS,
     anyFrameTimeoutMs = ANY_FRAME_TIMEOUT_MS,
   } = args;
@@ -273,11 +277,13 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     const targetOriginalTimestamp =
       queuedFrames[queuedFrames.length - 1]!.metadata.originalTimestamp;
     const targetReceiveTime = queuedFrames[queuedFrames.length - 1]!.metadata.receiveTime;
-    pendingTargetFrame = {
-      requestId,
-      originalTimestamp: targetOriginalTimestamp,
-      receiveTime: targetReceiveTime,
-    };
+    if (mode === "exact") {
+      pendingTargetFrame = {
+        requestId,
+        originalTimestamp: targetOriginalTimestamp,
+        receiveTime: targetReceiveTime,
+      };
+    }
     let latestFrame:
       | {
           frame: VideoFrame;
@@ -329,6 +335,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       player.queueFrames(queuedFrames, (decodedFrame) => {
         if (batchState.finished || batchState.aborted) {
           if (
+            mode !== "exact" ||
             !retainOrResolveTargetFrame(requestId, {
               frame: decodedFrame.frame,
               ...decodedFrame.metadata,

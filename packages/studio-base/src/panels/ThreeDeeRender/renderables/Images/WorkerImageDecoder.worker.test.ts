@@ -314,6 +314,37 @@ describe("WorkerImageDecoder worker video batches", () => {
     expect((targetFrame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
   });
 
+  it("does not retain an exact target after returning a playback intermediate frame", async () => {
+    const resultPromise = service.decodeVideoFrames({
+      requestId: 1,
+      mode: "playback",
+      targetFrameTimeoutMs: 0,
+      anyFrameTimeoutMs: 1000,
+      frames: [
+        { frame: h264Frame(1, "key"), receiveTime: 10n },
+        { frame: h264Frame(2, "delta"), receiveTime: 20n },
+      ],
+    });
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const player = mockVideoPlayers[0]!;
+    const intermediateFrame = emitQueuedFrame(player, 0);
+    await expect(resultPromise).resolves.toMatchObject({
+      type: "IntermediateFrame",
+      originalTimestamp: 1_000_000_000n,
+      receiveTime: 10n,
+    });
+    expect((intermediateFrame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
+
+    await expect(service.awaitTargetFrame({ requestId: 1 })).resolves.toEqual({
+      type: "Aborted",
+      requestId: 1,
+    });
+    const targetFrame = emitQueuedFrame(player, 1);
+    expect((targetFrame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+  });
+
   it("aborts pending awaitTargetFrame on decoder reset", async () => {
     const resultPromise = service.decodeVideoFrames({
       requestId: 1,
