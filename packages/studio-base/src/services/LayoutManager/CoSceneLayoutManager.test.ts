@@ -1157,6 +1157,42 @@ describe("CoSceneLayoutManager", () => {
     });
   });
 
+  it("deletes stale offline backups when a remote personal layout is deleted", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const id = layoutId("users/u/layouts/1");
+    remoteStorage.layouts.set(
+      id,
+      makeRemoteLayout({
+        id,
+        name: "Primary old",
+        data: layoutData("primary-old"),
+        savedAt: ts("2024-01-01T00:00:00.000Z"),
+        updatedAt: ts("2024-01-01T00:00:00.000Z"),
+      }),
+    );
+    const manager = makeManager({ localStorage, remoteStorage });
+    const cachedPrimary = await manager.getLayout({ id });
+    expect(cachedPrimary?.baseline.data).toEqual(layoutData("primary-old"));
+    await localStorage.put(
+      CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+      makeLocalLayout({
+        id,
+        name: "Backup older",
+        data: layoutData("backup-older"),
+        savedAt: ts("2023-12-31T00:00:00.000Z"),
+        updatedAt: ts("2023-12-31T00:00:00.000Z"),
+      }),
+    );
+    remoteStorage.layouts.clear();
+
+    await manager.syncWithRemote(new AbortController().signal);
+
+    expect(
+      await localStorage.get(CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE, id),
+    ).toBeUndefined();
+  });
+
   it("marks a remotely deleted project layout with working data and preserves the draft", async () => {
     const localStorage = new MemoryLayoutStorage();
     const remoteStorage = new MemoryRemoteLayoutStorage();

@@ -900,7 +900,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               break;
             }
             if (
-              !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout) ||
+              (options.backupPersonalOnly !== true &&
+                !localLayoutSyncSnapshotMatches(localLayout, operation.localLayout)) ||
               localLayout.syncInfo?.status === "updated"
             ) {
               break;
