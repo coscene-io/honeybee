@@ -203,17 +203,21 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
-  it("continues playback decoding from the actual displayed intermediate frame", async () => {
+  it("does not resend frames already submitted to the decoder after an intermediate display", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const middle = makeVideoMessage(10_000_000n, "delta");
     const target = makeVideoMessage(20_000_000n, "delta");
     const nextTarget = makeVideoMessage(30_000_000n, "delta");
+    let resolveFirstDisplay!: (result: ImageSetImageResult) => void;
+    const firstDisplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstDisplay = resolve;
+    });
     const displayFrames = jest.fn<
       Promise<ImageSetImageResult>,
       Parameters<CompressedVideoDisplayFrames>
     >(async () => {
       if (displayFrames.mock.calls.length === 1) {
-        return { ok: true, decodedFrame: middle };
+        return await firstDisplay;
       }
       return { ok: true };
     });
@@ -225,11 +229,37 @@ describe("CompressedVideoController", () => {
     await flushAsyncWork();
 
     controller.processMessage(nextTarget);
+    resolveFirstDisplay({ ok: true, decodedFrame: middle });
     await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n, 20_000_000n],
-      [20_000_000n, 30_000_000n],
+      [30_000_000n],
+    ]);
+  });
+
+  it("retries the latest playback target after displaying an earlier intermediate frame", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(10_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async () => {
+      if (displayFrames.mock.calls.length === 1) {
+        return { ok: true, decodedFrame: keyframe };
+      }
+      return { ok: true, decodedFrame: target };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(target);
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [0n, 10_000_000n],
     ]);
   });
 

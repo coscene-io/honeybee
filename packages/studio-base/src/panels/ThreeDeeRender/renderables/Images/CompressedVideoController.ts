@@ -34,11 +34,9 @@ const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
 
-// Bound how long a playback display can occupy the single in-flight slot. If the worker cannot
-// produce the target frame promptly (e.g. frames were dropped by the keyframe gate after a decoder
-// reset), fail fast so the flush loop can chase the latest pending target instead of stalling
-// behind the worker's default 1s/2s frame timeouts. A failed result clears the recorded decoder
-// progress, so the next flush recovers by replaying the full GOP.
+// Bound how long a playback display can occupy the single in-flight slot. Intermediate results keep
+// the decoder moving and let the flush loop chase the latest pending target instead of stalling
+// behind the worker's default 1s/2s frame timeouts.
 const PLAYBACK_TARGET_FRAME_TIMEOUT_MS = 250;
 const PLAYBACK_ANY_FRAME_TIMEOUT_MS = 500;
 
@@ -78,6 +76,7 @@ type ControllerState = {
   playbackFlushScheduled?: boolean;
   playbackInFlightRequestId?: number;
   playbackDecoderProgress?: PlaybackDecoderProgress;
+  playbackRetryReceiveTimeNs?: bigint;
 };
 
 type PlaybackTarget = {
@@ -403,6 +402,7 @@ export class CompressedVideoController {
     this.#state.pendingPlaybackTarget = undefined;
     this.#state.playbackFlushScheduled = false;
     this.#state.playbackDecoderProgress = undefined;
+    this.#state.playbackRetryReceiveTimeNs = undefined;
   }
 
   #queuePlaybackTarget(
@@ -472,7 +472,8 @@ export class CompressedVideoController {
           result.staleTargetDecoded === true &&
           this.#isCurrentGeneration(target.generation))
       ) {
-        this.#recordPlaybackDecoderProgress(frames, target, result);
+        this.#recordPlaybackDecoderProgress(frames, target);
+        this.#retryPlaybackTargetIfNeeded(target, result);
       } else if (result.reason === "failed") {
         this.#state.playbackDecoderProgress = undefined;
       }
@@ -533,11 +534,7 @@ export class CompressedVideoController {
     return nextFrames;
   }
 
-  #recordPlaybackDecoderProgress(
-    frames: readonly MessageEvent[],
-    target: PlaybackTarget,
-    result: ImageSetImageResult,
-  ): void {
+  #recordPlaybackDecoderProgress(frames: readonly MessageEvent[], target: PlaybackTarget): void {
     const firstFrame = frames[0];
     if (firstFrame == undefined || !this.#isCurrentGeneration(target.generation)) {
       return;
@@ -551,10 +548,35 @@ export class CompressedVideoController {
     this.#state.playbackDecoderProgress = {
       generation: target.generation,
       keyframeReceiveTimeNs: toNanoSec(keyframe.receiveTime),
-      decodedThroughReceiveTimeNs: toNanoSec(
-        result.decodedFrame?.receiveTime ?? target.messageEvent.receiveTime,
-      ),
+      decodedThroughReceiveTimeNs: toNanoSec(target.messageEvent.receiveTime),
     };
+  }
+
+  #retryPlaybackTargetIfNeeded(target: PlaybackTarget, result: ImageSetImageResult): void {
+    if (
+      !result.ok ||
+      result.decodedFrame == undefined ||
+      !this.#isCurrentPlaybackTarget(target) ||
+      this.#state.pendingPlaybackTarget != undefined
+    ) {
+      return;
+    }
+
+    const targetReceiveTimeNs = toNanoSec(target.messageEvent.receiveTime);
+    if (toNanoSec(result.decodedFrame.receiveTime) >= targetReceiveTimeNs) {
+      if (this.#state.playbackRetryReceiveTimeNs === targetReceiveTimeNs) {
+        this.#state.playbackRetryReceiveTimeNs = undefined;
+      }
+      return;
+    }
+
+    if (this.#state.playbackRetryReceiveTimeNs === targetReceiveTimeNs) {
+      return;
+    }
+
+    this.#state.playbackRetryReceiveTimeNs = targetReceiveTimeNs;
+    this.#state.playbackDecoderProgress = undefined;
+    this.#state.pendingPlaybackTarget = target;
   }
 
   #resetDecoderForSeek(generation: number): void {
