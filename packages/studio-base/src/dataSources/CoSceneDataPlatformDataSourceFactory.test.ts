@@ -22,10 +22,12 @@ import {
 import { SHARD_PROFILE_PREFERENCE_STORAGE_KEY } from "../players/IterablePlayer/coScene-shard-manifest/profilePreference";
 
 const mockGetAppConfig = jest.fn();
+const mockGetWebBasePathname = jest.fn();
 
 jest.mock("@foxglove/studio-base/util/appConfig", () => ({
   getAppConfig: () => mockGetAppConfig(),
   getDomainConfig: () => ({ webDomain: "dev.coscene.cn" }),
+  getWebBasePathname: () => mockGetWebBasePathname(),
 }));
 
 jest.mock("@foxglove/studio-base/players/IterablePlayer", () => ({
@@ -45,6 +47,7 @@ describe("buildManifestUrl", () => {
     mockGetAppConfig.mockReturnValue({
       OBJECT_STORAGE_BASE_URL: "mcap.dev.coscene.cn",
     });
+    mockGetWebBasePathname.mockReturnValue("/viz");
     mockIterablePlayer.mockClear();
     mockWorkerIterableSource.mockClear();
     mockWorkerSerializedIterableSource.mockClear();
@@ -101,6 +104,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
     mockGetAppConfig.mockReturnValue({
       OBJECT_STORAGE_BASE_URL: "default-storage.example.com",
     });
+    mockGetWebBasePathname.mockReturnValue("/viz");
     global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     mockIterablePlayer.mockClear();
     mockWorkerIterableSource.mockClear();
@@ -133,6 +137,31 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
       manifestStorageSource,
     });
   }
+
+  it("validates data platform URLs against the configured web base path", () => {
+    const field = new CoSceneDataPlatformDataSourceFactory().formConfig.fields[0]!;
+
+    expect(
+      field.validate("https://dev.coscene.cn/viz?ds=coscene-data-platform&ds.key=example_key"),
+    ).toBeUndefined();
+    expect(
+      field.validate("https://dev.coscene.cn/?ds=coscene-data-platform&ds.key=example_key")
+        ?.message,
+    ).toBe("url pathname must be /viz");
+  });
+
+  it("supports root data platform URLs when the web base path is root", () => {
+    mockGetWebBasePathname.mockReturnValue("/");
+    const field = new CoSceneDataPlatformDataSourceFactory().formConfig.fields[0]!;
+
+    expect(
+      field.validate("https://dev.coscene.cn/?ds=coscene-data-platform&ds.key=example_key"),
+    ).toBeUndefined();
+    expect(
+      field.validate("https://dev.coscene.cn/viz?ds=coscene-data-platform&ds.key=example_key")
+        ?.message,
+    ).toBe("url pathname must be /");
+  });
 
   it("uses OBJECT_STORAGE_BASE_URL by default when checking for a manifest", async () => {
     await initializeFactory();

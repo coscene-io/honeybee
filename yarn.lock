@@ -68,6 +68,215 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@alicloud/credentials@npm:2.4.4":
+  version: 2.4.4
+  resolution: "@alicloud/credentials@npm:2.4.4"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.8.0
+    httpx: ^2.3.3
+    ini: ^1.3.5
+    kitx: ^2.0.0
+  checksum: 32555a22f649a2be95cc1f2221723490cee1e1cbcec3c5acf553dd9fb6cb152d28a814d211f0789ace366dd917fce41544907f545b9eea509d9b6fff2a3decfb
+  languageName: node
+  linkType: hard
+
+"@alicloud/credentials@npm:^2, @alicloud/credentials@npm:^2.4.2":
+  version: 2.4.5
+  resolution: "@alicloud/credentials@npm:2.4.5"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.8.0
+    httpx: ^2.3.3
+    ini: ^1.3.5
+    kitx: ^2.0.0
+  checksum: 7cdd2556be0236c97e3bb1fd16b0a00f7eff4f8174d994b15eeece54c3581b5528efab3dcf16b4c0030a6f1907476c37774fea84f3d78ed1d78ebc121dd2e635
+  languageName: node
+  linkType: hard
+
+"@alicloud/darabonba-array@npm:^0.1.0":
+  version: 0.1.2
+  resolution: "@alicloud/darabonba-array@npm:0.1.2"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.7.1
+  checksum: 1e1a0415aca9e523923093a99287f508a233e3ec4c2a3ee6bbee37b357d6cb08e8995e48ae07898d3758db014b055cd8a7dc8bbd96a062cd905cd9308c1b2c6f
+  languageName: node
+  linkType: hard
+
+"@alicloud/darabonba-encode-util@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "@alicloud/darabonba-encode-util@npm:0.0.1"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.7.1
+    moment: ^2.29.1
+  checksum: ae47f87e20c38de7dbf553691c46e44dc4899b0d487335fdf9cbf01159413792fb15f32a85d531bd9771b15f0f24006cbacea33c60db444771a930d4ba2ee62a
+  languageName: node
+  linkType: hard
+
+"@alicloud/darabonba-encode-util@npm:^0.0.2":
+  version: 0.0.2
+  resolution: "@alicloud/darabonba-encode-util@npm:0.0.2"
+  dependencies:
+    moment: ^2.29.1
+  checksum: 551be46b3419ab79c32a371c7deae3e808f36351ae8e0f69ba619b68a62a6ed9ba45c275cd30933bc91cb75b3f7caf7692aefffdf261324e6999d5afa45e9000
+  languageName: node
+  linkType: hard
+
+"@alicloud/darabonba-map@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "@alicloud/darabonba-map@npm:0.0.1"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.7.1
+  checksum: d0869242c253a9d35ccfeef7e14db1e794287fc9604e9e838461513472e3d9ca9f5f59ddb256eeeaf09971b94fa7612f7f4534abf95f7658419fd3534eea9a77
+  languageName: node
+  linkType: hard
+
+"@alicloud/darabonba-signature-util@npm:^0.0.4":
+  version: 0.0.4
+  resolution: "@alicloud/darabonba-signature-util@npm:0.0.4"
+  dependencies:
+    "@alicloud/darabonba-encode-util": ^0.0.1
+  checksum: 9a8b157a344835ae54c05096dc7c1764c1e77da1b4970db815e84480ff013b66c56654d770a4d2d5c82851b84dee4fa4257828c4492bf2c113734349d179e97b
+  languageName: node
+  linkType: hard
+
+"@alicloud/darabonba-string@npm:^1.0.2":
+  version: 1.0.3
+  resolution: "@alicloud/darabonba-string@npm:1.0.3"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.5.1
+  checksum: e843d635322d7bd66bf794e49de44410b623af86644eac3333833a077a495d5a6d440bb0599123272b47ebbaa18d42c3a25fe2f7e4addfbb09206d5c46ec6f77
+  languageName: node
+  linkType: hard
+
+"@alicloud/endpoint-util@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "@alicloud/endpoint-util@npm:0.0.1"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.5.1
+    kitx: ^2.0.0
+  checksum: fe570e59813f0c5fec4eacd9a8d5c26f282f2af46b96b54d74c8320289d8168e84aba19b515bacec60217256e2d544a65006b6c6cb54b84cc9d316f6cdaeca53
+  languageName: node
+  linkType: hard
+
+"@alicloud/esa20240910@npm:2.43.0":
+  version: 2.43.0
+  resolution: "@alicloud/esa20240910@npm:2.43.0"
+  dependencies:
+    "@alicloud/credentials": ^2.4.2
+    "@alicloud/openapi-core": ^1.0.0
+    "@darabonba/typescript": ^1.0.0
+  checksum: fdc3794376f8b7de8f85c5f851521cad626f779db0d59f1def65c24363fa97476a687e78094383086ffff120158fcab1cb6723fc0651776f26696ff8ee979078
+  languageName: node
+  linkType: hard
+
+"@alicloud/gateway-pop@npm:0.0.6":
+  version: 0.0.6
+  resolution: "@alicloud/gateway-pop@npm:0.0.6"
+  dependencies:
+    "@alicloud/credentials": ^2
+    "@alicloud/darabonba-array": ^0.1.0
+    "@alicloud/darabonba-encode-util": ^0.0.2
+    "@alicloud/darabonba-map": ^0.0.1
+    "@alicloud/darabonba-signature-util": ^0.0.4
+    "@alicloud/darabonba-string": ^1.0.2
+    "@alicloud/endpoint-util": ^0.0.1
+    "@alicloud/gateway-spi": ^0.0.8
+    "@alicloud/openapi-util": ^0.3.2
+    "@alicloud/tea-typescript": ^1.7.1
+    "@alicloud/tea-util": ^1.4.8
+  checksum: d6171b539ff8836cd5e411c36a5b3741da28608d1f128fe80c40cc365db706c2c0130a85ea664422884fa6ac26518ef4788e5d01402087ca9417724f5df4a141
+  languageName: node
+  linkType: hard
+
+"@alicloud/gateway-spi@npm:^0.0.8":
+  version: 0.0.8
+  resolution: "@alicloud/gateway-spi@npm:0.0.8"
+  dependencies:
+    "@alicloud/credentials": ^2
+    "@alicloud/tea-typescript": ^1.7.1
+  checksum: e3726191a0de75608632616b90e9b18dccec9eeb6752ae0eaddeeba391922aed566c2a5851922667a5bbf7158db68ed9c0fb026517dcc1038cf9ca457f8357b1
+  languageName: node
+  linkType: hard
+
+"@alicloud/openapi-client@npm:0.4.15":
+  version: 0.4.15
+  resolution: "@alicloud/openapi-client@npm:0.4.15"
+  dependencies:
+    "@alicloud/credentials": ^2.4.2
+    "@alicloud/gateway-spi": ^0.0.8
+    "@alicloud/openapi-util": ^0.3.2
+    "@alicloud/tea-typescript": ^1.7.1
+    "@alicloud/tea-util": 1.4.9
+    "@alicloud/tea-xml": 0.0.3
+  checksum: 71cf8a96159d9a141e8b8154a0a94672828c0a49843b83a4e041798c69d9de86d03fe4002b23b90c061608e3577ac71bfdd5b2d02ecb65b86fd70c486e9cc4ac
+  languageName: node
+  linkType: hard
+
+"@alicloud/openapi-core@npm:^1.0.0":
+  version: 1.0.7
+  resolution: "@alicloud/openapi-core@npm:1.0.7"
+  dependencies:
+    "@alicloud/credentials": ^2.4.2
+    "@alicloud/gateway-pop": 0.0.6
+    "@alicloud/gateway-spi": ^0.0.8
+    "@darabonba/typescript": ^1.0.2
+  checksum: 3705e332c795a7a89e9449088a67274844e0494e9ef64918a906a80ec5fe624fad924799e87a69ed52c9247cbebf03690f9ab8af0e86139f5e7d6d6af3285ba6
+  languageName: node
+  linkType: hard
+
+"@alicloud/openapi-util@npm:^0.3.2":
+  version: 0.3.3
+  resolution: "@alicloud/openapi-util@npm:0.3.3"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.7.1
+    "@alicloud/tea-util": ^1.3.0
+    kitx: ^2.1.0
+    sm3: ^1.0.3
+  checksum: 2bfd982f8a9ae06cb27f47657c4809fc6d047eae67bbc510dd4571f5e605240a1c06daeae5038804d2b41e09f671a6ce359b5ef89fb361fb54a737a6adfcf497
+  languageName: node
+  linkType: hard
+
+"@alicloud/tea-typescript@npm:^1, @alicloud/tea-typescript@npm:^1.5.1, @alicloud/tea-typescript@npm:^1.7.1, @alicloud/tea-typescript@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "@alicloud/tea-typescript@npm:1.8.0"
+  dependencies:
+    "@types/node": ^12.0.2
+    httpx: ^2.2.6
+  checksum: d67182b5cd608f0b5b14c7c4d9ded807be87ddd7f43d300a7d05af543fe7f9b1423f2288af8c773e9959184a4df01f22232b3c64ac335bea638a142f8260df64
+  languageName: node
+  linkType: hard
+
+"@alicloud/tea-util@npm:1.4.9":
+  version: 1.4.9
+  resolution: "@alicloud/tea-util@npm:1.4.9"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.5.1
+    kitx: ^2.0.0
+  checksum: 2d3dee8f65c54b89fdb8a7410c1ad98194a11f3ac1cd682bc90c35a60920d6dbd7f3fb9160dc262c35654cae0b11d06ce7ed4b46e54b77f0847087516a2dab59
+  languageName: node
+  linkType: hard
+
+"@alicloud/tea-util@npm:^1.3.0, @alicloud/tea-util@npm:^1.4.8":
+  version: 1.4.11
+  resolution: "@alicloud/tea-util@npm:1.4.11"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.5.1
+    "@darabonba/typescript": ^1.0.0
+    kitx: ^2.0.0
+  checksum: e60b2a0de25df257b3e20ec820d730b8672b000fdf74c0aeca90350b5f155516bc6cdb08c8b51ad8862c8260baf5865a13a5622106e943d0b40a316d815a8697
+  languageName: node
+  linkType: hard
+
+"@alicloud/tea-xml@npm:0.0.3":
+  version: 0.0.3
+  resolution: "@alicloud/tea-xml@npm:0.0.3"
+  dependencies:
+    "@alicloud/tea-typescript": ^1
+    "@types/xml2js": ^0.4.5
+    xml2js: ^0.6.0
+  checksum: b1abe8952a9ae6ee657e8dd3d3c0f81ed34fb54d17b87f2d309351082fbe0224abf203d41d4fc6317feb76475322f841bcc14d2bec6a86d74f9239a857352dd2
+  languageName: node
+  linkType: hard
+
 "@ampproject/remapping@npm:^2.2.0":
   version: 2.2.0
   resolution: "@ampproject/remapping@npm:2.2.0"
@@ -3806,6 +4015,20 @@ __metadata:
   version: 3.0.4
   resolution: "@csstools/css-tokenizer@npm:3.0.4"
   checksum: adc6681d3a0d7a75dc8e5ee0488c99ad4509e4810ae45dd6549a2e64a996e8d75512e70bb244778dc0c6ee85723e20eaeea8c083bf65b51eb19034e182554243
+  languageName: node
+  linkType: hard
+
+"@darabonba/typescript@npm:^1.0.0, @darabonba/typescript@npm:^1.0.2":
+  version: 1.0.4
+  resolution: "@darabonba/typescript@npm:1.0.4"
+  dependencies:
+    "@alicloud/tea-typescript": ^1.5.1
+    httpx: ^2.3.2
+    lodash: ^4.17.21
+    moment: ^2.30.1
+    moment-timezone: ^0.5.45
+    xml2js: ^0.6.2
+  checksum: 6d84a2aca042ac9accfee6c0d403c86cecf7c568f802b417410dee0e5a36a2b0a3df7a7e9cea9b9e3bca50b5c3f9829927bc2ddeff7fbd353cb1c313763e259e
   languageName: node
   linkType: hard
 
@@ -9051,6 +9274,15 @@ __metadata:
   dependencies:
     "@types/node": "*"
   checksum: ddefb6ad1671f70ce73b38a5f47f471d4d493864fca7c51f002a86e5993d031294201c5dced6d5018fb8905ad46888d65c7f20dd54fc165910b69f42fba9a6d0
+  languageName: node
+  linkType: hard
+
+"@types/xml2js@npm:^0.4.5":
+  version: 0.4.14
+  resolution: "@types/xml2js@npm:0.4.14"
+  dependencies:
+    "@types/node": "*"
+  checksum: df9f106b9953dcdec7ba3304ebc56d6c2f61d49bf556d600bed439f94a1733f73ca0bf2d0f64330b402191622862d9d6058bab9d7e3dcb5b0fe51ebdc4372aac
   languageName: node
   linkType: hard
 
@@ -16095,6 +16327,10 @@ __metadata:
     "@actions/core": 1.10.1
     "@actions/exec": 1.1.1
     "@actions/tool-cache": 2.0.1
+    "@alicloud/credentials": 2.4.4
+    "@alicloud/esa20240910": 2.43.0
+    "@alicloud/openapi-client": 0.4.15
+    "@alicloud/tea-util": 1.4.9
     "@babel/core": 7.29.7
     "@babel/plugin-transform-explicit-resource-management": 7.29.7
     "@babel/plugin-transform-modules-commonjs": 7.29.7
@@ -16128,6 +16364,7 @@ __metadata:
     globals: 17.6.0
     jest: 30.4.2
     jest-environment-jsdom: 30.4.1
+    jszip: 3.10.1
     license-checker: 25.0.1
     prettier: 3.8.4
     rimraf: 5.0.5
@@ -16377,6 +16614,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"httpx@npm:^2.2.6, httpx@npm:^2.3.2, httpx@npm:^2.3.3":
+  version: 2.3.3
+  resolution: "httpx@npm:2.3.3"
+  dependencies:
+    "@types/node": ^20
+    debug: ^4.1.1
+  checksum: d33b06c21350e52f4fb8f7adac481b561f55aca20dc509db1377698b6b89baf6cbeb159511575f916895ce8951cc807947062c0c1547622417c6f8166a8270fa
+  languageName: node
+  linkType: hard
+
 "human-signals@npm:^2.1.0":
   version: 2.1.0
   resolution: "human-signals@npm:2.1.0"
@@ -16604,7 +16851,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ini@npm:^1.3.4":
+"ini@npm:^1.3.4, ini@npm:^1.3.5":
   version: 1.3.8
   resolution: "ini@npm:1.3.8"
   checksum: dfd98b0ca3a4fc1e323e38a6c8eb8936e31a97a918d3b377649ea15bdb15d481207a0dda1021efbd86b464cae29a0d33c1d7dcaf6c5672bee17fa849bc50a1b3
@@ -18236,6 +18483,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"kitx@npm:^2.0.0, kitx@npm:^2.1.0":
+  version: 2.2.0
+  resolution: "kitx@npm:2.2.0"
+  dependencies:
+    "@types/node": ^22.5.4
+  checksum: 9732435a39fdea377334a3019a4bfa8ac5fd1fc0ac182559cd346d0b0552936a4ea94f1fa491ec88c848823c7d1a5ec3911d9cb608a81dec0c053493a09abc17
+  languageName: node
+  linkType: hard
+
 "launch-editor@npm:^2.6.1":
   version: 2.9.1
   resolution: "launch-editor@npm:2.9.1"
@@ -19567,7 +19823,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moment@npm:2.30.1":
+"moment-timezone@npm:^0.5.45":
+  version: 0.5.48
+  resolution: "moment-timezone@npm:0.5.48"
+  dependencies:
+    moment: ^2.29.4
+  checksum: 8a350b30205cc06aa9c029643316f4c0d538e76a3f7a92d74a3214d602377db2a1f8b7719debd4eb3e1fa1bac3de1912c1b94182af4e12810513670b578c84ab
+  languageName: node
+  linkType: hard
+
+"moment@npm:2.30.1, moment@npm:^2.29.1, moment@npm:^2.30.1":
   version: 2.30.1
   resolution: "moment@npm:2.30.1"
   checksum: 859236bab1e88c3e5802afcf797fc801acdbd0ee509d34ea3df6eea21eb6bcc2abd4ae4e4e64aa7c986aa6cba563c6e62806218e6412a765010712e5fa121ba6
@@ -22527,6 +22792,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sax@npm:>=0.6.0":
+  version: 1.6.0
+  resolution: "sax@npm:1.6.0"
+  checksum: 83ae2a17f524bd35b1b7d1c867700b1fab41e4cbb4f7635b7e66398421e06ff2cd43ec651c151cb99c67c3681ec7d0493cb6a98fd2e7799ea15b5d0a4615f870
+  languageName: node
+  linkType: hard
+
 "sax@npm:^1.2.4":
   version: 1.4.1
   resolution: "sax@npm:1.4.1"
@@ -23002,6 +23274,13 @@ __metadata:
   version: 1.1.6
   resolution: "slide@npm:1.1.6"
   checksum: 5768635d227172e215b7a1a91d32f8781f5783b4961feaaf3d536bbf83cc51878928c137508cde7659fea6d7c04074927cab982731302771ee0051518ff24896
+  languageName: node
+  linkType: hard
+
+"sm3@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "sm3@npm:1.0.3"
+  checksum: d476968485c71e7f489532c0c49e03f3877fcc05406c87a1a2ecc9c23383cc36a2d1e7f2254c0dac473344445e134ed7aaca7489fa6f628a92fd1a706321ca3e
   languageName: node
   linkType: hard
 
@@ -25894,6 +26173,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"xml2js@npm:^0.6.0, xml2js@npm:^0.6.2":
+  version: 0.6.2
+  resolution: "xml2js@npm:0.6.2"
+  dependencies:
+    sax: ">=0.6.0"
+    xmlbuilder: ~11.0.0
+  checksum: 458a83806193008edff44562c0bdb982801d61ee7867ae58fd35fab781e69e17f40dfeb8fc05391a4648c9c54012066d3955fe5d993ffbe4dc63399023f32ac2
+  languageName: node
+  linkType: hard
+
 "xmlbuilder2@npm:^3.0.2":
   version: 3.1.1
   resolution: "xmlbuilder2@npm:3.1.1"
@@ -25910,6 +26199,13 @@ __metadata:
   version: 15.1.1
   resolution: "xmlbuilder@npm:15.1.1"
   checksum: 14f7302402e28d1f32823583d121594a9dca36408d40320b33f598bd589ca5163a352d076489c9c64d2dc1da19a790926a07bf4191275330d4de2b0d85bb1843
+  languageName: node
+  linkType: hard
+
+"xmlbuilder@npm:~11.0.0":
+  version: 11.0.1
+  resolution: "xmlbuilder@npm:11.0.1"
+  checksum: 7152695e16f1a9976658215abab27e55d08b1b97bca901d58b048d2b6e106b5af31efccbdecf9b07af37c8377d8e7e821b494af10b3a68b0ff4ae60331b415b0
   languageName: node
   linkType: hard
 

@@ -79,7 +79,7 @@ export const openDialog = {
   coSceneDataPlatform: "coScene Data Platform",
   coSceneDataPlatformDesc: "Paste the platform visualization page link to play data in coStudio",
   onlySupportDomain: "Only support {{domain}} domain now",
-  urlPathnameMustBeViz: "url pathname must be /viz",
+  urlPathnameMustBeViz: "url pathname must be {{path}}",
   dataSourceMustBeCosSceneDataPlatform: "data source must be coScene Data Platform",
   dataSourceParamsKeyIsRequired: "url must contain key parameter",
   pleaseLoginFirst: "Please login first",
