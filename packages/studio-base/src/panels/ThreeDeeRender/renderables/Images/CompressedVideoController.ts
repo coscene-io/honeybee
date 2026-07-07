@@ -538,23 +538,27 @@ export class CompressedVideoController {
   }
 
   #recordPlaybackDecoderProgress(frames: readonly MessageEvent[], target: PlaybackTarget): void {
+    this.#recordPlaybackDecoderProgressThroughFrames(frames, target.generation);
+  }
+
+  #recordPlaybackDecoderProgressThroughFrames(
+    frames: readonly MessageEvent[],
+    generation: number,
+  ): void {
     const firstFrame = frames[0];
     const lastFrame = frames[frames.length - 1];
     if (
       firstFrame == undefined ||
       lastFrame == undefined ||
-      !this.#isCurrentGeneration(target.generation)
+      !this.#isCurrentGeneration(generation)
     ) {
       return;
     }
 
-    const gopFrames = this.#cache.framesForReceiveTime(
-      this.#topic,
-      target.messageEvent.receiveTime,
-    );
+    const gopFrames = this.#cache.framesForReceiveTime(this.#topic, lastFrame.receiveTime);
     const keyframe = gopFrames?.[0] ?? firstFrame;
     this.#state.playbackDecoderProgress = {
-      generation: target.generation,
+      generation,
       keyframeReceiveTimeNs: toNanoSec(keyframe.receiveTime),
       queuedThroughReceiveTimeNs: toNanoSec(lastFrame.receiveTime),
     };
@@ -948,6 +952,7 @@ export class CompressedVideoController {
 
       if (ok) {
         this.#recordLastDisplayedPublishTime(frames);
+        this.#recordPlaybackDecoderProgressThroughFrames(frames, generation);
         this.#renderer.queueAnimationFrame();
         const targetFrame = frames[frames.length - 1];
         const targetReceiveTimeNs =

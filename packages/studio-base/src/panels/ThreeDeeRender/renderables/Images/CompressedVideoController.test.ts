@@ -213,6 +213,41 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("continues long cached playback GOPs after intermediate batch results", async () => {
+    const frameIntervalNs = 33_000_000n;
+    const frames = Array.from({ length: 8 }, (_, index) =>
+      makeVideoMessage(BigInt(index) * frameIntervalNs, index === 0 ? "key" : "delta"),
+    );
+    const displayedFrameIndexes = [1, 4, 7] as const;
+    let displayCallIndex = 0;
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (): Promise<ImageSetImageResult> => {
+      const frameIndex = displayedFrameIndexes[displayCallIndex++];
+      const decodedFrame = frameIndex != undefined ? frames[frameIndex] : undefined;
+      return decodedFrame != undefined
+        ? { ok: true, decodedFrame }
+        : { ok: false, reason: "failed" };
+    });
+    const controller = makeController({ displayFrames });
+
+    for (const frame of frames) {
+      controller.processMessage(frame);
+    }
+    for (let i = 0; i < 5; i++) {
+      await flushAsyncWork();
+    }
+
+    expect(
+      nonResetCalls(displayFrames).map(([displayedFrames]) => frameReceiveTimes(displayedFrames)),
+    ).toEqual([
+      [0n, 33_000_000n, 66_000_000n],
+      [99_000_000n, 132_000_000n, 165_000_000n],
+      [198_000_000n, 231_000_000n],
+    ]);
+  });
+
   it("continues playback decoding from the previous successful target in the same GOP", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const middle = makeVideoMessage(10_000_000n, "delta");
@@ -1147,7 +1182,7 @@ describe("CompressedVideoController", () => {
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n, 20_000_000n],
       [0n, 10_000_000n, 20_000_000n, 30_000_000n],
-      [0n, 10_000_000n, 20_000_000n],
+      [40_000_000n],
     ]);
     expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
       "seek",
