@@ -26,7 +26,7 @@ const assetsPath = path.resolve(
 );
 const siteId = process.env.ESA_SITE_ID ? Number(process.env.ESA_SITE_ID) : undefined;
 const routeName = process.env.ESA_ROUTE_NAME ?? "viz-coscene-cn";
-const routeRule = process.env.ESA_ROUTE_RULE ?? "viz.coscene.cn/*";
+const routeRule = process.env.ESA_ROUTE_RULE ?? '(http.host eq "viz.coscene.cn")';
 const esaDomain = process.env.ESA_DOMAIN ?? "viz.coscene.cn";
 
 function log(message) {
