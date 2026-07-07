@@ -1,0 +1,87 @@
+name: deploy-cloudflare-pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: Cloudflare Pages project name
+        required: true
+        default: honeybee-viz
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy web
+    runs-on: gcp
+    environment: saas
+    timeout-minutes: 30
+
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PAGES_PROJECT_NAME: ${{ inputs.project_name }}
+      CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
+      HONEYBEE_WEB_PUBLIC_PATH: /
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Validate deployment configuration
+        run: |
+          set -euo pipefail
+          : "${GH_PACKAGES_ORG_TOKEN:?GH_PACKAGES_ORG_TOKEN secret is required}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID secret is required}"
+          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN secret is required}"
+          : "${CLOUDFLARE_PAGES_PROJECT_NAME:?Cloudflare Pages project name is required}"
+          : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Enable corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Set cos config file
+        run: |
+          set -euo pipefail
+          curl -fsSL "${CONFIG_FILE_URL}" -o packages/studio-web/public/cos-config.js
+
+      - name: Build web production files
+        run: yarn run web:build:prod
+
+      - name: Validate web artifacts
+        run: |
+          set -euo pipefail
+          test -s web/.webpack/index.html
+          find web/.webpack -type f -name '*.js' -print -quit | grep -q .
+          if grep -q '/viz/cos-config.js' web/.webpack/index.html; then
+            echo "index.html still references /viz/cos-config.js"
+            exit 1
+          fi
+          grep -q '/cos-config.js' web/.webpack/index.html
+
+      - name: Set Cloudflare Pages redirects
+        run: printf '/* /index.html 200\n' > web/.webpack/_redirects
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/.webpack --project-name=${{ inputs.project_name }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
