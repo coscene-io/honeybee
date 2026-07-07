@@ -40,10 +40,10 @@ function assertRequiredEnv(name) {
 }
 
 function configureAliyunCredentials() {
-  assertRequiredEnv("ACK_ACCESS_KEY_ID");
-  assertRequiredEnv("ACK_ACCESS_KEY_SECRET");
-  process.env.ALIBABA_CLOUD_ACCESS_KEY_ID = process.env.ACK_ACCESS_KEY_ID;
-  process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET = process.env.ACK_ACCESS_KEY_SECRET;
+  assertRequiredEnv("ESA_ACCESS_KEY");
+  assertRequiredEnv("ESA_SECRET_KEY");
+  process.env.ALIBABA_CLOUD_ACCESS_KEY_ID = process.env.ESA_ACCESS_KEY;
+  process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET = process.env.ESA_SECRET_KEY;
 }
 
 function formatError(error) {
