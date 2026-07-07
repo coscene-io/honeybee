@@ -78,6 +78,10 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isErServiceEnabled(status) {
+  return ["online", "running"].includes((status ?? "").toLowerCase());
+}
+
 function createClient() {
   const credential = new Credential.default();
   const config = new OpenApi.Config({
@@ -90,16 +94,23 @@ function createClient() {
 
 async function ensureServiceEnabled(client) {
   const status = await client.getErService(new Esa20240910.GetErServiceRequest({}));
-  if (status.body?.status === "online") {
-    log("Edge Routine service is online.");
+  if (isErServiceEnabled(status.body?.status)) {
+    log(`Edge Routine service is ${status.body.status}.`);
     return;
   }
 
   log(`Edge Routine service status is ${status.body?.status ?? "(unknown)"}; enabling...`);
-  await client.openErService(new Esa20240910.OpenErServiceRequest({}));
+  try {
+    await client.openErService(new Esa20240910.OpenErServiceRequest({}));
+  } catch (error) {
+    if (getErrorCode(error) !== "ErService.HasOpened") {
+      throw error;
+    }
+    log("Edge Routine service is already activated.");
+  }
 
   const recheck = await client.getErService(new Esa20240910.GetErServiceRequest({}));
-  if (recheck.body?.status !== "online") {
+  if (!isErServiceEnabled(recheck.body?.status)) {
     throw new Error(
       `Failed to enable Edge Routine service; current status is ${
         recheck.body?.status ?? "(unknown)"
