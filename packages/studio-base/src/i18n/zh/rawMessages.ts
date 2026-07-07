@@ -13,6 +13,8 @@ export const rawMessages: Partial<TypeOptions["resources"]["rawMessages"]> = {
   collapseAll: "全部折叠",
   previousFrame: "上一帧（↑）",
   nextFrame: "下一帧（↓）",
+  noPreviousMatchingFrame: "未找到上一条匹配帧",
+  noNextMatchingFrame: "未找到下一条匹配帧",
   diffMethod: "对比方式",
   previousMessage: "上一条消息",
   custom: "自定义",

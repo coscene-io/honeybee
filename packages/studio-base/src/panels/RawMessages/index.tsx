@@ -17,6 +17,7 @@
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ReactHoverObserver from "react-hover-observer";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
@@ -94,6 +95,7 @@ function RawMessages(props: Props) {
     palette: { mode: themePreference },
   } = useTheme();
   const { classes } = useStyles();
+  const { t } = useTranslation("rawMessages");
   const jsonTreeTheme = useJsonTreeTheme();
   const { config, saveConfig } = props;
   const { openSiblingPanel } = usePanelContext();
@@ -114,7 +116,12 @@ function RawMessages(props: Props) {
     keyDownHandlers,
     keyUpHandlers,
     panelRef,
-  } = useFrameNavigation();
+    isFrameNavigationPending,
+  } = useFrameNavigation({
+    path: topicPath,
+    noPreviousFrameMessage: t("noPreviousMatchingFrame"),
+    noNextFrameMessage: t("noNextMatchingFrame"),
+  });
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -729,6 +736,7 @@ function RawMessages(props: Props) {
           onNextFrame={() => {
             handleNextFrame(matchedMessages);
           }}
+          frameNavigationDisabled={isFrameNavigationPending}
           saveConfig={saveConfig}
           topicPath={topicPath}
         />

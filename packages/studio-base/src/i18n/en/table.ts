@@ -8,6 +8,8 @@
 export const table = {
   previousFrame: "Previous frame (↑)",
   nextFrame: "Next frame (↓)",
+  noPreviousMatchingFrame: "No previous matching frame found",
+  noNextMatchingFrame: "No next matching frame found",
   noTopicSelected: "No topic selected",
   waitingForNextMessage: "Waiting for next message…",
 };

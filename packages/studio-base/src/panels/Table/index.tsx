@@ -80,7 +80,12 @@ function TablePanel({ config, saveConfig }: Props) {
     keyDownHandlers,
     keyUpHandlers,
     panelRef,
-  } = useFrameNavigation();
+    isFrameNavigationPending,
+  } = useFrameNavigation({
+    path: topicPath,
+    noPreviousFrameMessage: t("noPreviousMatchingFrame"),
+    noNextFrameMessage: t("noNextMatchingFrame"),
+  });
 
   const messageDataItems = useMessageDataItem(topicPath ? topicPath : "", {
     historySize: "all",
@@ -136,6 +141,7 @@ function TablePanel({ config, saveConfig }: Props) {
               className={classes.iconButton}
               title={t("previousFrame")}
               onClick={handlePreviousFrame}
+              disabled={isFrameNavigationPending}
               data-testid="previous-frame"
               size="small"
             >
@@ -149,6 +155,7 @@ function TablePanel({ config, saveConfig }: Props) {
               onClick={() => {
                 handleNextFrame(messageDataItems);
               }}
+              disabled={isFrameNavigationPending}
               data-testid="next-frame"
               size="small"
             >

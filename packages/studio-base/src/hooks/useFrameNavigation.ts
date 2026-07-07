@@ -5,15 +5,29 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useSnackbar } from "notistack";
 import { v4 as uuidv4 } from "uuid";
 
-import { compare, Time } from "@foxglove/rostime";
-import { MessageAndData } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
+import { compare } from "@foxglove/rostime";
+import type { Time } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import {
+  findAdjacentMessagePathMatch,
+  type FrameNavigationDirection,
+} from "@foxglove/studio-base/components/MessagePathSyntax/findAdjacentMessagePathMatch";
+import {
+  type MessageAndData,
+  useCachedGetMessagePathDataItems,
+} from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import {
   useMessagePipeline,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
+import AppConfigurationContext, {
+  type AppConfigurationValue,
+} from "@foxglove/studio-base/context/AppConfigurationContext";
 
 // Maximum number of rendered time entries to keep in memory
 const MAX_RENDERED_TIME_ARRAY_LENGTH = 1000;
@@ -22,6 +36,8 @@ const MAX_RENDERED_TIME_ARRAY_LENGTH = 1000;
 const selectSeekPlayback = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectStartPlayback = (ctx: MessagePipelineContext) => ctx.startPlayback;
 const selectPausePlayback = (ctx: MessagePipelineContext) => ctx.pausePlayback;
+const selectSubscribeMessageRange = (ctx: MessagePipelineContext) => ctx.subscribeMessageRange;
+const selectActiveData = (ctx: MessagePipelineContext) => ctx.playerState.activeData;
 
 // 所有使用 useFrameNavigation 的 hook 共享一个通知器，避免多个面板同时进行帧导航时，互相影响
 // 用于通知 onRestore 的调用是由其他面板的 previous/next 按钮触发的, 而不是用户的手动 seek
@@ -79,19 +95,66 @@ export interface FrameNavigationHook {
   keyUpHandlers: KeyHandlers;
   /** Ref to attach to panel container for focus detection */
   panelRef: React.RefObject<HTMLDivElement>;
+  isFrameNavigationPending: boolean;
+}
+
+type UseFrameNavigationOptions = {
+  readonly path?: string;
+  readonly noPreviousFrameMessage?: string;
+  readonly noNextFrameMessage?: string;
+};
+
+function getPositiveRequestWindow(value: AppConfigurationValue): number | undefined {
+  return typeof value === "number" && value > 0 ? value : undefined;
 }
 
 /**
  * Hook for frame navigation functionality (Previous/Next Frame)
  * Extracted from RawMessages panel for reuse across panels
  */
-export function useFrameNavigation(): FrameNavigationHook {
+export function useFrameNavigation(options: UseFrameNavigationOptions = {}): FrameNavigationHook {
+  const {
+    path = "",
+    noPreviousFrameMessage = "No previous matching frame found",
+    noNextFrameMessage = "No next matching frame found",
+  } = options;
   // Player control hooks
   const seekPlayback = useMessagePipeline(selectSeekPlayback);
   const startPlayback = useMessagePipeline(selectStartPlayback);
   const pausePlayback = useMessagePipeline(selectPausePlayback);
+  const subscribeMessageRange = useMessagePipeline(selectSubscribeMessageRange);
+  const activeData = useMessagePipeline(selectActiveData);
+  const getMessagePathDataItems = useCachedGetMessagePathDataItems(path.length > 0 ? [path] : []);
+  const { enqueueSnackbar } = useSnackbar();
+  const appConfiguration = useContext(AppConfigurationContext);
 
   const [hasPreFrame, setHasPreFrame] = useState(false);
+  const [isFrameNavigationPending, setIsFrameNavigationPending] = useState(false);
+  const [requestWindow, setRequestWindow] = useState<number | undefined>(() =>
+    getPositiveRequestWindow(appConfiguration?.get(AppSetting.REQUEST_WINDOW)),
+  );
+
+  useEffect(() => {
+    if (appConfiguration == undefined) {
+      setRequestWindow(undefined);
+      return;
+    }
+
+    const onRequestWindowChange = (value: AppConfigurationValue) => {
+      setRequestWindow(getPositiveRequestWindow(value));
+    };
+    setRequestWindow(getPositiveRequestWindow(appConfiguration.get(AppSetting.REQUEST_WINDOW)));
+    appConfiguration.addChangeListener(AppSetting.REQUEST_WINDOW, onRequestWindowChange);
+    return () => {
+      appConfiguration.removeChangeListener(AppSetting.REQUEST_WINDOW, onRequestWindowChange);
+    };
+  }, [appConfiguration]);
+
+  const requestWindowDuration = useMemo((): Time => {
+    return requestWindow != undefined && requestWindow > 0
+      ? { sec: requestWindow, nsec: 0 }
+      : getRequestWindowDefaultTime();
+  }, [requestWindow]);
 
   // Unique identifier for this hook instance
   const navigationId = useRef(uuidv4());
@@ -102,6 +165,7 @@ export function useFrameNavigation(): FrameNavigationHook {
 
   // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
   const frameState = useRef<"previous" | "current" | "next">("current");
+  const activeRangeNavigation = useRef<AbortController | undefined>();
 
   // 记录我们播放过的每一帧的时间戳，方便用户返回上一帧, 这里要注意⚠️ 在连续播放的情况下，用户看到的是渲染帧，比如当前以一秒 60 帧的速度播放，
   // 用户看到的是 1/60 秒这个时间范围内的最后一帧，如果频率很高，那么用户能看到的只占所有数据的很小一部分，但是我们需要记录所有数据的时间戳，
@@ -124,6 +188,19 @@ export function useFrameNavigation(): FrameNavigationHook {
   // Save current messages for keyboard shortcuts
   const currentMessagesRef = useRef<MessageAndData[]>([]);
 
+  const cancelActiveRangeNavigation = useCallback(() => {
+    activeRangeNavigation.current?.abort();
+    activeRangeNavigation.current = undefined;
+  }, []);
+
+  const finishFrameNavigation = useCallback(() => {
+    cancelActiveRangeNavigation();
+    frameState.current = "current";
+    frameNavigationNotifier.endNavigation(navigationId.current);
+    frozenMessagesRef.current = undefined;
+    setIsFrameNavigationPending(false);
+  }, [cancelActiveRangeNavigation]);
+
   // 如果用户是连续播放，我们需要记录播放过的所有消息的时间戳（包括未被展示的消息, 参考 rendedTime 的注释），
   // 但是如果用户手动跳转到一个时间位置，我们需要清空记录
   // 但是上一帧和下一帧的实际上也是一种跳转，所以我们需要一个标记位，来标记这次跳转是产生自用户点击上一帧/下一帧按钮，还是点击进度条跳转的
@@ -140,6 +217,19 @@ export function useFrameNavigation(): FrameNavigationHook {
   // receiving a jump, onRestore then needs to decide whether to clear or keep the record according
   // to the value of frameState
   const onRestore = useCallback(() => {
+    const hadActiveRangeNavigation = activeRangeNavigation.current != undefined;
+    cancelActiveRangeNavigation();
+
+    if (hadActiveRangeNavigation) {
+      frameState.current = "current";
+      frameNavigationNotifier.endNavigation(navigationId.current);
+      frozenMessagesRef.current = undefined;
+      renderedTime.current = [];
+      setHasPreFrame(false);
+      setIsFrameNavigationPending(false);
+      return;
+    }
+
     // 如果有其他面板正在进行帧导航，不处理当前面板的状态
     // If another panel is performing frame navigation, don't handle current panel state
     if (
@@ -162,10 +252,15 @@ export function useFrameNavigation(): FrameNavigationHook {
       // 清除冻结状态，恢复正常显示
       // Clear frozen state and resume normal display
       frozenMessagesRef.current = undefined;
+      setIsFrameNavigationPending(false);
     }
-  }, []);
+  }, [cancelActiveRangeNavigation]);
 
-  const handlePreviousFrame = useCallback(() => {
+  const runFallbackPreviousFrame = useCallback(() => {
+    if (frameState.current !== "current") {
+      return;
+    }
+
     if (renderedTime.current.length > 1) {
       pausePlayback?.();
 
@@ -185,18 +280,22 @@ export function useFrameNavigation(): FrameNavigationHook {
     }
   }, [pausePlayback, seekPlayback]);
 
-  const handleNextFrame = useCallback(
+  const runFallbackNextFrame = useCallback(
     (currentMessages?: MessageAndData[]) => {
       // 防止连续快速点击时重复执行next操作
       // Prevent repeated next operations during rapid clicking
-      if (frameState.current === "next") {
+      if (frameState.current !== "current") {
         return;
+      }
+
+      if (currentMessages) {
+        currentMessagesRef.current = currentMessages;
       }
 
       // 在开始next操作前冻结当前消息数据，避免显示中间帧
       // Freeze current message data before starting next operation to avoid intermediate frames
-      if (currentMessages && currentMessages.length > 0) {
-        frozenMessagesRef.current = [...currentMessages];
+      if (currentMessagesRef.current.length > 0) {
+        frozenMessagesRef.current = [...currentMessagesRef.current];
       }
 
       // 通知开始帧导航
@@ -208,10 +307,148 @@ export function useFrameNavigation(): FrameNavigationHook {
     [startPlayback],
   );
 
+  const runRangeFrameNavigation = useCallback(
+    async (direction: FrameNavigationDirection) => {
+      if (frameState.current !== "current") {
+        return;
+      }
+      if (
+        subscribeMessageRange == undefined ||
+        activeData == undefined ||
+        seekPlayback == undefined ||
+        path.length === 0
+      ) {
+        return;
+      }
+
+      const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
+      const fromTime = latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+      const controller = new AbortController();
+
+      activeRangeNavigation.current = controller;
+      if (currentMessagesRef.current.length > 0) {
+        frozenMessagesRef.current = [...currentMessagesRef.current];
+      }
+      pausePlayback?.();
+      frameNavigationNotifier.startNavigation(navigationId.current);
+      frameState.current = direction;
+      setIsFrameNavigationPending(true);
+
+      const result = await findAdjacentMessagePathMatch({
+        path,
+        direction,
+        fromTime,
+        startTime: activeData.startTime,
+        endTime: activeData.endTime,
+        windowDuration: requestWindowDuration,
+        subscribeMessageRange,
+        getMessagePathDataItems,
+        abortSignal: controller.signal,
+      });
+
+      if (activeRangeNavigation.current !== controller) {
+        return;
+      }
+      activeRangeNavigation.current = undefined;
+
+      switch (result.type) {
+        case "found":
+          seekPlayback(result.message.messageEvent.receiveTime);
+          return;
+        case "notFound":
+          enqueueSnackbar(
+            direction === "previous" ? noPreviousFrameMessage : noNextFrameMessage,
+            { variant: "info" },
+          );
+          finishFrameNavigation();
+          return;
+        case "unsupported":
+          finishFrameNavigation();
+          if (direction === "previous") {
+            runFallbackPreviousFrame();
+          } else {
+            runFallbackNextFrame(currentMessagesRef.current);
+          }
+          return;
+        case "aborted":
+          finishFrameNavigation();
+          return;
+        case "error":
+          enqueueSnackbar(result.error.message, { variant: "error" });
+          finishFrameNavigation();
+          return;
+      }
+    },
+    [
+      activeData,
+      enqueueSnackbar,
+      finishFrameNavigation,
+      getMessagePathDataItems,
+      noNextFrameMessage,
+      noPreviousFrameMessage,
+      path,
+      pausePlayback,
+      requestWindowDuration,
+      runFallbackNextFrame,
+      runFallbackPreviousFrame,
+      seekPlayback,
+      subscribeMessageRange,
+    ],
+  );
+
+  const handlePreviousFrame = useCallback(() => {
+    if (
+      subscribeMessageRange != undefined &&
+      activeData != undefined &&
+      seekPlayback != undefined &&
+      path.length > 0
+    ) {
+      void runRangeFrameNavigation("previous");
+      return;
+    }
+
+    runFallbackPreviousFrame();
+  }, [
+    activeData,
+    path,
+    runFallbackPreviousFrame,
+    runRangeFrameNavigation,
+    seekPlayback,
+    subscribeMessageRange,
+  ]);
+
+  const handleNextFrame = useCallback(
+    (currentMessages?: MessageAndData[]) => {
+      if (currentMessages) {
+        currentMessagesRef.current = currentMessages;
+      }
+
+      if (
+        subscribeMessageRange != undefined &&
+        activeData != undefined &&
+        seekPlayback != undefined &&
+        path.length > 0
+      ) {
+        void runRangeFrameNavigation("next");
+        return;
+      }
+
+      runFallbackNextFrame(currentMessages);
+    },
+    [
+      activeData,
+      path,
+      runFallbackNextFrame,
+      runRangeFrameNavigation,
+      seekPlayback,
+      subscribeMessageRange,
+    ],
+  );
+
   const getEffectiveMessages = useCallback(<T extends MessageAndData[]>(messages: T): T => {
     // 在next状态下使用冻结的消息数据，避免显示中间帧
     // Use frozen message data in next state to avoid showing intermediate frames
-    if (frameState.current === "next" && frozenMessagesRef.current) {
+    if (frameState.current !== "current" && frozenMessagesRef.current) {
       return frozenMessagesRef.current as T;
     }
     return messages;
@@ -226,6 +463,16 @@ export function useFrameNavigation(): FrameNavigationHook {
       currentMessagesRef.current = messages;
 
       if (messages.length === 0) {
+        if (subscribeMessageRange != undefined && activeData != undefined) {
+          setHasPreFrame(compare(activeData.currentTime, activeData.startTime) > 0);
+        }
+        return;
+      }
+
+      if (subscribeMessageRange != undefined && activeData != undefined) {
+        const latestMessage = messages[messages.length - 1];
+        const currentMessageTime = latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+        setHasPreFrame(compare(currentMessageTime, activeData.startTime) > 0);
         return;
       }
 
@@ -235,7 +482,7 @@ export function useFrameNavigation(): FrameNavigationHook {
         return;
       }
 
-      const latestMessage = messages[0];
+      const latestMessage = messages[messages.length - 1];
 
       if (frameState.current === "next" && latestMessage) {
         pausePlayback?.();
@@ -288,7 +535,7 @@ export function useFrameNavigation(): FrameNavigationHook {
         setHasPreFrame(true);
       }
     },
-    [pausePlayback, seekPlayback],
+    [activeData, pausePlayback, seekPlayback, subscribeMessageRange],
   );
 
   // 键盘长按状态管理
@@ -460,9 +707,16 @@ export function useFrameNavigation(): FrameNavigationHook {
   // Clean up timers when component unmounts
   useEffect(() => {
     return () => {
+      cancelActiveRangeNavigation();
       clearRepeatTimers();
     };
-  }, [clearRepeatTimers]);
+  }, [cancelActiveRangeNavigation, clearRepeatTimers]);
+
+  useEffect(() => {
+    finishFrameNavigation();
+    renderedTime.current = [];
+    setHasPreFrame(false);
+  }, [finishFrameNavigation, path]);
 
   return {
     hasPreFrame,
@@ -474,5 +728,6 @@ export function useFrameNavigation(): FrameNavigationHook {
     keyDownHandlers,
     keyUpHandlers,
     panelRef,
+    isFrameNavigationPending,
   };
 }

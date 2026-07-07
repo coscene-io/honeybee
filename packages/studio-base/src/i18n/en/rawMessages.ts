@@ -11,6 +11,8 @@ export const rawMessages = {
   collapseAll: "Collapse all",
   previousFrame: "Previous frame (↑)",
   nextFrame: "Next frame (↓)",
+  noPreviousMatchingFrame: "No previous matching frame found",
+  noNextMatchingFrame: "No next matching frame found",
   diffMethod: "Diff method",
   previousMessage: "Previous message",
   custom: "Custom",
