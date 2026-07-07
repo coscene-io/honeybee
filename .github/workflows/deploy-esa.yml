@@ -23,7 +23,7 @@ jobs:
       ESA_SECRET_KEY: ${{ secrets.ESA_SECRET_KEY }}
       CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
       ESA_SITE_ID: "152922880180456"
-      ESA_ROUTINE_NAME: honeybee-viz-staging
+      ESA_ROUTINE_NAME: honeybee-viz-cn
       HONEYBEE_WEB_PUBLIC_PATH: /
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
