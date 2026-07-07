@@ -69,7 +69,6 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     }
   >();
   #discardQueuedTimestamps = new Set<number>();
-  #decodeQueueWaiters = new Set<() => void>();
 
   // Stores the last decoded frame as an ImageBitmap, should be set after decode()
   public lastImageBitmap: ImageBitmap | undefined;
@@ -190,29 +189,6 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
 
   public decodeQueueSize(): number {
     return this.#decoder.state === "configured" ? this.#decoder.decodeQueueSize : 0;
-  }
-
-  public async waitForDecodeQueueBelow(maxSize: number): Promise<void> {
-    if (this.decodeQueueSize() < maxSize) {
-      return;
-    }
-
-    await new Promise<void>((resolve) => {
-      const decoder = this.#decoder;
-      let finished = false;
-      const check = () => {
-        if (finished || this.decodeQueueSize() >= maxSize) {
-          return;
-        }
-        finished = true;
-        decoder.removeEventListener("dequeue", check);
-        this.#decodeQueueWaiters.delete(check);
-        resolve();
-      };
-      this.#decodeQueueWaiters.add(check);
-      decoder.addEventListener("dequeue", check);
-      check();
-    });
   }
 
   /** Returns the dimensions of the coded video frames, if known. */
@@ -457,12 +433,6 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     this.#queuedByTimestamp.clear();
   }
 
-  #notifyDecodeQueueWaiters(): void {
-    for (const waiter of [...this.#decodeQueueWaiters]) {
-      waiter();
-    }
-  }
-
   /**
    * Reset the VideoDecoder and clear any pending frames, but do not clear any
    * cached stream information or decoder configuration. This should be called
@@ -488,7 +458,6 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
 
     this.#clearPending();
     this.#clearQueued({ discardOutput: true });
-    this.#notifyDecodeQueueWaiters();
 
     // Reset keyframe tracking - need a new keyframe after seek
     this.#foundKeyFrame = false;
@@ -511,7 +480,6 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
 
     this.#clearPending();
     this.#clearQueued({ discardOutput: false });
-    this.#notifyDecodeQueueWaiters();
     this.#foundKeyFrame = false;
   }
 }

@@ -19,12 +19,15 @@ export type DecodeVideoFrameInput = {
   receiveTime: bigint;
 };
 
-export type DecodeVideoFramesMode = "exact" | "playback";
+export type DecodedVideoFrame = {
+  frame: VideoFrame;
+  originalTimestamp: bigint;
+  receiveTime: bigint;
+};
 
 export type DecodeVideoFramesArgs = {
   frames: DecodeVideoFrameInput[];
   requestId: number;
-  mode?: DecodeVideoFramesMode;
   targetFrameTimeoutMs?: number;
   anyFrameTimeoutMs?: number;
 };
@@ -36,14 +39,10 @@ export type DecodeVideoFramesResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
-      queuedThroughReceiveTime?: bigint;
-      queuePressured?: true;
     }
   | {
       type: "Timeout" | "Aborted" | "FrameOutOfOrder";
       requestId: number;
-      queuedThroughReceiveTime?: bigint;
-      queuePressured?: true;
     };
 
 export type AwaitTargetFrameArgs = {
@@ -100,9 +99,10 @@ export class WorkerImageDecoder {
 
   public async decodeVideoFrame(
     frame: CompressedVideo,
-    _firstMessageTime?: bigint,
-  ): Promise<VideoFrame | undefined> {
-    return await this.#remote.decodeVideoFrame(frame);
+    receiveTime: bigint,
+  ): Promise<DecodedVideoFrame | undefined> {
+    await this.#remote.decodeVideoFrame({ frame, receiveTime });
+    return await this.#remote.getLatestVideoFrame();
   }
 
   public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {

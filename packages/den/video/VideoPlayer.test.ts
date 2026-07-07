@@ -181,7 +181,7 @@ describe("VideoPlayer", () => {
     expect(player.getLatestFrame()).toBeUndefined();
   });
 
-  it("reports decoder queue size and resolves when it drops below the requested threshold", async () => {
+  it("reports decoder queue size as frames are decoded", async () => {
     const player = new VideoPlayer();
     await player.init({ codec: "avc1.640028" });
     const decoder = MockVideoDecoder.instances[0]!;
@@ -196,16 +196,7 @@ describe("VideoPlayer", () => {
 
     expect(player.decodeQueueSize()).toBe(2);
 
-    let resolved = false;
-    const waitPromise = player.waitForDecodeQueueBelow(2).then(() => {
-      resolved = true;
-    });
-    await Promise.resolve();
-    expect(resolved).toBe(false);
-
     decoder.emitFrame(10);
-    await waitPromise;
-    expect(resolved).toBe(true);
     expect(player.decodeQueueSize()).toBe(1);
   });
 
