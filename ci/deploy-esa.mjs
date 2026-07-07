@@ -137,7 +137,10 @@ async function createOrVerifyRoutine(client) {
       const code = getErrorCode(error);
       const statusCode = getErrorStatusCode(error);
 
-      if (statusCode === 400 && code === "RoutineNameAlreadyExists") {
+      if (
+        statusCode === 400 &&
+        ["RoutineNameAlreadyExists", "RoutineAlreadyExist"].includes(code)
+      ) {
         log(`ESA routine already exists: ${routineName}`);
         return;
       }
