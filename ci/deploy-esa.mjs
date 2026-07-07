@@ -370,6 +370,90 @@ function getRoutesFromResponse(response) {
   );
 }
 
+function getRouteField(route, field) {
+  const pascalField = `${field[0].toUpperCase()}${field.slice(1)}`;
+  return route[field] ?? route[pascalField];
+}
+
+function getRouteConfigId(route) {
+  const rawConfigId = getRouteField(route, "configId");
+  const configId = typeof rawConfigId === "number" ? rawConfigId : Number(rawConfigId);
+  return Number.isFinite(configId) ? configId : undefined;
+}
+
+function findRoute(routes) {
+  return routes.find((route) => {
+    const existingName = getRouteField(route, "routeName");
+    const existingRule = getRouteField(route, "rule");
+    return existingName === routeName || existingRule === routeRule;
+  });
+}
+
+function validateRouteShape(route) {
+  const existingName = getRouteField(route, "routeName");
+  const existingRule = getRouteField(route, "rule");
+  const existingEnabled = getRouteField(route, "routeEnable");
+  const existingBypass = getRouteField(route, "bypass");
+
+  if (existingName === routeName && existingRule !== routeRule) {
+    throw new Error(
+      `ESA route ${routeName} exists with unexpected rule ${existingRule}; expected ${routeRule}`,
+    );
+  }
+  if (existingEnabled && existingEnabled !== "on") {
+    throw new Error(`ESA route ${existingName} is not enabled; RouteEnable=${existingEnabled}`);
+  }
+  if (existingBypass && existingBypass !== "off") {
+    throw new Error(
+      `ESA route ${existingName} has unexpected Bypass=${existingBypass}; expected off`,
+    );
+  }
+}
+
+async function listSiteRoutes(client) {
+  const routes = [];
+  const pageSize = 500;
+  let pageNumber = 1;
+  let totalPage = 1;
+
+  do {
+    const response = await client.listSiteRoutes(
+      new Esa20240910.ListSiteRoutesRequest({
+        siteId,
+        pageNumber,
+        pageSize,
+      }),
+    );
+    routes.push(...getRoutesFromResponse(response));
+    totalPage = Number(response.body?.totalPage ?? response.body?.TotalPage ?? 1);
+    pageNumber++;
+  } while (pageNumber <= totalPage);
+
+  return routes;
+}
+
+async function updateRoute(client, route) {
+  validateRouteShape(route);
+  const configId = getRouteConfigId(route);
+  if (!configId) {
+    throw new Error(`ESA route ${routeName} is missing ConfigId; cannot update route`);
+  }
+
+  await client.updateRoutineRoute(
+    new Esa20240910.UpdateRoutineRouteRequest({
+      siteId,
+      configId,
+      routineName,
+      routeName,
+      rule: routeRule,
+      routeEnable: "on",
+      bypass: "off",
+    }),
+  );
+
+  log(`Updated ESA route ${routeName} to routine ${routineName}: ${routeRule}`);
+}
+
 async function ensureRoute(client) {
   if (process.env.ESA_SITE_ID && !Number.isFinite(siteId)) {
     throw new Error(`ESA_SITE_ID must be a number; received ${process.env.ESA_SITE_ID}`);
@@ -384,46 +468,44 @@ async function ensureRoute(client) {
     new Esa20240910.ListRoutineRoutesRequest({ routineName }),
   );
   const routes = getRoutesFromResponse(routesResponse);
-  const existingRoute = routes.find((route) => {
-    const existingName = route.routeName ?? route.RouteName;
-    const existingRule = route.rule ?? route.Rule;
-    return existingName === routeName || existingRule === routeRule;
-  });
+  const existingRoute = findRoute(routes);
 
   if (existingRoute) {
-    const existingName = existingRoute.routeName ?? existingRoute.RouteName;
-    const existingRule = existingRoute.rule ?? existingRoute.Rule;
-    const existingEnabled = existingRoute.routeEnable ?? existingRoute.RouteEnable;
-    const existingBypass = existingRoute.bypass ?? existingRoute.Bypass;
-
-    if (existingName === routeName && existingRule !== routeRule) {
-      throw new Error(
-        `ESA route ${routeName} exists with unexpected rule ${existingRule}; expected ${routeRule}`,
-      );
-    }
-    if (existingEnabled && existingEnabled !== "on") {
-      throw new Error(`ESA route ${existingName} is not enabled; RouteEnable=${existingEnabled}`);
-    }
-    if (existingBypass && existingBypass !== "off") {
-      throw new Error(
-        `ESA route ${existingName} has unexpected Bypass=${existingBypass}; expected off`,
-      );
-    }
-
+    validateRouteShape(existingRoute);
     log(`ESA route already exists for ${routeRule}.`);
     return;
   }
 
-  await client.createRoutineRoute(
-    new Esa20240910.CreateRoutineRouteRequest({
-      siteId,
-      routineName,
-      routeName,
-      rule: routeRule,
-      routeEnable: "on",
-      bypass: "off",
-    }),
-  );
+  const existingSiteRoute = findRoute(await listSiteRoutes(client));
+  if (existingSiteRoute) {
+    await updateRoute(client, existingSiteRoute);
+    return;
+  }
+
+  try {
+    await client.createRoutineRoute(
+      new Esa20240910.CreateRoutineRouteRequest({
+        siteId,
+        routineName,
+        routeName,
+        rule: routeRule,
+        routeEnable: "on",
+        bypass: "off",
+      }),
+    );
+  } catch (error) {
+    if (getErrorCode(error) !== "ConfigConflicts") {
+      throw error;
+    }
+
+    const conflictingRoute = findRoute(await listSiteRoutes(client));
+    if (!conflictingRoute) {
+      throw new Error(`CreateRoutineRoute failed: ${formatError(error)}`);
+    }
+
+    await updateRoute(client, conflictingRoute);
+    return;
+  }
 
   log(`Created ESA route ${routeName}: ${routeRule}`);
 }
