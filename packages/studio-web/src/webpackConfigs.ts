@@ -16,6 +16,14 @@ import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackAr
 import { makeConfig } from "@foxglove/studio-base/webpack";
 import * as palette from "@foxglove/theme/src/palette";
 
+const DEFAULT_WEB_PUBLIC_PATH = "/viz/";
+
+function normalizePublicPath(publicPath: string | undefined): string {
+  const trimmedPath = publicPath?.trim() || DEFAULT_WEB_PUBLIC_PATH;
+  const withLeadingSlash = trimmedPath.startsWith("/") ? trimmedPath : `/${trimmedPath}`;
+  return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
 export interface RspackConfiguration extends Configuration {
   devServer?: {
     static?:
@@ -164,12 +172,16 @@ export const mainConfig =
 
     // 在rspack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
     const buildTime = new Date().toISOString();
+    const webPublicPath = isServe
+      ? "/"
+      : normalizePublicPath(process.env.HONEYBEE_WEB_PUBLIC_PATH);
 
     const plugins: RspackPluginInstance[] = [
       new rspack.DefinePlugin({
         "process.env.LAST_BUILD_TIME": JSON.stringify(buildTime),
         "process.env.IMAGE_TAG": JSON.stringify(process.env.IMAGE_TAG),
         "process.env.GITHUB_SHA": JSON.stringify(process.env.GITHUB_SHA),
+        HONEYBEE_WEB_PUBLIC_PATH: JSON.stringify(webPublicPath),
       }),
     ];
 
@@ -178,7 +190,7 @@ export const mainConfig =
     }
 
     // Source map upload if configuration permits
-    if (!isDev) {
+    if (!isDev && process.env.SENTRY_AUTH_TOKEN) {
       plugins.push(
         sentryWebpackPlugin({
           url: "https://sentry.coscene.site/",
@@ -220,7 +232,7 @@ export const mainConfig =
         : (params.prodSourceMap as Configuration["devtool"]),
 
       output: {
-        publicPath: isServe ? "auto" : "/viz/",
+        publicPath: isServe ? "auto" : webPublicPath,
 
         // Output filenames should include content hashes in order to cache bust when new versions are available
         filename: isDev ? "[name].js" : "[name].[contenthash].js",
@@ -245,9 +257,7 @@ export const mainConfig =
               <meta property="og:title" content="coScene"/>
               <meta property="og:description" content="visualization and debugging tool for robotics"/>
               <meta property="og:type" content="website"/>
-              <script src="${
-                isServe ? "/" : "/viz/"
-              }cos-config.js?t=${buildTime}" type="text/javascript"></script>
+              <script src="${webPublicPath}cos-config.js?t=${buildTime}" type="text/javascript"></script>
               <title>coScene</title>
               <style type="text/css" id="loading-styles">
                 body {

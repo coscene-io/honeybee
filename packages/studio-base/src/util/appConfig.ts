@@ -25,6 +25,7 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
   },
 };
 const DEFAULT_DEV_OBJECT_STORAGE_BASE_URL = "coscene-dev-honeybee-sh.tos-cn-shanghai.volces.com";
+const DEFAULT_WEB_PUBLIC_PATH = "/viz/";
 
 declare global {
   interface Window {
@@ -129,6 +130,31 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
   }
 
   return appConfig;
+}
+
+function normalizeWebBasePath(path: string | undefined): string {
+  const trimmedPath = path?.trim() || DEFAULT_WEB_PUBLIC_PATH;
+  const withLeadingSlash = trimmedPath.startsWith("/") ? trimmedPath : `/${trimmedPath}`;
+  return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+export function getWebBasePath(): string {
+  const configuredPath =
+    typeof HONEYBEE_WEB_PUBLIC_PATH === "string"
+      ? HONEYBEE_WEB_PUBLIC_PATH
+      : process.env.HONEYBEE_WEB_PUBLIC_PATH;
+
+  return normalizeWebBasePath(configuredPath);
+}
+
+export function getWebBasePathname(): string {
+  const basePath = getWebBasePath();
+  return basePath === "/" ? "/" : basePath.replace(/\/$/, "");
+}
+
+export function getWebAssetPath(assetPath: string): string {
+  const normalizedAssetPath = assetPath.replace(/^\//, "");
+  return `${getWebBasePath()}${normalizedAssetPath}`;
 }
 
 export function getDomainConfig(): DomainConfig {
