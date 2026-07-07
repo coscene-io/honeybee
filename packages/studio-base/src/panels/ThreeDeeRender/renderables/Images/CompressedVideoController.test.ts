@@ -786,7 +786,7 @@ describe("CompressedVideoController", () => {
     expect(releasePlaybackPause).toHaveBeenCalledTimes(1);
   });
 
-  it("suppresses playback frames while cached seek replay is waiting for the target frame", async () => {
+  it("submits the latest suppressed playback frame after cached seek replay completes", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const firstPlaybackDelta = makeVideoMessage(20_000_000n, "delta");
@@ -827,12 +827,70 @@ describe("CompressedVideoController", () => {
 
     resolveSeekDisplay({ ok: true });
     await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [30_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "playback"]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false, true]);
+
     controller.processMessage(resumedPlaybackDelta);
     await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n],
+      [30_000_000n],
       [40_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
+      "seek",
+      "playback",
+      "playback",
+    ]);
+  });
+
+  it("submits the latest suppressed playback frame after seek lookback completes", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const targetDelta = makeVideoMessage(10_000_000n, "delta");
+    const firstPlaybackDelta = makeVideoMessage(20_000_000n, "delta");
+    const secondPlaybackDelta = makeVideoMessage(30_000_000n, "delta");
+    let onNewRangeIterator: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"] | undefined;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((args) => {
+      onNewRangeIterator = args.onNewRangeIterator;
+      return jest.fn();
+    });
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const renderer = makeRenderer({ currentTime: 10_000_000n, subscribeMessageRange });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek();
+    await flushAsyncWork();
+
+    controller.processMessage(firstPlaybackDelta);
+    controller.processMessage(secondPlaybackDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames)).toHaveLength(0);
+
+    if (onNewRangeIterator == undefined) {
+      throw new Error("Expected lookback range iterator");
+    }
+    await onNewRangeIterator(
+      (async function* () {
+        yield [keyframe, targetDelta];
+      })(),
+    );
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [30_000_000n],
     ]);
     expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "playback"]);
     expect(
