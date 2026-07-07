@@ -206,8 +206,7 @@ function makeDecodeVideoFramesMock(decodedFrames: VideoFrame[]) {
         requestId: args.requestId,
         frame,
         originalTimestamp:
-          BigInt(entry.frame.timestamp.sec) * 1_000_000_000n +
-          BigInt(entry.frame.timestamp.nsec),
+          BigInt(entry.frame.timestamp.sec) * 1_000_000_000n + BigInt(entry.frame.timestamp.nsec),
         receiveTime: entry.receiveTime,
       };
     },
@@ -790,6 +789,53 @@ describe("ImageRenderable", () => {
       expect(renderable.userData.receiveTime).toBe(10n);
       expect(updateImageState).toHaveBeenCalledTimes(1);
       expect(updateImageState).toHaveBeenCalledWith(keyframe);
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("drops decoded playback frames rejected by the display predicate", async () => {
+    const time = mockDateNow();
+    try {
+      const decoded = new MockVideoFrame() as unknown as VideoFrame;
+      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({
+          type: "IntermediateFrame",
+          requestId,
+          frame: decoded,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+        }),
+      );
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      const keyframe = videoFrameEvent(10n, 1, "key");
+      const target = videoFrameEvent(20n, 2, "delta");
+      const updateImageState = jest.fn();
+
+      await expect(
+        renderable.setCompressedVideoFrames([keyframe, target], {
+          decodeMode: "playback",
+          shouldDisplayDecodedVideoFrame: () => false,
+          updateImageState,
+        }),
+      ).resolves.toEqual<ImageSetImageResult>({
+        ok: false,
+        reason: "stale",
+        lateDropped: true,
+        decodedFrame: keyframe,
+      });
+
+      expect((decoded as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+      expect(renderable.getDecodedImage()).toBeUndefined();
+      expect(renderable.userData.image).toBe(target.message);
+      expect(renderable.userData.receiveTime).toBe(20n);
+      expect(updateImageState).not.toHaveBeenCalled();
     } finally {
       time.restore();
     }

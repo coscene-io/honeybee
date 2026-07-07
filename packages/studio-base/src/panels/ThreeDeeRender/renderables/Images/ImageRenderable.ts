@@ -84,6 +84,7 @@ type DecodedImageResult =
       ok: false;
       reason: "stale";
       staleTargetDecoded?: true;
+      lateDropped?: true;
     }
   | {
       image?: DecodedImageResource;
@@ -101,6 +102,7 @@ export type ImageSetImageResult =
       ok: false;
       reason: "stale";
       staleTargetDecoded?: true;
+      lateDropped?: true;
       decodedFrame?: CompressedVideoFrameEvent;
     }
   | {
@@ -119,6 +121,7 @@ export type SetCompressedVideoFramesOptions = {
   anyFrameTimeoutMs?: number;
   allowIntermediateVideoFrame?: boolean;
   isVideoFrameRequestCurrent?: () => boolean;
+  shouldDisplayDecodedVideoFrame?: (event: CompressedVideoFrameEvent) => boolean;
   decodeMode?: DecodeVideoFramesMode;
   minDisplayIntervalMs?: number;
 };
@@ -129,6 +132,7 @@ type PendingDecodedImage = {
   decodedFrame: CompressedVideoFrameEvent | undefined;
   minDisplayIntervalMs: number;
   isRequestCurrent: (() => boolean) | undefined;
+  shouldDisplayDecodedVideoFrame: ((event: CompressedVideoFrameEvent) => boolean) | undefined;
   onDecoded: (() => void) | undefined;
   resolve: (result: ImageSetImageResult) => void;
 };
@@ -386,6 +390,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
               resolve(displayResult);
             },
             options.isVideoFrameRequestCurrent,
+            options.shouldDisplayDecodedVideoFrame,
             options.minDisplayIntervalMs,
           );
         })
@@ -410,6 +415,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     onDecoded: (() => void) | undefined,
     resolve: (result: ImageSetImageResult) => void,
     isRequestCurrent?: () => boolean,
+    shouldDisplayDecodedVideoFrame?: (event: CompressedVideoFrameEvent) => boolean,
     minDisplayIntervalMs = MIN_IMAGE_RENDER_INTERVAL_MS,
   ): void {
     const result = decoded.image;
@@ -440,6 +446,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (!decoded.ok) {
       this.#closeDecodedImageIfUnused(result);
       resolve(imageSetResult(decoded));
+      return;
+    }
+
+    if (!this.#decodedVideoFrameShouldDisplay(decoded, shouldDisplayDecodedVideoFrame)) {
+      this.#closeDecodedImageIfUnused(result);
+      resolve(this.#lateDroppedVideoFrameResult(decoded));
       return;
     }
 
@@ -479,6 +491,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         decodedFrame: decoded.decodedFrame,
         minDisplayIntervalMs,
         isRequestCurrent,
+        shouldDisplayDecodedVideoFrame,
         onDecoded,
         resolve,
       });
@@ -489,7 +502,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return;
     }
 
-    this.#displayDecodedImage(seq, decoded, onDecoded, resolve, isRequestCurrent);
+    this.#displayDecodedImage(
+      seq,
+      decoded,
+      onDecoded,
+      resolve,
+      isRequestCurrent,
+      shouldDisplayDecodedVideoFrame,
+    );
   }
 
   #displayDecodedImage(
@@ -498,6 +518,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     onDecoded: (() => void) | undefined,
     resolve: (result: ImageSetImageResult) => void,
     isRequestCurrent?: () => boolean,
+    shouldDisplayDecodedVideoFrame?: (event: CompressedVideoFrameEvent) => boolean,
   ): void {
     const result = decoded.image;
     if (result == undefined) {
@@ -527,6 +548,12 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (!decoded.ok) {
       this.#closeDecodedImageIfUnused(result);
       resolve(imageSetResult(decoded));
+      return;
+    }
+
+    if (!this.#decodedVideoFrameShouldDisplay(decoded, shouldDisplayDecodedVideoFrame)) {
+      this.#closeDecodedImageIfUnused(result);
+      resolve(this.#lateDroppedVideoFrameResult(decoded));
       return;
     }
 
@@ -567,8 +594,28 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       pending.onDecoded,
       pending.resolve,
       pending.isRequestCurrent,
+      pending.shouldDisplayDecodedVideoFrame,
       pending.minDisplayIntervalMs,
     );
+  }
+
+  #decodedVideoFrameShouldDisplay(
+    decoded: DecodedImageResult,
+    shouldDisplayDecodedVideoFrame?: (event: CompressedVideoFrameEvent) => boolean,
+  ): boolean {
+    const decodedFrame = decoded.decodedFrame;
+    return decodedFrame != undefined
+      ? (shouldDisplayDecodedVideoFrame?.(decodedFrame) ?? true)
+      : true;
+  }
+
+  #lateDroppedVideoFrameResult(decoded: DecodedImageResult): ImageSetImageResult {
+    return imageSetResult({
+      ...decoded,
+      ok: false,
+      reason: "stale",
+      lateDropped: true,
+    });
   }
 
   #clearPendingDecodedImage(keep?: DecodedImageResource): void {
@@ -1356,16 +1403,21 @@ function imageSetResult(result: DecodedImageResult): ImageSetImageResult {
     }
     return { ok: true };
   }
-  if (result.reason === "stale" && result.staleTargetDecoded === true) {
-    if (result.decodedFrame != undefined) {
-      return {
-        ok: false,
-        reason: "stale",
-        staleTargetDecoded: true,
-        decodedFrame: result.decodedFrame,
-      };
+  if (result.reason === "stale") {
+    const staleResult: Extract<ImageSetImageResult, { ok: false; reason: "stale" }> = {
+      ok: false,
+      reason: "stale",
+    };
+    if (result.staleTargetDecoded === true) {
+      staleResult.staleTargetDecoded = true;
     }
-    return { ok: false, reason: "stale", staleTargetDecoded: true };
+    if (result.lateDropped === true) {
+      staleResult.lateDropped = true;
+    }
+    if (result.decodedFrame != undefined) {
+      staleResult.decodedFrame = result.decodedFrame;
+    }
+    return staleResult;
   }
   return { ok: false, reason: result.reason };
 }

@@ -333,6 +333,112 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("drops late decoded playback frames and keeps chasing the latest target", async () => {
+    const renderer = makeRenderer({ currentTime: 100_000_000n });
+    const keyframe = makeVideoMessage(0n, "key");
+    const lateFrame = makeVideoMessage(40_000_000n, "delta");
+    const latestTarget = makeVideoMessage(100_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (_frames, _mode, options): Promise<ImageSetImageResult> => {
+      if (displayFrames.mock.calls.length === 1) {
+        const shouldDisplay = options?.shouldDisplayDecodedVideoFrame?.(lateFrame);
+        return shouldDisplay === false
+          ? { ok: false, reason: "stale", lateDropped: true, decodedFrame: lateFrame }
+          : { ok: true, decodedFrame: lateFrame };
+      }
+      return { ok: true, decodedFrame: latestTarget };
+    });
+    const resetDecoder = jest.fn();
+    const controller = makeController({ renderer, displayFrames, resetDecoder });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(lateFrame);
+    controller.processMessage(latestTarget);
+    for (let i = 0; i < 5; i++) {
+      await flushAsyncWork();
+    }
+
+    expect(resetDecoder).not.toHaveBeenCalled();
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 40_000_000n],
+      [100_000_000n],
+    ]);
+  });
+
+  it("resets playback decoding when decoded output is severely behind the playback clock", async () => {
+    const renderer = makeRenderer({ currentTime: 700_000_000n });
+    const keyframe = makeVideoMessage(0n, "key");
+    const staleDelta = makeVideoMessage(40_000_000n, "delta");
+    const resyncKeyframe = makeVideoMessage(600_000_000n, "key");
+    const resyncTarget = makeVideoMessage(640_000_000n, "delta");
+    let resolveFirstDisplay!: (result: ImageSetImageResult) => void;
+    const firstDisplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstDisplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (_frames, _mode, _options): Promise<ImageSetImageResult> => {
+      if (displayFrames.mock.calls.length === 1) {
+        return await firstDisplay;
+      }
+      return { ok: true, decodedFrame: resyncTarget };
+    });
+    const resetDecoder = jest.fn();
+    const controller = makeController({ renderer, displayFrames, resetDecoder });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(staleDelta);
+    await flushAsyncWork();
+    const firstPlaybackOptions = nonResetCalls(displayFrames)[0]?.[2];
+    controller.processMessage(resyncKeyframe);
+    controller.processMessage(resyncTarget);
+    const shouldDisplay = firstPlaybackOptions?.shouldDisplayDecodedVideoFrame?.(staleDelta);
+    resolveFirstDisplay(
+      shouldDisplay === false
+        ? { ok: false, reason: "stale", lateDropped: true, decodedFrame: staleDelta }
+        : { ok: true, decodedFrame: staleDelta },
+    );
+    await flushAsyncWork();
+    await flushAsyncWork();
+
+    expect(resetDecoder).toHaveBeenCalledTimes(1);
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 40_000_000n],
+      [600_000_000n, 640_000_000n],
+    ]);
+  });
+
+  it("forces a late playback frame to display after the no-display window expires", async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(0);
+    const renderer = makeRenderer({ currentTime: 100_000_000n });
+    const keyframe = makeVideoMessage(0n, "key");
+    const lateFrame = makeVideoMessage(60_000_000n, "delta");
+    let observedShouldDisplay: boolean | undefined;
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (_frames, _mode, options): Promise<ImageSetImageResult> => {
+      jest.setSystemTime(151);
+      observedShouldDisplay = options?.shouldDisplayDecodedVideoFrame?.(lateFrame);
+      return observedShouldDisplay === true
+        ? { ok: true, decodedFrame: lateFrame }
+        : { ok: false, reason: "stale", lateDropped: true, decodedFrame: lateFrame };
+    });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(lateFrame);
+    jest.runAllTimers();
+    await Promise.resolve();
+
+    expect(observedShouldDisplay).toBe(true);
+    expect(nonResetCalls(displayFrames)).toHaveLength(1);
+  });
+
   it("skips complete intermediate GOPs when chasing the latest playback target", async () => {
     const firstKeyframe = makeVideoMessage(0n, "key");
     const firstDelta = makeVideoMessage(10_000_000n, "delta");

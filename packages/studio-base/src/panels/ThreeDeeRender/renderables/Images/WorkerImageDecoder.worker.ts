@@ -16,6 +16,7 @@ import type { CompressedVideo } from "./ImageTypes";
 const log = Logger.getLogger(__filename);
 const TARGET_FRAME_TIMEOUT_MS = 1000;
 const ANY_FRAME_TIMEOUT_MS = 2000;
+const PLAYBACK_MAX_DECODE_QUEUE_SIZE = 3;
 
 let videoPlayer: VideoPlayer | undefined;
 let initPromise: Promise<void> | undefined;
@@ -77,6 +78,11 @@ type PendingTargetFrame = {
   receiveTime: bigint;
   retainedFrame?: DecodedVideoFrameResult;
   resolve?: (result: AwaitTargetFrameResult) => void;
+};
+
+type DecodeBatchState = {
+  aborted: boolean;
+  finished: boolean;
 };
 
 function getVideoPlayer(): VideoPlayer {
@@ -193,7 +199,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     return { type: "Timeout", requestId };
   }
 
-  const batchState = { aborted: false, finished: false };
+  const batchState: DecodeBatchState = { aborted: false, finished: false };
   let finishBatch: ((result: DecodeVideoFramesResult) => void) | undefined;
   const abortThisBatch = () => {
     batchState.aborted = true;
@@ -332,7 +338,10 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       };
 
       finishBatch = finish;
-      player.queueFrames(queuedFrames, (decodedFrame) => {
+      const handleDecodedFrame = (decodedFrame: {
+        frame: VideoFrame;
+        metadata: { originalTimestamp: bigint; receiveTime: bigint };
+      }) => {
         if (batchState.finished || batchState.aborted) {
           if (
             mode !== "exact" ||
@@ -361,6 +370,31 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
         if (targetTimedOut) {
           finish({ type: "IntermediateFrame", requestId, ...latestFrame });
         }
+      };
+
+      const queueBatchFrames = async () => {
+        if (mode !== "playback") {
+          player.queueFrames(queuedFrames, handleDecodedFrame);
+          return;
+        }
+
+        for (const queuedFrame of queuedFrames) {
+          if (isBatchStopped(batchState)) {
+            return;
+          }
+          if (player.decodeQueueSize() >= PLAYBACK_MAX_DECODE_QUEUE_SIZE) {
+            await player.waitForDecodeQueueBelow(PLAYBACK_MAX_DECODE_QUEUE_SIZE);
+          }
+          if (isBatchStopped(batchState)) {
+            return;
+          }
+          player.queueFrames([queuedFrame], handleDecodedFrame);
+        }
+      };
+
+      void queueBatchFrames().catch((err: unknown) => {
+        log.error(err);
+        finish({ type: "Timeout", requestId });
       });
 
       targetTimer = setTimeout(() => {
@@ -396,6 +430,10 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
 
 function isBatchAborted(batchState: { aborted: boolean }): boolean {
   return batchState.aborted;
+}
+
+function isBatchStopped(batchState: DecodeBatchState): boolean {
+  return batchState.finished || batchState.aborted;
 }
 
 async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
