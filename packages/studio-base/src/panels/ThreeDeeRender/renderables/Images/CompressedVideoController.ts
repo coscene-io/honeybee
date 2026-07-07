@@ -40,6 +40,8 @@ const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
 const PLAYBACK_TARGET_FRAME_TIMEOUT_MS = 250;
 const PLAYBACK_ANY_FRAME_TIMEOUT_MS = 500;
 const PLAYBACK_RETRY_FRAME_TIMEOUT_MS = 1_000;
+const PLAYBACK_MAX_BATCH_FRAMES = 3;
+const PLAYBACK_MAX_BATCH_DURATION_NS = 100_000_000n;
 
 export type VideoDisplayMode = "playback" | "seek" | "direct";
 
@@ -90,7 +92,7 @@ type PlaybackTarget = {
 type PlaybackDecoderProgress = {
   generation: number;
   keyframeReceiveTimeNs: bigint;
-  decodedThroughReceiveTimeNs: bigint;
+  queuedThroughReceiveTimeNs: bigint;
 };
 
 type ControllerRenderer = Pick<
@@ -474,7 +476,7 @@ export class CompressedVideoController {
           this.#isCurrentGeneration(target.generation))
       ) {
         this.#recordPlaybackDecoderProgress(frames, target);
-        this.#retryPlaybackTargetIfNeeded(target, result);
+        this.#continuePlaybackTargetIfNeeded(target, result);
       } else if (result.reason === "failed") {
         this.#state.playbackDecoderProgress = undefined;
       }
@@ -526,18 +528,23 @@ export class CompressedVideoController {
       progress.generation !== target.generation ||
       progress.keyframeReceiveTimeNs !== keyframeReceiveTimeNs
     ) {
-      return gopFrames;
+      return limitPlaybackBatch(gopFrames);
     }
 
     const nextFrames = gopFrames.filter(
-      (frame) => toNanoSec(frame.receiveTime) > progress.decodedThroughReceiveTimeNs,
+      (frame) => toNanoSec(frame.receiveTime) > progress.queuedThroughReceiveTimeNs,
     );
-    return nextFrames;
+    return limitPlaybackBatch(nextFrames);
   }
 
   #recordPlaybackDecoderProgress(frames: readonly MessageEvent[], target: PlaybackTarget): void {
     const firstFrame = frames[0];
-    if (firstFrame == undefined || !this.#isCurrentGeneration(target.generation)) {
+    const lastFrame = frames[frames.length - 1];
+    if (
+      firstFrame == undefined ||
+      lastFrame == undefined ||
+      !this.#isCurrentGeneration(target.generation)
+    ) {
       return;
     }
 
@@ -549,11 +556,11 @@ export class CompressedVideoController {
     this.#state.playbackDecoderProgress = {
       generation: target.generation,
       keyframeReceiveTimeNs: toNanoSec(keyframe.receiveTime),
-      decodedThroughReceiveTimeNs: toNanoSec(target.messageEvent.receiveTime),
+      queuedThroughReceiveTimeNs: toNanoSec(lastFrame.receiveTime),
     };
   }
 
-  #retryPlaybackTargetIfNeeded(target: PlaybackTarget, result: ImageSetImageResult): void {
+  #continuePlaybackTargetIfNeeded(target: PlaybackTarget, result: ImageSetImageResult): void {
     if (
       !result.ok ||
       result.decodedFrame == undefined ||
@@ -568,6 +575,12 @@ export class CompressedVideoController {
       if (this.#state.playbackRetryReceiveTimeNs === targetReceiveTimeNs) {
         this.#state.playbackRetryReceiveTimeNs = undefined;
       }
+      return;
+    }
+
+    const progress = this.#state.playbackDecoderProgress;
+    if (progress != undefined && progress.queuedThroughReceiveTimeNs < targetReceiveTimeNs) {
+      this.#state.pendingPlaybackTarget = target;
       return;
     }
 
@@ -1251,6 +1264,24 @@ function displayOptionsForMode(
     return options;
   }
   return { ...options, decodeMode: "exact", allowIntermediateVideoFrame: false };
+}
+
+function limitPlaybackBatch(frames: readonly MessageEvent[]): readonly MessageEvent[] {
+  const firstFrame = frames[0];
+  if (firstFrame == undefined || frames.length <= PLAYBACK_MAX_BATCH_FRAMES) {
+    return frames;
+  }
+
+  const firstReceiveTimeNs = toNanoSec(firstFrame.receiveTime);
+  let endIndex = 1;
+  while (endIndex < frames.length && endIndex < PLAYBACK_MAX_BATCH_FRAMES) {
+    const receiveTimeNs = toNanoSec(frames[endIndex]!.receiveTime);
+    if (receiveTimeNs - firstReceiveTimeNs > PLAYBACK_MAX_BATCH_DURATION_NS) {
+      break;
+    }
+    endIndex++;
+  }
+  return frames.slice(0, endIndex);
 }
 
 /** Collect every video frame on `topic` with a receive time within `[startTime, endTime]`. */
