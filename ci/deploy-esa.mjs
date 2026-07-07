@@ -215,9 +215,9 @@ async function createAssetsCodeVersion(client, runtime) {
   const codeVersion = result.body?.codeVersion ?? result.body?.CodeVersion;
   if (!ossPostConfig || !codeVersion) {
     throw new Error(
-      `CreateRoutineWithAssetsCodeVersion returned incomplete response: ${JSON.stringify(
-        result.body,
-      )}`,
+      `CreateRoutineWithAssetsCodeVersion returned incomplete response fields: ${Object.keys(
+        result.body ?? {},
+      ).join(", ")}`,
     );
   }
 
@@ -225,7 +225,26 @@ async function createAssetsCodeVersion(client, runtime) {
   return { ossPostConfig, codeVersion };
 }
 
+function normalizeOssPostConfig(ossPostConfig) {
+  const normalized = {
+    OSSAccessKeyId: ossPostConfig.OSSAccessKeyId,
+    signature: ossPostConfig.signature ?? ossPostConfig.Signature,
+    policy: ossPostConfig.policy ?? ossPostConfig.Policy,
+    key: ossPostConfig.key ?? ossPostConfig.Key,
+    url: ossPostConfig.url ?? ossPostConfig.Url,
+    XOssSecurityToken: ossPostConfig.XOssSecurityToken,
+  };
+  const missingFields = Object.entries(normalized)
+    .filter(([name, value]) => name !== "XOssSecurityToken" && !value)
+    .map(([name]) => name);
+  if (missingFields.length > 0) {
+    throw new Error(`OSS post config is missing required fields: ${missingFields.join(", ")}`);
+  }
+  return normalized;
+}
+
 async function uploadAssets(ossPostConfig, files) {
+  const normalizedOssPostConfig = normalizeOssPostConfig(ossPostConfig);
   const zip = new JSZip();
   for (const file of files) {
     zip.file(`assets/${file.relativePath}`, fs.readFileSync(file.fullPath));
@@ -235,19 +254,19 @@ async function uploadAssets(ossPostConfig, files) {
   log(`Packaged ESA assets zip: ${(zipBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
   const formData = new FormData();
-  formData.append("OSSAccessKeyId", ossPostConfig.OSSAccessKeyId);
-  formData.append("Signature", ossPostConfig.Signature);
-  formData.append("policy", ossPostConfig.Policy);
-  formData.append("key", ossPostConfig.Key);
-  if (ossPostConfig.XOssSecurityToken) {
-    formData.append("x-oss-security-token", ossPostConfig.XOssSecurityToken);
+  formData.append("OSSAccessKeyId", normalizedOssPostConfig.OSSAccessKeyId);
+  formData.append("Signature", normalizedOssPostConfig.signature);
+  formData.append("policy", normalizedOssPostConfig.policy);
+  formData.append("key", normalizedOssPostConfig.key);
+  if (normalizedOssPostConfig.XOssSecurityToken) {
+    formData.append("x-oss-security-token", normalizedOssPostConfig.XOssSecurityToken);
   }
   formData.append("file", new Blob([zipBuffer]), "assets.zip");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
   try {
-    const response = await fetch(ossPostConfig.Url, {
+    const response = await fetch(normalizedOssPostConfig.url, {
       method: "POST",
       body: formData,
       signal: controller.signal,
