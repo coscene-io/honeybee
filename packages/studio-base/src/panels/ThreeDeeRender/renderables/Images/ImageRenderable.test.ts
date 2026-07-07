@@ -193,6 +193,27 @@ function mockDateNow(start = 1_000): { advance: (ms: number) => void; restore: (
   };
 }
 
+function makeDecodeVideoFramesMock(decodedFrames: VideoFrame[]) {
+  return jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+    async (args): Promise<DecodeVideoFramesResult> => {
+      const frame = decodedFrames.shift();
+      const entry = args.frames[args.frames.length - 1];
+      if (frame == undefined || entry == undefined) {
+        throw new Error("No decoded video frame queued");
+      }
+      return {
+        type: "TargetFrame",
+        requestId: args.requestId,
+        frame,
+        originalTimestamp:
+          BigInt(entry.frame.timestamp.sec) * 1_000_000_000n +
+          BigInt(entry.frame.timestamp.nsec),
+        receiveTime: entry.receiveTime,
+      };
+    },
+  );
+}
+
 describe("ImageRenderable", () => {
   let originalVideoFrame: unknown;
 
@@ -472,6 +493,125 @@ describe("ImageRenderable", () => {
 
       expect(renderable.getDecodedImage()).toBe(newestFrame);
       expect((newestFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+      jest.useRealTimers();
+    }
+  });
+
+  it("uses a custom display interval for compressed playback frames", async () => {
+    jest.useFakeTimers();
+    const time = mockDateNow();
+    try {
+      const firstFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const pendingFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const newestFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const firstEvent = videoFrameEvent(0n, 1, "key");
+      const pendingEvent = videoFrameEvent(10n, 2, "delta");
+      const newestEvent = videoFrameEvent(20n, 3, "delta");
+      const updateImageState = jest.fn();
+      const decodeVideoFrames = makeDecodeVideoFramesMock([firstFrame, pendingFrame, newestFrame]);
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      await expect(
+        renderable.setCompressedVideoFrames([firstEvent], {
+          decodeMode: "playback",
+          minDisplayIntervalMs: 33,
+          updateImageState,
+        }),
+      ).resolves.toMatchObject({ ok: true, decodedFrame: firstEvent });
+
+      time.advance(1);
+      jest.clearAllMocks();
+      const pendingResult = renderable.setCompressedVideoFrames([pendingEvent], {
+        decodeMode: "playback",
+        minDisplayIntervalMs: 33,
+        updateImageState,
+      });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(firstFrame);
+      expect(updateImageState).not.toHaveBeenCalled();
+
+      time.advance(1);
+      const newestResult = renderable.setCompressedVideoFrames([newestEvent], {
+        decodeMode: "playback",
+        minDisplayIntervalMs: 33,
+        updateImageState,
+      });
+      await flushPromises();
+
+      await expect(pendingResult).resolves.toEqual({ ok: false, reason: "failed" });
+      expect((pendingFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect(updateImageState).not.toHaveBeenCalled();
+
+      time.advance(15);
+      jest.advanceTimersByTime(15);
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(firstFrame);
+      expect(updateImageState).not.toHaveBeenCalled();
+
+      time.advance(17);
+      jest.advanceTimersByTime(17);
+      await flushPromises();
+
+      await expect(newestResult).resolves.toMatchObject({ ok: true, decodedFrame: newestEvent });
+      expect(renderable.getDecodedImage()).toBe(newestFrame);
+      expect((newestFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+      expect(updateImageState).toHaveBeenCalledTimes(1);
+      expect(updateImageState).toHaveBeenCalledWith(newestEvent);
+      expect(mockRenderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
+    } finally {
+      time.restore();
+      jest.useRealTimers();
+    }
+  });
+
+  it("keeps the default compressed playback display interval when no override is provided", async () => {
+    jest.useFakeTimers();
+    const time = mockDateNow();
+    try {
+      const firstFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const secondFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const firstEvent = videoFrameEvent(0n, 1, "key");
+      const secondEvent = videoFrameEvent(10n, 2, "delta");
+      const decodeVideoFrames = makeDecodeVideoFramesMock([firstFrame, secondFrame]);
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+
+      await expect(
+        renderable.setCompressedVideoFrames([firstEvent], { decodeMode: "playback" }),
+      ).resolves.toMatchObject({ ok: true });
+
+      time.advance(1);
+      jest.clearAllMocks();
+      const secondResult = renderable.setCompressedVideoFrames([secondEvent], {
+        decodeMode: "playback",
+      });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(firstFrame);
+      expect(mockRenderer.queueAnimationFrame).not.toHaveBeenCalled();
+
+      time.advance(15);
+      jest.advanceTimersByTime(15);
+      await flushPromises();
+
+      await expect(secondResult).resolves.toMatchObject({ ok: true });
+      expect(renderable.getDecodedImage()).toBe(secondFrame);
+      expect(mockRenderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
     } finally {
       time.restore();
       jest.useRealTimers();

@@ -40,7 +40,8 @@ const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
 const PLAYBACK_TARGET_FRAME_TIMEOUT_MS = 250;
 const PLAYBACK_ANY_FRAME_TIMEOUT_MS = 500;
 const PLAYBACK_RETRY_FRAME_TIMEOUT_MS = 1_000;
-const PLAYBACK_MAX_BATCH_FRAMES = 3;
+const PLAYBACK_MIN_DISPLAY_INTERVAL_MS = 33;
+const PLAYBACK_MAX_BATCH_FRAMES = 7;
 const PLAYBACK_MAX_BATCH_DURATION_NS = 100_000_000n;
 
 export type VideoDisplayMode = "playback" | "seek" | "direct";
@@ -497,6 +498,8 @@ export class CompressedVideoController {
       targetFrameTimeoutMs:
         target.options?.targetFrameTimeoutMs ?? PLAYBACK_TARGET_FRAME_TIMEOUT_MS,
       anyFrameTimeoutMs: target.options?.anyFrameTimeoutMs ?? PLAYBACK_ANY_FRAME_TIMEOUT_MS,
+      minDisplayIntervalMs:
+        target.options?.minDisplayIntervalMs ?? PLAYBACK_MIN_DISPLAY_INTERVAL_MS,
       isVideoFrameRequestCurrent: () =>
         (upstreamGuard?.() ?? true) && this.#isCurrentPlaybackTarget(target),
     };

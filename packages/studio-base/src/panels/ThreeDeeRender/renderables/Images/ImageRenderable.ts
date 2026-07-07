@@ -120,12 +120,14 @@ export type SetCompressedVideoFramesOptions = {
   allowIntermediateVideoFrame?: boolean;
   isVideoFrameRequestCurrent?: () => boolean;
   decodeMode?: DecodeVideoFramesMode;
+  minDisplayIntervalMs?: number;
 };
 
 type PendingDecodedImage = {
   seq: number;
   result: DecodedImageResource;
   decodedFrame: CompressedVideoFrameEvent | undefined;
+  minDisplayIntervalMs: number;
   isRequestCurrent: (() => boolean) | undefined;
   onDecoded: (() => void) | undefined;
   resolve: (result: ImageSetImageResult) => void;
@@ -384,6 +386,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
               resolve(displayResult);
             },
             options.isVideoFrameRequestCurrent,
+            options.minDisplayIntervalMs,
           );
         })
         .catch((err: unknown) => {
@@ -407,6 +410,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     onDecoded: (() => void) | undefined,
     resolve: (result: ImageSetImageResult) => void,
     isRequestCurrent?: () => boolean,
+    minDisplayIntervalMs = MIN_IMAGE_RENDER_INTERVAL_MS,
   ): void {
     const result = decoded.image;
     if (result == undefined) {
@@ -467,12 +471,13 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return;
     }
 
-    const nextRenderDelayMs = this.#lastRenderImage + MIN_IMAGE_RENDER_INTERVAL_MS - Date.now();
+    const nextRenderDelayMs = this.#lastRenderImage + minDisplayIntervalMs - Date.now();
     if (nextRenderDelayMs > 0) {
       this.#setPendingDecodedImage({
         seq,
         result,
         decodedFrame: decoded.decodedFrame,
+        minDisplayIntervalMs,
         isRequestCurrent,
         onDecoded,
         resolve,
@@ -562,6 +567,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       pending.onDecoded,
       pending.resolve,
       pending.isRequestCurrent,
+      pending.minDisplayIntervalMs,
     );
   }
 

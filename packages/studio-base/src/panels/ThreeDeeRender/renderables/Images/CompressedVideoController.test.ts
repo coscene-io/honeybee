@@ -154,7 +154,7 @@ describe("CompressedVideoController", () => {
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
     ).toEqual([true]);
     expect(nonResetCalls(displayFrames).map((call) => call[2])).toEqual([
-      expect.objectContaining({ decodeMode: "playback" }),
+      expect.objectContaining({ decodeMode: "playback", minDisplayIntervalMs: 33 }),
     ]);
   });
 
@@ -184,7 +184,7 @@ describe("CompressedVideoController", () => {
   });
 
   it("advances long cached playback GOPs in small monotonic batches", async () => {
-    const frameIntervalNs = 33_000_000n;
+    const frameIntervalNs = 16_000_000n;
     const frames = Array.from({ length: 8 }, (_, index) =>
       makeVideoMessage(BigInt(index) * frameIntervalNs, index === 0 ? "key" : "delta"),
     );
@@ -207,9 +207,8 @@ describe("CompressedVideoController", () => {
     expect(
       nonResetCalls(displayFrames).map(([displayedFrames]) => frameReceiveTimes(displayedFrames)),
     ).toEqual([
-      [0n, 33_000_000n, 66_000_000n],
-      [99_000_000n, 132_000_000n, 165_000_000n],
-      [198_000_000n, 231_000_000n],
+      [0n, 16_000_000n, 32_000_000n, 48_000_000n, 64_000_000n, 80_000_000n, 96_000_000n],
+      [112_000_000n],
     ]);
   });
 
@@ -583,6 +582,9 @@ describe("CompressedVideoController", () => {
     expect(
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
     ).toEqual([false]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.minDisplayIntervalMs)).toEqual([
+      undefined,
+    ]);
   });
 
   it("replays from the cached keyframe to a publish-time target", async () => {
@@ -607,6 +609,9 @@ describe("CompressedVideoController", () => {
     expect(
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
     ).toEqual([false]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.minDisplayIntervalMs)).toEqual([
+      undefined,
+    ]);
     expect(renderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
   });
 
