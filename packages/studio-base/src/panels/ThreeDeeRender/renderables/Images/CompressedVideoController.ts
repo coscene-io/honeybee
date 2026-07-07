@@ -61,13 +61,17 @@ type ControllerState = {
   replayGeneration?: number;
   pendingPlaybackAfterReplay?: {
     generation: number;
-    messageEvent: MessageEvent<CompressedVideo>;
-    options: SetCompressedVideoFramesOptions | undefined;
+    entries: PendingPlaybackAfterReplayEntry[];
   };
   successfulWindowSeconds?: number;
   completedSeekGeneration?: number;
   decoderResetGeneration?: number;
   lastDisplayedPublishTimeNs?: bigint;
+};
+
+type PendingPlaybackAfterReplayEntry = {
+  messageEvent: MessageEvent<CompressedVideo>;
+  options: SetCompressedVideoFramesOptions | undefined;
 };
 
 type ControllerRenderer = Pick<
@@ -625,11 +629,21 @@ export class CompressedVideoController {
       return false;
     }
 
-    this.#state.pendingPlaybackAfterReplay = {
-      generation: this.#generation,
-      messageEvent,
-      options,
-    };
+    const entry = { messageEvent, options };
+    const frameInfo = parseVideoFrameInfo(messageEvent);
+    const pendingPlayback = this.#state.pendingPlaybackAfterReplay;
+    if (pendingPlayback?.generation === this.#generation) {
+      if (frameInfo?.isKeyframe === true) {
+        pendingPlayback.entries = [entry];
+      } else {
+        pendingPlayback.entries.push(entry);
+      }
+    } else {
+      this.#state.pendingPlaybackAfterReplay = {
+        generation: this.#generation,
+        entries: [entry],
+      };
+    }
     return true;
   }
 
@@ -648,7 +662,9 @@ export class CompressedVideoController {
     }
 
     this.#state.pendingPlaybackAfterReplay = undefined;
-    this.#displayPlaybackFrame(pendingPlayback.messageEvent, pendingPlayback.options);
+    for (const entry of pendingPlayback.entries) {
+      this.#displayPlaybackFrame(entry.messageEvent, entry.options);
+    }
   }
 
   /** Smallest configured lookback window (seconds) that covers `spanNs`. */

@@ -786,7 +786,7 @@ describe("CompressedVideoController", () => {
     expect(releasePlaybackPause).toHaveBeenCalledTimes(1);
   });
 
-  it("submits the latest suppressed playback frame after cached seek replay completes", async () => {
+  it("submits suppressed playback frames in order after cached seek replay completes", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
     const firstPlaybackDelta = makeVideoMessage(20_000_000n, "delta");
@@ -830,18 +830,24 @@ describe("CompressedVideoController", () => {
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n],
+      [20_000_000n],
       [30_000_000n],
     ]);
-    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "playback"]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
+      "seek",
+      "playback",
+      "playback",
+    ]);
     expect(
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
-    ).toEqual([false, true]);
+    ).toEqual([false, true, true]);
 
     controller.processMessage(resumedPlaybackDelta);
     await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n],
+      [20_000_000n],
       [30_000_000n],
       [40_000_000n],
     ]);
@@ -849,10 +855,11 @@ describe("CompressedVideoController", () => {
       "seek",
       "playback",
       "playback",
+      "playback",
     ]);
   });
 
-  it("submits the latest suppressed playback frame after seek lookback completes", async () => {
+  it("submits suppressed playback frames in order after seek lookback completes", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const targetDelta = makeVideoMessage(10_000_000n, "delta");
     const firstPlaybackDelta = makeVideoMessage(20_000_000n, "delta");
@@ -890,12 +897,67 @@ describe("CompressedVideoController", () => {
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n],
+      [20_000_000n],
       [30_000_000n],
     ]);
-    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "playback"]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
+      "seek",
+      "playback",
+      "playback",
+    ]);
     expect(
       nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
-    ).toEqual([false, true]);
+    ).toEqual([false, true, true]);
+  });
+
+  it("resumes suppressed playback from the latest suppressed keyframe after seek replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const skippedDelta = makeVideoMessage(20_000_000n, "delta");
+    const restartKeyframe = makeVideoMessage(30_000_000n, "key");
+    const dependentDelta = makeVideoMessage(40_000_000n, "delta");
+    let resolveSeekDisplay!: (result: ImageSetImageResult) => void;
+    const seekDisplayPromise = new Promise<ImageSetImageResult>((resolve) => {
+      resolveSeekDisplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames, mode) => {
+      if (mode === "seek" && frameReceiveTimes(frames).at(-1) === 10_000_000n) {
+        return await seekDisplayPromise;
+      }
+      return { ok: true };
+    });
+    const renderer = makeRenderer();
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(delta);
+    await flushAsyncWork();
+    displayFrames.mockClear();
+
+    renderer.currentTime = 10_000_000n;
+    controller.handleSeek();
+
+    controller.processMessage(skippedDelta);
+    controller.processMessage(restartKeyframe);
+    controller.processMessage(dependentDelta);
+    await flushAsyncWork();
+
+    resolveSeekDisplay({ ok: true });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [30_000_000n],
+      [40_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
+      "seek",
+      "playback",
+      "playback",
+    ]);
   });
 
   it("does not let stale lookback completion clear a newer keyframe search", async () => {
