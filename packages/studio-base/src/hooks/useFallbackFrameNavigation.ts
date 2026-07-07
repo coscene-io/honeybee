@@ -58,6 +58,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const renderedTime = useRef<Time[]>([]);
   const frozenMessagesRef = useRef<MessageAndData[] | undefined>();
   const currentMessagesRef = useRef<MessageAndData[]>([]);
+  const fallbackNextFrameActive = useRef(false);
 
   const freezeCurrentMessages = useCallback(() => {
     if (currentMessagesRef.current.length > 0) {
@@ -71,6 +72,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
   const resetRenderedHistory = useCallback(() => {
     renderedTime.current = [];
+    fallbackNextFrameActive.current = false;
     setHasPreFrame(false);
   }, []);
 
@@ -88,6 +90,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     }
 
     frameState.current = "current";
+    fallbackNextFrameActive.current = false;
     notifier.endNavigation(navigationId.current);
     clearFrozenMessages();
     return true;
@@ -100,6 +103,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
     pausePlayback?.();
     notifier.startNavigation(navigationId.current);
+    fallbackNextFrameActive.current = false;
     frameState.current = "previous";
 
     renderedTime.current.pop();
@@ -125,6 +129,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
       freezeCurrentMessages();
       notifier.startNavigation(navigationId.current);
+      fallbackNextFrameActive.current = true;
       frameState.current = "next";
       startPlayback?.();
     },
@@ -144,24 +149,26 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const updateRenderedTime = useCallback(
     (messages: MessageAndData[]) => {
       currentMessagesRef.current = messages;
+      const latestMessage = messages.at(-1);
+
+      if (
+        fallbackNextFrameActive.current &&
+        frameState.current === "next" &&
+        latestMessage != undefined
+      ) {
+        fallbackNextFrameActive.current = false;
+        pausePlayback?.();
+        seekPlayback?.(latestMessage.messageEvent.receiveTime);
+        return;
+      }
 
       if (activeTimes != undefined) {
-        const latestMessage = messages.at(-1);
         const currentMessageTime =
           latestMessage?.messageEvent.receiveTime ?? activeTimes.currentTime;
         setHasPreFrame(compare(currentMessageTime, activeTimes.startTime) > 0);
-        return;
       }
 
       if (messages.length === 0 || frameState.current === "previous") {
-        return;
-      }
-
-      const latestMessage = messages.at(-1);
-
-      if (frameState.current === "next" && latestMessage != undefined) {
-        pausePlayback?.();
-        seekPlayback?.(latestMessage.messageEvent.receiveTime);
         return;
       }
 
@@ -197,7 +204,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
         renderedTime.current = renderedTime.current.slice(-MAX_RENDERED_TIME_ARRAY_LENGTH);
       }
 
-      if (renderedTime.current.length > 1) {
+      if (activeTimes == undefined && renderedTime.current.length > 1) {
         setHasPreFrame(true);
       }
     },
