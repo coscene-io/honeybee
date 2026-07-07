@@ -33,6 +33,18 @@ type UseFallbackFrameNavigationArgs = {
   readonly activeTimes: ActiveTimes | undefined;
 };
 
+function hasTimeSuffix(times: readonly Time[], suffix: readonly Time[]): boolean {
+  if (suffix.length > times.length) {
+    return false;
+  }
+
+  const startIndex = times.length - suffix.length;
+  return suffix.every((suffixTime, index) => {
+    const time = times[startIndex + index];
+    return time != undefined && compare(time, suffixTime) === 0;
+  });
+}
+
 export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs): {
   readonly hasPreFrame: boolean;
   readonly currentMessagesRef: MutableRefObject<MessageAndData[]>;
@@ -150,15 +162,16 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     (messages: MessageAndData[]) => {
       currentMessagesRef.current = messages;
       const latestMessage = messages.at(-1);
+      const fallbackNextMessage = messages[0];
 
       if (
         fallbackNextFrameActive.current &&
         frameState.current === "next" &&
-        latestMessage != undefined
+        fallbackNextMessage != undefined
       ) {
         fallbackNextFrameActive.current = false;
         pausePlayback?.();
-        seekPlayback?.(latestMessage.messageEvent.receiveTime);
+        seekPlayback?.(fallbackNextMessage.messageEvent.receiveTime);
         return;
       }
 
@@ -172,17 +185,23 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
         return;
       }
 
-      if (latestMessage?.messageEvent.receiveTime == undefined) {
+      const messageTimes = messages.map((message) => message.messageEvent.receiveTime);
+      const newTime = messageTimes.at(-1);
+      if (newTime == undefined) {
         return;
       }
 
-      const newTime = latestMessage.messageEvent.receiveTime;
+      if (hasTimeSuffix(renderedTime.current, messageTimes)) {
+        if (activeTimes == undefined && renderedTime.current.length > 1) {
+          setHasPreFrame(true);
+        }
+        return;
+      }
+
       const latestRenderedTime = renderedTime.current.at(-1);
 
       if (latestRenderedTime == undefined || compare(latestRenderedTime, newTime) < 0) {
-        renderedTime.current = renderedTime.current.concat(
-          messages.map((message) => message.messageEvent.receiveTime),
-        );
+        renderedTime.current = renderedTime.current.concat(messageTimes);
       } else {
         let closestIndex = -1;
         for (let i = renderedTime.current.length - 1; i >= 0; i--) {
@@ -195,9 +214,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
         renderedTime.current =
           closestIndex >= 0 ? renderedTime.current.slice(0, closestIndex + 1) : [];
-        renderedTime.current = renderedTime.current.concat(
-          messages.map((message) => message.messageEvent.receiveTime),
-        );
+        renderedTime.current = renderedTime.current.concat(messageTimes);
       }
 
       if (renderedTime.current.length > MAX_RENDERED_TIME_ARRAY_LENGTH) {

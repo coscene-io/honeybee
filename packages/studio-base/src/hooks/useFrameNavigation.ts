@@ -346,7 +346,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   useEffect(() => {
     setRangeNavigationUnsupported(false);
-  }, [subscribeMessageRange]);
+  }, [path, subscribeMessageRange]);
 
   return {
     hasPreFrame,
