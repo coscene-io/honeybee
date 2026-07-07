@@ -338,7 +338,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     expect((targetFrame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
   });
 
-  it("does not retain an exact target after returning a playback intermediate frame", async () => {
+  it("retains a playback target after returning an intermediate frame", async () => {
     const resultPromise = service.decodeVideoFrames({
       requestId: 1,
       mode: "playback",
@@ -358,15 +358,19 @@ describe("WorkerImageDecoder worker video batches", () => {
       type: "IntermediateFrame",
       originalTimestamp: 1_000_000_000n,
       receiveTime: 10n,
+      queuedThroughReceiveTime: 20n,
     });
     expect((intermediateFrame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
 
-    await expect(service.awaitTargetFrame({ requestId: 1 })).resolves.toEqual({
-      type: "Aborted",
-      requestId: 1,
-    });
+    const awaitPromise = service.awaitTargetFrame({ requestId: 1 });
     const targetFrame = emitQueuedFrameFromCall(player, 1, 0);
-    expect((targetFrame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+    await expect(awaitPromise).resolves.toMatchObject({
+      type: "TargetFrame",
+      requestId: 1,
+      originalTimestamp: 2_000_000_000n,
+      receiveTime: 20n,
+    });
+    expect((targetFrame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
   });
 
   it("feeds playback frames through decoder queue backpressure", async () => {
@@ -430,7 +434,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     const player = mockVideoPlayers[0]!;
     service.resetVideoDecoder();
 
-    await expect(resultPromise).resolves.toEqual({ type: "Aborted", requestId: 1 });
+    await expect(resultPromise).resolves.toMatchObject({ type: "Aborted", requestId: 1 });
     expect(player.resetForSeek).toHaveBeenCalled();
     const staleFrame = emitQueuedFrame(player, 0);
     expect((staleFrame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);

@@ -267,7 +267,7 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
-  it("does not resend frames already submitted to the decoder after an intermediate display", async () => {
+  it("continues from the last frame actually submitted to the decoder after an intermediate display", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const middle = makeVideoMessage(10_000_000n, "delta");
     const target = makeVideoMessage(20_000_000n, "delta");
@@ -293,12 +293,12 @@ describe("CompressedVideoController", () => {
     await flushAsyncWork();
 
     controller.processMessage(nextTarget);
-    resolveFirstDisplay({ ok: true, decodedFrame: middle });
+    resolveFirstDisplay({ ok: true, decodedFrame: middle, queuedThroughFrame: middle });
     await flushAsyncWork();
 
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 10_000_000n, 20_000_000n],
-      [30_000_000n],
+      [20_000_000n, 30_000_000n],
     ]);
   });
 
@@ -309,12 +309,13 @@ describe("CompressedVideoController", () => {
       Promise<ImageSetImageResult>,
       Parameters<CompressedVideoDisplayFrames>
     >(async () => {
-      if (displayFrames.mock.calls.length === 1) {
+      if (nonResetCalls(displayFrames).length === 1) {
         return { ok: true, decodedFrame: keyframe };
       }
       return { ok: true, decodedFrame: target };
     });
-    const controller = makeController({ displayFrames });
+    const resetDecoder = jest.fn();
+    const controller = makeController({ displayFrames, resetDecoder });
 
     controller.processMessage(keyframe);
     controller.processMessage(target);
@@ -331,6 +332,36 @@ describe("CompressedVideoController", () => {
     expect(nonResetCalls(displayFrames).map((call) => call[2]?.anyFrameTimeoutMs)).toEqual([
       500, 1000,
     ]);
+    expect(resetDecoder).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps retrying a playback target after repeated intermediate frames", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(10_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async () => {
+      if (nonResetCalls(displayFrames).length <= 2) {
+        return { ok: true, decodedFrame: keyframe, queuedThroughFrame: target };
+      }
+      return { ok: true, decodedFrame: target, queuedThroughFrame: target };
+    });
+    const resetDecoder = jest.fn();
+    const controller = makeController({ displayFrames, resetDecoder });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(target);
+    for (let i = 0; i < 5; i++) {
+      await flushAsyncWork();
+    }
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [0n, 10_000_000n],
+      [0n, 10_000_000n],
+    ]);
+    expect(resetDecoder).toHaveBeenCalledTimes(2);
   });
 
   it("drops late decoded playback frames and keeps chasing the latest target", async () => {

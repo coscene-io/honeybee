@@ -36,8 +36,13 @@ export type DecodeVideoFramesResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      queuedThroughReceiveTime?: bigint;
     }
-  | { type: "Timeout" | "Aborted" | "FrameOutOfOrder"; requestId: number };
+  | {
+      type: "Timeout" | "Aborted" | "FrameOutOfOrder";
+      requestId: number;
+      queuedThroughReceiveTime?: bigint;
+    };
 
 export type AwaitTargetFrameArgs = {
   requestId: number;

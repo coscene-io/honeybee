@@ -794,6 +794,99 @@ describe("ImageRenderable", () => {
     }
   });
 
+  it("reports queued playback progress separately from the displayed intermediate frame", async () => {
+    const time = mockDateNow();
+    try {
+      const keyDecodedFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const decodeVideoFrames = jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({
+          type: "IntermediateFrame",
+          requestId,
+          frame: keyDecodedFrame,
+          originalTimestamp: 1n,
+          receiveTime: 10n,
+          queuedThroughReceiveTime: 20n,
+        }),
+      );
+      const decoder = {
+        decodeVideoFrames,
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      const keyframe = videoFrameEvent(10n, 1, "key");
+      const target = videoFrameEvent(20n, 2, "delta");
+
+      await expect(
+        renderable.setCompressedVideoFrames([keyframe, target], {
+          decodeMode: "playback",
+        }),
+      ).resolves.toMatchObject({
+        ok: true,
+        decodedFrame: keyframe,
+        queuedThroughFrame: target,
+      });
+    } finally {
+      time.restore();
+    }
+  });
+
+  it("updates playback when a timed-out target frame arrives after an intermediate frame", async () => {
+    const time = mockDateNow();
+    try {
+      const intermediateFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const targetFrame = new MockVideoFrame() as unknown as VideoFrame;
+      let resolveTarget!: (result: AwaitTargetFrameResult) => void;
+      const targetPromise = new Promise<AwaitTargetFrameResult>((resolve) => {
+        resolveTarget = resolve;
+      });
+      const decoder = {
+        decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+          async ({ requestId }) => ({
+            type: "IntermediateFrame",
+            requestId,
+            frame: intermediateFrame,
+            originalTimestamp: 1n,
+            receiveTime: 10n,
+            queuedThroughReceiveTime: 20n,
+          }),
+        ),
+        awaitTargetFrame: jest.fn(async () => await targetPromise),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      const keyframe = videoFrameEvent(10n, 1, "key");
+      const target = videoFrameEvent(20n, 2, "delta");
+
+      await expect(
+        renderable.setCompressedVideoFrames([keyframe, target], {
+          decodeMode: "playback",
+        }),
+      ).resolves.toMatchObject({ ok: true, decodedFrame: keyframe });
+      expect(renderable.getDecodedImage()).toBe(intermediateFrame);
+
+      time.advance(20);
+      resolveTarget({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: targetFrame,
+        originalTimestamp: 2n,
+        receiveTime: 20n,
+      });
+      await flushPromises();
+
+      expect(renderable.getDecodedImage()).toBe(targetFrame);
+      expect(renderable.userData.image).toBe(target.message);
+      expect(renderable.userData.receiveTime).toBe(20n);
+      expect((intermediateFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+      expect((targetFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
+    } finally {
+      time.restore();
+    }
+  });
+
   it("drops decoded playback frames rejected by the display predicate", async () => {
     const time = mockDateNow();
     try {
@@ -1175,7 +1268,7 @@ describe("ImageRenderable", () => {
         receiveTime: 20n,
       });
 
-      await expect(replayResult).resolves.toEqual<ImageSetImageResult>({ ok: true });
+      await expect(replayResult).resolves.toMatchObject<ImageSetImageResult>({ ok: true });
       expect(renderable.getDecodedImage()).toBe(targetFrame);
       expect((currentFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
       expect((targetFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();

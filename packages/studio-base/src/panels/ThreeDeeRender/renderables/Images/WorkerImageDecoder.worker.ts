@@ -49,8 +49,13 @@ export type DecodeVideoFramesResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      queuedThroughReceiveTime?: bigint;
     }
-  | { type: "Timeout" | "Aborted" | "FrameOutOfOrder"; requestId: number };
+  | {
+      type: "Timeout" | "Aborted" | "FrameOutOfOrder";
+      requestId: number;
+      queuedThroughReceiveTime?: bigint;
+    };
 
 export type AwaitTargetFrameArgs = {
   requestId: number;
@@ -200,6 +205,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
   }
 
   const batchState: DecodeBatchState = { aborted: false, finished: false };
+  let queuedThroughReceiveTime: bigint | undefined;
   let finishBatch: ((result: DecodeVideoFramesResult) => void) | undefined;
   const abortThisBatch = () => {
     batchState.aborted = true;
@@ -207,7 +213,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     streamBaseTimestampMicros = undefined;
     lastQueuedTimestampMicros = undefined;
     abortPendingTargetFrame();
-    finishBatch?.({ type: "Aborted", requestId });
+    finishBatch?.({ type: "Aborted", requestId, queuedThroughReceiveTime });
   };
   activeBatchAbort = abortThisBatch;
 
@@ -283,13 +289,11 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     const targetOriginalTimestamp =
       queuedFrames[queuedFrames.length - 1]!.metadata.originalTimestamp;
     const targetReceiveTime = queuedFrames[queuedFrames.length - 1]!.metadata.receiveTime;
-    if (mode === "exact") {
-      pendingTargetFrame = {
-        requestId,
-        originalTimestamp: targetOriginalTimestamp,
-        receiveTime: targetReceiveTime,
-      };
-    }
+    pendingTargetFrame = {
+      requestId,
+      originalTimestamp: targetOriginalTimestamp,
+      receiveTime: targetReceiveTime,
+    };
     let latestFrame:
       | {
           frame: VideoFrame;
@@ -344,7 +348,6 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       }) => {
         if (batchState.finished || batchState.aborted) {
           if (
-            mode !== "exact" ||
             !retainOrResolveTargetFrame(requestId, {
               frame: decodedFrame.frame,
               ...decodedFrame.metadata,
@@ -363,17 +366,23 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
           decodedFrame.metadata.receiveTime === targetReceiveTime
         ) {
           pendingTargetFrame = undefined;
-          finish({ type: "TargetFrame", requestId, ...latestFrame });
+          finish({ type: "TargetFrame", requestId, ...latestFrame, queuedThroughReceiveTime });
           return;
         }
 
         if (targetTimedOut) {
-          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+          finish({
+            type: "IntermediateFrame",
+            requestId,
+            ...latestFrame,
+            queuedThroughReceiveTime,
+          });
         }
       };
 
       const queueBatchFrames = async () => {
         if (mode !== "playback") {
+          queuedThroughReceiveTime = queuedFrames[queuedFrames.length - 1]?.metadata.receiveTime;
           player.queueFrames(queuedFrames, handleDecodedFrame);
           return;
         }
@@ -388,31 +397,42 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
           if (isBatchStopped(batchState)) {
             return;
           }
+          queuedThroughReceiveTime = queuedFrame.metadata.receiveTime;
           player.queueFrames([queuedFrame], handleDecodedFrame);
         }
       };
 
       void queueBatchFrames().catch((err: unknown) => {
         log.error(err);
-        finish({ type: "Timeout", requestId });
+        finish({ type: "Timeout", requestId, queuedThroughReceiveTime });
       });
 
       targetTimer = setTimeout(() => {
         targetTimer = undefined;
         targetTimedOut = true;
         if (latestFrame != undefined) {
-          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+          finish({
+            type: "IntermediateFrame",
+            requestId,
+            ...latestFrame,
+            queuedThroughReceiveTime,
+          });
         } else if (anyFrameTimer == undefined) {
-          finish({ type: "Timeout", requestId });
+          finish({ type: "Timeout", requestId, queuedThroughReceiveTime });
         }
       }, targetFrameTimeoutMs);
 
       anyFrameTimer = setTimeout(() => {
         anyFrameTimer = undefined;
         if (latestFrame != undefined) {
-          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+          finish({
+            type: "IntermediateFrame",
+            requestId,
+            ...latestFrame,
+            queuedThroughReceiveTime,
+          });
         } else {
-          finish({ type: "Timeout", requestId });
+          finish({ type: "Timeout", requestId, queuedThroughReceiveTime });
         }
       }, anyFrameTimeoutMs);
     });
