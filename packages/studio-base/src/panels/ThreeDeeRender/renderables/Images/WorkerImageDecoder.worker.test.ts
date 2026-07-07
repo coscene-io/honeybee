@@ -415,6 +415,7 @@ describe("WorkerImageDecoder worker video batches", () => {
       type: "TargetFrame",
       originalTimestamp: 2_000_000_000n,
       receiveTime: 20n,
+      queuePressured: true,
     });
   });
 

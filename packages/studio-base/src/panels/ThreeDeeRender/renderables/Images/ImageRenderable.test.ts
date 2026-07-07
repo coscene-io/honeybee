@@ -806,6 +806,7 @@ describe("ImageRenderable", () => {
           originalTimestamp: 1n,
           receiveTime: 10n,
           queuedThroughReceiveTime: 20n,
+          queuePressured: true,
         }),
       );
       const decoder = {
@@ -826,6 +827,7 @@ describe("ImageRenderable", () => {
         ok: true,
         decodedFrame: keyframe,
         queuedThroughFrame: target,
+        queuePressured: true,
       });
     } finally {
       time.restore();

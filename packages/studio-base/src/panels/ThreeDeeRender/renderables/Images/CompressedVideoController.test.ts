@@ -18,6 +18,7 @@ import {
   type SeekKeyframeSearchChange,
   type VideoDisplayMode,
 } from "./CompressedVideoController";
+import { resetCompressedVideoPlaybackSchedulerForTests } from "./CompressedVideoPlaybackScheduler";
 import { type CompressedVideoFrameEvent, type ImageSetImageResult } from "./ImageRenderable";
 import { CompressedVideo } from "./ImageTypes";
 
@@ -122,6 +123,14 @@ async function flushAsyncWork(): Promise<void> {
 
 describe("CompressedVideoController", () => {
   beforeEach(() => {
+    resetCompressedVideoPlaybackSchedulerForTests({
+      normalSlotsPerSecond: 1_000,
+      pressureSlotsPerSecond: 1_000,
+      bucketCapacity: 1_000,
+      initialTokens: 1_000,
+      normalControllerIntervalMs: 0,
+      pressureControllerIntervalMs: 0,
+    });
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);
     jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
@@ -131,6 +140,7 @@ describe("CompressedVideoController", () => {
   });
 
   afterEach(() => {
+    resetCompressedVideoPlaybackSchedulerForTests();
     jest.useRealTimers();
   });
 
@@ -532,6 +542,38 @@ describe("CompressedVideoController", () => {
       [0n, 10_000_000n],
       // Incremental continuation from the committed first target within the same GOP.
       [20_000_000n],
+    ]);
+  });
+
+  it("routes normal playback through the shared scheduler instead of flushing every panel immediately", async () => {
+    jest.useFakeTimers();
+    resetCompressedVideoPlaybackSchedulerForTests();
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controllers = [
+      makeController({ displayFrames }),
+      makeController({ displayFrames }),
+      makeController({ displayFrames }),
+    ];
+
+    for (const [index, controller] of controllers.entries()) {
+      controller.processMessage(makeVideoMessage(BigInt(index) * 1_000_000n, "key"));
+    }
+
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(nonResetCalls(displayFrames)).toHaveLength(2);
+
+    await jest.advanceTimersByTimeAsync(22);
+
+    expect(nonResetCalls(displayFrames)).toHaveLength(2);
+
+    await jest.advanceTimersByTimeAsync(1);
+
+    expect(nonResetCalls(displayFrames)).toHaveLength(3);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual([
+      "playback",
+      "playback",
+      "playback",
     ]);
   });
 

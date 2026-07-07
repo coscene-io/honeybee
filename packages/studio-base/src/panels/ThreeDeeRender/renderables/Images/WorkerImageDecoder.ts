@@ -37,11 +37,13 @@ export type DecodeVideoFramesResult =
       originalTimestamp: bigint;
       receiveTime: bigint;
       queuedThroughReceiveTime?: bigint;
+      queuePressured?: true;
     }
   | {
       type: "Timeout" | "Aborted" | "FrameOutOfOrder";
       requestId: number;
       queuedThroughReceiveTime?: bigint;
+      queuePressured?: true;
     };
 
 export type AwaitTargetFrameArgs = {

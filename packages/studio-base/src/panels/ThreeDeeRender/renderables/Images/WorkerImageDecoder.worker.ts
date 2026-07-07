@@ -50,11 +50,13 @@ export type DecodeVideoFramesResult =
       originalTimestamp: bigint;
       receiveTime: bigint;
       queuedThroughReceiveTime?: bigint;
+      queuePressured?: true;
     }
   | {
       type: "Timeout" | "Aborted" | "FrameOutOfOrder";
       requestId: number;
       queuedThroughReceiveTime?: bigint;
+      queuePressured?: true;
     };
 
 export type AwaitTargetFrameArgs = {
@@ -206,6 +208,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
 
   const batchState: DecodeBatchState = { aborted: false, finished: false };
   let queuedThroughReceiveTime: bigint | undefined;
+  let queuePressured = false;
   let finishBatch: ((result: DecodeVideoFramesResult) => void) | undefined;
   const abortThisBatch = () => {
     batchState.aborted = true;
@@ -213,7 +216,12 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     streamBaseTimestampMicros = undefined;
     lastQueuedTimestampMicros = undefined;
     abortPendingTargetFrame();
-    finishBatch?.({ type: "Aborted", requestId, queuedThroughReceiveTime });
+    finishBatch?.(
+      decodeResultWithQueuePressure(
+        { type: "Aborted", requestId, queuedThroughReceiveTime },
+        { queuePressured },
+      ),
+    );
   };
   activeBatchAbort = abortThisBatch;
 
@@ -327,18 +335,21 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
           closeDecodeResultFrame(resultToResolve);
           return;
         }
+        const resultWithPressure = decodeResultWithQueuePressure(resultToResolve, {
+          queuePressured,
+        });
         batchState.finished = true;
         clearTimers();
         finishBatch = undefined;
         if (
-          resultToResolve.type !== "TargetFrame" &&
-          resultToResolve.type !== "IntermediateFrame"
+          resultWithPressure.type !== "TargetFrame" &&
+          resultWithPressure.type !== "IntermediateFrame"
         ) {
           closeLatestFrame();
-        } else if (latestFrame?.frame === resultToResolve.frame) {
+        } else if (latestFrame?.frame === resultWithPressure.frame) {
           latestFrame = undefined;
         }
-        resolve(resultToResolve);
+        resolve(resultWithPressure);
       };
 
       finishBatch = finish;
@@ -392,6 +403,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
             return;
           }
           if (player.decodeQueueSize() >= PLAYBACK_MAX_DECODE_QUEUE_SIZE) {
+            queuePressured = true;
             await player.waitForDecodeQueueBelow(PLAYBACK_MAX_DECODE_QUEUE_SIZE);
           }
           if (isBatchStopped(batchState)) {
@@ -519,6 +531,13 @@ function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
   if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
     result.frame.close();
   }
+}
+
+function decodeResultWithQueuePressure(
+  result: DecodeVideoFramesResult,
+  options: { queuePressured: boolean },
+): DecodeVideoFramesResult {
+  return options.queuePressured ? { ...result, queuePressured: true } : result;
 }
 
 export const service = {

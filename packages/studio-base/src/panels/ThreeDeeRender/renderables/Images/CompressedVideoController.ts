@@ -16,6 +16,11 @@ import {
 } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
+import {
+  cancelCompressedVideoPlaybackSlot,
+  requestCompressedVideoPlaybackSlot,
+  type CompressedVideoPlaybackSchedulerResult,
+} from "./CompressedVideoPlaybackScheduler";
 import type {
   CompressedVideoFrameEvent,
   ImageSetImageResult,
@@ -82,7 +87,6 @@ type ControllerState = {
   playbackStabilizationInFlightGeneration?: number;
   pendingPlaybackStabilizationReceiveTimeNs?: bigint;
   pendingPlaybackTarget?: PlaybackTarget;
-  playbackFlushScheduled?: boolean;
   playbackInFlightRequestId?: number;
   playbackDecoderProgress?: PlaybackDecoderProgress;
   lastPlaybackDisplayWallTimeMs?: number;
@@ -112,8 +116,11 @@ type ControllerRenderer = Pick<
   | "queueAnimationFrame"
 >;
 
+let nextPlaybackSchedulerControllerId = 0;
+
 export class CompressedVideoController {
   readonly #topic: string;
+  readonly #playbackSchedulerId: string;
   readonly #renderer: ControllerRenderer;
   readonly #cache = new VideoGopCache();
   readonly #state: ControllerState = {};
@@ -140,6 +147,7 @@ export class CompressedVideoController {
     onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   }) {
     this.#topic = args.topic;
+    this.#playbackSchedulerId = `${args.topic}:${++nextPlaybackSchedulerControllerId}`;
     this.#renderer = args.renderer;
     this.#displayFrames = args.displayFrames;
     this.#resetDecoder = args.resetDecoder;
@@ -409,9 +417,9 @@ export class CompressedVideoController {
   }
 
   #invalidatePlayback(): void {
+    cancelCompressedVideoPlaybackSlot(this.#playbackSchedulerId);
     this.#playbackRequestId++;
     this.#state.pendingPlaybackTarget = undefined;
-    this.#state.playbackFlushScheduled = false;
     this.#state.playbackDecoderProgress = undefined;
     this.#state.lastPlaybackDisplayWallTimeMs = undefined;
     this.#state.playbackNoDisplaySinceWallTimeMs = undefined;
@@ -439,41 +447,41 @@ export class CompressedVideoController {
   }
 
   #schedulePlaybackFlush(): void {
-    if (
-      this.#state.playbackFlushScheduled === true ||
-      this.#state.playbackInFlightRequestId != undefined
-    ) {
+    if (this.#state.pendingPlaybackTarget == undefined) {
       return;
     }
 
-    this.#state.playbackFlushScheduled = true;
-    queueMicrotask(() => {
-      this.#state.playbackFlushScheduled = false;
-      void this.#flushPlaybackTarget();
+    requestCompressedVideoPlaybackSlot({
+      id: this.#playbackSchedulerId,
+      hasPendingPlayback: () => this.#state.pendingPlaybackTarget != undefined,
+      isPlaybackActive: () => this.#isPlaybackDecodeActive(),
+      runPlaybackFlush: async () => await this.#flushPlaybackTarget(),
     });
   }
 
-  async #flushPlaybackTarget(): Promise<void> {
+  async #flushPlaybackTarget(): Promise<CompressedVideoPlaybackSchedulerResult> {
     if (this.#state.playbackInFlightRequestId != undefined) {
-      return;
+      return {};
     }
 
-    const target = this.#state.pendingPlaybackTarget;
-    if (target == undefined) {
-      return;
+    const queuedTarget = this.#state.pendingPlaybackTarget;
+    if (queuedTarget == undefined) {
+      return {};
     }
     this.#state.pendingPlaybackTarget = undefined;
-    if (!this.#isCurrentPlaybackTarget(target)) {
-      return;
+    if (!this.#isCurrentPlaybackTarget(queuedTarget)) {
+      return {};
     }
 
+    const preparedTarget = this.#retargetLatePlaybackTargetBeforeDecode(queuedTarget);
+    const target = preparedTarget.target;
     if (this.#restartSeverelyLatePlaybackTargetBeforeDecode(target)) {
-      return;
+      return { preDecodeSkipped: true, resetJumped: true };
     }
 
     const frames = this.#playbackFramesForTarget(target);
     if (frames.length === 0) {
-      return;
+      return preparedTarget.result;
     }
     this.#state.playbackInFlightRequestId = target.requestId;
     try {
@@ -512,12 +520,47 @@ export class CompressedVideoController {
           this.#state.playbackDecoderProgress = undefined;
         }
       }
+      return {
+        ...preparedTarget.result,
+        displayed: result.ok,
+        lateDropped: !result.ok && result.reason === "stale" && result.lateDropped === true,
+        queuePressured: result.queuePressured === true,
+      };
     } finally {
       if (this.#state.playbackInFlightRequestId === target.requestId) {
         this.#state.playbackInFlightRequestId = undefined;
       }
-      this.#schedulePlaybackFlush();
     }
+  }
+
+  #isPlaybackDecodeActive(): boolean {
+    return typeof document === "undefined" || document.visibilityState !== "hidden";
+  }
+
+  #retargetLatePlaybackTargetBeforeDecode(target: PlaybackTarget): {
+    target: PlaybackTarget;
+    result: CompressedVideoPlaybackSchedulerResult;
+  } {
+    if (this.#playbackFrameLatenessNs(target.messageEvent) <= PLAYBACK_LATE_DROP_THRESHOLD_NS) {
+      return { target, result: {} };
+    }
+
+    const messageEvent = this.#latestCachedPlaybackFrameAtClock();
+    if (
+      messageEvent == undefined ||
+      toNanoSec(messageEvent.receiveTime) <= toNanoSec(target.messageEvent.receiveTime)
+    ) {
+      return { target, result: {} };
+    }
+
+    const resetJumped = this.#resetDecoderForPlaybackJumpTo(messageEvent);
+    return {
+      target: {
+        ...target,
+        messageEvent,
+      },
+      result: { preDecodeSkipped: true, resetJumped },
+    };
   }
 
   #playbackDisplayOptions(target: PlaybackTarget): SetCompressedVideoFramesOptions {
@@ -720,7 +763,6 @@ export class CompressedVideoController {
       requestId: this.#playbackRequestId,
       options: target.options,
     };
-    this.#schedulePlaybackFlush();
     return true;
   }
 
@@ -730,6 +772,29 @@ export class CompressedVideoController {
       fromNanoSec(this.#renderer.currentTime),
     );
     return frames?.[frames.length - 1] as MessageEvent<CompressedVideo> | undefined;
+  }
+
+  #resetDecoderForPlaybackJumpTo(messageEvent: MessageEvent<CompressedVideo>): boolean {
+    const frames = this.#cache.framesForReceiveTime(this.#topic, messageEvent.receiveTime);
+    const keyframe = frames?.[0];
+    if (keyframe == undefined) {
+      return false;
+    }
+
+    const keyframeReceiveTimeNs = toNanoSec(keyframe.receiveTime);
+    const progress = this.#state.playbackDecoderProgress;
+    if (
+      progress != undefined &&
+      progress.generation === this.#generation &&
+      progress.keyframeReceiveTimeNs === keyframeReceiveTimeNs
+    ) {
+      return false;
+    }
+
+    this.#resetDecoderForReplayableFrames();
+    this.#state.playbackDecoderProgress = undefined;
+    this.#state.playbackLateDropCount = 0;
+    return true;
   }
 
   #continuePlaybackTargetAfterDecodedFrame(

@@ -77,12 +77,14 @@ type DecodedImageResult =
       image?: DecodedImageResource;
       decodedFrame?: CompressedVideoFrameEvent;
       queuedThroughFrame?: CompressedVideoFrameEvent;
+      queuePressured?: true;
       ok: true;
     }
   | {
       image?: DecodedImageResource;
       decodedFrame?: CompressedVideoFrameEvent;
       queuedThroughFrame?: CompressedVideoFrameEvent;
+      queuePressured?: true;
       ok: false;
       reason: "stale";
       staleTargetDecoded?: true;
@@ -92,6 +94,7 @@ type DecodedImageResult =
       image?: DecodedImageResource;
       decodedFrame?: CompressedVideoFrameEvent;
       queuedThroughFrame?: CompressedVideoFrameEvent;
+      queuePressured?: true;
       ok: false;
       reason: "failed";
     };
@@ -101,6 +104,7 @@ export type ImageSetImageResult =
       ok: true;
       decodedFrame?: CompressedVideoFrameEvent;
       queuedThroughFrame?: CompressedVideoFrameEvent;
+      queuePressured?: true;
     }
   | {
       ok: false;
@@ -109,12 +113,14 @@ export type ImageSetImageResult =
       lateDropped?: true;
       decodedFrame?: CompressedVideoFrameEvent;
       queuedThroughFrame?: CompressedVideoFrameEvent;
+      queuePressured?: true;
     }
   | {
       ok: false;
       reason: "failed";
       decodedFrame?: CompressedVideoFrameEvent;
       queuedThroughFrame?: CompressedVideoFrameEvent;
+      queuePressured?: true;
     };
 
 export type CompressedVideoFrameEvent = MessageEvent<CompressedVideo>;
@@ -848,13 +854,16 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       closeDecodeResultFrame(result);
       const staleResult = this.#staleVideoFrameResultIfRequestIsNotCurrent(
         options,
-        result.type === "TargetFrame" ? { staleTargetDecoded: true } : undefined,
+        result.type === "TargetFrame"
+          ? { ...queuePressureOptions(result), staleTargetDecoded: true }
+          : queuePressureOptions(result),
         queuedThroughFrame,
       );
       for (const entry of entries) {
         this.#settleVideoDecode(
           entry,
-          staleResult ?? this.#failedVideoFrameResult(queuedThroughFrame),
+          staleResult ??
+            this.#failedVideoFrameResult(queuedThroughFrame, queuePressureOptions(result)),
         );
       }
       return;
@@ -862,7 +871,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     const staleResult = this.#staleVideoFrameResultIfRequestIsNotCurrent(
       options,
-      result.type === "TargetFrame" ? { staleTargetDecoded: true } : undefined,
+      result.type === "TargetFrame"
+        ? { ...queuePressureOptions(result), staleTargetDecoded: true }
+        : queuePressureOptions(result),
       queuedThroughFrame,
     );
     if (staleResult != undefined) {
@@ -875,7 +886,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
 
     if (result.type !== "TargetFrame" && result.type !== "IntermediateFrame") {
       for (const entry of entries) {
-        this.#settleVideoDecode(entry, this.#failedVideoFrameResult(queuedThroughFrame));
+        this.#settleVideoDecode(
+          entry,
+          this.#failedVideoFrameResult(queuedThroughFrame, queuePressureOptions(result)),
+        );
       }
       if (result.type === "Timeout") {
         void this.#awaitTargetVideoFrame(decoder, requestId, entries[entries.length - 1]!, {
@@ -894,7 +908,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (entry === targetEntry) {
           continue;
         }
-        this.#settleVideoDecode(entry, this.#failedVideoFrameResult(queuedThroughFrame));
+        this.#settleVideoDecode(
+          entry,
+          this.#failedVideoFrameResult(queuedThroughFrame, queuePressureOptions(result)),
+        );
       }
       void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry, {
         settleTargetEntry: true,
@@ -920,13 +937,17 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       if (entry === targetEntry) {
         continue;
       }
-      this.#settleVideoDecode(entry, this.#failedVideoFrameResult(queuedThroughFrame));
+      this.#settleVideoDecode(
+        entry,
+        this.#failedVideoFrameResult(queuedThroughFrame, queuePressureOptions(result)),
+      );
     }
     this.#settleVideoDecode(targetEntry, {
       image: result.frame,
       ok: true,
       decodedFrame,
       queuedThroughFrame,
+      ...queuePressureOptions(result),
     });
     if (result.type === "IntermediateFrame") {
       void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry, {
@@ -1074,14 +1095,25 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
   }
 
-  #failedVideoFrameResult(queuedThroughFrame?: CompressedVideoFrameEvent): DecodedImageResult {
-    return queuedThroughFrame != undefined
-      ? { ok: false, reason: "failed", queuedThroughFrame }
-      : { ok: false, reason: "failed" };
+  #failedVideoFrameResult(
+    queuedThroughFrame?: CompressedVideoFrameEvent,
+    options: { queuePressured?: true } = {},
+  ): DecodedImageResult {
+    const result: Extract<DecodedImageResult, { ok: false; reason: "failed" }> = {
+      ok: false,
+      reason: "failed",
+    };
+    if (queuedThroughFrame != undefined) {
+      result.queuedThroughFrame = queuedThroughFrame;
+    }
+    if (options.queuePressured === true) {
+      result.queuePressured = true;
+    }
+    return result;
   }
 
   #staleVideoFrameResult(
-    options: { staleTargetDecoded?: true } = {},
+    options: { staleTargetDecoded?: true; queuePressured?: true } = {},
     queuedThroughFrame?: CompressedVideoFrameEvent,
   ): DecodedImageResult {
     const result: Extract<DecodedImageResult, { ok: false; reason: "stale" }> = {
@@ -1094,12 +1126,15 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (queuedThroughFrame != undefined) {
       result.queuedThroughFrame = queuedThroughFrame;
     }
+    if (options.queuePressured === true) {
+      result.queuePressured = true;
+    }
     return result;
   }
 
   #staleVideoFrameResultIfRequestIsNotCurrent(
     options: Pick<SetCompressedVideoFramesOptions, "isVideoFrameRequestCurrent">,
-    resultOptions?: { staleTargetDecoded?: true },
+    resultOptions?: { staleTargetDecoded?: true; queuePressured?: true },
     queuedThroughFrame?: CompressedVideoFrameEvent,
   ): DecodedImageResult | undefined {
     return options.isVideoFrameRequestCurrent != undefined &&
@@ -1472,6 +1507,9 @@ function imageSetResult(result: DecodedImageResult): ImageSetImageResult {
     if (result.queuedThroughFrame != undefined) {
       okResult.queuedThroughFrame = result.queuedThroughFrame;
     }
+    if (result.queuePressured === true) {
+      okResult.queuePressured = true;
+    }
     return okResult;
   }
   if (result.reason === "stale") {
@@ -1491,6 +1529,9 @@ function imageSetResult(result: DecodedImageResult): ImageSetImageResult {
     if (result.queuedThroughFrame != undefined) {
       staleResult.queuedThroughFrame = result.queuedThroughFrame;
     }
+    if (result.queuePressured === true) {
+      staleResult.queuePressured = true;
+    }
     return staleResult;
   }
   const failedResult: Extract<ImageSetImageResult, { ok: false; reason: "failed" }> = {
@@ -1503,7 +1544,14 @@ function imageSetResult(result: DecodedImageResult): ImageSetImageResult {
   if (result.queuedThroughFrame != undefined) {
     failedResult.queuedThroughFrame = result.queuedThroughFrame;
   }
+  if (result.queuePressured === true) {
+    failedResult.queuePressured = true;
+  }
   return failedResult;
+}
+
+function queuePressureOptions(result: DecodeVideoFramesResult): { queuePressured?: true } {
+  return result.queuePressured === true ? { queuePressured: true } : {};
 }
 
 async function awaitTargetFrameWithTimeout(
