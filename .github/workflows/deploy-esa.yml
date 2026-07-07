@@ -19,8 +19,8 @@ jobs:
 
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      ESA_ACCESS_KEY: ${{ secrets.ACK_ACCESS_KEY_ID }}
-      ESA_SECRET_KEY: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
+      ESA_ACCESS_KEY: ${{ secrets.ESA_ACCESS_KEY }}
+      ESA_SECRET_KEY: ${{ secrets.ESA_SECRET_KEY }}
       CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
       ESA_SITE_ID: "152922880180456"
       ESA_ROUTINE_NAME: honeybee-viz-staging
