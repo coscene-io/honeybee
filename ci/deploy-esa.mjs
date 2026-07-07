@@ -25,9 +25,9 @@ const assetsPath = path.resolve(
   process.env.ESA_ASSETS_PATH ?? path.join(__dirname, "..", "web", ".webpack"),
 );
 const siteId = process.env.ESA_SITE_ID ? Number(process.env.ESA_SITE_ID) : undefined;
-const routeName = process.env.ESA_ROUTE_NAME ?? "viz-coscene-cn";
-const routeRule = process.env.ESA_ROUTE_RULE ?? '(http.host eq "viz.coscene.cn")';
 const esaDomain = process.env.ESA_DOMAIN ?? "viz.coscene.cn";
+const routeName = process.env.ESA_ROUTE_NAME ?? "viz-coscene-cn";
+const routeRule = process.env.ESA_ROUTE_RULE ?? `(http.host eq "${esaDomain}")`;
 
 function log(message) {
   console.warn(message);
@@ -381,11 +381,27 @@ function getRouteConfigId(route) {
   return Number.isFinite(configId) ? configId : undefined;
 }
 
+function getRelatedRecordsFromResponse(response) {
+  return response.body?.relatedRecords ?? response.body?.RelatedRecords ?? [];
+}
+
+function getRelatedRecordField(relatedRecord, field) {
+  const pascalField = `${field[0].toUpperCase()}${field.slice(1)}`;
+  return relatedRecord[field] ?? relatedRecord[pascalField];
+}
+
 function findRoute(routes) {
   return routes.find((route) => {
     const existingName = getRouteField(route, "routeName");
     const existingRule = getRouteField(route, "rule");
     return existingName === routeName || existingRule === routeRule;
+  });
+}
+
+function findRelatedRecord(relatedRecords) {
+  return relatedRecords.find((relatedRecord) => {
+    const existingRecordName = getRelatedRecordField(relatedRecord, "recordName");
+    return existingRecordName === esaDomain;
   });
 }
 
@@ -408,6 +424,84 @@ function validateRouteShape(route) {
       `ESA route ${existingName} has unexpected Bypass=${existingBypass}; expected off`,
     );
   }
+}
+
+function validateRelatedRecordShape(relatedRecord) {
+  const existingRecordName = getRelatedRecordField(relatedRecord, "recordName");
+  const existingSiteId = getRelatedRecordField(relatedRecord, "siteId");
+
+  if (existingRecordName !== esaDomain) {
+    throw new Error(
+      `ESA related record has unexpected domain ${existingRecordName}; expected ${esaDomain}`,
+    );
+  }
+
+  if (siteId && existingSiteId && Number(existingSiteId) !== siteId) {
+    throw new Error(
+      `ESA related record ${esaDomain} is bound to unexpected SiteId ${existingSiteId}; expected ${siteId}`,
+    );
+  }
+}
+
+async function listRoutineRelatedRecords(client) {
+  const relatedRecords = [];
+  const pageSize = 500;
+  let pageNumber = 1;
+  let totalCount = 0;
+
+  do {
+    const response = await client.listRoutineRelatedRecords(
+      new Esa20240910.ListRoutineRelatedRecordsRequest({
+        name: routineName,
+        pageNumber,
+        pageSize,
+      }),
+    );
+    relatedRecords.push(...getRelatedRecordsFromResponse(response));
+    totalCount = Number(response.body?.totalCount ?? response.body?.TotalCount ?? 0);
+    pageNumber++;
+  } while (relatedRecords.length < totalCount);
+
+  return relatedRecords;
+}
+
+async function ensureRelatedRecord(client) {
+  if (process.env.ESA_SITE_ID && !Number.isFinite(siteId)) {
+    throw new Error(`ESA_SITE_ID must be a number; received ${process.env.ESA_SITE_ID}`);
+  }
+
+  if (!siteId) {
+    log("ESA_SITE_ID is not set; skipping custom domain binding.");
+    return;
+  }
+
+  const existingRelatedRecord = findRelatedRecord(await listRoutineRelatedRecords(client));
+  if (existingRelatedRecord) {
+    validateRelatedRecordShape(existingRelatedRecord);
+    log(`ESA domain binding already exists for ${esaDomain}.`);
+    return;
+  }
+
+  try {
+    await client.createRoutineRelatedRecord(
+      new Esa20240910.CreateRoutineRelatedRecordRequest({
+        name: routineName,
+        recordName: esaDomain,
+        siteId,
+      }),
+    );
+  } catch (error) {
+    const retryRelatedRecord = findRelatedRecord(await listRoutineRelatedRecords(client));
+    if (!retryRelatedRecord) {
+      throw new Error(`CreateRoutineRelatedRecord failed: ${formatError(error)}`);
+    }
+
+    validateRelatedRecordShape(retryRelatedRecord);
+    log(`ESA domain binding already exists for ${esaDomain}.`);
+    return;
+  }
+
+  log(`Created ESA domain binding for ${esaDomain}.`);
 }
 
 async function listSiteRoutes(client) {
@@ -524,6 +618,7 @@ async function main() {
   await uploadAssets(ossPostConfig, files);
   await waitForCodeVersion(client, runtime, codeVersion);
   await deployCodeVersion(client, runtime, codeVersion);
+  await ensureRelatedRecord(client);
   await ensureRoute(client);
 
   const defaultAccessUrl = await getRoutineAccessUrl(client, runtime);

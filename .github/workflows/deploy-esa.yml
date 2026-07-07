@@ -24,6 +24,7 @@ jobs:
       CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
       ESA_SITE_ID: "152922880180456"
       ESA_ROUTINE_NAME: honeybee-viz-cn
+      ESA_DOMAIN: viz.coscene.cn
       HONEYBEE_WEB_PUBLIC_PATH: /
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
@@ -39,6 +40,7 @@ jobs:
           : "${ESA_SECRET_KEY:?ESA_SECRET_KEY secret is required}"
           : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
           : "${ESA_ROUTINE_NAME:?ESA_ROUTINE_NAME variable is required}"
+          : "${ESA_DOMAIN:?ESA_DOMAIN variable is required}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
