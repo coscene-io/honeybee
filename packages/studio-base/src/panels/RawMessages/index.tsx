@@ -17,8 +17,8 @@
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import ReactHoverObserver from "react-hover-observer";
+import { useTranslation } from "react-i18next";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
 

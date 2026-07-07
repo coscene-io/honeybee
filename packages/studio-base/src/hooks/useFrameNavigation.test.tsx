@@ -2,23 +2,23 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { PropsWithChildren } from "react";
 
 import { compare } from "@foxglove/rostime";
 import type { Time } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import type { MessageAndData } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext, {
   AppConfigurationValue,
   IAppConfiguration,
 } from "@foxglove/studio-base/context/AppConfigurationContext";
-import type { MessageAndData } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
-import {
-  MessageEvent,
-  SubscribeMessageRange,
-  Topic,
-} from "@foxglove/studio-base/players/types";
+import { MessageEvent, SubscribeMessageRange, Topic } from "@foxglove/studio-base/players/types";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
@@ -94,7 +94,9 @@ function messageAndData(messageEvent: MessageEvent): MessageAndData {
 }
 
 function inRange(messageEvent: MessageEvent, start: Time, end: Time): boolean {
-  return compare(messageEvent.receiveTime, start) >= 0 && compare(messageEvent.receiveTime, end) <= 0;
+  return (
+    compare(messageEvent.receiveTime, start) >= 0 && compare(messageEvent.receiveTime, end) <= 0
+  );
 }
 
 function makeSubscribeMessageRange(
@@ -123,7 +125,9 @@ function wrapper(options: {
   readonly currentTime?: Time;
   readonly requestWindow?: number;
 }): (props: PropsWithChildren) => React.JSX.Element {
-  const appConfiguration = new FakeAppConfiguration([[AppSetting.REQUEST_WINDOW, options.requestWindow]]);
+  const appConfiguration = new FakeAppConfiguration([
+    [AppSetting.REQUEST_WINDOW, options.requestWindow],
+  ]);
 
   return function Wrapper({ children }: PropsWithChildren): React.JSX.Element {
     return (
@@ -149,6 +153,10 @@ function wrapper(options: {
 }
 
 describe("useFrameNavigation", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     mockEnqueueSnackbar.mockClear();
   });
@@ -305,5 +313,133 @@ describe("useFrameNavigation", () => {
 
     expect(startPlayback).toHaveBeenCalled();
     expect(seekPlayback).not.toHaveBeenCalled();
+  });
+
+  it("falls back to rendered history for previous frame when range subscription is unavailable", () => {
+    const seekPlayback = jest.fn<void, [Time]>();
+    const pausePlayback = jest.fn<void, []>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ seekPlayback, pausePlayback }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
+    });
+
+    expect(result.current.hasPreFrame).toBe(true);
+
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
+
+    expect(pausePlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenCalledWith(time(1));
+    expect(result.current.hasPreFrame).toBe(false);
+  });
+
+  it("cancels pending range navigation and resets state when path changes", async () => {
+    const currentMessage = message(1, 1);
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => unsubscribe);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result, rerender } = renderHook(
+      ({ hookPath }: { readonly hookPath: string }) =>
+        useFrameNavigation({
+          path: hookPath,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        initialProps: { hookPath: path },
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(currentMessage)]);
+      result.current.handleNextFrame([messageAndData(currentMessage)]);
+    });
+
+    expect(result.current.isFrameNavigationPending).toBe(true);
+
+    rerender({ hookPath: "/topic{value==2}.value" });
+
+    await waitFor(() => {
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.isFrameNavigationPending).toBe(false);
+    expect(seekPlayback).not.toHaveBeenCalled();
+  });
+
+  it("handles keyboard frame navigation and clears repeat timers", () => {
+    jest.useFakeTimers();
+    const startPlayback = jest.fn<void, []>();
+    const seekPlayback = jest.fn<void, [Time]>();
+    const pausePlayback = jest.fn<void, []>();
+    const panelElement = document.createElement("div");
+    const focusedElement = document.createElement("button");
+    panelElement.appendChild(focusedElement);
+    document.body.appendChild(panelElement);
+
+    const { result, unmount } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ startPlayback, seekPlayback, pausePlayback }),
+      },
+    );
+
+    Object.defineProperty(result.current.panelRef, "current", {
+      configurable: true,
+      value: panelElement,
+    });
+    focusedElement.focus();
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
+      result.current.keyDownHandlers.ArrowUp(new KeyboardEvent("keydown", { key: "ArrowUp" }));
+    });
+
+    expect(seekPlayback).toHaveBeenCalledWith(time(1));
+    expect(jest.getTimerCount()).toBe(1);
+
+    act(() => {
+      result.current.keyUpHandlers.ArrowUp(new KeyboardEvent("keyup", { key: "ArrowUp" }));
+    });
+
+    expect(jest.getTimerCount()).toBe(0);
+
+    act(() => {
+      result.current.onRestore();
+      jest.runOnlyPendingTimers();
+      result.current.keyDownHandlers.ArrowDown(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    });
+
+    expect(startPlayback).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(1);
+
+    unmount();
+
+    expect(jest.getTimerCount()).toBe(0);
+    panelElement.remove();
   });
 });

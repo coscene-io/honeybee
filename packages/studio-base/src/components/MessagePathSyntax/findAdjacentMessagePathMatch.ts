@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import { parseMessagePath } from "@foxglove/message-path";
 import { add, compare, subtract } from "@foxglove/rostime";
 import type { Time } from "@foxglove/rostime";
@@ -20,12 +24,6 @@ export type GetMessagePathDataItems = (
 export type AdjacentMessagePathMatchResult =
   | { readonly type: "found"; readonly message: MessageAndData }
   | { readonly type: "notFound" }
-  | { readonly type: "aborted" }
-  | { readonly type: "unsupported" }
-  | { readonly type: "error"; readonly error: Error };
-
-type ReadRangeResult =
-  | { readonly type: "messages"; readonly messages: readonly MessageEvent[] }
   | { readonly type: "aborted" }
   | { readonly type: "unsupported" }
   | { readonly type: "error"; readonly error: Error };
@@ -69,33 +67,34 @@ function messagePathMatch(
   return { messageEvent: message, queriedData };
 }
 
-async function readMessagesInRange(args: {
+async function scanMessagesInRange(args: {
   readonly topic: string;
   readonly start: Time;
   readonly end: Time;
   readonly subscribeMessageRange: SubscribeMessageRange;
   readonly abortSignal: AbortSignal | undefined;
-}): Promise<ReadRangeResult> {
+  readonly scanBatch: (batch: readonly MessageEvent[]) => MessageAndData | undefined;
+  readonly getDoneResult: () => AdjacentMessagePathMatchResult;
+}): Promise<AdjacentMessagePathMatchResult> {
   if (args.abortSignal?.aborted === true) {
     return { type: "aborted" };
   }
 
-  return await new Promise<ReadRangeResult>((resolve) => {
+  return await new Promise<AdjacentMessagePathMatchResult>((resolve) => {
     let settled = false;
     let unsubscribe: (() => void) | undefined;
-    let cleanupRequested = false;
+    let latestIteratorGeneration = 0;
 
     const cleanup = () => {
       args.abortSignal?.removeEventListener("abort", onAbort);
-      if (unsubscribe) {
-        unsubscribe();
-      } else {
-        cleanupRequested = true;
-      }
+      unsubscribe?.();
     };
 
-    const settle = (result: ReadRangeResult) => {
+    const settle = (result: AdjacentMessagePathMatchResult, iteratorGeneration?: number) => {
       if (settled) {
+        return;
+      }
+      if (iteratorGeneration != undefined && iteratorGeneration !== latestIteratorGeneration) {
         return;
       }
       settled = true;
@@ -114,29 +113,32 @@ async function readMessagesInRange(args: {
         topic: args.topic,
         timeRange: { start: args.start, end: args.end },
         onNewRangeIterator: async (iterator) => {
-          const messages: MessageEvent[] = [];
+          const iteratorGeneration = ++latestIteratorGeneration;
           try {
             for await (const batch of iterator) {
               if (args.abortSignal?.aborted === true) {
-                settle({ type: "aborted" });
+                settle({ type: "aborted" }, iteratorGeneration);
                 return;
               }
-              messages.push(...batch);
+              if (settled || iteratorGeneration !== latestIteratorGeneration) {
+                return;
+              }
+              const match = args.scanBatch(batch);
+              if (match != undefined) {
+                settle({ type: "found", message: match }, iteratorGeneration);
+                return;
+              }
             }
           } catch (error) {
-            settle({ type: "error", error: toError(error) });
+            settle({ type: "error", error: toError(error) }, iteratorGeneration);
             return;
           }
-          settle({ type: "messages", messages });
+          settle(args.getDoneResult(), iteratorGeneration);
         },
       });
     } catch (error) {
       settle({ type: "error", error: toError(error) });
       return;
-    }
-
-    if (cleanupRequested) {
-      unsubscribe?.();
     }
 
     if (unsubscribe == undefined) {
@@ -162,26 +164,29 @@ async function findNextMessagePathMatch(args: {
   let rangeStart = add(args.fromTime, ONE_NANOSECOND);
   while (compare(rangeStart, args.endTime) <= 0) {
     const rangeEnd = minTime(add(rangeStart, args.windowDuration), args.endTime);
-    const rangeResult = await readMessagesInRange({
+    const rangeResult = await scanMessagesInRange({
       topic: args.topic,
       start: rangeStart,
       end: rangeEnd,
       subscribeMessageRange: args.subscribeMessageRange,
       abortSignal: args.abortSignal,
+      scanBatch: (batch) => {
+        for (const message of batch) {
+          if (compare(message.receiveTime, args.fromTime) <= 0) {
+            continue;
+          }
+          const match = messagePathMatch(args.path, message, args.getMessagePathDataItems);
+          if (match != undefined) {
+            return match;
+          }
+        }
+        return undefined;
+      },
+      getDoneResult: () => ({ type: "notFound" }),
     });
 
-    if (rangeResult.type !== "messages") {
+    if (rangeResult.type !== "notFound") {
       return rangeResult;
-    }
-
-    for (const message of rangeResult.messages) {
-      if (compare(message.receiveTime, args.fromTime) <= 0) {
-        continue;
-      }
-      const match = messagePathMatch(args.path, message, args.getMessagePathDataItems);
-      if (match) {
-        return { type: "found", message: match };
-      }
     }
 
     rangeStart = add(rangeEnd, ONE_NANOSECOND);
@@ -207,27 +212,29 @@ async function findPreviousMessagePathMatch(args: {
   let rangeEnd = subtract(args.fromTime, ONE_NANOSECOND);
   while (compare(rangeEnd, args.startTime) >= 0) {
     const rangeStart = maxTime(subtract(rangeEnd, args.windowDuration), args.startTime);
-    const rangeResult = await readMessagesInRange({
+    let latestMatch: MessageAndData | undefined;
+    const rangeResult = await scanMessagesInRange({
       topic: args.topic,
       start: rangeStart,
       end: rangeEnd,
       subscribeMessageRange: args.subscribeMessageRange,
       abortSignal: args.abortSignal,
+      scanBatch: (batch) => {
+        for (const message of batch) {
+          if (compare(message.receiveTime, args.fromTime) >= 0) {
+            continue;
+          }
+          latestMatch =
+            messagePathMatch(args.path, message, args.getMessagePathDataItems) ?? latestMatch;
+        }
+        return undefined;
+      },
+      getDoneResult: () =>
+        latestMatch != undefined ? { type: "found", message: latestMatch } : { type: "notFound" },
     });
 
-    if (rangeResult.type !== "messages") {
+    if (rangeResult.type !== "notFound") {
       return rangeResult;
-    }
-
-    let latestMatch: MessageAndData | undefined;
-    for (const message of rangeResult.messages) {
-      if (compare(message.receiveTime, args.fromTime) >= 0) {
-        continue;
-      }
-      latestMatch = messagePathMatch(args.path, message, args.getMessagePathDataItems) ?? latestMatch;
-    }
-    if (latestMatch) {
-      return { type: "found", message: latestMatch };
     }
 
     rangeEnd = subtract(rangeStart, ONE_NANOSECOND);
