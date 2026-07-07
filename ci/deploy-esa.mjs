@@ -39,6 +39,13 @@ function assertRequiredEnv(name) {
   }
 }
 
+function configureAliyunCredentials() {
+  assertRequiredEnv("ACK_ACCESS_KEY_ID");
+  assertRequiredEnv("ACK_ACCESS_KEY_SECRET");
+  process.env.ALIBABA_CLOUD_ACCESS_KEY_ID = process.env.ACK_ACCESS_KEY_ID;
+  process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET = process.env.ACK_ACCESS_KEY_SECRET;
+}
+
 function formatError(error) {
   const parts = [
     `message=${error?.message ?? "(none)"}`,
@@ -389,8 +396,7 @@ async function ensureRoute(client) {
 }
 
 async function main() {
-  assertRequiredEnv("ALIBABA_CLOUD_ACCESS_KEY_ID");
-  assertRequiredEnv("ALIBABA_CLOUD_ACCESS_KEY_SECRET");
+  configureAliyunCredentials();
   assertRequiredEnv("ESA_ROUTINE_NAME");
 
   const files = validateAssets();

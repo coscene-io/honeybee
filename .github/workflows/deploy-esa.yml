@@ -19,8 +19,8 @@ jobs:
 
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
-      ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+      ACK_ACCESS_KEY_ID: ${{ secrets.ACK_ACCESS_KEY_ID }}
+      ACK_ACCESS_KEY_SECRET: ${{ secrets.ACK_ACCESS_KEY_SECRET }}
       CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
       ESA_SITE_ID: "152922880180456"
       ESA_ROUTINE_NAME: honeybee-viz-staging
@@ -34,8 +34,8 @@ jobs:
         run: |
           set -euo pipefail
           : "${GH_PACKAGES_ORG_TOKEN:?GH_PACKAGES_ORG_TOKEN secret is required}"
-          : "${ALIBABA_CLOUD_ACCESS_KEY_ID:?ALIBABA_CLOUD_ACCESS_KEY_ID secret is required}"
-          : "${ALIBABA_CLOUD_ACCESS_KEY_SECRET:?ALIBABA_CLOUD_ACCESS_KEY_SECRET secret is required}"
+          : "${ACK_ACCESS_KEY_ID:?ACK_ACCESS_KEY_ID secret is required}"
+          : "${ACK_ACCESS_KEY_SECRET:?ACK_ACCESS_KEY_SECRET secret is required}"
           : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
           : "${ESA_ROUTINE_NAME:?ESA_ROUTINE_NAME variable is required}"
 
