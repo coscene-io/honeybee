@@ -135,7 +135,7 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
 function normalizeWebBasePath(path: string | undefined): string {
   const trimmedPath = path?.trim();
   const normalizedPath =
-    trimmedPath === undefined || trimmedPath.length === 0 ? DEFAULT_WEB_PUBLIC_PATH : trimmedPath;
+    trimmedPath == undefined || trimmedPath.length === 0 ? DEFAULT_WEB_PUBLIC_PATH : trimmedPath;
   const withLeadingSlash = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
   return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
 }
