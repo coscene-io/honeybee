@@ -21,6 +21,15 @@ let mockQueueFramesImpl:
       onFrame: (frame: { frame: VideoFrame; metadata: unknown }) => void,
     ) => void)
   | undefined;
+let mockDecodeAndWaitForFrameImpl:
+  | ((
+      this: MockVideoPlayer,
+      data: Uint8Array,
+      timestampMicros: number,
+      type: "key" | "delta",
+      timeoutMs?: number,
+    ) => Promise<VideoFrame | undefined>)
+  | undefined;
 
 jest.mock("@coscene-io/comlink", () => ({
   expose: jest.fn(),
@@ -46,12 +55,28 @@ jest.mock("@foxglove/den/video", () => {
       },
     );
     public readonly decodeAndWaitForFrame = jest.fn(
-      async (data: Uint8Array, timestampMicros: number, type: "key" | "delta") =>
-        await new Promise<VideoFrame | undefined>((resolve) => {
-          this.queueFrames([{ data, timestampMicros, type, metadata: undefined }], ({ frame }) => {
-            resolve(frame);
-          });
-        }),
+      async (
+        data: Uint8Array,
+        timestampMicros: number,
+        type: "key" | "delta",
+        timeoutMs?: number,
+      ) =>
+        mockDecodeAndWaitForFrameImpl != undefined
+          ? await mockDecodeAndWaitForFrameImpl.call(
+              this as unknown as MockVideoPlayer,
+              data,
+              timestampMicros,
+              type,
+              timeoutMs,
+            )
+          : await new Promise<VideoFrame | undefined>((resolve) => {
+              this.queueFrames(
+                [{ data, timestampMicros, type, metadata: undefined }],
+                ({ frame }) => {
+                  resolve(frame);
+                },
+              );
+            }),
     );
 
     public constructor() {
@@ -147,10 +172,12 @@ describe("WorkerImageDecoder worker video batches", () => {
     mockVideoPlayers.length = 0;
     jest.clearAllMocks();
     mockQueueFramesImpl = undefined;
+    mockDecodeAndWaitForFrameImpl = undefined;
     service = (await import("./WorkerImageDecoder.worker")).service;
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     service.resetVideoDecoder();
   });
 
@@ -326,6 +353,47 @@ describe("WorkerImageDecoder worker video batches", () => {
 
     const player = mockVideoPlayers[0]!;
     expect(player.queueFrames).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+
+    const decodedFrame = emitLastQueuedFrame(player);
+    await expect(resultPromise).resolves.toMatchObject({
+      frame: decodedFrame,
+      originalTimestamp: 1_000_000_000n,
+      receiveTime: 10n,
+    });
+  });
+
+  it("keeps waiting for late reordered single-frame playback output", async () => {
+    jest.useFakeTimers();
+    mockDecodeAndWaitForFrameImpl = async function (data, timestampMicros, type, timeoutMs = 1000) {
+      return await new Promise<VideoFrame | undefined>((resolve) => {
+        const timer = setTimeout(() => {
+          resolve(undefined);
+        }, timeoutMs);
+        this.queueFrames(
+          [{ data, timestampMicros, type, metadata: undefined }],
+          (decoded: { frame: VideoFrame }) => {
+            clearTimeout(timer);
+            resolve(decoded.frame);
+          },
+        );
+      });
+    };
+
+    let settled = false;
+    const resultPromise = service
+      .decodeVideoFrame({ frame: h264Frame(1, "key"), receiveTime: 10n })
+      .then((result) => {
+        settled = true;
+        return result;
+      });
+    await flushPromises();
+
+    const player = mockVideoPlayers[0]!;
+    expect(player.queueFrames).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await flushPromises();
     expect(settled).toBe(false);
 
     const decodedFrame = emitLastQueuedFrame(player);

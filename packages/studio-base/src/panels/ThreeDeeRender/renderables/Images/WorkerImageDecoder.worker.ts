@@ -16,7 +16,8 @@ import type { CompressedVideo } from "./ImageTypes";
 const log = Logger.getLogger(__filename);
 const TARGET_FRAME_TIMEOUT_MS = 1000;
 const ANY_FRAME_TIMEOUT_MS = 2000;
-const PLAYBACK_FRAME_TIMEOUT_MS = 1000;
+// Playback decoders can output reordered frames only after later packets arrive.
+const PLAYBACK_FRAME_TIMEOUT_MS = 5000;
 
 let videoPlayer: VideoPlayer | undefined;
 let initPromise: Promise<void> | undefined;

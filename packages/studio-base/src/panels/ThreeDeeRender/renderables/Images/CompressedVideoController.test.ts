@@ -633,6 +633,74 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("keeps playback paused when a failed reset replay starts another cached replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const resetDelta = makeVideoMessage(20_000_000n, "delta");
+    const laterDelta = makeVideoMessage(30_000_000n, "delta");
+    let resolveFirstReplay!: (result: ImageSetImageResult) => void;
+    let resolveSecondReplay!: (result: ImageSetImageResult) => void;
+    const firstReplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstReplay = resolve;
+    });
+    const secondReplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveSecondReplay = resolve;
+    });
+    const releases: jest.Mock[] = [];
+    const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => {
+      const release = jest.fn();
+      releases.push(release);
+      return release;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames) => {
+      const times = frameReceiveTimes(frames).join(",");
+      if (times === "0,10000000,20000000") {
+        return await firstReplay;
+      }
+      if (times === "0,10000000,20000000,30000000") {
+        return await secondReplay;
+      }
+      return { ok: true };
+    });
+    const controller = makeController({
+      renderer: makeRenderer({ acquireSeekKeyframeSearchPlaybackPause }),
+      displayFrames,
+    });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(resetDelta);
+    await flushAsyncWork();
+    controller.processMessage(laterDelta);
+    await flushAsyncWork();
+
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
+
+    resolveFirstReplay({ ok: false, reason: "failed" });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n],
+    ]);
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(2);
+    expect(releases[0]).toHaveBeenCalledTimes(1);
+    expect(releases[1]).not.toHaveBeenCalled();
+
+    resolveSecondReplay({ ok: true });
+    await flushAsyncWork();
+
+    expect(releases[1]).toHaveBeenCalledTimes(1);
+  });
+
   it("uses progressive lookback when seek receives a delta frame outside the cache", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");

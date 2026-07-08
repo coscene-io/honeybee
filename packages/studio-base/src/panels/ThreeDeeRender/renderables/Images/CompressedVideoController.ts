@@ -452,6 +452,7 @@ export class CompressedVideoController {
     frames: readonly MessageEvent[],
     options?: SetCompressedVideoFramesOptions,
   ): Promise<void> {
+    let resumePendingAfterFailedReplay = false;
     this.#beginSeekReplayPlaybackPause(generation);
     try {
       const result = await this.#displayReplayFramesResult(frames, generation, "playback", {
@@ -472,9 +473,12 @@ export class CompressedVideoController {
       }
 
       this.#resetDecoderForReplay();
-      this.#resumePendingPlaybackAfterFailedResetReplay(generation);
+      resumePendingAfterFailedReplay = true;
     } finally {
       this.#endSeekReplayPlaybackPause(generation);
+      if (resumePendingAfterFailedReplay) {
+        this.#resumePendingPlaybackAfterFailedResetReplay(generation);
+      }
     }
   }
 
