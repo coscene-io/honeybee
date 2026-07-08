@@ -16,6 +16,7 @@ import type { CompressedVideo } from "./ImageTypes";
 const log = Logger.getLogger(__filename);
 const TARGET_FRAME_TIMEOUT_MS = 1000;
 const ANY_FRAME_TIMEOUT_MS = 2000;
+const PLAYBACK_FRAME_TIMEOUT_MS = 1000;
 
 let videoPlayer: VideoPlayer | undefined;
 let initPromise: Promise<void> | undefined;
@@ -25,7 +26,6 @@ let activeBatchAbort: (() => void) | undefined;
 let streamBaseTimestampMicros: number | undefined;
 let lastQueuedTimestampMicros: number | undefined;
 let pendingTargetFrame: PendingTargetFrame | undefined;
-let latestPlaybackFrame: DecodedVideoFrameResult | undefined;
 
 export type DecodeVideoFrameInput = {
   frame: CompressedVideo;
@@ -174,7 +174,9 @@ async function ensureInitialized(
   return player.isInitialized();
 }
 
-async function decodeVideoFrame(entry: DecodeVideoFrameInput): Promise<void> {
+async function decodeVideoFrame(
+  entry: DecodeVideoFrameInput,
+): Promise<DecodedVideoFrameResult | undefined> {
   abortPendingTargetFrame();
 
   const frame = entry.frame;
@@ -186,18 +188,18 @@ async function decodeVideoFrame(entry: DecodeVideoFrameInput): Promise<void> {
   const player = getVideoPlayer();
   const frameInfo = getVideoFrameInfo(frame);
   if (frameInfo == undefined) {
-    return;
+    return undefined;
   }
 
   if (!(await ensureInitialized(player, frame, frameInfo.type))) {
-    return;
+    return undefined;
   }
 
   streamBaseTimestampMicros ??= toMicroSec(frame.timestamp);
   let timestampMicros = toMicroSec(frame.timestamp) - streamBaseTimestampMicros;
   if (timestampMicros < 0) {
     resetVideoPlayerForDisorder();
-    return;
+    return undefined;
   }
 
   if (lastQueuedTimestampMicros != undefined && timestampMicros <= lastQueuedTimestampMicros) {
@@ -210,32 +212,26 @@ async function decodeVideoFrame(entry: DecodeVideoFrameInput): Promise<void> {
       ? (H264.RewriteForLowLatencyDecoding(frame.data) ?? frame.data)
       : frame.data;
 
-  player.queueFrames(
-    [
-      {
-        data: frameData,
-        timestampMicros,
-        type: frameInfo.type,
-        metadata: {
-          originalTimestamp: toNanoSec(frame.timestamp),
-          receiveTime: entry.receiveTime,
-        },
-      },
-    ],
-    (decodedFrame) => {
-      closeDecodedVideoFrameResult(latestPlaybackFrame);
-      latestPlaybackFrame = { frame: decodedFrame.frame, ...decodedFrame.metadata };
-    },
+  const decodedFrame = await player.decodeAndWaitForFrame(
+    frameData,
+    timestampMicros,
+    frameInfo.type,
+    PLAYBACK_FRAME_TIMEOUT_MS,
   );
+  if (decodedFrame == undefined) {
+    return undefined;
+  }
+
+  const result = {
+    frame: decodedFrame,
+    originalTimestamp: toNanoSec(frame.timestamp),
+    receiveTime: entry.receiveTime,
+  };
+  return Comlink.transfer(result, [decodedFrame]);
 }
 
 function getLatestVideoFrame(): DecodedVideoFrameResult | undefined {
-  const frame = latestPlaybackFrame;
-  latestPlaybackFrame = undefined;
-  if (frame == undefined) {
-    return undefined;
-  }
-  return Comlink.transfer(frame, [frame.frame]);
+  return undefined;
 }
 
 async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
@@ -527,8 +523,6 @@ function resetVideoDecoder(): void {
   activeBatchAbort?.();
   activeBatchAbort = undefined;
   abortPendingTargetFrame();
-  closeDecodedVideoFrameResult(latestPlaybackFrame);
-  latestPlaybackFrame = undefined;
   videoPlayer?.resetForSeek();
   initPromise = undefined;
   lastDecodeTime = { sec: 0, nsec: 0 };

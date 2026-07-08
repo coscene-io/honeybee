@@ -519,6 +519,33 @@ describe("CompressedVideoController", () => {
     expect(events).toEqual(["reset", "display:0,10000000"]);
   });
 
+  it("replays cached GOP frames for the first delta after playback reset", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const nextDelta = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(nextDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback"]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.decodeMode)).toEqual(["exact"]);
+  });
+
   it("uses progressive lookback when seek receives a delta frame outside the cache", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
