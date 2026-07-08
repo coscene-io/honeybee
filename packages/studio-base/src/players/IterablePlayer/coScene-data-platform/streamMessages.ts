@@ -122,10 +122,11 @@ export async function* streamMessages({
     let totalMessages = 0;
     let results: IteratorResult[] = [];
 
-    // Limit batch size to avoid blocking consumer too long
-    const MAX_BATCH_SIZE = 500; // Yield every 500 messages
-    const MAX_BATCH_TIME_MS = 50; // Or every 50ms
+    const MAX_BATCH_SIZE = 128;
+    const MAX_BATCH_TIME_MS = 16;
+    const YIELD_TIME_CHECK_RECORDS = 32;
     let lastYieldTime = performance.now();
+    let recordsSinceYieldCheck = 0;
 
     const schemasById = new Map<number, McapTypes.TypedMcapRecords["Schema"]>();
     const channelInfoById = new Map<
@@ -310,21 +311,33 @@ export async function* streamMessages({
             }
             processRecord(record);
 
-            // 只检查数量，避免频繁调用 performance.now()
+            recordsSinceYieldCheck++;
             if (results.length >= MAX_BATCH_SIZE) {
               yield results;
               results = [];
               lastYieldTime = performance.now();
+              recordsSinceYieldCheck = 0;
+              continue;
+            }
+
+            if (recordsSinceYieldCheck >= YIELD_TIME_CHECK_RECORDS) {
+              recordsSinceYieldCheck = 0;
+              const now = performance.now();
+              if (results.length > 0 && now - lastYieldTime >= MAX_BATCH_TIME_MS) {
+                yield results;
+                results = [];
+                lastYieldTime = performance.now();
+              }
             }
           }
 
-          // 处理完一个 chunk 后，检查时间或剩余数据
           const now = performance.now();
           const timeSinceLastYield = now - lastYieldTime;
           if (results.length > 0 && timeSinceLastYield >= MAX_BATCH_TIME_MS) {
             yield results;
             results = [];
             lastYieldTime = performance.now();
+            recordsSinceYieldCheck = 0;
           }
 
           if (normalReturn) {

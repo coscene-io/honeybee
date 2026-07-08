@@ -28,8 +28,10 @@ class MockVideoDecoder {
   public static isConfigSupported = jest.fn(async () => ({ supported: true }));
 
   public state: CodecState = "unconfigured";
+  public decodeQueueSize = 0;
   public readonly chunks: MockEncodedVideoChunk[] = [];
   public configuredConfig: VideoDecoderConfig | undefined;
+  readonly #eventTarget = new EventTarget();
 
   public constructor(private readonly init: VideoDecoderInit) {
     MockVideoDecoder.instances.push(this);
@@ -42,12 +44,23 @@ class MockVideoDecoder {
 
   public decode(chunk: MockEncodedVideoChunk): void {
     this.chunks.push(chunk);
+    this.decodeQueueSize++;
   }
 
   public emitFrame(timestamp: number): MockVideoFrame {
+    this.decodeQueueSize = Math.max(0, this.decodeQueueSize - 1);
+    this.#eventTarget.dispatchEvent(new Event("dequeue"));
     const frame = new MockVideoFrame(timestamp);
     this.init.output(frame as unknown as VideoFrame);
     return frame;
+  }
+
+  public addEventListener(type: string, listener: EventListener): void {
+    this.#eventTarget.addEventListener(type, listener);
+  }
+
+  public removeEventListener(type: string, listener: EventListener): void {
+    this.#eventTarget.removeEventListener(type, listener);
   }
 
   public reset(): void {
@@ -166,6 +179,25 @@ describe("VideoPlayer", () => {
     ]);
     expect(player.bufferedFrameCount()).toBe(0);
     expect(player.getLatestFrame()).toBeUndefined();
+  });
+
+  it("reports decoder queue size as frames are decoded", async () => {
+    const player = new VideoPlayer();
+    await player.init({ codec: "avc1.640028" });
+    const decoder = MockVideoDecoder.instances[0]!;
+
+    player.queueFrames(
+      [
+        { data: new Uint8Array([1]), timestampMicros: 10, type: "key", metadata: "key" },
+        { data: new Uint8Array([2]), timestampMicros: 20, type: "delta", metadata: "delta" },
+      ],
+      () => {},
+    );
+
+    expect(player.decodeQueueSize()).toBe(2);
+
+    decoder.emitFrame(10);
+    expect(player.decodeQueueSize()).toBe(1);
   });
 
   it("closes queued frames that arrive after reset", async () => {

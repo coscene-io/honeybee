@@ -409,7 +409,9 @@ export class Images extends SceneExtension<ImageRenderable> {
     if (targetFrame == undefined) {
       return { ok: false, reason: "failed" };
     }
-    const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message);
+    const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message, {
+      deferImageState: true,
+    });
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
       resizeWidth: options?.resizeWidth ?? DEFAULT_BITMAP_WIDTH,
@@ -459,14 +461,22 @@ export class Images extends SceneExtension<ImageRenderable> {
   #prepareImageRenderable(
     messageEvent: PartialMessageEvent<AnyImage>,
     image: AnyImage,
+    options: { deferImageState?: boolean } = {},
   ): ImageRenderable {
     const imageTopic = messageEvent.topic;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
     const frameId = "header" in image ? image.header.frame_id : image.frame_id;
 
-    const renderable = this.#getImageRenderable(imageTopic, receiveTime, image, frameId);
+    const renderable = this.#getImageRenderable(
+      imageTopic,
+      receiveTime,
+      options.deferImageState === true ? undefined : image,
+      frameId,
+    );
 
-    renderable.userData.receiveTime = receiveTime;
+    if (options.deferImageState !== true) {
+      renderable.userData.receiveTime = receiveTime;
+    }
     // Auto-select settings.cameraInfoTopic if it's not already set
     const settings = renderable.userData.settings;
     if (settings.cameraInfoTopic == undefined) {
