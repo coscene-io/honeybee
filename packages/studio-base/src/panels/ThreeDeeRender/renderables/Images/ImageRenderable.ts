@@ -70,6 +70,7 @@ export const IMAGE_RENDERABLE_DEFAULT_SETTINGS: ImageRenderableSettings = {
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 const MIN_IMAGE_RENDER_INTERVAL_MS = 16;
 const DEFAULT_TARGET_FRAME_TIMEOUT_MS = 1000;
+const MAX_COMPRESSED_VIDEO_FRAME_EVENT_CACHE_SIZE = 512;
 
 type DecodedImageResource = ImageBitmap | ImageData | VideoFrame;
 type DecodedImageResult =
@@ -618,6 +619,25 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     this.userData.latestMessageState = { image: frameEvent.message, receiveTime };
     if (VIDEO_FORMATS.has(frameEvent.message.format)) {
       this.#compressedVideoFrameEventsByReceiveTime.set(receiveTime, frameEvent);
+      this.#pruneCompressedVideoFrameEventCache();
+    }
+  }
+
+  #pruneCompressedVideoFrameEventCache(): void {
+    while (
+      this.#compressedVideoFrameEventsByReceiveTime.size >
+      MAX_COMPRESSED_VIDEO_FRAME_EVENT_CACHE_SIZE
+    ) {
+      let oldestReceiveTime: bigint | undefined;
+      for (const receiveTime of this.#compressedVideoFrameEventsByReceiveTime.keys()) {
+        if (oldestReceiveTime == undefined || receiveTime < oldestReceiveTime) {
+          oldestReceiveTime = receiveTime;
+        }
+      }
+      if (oldestReceiveTime == undefined) {
+        return;
+      }
+      this.#compressedVideoFrameEventsByReceiveTime.delete(oldestReceiveTime);
     }
   }
 

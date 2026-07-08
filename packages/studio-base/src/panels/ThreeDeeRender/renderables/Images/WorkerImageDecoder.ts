@@ -101,8 +101,7 @@ export class WorkerImageDecoder {
     frame: CompressedVideo,
     receiveTime: bigint,
   ): Promise<DecodedVideoFrame | undefined> {
-    await this.#remote.decodeVideoFrame({ frame, receiveTime });
-    return await this.#remote.getLatestVideoFrame();
+    return await this.#remote.decodeVideoFrame({ frame, receiveTime });
   }
 
   public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {

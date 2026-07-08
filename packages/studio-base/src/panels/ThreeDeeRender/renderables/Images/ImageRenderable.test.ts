@@ -981,6 +981,56 @@ describe("ImageRenderable", () => {
     }
   });
 
+  it("bounds playback metadata retained for undecoded compressed video frames", async () => {
+    const time = mockDateNow();
+    try {
+      const decodedFrame = new MockVideoFrame() as unknown as VideoFrame;
+      const events = Array.from({ length: 520 }, (_value, index) =>
+        videoFrameEvent(BigInt(index + 1) * 10n, index + 1, index === 0 ? "key" : "delta"),
+      );
+      const firstEvent = events[0];
+      const lastEvent = events[events.length - 1];
+      if (firstEvent == undefined || lastEvent == undefined) {
+        throw new Error("Expected playback events");
+      }
+      let decodeCount = 0;
+      const decodeVideoFrame = jest.fn<
+        Promise<DecodedVideoFrame | undefined>,
+        [CompressedVideo, bigint]
+      >(async (): Promise<DecodedVideoFrame | undefined> => {
+        decodeCount++;
+        if (decodeCount !== events.length) {
+          return undefined;
+        }
+        return { frame: decodedFrame, originalTimestamp: 1n, receiveTime: 10n };
+      });
+      const decoder = {
+        decodeVideoFrame,
+        decodeVideoFrames: jest.fn(),
+        awaitTargetFrame: abortAwaitTargetFrame(),
+        resetVideoDecoder: jest.fn(),
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder;
+      const renderable = new TestVideoBatchRenderable(decoder);
+      const updateImageState = jest.fn();
+
+      for (const event of events.slice(0, -1)) {
+        await renderable.setCompressedVideoFrames([event], { updateImageState });
+        time.advance(20);
+      }
+
+      await expect(
+        renderable.setCompressedVideoFrames([lastEvent], { updateImageState }),
+      ).resolves.toEqual<ImageSetImageResult>({ ok: true });
+
+      expect(renderable.getDecodedImage()).toBe(decodedFrame);
+      expect(updateImageState).not.toHaveBeenCalled();
+      expect(renderable.userData.displayedFrameState).toBeUndefined();
+    } finally {
+      time.restore();
+    }
+  });
+
   it("closes decoded playback frames when the renderable is hidden", async () => {
     const time = mockDateNow();
     try {

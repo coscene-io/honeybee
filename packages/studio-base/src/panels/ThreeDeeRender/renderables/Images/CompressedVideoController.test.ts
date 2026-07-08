@@ -519,6 +519,188 @@ describe("CompressedVideoController", () => {
     expect(events).toEqual(["reset", "display:0,10000000"]);
   });
 
+  it("replays cached GOP frames for the first delta after playback reset", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const nextDelta = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(nextDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["playback"]);
+    expect(
+      nonResetCalls(displayFrames).map((call) => call[2]?.allowIntermediateVideoFrame),
+    ).toEqual([false]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.decodeMode)).toEqual(["exact"]);
+  });
+
+  it("resumes buffered playback keyframes after cached playback replay fails", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const resetDelta = makeVideoMessage(20_000_000n, "delta");
+    const nextKeyframe = makeVideoMessage(30_000_000n, "key");
+    const nextDelta = makeVideoMessage(40_000_000n, "delta");
+    let resolveReplay!: (result: ImageSetImageResult) => void;
+    const failedReplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveReplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames) => {
+      return frameReceiveTimes(frames).join(",") === "0,10000000,20000000"
+        ? await failedReplay
+        : { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(resetDelta);
+    await flushAsyncWork();
+    controller.processMessage(nextKeyframe);
+    controller.processMessage(nextDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+
+    resolveReplay({ ok: false, reason: "failed" });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [30_000_000n],
+      [40_000_000n],
+    ]);
+  });
+
+  it("retries cached playback replay for later deltas after a failed reset replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const resetDelta = makeVideoMessage(20_000_000n, "delta");
+    const laterDelta = makeVideoMessage(30_000_000n, "delta");
+    let failedResetReplay = false;
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames) => {
+      if (!failedResetReplay && frameReceiveTimes(frames).join(",") === "0,10000000,20000000") {
+        failedResetReplay = true;
+        return { ok: false, reason: "failed" };
+      }
+      return { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(resetDelta);
+    await flushAsyncWork();
+    controller.processMessage(laterDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.decodeMode)).toEqual([
+      "exact",
+      "exact",
+    ]);
+  });
+
+  it("keeps playback paused when a failed reset replay starts another cached replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const resetDelta = makeVideoMessage(20_000_000n, "delta");
+    const laterDelta = makeVideoMessage(30_000_000n, "delta");
+    let resolveFirstReplay!: (result: ImageSetImageResult) => void;
+    let resolveSecondReplay!: (result: ImageSetImageResult) => void;
+    const firstReplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveFirstReplay = resolve;
+    });
+    const secondReplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveSecondReplay = resolve;
+    });
+    const releases: jest.Mock[] = [];
+    const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => {
+      const release = jest.fn();
+      releases.push(release);
+      return release;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames) => {
+      const times = frameReceiveTimes(frames).join(",");
+      if (times === "0,10000000,20000000") {
+        return await firstReplay;
+      }
+      if (times === "0,10000000,20000000,30000000") {
+        return await secondReplay;
+      }
+      return { ok: true };
+    });
+    const controller = makeController({
+      renderer: makeRenderer({ acquireSeekKeyframeSearchPlaybackPause }),
+      displayFrames,
+    });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(resetDelta);
+    await flushAsyncWork();
+    controller.processMessage(laterDelta);
+    await flushAsyncWork();
+
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
+
+    resolveFirstReplay({ ok: false, reason: "failed" });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n],
+    ]);
+    expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(2);
+    expect(releases[0]).toHaveBeenCalledTimes(1);
+    expect(releases[1]).not.toHaveBeenCalled();
+
+    resolveSecondReplay({ ok: true });
+    await flushAsyncWork();
+
+    expect(releases[1]).toHaveBeenCalledTimes(1);
+  });
+
   it("uses progressive lookback when seek receives a delta frame outside the cache", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
