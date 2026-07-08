@@ -24,7 +24,7 @@ jobs:
       CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
       ESA_SITE_ID: "152922880180456"
       ESA_ROUTINE_NAME: honeybee-viz-cn
-      ESA_DOMAIN: viz.coscene.cn
+      ESA_DOMAIN: viewer.coscene.cn
       HONEYBEE_WEB_PUBLIC_PATH: /
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 

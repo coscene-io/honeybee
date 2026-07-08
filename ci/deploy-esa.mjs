@@ -25,8 +25,8 @@ const assetsPath = path.resolve(
   process.env.ESA_ASSETS_PATH ?? path.join(__dirname, "..", "web", ".webpack"),
 );
 const siteId = process.env.ESA_SITE_ID ? Number(process.env.ESA_SITE_ID) : undefined;
-const esaDomain = process.env.ESA_DOMAIN ?? "viz.coscene.cn";
-const routeName = process.env.ESA_ROUTE_NAME ?? "viz-coscene-cn";
+const esaDomain = process.env.ESA_DOMAIN ?? "viewer.coscene.cn";
+const routeName = process.env.ESA_ROUTE_NAME ?? "viewer-coscene-cn";
 const routeRule = process.env.ESA_ROUTE_RULE ?? `(http.host eq "${esaDomain}")`;
 
 function log(message) {
