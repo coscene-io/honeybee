@@ -303,15 +303,13 @@ describe("ImageMode compressed video seek replay", () => {
     subscription.handler(delta);
     await flushAsyncWork();
 
-    // Non-synchronized playback renders coalesced batches directly on the renderable; the
-    // message handler is only used for synchronization state.
     expect(messageHandler.handleCompressedVideo).not.toHaveBeenCalled();
     expect(imageMode.createdRenderables).toHaveLength(1);
     expect(
       imageMode.createdRenderables[0]!.setCompressedVideoFrameBatches.map((batch) =>
         batch.map(timestampFromImage),
       ),
-    ).toEqual([[keyframe.message.timestamp, delta.message.timestamp]]);
+    ).toEqual([[keyframe.message.timestamp], [delta.message.timestamp]]);
 
     renderer.currentTime = 10_000_000n;
     imageMode.handleSeek();
@@ -324,18 +322,19 @@ describe("ImageMode compressed video seek replay", () => {
         batch.map(timestampFromImage),
       ),
     ).toEqual([
-      [keyframe.message.timestamp, delta.message.timestamp],
+      [keyframe.message.timestamp],
+      [delta.message.timestamp],
       [keyframe.message.timestamp, delta.message.timestamp],
     ]);
     expect(
       imageMode.createdRenderables[0]!.setCompressedVideoFrameOptions.map(
         (options) => options?.allowIntermediateVideoFrame,
       ),
-    ).toEqual([false, false]);
+    ).toEqual([true, true, false]);
     expect(imageMode.createdRenderables[0]!.setImageCalls).toEqual([]);
   });
 
-  it("preserves the delta prefix of coalesced playback batches and records only the target state", async () => {
+  it("submits playback frames individually and records displayed playback state", async () => {
     const messageHandler = new FakeMessageHandler();
     nextMessageHandler = messageHandler;
     const renderer = makeRenderer();
@@ -350,18 +349,20 @@ describe("ImageMode compressed video seek replay", () => {
     subscription.handler(target);
     await flushAsyncWork();
 
-    // All three frames must reach the decoder as one batch (the deltas depend on the keyframe);
-    // only the target is displayed and recorded in the message handler state.
     expect(imageMode.createdRenderables).toHaveLength(1);
     expect(
       imageMode.createdRenderables[0]!.setCompressedVideoFrameBatches.map((batch) =>
         batch.map(timestampFromImage),
       ),
-    ).toEqual([[keyframe.message.timestamp, middle.message.timestamp, target.message.timestamp]]);
+    ).toEqual([
+      [keyframe.message.timestamp],
+      [middle.message.timestamp],
+      [target.message.timestamp],
+    ]);
     expect(imageMode.createdRenderables[0]!.setImageCalls).toEqual([]);
     expect(messageHandler.handleCompressedVideo).not.toHaveBeenCalled();
-    expect(messageHandler.updateImageState).toHaveBeenCalledTimes(1);
-    expect(messageHandler.updateImageState).toHaveBeenCalledWith(
+    expect(messageHandler.updateImageState).toHaveBeenCalledTimes(3);
+    expect(messageHandler.updateImageState).toHaveBeenLastCalledWith(
       expect.objectContaining({ message: target.message }),
       target.message,
     );
@@ -388,7 +389,11 @@ describe("ImageMode compressed video seek replay", () => {
       imageMode.createdRenderables[0]!.setCompressedVideoFrameBatches.map((batch) =>
         batch.map(timestampFromImage),
       ),
-    ).toEqual([[keyframe.message.timestamp, delta.message.timestamp]]);
+    ).toEqual([
+      [keyframe.message.timestamp],
+      [delta.message.timestamp],
+      [keyframe.message.timestamp, delta.message.timestamp],
+    ]);
   });
 
   it("replays cached GOP frames when synchronized mode emits a compressed video delta", async () => {
@@ -450,8 +455,8 @@ describe("ImageMode compressed video seek replay", () => {
         batch.map(timestampFromImage),
       ),
     ).toEqual([
-      // Playback batch rendered before the seek, then the seek GOP replay.
-      [keyframe.message.timestamp, delta.message.timestamp],
+      [keyframe.message.timestamp],
+      [delta.message.timestamp],
       [keyframe.message.timestamp, delta.message.timestamp],
     ]);
     expect(renderer.hud.getHUDItems()).not.toContainEqual(WAITING_FOR_IMAGE_EMPTY_HUD_ITEM);
@@ -593,8 +598,8 @@ describe("ImageMode compressed video seek replay", () => {
         .currentImageRenderable()
         ?.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
     ).toEqual([
-      // Playback batch rendered before the seek, then the lookback GOP replay.
-      [keyframe.message.timestamp, delta.message.timestamp],
+      [keyframe.message.timestamp],
+      [delta.message.timestamp],
       [keyframe.message.timestamp, delta.message.timestamp, targetDelta.message.timestamp],
     ]);
     expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
