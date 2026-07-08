@@ -19,8 +19,10 @@ import * as palette from "@foxglove/theme/src/palette";
 const DEFAULT_WEB_PUBLIC_PATH = "/viz/";
 
 function normalizePublicPath(publicPath: string | undefined): string {
-  const trimmedPath = publicPath?.trim() || DEFAULT_WEB_PUBLIC_PATH;
-  const withLeadingSlash = trimmedPath.startsWith("/") ? trimmedPath : `/${trimmedPath}`;
+  const trimmedPath = publicPath?.trim();
+  const normalizedPath =
+    trimmedPath == undefined || trimmedPath.length === 0 ? DEFAULT_WEB_PUBLIC_PATH : trimmedPath;
+  const withLeadingSlash = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
   return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
@@ -172,9 +174,7 @@ export const mainConfig =
 
     // 在rspack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
     const buildTime = new Date().toISOString();
-    const webPublicPath = isServe
-      ? "/"
-      : normalizePublicPath(process.env.HONEYBEE_WEB_PUBLIC_PATH);
+    const webPublicPath = isServe ? "/" : normalizePublicPath(process.env.HONEYBEE_WEB_PUBLIC_PATH);
 
     const plugins: RspackPluginInstance[] = [
       new rspack.DefinePlugin({

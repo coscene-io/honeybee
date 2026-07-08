@@ -2,27 +2,31 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
 import Credential from "@alicloud/credentials";
 import Esa20240910 from "@alicloud/esa20240910";
 import OpenApi from "@alicloud/openapi-client";
 import TeaUtil from "@alicloud/tea-util";
+import JSZip from "jszip";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import JSZip from "jszip";
 
 const ASSETS_SINGLE_FILE_LIMIT_BYTES = 25 * 1024 * 1024;
 const BUILD_STATUS_TIMEOUT_MS = 5 * 60 * 1000;
 const BUILD_STATUS_INTERVAL_MS = 1000;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = path.dirname(currentFilePath);
 
 const routineName = process.env.ESA_ROUTINE_NAME;
 const routineDescription =
   process.env.ESA_ROUTINE_DESCRIPTION ?? "Honeybee web ESA static deployment";
 const assetsPath = path.resolve(
-  process.env.ESA_ASSETS_PATH ?? path.join(__dirname, "..", "web", ".webpack"),
+  process.env.ESA_ASSETS_PATH ?? path.join(currentDirPath, "..", "web", ".webpack"),
 );
 const siteId = process.env.ESA_SITE_ID ? Number(process.env.ESA_SITE_ID) : undefined;
 const esaDomain = process.env.ESA_DOMAIN ?? "viewer.coscene.cn";
