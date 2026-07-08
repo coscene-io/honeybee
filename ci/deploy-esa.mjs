@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
@@ -10,8 +9,8 @@ import Credential from "@alicloud/credentials";
 import Esa20240910 from "@alicloud/esa20240910";
 import OpenApi from "@alicloud/openapi-client";
 import TeaUtil from "@alicloud/tea-util";
-import JSZip from "jszip";
 import fs from "fs";
+import JSZip from "jszip";
 import path from "path";
 import { fileURLToPath } from "url";
 
