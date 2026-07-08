@@ -124,6 +124,7 @@ function wrapper(options: {
   readonly startPlayback?: () => void;
   readonly currentTime?: Time;
   readonly requestWindow?: number;
+  readonly playerId?: () => string;
 }): (props: PropsWithChildren) => React.JSX.Element {
   const appConfiguration = new FakeAppConfiguration([
     [AppSetting.REQUEST_WINDOW, options.requestWindow],
@@ -143,6 +144,7 @@ function wrapper(options: {
             startTime={time(0)}
             currentTime={options.currentTime ?? time(1)}
             endTime={time(5)}
+            playerId={options.playerId?.()}
           >
             {children}
           </MockMessagePipelineProvider>
@@ -150,6 +152,17 @@ function wrapper(options: {
       </AppConfigurationContext.Provider>
     );
   };
+}
+
+function requiredKeyHandler(
+  handlers: Record<string, ((event: KeyboardEvent) => void | boolean | undefined) | undefined>,
+  key: string,
+): (event: KeyboardEvent) => void | boolean | undefined {
+  const handler = handlers[key];
+  if (handler == undefined) {
+    throw new Error(`Expected ${key} handler`);
+  }
+  return handler;
 }
 
 describe("useFrameNavigation", () => {
@@ -471,12 +484,18 @@ describe("useFrameNavigation", () => {
 
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 1))]);
-      result.current.handleNextFrame([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
+      result.current.handlePreviousFrame();
     });
 
     await waitFor(() => {
-      expect(startPlayback).toHaveBeenCalledTimes(1);
+      expect(seekPlayback).toHaveBeenCalledWith(time(1));
     });
+
+    act(() => {
+      result.current.onRestore();
+    });
+    seekPlayback.mockClear();
 
     rangeSupported = true;
     rerender({ hookPath: supportedPath });
@@ -484,6 +503,76 @@ describe("useFrameNavigation", () => {
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 2))]);
       result.current.handleNextFrame([messageAndData(message(1, 2))]);
+    });
+
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(time(3));
+    });
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries range navigation after the player changes", async () => {
+    let playerId = "1";
+    let rangeSupported = false;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      if (!rangeSupported) {
+        return undefined;
+      }
+      void onNewRangeIterator(
+        (async function* () {
+          yield [message(3, 1)];
+        })(),
+      );
+      return jest.fn();
+    });
+    const startPlayback = jest.fn<void, []>();
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result, rerender } = renderHook(
+      ({ renderId }: { readonly renderId: number }) => {
+        void renderId;
+        return useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        });
+      },
+      {
+        initialProps: { renderId: 1 },
+        wrapper: wrapper({
+          subscribeMessageRange,
+          startPlayback,
+          seekPlayback,
+          playerId: () => playerId,
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(time(1));
+    });
+
+    act(() => {
+      result.current.onRestore();
+    });
+    seekPlayback.mockClear();
+
+    rangeSupported = true;
+    playerId = "2";
+    rerender({ renderId: 2 });
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.handleNextFrame([messageAndData(message(1, 1))]);
     });
 
     await waitFor(() => {
@@ -650,14 +739,18 @@ describe("useFrameNavigation", () => {
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 1))]);
       result.current.updateRenderedTime([messageAndData(message(2, 1))]);
-      result.current.keyDownHandlers.ArrowUp(new KeyboardEvent("keydown", { key: "ArrowUp" }));
+      requiredKeyHandler(result.current.keyDownHandlers, "ArrowUp")(
+        new KeyboardEvent("keydown", { key: "ArrowUp" }),
+      );
     });
 
     expect(seekPlayback).toHaveBeenCalledWith(time(1));
     expect(jest.getTimerCount()).toBe(1);
 
     act(() => {
-      result.current.keyUpHandlers.ArrowUp(new KeyboardEvent("keyup", { key: "ArrowUp" }));
+      requiredKeyHandler(result.current.keyUpHandlers, "ArrowUp")(
+        new KeyboardEvent("keyup", { key: "ArrowUp" }),
+      );
     });
 
     expect(jest.getTimerCount()).toBe(0);
@@ -665,7 +758,9 @@ describe("useFrameNavigation", () => {
     act(() => {
       result.current.onRestore();
       jest.runOnlyPendingTimers();
-      result.current.keyDownHandlers.ArrowDown(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+      requiredKeyHandler(result.current.keyDownHandlers, "ArrowDown")(
+        new KeyboardEvent("keydown", { key: "ArrowDown" }),
+      );
     });
 
     expect(startPlayback).toHaveBeenCalledTimes(1);

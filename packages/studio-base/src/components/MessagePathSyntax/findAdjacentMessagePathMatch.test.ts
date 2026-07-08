@@ -261,6 +261,43 @@ describe("findAdjacentMessagePathMatch", () => {
     });
   });
 
+  it("does not return stale previous matches from a replaced iterator", async () => {
+    const keepStaleIteratorOpen = deferred();
+    const staleIteratorScanned = deferred();
+    const subscribeMessageRange: SubscribeMessageRange = ({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* staleIterator() {
+          yield [message(2, 1)];
+          staleIteratorScanned.resolve();
+          await keepStaleIteratorOpen.promise;
+        })(),
+      );
+      void (async () => {
+        await staleIteratorScanned.promise;
+        void onNewRangeIterator(
+          (async function* currentIterator() {
+            yield [message(3, 2)];
+          })(),
+        );
+      })();
+
+      return jest.fn();
+    };
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(4),
+      startTime: time(0),
+      endTime: time(5),
+      windowDuration: time(4),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toEqual({ type: "notFound" });
+  });
+
   it("returns notFound after scanning to the data boundary without backfilling old messages", async () => {
     const { subscribeMessageRange } = makeSubscribeMessageRange([message(0, 1)]);
 

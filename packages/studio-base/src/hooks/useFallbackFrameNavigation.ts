@@ -52,8 +52,8 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   readonly clearFrozenMessages: () => void;
   readonly resetRenderedHistory: () => void;
   readonly restoreFallbackState: () => boolean;
-  readonly runFallbackPreviousFrame: () => void;
-  readonly runFallbackNextFrame: (currentMessages?: MessageAndData[]) => void;
+  readonly runFallbackPreviousFrame: () => boolean;
+  readonly runFallbackNextFrame: (currentMessages?: MessageAndData[]) => boolean;
   readonly getEffectiveMessages: <T extends MessageAndData[]>(messages: T) => T;
   readonly updateRenderedTime: (messages: MessageAndData[]) => void;
 } {
@@ -108,9 +108,9 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     return true;
   }, [clearFrozenMessages, frameState, navigationId, notifier, resetRenderedHistory]);
 
-  const runFallbackPreviousFrame = useCallback(() => {
+  const runFallbackPreviousFrame = useCallback((): boolean => {
     if (frameState.current !== "current" || renderedTime.current.length <= 1) {
-      return;
+      return false;
     }
 
     pausePlayback?.();
@@ -127,12 +127,13 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     if (renderedTime.current.length <= 1) {
       setHasPreFrame(false);
     }
+    return true;
   }, [frameState, navigationId, notifier, pausePlayback, seekPlayback]);
 
   const runFallbackNextFrame = useCallback(
-    (currentMessages?: MessageAndData[]) => {
+    (currentMessages?: MessageAndData[]): boolean => {
       if (frameState.current !== "current") {
-        return;
+        return false;
       }
 
       if (currentMessages != undefined) {
@@ -144,6 +145,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       fallbackNextFrameActive.current = true;
       frameState.current = "next";
       startPlayback?.();
+      return true;
     },
     [frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
   );

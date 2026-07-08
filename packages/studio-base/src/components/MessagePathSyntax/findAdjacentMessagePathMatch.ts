@@ -73,6 +73,7 @@ async function scanMessagesInRange(args: {
   readonly end: Time;
   readonly subscribeMessageRange: SubscribeMessageRange;
   readonly abortSignal: AbortSignal | undefined;
+  readonly onIteratorStart?: () => void;
   readonly scanBatch: (batch: readonly MessageEvent[]) => MessageAndData | undefined;
   readonly getDoneResult: () => AdjacentMessagePathMatchResult;
 }): Promise<AdjacentMessagePathMatchResult> {
@@ -114,6 +115,7 @@ async function scanMessagesInRange(args: {
         timeRange: { start: args.start, end: args.end },
         onNewRangeIterator: async (iterator) => {
           const iteratorGeneration = ++latestIteratorGeneration;
+          args.onIteratorStart?.();
           try {
             for await (const batch of iterator) {
               if (args.abortSignal?.aborted === true) {
@@ -219,6 +221,9 @@ async function findPreviousMessagePathMatch(args: {
       end: rangeEnd,
       subscribeMessageRange: args.subscribeMessageRange,
       abortSignal: args.abortSignal,
+      onIteratorStart: () => {
+        latestMatch = undefined;
+      },
       scanBatch: (batch) => {
         for (const message of batch) {
           if (compare(message.receiveTime, args.fromTime) >= 0) {

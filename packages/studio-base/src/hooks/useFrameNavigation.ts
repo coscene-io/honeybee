@@ -38,6 +38,7 @@ const selectStartPlayback = (ctx: MessagePipelineContext) => ctx.startPlayback;
 const selectPausePlayback = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSubscribeMessageRange = (ctx: MessagePipelineContext) => ctx.subscribeMessageRange;
 const selectActiveData = (ctx: MessagePipelineContext) => ctx.playerState.activeData;
+const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
 
 export interface FrameNavigationHook {
   /** Whether there is a previous frame available */
@@ -83,6 +84,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const pausePlayback = useMessagePipeline(selectPausePlayback);
   const subscribeMessageRange = useMessagePipeline(selectSubscribeMessageRange);
   const activeData = useMessagePipeline(selectActiveData);
+  const playerId = useMessagePipeline(selectPlayerId);
   const getMessagePathDataItems = useCachedGetMessagePathDataItems(path.length > 0 ? [path] : []);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -191,11 +193,15 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           return;
         case "unsupported":
           setRangeNavigationUnsupported(true);
-          finishFrameNavigation();
-          if (direction === "previous") {
-            runFallbackPreviousFrame();
-          } else {
-            runFallbackNextFrame(currentMessagesRef.current);
+          frameState.current = "current";
+          clearFrozenMessages();
+          setIsFrameNavigationPending(false);
+          if (
+            !(direction === "previous"
+              ? runFallbackPreviousFrame()
+              : runFallbackNextFrame(currentMessagesRef.current))
+          ) {
+            frameNavigationNotifier.endNavigation(navigationId.current);
           }
           return;
         case "aborted":
@@ -209,6 +215,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     },
     [
       currentMessagesRef,
+      clearFrozenMessages,
       enqueueSnackbar,
       finishFrameNavigation,
       noNextFrameMessage,
@@ -346,7 +353,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   useEffect(() => {
     setRangeNavigationUnsupported(false);
-  }, [path, subscribeMessageRange]);
+  }, [path, playerId, subscribeMessageRange]);
 
   return {
     hasPreFrame,
