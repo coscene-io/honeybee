@@ -6,7 +6,7 @@ on:
       project_name:
         description: Cloudflare Pages project name
         required: true
-        default: honeybee-viz
+        default: coscene-honeybee
 
 permissions:
   contents: read
@@ -66,7 +66,7 @@ jobs:
             fi
           }
 
-          request_cloudflare "https://api.cloudflare.com/client/v4/user/tokens/verify"
+          request_cloudflare "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/verify"
           request_cloudflare "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PAGES_PROJECT_NAME}"
 
       - name: Set up Node.js
