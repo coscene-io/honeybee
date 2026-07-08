@@ -45,6 +45,15 @@ jobs:
           : "${CLOUDFLARE_PAGES_PROJECT_NAME:?Cloudflare Pages project name is required}"
           : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
 
+      - name: Validate Cloudflare Pages access
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PAGES_PROJECT_NAME}" \
+            >/dev/null
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
