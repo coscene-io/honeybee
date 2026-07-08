@@ -464,16 +464,44 @@ export class CompressedVideoController {
       }
 
       this.#state.replayGeneration = undefined;
-      this.#state.playbackDecoderResetGeneration = undefined;
       if (result.ok) {
+        this.#state.playbackDecoderResetGeneration = undefined;
         this.#recordLastDisplayedPublishTime(frames);
         this.#flushPendingPlaybackAfterReplay(generation);
         return;
       }
 
       this.#resetDecoderForReplay();
+      this.#resumePendingPlaybackAfterFailedResetReplay(generation);
     } finally {
       this.#endSeekReplayPlaybackPause(generation);
+    }
+  }
+
+  #resumePendingPlaybackAfterFailedResetReplay(generation: number): void {
+    const pendingPlayback = this.#state.pendingPlaybackAfterReplay;
+    if (
+      pendingPlayback == undefined ||
+      pendingPlayback.generation !== generation ||
+      !this.#isCurrentGeneration(generation)
+    ) {
+      return;
+    }
+
+    const entries = pendingPlayback.entries;
+    this.#state.pendingPlaybackAfterReplay = undefined;
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]!;
+      this.processMessage(entry.messageEvent, entry.options);
+      if (!this.#isCurrentGeneration(generation)) {
+        return;
+      }
+      if (this.#state.replayGeneration === generation) {
+        const remainingEntries = entries.slice(i + 1);
+        this.#state.pendingPlaybackAfterReplay =
+          remainingEntries.length > 0 ? { generation, entries: remainingEntries } : undefined;
+        return;
+      }
     }
   }
 

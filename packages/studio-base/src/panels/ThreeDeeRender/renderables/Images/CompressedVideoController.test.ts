@@ -546,6 +546,93 @@ describe("CompressedVideoController", () => {
     expect(nonResetCalls(displayFrames).map((call) => call[2]?.decodeMode)).toEqual(["exact"]);
   });
 
+  it("resumes buffered playback keyframes after cached playback replay fails", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const resetDelta = makeVideoMessage(20_000_000n, "delta");
+    const nextKeyframe = makeVideoMessage(30_000_000n, "key");
+    const nextDelta = makeVideoMessage(40_000_000n, "delta");
+    let resolveReplay!: (result: ImageSetImageResult) => void;
+    const failedReplay = new Promise<ImageSetImageResult>((resolve) => {
+      resolveReplay = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames) => {
+      return frameReceiveTimes(frames).join(",") === "0,10000000,20000000"
+        ? await failedReplay
+        : { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(resetDelta);
+    await flushAsyncWork();
+    controller.processMessage(nextKeyframe);
+    controller.processMessage(nextDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+
+    resolveReplay({ ok: false, reason: "failed" });
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [30_000_000n],
+      [40_000_000n],
+    ]);
+  });
+
+  it("retries cached playback replay for later deltas after a failed reset replay", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const resetDelta = makeVideoMessage(20_000_000n, "delta");
+    const laterDelta = makeVideoMessage(30_000_000n, "delta");
+    let failedResetReplay = false;
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (frames) => {
+      if (!failedResetReplay && frameReceiveTimes(frames).join(",") === "0,10000000,20000000") {
+        failedResetReplay = true;
+        return { ok: false, reason: "failed" };
+      }
+      return { ok: true };
+    });
+    const controller = makeController({ displayFrames });
+
+    controller.processMessage(keyframe);
+    controller.processMessage(firstDelta);
+    await flushAsyncWork();
+
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    controller.processMessage(resetDelta);
+    await flushAsyncWork();
+    controller.processMessage(laterDelta);
+    await flushAsyncWork();
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+      [0n, 10_000_000n, 20_000_000n, 30_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[2]?.decodeMode)).toEqual([
+      "exact",
+      "exact",
+    ]);
+  });
+
   it("uses progressive lookback when seek receives a delta frame outside the cache", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
