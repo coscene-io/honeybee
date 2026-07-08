@@ -6,7 +6,7 @@ on:
       project_name:
         description: Cloudflare Pages project name
         required: true
-        default: honeybee-viz
+        default: coscene-honeybee
 
 permissions:
   contents: read
@@ -44,6 +44,30 @@ jobs:
           : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN secret is required}"
           : "${CLOUDFLARE_PAGES_PROJECT_NAME:?Cloudflare Pages project name is required}"
           : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
+
+      - name: Validate Cloudflare Pages access
+        run: |
+          set -euo pipefail
+
+          request_cloudflare() {
+            local url="$1"
+            local output_file
+            output_file="$(mktemp)"
+            local status
+            status="$(curl -sS -o "${output_file}" -w "%{http_code}" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "${url}")"
+
+            if [[ "${status}" -lt 200 || "${status}" -ge 300 ]]; then
+              echo "Cloudflare API request failed with HTTP ${status}: ${url}"
+              cat "${output_file}"
+              exit 1
+            fi
+          }
+
+          request_cloudflare "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/tokens/verify"
+          request_cloudflare "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PAGES_PROJECT_NAME}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
