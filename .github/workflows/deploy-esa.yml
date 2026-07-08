@@ -42,11 +42,6 @@ jobs:
           : "${ESA_ROUTINE_NAME:?ESA_ROUTINE_NAME variable is required}"
           : "${ESA_DOMAIN:?ESA_DOMAIN variable is required}"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
       - name: Enable corepack
         run: corepack enable yarn
 
