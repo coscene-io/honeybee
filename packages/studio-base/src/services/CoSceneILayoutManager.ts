@@ -13,7 +13,7 @@ import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoScene
 
 export type LayoutManagerChangeEvent =
   | { type: "delete"; updatedLayout?: undefined; layoutId: LayoutID }
-  | { type: "change"; updatedLayout: Layout | undefined };
+  | { type: "change"; updatedLayout: Layout | undefined; source?: "update" | "overwrite" };
 
 export type LayoutManagerEventTypes = {
   /**
@@ -113,7 +113,7 @@ export interface ILayoutManager {
   deleteLayout(params: { id: LayoutID }): Promise<void>;
 
   /** Save the local changes so they override the baseline. */
-  overwriteLayout(params: { id: LayoutID }): Promise<Layout>;
+  overwriteLayout(params: { id: LayoutID; data?: LayoutData }): Promise<Layout>;
 
   /** Revert this layout to the baseline. */
   revertLayout(params: { id: LayoutID }): Promise<Layout>;
