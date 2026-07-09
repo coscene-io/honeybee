@@ -874,14 +874,13 @@ export class ImageMode
       this.#removeImageTimeout = undefined;
     }
 
-    const renderable = this.#getImageRenderable(topic, receiveTime, image, frameId);
+    const renderable = this.#getImageRenderable(topic, receiveTime, undefined, frameId);
 
     if (this.#cameraModel) {
       renderable.userData.cameraInfo = this.#cameraModel.info;
       renderable.setCameraModel(this.#cameraModel.model);
     }
 
-    renderable.userData.receiveTime = receiveTime;
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
       // Playback keeps the option provided by the controller (conflated playback disallows

@@ -19,12 +19,14 @@ jobs:
 
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
-      ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+      ESA_ACCESS_KEY: ${{ secrets.ESA_ACCESS_KEY }}
+      ESA_SECRET_KEY: ${{ secrets.ESA_SECRET_KEY }}
       CONFIG_FILE_URL: ${{ vars.CONFIG_FILE_URL }}
-      ESA_SITE_ID: "152922880180456"
-      ESA_ROUTINE_NAME: honeybee-viz-staging
+      ESA_DOMAIN: viewer.coscene.cn
+      ESA_SITE_NAME: coscene.cn
+      ESA_ROUTE_NAME: viewer-coscene-cn
       HONEYBEE_WEB_PUBLIC_PATH: /
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
     steps:
       - name: Checkout Repository
@@ -34,19 +36,15 @@ jobs:
         run: |
           set -euo pipefail
           : "${GH_PACKAGES_ORG_TOKEN:?GH_PACKAGES_ORG_TOKEN secret is required}"
-          : "${ALIBABA_CLOUD_ACCESS_KEY_ID:?ALIBABA_CLOUD_ACCESS_KEY_ID secret is required}"
-          : "${ALIBABA_CLOUD_ACCESS_KEY_SECRET:?ALIBABA_CLOUD_ACCESS_KEY_SECRET secret is required}"
+          : "${ESA_ACCESS_KEY:?ESA_ACCESS_KEY secret is required}"
+          : "${ESA_SECRET_KEY:?ESA_SECRET_KEY secret is required}"
           : "${CONFIG_FILE_URL:?CONFIG_FILE_URL variable is required}"
-          : "${ESA_ROUTINE_NAME:?ESA_ROUTINE_NAME variable is required}"
+          : "${ESA_DOMAIN:?ESA_DOMAIN variable is required}"
+          : "${ESA_SITE_NAME:?ESA_SITE_NAME variable is required}"
+          : "${ESA_ROUTE_NAME:?ESA_ROUTE_NAME variable is required}"
 
       - name: Enable corepack
         run: corepack enable yarn
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: yarn
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -71,4 +69,36 @@ jobs:
           grep -q '/cos-config.js' web/.webpack/index.html
 
       - name: Deploy to ESA
-        run: node ci/deploy-esa.mjs
+        env:
+          ESA_ACCESS_KEY_ID: ${{ secrets.ESA_ACCESS_KEY }}
+          ESA_ACCESS_KEY_SECRET: ${{ secrets.ESA_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+
+          yarn exec esa-cli --version
+          yarn exec esa-cli login
+          yarn exec esa-cli deploy --environment production
+
+          domain_list="$(yarn exec esa-cli domain list 2>&1)"
+          printf '%s\n' "${domain_list}"
+          if ! printf '%s\n' "${domain_list}" | grep -Fq "${ESA_DOMAIN}"; then
+            yarn exec esa-cli domain add "${ESA_DOMAIN}"
+            domain_list="$(yarn exec esa-cli domain list 2>&1)"
+            printf '%s\n' "${domain_list}"
+          fi
+          if ! printf '%s\n' "${domain_list}" | grep -Fq "${ESA_DOMAIN}"; then
+            echo "ESA domain ${ESA_DOMAIN} was not found after binding"
+            exit 1
+          fi
+
+          route_list="$(yarn exec esa-cli route list 2>&1)"
+          printf '%s\n' "${route_list}"
+          if ! printf '%s\n' "${route_list}" | grep -Fq "${ESA_ROUTE_NAME}"; then
+            yarn exec esa-cli route add "${ESA_DOMAIN}/*" "${ESA_SITE_NAME}" --alias "${ESA_ROUTE_NAME}"
+            route_list="$(yarn exec esa-cli route list 2>&1)"
+            printf '%s\n' "${route_list}"
+          fi
+          if ! printf '%s\n' "${route_list}" | grep -Fq "${ESA_ROUTE_NAME}"; then
+            echo "ESA route ${ESA_ROUTE_NAME} was not found after binding"
+            exit 1
+          fi

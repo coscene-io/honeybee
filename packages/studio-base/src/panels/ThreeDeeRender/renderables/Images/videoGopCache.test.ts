@@ -85,6 +85,20 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, replacement]);
   });
 
+  it("replaces an out-of-order duplicate publish timestamp without changing frame order", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key", 8);
+    const later = h264Frame(12, 102, "delta", 8);
+    const first = h264Frame(11, 101, "delta", 8);
+    const replacement = h264Frame(13, 101, "delta", 16);
+
+    cache.addFrames([key, later, first]);
+    cache.addFrame(replacement);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(13))).toEqual([key, replacement, later]);
+    expect(cache.byteSize()).toBe(32);
+  });
+
   it("does not stitch a post-seek delta onto an older cached range", () => {
     const cache = new VideoGopCache();
     const oldKey = h264Frame(10, 100, "key");

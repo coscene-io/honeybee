@@ -429,17 +429,40 @@ class CachedVideoRange {
   public size = 0;
 
   public addFrame(frame: CachedVideoFrame): number {
-    const existingIndex = this.frames.findIndex(
-      (entry) => entry.publishTimeNs === frame.publishTimeNs,
-    );
+    const lastFrame = this.frames[this.frames.length - 1];
     let byteDelta = frame.byteLength;
-    if (existingIndex >= 0) {
-      byteDelta -= this.frames[existingIndex]!.byteLength;
-      this.frames.splice(existingIndex, 1, frame);
-    } else {
+    if (lastFrame == undefined || lastFrame.publishTimeNs < frame.publishTimeNs) {
       this.frames.push(frame);
+      this.size += byteDelta;
+      return byteDelta;
     }
-    this.frames.sort(compareCachedFramesByPublishTime);
+
+    if (lastFrame.publishTimeNs === frame.publishTimeNs) {
+      byteDelta -= lastFrame.byteLength;
+      this.frames.splice(this.frames.length - 1, 1, frame);
+      this.size += byteDelta;
+      return byteDelta;
+    }
+
+    let lo = 0;
+    let hi = this.frames.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (this.frames[mid]!.publishTimeNs < frame.publishTimeNs) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    const existingFrame = this.frames[lo];
+    if (existingFrame?.publishTimeNs === frame.publishTimeNs) {
+      byteDelta -= existingFrame.byteLength;
+      this.frames.splice(lo, 1, frame);
+    } else {
+      this.frames.splice(lo, 0, frame);
+    }
+
     this.size += byteDelta;
     return byteDelta;
   }
@@ -558,22 +581,6 @@ class CachedVideoRange {
   public lastReceiveTime(): bigint {
     return maxBigInt(this.frames.map((frame) => frame.receiveTimeNs));
   }
-}
-
-function compareCachedFramesByPublishTime(a: CachedVideoFrame, b: CachedVideoFrame): number {
-  if (a.publishTimeNs < b.publishTimeNs) {
-    return -1;
-  }
-  if (a.publishTimeNs > b.publishTimeNs) {
-    return 1;
-  }
-  if (a.receiveTimeNs < b.receiveTimeNs) {
-    return -1;
-  }
-  if (a.receiveTimeNs > b.receiveTimeNs) {
-    return 1;
-  }
-  return 0;
 }
 
 function compareRangesByPublishTime(a: CachedVideoRange, b: CachedVideoRange): number {

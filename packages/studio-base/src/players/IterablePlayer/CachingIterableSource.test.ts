@@ -1842,6 +1842,7 @@ describe("CachingIterableSource", () => {
     let releaseSource: (() => void) | undefined;
 
     await bufferedSource.initialize();
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
 
     source.messageIterator = async function* messageIterator(
       _args: MessageIteratorArgs,
@@ -1890,6 +1891,8 @@ describe("CachingIterableSource", () => {
       done: false,
       value: { type: "stamp", stamp: { sec: 2, nsec: 0 } },
     });
+    expect(appendSpy).toHaveBeenCalledTimes(1);
+    expect(appendSpy.mock.calls[0]?.[0]).toHaveLength(2);
 
     const sessions = await getPlaybackSpillSessions();
     expect(sessions).toHaveLength(1);
@@ -1915,6 +1918,7 @@ describe("CachingIterableSource", () => {
     releaseSource?.();
     await iterator.return?.();
     await bufferedSource.terminate();
+    appendSpy.mockRestore();
     await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
   });
 

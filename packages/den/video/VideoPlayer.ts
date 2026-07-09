@@ -187,6 +187,10 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     return this.#decoderConfig;
   }
 
+  public decodeQueueSize(): number {
+    return this.#decoder.state === "configured" ? this.#decoder.decodeQueueSize : 0;
+  }
+
   /** Returns the dimensions of the coded video frames, if known. */
   public codedSize(): { width: number; height: number } | undefined {
     return this.#codedSize;

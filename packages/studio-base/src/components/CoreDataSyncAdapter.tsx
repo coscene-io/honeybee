@@ -127,9 +127,6 @@ export function useSetExternalInitConfig(): (
 
     setExternalInitConfig(externalInitConfig);
 
-    // 设置 isReadyForSyncLayout 标志，表示可以开始同步 layout
-    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
-
     await ensureProjectAndBaseUrl({
       consoleApi,
       project,
@@ -137,6 +134,9 @@ export function useSetExternalInitConfig(): (
       setProject,
       setBaseUrl,
     });
+
+    // 设置 isReadyForSyncLayout 标志，表示项目/用户上下文已可用于 layout manager
+    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
 
     const taskName =
       externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId

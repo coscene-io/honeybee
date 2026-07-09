@@ -5,9 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { loadDecompressHandlers } from "@foxglove/mcap-support";
+import { McapStreamReader } from "@mcap/core";
+
+import { loadDecompressHandlers, parseChannel } from "@foxglove/mcap-support";
 
 import { streamMessages } from "./streamMessages";
+
+jest.mock("@mcap/core", () => ({
+  McapStreamReader: jest.fn(),
+}));
 
 jest.mock("@foxglove/mcap-support", () => ({
   loadDecompressHandlers: jest.fn(),
@@ -17,6 +23,8 @@ jest.mock("@foxglove/mcap-support", () => ({
 const mockLoadDecompressHandlers = loadDecompressHandlers as jest.MockedFunction<
   typeof loadDecompressHandlers
 >;
+const mockParseChannel = parseChannel as jest.MockedFunction<typeof parseChannel>;
+const mockMcapStreamReader = McapStreamReader as jest.MockedClass<typeof McapStreamReader>;
 
 type StreamResponse = Awaited<
   ReturnType<Parameters<typeof streamMessages>[0]["api"]["getStreams"]>
@@ -33,10 +41,24 @@ function response(
   } as StreamResponse;
 }
 
+function streamBody(): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array([1]));
+      controller.close();
+    },
+  });
+}
+
 describe("streamMessages", () => {
   beforeEach(() => {
     mockLoadDecompressHandlers.mockReset();
     mockLoadDecompressHandlers.mockResolvedValue({});
+    mockParseChannel.mockReset();
+    mockParseChannel.mockReturnValue({
+      deserialize: (data: Uint8Array) => ({ size: data.byteLength }),
+    } as ReturnType<typeof parseChannel>);
+    mockMcapStreamReader.mockReset();
   });
 
   it("removes the abort listener when abort happens while loading decompress handlers", async () => {
@@ -128,4 +150,66 @@ describe("streamMessages", () => {
       expect(removeEventListenerSpy.mock.calls[0]?.[1]).toEqual(expect.any(Function));
     },
   );
+
+  it("yields within a large mcap chunk when the batch size budget is reached", async () => {
+    const records = [
+      {
+        type: "Schema",
+        id: 1,
+        name: "JsonMessage",
+        encoding: "jsonschema",
+        data: new Uint8Array([1]),
+      },
+      {
+        type: "Channel",
+        id: 1,
+        topic: "/json",
+        schemaId: 1,
+        messageEncoding: "json",
+      },
+      ...Array.from({ length: 160 }, (_, index) => ({
+        type: "Message",
+        channelId: 1,
+        logTime: BigInt(index),
+        data: new Uint8Array([index]),
+      })),
+      { type: "DataEnd" },
+    ];
+    const nextRecord = jest.fn(() => records.shift());
+    mockMcapStreamReader.mockImplementation(
+      () =>
+        ({
+          append: jest.fn(),
+          nextRecord,
+          done: jest.fn(() => true),
+        }) as unknown as InstanceType<typeof McapStreamReader>,
+    );
+    const getStreams = jest.fn(async () => response(200, { body: streamBody() }));
+
+    const iterator = streamMessages({
+      api: { getStreams },
+      parsedChannelsByTopic: new Map(),
+      params: {
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 1, nsec: 0 },
+        id: "record-id",
+        projectName: "warehouses/w/projects/p",
+        topics: ["/json"],
+      },
+    });
+
+    const firstResult = await iterator.next();
+    expect(firstResult.done).toBe(false);
+    if (firstResult.done !== false) {
+      throw new Error("Expected the first stream result to contain messages");
+    }
+    expect(firstResult.value).toHaveLength(128);
+
+    const secondResult = await iterator.next();
+    expect(secondResult.done).toBe(false);
+    if (secondResult.done !== false) {
+      throw new Error("Expected the second stream result to contain messages");
+    }
+    expect(secondResult.value).toHaveLength(32);
+  });
 });

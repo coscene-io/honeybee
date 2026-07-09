@@ -282,7 +282,8 @@ describe("Images compressed video seek lookback", () => {
       renderable.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
     );
     expect(displayedBatches).toEqual([
-      [keyframe.message.timestamp, delta.message.timestamp],
+      [keyframe.message.timestamp],
+      [delta.message.timestamp],
       [keyframe.message.timestamp, delta.message.timestamp],
     ]);
   });

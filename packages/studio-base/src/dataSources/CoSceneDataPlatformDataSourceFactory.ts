@@ -27,7 +27,11 @@ import type {
   ShardProfileOption,
 } from "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/profilePreference";
 import { Player } from "@foxglove/studio-base/players/types";
-import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import {
+  getAppConfig,
+  getDomainConfig,
+  getWebBasePathname,
+} from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import {
   MANIFEST_URL_PARAM,
@@ -81,6 +85,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
   public needLogin = true;
 
   #domainConfig = getDomainConfig();
+  #webBasePathname = getWebBasePathname();
 
   public formConfig = {
     fields: [
@@ -89,7 +94,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
         label: t("openDialog:dataPlatformUrl"),
         placeholder: `https://${
           this.#domainConfig.webDomain
-        }/viz?ds=coscene-data-platform&ds.key=example_key`,
+        }${this.#webBasePathname}?ds=coscene-data-platform&ds.key=example_key`,
         validate: (newValue: string): Error | undefined => {
           try {
             const url = new URL(newValue);
@@ -100,8 +105,10 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
                 }),
               );
             }
-            if (url.pathname !== "/viz") {
-              return new Error(t("openDialog:urlPathnameMustBeViz"));
+            if (url.pathname !== this.#webBasePathname) {
+              return new Error(
+                t("openDialog:urlPathnameMustBeViz", { path: this.#webBasePathname }),
+              );
             }
 
             const parsedUrl = parseAppURLState(url);
