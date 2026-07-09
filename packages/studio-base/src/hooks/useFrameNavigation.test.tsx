@@ -466,6 +466,42 @@ describe("useFrameNavigation", () => {
     expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
   });
 
+  it("clears previous frame availability when unsupported range has no rendered history", async () => {
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => undefined);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(2) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([]);
+    });
+
+    expect(result.current.hasPreFrame).toBe(true);
+
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasPreFrame).toBe(false);
+    });
+    expect(seekPlayback).not.toHaveBeenCalled();
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+  });
+
   it("falls back to playback-based next frame when range subscription returns unsupported", async () => {
     const currentMessage = message(1, 1);
     const subscribeMessageRange = jest.fn<

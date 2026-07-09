@@ -197,11 +197,12 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           frameState.current = "current";
           clearFrozenMessages();
           setIsFrameNavigationPending(false);
-          if (
-            !(direction === "previous"
+          const fallbackHandled =
+            direction === "previous"
               ? runFallbackPreviousFrame()
-              : runFallbackNextFrame(currentMessagesRef.current))
-          ) {
+              : runFallbackNextFrame(currentMessagesRef.current);
+          if (!fallbackHandled) {
+            resetRenderedHistory();
             frameNavigationNotifier.endNavigation(navigationId.current);
           }
           return;
@@ -221,6 +222,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       finishFrameNavigation,
       noNextFrameMessage,
       noPreviousFrameMessage,
+      resetRenderedHistory,
       runFallbackNextFrame,
       runFallbackPreviousFrame,
       seekPlayback,
