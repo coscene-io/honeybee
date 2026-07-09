@@ -739,18 +739,20 @@ describe("useFrameNavigation", () => {
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 1))]);
       result.current.updateRenderedTime([messageAndData(message(2, 1))]);
-      requiredKeyHandler(result.current.keyDownHandlers, "ArrowUp")(
-        new KeyboardEvent("keydown", { key: "ArrowUp" }),
-      );
+      requiredKeyHandler(
+        result.current.keyDownHandlers,
+        "ArrowUp",
+      )(new KeyboardEvent("keydown", { key: "ArrowUp" }));
     });
 
     expect(seekPlayback).toHaveBeenCalledWith(time(1));
     expect(jest.getTimerCount()).toBe(1);
 
     act(() => {
-      requiredKeyHandler(result.current.keyUpHandlers, "ArrowUp")(
-        new KeyboardEvent("keyup", { key: "ArrowUp" }),
-      );
+      requiredKeyHandler(
+        result.current.keyUpHandlers,
+        "ArrowUp",
+      )(new KeyboardEvent("keyup", { key: "ArrowUp" }));
     });
 
     expect(jest.getTimerCount()).toBe(0);
@@ -758,9 +760,10 @@ describe("useFrameNavigation", () => {
     act(() => {
       result.current.onRestore();
       jest.runOnlyPendingTimers();
-      requiredKeyHandler(result.current.keyDownHandlers, "ArrowDown")(
-        new KeyboardEvent("keydown", { key: "ArrowDown" }),
-      );
+      requiredKeyHandler(
+        result.current.keyDownHandlers,
+        "ArrowDown",
+      )(new KeyboardEvent("keydown", { key: "ArrowDown" }));
     });
 
     expect(startPlayback).toHaveBeenCalledTimes(1);
