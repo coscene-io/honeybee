@@ -192,7 +192,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           });
           finishFrameNavigation();
           return;
-        case "unsupported":
+        case "unsupported": {
           setRangeNavigationUnsupported(true);
           frameState.current = "current";
           clearFrozenMessages();
@@ -206,6 +206,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
             frameNavigationNotifier.endNavigation(navigationId.current);
           }
           return;
+        }
         case "aborted":
           finishFrameNavigation();
           return;
