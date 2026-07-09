@@ -125,7 +125,8 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     seekPlayback,
     startPlayback,
     pausePlayback,
-    activeTimes: activeSubscribeMessageRange != undefined ? activeTimes : undefined,
+    activeTimes:
+      activeSubscribeMessageRange != undefined && path.length > 0 ? activeTimes : undefined,
   });
 
   const cancelActiveRangeNavigation = useCallback((): boolean => {
@@ -349,7 +350,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   useEffect(() => {
     finishFrameNavigation();
     resetRenderedHistory();
-  }, [finishFrameNavigation, path, resetRenderedHistory]);
+  }, [finishFrameNavigation, getMessagePathDataItems, path, resetRenderedHistory]);
 
   useEffect(() => {
     setRangeNavigationUnsupported(false);

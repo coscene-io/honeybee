@@ -18,6 +18,7 @@ import AppConfigurationContext, {
   AppConfigurationValue,
   IAppConfiguration,
 } from "@foxglove/studio-base/context/AppConfigurationContext";
+import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { MessageEvent, SubscribeMessageRange, Topic } from "@foxglove/studio-base/players/types";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
@@ -125,6 +126,7 @@ function wrapper(options: {
   readonly currentTime?: Time;
   readonly requestWindow?: number;
   readonly playerId?: () => string;
+  readonly globalVariables?: Record<string, string | number>;
 }): (props: PropsWithChildren) => React.JSX.Element {
   const appConfiguration = new FakeAppConfiguration([
     [AppSetting.REQUEST_WINDOW, options.requestWindow],
@@ -133,7 +135,13 @@ function wrapper(options: {
   return function Wrapper({ children }: PropsWithChildren): React.JSX.Element {
     return (
       <AppConfigurationContext.Provider value={appConfiguration}>
-        <MockCurrentLayoutProvider>
+        <MockCurrentLayoutProvider
+          initialState={
+            options.globalVariables != undefined
+              ? { globalVariables: options.globalVariables }
+              : undefined
+          }
+        >
           <MockMessagePipelineProvider
             topics={topics}
             datatypes={datatypes}
@@ -163,6 +171,17 @@ function requiredKeyHandler(
     throw new Error(`Expected ${key} handler`);
   }
   return handler;
+}
+
+function deferred(): { readonly promise: Promise<void>; readonly resolve: () => void } {
+  let resolvePromise: (() => void) | undefined;
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = resolve;
+  });
+  if (resolvePromise == undefined) {
+    throw new Error("Expected deferred resolver to be initialized");
+  }
+  return { promise, resolve: resolvePromise };
 }
 
 describe("useFrameNavigation", () => {
@@ -302,6 +321,68 @@ describe("useFrameNavigation", () => {
     expect(result.current.isFrameNavigationPending).toBe(false);
   });
 
+  it("cancels an in-flight range query when path variables change", async () => {
+    const variablePath = "/topic{value==$target}.value";
+    const currentMessage = message(1, 1);
+    const releaseRange = deferred();
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          await releaseRange.promise;
+          yield [message(2, 1)];
+        })(),
+      );
+      return unsubscribe;
+    });
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () => {
+        const frameNavigation = useFrameNavigation({
+          path: variablePath,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        });
+        const { setGlobalVariables } = useGlobalVariables();
+        return { frameNavigation, setGlobalVariables };
+      },
+      {
+        wrapper: wrapper({
+          subscribeMessageRange,
+          seekPlayback,
+          globalVariables: { target: 1 },
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.frameNavigation.updateRenderedTime([messageAndData(currentMessage)]);
+      result.current.frameNavigation.handleNextFrame([messageAndData(currentMessage)]);
+    });
+
+    expect(result.current.frameNavigation.isFrameNavigationPending).toBe(true);
+
+    act(() => {
+      result.current.setGlobalVariables({ target: 2 });
+    });
+
+    await waitFor(() => {
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.frameNavigation.isFrameNavigationPending).toBe(false);
+
+    await act(async () => {
+      releaseRange.resolve();
+      await Promise.resolve();
+    });
+
+    expect(seekPlayback).not.toHaveBeenCalled();
+  });
+
   it("falls back to playback-based next frame when range subscription is unavailable", () => {
     const currentMessage = message(1, 1);
     const startPlayback = jest.fn<void, []>();
@@ -326,6 +407,31 @@ describe("useFrameNavigation", () => {
 
     expect(startPlayback).toHaveBeenCalled();
     expect(seekPlayback).not.toHaveBeenCalled();
+  });
+
+  it("does not report previous frame when no path is selected", () => {
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(() => jest.fn());
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path: "",
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, currentTime: time(2) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([]);
+    });
+
+    expect(result.current.hasPreFrame).toBe(false);
   });
 
   it("falls back to rendered history when range subscription returns unsupported", async () => {
