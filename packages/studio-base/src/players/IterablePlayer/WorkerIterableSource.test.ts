@@ -38,6 +38,11 @@ function stamp(sec: number): IteratorResult {
   return { type: "stamp", stamp: { sec, nsec: 0 } };
 }
 
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 const initResult: Initalization = {
   start: { sec: 0, nsec: 0 },
   end: { sec: 1, nsec: 0 },
@@ -87,8 +92,35 @@ describe("WorkerIterableSource", () => {
     jest.clearAllMocks();
   });
 
-  it("prefetches the next worker cursor batch", async () => {
+  it("prefetches the next worker cursor batch during message iteration", async () => {
     const { first, second, remoteCursor, releaseProxy } = setupWorkerRemote();
+    const source = new WorkerIterableSource({
+      initWorker: () => ({}) as Worker,
+      initArgs: {},
+    });
+    await source.initialize();
+
+    const iterator = source.messageIterator(iteratorArgs);
+    const firstRead = iterator.next();
+    await flushPromises();
+    expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(1);
+
+    first.resolve([stamp(1)]);
+    await expect(firstRead).resolves.toEqual({ done: false, value: stamp(1) });
+    expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(2);
+
+    const secondRead = iterator.next();
+    expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(2);
+
+    second.resolve([stamp(2)]);
+    await expect(secondRead).resolves.toEqual({ done: false, value: stamp(2) });
+
+    await iterator.return?.();
+    expect(releaseProxy).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns an unwrapped worker cursor from getMessageCursor", async () => {
+    const { first, remoteCursor, releaseProxy } = setupWorkerRemote();
     const source = new WorkerIterableSource({
       initWorker: () => ({}) as Worker,
       initArgs: {},
@@ -97,18 +129,12 @@ describe("WorkerIterableSource", () => {
 
     const cursor = source.getMessageCursor(iteratorArgs);
     const firstRead = cursor.nextBatch(100);
-    await Promise.resolve();
+    await flushPromises();
     expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(1);
 
     first.resolve([stamp(1)]);
     await expect(firstRead).resolves.toEqual([stamp(1)]);
-    expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(2);
-
-    const secondRead = cursor.nextBatch(100);
-    expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(2);
-
-    second.resolve([stamp(2)]);
-    await expect(secondRead).resolves.toEqual([stamp(2)]);
+    expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(1);
 
     await cursor.end();
     expect(releaseProxy).toHaveBeenCalledTimes(1);
@@ -120,7 +146,7 @@ describe("WorkerSerializedIterableSource", () => {
     jest.clearAllMocks();
   });
 
-  it("prefetches the next serialized worker cursor batch", async () => {
+  it("prefetches the next serialized worker cursor batch during message iteration", async () => {
     const { first, second, remoteCursor, releaseProxy } = setupWorkerRemote();
     const source = new WorkerSerializedIterableSource({
       initWorker: () => ({}) as Worker,
@@ -128,22 +154,22 @@ describe("WorkerSerializedIterableSource", () => {
     });
     await source.initialize();
 
-    const cursor = source.getMessageCursor(iteratorArgs);
-    const firstRead = cursor.nextBatch(100);
-    await Promise.resolve();
+    const iterator = source.messageIterator(iteratorArgs);
+    const firstRead = iterator.next();
+    await flushPromises();
     expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(1);
 
     first.resolve([stamp(1)]);
-    await expect(firstRead).resolves.toEqual([stamp(1)]);
+    await expect(firstRead).resolves.toEqual({ done: false, value: stamp(1) });
     expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(2);
 
-    const secondRead = cursor.nextBatch(100);
+    const secondRead = iterator.next();
     expect(remoteCursor.nextBatch).toHaveBeenCalledTimes(2);
 
     second.resolve([stamp(2)]);
-    await expect(secondRead).resolves.toEqual([stamp(2)]);
+    await expect(secondRead).resolves.toEqual({ done: false, value: stamp(2) });
 
-    await cursor.end();
+    await iterator.return?.();
     expect(releaseProxy).toHaveBeenCalledTimes(1);
   });
 

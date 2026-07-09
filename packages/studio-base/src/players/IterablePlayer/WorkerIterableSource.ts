@@ -66,7 +66,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
       throw new Error(`WorkerIterableSource is not initialized`);
     }
 
-    const cursor = this.getMessageCursor(args);
+    const cursor = new PrefetchingMessageCursor(this.getMessageCursor(args));
     try {
       for (;;) {
         // We previously used 17ms batches (roughly one 60fps frame) so each fetch could feed a frame,
@@ -114,7 +114,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
       abort ?? abortSignal,
     );
 
-    const cursor: IMessageCursor = new PrefetchingMessageCursor({
+    const cursor: IMessageCursor = {
       async next() {
         const messageCursor = await messageCursorPromise;
         return await messageCursor.next();
@@ -138,7 +138,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
           messageCursor[Comlink.releaseProxy]();
         }
       },
-    });
+    };
 
     return cursor;
   }

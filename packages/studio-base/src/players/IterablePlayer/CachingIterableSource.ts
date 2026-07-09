@@ -34,7 +34,8 @@ import {
 
 const log = Log.getLogger(__filename);
 const MAX_SPILL_MESSAGES_BEFORE_APPEND = 1000;
-const MAX_SPILL_MESSAGES_BEFORE_FLUSH = 10000;
+const MAX_SPILL_MESSAGES_PER_IDB_TRANSACTION = 1000;
+const MAX_SPILL_MESSAGES_BEFORE_FLUSH = 5000;
 const PLAYBACK_SPILL_HEARTBEAT_MS = 30 * 1000;
 const PLAYBACK_SPILL_STALE_MS = 5 * 60 * 1000;
 
@@ -242,7 +243,7 @@ class CachingIterableSource<MessageType = unknown>
       maxCacheSize: this.#spillCacheOptions.maxCacheSize,
       sourceId: this.#spillCacheOptions.sourceId,
       sourceKey,
-      appendBatchMaxSize: MAX_SPILL_MESSAGES_BEFORE_FLUSH,
+      appendBatchMaxSize: MAX_SPILL_MESSAGES_PER_IDB_TRANSACTION,
     });
 
     try {

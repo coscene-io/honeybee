@@ -65,7 +65,7 @@ export class WorkerSerializedIterableSource implements ISerializedIterableSource
       throw new Error(`WorkerIterableSource is not initialized`);
     }
 
-    const cursor = this.getMessageCursor(args);
+    const cursor = new PrefetchingMessageCursor(this.getMessageCursor(args));
     try {
       for (;;) {
         const results = await cursor.nextBatch(WORKER_CURSOR_BATCH_DURATION_MS);
@@ -109,7 +109,7 @@ export class WorkerSerializedIterableSource implements ISerializedIterableSource
       abort ?? abortSignal,
     );
 
-    const cursor: IMessageCursor<Uint8Array> = new PrefetchingMessageCursor({
+    const cursor: IMessageCursor<Uint8Array> = {
       async next() {
         const messageCursor = await messageCursorPromise;
         return await messageCursor.next();
@@ -133,7 +133,7 @@ export class WorkerSerializedIterableSource implements ISerializedIterableSource
           messageCursor[Comlink.releaseProxy]();
         }
       },
-    });
+    };
 
     return cursor;
   }

@@ -101,7 +101,7 @@ describe("PrefetchingMessageCursor", () => {
     await expect(cursor.nextBatch(100)).rejects.toThrow("prefetch failed");
   });
 
-  it("waits for an in-flight prefetch before ending the underlying cursor", async () => {
+  it("ends the underlying cursor before an in-flight prefetch completes", async () => {
     const second = deferred<IteratorResult[] | undefined>();
     const end = jest.fn(async () => {});
     const underlying = {
@@ -118,31 +118,48 @@ describe("PrefetchingMessageCursor", () => {
     await cursor.nextBatch(100);
     const endPromise = cursor.end();
     await Promise.resolve();
-    expect(end).not.toHaveBeenCalled();
+    expect(end).toHaveBeenCalledTimes(1);
 
     second.resolve([stamp(2)]);
     await endPromise;
-    expect(end).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects batch duration changes on the same cursor", async () => {
-    const cursor = new PrefetchingMessageCursor(
-      makeCursor(jest.fn<Promise<IteratorResult[] | undefined>, [number]>().mockResolvedValue([])),
-    );
+  it("supports batch duration changes on the same cursor", async () => {
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValueOnce([stamp(1)])
+      .mockResolvedValueOnce([stamp(2)]);
+    const cursor = new PrefetchingMessageCursor(makeCursor(nextBatch));
 
-    await cursor.nextBatch(100);
-    await expect(cursor.nextBatch(17)).rejects.toThrow("Batch duration changed mid-stream");
+    await expect(cursor.nextBatch(100)).resolves.toEqual([stamp(1)]);
+    await expect(cursor.nextBatch(17)).resolves.toEqual([stamp(2)]);
   });
 
-  it("rejects direct reads after batch prefetching starts", async () => {
-    const cursor = new PrefetchingMessageCursor(
-      makeCursor(jest.fn<Promise<IteratorResult[] | undefined>, [number]>().mockResolvedValue([])),
-    );
+  it("does not merge old buffered results with a same-duration prefetched batch", async () => {
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValueOnce([stamp(0)])
+      .mockResolvedValueOnce([stamp(200), stamp(230), stamp(260)])
+      .mockResolvedValueOnce([stamp(300), stamp(330), stamp(360)])
+      .mockResolvedValue(undefined);
+    const cursor = new PrefetchingMessageCursor(makeCursor(nextBatch));
+
+    await expect(cursor.nextBatch(100)).resolves.toEqual([stamp(0)]);
+    await expect(cursor.nextBatch(17)).resolves.toEqual([stamp(200), stamp(230)]);
+
+    await expect(cursor.nextBatch(17)).resolves.toEqual([stamp(260), stamp(300)]);
+  });
+
+  it("serves direct reads from an already-prefetched batch", async () => {
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValueOnce([stamp(1)])
+      .mockResolvedValueOnce([stamp(2), stamp(3)]);
+    const cursor = new PrefetchingMessageCursor(makeCursor(nextBatch));
 
     await cursor.nextBatch(100);
-    await expect(cursor.readUntil({ sec: 1, nsec: 0 } as Time)).rejects.toThrow(
-      "Cannot mix nextBatch with direct cursor reads",
-    );
+    await expect(cursor.readUntil({ sec: 3, nsec: 0 } as Time)).resolves.toEqual([stamp(2)]);
+    await expect(cursor.next()).resolves.toEqual(stamp(3));
   });
 
   it("delegates direct reads before batch prefetching starts", async () => {
