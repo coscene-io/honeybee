@@ -20,7 +20,9 @@ import type {
   IterableSourceInitializeArgs,
   IDeserializedIterableSource,
 } from "./IIterableSource";
+import { PrefetchingMessageCursor } from "./PrefetchingMessageCursor";
 import type { WorkerIterableSourceWorker } from "./WorkerIterableSourceWorker";
+import { WORKER_CURSOR_BATCH_DURATION_MS } from "./workerCursorBatchDuration";
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
 
@@ -73,7 +75,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
         // significantly reducing time lost to cross-thread overhead while still returning data fast enough
         // for playback and preloading consumers. With the same 6-15ms per-call cost but 5-6x more payload per call,
         // our downstream consumers see roughly 2x higher effective throughput even though the per-batch latency grew modestly.
-        const results = await cursor.nextBatch(100 /* milliseconds */);
+        const results = await cursor.nextBatch(WORKER_CURSOR_BATCH_DURATION_MS);
         if (!results || results.length === 0) {
           break;
         }
@@ -112,7 +114,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
       abort ?? abortSignal,
     );
 
-    const cursor: IMessageCursor = {
+    const cursor: IMessageCursor = new PrefetchingMessageCursor({
       async next() {
         const messageCursor = await messageCursorPromise;
         return await messageCursor.next();
@@ -136,7 +138,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
           messageCursor[Comlink.releaseProxy]();
         }
       },
-    };
+    });
 
     return cursor;
   }

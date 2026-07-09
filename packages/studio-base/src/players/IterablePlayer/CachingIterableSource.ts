@@ -33,7 +33,8 @@ import {
 // CoScene
 
 const log = Log.getLogger(__filename);
-const MAX_SPILL_APPENDS_BEFORE_FLUSH = 1000;
+const MAX_SPILL_MESSAGES_BEFORE_APPEND = 1000;
+const MAX_SPILL_MESSAGES_BEFORE_FLUSH = 10000;
 const PLAYBACK_SPILL_HEARTBEAT_MS = 30 * 1000;
 const PLAYBACK_SPILL_STALE_MS = 5 * 60 * 1000;
 
@@ -173,7 +174,7 @@ class CachingIterableSource<MessageType = unknown>
   #spillCacheOptions?: NonNullable<Options["spillCache"]>;
   #spillTopicFingerprint?: string;
   #spillLoadedRanges: readonly LoadedRange[] = [];
-  #spillAppendCountSinceFlush = 0;
+  #spillMessageCountSinceFlush = 0;
   #spillLastSessionCheckAt: number | undefined;
   #spillHeartbeatTimer: ReturnType<typeof setInterval> | undefined;
   #spillPageHideHandler: ((event: PageTransitionEvent) => void) | undefined;
@@ -241,6 +242,7 @@ class CachingIterableSource<MessageType = unknown>
       maxCacheSize: this.#spillCacheOptions.maxCacheSize,
       sourceId: this.#spillCacheOptions.sourceId,
       sourceKey,
+      appendBatchMaxSize: MAX_SPILL_MESSAGES_BEFORE_FLUSH,
     });
 
     try {
@@ -262,7 +264,7 @@ class CachingIterableSource<MessageType = unknown>
     this.#spillStore = undefined;
     this.#spillTopicFingerprint = undefined;
     this.#spillLoadedRanges = [];
-    this.#spillAppendCountSinceFlush = 0;
+    this.#spillMessageCountSinceFlush = 0;
     this.#spillLastSessionCheckAt = undefined;
 
     if (store == undefined) {
@@ -415,7 +417,7 @@ class CachingIterableSource<MessageType = unknown>
         this.#spillTopicFingerprint = savedFingerprint;
       }
       this.#spillLoadedRanges = [];
-      this.#spillAppendCountSinceFlush = 0;
+      this.#spillMessageCountSinceFlush = 0;
       this.#spillLastSessionCheckAt = Date.now();
       this.#recomputeLoadedRangeCache();
     } catch (error) {
@@ -444,7 +446,7 @@ class CachingIterableSource<MessageType = unknown>
       await this.#spillStore.clear();
       this.#spillTopicFingerprint = nextFingerprint;
       this.#spillLoadedRanges = [];
-      this.#spillAppendCountSinceFlush = 0;
+      this.#spillMessageCountSinceFlush = 0;
       this.#recomputeLoadedRangeCache();
     } catch (error) {
       log.warn("Disabling playback spill cache after topic reset failed:", error);
@@ -453,21 +455,17 @@ class CachingIterableSource<MessageType = unknown>
     }
   }
 
-  async #appendSpill(iterResult: IteratorResult<MessageType>): Promise<void> {
-    if (
-      !this.#spillEnabled ||
-      this.#spillStore == undefined ||
-      iterResult.type !== "message-event"
-    ) {
+  async #appendSpillMessages(messages: readonly MessageEvent[]): Promise<void> {
+    if (!this.#spillEnabled || this.#spillStore == undefined || messages.length === 0) {
       return;
     }
 
     try {
-      await this.#spillStore.append([iterResult.msgEvent as MessageEvent]);
-      this.#spillAppendCountSinceFlush++;
-      if (this.#spillAppendCountSinceFlush >= MAX_SPILL_APPENDS_BEFORE_FLUSH) {
+      await this.#spillStore.append(messages);
+      this.#spillMessageCountSinceFlush += messages.length;
+      if (this.#spillMessageCountSinceFlush >= MAX_SPILL_MESSAGES_BEFORE_FLUSH) {
         await this.#spillStore.flush();
-        this.#spillAppendCountSinceFlush = 0;
+        this.#spillMessageCountSinceFlush = 0;
       }
     } catch (error) {
       log.warn("Disabling playback spill cache after append failed:", error);
@@ -488,7 +486,7 @@ class CachingIterableSource<MessageType = unknown>
 
     try {
       await this.#spillStore.flush();
-      this.#spillAppendCountSinceFlush = 0;
+      this.#spillMessageCountSinceFlush = 0;
       await this.#spillStore.putLoadedRange({
         sessionId: this.#spillStore.getSessionId(),
         topicFingerprint: this.#spillTopicFingerprint,
@@ -680,6 +678,7 @@ class CachingIterableSource<MessageType = unknown>
     let block: CacheBlock<MessageType> | undefined;
 
     const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
+    let pendingSpillMessages: MessageEvent[] = [];
     const discardPendingIterResults = () => {
       for (const pendingIterResult of pendingIterResults) {
         const item = pendingIterResult[1];
@@ -688,11 +687,23 @@ class CachingIterableSource<MessageType = unknown>
       }
       pendingIterResults.length = 0;
     };
+    const discardPendingSpillMessages = () => {
+      pendingSpillMessages = [];
+    };
+    const flushPendingSpillMessages = async () => {
+      if (pendingSpillMessages.length === 0) {
+        return;
+      }
+      const messages = pendingSpillMessages;
+      pendingSpillMessages = [];
+      await this.#appendSpillMessages(messages);
+    };
 
     try {
       for await (const iterResult of sourceMessageIterator) {
         if (isAborted(args.abortSignal)) {
           discardPendingIterResults();
+          discardPendingSpillMessages();
           return false;
         }
 
@@ -780,14 +791,18 @@ class CachingIterableSource<MessageType = unknown>
 
         // Store the latest message in pending results and flush to the block when time moves forward
         pendingIterResults.push([lastTime, iterResult]);
-        if (args.writeSpill) {
-          await this.#appendSpill(iterResult);
+        if (args.writeSpill && iterResult.type === "message-event") {
+          pendingSpillMessages.push(iterResult.msgEvent as MessageEvent);
+          if (pendingSpillMessages.length >= MAX_SPILL_MESSAGES_BEFORE_APPEND) {
+            await flushPendingSpillMessages();
+          }
         }
 
         if (args.writeSpill && iterResult.type === "stamp") {
           const spillRangeEnd =
             compare(iterResult.stamp, args.end) > 0 ? args.end : iterResult.stamp;
           if (!sourceHadProblemInRange && compare(spillRangeStart, spillRangeEnd) <= 0) {
+            await flushPendingSpillMessages();
             await this.#recordSpillLoadedRange(spillRangeStart, spillRangeEnd);
           }
           sourceHadProblemInRange = false;
@@ -799,6 +814,7 @@ class CachingIterableSource<MessageType = unknown>
     } catch (error) {
       if (isAborted(args.abortSignal) && isAbortError(error)) {
         discardPendingIterResults();
+        discardPendingSpillMessages();
         return false;
       }
       throw error;
@@ -806,6 +822,7 @@ class CachingIterableSource<MessageType = unknown>
 
     if (isAborted(args.abortSignal)) {
       discardPendingIterResults();
+      discardPendingSpillMessages();
       return false;
     }
 
@@ -855,8 +872,11 @@ class CachingIterableSource<MessageType = unknown>
       this.#recomputeLoadedRangeCache();
     }
 
-    if (args.writeSpill && !sourceHadProblemInRange && compare(spillRangeStart, args.end) <= 0) {
-      await this.#recordSpillLoadedRange(spillRangeStart, args.end);
+    if (args.writeSpill) {
+      await flushPendingSpillMessages();
+      if (!sourceHadProblemInRange && compare(spillRangeStart, args.end) <= 0) {
+        await this.#recordSpillLoadedRange(spillRangeStart, args.end);
+      }
     }
     return true;
   }
