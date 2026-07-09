@@ -499,6 +499,44 @@ describe("useFrameNavigation", () => {
     expect(seekPlayback).toHaveBeenCalledTimes(1);
   });
 
+  it("does not re-append carried-over fallback history", () => {
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ seekPlayback }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([
+        messageAndData(message(1, 1)),
+        messageAndData(message(2, 1)),
+      ]);
+      result.current.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).toHaveBeenCalledWith(time(1));
+
+    act(() => {
+      result.current.onRestore();
+    });
+    seekPlayback.mockClear();
+
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).not.toHaveBeenCalled();
+  });
+
   it("retries range navigation after an unsupported path changes", async () => {
     const unsupportedPath = path;
     const supportedPath = "/topic{value==2}.value";

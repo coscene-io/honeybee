@@ -212,7 +212,11 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       const latestRenderedTime = renderedTime.current.at(-1);
 
       if (latestRenderedTime == undefined || compare(latestRenderedTime, newTime) < 0) {
-        renderedTime.current = renderedTime.current.concat(messageTimes);
+        const newMessageTimes =
+          latestRenderedTime == undefined
+            ? messageTimes
+            : messageTimes.filter((messageTime) => compare(messageTime, latestRenderedTime) > 0);
+        renderedTime.current = renderedTime.current.concat(newMessageTimes);
       } else {
         let closestIndex = -1;
         for (let i = renderedTime.current.length - 1; i >= 0; i--) {
