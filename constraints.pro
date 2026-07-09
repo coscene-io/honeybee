@@ -54,10 +54,16 @@ all_versions_in_group(Group, Result) :-
   list_to_set(ResultList, Result).
 
 % Define version groups for dependencies. All dependencies in the same group will be required to have the same version.
+version_group(Dep, typescript) :-
+  Dep = 'typescript'.
 version_group(Dep, typescript_eslint) :-
   has_prefix('@typescript-eslint/', Dep).
-version_group(Dep, emotion) :-
-  has_prefix('@emotion/', Dep).
+version_group(Dep, emotion_cache) :-
+  Dep = '@emotion/cache'.
+version_group(Dep, emotion_react) :-
+  Dep = '@emotion/react'.
+version_group(Dep, emotion_styled) :-
+  Dep = '@emotion/styled'.
 
 % Enforce the requirements defined on version groups above.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType) :-

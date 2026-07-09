@@ -15,7 +15,7 @@ export type CloseEventMessage = {
 export type ToWorkerMessage =
   | { type: "open"; data: { wsUrl: string; protocols?: string[] | string } }
   | { type: "close"; data: undefined }
-  | { type: "data"; data: string | ArrayBuffer | ArrayBufferView };
+  | { type: "data"; data: string | ArrayBuffer | ArrayBufferView<ArrayBuffer> };
 
 export type FromWorkerMessage =
   | { type: "open"; protocol: string }

@@ -15,6 +15,11 @@ declare module "*.svg" {
   export default IconComponent;
 }
 
+declare module "*.css" {
+  const content: string;
+  export default content;
+}
+
 declare module "*.bag" {
   const content: string;
   export default content;
