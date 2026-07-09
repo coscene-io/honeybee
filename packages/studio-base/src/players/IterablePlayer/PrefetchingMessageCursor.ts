@@ -21,9 +21,9 @@ type PendingBatchResult<MessageType> =
  * Worker-backed cursors otherwise only start loading the next batch after the main thread asks for it.
  * Prefetching overlaps worker/network reads with main-thread processing of the current batch.
  */
-export class PrefetchingMessageCursor<MessageType = unknown>
-  implements IMessageCursor<MessageType>
-{
+export class PrefetchingMessageCursor<
+  MessageType = unknown,
+> implements IMessageCursor<MessageType> {
   #cursor: IMessageCursor<MessageType>;
   #pendingBatch?: {
     durationMs: number;

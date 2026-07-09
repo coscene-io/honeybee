@@ -82,7 +82,9 @@ describe("PrefetchingMessageCursor", () => {
   });
 
   it("does not prefetch after an empty batch", async () => {
-    const nextBatch = jest.fn<Promise<IteratorResult[] | undefined>, [number]>().mockResolvedValue([]);
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValue([]);
     const cursor = new PrefetchingMessageCursor(makeCursor(nextBatch));
 
     await expect(cursor.nextBatch(100)).resolves.toEqual([]);
@@ -163,7 +165,9 @@ describe("PrefetchingMessageCursor", () => {
   });
 
   it("delegates direct reads before batch prefetching starts", async () => {
-    const nextBatch = jest.fn<Promise<IteratorResult[] | undefined>, [number]>().mockResolvedValue([]);
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValue([]);
     const readUntil = jest.fn(async () => []);
     const underlying = { ...makeCursor(nextBatch), readUntil };
     const cursor = new PrefetchingMessageCursor(underlying);
