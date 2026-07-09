@@ -71,6 +71,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const frozenMessagesRef = useRef<MessageAndData[] | undefined>();
   const currentMessagesRef = useRef<MessageAndData[]>([]);
   const fallbackNextFrameActive = useRef(false);
+  const fallbackNextStartTime = useRef<Time | undefined>();
 
   const freezeCurrentMessages = useCallback(() => {
     if (currentMessagesRef.current.length > 0) {
@@ -85,6 +86,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const resetRenderedHistory = useCallback(() => {
     renderedTime.current = [];
     fallbackNextFrameActive.current = false;
+    fallbackNextStartTime.current = undefined;
     setHasPreFrame(false);
   }, []);
 
@@ -103,6 +105,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
     frameState.current = "current";
     fallbackNextFrameActive.current = false;
+    fallbackNextStartTime.current = undefined;
     notifier.endNavigation(navigationId.current);
     clearFrozenMessages();
     return true;
@@ -143,11 +146,13 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       freezeCurrentMessages();
       notifier.startNavigation(navigationId.current);
       fallbackNextFrameActive.current = true;
+      fallbackNextStartTime.current =
+        currentMessagesRef.current.at(-1)?.messageEvent.receiveTime ?? activeTimes?.currentTime;
       frameState.current = "next";
       startPlayback?.();
       return true;
     },
-    [frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
+    [activeTimes, frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
   );
 
   const getEffectiveMessages = useCallback(
@@ -164,7 +169,10 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     (messages: MessageAndData[]) => {
       currentMessagesRef.current = messages;
       const latestMessage = messages.at(-1);
-      const fallbackNextMessage = messages[0];
+      const fallbackNextMessage = messages.find((msg) => {
+        const startTime = fallbackNextStartTime.current;
+        return startTime == undefined || compare(msg.messageEvent.receiveTime, startTime) > 0;
+      });
 
       if (
         fallbackNextFrameActive.current &&
@@ -172,6 +180,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
         fallbackNextMessage != undefined
       ) {
         fallbackNextFrameActive.current = false;
+        fallbackNextStartTime.current = undefined;
         pausePlayback?.();
         seekPlayback?.(fallbackNextMessage.messageEvent.receiveTime);
         return;
