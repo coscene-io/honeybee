@@ -38,6 +38,7 @@ type Props = {
   onTopicPathChange: (path: string) => void;
   onPreviousFrame?: () => void;
   onNextFrame?: () => void;
+  frameNavigationDisabled: boolean;
   saveConfig: SaveConfig<RawMessagesPanelConfig>;
   topic?: Topic;
   topicPath: string;
@@ -80,6 +81,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
     onTopicPathChange,
     onPreviousFrame,
     onNextFrame,
+    frameNavigationDisabled,
     saveConfig,
     topic,
     topicPath,
@@ -124,6 +126,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
             className={classes.iconButton}
             title={t("previousFrame")}
             onClick={onPreviousFrame}
+            disabled={frameNavigationDisabled}
             data-testid="previous-frame"
             size="small"
           >
@@ -135,6 +138,7 @@ function ToolbarComponent(props: Props): React.JSX.Element {
             className={classes.iconButton}
             title={t("nextFrame")}
             onClick={onNextFrame}
+            disabled={frameNavigationDisabled}
             data-testid="next-frame"
             size="small"
           >
