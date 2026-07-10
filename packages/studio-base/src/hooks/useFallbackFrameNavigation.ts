@@ -150,7 +150,15 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
       return true;
     },
-    [activeTimes, frameState, holdNavigationMessages, navigationId, notifier, pausePlayback, seekPlayback],
+    [
+      activeTimes,
+      frameState,
+      holdNavigationMessages,
+      navigationId,
+      notifier,
+      pausePlayback,
+      seekPlayback,
+    ],
   );
 
   const runPreviousFrameFromRenderedHistory = useCallback(

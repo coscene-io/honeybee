@@ -345,9 +345,7 @@ describe("useFrameNavigation", () => {
       Parameters<SubscribeMessageRange>
     >(({ timeRange, onNewRangeIterator }) => {
       requestedRanges.push(timeRange);
-      const batch = rangeMessages.filter((event) =>
-        inRange(event, timeRange.start, timeRange.end),
-      );
+      const batch = rangeMessages.filter((event) => inRange(event, timeRange.start, timeRange.end));
       void onNewRangeIterator(
         (async function* () {
           yield batch;
@@ -357,18 +355,17 @@ describe("useFrameNavigation", () => {
     });
     const seekPlayback = jest.fn<void, [Time]>();
 
-    const { result } = renderHook(
-      () => useFrameNavigation({ path }),
-      {
-        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
-      },
-    );
+    const { result } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
+    });
 
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(cachedLatest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(cachedLatest.receiveTime);
+    });
 
     act(() => {
       result.current.onRestore();
@@ -379,7 +376,9 @@ describe("useFrameNavigation", () => {
       result.current.handlePreviousFrame();
     });
 
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(older.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(older.receiveTime);
+    });
     expect(requestedRanges[1]?.end).toEqual(time(4, 499_999_998));
   });
 
@@ -388,12 +387,9 @@ describe("useFrameNavigation", () => {
     const subscribeMessageRange = makeSubscribeMessageRange([rangeFrame]);
     const seekPlayback = jest.fn<void, [Time]>();
 
-    const { result } = renderHook(
-      () => useFrameNavigation({ path }),
-      {
-        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(2) }),
-      },
-    );
+    const { result } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(2) }),
+    });
 
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 1))]);
@@ -410,7 +406,9 @@ describe("useFrameNavigation", () => {
       result.current.handlePreviousFrame();
     });
 
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(rangeFrame.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(rangeFrame.receiveTime);
+    });
     expect(subscribeMessageRange).toHaveBeenCalled();
   });
 
@@ -427,7 +425,9 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
 
     act(() => {
       result.current.onRestore();
@@ -436,7 +436,9 @@ describe("useFrameNavigation", () => {
       result.current.handlePreviousFrame();
     });
 
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(earlier.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(earlier.receiveTime);
+    });
     expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
   });
 
@@ -449,7 +451,8 @@ describe("useFrameNavigation", () => {
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ onNewRangeIterator }) => {
-      const batch = requestCount++ === 0 ? [earlier, latest] : requestCount === 2 ? [next] : [latest];
+      const batch =
+        requestCount++ === 0 ? [earlier, latest] : requestCount === 2 ? [next] : [latest];
       void onNewRangeIterator(
         (async function* () {
           yield batch;
@@ -466,19 +469,25 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
 
     act(() => {
       result.current.onRestore();
       result.current.handleNextFrame([messageAndData(latest)]);
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(next.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(next.receiveTime);
+    });
 
     act(() => {
       result.current.onRestore();
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
     expect(subscribeMessageRange).toHaveBeenCalledTimes(3);
   });
 
@@ -497,7 +506,9 @@ describe("useFrameNavigation", () => {
       result.current.second.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.second.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
     act(() => {
       result.current.second.onRestore();
       result.current.second.updateRenderedTime([messageAndData(latest)]);
@@ -532,16 +543,22 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
     act(() => {
       result.current.onRestore();
       result.current.updateRenderedTime([messageAndData(latest)]);
     });
 
     rerender({ hookPath: "/topic" });
-    act(() => { result.current.handlePreviousFrame(); });
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
 
-    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+    await waitFor(() => {
+      expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("clears the previous range cache when the data start time changes", async () => {
@@ -570,7 +587,9 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
     act(() => {
       result.current.onRestore();
       result.current.updateRenderedTime([messageAndData(latest)]);
@@ -579,9 +598,13 @@ describe("useFrameNavigation", () => {
 
     startTime = time(4, 700_000_000);
     rerender({ renderId: 2 });
-    act(() => { result.current.handlePreviousFrame(); });
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
 
-    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+    await waitFor(() => {
+      expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    });
     expect(seekPlayback).not.toHaveBeenCalledWith(earlier.receiveTime);
   });
 
@@ -611,14 +634,22 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
-    act(() => { result.current.onRestore(); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
+    act(() => {
+      result.current.onRestore();
+    });
 
     playerId = "player-2";
     rerender({ renderId: 2 });
-    act(() => { result.current.handlePreviousFrame(); });
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
 
-    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+    await waitFor(() => {
+      expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("clears the previous range cache when the range provider changes", async () => {
@@ -647,14 +678,22 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(firstProvider).toHaveBeenCalledTimes(1); });
-    act(() => { result.current.onRestore(); });
+    await waitFor(() => {
+      expect(firstProvider).toHaveBeenCalledTimes(1);
+    });
+    act(() => {
+      result.current.onRestore();
+    });
 
     activeProvider = secondProvider;
     rerender({ renderId: 2 });
-    act(() => { result.current.handlePreviousFrame(); });
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
 
-    await waitFor(() => { expect(secondProvider).toHaveBeenCalledTimes(1); });
+    await waitFor(() => {
+      expect(secondProvider).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("clears cached coverage when a path global variable changes", async () => {
@@ -698,14 +737,20 @@ describe("useFrameNavigation", () => {
       result.current.frameNavigation.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.frameNavigation.handlePreviousFrame();
     });
-    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
     act(() => {
       result.current.frameNavigation.onRestore();
       result.current.setGlobalVariables({ target: 2 });
     });
-    act(() => { result.current.frameNavigation.handlePreviousFrame(); });
+    act(() => {
+      result.current.frameNavigation.handlePreviousFrame();
+    });
 
-    await waitFor(() => { expect(requestedRanges.length).toBeGreaterThan(1); });
+    await waitFor(() => {
+      expect(requestedRanges.length).toBeGreaterThan(1);
+    });
     expect(requestedRanges[1]?.end).toEqual(time(4, 799_999_999));
   });
 
@@ -735,8 +780,12 @@ describe("useFrameNavigation", () => {
       result.current.updateRenderedTime([messageAndData(message(5, 1))]);
       result.current.handlePreviousFrame();
     });
-    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(1); });
-    act(() => { result.current.onRestore(); });
+    await waitFor(() => {
+      expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    });
+    act(() => {
+      result.current.onRestore();
+    });
 
     activeDatatypes = new Map(
       Object.entries({
@@ -746,9 +795,13 @@ describe("useFrameNavigation", () => {
       }),
     );
     rerender({ renderId: 2 });
-    act(() => { result.current.handlePreviousFrame(); });
+    act(() => {
+      result.current.handlePreviousFrame();
+    });
 
-    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+    await waitFor(() => {
+      expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("keeps the found range frame visible when the seek snapshot has no matching messages", async () => {
@@ -1253,7 +1306,9 @@ describe("useFrameNavigation", () => {
       result.current.handleNextFrame([messageAndData(message(1, 1))]);
     });
 
-    await waitFor(() => { expect(startPlayback).toHaveBeenCalled(); });
+    await waitFor(() => {
+      expect(startPlayback).toHaveBeenCalled();
+    });
 
     act(() => {
       result.current.onRestore();
@@ -1319,7 +1374,9 @@ describe("useFrameNavigation", () => {
       result.current.handleNextFrame([messageAndData(message(1, 1))]);
     });
 
-    await waitFor(() => { expect(startPlayback).toHaveBeenCalled(); });
+    await waitFor(() => {
+      expect(startPlayback).toHaveBeenCalled();
+    });
 
     act(() => {
       result.current.onRestore();

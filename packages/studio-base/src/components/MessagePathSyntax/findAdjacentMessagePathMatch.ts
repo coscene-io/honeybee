@@ -145,11 +145,7 @@ function addPreviousCandidates(args: {
     accumulator.truncated = true;
     accumulator.candidateBytes -= Math.max(0, evicted.sizeInBytes);
     if (!args.hasFilter) {
-      const evictedMatch = messagePathMatch(
-        args.path,
-        evicted,
-        args.getMessagePathDataItems,
-      );
+      const evictedMatch = messagePathMatch(args.path, evicted, args.getMessagePathDataItems);
       if (evictedMatch != undefined && isLaterMatch(evictedMatch, accumulator.latestEvictedMatch)) {
         accumulator.latestEvictedMatch = evictedMatch;
       }
@@ -364,9 +360,7 @@ async function findPreviousMessagePathMatch(args: {
         }
 
         const firstCandidate = accumulator.candidates[0];
-        const coveredStart = accumulator.truncated
-          ? firstCandidate?.receiveTime
-          : rangeStart;
+        const coveredStart = accumulator.truncated ? firstCandidate?.receiveTime : rangeStart;
         const previousWindow =
           coveredStart != undefined &&
           accumulator.candidates.length > 0 &&
