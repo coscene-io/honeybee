@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { parseMessagePath } from "@foxglove/message-path";
-import { add, compare, subtract } from "@foxglove/rostime";
+import { add, compare, fromSec, subtract, toSec } from "@foxglove/rostime";
 import type { Time } from "@foxglove/rostime";
 import type {
   MessageAndData,
@@ -77,8 +77,11 @@ function messagePathMatch(
 }
 
 function previousWindowDuration(index: number, maxDuration: Time): Time {
-  const duration = PREVIOUS_WINDOW_DURATIONS[index] ?? maxDuration;
-  return minTime(duration, maxDuration);
+  const duration = PREVIOUS_WINDOW_DURATIONS[index];
+  if (duration != undefined) {
+    return minTime(duration, maxDuration);
+  }
+  return fromSec(toSec(maxDuration) * 2 ** (index - PREVIOUS_WINDOW_DURATIONS.length));
 }
 
 function isLaterMatch(candidate: MessageAndData, current: MessageAndData | undefined): boolean {
@@ -184,38 +187,26 @@ async function findNextMessagePathMatch(args: {
     return { type: "notFound" };
   }
 
-  let rangeStart = add(args.fromTime, ONE_NANOSECOND);
-  while (compare(rangeStart, args.endTime) <= 0) {
-    const rangeEnd = minTime(add(rangeStart, args.windowDuration), args.endTime);
-    const rangeResult = await scanMessagesInRange({
-      topic: args.topic,
-      start: rangeStart,
-      end: rangeEnd,
-      subscribeMessageRange: args.subscribeMessageRange,
-      abortSignal: args.abortSignal,
-      scanBatch: (batch) => {
-        for (const message of batch) {
-          if (compare(message.receiveTime, args.fromTime) <= 0) {
-            continue;
-          }
-          const match = messagePathMatch(args.path, message, args.getMessagePathDataItems);
-          if (match != undefined) {
-            return match;
-          }
+  return await scanMessagesInRange({
+    topic: args.topic,
+    start: add(args.fromTime, ONE_NANOSECOND),
+    end: args.endTime,
+    subscribeMessageRange: args.subscribeMessageRange,
+    abortSignal: args.abortSignal,
+    scanBatch: (batch) => {
+      for (const message of batch) {
+        if (compare(message.receiveTime, args.fromTime) <= 0) {
+          continue;
         }
-        return undefined;
-      },
-      getDoneResult: () => ({ type: "notFound" }),
-    });
-
-    if (rangeResult.type !== "notFound") {
-      return rangeResult;
-    }
-
-    rangeStart = add(rangeEnd, ONE_NANOSECOND);
-  }
-
-  return { type: "notFound" };
+        const match = messagePathMatch(args.path, message, args.getMessagePathDataItems);
+        if (match != undefined) {
+          return match;
+        }
+      }
+      return undefined;
+    },
+    getDoneResult: () => ({ type: "notFound" }),
+  });
 }
 
 async function findPreviousMessagePathMatch(args: {

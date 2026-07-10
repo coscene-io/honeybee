@@ -111,7 +111,7 @@ describe("findAdjacentMessagePathMatch", () => {
         queriedData: [{ path: "/topic{value==1}.value", value: 1 }],
       },
     });
-    expect(unsubscribeMocks).toHaveLength(2);
+    expect(unsubscribeMocks).toHaveLength(1);
   });
 
   it("stops scanning the current range after the first next match", async () => {
@@ -469,6 +469,61 @@ describe("findAdjacentMessagePathMatch", () => {
     });
 
     expect(result).toEqual({ type: "notFound" });
+  });
+
+  it("scans a long empty next range with one subscription", async () => {
+    const ranges: { readonly start: Time; readonly end: Time }[] = [];
+    const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      ranges.push(timeRange);
+      void onNewRangeIterator(
+        (async function* emptyIterator() {
+          yield [];
+        })(),
+      );
+      return jest.fn();
+    };
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "next",
+      fromTime: time(0),
+      startTime: time(0),
+      endTime: time(86_400),
+      windowDuration: time(10),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toEqual({ type: "notFound" });
+    expect(ranges).toEqual([{ start: time(0, 1), end: time(86_400) }]);
+  });
+
+  it("expands previous ranges to reach a distant empty boundary in bounded subscriptions", async () => {
+    const ranges: { readonly start: Time; readonly end: Time }[] = [];
+    const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      ranges.push(timeRange);
+      void onNewRangeIterator(
+        (async function* emptyIterator() {
+          yield [];
+        })(),
+      );
+      return jest.fn();
+    };
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(86_400),
+      startTime: time(0),
+      endTime: time(86_400),
+      windowDuration: time(10),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toEqual({ type: "notFound" });
+    expect(ranges).toHaveLength(18);
+    expect(ranges[ranges.length - 1]?.start).toEqual(time(0));
   });
 
   it("does not navigate across messages with the same receive time", async () => {

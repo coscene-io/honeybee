@@ -6,8 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import type { OptionsObject } from "notistack";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { PropsWithChildren } from "react";
 
 import { compare } from "@foxglove/rostime";
@@ -27,13 +26,9 @@ import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { useFrameNavigation } from "./useFrameNavigation";
 
 const mockEnqueueSnackbar = jest.fn();
-const mockCloseSnackbar = jest.fn();
 
 jest.mock("notistack", () => ({
-  useSnackbar: () => ({
-    closeSnackbar: mockCloseSnackbar,
-    enqueueSnackbar: mockEnqueueSnackbar,
-  }),
+  useSnackbar: () => ({ enqueueSnackbar: mockEnqueueSnackbar }),
 }));
 
 const path = "/topic{value==1}.value";
@@ -200,8 +195,6 @@ describe("useFrameNavigation", () => {
 
   beforeEach(() => {
     mockEnqueueSnackbar.mockClear();
-    mockEnqueueSnackbar.mockReturnValue("frame-navigation-search");
-    mockCloseSnackbar.mockClear();
   });
 
   it("seeks to the next message matching the current filter", async () => {
@@ -263,6 +256,35 @@ describe("useFrameNavigation", () => {
     await waitFor(() => {
       expect(seekPlayback).toHaveBeenCalledWith(time(2));
     });
+  });
+
+  it("does not treat the current playback time as a previous frame", async () => {
+    const currentTime = time(1, 500);
+    const displayedMessage = messageAt(time(1, 1_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([messageAt(currentTime, 1)]);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+        }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(displayedMessage)]);
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => {
+      expect(result.current.frameNavigationStatusMessage).toBe("No previous");
+    });
+    expect(result.current.isFrameNavigationPending).toBe(false);
+    expect(seekPlayback).not.toHaveBeenCalled();
   });
 
   it("uses rendered history before requesting a previous range", () => {
@@ -461,7 +483,7 @@ describe("useFrameNavigation", () => {
     expect(result.current.getEffectiveMessages([])).toEqual([previousFrame]);
   });
 
-  it("keeps playback position and shows a toast when no next match exists", async () => {
+  it("keeps playback position and exposes panel feedback when no next match exists", async () => {
     const currentMessage = message(1, 1);
     const subscribeMessageRange = makeSubscribeMessageRange([message(2, 2), message(3, 2)]);
     const seekPlayback = jest.fn<void, [Time]>();
@@ -484,12 +506,19 @@ describe("useFrameNavigation", () => {
     });
 
     await waitFor(() => {
-      expect(mockEnqueueSnackbar).toHaveBeenCalledWith("No next", { variant: "info" });
+      expect(result.current.frameNavigationStatusMessage).toBe("No next");
     });
+    expect(result.current.isFrameNavigationPending).toBe(false);
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
     expect(seekPlayback).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.onRestore();
+    });
+    expect(result.current.frameNavigationStatusMessage).toBeUndefined();
   });
 
-  it("shows cancellable persistent feedback for a slow range navigation", async () => {
+  it("exposes cancellable inline feedback for a slow range navigation", async () => {
     jest.useFakeTimers();
     const unsubscribe = jest.fn();
     const subscribeMessageRange = jest.fn<
@@ -503,7 +532,6 @@ describe("useFrameNavigation", () => {
         useFrameNavigation({
           path,
           searchingNextFrameMessage: "Searching next",
-          cancelFrameNavigationLabel: "Stop",
         }),
       { wrapper: wrapper({ subscribeMessageRange, seekPlayback }) },
     );
@@ -517,32 +545,28 @@ describe("useFrameNavigation", () => {
     act(() => {
       jest.advanceTimersByTime(1_999);
     });
+    expect(result.current.frameNavigationStatusMessage).toBeUndefined();
     expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
 
     act(() => {
       jest.advanceTimersByTime(1);
     });
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      "Searching next",
-      expect.objectContaining({ persist: true }),
-    );
+    expect(result.current.frameNavigationStatusMessage).toBe("Searching next");
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
 
-    const options = mockEnqueueSnackbar.mock.calls[0]?.[1] as OptionsObject | undefined;
-    if (typeof options?.action !== "function") {
-      throw new Error("Expected frame navigation search feedback to provide an action");
-    }
-    render(<>{options.action("frame-navigation-search")}</>);
-    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+    act(() => {
+      result.current.cancelFrameNavigation();
+    });
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(result.current.isFrameNavigationPending).toBe(false);
-    expect(mockCloseSnackbar).toHaveBeenCalledWith("frame-navigation-search");
-    expect(mockEnqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(result.current.frameNavigationStatusMessage).toBeUndefined();
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
     expect(seekPlayback).not.toHaveBeenCalled();
     expect(result.current.getEffectiveMessages([currentMessage])).toEqual([currentMessage]);
   });
 
-  it("closes slow-search feedback before reporting no matching frame", async () => {
+  it("replaces inline search feedback with the no-match result", async () => {
     jest.useFakeTimers();
     const releaseRange = deferred();
     const iteratorDone = deferred();
@@ -569,10 +593,8 @@ describe("useFrameNavigation", () => {
       result.current.handleNextFrame([currentMessage]);
       jest.advanceTimersByTime(2_000);
     });
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      "Searching for next matching frame…",
-      expect.objectContaining({ persist: true }),
-    );
+    expect(result.current.frameNavigationStatusMessage).toBe("Searching for next matching frame…");
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
 
     await act(async () => {
       releaseRange.resolve();
@@ -580,9 +602,9 @@ describe("useFrameNavigation", () => {
       await Promise.resolve();
     });
 
-    expect(mockCloseSnackbar).toHaveBeenCalledWith("frame-navigation-search");
-    expect(mockEnqueueSnackbar).toHaveBeenLastCalledWith("No next", { variant: "info" });
     expect(result.current.isFrameNavigationPending).toBe(false);
+    expect(result.current.frameNavigationStatusMessage).toBe("No next");
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("cancels an in-flight range query on restore", async () => {
@@ -614,10 +636,8 @@ describe("useFrameNavigation", () => {
     });
 
     expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      "Searching for next matching frame…",
-      expect.objectContaining({ persist: true }),
-    );
+    expect(result.current.frameNavigationStatusMessage).toBe("Searching for next matching frame…");
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
 
     act(() => {
       result.current.onRestore();
@@ -628,7 +648,7 @@ describe("useFrameNavigation", () => {
     });
     expect(seekPlayback).not.toHaveBeenCalled();
     expect(result.current.isFrameNavigationPending).toBe(false);
-    expect(mockCloseSnackbar).toHaveBeenCalledWith("frame-navigation-search");
+    expect(result.current.frameNavigationStatusMessage).toBeUndefined();
   });
 
   it("cancels an in-flight range query when path variables change", async () => {

@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
+import FrameNavigationStatus from "@foxglove/studio-base/components/FrameNavigationStatus";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useMessageDataItem";
@@ -81,13 +82,14 @@ function TablePanel({ config, saveConfig }: Props) {
     keyUpHandlers,
     panelRef,
     isFrameNavigationPending,
+    frameNavigationStatusMessage,
+    cancelFrameNavigation,
   } = useFrameNavigation({
     path: topicPath,
     noPreviousFrameMessage: t("noPreviousMatchingFrame"),
     noNextFrameMessage: t("noNextMatchingFrame"),
     searchingPreviousFrameMessage: t("searchingPreviousMatchingFrame"),
     searchingNextFrameMessage: t("searchingNextMatchingFrame"),
-    cancelFrameNavigationLabel: t("cancel", { ns: "general" }),
   });
 
   const messageDataItems = useMessageDataItem(topicPath ? topicPath : "", {
@@ -166,6 +168,15 @@ function TablePanel({ config, saveConfig }: Props) {
             </IconButton>
           )}
         </PanelToolbar>
+        {frameNavigationStatusMessage != undefined && (
+          <FrameNavigationStatus
+            message={frameNavigationStatusMessage}
+            cancelLabel={t("cancel", { ns: "general" })}
+            onCancel={isFrameNavigationPending ? cancelFrameNavigation : undefined}
+            closeLabel={t("close", { ns: "general" })}
+            onClose={cancelFrameNavigation}
+          />
+        )}
         {topicPath.length === 0 && <EmptyState>{t("noTopicSelected")}</EmptyState>}
         {topicPath.length !== 0 && cachedMessages.length === 0 && (
           <EmptyState>{t("waitingForNextMessage")}</EmptyState>

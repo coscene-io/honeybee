@@ -26,6 +26,7 @@ import { parseMessagePath, MessagePathStructureItem, MessagePath } from "@foxglo
 import { Immutable, SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
+import FrameNavigationStatus from "@foxglove/studio-base/components/FrameNavigationStatus";
 import useGetItemStringWithTimezone from "@foxglove/studio-base/components/JsonTree/useGetItemStringWithTimezone";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -117,13 +118,14 @@ function RawMessages(props: Props) {
     keyUpHandlers,
     panelRef,
     isFrameNavigationPending,
+    frameNavigationStatusMessage,
+    cancelFrameNavigation,
   } = useFrameNavigation({
     path: topicPath,
     noPreviousFrameMessage: t("noPreviousMatchingFrame"),
     noNextFrameMessage: t("noNextMatchingFrame"),
     searchingPreviousFrameMessage: t("searchingPreviousMatchingFrame"),
     searchingNextFrameMessage: t("searchingNextMatchingFrame"),
-    cancelFrameNavigationLabel: t("cancel", { ns: "general" }),
   });
 
   useEffect(() => {
@@ -743,6 +745,15 @@ function RawMessages(props: Props) {
           saveConfig={saveConfig}
           topicPath={topicPath}
         />
+        {frameNavigationStatusMessage != undefined && (
+          <FrameNavigationStatus
+            message={frameNavigationStatusMessage}
+            cancelLabel={t("cancel", { ns: "general" })}
+            onCancel={isFrameNavigationPending ? cancelFrameNavigation : undefined}
+            closeLabel={t("close", { ns: "general" })}
+            onClose={cancelFrameNavigation}
+          />
+        )}
         {renderSingleTopicOrDiffOutput()}
         <KeyListener global keyDownHandlers={keyDownHandlers} keyUpHandlers={keyUpHandlers} />
       </Stack>
