@@ -21,8 +21,23 @@ export type GetMessagePathDataItems = (
   message: MessageEvent,
 ) => MessagePathDataItem[] | undefined;
 
+export type PreviousRangeWindow = {
+  /** The fully scanned half-open range [coveredStart, coveredEndExclusive). */
+  readonly coveredStart: Time;
+  readonly coveredEndExclusive: Time;
+  /**
+   * Sorted oldest to newest. Filtered paths contain confirmed matches; unfiltered paths contain
+   * topic/time candidates that must be materialized again when consumed.
+   */
+  readonly candidates: readonly MessageEvent[];
+};
+
 export type AdjacentMessagePathMatchResult =
-  | { readonly type: "found"; readonly message: MessageAndData }
+  | {
+      readonly type: "found";
+      readonly message: MessageAndData;
+      readonly previousWindow?: PreviousRangeWindow;
+    }
   | { readonly type: "notFound" }
   | { readonly type: "aborted" }
   | { readonly type: "unsupported" }
@@ -42,6 +57,14 @@ type FindAdjacentMessagePathMatchArgs = {
 
 const ONE_NANOSECOND = Object.freeze({ sec: 0, nsec: 1 });
 const ZERO_DURATION = Object.freeze({ sec: 0, nsec: 0 });
+const PREVIOUS_WINDOW_DURATIONS = Object.freeze([
+  { sec: 0, nsec: 500_000_000 },
+  { sec: 1, nsec: 0 },
+  { sec: 2, nsec: 0 },
+  { sec: 5, nsec: 0 },
+]);
+const MAX_PREVIOUS_RANGE_CANDIDATES = 1000;
+const MAX_PREVIOUS_RANGE_CACHE_BYTES = 16 * 1024 * 1024;
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
@@ -65,6 +88,73 @@ function messagePathMatch(
     return undefined;
   }
   return { messageEvent: message, queriedData };
+}
+
+function previousWindowDuration(index: number, maxDuration: Time): Time {
+  const duration = PREVIOUS_WINDOW_DURATIONS[index] ?? maxDuration;
+  return minTime(duration, maxDuration);
+}
+
+type PreviousRangeAccumulator = {
+  candidates: MessageEvent[];
+  candidateBytes: number;
+  latestMatch: MessageAndData | undefined;
+  latestEvictedMatch: MessageAndData | undefined;
+  truncated: boolean;
+};
+
+function createPreviousRangeAccumulator(): PreviousRangeAccumulator {
+  return {
+    candidates: [],
+    candidateBytes: 0,
+    latestMatch: undefined,
+    latestEvictedMatch: undefined,
+    truncated: false,
+  };
+}
+
+function isLaterMatch(candidate: MessageAndData, current: MessageAndData | undefined): boolean {
+  return (
+    current == undefined ||
+    compare(candidate.messageEvent.receiveTime, current.messageEvent.receiveTime) > 0
+  );
+}
+
+function addPreviousCandidates(args: {
+  readonly accumulator: PreviousRangeAccumulator;
+  readonly candidates: readonly MessageEvent[];
+  readonly path: string;
+  readonly hasFilter: boolean;
+  readonly getMessagePathDataItems: GetMessagePathDataItems;
+}): void {
+  const { accumulator } = args;
+  for (const candidate of args.candidates) {
+    accumulator.candidates.push(candidate);
+    accumulator.candidateBytes += Math.max(0, candidate.sizeInBytes);
+  }
+  accumulator.candidates.sort((a, b) => compare(a.receiveTime, b.receiveTime));
+
+  while (
+    accumulator.candidates.length > MAX_PREVIOUS_RANGE_CANDIDATES ||
+    accumulator.candidateBytes > MAX_PREVIOUS_RANGE_CACHE_BYTES
+  ) {
+    const evicted = accumulator.candidates.shift();
+    if (evicted == undefined) {
+      break;
+    }
+    accumulator.truncated = true;
+    accumulator.candidateBytes -= Math.max(0, evicted.sizeInBytes);
+    if (!args.hasFilter) {
+      const evictedMatch = messagePathMatch(
+        args.path,
+        evicted,
+        args.getMessagePathDataItems,
+      );
+      if (evictedMatch != undefined && isLaterMatch(evictedMatch, accumulator.latestEvictedMatch)) {
+        accumulator.latestEvictedMatch = evictedMatch;
+      }
+    }
+  }
 }
 
 async function scanMessagesInRange(args: {
@@ -202,6 +292,7 @@ async function findPreviousMessagePathMatch(args: {
   readonly fromTime: Time;
   readonly startTime: Time;
   readonly path: string;
+  readonly hasFilter: boolean;
   readonly windowDuration: Time;
   readonly subscribeMessageRange: SubscribeMessageRange;
   readonly getMessagePathDataItems: GetMessagePathDataItems;
@@ -212,9 +303,11 @@ async function findPreviousMessagePathMatch(args: {
   }
 
   let rangeEnd = subtract(args.fromTime, ONE_NANOSECOND);
+  let windowIndex = 0;
   while (compare(rangeEnd, args.startTime) >= 0) {
-    const rangeStart = maxTime(subtract(rangeEnd, args.windowDuration), args.startTime);
-    let latestMatch: MessageAndData | undefined;
+    const duration = previousWindowDuration(windowIndex, args.windowDuration);
+    const rangeStart = maxTime(subtract(rangeEnd, duration), args.startTime);
+    let accumulator = createPreviousRangeAccumulator();
     const rangeResult = await scanMessagesInRange({
       topic: args.topic,
       start: rangeStart,
@@ -222,20 +315,72 @@ async function findPreviousMessagePathMatch(args: {
       subscribeMessageRange: args.subscribeMessageRange,
       abortSignal: args.abortSignal,
       onIteratorStart: () => {
-        latestMatch = undefined;
+        accumulator = createPreviousRangeAccumulator();
       },
       scanBatch: (batch) => {
+        const batchCandidates: MessageEvent[] = [];
         for (const message of batch) {
-          if (compare(message.receiveTime, args.fromTime) >= 0) {
+          if (message.topic !== args.topic || compare(message.receiveTime, args.fromTime) >= 0) {
             continue;
           }
-          latestMatch =
-            messagePathMatch(args.path, message, args.getMessagePathDataItems) ?? latestMatch;
+          if (args.hasFilter) {
+            const match = messagePathMatch(args.path, message, args.getMessagePathDataItems);
+            if (match == undefined) {
+              continue;
+            }
+            if (isLaterMatch(match, accumulator.latestMatch)) {
+              accumulator.latestMatch = match;
+            }
+          }
+          batchCandidates.push(message);
         }
+        addPreviousCandidates({
+          accumulator,
+          candidates: batchCandidates,
+          path: args.path,
+          hasFilter: args.hasFilter,
+          getMessagePathDataItems: args.getMessagePathDataItems,
+        });
         return undefined;
       },
-      getDoneResult: () =>
-        latestMatch != undefined ? { type: "found", message: latestMatch } : { type: "notFound" },
+      getDoneResult: () => {
+        let latestMatch = accumulator.latestMatch;
+        if (!args.hasFilter) {
+          for (let i = accumulator.candidates.length - 1; i >= 0; i--) {
+            const candidate = accumulator.candidates[i];
+            if (candidate == undefined) {
+              continue;
+            }
+            const match = messagePathMatch(args.path, candidate, args.getMessagePathDataItems);
+            if (match != undefined) {
+              latestMatch = match;
+              break;
+            }
+          }
+          latestMatch ??= accumulator.latestEvictedMatch;
+        }
+        if (latestMatch == undefined) {
+          return { type: "notFound" };
+        }
+
+        const firstCandidate = accumulator.candidates[0];
+        const coveredStart = accumulator.truncated
+          ? firstCandidate?.receiveTime
+          : rangeStart;
+        const previousWindow =
+          coveredStart != undefined &&
+          accumulator.candidates.length > 0 &&
+          compare(latestMatch.messageEvent.receiveTime, coveredStart) >= 0
+            ? {
+                coveredStart,
+                coveredEndExclusive: args.fromTime,
+                candidates: accumulator.candidates,
+              }
+            : undefined;
+        return previousWindow != undefined
+          ? { type: "found", message: latestMatch, previousWindow }
+          : { type: "found", message: latestMatch };
+      },
     });
 
     if (rangeResult.type !== "notFound") {
@@ -243,6 +388,7 @@ async function findPreviousMessagePathMatch(args: {
     }
 
     rangeEnd = subtract(rangeStart, ONE_NANOSECOND);
+    windowIndex++;
   }
 
   return { type: "notFound" };
@@ -284,6 +430,7 @@ export async function findAdjacentMessagePathMatch(
         fromTime: args.fromTime,
         startTime: args.startTime,
         path: args.path,
+        hasFilter: messagePath.messagePath.some((part) => part.type === "filter"),
         windowDuration: args.windowDuration,
         subscribeMessageRange: args.subscribeMessageRange,
         getMessagePathDataItems: args.getMessagePathDataItems,

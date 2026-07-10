@@ -7,7 +7,7 @@
 
 import { useContext, useEffect, useMemo, useState } from "react";
 
-import type { Time } from "@foxglove/rostime";
+import { fromSec, type Time } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
 import AppConfigurationContext, {
@@ -41,8 +41,6 @@ export function useRequestWindowDuration(): Time {
   }, [appConfiguration]);
 
   return useMemo((): Time => {
-    return requestWindow != undefined
-      ? { sec: requestWindow, nsec: 0 }
-      : getRequestWindowDefaultTime();
+    return requestWindow != undefined ? fromSec(requestWindow) : getRequestWindowDefaultTime();
   }, [requestWindow]);
 }

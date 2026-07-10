@@ -66,14 +66,18 @@ function time(sec: number, nsec = 0): Time {
   return { sec, nsec };
 }
 
-function message(sec: number, value: number): MessageEvent {
+function messageAt(receiveTime: Time, value: number): MessageEvent {
   return {
     topic: "/topic",
-    receiveTime: time(sec),
+    receiveTime,
     message: { value },
     schemaName: "datatype",
     sizeInBytes: 0,
   };
+}
+
+function message(sec: number, value: number): MessageEvent {
+  return messageAt(time(sec), value);
 }
 
 function queriedValue(messageEvent: MessageEvent): number {
@@ -120,12 +124,16 @@ function makeSubscribeMessageRange(
 
 function wrapper(options: {
   readonly subscribeMessageRange?: SubscribeMessageRange;
+  readonly getSubscribeMessageRange?: () => SubscribeMessageRange | undefined;
   readonly seekPlayback?: (time: Time) => void;
   readonly pausePlayback?: () => void;
   readonly startPlayback?: () => void;
   readonly currentTime?: Time;
   readonly requestWindow?: number;
   readonly playerId?: () => string;
+  readonly startTime?: () => Time;
+  readonly topics?: () => Topic[];
+  readonly datatypes?: () => RosDatatypes;
   readonly globalVariables?: Record<string, string | number>;
 }): (props: PropsWithChildren) => React.JSX.Element {
   const appConfiguration = new FakeAppConfiguration([
@@ -143,13 +151,15 @@ function wrapper(options: {
           }
         >
           <MockMessagePipelineProvider
-            topics={topics}
-            datatypes={datatypes}
-            subscribeMessageRange={options.subscribeMessageRange}
+            topics={options.topics?.() ?? topics}
+            datatypes={options.datatypes?.() ?? datatypes}
+            subscribeMessageRange={
+              options.getSubscribeMessageRange?.() ?? options.subscribeMessageRange
+            }
             seekPlayback={options.seekPlayback}
             pausePlayback={options.pausePlayback}
             startPlayback={options.startPlayback}
-            startTime={time(0)}
+            startTime={options.startTime?.() ?? time(0)}
             currentTime={options.currentTime ?? time(1)}
             endTime={time(5)}
             playerId={options.playerId?.()}
@@ -252,6 +262,528 @@ describe("useFrameNavigation", () => {
     await waitFor(() => {
       expect(seekPlayback).toHaveBeenCalledWith(time(2));
     });
+  });
+
+  it("uses rendered history before requesting a previous range", () => {
+    const subscribeMessageRange = makeSubscribeMessageRange([message(1, 1)]);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(3) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(3, 1))]);
+      result.current.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).toHaveBeenCalledWith(time(2));
+    expect(subscribeMessageRange).not.toHaveBeenCalled();
+  });
+
+  it("reuses all candidates from the previous range window", async () => {
+    const current = message(5, 1);
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(current)]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime);
+    });
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(latest)]);
+      result.current.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).toHaveBeenLastCalledWith(earlier.receiveTime);
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([]);
+    });
+    expect(result.current.getEffectiveMessages([])).toEqual([messageAndData(earlier)]);
+  });
+
+  it("continues before the cached covered range when its candidates are exhausted", async () => {
+    const older = messageAt(time(4, 400_000_000), 1);
+    const cachedEarlier = messageAt(time(4, 600_000_000), 1);
+    const cachedLatest = messageAt(time(4, 800_000_000), 1);
+    const requestedRanges: { readonly start: Time; readonly end: Time }[] = [];
+    const rangeMessages = [older, cachedEarlier, cachedLatest];
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ timeRange, onNewRangeIterator }) => {
+      requestedRanges.push(timeRange);
+      const batch = rangeMessages.filter((event) =>
+        inRange(event, timeRange.start, timeRange.end),
+      );
+      void onNewRangeIterator(
+        (async function* () {
+          yield batch;
+        })(),
+      );
+      return jest.fn();
+    });
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () => useFrameNavigation({ path }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(cachedLatest.receiveTime); });
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(cachedLatest)]);
+      result.current.handlePreviousFrame();
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(cachedEarlier)]);
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(older.receiveTime); });
+    expect(requestedRanges[1]?.end).toEqual(time(4, 499_999_998));
+  });
+
+  it("keeps previous navigation enabled after rendered history is exhausted in range mode", async () => {
+    const rangeFrame = messageAt(time(0, 500_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([rangeFrame]);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () => useFrameNavigation({ path }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(2) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
+      result.current.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).toHaveBeenLastCalledWith(time(1));
+    expect(result.current.hasPreFrame).toBe(true);
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(rangeFrame.receiveTime); });
+    expect(subscribeMessageRange).toHaveBeenCalled();
+  });
+
+  it("clears the previous range cache after a manual seek", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
+    });
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(latest)]);
+      result.current.onRestore();
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(earlier.receiveTime); });
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the previous range cache when next navigation starts", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const next = messageAt(time(4, 900_000_000), 1);
+    let requestCount = 0;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      const batch = requestCount++ === 0 ? [earlier, latest] : requestCount === 2 ? [next] : [latest];
+      void onNewRangeIterator(
+        (async function* () {
+          yield batch;
+        })(),
+      );
+      return jest.fn();
+    });
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
+    });
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+
+    act(() => {
+      result.current.onRestore();
+      result.current.handleNextFrame([messageAndData(latest)]);
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(next.receiveTime); });
+
+    act(() => {
+      result.current.onRestore();
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not clear cache when another hook owns the frame navigation", async () => {
+    jest.useFakeTimers();
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result } = renderHook(
+      () => ({ first: useFrameNavigation({ path }), second: useFrameNavigation({ path }) }),
+      { wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }) },
+    );
+
+    act(() => {
+      result.current.second.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.second.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    act(() => {
+      result.current.second.onRestore();
+      result.current.second.updateRenderedTime([messageAndData(latest)]);
+      jest.runOnlyPendingTimers();
+      result.current.first.updateRenderedTime([messageAndData(message(1, 1))]);
+      result.current.first.updateRenderedTime([messageAndData(message(2, 1))]);
+      result.current.first.handlePreviousFrame();
+      result.current.second.onRestore();
+      result.current.first.onRestore();
+      jest.runOnlyPendingTimers();
+      result.current.second.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).toHaveBeenLastCalledWith(earlier.receiveTime);
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the previous range cache when the path changes", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result, rerender } = renderHook(
+      ({ hookPath }: { readonly hookPath: string }) => useFrameNavigation({ path: hookPath }),
+      {
+        initialProps: { hookPath: path },
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(5) }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(latest)]);
+    });
+
+    rerender({ hookPath: "/topic" });
+    act(() => { result.current.handlePreviousFrame(); });
+
+    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+  });
+
+  it("clears the previous range cache when the data start time changes", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    let startTime = time(0);
+    const { result, rerender } = renderHook(
+      ({ renderId }: { readonly renderId: number }) => {
+        void renderId;
+        return useFrameNavigation({ path });
+      },
+      {
+        initialProps: { renderId: 1 },
+        wrapper: wrapper({
+          subscribeMessageRange,
+          seekPlayback,
+          currentTime: time(5),
+          startTime: () => startTime,
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([messageAndData(latest)]);
+    });
+    seekPlayback.mockClear();
+
+    startTime = time(4, 700_000_000);
+    rerender({ renderId: 2 });
+    act(() => { result.current.handlePreviousFrame(); });
+
+    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+    expect(seekPlayback).not.toHaveBeenCalledWith(earlier.receiveTime);
+  });
+
+  it("clears the previous range cache when the player changes", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    let playerId = "player-1";
+    const { result, rerender } = renderHook(
+      ({ renderId }: { readonly renderId: number }) => {
+        void renderId;
+        return useFrameNavigation({ path });
+      },
+      {
+        initialProps: { renderId: 1 },
+        wrapper: wrapper({
+          subscribeMessageRange,
+          seekPlayback,
+          currentTime: time(5),
+          playerId: () => playerId,
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    act(() => { result.current.onRestore(); });
+
+    playerId = "player-2";
+    rerender({ renderId: 2 });
+    act(() => { result.current.handlePreviousFrame(); });
+
+    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+  });
+
+  it("clears the previous range cache when the range provider changes", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const firstProvider = makeSubscribeMessageRange([earlier, latest]);
+    const secondProvider = makeSubscribeMessageRange([earlier, latest]);
+    let activeProvider = firstProvider;
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result, rerender } = renderHook(
+      ({ renderId }: { readonly renderId: number }) => {
+        void renderId;
+        return useFrameNavigation({ path });
+      },
+      {
+        initialProps: { renderId: 1 },
+        wrapper: wrapper({
+          getSubscribeMessageRange: () => activeProvider,
+          seekPlayback,
+          currentTime: time(5),
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(firstProvider).toHaveBeenCalledTimes(1); });
+    act(() => { result.current.onRestore(); });
+
+    activeProvider = secondProvider;
+    rerender({ renderId: 2 });
+    act(() => { result.current.handlePreviousFrame(); });
+
+    await waitFor(() => { expect(secondProvider).toHaveBeenCalledTimes(1); });
+  });
+
+  it("clears cached coverage when a path global variable changes", async () => {
+    const variablePath = "/topic{value==$target}.value";
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const requestedRanges: { readonly start: Time; readonly end: Time }[] = [];
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ timeRange, onNewRangeIterator }) => {
+      requestedRanges.push(timeRange);
+      const batch = [earlier, latest].filter((event) =>
+        inRange(event, timeRange.start, timeRange.end),
+      );
+      void onNewRangeIterator(
+        (async function* () {
+          yield batch;
+        })(),
+      );
+      return jest.fn();
+    });
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result } = renderHook(
+      () => {
+        const frameNavigation = useFrameNavigation({ path: variablePath });
+        const { setGlobalVariables } = useGlobalVariables();
+        return { frameNavigation, setGlobalVariables };
+      },
+      {
+        wrapper: wrapper({
+          subscribeMessageRange,
+          seekPlayback,
+          currentTime: time(5),
+          globalVariables: { target: 1 },
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.frameNavigation.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.frameNavigation.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(seekPlayback).toHaveBeenLastCalledWith(latest.receiveTime); });
+    act(() => {
+      result.current.frameNavigation.onRestore();
+      result.current.setGlobalVariables({ target: 2 });
+    });
+    act(() => { result.current.frameNavigation.handlePreviousFrame(); });
+
+    await waitFor(() => { expect(requestedRanges.length).toBeGreaterThan(1); });
+    expect(requestedRanges[1]?.end).toEqual(time(4, 799_999_999));
+  });
+
+  it("clears the previous range cache when the relevant datatype changes", async () => {
+    const earlier = messageAt(time(4, 600_000_000), 1);
+    const latest = messageAt(time(4, 800_000_000), 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([earlier, latest]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    let activeDatatypes = datatypes;
+    const { result, rerender } = renderHook(
+      ({ renderId }: { readonly renderId: number }) => {
+        void renderId;
+        return useFrameNavigation({ path });
+      },
+      {
+        initialProps: { renderId: 1 },
+        wrapper: wrapper({
+          subscribeMessageRange,
+          seekPlayback,
+          currentTime: time(5),
+          datatypes: () => activeDatatypes,
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(message(5, 1))]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(1); });
+    act(() => { result.current.onRestore(); });
+
+    activeDatatypes = new Map(
+      Object.entries({
+        datatype: {
+          definitions: [{ name: "value", type: "uint64", isArray: false, isComplex: false }],
+        },
+      }),
+    );
+    rerender({ renderId: 2 });
+    act(() => { result.current.handlePreviousFrame(); });
+
+    await waitFor(() => { expect(subscribeMessageRange).toHaveBeenCalledTimes(2); });
+  });
+
+  it("keeps the found range frame visible when the seek snapshot has no matching messages", async () => {
+    const currentFrame = messageAndData(message(4, 1));
+    const previousFrame = messageAndData(message(2, 1));
+    const subscribeMessageRange = makeSubscribeMessageRange([message(2, 1)]);
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ subscribeMessageRange, seekPlayback }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([currentFrame]);
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(time(2));
+    });
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([]);
+    });
+
+    expect(result.current.getEffectiveMessages([])).toEqual([previousFrame]);
   });
 
   it("keeps playback position and shows a toast when no next match exists", async () => {
@@ -434,7 +966,7 @@ describe("useFrameNavigation", () => {
     expect(result.current.hasPreFrame).toBe(false);
   });
 
-  it("falls back to rendered history when range subscription returns unsupported", async () => {
+  it("uses rendered history without probing an unsupported range subscription", async () => {
     const subscribeMessageRange = jest.fn<
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
@@ -463,7 +995,7 @@ describe("useFrameNavigation", () => {
     await waitFor(() => {
       expect(seekPlayback).toHaveBeenCalledWith(time(1));
     });
-    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(subscribeMessageRange).not.toHaveBeenCalled();
   });
 
   it("clears previous frame availability when unsupported range has no rendered history", async () => {
@@ -638,6 +1170,9 @@ describe("useFrameNavigation", () => {
       result.current.handlePreviousFrame();
     });
 
+    await waitFor(() => {
+      expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    });
     expect(seekPlayback).toHaveBeenCalledTimes(1);
   });
 
@@ -715,13 +1250,10 @@ describe("useFrameNavigation", () => {
 
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 1))]);
-      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
-      result.current.handlePreviousFrame();
+      result.current.handleNextFrame([messageAndData(message(1, 1))]);
     });
 
-    await waitFor(() => {
-      expect(seekPlayback).toHaveBeenCalledWith(time(1));
-    });
+    await waitFor(() => { expect(startPlayback).toHaveBeenCalled(); });
 
     act(() => {
       result.current.onRestore();
@@ -784,13 +1316,10 @@ describe("useFrameNavigation", () => {
 
     act(() => {
       result.current.updateRenderedTime([messageAndData(message(1, 1))]);
-      result.current.updateRenderedTime([messageAndData(message(2, 1))]);
-      result.current.handlePreviousFrame();
+      result.current.handleNextFrame([messageAndData(message(1, 1))]);
     });
 
-    await waitFor(() => {
-      expect(seekPlayback).toHaveBeenCalledWith(time(1));
-    });
+    await waitFor(() => { expect(startPlayback).toHaveBeenCalled(); });
 
     act(() => {
       result.current.onRestore();
@@ -842,6 +1371,39 @@ describe("useFrameNavigation", () => {
     expect(pausePlayback).toHaveBeenCalledTimes(1);
     expect(seekPlayback).toHaveBeenCalledWith(time(1));
     expect(result.current.hasPreFrame).toBe(false);
+  });
+
+  it("keeps the fallback previous frame visible when the seek snapshot has no matching messages", () => {
+    const firstFrame = messageAndData(message(1, 1));
+    const secondFrame = messageAndData(message(2, 1));
+    const seekPlayback = jest.fn<void, [Time]>();
+
+    const { result } = renderHook(
+      () =>
+        useFrameNavigation({
+          path,
+          noPreviousFrameMessage: "No previous",
+          noNextFrameMessage: "No next",
+        }),
+      {
+        wrapper: wrapper({ seekPlayback }),
+      },
+    );
+
+    act(() => {
+      result.current.updateRenderedTime([firstFrame]);
+      result.current.updateRenderedTime([secondFrame]);
+      result.current.handlePreviousFrame();
+    });
+
+    expect(seekPlayback).toHaveBeenCalledWith(time(1));
+
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([]);
+    });
+
+    expect(result.current.getEffectiveMessages([])).toEqual([firstFrame]);
   });
 
   it("cancels pending range navigation and resets state when path changes", async () => {

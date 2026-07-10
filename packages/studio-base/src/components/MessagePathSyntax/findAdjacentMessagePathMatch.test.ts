@@ -7,8 +7,8 @@
 
 import race from "race-as-promised";
 
-import { compare, Time } from "@foxglove/rostime";
-import { MessageEvent, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { compare, fromSec, subtract, type Time } from "@foxglove/rostime";
+import type { MessageEvent, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import {
   findAdjacentMessagePathMatch,
@@ -19,14 +19,22 @@ function time(sec: number, nsec = 0): Time {
   return { sec, nsec };
 }
 
-function message(sec: number, value: number): MessageEvent<{ value: number }> {
+function messageAt(
+  receiveTime: Time,
+  value: number,
+  sizeInBytes = 0,
+): MessageEvent<{ value: number }> {
   return {
     topic: "/topic",
-    receiveTime: time(sec),
+    receiveTime,
     message: { value },
     schemaName: "datatype",
-    sizeInBytes: 0,
+    sizeInBytes,
   };
+}
+
+function message(sec: number, value: number): MessageEvent<{ value: number }> {
+  return messageAt(time(sec), value);
 }
 
 function isInRange(messageTime: Time, start: Time, end: Time): boolean {
@@ -176,7 +184,7 @@ describe("findAdjacentMessagePathMatch", () => {
       getMessagePathDataItems: makeGetFilteredItems(1),
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       type: "found",
       message: {
         messageEvent: message(2, 1),
@@ -208,13 +216,281 @@ describe("findAdjacentMessagePathMatch", () => {
       getMessagePathDataItems: makeGetFilteredItems(1),
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       type: "found",
       message: {
         messageEvent: message(3, 1),
         queriedData: [{ path: "/topic{value==1}.value", value: 1 }],
       },
     });
+  });
+
+  it("sorts previous matches and returns the full scanned window", async () => {
+    const messages = [
+      messageAt(fromSec(4.8), 1),
+      messageAt(fromSec(4.6), 1),
+      messageAt(fromSec(4.7), 1),
+    ];
+    const subscribeMessageRange: SubscribeMessageRange = ({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* messageBatchIterator() {
+          yield [messages[0]!, messages[1]!];
+          yield [messages[2]!];
+        })(),
+      );
+      return jest.fn();
+    };
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(5),
+      startTime: time(0),
+      endTime: time(6),
+      windowDuration: time(6),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toEqual({
+      type: "found",
+      message: {
+        messageEvent: messages[0],
+        queriedData: [{ path: "/topic{value==1}.value", value: 1 }],
+      },
+      previousWindow: {
+        coveredStart: time(4, 499_999_999),
+        coveredEndExclusive: time(5),
+        candidates: [messages[1], messages[2], messages[0]],
+      },
+    });
+  });
+
+  it("includes empty adaptive windows in the returned coverage", async () => {
+    const target = message(7, 1);
+    const ranges: { readonly start: Time; readonly end: Time }[] = [];
+    const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      ranges.push(timeRange);
+      const batch = isInRange(target.receiveTime, timeRange.start, timeRange.end) ? [target] : [];
+      void onNewRangeIterator(
+        (async function* messageBatchIterator() {
+          yield batch;
+        })(),
+      );
+      return jest.fn();
+    };
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(10),
+      startTime: time(0),
+      endTime: time(11),
+      windowDuration: time(10),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(ranges).toHaveLength(3);
+    expect(result).toMatchObject({
+      type: "found",
+      previousWindow: {
+        coveredStart: time(6, 499_999_997),
+        coveredEndExclusive: time(10),
+      },
+    });
+  });
+
+  it.each([
+    [0.25, [0.25, 0.25, 0.25]],
+    [0.5, [0.5, 0.5, 0.5]],
+    [0.75, [0.5, 0.75, 0.75]],
+    [1, [0.5, 1, 1]],
+    [3, [0.5, 1, 2, 3]],
+    [10, [0.5, 1, 2, 5, 10]],
+  ])("uses adaptive previous windows capped at %s seconds", async (maxSeconds, expected) => {
+    const ranges: { readonly start: Time; readonly end: Time }[] = [];
+    const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      ranges.push(timeRange);
+      void onNewRangeIterator(
+        (async function* emptyIterator() {
+          yield [];
+        })(),
+      );
+      return jest.fn();
+    };
+
+    await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(20),
+      startTime: time(0),
+      endTime: time(21),
+      windowDuration: fromSec(maxSeconds),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    const initialRanges = ranges.slice(0, expected.length);
+    expect(initialRanges.map(({ start, end }) => subtract(end, start))).toEqual(
+      expected.map(fromSec),
+    );
+    for (let i = 1; i < initialRanges.length; i++) {
+      expect(initialRanges[i]!.end).toEqual(subtract(initialRanges[i - 1]!.start, time(0, 1)));
+    }
+  });
+
+  it("materializes only the latest candidate for an unfiltered path", async () => {
+    const candidates = [messageAt(fromSec(4.6), 1), messageAt(fromSec(4.8), 2)];
+    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
+    const getMessagePathDataItems = jest.fn<
+      ReturnType<GetMessagePathDataItems>,
+      Parameters<GetMessagePathDataItems>
+    >((path, event) => [{ path, value: event.message }]);
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic",
+      direction: "previous",
+      fromTime: time(5),
+      startTime: time(0),
+      endTime: time(6),
+      windowDuration: time(6),
+      subscribeMessageRange,
+      getMessagePathDataItems,
+    });
+
+    expect(result).toMatchObject({ type: "found", message: { messageEvent: candidates[1] } });
+    expect(getMessagePathDataItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks an earlier unfiltered candidate when the latest has no queried data", async () => {
+    const candidates = [messageAt(fromSec(4.6), 1), messageAt(fromSec(4.8), 2)];
+    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
+    const getMessagePathDataItems = jest.fn<
+      ReturnType<GetMessagePathDataItems>,
+      Parameters<GetMessagePathDataItems>
+    >((path, event) => (event === candidates[0] ? [{ path, value: event.message }] : []));
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic",
+      direction: "previous",
+      fromTime: time(5),
+      startTime: time(0),
+      endTime: time(6),
+      windowDuration: time(6),
+      subscribeMessageRange,
+      getMessagePathDataItems,
+    });
+
+    expect(result).toMatchObject({ type: "found", message: { messageEvent: candidates[0] } });
+    expect(getMessagePathDataItems).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves an evicted unfiltered match as the navigation target", async () => {
+    const candidates = Array.from({ length: 1001 }, (_, index) =>
+      messageAt(time(0, 500_000_000 + index), index),
+    );
+    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
+    const getMessagePathDataItems = jest.fn<
+      ReturnType<GetMessagePathDataItems>,
+      Parameters<GetMessagePathDataItems>
+    >((path, event) => (event === candidates[0] ? [{ path, value: event.message }] : []));
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic",
+      direction: "previous",
+      fromTime: time(1),
+      startTime: time(0),
+      endTime: time(2),
+      windowDuration: time(1),
+      subscribeMessageRange,
+      getMessagePathDataItems,
+    });
+
+    expect(result).toEqual({
+      type: "found",
+      message: {
+        messageEvent: candidates[0],
+        queriedData: [{ path: "/topic", value: candidates[0]!.message }],
+      },
+    });
+  });
+
+  it("limits the cached previous window by message bytes", async () => {
+    const eightMiB = 8 * 1024 * 1024;
+    const candidates = [
+      messageAt(fromSec(4.6), 1, eightMiB),
+      messageAt(fromSec(4.7), 1, eightMiB),
+      messageAt(fromSec(4.8), 1, eightMiB),
+    ];
+    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(5),
+      startTime: time(0),
+      endTime: time(6),
+      windowDuration: time(6),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toMatchObject({
+      type: "found",
+      previousWindow: {
+        coveredStart: fromSec(4.7),
+        candidates: [candidates[1], candidates[2]],
+      },
+    });
+  });
+
+  it("keeps only the latest 1000 previous candidates", async () => {
+    const candidates = Array.from({ length: 1001 }, (_, index) =>
+      messageAt(time(0, 500_000_000 + index), 1),
+    );
+    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(1),
+      startTime: time(0),
+      endTime: time(2),
+      windowDuration: time(1),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toMatchObject({
+      type: "found",
+      previousWindow: {
+        coveredStart: candidates[1]?.receiveTime,
+        candidates: candidates.slice(1),
+      },
+    });
+  });
+
+  it("does not return previous messages with the current receive time", async () => {
+    const previous = message(4, 1);
+    const { subscribeMessageRange } = makeSubscribeMessageRange([
+      previous,
+      message(5, 1),
+      message(5, 1),
+    ]);
+
+    const result = await findAdjacentMessagePathMatch({
+      path: "/topic{value==1}.value",
+      direction: "previous",
+      fromTime: time(5),
+      startTime: time(0),
+      endTime: time(6),
+      windowDuration: time(5),
+      subscribeMessageRange,
+      getMessagePathDataItems: makeGetFilteredItems(1),
+    });
+
+    expect(result).toMatchObject({ type: "found", message: { messageEvent: previous } });
   });
 
   it("ignores stale iterators after a replacement range iterator arrives", async () => {
