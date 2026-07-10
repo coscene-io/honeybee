@@ -25,6 +25,10 @@ export class FrameNavigationNotifier {
   public isOtherNavigationActive(navigationId: string): boolean {
     return this.#activeNavigationId != undefined && this.#activeNavigationId !== navigationId;
   }
+
+  public isNavigationActive(navigationId: string): boolean {
+    return this.#activeNavigationId === navigationId;
+  }
 }
 
 export const frameNavigationNotifier = new FrameNavigationNotifier();

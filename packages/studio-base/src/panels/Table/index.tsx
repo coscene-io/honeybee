@@ -85,6 +85,9 @@ function TablePanel({ config, saveConfig }: Props) {
     path: topicPath,
     noPreviousFrameMessage: t("noPreviousMatchingFrame"),
     noNextFrameMessage: t("noNextMatchingFrame"),
+    searchingPreviousFrameMessage: t("searchingPreviousMatchingFrame"),
+    searchingNextFrameMessage: t("searchingNextMatchingFrame"),
+    cancelFrameNavigationLabel: t("cancel", { ns: "general" }),
   });
 
   const messageDataItems = useMessageDataItem(topicPath ? topicPath : "", {

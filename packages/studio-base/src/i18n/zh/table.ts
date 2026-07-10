@@ -12,6 +12,8 @@ export const table: Partial<TypeOptions["resources"]["table"]> = {
   nextFrame: "下一帧（↓）",
   noPreviousMatchingFrame: "未找到上一条匹配帧",
   noNextMatchingFrame: "未找到下一条匹配帧",
+  searchingPreviousMatchingFrame: "正在查找上一条匹配帧…",
+  searchingNextMatchingFrame: "正在查找下一条匹配帧…",
   noTopicSelected: "未选择话题",
   waitingForNextMessage: "等待下一条消息…",
 };

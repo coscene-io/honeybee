@@ -121,6 +121,9 @@ function RawMessages(props: Props) {
     path: topicPath,
     noPreviousFrameMessage: t("noPreviousMatchingFrame"),
     noNextFrameMessage: t("noNextMatchingFrame"),
+    searchingPreviousFrameMessage: t("searchingPreviousMatchingFrame"),
+    searchingNextFrameMessage: t("searchingNextMatchingFrame"),
+    cancelFrameNavigationLabel: t("cancel", { ns: "general" }),
   });
 
   useEffect(() => {

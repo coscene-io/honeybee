@@ -5,19 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { Button } from "@mui/material";
 import { useSnackbar } from "notistack";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { SnackbarKey } from "notistack";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import { compare } from "@foxglove/rostime";
+import { fromSec } from "@foxglove/rostime";
 import type { Time } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import {
   type AdjacentMessagePathMatchResult,
   findAdjacentMessagePathMatch,
   type FrameNavigationDirection,
-  type GetMessagePathDataItems,
-  type PreviousRangeWindow,
 } from "@foxglove/studio-base/components/MessagePathSyntax/findAdjacentMessagePathMatch";
 import {
   type MessageAndData,
@@ -27,6 +28,8 @@ import {
   useMessagePipeline,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
+import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 
 import { frameNavigationNotifier } from "./FrameNavigationNotifier";
 import {
@@ -34,7 +37,6 @@ import {
   useFallbackFrameNavigation,
 } from "./useFallbackFrameNavigation";
 import { type KeyHandlers, useFrameNavigationKeyboard } from "./useFrameNavigationKeyboard";
-import { useRequestWindowDuration } from "./useRequestWindowDuration";
 
 // Selector functions for player controls
 const selectSeekPlayback = (ctx: MessagePipelineContext) => ctx.seekPlayback;
@@ -43,6 +45,8 @@ const selectPausePlayback = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSubscribeMessageRange = (ctx: MessagePipelineContext) => ctx.subscribeMessageRange;
 const selectActiveData = (ctx: MessagePipelineContext) => ctx.playerState.activeData;
 const selectPlayerId = (ctx: MessagePipelineContext) => ctx.playerState.playerId;
+
+const SEARCH_FEEDBACK_DELAY_MS = 2_000;
 
 export interface FrameNavigationHook {
   /** Whether there is a previous frame available */
@@ -70,26 +74,10 @@ type UseFrameNavigationOptions = {
   readonly path?: string;
   readonly noPreviousFrameMessage?: string;
   readonly noNextFrameMessage?: string;
+  readonly searchingPreviousFrameMessage?: string;
+  readonly searchingNextFrameMessage?: string;
+  readonly cancelFrameNavigationLabel?: string;
 };
-
-function findPreviousWindowMessage(
-  previousWindow: PreviousRangeWindow,
-  fromTime: Time,
-  path: string,
-  getMessagePathDataItems: GetMessagePathDataItems,
-): MessageAndData | undefined {
-  for (let i = previousWindow.candidates.length - 1; i >= 0; i--) {
-    const candidate = previousWindow.candidates[i];
-    if (candidate == undefined || compare(candidate.receiveTime, fromTime) >= 0) {
-      continue;
-    }
-    const queriedData = getMessagePathDataItems(path, candidate);
-    if (queriedData != undefined && queriedData.length > 0) {
-      return { messageEvent: candidate, queriedData };
-    }
-  }
-  return undefined;
-}
 
 /**
  * Hook for frame navigation functionality (Previous/Next Frame)
@@ -100,6 +88,9 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     path = "",
     noPreviousFrameMessage = "No previous matching frame found",
     noNextFrameMessage = "No next matching frame found",
+    searchingPreviousFrameMessage = "Searching for previous matching frame…",
+    searchingNextFrameMessage = "Searching for next matching frame…",
+    cancelFrameNavigationLabel = "Cancel",
   } = options;
   // Player control hooks
   const seekPlayback = useMessagePipeline(selectSeekPlayback);
@@ -109,11 +100,15 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const activeData = useMessagePipeline(selectActiveData);
   const playerId = useMessagePipeline(selectPlayerId);
   const getMessagePathDataItems = useCachedGetMessagePathDataItems(path.length > 0 ? [path] : []);
-  const { enqueueSnackbar } = useSnackbar();
+  const { closeSnackbar, enqueueSnackbar } = useSnackbar();
 
   const [isFrameNavigationPending, setIsFrameNavigationPending] = useState(false);
-  const [rangeNavigationUnsupported, setRangeNavigationUnsupported] = useState(false);
-  const requestWindowDuration = useRequestWindowDuration();
+  const [configuredRequestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
+  const requestWindowDuration = useMemo(() => {
+    return typeof configuredRequestWindow === "number" && configuredRequestWindow > 0
+      ? fromSec(configuredRequestWindow)
+      : getRequestWindowDefaultTime();
+  }, [configuredRequestWindow]);
 
   // Unique identifier for this hook instance
   const navigationId = useRef(uuidv4());
@@ -121,16 +116,14 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
   const frameState = useRef<FrameNavigationState>("current");
   const activeRangeNavigation = useRef<AbortController | undefined>();
-  const previousRangeWindow = useRef<PreviousRangeWindow | undefined>();
+  const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const searchFeedbackSnackbar = useRef<SnackbarKey | undefined>();
 
   const activeTimes = useMemo(() => {
     return activeData != undefined
       ? { currentTime: activeData.currentTime, startTime: activeData.startTime }
       : undefined;
   }, [activeData]);
-  const activeSubscribeMessageRange = rangeNavigationUnsupported
-    ? undefined
-    : subscribeMessageRange;
   const {
     hasPreFrame,
     currentMessagesRef,
@@ -139,7 +132,6 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     holdNavigationMessages,
     resetRenderedHistory,
     restoreFallbackState,
-    runPreviousFrameToMessage,
     runPreviousFrameFromRenderedHistory,
     runFallbackPreviousFrame,
     runFallbackNextFrame,
@@ -152,20 +144,27 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     seekPlayback,
     startPlayback,
     pausePlayback,
-    activeTimes:
-      activeSubscribeMessageRange != undefined && path.length > 0 ? activeTimes : undefined,
+    activeTimes: subscribeMessageRange != undefined && path.length > 0 ? activeTimes : undefined,
   });
+
+  const clearSearchFeedback = useCallback(() => {
+    if (searchFeedbackTimer.current != undefined) {
+      clearTimeout(searchFeedbackTimer.current);
+      searchFeedbackTimer.current = undefined;
+    }
+    if (searchFeedbackSnackbar.current != undefined) {
+      closeSnackbar(searchFeedbackSnackbar.current);
+      searchFeedbackSnackbar.current = undefined;
+    }
+  }, [closeSnackbar]);
 
   const cancelActiveRangeNavigation = useCallback((): boolean => {
     const hadActiveRangeNavigation = activeRangeNavigation.current != undefined;
     activeRangeNavigation.current?.abort();
     activeRangeNavigation.current = undefined;
+    clearSearchFeedback();
     return hadActiveRangeNavigation;
-  }, []);
-
-  const clearPreviousRangeWindow = useCallback(() => {
-    previousRangeWindow.current = undefined;
-  }, []);
+  }, [clearSearchFeedback]);
 
   const finishFrameNavigation = useCallback(() => {
     cancelActiveRangeNavigation();
@@ -183,20 +182,41 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       frameNavigationNotifier.startNavigation(navigationId.current);
       frameState.current = direction;
       setIsFrameNavigationPending(true);
+      searchFeedbackTimer.current = setTimeout(() => {
+        searchFeedbackTimer.current = undefined;
+        if (activeRangeNavigation.current !== controller) {
+          return;
+        }
+        searchFeedbackSnackbar.current = enqueueSnackbar(
+          direction === "previous" ? searchingPreviousFrameMessage : searchingNextFrameMessage,
+          {
+            action: () =>
+              createElement(
+                Button,
+                { color: "inherit", onClick: finishFrameNavigation, size: "small" },
+                cancelFrameNavigationLabel,
+              ),
+            persist: true,
+            variant: "info",
+          },
+        );
+      }, SEARCH_FEEDBACK_DELAY_MS);
     },
-    [freezeCurrentMessages, pausePlayback],
+    [
+      cancelFrameNavigationLabel,
+      enqueueSnackbar,
+      finishFrameNavigation,
+      freezeCurrentMessages,
+      pausePlayback,
+      searchingNextFrameMessage,
+      searchingPreviousFrameMessage,
+    ],
   );
 
   const onRestore = useCallback(() => {
-    const hadActiveRangeNavigation = cancelActiveRangeNavigation();
-
-    if (hadActiveRangeNavigation) {
-      frameState.current = "current";
-      frameNavigationNotifier.endNavigation(navigationId.current);
-      clearFrozenMessages();
+    if (activeRangeNavigation.current != undefined) {
+      finishFrameNavigation();
       resetRenderedHistory();
-      clearPreviousRangeWindow();
-      setIsFrameNavigationPending(false);
       return;
     }
 
@@ -205,40 +225,28 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         setIsFrameNavigationPending(false);
         return;
       case "manual-seek":
-        clearPreviousRangeWindow();
         return;
       case "other-navigation":
         return;
     }
-  }, [
-    cancelActiveRangeNavigation,
-    clearFrozenMessages,
-    clearPreviousRangeWindow,
-    resetRenderedHistory,
-    restoreFallbackState,
-  ]);
+  }, [finishFrameNavigation, resetRenderedHistory, restoreFallbackState]);
 
   const handleRangeNavigationResult = useCallback(
     (direction: FrameNavigationDirection, result: AdjacentMessagePathMatchResult) => {
+      clearSearchFeedback();
       switch (result.type) {
         case "found":
-          setRangeNavigationUnsupported(false);
-          if (direction === "previous") {
-            previousRangeWindow.current = result.previousWindow;
-          }
           currentMessagesRef.current = [result.message];
           holdNavigationMessages([result.message]);
           seekPlayback?.(result.message.messageEvent.receiveTime);
           return;
         case "notFound":
-          setRangeNavigationUnsupported(false);
           enqueueSnackbar(direction === "previous" ? noPreviousFrameMessage : noNextFrameMessage, {
             variant: "info",
           });
           finishFrameNavigation();
           return;
         case "unsupported": {
-          setRangeNavigationUnsupported(true);
           frameState.current = "current";
           clearFrozenMessages();
           setIsFrameNavigationPending(false);
@@ -264,6 +272,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     [
       currentMessagesRef,
       clearFrozenMessages,
+      clearSearchFeedback,
       enqueueSnackbar,
       finishFrameNavigation,
       holdNavigationMessages,
@@ -282,7 +291,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         return;
       }
       if (
-        activeSubscribeMessageRange == undefined ||
+        subscribeMessageRange == undefined ||
         activeData == undefined ||
         seekPlayback == undefined ||
         path.length === 0
@@ -303,7 +312,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         startTime: activeData.startTime,
         endTime: activeData.endTime,
         windowDuration: requestWindowDuration,
-        subscribeMessageRange: activeSubscribeMessageRange,
+        subscribeMessageRange,
         getMessagePathDataItems,
         abortSignal: controller.signal,
       });
@@ -311,25 +320,30 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       if (activeRangeNavigation.current !== controller) {
         return;
       }
+      if (!frameNavigationNotifier.isNavigationActive(navigationId.current)) {
+        finishFrameNavigation();
+        return;
+      }
       activeRangeNavigation.current = undefined;
       handleRangeNavigationResult(direction, result);
     },
     [
       activeData,
-      activeSubscribeMessageRange,
       beginRangeFrameNavigation,
       currentMessagesRef,
+      finishFrameNavigation,
       getMessagePathDataItems,
       handleRangeNavigationResult,
       path,
       requestWindowDuration,
       seekPlayback,
+      subscribeMessageRange,
     ],
   );
 
   const handlePreviousFrame = useCallback(() => {
     if (
-      activeSubscribeMessageRange != undefined &&
+      subscribeMessageRange != undefined &&
       activeData != undefined &&
       seekPlayback != undefined &&
       path.length > 0
@@ -339,46 +353,20 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       if (runPreviousFrameFromRenderedHistory(fromTime)) {
         return;
       }
-
-      let rangeFromTime = fromTime;
-      const cachedWindow = previousRangeWindow.current;
-      if (cachedWindow != undefined) {
-        const cacheIsValid =
-          compare(cachedWindow.coveredStart, fromTime) <= 0 &&
-          compare(fromTime, cachedWindow.coveredEndExclusive) <= 0;
-        if (cacheIsValid) {
-          const cachedMessage = findPreviousWindowMessage(
-            cachedWindow,
-            fromTime,
-            path,
-            getMessagePathDataItems,
-          );
-          if (cachedMessage != undefined && runPreviousFrameToMessage(cachedMessage)) {
-            return;
-          }
-          rangeFromTime = cachedWindow.coveredStart;
-        } else {
-          clearPreviousRangeWindow();
-        }
-      }
-
-      void runRangeFrameNavigation("previous", rangeFromTime);
+      void runRangeFrameNavigation("previous", fromTime);
       return;
     }
 
     runFallbackPreviousFrame();
   }, [
     activeData,
-    activeSubscribeMessageRange,
-    clearPreviousRangeWindow,
     currentMessagesRef,
-    getMessagePathDataItems,
     path,
     runFallbackPreviousFrame,
     runPreviousFrameFromRenderedHistory,
-    runPreviousFrameToMessage,
     runRangeFrameNavigation,
     seekPlayback,
+    subscribeMessageRange,
   ]);
 
   const handleNextFrame = useCallback(
@@ -391,27 +379,24 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       }
 
       if (
-        activeSubscribeMessageRange != undefined &&
+        subscribeMessageRange != undefined &&
         activeData != undefined &&
         seekPlayback != undefined &&
         path.length > 0
       ) {
-        clearPreviousRangeWindow();
         void runRangeFrameNavigation("next");
         return;
       }
 
-      clearPreviousRangeWindow();
       runFallbackNextFrame(currentMessages);
     },
     [
       activeData,
-      activeSubscribeMessageRange,
-      clearPreviousRangeWindow,
       path,
       runFallbackNextFrame,
       runRangeFrameNavigation,
       seekPlayback,
+      subscribeMessageRange,
     ],
   );
 
@@ -439,11 +424,9 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   useEffect(() => {
     finishFrameNavigation();
     resetRenderedHistory();
-    clearPreviousRangeWindow();
   }, [
     activeData?.startTime.nsec,
     activeData?.startTime.sec,
-    clearPreviousRangeWindow,
     finishFrameNavigation,
     getMessagePathDataItems,
     path,
@@ -451,10 +434,6 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     resetRenderedHistory,
     subscribeMessageRange,
   ]);
-
-  useEffect(() => {
-    setRangeNavigationUnsupported(false);
-  }, [path, playerId, subscribeMessageRange]);
 
   return {
     hasPreFrame,

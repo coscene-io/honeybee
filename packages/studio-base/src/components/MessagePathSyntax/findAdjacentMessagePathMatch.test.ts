@@ -19,17 +19,13 @@ function time(sec: number, nsec = 0): Time {
   return { sec, nsec };
 }
 
-function messageAt(
-  receiveTime: Time,
-  value: number,
-  sizeInBytes = 0,
-): MessageEvent<{ value: number }> {
+function messageAt(receiveTime: Time, value: number): MessageEvent<{ value: number }> {
   return {
     topic: "/topic",
     receiveTime,
     message: { value },
     schemaName: "datatype",
-    sizeInBytes,
+    sizeInBytes: 0,
   };
 }
 
@@ -225,7 +221,7 @@ describe("findAdjacentMessagePathMatch", () => {
     });
   });
 
-  it("sorts previous matches and returns the full scanned window", async () => {
+  it("finds the latest previous match from unsorted batches", async () => {
     const messages = [
       messageAt(fromSec(4.8), 1),
       messageAt(fromSec(4.6), 1),
@@ -258,15 +254,10 @@ describe("findAdjacentMessagePathMatch", () => {
         messageEvent: messages[0],
         queriedData: [{ path: "/topic{value==1}.value", value: 1 }],
       },
-      previousWindow: {
-        coveredStart: time(4, 499_999_999),
-        coveredEndExclusive: time(5),
-        candidates: [messages[1], messages[2], messages[0]],
-      },
     });
   });
 
-  it("includes empty adaptive windows in the returned coverage", async () => {
+  it("searches across empty adaptive windows", async () => {
     const target = message(7, 1);
     const ranges: { readonly start: Time; readonly end: Time }[] = [];
     const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
@@ -294,10 +285,7 @@ describe("findAdjacentMessagePathMatch", () => {
     expect(ranges).toHaveLength(3);
     expect(result).toMatchObject({
       type: "found",
-      previousWindow: {
-        coveredStart: time(6, 499_999_997),
-        coveredEndExclusive: time(10),
-      },
+      message: { messageEvent: target },
     });
   });
 
@@ -340,29 +328,6 @@ describe("findAdjacentMessagePathMatch", () => {
     }
   });
 
-  it("materializes only the latest candidate for an unfiltered path", async () => {
-    const candidates = [messageAt(fromSec(4.6), 1), messageAt(fromSec(4.8), 2)];
-    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
-    const getMessagePathDataItems = jest.fn<
-      ReturnType<GetMessagePathDataItems>,
-      Parameters<GetMessagePathDataItems>
-    >((path, event) => [{ path, value: event.message }]);
-
-    const result = await findAdjacentMessagePathMatch({
-      path: "/topic",
-      direction: "previous",
-      fromTime: time(5),
-      startTime: time(0),
-      endTime: time(6),
-      windowDuration: time(6),
-      subscribeMessageRange,
-      getMessagePathDataItems,
-    });
-
-    expect(result).toMatchObject({ type: "found", message: { messageEvent: candidates[1] } });
-    expect(getMessagePathDataItems).toHaveBeenCalledTimes(1);
-  });
-
   it("checks an earlier unfiltered candidate when the latest has no queried data", async () => {
     const candidates = [messageAt(fromSec(4.6), 1), messageAt(fromSec(4.8), 2)];
     const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
@@ -384,91 +349,6 @@ describe("findAdjacentMessagePathMatch", () => {
 
     expect(result).toMatchObject({ type: "found", message: { messageEvent: candidates[0] } });
     expect(getMessagePathDataItems).toHaveBeenCalledTimes(2);
-  });
-
-  it("preserves an evicted unfiltered match as the navigation target", async () => {
-    const candidates = Array.from({ length: 1001 }, (_, index) =>
-      messageAt(time(0, 500_000_000 + index), index),
-    );
-    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
-    const getMessagePathDataItems = jest.fn<
-      ReturnType<GetMessagePathDataItems>,
-      Parameters<GetMessagePathDataItems>
-    >((path, event) => (event === candidates[0] ? [{ path, value: event.message }] : []));
-
-    const result = await findAdjacentMessagePathMatch({
-      path: "/topic",
-      direction: "previous",
-      fromTime: time(1),
-      startTime: time(0),
-      endTime: time(2),
-      windowDuration: time(1),
-      subscribeMessageRange,
-      getMessagePathDataItems,
-    });
-
-    expect(result).toEqual({
-      type: "found",
-      message: {
-        messageEvent: candidates[0],
-        queriedData: [{ path: "/topic", value: candidates[0]!.message }],
-      },
-    });
-  });
-
-  it("limits the cached previous window by message bytes", async () => {
-    const eightMiB = 8 * 1024 * 1024;
-    const candidates = [
-      messageAt(fromSec(4.6), 1, eightMiB),
-      messageAt(fromSec(4.7), 1, eightMiB),
-      messageAt(fromSec(4.8), 1, eightMiB),
-    ];
-    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
-
-    const result = await findAdjacentMessagePathMatch({
-      path: "/topic{value==1}.value",
-      direction: "previous",
-      fromTime: time(5),
-      startTime: time(0),
-      endTime: time(6),
-      windowDuration: time(6),
-      subscribeMessageRange,
-      getMessagePathDataItems: makeGetFilteredItems(1),
-    });
-
-    expect(result).toMatchObject({
-      type: "found",
-      previousWindow: {
-        coveredStart: fromSec(4.7),
-        candidates: [candidates[1], candidates[2]],
-      },
-    });
-  });
-
-  it("keeps only the latest 1000 previous candidates", async () => {
-    const candidates = Array.from({ length: 1001 }, (_, index) =>
-      messageAt(time(0, 500_000_000 + index), 1),
-    );
-    const { subscribeMessageRange } = makeSubscribeMessageRange(candidates);
-
-    const result = await findAdjacentMessagePathMatch({
-      path: "/topic{value==1}.value",
-      direction: "previous",
-      fromTime: time(1),
-      startTime: time(0),
-      endTime: time(2),
-      windowDuration: time(1),
-      subscribeMessageRange,
-      getMessagePathDataItems: makeGetFilteredItems(1),
-    });
-
-    expect(result).toMatchObject({
-      type: "found",
-      previousWindow: {
-        coveredStart: candidates[1]?.receiveTime,
-        candidates: candidates.slice(1),
-      },
-    });
   });
 
   it("does not return previous messages with the current receive time", async () => {

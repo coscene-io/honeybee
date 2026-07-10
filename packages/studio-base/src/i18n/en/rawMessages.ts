@@ -13,6 +13,8 @@ export const rawMessages = {
   nextFrame: "Next frame (↓)",
   noPreviousMatchingFrame: "No previous matching frame found",
   noNextMatchingFrame: "No next matching frame found",
+  searchingPreviousMatchingFrame: "Searching for previous matching frame…",
+  searchingNextMatchingFrame: "Searching for next matching frame…",
   diffMethod: "Diff method",
   previousMessage: "Previous message",
   custom: "Custom",

@@ -80,6 +80,8 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const currentMessagesRef = useRef<MessageAndData[]>([]);
   const fallbackNextFrameActive = useRef(false);
   const fallbackNextStartTime = useRef<Time | undefined>();
+  const activeTimesRef = useRef(activeTimes);
+  activeTimesRef.current = activeTimes;
 
   const freezeCurrentMessages = useCallback(() => {
     if (currentMessagesRef.current.length > 0) {
@@ -145,20 +147,13 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       currentMessagesRef.current = [message];
       holdNavigationMessages([message]);
       seekPlayback?.(message.messageEvent.receiveTime);
-      if (activeTimes != undefined) {
-        setHasPreFrame(compare(message.messageEvent.receiveTime, activeTimes.startTime) > 0);
+      const latestActiveTimes = activeTimesRef.current;
+      if (latestActiveTimes != undefined) {
+        setHasPreFrame(compare(message.messageEvent.receiveTime, latestActiveTimes.startTime) > 0);
       }
       return true;
     },
-    [
-      activeTimes,
-      frameState,
-      holdNavigationMessages,
-      navigationId,
-      notifier,
-      pausePlayback,
-      seekPlayback,
-    ],
+    [frameState, holdNavigationMessages, navigationId, notifier, pausePlayback, seekPlayback],
   );
 
   const runPreviousFrameFromRenderedHistory = useCallback(
@@ -182,12 +177,12 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
       renderedTime.current = renderedTime.current.slice(0, previousIndex + 1);
       renderedMessages.current = renderedMessages.current.slice(0, previousIndex + 1);
-      if (activeTimes == undefined) {
+      if (activeTimesRef.current == undefined) {
         setHasPreFrame(previousIndex > 0);
       }
       return true;
     },
-    [activeTimes, frameState, runPreviousFrameToMessage],
+    [frameState, runPreviousFrameToMessage],
   );
 
   const runFallbackPreviousFrame = useCallback((): boolean => {
@@ -215,12 +210,13 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       notifier.startNavigation(navigationId.current);
       fallbackNextFrameActive.current = true;
       fallbackNextStartTime.current =
-        currentMessagesRef.current.at(-1)?.messageEvent.receiveTime ?? activeTimes?.currentTime;
+        currentMessagesRef.current.at(-1)?.messageEvent.receiveTime ??
+        activeTimesRef.current?.currentTime;
       frameState.current = "next";
       startPlayback?.();
       return true;
     },
-    [activeTimes, frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
+    [frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
   );
 
   const getEffectiveMessages = useCallback(
@@ -270,10 +266,11 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
         return;
       }
 
-      if (activeTimes != undefined) {
+      const latestActiveTimes = activeTimesRef.current;
+      if (latestActiveTimes != undefined) {
         const currentMessageTime =
-          latestMessage?.messageEvent.receiveTime ?? activeTimes.currentTime;
-        setHasPreFrame(compare(currentMessageTime, activeTimes.startTime) > 0);
+          latestMessage?.messageEvent.receiveTime ?? latestActiveTimes.currentTime;
+        setHasPreFrame(compare(currentMessageTime, latestActiveTimes.startTime) > 0);
       }
 
       if (messages.length === 0 || frameState.current === "previous") {
@@ -287,7 +284,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
 
       if (hasTimeSuffix(renderedTime.current, messageTimes)) {
-        if (activeTimes == undefined && renderedTime.current.length > 1) {
+        if (activeTimesRef.current == undefined && renderedTime.current.length > 1) {
           setHasPreFrame(true);
         }
         return;
@@ -329,18 +326,11 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
         renderedMessages.current = renderedMessages.current.slice(-MAX_RENDERED_TIME_ARRAY_LENGTH);
       }
 
-      if (activeTimes == undefined && renderedTime.current.length > 1) {
+      if (activeTimesRef.current == undefined && renderedTime.current.length > 1) {
         setHasPreFrame(true);
       }
     },
-    [
-      activeTimes,
-      clearFrozenMessages,
-      frameState,
-      holdNavigationMessages,
-      pausePlayback,
-      seekPlayback,
-    ],
+    [clearFrozenMessages, frameState, holdNavigationMessages, pausePlayback, seekPlayback],
   );
 
   return {
