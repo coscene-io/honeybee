@@ -574,11 +574,13 @@ describe("useFrameNavigation", () => {
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ onNewRangeIterator }) => {
-      void onNewRangeIterator(
-        (async function* () {
-          await releaseRange.promise;
-          yield [];
-        })(),
+      void Promise.resolve(
+        onNewRangeIterator(
+          (async function* () {
+            await releaseRange.promise;
+            yield [];
+          })(),
+        ),
       ).then(iteratorDone.resolve);
       return jest.fn();
     });

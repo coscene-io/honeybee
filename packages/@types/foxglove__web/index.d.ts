@@ -11,6 +11,8 @@ interface WindowOrWorkerGlobalScope {
 
 declare function structuredClone<T>(value: T, options?: StructuredSerializeOptions): T;
 
+declare const HONEYBEE_WEB_PUBLIC_PATH: string | undefined;
+
 type MemoryInfo = {
   /// Maximum heap size in bytes
   jsHeapSizeLimit: number;

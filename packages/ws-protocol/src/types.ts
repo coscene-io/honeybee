@@ -399,7 +399,7 @@ export interface IWebSocket {
   onmessage: ((event: any) => void) | null | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
   close(): void;
   send(
-    data: string | ArrayBuffer | ArrayBufferView,
+    data: string | ArrayBuffer | ArrayBufferView<ArrayBuffer>,
     /** Options available in Node "ws" library */
     options?: { fin?: boolean },
   ): void;

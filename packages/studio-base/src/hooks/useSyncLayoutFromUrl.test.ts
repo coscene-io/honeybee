@@ -104,6 +104,7 @@ function makeWorkspaceActions(openLayoutDrawer: jest.Mock): WorkspaceActions {
       finishTour: jest.fn(),
     },
     openPanelSettings: jest.fn(),
+    resetPanels: jest.fn(),
     layoutDrawer: {
       close: jest.fn(),
       open: openLayoutDrawer,

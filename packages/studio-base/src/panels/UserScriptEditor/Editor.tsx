@@ -16,19 +16,20 @@
 
 import { useTheme } from "@mui/material";
 // @ts-expect-error ICodeEditorService does not have type information in the monaco-editor package
-import { ICodeEditorService } from "monaco-editor/esm/vs/editor/browser/services/codeEditorService";
-import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api";
-import type * as monacoMain from "monaco-editor/esm/vs/editor/editor.main";
+import { ICodeEditorService } from "monaco-editor/esm/vs/editor/browser/services/codeEditorService.js";
+import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api.js";
+import type * as monacoMain from "monaco-editor/esm/vs/editor/editor.main.js";
 // @ts-expect-error StandaloneService does not have type information in the monaco-editor package
-import { StandaloneServices } from "monaco-editor/esm/vs/editor/standalone/browser/standaloneServices";
-import * as monacoTypescript from "monaco-editor/esm/vs/language/typescript/monaco.contribution";
+import { StandaloneServices } from "monaco-editor/esm/vs/editor/standalone/browser/standaloneServices.js";
+import * as monacoTypescript from "monaco-editor/esm/vs/language/typescript/monaco.contribution.js";
 import * as path from "path";
 import React, { Suspense, ReactElement, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import MonacoEditor, { EditorDidMount, EditorWillMount } from "react-monaco-editor";
 import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
-import { ModuleKind, ModuleResolutionKind } from "typescript";
+// Keep these enum values on the same TypeScript version as Monaco's embedded language service.
+import { ModuleKind, ModuleResolutionKind } from "typescript-for-user-script";
 
 import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";
@@ -225,7 +226,7 @@ const Editor = ({
       monacoTypescriptContribution.javascriptDefaults.setEagerModelSync(true);
 
       monaco.languages.registerDocumentFormattingEditProvider("typescript", {
-        provideDocumentFormattingEdits: async (model) => {
+        provideDocumentFormattingEdits: async (model: monacoApi.editor.ITextModel) => {
           try {
             return [
               {

@@ -7,6 +7,14 @@
 
 import cytoscape from "cytoscape";
 
+declare module "cytoscape" {
+  namespace Css {
+    interface PaddingNode {
+      padding?: PropertyValueNode<string> | undefined;
+    }
+  }
+}
+
 declare module "cytoscape-dagre" {
   const CytoscapeDagre: cytoscape.Ext;
   export default CytoscapeDagre;

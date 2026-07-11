@@ -8,7 +8,19 @@
     "module": "es2022",
     "target": "es2022",
     "lib": ["es2022"],
-    "moduleResolution": "node",
+    "types": [
+      "node",
+      "jest",
+      "foxglove__web",
+      "foxglove__roslibjs",
+      "protobufjs",
+      "cytoscape-dagre",
+      "memoize-weak",
+      "react-hover-observer",
+      "text-metrics",
+      "wicg-file-system-access"
+    ],
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "importHelpers": true,
     "allowJs": false,
@@ -16,7 +28,6 @@
     "incremental": false,
     "resolveJsonModule": true,
     "erasableSyntaxOnly": false,
-    "noUncheckedSideEffectImports": false,
     "rewriteRelativeImportExtensions": false,
     "verbatimModuleSyntax": false
   }

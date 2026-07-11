@@ -6,8 +6,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { createTheme, ThemeProvider } from "@mui/material";
+import { ThemeProvider } from "@mui/material";
 import { fireEvent, render, screen } from "@testing-library/react";
+
+import { createMuiTheme } from "@foxglove/theme";
 
 import FrameNavigationStatus from "./FrameNavigationStatus";
 
@@ -23,7 +25,7 @@ function normalizedColor(color: string): string {
 describe("FrameNavigationStatus", () => {
   it.each(["light", "dark"] as const)("uses theme colors in %s mode", (mode) => {
     const onCancel = jest.fn();
-    const theme = createTheme({ palette: { mode } });
+    const theme = createMuiTheme(mode, "en");
 
     render(
       <ThemeProvider theme={theme}>
