@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Alert, Link, Tab, Tabs, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { useState, useMemo, useCallback, useLayoutEffect, FormEvent } from "react";
+import { useState, useMemo, useCallback, useLayoutEffect, type SubmitEvent } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -203,7 +203,7 @@ export default function Connection(): React.JSX.Element {
     (selectedSource?.needLogin != undefined && loginStatus === "notLogin");
 
   const onSubmit = useCallback(
-    (event: FormEvent) => {
+    (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       if (!disableOpen) {
         onOpen();

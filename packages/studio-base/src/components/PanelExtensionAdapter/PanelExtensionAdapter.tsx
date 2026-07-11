@@ -317,7 +317,9 @@ function PanelExtensionAdapter(
   const extensionsSettings = useExtensionCatalog(getExtensionPanelSettings);
 
   // Use refs to store values that change frequently, avoiding dependency chain issues
-  const latestPanelSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"]>();
+  const latestPanelSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"] | undefined>(
+    undefined,
+  );
   const extensionsSettingsRef = useRef(extensionsSettings);
   const panelNameRef = useRef(panelName);
 
@@ -699,13 +701,17 @@ function PanelExtensionAdapter(
     isPanelInitializedRef.current = true;
 
     return () => {
-      if (onUnmount) {
-        onUnmount();
-      }
       isPanelInitializedRef.current = false;
-      panelElement.remove();
       getMessagePipelineContext().setSubscriptions(panelId, []);
       getMessagePipelineContext().setPublishers(panelId, []);
+
+      // A panel may own a nested React root. React 19 warns if that root is synchronously unmounted
+      // while the parent root is already committing this layout-effect cleanup. Let the current
+      // commit finish before disposing the nested root and its container.
+      queueMicrotask(() => {
+        onUnmount?.();
+        panelElement.remove();
+      });
     };
   }, [
     initPanel,

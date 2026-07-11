@@ -45,7 +45,13 @@ const selectDialogs = (store: DialogsStore) => store.dialogs;
 
 const GlobalDialogs = (): React.JSX.Element => {
   const dialogs = useDialogs(selectDialogs);
-  return <>{Array.from(dialogs.values()).map((dialog) => dialog)}</>;
+  return (
+    <>
+      {Array.from(dialogs.entries()).map(([id, dialog]) => (
+        <Fragment key={id}>{dialog}</Fragment>
+      ))}
+    </>
+  );
 };
 
 export function StudioApp(): React.JSX.Element {

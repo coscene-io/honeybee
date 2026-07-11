@@ -121,3 +121,22 @@ index 7ac4ced60f5248295b3099ded72696b4b79459b7..a87ff5733ebdf1cfeb6adc80e90725bd
  	}
  
  	private get dragSource() {
+diff --git a/dist/internals/wrapConnectorHooks.js b/dist/internals/wrapConnectorHooks.js
+--- a/dist/internals/wrapConnectorHooks.js
++++ b/dist/internals/wrapConnectorHooks.js
+@@ -2 +2 @@
+-import { cloneElement, isValidElement } from 'react';
++import { cloneElement, isValidElement, version } from 'react';
+@@ -56 +56 @@
+-    const previousRef = element.ref;
++    const previousRef = parseInt(version, 10) >= 19 ? element.props.ref : element.ref;
+diff --git a/src/internals/wrapConnectorHooks.ts b/src/internals/wrapConnectorHooks.ts
+--- a/src/internals/wrapConnectorHooks.ts
++++ b/src/internals/wrapConnectorHooks.ts
+@@ -3 +3 @@
+-import { cloneElement, isValidElement } from 'react'
++import { cloneElement, isValidElement, version } from 'react'
+@@ -72 +72,2 @@
+-	const previousRef = element.ref
++	const previousRef =
++		parseInt(version, 10) >= 19 ? element.props.ref : element.ref

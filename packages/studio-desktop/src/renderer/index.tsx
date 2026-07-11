@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
 import { Sockets } from "@foxglove/electron-socket/renderer";
-import Logger from "@foxglove/log";
+import Logger, { createRootErrorHandlers } from "@foxglove/log";
 import {
   installDevtoolsFormatters,
   overwriteFetch,
@@ -20,6 +20,7 @@ import {
   initI18n,
   IDataSourceFactory,
   IAppConfiguration,
+  reportError,
 } from "@foxglove/studio-base";
 
 import Root from "./Root";
@@ -61,7 +62,7 @@ export async function main(params: MainParams): Promise<void> {
   await waitForFonts();
   await initI18n();
 
-  const root = createRoot(rootEl);
+  const root = createRoot(rootEl, createRootErrorHandlers(log, reportError));
   root.render(
     <LogAfterRender>
       <Root

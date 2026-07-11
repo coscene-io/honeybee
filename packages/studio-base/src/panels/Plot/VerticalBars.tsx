@@ -79,8 +79,8 @@ export const VerticalBars = React.memo(function VerticalBars({
     isPlaybackSeconds: xAxisIsPlaybackTime,
   });
   const latestHoverValue = useLatest(hoverValue);
-  const latestCurrentTimeSinceStart = useRef<number | undefined>();
-  const latestXScale = useRef<Scale | undefined>();
+  const latestCurrentTimeSinceStart = useRef<number | undefined>(undefined);
+  const latestXScale = useRef<Scale | undefined>(undefined);
 
   const currentTimeBarRef = useRef<HTMLDivElement>(ReactNull);
   const hoverBarRef = useRef<HTMLDivElement>(ReactNull);

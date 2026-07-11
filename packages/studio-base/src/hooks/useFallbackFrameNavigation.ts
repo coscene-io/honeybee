@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useCallback, useRef, useState } from "react";
-import type { MutableRefObject } from "react";
+import type { RefObject } from "react";
 
 import { compare } from "@foxglove/rostime";
 import type { Time } from "@foxglove/rostime";
@@ -24,8 +24,8 @@ type ActiveTimes = {
 };
 
 type UseFallbackFrameNavigationArgs = {
-  readonly frameState: MutableRefObject<FrameNavigationState>;
-  readonly navigationId: MutableRefObject<string>;
+  readonly frameState: RefObject<FrameNavigationState>;
+  readonly navigationId: RefObject<string>;
   readonly notifier: FrameNavigationNotifier;
   readonly seekPlayback: ((time: Time) => void) | undefined;
   readonly startPlayback: (() => void) | undefined;
@@ -49,7 +49,7 @@ export type RestoreFallbackStateResult = "restored" | "manual-seek" | "other-nav
 
 export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs): {
   readonly hasPreFrame: boolean;
-  readonly currentMessagesRef: MutableRefObject<MessageAndData[]>;
+  readonly currentMessagesRef: RefObject<MessageAndData[]>;
   readonly freezeCurrentMessages: () => void;
   readonly clearFrozenMessages: () => void;
   readonly holdNavigationMessages: (messages: MessageAndData[]) => void;
@@ -74,12 +74,12 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const [hasPreFrame, setHasPreFrame] = useState(false);
   const renderedTime = useRef<Time[]>([]);
   const renderedMessages = useRef<MessageAndData[]>([]);
-  const frozenMessagesRef = useRef<MessageAndData[] | undefined>();
+  const frozenMessagesRef = useRef<MessageAndData[] | undefined>(undefined);
   const keepFrozenMessagesAfterRestore = useRef(false);
-  const heldNavigationTime = useRef<Time | undefined>();
+  const heldNavigationTime = useRef<Time | undefined>(undefined);
   const currentMessagesRef = useRef<MessageAndData[]>([]);
   const fallbackNextFrameActive = useRef(false);
-  const fallbackNextStartTime = useRef<Time | undefined>();
+  const fallbackNextStartTime = useRef<Time | undefined>(undefined);
   const activeTimesRef = useRef(activeTimes);
   activeTimesRef.current = activeTimes;
 

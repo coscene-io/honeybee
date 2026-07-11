@@ -21,6 +21,8 @@ import {
   mockSetNotificationHandler,
 } from "@foxglove/studio-base/test/MockSendNotification";
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 // Mock out sendNotification for all tests
 jest.mock("@foxglove/studio-base/util/sendNotification", () => {
   return {

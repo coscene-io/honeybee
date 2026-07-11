@@ -11,6 +11,8 @@ import * as React from "react";
 
 import useRethrow from "./useRethrow";
 
+type SynchronousReactNode = Awaited<React.ReactNode>;
+
 describe("useRethrow", () => {
   it("should catch errors thrown", () => {
     let error: Error | undefined;
@@ -25,8 +27,8 @@ describe("useRethrow", () => {
           public override componentDidCatch(err: Error) {
             error = err;
           }
-          public override render() {
-            return this.props.children;
+          public override render(): SynchronousReactNode {
+            return this.props.children as SynchronousReactNode;
           }
         },
       },

@@ -27,6 +27,8 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
 const DEFAULT_DEV_OBJECT_STORAGE_BASE_URL = "coscene-dev-honeybee-sh.tos-cn-shanghai.volces.com";
 const DEFAULT_WEB_PUBLIC_PATH = "/viz/";
 
+declare const HONEYBEE_WEB_PUBLIC_PATH: string | undefined;
+
 declare global {
   interface Window {
     cosConfig?: {

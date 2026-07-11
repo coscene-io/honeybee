@@ -11,6 +11,8 @@ import * as React from "react";
 
 import { useCrash } from "./useCrash";
 
+type SynchronousReactNode = Awaited<React.ReactNode>;
+
 describe("useCrash", () => {
   it("should re-throw the error", () => {
     let error: Error | undefined;
@@ -19,8 +21,8 @@ describe("useCrash", () => {
         public override componentDidCatch(err: Error) {
           error = err;
         }
-        public override render() {
-          return this.props.children;
+        public override render(): SynchronousReactNode {
+          return this.props.children as SynchronousReactNode;
         }
       },
     });

@@ -95,8 +95,14 @@ function TabMosaicWrapper({ tabId, children }: PropsWithChildren<{ tabId?: strin
       return { tabId, ...nestedDropResult };
     },
   });
+  const dropRef = useCallback(
+    (element: HTMLDivElement | ReactNull) => {
+      drop(element);
+    },
+    [drop],
+  );
   return (
-    <div className={cx(classes.hideTopLevelDropTargets, "mosaic-tile")} ref={drop}>
+    <div className={cx(classes.hideTopLevelDropTargets, "mosaic-tile")} ref={dropRef}>
       {children}
     </div>
   );

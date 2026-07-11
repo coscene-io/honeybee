@@ -68,7 +68,7 @@ export function DataSourceDialog(props: DataSourceDialogProps): React.JSX.Elemen
     dialogActions.dataSource.close();
   }, [analytics, activeDataSource, dialogActions.dataSource]);
 
-  const prevActiveViewRef = useRef<DataSourceDialogItem | undefined>();
+  const prevActiveViewRef = useRef<DataSourceDialogItem | undefined>(undefined);
   useLayoutEffect(() => {
     if (activeView === prevActiveViewRef.current) {
       // Only run actions below when the active view actually changed

@@ -49,6 +49,26 @@ export function getEventDurationSeconds(duration: number, durationUnit: "sec" | 
   return Math.max(0, durationUnit === "sec" ? duration : duration / 1e9);
 }
 
+export function listenForCompositionEvents(
+  target: Document,
+  onCompositionChange: (state: "composing" | "idle") => void,
+): () => void {
+  const onCompositionStart = (): void => {
+    onCompositionChange("composing");
+  };
+  const onCompositionEnd = (): void => {
+    onCompositionChange("idle");
+  };
+
+  target.addEventListener("compositionstart", onCompositionStart);
+  target.addEventListener("compositionend", onCompositionEnd);
+
+  return () => {
+    target.removeEventListener("compositionstart", onCompositionStart);
+    target.removeEventListener("compositionend", onCompositionEnd);
+  };
+}
+
 function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
   const { t } = useTranslation("event");
 
@@ -117,21 +137,9 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   );
 
   useEffect(() => {
-    document.addEventListener("compositionstart", () => {
-      setIsComposition(true);
+    return listenForCompositionEvents(document, (state) => {
+      setIsComposition(state === "composing");
     });
-    document.addEventListener("compositionend", () => {
-      setIsComposition(false);
-    });
-
-    return () => {
-      document.removeEventListener("compositionstart", () => {
-        setIsComposition(true);
-      });
-      document.removeEventListener("compositionend", () => {
-        setIsComposition(false);
-      });
-    };
   }, []);
 
   const handleCreateTask = async (event: Event) => {

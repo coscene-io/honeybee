@@ -64,7 +64,7 @@ export interface FrameNavigationHook {
   /** KeyUp handlers for KeyListener component */
   keyUpHandlers: KeyHandlers;
   /** Ref to attach to panel container for focus detection */
-  panelRef: RefObject<HTMLDivElement>;
+  panelRef: RefObject<HTMLDivElement | ReactNull>;
   isFrameNavigationPending: boolean;
   frameNavigationStatusMessage: string | undefined;
   cancelFrameNavigation: () => void;
@@ -116,8 +116,8 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
   const frameState = useRef<FrameNavigationState>("current");
-  const activeRangeNavigation = useRef<AbortController | undefined>();
-  const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const activeRangeNavigation = useRef<AbortController | undefined>(undefined);
+  const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const activeTimes = useMemo(() => {
     return activeData != undefined

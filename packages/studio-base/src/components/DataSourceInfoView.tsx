@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Skeleton, Typography } from "@mui/material";
-import { MutableRefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useTitle } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -41,8 +41,8 @@ const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 
 function DataSourceInfoContent(props: {
   disableSource?: boolean;
-  durationRef: MutableRefObject<ReactNull | HTMLDivElement>;
-  endTimeRef: MutableRefObject<ReactNull | HTMLDivElement>;
+  durationRef: RefObject<ReactNull | HTMLDivElement>;
+  endTimeRef: RefObject<ReactNull | HTMLDivElement>;
   playerName?: string;
   playerPresence: PlayerPresence;
   startTime?: Time;

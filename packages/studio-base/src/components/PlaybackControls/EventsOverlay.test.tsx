@@ -35,7 +35,7 @@ import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
-import { EventsOverlay } from "./EventsOverlay";
+import { EventsOverlay, mergeRefs } from "./EventsOverlay";
 import { makeTimelineViewport } from "./timelineViewport";
 
 jest.mock("@foxglove/studio-base/components/Events/CreateEventContainer/index", () => ({
@@ -47,6 +47,32 @@ jest.mock("react-resize-detector", () => ({
 }));
 
 const viewport = makeTimelineViewport(0, 10);
+
+describe("mergeRefs", () => {
+  it("combines React 19 callback cleanup with legacy callback and object ref cleanup", () => {
+    const element = document.createElement("div");
+    const callbackCleanup = jest.fn();
+    const cleanupRef = jest.fn(
+      () => callbackCleanup,
+    ) as unknown as React.RefCallback<HTMLDivElement>;
+    const legacyRef = jest.fn();
+    const objectRef: { current: HTMLDivElement | ReactNull } = { current: ReactNull };
+    const mergedRef = mergeRefs<HTMLDivElement>(cleanupRef, legacyRef, objectRef);
+
+    const cleanup = mergedRef(element) as unknown as (() => void) | undefined;
+
+    expect(cleanupRef).toHaveBeenCalledWith(element);
+    expect(legacyRef).toHaveBeenCalledWith(element);
+    expect(objectRef.current).toBe(element);
+    expect(cleanup).toEqual(expect.any(Function));
+
+    cleanup?.();
+    expect(callbackCleanup).toHaveBeenCalledTimes(1);
+    expect(cleanupRef).toHaveBeenCalledTimes(1);
+    expect(legacyRef).toHaveBeenLastCalledWith(ReactNull);
+    expect(objectRef.current).toBeNull();
+  });
+});
 
 type ConsoleApi = NonNullable<React.ContextType<typeof CoSceneConsoleApiContext>>;
 

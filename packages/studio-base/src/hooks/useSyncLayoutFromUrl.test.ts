@@ -129,6 +129,7 @@ function makeWorkspaceActions(openLayoutDrawer: jest.Mock): WorkspaceActions {
         setSize: jest.fn(),
       },
     },
+    resetPanels: jest.fn(),
   };
 }
 

@@ -69,7 +69,7 @@ export function UnsavedChangesPrompt({
   );
 
   const handleSubmit = useCallback(
-    (event: React.FormEvent) => {
+    (event: React.SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       switch (selectedKey) {
         case "discard":
@@ -175,7 +175,7 @@ export function useUnsavedChangesPrompt(): {
   openUnsavedChangesPrompt: (item: Layout) => Promise<UnsavedChangesResolution>;
 } {
   const [layout, setLayout] = useState<Layout | undefined>();
-  const resolveRef = useRef<(res: UnsavedChangesResolution) => void>();
+  const resolveRef = useRef<((res: UnsavedChangesResolution) => void) | undefined>(undefined);
 
   const layoutManager = useLayoutManager();
   const [isOnline, setIsOnline] = useState(layoutManager.isOnline);

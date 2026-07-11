@@ -20,16 +20,18 @@ import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { getItemString } from "@foxglove/studio-base/util/getItemString";
 
+type SynchronousReactNode = Awaited<ReactNode>;
+
 export default function useGetItemStringWithTimezone(): (
   type: string,
   data: unknown,
   itemType: ReactNode,
   itemString: string,
-) => ReactNode {
+) => SynchronousReactNode {
   const [timezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
   return useCallback(
-    (type: string, data: unknown, itemType: ReactNode, itemString: string) =>
-      getItemString(type, data, itemType, itemString, [], timezone),
+    (type: string, data: unknown, itemType: ReactNode, itemString: string): SynchronousReactNode =>
+      getItemString(type, data, itemType, itemString, [], timezone) as SynchronousReactNode,
     [timezone],
   );
 }

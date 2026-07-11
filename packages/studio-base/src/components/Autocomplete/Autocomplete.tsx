@@ -36,6 +36,8 @@ import { makeStyles } from "tss-react/mui";
 
 import { ListboxAdapterChild, ReactWindowListboxAdapter } from "./ReactWindowListboxAdapter";
 
+type SynchronousReactNode = Awaited<React.ReactNode>;
+
 const MAX_FZF_MATCHES = 200;
 
 // Above this number of items we fall back to the faster fuzzy find algorithm.
@@ -227,14 +229,14 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
           size="small"
         />
       )}
-      renderOption={(optProps, option: FzfResultItem, state) => {
+      renderOption={(optProps, option: FzfResultItem, state): SynchronousReactNode => {
         // The return values of renderOption are passed as the _child_ argument to the ListboxComponent.
         // Our ReactWindowListboxAdapter expects a tuple for each item in the list and will itself manage
         // when and which items to render using virtualization.
         //
-        // The final as ReactNode cast is to appease the expected return type of renderOption because
-        // it does not understand that our ListboxAdapter needs a tuple and not a ReactNode
-        return [optProps, option, state] satisfies ListboxAdapterChild as React.ReactNode;
+        // The final SynchronousReactNode cast is to appease the expected return type of renderOption
+        // because it does not understand that our ListboxAdapter needs a tuple and not a ReactNode.
+        return [optProps, option, state] satisfies ListboxAdapterChild as SynchronousReactNode;
       }}
       selectOnFocus={selectOnFocus}
       size="small"

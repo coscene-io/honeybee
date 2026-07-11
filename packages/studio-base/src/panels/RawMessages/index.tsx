@@ -17,9 +17,8 @@
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ReactHoverObserver from "react-hover-observer";
 import { useTranslation } from "react-i18next";
-import Tree from "react-json-tree";
+import { JSONTree as Tree } from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
 
 import { parseMessagePath, MessagePathStructureItem, MessagePath } from "@foxglove/message-path";
@@ -68,6 +67,29 @@ type Props = {
   config: Immutable<RawMessagesPanelConfig>;
   saveConfig: SaveConfig<RawMessagesPanelConfig>;
 };
+
+type HoverObserverProps = {
+  children: (state: { isHovering: boolean }) => React.ReactNode;
+  className?: string;
+};
+
+function HoverObserver({ children, className }: HoverObserverProps): React.JSX.Element {
+  const [isHovering, setIsHovering] = useState(false);
+
+  return (
+    <div
+      className={className}
+      onMouseEnter={() => {
+        setIsHovering(true);
+      }}
+      onMouseLeave={() => {
+        setIsHovering(false);
+      }}
+    >
+      {children({ isHovering })}
+    </div>
+  );
+}
 
 const isSingleElemArray = (obj: unknown): obj is unknown[] => {
   if (!Array.isArray(obj)) {
@@ -149,8 +171,8 @@ function RawMessages(props: Props) {
   const getItemString = useMemo(
     () =>
       diffEnabled
-        ? (_type: string, data: DiffObject, itemType: React.ReactNode) => (
-            <DiffStats data={data} itemType={itemType} />
+        ? (_type: string, data: unknown, itemType: React.ReactNode) => (
+            <DiffStats data={data as DiffObject} itemType={itemType} />
           )
         : defaultGetItemString,
     [defaultGetItemString, diffEnabled],
@@ -250,7 +272,7 @@ function RawMessages(props: Props) {
   }, [canExpandAll]);
 
   const onLabelClick = useCallback(
-    (keypath: (string | number)[]) => {
+    (keypath: readonly (string | number)[]) => {
       setExpansion((old) => toggleExpansion(old ?? "all", nodes, keypath.join("~")));
     },
     [nodes],
@@ -337,7 +359,7 @@ function RawMessages(props: Props) {
       itemValue: unknown,
       ...keyPath: (number | string)[]
     ) => (
-      <ReactHoverObserver className={classes.hoverObserver}>
+      <HoverObserver className={classes.hoverObserver}>
         {({ isHovering }: { isHovering: boolean }) => {
           const lastKeyPath = _.last(keyPath) as number;
           let valueAction: ValueAction | undefined;
@@ -386,13 +408,13 @@ function RawMessages(props: Props) {
             />
           );
         }}
-      </ReactHoverObserver>
+      </HoverObserver>
     ),
     [classes.hoverObserver, enumMapping, getValueLabels, onTopicPathChange, openSiblingPanel],
   );
 
   const renderSingleTopicOrDiffOutput = useCallback(() => {
-    const shouldExpandNode = (keypath: (string | number)[]) => {
+    const shouldExpandNode = (keypath: readonly (string | number)[]) => {
       if (expansion === "all") {
         return true;
       }
@@ -497,7 +519,7 @@ function RawMessages(props: Props) {
                   <span style={{ fontSize: 0 }}>&nbsp;</span>
                 </>
               )}
-              shouldExpandNode={shouldExpandNode}
+              shouldExpandNodeInitially={shouldExpandNode}
               onExpand={(_data, _level, keyPath) => {
                 onLabelClick(keyPath);
               }}
@@ -507,7 +529,8 @@ function RawMessages(props: Props) {
               hideRoot
               invertTheme={false}
               getItemString={getItemString}
-              valueRenderer={(valueAsString: string, value, ...keyPath) => {
+              valueRenderer={(rawValueAsString, value, ...keyPath) => {
+                const valueAsString = String(rawValueAsString);
                 if (diffEnabled) {
                   return renderDiffLabel(valueAsString, value);
                 }

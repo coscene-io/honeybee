@@ -17,12 +17,13 @@
 
 import { SnackbarProvider } from "notistack";
 import { act } from "react";
-import ReactDOM from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
 
 import DocumentDropListener from "@foxglove/studio-base/components/DocumentDropListener";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 describe("<DocumentDropListener>", () => {
+  let root: Root;
   let wrapper: HTMLDivElement;
   let windowDragoverHandler: typeof jest.fn;
 
@@ -33,17 +34,18 @@ describe("<DocumentDropListener>", () => {
     wrapper = document.createElement("div");
     document.body.appendChild(wrapper);
 
-    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
-    ReactDOM.render(
-      <div>
-        <SnackbarProvider>
-          <ThemeProvider isDark={false}>
-            <DocumentDropListener allowedExtensions={[]} />
-          </ThemeProvider>
-        </SnackbarProvider>
-      </div>,
-      wrapper,
-    );
+    root = createRoot(wrapper);
+    act(() => {
+      root.render(
+        <div>
+          <SnackbarProvider>
+            <ThemeProvider isDark={false}>
+              <DocumentDropListener allowedExtensions={[]} />
+            </ThemeProvider>
+          </SnackbarProvider>
+        </div>,
+      );
+    });
     (console.error as jest.Mock).mockClear();
   });
 
@@ -71,6 +73,9 @@ describe("<DocumentDropListener>", () => {
   });
 
   afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
     document.body.removeChild(wrapper);
     window.removeEventListener("dragover", windowDragoverHandler);
   });

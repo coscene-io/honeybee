@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { MutableRefObject } from "react";
+import type { RefObject } from "react";
 import shallowequal from "shallowequal";
 import { createStore, StoreApi } from "zustand";
 
@@ -103,7 +103,7 @@ export function createMessagePipelineStore({
   urdfStorage,
   s3FileService,
 }: {
-  promisesToWaitForRef: MutableRefObject<FramePromise[]>;
+  promisesToWaitForRef: RefObject<FramePromise[]>;
   initialPlayer: Player | undefined;
   urdfStorage: IUrdfStorage;
   s3FileService: S3FileService;
