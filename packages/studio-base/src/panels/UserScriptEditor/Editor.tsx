@@ -28,7 +28,8 @@ import { useTranslation } from "react-i18next";
 import MonacoEditor, { EditorDidMount, EditorWillMount } from "react-monaco-editor";
 import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
-import { ModuleKind, ModuleResolutionKind } from "typescript";
+// Keep these enum values on the same TypeScript version as Monaco's embedded language service.
+import { ModuleKind, ModuleResolutionKind } from "typescript-for-user-script";
 
 import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import getPrettifiedCode from "@foxglove/studio-base/panels/UserScriptEditor/getPrettifiedCode";

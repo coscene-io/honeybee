@@ -80,6 +80,20 @@ describe("CoSceneConsoleApi", () => {
     });
   });
 
+  it("supports Headers instances in request config", async () => {
+    const api = await createApi(completeBaseInfo);
+
+    const { fullConfig } = api.getRequectConfig("/v1/me", {
+      headers: new Headers({ "X-Test": "1" }),
+    });
+
+    expect(fullConfig.headers).toEqual({
+      Authorization: "Bearer test-token",
+      "Record-Name": recordName,
+      "x-test": "1",
+    });
+  });
+
   it("omits Record-Name when record id is missing", async () => {
     const api = await createApi({
       warehouseId: "warehouse-id",

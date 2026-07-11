@@ -227,9 +227,13 @@ describe("IterablePlayer", () => {
   it("uses a larger IndexedDB limit for playback spill than the in-memory cache", async () => {
     await clearIndexedDbMessageStoreDatabase();
     const originalCrypto = globalThis.crypto;
+    const testCrypto: Crypto = Object.create(originalCrypto);
+    Object.defineProperty(testCrypto, "randomUUID", {
+      value: () => "00000000-0000-4000-8000-000000000000",
+    });
     Object.defineProperty(globalThis, "crypto", {
       configurable: true,
-      value: { ...originalCrypto, randomUUID: () => "00000000-0000-4000-8000-000000000000" },
+      value: testCrypto,
     });
 
     const source = new TestSource();

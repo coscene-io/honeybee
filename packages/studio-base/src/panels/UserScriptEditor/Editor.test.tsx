@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { render } from "@testing-library/react";
-import { ModuleKind, ModuleResolutionKind } from "typescript";
+import { ModuleKind, ModuleResolutionKind } from "typescript-for-user-script";
 
 import Editor from "./Editor";
 

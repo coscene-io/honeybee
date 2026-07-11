@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import ts from "typescript/lib/typescript";
+import ts from "typescript-for-user-script/lib/typescript";
 
 import { DIAGNOSTIC_SEVERITY } from "@foxglove/studio-base/players/UserScriptPlayer/constants";
 import { Diagnostic } from "@foxglove/studio-base/players/UserScriptPlayer/types";

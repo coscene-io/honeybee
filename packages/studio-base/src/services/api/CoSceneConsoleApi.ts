@@ -216,6 +216,16 @@ const CHINA_STANDARD_TIME_ZONES = new Set([
 
 const STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT = new Set(["/v1/data/getStreams"]);
 
+function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
+  if (headers == undefined) {
+    return {};
+  }
+  if (headers instanceof Headers) {
+    return Object.fromEntries(headers.entries());
+  }
+  return Array.isArray(headers) ? Object.fromEntries(headers) : headers;
+}
+
 export type User = {
   id: string;
   email: string;
@@ -769,7 +779,7 @@ class CoSceneConsoleApi {
       headers: {
         Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
         ...(recordName ? { "Record-Name": recordName } : {}),
-        ...config?.headers,
+        ...headersToRecord(config?.headers),
       },
     };
 
@@ -855,7 +865,7 @@ class CoSceneConsoleApi {
           method: "POST",
           body: JSON.stringify(body),
           ...(config ?? {}),
-          headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
+          headers: { "Content-Type": "application/json", ...headersToRecord(config?.headers) },
         },
         {},
         customHost,

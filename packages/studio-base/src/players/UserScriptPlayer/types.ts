@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import type { SourceFile, TypeChecker } from "typescript";
+import type { SourceFile, TypeChecker } from "typescript-for-user-script";
 
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { MessageEvent, Topic } from "@foxglove/studio-base/players/types";
