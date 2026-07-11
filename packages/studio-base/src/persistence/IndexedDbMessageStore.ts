@@ -730,6 +730,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     let latestTime: Time | undefined;
     let approximateSizeBytesAdded = 0;
     let seq = this.#nextSeq;
+    const putPromises: Promise<unknown>[] = [];
 
     for (const ev of batch) {
       latestTime =
@@ -737,21 +738,24 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           ? ev.receiveTime
           : latestTime;
       approximateSizeBytesAdded += eventSize(ev);
-      await store.put(sanitizeEvent(sessionId, seq++, ev));
+      putPromises.push(store.put(sanitizeEvent(sessionId, seq++, ev)));
     }
 
     const now = Date.now();
-    await sessionsStore.put({
-      ...sessionData,
-      lastActiveAt: now,
-      nextSeq: seq,
-      messageCount: Math.max(0, (sessionData.messageCount ?? 0) + batch.length),
-      approximateSizeBytes: Math.max(
-        0,
-        sessionData.approximateSizeBytes + approximateSizeBytesAdded,
-      ),
-    });
+    putPromises.push(
+      sessionsStore.put({
+        ...sessionData,
+        lastActiveAt: now,
+        nextSeq: seq,
+        messageCount: Math.max(0, (sessionData.messageCount ?? 0) + batch.length),
+        approximateSizeBytes: Math.max(
+          0,
+          sessionData.approximateSizeBytes + approximateSizeBytesAdded,
+        ),
+      }),
+    );
 
+    await Promise.all(putPromises);
     await tx.done;
 
     this.#nextSeq = seq;

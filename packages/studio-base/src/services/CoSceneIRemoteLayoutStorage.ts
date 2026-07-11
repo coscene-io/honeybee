@@ -59,8 +59,16 @@ export interface IRemoteLayoutStorage {
     folder?: string;
     data?: LayoutData;
     permission?: LayoutPermission;
+    expectedSavedAt?: ISO8601Timestamp | undefined;
+    expectedUpdatedAt?: ISO8601Timestamp | undefined;
   }) => Promise<{ status: "success"; newLayout: RemoteLayout } | { status: "conflict" }>;
 
   /** Returns true if the layout existed and was deleted, false if the layout did not exist. */
-  deleteLayout: (id: LayoutID) => Promise<boolean>;
+  deleteLayout: (
+    id: LayoutID,
+    options?: {
+      expectedSavedAt?: ISO8601Timestamp | undefined;
+      expectedUpdatedAt?: ISO8601Timestamp | undefined;
+    },
+  ) => Promise<boolean>;
 }

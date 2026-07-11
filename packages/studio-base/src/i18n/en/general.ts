@@ -32,6 +32,7 @@ export const general = {
   refresh: "Refresh",
   name: "Name",
   cancel: "Cancel",
+  close: "Close",
   delete: "Delete",
   ok: "OK",
   search: "Search",

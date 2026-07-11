@@ -59,6 +59,7 @@ import LayoutSection from "./LayoutSection";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectedLayoutSelector = (state: LayoutState) => state.selectedLayout;
 // const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectUserRole = (store: UserStore) => store.role;
 
@@ -105,6 +106,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { layoutDrawer } = useWorkspaceActions();
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const selectedLayout = useCurrentLayoutSelector(selectedLayoutSelector);
   const { enqueueSnackbar } = useSnackbar();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
   const { setSelectedLayoutId } = useCurrentLayoutActions();
@@ -160,6 +162,19 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     error: layoutManager.error,
     online: layoutManager.isOnline,
   });
+
+  const getOverwriteLayoutParams = useCallback(
+    (id: LayoutID) => ({
+      id,
+      data: selectedLayout?.id === id ? selectedLayout.data : undefined,
+    }),
+    [selectedLayout],
+  );
+  const getOverwriteLayoutParamsRef = useRef(getOverwriteLayoutParams);
+
+  useEffect(() => {
+    getOverwriteLayoutParamsRef.current = getOverwriteLayoutParams;
+  }, [getOverwriteLayoutParams]);
 
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
@@ -224,12 +239,15 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
-              await layoutManager.overwriteLayout({ id: id as LayoutID });
+              await layoutManager.overwriteLayout(
+                getOverwriteLayoutParamsRef.current(id as LayoutID),
+              );
               dispatch({ type: "shift-multi-action" });
               break;
           }
         } catch (err) {
-          enqueueSnackbar(`Error processing layouts: ${err.message}`, { variant: "error" });
+          const message = err instanceof Error ? err.message : "Unknown error";
+          enqueueSnackbar(`Error processing layouts: ${message}`, { variant: "error" });
           dispatch({ type: "clear-multi-action" });
         }
       }
@@ -268,7 +286,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           });
           return true;
         case "overwrite":
-          await layoutManager.overwriteLayout({ id: currentLayout.id });
+          await layoutManager.overwriteLayout(getOverwriteLayoutParams(currentLayout.id));
           void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
             permission: currentLayout.permission,
             context: "UnsavedChangesPrompt",
@@ -289,7 +307,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       }
     }
     return true;
-  }, [analytics, currentLayoutId, layoutManager, openUnsavedChangesPrompt]);
+  }, [
+    analytics,
+    currentLayoutId,
+    getOverwriteLayoutParams,
+    layoutManager,
+    openUnsavedChangesPrompt,
+  ]);
 
   const onSelectLayout = useCallbackWithToast(
     async (
@@ -454,10 +478,18 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           return;
         }
       }
-      await layoutManager.overwriteLayout({ id: item.id });
+      await layoutManager.overwriteLayout(getOverwriteLayoutParams(item.id));
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+    [
+      analytics,
+      confirm,
+      dispatch,
+      getOverwriteLayoutParams,
+      layoutManager,
+      state.selectedIds.length,
+      t,
+    ],
   );
 
   const onRevertLayout = useCallbackWithToast(

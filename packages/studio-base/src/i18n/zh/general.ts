@@ -32,6 +32,7 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   refresh: "刷新",
   name: "名称",
   cancel: "取消",
+  close: "关闭",
   delete: "删除",
   ok: "确定",
   search: "搜索",
