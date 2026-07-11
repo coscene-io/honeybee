@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { MutableRefObject } from "react";
+import type { RefObject } from "react";
 
 import type { Player, SubscribeMessageRangeArgs } from "@foxglove/studio-base/players/types";
 import type { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
@@ -28,7 +28,7 @@ describe("MessagePipeline store", () => {
     } as unknown as Player;
 
     const store = createMessagePipelineStore({
-      promisesToWaitForRef: { current: [] } as MutableRefObject<FramePromise[]>,
+      promisesToWaitForRef: { current: [] } as RefObject<FramePromise[]>,
       initialPlayer: player,
       urdfStorage: {} as IUrdfStorage,
       s3FileService: {} as S3FileService,

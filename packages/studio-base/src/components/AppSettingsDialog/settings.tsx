@@ -416,6 +416,7 @@ export function StudioRemoteConfigUrl(): React.ReactElement {
                   components={{
                     Link: (
                       <Link
+                        key="startup-reload"
                         href="#"
                         target="_self"
                         onClick={() => {
@@ -544,7 +545,7 @@ export function CompatibilityMode(): React.ReactElement {
                 t={t}
                 i18nKey="tfCompatibilityModeHelp"
                 components={{
-                  Link: <Link href={getDocsLink("/viz/options")} target="_blank" />,
+                  Link: <Link key="tf-docs" href={getDocsLink("/viz/options")} target="_blank" />,
                 }}
               />
             }
@@ -701,6 +702,7 @@ export function RetentionWindowMs(): React.ReactElement {
               components={{
                 Link: (
                   <Link
+                    key="retention-window-reload"
                     href="#"
                     target="_self"
                     onClick={async () => {
@@ -772,6 +774,7 @@ export function RequestWindow(): React.ReactElement {
               components={{
                 Link: (
                   <Link
+                    key="request-window-reload"
                     href="#"
                     target="_self"
                     onClick={async () => {
@@ -912,6 +915,7 @@ export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull 
               components={{
                 Link: (
                   <Link
+                    key="manifest-storage-reload"
                     href="#"
                     target="_self"
                     onClick={async () => {
@@ -982,6 +986,7 @@ export function ReadAheadDuration(): React.ReactElement {
               components={{
                 Link: (
                   <Link
+                    key="read-ahead-reload"
                     href="#"
                     target="_self"
                     onClick={async () => {

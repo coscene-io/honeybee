@@ -15,7 +15,7 @@
 //   You may not use this file except in compliance with the License.
 
 import * as _ from "lodash-es";
-import Tree from "react-json-tree";
+import { JSONTree as Tree } from "react-json-tree";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { RosValue } from "@foxglove/studio-base/players/types";
@@ -23,6 +23,8 @@ import { getItemString } from "@foxglove/studio-base/util/getItemString";
 import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
 
 import { InteractionData } from "./types";
+
+type SynchronousReactNode = Awaited<React.ReactNode>;
 
 type Props = {
   readonly interactionData?: InteractionData;
@@ -42,7 +44,7 @@ function ObjectDetails({ interactionData, selectedObject, timezone }: Props): Re
       <Stack paddingY={1}>
         <Tree
           data={selectedObject}
-          shouldExpandNode={(_markerKeyPath, _data, level) => level < 2}
+          shouldExpandNodeInitially={(_markerKeyPath, _data, level) => level < 2}
           invertTheme={false}
           theme={{ ...jsonTreeTheme, tree: { margin: 0 } }}
           hideRoot
@@ -55,19 +57,26 @@ function ObjectDetails({ interactionData, selectedObject, timezone }: Props): Re
     <Stack paddingY={1}>
       <Tree
         data={originalObject}
-        shouldExpandNode={() => false}
+        shouldExpandNodeInitially={() => false}
         invertTheme={false}
         theme={{ ...jsonTreeTheme, tree: { margin: 0, whiteSpace: "pre-line" } }}
         hideRoot
-        getItemString={(nodeType, data, itemType, itemString, keyPath) =>
-          getItemString(nodeType, data, itemType, itemString, keyPath, timezone)
+        getItemString={(nodeType, data, itemType, itemString, keyPath): SynchronousReactNode =>
+          getItemString(
+            nodeType,
+            data,
+            itemType,
+            itemString,
+            keyPath,
+            timezone,
+          ) as SynchronousReactNode
         }
         labelRenderer={(markerKeyPath, _p1, _p2, _hasChildren) => {
           const label = _.first(markerKeyPath);
           return <span style={{ padding: "0 4px 0 0" }}>{label}</span>;
         }}
-        valueRenderer={(label: string) => {
-          return <span>{label}</span>;
+        valueRenderer={(label) => {
+          return <span>{String(label)}</span>;
         }}
       />
     </Stack>

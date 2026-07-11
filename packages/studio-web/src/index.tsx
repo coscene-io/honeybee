@@ -7,9 +7,10 @@
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
-import Logger from "@foxglove/log";
+import Logger, { createRootErrorHandlers } from "@foxglove/log";
 import type { IDataSourceFactory } from "@foxglove/studio-base";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
+import { reportError } from "@foxglove/studio-base/reportError";
 
 import VersionBanner from "./VersionBanner";
 import { canRenderApp } from "./canRenderApp";
@@ -43,7 +44,7 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
     throw new Error("missing #root element");
   }
 
-  const root = createRoot(rootEl);
+  const root = createRoot(rootEl, createRootErrorHandlers(log, reportError));
 
   const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)\./);
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;

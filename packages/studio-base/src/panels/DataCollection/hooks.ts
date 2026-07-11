@@ -23,7 +23,7 @@ export function useTimer(): {
   stopTimer: () => void;
 } {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const formatElapsedTime = useCallback((seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -68,7 +68,7 @@ export function useTimer(): {
 // Log management hook
 export function useLogManager(): {
   logs: string[];
-  logContainerRef: React.RefObject<HTMLDivElement>;
+  logContainerRef: React.RefObject<HTMLDivElement | ReactNull>;
   addLog: (newLog: string) => void;
   handleScroll: () => void;
 } {

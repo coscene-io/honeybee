@@ -73,6 +73,12 @@ export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
       isOver: monitor.isOver(),
     }),
   });
+  const dropRef = useCallback(
+    (element: HTMLDivElement | ReactNull) => {
+      drop(element);
+    },
+    [drop],
+  );
 
   const onPanelSelect = useCallback(
     ({ type, config }: PanelSelection) => {
@@ -84,7 +90,7 @@ export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
 
   return (
     <div
-      ref={drop}
+      ref={dropRef}
       data-testid="empty-drop-target"
       className={cx(classes.dropTarget, { [classes.isOver]: isOver })}
     >

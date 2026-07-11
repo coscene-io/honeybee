@@ -7,12 +7,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { renderHook, waitFor } from "@testing-library/react";
+import * as ReactDOM from "react-dom";
 
 import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { ExtensionLoader } from "@foxglove/studio-base/services/ExtensionLoader";
 import { ExtensionInfo } from "@foxglove/studio-base/types/Extensions";
 
-import ExtensionCatalogProvider from "./ExtensionCatalogProvider";
+import ExtensionCatalogProvider, { createLegacyReactDOMFacade } from "./ExtensionCatalogProvider";
 
 function fakeExtension(overrides: Partial<ExtensionInfo>): ExtensionInfo {
   return {
@@ -32,6 +33,40 @@ function fakeExtension(overrides: Partial<ExtensionInfo>): ExtensionInfo {
 }
 
 describe("ExtensionCatalogProvider", () => {
+  it("keeps modern react-dom exports while adapting legacy roots per container", async () => {
+    const render = jest.fn();
+    const unmount = jest.fn();
+    const createRoot = jest.fn(() => ({ render, unmount }));
+    const createPortal = jest.fn();
+    const flushSync = jest.fn((callback: () => void) => {
+      callback();
+    });
+    const modernReactDOM = { createPortal, flushSync } as unknown as typeof ReactDOM;
+    const facade = createLegacyReactDOMFacade(modernReactDOM, createRoot);
+    const container = document.createElement("div");
+    const callback = jest.fn();
+
+    facade.render("first", container, callback);
+    facade.render("second", container);
+    await Promise.resolve();
+
+    expect(facade.createPortal).toBe(createPortal);
+    expect(createRoot).toHaveBeenCalledTimes(1);
+    expect(createRoot).toHaveBeenCalledWith(container);
+    expect(flushSync).toHaveBeenCalledTimes(2);
+    expect(render).toHaveBeenNthCalledWith(1, "first");
+    expect(render).toHaveBeenNthCalledWith(2, "second");
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(facade.unmountComponentAtNode(document.createElement("div"))).toBe(false);
+    expect(facade.unmountComponentAtNode(container)).toBe(true);
+    await Promise.resolve();
+    expect(unmount).toHaveBeenCalledTimes(1);
+
+    facade.render("third", container);
+    await Promise.resolve();
+    expect(createRoot).toHaveBeenCalledTimes(2);
+  });
+
   it("should load an extension from the loaders", async () => {
     const source = `
         module.exports = { activate: function() { return 1; } }
@@ -75,6 +110,67 @@ describe("ExtensionCatalogProvider", () => {
         version: "1",
       },
     ]);
+  });
+
+  it("provides React 19 JSX and client entrypoints to extensions", async () => {
+    const source = `
+      module.exports = {
+        activate: function(ctx) {
+          const jsxRuntime = require("react/jsx-runtime");
+          const jsxDevRuntime = require("react/jsx-dev-runtime");
+          const reactDOM = require("react-dom");
+          const reactDOMClient = require("react-dom/client");
+          ctx.registerMessageConverter({
+            fromSchemaName: "from.Schema",
+            toSchemaName: "to.Schema",
+            converter: function() {
+              return {
+                createPortal: typeof reactDOM.createPortal,
+                createRoot: typeof reactDOMClient.createRoot,
+                jsx: typeof jsxRuntime.jsx,
+                jsxDEV: typeof jsxDevRuntime.jsxDEV,
+                legacyRender: typeof reactDOM.render,
+                legacyUnmount: typeof reactDOM.unmountComponentAtNode,
+              };
+            },
+          });
+        },
+      };
+    `;
+    const mockPrivateLoader: ExtensionLoader = {
+      namespace: "org",
+      getExtensions: jest
+        .fn()
+        .mockResolvedValue([fakeExtension({ namespace: "org", name: "sample", version: "1" })]),
+      loadExtension: jest.fn().mockResolvedValue(source),
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      initialProps: {},
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[mockPrivateLoader]}>
+          {children}
+        </ExtensionCatalogProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.installedMessageConverters).toHaveLength(1);
+    });
+    const converter = result.current.installedMessageConverters?.[0]?.converter;
+    if (converter == undefined) {
+      throw new Error("Expected the extension to register a message converter");
+    }
+    expect(converter(undefined, undefined as never)).toEqual({
+      createPortal: "function",
+      createRoot: "function",
+      jsx: "function",
+      jsxDEV: "function",
+      legacyRender: "function",
+      legacyUnmount: "function",
+    });
   });
 
   it("handles extensions with the same id in different loaders", async () => {

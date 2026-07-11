@@ -56,8 +56,26 @@ all_versions_in_group(Group, Result) :-
 % Define version groups for dependencies. All dependencies in the same group will be required to have the same version.
 version_group(Dep, typescript_eslint) :-
   has_prefix('@typescript-eslint/', Dep).
-version_group(Dep, emotion) :-
+version_group(Dep, emotion(Dep)) :-
   has_prefix('@emotion/', Dep).
+
+% React application workspaces must resolve one exact runtime and type version. Peer dependencies
+% retain a compatible range so workspace packages can be consumed by any React 19.2 patch release.
+react_runtime_dependency('react', '19.2.7').
+react_runtime_dependency('react-dom', '19.2.7').
+react_runtime_dependency('@types/react', '19.2.17').
+react_runtime_dependency('@types/react-dom', '19.2.3').
+
+react_runtime_dependency_type(dependencies).
+react_runtime_dependency_type(devDependencies).
+
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType) :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, _, DependencyType),
+  react_runtime_dependency_type(DependencyType),
+  react_runtime_dependency(DependencyIdent, DependencyRange).
+
+gen_enforced_dependency(WorkspaceCwd, 'react', '^19.2.0', peerDependencies) :-
+  workspace_has_dependency(WorkspaceCwd, 'react', _, peerDependencies).
 
 % Enforce the requirements defined on version groups above.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType) :-

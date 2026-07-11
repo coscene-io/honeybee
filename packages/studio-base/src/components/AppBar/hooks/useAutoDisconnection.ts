@@ -57,7 +57,7 @@ export function useAutoDisconnection({
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
 
   // 使用 useRef 替代 useState 来管理 timeoutId
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const { t } = useTranslation("websocket");
   const close = useMessagePipeline(selectClose);

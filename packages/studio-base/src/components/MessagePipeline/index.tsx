@@ -254,8 +254,8 @@ function concatProblems(origState: PlayerState, problems: PlayerProblem[]): Play
  * - https://stackoverflow.com/questions/53985411/understanding-javascript-closure-variable-capture-in-v8
  */
 function createPlayerListener(args: {
-  msPerFrameRef: React.MutableRefObject<number>;
-  promisesToWaitForRef: React.MutableRefObject<FramePromise[]>;
+  msPerFrameRef: React.RefObject<number>;
+  promisesToWaitForRef: React.RefObject<FramePromise[]>;
   store: StoreApi<MessagePipelineInternalState>;
 }): {
   listener: (state: PlayerState) => Promise<void>;

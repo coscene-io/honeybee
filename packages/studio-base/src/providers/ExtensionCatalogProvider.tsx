@@ -7,7 +7,10 @@
 
 import * as _ from "lodash-es";
 import React, { PropsWithChildren, useEffect, useState } from "react";
-import ReactDOM from "react-dom";
+import * as ReactJSXDevRuntime from "react/jsx-dev-runtime";
+import * as ReactJSXRuntime from "react/jsx-runtime";
+import * as ReactDOM from "react-dom";
+import * as ReactDOMClient from "react-dom/client";
 import { StoreApi, createStore } from "zustand";
 
 import Logger from "@foxglove/log";
@@ -28,6 +31,76 @@ import { ExtensionLoader } from "@foxglove/studio-base/services/ExtensionLoader"
 import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
 
 const log = Logger.getLogger(__filename);
+
+type LegacyRootContainer = Parameters<typeof ReactDOMClient.createRoot>[0];
+type LegacyRoot = Pick<ReturnType<typeof ReactDOMClient.createRoot>, "render" | "unmount">;
+type CreateLegacyRoot = (container: LegacyRootContainer) => LegacyRoot;
+
+export type LegacyReactDOMFacade = Omit<typeof ReactDOM, "render" | "unmountComponentAtNode"> & {
+  render: (node: React.ReactNode, container: LegacyRootContainer, callback?: () => void) => void;
+  unmountComponentAtNode: (container: LegacyRootContainer) => boolean;
+};
+
+/**
+ * Temporary compatibility bridge for extensions compiled against the pre-React 19 `react-dom`
+ * entrypoint. Roots are deliberately tracked only when they are created through this facade, so
+ * an extension cannot unmount roots owned by the host or by `react-dom/client` consumers.
+ *
+ * This bridge preserves the modern `react-dom` exports, but intentionally does not emulate the
+ * legacy render return value, legacy hydration, or callback `this` binding. It can be removed once
+ * the supported extension baseline uses `react-dom/client`.
+ */
+export function createLegacyReactDOMFacade(
+  modernReactDOM: typeof ReactDOM,
+  createRoot: CreateLegacyRoot = ReactDOMClient.createRoot,
+): LegacyReactDOMFacade {
+  const roots = new WeakMap<LegacyRootContainer, LegacyRoot>();
+
+  return {
+    ...modernReactDOM,
+    render: (node, container, callback) => {
+      let root = roots.get(container);
+      if (root == undefined) {
+        root = createRoot(container);
+        roots.set(container, root);
+      }
+
+      // Extension panels initialize from a layout effect. React 19 rejects flushSync inside that
+      // lifecycle, so preserve the legacy synchronous commit at the next safe microtask boundary.
+      const scheduledRoot = root;
+      queueMicrotask(() => {
+        if (roots.get(container) !== scheduledRoot) {
+          return;
+        }
+        modernReactDOM.flushSync(() => {
+          scheduledRoot.render(node);
+        });
+        callback?.();
+      });
+    },
+    unmountComponentAtNode: (container) => {
+      const root = roots.get(container);
+      if (root == undefined) {
+        return false;
+      }
+
+      roots.delete(container);
+      queueMicrotask(() => {
+        root.unmount();
+      });
+      return true;
+    },
+  };
+}
+
+const legacyReactDOM = createLegacyReactDOMFacade(ReactDOM);
+const extensionModules: Readonly<Record<string, unknown>> = Object.freeze({
+  react: React,
+  "react-dom": legacyReactDOM,
+  "react-dom/client": ReactDOMClient,
+  "react/jsx-dev-runtime": ReactJSXDevRuntime,
+  "react/jsx-runtime": ReactJSXRuntime,
+});
 
 type MessageConverter = RegisterMessageConverterArgs<unknown> & {
   extensionNamespace?: ExtensionNamespace;
@@ -57,9 +130,7 @@ function activateExtension(
   log.debug(`Activating extension ${extension.qualifiedName}`);
 
   const module = { exports: {} };
-  const require = (name: string) => {
-    return { react: React, "react-dom": ReactDOM }[name];
-  };
+  const require = (name: string): unknown => extensionModules[name];
 
   const extensionMode =
     process.env.NODE_ENV === "production"

@@ -112,8 +112,8 @@ function Slider(props: Props): React.JSX.Element {
   const { classes, cx } = useStyles({ cursor });
 
   const elRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
-  const pendingHoverRef = useRef<PendingHoverEvent | undefined>();
-  const hoverAnimationFrameRef = useRef<number | undefined>();
+  const pendingHoverRef = useRef<PendingHoverEvent | undefined>(undefined);
+  const hoverAnimationFrameRef = useRef<number | undefined>(undefined);
 
   const getPlaybackSecondsAtClientX = useCallback(
     (clientX: number): number => {

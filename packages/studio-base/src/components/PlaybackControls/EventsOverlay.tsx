@@ -309,16 +309,55 @@ function isPlaybackSecondsInEvent({
   );
 }
 
-function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
-  return (value) => {
+type RefCleanup = () => void;
+type RefCallbackWithCleanup<T> = (value: T | ReactNull) => void | RefCleanup;
+
+export function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
+  const mergedRef = (value: T | ReactNull): void | RefCleanup => {
+    const cleanups: RefCleanup[] = [];
+    let hasCallbackCleanup = false;
+
     for (const ref of refs) {
       if (typeof ref === "function") {
-        ref(value);
+        const callbackRef = ref as RefCallbackWithCleanup<T>;
+        const cleanup = callbackRef(value);
+        if (typeof cleanup === "function") {
+          hasCallbackCleanup = true;
+          cleanups.push(cleanup);
+        } else if (value != undefined) {
+          // If any merged ref supplies a cleanup, React 19 will call the merged cleanup instead of
+          // invoking this callback with null. Preserve the null notification for legacy callbacks.
+          cleanups.push(() => {
+            callbackRef(ReactNull);
+          });
+        }
       } else if (ref != undefined) {
-        (ref as React.MutableRefObject<T | ReactNull>).current = value;
+        const objectRef = ref as { current: T | ReactNull };
+        objectRef.current = value;
+        if (value != undefined) {
+          cleanups.push(() => {
+            objectRef.current = ReactNull;
+          });
+        }
       }
     }
+
+    // Returning a function is meaningful only when an underlying React 19 callback ref supplied
+    // one. Otherwise let React perform the normal ref(null) detach path. This also keeps the
+    // helper warning-free while React 18 and React 19 coexist during the migration.
+    if (value == undefined || !hasCallbackCleanup) {
+      return;
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
+    };
   };
+
+  // React 18 types the callback as returning void; React 19 widens it to permit a cleanup.
+  return mergedRef as React.RefCallback<T>;
 }
 
 function EventTick({

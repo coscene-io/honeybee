@@ -11,7 +11,7 @@ import { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { useAsync } from "react-use";
 
-import Logger from "@foxglove/log";
+import Logger, { createRootErrorHandlers } from "@foxglove/log";
 
 import FileInfoDisplay from "./FileInfoDisplay";
 import Flash from "./Flash";
@@ -130,7 +130,7 @@ export function main(): void {
     );
   }
 
-  const root = createRoot(rootEl);
+  const root = createRoot(rootEl, createRootErrorHandlers(log));
   root.render(
     <>
       <GlobalStyle />

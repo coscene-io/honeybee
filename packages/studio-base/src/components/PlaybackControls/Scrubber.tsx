@@ -484,10 +484,10 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const scrubberRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const timelineContentRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const sliderLayerRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
-  const pendingTimelineHoverRef = useRef<HoverOverEvent | undefined>();
-  const timelineHoverAnimationFrameRef = useRef<number | undefined>();
+  const pendingTimelineHoverRef = useRef<HoverOverEvent | undefined>(undefined);
+  const timelineHoverAnimationFrameRef = useRef<number | undefined>(undefined);
   const timelineDragLeftRef = useRef(false);
-  const cleanupTimelineDragPointerUpRef = useRef<(() => void) | undefined>();
+  const cleanupTimelineDragPointerUpRef = useRef<(() => void) | undefined>(undefined);
 
   // Keep the playhead visible while zoomed in: when the current time leaves the visible
   // window, page the window so the playhead lands back at its left edge. For forward

@@ -22,7 +22,7 @@ export function getItemString(
   data: unknown,
   itemType: ReactNode,
   itemString: string,
-  _keyPath: (string | number)[],
+  _keyPath: readonly (string | number)[],
   timezone?: string,
 ): ReactNode {
   if (typeof data !== "object" || data == undefined) {

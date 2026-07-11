@@ -47,12 +47,14 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ToolGroup<T>({
-  children,
-}: {
+type ToolGroupProps<T> = {
   name: T;
   children: React.ReactElement;
-}): React.JSX.Element {
+};
+
+type ToolGroupElement<T> = ReactElement<ToolGroupProps<T>>;
+
+export function ToolGroup<T>({ children }: ToolGroupProps<T>): React.JSX.Element {
   return children;
 }
 
@@ -66,7 +68,7 @@ export function ToolGroupFixedSizePane({ children }: { children: ReactNode }): R
 
 type Props<T extends string> = {
   checked?: boolean;
-  children: React.ReactElement<typeof ToolGroup>[] | React.ReactElement<typeof ToolGroup>;
+  children: ToolGroupElement<T>[] | ToolGroupElement<T>;
   icon: ReactNode;
   onSelectTab: (name: T | undefined) => void;
   selectedTab?: T; // collapse the toolbar if selectedTab is undefined
@@ -91,7 +93,7 @@ export default function ExpandingToolbar<T extends string>({
     // default to the first child's name if no tab is selected
     React.Children.forEach(children, (child) => {
       if (selectedTabLocal == undefined) {
-        selectedTabLocal = child.props.name as T;
+        selectedTabLocal = child.props.name;
       }
     });
 
@@ -112,7 +114,7 @@ export default function ExpandingToolbar<T extends string>({
       </Paper>
     );
   }
-  let selectedChild: ReactElement | undefined;
+  let selectedChild: ToolGroupElement<T> | undefined;
 
   React.Children.forEach(children, (child) => {
     if (!selectedChild || child.props.name === selectedTab) {

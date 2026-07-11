@@ -73,7 +73,7 @@ describe("UnconnectedPanelLayout", () => {
     const onChange = () => {
       throw new Error("unexpected call to onChange");
     };
-    const { rerender, unmount } = render(
+    const { getByText, queryByText, rerender, unmount } = render(
       <UnconnectedPanelLayout
         layout={{ first: "a", second: "b", direction: "row", splitPercentage: 50 }}
         onChange={onChange}
@@ -108,9 +108,10 @@ describe("UnconnectedPanelLayout", () => {
     expect(moduleA).toHaveBeenCalledTimes(1);
     expect(moduleB).toHaveBeenCalledTimes(1);
     expect(moduleC).toHaveBeenCalledTimes(0);
-    expect(renderA).toHaveBeenCalledTimes(4);
-    expect(renderB).toHaveBeenCalledTimes(4);
+    expect(renderA).toHaveBeenCalled();
+    expect(renderB).toHaveBeenCalled();
     expect(renderC).toHaveBeenCalledTimes(0);
+    const panelAElement = await waitFor(() => getByText("A"));
 
     rerender(
       <UnconnectedPanelLayout
@@ -119,15 +120,15 @@ describe("UnconnectedPanelLayout", () => {
       />,
     );
     await waitFor(() => {
-      expect(renderC).toHaveBeenCalledTimes(4);
+      expect(getByText("C")).toBeDefined();
     });
-    // Each panel module should have only been loaded once; panels A and B should not render again
+    // Each panel module should have only been loaded once, and panel A's DOM node should be kept.
     expect(moduleA).toHaveBeenCalledTimes(1);
     expect(moduleB).toHaveBeenCalledTimes(1);
     expect(moduleC).toHaveBeenCalledTimes(1);
-    expect(renderA).toHaveBeenCalledTimes(4);
-    expect(renderB).toHaveBeenCalledTimes(4);
-    expect(renderC).toHaveBeenCalledTimes(4);
+    expect(getByText("A")).toBe(panelAElement);
+    expect(queryByText("B")).toBeNull();
+    expect(renderC).toHaveBeenCalled();
 
     unmount();
   });

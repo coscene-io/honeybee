@@ -136,7 +136,7 @@ export function useMessageReducer<T>(props: Params<T>): T {
         addMessages: typeof addMessages;
       }>
     | undefined
-  >();
+  >(undefined);
 
   return useMessagePipeline(
     useCallback(

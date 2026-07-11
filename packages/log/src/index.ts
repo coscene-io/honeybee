@@ -138,3 +138,5 @@ function toLogLevel(maybeLevel: string): LogLevel {
 export default Logger.default;
 export { Logger, toLogLevel };
 export type { LogLevel };
+export { createRootErrorHandlers } from "./reactRootErrorHandlers";
+export type { ReactRootErrorHandlers, ReactRootErrorInfo } from "./reactRootErrorHandlers";
