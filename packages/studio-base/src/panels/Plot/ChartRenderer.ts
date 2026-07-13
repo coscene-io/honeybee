@@ -5,13 +5,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Chart, ChartDataset, ChartOptions, ScatterDataPoint, Ticks } from "chart.js";
+import { Chart, ChartDataset, ChartOptions, Ticks } from "chart.js";
 import { AnnotationOptions } from "chartjs-plugin-annotation";
 import EventEmitter from "eventemitter3";
 
 import { Zoom as ZoomPlugin } from "@foxglove/chartjs-plugin-zoom";
 import { unwrap } from "@foxglove/den/monads";
 import { Immutable } from "@foxglove/studio";
+import type { ScatterPoint } from "@foxglove/studio-base/components/Chart/types";
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 
@@ -54,7 +55,7 @@ export type InteractionEvent =
   | PanMoveInteractionEvent
   | PanEndInteractionEvent;
 
-export type Datum = ScatterDataPoint & { value?: OriginalValue };
+export type Datum = ScatterPoint & { value?: OriginalValue };
 export type Dataset = ChartDataset<"scatter", Datum[]>;
 
 type ChartType = Chart<"scatter", Datum[]>;

@@ -157,7 +157,7 @@ const lastX: InteractionModeFunction = (chart, event, _options, useFinalPosition
   const datasetIndexToLastItem: InteractionItem[] = [];
   Interaction.evaluateInteractionItems(chart, "x", position, (element, datasetIndex, index) => {
     const center = element.getCenterPoint(useFinalPosition);
-    if (center.x <= position.x) {
+    if (typeof center.x === "number" && center.x <= position.x) {
       datasetIndexToLastItem[datasetIndex] = { element, datasetIndex, index };
     }
   });
