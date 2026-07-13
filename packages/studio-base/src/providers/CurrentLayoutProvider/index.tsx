@@ -263,6 +263,7 @@ export default function CurrentLayoutProvider({
             id: updatedLayout.id,
             data: updatedData,
             name: updatedLayout.name,
+            ...(event.source === "revert" ? { editRevision: ++nextEditRevision } : {}),
           },
         });
       }

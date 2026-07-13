@@ -693,6 +693,75 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("drops a failed autosave after the user reverts the layout", async () => {
+    jest.useFakeTimers();
+    const firstAttempt = new Condvar();
+    const firstAttemptWait = firstAttempt.wait();
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockResolvedValue({
+      id: "example",
+      name: "Test layout",
+      baseline: { data: TEST_LAYOUT, updatedAt: new Date(10).toISOString() },
+    });
+    mockLayoutManager.updateLayout.mockImplementation(async () => {
+      firstAttempt.notifyAll();
+      throw new Error("temporary failure");
+    });
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { foo: "discarded" } }],
+      });
+    });
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {
+      await firstAttemptWait;
+    });
+    await act(async () => {});
+
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "revert",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: TEST_LAYOUT,
+            savedAt: new Date(11).toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: undefined,
+          syncInfo: undefined,
+        },
+      });
+    });
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    await act(async () => {});
+
+    expect(mockLayoutManager.updateLayout).toHaveBeenCalledTimes(1);
+    expect(result.current.layoutState.selectedLayout?.data).toEqual(TEST_LAYOUT);
+    (console.error as jest.Mock).mockClear();
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
   it("keeps pending layout updates while the same layout reloads", async () => {
     jest.useFakeTimers();
     const mockLayoutManager = makeMockLayoutManager();

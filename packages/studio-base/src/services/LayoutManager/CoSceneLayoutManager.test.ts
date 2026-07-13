@@ -397,14 +397,17 @@ describe("CoSceneLayoutManager", () => {
     remoteStorage.updateLayout.mockImplementationOnce(async () => {
       notifyRemoteStarted();
       await remoteSaveGate;
-      const newLayout = makeRemoteLayout({
-        id,
-        parent: "warehouses/w/projects/p",
-        permission: "PROJECT_WRITE",
-        data: layoutData("explicit-save"),
-        savedAt: ts("2024-01-01T00:00:20.000Z"),
-        updatedAt: ts("2024-01-01T00:00:20.000Z"),
-      });
+      const savedAt = ts("2024-01-01T00:00:20.000Z");
+      const newLayout = {
+        ...makeRemoteLayout({
+          id,
+          parent: "warehouses/w/projects/p",
+          permission: "PROJECT_WRITE",
+          data: layoutData("explicit-save"),
+        }),
+        savedAt,
+        updatedAt: savedAt,
+      };
       remoteStorage.layouts.set(id, newLayout);
       return { status: "success", newLayout };
     });

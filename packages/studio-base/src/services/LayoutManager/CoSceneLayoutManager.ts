@@ -816,7 +816,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       if (result.deleted) {
         this.#notifyChangeListeners({ type: "delete", layoutId: id });
       } else {
-        this.#notifyChangeListeners({ type: "change", updatedLayout: result.layout });
+        this.#notifyChangeListeners({
+          type: "change",
+          updatedLayout: result.layout,
+          source: "revert",
+        });
       }
       return result.layout;
     });

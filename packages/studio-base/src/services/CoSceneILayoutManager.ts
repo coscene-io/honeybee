@@ -13,7 +13,11 @@ import { Layout, LayoutPermission } from "@foxglove/studio-base/services/CoScene
 
 export type LayoutManagerChangeEvent =
   | { type: "delete"; updatedLayout?: undefined; layoutId: LayoutID }
-  | { type: "change"; updatedLayout: Layout | undefined; source?: "update" | "overwrite" };
+  | {
+      type: "change";
+      updatedLayout: Layout | undefined;
+      source?: "update" | "overwrite" | "revert";
+    };
 
 export type LayoutManagerEventTypes = {
   /**

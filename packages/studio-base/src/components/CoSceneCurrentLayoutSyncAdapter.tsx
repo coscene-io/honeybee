@@ -37,6 +37,24 @@ const MAX_SAVE_RETRY_INTERVAL_MS = 30_000;
 
 const selectCurrentLayout = (state: LayoutState) => state.selectedLayout;
 
+function cleanLayoutInvalidatesPending(
+  cleanLayout: UpdatedLayout,
+  pendingLayout: UpdatedLayout,
+): boolean {
+  if (
+    cleanLayout.data != undefined &&
+    pendingLayout.data != undefined &&
+    isLayoutEqual(cleanLayout.data, pendingLayout.data)
+  ) {
+    return true;
+  }
+  return (
+    cleanLayout.editRevision != undefined &&
+    (pendingLayout.editRevision == undefined ||
+      cleanLayout.editRevision > pendingLayout.editRevision)
+  );
+}
+
 /**
  * Observes changes in the current layout and asynchronously pushes them to the
  * layout manager.
@@ -103,20 +121,13 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
       const pendingLayout = unsavedLayoutsRef.current[selectedLayout.id];
       if (
         pendingLayout != undefined &&
-        selectedLayout.data != undefined &&
-        pendingLayout.data != undefined &&
-        isLayoutEqual(selectedLayout.data, pendingLayout.data)
+        cleanLayoutInvalidatesPending(selectedLayout, pendingLayout)
       ) {
         clearRetry(selectedLayout.id);
       }
       setUnsavedLayouts((old) => {
         const pending = old[selectedLayout.id];
-        if (
-          pending == undefined ||
-          selectedLayout.data == undefined ||
-          pending.data == undefined ||
-          !isLayoutEqual(selectedLayout.data, pending.data)
-        ) {
+        if (pending == undefined || !cleanLayoutInvalidatesPending(selectedLayout, pending)) {
           return old;
         }
         const newUnsavedLayouts = { ...old };
