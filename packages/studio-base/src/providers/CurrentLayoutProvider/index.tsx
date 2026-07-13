@@ -241,11 +241,23 @@ export default function CurrentLayoutProvider({
       const currentSelectedLayout = layoutStateRef.current.selectedLayout;
       if (updatedLayout && currentSelectedLayout && updatedLayout.id === currentSelectedLayout.id) {
         const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
-        if (
-          (event.source === "update" || event.source === "overwrite") &&
+        const dataChanged =
           currentSelectedLayout.data != undefined &&
-          !isLayoutEqual(updatedData, currentSelectedLayout.data)
-        ) {
+          !isLayoutEqual(updatedData, currentSelectedLayout.data);
+        if (dataChanged && event.source === "overwrite") {
+          setLayoutState({
+            selectedLayout: {
+              ...currentSelectedLayout,
+              loading: false,
+              id: updatedLayout.id,
+              name: updatedLayout.name,
+              edited: true,
+              editRevision: ++nextEditRevision,
+            },
+          });
+          return;
+        }
+        if (dataChanged && event.source === "update" && currentSelectedLayout.edited === true) {
           setLayoutState({
             selectedLayout: {
               ...currentSelectedLayout,

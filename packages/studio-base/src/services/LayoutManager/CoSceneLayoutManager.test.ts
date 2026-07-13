@@ -533,8 +533,17 @@ describe("CoSceneLayoutManager", () => {
     );
 
     await expect(
-      manager.overwriteLayout({ id, data: layoutData("current-memory") }),
+      manager.overwriteLayout({
+        id,
+        data: layoutData("current-memory"),
+        editRevision: 2,
+      }),
     ).rejects.toThrow("changed on the server");
+    await manager.updateLayout({
+      id,
+      data: layoutData("stale-autosave"),
+      editRevision: 1,
+    });
 
     const localLayout = await manager.getLayout({ id });
     expect(localLayout?.baseline.data).toEqual(layoutData("baseline"));

@@ -179,6 +179,12 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
         clearRetry(params.id);
         successIds.push(params.id);
       } catch (error) {
+        if (unsavedLayoutsRef.current[params.id] !== params) {
+          if (retryState.failed.get(params.id) === params) {
+            clearRetry(params.id);
+          }
+          continue;
+        }
         failedLayouts.push(params);
         retryState.failed.set(params.id, params);
         retryState.ready.delete(params.id);

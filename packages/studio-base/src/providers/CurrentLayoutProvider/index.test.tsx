@@ -626,6 +626,92 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("applies retried autosaves to clean views and preserves newer data across stale overwrites", async () => {
+    jest.useFakeTimers();
+    const retryData: LayoutData = {
+      ...TEST_LAYOUT,
+      configById: { "ExamplePanel!1": { value: "retried" } },
+    };
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockResolvedValue({
+      id: "example",
+      name: "Test layout",
+      baseline: { data: TEST_LAYOUT, updatedAt: new Date(10).toISOString() },
+    });
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "update",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: TEST_LAYOUT,
+            savedAt: new Date(10).toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: {
+            data: retryData,
+            savedAt: new Date(11).toISOString() as ISO8601Timestamp,
+          },
+          syncInfo: undefined,
+        },
+      });
+    });
+
+    expect(result.current.layoutState.selectedLayout).toEqual({
+      id: "example",
+      name: "Test layout",
+      loading: false,
+      data: retryData,
+    });
+
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "overwrite",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: TEST_LAYOUT,
+            savedAt: new Date(12).toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: undefined,
+          syncInfo: undefined,
+        },
+      });
+    });
+
+    expect(result.current.layoutState.selectedLayout).toMatchObject({
+      id: "example",
+      data: retryData,
+      edited: true,
+      editRevision: expect.any(Number),
+    });
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
   it("retries pending layout updates after layoutManager.updateLayout fails", async () => {
     jest.useFakeTimers();
     const firstAttempt = new Condvar();

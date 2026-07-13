@@ -123,18 +123,23 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   #busyCount = 0;
 
-  #pendingOverwriteEditRevisions = new Map<LayoutID, Set<number>>();
+  #pendingOverwriteEditRevisions = new Map<LayoutID, Map<number, number>>();
   #savedEditRevisions = new Map<LayoutID, number>();
 
   #trackPendingOverwrite(id: LayoutID, editRevision: number | undefined): () => void {
     if (editRevision == undefined) {
       return () => {};
     }
-    const revisions = this.#pendingOverwriteEditRevisions.get(id) ?? new Set<number>();
-    revisions.add(editRevision);
+    const revisions = this.#pendingOverwriteEditRevisions.get(id) ?? new Map<number, number>();
+    revisions.set(editRevision, (revisions.get(editRevision) ?? 0) + 1);
     this.#pendingOverwriteEditRevisions.set(id, revisions);
     return () => {
-      revisions.delete(editRevision);
+      const count = revisions.get(editRevision) ?? 0;
+      if (count <= 1) {
+        revisions.delete(editRevision);
+      } else {
+        revisions.set(editRevision, count - 1);
+      }
       if (revisions.size === 0) {
         this.#pendingOverwriteEditRevisions.delete(id);
       }
@@ -151,7 +156,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     }
     const pendingRevisions = this.#pendingOverwriteEditRevisions.get(id);
     if (pendingRevisions) {
-      for (const pendingRevision of pendingRevisions) {
+      for (const pendingRevision of pendingRevisions.keys()) {
         if (pendingRevision > editRevision) {
           return true;
         }
@@ -703,6 +708,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               ? undefined
               : { data: dataToSave, savedAt: now },
           });
+          this.#recordSavedEditRevision(id, editRevision);
 
           return { type: "project" as const, dataToSave, layoutForSave };
         }
