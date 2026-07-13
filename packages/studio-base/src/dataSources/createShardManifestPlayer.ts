@@ -11,6 +11,7 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import {
   MANIFEST_URL_PARAM,
   SHARD_MODE_MANIFEST,
@@ -29,25 +30,6 @@ export function definedUrlParams(
     }
   }
   return definedParams;
-}
-
-function sortJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sortJsonValue);
-  }
-  if (value != undefined && typeof value === "object") {
-    const input = value as Record<string, unknown>;
-    const output: Record<string, unknown> = {};
-    for (const key of Object.keys(input).sort()) {
-      output[key] = sortJsonValue(input[key]);
-    }
-    return output;
-  }
-  return value;
-}
-
-export function stableJsonStringify(value: unknown): string {
-  return JSON.stringify(sortJsonValue(value)) ?? "";
 }
 
 export function createShardManifestPlayer(args: {
@@ -94,10 +76,6 @@ export function createShardManifestPlayer(args: {
     urlParams,
     readAheadDuration: { sec: 10, nsec: 0 },
     name: args.name,
-    enablePlaybackSpillCache: true,
-    playbackSpillCacheSourceKey: stableJsonStringify({
-      sourceId: args.sourceId,
-      params: sourceParams,
-    }),
+    enablePlaybackSpillCache: getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED,
   });
 }

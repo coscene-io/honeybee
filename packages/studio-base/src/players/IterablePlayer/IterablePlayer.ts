@@ -63,7 +63,6 @@ const log = Log.getLogger(__filename);
 // Setting this to higher than 1.5GB caused the renderer process to crash on linux.
 // See: https://github.com/foxglove/studio/pull/1733
 const DEFAULT_CACHE_SIZE_BYTES = 1.0e9;
-const DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES = 25 * 1024 * 1024 * 1024;
 
 // Amount to wait until panels have had the chance to subscribe to topics before
 // we start playback
@@ -110,7 +109,6 @@ type IterablePlayerOptions = {
   readAheadDuration?: Time;
 
   enablePlaybackSpillCache?: boolean;
-  playbackSpillCacheSourceKey?: string;
 };
 
 type IterablePlayerState =
@@ -212,9 +210,12 @@ export class IterablePlayer implements Player {
 
   #untilTime?: Time;
 
-  /** Promise that resolves when the player is closed. Only used for testing currently */
+  /** Promise that resolves after all player resources have finished closing. */
   public readonly isClosed: Promise<void>;
   #resolveIsClosed: () => void = () => {};
+  #closePromise: Promise<void> | undefined;
+  #bufferTerminatePromise: Promise<void> | undefined;
+  #sourceTerminatePromise: Promise<void> | undefined;
 
   public constructor(options: IterablePlayerOptions) {
     const {
@@ -226,15 +227,17 @@ export class IterablePlayer implements Player {
       sourceId,
       readAheadDuration = getReadAheadDurationDefaultTime(),
       enablePlaybackSpillCache = false,
-      playbackSpillCacheSourceKey,
     } = options;
 
     this.#iterableSource = source;
+    this.#metricsCollector = metricsCollector ?? new NoopMetricsCollector();
     const spillCache = enablePlaybackSpillCache
       ? {
           sourceId,
-          sourceKey: playbackSpillCacheSourceKey ?? JSON.stringify({ sourceId, urlParams }),
-          maxCacheSize: DEFAULT_PLAYBACK_SPILL_CACHE_SIZE_BYTES,
+          metricSink: (
+            event: string,
+            data: Readonly<Record<string, string | number | boolean | undefined>>,
+          ) => this.#metricsCollector.recordMessageCacheMetric?.(event, data),
         }
       : undefined;
     if (source.sourceType === "deserialized") {
@@ -256,7 +259,6 @@ export class IterablePlayer implements Player {
 
     this.#name = name;
     this.#urlParams = urlParams;
-    this.#metricsCollector = metricsCollector ?? new NoopMetricsCollector();
     this.#metricsCollector.playerConstructed();
     this.#enablePreload = enablePreload ?? true;
     this.#sourceId = sourceId;
@@ -503,14 +505,22 @@ export class IterablePlayer implements Player {
     throw new Error("Service calls are not supported by this data source");
   }
 
-  public async close(): Promise<void> {
-    try {
-      void this.#iterableSource.terminate?.();
-    } catch (e) {
-      console.error("error to close iterable player", e);
+  // Returning the stored promise directly preserves identity across concurrent callers.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public close(): Promise<void> {
+    if (this.#closePromise != undefined) {
+      return this.#closePromise;
     }
 
+    this.#closePromise = this.isClosed;
+    // Start source termination immediately so an in-flight initialize/read can unblock. State
+    // close awaits this same promise, ensuring terminate is invoked exactly once.
+    this.#sourceTerminatePromise = Promise.resolve().then(async () => {
+      await this.#iterableSource.terminate?.();
+    });
+    void this.#sourceTerminatePromise.catch(() => undefined);
     this.#setState("close");
+    return this.#closePromise;
   }
 
   public setGlobalVariables(): void {
@@ -524,7 +534,11 @@ export class IterablePlayer implements Player {
   /** Request the state to switch to newState */
   #setState(newState: IterablePlayerState) {
     // nothing should override closing the player
-    if (this.#nextState === "close") {
+    if (
+      this.#nextState === "close" ||
+      this.#state === "close" ||
+      (this.#closePromise != undefined && newState !== "close")
+    ) {
       return;
     }
     log.debug(`Set next state: ${newState}`);
@@ -560,9 +574,10 @@ export class IterablePlayer implements Player {
 
         log.debug(`Start state: ${state}`);
 
-        // If we are going into a state other than play or idle we throw away the playback iterator since
-        // we will need to make a new one.
-        if (state !== "idle" && state !== "play" && this.#playbackIterator) {
+        // If we are going into a state other than play, idle, or close we throw away the playback
+        // iterator since we will need a new one. Close handles iterator errors itself so they cannot
+        // prevent the rest of resource cleanup from running.
+        if (state !== "idle" && state !== "play" && state !== "close" && this.#playbackIterator) {
           log.debug("Ending playback iterator because next state is not IDLE or PLAY");
           this.#abortPlaybackIterator();
           await this.#playbackIterator.return?.();
@@ -604,6 +619,11 @@ export class IterablePlayer implements Player {
       this.#queueEmitState();
     } finally {
       this.#runningState = false;
+      // A close can be queued while the active state is unwinding with an error. In that case the
+      // earlier #setState() call observed a running loop, so resume it here to guarantee close runs.
+      if (this.#nextState != undefined) {
+        void this.#runState();
+      }
     }
   }
 
@@ -1263,15 +1283,46 @@ export class IterablePlayer implements Player {
   async #stateClose() {
     this.#isPlaying = false;
     this.#abortPlaybackIterator();
-    await this.#blockLoader?.stopLoading();
-    await this.#blockLoadingProcess;
-    // Note: #bufferedSource and #bufferImpl are the same object now,
-    // so we only need to terminate once
-    await this.#bufferImpl.terminate();
-    await this.#playbackIterator?.return?.();
-    this.#playbackIterator = undefined;
-    await this.#iterableSource.terminate?.();
+    let closeError: unknown;
+    const attempt = async (label: string, operation: () => Promise<unknown>): Promise<void> => {
+      try {
+        await operation();
+      } catch (error) {
+        closeError ??= error;
+        log.warn(`Failed to ${label} while closing IterablePlayer`, error);
+      }
+    };
+
+    await attempt("stop block loading", async () => {
+      await this.#blockLoader?.stopLoading();
+    });
+    await attempt("finish block loading", async () => {
+      await this.#blockLoadingProcess;
+    });
+
+    // #bufferedSource and #bufferImpl are the same object, so terminate this layer once.
+    this.#bufferTerminatePromise ??= Promise.resolve().then(async () => {
+      await this.#bufferImpl.terminate();
+    });
+    await attempt("terminate the buffered source", async () => {
+      await this.#bufferTerminatePromise;
+    });
+    await attempt("close the playback iterator", async () => {
+      await this.#playbackIterator?.return?.();
+      this.#playbackIterator = undefined;
+    });
+
+    this.#sourceTerminatePromise ??= Promise.resolve().then(async () => {
+      await this.#iterableSource.terminate?.();
+    });
+    await attempt("terminate the iterable source", async () => {
+      await this.#sourceTerminatePromise;
+    });
     this.#resolveIsClosed();
+
+    if (closeError != undefined) {
+      throw closeError instanceof Error ? closeError : new Error("IterablePlayer close failed");
+    }
   }
 
   async #startBlockLoading() {

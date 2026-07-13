@@ -16,6 +16,7 @@
 import { toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { useEffect, useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -58,6 +59,7 @@ import { TasksList } from "@foxglove/studio-base/components/Tasks/TasksList";
 import { TopicList } from "@foxglove/studio-base/components/TopicList";
 import VariablesList from "@foxglove/studio-base/components/VariablesList";
 import { WorkspaceDialogs } from "@foxglove/studio-base/components/WorkspaceDialogs";
+import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
@@ -75,9 +77,14 @@ import { useDefaultWebLaunchPreference } from "@foxglove/studio-base/hooks/useDe
 import useElectronFilesToOpen from "@foxglove/studio-base/hooks/useElectronFilesToOpen";
 import { useHandleFiles } from "@foxglove/studio-base/hooks/useHandleFiles";
 import { Language } from "@foxglove/studio-base/i18n";
+import {
+  scheduleLegacyMessageCacheDatabaseDeletion,
+  scheduleMessageCacheMaintenance,
+} from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -141,6 +148,7 @@ const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   const { PerformanceSidebarComponent } = useAppContext();
+  const analytics = useAnalytics();
   const { classes } = useStyles();
   const containerRef = useRef<HTMLDivElement>(ReactNull);
   const { availableSources } = usePlayerSelection();
@@ -166,6 +174,22 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
 
   const { t } = useTranslation("workspace");
   const { AppBarComponent = AppBar } = props;
+
+  useEffect(() => {
+    // Effects run after the full workspace commit, so the layout is already visible and usable
+    // before either cache database performs idle maintenance or legacy deletion.
+    scheduleMessageCacheMaintenance((metric, data) => {
+      void analytics.logEvent(AppEvent.MESSAGE_CACHE, { metric, ...data }).catch(() => undefined);
+    });
+    return scheduleLegacyMessageCacheDatabaseDeletion({
+      onBlocked: () => {
+        toast.error(t("legacyMessageCacheDeleteBlocked"), {
+          id: "legacy-message-cache-delete-blocked",
+          duration: 10_000,
+        });
+      },
+    });
+  }, [analytics, t]);
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {

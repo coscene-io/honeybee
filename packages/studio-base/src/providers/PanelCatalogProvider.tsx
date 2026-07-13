@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PropsWithChildren, useMemo } from "react";
+import { PropsWithChildren, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import Panel from "@foxglove/studio-base/components/Panel";
@@ -24,36 +24,60 @@ type PanelProps = {
   saveConfig: SaveConfig<unknown>;
 };
 
+type WrappedExtensionPanelCacheEntry = {
+  revision: string;
+  module: PanelInfo["module"];
+};
+
 export default function PanelCatalogProvider(props: PropsWithChildren): React.ReactElement {
   const { t } = useTranslation("panels");
 
   const { extraPanels } = useAppContext();
   const extensionPanels = useExtensionCatalog((state) => state.installedPanels);
+  const wrappedExtensionPanelCacheRef = useRef(new Map<string, WrappedExtensionPanelCacheEntry>());
 
   const wrappedExtensionPanels = useMemo<PanelInfo[]>(() => {
-    return Object.values(extensionPanels ?? {}).map((panel) => {
+    const activePanelTypes = new Set<string>();
+    const wrappedPanels = Object.values(extensionPanels ?? {}).map((panel) => {
       const panelType = `${panel.extensionName}.${panel.registration.name}`;
-      const PanelWrapper = (panelProps: PanelProps) => {
-        return (
-          <>
+      activePanelTypes.add(panelType);
+      let cached = wrappedExtensionPanelCacheRef.current.get(panelType);
+      if (cached?.revision !== panel.extensionRevision) {
+        const PanelWrapper = (panelProps: PanelProps) => {
+          return (
             <PanelExtensionAdapter
               config={panelProps.config}
               saveConfig={panelProps.saveConfig}
               initPanel={panel.registration.initPanel}
             />
-          </>
-        );
-      };
-      PanelWrapper.panelType = panelType;
-      PanelWrapper.defaultConfig = {};
+          );
+        };
+        PanelWrapper.panelType = panelType;
+        PanelWrapper.defaultConfig = {};
+        // Extension panels own their config lifecycle. In particular, replacing UnknownPanel after
+        // a late catalog load must not dirty a layout by persisting an otherwise unused empty object.
+        PanelWrapper.configInitialization = "none" as const;
+        cached = {
+          revision: panel.extensionRevision,
+          module: async () => ({ default: Panel(PanelWrapper) }),
+        };
+        wrappedExtensionPanelCacheRef.current.set(panelType, cached);
+      }
       return {
         category: "misc",
         title: panel.registration.name,
         type: panelType,
-        module: async () => ({ default: Panel(PanelWrapper) }),
+        module: cached.module,
         extensionNamespace: panel.extensionNamespace,
       };
     });
+
+    for (const panelType of wrappedExtensionPanelCacheRef.current.keys()) {
+      if (!activePanelTypes.has(panelType)) {
+        wrappedExtensionPanelCacheRef.current.delete(panelType);
+      }
+    }
+    return wrappedPanels;
   }, [extensionPanels]);
 
   // Re-call the function when the language changes to ensure that the panel's information is successfully translated

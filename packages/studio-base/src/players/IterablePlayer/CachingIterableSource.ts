@@ -7,7 +7,7 @@
 
 import EventEmitter from "eventemitter3";
 import * as _ from "lodash-es";
-import stringHash from "string-hash";
+import race from "race-as-promised";
 
 import { minIndexBy, sortedIndexByTuple } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
@@ -16,6 +16,8 @@ import { MessageEvent, Time } from "@foxglove/studio";
 import {
   IndexedDbMessageStore,
   LoadedRange,
+  type MessageCacheMetricSink,
+  type MessagePageCursor,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import { TopicSelection } from "@foxglove/studio-base/players/types";
@@ -36,15 +38,75 @@ const log = Log.getLogger(__filename);
 const MAX_SPILL_MESSAGES_BEFORE_APPEND = 1000;
 const MAX_SPILL_MESSAGES_PER_IDB_TRANSACTION = 1000;
 const MAX_SPILL_MESSAGES_BEFORE_FLUSH = 5000;
+const MAX_SPILL_BYTES_PER_IDB_TRANSACTION = 64 * 1024 * 1024;
+const MAX_SPILL_HYDRATION_BYTES = 64 * 1024 * 1024;
 const PLAYBACK_SPILL_HEARTBEAT_MS = 30 * 1000;
-const PLAYBACK_SPILL_STALE_MS = 5 * 60 * 1000;
+const PLAYBACK_SPILL_OPERATION_TIMEOUT_MS = 5 * 1000;
+const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
+
+class PlaybackSpillOperationTimeoutError extends Error {
+  public constructor(operation: string) {
+    super(`Timed out waiting for playback spill cache ${operation}`);
+    this.name = "PlaybackSpillOperationTimeoutError";
+  }
+}
+
+async function withPlaybackSpillDeadline<T>(
+  operation: Promise<T>,
+  operationName: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new PlaybackSpillOperationTimeoutError(operationName));
+    }, PLAYBACK_SPILL_OPERATION_TIMEOUT_MS);
+  });
+
+  try {
+    return await race([operation, timeout]);
+  } finally {
+    if (timer != undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
 
 function createPlaybackSpillSessionId(sourceId: string): string {
   return `playback-spill:${sourceId}:${globalThis.crypto.randomUUID()}`;
 }
 
+function finiteNonNegativeSize(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function validatedCacheSize(value: number, fieldName: string): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${fieldName} must be a finite, non-negative number`);
+  }
+  return value;
+}
+
+function safeEstimateObjectSize(value: unknown): number | undefined {
+  try {
+    return finiteNonNegativeSize(estimateObjectSize(value));
+  } catch {
+    return undefined;
+  }
+}
+
 function messageSize(message: MessageEvent): number {
-  return Math.max(message.sizeInBytes, estimateObjectSize(message.message));
+  return Math.max(
+    finiteNonNegativeSize(message.sizeInBytes) ?? 0,
+    safeEstimateObjectSize(message.message) ?? 0,
+  );
+}
+
+function persistedMessageSize(message: MessageEvent): number {
+  const payloadBytes = Math.max(
+    finiteNonNegativeSize(message.sizeInBytes) ?? 0,
+    safeEstimateObjectSize(message) ?? 0,
+  );
+  return Math.min(Number.MAX_SAFE_INTEGER, payloadBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES);
 }
 
 function canonicalize(value: unknown): unknown {
@@ -70,7 +132,9 @@ function topicFingerprint(topics: TopicSelection): string {
       preloadType: payload.preloadType ?? "__undefined__",
     }))
     .sort((a, b) => a.topic.localeCompare(b.topic));
-  return stringHash(JSON.stringify(canonicalize(entries)) ?? "").toString(36);
+  // Persist the canonical selection itself instead of a short hash. A collision here would make
+  // coverage for one fields/topic selection masquerade as another and silently skip source reads.
+  return `v2:${JSON.stringify(canonicalize(entries)) ?? ""}`;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -123,8 +187,7 @@ type Options = {
   maxTotalSize?: number;
   spillCache?: {
     sourceId: string;
-    sourceKey?: string;
-    maxCacheSize?: number;
+    metricSink?: MessageCacheMetricSink;
   };
 };
 
@@ -132,6 +195,14 @@ interface EventTypes {
   /** Dispatched when the loaded ranges have changed. Use `loadedRanges()` to get the new ranges. */
   loadedRangesChange: () => void;
 }
+
+type SpillRangeReadResult =
+  | { complete: true }
+  | {
+      complete: false;
+      resumeFrom: Time;
+      directSource: boolean;
+    };
 
 /**
  * CachingIterableSource proxies access to IIterableSource through a memory buffer.
@@ -148,6 +219,8 @@ class CachingIterableSource<MessageType = unknown>
 
   // Stores which topics we have been caching. See notes at usage site for why we store this.
   #cachedTopics: TopicSelection = new Map();
+  #topicGeneration = 0;
+  #topicResetPromise: Promise<void> = Promise.resolve();
 
   // The producer loads results into the cache and the consumer reads from the cache.
   #cache: CacheBlock<MessageType>[] = [];
@@ -175,35 +248,65 @@ class CachingIterableSource<MessageType = unknown>
   #spillCacheOptions?: NonNullable<Options["spillCache"]>;
   #spillTopicFingerprint?: string;
   #spillLoadedRanges: readonly LoadedRange[] = [];
+  #spillLoadedRangesContentRevision: number | undefined;
   #spillMessageCountSinceFlush = 0;
+  #spillEstimatedBytesSinceFlush = 0;
   #spillLastSessionCheckAt: number | undefined;
   #spillHeartbeatTimer: ReturnType<typeof setInterval> | undefined;
   #spillPageHideHandler: ((event: PageTransitionEvent) => void) | undefined;
   #spillPageShowHandler: ((event: PageTransitionEvent) => void) | undefined;
   #spillVisibilityChangeHandler: (() => void) | undefined;
   #spillRecoveryPromise: Promise<void> | undefined;
+  #spillMutationTail: Promise<void> = Promise.resolve();
+  #spillSealPromise: Promise<void> | undefined;
+  #terminated = false;
+  #terminatePromise: Promise<void> | undefined;
 
   public constructor(source: IIterableSource<MessageType>, opt?: Options) {
     super();
 
     this.#source = source;
-    this.#maxTotalSizeBytes = opt?.maxTotalSize ?? 629145600; // 600MB (was 1GB, reduced to mitigate OOM issues)
-    this.#maxBlockSizeBytes = opt?.maxBlockSize ?? 52428800; // 50MB
+    this.#maxTotalSizeBytes = validatedCacheSize(opt?.maxTotalSize ?? 629145600, "maxTotalSize"); // 600MB (was 1GB, reduced to mitigate OOM issues)
+    this.#maxBlockSizeBytes = validatedCacheSize(opt?.maxBlockSize ?? 52428800, "maxBlockSize"); // 50MB
     this.#spillCacheOptions = opt?.spillCache;
   }
 
   public async initialize(): Promise<Initalization> {
     this.#initResult = await this.#source.initialize();
-    await this.#initSpillCache();
+    if (!this.#terminated) {
+      await this.#initSpillCache();
+    }
     return this.#initResult;
   }
 
-  public async terminate(): Promise<void> {
+  // Returning the stored promise directly preserves identity across concurrent callers.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public terminate(): Promise<void> {
+    this.#terminated = true;
+    this.#spillEnabled = false;
     this.#stopSpillLifecycleHandlers();
+    this.#terminatePromise ??= this.#terminateImpl();
+    return this.#terminatePromise;
+  }
+
+  async #terminateImpl(): Promise<void> {
     this.#cache.length = 0;
     this.#cachedTopics.clear();
     this.#totalSizeBytes = 0;
-    await this.#closeSpillCache({ clear: true });
+
+    // Recovery owns whichever store it detached. Wait for it to finish so terminate does not
+    // resolve while that connection is still closing or allow it to create a replacement store.
+    await this.#spillMutationTail;
+    await this.#sealSpillCache("pending-delete");
+  }
+
+  async #runSpillMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.#spillMutationTail.then(operation, operation);
+    this.#spillMutationTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await result;
   }
 
   public loadedRanges(): Range[] {
@@ -214,75 +317,156 @@ class CachingIterableSource<MessageType = unknown>
     return this.#totalSizeBytes;
   }
 
-  async #resetForTopicsIfNeeded(topics: TopicSelection): Promise<void> {
+  async #resetForTopicsIfNeeded(topics: TopicSelection): Promise<number> {
     if (_.isEqual(topics, this.#cachedTopics)) {
-      return;
+      const topicGeneration = this.#topicGeneration;
+      const resetPromise = this.#topicResetPromise;
+      await resetPromise;
+      return topicGeneration;
     }
 
     log.debug("topics changed - clearing cache, resetting range");
-    this.#cachedTopics = topics;
+    this.#cachedTopics = new Map(topics);
+    const topicGeneration = ++this.#topicGeneration;
     this.#cache.length = 0;
     this.#totalSizeBytes = 0;
     this.#recomputeLoadedRangeCache();
-    await this.#resetSpillForTopics(topics);
+    const resetPromise = this.#resetSpillForTopics(this.#cachedTopics);
+    this.#topicResetPromise = resetPromise;
+    try {
+      await resetPromise;
+    } finally {
+      if (this.#topicResetPromise === resetPromise) {
+        this.#topicResetPromise = Promise.resolve();
+      }
+    }
+    return topicGeneration;
   }
 
   async #initSpillCache(): Promise<boolean> {
     if (this.#spillCacheOptions == undefined || this.#spillStore != undefined) {
       return this.#spillStore != undefined;
     }
-    if (!this.#spillEnabled) {
+    if (!this.#spillEnabled || this.#terminated) {
       return false;
     }
 
-    const sourceKey = this.#spillCacheOptions.sourceKey ?? this.#spillCacheOptions.sourceId;
-    this.#spillStore = new IndexedDbMessageStore({
-      sessionId: createPlaybackSpillSessionId(this.#spillCacheOptions.sourceId),
-      kind: "playback-spill",
-      retentionWindowMs: Number.MAX_SAFE_INTEGER,
-      maxCacheSize: this.#spillCacheOptions.maxCacheSize,
-      sourceId: this.#spillCacheOptions.sourceId,
-      sourceKey,
-      appendBatchMaxSize: MAX_SPILL_MESSAGES_PER_IDB_TRANSACTION,
-    });
-
+    let store: IndexedDbMessageStore | undefined;
     try {
-      await this.#spillStore.init();
-      await this.#spillStore.cleanupOldSessions("playback-spill", PLAYBACK_SPILL_STALE_MS);
+      store = new IndexedDbMessageStore({
+        sessionId: createPlaybackSpillSessionId(this.#spillCacheOptions.sourceId),
+        kind: "playback-spill",
+        retentionWindowMs: Number.MAX_SAFE_INTEGER,
+        sourceId: this.#spillCacheOptions.sourceId,
+        appendBatchMaxSize: MAX_SPILL_MESSAGES_PER_IDB_TRANSACTION,
+        metricSink: this.#spillCacheOptions.metricSink,
+      });
+      this.#spillStore = store;
+      await store.init();
+      if (!this.#isCurrentSpillStore(store)) {
+        return false;
+      }
+      if (!store.isWritable()) {
+        throw new Error("Playback spill cache is unavailable for writes");
+      }
       this.#spillLastSessionCheckAt = Date.now();
       this.#startSpillLifecycleHandlers();
       return true;
     } catch (error) {
-      log.warn("Disabling playback spill cache after initialization failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
+      if (store == undefined) {
+        log.warn("Disabling playback spill cache after construction failed:", error);
+        this.#spillEnabled = false;
+        this.#stopSpillLifecycleHandlers();
+        return false;
+      }
+      await this.#disableSpillCache(
+        "Disabling playback spill cache after initialization failed:",
+        error,
+        store,
+        { waitForSeal: true },
+      );
       return false;
     }
   }
 
-  async #closeSpillCache(opt: { clear: boolean }): Promise<void> {
-    const store = this.#spillStore;
-    this.#spillStore = undefined;
-    this.#spillTopicFingerprint = undefined;
-    this.#spillLoadedRanges = [];
-    this.#spillMessageCountSinceFlush = 0;
-    this.#spillLastSessionCheckAt = undefined;
+  #isCurrentSpillStore(store: IndexedDbMessageStore): boolean {
+    return !this.#terminated && this.#spillEnabled && store === this.#spillStore;
+  }
 
+  #isCurrentTopicGeneration(topicGeneration: number): boolean {
+    return !this.#terminated && topicGeneration === this.#topicGeneration;
+  }
+
+  #isCurrentSpillContext(
+    store: IndexedDbMessageStore,
+    topicGeneration: number,
+    expectedTopicFingerprint: string,
+  ): boolean {
+    return (
+      this.#isCurrentTopicGeneration(topicGeneration) &&
+      this.#spillTopicFingerprint === expectedTopicFingerprint &&
+      this.#isCurrentSpillStore(store)
+    );
+  }
+
+  async #sealSpillCache(status: "pending-delete" | "abandoned"): Promise<void> {
+    const store = this.#spillStore;
     if (store == undefined) {
+      await this.#spillSealPromise;
       return;
     }
 
+    this.#spillStore = undefined;
+    this.#spillTopicFingerprint = undefined;
+    this.#spillLoadedRanges = [];
+    this.#spillLoadedRangesContentRevision = undefined;
+    this.#spillMessageCountSinceFlush = 0;
+    this.#spillEstimatedBytesSinceFlush = 0;
+    this.#spillLastSessionCheckAt = undefined;
+
+    const sealPromise = store.discardAndSeal(status).catch((error: unknown) => {
+      log.debug("Failed to seal playback spill cache:", error);
+    });
+    this.#spillSealPromise = sealPromise;
     try {
-      if (opt.clear) {
-        await store.deleteCurrentSession();
+      await sealPromise;
+    } finally {
+      if (this.#spillSealPromise === sealPromise) {
+        this.#spillSealPromise = undefined;
       }
-      await store.close();
-    } catch (error) {
-      log.debug("Failed to close playback spill cache:", error);
+    }
+  }
+
+  async #disableSpillCache(
+    message: string,
+    error: unknown,
+    store: IndexedDbMessageStore,
+    options: { waitForSeal?: boolean } = {},
+  ): Promise<void> {
+    if (store !== this.#spillStore) {
+      return;
+    }
+    log.warn(message, error);
+    this.#spillEnabled = false;
+    this.#stopSpillLifecycleHandlers();
+    const sealPromise = this.#sealSpillCache("abandoned");
+    if (options.waitForSeal === true) {
+      await sealPromise;
+    } else {
+      // Reads and playback must fail open at their own five-second deadline. terminate() observes
+      // #spillSealPromise and still waits for bounded teardown before reporting the player closed.
+      void sealPromise;
+    }
+    if (this.#initResult != undefined) {
+      this.#recomputeLoadedRangeCache();
     }
   }
 
   #startSpillLifecycleHandlers(): void {
+    if (this.#terminated) {
+      return;
+    }
+
     if (this.#spillHeartbeatTimer == undefined) {
       this.#spillHeartbeatTimer = setInterval(() => {
         void this.#ensureSpillSessionAlive({ force: false });
@@ -294,12 +478,11 @@ class CachingIterableSource<MessageType = unknown>
         if (event.persisted) {
           return;
         }
-        const store = this.#spillStore;
-        if (store == undefined) {
-          return;
-        }
-        void store.deleteCurrentSession().catch((error: unknown) => {
-          log.debug("Best-effort playback spill pagehide cleanup failed:", error);
+        this.#terminated = true;
+        this.#spillEnabled = false;
+        this.#stopSpillLifecycleHandlers();
+        void this.#runSpillMutation(async () => {
+          await this.#sealSpillCache("pending-delete");
         });
       };
       window.addEventListener("pagehide", this.#spillPageHideHandler);
@@ -342,13 +525,26 @@ class CachingIterableSource<MessageType = unknown>
   }
 
   async #ensureSpillSessionAlive(opt: { force?: boolean } = {}): Promise<boolean> {
+    if (this.#terminated) {
+      return false;
+    }
     if (this.#spillRecoveryPromise != undefined) {
       await this.#spillRecoveryPromise;
-      return this.#spillEnabled && this.#spillStore != undefined;
+      // Recovery may be interrupted by terminate while the await above is pending.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      return !this.#terminated && this.#spillEnabled && this.#spillStore != undefined;
     }
 
     const store = this.#spillStore;
     if (!this.#spillEnabled || store == undefined) {
+      return false;
+    }
+    if (!store.isWritable()) {
+      await this.#disableSpillCache(
+        "Disabling playback spill cache because the session is no longer writable:",
+        new Error("Playback spill cache is unavailable for writes"),
+        store,
+      );
       return false;
     }
 
@@ -363,17 +559,13 @@ class CachingIterableSource<MessageType = unknown>
 
     let alive: boolean;
     try {
-      alive = await store.touchSession();
+      alive = await withPlaybackSpillDeadline(store.touchSession(), "session heartbeat");
     } catch (error) {
-      if (store !== this.#spillStore) {
-        return false;
-      }
-      log.warn("Disabling playback spill cache after session touch failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
-      if (this.#initResult != undefined) {
-        this.#recomputeLoadedRangeCache();
-      }
+      await this.#disableSpillCache(
+        "Disabling playback spill cache after session touch failed:",
+        error,
+        store,
+      );
       return false;
     }
 
@@ -391,12 +583,17 @@ class CachingIterableSource<MessageType = unknown>
   }
 
   async #recoverSpillCache(): Promise<void> {
+    if (this.#terminated || !this.#spillEnabled) {
+      return;
+    }
     if (this.#spillRecoveryPromise != undefined) {
       await this.#spillRecoveryPromise;
       return;
     }
 
-    this.#spillRecoveryPromise = this.#recoverSpillCacheImpl();
+    this.#spillRecoveryPromise = this.#runSpillMutation(async () => {
+      await this.#recoverSpillCacheImpl();
+    });
     try {
       await this.#spillRecoveryPromise;
     } finally {
@@ -408,23 +605,36 @@ class CachingIterableSource<MessageType = unknown>
     const savedFingerprint = this.#spillTopicFingerprint;
 
     try {
-      await this.#closeSpillCache({ clear: false });
+      await this.#sealSpillCache("abandoned");
+      if (this.#terminated || !this.#spillEnabled) {
+        return;
+      }
       const initialized = await this.#initSpillCache();
-      if (!initialized || this.#spillStore == undefined) {
+      const store = this.#spillStore;
+      if (!initialized || store == undefined || !this.#isCurrentSpillStore(store)) {
         return;
       }
       if (savedFingerprint != undefined) {
-        await this.#spillStore.setTopicFingerprint(savedFingerprint);
+        await withPlaybackSpillDeadline(
+          store.setTopicFingerprint(savedFingerprint),
+          "topic recovery",
+        );
+        if (!this.#isCurrentSpillStore(store)) {
+          return;
+        }
         this.#spillTopicFingerprint = savedFingerprint;
       }
       this.#spillLoadedRanges = [];
+      this.#spillLoadedRangesContentRevision = undefined;
       this.#spillMessageCountSinceFlush = 0;
+      this.#spillEstimatedBytesSinceFlush = 0;
       this.#spillLastSessionCheckAt = Date.now();
       this.#recomputeLoadedRangeCache();
     } catch (error) {
-      log.warn("Disabling playback spill cache after session recovery failed:", error);
-      await this.#closeSpillCache({ clear: false });
       this.#spillEnabled = false;
+      this.#stopSpillLifecycleHandlers();
+      log.warn("Disabling playback spill cache after session recovery failed:", error);
+      await this.#sealSpillCache("abandoned");
       if (this.#initResult != undefined) {
         this.#recomputeLoadedRangeCache();
       }
@@ -432,7 +642,14 @@ class CachingIterableSource<MessageType = unknown>
   }
 
   async #resetSpillForTopics(topics: TopicSelection): Promise<void> {
-    if (!this.#spillEnabled || this.#spillStore == undefined) {
+    await this.#runSpillMutation(async () => {
+      await this.#resetSpillForTopicsImpl(topics);
+    });
+  }
+
+  async #resetSpillForTopicsImpl(topics: TopicSelection): Promise<void> {
+    const store = this.#spillStore;
+    if (!this.#spillEnabled || this.#terminated || store == undefined) {
       return;
     }
 
@@ -442,143 +659,338 @@ class CachingIterableSource<MessageType = unknown>
     }
 
     try {
-      await this.#spillStore.flush();
-      await this.#spillStore.setTopicFingerprint(nextFingerprint);
-      await this.#spillStore.clear();
+      // The first topic selection can initialize the empty session in place. Later changes must
+      // seal the populated session so queued writes are discarded instead of flushed before clear.
+      if (this.#spillTopicFingerprint == undefined) {
+        await withPlaybackSpillDeadline(
+          store.setTopicFingerprint(nextFingerprint),
+          "topic initialization",
+        );
+        if (!this.#isCurrentSpillStore(store)) {
+          return;
+        }
+        this.#spillTopicFingerprint = nextFingerprint;
+        this.#spillLoadedRanges = [];
+        this.#spillLoadedRangesContentRevision = undefined;
+        this.#spillMessageCountSinceFlush = 0;
+        this.#spillEstimatedBytesSinceFlush = 0;
+        this.#recomputeLoadedRangeCache();
+        return;
+      }
+
+      // The old topic session is disposable. Seal it without flushing queued writes and let the
+      // janitor reclaim it instead of synchronously rewriting data that will be deleted.
+      await this.#sealSpillCache("pending-delete");
+      // terminate() may change both flags while the seal is pending.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (this.#terminated || !this.#spillEnabled) {
+        return;
+      }
+      const initialized = await this.#initSpillCache();
+      const nextStore = this.#spillStore;
+      // Initialization and terminate() can replace or detach the store while awaiting.
+      if (!initialized || nextStore == undefined || !this.#isCurrentSpillStore(nextStore)) {
+        return;
+      }
+      await withPlaybackSpillDeadline(
+        nextStore.setTopicFingerprint(nextFingerprint),
+        "topic reset",
+      );
+      if (!this.#isCurrentSpillStore(nextStore)) {
+        return;
+      }
       this.#spillTopicFingerprint = nextFingerprint;
       this.#spillLoadedRanges = [];
+      this.#spillLoadedRangesContentRevision = undefined;
       this.#spillMessageCountSinceFlush = 0;
+      this.#spillEstimatedBytesSinceFlush = 0;
       this.#recomputeLoadedRangeCache();
     } catch (error) {
-      log.warn("Disabling playback spill cache after topic reset failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
+      const currentStore = this.#spillStore;
+      // An asynchronous seal or initialization failure may have detached the original store.
+      if (currentStore != undefined) {
+        await this.#disableSpillCache(
+          "Disabling playback spill cache after topic reset failed:",
+          error,
+          currentStore,
+        );
+      } else {
+        this.#spillEnabled = false;
+        this.#stopSpillLifecycleHandlers();
+        log.warn("Disabling playback spill cache after topic reset failed:", error);
+      }
     }
   }
 
-  async #appendSpillMessages(messages: readonly MessageEvent[]): Promise<void> {
-    if (!this.#spillEnabled || this.#spillStore == undefined || messages.length === 0) {
-      return;
+  async #appendSpillMessages(
+    messages: readonly MessageEvent[],
+    expectedStore: IndexedDbMessageStore | undefined,
+    expectedTopicGeneration: number,
+    expectedTopicFingerprint: string,
+  ): Promise<boolean> {
+    const store = expectedStore;
+    if (
+      !this.#spillEnabled ||
+      this.#terminated ||
+      store == undefined ||
+      !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint) ||
+      messages.length === 0
+    ) {
+      return false;
     }
 
     try {
-      await this.#spillStore.append(messages);
-      this.#spillMessageCountSinceFlush += messages.length;
-      if (this.#spillMessageCountSinceFlush >= MAX_SPILL_MESSAGES_BEFORE_FLUSH) {
-        await this.#spillStore.flush();
-        this.#spillMessageCountSinceFlush = 0;
+      const estimatedSizes = messages.map(persistedMessageSize);
+      if (estimatedSizes.some((size) => size > MAX_SPILL_BYTES_PER_IDB_TRANSACTION)) {
+        log.warn("Skipping playback spill coverage for a range containing an oversized message");
+        return false;
       }
+
+      let offset = 0;
+      while (offset < messages.length) {
+        let end = offset;
+        let chunkBytes = 0;
+        while (end < messages.length && end - offset < MAX_SPILL_MESSAGES_PER_IDB_TRANSACTION) {
+          const nextSize = estimatedSizes[end]!;
+          if (end > offset && chunkBytes + nextSize > MAX_SPILL_BYTES_PER_IDB_TRANSACTION) {
+            break;
+          }
+          chunkBytes += nextSize;
+          end++;
+        }
+        const chunk = messages.slice(offset, end);
+        await withPlaybackSpillDeadline(
+          store.append(chunk, { estimatedSizeBytes: estimatedSizes.slice(offset, end) }),
+          "append",
+        );
+        if (
+          !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)
+        ) {
+          return false;
+        }
+        this.#spillMessageCountSinceFlush += chunk.length;
+        this.#spillEstimatedBytesSinceFlush += chunkBytes;
+        if (
+          this.#spillMessageCountSinceFlush >= MAX_SPILL_MESSAGES_BEFORE_FLUSH ||
+          this.#spillEstimatedBytesSinceFlush >= MAX_SPILL_BYTES_PER_IDB_TRANSACTION
+        ) {
+          await withPlaybackSpillDeadline(store.flush(), "append flush");
+          if (
+            !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)
+          ) {
+            return false;
+          }
+          this.#spillMessageCountSinceFlush = 0;
+          this.#spillEstimatedBytesSinceFlush = 0;
+        }
+        offset = end;
+      }
+      return true;
     } catch (error) {
-      log.warn("Disabling playback spill cache after append failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
+      if (this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+        await this.#disableSpillCache(
+          "Disabling playback spill cache after append failed:",
+          error,
+          store,
+        );
+      }
+      return false;
     }
   }
 
-  async #recordSpillLoadedRange(start: Time, end: Time): Promise<void> {
+  async #recordSpillLoadedRange(
+    start: Time,
+    end: Time,
+    expectedStore: IndexedDbMessageStore | undefined,
+    expectedContentRevision: number | undefined,
+    expectedTopicGeneration: number,
+    expectedTopicFingerprint: string,
+  ): Promise<void> {
+    const store = expectedStore;
     if (
       !this.#spillEnabled ||
-      this.#spillStore == undefined ||
-      this.#spillTopicFingerprint == undefined ||
+      this.#terminated ||
+      store == undefined ||
+      !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint) ||
       compare(start, end) > 0
     ) {
       return;
     }
 
     try {
-      await this.#spillStore.flush();
+      await withPlaybackSpillDeadline(store.flush(), "loaded range flush");
+      if (!this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+        return;
+      }
       this.#spillMessageCountSinceFlush = 0;
-      await this.#spillStore.putLoadedRange({
-        sessionId: this.#spillStore.getSessionId(),
-        topicFingerprint: this.#spillTopicFingerprint,
-        start,
-        end,
-      });
-      this.#spillLoadedRanges = await this.#spillStore.getLoadedRanges(this.#spillTopicFingerprint);
-      this.#recomputeLoadedRangeCache();
+      this.#spillEstimatedBytesSinceFlush = 0;
+      if (
+        expectedContentRevision == undefined ||
+        !store.isWritable() ||
+        store.getContentRevision() !== expectedContentRevision
+      ) {
+        await this.#refreshSpillLoadedRanges(
+          store,
+          expectedTopicFingerprint,
+          expectedTopicGeneration,
+        );
+        return;
+      }
+      const recorded = await withPlaybackSpillDeadline(
+        store.putLoadedRange(
+          {
+            sessionId: store.getSessionId(),
+            topicFingerprint: expectedTopicFingerprint,
+            start,
+            end,
+          },
+          expectedContentRevision,
+        ),
+        "loaded range update",
+      );
+      if (!this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+        return;
+      }
+      if (!recorded) {
+        await this.#refreshSpillLoadedRanges(
+          store,
+          expectedTopicFingerprint,
+          expectedTopicGeneration,
+        );
+        return;
+      }
+      await this.#refreshSpillLoadedRanges(
+        store,
+        expectedTopicFingerprint,
+        expectedTopicGeneration,
+      );
     } catch (error) {
-      log.warn("Disabling playback spill cache after loaded range update failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
+      if (this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+        await this.#disableSpillCache(
+          "Disabling playback spill cache after loaded range update failed:",
+          error,
+          store,
+        );
+      }
     }
   }
 
-  #hasActiveSpillCache(): boolean {
+  #hasActiveSpillCache(topicGeneration: number, expectedTopicFingerprint: string): boolean {
     return (
       this.#spillEnabled &&
       this.#spillStore != undefined &&
-      this.#spillTopicFingerprint != undefined
+      this.#isCurrentSpillContext(this.#spillStore, topicGeneration, expectedTopicFingerprint)
     );
   }
 
-  async #getSpillLoadedRanges(): Promise<readonly LoadedRange[]> {
+  async #refreshSpillLoadedRanges(
+    store: IndexedDbMessageStore,
+    expectedTopicFingerprint: string,
+    expectedTopicGeneration: number,
+  ): Promise<boolean> {
+    const contentRevision = store.getContentRevision();
+    const loadedRanges = await withPlaybackSpillDeadline(
+      store.getLoadedRanges(expectedTopicFingerprint),
+      "loaded range lookup",
+    );
+    if (!this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+      return false;
+    }
+    if (store.getContentRevision() !== contentRevision) {
+      this.#spillLoadedRanges = [];
+      this.#spillLoadedRangesContentRevision = undefined;
+      this.#recomputeLoadedRangeCache();
+      return false;
+    }
+    this.#spillLoadedRanges = loadedRanges;
+    this.#spillLoadedRangesContentRevision = contentRevision;
+    this.#recomputeLoadedRangeCache();
+    return true;
+  }
+
+  async #getSpillLoadedRanges(
+    expectedTopicGeneration: number,
+    expectedTopicFingerprint: string,
+  ): Promise<readonly LoadedRange[]> {
+    if (!this.#isCurrentTopicGeneration(expectedTopicGeneration)) {
+      return [];
+    }
     const alive = await this.#ensureSpillSessionAlive();
     const store = this.#spillStore;
-    const topicFingerprint = this.#spillTopicFingerprint;
-    if (!alive || !this.#spillEnabled || store == undefined || topicFingerprint == undefined) {
-      return [];
-    }
-
-    try {
-      const hadLoadedRanges = this.#spillLoadedRanges.length > 0;
-      const loadedRanges = await store.getLoadedRanges(topicFingerprint);
-      if (hadLoadedRanges && loadedRanges.length === 0) {
-        const stillAlive = await this.#ensureSpillSessionAlive({ force: true });
-        if (!stillAlive) {
-          return [];
-        }
-      }
-      this.#spillLoadedRanges = loadedRanges;
-      this.#recomputeLoadedRangeCache();
-      return this.#spillLoadedRanges;
-    } catch (error) {
-      log.warn("Disabling playback spill cache after loaded range lookup failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
-      return [];
-    }
-  }
-
-  async #readSpillMessages(args: {
-    start: Time;
-    end: Time;
-    topics: TopicSelection;
-  }): Promise<readonly MessageEvent[] | undefined> {
-    const alive = await this.#ensureSpillSessionAlive();
-    if (!alive || !this.#spillEnabled || this.#spillStore == undefined) {
-      return undefined;
-    }
-
-    try {
-      const messages = await this.#spillStore.getMessages({
-        start: args.start,
-        end: args.end,
-        topics: Array.from(args.topics.keys()),
-      });
-      return messages;
-    } catch (error) {
-      log.warn("Disabling playback spill cache after message lookup failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
-      return undefined;
-    }
-  }
-
-  async #readSpillBackfillMessages(
-    args: GetBackfillMessagesArgs,
-  ): Promise<readonly MessageEvent[]> {
-    const alive = await this.#ensureSpillSessionAlive();
     if (
       !alive ||
       !this.#spillEnabled ||
-      this.#spillStore == undefined ||
-      this.#spillTopicFingerprint == undefined
+      store == undefined ||
+      !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)
     ) {
       return [];
     }
 
     try {
-      const loadedRanges = await this.#spillStore.getLoadedRanges(this.#spillTopicFingerprint);
+      const hadLoadedRanges = this.#spillLoadedRanges.length > 0;
+      if (
+        !(await this.#refreshSpillLoadedRanges(
+          store,
+          expectedTopicFingerprint,
+          expectedTopicGeneration,
+        ))
+      ) {
+        return [];
+      }
+      if (hadLoadedRanges && this.#spillLoadedRanges.length === 0) {
+        const stillAlive = await this.#ensureSpillSessionAlive({ force: true });
+        if (
+          !stillAlive ||
+          !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)
+        ) {
+          return [];
+        }
+      }
+      return this.#spillLoadedRanges;
+    } catch (error) {
+      if (this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+        await this.#disableSpillCache(
+          "Disabling playback spill cache after loaded range lookup failed:",
+          error,
+          store,
+        );
+      }
+      return [];
+    }
+  }
+
+  async #readSpillBackfillMessages(
+    args: GetBackfillMessagesArgs,
+    expectedTopicGeneration: number,
+    expectedTopicFingerprint: string,
+  ): Promise<readonly MessageEvent[]> {
+    if (!this.#isCurrentTopicGeneration(expectedTopicGeneration)) {
+      return [];
+    }
+    const alive = await this.#ensureSpillSessionAlive();
+    const store = this.#spillStore;
+    if (
+      !alive ||
+      !this.#spillEnabled ||
+      this.#terminated ||
+      store == undefined ||
+      !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)
+    ) {
+      return [];
+    }
+
+    try {
+      const contentRevision = store.getContentRevision();
+      const loadedRanges = await withPlaybackSpillDeadline(
+        store.getLoadedRanges(expectedTopicFingerprint),
+        "backfill range lookup",
+      );
+      if (
+        !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint) ||
+        store.getContentRevision() !== contentRevision
+      ) {
+        return [];
+      }
       const containingRange = loadedRanges.find(
         (range) => compare(range.start, args.time) <= 0 && compare(range.end, args.time) >= 0,
       );
@@ -586,65 +998,208 @@ class CachingIterableSource<MessageType = unknown>
         return [];
       }
 
-      return await this.#spillStore.getBackfillMessages({
-        time: args.time,
-        topics: Array.from(args.topics.keys()),
-      });
+      const messages = await withPlaybackSpillDeadline(
+        store.getBackfillMessages({
+          time: args.time,
+          topics: Array.from(args.topics.keys()),
+          start: containingRange.start,
+        }),
+        "backfill message lookup",
+      );
+      return this.#isCurrentSpillContext(
+        store,
+        expectedTopicGeneration,
+        expectedTopicFingerprint,
+      ) && store.getContentRevision() === contentRevision
+        ? messages
+        : [];
     } catch (error) {
-      log.warn("Disabling playback spill cache after backfill lookup failed:", error);
-      await this.#closeSpillCache({ clear: false });
-      this.#spillEnabled = false;
+      if (this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint)) {
+        await this.#disableSpillCache(
+          "Disabling playback spill cache after backfill lookup failed:",
+          error,
+          store,
+        );
+      }
       return [];
     }
-  }
-
-  #insertLoadedBlock(start: Time, end: Time, messages: readonly MessageEvent[]): void {
-    const size = messages.reduce((total, message) => total + messageSize(message), 0);
-    while (
-      this.#totalSizeBytes + size > this.#maxTotalSizeBytes &&
-      this.#maybePurgeCache({ activeBlock: undefined, sizeInBytes: size })
-    ) {
-      // Make room before inserting a block hydrated from spill storage.
-    }
-
-    const block: CacheBlock<MessageType> = {
-      id: this.#nextBlockId++,
-      start,
-      end,
-      items: messages.map((msgEvent) => [
-        toNanoSec(msgEvent.receiveTime),
-        { type: "message-event", msgEvent: msgEvent as MessageEvent<MessageType> },
-      ]),
-      size: 0,
-      lastAccess: Date.now(),
-    };
-    for (const message of messages) {
-      block.size += messageSize(message);
-    }
-    this.#totalSizeBytes += block.size;
-
-    const insertIndex = _.sortedIndexBy(this.#cache, block, (item) => toNanoSec(item.start));
-    this.#cache.splice(insertIndex, 0, block);
-    this.#recomputeLoadedRangeCache();
   }
 
   async *#yieldSpillRange(args: {
     start: Time;
     end: Time;
     topics: TopicSelection;
+    topicGeneration: number;
+    topicFingerprint: string;
+  }): AsyncGenerator<Readonly<IteratorResult<MessageType>>, SpillRangeReadResult, void> {
+    let pendingTimeGroup: MessageEvent[] = [];
+    let pendingTimeGroupBytes = 0;
+    let yieldedCompleteTimeGroup = false;
+    const incompleteResult = (): SpillRangeReadResult => ({
+      complete: false,
+      resumeFrom: pendingTimeGroup[0]?.receiveTime ?? args.start,
+      directSource: yieldedCompleteTimeGroup || pendingTimeGroup.length > 0,
+    });
+    if (!this.#isCurrentTopicGeneration(args.topicGeneration)) {
+      return incompleteResult();
+    }
+    const alive = await this.#ensureSpillSessionAlive();
+    const store = this.#spillStore;
+    if (
+      !alive ||
+      !this.#spillEnabled ||
+      this.#terminated ||
+      store == undefined ||
+      !this.#isCurrentSpillContext(store, args.topicGeneration, args.topicFingerprint)
+    ) {
+      return incompleteResult();
+    }
+
+    const contentRevision = this.#spillLoadedRangesContentRevision;
+    if (contentRevision == undefined || store.getContentRevision() !== contentRevision) {
+      return incompleteResult();
+    }
+    const hydrationBudget = Math.max(
+      0,
+      Math.min(this.#maxBlockSizeBytes, this.#maxTotalSizeBytes, MAX_SPILL_HYDRATION_BYTES),
+    );
+    const minimumBufferedMessageBytes = Math.max(
+      1,
+      Math.min(PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES, hydrationBudget),
+    );
+    let after: MessagePageCursor | undefined;
+
+    try {
+      for (;;) {
+        const page = await withPlaybackSpillDeadline(
+          store.getMessagesPage({
+            start: args.start,
+            end: args.end,
+            topics: Array.from(args.topics.keys()),
+            maxEstimatedBytes: hydrationBudget,
+            ...(after == undefined ? {} : { after }),
+          }),
+          "message page lookup",
+        );
+        if (
+          !this.#isCurrentSpillContext(store, args.topicGeneration, args.topicFingerprint) ||
+          store.getContentRevision() !== contentRevision
+        ) {
+          return incompleteResult();
+        }
+        if (page == undefined) {
+          await this.#disableSpillCache(
+            "Disabling playback spill cache because a persisted range is inactive:",
+            new Error("Playback spill session is no longer active"),
+            store,
+          );
+          return incompleteResult();
+        }
+
+        for (const message of page.messages) {
+          const pendingTime = pendingTimeGroup[0]?.receiveTime;
+          if (pendingTime != undefined) {
+            const timeComparison = compare(pendingTime, message.receiveTime);
+            if (timeComparison > 0) {
+              throw new Error("Playback spill pages were not ordered by receive time");
+            }
+            if (timeComparison < 0) {
+              for (const pendingMessage of pendingTimeGroup) {
+                yield {
+                  type: "message-event",
+                  msgEvent: pendingMessage as MessageEvent<MessageType>,
+                };
+              }
+              yieldedCompleteTimeGroup = true;
+              pendingTimeGroup = [];
+              pendingTimeGroupBytes = 0;
+            }
+          }
+          pendingTimeGroup.push(message);
+          pendingTimeGroupBytes += Math.max(minimumBufferedMessageBytes, messageSize(message));
+          if (pendingTimeGroupBytes > hydrationBudget) {
+            // A failure or fallback may replay a same-timestamp group in a different order. Keep
+            // that tail uncommitted and restart it from the source instead of count-based deduping.
+            return incompleteResult();
+          }
+        }
+        if (page.complete) {
+          for (const pendingMessage of pendingTimeGroup) {
+            yield {
+              type: "message-event",
+              msgEvent: pendingMessage as MessageEvent<MessageType>,
+            };
+          }
+          return { complete: true };
+        }
+        if (page.nextCursor == undefined) {
+          throw new Error("Playback spill pagination did not provide a continuation cursor");
+        }
+        if (
+          after != undefined &&
+          after.seq === page.nextCursor.seq &&
+          compare(after.receiveTime, page.nextCursor.receiveTime) === 0
+        ) {
+          throw new Error("Playback spill pagination did not advance");
+        }
+        after = page.nextCursor;
+      }
+    } catch (error) {
+      if (this.#isCurrentSpillContext(store, args.topicGeneration, args.topicFingerprint)) {
+        await this.#disableSpillCache(
+          "Disabling playback spill cache after message page lookup failed:",
+          error,
+          store,
+        );
+      }
+      return incompleteResult();
+    }
+  }
+
+  async *#yieldSourceRangeDirect(args: {
+    start: Time;
+    end: Time;
+    topics: TopicSelection;
+    consumptionType: MessageIteratorArgs["consumptionType"];
+    fetchCompleteTopicState: MessageIteratorArgs["fetchCompleteTopicState"];
+    abortSignal?: AbortSignal;
   }): AsyncGenerator<Readonly<IteratorResult<MessageType>>, boolean, void> {
-    const messages = await this.#readSpillMessages(args);
-    if (messages == undefined) {
+    if (isAborted(args.abortSignal)) {
       return false;
     }
-    this.#insertLoadedBlock(args.start, args.end, messages);
-    for (const message of messages) {
-      yield {
-        type: "message-event",
-        msgEvent: message as MessageEvent<MessageType>,
-      };
+    try {
+      for await (const iterResult of this.#source.messageIterator({
+        topics: args.topics,
+        start: args.start,
+        end: args.end,
+        consumptionType: args.consumptionType,
+        fetchCompleteTopicState: args.fetchCompleteTopicState,
+        abortSignal: args.abortSignal,
+      })) {
+        if (isAborted(args.abortSignal)) {
+          return false;
+        }
+        if (iterResult.type === "message-event" || iterResult.type === "stamp") {
+          const resultTime =
+            iterResult.type === "message-event"
+              ? iterResult.msgEvent.receiveTime
+              : iterResult.stamp;
+          if (compare(resultTime, args.start) < 0) {
+            continue;
+          }
+          if (compare(resultTime, args.end) > 0) {
+            return true;
+          }
+        }
+        yield iterResult;
+      }
+      return !isAborted(args.abortSignal);
+    } catch (error) {
+      if (isAborted(args.abortSignal) && isAbortError(error)) {
+        return false;
+      }
+      throw error;
     }
-    return true;
   }
 
   async *#yieldSourceRange(args: {
@@ -655,6 +1210,8 @@ class CachingIterableSource<MessageType = unknown>
     fetchCompleteTopicState: MessageIteratorArgs["fetchCompleteTopicState"];
     abortSignal?: AbortSignal;
     writeSpill: boolean;
+    topicGeneration: number;
+    topicFingerprint: string;
   }): AsyncGenerator<Readonly<IteratorResult<MessageType>>, boolean, void> {
     if (isAborted(args.abortSignal)) {
       return false;
@@ -676,28 +1233,50 @@ class CachingIterableSource<MessageType = unknown>
     let lastTime = toNanoSec(args.start);
     let sourceHadProblemInRange = false;
     let spillRangeStart = args.start;
+    let spillRangeStore = this.#spillStore;
+    if (
+      spillRangeStore != undefined &&
+      !this.#isCurrentSpillContext(spillRangeStore, args.topicGeneration, args.topicFingerprint)
+    ) {
+      spillRangeStore = undefined;
+    }
+    let spillRangeContentRevision = spillRangeStore?.getContentRevision();
+    let spillRangeWritesComplete = spillRangeStore != undefined;
     let block: CacheBlock<MessageType> | undefined;
 
     const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
     let pendingSpillMessages: MessageEvent[] = [];
+    let pendingSpillEstimatedBytes = 0;
     const discardPendingIterResults = () => {
-      for (const pendingIterResult of pendingIterResults) {
-        const item = pendingIterResult[1];
-        const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
-        this.#totalSizeBytes -= pendingSizeInBytes;
+      if (this.#isCurrentTopicGeneration(args.topicGeneration)) {
+        for (const pendingIterResult of pendingIterResults) {
+          const item = pendingIterResult[1];
+          const pendingSizeInBytes =
+            item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
+          this.#totalSizeBytes -= pendingSizeInBytes;
+        }
       }
       pendingIterResults.length = 0;
     };
     const discardPendingSpillMessages = () => {
       pendingSpillMessages = [];
+      pendingSpillEstimatedBytes = 0;
     };
-    const flushPendingSpillMessages = async () => {
+    const flushPendingSpillMessages = async (): Promise<boolean> => {
       if (pendingSpillMessages.length === 0) {
-        return;
+        return true;
       }
       const messages = pendingSpillMessages;
       pendingSpillMessages = [];
-      await this.#appendSpillMessages(messages);
+      pendingSpillEstimatedBytes = 0;
+      const appended = await this.#appendSpillMessages(
+        messages,
+        spillRangeStore,
+        args.topicGeneration,
+        args.topicFingerprint,
+      );
+      spillRangeWritesComplete &&= appended;
+      return appended;
     };
 
     try {
@@ -706,6 +1285,17 @@ class CachingIterableSource<MessageType = unknown>
           discardPendingIterResults();
           discardPendingSpillMessages();
           return false;
+        }
+
+        // A newer iterator may have changed topics while this source was awaiting data. Continue
+        // serving the old iterator, but never let it repopulate the new topic generation's memory
+        // or spill cache (including an A -> B -> A switch with the same fingerprint).
+        if (!this.#isCurrentTopicGeneration(args.topicGeneration)) {
+          pendingIterResults.length = 0;
+          discardPendingSpillMessages();
+          block = undefined;
+          yield iterResult;
+          continue;
         }
 
         if (iterResult.type === "problem") {
@@ -748,7 +1338,7 @@ class CachingIterableSource<MessageType = unknown>
             for (const pendingIterResult of pendingIterResults) {
               const item = pendingIterResult[1];
               const pendingSizeInBytes =
-                item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+                item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
               block.items.push(pendingIterResult);
               block.size += pendingSizeInBytes;
             }
@@ -777,7 +1367,9 @@ class CachingIterableSource<MessageType = unknown>
         }
 
         const sizeInBytes =
-          iterResult.type === "message-event" ? iterResult.msgEvent.sizeInBytes : 0;
+          iterResult.type === "message-event"
+            ? messageSize(iterResult.msgEvent as MessageEvent)
+            : 0;
         if (
           this.#maybePurgeCache({
             activeBlock: block,
@@ -793,8 +1385,20 @@ class CachingIterableSource<MessageType = unknown>
         // Store the latest message in pending results and flush to the block when time moves forward
         pendingIterResults.push([lastTime, iterResult]);
         if (args.writeSpill && iterResult.type === "message-event") {
+          const estimatedBytes = persistedMessageSize(iterResult.msgEvent as MessageEvent);
+          if (
+            pendingSpillMessages.length > 0 &&
+            (pendingSpillMessages.length >= MAX_SPILL_MESSAGES_BEFORE_APPEND ||
+              pendingSpillEstimatedBytes + estimatedBytes > MAX_SPILL_BYTES_PER_IDB_TRANSACTION)
+          ) {
+            await flushPendingSpillMessages();
+          }
           pendingSpillMessages.push(iterResult.msgEvent as MessageEvent);
-          if (pendingSpillMessages.length >= MAX_SPILL_MESSAGES_BEFORE_APPEND) {
+          pendingSpillEstimatedBytes += estimatedBytes;
+          if (
+            pendingSpillMessages.length >= MAX_SPILL_MESSAGES_BEFORE_APPEND ||
+            pendingSpillEstimatedBytes >= MAX_SPILL_BYTES_PER_IDB_TRANSACTION
+          ) {
             await flushPendingSpillMessages();
           }
         }
@@ -804,10 +1408,32 @@ class CachingIterableSource<MessageType = unknown>
             compare(iterResult.stamp, args.end) > 0 ? args.end : iterResult.stamp;
           if (!sourceHadProblemInRange && compare(spillRangeStart, spillRangeEnd) <= 0) {
             await flushPendingSpillMessages();
-            await this.#recordSpillLoadedRange(spillRangeStart, spillRangeEnd);
+            if (spillRangeWritesComplete) {
+              await this.#recordSpillLoadedRange(
+                spillRangeStart,
+                spillRangeEnd,
+                spillRangeStore,
+                spillRangeContentRevision,
+                args.topicGeneration,
+                args.topicFingerprint,
+              );
+            }
           }
           sourceHadProblemInRange = false;
           spillRangeStart = add(spillRangeEnd, { sec: 0, nsec: 1 });
+          spillRangeStore = this.#spillStore;
+          if (
+            spillRangeStore != undefined &&
+            !this.#isCurrentSpillContext(
+              spillRangeStore,
+              args.topicGeneration,
+              args.topicFingerprint,
+            )
+          ) {
+            spillRangeStore = undefined;
+          }
+          spillRangeContentRevision = spillRangeStore?.getContentRevision();
+          spillRangeWritesComplete = spillRangeStore != undefined;
         }
 
         yield iterResult;
@@ -827,6 +1453,12 @@ class CachingIterableSource<MessageType = unknown>
       return false;
     }
 
+    if (!this.#isCurrentTopicGeneration(args.topicGeneration)) {
+      pendingIterResults.length = 0;
+      discardPendingSpillMessages();
+      return true;
+    }
+
     // We've finished reading our source to the end, close out the block
     if (block) {
       block.end = args.end;
@@ -837,7 +1469,8 @@ class CachingIterableSource<MessageType = unknown>
       // write any pending messages to the block
       for (const pendingIterResult of pendingIterResults) {
         const item = pendingIterResult[1];
-        const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+        const pendingSizeInBytes =
+          item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
         block.items.push(pendingIterResult);
         block.size += pendingSizeInBytes;
       }
@@ -861,7 +1494,8 @@ class CachingIterableSource<MessageType = unknown>
 
       for (const pendingIterResult of pendingIterResults) {
         const item = pendingIterResult[1];
-        const pendingSizeInBytes = item.type === "message-event" ? item.msgEvent.sizeInBytes : 0;
+        const pendingSizeInBytes =
+          item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
         newBlock.size += pendingSizeInBytes;
       }
 
@@ -875,8 +1509,19 @@ class CachingIterableSource<MessageType = unknown>
 
     if (args.writeSpill) {
       await flushPendingSpillMessages();
-      if (!sourceHadProblemInRange && compare(spillRangeStart, args.end) <= 0) {
-        await this.#recordSpillLoadedRange(spillRangeStart, args.end);
+      if (
+        spillRangeWritesComplete &&
+        !sourceHadProblemInRange &&
+        compare(spillRangeStart, args.end) <= 0
+      ) {
+        await this.#recordSpillLoadedRange(
+          spillRangeStart,
+          args.end,
+          spillRangeStore,
+          spillRangeContentRevision,
+          args.topicGeneration,
+          args.topicFingerprint,
+        );
       }
     }
     return true;
@@ -892,7 +1537,9 @@ class CachingIterableSource<MessageType = unknown>
     const maxEnd = args.end ?? this.#initResult.end;
     const maxEndNanos = toNanoSec(maxEnd);
 
-    await this.#resetForTopicsIfNeeded(args.topics);
+    const iteratorTopics = new Map(args.topics);
+    const iteratorTopicFingerprint = topicFingerprint(iteratorTopics);
+    const iteratorTopicGeneration = await this.#resetForTopicsIfNeeded(iteratorTopics);
 
     // Where we want to read messages from. As we move through blocks and messages, the read head
     // moves forward to track the next place we should be reading.
@@ -904,7 +1551,7 @@ class CachingIterableSource<MessageType = unknown>
       }
       try {
         yield* this.#source.messageIterator({
-          topics: args.topics,
+          topics: iteratorTopics,
           start: readHead,
           end: maxEnd,
           consumptionType: args.consumptionType,
@@ -938,6 +1585,25 @@ class CachingIterableSource<MessageType = unknown>
     for (;;) {
       if (compare(readHead, maxEnd) > 0) {
         break;
+      }
+
+      if (!this.#isCurrentTopicGeneration(iteratorTopicGeneration)) {
+        try {
+          yield* this.#source.messageIterator({
+            topics: iteratorTopics,
+            start: readHead,
+            end: maxEnd,
+            consumptionType: args.consumptionType,
+            fetchCompleteTopicState: args.fetchCompleteTopicState,
+            abortSignal: args.abortSignal,
+          });
+        } catch (error) {
+          if (isAborted(args.abortSignal) && isAbortError(error)) {
+            return;
+          }
+          throw error;
+        }
+        return;
       }
 
       const cacheBlockIndex = this.#cache.findIndex(findIndexContainingPredicate);
@@ -1011,15 +1677,17 @@ class CachingIterableSource<MessageType = unknown>
         sourceReadEnd = maxEnd;
       }
 
-      if (!this.#hasActiveSpillCache()) {
+      if (!this.#hasActiveSpillCache(iteratorTopicGeneration, iteratorTopicFingerprint)) {
         const sourceRangeComplete = yield* this.#yieldSourceRange({
           start: sourceReadStart,
           end: sourceReadEnd,
-          topics: this.#cachedTopics,
+          topics: iteratorTopics,
           consumptionType: args.consumptionType,
           fetchCompleteTopicState: args.fetchCompleteTopicState,
           abortSignal: args.abortSignal,
           writeSpill: false,
+          topicGeneration: iteratorTopicGeneration,
+          topicFingerprint: iteratorTopicFingerprint,
         });
         if (!sourceRangeComplete) {
           return;
@@ -1028,7 +1696,10 @@ class CachingIterableSource<MessageType = unknown>
         continue;
       }
 
-      const spillRanges = await this.#getSpillLoadedRanges();
+      const spillRanges = await this.#getSpillLoadedRanges(
+        iteratorTopicGeneration,
+        iteratorTopicFingerprint,
+      );
       let segmentStart = sourceReadStart;
       while (compare(segmentStart, sourceReadEnd) <= 0) {
         let containingSpillRange: LoadedRange | undefined;
@@ -1047,27 +1718,43 @@ class CachingIterableSource<MessageType = unknown>
           const spillIterator = this.#yieldSpillRange({
             start: segmentStart,
             end: segmentEnd,
-            topics: this.#cachedTopics,
+            topics: iteratorTopics,
+            topicGeneration: iteratorTopicGeneration,
+            topicFingerprint: iteratorTopicFingerprint,
           });
-          let spillReadSucceeded = true;
+          let spillReadResult: SpillRangeReadResult = { complete: true };
           for (;;) {
             const result = await spillIterator.next();
             if (result.done === true) {
-              spillReadSucceeded = result.value;
+              spillReadResult = result.value;
               break;
             }
             yield result.value;
           }
-          if (!spillReadSucceeded) {
-            const sourceRangeComplete = yield* this.#yieldSourceRange({
-              start: segmentStart,
-              end: segmentEnd,
-              topics: this.#cachedTopics,
-              consumptionType: args.consumptionType,
-              fetchCompleteTopicState: args.fetchCompleteTopicState,
-              abortSignal: args.abortSignal,
-              writeSpill: true,
-            });
+          if (!spillReadResult.complete) {
+            let sourceRangeComplete: boolean;
+            if (spillReadResult.directSource) {
+              sourceRangeComplete = yield* this.#yieldSourceRangeDirect({
+                start: spillReadResult.resumeFrom,
+                end: segmentEnd,
+                topics: iteratorTopics,
+                consumptionType: args.consumptionType,
+                fetchCompleteTopicState: args.fetchCompleteTopicState,
+                abortSignal: args.abortSignal,
+              });
+            } else {
+              sourceRangeComplete = yield* this.#yieldSourceRange({
+                start: segmentStart,
+                end: segmentEnd,
+                topics: iteratorTopics,
+                consumptionType: args.consumptionType,
+                fetchCompleteTopicState: args.fetchCompleteTopicState,
+                abortSignal: args.abortSignal,
+                writeSpill: true,
+                topicGeneration: iteratorTopicGeneration,
+                topicFingerprint: iteratorTopicFingerprint,
+              });
+            }
             if (!sourceRangeComplete) {
               return;
             }
@@ -1090,11 +1777,13 @@ class CachingIterableSource<MessageType = unknown>
         const sourceRangeComplete = yield* this.#yieldSourceRange({
           start: segmentStart,
           end: segmentEnd,
-          topics: this.#cachedTopics,
+          topics: iteratorTopics,
           consumptionType: args.consumptionType,
           fetchCompleteTopicState: args.fetchCompleteTopicState,
           abortSignal: args.abortSignal,
           writeSpill: true,
+          topicGeneration: iteratorTopicGeneration,
+          topicFingerprint: iteratorTopicFingerprint,
         });
         if (!sourceRangeComplete) {
           return;
@@ -1115,7 +1804,9 @@ class CachingIterableSource<MessageType = unknown>
       throw new Error("Invariant: uninitialized");
     }
 
-    await this.#resetForTopicsIfNeeded(args.topics);
+    const backfillTopics = new Map(args.topics);
+    const backfillTopicFingerprint = topicFingerprint(backfillTopics);
+    const backfillTopicGeneration = await this.#resetForTopicsIfNeeded(backfillTopics);
 
     // Find a block that contains args.time. We must find a block that contains args.time rather
     // than one that occurs anytime before args.time to correctly get the last message before
@@ -1125,7 +1816,7 @@ class CachingIterableSource<MessageType = unknown>
     });
 
     const out: MessageEvent<MessageType>[] = [];
-    const needsTopics = new Map(args.topics);
+    const needsTopics = new Map(backfillTopics);
 
     // Starting at the block we found for args.time, work backwards through blocks until:
     // * we've loaded all the topics
@@ -1189,10 +1880,14 @@ class CachingIterableSource<MessageType = unknown>
       return out;
     }
 
-    const spillBackfill = await this.#readSpillBackfillMessages({
-      ...args,
-      topics: needsTopics,
-    });
+    const spillBackfill = await this.#readSpillBackfillMessages(
+      {
+        ...args,
+        topics: needsTopics,
+      },
+      backfillTopicGeneration,
+      backfillTopicFingerprint,
+    );
     for (const message of spillBackfill) {
       if (!needsTopics.has(message.topic)) {
         continue;

@@ -130,6 +130,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #url: string; // WebSocket URL.
   #name: string;
   #client?: FoxgloveClient; // The client when we're connected.
+  #clientGeneration = 0;
+  #closePromise?: Promise<void>;
+  #reopenPromise?: Promise<void>;
+  #shouldReopen = false;
+  #closeIntentGeneration = 0;
   #id: string = uuidv4(); // Unique ID for this player session.
   #serverCapabilities: string[] = [];
   #playerCapabilities: (typeof PlayerCapabilities)[keyof typeof PlayerCapabilities][] = [];
@@ -264,29 +269,44 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#sessionId = sessionId;
     this.#autoConnectToLan = autoConnectToLan;
 
-    // Initialize persistent cache if enabled
-    if (
-      this.#enablePersistentCache &&
-      this.#retentionWindowMs != undefined &&
-      this.#retentionWindowMs > 0
-    ) {
-      try {
-        this.#persistentCache = new RealtimeVizHistoryCache({
-          retentionWindowMs: this.#retentionWindowMs,
-          sessionId: this.#sessionId ?? `websocket-${this.#id}`,
-        });
-        void this.#persistentCache.init().catch((error: unknown) => {
-          log.warn("Failed to initialize persistent cache:", error);
-          this.#persistentCache = undefined;
-        });
-      } catch (error) {
-        log.warn("Failed to create persistent cache:", error);
-        this.#persistentCache = undefined;
-      }
-    }
+    this.#initializePersistentCache();
 
     this.#open();
   }
+
+  #initializePersistentCache(): void {
+    if (
+      !this.#enablePersistentCache ||
+      this.#retentionWindowMs == undefined ||
+      this.#retentionWindowMs <= 0
+    ) {
+      return;
+    }
+
+    try {
+      const cache = new RealtimeVizHistoryCache({
+        retentionWindowMs: this.#retentionWindowMs,
+        sessionId: this.#sessionId ?? `websocket-${this.#id}`,
+        metricSink: (event, data) => this.#metricsCollector.recordMessageCacheMetric?.(event, data),
+      });
+      this.#persistentCache = cache;
+      void cache.init().catch((error: unknown) => {
+        log.warn("Failed to initialize persistent cache:", error);
+        // A close/reopen may have installed a replacement while this open was timing out.
+        if (this.#persistentCache === cache) {
+          this.#persistentCache = undefined;
+        }
+      });
+    } catch (error) {
+      log.warn("Failed to create persistent cache:", error);
+      this.#persistentCache = undefined;
+    }
+  }
+
+  #isCurrentClient(client: FoxgloveClient, generation: number): boolean {
+    return !this.#closed && this.#client === client && this.#clientGeneration === generation;
+  }
+
   #open = (): void => {
     if (this.#closed) {
       return;
@@ -296,14 +316,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
     log.info(`Opening connection to ${this.#url}`);
 
-    // Set a timeout to abort the connection if we are still not connected by then.
-    // This will abort hanging connection attempts that can for whatever reason not
-    // establish a connection with the server.
-    this.#connectionAttemptTimeout = setTimeout(() => {
-      this.#client?.close();
-    }, 10000);
-
-    this.#client = new FoxgloveClient({
+    const generation = ++this.#clientGeneration;
+    const client = new FoxgloveClient({
       ws:
         typeof Worker !== "undefined"
           ? new WorkerSocketAdapter(
@@ -319,11 +333,28 @@ export default class FoxgloveWebSocketPlayer implements Player {
               [FoxgloveClient.SUPPORTED_SUBPROTOCOL],
             ),
     });
+    this.#client = client;
 
-    this.#client.on("open", () => {
-      if (this.#closed || !this.#client) {
-        return;
+    const isCurrentGeneration = () => this.#isCurrentClient(client, generation);
+    const isLatestGeneration = () => this.#clientGeneration === generation;
+    const onCurrentClient: FoxgloveClient["on"] = (name, listener) => {
+      const guardedListener = (...args: unknown[]) => {
+        if (!isCurrentGeneration()) {
+          return;
+        }
+        (listener as unknown as (...listenerArgs: unknown[]) => void)(...args);
+      };
+      client.on(name, guardedListener as typeof listener);
+    };
+
+    // Set a timeout to abort this connection generation if it is still not connected by then.
+    this.#connectionAttemptTimeout = setTimeout(() => {
+      if (isCurrentGeneration()) {
+        client.close();
       }
+    }, 10000);
+
+    onCurrentClient("open", () => {
       if (this.#connectionAttemptTimeout != undefined) {
         clearTimeout(this.#connectionAttemptTimeout);
       }
@@ -350,10 +381,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#parameters = new Map();
     });
 
-    this.#client.on("login", (message) => {
+    onCurrentClient("login", (message) => {
       if (this.#isReconnect) {
         this.#isReconnect = false;
-        this.#client?.login(this.#userId, this.#username);
+        client.login(this.#userId, this.#username);
         return;
       }
 
@@ -390,8 +421,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
           cancel: t("websocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
+          if (!isCurrentGeneration()) {
+            return;
+          }
           if (result === "ok") {
             void this.#checkLanReachable(
+              client,
+              generation,
               message.lanCandidates,
               message.infoPort,
               message.macAddr,
@@ -404,6 +440,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         });
       } else {
         void this.#checkLanReachable(
+          client,
+          generation,
           message.lanCandidates,
           message.infoPort,
           message.macAddr,
@@ -412,8 +450,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     });
 
-    this.#client.on("kicked", (message) => {
+    onCurrentClient("kicked", (message) => {
       void this.close();
+      const closeIntentGeneration = this.#closeIntentGeneration;
       void this.#confirm({
         title: t("websocket:notification"),
         prompt: (
@@ -435,6 +474,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
         cancel: t("websocket:exitAndClosePage"),
         variant: "danger",
       }).then((result) => {
+        if (!isLatestGeneration() || this.#closeIntentGeneration !== closeIntentGeneration) {
+          return;
+        }
         if (result === "ok") {
           this.#isReconnect = true;
           this.reOpen();
@@ -445,7 +487,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       });
     });
 
-    this.#client.on("error", (err) => {
+    onCurrentClient("error", (err) => {
       log.error(err);
 
       if (
@@ -469,11 +511,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     // Note: We explicitly avoid clearing state like start/end times, datatypes, etc to preserve
     // this during a disconnect event. Any necessary state clearing is handled once a new connection
     // is established
-    this.#client.on("close", (event) => {
-      if (this.#closed) {
-        return;
-      }
-
+    onCurrentClient("close", (event) => {
       // Foxglove type description is incorrect, we need to cast to the correct type
       const realCloseEventMessage: { type: "close"; data: CloseEventMessage } =
         event as unknown as {
@@ -485,6 +523,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         const message = JSON.parse(realCloseEventMessage.data.reason) as KickedReason;
 
         void this.close();
+        const closeIntentGeneration = this.#closeIntentGeneration;
         void this.#confirm({
           title: t("websocket:notification"),
           prompt: (
@@ -506,6 +545,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
           cancel: t("websocket:exitAndClosePage"),
           variant: "danger",
         }).then((result) => {
+          if (!isLatestGeneration() || this.#closeIntentGeneration !== closeIntentGeneration) {
+            return;
+          }
           if (result === "ok") {
             this.#isReconnect = true;
             this.reOpen();
@@ -526,8 +568,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
           clearTimeout(this.#connectionAttemptTimeout);
         }
 
-        this.#client?.close();
-        this.#client = undefined;
+        client.close();
+        if (this.#client === client) {
+          this.#client = undefined;
+        }
 
         if (realCloseEventMessage.data.code !== 1000) {
           this.#problems.addProblem("ws:connection-failed", {
@@ -569,7 +613,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     });
 
-    this.#client.on("serverInfo", (event) => {
+    onCurrentClient("serverInfo", (event) => {
       if (!Array.isArray(event.capabilities)) {
         this.#problems.addProblem("ws:invalid-capabilities", {
           severity: "warn",
@@ -649,14 +693,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         // Periodically request all available parameters.
         this.#getParameterInterval = setInterval(() => {
-          this.#client?.getParameters([], GET_ALL_PARAMS_REQUEST_ID);
+          if (isCurrentGeneration()) {
+            client.getParameters([], GET_ALL_PARAMS_REQUEST_ID);
+          }
         }, GET_ALL_PARAMS_PERIOD_MS);
 
-        this.#client?.getParameters([], GET_ALL_PARAMS_REQUEST_ID);
+        client.getParameters([], GET_ALL_PARAMS_REQUEST_ID);
       }
 
       if (event.capabilities.includes(ServerCapability.connectionGraph)) {
-        this.#client?.subscribeConnectionGraph();
+        client.subscribeConnectionGraph();
       }
 
       if (event.capabilities.includes(ServerCapability.assets)) {
@@ -666,7 +712,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("status", (event) => {
+    onCurrentClient("status", (event) => {
       const msg = `FoxgloveWebSocket: ${event.message}`;
       if (event.level === StatusLevel.INFO) {
         log.info(msg);
@@ -690,7 +736,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("advertise", (newChannels) => {
+    onCurrentClient("advertise", (newChannels) => {
       for (const channel of newChannels) {
         let parsedChannel;
         let schemaEncoding;
@@ -771,7 +817,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#processUnresolvedSubscriptions();
     });
 
-    this.#client.on("unadvertise", (removedChannels) => {
+    onCurrentClient("unadvertise", (removedChannels) => {
       for (const id of removedChannels) {
         const chanInfo = this.#channelsById.get(id);
         if (!chanInfo) {
@@ -788,7 +834,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           if (channel.id === id) {
             this.#resolvedSubscriptionsById.delete(subId);
             this.#resolvedSubscriptionsByTopic.delete(channel.topic);
-            this.#client?.unsubscribe(subId);
+            client.unsubscribe(subId);
             this.#unresolvedSubscriptions.add(channel.topic);
           }
         }
@@ -799,7 +845,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("message", ({ subscriptionId, data, timestamp }) => {
+    onCurrentClient("message", ({ subscriptionId, data, timestamp }) => {
       const chanInfo = this.#resolvedSubscriptionsById.get(subscriptionId);
       if (!chanInfo) {
         const wasRecentlyCanceled = this.#recentlyCanceledSubscriptions.has(subscriptionId);
@@ -894,7 +940,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("time", ({ timestamp }) => {
+    onCurrentClient("time", ({ timestamp }) => {
       if (!this.#serverPublishesTime) {
         return;
       }
@@ -917,7 +963,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("parameterValues", ({ parameters, id }) => {
+    onCurrentClient("parameterValues", ({ parameters, id }) => {
       const mappedParameters = parameters.map((param) => {
         return param.type === "byte_array"
           ? {
@@ -952,11 +998,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#serverCapabilities.includes(ServerCapability.parametersSubscribe)
       ) {
         // Subscribe to value updates of new parameters
-        this.#client?.subscribeParameterUpdates(newParameters.map((p) => p.name));
+        client.subscribeParameterUpdates(newParameters.map((p) => p.name));
       }
     });
 
-    this.#client.on("advertiseServices", (services) => {
+    onCurrentClient("advertiseServices", (services) => {
       if (!this.#serviceCallEncoding) {
         return;
       }
@@ -1059,7 +1105,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("unadvertiseServices", (serviceIds) => {
+    onCurrentClient("unadvertiseServices", (serviceIds) => {
       let needsStateUpdate = false;
       for (const serviceId of serviceIds) {
         const service: ResolvedService | undefined = Object.values(this.#servicesByName).find(
@@ -1076,7 +1122,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     });
 
-    this.#client.on("serviceCallResponse", (response) => {
+    onCurrentClient("serviceCallResponse", (response) => {
       const responseCallback = this.#serviceResponseCbs.get(response.callId);
       if (!responseCallback) {
         this.#problems.addProblem(`callService:${response.callId}`, {
@@ -1089,7 +1135,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#serviceResponseCbs.delete(response.callId);
     });
 
-    this.#client.on("connectionGraphUpdate", (event) => {
+    onCurrentClient("connectionGraphUpdate", (event) => {
       if (event.publishedTopics.length > 0 || event.removedTopics.length > 0) {
         const newMap = new Map<string, Set<string>>(this.#publishedTopics ?? new Map());
         for (const { name, publisherIds } of event.publishedTopics) {
@@ -1118,7 +1164,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#emitState();
     });
 
-    this.#client.on("fetchAssetResponse", (response) => {
+    onCurrentClient("fetchAssetResponse", (response) => {
       const responseCallback = this.#fetchAssetRequests.get(response.requestId);
       if (!responseCallback) {
         throw Error(
@@ -1129,7 +1175,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#fetchAssetRequests.delete(response.requestId);
     });
 
-    this.#client.on("preFetchAssetResponse", (response) => {
+    onCurrentClient("preFetchAssetResponse", (response) => {
       const responseCallback = this.#preFetchAssetRequests.get(response.requestId);
       if (!responseCallback) {
         throw Error(
@@ -1140,16 +1186,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#preFetchAssetRequests.delete(response.requestId);
     });
 
-    this.#client.on("syncTime", ({ serverTime, receiveTime }) => {
-      this.#client?.clientSyncTime(serverTime, receiveTime, Date.now() - receiveTime);
+    onCurrentClient("syncTime", ({ serverTime, receiveTime }) => {
+      client.clientSyncTime(serverTime, receiveTime, Date.now() - receiveTime);
     });
 
     // delay of client to server
-    this.#client.on("timeOffset", ({ timeOffset }) => {
+    onCurrentClient("timeOffset", ({ timeOffset }) => {
       this.#timeOffset = timeOffset;
     });
 
-    this.#client.on("networkStatistics", ({ droppedMsgs, packageLoss, curSpeed }) => {
+    onCurrentClient("networkStatistics", ({ droppedMsgs, packageLoss, curSpeed }) => {
       this.#networkStatus = {
         ...this.#networkStatus,
         droppedMsgs,
@@ -1264,12 +1310,39 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#emitState();
   }
 
-  public async close(): Promise<void> {
-    if (this.#closed) {
-      return;
+  // Preserve promise identity so concurrent close callers wait on the exact same lifecycle task.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public close(): Promise<void> {
+    this.#closeIntentGeneration++;
+    this.#shouldReopen = false;
+    return this.#beginClose();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  #beginClose(): Promise<void> {
+    if (this.#closePromise != undefined) {
+      return this.#closePromise;
+    }
+
+    if (this.#closed && this.#client == undefined && this.#persistentCache == undefined) {
+      return Promise.resolve();
     }
 
     this.#closed = true;
+    const closePromise = this.#closeCurrentGeneration().finally(() => {
+      if (this.#closePromise === closePromise) {
+        this.#closePromise = undefined;
+      }
+    });
+    this.#closePromise = closePromise;
+    return closePromise;
+  }
+
+  async #closeCurrentGeneration(): Promise<void> {
+    // Capture and detach this generation before waiting. A replacement generation must not be
+    // created until both of these resources have finished closing.
+    const persistentCache = this.#persistentCache;
+    this.#persistentCache = undefined;
 
     // If a client exists, wait for its "close" event so we know
     // the websocket is fully closed before resolving.
@@ -1305,51 +1378,57 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#connectionAttemptTimeout = undefined;
     }
 
-    // Await the close event with a timeout safeguard to avoid hanging
-    if (waitForClose) {
-      const timeoutMs = 5000;
-      await race([waitForClose, new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
-    }
-
-    // Release client reference after we have observed the close (or timed out)
-    this.#client = undefined;
-
-    try {
-      // Clean up persistent cache
-      await this.#persistentCache?.close();
-      this.#persistentCache = undefined;
-    } catch (error) {
+    const clientClosePromise = waitForClose
+      ? race([waitForClose, new Promise<void>((resolve) => setTimeout(resolve, 5000))])
+      : Promise.resolve();
+    const cacheClosePromise = persistentCache?.close().catch((error: unknown) => {
       log.debug("Error closing persistent cache:", error);
+    });
+
+    await Promise.all([clientClosePromise, cacheClosePromise]);
+
+    // Release this generation after the close event (or timeout). Guard the assignment so a stale
+    // completion can never clear a replacement client.
+    if (this.#client === client) {
+      this.#client = undefined;
     }
   }
 
   public reOpen(): void {
-    if (!this.#closed) {
+    if (!this.#closed && this.#closePromise == undefined) {
+      return;
+    }
+    this.#shouldReopen = true;
+    if (this.#reopenPromise != undefined) {
       return;
     }
 
-    // Initialize persistent cache if enabled
-    if (
-      this.#enablePersistentCache &&
-      this.#retentionWindowMs != undefined &&
-      this.#retentionWindowMs > 0
-    ) {
-      try {
-        this.#persistentCache = new RealtimeVizHistoryCache({
-          retentionWindowMs: this.#retentionWindowMs,
-          sessionId: this.#sessionId ?? `websocket-${this.#id}`,
-        });
-        void this.#persistentCache.init().catch((error: unknown) => {
-          log.warn("Failed to initialize persistent cache:", error);
-          this.#persistentCache = undefined;
-        });
-      } catch (error) {
-        log.warn("Failed to create persistent cache:", error);
-        this.#persistentCache = undefined;
-      }
-    }
-    this.#closed = false;
-    this.#open();
+    const closePromise = this.#closePromise ?? this.#beginClose();
+    const reopenPromise = closePromise
+      .then(() => {
+        if (!this.#shouldReopen || this.#reopenPromise !== reopenPromise) {
+          return;
+        }
+
+        // The old cache is now fully closed, so it is safe to create a replacement with the same
+        // session id and then start the next client generation.
+        this.#initializePersistentCache();
+        this.#closed = false;
+        this.#open();
+      })
+      .catch((error: unknown) => {
+        log.error("Failed to reopen WebSocket player:", error);
+      })
+      .finally(() => {
+        const reopenWasRequestedWhileFinishing = this.#shouldReopen && this.#closed;
+        if (this.#reopenPromise === reopenPromise) {
+          this.#reopenPromise = undefined;
+        }
+        if (reopenWasRequestedWhileFinishing) {
+          this.reOpen();
+        }
+      });
+    this.#reopenPromise = reopenPromise;
   }
 
   public setSubscriptions(subscriptions: SubscribePayload[]): void {
@@ -1850,18 +1929,21 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   // check lan reachable, only desktop app can do this
   async #checkLanReachable(
+    client: FoxgloveClient,
+    generation: number,
     lanCandidates: string[],
     infoPort: string,
     targetMacAddr: string,
     linkType: string,
   ): Promise<void> {
-    if (this.#client == undefined) {
-      throw new Error("FoxgloveWebSocketPlayer: client is undefined");
+    const isCurrentGeneration = () => this.#isCurrentClient(client, generation);
+    if (!isCurrentGeneration()) {
+      return;
     }
 
     // only desktop app can check lan reachable
     if (!isDesktopApp() || linkType !== "colink") {
-      this.#client.login(this.#userId, this.#username);
+      client.login(this.#userId, this.#username);
       return;
     }
 
@@ -1869,7 +1951,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const currentUrl = new URL(this.#url);
     const currentHost = currentUrl.hostname;
     if (lanCandidates.some((candidate) => candidate === currentHost)) {
-      this.#client.login(this.#userId, this.#username);
+      client.login(this.#userId, this.#username);
       return;
     }
 
@@ -1914,10 +1996,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
           }
         }
 
+        if (!isCurrentGeneration()) {
+          return;
+        }
+
         if (reachableResult) {
           if (this.#autoConnectToLan) {
             toast.success(t("websocket:lanConnectionPromptAutoConnect"));
-            await this.#reconnectWithNewUrl(reachableResult.candidate);
+            await this.#reconnectWithNewUrl(reachableResult.candidate, client, generation);
             return;
           }
 
@@ -1931,8 +2017,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
             variant: "toast",
           });
 
-          if (result === "ok") {
-            await this.#reconnectWithNewUrl(reachableResult.candidate);
+          if (result === "ok" && isCurrentGeneration()) {
+            await this.#reconnectWithNewUrl(reachableResult.candidate, client, generation);
             return;
           }
         }
@@ -1942,7 +2028,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     }
 
     // 如果所有候选地址都无法连接或MAC地址不匹配，则使用原始连接
-    this.#client.login(this.#userId, this.#username);
+    if (isCurrentGeneration()) {
+      client.login(this.#userId, this.#username);
+    }
   }
 
   // 检查指定IP和端口的设备MAC地址
@@ -1995,11 +2083,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
   }
 
   // 使用新的IP地址重新连接WebSocket
-  async #reconnectWithNewUrl(newIp: string): Promise<void> {
-    try {
-      // 关闭当前连接
-      this.#client?.close();
+  async #reconnectWithNewUrl(
+    newIp: string,
+    client: FoxgloveClient,
+    generation: number,
+  ): Promise<void> {
+    if (this.#client !== client || this.#clientGeneration !== generation || this.#closed) {
+      return;
+    }
 
+    try {
       // 更新URL为局域网地址
       const newUrl = `ws://${newIp}:21274`;
       this.#url = newUrl;
@@ -2010,13 +2103,19 @@ export default class FoxgloveWebSocketPlayer implements Player {
       };
 
       log.info(`Reconnecting with LAN address: ${this.#url}`);
-      // 重新开始连接
-      this.#open();
+      // Queue the replacement before awaiting close so a later explicit close can still cancel
+      // it through #shouldReopen. Waiting first would let this stale async continuation reopen a
+      // player that PlayerManager had already removed.
+      const closePromise = this.close();
+      if (this.#clientGeneration === generation) {
+        this.reOpen();
+      }
+      await closePromise;
     } catch (error) {
       log.error("Failed to reconnect with new URL:", error);
       // 如果重连失败，回退到原始登录流程
-      if (this.#client) {
-        this.#client.login(this.#userId, this.#username);
+      if (this.#isCurrentClient(client, generation)) {
+        client.login(this.#userId, this.#username);
       }
     }
   }

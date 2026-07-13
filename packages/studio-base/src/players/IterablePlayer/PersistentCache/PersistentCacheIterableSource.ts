@@ -45,70 +45,85 @@ export class PersistentCacheIterableSource implements IIterableSource {
   }
 
   public async initialize(): Promise<Initalization> {
-    this.#cache = new IndexedDbMessageStore({
+    const cache = new IndexedDbMessageStore({
       sessionId: this.#sessionId,
       retentionWindowMs: this.#retentionWindowMs,
       maxCacheSize: this.#maxCacheSize,
     });
+    this.#cache = cache;
 
-    await this.#cache.init();
+    try {
+      await cache.init();
 
-    const stats = await this.#cache.stats();
-    const storedTopics = await this.#cache.getTopics();
-    const datatypes = (await this.#cache.getDatatypes()) ?? new Map();
+      const stats = await cache.stats();
+      const storedTopics = await cache.getTopics();
+      const datatypes = (await cache.getDatatypes()) ?? new Map();
 
-    // If no data is available, return minimal initialization
-    if (stats.count === 0 || !stats.earliest || !stats.latest) {
-      return {
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 0, nsec: 0 },
-        topics: [],
-        topicStats: new Map(),
-        datatypes: new Map(),
-        profile: undefined,
-        publishersByTopic: new Map(),
-        problems: [],
-      };
-    }
+      // If no data is available, return minimal initialization
+      if (stats.count === 0 || !stats.earliest || !stats.latest) {
+        return {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 0, nsec: 0 },
+          topics: [],
+          topicStats: new Map(),
+          datatypes: new Map(),
+          profile: undefined,
+          publishersByTopic: new Map(),
+          problems: [],
+        };
+      }
 
-    const topicStats = new Map<string, { numMessages: number }>();
+      const topicStats = new Map<string, { numMessages: number }>();
 
-    const topics: TopicWithDecodingInfo[] = [];
-    for (const topic of storedTopics) {
-      const { topicStats: _topicStats, ...topicInfo } = topic;
-      topics.push(topicInfo);
-      topicStats.set(topic.name, topic.topicStats ?? { numMessages: 0 });
-    }
+      const topics: TopicWithDecodingInfo[] = [];
+      for (const topic of storedTopics) {
+        const { topicStats: _topicStats, ...topicInfo } = topic;
+        topics.push(topicInfo);
+        topicStats.set(topic.name, topic.topicStats ?? { numMessages: 0 });
+      }
 
-    if (topics.length === 0) {
+      if (topics.length === 0) {
+        return {
+          start: stats.earliest,
+          end: stats.latest,
+          topics: [],
+          topicStats,
+          datatypes,
+          profile: undefined,
+          publishersByTopic: new Map(),
+          problems: [
+            {
+              severity: "warn",
+              message:
+                "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
+            },
+          ],
+        };
+      }
+
       return {
         start: stats.earliest,
         end: stats.latest,
-        topics: [],
+        topics,
         topicStats,
         datatypes,
         profile: undefined,
         publishersByTopic: new Map(),
-        problems: [
-          {
-            severity: "warn",
-            message:
-              "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
-          },
-        ],
+        problems: [],
       };
+    } catch (error) {
+      if (this.#cache === cache) {
+        this.#cache = undefined;
+      }
+      try {
+        // This source only borrows an existing realtime-history session for replay. A transient
+        // metadata read failure must not transfer ownership or make the janitor delete that data.
+        await cache.close();
+      } catch (closeError) {
+        log.warn("Failed to close persistent cache after replay initialization failed", closeError);
+      }
+      throw error;
     }
-
-    return {
-      start: stats.earliest,
-      end: stats.latest,
-      topics,
-      topicStats,
-      datatypes,
-      profile: undefined,
-      publishersByTopic: new Map(),
-      problems: [],
-    };
   }
 
   public async *messageIterator(

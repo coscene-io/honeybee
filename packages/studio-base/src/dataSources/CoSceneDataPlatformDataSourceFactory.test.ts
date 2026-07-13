@@ -46,6 +46,7 @@ describe("buildManifestUrl", () => {
   beforeEach(() => {
     mockGetAppConfig.mockReturnValue({
       OBJECT_STORAGE_BASE_URL: "mcap.dev.coscene.cn",
+      PLAYBACK_SPILL_CACHE_ENABLED: false,
     });
     mockGetWebBasePathname.mockReturnValue("/viz");
     mockIterablePlayer.mockClear();
@@ -103,6 +104,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
   beforeEach(() => {
     mockGetAppConfig.mockReturnValue({
       OBJECT_STORAGE_BASE_URL: "default-storage.example.com",
+      PLAYBACK_SPILL_CACHE_ENABLED: false,
     });
     mockGetWebBasePathname.mockReturnValue("/viz");
     global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
@@ -195,6 +197,23 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
     );
     expect(mockWorkerSerializedIterableSource).not.toHaveBeenCalled();
     expect(mockWorkerIterableSource).toHaveBeenCalledTimes(1);
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: false,
+    });
+  });
+
+  it("enables the legacy playback spill cache only when configured", async () => {
+    mockGetAppConfig.mockReturnValue({
+      OBJECT_STORAGE_BASE_URL: "default-storage.example.com",
+      PLAYBACK_SPILL_CACHE_ENABLED: true,
+    });
+    global.fetch = jest.fn().mockResolvedValue({ ok: false } as Response);
+
+    await initializeFactory();
+
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: true,
+    });
   });
 
   it("uses a saved shard profile when the new manifest has a matching profile label", async () => {

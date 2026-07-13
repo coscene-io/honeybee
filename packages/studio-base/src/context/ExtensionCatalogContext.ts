@@ -22,7 +22,17 @@ import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/E
 export type RegisteredPanel = {
   extensionName: string;
   extensionNamespace?: ExtensionNamespace;
+  /** Stable for identical extension source, and changes when its executable source changes. */
+  extensionRevision: string;
   registration: ExtensionPanelRegistration;
+};
+
+export type ExtensionCatalogLoadError = {
+  namespace: ExtensionNamespace | "internal";
+  stage: "list" | "load" | "activate" | "refresh";
+  extensionId?: string;
+  message: string;
+  timedOut: boolean;
 };
 
 export type ExtensionCatalog = Immutable<{
@@ -34,6 +44,8 @@ export type ExtensionCatalog = Immutable<{
   refreshExtensions: () => Promise<void>;
   uninstallExtension: (namespace: ExtensionNamespace, id: string) => Promise<void>;
 
+  loadState: "loading" | "ready" | "degraded";
+  loadErrors: ExtensionCatalogLoadError[];
   installedExtensions: undefined | ExtensionInfo[];
   installedPanels: undefined | Record<string, RegisteredPanel>;
   installedMessageConverters:

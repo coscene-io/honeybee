@@ -10,6 +10,7 @@ import ComputerIcon from "@mui/icons-material/Computer";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LinkIcon from "@mui/icons-material/Link";
 import {
+  Alert,
   Button,
   CircularProgress,
   Dialog,
@@ -438,6 +439,7 @@ export function ExtensionsSettingsMore(): React.ReactElement {
 
 export default function ExtensionsSettings(): React.ReactElement {
   const { t } = useTranslation("extensions");
+  const { enqueueSnackbar } = useSnackbar();
   const [focusedExtension, setFocusedExtension] = useState<
     | {
         installed: boolean;
@@ -446,6 +448,14 @@ export default function ExtensionsSettings(): React.ReactElement {
     | undefined
   >(undefined);
   const installed = useExtensionCatalog((state) => state.installedExtensions);
+  const loadState = useExtensionCatalog((state) => state.loadState);
+  const loadErrors = useExtensionCatalog((state) => state.loadErrors);
+  const refreshExtensions = useExtensionCatalog((state) => state.refreshExtensions);
+  const handleRetry = useCallback(() => {
+    void refreshExtensions().catch(() => {
+      enqueueSnackbar(t("extensionRefreshFailed"), { variant: "error" });
+    });
+  }, [enqueueSnackbar, refreshExtensions, t]);
   const installedEntries = useMemo(
     () =>
       (installed ?? []).map((entry) => {
@@ -486,6 +496,26 @@ export default function ExtensionsSettings(): React.ReactElement {
 
   return (
     <Stack gap={1}>
+      {loadState === "loading" && (
+        <Stack role="status" direction="row" alignItems="center" gap={1} paddingX={2} paddingY={1}>
+          <CircularProgress size={16} />
+          <Typography variant="body2" color="text.secondary">
+            {t("loadingExtensions")}
+          </Typography>
+        </Stack>
+      )}
+      {loadState === "degraded" && (
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" size="small" onClick={handleRetry}>
+              {t("retryExtensionLoad")}
+            </Button>
+          }
+        >
+          {t("extensionLoadDegraded", { count: loadErrors.length })}
+        </Alert>
+      )}
       {!_.isEmpty(namespacedEntries) ? (
         Object.entries(namespacedEntries).map(([namespace, entries]) => (
           <List key={namespace}>
@@ -505,13 +535,13 @@ export default function ExtensionsSettings(): React.ReactElement {
             ))}
           </List>
         ))
-      ) : (
+      ) : loadState !== "loading" ? (
         <List>
           <ListItem>
             <ListItemText primary={t("noInstalledExtensions")} />
           </ListItem>
         </List>
-      )}
+      ) : undefined}
     </Stack>
   );
 }

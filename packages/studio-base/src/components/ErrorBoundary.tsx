@@ -18,6 +18,7 @@ type Props = {
   actions?: React.JSX.Element;
   showErrorDetails?: boolean;
   hideErrorSourceLocations?: boolean;
+  onReset?: () => void;
 };
 
 type State = {
@@ -34,6 +35,11 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
     this.setState({ currentError: { error, errorInfo } });
   }
 
+  #reset = (): void => {
+    this.props.onReset?.();
+    this.setState({ currentError: undefined });
+  };
+
   public override render(): ReactNode {
     if (this.state.currentError) {
       const actions = this.props.actions ?? (
@@ -44,13 +50,7 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
           justifyContent="flex-end"
           direction="row"
         >
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={() => {
-              this.setState({ currentError: undefined });
-            }}
-          >
+          <Button variant="outlined" color="secondary" onClick={this.#reset}>
             Dismiss
           </Button>
         </Stack>
@@ -64,12 +64,7 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
           content={
             <Typography>
               Something went wrong.{" "}
-              <Link
-                color="inherit"
-                onClick={() => {
-                  this.setState({ currentError: undefined });
-                }}
-              >
+              <Link color="inherit" onClick={this.#reset}>
                 Dismiss this error
               </Link>{" "}
               to continue using the app. If the issue persists, try restarting the app.

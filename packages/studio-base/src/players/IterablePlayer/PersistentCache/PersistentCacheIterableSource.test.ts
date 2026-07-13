@@ -113,4 +113,34 @@ describe("PersistentCacheIterableSource", () => {
     expect((await reader.stats()).count).toBe(1);
     await reader.close();
   });
+
+  it("preserves a borrowed cache session when replay metadata initialization fails", async () => {
+    const store = new IndexedDbMessageStore({ sessionId: "readonly-init-failure" });
+    await store.init();
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: { value: 1 },
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.flush();
+    await store.close();
+
+    const metadataFailure = new Error("metadata transaction failed");
+    const statsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "stats")
+      .mockRejectedValueOnce(metadataFailure);
+    const source = new PersistentCacheIterableSource({ sessionId: "readonly-init-failure" });
+
+    await expect(source.initialize()).rejects.toBe(metadataFailure);
+    statsSpy.mockRestore();
+
+    const reader = new IndexedDbMessageStore({ sessionId: "readonly-init-failure" });
+    await reader.init();
+    expect((await reader.stats()).count).toBe(1);
+    await reader.close();
+  });
 });

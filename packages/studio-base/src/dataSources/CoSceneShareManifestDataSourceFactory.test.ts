@@ -14,6 +14,12 @@ import type { ShareManifest } from "@foxglove/studio-base/util/shareManifest";
 
 import CoSceneShareManifestDataSourceFactory from "./CoSceneShareManifestDataSourceFactory";
 
+const mockGetAppConfig = jest.fn();
+
+jest.mock("@foxglove/studio-base/util/appConfig", () => ({
+  getAppConfig: () => mockGetAppConfig(),
+}));
+
 jest.mock("@foxglove/studio-base/players/IterablePlayer", () => ({
   IterablePlayer: jest.fn().mockImplementation((options: unknown) => ({ options })),
   WorkerSerializedIterableSource: jest.fn().mockImplementation((options: unknown) => ({
@@ -44,6 +50,7 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
 
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date("2026-06-25T00:00:00Z") });
+    mockGetAppConfig.mockReturnValue({ PLAYBACK_SPILL_CACHE_ENABLED: false });
     mockIterablePlayer.mockClear();
     mockWorkerSerializedIterableSource.mockClear();
   });
@@ -79,11 +86,7 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
       sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
       urlParams: { manifest: encodedManifest },
       name: "Shared MCAP",
-      enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: JSON.stringify({
-        sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
-        url: manifest.links.mini_mcap,
-      }),
+      enablePlaybackSpillCache: false,
     });
     expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toMatchObject({
       urlParams: { shardMode: "manifest" },
@@ -121,11 +124,29 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
         profile: "720p",
       },
       name: "Shared shard manifest (720p)",
+      enablePlaybackSpillCache: false,
+    });
+  });
+
+  it("enables the playback spill cache only when configured", () => {
+    mockGetAppConfig.mockReturnValue({ PLAYBACK_SPILL_CACHE_ENABLED: true });
+    const encodedManifest = encodeBase64Url(manifest);
+    const factory = new CoSceneShareManifestDataSourceFactory();
+
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: { manifest: encodedManifest },
+    });
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: { manifestUrl: "https://mock-storage.example.com/public/shards/manifest.json" },
+    });
+
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
       enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: JSON.stringify({
-        params: { profile: "720p", url: manifestUrl },
-        sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
-      }),
+    });
+    expect(mockIterablePlayer.mock.calls[1]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: true,
     });
   });
 

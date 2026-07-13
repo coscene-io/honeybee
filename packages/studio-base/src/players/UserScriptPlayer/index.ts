@@ -17,6 +17,7 @@
 import { Mutex } from "async-mutex";
 import * as _ from "lodash-es";
 import memoizeWeak from "memoize-weak";
+import race from "race-as-promised";
 import shallowequal from "shallowequal";
 import { v4 as uuidv4 } from "uuid";
 
@@ -68,6 +69,7 @@ import { remapVirtualSubscriptions, getPreloadTypes } from "./subscriptions";
 
 const log = Log.getLogger(__filename);
 const USER_SCRIPT_RANGE_BATCH_SIZE = 100;
+const TRANSFORM_WORKER_CLOSE_TIMEOUT_MS = 1_000;
 
 // TypeScript's built-in lib only accepts strings for the scriptURL. However, webpack only
 // understands `new URL()` to properly build the worker entry point:
@@ -87,7 +89,14 @@ type UserScriptActions = {
 type ScriptRegistrationCacheItem = {
   scriptId: string;
   userScript: UserScript;
+  lifecycleGeneration: number;
   result: ScriptRegistration;
+};
+
+type RuntimeRpc = {
+  dispose: () => void;
+  lifecycleGeneration: number;
+  rpc: Rpc;
 };
 
 /** Mutable state protected by a mutex lock */
@@ -122,10 +131,16 @@ export default class UserScriptPlayer implements Player {
   #listener?: (arg0: PlayerState) => Promise<void>;
 
   // Not sure if there is perf issue with unused workers (may just go idle) - requires more research
-  #unusedRuntimeWorkers: Rpc[] = [];
+  #unusedRuntimeWorkers: RuntimeRpc[] = [];
+  #runtimeWorkers = new Set<RuntimeRpc>();
   #setUserScriptDiagnostics: (scriptId: string, diagnostics: readonly Diagnostic[]) => void;
   #addUserScriptLogs: (scriptId: string, logs: UserScriptLog[]) => void;
   #transformRpc?: Rpc;
+  #transformDispose?: () => void;
+  #closePromise: Promise<void> | undefined;
+  #reopenPromise: Promise<void> | undefined;
+  #lifecycleGeneration = 0;
+  #lifecycleClosed = false;
   #globalVariables: GlobalVariables = {};
   #userScriptActions: UserScriptActions;
   #rosLibGenerator: MemoizedLibGenerator;
@@ -217,7 +232,55 @@ export default class UserScriptPlayer implements Player {
     });
   }
   public reOpen(): void {
-    this.#player.reOpen();
+    const previousLifecycle = this.#closePromise ?? this.#reopenPromise;
+    if (previousLifecycle == undefined) {
+      this.#player.reOpen();
+      return;
+    }
+
+    // A close started before reOpen must finish before the wrapped player reconnects. Clearing the
+    // close promise starts a new lifecycle, so a subsequent close waits for this reOpen and closes
+    // the newly opened player instead of reusing the previous close result.
+    this.#closePromise = undefined;
+    const reopenPromise = previousLifecycle
+      .catch((error: unknown) => {
+        log.warn("Reopening UserScriptPlayer after close failed:", error);
+      })
+      .then(() => {
+        this.#beginLifecycle("open");
+        this.#player.reOpen();
+      })
+      .catch((error: unknown) => {
+        // reOpen has no promise result, so report a deferred failure without leaving the lifecycle
+        // queue rejected and preventing a later close.
+        log.warn("Failed to reopen UserScriptPlayer:", error);
+      });
+    this.#reopenPromise = reopenPromise;
+    void reopenPromise.then(() => {
+      if (this.#reopenPromise === reopenPromise) {
+        this.#reopenPromise = undefined;
+      }
+    });
+  }
+
+  #beginLifecycle(state: "closed" | "open"): number {
+    this.#lifecycleGeneration += 1;
+    this.#lifecycleClosed = state === "closed";
+
+    // Runtime RPCs can be awaiting untrusted user code while #protectedState is locked. Reject
+    // every active and pooled request before close waits for that lock. A new lifecycle must also
+    // never reuse a worker whose previous generation was terminated.
+    for (const runtimeRpc of this.#runtimeWorkers) {
+      runtimeRpc.dispose();
+    }
+    this.#runtimeWorkers.clear();
+    this.#unusedRuntimeWorkers = [];
+
+    return this.#lifecycleGeneration;
+  }
+
+  #isCurrentLifecycle(lifecycleGeneration: number): boolean {
+    return !this.#lifecycleClosed && lifecycleGeneration === this.#lifecycleGeneration;
   }
 
   // eslint-disable-next-line @foxglove/no-boolean-parameters
@@ -370,6 +433,7 @@ export default class UserScriptPlayer implements Player {
 
   // Called when userScript state is updated (i.e. scripts are saved)
   public async setUserScripts(userScripts: UserScripts): Promise<void> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const newPlayerState = await this.#protectedState.runExclusive(async (state) => {
       for (const scriptId of Object.keys(userScripts)) {
         const prevScript = state.userScripts[scriptId];
@@ -385,8 +449,11 @@ export default class UserScriptPlayer implements Player {
       // We add one to the count so we don't have to recompile scripts if users undo/redo script changes.
       const maxScriptRegistrationCacheCount = Object.keys(userScripts).length + 1;
       state.scriptRegistrationCache.splice(maxScriptRegistrationCacheCount);
+      if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+        return undefined;
+      }
       // This code causes us to reset workers twice because the seeking resets the workers too
-      await this.#resetWorkersUnlocked(state);
+      await this.#resetWorkersUnlocked(state, lifecycleGeneration);
       this.#setSubscriptionsUnlocked(this.#subscriptions, state);
 
       const playerState = this.#playerState;
@@ -415,7 +482,7 @@ export default class UserScriptPlayer implements Player {
     });
 
     if (newPlayerState) {
-      await this.#onPlayerState(newPlayerState);
+      await this.#onPlayerState(newPlayerState, lifecycleGeneration);
     }
   }
 
@@ -426,9 +493,14 @@ export default class UserScriptPlayer implements Player {
     state: ProtectedState,
     rosLib: string,
     typesLib: string,
+    lifecycleGeneration: number,
   ): Promise<ScriptRegistration> {
     for (const cacheEntry of state.scriptRegistrationCache) {
-      if (scriptId === cacheEntry.scriptId && _.isEqual(userScript, cacheEntry.userScript)) {
+      if (
+        lifecycleGeneration === cacheEntry.lifecycleGeneration &&
+        scriptId === cacheEntry.scriptId &&
+        _.isEqual(userScript, cacheEntry.userScript)
+      ) {
         return cacheEntry.result;
       }
     }
@@ -460,18 +532,47 @@ export default class UserScriptPlayer implements Player {
     } => {
       // rpc channel for this processor. Lazily created on each message if an unused
       // channel isn't available.
-      let rpc: undefined | Rpc;
+      let runtimeRpc: RuntimeRpc | undefined;
+      let activeRequests = 0;
+
+      const sendRuntime = async <Result>(topic: string, data: unknown): Promise<Result> => {
+        const rpc = runtimeRpc?.rpc;
+        if (rpc == undefined) {
+          throw new Error("User script runtime worker is unavailable");
+        }
+        activeRequests += 1;
+        try {
+          return await rpc.send<Result>(topic, data);
+        } finally {
+          activeRequests -= 1;
+        }
+      };
 
       const registration = async (msgEvent: MessageEvent, globalVariables: GlobalVariables) => {
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return undefined;
+        }
+
         // Register the script within a web worker to be executed.
-        if (!rpc) {
-          rpc = this.#unusedRuntimeWorkers.pop();
+        if (!runtimeRpc) {
+          runtimeRpc = this.#unusedRuntimeWorkers.pop();
+          if (
+            runtimeRpc != undefined &&
+            (runtimeRpc.lifecycleGeneration !== lifecycleGeneration ||
+              !this.#runtimeWorkers.has(runtimeRpc))
+          ) {
+            runtimeRpc.dispose();
+            runtimeRpc = undefined;
+          }
 
           // initialize a new worker since no unused one is available
-          if (!rpc) {
+          if (!runtimeRpc) {
             const worker = UserScriptPlayer.CreateRuntimeWorker();
 
             worker.onerror = (event) => {
+              if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+                return;
+              }
               log.error(event);
 
               this.#alertStore.set(alertKey, {
@@ -485,6 +586,9 @@ export default class UserScriptPlayer implements Player {
 
             const port: MessagePort = worker.port;
             port.onmessageerror = (event) => {
+              if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+                return;
+              }
               log.error(event);
 
               this.#alertStore.set(alertKey, {
@@ -495,9 +599,29 @@ export default class UserScriptPlayer implements Player {
               void this.#queueEmitState();
             };
             port.start();
-            rpc = new Rpc(port);
+            const rpc = new Rpc(port);
+            let disposed = false;
+            runtimeRpc = {
+              lifecycleGeneration,
+              rpc,
+              dispose: () => {
+                if (disposed) {
+                  return;
+                }
+                disposed = true;
+                rpc.terminate();
+                // MessagePort uses null to remove its event handler.
+                // eslint-disable-next-line no-restricted-syntax
+                port.onmessage = null;
+                port.close();
+              },
+            };
+            this.#runtimeWorkers.add(runtimeRpc);
 
             rpc.receive("error", (msg) => {
+              if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+                return;
+              }
               log.error(msg);
 
               this.#alertStore.set(alertKey, {
@@ -510,10 +634,13 @@ export default class UserScriptPlayer implements Player {
           }
 
           const { error, userScriptDiagnostics, userScriptLogs } =
-            await rpc.send<RegistrationOutput>("registerScript", {
+            await sendRuntime<RegistrationOutput>("registerScript", {
               projectCode,
               scriptCode: transpiledCode,
             });
+          if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+            return undefined;
+          }
           if (error != undefined) {
             this.#setUserScriptDiagnostics(scriptId, [
               ...userScriptDiagnostics,
@@ -529,7 +656,7 @@ export default class UserScriptPlayer implements Player {
           this.#addUserScriptLogs(scriptId, userScriptLogs);
         }
 
-        const result = await rpc.send<ProcessMessageOutput>("processMessage", {
+        const result = await sendRuntime<ProcessMessageOutput>("processMessage", {
           message: {
             topic: msgEvent.topic,
             receiveTime: msgEvent.receiveTime,
@@ -538,6 +665,9 @@ export default class UserScriptPlayer implements Player {
           },
           globalVariables,
         });
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return undefined;
+        }
 
         const allDiagnostics = result.userScriptDiagnostics;
         if (result.error) {
@@ -587,9 +717,18 @@ export default class UserScriptPlayer implements Player {
       const terminate = () => {
         this.#alertStore.delete(alertKey);
 
-        if (rpc) {
-          this.#unusedRuntimeWorkers.push(rpc);
-          rpc = undefined;
+        if (runtimeRpc) {
+          if (
+            activeRequests === 0 &&
+            this.#isCurrentLifecycle(runtimeRpc.lifecycleGeneration) &&
+            this.#runtimeWorkers.has(runtimeRpc)
+          ) {
+            this.#unusedRuntimeWorkers.push(runtimeRpc);
+          } else {
+            runtimeRpc.dispose();
+            this.#runtimeWorkers.delete(runtimeRpc);
+          }
+          runtimeRpc = undefined;
         }
       };
 
@@ -611,18 +750,22 @@ export default class UserScriptPlayer implements Player {
         blockProcessor.terminate();
       },
     };
-    state.scriptRegistrationCache.push({ scriptId, userScript, result });
+    state.scriptRegistrationCache.push({ scriptId, userScript, lifecycleGeneration, result });
     return result;
   }
 
   #getTransformWorker(): Rpc {
     if (!this.#transformRpc) {
+      const lifecycleGeneration = this.#lifecycleGeneration;
       const worker = UserScriptPlayer.CreateTransformWorker();
 
       // The errors below persist for the lifetime of the player.
       // They are not cleared because they are irrecoverable.
 
       worker.onerror = (event) => {
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return;
+        }
         log.error(event);
 
         this.#alertStore.set("worker-error", {
@@ -635,6 +778,9 @@ export default class UserScriptPlayer implements Player {
 
       const port: MessagePort = worker.port;
       port.onmessageerror = (event) => {
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return;
+        }
         log.error(event);
 
         this.#alertStore.set("worker-error", {
@@ -648,6 +794,9 @@ export default class UserScriptPlayer implements Player {
       const rpc = new Rpc(port);
 
       rpc.receive("error", (msg) => {
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return;
+        }
         log.error(msg);
 
         this.#alertStore.set("worker-error", {
@@ -659,6 +808,18 @@ export default class UserScriptPlayer implements Player {
       });
 
       this.#transformRpc = rpc;
+      let disposed = false;
+      this.#transformDispose = () => {
+        if (disposed) {
+          return;
+        }
+        disposed = true;
+        rpc.terminate();
+        // MessagePort uses null to remove its event handler.
+        // eslint-disable-next-line no-restricted-syntax
+        port.onmessage = null;
+        port.close();
+      };
     }
     return this.#transformRpc;
   }
@@ -667,7 +828,10 @@ export default class UserScriptPlayer implements Player {
   // - When a user script is updated, added or deleted
   // - When we seek (in order to reset state)
   // - When a new child player is added
-  async #resetWorkersUnlocked(state: ProtectedState): Promise<void> {
+  async #resetWorkersUnlocked(state: ProtectedState, lifecycleGeneration: number): Promise<void> {
+    if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+      return;
+    }
     if (!state.lastPlayerStateActiveData) {
       return;
     }
@@ -688,13 +852,29 @@ export default class UserScriptPlayer implements Player {
 
     const rosLib = await this.#getRosLib(state);
     const typesLib = await this.#getTypesLib(state);
+    if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+      return;
+    }
 
     const allScriptRegistrations = await Promise.all(
       Object.entries(state.userScripts).map(
         async ([scriptId, userScript]) =>
-          await this.#createScriptRegistration(scriptId, userScript, state, rosLib, typesLib),
+          await this.#createScriptRegistration(
+            scriptId,
+            userScript,
+            state,
+            rosLib,
+            typesLib,
+            lifecycleGeneration,
+          ),
       ),
     );
+    if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+      for (const scriptRegistration of allScriptRegistrations) {
+        scriptRegistration.terminate();
+      }
+      return;
+    }
 
     const validScriptRegistrations: ScriptRegistration[] = [];
     const playerTopics = new Set(state.lastPlayerStateActiveData.topics.map((topic) => topic.name));
@@ -814,7 +994,7 @@ export default class UserScriptPlayer implements Player {
           topics: newTopics,
         },
       };
-      await this.#queueEmitState();
+      await this.#queueEmitState(lifecycleGeneration);
     }
   }
 
@@ -847,13 +1027,21 @@ export default class UserScriptPlayer implements Player {
   }
 
   // invoked when our child player state changes
-  async #onPlayerState(playerState: PlayerState) {
+  async #onPlayerState(
+    playerState: PlayerState,
+    lifecycleGeneration: number = this.#lifecycleGeneration,
+  ) {
+    if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+      return;
+    }
+
     try {
       const globalVariables = this.#globalVariables;
       const { activeData } = playerState;
       if (!activeData) {
-        this.#playerState = playerState;
-        await this.#queueEmitState();
+        if (this.#isCurrentLifecycle(lifecycleGeneration)) {
+          this.#playerState = playerState;
+        }
         return;
       }
 
@@ -874,9 +1062,15 @@ export default class UserScriptPlayer implements Player {
       // player just spun up, meaning we should re-run our user scripts in case
       // they have inputs that now exist in the current player context.
       const newPlayerState = await this.#protectedState.runExclusive(async (state) => {
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return undefined;
+        }
         if (!state.lastPlayerStateActiveData) {
           state.lastPlayerStateActiveData = activeData;
-          await this.#resetWorkersUnlocked(state);
+          await this.#resetWorkersUnlocked(state, lifecycleGeneration);
+          if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+            return undefined;
+          }
           this.#setSubscriptionsUnlocked(this.#subscriptions, state);
         } else {
           // Reset script state after seeking
@@ -894,7 +1088,10 @@ export default class UserScriptPlayer implements Player {
 
           state.lastPlayerStateActiveData = activeData;
           if (shouldReset) {
-            await this.#resetWorkersUnlocked(state);
+            await this.#resetWorkersUnlocked(state, lifecycleGeneration);
+            if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+              return undefined;
+            }
           }
         }
 
@@ -947,6 +1144,9 @@ export default class UserScriptPlayer implements Player {
           globalVariables,
           state.scriptRegistrations,
         );
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return undefined;
+        }
 
         // These are messages generated from previously saved messages on input topics
         const recomputed = await this.#getMessages(
@@ -954,6 +1154,9 @@ export default class UserScriptPlayer implements Player {
           globalVariables,
           state.scriptRegistrations,
         );
+        if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+          return undefined;
+        }
 
         // The current frame messages are the input messages + recomputed + computed sorted by
         // receive time
@@ -972,6 +1175,9 @@ export default class UserScriptPlayer implements Player {
             globalVariables,
             state.scriptRegistrations,
           );
+          if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+            return undefined;
+          }
 
           playerProgress.messageCache = {
             startTime: playerProgress.messageCache.startTime,
@@ -991,11 +1197,17 @@ export default class UserScriptPlayer implements Player {
         };
       });
 
+      if (newPlayerState == undefined || !this.#isCurrentLifecycle(lifecycleGeneration)) {
+        return;
+      }
       this.#playerState = newPlayerState;
 
       // clear any previous problem we had from making a new player state
       this.#alertStore.delete("player-state-update");
     } catch (e: unknown) {
+      if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+        return;
+      }
       const err = e as Error;
       this.#alertStore.set("player-state-update", {
         severity: "error",
@@ -1005,15 +1217,18 @@ export default class UserScriptPlayer implements Player {
 
       this.#playerState = playerState;
     } finally {
-      await this.#queueEmitState();
+      await this.#queueEmitState(lifecycleGeneration);
     }
   }
 
-  async #queueEmitState() {
+  async #queueEmitState(lifecycleGeneration: number = this.#lifecycleGeneration) {
+    if (!this.#isCurrentLifecycle(lifecycleGeneration)) {
+      return;
+    }
     // Wrap in mutex in case the emitState triggered by changed script registrations happens
     // to run at the same time as an emitstate triggered by the underlying player.
     await this.#emitLock.runExclusive(async () => {
-      if (!this.#playerState) {
+      if (!this.#isCurrentLifecycle(lifecycleGeneration) || !this.#playerState) {
         return;
       }
 
@@ -1029,7 +1244,7 @@ export default class UserScriptPlayer implements Player {
         problems,
       };
 
-      if (this.#listener) {
+      if (this.#listener && this.#isCurrentLifecycle(lifecycleGeneration)) {
         await this.#listener(playerState);
       }
     });
@@ -1042,7 +1257,8 @@ export default class UserScriptPlayer implements Player {
     // triggers initialization logic and remote requests. This is an unfortunate API behavior and
     // naming choice, but it's better for us not to do trigger this logic in the constructor.
     this.#player.setListener(async (state) => {
-      await this.#onPlayerState(state);
+      const lifecycleGeneration = this.#lifecycleGeneration;
+      await this.#onPlayerState(state, lifecycleGeneration);
     });
   }
 
@@ -1203,18 +1419,87 @@ export default class UserScriptPlayer implements Player {
     }
   }
 
-  public async close(): Promise<void> {
-    void this.#protectedState.runExclusive(async (state) => {
-      for (const scriptRegistration of state.scriptRegistrations) {
-        scriptRegistration.terminate();
-      }
-    });
-    void this.#player.close();
+  // Returning the stored promise preserves the underlying Player.close() completion semantics.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public close(): Promise<void> {
+    this.#closePromise ??=
+      this.#reopenPromise == undefined
+        ? this.#closeImpl()
+        : this.#reopenPromise.then(async () => {
+            await this.#closeImpl();
+          });
+    return this.#closePromise;
+  }
+
+  async #closeImpl(): Promise<void> {
+    const closeGeneration = this.#beginLifecycle("closed");
+    this.#playerState = undefined;
+    const transformRpc = this.#transformRpc;
+    const transformDispose = this.#transformDispose;
+    const results = await Promise.allSettled([
+      this.#protectedState.runExclusive(async (state) => {
+        if (!this.#lifecycleClosed || closeGeneration !== this.#lifecycleGeneration) {
+          return;
+        }
+        for (const scriptRegistration of state.scriptRegistrations) {
+          scriptRegistration.terminate();
+        }
+        state.scriptRegistrations = [];
+        state.scriptRegistrationCache = [];
+        state.lastPlayerStateActiveData = undefined;
+        state.inputsByOutputTopic.clear();
+        this.#scriptRegistrationsByOutputTopic = new Map();
+        this.#memoizedScriptDatatypes = [];
+        this.#memoizedScriptTopics = [];
+        this.#lastMessageByInputTopic.clear();
+        this.#userScriptIdsNeedUpdate.clear();
+        this.#lastBlockRequest = { result: [] };
+      }),
+      Promise.resolve().then(async () => {
+        await this.#player.close();
+      }),
+      Promise.resolve().then(async () => {
+        if (transformRpc == undefined) {
+          return;
+        }
+
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await race([
+            transformRpc.send("close"),
+            new Promise<void>((resolve) => {
+              timeout = setTimeout(resolve, TRANSFORM_WORKER_CLOSE_TIMEOUT_MS);
+            }),
+          ]);
+        } finally {
+          if (timeout != undefined) {
+            clearTimeout(timeout);
+          }
+          // Reject any request that outlived the close acknowledgement/deadline so it cannot keep
+          // this player generation reachable indefinitely.
+          transformDispose?.();
+        }
+      }),
+    ]);
+
+    if (this.#transformRpc === transformRpc) {
+      // A later reOpen may lazily create a fresh worker; do not retain the closed RPC generation.
+      this.#transformRpc = undefined;
+      this.#transformDispose = undefined;
+    }
+
     if (this.#totalTimeMetric != undefined) {
       this.#perfRegistry?.unregisterMetric(this.#totalTimeMetric);
+      this.#totalTimeMetric = undefined;
     }
-    if (this.#transformRpc) {
-      void this.#transformRpc.send("close");
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        // MessagePipeline intentionally invokes close() fire-and-forget. Teardown has already
+        // attempted every resource, so log individual failures without creating an unhandled
+        // rejection that could destabilize the next player generation.
+        log.warn("Failed to close a UserScriptPlayer resource:", result.reason);
+      }
     }
   }
 

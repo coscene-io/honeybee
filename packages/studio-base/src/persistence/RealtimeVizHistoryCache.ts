@@ -5,15 +5,52 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import race from "race-as-promised";
+
 import Log from "@foxglove/log";
 import type { MessageEvent } from "@foxglove/studio";
 import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
+import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import type { TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { IndexedDbMessageStore } from "./IndexedDbMessageStore";
+import { IndexedDbMessageStore, type MessageCacheMetricSink } from "./IndexedDbMessageStore";
 
 const log = Log.getLogger(__filename);
+const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
+const REALTIME_CACHE_FLUSH_TIMEOUT_MS = 5_000;
+
+class RealtimeCacheFlushTimeoutError extends Error {}
+
+async function withFlushDeadline(operation: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          reject(new RealtimeCacheFlushTimeoutError("Timed out flushing realtime cache metadata"));
+        }, REALTIME_CACHE_FLUSH_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer != undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+function estimateMessageCacheBytes(event: MessageEvent): number {
+  try {
+    return (
+      Math.max(event.sizeInBytes, estimateObjectSize(event)) +
+      PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES
+    );
+  } catch (error) {
+    log.debug("Falling back to the declared message size for cache accounting", error);
+    return event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES;
+  }
+}
 
 export class RealtimeVizHistoryCache {
   #store: IndexedDbMessageStore;
@@ -21,29 +58,37 @@ export class RealtimeVizHistoryCache {
   #latestTopics: readonly TopicWithDecodingInfo[] | undefined;
   #latestTopicStats: Map<string, TopicStats> | undefined;
   #latestDatatypes: RosDatatypes | undefined;
+  #closePromise: Promise<void> | undefined;
 
   public constructor({
     sessionId,
     retentionWindowMs,
     maxCacheSize,
+    metricSink,
   }: {
     sessionId: string;
     retentionWindowMs: number;
     maxCacheSize?: number;
+    metricSink?: MessageCacheMetricSink;
   }) {
     this.#store = new IndexedDbMessageStore({
       kind: "realtime-viz",
       sessionId,
       retentionWindowMs,
       maxCacheSize,
+      metricSink,
     });
   }
 
   public async init(): Promise<void> {
     try {
       await this.#store.init();
+      if (!this.#store.isWritable()) {
+        throw new Error("Realtime history cache is unavailable for writes");
+      }
     } catch (error) {
       this.#disabled = true;
+      await this.#store.discardAndSeal("abandoned");
       log.warn("Failed to initialize realtime viz history cache:", error);
       throw error;
     }
@@ -53,10 +98,15 @@ export class RealtimeVizHistoryCache {
     if (this.#disabled) {
       return;
     }
-    void this.#store.append(events).catch((error: unknown) => {
-      this.#disabled = true;
-      log.warn("Disabling realtime viz history cache after append failure:", error);
-    });
+    void this.#store
+      .append(events, {
+        estimatedSizeBytes: events.map(estimateMessageCacheBytes),
+      })
+      .catch((error: unknown) => {
+        this.#disabled = true;
+        log.warn("Disabling realtime viz history cache after append failure:", error);
+        void this.#store.discardAndSeal("abandoned");
+      });
   }
 
   public storeTopics(
@@ -96,14 +146,29 @@ export class RealtimeVizHistoryCache {
     await this.#store.flush();
   }
 
-  public async close(): Promise<void> {
+  // Returning the stored promise directly preserves identity across concurrent callers.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public close(): Promise<void> {
+    this.#closePromise ??= this.#closeImpl();
+    return this.#closePromise;
+  }
+
+  async #closeImpl(): Promise<void> {
     if (this.#disabled) {
+      await this.#store.discardAndSeal("abandoned");
       return;
     }
     try {
-      await this.flush();
-    } finally {
+      await withFlushDeadline(this.flush());
       await this.#store.close();
+    } catch (error) {
+      this.#disabled = true;
+      try {
+        await this.#store.discardAndSeal("abandoned");
+      } catch (closeError) {
+        log.debug("Failed to abandon realtime cache after flush failure", closeError);
+      }
+      throw error;
     }
   }
 }

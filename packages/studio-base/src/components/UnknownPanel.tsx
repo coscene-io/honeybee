@@ -32,6 +32,7 @@ function UnconnectedUnknownPanel(props: Props) {
 }
 UnconnectedUnknownPanel.panelType = "unknown";
 UnconnectedUnknownPanel.defaultConfig = {};
+UnconnectedUnknownPanel.configInitialization = "none" as const;
 
 /**
  * An UnknownPanel stands in for missing panels. When a panel referenced in a layout is not

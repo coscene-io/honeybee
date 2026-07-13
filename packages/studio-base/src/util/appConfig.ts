@@ -59,6 +59,7 @@ declare global {
       COORDINATOR_URL?: string;
       S3_REGION?: string;
       OBJECT_STORAGE_BASE_URL?: string;
+      PLAYBACK_SPILL_CACHE_ENABLED?: boolean;
     };
     buildTime?: string;
     cosConfigRemoteHostname?: string;
@@ -120,6 +121,8 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
     OBJECT_STORAGE_BASE_URL:
       cosConfig.OBJECT_STORAGE_BASE_URL ??
       (process.env.NODE_ENV === "development" ? DEFAULT_DEV_OBJECT_STORAGE_BASE_URL : undefined),
+
+    PLAYBACK_SPILL_CACHE_ENABLED: cosConfig.PLAYBACK_SPILL_CACHE_ENABLED === true,
   };
 
   if (

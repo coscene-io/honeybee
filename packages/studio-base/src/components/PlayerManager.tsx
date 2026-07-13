@@ -149,8 +149,9 @@ function useBeforeConnectionSource(): (
 }
 
 async function clearIdbCache(sessionId?: string) {
+  let idbCache: IndexedDbMessageStore | undefined;
   try {
-    const idbCache = new IndexedDbMessageStore({
+    idbCache = new IndexedDbMessageStore({
       sessionId,
       kind: "realtime-viz",
     });
@@ -160,9 +161,14 @@ async function clearIdbCache(sessionId?: string) {
       await idbCache.clear();
     }
     await idbCache.cleanupOldSessions();
-    await idbCache.close();
   } catch (error) {
     log.error("Failed to clear idb cache:", error);
+  } finally {
+    try {
+      await idbCache?.close();
+    } catch (error) {
+      log.debug("Failed to close idb cache after cleanup:", error);
+    }
   }
 }
 

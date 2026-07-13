@@ -39,11 +39,7 @@ import {
   SHARD_MODE_PARAM,
 } from "@foxglove/studio-base/util/shardManifestUrlParams";
 
-import {
-  createShardManifestPlayer,
-  definedUrlParams,
-  stableJsonStringify,
-} from "./createShardManifestPlayer";
+import { createShardManifestPlayer, definedUrlParams } from "./createShardManifestPlayer";
 import { buildManifestUrl, getManifestStorageBaseUrl, manifestExists } from "./manifestStorage";
 
 export { buildManifestUrl } from "./manifestStorage";
@@ -212,13 +208,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
     const bffUrl = consoleApi.getBffUrl();
     const auth = consoleApi.getAuthHeader();
     const baseInfo = consoleApi.getApiBaseInfo();
-    const playbackSpillCacheSourceKey = stableJsonStringify({
-      sourceId: this.id,
-      baseUrl,
-      bffUrl,
-      params: { ...args.params, ...baseInfo },
-      manifestUrl,
-    });
 
     const source = new WorkerIterableSource({
       initWorker: () => {
@@ -253,8 +242,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceId: this.id,
       urlParams,
       readAheadDuration,
-      enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey,
+      enablePlaybackSpillCache: getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED,
     });
   }
 
