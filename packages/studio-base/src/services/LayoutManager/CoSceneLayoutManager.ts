@@ -124,7 +124,18 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   #busyCount = 0;
 
   #pendingOverwriteEditRevisions = new Map<LayoutID, Map<number, number>>();
+  #latestObservedEditRevisions = new Map<LayoutID, number>();
   #savedEditRevisions = new Map<LayoutID, number>();
+
+  #observeEditRevision(id: LayoutID, editRevision: number | undefined): void {
+    if (editRevision == undefined) {
+      return;
+    }
+    this.#latestObservedEditRevisions.set(
+      id,
+      Math.max(editRevision, this.#latestObservedEditRevisions.get(id) ?? editRevision),
+    );
+  }
 
   #trackPendingOverwrite(id: LayoutID, editRevision: number | undefined): () => void {
     if (editRevision == undefined) {
@@ -166,12 +177,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   }
 
   #recordSavedEditRevision(id: LayoutID, editRevision: number | undefined): void {
-    if (editRevision == undefined) {
+    const revision = editRevision ?? this.#latestObservedEditRevisions.get(id);
+    if (revision == undefined) {
       return;
     }
     this.#savedEditRevisions.set(
       id,
-      Math.max(editRevision, this.#savedEditRevisions.get(id) ?? editRevision),
+      Math.max(revision, this.#savedEditRevisions.get(id) ?? revision),
     );
   }
 
@@ -476,6 +488,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     data?: LayoutData | undefined;
     editRevision?: number | undefined;
   }): Promise<Layout | undefined> {
+    this.#observeEditRevision(id, editRevision);
     return await this.#runWithBusyStatus(async () => {
       const now = new Date().toISOString() as ISO8601Timestamp;
       const data = unmigratedData == undefined ? undefined : migratePanelsState(unmigratedData);

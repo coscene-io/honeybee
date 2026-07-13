@@ -380,7 +380,12 @@ describe("CoSceneLayoutManager", () => {
       }),
     );
 
-    await manager.revertLayout({ id, editRevision: 2 });
+    await manager.updateLayout({
+      id,
+      data: layoutData("discarded"),
+      editRevision: 2,
+    });
+    await manager.revertLayout({ id });
     await manager.updateLayout({
       id,
       data: layoutData("discarded"),
