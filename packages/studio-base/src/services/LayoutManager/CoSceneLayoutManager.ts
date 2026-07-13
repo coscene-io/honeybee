@@ -796,7 +796,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     return await overwritePromise.finally(finishPendingOverwrite);
   }
 
-  public async revertLayout({ id }: { id: LayoutID }): Promise<Layout> {
+  public async revertLayout({
+    id,
+    editRevision,
+  }: {
+    id: LayoutID;
+    editRevision?: number;
+  }): Promise<Layout> {
     return await this.#runWithBusyStatus(async () => {
       const result = await this.#local.runExclusive(async (local) => {
         const layout = await local.get(id);
@@ -807,6 +813,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           ...layout,
           working: undefined,
         });
+        this.#recordSavedEditRevision(id, editRevision);
         if (layoutAppearsDeleted(revertedLayout)) {
           await local.delete(id);
           return { layout: revertedLayout, deleted: true };

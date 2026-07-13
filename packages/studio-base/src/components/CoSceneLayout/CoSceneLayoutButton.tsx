@@ -78,10 +78,21 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     [selectedLayout],
   );
   const getOverwriteLayoutParamsRef = useRef(getOverwriteLayoutParams);
+  const getRevertLayoutParams = useCallback(
+    (id: LayoutID) => ({
+      id,
+      ...(selectedLayout?.id === id && selectedLayout.editRevision != undefined
+        ? { editRevision: selectedLayout.editRevision }
+        : {}),
+    }),
+    [selectedLayout],
+  );
+  const getRevertLayoutParamsRef = useRef(getRevertLayoutParams);
 
   useEffect(() => {
     getOverwriteLayoutParamsRef.current = getOverwriteLayoutParams;
-  }, [getOverwriteLayoutParams]);
+    getRevertLayoutParamsRef.current = getRevertLayoutParams;
+  }, [getOverwriteLayoutParams, getRevertLayoutParams]);
 
   useLayoutEffect(() => {
     const busyListener = () => {
@@ -134,7 +145,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               break;
             }
             case "revert":
-              await layoutManager.revertLayout({ id: id as LayoutID });
+              await layoutManager.revertLayout(getRevertLayoutParamsRef.current(id as LayoutID));
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
@@ -283,10 +294,18 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      await layoutManager.revertLayout({ id: item.id });
+      await layoutManager.revertLayout(getRevertLayoutParams(item.id));
       void analytics.logEvent(AppEvent.LAYOUT_REVERT, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+    [
+      analytics,
+      confirm,
+      dispatch,
+      getRevertLayoutParams,
+      layoutManager,
+      state.selectedIds.length,
+      t,
+    ],
   );
 
   const onCreateLayout = useCallbackWithToast(

@@ -174,10 +174,21 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     [selectedLayout],
   );
   const getOverwriteLayoutParamsRef = useRef(getOverwriteLayoutParams);
+  const getRevertLayoutParams = useCallback(
+    (id: LayoutID) => ({
+      id,
+      ...(selectedLayout?.id === id && selectedLayout.editRevision != undefined
+        ? { editRevision: selectedLayout.editRevision }
+        : {}),
+    }),
+    [selectedLayout],
+  );
+  const getRevertLayoutParamsRef = useRef(getRevertLayoutParams);
 
   useEffect(() => {
     getOverwriteLayoutParamsRef.current = getOverwriteLayoutParams;
-  }, [getOverwriteLayoutParams]);
+    getRevertLayoutParamsRef.current = getRevertLayoutParams;
+  }, [getOverwriteLayoutParams, getRevertLayoutParams]);
 
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
@@ -238,7 +249,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               break;
             }
             case "revert":
-              await layoutManager.revertLayout({ id: id as LayoutID });
+              await layoutManager.revertLayout(getRevertLayoutParamsRef.current(id as LayoutID));
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
@@ -282,7 +293,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         case "cancel":
           return false;
         case "discard":
-          await layoutManager.revertLayout({ id: currentLayout.id });
+          await layoutManager.revertLayout(getRevertLayoutParams(currentLayout.id));
           void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
             permission: currentLayout.permission,
             context: "UnsavedChangesPrompt",
@@ -314,6 +325,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     analytics,
     currentLayoutId,
     getOverwriteLayoutParams,
+    getRevertLayoutParams,
     layoutManager,
     openUnsavedChangesPrompt,
   ]);
@@ -502,10 +514,10 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      await layoutManager.revertLayout({ id: item.id });
+      await layoutManager.revertLayout(getRevertLayoutParams(item.id));
       void analytics.logEvent(AppEvent.LAYOUT_REVERT, { permission: item.permission });
     },
-    [analytics, dispatch, layoutManager, state.selectedIds.length],
+    [analytics, dispatch, getRevertLayoutParams, layoutManager, state.selectedIds.length],
   );
 
   const onMakePersonalCopy = useCallbackWithToast(

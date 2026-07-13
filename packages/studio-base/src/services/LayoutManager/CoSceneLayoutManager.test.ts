@@ -363,6 +363,36 @@ describe("CoSceneLayoutManager", () => {
     expect((await manager.getLayout({ id }))?.working?.data).toEqual(layoutData("newer-autosave"));
   });
 
+  it("does not restore an autosave that completed after a revert", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const manager = makeManager({ localStorage });
+    const id = layoutId("layouts/1");
+    await localStorage.put(
+      CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+      makeLocalLayout({
+        id,
+        parent: "",
+        working: {
+          data: layoutData("discarded"),
+          savedAt: ts("2024-01-01T00:00:01.000Z"),
+        },
+        syncStatus: "new",
+      }),
+    );
+
+    await manager.revertLayout({ id, editRevision: 2 });
+    await manager.updateLayout({
+      id,
+      data: layoutData("discarded"),
+      editRevision: 2,
+    });
+
+    expect(await manager.getLayout({ id })).toMatchObject({
+      baseline: { data: layoutData("initial") },
+      working: undefined,
+    });
+  });
+
   it("does not apply an older autosave while a project overwrite is in flight", async () => {
     const localStorage = new MemoryLayoutStorage();
     const remoteStorage = new MemoryRemoteLayoutStorage();

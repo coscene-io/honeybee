@@ -125,7 +125,7 @@ export interface ILayoutManager {
   }): Promise<Layout>;
 
   /** Revert this layout to the baseline. */
-  revertLayout(params: { id: LayoutID }): Promise<Layout>;
+  revertLayout(params: { id: LayoutID; editRevision?: number }): Promise<Layout>;
 
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
