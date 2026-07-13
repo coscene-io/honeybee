@@ -71,6 +71,9 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     (id: LayoutID) => ({
       id,
       data: selectedLayout?.id === id ? selectedLayout.data : undefined,
+      ...(selectedLayout?.id === id && selectedLayout.editRevision != undefined
+        ? { editRevision: selectedLayout.editRevision }
+        : {}),
     }),
     [selectedLayout],
   );

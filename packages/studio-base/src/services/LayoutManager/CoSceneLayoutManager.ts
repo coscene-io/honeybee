@@ -123,6 +123,53 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   #busyCount = 0;
 
+  #pendingOverwriteEditRevisions = new Map<LayoutID, Set<number>>();
+  #savedEditRevisions = new Map<LayoutID, number>();
+
+  #trackPendingOverwrite(id: LayoutID, editRevision: number | undefined): () => void {
+    if (editRevision == undefined) {
+      return () => {};
+    }
+    const revisions = this.#pendingOverwriteEditRevisions.get(id) ?? new Set<number>();
+    revisions.add(editRevision);
+    this.#pendingOverwriteEditRevisions.set(id, revisions);
+    return () => {
+      revisions.delete(editRevision);
+      if (revisions.size === 0) {
+        this.#pendingOverwriteEditRevisions.delete(id);
+      }
+    };
+  }
+
+  #editWasSuperseded(id: LayoutID, editRevision: number | undefined): boolean {
+    if (editRevision == undefined) {
+      return false;
+    }
+    const savedRevision = this.#savedEditRevisions.get(id);
+    if (savedRevision != undefined && savedRevision >= editRevision) {
+      return true;
+    }
+    const pendingRevisions = this.#pendingOverwriteEditRevisions.get(id);
+    if (pendingRevisions) {
+      for (const pendingRevision of pendingRevisions) {
+        if (pendingRevision > editRevision) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  #recordSavedEditRevision(id: LayoutID, editRevision: number | undefined): void {
+    if (editRevision == undefined) {
+      return;
+    }
+    this.#savedEditRevisions.set(
+      id,
+      Math.max(editRevision, this.#savedEditRevisions.get(id) ?? editRevision),
+    );
+  }
+
   async #runWithBusyStatus<Ret>(body: () => Promise<Ret>): Promise<Ret> {
     try {
       this.#busyCount++;
@@ -416,11 +463,13 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     name,
     folder,
     data: unmigratedData,
+    editRevision,
   }: {
     id: LayoutID;
     name?: string | undefined;
     folder?: string | undefined;
     data?: LayoutData | undefined;
+    editRevision?: number | undefined;
   }): Promise<Layout | undefined> {
     return await this.#runWithBusyStatus(async () => {
       const now = new Date().toISOString() as ISO8601Timestamp;
@@ -432,6 +481,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           // if this layout is record recommended layout, this error is expected
           // because the layout will be deleted when the user plays another record
           return undefined;
+        }
+        if (this.#editWasSuperseded(id, editRevision)) {
+          return { type: "superseded" as const, layout: localLayout };
         }
 
         // If the modifications result in the same layout data, set the working copy to undefined so
@@ -486,6 +538,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
       if (!snapshot) {
         return undefined;
+      }
+
+      if (snapshot.type === "superseded") {
+        return snapshot.layout;
       }
 
       if (snapshot.type === "local") {
@@ -614,11 +670,14 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public async overwriteLayout({
     id,
     data: unmigratedData,
+    editRevision,
   }: {
     id: LayoutID;
     data?: LayoutData;
+    editRevision?: number;
   }): Promise<Layout> {
-    return await this.#runWithBusyStatus(async () => {
+    const finishPendingOverwrite = this.#trackPendingOverwrite(id, editRevision);
+    const overwritePromise = this.#runWithBusyStatus(async () => {
       const now = new Date().toISOString() as ISO8601Timestamp;
       const data = unmigratedData == undefined ? undefined : migratePanelsState(unmigratedData);
 
@@ -670,6 +729,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
                 }
               : latestLayout.syncInfo,
         });
+        this.#recordSavedEditRevision(id, editRevision);
 
         return { type: "local" as const, layout };
       });
@@ -697,6 +757,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         data: snapshot.dataToSave,
         ...expectedRemoteTimestamps(snapshot.layoutForSave),
       });
+      this.#recordSavedEditRevision(id, editRevision);
 
       const result = await this.#local.runExclusive(async (local) => {
         const latestLayout = await local.get(id);
@@ -732,6 +793,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       this.#notifyChangeListeners({ type: "change", updatedLayout: result, source: "overwrite" });
       return result;
     });
+    return await overwritePromise.finally(finishPendingOverwrite);
   }
 
   public async revertLayout({ id }: { id: LayoutID }): Promise<Layout> {

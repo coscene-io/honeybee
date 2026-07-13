@@ -47,6 +47,7 @@ export type SelectedLayout = {
   data: LayoutData | undefined;
   name?: string;
   edited?: boolean;
+  editRevision?: number;
   transient?: boolean;
 };
 export type LayoutID = string & { __brand: "LayoutID" };
@@ -64,6 +65,7 @@ export type LayoutState = Readonly<{
         data: LayoutData | undefined;
         name?: string;
         edited?: boolean;
+        editRevision?: number;
         transient?: boolean;
       }
     | undefined;
