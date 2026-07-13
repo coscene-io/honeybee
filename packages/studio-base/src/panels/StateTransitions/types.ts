@@ -5,14 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ScatterDataPoint } from "chart.js";
-
+import type { ScatterPoint } from "@foxglove/studio-base/components/Chart/types";
 import { TimestampMethod } from "@foxglove/studio-base/util/time";
 
 /**
  * Datum represents a single data point in the state transitions chart.
  */
-export type Datum = ScatterDataPoint & {
+export type Datum = ScatterPoint & {
   value?: string | number | bigint | boolean;
   label?: string;
   labelColor?: string;
