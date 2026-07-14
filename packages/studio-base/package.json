@@ -184,7 +184,7 @@
     "tinycolor2": "1.6.0",
     "ts-checker-rspack-plugin": "1.4.0",
     "ts-essentials": "10.0.4",
-    "ts-key-enum": "2.0.12",
+    "ts-key-enum": "3.0.13",
     "tss-react": "4.9.3",
     "typescript": "5.9.3",
     "use-debounce": "10.1.1",
