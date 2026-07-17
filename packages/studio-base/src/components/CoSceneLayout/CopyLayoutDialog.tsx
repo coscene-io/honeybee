@@ -72,7 +72,9 @@ export function CopyLayoutDialog({
       name: data.name,
       permission: data.permission,
       data:
-        selectedLayout?.id === layout.id && selectedLayout.data != undefined
+        selectedLayout?.id === layout.id &&
+        selectedLayout.edited === true &&
+        selectedLayout.data != undefined
           ? selectedLayout.data
           : (layout.working?.data ?? layout.baseline.data),
     });

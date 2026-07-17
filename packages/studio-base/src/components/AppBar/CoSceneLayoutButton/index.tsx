@@ -78,7 +78,9 @@ function getCurrentLayoutParams(state: LayoutState, id: LayoutID) {
 
 function getLatestLayoutData(state: LayoutState, layout: Layout): LayoutData {
   const selectedLayout = state.selectedLayout;
-  return selectedLayout?.id === layout.id && selectedLayout.data != undefined
+  return selectedLayout?.id === layout.id &&
+    selectedLayout.edited === true &&
+    selectedLayout.data != undefined
     ? selectedLayout.data
     : (layout.working?.data ?? layout.baseline.data);
 }
