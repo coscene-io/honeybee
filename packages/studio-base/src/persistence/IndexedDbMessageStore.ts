@@ -72,6 +72,7 @@ class ShutdownTimeoutError extends Error {}
 class MaintenanceTimeoutError extends Error {}
 
 export type CacheSessionKind = "realtime-viz" | "playback-spill";
+export type CacheAccessMode = "reader" | "writer" | "maintenance";
 
 export type MessageCacheMetricData = Readonly<
   Record<string, string | number | boolean | undefined>
@@ -139,6 +140,7 @@ type QueuedMessage = {
 
 type ActiveTransaction = {
   readonly done: Promise<unknown>;
+  readonly mode?: IDBTransactionMode;
   abort(): void;
 };
 
@@ -167,7 +169,6 @@ interface MessagesDB extends IDB.DBSchema {
     value: CacheSessionMetadata;
     indexes: {
       byKind: CacheSessionKind;
-      byKindLastActive: [kind: CacheSessionKind, lastActiveAt: number];
     };
   };
   [TOPICS_STORE]: {
@@ -262,8 +263,6 @@ function getBrowserLockManager(): BrowserLockManager | undefined {
 }
 
 let inMemoryStoragePressureToken: string | undefined;
-let storagePressureHighEpoch = 0;
-let storagePressureRecoveryGeneration = 0;
 
 function readStoragePressureToken(): string | undefined {
   try {
@@ -340,7 +339,8 @@ async function clearStoragePressureLatchIfUnchanged(
   }
 }
 
-const inProcessMaintenanceTails = new Map<string, Promise<void>>();
+const CACHE_MAINTENANCE_LOCK_NAME = "studio-message-cache-maintenance-v1";
+let cacheMaintenanceInProgress = false;
 
 class CacheMaintenanceOperationError extends Error {
   public constructor(public readonly originalError: unknown) {
@@ -348,40 +348,21 @@ class CacheMaintenanceOperationError extends Error {
   }
 }
 
-async function serializeMaintenanceInProcess<T>(
-  key: string,
-  operation: () => Promise<T>,
-): Promise<T> {
-  const previous = inProcessMaintenanceTails.get(key) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(operation);
-  const tail = current.then(
-    () => undefined,
-    () => undefined,
-  );
-  inProcessMaintenanceTails.set(key, tail);
-  try {
-    return await current;
-  } finally {
-    if (inProcessMaintenanceTails.get(key) === tail) {
-      inProcessMaintenanceTails.delete(key);
-    }
-  }
-}
-
 async function runWithCacheMaintenanceLock<T>(
-  dbName: string,
-  kind: CacheSessionKind,
   operation: () => Promise<T>,
 ): Promise<{ acquired: true; value: T } | { acquired: false }> {
-  const key = `${dbName}:${kind}`;
-  return await serializeMaintenanceInProcess(key, async () => {
+  if (cacheMaintenanceInProgress) {
+    return { acquired: false };
+  }
+  cacheMaintenanceInProgress = true;
+  try {
     const locks = getBrowserLockManager();
     if (locks == undefined) {
       return { acquired: true, value: await operation() };
     }
     try {
       return await locks.request(
-        `studio-message-cache-maintenance:${key}`,
+        CACHE_MAINTENANCE_LOCK_NAME,
         { mode: "exclusive", ifAvailable: true },
         async (lock) => {
           if (lock == undefined) {
@@ -402,7 +383,9 @@ async function runWithCacheMaintenanceLock<T>(
       // cleanup tokens and atomic metadata updates remain the fallback arbitration mechanism.
       return { acquired: true, value: await operation() };
     }
-  });
+  } finally {
+    cacheMaintenanceInProgress = false;
+  }
 }
 
 type IdleSchedulingGlobal = {
@@ -493,8 +476,8 @@ interface IndexedDbMessageStoreOptions {
   shutdownTimeoutMs?: number;
   /** Absolute deadline for a maintenance pass, including every cleanup and budget transaction. */
   maintenanceTimeoutMs?: number;
-  /** Internal mode used by the idle janitor; does not create a cache session. */
-  maintenanceOnly?: boolean;
+  /** Reader never mutates session metadata; maintenance opens no current session. */
+  accessMode?: CacheAccessMode;
   /** Optional privacy-safe telemetry sink supplied by the owning player. */
   metricSink?: MessageCacheMetricSink;
 }
@@ -520,7 +503,6 @@ function createDatatypesStore(db: IDB.IDBPDatabase<MessagesDB>): void {
 function createSessionsStore(db: IDB.IDBPDatabase<MessagesDB>): void {
   const store = db.createObjectStore(SESSIONS_STORE, { keyPath: "sessionId" });
   store.createIndex("byKind", "kind");
-  store.createIndex("byKindLastActive", ["kind", "lastActiveAt"]);
 }
 
 function createTopicsStore(db: IDB.IDBPDatabase<MessagesDB>): void {
@@ -563,7 +545,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #kind: CacheSessionKind;
   #sourceId?: string;
   #topicFingerprint?: string;
-  #maintenanceOnly: boolean;
+  #accessMode: CacheAccessMode;
   #metricSink: MessageCacheMetricSink | undefined;
   #initializationDeadlineAt: number;
   #currentSessionId: string;
@@ -590,6 +572,8 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #activeAppendTransaction: { abort(): void } | undefined;
   #activeTransactions = new Set<ActiveTransaction>();
   #resourceClosePromise: Promise<void> | undefined;
+  #requestedShutdownStatus: "closed" | "abandoned" | "pending-delete" | undefined;
+  #discardQueuedOnShutdown = false;
   #backgroundMaintenanceCancel: (() => void) | undefined;
   #backgroundMaintenancePromise: Promise<boolean> | undefined;
   #budgetEnforcementPromise: Promise<void> | undefined;
@@ -603,6 +587,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #shutdownTimeoutMs: number;
   #maintenanceTimeoutMs: number;
   #shutdownDeadlineAt: number | undefined;
+  #sessionCreated = false;
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
@@ -619,7 +604,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       openTimeoutMs = DEFAULT_OPEN_TIMEOUT_MS,
       shutdownTimeoutMs = DEFAULT_SHUTDOWN_TIMEOUT_MS,
       maintenanceTimeoutMs = DEFAULT_MAINTENANCE_TIMEOUT_MS,
-      maintenanceOnly = false,
+      accessMode = "writer",
       metricSink,
     } = options;
 
@@ -636,7 +621,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     );
     this.#sourceId = sourceId;
     this.#topicFingerprint = topicFingerprint;
-    this.#maintenanceOnly = maintenanceOnly;
+    this.#accessMode = accessMode;
     this.#metricSink = metricSink;
     this.#currentSessionId = sessionId;
     if (!Number.isSafeInteger(maxQueuedMessages) || maxQueuedMessages <= 0) {
@@ -836,17 +821,25 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         log.debug("Skipping IndexedDbMessageStore initialization because store is already closed");
         return;
       }
-      await this.#awaitInitializationStage(
-        this.#configureStorageBudget({ allowPressureRecovery: !this.#maintenanceOnly }),
-        "storage estimate",
-      );
-      if (this.#shouldStopInitialization()) {
+
+      if (this.#accessMode === "reader") {
+        await this.#awaitInitializationStage(
+          this.#loadExistingMessageStats(),
+          "message statistics",
+        );
         return;
       }
-      if (this.#maintenanceOnly) {
+
+      await this.#awaitInitializationStage(
+        this.#configureStorageBudget({ allowPressureRecovery: this.#accessMode === "writer" }),
+        "storage estimate",
+      );
+      this.#lastGlobalBudgetCheck = Date.now();
+      if (this.#shouldStopInitialization() || this.#accessMode === "maintenance") {
         return;
       }
       await this.#awaitInitializationStage(this.#recordSessionCreation(), "session creation");
+      this.#sessionCreated = true;
       if (this.#shouldStopInitialization()) {
         return;
       }
@@ -873,11 +866,25 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       // transaction that never settles. Closing the connection is synchronous once open and lets
       // init reject at the business deadline; the janitor will classify any leftover active
       // session by age on a later pass.
+      this.#closing = true;
+      this.#abortActiveTransactions();
+      if (this.#sessionCreated) {
+        this.#beginShutdown(this.#shutdownStatusReserveMs());
+        const dbResult = await this.#settleShutdownOperation(
+          this.#dbPromise,
+          "database availability after initialization failure",
+        );
+        if (dbResult.status === "fulfilled") {
+          await this.#settleShutdownOperation(
+            this.#updateSessionStatus(dbResult.value, "abandoned", { sealSession: true }),
+            "session abandonment after initialization failure",
+          );
+        }
+      }
       this.#unavailable = true;
       this.#closed = true;
-      this.#abortActiveTransactions();
       await this.#closeDatabaseConnection();
-      if (!this.#maintenanceOnly) {
+      if (this.#accessMode === "writer") {
         scheduleMessageCacheJanitor(this.#kind, this.#metricSink);
       }
       throw toError(error);
@@ -954,7 +961,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
   async #runBackgroundMaintenance(deadlineAt?: number): Promise<boolean> {
     try {
-      const result = await runWithCacheMaintenanceLock(this.#dbName, this.#kind, async () => {
+      const result = await runWithCacheMaintenanceLock(async () => {
         await this.#runMaintenanceOperationWithDeadline(
           "background maintenance",
           async () => {
@@ -1036,7 +1043,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
    * session that may belong to another tab.
    */
   public async runMaintenance(): Promise<number | undefined> {
-    if (!this.#maintenanceOnly) {
+    if (this.#accessMode !== "maintenance") {
       throw new Error("runMaintenance requires a maintenance-only IndexedDbMessageStore");
     }
     const deadlineAt = performance.now() + this.#maintenanceTimeoutMs;
@@ -1136,18 +1143,22 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
   }
 
-  #beginShutdown(): void {
-    this.#shutdownDeadlineAt ??= performance.now() + this.#shutdownTimeoutMs;
+  #beginShutdown(timeoutMs = this.#shutdownTimeoutMs): void {
+    this.#shutdownDeadlineAt ??= performance.now() + timeoutMs;
   }
 
   #shutdownStatusReserveMs(): number {
-    return Math.min(MAX_SHUTDOWN_STATUS_RESERVE_MS, this.#shutdownTimeoutMs / 2);
+    return Math.min(MAX_SHUTDOWN_STATUS_RESERVE_MS, this.#shutdownTimeoutMs * 0.8);
   }
 
   #trackTransaction<T extends ActiveTransaction>(
     transaction: T,
     options: { allowWhileClosing?: boolean } = {},
   ): T {
+    if (this.#accessMode === "reader" && transaction.mode === "readwrite") {
+      transaction.abort();
+      throw new Error("Reader IndexedDbMessageStore cannot start a readwrite transaction");
+    }
     if (
       (this.#closing || this.#closed || this.#unavailable) &&
       options.allowWhileClosing !== true
@@ -1198,22 +1209,16 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     estimateTimeoutMs,
   }: { allowPressureRecovery?: boolean; estimateTimeoutMs?: number } = {}): Promise<void> {
     const estimateGeneration = ++this.#storageEstimateGeneration;
-    const highPressureEpochAtStart = storagePressureHighEpoch;
     const pressureTokenAtStart = readStoragePressureToken();
-    const recoveryGeneration = allowPressureRecovery
-      ? ++storagePressureRecoveryGeneration
-      : undefined;
     this.#originUsageBytes = undefined;
     this.#originQuotaBytes = undefined;
-    const fallback =
-      this.#kind === "playback-spill"
-        ? PLAYBACK_BUDGET_FALLBACK_BYTES
-        : REALTIME_BUDGET_FALLBACK_BYTES;
     const ratio = this.#kind === "playback-spill" ? PLAYBACK_BUDGET_RATIO : REALTIME_BUDGET_RATIO;
     const maximum =
       this.#kind === "playback-spill" ? PLAYBACK_BUDGET_MAX_BYTES : REALTIME_BUDGET_MAX_BYTES;
 
-    let budget = fallback;
+    // Unknown estimates retain the last known budget. The constructor initializes this to the
+    // documented fallback, so first-open failures still have a deterministic cap.
+    let budget = this.#globalBudgetBytes;
     const runtimeNavigator = (globalThis as { navigator?: Navigator }).navigator;
     const storageManager = runtimeNavigator?.storage as
       | { estimate?: () => Promise<StorageEstimate> }
@@ -1260,14 +1265,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
             const usageRatio =
               usage != undefined && Number.isFinite(usage) ? Math.max(0, usage / quota) : undefined;
             if (usageRatio != undefined && usageRatio >= STORAGE_PRESSURE_HIGH_WATERMARK) {
-              storagePressureHighEpoch++;
               await latchStoragePressure();
             } else if (
               allowPressureRecovery &&
               usageRatio != undefined &&
-              usageRatio < STORAGE_PRESSURE_LOW_WATERMARK &&
-              recoveryGeneration === storagePressureRecoveryGeneration &&
-              highPressureEpochAtStart === storagePressureHighEpoch
+              usageRatio < STORAGE_PRESSURE_LOW_WATERMARK
             ) {
               await clearStoragePressureLatchIfUnchanged(pressureTokenAtStart);
             }
@@ -1304,14 +1306,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           !this.#closed &&
           !this.#unavailable
         ) {
-          // The StorageManager request cannot be cancelled. Fail this cache generation closed so
-          // a wedged browser storage backend cannot hold append/flush/close forever.
-          this.#writesDisabled = true;
-          storagePressureHighEpoch++;
-          await latchStoragePressure();
           this.#reportMetric("storage", {
             status: "timeout",
-            writesDisabled: true,
+            writesDisabled: this.#writesDisabled,
           });
         }
         log.debug("Failed to estimate browser storage; using fallback cache budget", error);
@@ -1352,7 +1349,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       this.#contentRevision = Math.max(this.#contentRevision, contentRevision);
       log.debug(`Loaded existing message stats: ${count} messages`);
 
-      if (sessionMetadata?.messageCount == undefined) {
+      if (this.#accessMode === "writer" && sessionMetadata?.messageCount == undefined) {
         await this.#updateSessionMetadata({ messageCount: count, approximateSizeBytes });
       }
     } catch (error) {
@@ -1803,6 +1800,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   /** Whether callers may still persist messages and coverage metadata in this session. */
   public isWritable(): boolean {
     return (
+      this.#accessMode === "writer" &&
       !this.#closing &&
       !this.#closed &&
       !this.#unavailable &&
@@ -2197,7 +2195,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       const retentionWindowMsTime = fromMillis(this.#retentionWindowMs);
       const cutoff = subtract(latestTime, retentionWindowMsTime);
-      const timePruneResult = await this.#pruneBeforeTime(this.#currentSessionId, cutoff);
+      const timePruneResult = await this.#pruneBeforeTime(this.#currentSessionId, cutoff, {
+        maxBatches: 1,
+      });
       totalPrunedCount += timePruneResult.count;
 
       const approximateAfterTimePrune = this.#approximateSizeBytes;
@@ -2205,6 +2205,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         const sizePruneResult = await this.#pruneOldestUntilSize(
           this.#currentSessionId,
           this.#sessionPruneTargetSize(),
+          { maxBatches: 1 },
         );
         totalPrunedCount += sizePruneResult.count;
       }
@@ -2219,18 +2220,29 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           )}MB (limit: ${Math.round(this.#maxCacheSize / 1024 / 1024)}MB)`,
         );
       }
+      if (this.#approximateSizeBytes > this.#maxCacheSize || timePruneResult.hasMore) {
+        scheduleMessageCacheJanitor(this.#kind, this.#metricSink);
+      }
     } catch (error) {
       await this.#failAfterPruneError(error);
     }
   }
 
-  async #enforceGlobalBudget(options: { force?: boolean } = {}): Promise<void> {
-    const existing = this.#budgetEnforcementPromise;
-    if (existing != undefined) {
-      await existing;
+  async #enforceGlobalBudget(): Promise<void> {
+    const now = Date.now();
+    if (
+      this.#bytesSinceGlobalBudgetCheck < GLOBAL_BUDGET_CHECK_BYTES &&
+      this.#lastGlobalBudgetCheck != undefined &&
+      now - this.#lastGlobalBudgetCheck < GLOBAL_BUDGET_CHECK_INTERVAL_MS
+    ) {
       return;
     }
-    const enforcement = this.#enforceGlobalBudgetWithLock(options);
+
+    const existing = this.#budgetEnforcementPromise;
+    if (existing != undefined) {
+      return;
+    }
+    const enforcement = this.#enforceGlobalBudgetWithLock();
     this.#budgetEnforcementPromise = enforcement;
     try {
       await enforcement;
@@ -2241,10 +2253,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
   }
 
-  async #enforceGlobalBudgetWithLock(options: { force?: boolean }): Promise<void> {
-    const result = await runWithCacheMaintenanceLock(this.#dbName, this.#kind, async () => {
+  async #enforceGlobalBudgetWithLock(): Promise<void> {
+    const result = await runWithCacheMaintenanceLock(async () => {
       await this.#runMaintenanceOperationWithDeadline("global budget enforcement", async () => {
-        await this.#enforceGlobalBudgetImpl(options);
+        await this.#enforceGlobalBudgetImpl();
       });
     });
     if (!result.acquired) {
@@ -2397,12 +2409,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       this.#maxCacheSize * 0.9,
       Math.max(0, targetBytes - otherSessionBytes),
     );
-    let pruned: { count: number; bytes: number };
-    try {
-      pruned = await this.#pruneOldestUntilSize(this.#currentSessionId, currentTargetSize);
-    } catch (error) {
-      await this.#failAfterPruneError(error);
-    }
+    const pruned = await this.#pruneOldestUntilSize(
+      this.#currentSessionId,
+      currentTargetSize,
+    ).catch(async (error: unknown) => await this.#failAfterPruneError(error));
     if (pruned.count > 0) {
       await this.#deleteLoadedRangesAfterPrune();
     }
@@ -2430,11 +2440,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #pruneBeforeTime(
     sessionId: string,
     cutoff: Time,
-  ): Promise<{ count: number; bytes: number }> {
+    options: { maxBatches?: number } = {},
+  ): Promise<{ count: number; hasMore: boolean }> {
     let totalCount = 0;
-    let totalBytes = 0;
+    let completedBatches = 0;
+    let hasMore = false;
 
-    while (!this.#closing) {
+    while (!this.#closing && completedBatches < (options.maxBatches ?? Number.POSITIVE_INFINITY)) {
       const db = await this.#dbPromise;
       const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readwrite"));
       const messageStore = tx.objectStore(STORE);
@@ -2451,6 +2463,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       );
       const keys: [sessionId: string, sec: number, nsec: number, seq: number][] = [];
       let batchBytes = 0;
+      hasMore = false;
       for await (const cursor of index.iterate(range)) {
         const messageBytes = storedEventSize(cursor.value);
         if (
@@ -2458,11 +2471,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           (keys.length >= CLEANUP_BATCH_MAX_MESSAGES ||
             batchBytes + messageBytes > CLEANUP_BATCH_MAX_BYTES)
         ) {
+          hasMore = true;
           break;
         }
         keys.push(cursor.primaryKey);
         batchBytes += messageBytes;
         if (keys.length >= CLEANUP_BATCH_MAX_MESSAGES || batchBytes >= CLEANUP_BATCH_MAX_BYTES) {
+          hasMore = true;
           break;
         }
       }
@@ -2487,13 +2502,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       await tx.done;
 
       totalCount += keys.length;
-      totalBytes += batchBytes;
+      completedBatches++;
       if (sessionId === this.#currentSessionId) {
         this.#messageCount = nextMessageCount;
         this.#approximateSizeBytes = nextApproximateSizeBytes;
         this.#contentRevision = Math.max(this.#contentRevision, nextContentRevision);
       }
       if (keys.length === 0) {
+        hasMore = false;
         break;
       }
       await new Promise<void>((resolve) => {
@@ -2501,18 +2517,19 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       });
     }
 
-    return { count: totalCount, bytes: totalBytes };
+    return { count: totalCount, hasMore };
   }
 
   async #pruneOldestUntilSize(
     sessionId: string,
     targetSize: number,
+    options: { maxBatches?: number } = {},
   ): Promise<{ count: number; bytes: number }> {
     let totalDeletedCount = 0;
     let totalDeletedBytes = 0;
-    const BATCH_SIZE = 100;
+    let completedBatches = 0;
 
-    while (!this.#closing) {
+    while (!this.#closing && completedBatches < (options.maxBatches ?? Number.POSITIVE_INFINITY)) {
       const db = await this.#dbPromise;
       const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readwrite"));
       const messageStore = tx.objectStore(STORE);
@@ -2539,18 +2556,25 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       const keys: [sessionId: string, sec: number, nsec: number, seq: number][] = [];
       let batchDeletedBytes = 0;
+      const bytesToDelete = Math.max(0, currentApproximateSize - targetSize);
 
       for await (const cursor of index.iterate(range)) {
         const messageBytes = storedEventSize(cursor.value);
         if (
           keys.length > 0 &&
-          (keys.length >= BATCH_SIZE || batchDeletedBytes + messageBytes > CLEANUP_BATCH_MAX_BYTES)
+          (keys.length >= CLEANUP_BATCH_MAX_MESSAGES ||
+            batchDeletedBytes >= bytesToDelete ||
+            batchDeletedBytes + messageBytes > CLEANUP_BATCH_MAX_BYTES)
         ) {
           break;
         }
         keys.push(cursor.primaryKey);
         batchDeletedBytes += messageBytes;
-        if (keys.length >= BATCH_SIZE || batchDeletedBytes >= CLEANUP_BATCH_MAX_BYTES) {
+        if (
+          keys.length >= CLEANUP_BATCH_MAX_MESSAGES ||
+          batchDeletedBytes >= bytesToDelete ||
+          batchDeletedBytes >= CLEANUP_BATCH_MAX_BYTES
+        ) {
           break;
         }
       }
@@ -2587,6 +2611,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
       totalDeletedCount += keys.length;
       totalDeletedBytes += batchDeletedBytes;
+      completedBatches++;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
     }
 
     return { count: totalDeletedCount, bytes: totalDeletedBytes };
@@ -2905,85 +2933,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   // Returning the stored promise directly preserves identity across concurrent callers.
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   public discardAndSeal(status: "pending-delete" | "abandoned"): Promise<void> {
-    this.#resourceClosePromise ??= this.#discardAndSealImpl(status);
-    return this.#resourceClosePromise;
-  }
-
-  async #discardAndSealImpl(status: "pending-delete" | "abandoned"): Promise<void> {
-    if (this.#closed) {
-      return;
-    }
-    this.#beginShutdown();
-    this.#closing = true;
-    if (this.#appendFlushTimer != undefined) {
-      clearTimeout(this.#appendFlushTimer);
-      this.#appendFlushTimer = undefined;
-    }
-    this.#clearAppendQueue();
-
-    try {
-      const shutdownResult = await this.#settleShutdownOperation(
-        Promise.allSettled([
-          this.#appendFlushInFlight ?? Promise.resolve(),
-          this.#stopBackgroundMaintenance(),
-          this.#waitForActiveTransactions(),
-        ]),
-        "spill session sealing",
-        { reserveRemainingMs: this.#shutdownStatusReserveMs() },
-      );
-      if (shutdownResult.status === "rejected") {
-        throw shutdownResult.reason;
-      }
-      const appendFailed = shutdownResult.value.some((result) => result.status === "rejected");
-      const dbResult = await this.#settleShutdownOperation(
-        this.#dbPromise,
-        "database availability for spill session status",
-      );
-      if (dbResult.status === "rejected") {
-        throw dbResult.reason;
-      }
-      const db = dbResult.value;
-      if (!this.#unavailable) {
-        const effectiveStatus =
-          appendFailed || this.#writeFailure != undefined ? "abandoned" : status;
-        const statusResult = await this.#settleShutdownOperation(
-          this.#updateSessionStatus(db, effectiveStatus, { sealSession: true }),
-          "spill session status update",
-        );
-        if (statusResult.status === "rejected") {
-          throw statusResult.reason;
-        }
-        this.#reportMetric("session", { status: effectiveStatus });
-      }
-    } catch (error) {
-      log.warn("Failed to seal IndexedDbMessageStore session before closing", {
-        dbName: this.#dbName,
-        sessionId: this.#currentSessionId,
-        status,
-        error,
-      });
-      if (!this.#unavailable) {
-        try {
-          const dbResult = await this.#settleShutdownOperation(
-            this.#dbPromise,
-            "database availability for spill abandoned status",
-          );
-          if (dbResult.status === "fulfilled") {
-            await this.#settleShutdownOperation(
-              this.#updateSessionStatus(dbResult.value, "abandoned", { sealSession: true }),
-              "spill abandoned status update",
-            );
-          }
-        } catch (fallbackError) {
-          log.debug("Failed to mark IndexedDbMessageStore session abandoned", fallbackError);
-        }
-      }
-    } finally {
-      this.#closed = true;
-      this.#clearAppendQueue();
-      await this.#closeDatabaseConnection();
-      scheduleMessageCacheJanitor(this.#kind, this.#metricSink);
-    }
+    return this.#requestShutdown(status, { discardQueued: true });
   }
 
   /** @deprecated Use discardAndSeal(). */
@@ -3033,62 +2983,126 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   // Returning the stored promise directly preserves identity across concurrent callers.
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   public close(): Promise<void> {
-    this.#resourceClosePromise ??= this.#closeImpl();
+    return this.#requestShutdown("closed", { discardQueued: false });
+  }
+
+  // Returning the stored promise directly preserves identity across concurrent callers.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  #requestShutdown(
+    status: "closed" | "abandoned" | "pending-delete",
+    options: { discardQueued: boolean },
+  ): Promise<void> {
+    const priority = { closed: 0, "pending-delete": 1, abandoned: 2 } as const;
+    if (
+      this.#requestedShutdownStatus == undefined ||
+      priority[status] > priority[this.#requestedShutdownStatus]
+    ) {
+      this.#requestedShutdownStatus = status;
+    }
+    this.#discardQueuedOnShutdown ||= options.discardQueued;
+    this.#resourceClosePromise ??= this.#shutdownImpl({
+      suppressErrors: options.discardQueued,
+    });
     return this.#resourceClosePromise;
   }
 
-  async #closeImpl(): Promise<void> {
+  async #shutdownImpl(options: { suppressErrors: boolean }): Promise<void> {
     if (this.#closed) {
       return;
     }
     this.#beginShutdown();
     this.#closing = true;
+    if (this.#discardQueuedOnShutdown) {
+      if (this.#appendFlushTimer != undefined) {
+        clearTimeout(this.#appendFlushTimer);
+        this.#appendFlushTimer = undefined;
+      }
+      this.#clearAppendQueue();
+    }
+
+    const statusReserveMs = this.#shutdownStatusReserveMs();
     const shutdownResult = await this.#settleShutdownOperation(
       Promise.allSettled([
-        this.flush(),
+        this.#discardQueuedOnShutdown
+          ? (this.#appendFlushInFlight ?? Promise.resolve())
+          : this.flush(),
         this.#stopBackgroundMaintenance(),
         this.#waitForActiveTransactions(),
       ]),
-      "cache flush and maintenance",
-      { reserveRemainingMs: this.#shutdownStatusReserveMs() },
+      this.#discardQueuedOnShutdown ? "cache sealing" : "cache flush and maintenance",
+      { reserveRemainingMs: statusReserveMs },
     );
-    let flushError: unknown =
+    this.#shutdownDeadlineAt = Math.max(
+      this.#shutdownDeadlineAt ?? 0,
+      performance.now() + statusReserveMs,
+    );
+    let shutdownError: unknown =
       shutdownResult.status === "rejected"
         ? shutdownResult.reason
         : shutdownResult.value.find((result) => result.status === "rejected")?.reason;
-    if (flushError != undefined) {
-      log.warn("Error flushing pending events on close:", flushError);
+    if (shutdownError != undefined) {
+      log.warn("Error settling pending cache work on close:", shutdownError);
     }
-    this.#closed = true;
     this.#clearAppendQueue();
 
+    let effectiveStatus: "closed" | "abandoned" | "pending-delete" = "closed";
     try {
       const dbResult = await this.#settleShutdownOperation(
         this.#dbPromise,
         "database availability for session status",
       );
-      if (dbResult.status === "fulfilled" && !this.#unavailable) {
-        const status = flushError == undefined ? "closed" : "abandoned";
+      if (dbResult.status === "fulfilled" && !this.#unavailable && this.#accessMode === "writer") {
+        effectiveStatus =
+          shutdownError != undefined || this.#writeFailure != undefined
+            ? "abandoned"
+            : (this.#requestedShutdownStatus ?? "closed");
         const statusResult = await this.#settleShutdownOperation(
-          this.#updateSessionStatus(dbResult.value, status),
+          this.#updateSessionStatus(dbResult.value, effectiveStatus, {
+            sealSession: this.#discardQueuedOnShutdown,
+          }),
           "session status update",
         );
         if (statusResult.status === "fulfilled") {
-          this.#reportMetric("session", { status });
-        } else if (flushError == undefined) {
-          flushError = statusResult.reason;
+          this.#reportMetric("session", { status: effectiveStatus });
+        } else {
+          shutdownError ??= statusResult.reason;
+          if (
+            effectiveStatus !== "abandoned" &&
+            !(statusResult.reason instanceof ShutdownTimeoutError)
+          ) {
+            // A non-timeout failure may be transient (for example, transaction creation can
+            // throw once while a versionchange settles). Retry once with the safe terminal state.
+            const abandonedResult = await this.#settleShutdownOperation(
+              this.#updateSessionStatus(dbResult.value, "abandoned", {
+                sealSession: this.#discardQueuedOnShutdown,
+              }),
+              "fallback abandoned session status update",
+            );
+            if (abandonedResult.status === "fulfilled") {
+              effectiveStatus = "abandoned";
+              this.#reportMetric("session", { status: effectiveStatus });
+            }
+          }
         }
-      } else if (dbResult.status === "rejected" && flushError == undefined) {
-        flushError = dbResult.reason;
+      } else if (dbResult.status === "rejected") {
+        shutdownError ??= dbResult.reason;
       }
     } catch (error) {
       log.debug("Error marking database session closed:", error);
+      shutdownError ??= error;
     } finally {
+      this.#closed = true;
       await this.#closeDatabaseConnection();
+      if (
+        this.#accessMode === "writer" &&
+        (this.#discardQueuedOnShutdown || effectiveStatus === "abandoned")
+      ) {
+        scheduleMessageCacheJanitor(this.#kind, this.#metricSink);
+      }
     }
 
-    if (flushError != undefined) {
-      throw toError(flushError);
+    if (shutdownError != undefined && !options.suppressErrors) {
+      throw toError(shutdownError);
     }
   }
 
@@ -3712,7 +3726,7 @@ function scheduleMessageCacheJanitor(
       let janitor: IndexedDbMessageStore | undefined;
       let retryDelayMs: number | undefined;
       try {
-        janitor = new IndexedDbMessageStore({ kind, maintenanceOnly: true, metricSink });
+        janitor = new IndexedDbMessageStore({ kind, accessMode: "maintenance", metricSink });
         await janitor.init();
         retryDelayMs = await janitor.runMaintenance();
       } catch (error) {
@@ -3772,53 +3786,102 @@ export async function clearIndexedDbMessageStoreDatabase(): Promise<void> {
   ]);
 }
 
+type LegacyDeletionSubscriber = {
+  onBlocked?: () => void;
+};
+
+type LegacyDeletionTask = {
+  phase: "scheduled" | "running" | "settled";
+  blocked: boolean;
+  subscribers: Set<LegacyDeletionSubscriber>;
+  cancelSchedule?: () => void;
+};
+
+let legacyDeletionTask: LegacyDeletionTask | undefined;
+
 export function scheduleLegacyMessageCacheDatabaseDeletion(
   options: {
     onBlocked?: () => void;
   } = {},
 ): () => void {
-  let cancelled = false;
-  const deleteLegacyDatabase = () => {
-    if (cancelled) {
-      return;
-    }
-    void IDB.deleteDB(LEGACY_MESSAGE_CACHE_DB_NAME, {
-      blocked(currentVersion) {
-        log.warn("Legacy message cache deletion is blocked by another tab", {
-          dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
-          currentVersion,
-        });
-        options.onBlocked?.();
-      },
-    }).then(
-      () => {
-        log.info("Legacy message cache database deleted", {
-          dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
-        });
-      },
-      (error: unknown) => {
-        log.warn("Legacy message cache database deletion failed", {
-          dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
-          error,
-        });
-      },
-    );
-  };
-
-  const { requestIdleCallback, cancelIdleCallback } = getIdleSchedulingGlobal();
-  if (requestIdleCallback != undefined && cancelIdleCallback != undefined) {
-    const idleCallbackId = requestIdleCallback.call(globalThis, deleteLegacyDatabase, {
-      timeout: 10_000,
-    });
-    return () => {
-      cancelled = true;
-      cancelIdleCallback.call(globalThis, idleCallbackId);
+  const subscriber: LegacyDeletionSubscriber = { onBlocked: options.onBlocked };
+  let task = legacyDeletionTask;
+  if (task?.phase === "settled") {
+    return () => undefined;
+  }
+  if (task == undefined) {
+    task = {
+      phase: "scheduled",
+      blocked: false,
+      subscribers: new Set(),
     };
+    legacyDeletionTask = task;
+
+    const deleteLegacyDatabase = () => {
+      if (task?.phase !== "scheduled") {
+        return;
+      }
+      task.phase = "running";
+      task.cancelSchedule = undefined;
+      void IDB.deleteDB(LEGACY_MESSAGE_CACHE_DB_NAME, {
+        blocked(currentVersion) {
+          task!.blocked = true;
+          log.warn("Legacy message cache deletion is blocked by another tab", {
+            dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
+            currentVersion,
+          });
+          for (const currentSubscriber of task!.subscribers) {
+            currentSubscriber.onBlocked?.();
+          }
+        },
+      }).then(
+        () => {
+          task!.phase = "settled";
+          task!.subscribers.clear();
+          log.info("Legacy message cache database deleted", {
+            dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
+          });
+        },
+        (error: unknown) => {
+          task!.phase = "settled";
+          task!.subscribers.clear();
+          log.warn("Legacy message cache database deletion failed", {
+            dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
+            error,
+          });
+        },
+      );
+    };
+
+    const { requestIdleCallback, cancelIdleCallback } = getIdleSchedulingGlobal();
+    if (requestIdleCallback != undefined && cancelIdleCallback != undefined) {
+      const idleCallbackId = requestIdleCallback.call(globalThis, deleteLegacyDatabase, {
+        timeout: 10_000,
+      });
+      task.cancelSchedule = () => {
+        cancelIdleCallback.call(globalThis, idleCallbackId);
+      };
+    } else {
+      const timeoutId = setTimeout(deleteLegacyDatabase, 1_000);
+      task.cancelSchedule = () => {
+        clearTimeout(timeoutId);
+      };
+    }
   }
 
-  const timeoutId = setTimeout(deleteLegacyDatabase, 1_000);
+  task.subscribers.add(subscriber);
+  if (task.blocked) {
+    subscriber.onBlocked?.();
+  }
+
   return () => {
-    cancelled = true;
-    clearTimeout(timeoutId);
+    task.subscribers.delete(subscriber);
+    if (task.phase === "scheduled" && task.subscribers.size === 0) {
+      task.cancelSchedule?.();
+      task.phase = "settled";
+      if (legacyDeletionTask === task) {
+        legacyDeletionTask = undefined;
+      }
+    }
   };
 }

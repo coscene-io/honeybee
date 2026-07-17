@@ -266,6 +266,63 @@ describe("IterablePlayer", () => {
     await expect(player.isClosed).resolves.toBeUndefined();
   });
 
+  it("closes without waiting for a late initialization result", async () => {
+    const initializeStarted = signal();
+    let resolveInitialize: ((result: Initalization) => void) | undefined;
+    class BlockingInitializeSource extends TestSource {
+      public override initialize = jest.fn(async () => {
+        initializeStarted.resolve();
+        return await new Promise<Initalization>((resolve) => {
+          resolveInitialize = resolve;
+        });
+      });
+      public terminate = jest.fn(async () => {});
+    }
+
+    const source = new BlockingInitializeSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+    const listener = jest.fn(async () => {});
+    player.setListener(listener);
+    await initializeStarted;
+
+    await expect(player.close()).resolves.toBeUndefined();
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+    const callsAfterClose = listener.mock.calls.length;
+
+    resolveInitialize?.(await TestSource.prototype.initialize.call(source));
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(callsAfterClose);
+  });
+
+  it("rejects close after attempting teardown when source termination fails", async () => {
+    const closeError = new Error("source termination failed");
+    class FailingTerminateSource extends TestSource {
+      public terminate = jest.fn(async () => {
+        throw closeError;
+      });
+    }
+
+    const source = new FailingTerminateSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+
+    const closePromise = player.close();
+    expect(player.close()).toBe(closePromise);
+    await expect(closePromise).rejects.toBe(closeError);
+    await expect(player.isClosed).rejects.toBe(closeError);
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+  });
+
   it("creates an isolated playback spill session when enabled", async () => {
     await clearIndexedDbMessageStoreDatabase();
     const originalCrypto = globalThis.crypto;

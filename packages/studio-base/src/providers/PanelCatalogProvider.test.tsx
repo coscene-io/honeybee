@@ -19,11 +19,10 @@ import { type PanelInfo, usePanelCatalog } from "@foxglove/studio-base/context/P
 
 import PanelCatalogProvider from "./PanelCatalogProvider";
 
-function makeRegisteredPanel(revision: string): RegisteredPanel {
+function makeRegisteredPanel(): RegisteredPanel {
   return {
     extensionName: "sample-extension",
     extensionNamespace: "local",
-    extensionRevision: revision,
     registration: {
       name: "sample-panel",
       initPanel: jest.fn(),
@@ -60,8 +59,9 @@ function PanelCatalogProbe(props: {
 }
 
 describe("PanelCatalogProvider", () => {
-  it("keeps an unchanged extension panel mounted across refreshes", async () => {
-    const store = makeExtensionCatalogStore(makeRegisteredPanel("revision-a"));
+  it("keeps a cached activation snapshot mounted across refreshes", async () => {
+    const registeredPanel = makeRegisteredPanel();
+    const store = makeExtensionCatalogStore(registeredPanel);
     const observedPanels: (PanelInfo | undefined)[] = [];
 
     render(
@@ -80,7 +80,7 @@ describe("PanelCatalogProvider", () => {
     act(() => {
       store.setState({
         installedPanels: {
-          "sample-extension.sample-panel": makeRegisteredPanel("revision-a"),
+          "sample-extension.sample-panel": registeredPanel,
         },
       });
     });
@@ -92,7 +92,7 @@ describe("PanelCatalogProvider", () => {
     act(() => {
       store.setState({
         installedPanels: {
-          "sample-extension.sample-panel": makeRegisteredPanel("revision-b"),
+          "sample-extension.sample-panel": makeRegisteredPanel(),
         },
       });
     });

@@ -18,11 +18,13 @@ type MockClient = {
 
 type MockCache = {
   close: jest.Mock<Promise<void>, []>;
+  rejectClose: (error: unknown) => void;
   resolveClose: () => void;
 };
 
 const mockClients: MockClient[] = [];
 const mockCaches: MockCache[] = [];
+let mockClientConstructionError: Error | undefined;
 
 jest.mock("@foxglove/ws-protocol", () => {
   const actual = jest.requireActual("@foxglove/ws-protocol");
@@ -35,6 +37,11 @@ jest.mock("@foxglove/ws-protocol", () => {
     public clientSyncTime = jest.fn();
 
     public constructor() {
+      if (mockClientConstructionError != undefined) {
+        const error = mockClientConstructionError;
+        mockClientConstructionError = undefined;
+        throw error;
+      }
       mockClients.push(this);
     }
 
@@ -61,6 +68,7 @@ jest.mock("@foxglove/ws-protocol", () => {
 jest.mock("@foxglove/studio-base/persistence/RealtimeVizHistoryCache", () => ({
   RealtimeVizHistoryCache: jest.fn().mockImplementation(() => {
     let resolveClose = () => {};
+    let rejectClose = (_error: unknown) => {};
     const cache: MockCache & {
       init: jest.Mock;
       append: jest.Mock;
@@ -72,10 +80,14 @@ jest.mock("@foxglove/studio-base/persistence/RealtimeVizHistoryCache", () => ({
       storeDatatypes: jest.fn(),
       storeTopics: jest.fn(),
       close: jest.fn(async () => {
-        await new Promise<void>((resolve) => {
+        await new Promise<void>((resolve, reject) => {
           resolveClose = resolve;
+          rejectClose = reject;
         });
       }),
+      rejectClose: (error) => {
+        rejectClose(error);
+      },
       resolveClose: () => {
         resolveClose();
       },
@@ -105,10 +117,17 @@ function makePlayer(confirm: jest.Mock = jest.fn()): FoxgloveWebSocketPlayer {
   });
 }
 
+async function flushPromises(count = 5): Promise<void> {
+  for (let index = 0; index < count; index++) {
+    await Promise.resolve();
+  }
+}
+
 describe("FoxgloveWebSocketPlayer lifecycle", () => {
   beforeEach(() => {
     mockClients.length = 0;
     mockCaches.length = 0;
+    mockClientConstructionError = undefined;
   });
 
   it("serializes close/reopen and ignores events from an old client generation", async () => {
@@ -193,5 +212,85 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
 
     expect(mockClients).toHaveLength(1);
     expect(mockCaches).toHaveLength(1);
+  });
+
+  it("does not wait for a second close event after receiving a 4001 close", async () => {
+    jest.useFakeTimers();
+    try {
+      const confirm = jest.fn(async () => await new Promise<never>(() => undefined));
+      const player = makePlayer(confirm);
+      const client = mockClients[0]!;
+      const cache = mockCaches[0]!;
+
+      client.emit("close", {
+        type: "close",
+        data: { code: 4001, reason: JSON.stringify({ username: "other-user" }) },
+      });
+      expect(client.close).not.toHaveBeenCalled();
+
+      const closePromise = player.close();
+      cache.resolveClose();
+      let settled = false;
+      void closePromise.then(() => {
+        settled = true;
+      });
+      await flushPromises(20);
+
+      expect(settled).toBe(true);
+      expect(confirm).toHaveBeenCalledTimes(1);
+    } finally {
+      await jest.runOnlyPendingTimersAsync();
+      jest.useRealTimers();
+    }
+  });
+
+  it("keeps the player closed after a failed reopen and allows an explicit retry", async () => {
+    const player = makePlayer();
+    const oldClient = mockClients[0]!;
+    const oldCache = mockCaches[0]!;
+
+    const closePromise = player.close();
+    oldClient.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    oldCache.resolveClose();
+    await closePromise;
+
+    const constructionError = new Error("client construction failed");
+    mockClientConstructionError = constructionError;
+    player.reOpen();
+    await flushPromises(10);
+    expect(mockClients).toHaveLength(1);
+    expect(mockCaches).toHaveLength(1);
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to reopen WebSocket player:",
+      constructionError,
+    );
+    jest.mocked(console.error).mockClear();
+
+    player.reOpen();
+    await flushPromises(10);
+    expect(mockClients).toHaveLength(2);
+    expect(mockCaches).toHaveLength(2);
+
+    const newClient = mockClients[1]!;
+    const newCache = mockCaches[1]!;
+    const finalClosePromise = player.close();
+    newClient.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    newCache.resolveClose();
+    await finalClosePromise;
+  });
+
+  it("reports cache close failures after releasing the client", async () => {
+    const player = makePlayer();
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+    const closeError = new Error("cache close failed");
+
+    const closePromise = player.close();
+    const rejection = expect(closePromise).rejects.toBe(closeError);
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.rejectClose(closeError);
+
+    await rejection;
+    await expect(player.close()).resolves.toBeUndefined();
   });
 });

@@ -17,34 +17,71 @@ describe("RealtimeVizHistoryCache", () => {
     await clearIndexedDbMessageStoreDatabase();
   });
 
-  it("abandons the cache when metadata flush never settles", async () => {
-    const storeTopicsSpy = jest
-      .spyOn(IndexedDbMessageStore.prototype, "storeTopics")
-      .mockImplementation(async () => {
-        await new Promise<void>(() => undefined);
+  it("drops messages before initialization and reuses their declared size afterward", async () => {
+    let resolveInit = () => {};
+    const initGate = new Promise<void>((resolve) => {
+      resolveInit = resolve;
+    });
+    const initSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "init")
+      .mockImplementation(async function (this: IndexedDbMessageStore) {
+        await initGate;
+        initSpy.mockRestore();
+        await this.init();
       });
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "realtime-init-gate",
+      retentionWindowMs: 30_000,
+    });
+    const event = {
+      topic: "/example",
+      receiveTime: { sec: 0, nsec: 0 },
+      message: { nested: "value" },
+      sizeInBytes: 1_000,
+      schemaName: "example/Message",
+    };
+
+    try {
+      const initPromise = cache.init();
+      cache.append([event]);
+      expect(appendSpy).not.toHaveBeenCalled();
+
+      resolveInit();
+      await initPromise;
+      cache.append([event]);
+
+      expect(appendSpy).toHaveBeenCalledWith([event], {
+        estimatedSizeBytes: [1_256],
+      });
+      await cache.close();
+    } finally {
+      appendSpy.mockRestore();
+      initSpy.mockRestore();
+    }
+  });
+
+  it("abandons the cache when store shutdown fails", async () => {
+    const closeError = new Error("store shutdown failed");
+    const closeSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "close")
+      .mockRejectedValueOnce(closeError);
     const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
     const cache = new RealtimeVizHistoryCache({
-      sessionId: "hung-realtime-metadata",
+      sessionId: "failed-realtime-shutdown",
       retentionWindowMs: 30_000,
     });
 
     await cache.init();
-    cache.storeTopics([{ name: "a", schemaName: "foo" }], new Map());
-
-    jest.useFakeTimers();
     try {
       const closePromise = cache.close();
       expect(cache.close()).toBe(closePromise);
-      await jest.advanceTimersByTimeAsync(5_000);
 
-      await expect(closePromise).rejects.toThrow("Timed out flushing realtime cache metadata");
+      await expect(closePromise).rejects.toBe(closeError);
       expect(discardSpy).toHaveBeenCalledWith("abandoned");
     } finally {
-      jest.useRealTimers();
+      closeSpy.mockRestore();
       discardSpy.mockRestore();
-      storeTopicsSpy.mockRestore();
-      jest.mocked(console.warn).mockClear();
     }
   });
 });

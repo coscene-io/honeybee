@@ -138,7 +138,9 @@ export default class UserScriptPlayer implements Player {
   #transformRpc?: Rpc;
   #transformDispose?: () => void;
   #closePromise: Promise<void> | undefined;
-  #reopenPromise: Promise<void> | undefined;
+  #lifecyclePromise: Promise<void> | undefined;
+  #desiredLifecycleOpen = true;
+  #lifecycleOpen = true;
   #lifecycleGeneration = 0;
   #lifecycleClosed = false;
   #globalVariables: GlobalVariables = {};
@@ -232,35 +234,66 @@ export default class UserScriptPlayer implements Player {
     });
   }
   public reOpen(): void {
-    const previousLifecycle = this.#closePromise ?? this.#reopenPromise;
-    if (previousLifecycle == undefined) {
+    if (this.#lifecyclePromise == undefined && this.#lifecycleOpen) {
       this.#player.reOpen();
       return;
     }
 
-    // A close started before reOpen must finish before the wrapped player reconnects. Clearing the
-    // close promise starts a new lifecycle, so a subsequent close waits for this reOpen and closes
-    // the newly opened player instead of reusing the previous close result.
+    this.#desiredLifecycleOpen = true;
     this.#closePromise = undefined;
-    const reopenPromise = previousLifecycle
-      .catch((error: unknown) => {
-        log.warn("Reopening UserScriptPlayer after close failed:", error);
-      })
-      .then(() => {
-        this.#beginLifecycle("open");
-        this.#player.reOpen();
-      })
-      .catch((error: unknown) => {
-        // reOpen has no promise result, so report a deferred failure without leaving the lifecycle
-        // queue rejected and preventing a later close.
-        log.warn("Failed to reopen UserScriptPlayer:", error);
-      });
-    this.#reopenPromise = reopenPromise;
-    void reopenPromise.then(() => {
-      if (this.#reopenPromise === reopenPromise) {
-        this.#reopenPromise = undefined;
-      }
+    void this.#ensureLifecycle().catch((error: unknown) => {
+      log.warn("Failed to reopen UserScriptPlayer:", error);
     });
+  }
+
+  // Returning the current task preserves identity for repeated lifecycle requests.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  #ensureLifecycle(): Promise<void> {
+    if (this.#lifecyclePromise != undefined) {
+      return this.#lifecyclePromise;
+    }
+
+    const lifecyclePromise = this.#drainLifecycle();
+    this.#lifecyclePromise = lifecyclePromise;
+    const clearLifecyclePromise = () => {
+      if (this.#lifecyclePromise === lifecyclePromise) {
+        this.#lifecyclePromise = undefined;
+      }
+    };
+    void lifecyclePromise.then(clearLifecyclePromise, clearLifecyclePromise);
+    return lifecyclePromise;
+  }
+
+  async #drainLifecycle(): Promise<void> {
+    let lifecycleError: unknown;
+    while (this.#lifecycleOpen !== this.#desiredLifecycleOpen) {
+      if (!this.#desiredLifecycleOpen) {
+        try {
+          await this.#closeImpl();
+        } catch (error) {
+          lifecycleError ??= error;
+        } finally {
+          this.#lifecycleOpen = false;
+        }
+        continue;
+      }
+
+      this.#beginLifecycle("open");
+      try {
+        this.#player.reOpen();
+        this.#lifecycleOpen = true;
+      } catch (error) {
+        this.#lifecycleClosed = true;
+        lifecycleError ??= error;
+        break;
+      }
+    }
+
+    if (lifecycleError != undefined) {
+      throw lifecycleError instanceof Error
+        ? lifecycleError
+        : new Error("UserScriptPlayer lifecycle transition failed");
+    }
   }
 
   #beginLifecycle(state: "closed" | "open"): number {
@@ -1422,12 +1455,8 @@ export default class UserScriptPlayer implements Player {
   // Returning the stored promise preserves the underlying Player.close() completion semantics.
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   public close(): Promise<void> {
-    this.#closePromise ??=
-      this.#reopenPromise == undefined
-        ? this.#closeImpl()
-        : this.#reopenPromise.then(async () => {
-            await this.#closeImpl();
-          });
+    this.#desiredLifecycleOpen = false;
+    this.#closePromise ??= this.#ensureLifecycle();
     return this.#closePromise;
   }
 
@@ -1493,13 +1522,13 @@ export default class UserScriptPlayer implements Player {
       this.#totalTimeMetric = undefined;
     }
 
-    for (const result of results) {
-      if (result.status === "rejected") {
-        // MessagePipeline intentionally invokes close() fire-and-forget. Teardown has already
-        // attempted every resource, so log individual failures without creating an unhandled
-        // rejection that could destabilize the next player generation.
-        log.warn("Failed to close a UserScriptPlayer resource:", result.reason);
-      }
+    const failed = results.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    if (failed != undefined) {
+      throw failed.reason instanceof Error
+        ? failed.reason
+        : new Error("UserScriptPlayer close failed");
     }
   }
 

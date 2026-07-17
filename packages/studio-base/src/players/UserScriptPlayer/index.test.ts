@@ -181,40 +181,81 @@ describe("UserScriptPlayer", () => {
       expect(closed).toBe(true);
     });
 
-    it("serializes close, reOpen, and a subsequent close", async () => {
+    it("uses the latest lifecycle intent without reopening between close calls", async () => {
       const fakePlayer = new FakePlayer();
       const releaseFirstClose = signal();
-      const secondCloseStarted = signal();
-      const releaseSecondClose = signal();
-      const closeSpy = jest
-        .spyOn(fakePlayer, "close")
-        .mockImplementationOnce(async () => {
-          await releaseFirstClose;
-        })
-        .mockImplementationOnce(async () => {
-          secondCloseStarted.resolve();
-          await releaseSecondClose;
-        });
+      const closeSpy = jest.spyOn(fakePlayer, "close").mockImplementation(async () => {
+        await releaseFirstClose;
+      });
       const reopenSpy = jest.spyOn(fakePlayer, "reOpen");
       const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
 
       const firstClose = userScriptPlayer.close();
       userScriptPlayer.reOpen();
+      userScriptPlayer.reOpen();
       const secondClose = userScriptPlayer.close();
 
-      expect(secondClose).not.toBe(firstClose);
+      expect(secondClose).toBe(firstClose);
       await Promise.resolve();
       expect(closeSpy).toHaveBeenCalledTimes(1);
       expect(reopenSpy).not.toHaveBeenCalled();
 
       releaseFirstClose.resolve();
       await firstClose;
-      await secondCloseStarted;
-      expect(reopenSpy).toHaveBeenCalledTimes(1);
-      expect(closeSpy).toHaveBeenCalledTimes(2);
-
-      releaseSecondClose.resolve();
       await secondClose;
+      expect(reopenSpy).not.toHaveBeenCalled();
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("coalesces consecutive reopen requests after close", async () => {
+      const fakePlayer = new FakePlayer();
+      const releaseClose = signal();
+      jest.spyOn(fakePlayer, "close").mockImplementation(async () => {
+        await releaseClose;
+      });
+      const reopenSpy = jest.spyOn(fakePlayer, "reOpen");
+      const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
+
+      const closePromise = userScriptPlayer.close();
+      userScriptPlayer.reOpen();
+      userScriptPlayer.reOpen();
+      releaseClose.resolve();
+      await closePromise;
+
+      expect(reopenSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("propagates close errors after cleaning up the transform worker", async () => {
+      const originalCreateTransformWorker = UserScriptPlayer.CreateTransformWorker;
+      const worker = new MockUserScriptPlayerWorker();
+      const portClose = jest.spyOn(worker.port, "close");
+      // @ts-expect-error MockUserScriptPlayerWorker is sufficient for the RPC lifecycle under test.
+      UserScriptPlayer.CreateTransformWorker = () => worker;
+
+      const closeError = new Error("underlying close failed");
+      const fakePlayer = new FakePlayer();
+      jest.spyOn(fakePlayer, "close").mockRejectedValue(closeError);
+      const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
+      const [stateEmitted] = setListenerHelper(userScriptPlayer);
+
+      try {
+        await userScriptPlayer.setUserScripts({
+          nodeId: { name: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`, sourceCode: nodeUserCode },
+        });
+        await fakePlayer.emit({
+          activeData: {
+            ...basicPlayerState,
+            topics: [{ name: "/np_input", schemaName: "foo" }],
+            datatypes: new Map(Object.entries({ foo: { definitions: [] } })),
+          },
+        });
+        await stateEmitted;
+
+        await expect(userScriptPlayer.close()).rejects.toBe(closeError);
+        expect(portClose).toHaveBeenCalledTimes(1);
+      } finally {
+        UserScriptPlayer.CreateTransformWorker = originalCreateTransformWorker;
+      }
     });
 
     it("keeps user script registrations active when reOpen is a no-op", async () => {

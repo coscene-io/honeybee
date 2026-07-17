@@ -22,8 +22,6 @@ import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/E
 export type RegisteredPanel = {
   extensionName: string;
   extensionNamespace?: ExtensionNamespace;
-  /** Stable for identical extension source, and changes when its executable source changes. */
-  extensionRevision: string;
   registration: ExtensionPanelRegistration;
 };
 

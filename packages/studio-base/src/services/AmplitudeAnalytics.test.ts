@@ -8,7 +8,11 @@
 
 import { AmplitudeAnalytics } from "@foxglove/studio-base/services/AmplitudeAnalytics";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { sanitizeMessageCacheCaptureResult } from "@foxglove/studio-base/services/messageCacheTelemetry";
+import {
+  logMessageCacheMetric,
+  sanitizeMessageCacheCaptureResult,
+  sanitizeMessageCacheMetricData,
+} from "@foxglove/studio-base/services/messageCacheTelemetry";
 
 const mockCapture = jest.fn();
 
@@ -75,6 +79,74 @@ describe("AmplitudeAnalytics", () => {
         distinct_id: "user-id",
         metric: "open",
         status: "timeout",
+      },
+    });
+  });
+
+  it("only retains allowed primitive metric shapes", () => {
+    expect(
+      sanitizeMessageCacheMetricData({
+        metric: "open",
+        kind: "playback-spill",
+        status: "https://example.test/private?signature=secret",
+        stage: "/private/topic",
+        operation: "background maintenance",
+        usage: 100,
+        quota: Number.POSITIVE_INFINITY,
+        writesDisabled: false,
+        interrupted: { value: true },
+      }),
+    ).toEqual({
+      metric: "open",
+      kind: "playback-spill",
+      operation: "background maintenance",
+      usage: 100,
+      writesDisabled: false,
+    });
+  });
+
+  it("accepts synchronous analytics implementations", () => {
+    const logEvent = jest.fn(() => undefined);
+
+    expect(() => {
+      logMessageCacheMetric({ logEvent }, "cleanup", { status: "succeeded" });
+    }).not.toThrow();
+    expect(logEvent).toHaveBeenCalledWith(AppEvent.MESSAGE_CACHE, {
+      metric: "cleanup",
+      status: "succeeded",
+    });
+  });
+
+  it("rebuilds the final event from explicitly allowed primitive properties", () => {
+    const result = sanitizeMessageCacheCaptureResult({
+      uuid: "metric-id",
+      event: AppEvent.MESSAGE_CACHE,
+      properties: {
+        token: "posthog-token",
+        distinct_id: "user-id",
+        $browser: "Chrome",
+        platform: "honeybee",
+        metric: "cleanup",
+        status: "succeeded",
+        usage: 100,
+        quota: { value: 1_000 },
+        operation: "https://example.test/private?signature=secret",
+        $groups: { organization: "private-org" },
+        arbitrary: "private-message",
+      },
+    });
+
+    expect(result).toEqual({
+      uuid: "metric-id",
+      event: AppEvent.MESSAGE_CACHE,
+      properties: {
+        token: "posthog-token",
+        distinct_id: "user-id",
+        $browser: "Chrome",
+        platform: "honeybee",
+        metric: "cleanup",
+        status: "succeeded",
+        usage: 100,
       },
     });
   });

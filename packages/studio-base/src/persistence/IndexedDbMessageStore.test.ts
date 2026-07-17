@@ -231,6 +231,22 @@ describe("IndexedDbMessageStore", () => {
     await expect(getSessionMetadata(sessionId)).resolves.toMatchObject({ status: "abandoned" });
   });
 
+  it("upgrades an in-flight close to a discard without starting a second shutdown", async () => {
+    const sessionId = "close-upgraded-to-discard";
+    const store = new IndexedDbMessageStore({ sessionId });
+    await store.init();
+    await store.append([messageEvent(1)]);
+
+    const closePromise = store.close();
+    const discardPromise = store.discardAndSeal("pending-delete");
+
+    expect(discardPromise).toBe(closePromise);
+    await closePromise;
+    await expect(getSessionMetadata(sessionId)).resolves.toMatchObject({
+      status: "pending-delete",
+    });
+  });
+
   it("touches the current session and reports missing sessions", async () => {
     const nowSpy = jest.spyOn(Date, "now");
     nowSpy.mockReturnValue(1_000);
@@ -715,9 +731,9 @@ describe("IndexedDbMessageStore", () => {
       });
       await store.flush();
 
-      // One estimate initializes the budget, the first transaction establishes the periodic
-      // baseline, and the third 40 MiB transaction crosses the next 64 MiB threshold.
-      expect(estimate).toHaveBeenCalledTimes(3);
+      // Initialization establishes the time baseline; the second 40 MiB transaction crosses the
+      // 64 MiB byte threshold and triggers the only periodic estimate.
+      expect(estimate).toHaveBeenCalledTimes(2);
       expect((await store.stats()).count).toBe(3);
     } finally {
       await store.close();
@@ -1071,10 +1087,11 @@ describe("IndexedDbMessageStore", () => {
     const estimate = jest
       .fn<Promise<StorageEstimate>, []>()
       .mockResolvedValueOnce({ quota, usage: 0 })
-      .mockImplementation(async () => {
+      .mockImplementationOnce(async () => {
         signalPeriodicEstimateStarted?.();
         return await new Promise<StorageEstimate>(() => undefined);
-      });
+      })
+      .mockResolvedValue({ quota, usage: 0 });
     Object.defineProperty(navigator, "storage", {
       configurable: true,
       value: { estimate },
@@ -1097,18 +1114,21 @@ describe("IndexedDbMessageStore", () => {
       await withTimeout(Promise.all([flushPromise, closePromise]), 3_000);
       expect(estimate).toHaveBeenCalledTimes(2);
       expect(store.isWritable()).toBe(false);
+
+      const metricSink = jest.fn();
+      const pressureProbe = new IndexedDbMessageStore({
+        kind: "playback-spill",
+        accessMode: "maintenance",
+        metricSink,
+      });
+      await pressureProbe.init();
+      expect(metricSink).toHaveBeenCalledWith(
+        "storage",
+        expect.objectContaining({ writesDisabled: false }),
+      );
+      await pressureProbe.close();
     } finally {
       await store.close();
-
-      // A timeout deliberately latches storage pressure. Recover it through the same new-session
-      // path used by production before restoring the mocked StorageManager.
-      estimate.mockResolvedValue({ quota, usage: 0 });
-      const latchReset = new IndexedDbMessageStore({
-        sessionId: "stalled-estimate-latch-reset",
-        kind: "playback-spill",
-      });
-      await latchReset.init();
-      await latchReset.close();
       if (originalStorage == undefined) {
         Reflect.deleteProperty(navigator, "storage");
       } else {
@@ -1699,16 +1719,37 @@ describe("IndexedDbMessageStore", () => {
       },
     });
     const onBlocked = jest.fn();
+    const secondOnBlocked = jest.fn();
+    const deleteDBSpy = jest.spyOn(IDB, "deleteDB");
 
     try {
-      scheduleLegacyMessageCacheDatabaseDeletion({ onBlocked });
+      const cancelFirst = scheduleLegacyMessageCacheDatabaseDeletion({ onBlocked });
+      scheduleLegacyMessageCacheDatabaseDeletion({ onBlocked: secondOnBlocked });
       await jest.advanceTimersByTimeAsync(1_000);
+      cancelFirst();
       expect(onBlocked).toHaveBeenCalledTimes(1);
+      expect(secondOnBlocked).toHaveBeenCalledTimes(1);
+      expect(
+        deleteDBSpy.mock.calls.filter(
+          ([databaseName]) => databaseName === LEGACY_MESSAGE_CACHE_DB_NAME,
+        ),
+      ).toHaveLength(1);
       expect(console.warn).toHaveBeenCalled();
       jest.mocked(console.warn).mockClear();
+
+      blocker.close();
+      await jest.advanceTimersByTimeAsync(0);
+      scheduleLegacyMessageCacheDatabaseDeletion();
+      await jest.advanceTimersByTimeAsync(1_000);
+      expect(
+        deleteDBSpy.mock.calls.filter(
+          ([databaseName]) => databaseName === LEGACY_MESSAGE_CACHE_DB_NAME,
+        ),
+      ).toHaveLength(1);
     } finally {
       blocker.close();
       await jest.advanceTimersByTimeAsync(0);
+      deleteDBSpy.mockRestore();
       jest.useRealTimers();
     }
   });
@@ -1792,7 +1833,7 @@ describe("IndexedDbMessageStore", () => {
 
     const janitor = new IndexedDbMessageStore({
       kind: "playback-spill",
-      maintenanceOnly: true,
+      accessMode: "maintenance",
     });
     try {
       await janitor.init();
@@ -1888,7 +1929,7 @@ describe("IndexedDbMessageStore", () => {
       });
     const janitor = new IndexedDbMessageStore({
       kind: "playback-spill",
-      maintenanceOnly: true,
+      accessMode: "maintenance",
       maintenanceTimeoutMs: 25,
     });
     const originalLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
@@ -1901,10 +1942,11 @@ describe("IndexedDbMessageStore", () => {
         configurable: true,
         value: {
           request: async (
-            _name: string,
+            name: string,
             _options: { mode: "exclusive"; ifAvailable?: boolean },
             callback: (lock: object | undefined) => Promise<unknown>,
           ): Promise<unknown> => {
+            expect(name).toBe("studio-message-cache-maintenance-v1");
             expect(lockHeld).toBe(false);
             lockHeld = true;
             try {
@@ -1939,6 +1981,62 @@ describe("IndexedDbMessageStore", () => {
       openDBSpy.mockRestore();
       jest.mocked(console.error).mockClear();
       jest.mocked(console.warn).mockClear();
+    }
+  });
+
+  it("does not queue foreground budget checks behind in-process maintenance", async () => {
+    const janitor = new IndexedDbMessageStore({
+      kind: "playback-spill",
+      accessMode: "maintenance",
+    });
+    const writer = new IndexedDbMessageStore({ sessionId: "foreground-budget-check" });
+    await Promise.all([janitor.init(), writer.init()]);
+
+    const originalLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+    let releaseMaintenanceLock: (() => void) | undefined;
+    let signalMaintenanceLockHeld: (() => void) | undefined;
+    const maintenanceLockHeld = new Promise<void>((resolve) => {
+      signalMaintenanceLockHeld = resolve;
+    });
+    let holdFirstRequest = true;
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: {
+        request: async (
+          name: string,
+          _options: { mode: "exclusive"; ifAvailable?: boolean },
+          callback: (lock: object | undefined) => Promise<unknown>,
+        ): Promise<unknown> => {
+          expect(name).toBe("studio-message-cache-maintenance-v1");
+          if (holdFirstRequest) {
+            holdFirstRequest = false;
+            signalMaintenanceLockHeld?.();
+            await new Promise<void>((resolve) => {
+              releaseMaintenanceLock = resolve;
+            });
+          }
+          return await callback({});
+        },
+      },
+    });
+
+    const maintenancePromise = janitor.runMaintenance();
+    try {
+      await maintenanceLockHeld;
+      await writer.append([messageEvent(1)], {
+        estimatedSizeBytes: [64 * 1024 ** 2],
+      });
+
+      await expect(withTimeout(writer.flush(), 250)).resolves.toBeUndefined();
+    } finally {
+      releaseMaintenanceLock?.();
+      await maintenancePromise;
+      if (originalLocks == undefined) {
+        Reflect.deleteProperty(navigator, "locks");
+      } else {
+        Object.defineProperty(navigator, "locks", originalLocks);
+      }
+      await Promise.all([writer.close(), janitor.close()]);
     }
   });
 
@@ -2001,7 +2099,7 @@ describe("IndexedDbMessageStore", () => {
       });
     const janitor = new IndexedDbMessageStore({
       kind: "playback-spill",
-      maintenanceOnly: true,
+      accessMode: "maintenance",
       maintenanceTimeoutMs: 100,
     });
 
@@ -2124,6 +2222,94 @@ describe("IndexedDbMessageStore", () => {
       openDBSpy.mockRestore();
       await store.close();
     }
+  });
+
+  it("abandons and releases a session when initialization fails after creating it", async () => {
+    const originalOpenDB = IDB.openDB;
+    const initializationError = new Error("message statistics failed");
+    const openDBSpy = jest
+      .spyOn(IDB, "openDB")
+      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
+        const db = await originalOpenDB(...args);
+        return new Proxy(db, {
+          get(target, prop, receiver) {
+            if (prop !== "transaction") {
+              const value = Reflect.get(target, prop, receiver) as unknown;
+              return typeof value === "function" ? value.bind(target) : value;
+            }
+            return (storeNames: unknown, mode?: unknown, options?: unknown) => {
+              if (Array.isArray(storeNames) && mode === "readonly") {
+                throw initializationError;
+              }
+              return target.transaction(
+                storeNames as Parameters<typeof target.transaction>[0],
+                mode as Parameters<typeof target.transaction>[1],
+                options as Parameters<typeof target.transaction>[2],
+              );
+            };
+          },
+        });
+      });
+    const store = new IndexedDbMessageStore({
+      sessionId: "failed-after-session-created",
+      openTimeoutMs: 1_000,
+    });
+
+    try {
+      await expect(store.init()).rejects.toBe(initializationError);
+      expect(store.isWritable()).toBe(false);
+    } finally {
+      openDBSpy.mockRestore();
+      await store.close();
+      jest.mocked(console.error).mockClear();
+    }
+
+    await expect(getSessionMetadata("failed-after-session-created")).resolves.toMatchObject({
+      status: "abandoned",
+      owners: [],
+    });
+  });
+
+  it("falls back to abandoned when the normal close status update fails", async () => {
+    const originalOpenDB = IDB.openDB;
+    const statusError = new Error("closed status update failed");
+    let sessionWriteTransactions = 0;
+    const openDBSpy = jest
+      .spyOn(IDB, "openDB")
+      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
+        const db = await originalOpenDB(...args);
+        return new Proxy(db, {
+          get(target, prop, receiver) {
+            if (prop !== "transaction") {
+              const value = Reflect.get(target, prop, receiver) as unknown;
+              return typeof value === "function" ? value.bind(target) : value;
+            }
+            return (storeNames: unknown, mode?: unknown, options?: unknown) => {
+              if (storeNames === "sessions" && mode === "readwrite") {
+                sessionWriteTransactions++;
+                if (sessionWriteTransactions === 3) {
+                  throw statusError;
+                }
+              }
+              return target.transaction(
+                storeNames as Parameters<typeof target.transaction>[0],
+                mode as Parameters<typeof target.transaction>[1],
+                options as Parameters<typeof target.transaction>[2],
+              );
+            };
+          },
+        });
+      });
+    const store = new IndexedDbMessageStore({ sessionId: "close-status-fallback" });
+
+    await store.init();
+    await expect(store.close()).rejects.toBe(statusError);
+    openDBSpy.mockRestore();
+
+    await expect(getSessionMetadata("close-status-fallback")).resolves.toMatchObject({
+      status: "abandoned",
+      owners: [],
+    });
   });
 
   it("fails closed when the append queue would create an incomplete cache", async () => {
@@ -2266,6 +2452,31 @@ describe("IndexedDbMessageStore", () => {
     expect(await store.getLoadedRanges("topics")).toEqual([]);
 
     await store.close();
+  });
+
+  it("prunes more than 100 small messages in one bounded size batch", async () => {
+    const sessionId = "large-size-prune-batch";
+    const store = new IndexedDbMessageStore({
+      sessionId,
+      kind: "playback-spill",
+      retentionWindowMs: 1_000_000_000,
+    });
+    try {
+      await store.init();
+      await store.append(Array.from({ length: 250 }, (_, index) => messageEvent(index)));
+      await store.flush();
+
+      store.setMaxCacheSize(1);
+      const result = await store.forcePrune();
+
+      expect(result.prunedCount).toBe(250);
+      expect(result.newCount).toBe(0);
+      await expect(getSessionMetadata(sessionId, "playback-spill")).resolves.toMatchObject({
+        contentRevision: 1,
+      });
+    } finally {
+      await store.close();
+    }
   });
 
   it("rejects a loaded range written after another connection prunes the session", async () => {

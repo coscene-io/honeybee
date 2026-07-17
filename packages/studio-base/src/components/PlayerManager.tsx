@@ -148,21 +148,23 @@ function useBeforeConnectionSource(): (
   return beforeConnectionSource;
 }
 
-async function clearIdbCache(sessionId?: string) {
+/** Mark a previous realtime cache session for asynchronous janitor cleanup. */
+export async function markRealtimeCacheForCleanup(sessionId?: string): Promise<void> {
+  if (sessionId == undefined) {
+    return;
+  }
+
   let idbCache: IndexedDbMessageStore | undefined;
   try {
     idbCache = new IndexedDbMessageStore({
       sessionId,
       kind: "realtime-viz",
     });
-    // Ensure initialization completes to avoid racing init/close transactions
-    await idbCache.init();
-    if (sessionId != undefined) {
-      await idbCache.clear();
-    }
-    await idbCache.cleanupOldSessions();
+    // Sealing starts shutdown synchronously, before the store's asynchronous initialization can
+    // register this connection as a new writer for the existing session.
+    await idbCache.discardAndSeal("pending-delete");
   } catch (error) {
-    log.error("Failed to clear idb cache:", error);
+    log.warn("Failed to mark realtime cache for cleanup:", error);
   } finally {
     try {
       await idbCache?.close();
@@ -380,7 +382,7 @@ export default function PlayerManager(
       try {
         switch (args.type) {
           case "connection": {
-            await clearIdbCache(dataSourceState?.sessionId);
+            void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
             const params: Record<string, string | undefined> = {
               ...args.params,
             };
@@ -482,7 +484,7 @@ export default function PlayerManager(
           }
 
           case "file": {
-            void clearIdbCache(dataSourceState?.sessionId);
+            void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
             setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;

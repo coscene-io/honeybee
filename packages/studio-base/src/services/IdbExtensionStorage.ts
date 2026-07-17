@@ -88,7 +88,6 @@ export class IdbExtensionStorage implements IExtensionStorage {
           blockedVersion,
           durationMs: performance.now() - startedAt,
         });
-        openedDb?.close();
       },
       blocking: (currentVersion, blockedVersion) => {
         log.warn("Closing extension database for a newer version", {

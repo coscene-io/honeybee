@@ -497,12 +497,14 @@ export default function ExtensionsSettings(): React.ReactElement {
   return (
     <Stack gap={1}>
       {loadState === "loading" && (
-        <Stack role="status" direction="row" alignItems="center" gap={1} paddingX={2} paddingY={1}>
-          <CircularProgress size={16} />
-          <Typography variant="body2" color="text.secondary">
-            {t("loadingExtensions")}
-          </Typography>
-        </Stack>
+        <div role="status">
+          <Stack direction="row" alignItems="center" gap={1} paddingX={2} paddingY={1}>
+            <CircularProgress size={16} />
+            <Typography variant="body2" color="text.secondary">
+              {t("loadingExtensions")}
+            </Typography>
+          </Stack>
+        </div>
       )}
       {loadState === "degraded" && (
         <Alert

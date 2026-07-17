@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -149,48 +149,6 @@ describe("UnconnectedPanelLayout", () => {
     expect(renderC).toHaveBeenCalledTimes(4);
 
     unmount();
-  });
-
-  it("recreates a rejected lazy panel module when the error boundary retries", async () => {
-    const RecoveredPanel = Object.assign(() => <>Recovered panel</>, {
-      panelType: "retry",
-      defaultConfig: {},
-    });
-    const module = jest
-      .fn()
-      .mockRejectedValueOnce(new Error("panel load failed"))
-      .mockResolvedValueOnce({ default: Panel(RecoveredPanel) });
-    const config = makeMockAppConfiguration();
-    const onChange = jest.fn();
-    const tree = (panelCatalog: PanelCatalog) => (
-      <DndProvider backend={HTML5Backend}>
-        <WorkspaceContextProvider>
-          <AppConfigurationContext.Provider value={config}>
-            <MockCurrentLayoutProvider>
-              <PanelStateContextProvider>
-                <PanelCatalogContext.Provider value={panelCatalog}>
-                  <UnconnectedPanelLayout layout="retry!panel" onChange={onChange} />
-                </PanelCatalogContext.Provider>
-              </PanelStateContextProvider>
-            </MockCurrentLayoutProvider>
-          </AppConfigurationContext.Provider>
-        </WorkspaceContextProvider>
-      </DndProvider>
-    );
-
-    const firstCatalog = new MockPanelCatalog([{ title: "Retry", type: "retry", module }]);
-    const { getByRole, getByText } = render(tree(firstCatalog));
-    await waitFor(() => {
-      expect(getByRole("button", { name: "Dismiss" })).toBeDefined();
-    });
-
-    fireEvent.click(getByRole("button", { name: "Dismiss" }));
-
-    await waitFor(() => {
-      expect(getByText("Recovered panel")).toBeDefined();
-    });
-    expect(module).toHaveBeenCalledTimes(2);
-    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("renders built-in panels while the extension catalog is still loading", async () => {

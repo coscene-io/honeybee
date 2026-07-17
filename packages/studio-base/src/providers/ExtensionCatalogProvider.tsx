@@ -33,7 +33,6 @@ const log = Logger.getLogger(__filename);
 
 const EXTENSION_LIST_DEADLINE_MS = 5_000;
 const EXTENSION_LOAD_DEADLINE_MS = 10_000;
-const EXTENSION_LOAD_CONCURRENCY = 4;
 
 class ExtensionLoadTimeoutError extends Error {}
 
@@ -99,14 +98,6 @@ function makeUnexpectedRefreshError(error: unknown): ExtensionCatalogLoadError {
   };
 }
 
-async function settle<T>(operation: Promise<T>): Promise<PromiseSettledResult<T>> {
-  try {
-    return { status: "fulfilled", value: await operation };
-  } catch (reason) {
-    return { status: "rejected", reason };
-  }
-}
-
 function fallbackSourceHash(source: string): string {
   let hash = 0xcbf29ce484222325n;
   for (let index = 0; index < source.length; index++) {
@@ -116,7 +107,11 @@ function fallbackSourceHash(source: string): string {
   return hash.toString(16).padStart(16, "0");
 }
 
-async function extensionSourceRevision(extension: ExtensionInfo, source: string): Promise<string> {
+async function extensionSourceRevision(
+  loaderNamespace: ExtensionNamespace,
+  extension: ExtensionInfo,
+  source: string,
+): Promise<string> {
   let digest: string;
   const runtimeCrypto = Reflect.get(globalThis, "crypto") as Crypto | undefined;
   const subtle = runtimeCrypto?.subtle;
@@ -129,7 +124,15 @@ async function extensionSourceRevision(extension: ExtensionInfo, source: string)
     // contexts functional without retaining complete extension sources solely for identity checks.
     digest = fallbackSourceHash(source);
   }
-  return `${extension.id}:${extension.version}:${source.length}:${digest}`;
+  return [
+    loaderNamespace,
+    extension.namespace ?? "",
+    extension.id,
+    extension.version,
+    extension.qualifiedName,
+    source.length,
+    digest,
+  ].join("\0");
 }
 
 type MessageConverter = RegisterMessageConverterArgs<unknown> & {
@@ -143,10 +146,41 @@ type ContributionPoints = {
   panelSettings: Record<string, Record<string, PanelSettings<unknown>>>;
 };
 
+type ActivationSnapshot = {
+  revision: string;
+  contributionPoints: ContributionPoints;
+};
+
+type ListedExtension = {
+  loader: ExtensionLoader;
+  extension: ExtensionInfo;
+  needsLoad: boolean;
+  snapshot?: ActivationSnapshot;
+};
+
+type RefreshResult = {
+  activationSnapshots: Map<string, ActivationSnapshot>;
+  lastSuccessfulExtensionLists: Map<ExtensionLoader, ExtensionInfo[]>;
+  loadErrors: ExtensionCatalogLoadError[];
+  extensionList: ExtensionInfo[];
+  contributionPoints: ContributionPoints;
+};
+
+function extensionIdentity(namespace: ExtensionNamespace, extensionId: string): string {
+  return `${namespace}:${extensionId}`;
+}
+
+function getLastKnownGoodSnapshot(
+  activationSnapshots: ReadonlyMap<string, ActivationSnapshot>,
+  namespace: ExtensionNamespace,
+  extensionId: string,
+): ActivationSnapshot | undefined {
+  return activationSnapshots.get(extensionIdentity(namespace, extensionId));
+}
+
 function activateExtension(
   extension: ExtensionInfo,
   unwrappedExtensionSource: string,
-  extensionRevision: string,
 ): { contributionPoints: ContributionPoints; error?: unknown } {
   // registered panels stored by their fully qualified id
   // the fully qualified id is the extension name + panel name
@@ -187,7 +221,6 @@ function activateExtension(
       panels[fullId] = {
         extensionName: extension.qualifiedName,
         extensionNamespace: extension.namespace,
-        extensionRevision,
         registration: params,
       };
     },
@@ -249,225 +282,277 @@ function createExtensionRegistryStore(
   loaders: readonly ExtensionLoader[],
   mockMessageConverters: readonly RegisterMessageConverterArgs<unknown>[] | undefined,
 ): StoreApi<ExtensionCatalog> {
-  let refreshGeneration = 0;
   // Extension contribution overrides are order-sensitive. Keep this ordering internal so callers
   // cannot accidentally allow organization extensions to override locally installed extensions.
   const orderedLoaders = [
     ...loaders.filter((loader) => loader.namespace === "org"),
     ...loaders.filter((loader) => loader.namespace === "local"),
   ];
+  let activationSnapshots = new Map<string, ActivationSnapshot>();
+  let lastSuccessfulExtensionLists = new Map<ExtensionLoader, ExtensionInfo[]>();
+  let refreshRequested = false;
+  let refreshInFlight: Promise<void> | undefined;
 
-  return createStore((set, get) => ({
-    downloadExtension: async (url: string) => {
-      const res = await fetch(url);
-      return new Uint8Array(await res.arrayBuffer());
-    },
+  return createStore((set, get) => {
+    const buildRefreshResult = async (): Promise<RefreshResult> => {
+      const nextActivationSnapshots = new Map(activationSnapshots);
+      const nextLastSuccessfulExtensionLists = new Map(lastSuccessfulExtensionLists);
+      const loadErrors: ExtensionCatalogLoadError[] = [];
 
-    installExtension: async (namespace: ExtensionNamespace, coeFileData: Uint8Array) => {
-      const namespacedLoader = orderedLoaders.find((loader) => loader.namespace === namespace);
-      if (namespacedLoader == undefined) {
-        throw new Error("No extension loader found for namespace " + namespace);
-      }
-      const info = await namespacedLoader.installExtension(coeFileData);
-      await get().refreshExtensions();
-      return info;
-    },
-
-    refreshExtensions: async () => {
-      const generation = ++refreshGeneration;
-
-      if (orderedLoaders.length === 0) {
-        set({ loadState: "ready", loadErrors: [], installedExtensions: [] });
-        return;
-      }
-
-      set({ loadState: "loading", loadErrors: [] });
+      const listDeadline = createDeadline(
+        EXTENSION_LIST_DEADLINE_MS,
+        "Timed out listing extensions",
+      );
+      let listResults: PromiseSettledResult<ExtensionInfo[]>[];
       try {
-        const start = performance.now();
-        const extensionList: ExtensionInfo[] = [];
-        const loadErrors: ExtensionCatalogLoadError[] = [];
-        const allContributionPoints: ContributionPoints = {
-          panels: {},
-          messageConverters: [],
-          topicAliasFunctions: [],
-          panelSettings: {},
-        };
-
-        const listDeadline = createDeadline(
-          EXTENSION_LIST_DEADLINE_MS,
-          "Timed out listing extensions",
-        );
-        let listResults: PromiseSettledResult<ExtensionInfo[]>[];
-        try {
-          const listRequests = orderedLoaders.map(
+        listResults = await Promise.allSettled(
+          orderedLoaders.map(
             async (loader) =>
               await race([
                 Promise.resolve().then(async () => await loader.getExtensions()),
                 listDeadline.promise,
               ]),
-          );
-          listResults = await Promise.allSettled(listRequests);
-        } finally {
-          listDeadline.clear();
-        }
+          ),
+        );
+      } finally {
+        listDeadline.clear();
+      }
 
-        if (generation !== refreshGeneration) {
-          return;
-        }
-
-        const listedExtensions: { loader: ExtensionLoader; extension: ExtensionInfo }[] = [];
-        for (let loaderIndex = 0; loaderIndex < orderedLoaders.length; loaderIndex++) {
-          const loader = orderedLoaders[loaderIndex]!;
-          const listResult = listResults[loaderIndex]!;
-          if (listResult.status === "rejected") {
-            const error = makeLoadError(loader, "list", listResult.reason);
-            loadErrors.push(error);
-            log.error("Error loading extension list", error);
-            continue;
-          }
-
-          if (!Array.isArray(listResult.value)) {
-            const error = makeLoadError(
+      const listedExtensions: ListedExtension[] = [];
+      for (let loaderIndex = 0; loaderIndex < orderedLoaders.length; loaderIndex++) {
+        const loader = orderedLoaders[loaderIndex]!;
+        const listResult = listResults[loaderIndex]!;
+        if (listResult.status === "rejected" || !Array.isArray(listResult.value)) {
+          const reason =
+            listResult.status === "rejected"
+              ? listResult.reason
+              : new TypeError("Extension loader returned a non-array extension list");
+          const error = makeLoadError(loader, "list", reason);
+          loadErrors.push(error);
+          log.error("Error loading extension list", error);
+          for (const extension of nextLastSuccessfulExtensionLists.get(loader) ?? []) {
+            listedExtensions.push({
               loader,
-              "list",
-              new TypeError("Extension loader returned a non-array extension list"),
-            );
-            loadErrors.push(error);
-            log.error("Invalid extension list", error);
-            continue;
-          }
-
-          for (const extension of listResult.value) {
-            extensionList.push(extension);
-            listedExtensions.push({ loader, extension });
-          }
-        }
-
-        // Keep source work bounded: extension archives can expand into large strings, so retaining
-        // every source until the slowest load finishes creates an avoidable all-extensions memory
-        // spike. A small look-ahead preserves concurrency while activation and release remain in the
-        // original org -> local order.
-        type LoadedSource = { source: string; revision: string };
-        const sourceLoads = new Map<number, Promise<PromiseSettledResult<LoadedSource>>>();
-        const startSourceLoad = (extensionIndex: number) => {
-          const { loader, extension } = listedExtensions[extensionIndex]!;
-          sourceLoads.set(
-            extensionIndex,
-            settle(
-              withTimeout(
-                Promise.resolve().then(async () => {
-                  const source = await loader.loadExtension(extension.id);
-                  return {
-                    source,
-                    revision: await extensionSourceRevision(extension, source),
-                  };
-                }),
-                EXTENSION_LOAD_DEADLINE_MS,
-                `Timed out loading extension ${extension.id}`,
+              extension,
+              needsLoad: false,
+              snapshot: getLastKnownGoodSnapshot(
+                nextActivationSnapshots,
+                loader.namespace,
+                extension.id,
               ),
-            ),
-          );
-        };
-        for (
-          let extensionIndex = 0;
-          extensionIndex < Math.min(EXTENSION_LOAD_CONCURRENCY, listedExtensions.length);
-          extensionIndex++
-        ) {
-          startSourceLoad(extensionIndex);
+            });
+          }
+          continue;
         }
-        for (let extensionIndex = 0; extensionIndex < listedExtensions.length; extensionIndex++) {
-          const { loader, extension } = listedExtensions[extensionIndex]!;
-          const sourceResult = await sourceLoads.get(extensionIndex)!;
-          sourceLoads.delete(extensionIndex);
-          if (generation !== refreshGeneration) {
-            return;
-          }
-          const nextExtensionIndex = extensionIndex + EXTENSION_LOAD_CONCURRENCY;
-          if (nextExtensionIndex < listedExtensions.length) {
-            startSourceLoad(nextExtensionIndex);
-          }
-          if (sourceResult.status === "rejected") {
-            const error = makeLoadError(loader, "load", sourceResult.reason, extension.id);
-            loadErrors.push(error);
-            log.error("Error loading extension", error);
-            continue;
-          }
 
-          const activationResult = activateExtension(
-            extension,
-            sourceResult.value.source,
-            sourceResult.value.revision,
+        const extensions = [...listResult.value];
+        const installedIds = new Set(extensions.map((extension) => extension.id));
+        for (const previousExtension of nextLastSuccessfulExtensionLists.get(loader) ?? []) {
+          if (!installedIds.has(previousExtension.id)) {
+            nextActivationSnapshots.delete(
+              extensionIdentity(loader.namespace, previousExtension.id),
+            );
+          }
+        }
+        nextLastSuccessfulExtensionLists.set(loader, extensions);
+        for (const extension of extensions) {
+          listedExtensions.push({ loader, extension, needsLoad: true });
+        }
+      }
+
+      const sourceLoadEntries = listedExtensions.filter((entry) => entry.needsLoad);
+      const sourceResults = await Promise.allSettled(
+        sourceLoadEntries.map(
+          async ({ loader, extension }) =>
+            await withTimeout(
+              (async () => {
+                const source = await loader.loadExtension(extension.id);
+                return {
+                  source,
+                  revision: await extensionSourceRevision(loader.namespace, extension, source),
+                };
+              })(),
+              EXTENSION_LOAD_DEADLINE_MS,
+              `Timed out loading extension ${extension.id}`,
+            ),
+        ),
+      );
+
+      for (let extensionIndex = 0; extensionIndex < sourceLoadEntries.length; extensionIndex++) {
+        const entry = sourceLoadEntries[extensionIndex]!;
+        const { loader, extension } = entry;
+        const sourceResult = sourceResults[extensionIndex]!;
+        if (sourceResult.status === "rejected") {
+          const error = makeLoadError(loader, "load", sourceResult.reason, extension.id);
+          loadErrors.push(error);
+          log.error("Error loading extension", error);
+          entry.snapshot = getLastKnownGoodSnapshot(
+            nextActivationSnapshots,
+            loader.namespace,
+            extension.id,
           );
+          continue;
+        }
+
+        const identity = extensionIdentity(loader.namespace, extension.id);
+        let snapshot = nextActivationSnapshots.get(identity);
+        if (snapshot?.revision !== sourceResult.value.revision) {
+          const activationResult = activateExtension(extension, sourceResult.value.source);
           if ("error" in activationResult) {
             loadErrors.push(
               makeLoadError(loader, "activate", activationResult.error, extension.id),
             );
+            entry.snapshot = getLastKnownGoodSnapshot(
+              nextActivationSnapshots,
+              loader.namespace,
+              extension.id,
+            );
             continue;
           }
-          const contributionPoints = activationResult.contributionPoints;
-          Object.assign(allContributionPoints.panels, contributionPoints.panels);
-          _.merge(allContributionPoints.panelSettings, contributionPoints.panelSettings);
-          allContributionPoints.messageConverters.push(...contributionPoints.messageConverters);
-          allContributionPoints.topicAliasFunctions.push(...contributionPoints.topicAliasFunctions);
+          snapshot = {
+            revision: sourceResult.value.revision,
+            contributionPoints: activationResult.contributionPoints,
+          };
+          nextActivationSnapshots.set(identity, snapshot);
         }
+        entry.snapshot = snapshot;
+      }
 
-        if (generation !== refreshGeneration) {
+      const extensionList: ExtensionInfo[] = [];
+      const allContributionPoints: ContributionPoints = {
+        panels: {},
+        messageConverters: [],
+        topicAliasFunctions: [],
+        panelSettings: {},
+      };
+      for (const entry of listedExtensions) {
+        extensionList.push(entry.extension);
+        const contributionPoints = entry.snapshot?.contributionPoints;
+        if (contributionPoints == undefined) {
+          continue;
+        }
+        Object.assign(allContributionPoints.panels, contributionPoints.panels);
+        _.merge(allContributionPoints.panelSettings, contributionPoints.panelSettings);
+        allContributionPoints.messageConverters.push(...contributionPoints.messageConverters);
+        allContributionPoints.topicAliasFunctions.push(...contributionPoints.topicAliasFunctions);
+      }
+
+      return {
+        activationSnapshots: nextActivationSnapshots,
+        lastSuccessfulExtensionLists: nextLastSuccessfulExtensionLists,
+        loadErrors,
+        extensionList,
+        contributionPoints: allContributionPoints,
+      };
+    };
+
+    const refreshOnce = async (): Promise<void> => {
+      if (orderedLoaders.length === 0) {
+        if (!refreshRequested) {
+          set({ loadState: "ready", loadErrors: [], installedExtensions: [] });
+        }
+        return;
+      }
+
+      set({ loadState: "loading", loadErrors: [] });
+      const start = performance.now();
+      try {
+        const result = await buildRefreshResult();
+        if (refreshRequested) {
           return;
         }
 
+        activationSnapshots = result.activationSnapshots;
+        lastSuccessfulExtensionLists = result.lastSuccessfulExtensionLists;
         log.info(
-          `Loaded ${extensionList.length} extensions in ${(performance.now() - start).toFixed(1)}ms`,
+          `Loaded ${result.extensionList.length} extensions in ${(performance.now() - start).toFixed(1)}ms`,
         );
         set({
-          loadState: loadErrors.length === 0 ? "ready" : "degraded",
-          loadErrors,
-          installedExtensions: extensionList,
-          installedPanels: allContributionPoints.panels,
-          installedMessageConverters: allContributionPoints.messageConverters,
-          installedTopicAliasFunctions: allContributionPoints.topicAliasFunctions,
-          panelSettings: allContributionPoints.panelSettings,
+          loadState: result.loadErrors.length === 0 ? "ready" : "degraded",
+          loadErrors: result.loadErrors,
+          installedExtensions: result.extensionList,
+          installedPanels: result.contributionPoints.panels,
+          installedMessageConverters: result.contributionPoints.messageConverters,
+          installedTopicAliasFunctions: result.contributionPoints.topicAliasFunctions,
+          panelSettings: result.contributionPoints.panelSettings,
         });
       } catch (error) {
-        if (generation === refreshGeneration) {
-          const loadError = makeUnexpectedRefreshError(error);
-          log.error("Unexpected error refreshing extensions", loadError);
+        const loadError = makeUnexpectedRefreshError(error);
+        log.error("Unexpected error refreshing extensions", loadError);
+        if (!refreshRequested) {
           // Preserve the last successfully published catalog. On the initial load the built-in
           // catalog remains available and the settings UI exposes the same refresh action as retry.
           set({ loadState: "degraded", loadErrors: [loadError] });
         }
         throw error;
       }
-    },
+    };
 
-    // If there are no loaders then we know there will not be any installed extensions
-    installedExtensions: orderedLoaders.length === 0 ? [] : undefined,
-
-    loadState: orderedLoaders.length === 0 ? "ready" : "loading",
-
-    loadErrors: [],
-
-    installedPanels: {},
-
-    installedMessageConverters: mockMessageConverters ?? [],
-
-    installedTopicAliasFunctions: [],
-
-    panelSettings: _.merge(
-      {},
-      ...(mockMessageConverters ?? []).map(({ fromSchemaName, panelSettings }) =>
-        _.mapValues(panelSettings, (settings) => ({ [fromSchemaName]: settings })),
-      ),
-    ),
-
-    uninstallExtension: async (namespace: ExtensionNamespace, id: string) => {
-      const namespacedLoader = orderedLoaders.find((loader) => loader.namespace === namespace);
-      if (namespacedLoader == undefined) {
-        throw new Error("No extension loader found for namespace " + namespace);
+    const runRefreshLoop = async (): Promise<void> => {
+      try {
+        while (refreshRequested) {
+          refreshRequested = false;
+          await refreshOnce();
+        }
+      } finally {
+        refreshInFlight = undefined;
       }
-      await namespacedLoader.uninstallExtension(id);
-      await get().refreshExtensions();
-    },
-  }));
+    };
+
+    const refreshExtensions = async (): Promise<void> => {
+      refreshRequested = true;
+      refreshInFlight ??= runRefreshLoop();
+      await refreshInFlight;
+    };
+
+    return {
+      downloadExtension: async (url: string) => {
+        const res = await fetch(url);
+        return new Uint8Array(await res.arrayBuffer());
+      },
+
+      installExtension: async (namespace: ExtensionNamespace, coeFileData: Uint8Array) => {
+        const namespacedLoader = orderedLoaders.find((loader) => loader.namespace === namespace);
+        if (namespacedLoader == undefined) {
+          throw new Error("No extension loader found for namespace " + namespace);
+        }
+        const info = await namespacedLoader.installExtension(coeFileData);
+        await get().refreshExtensions();
+        return info;
+      },
+
+      refreshExtensions,
+
+      // If there are no loaders then we know there will not be any installed extensions
+      installedExtensions: orderedLoaders.length === 0 ? [] : undefined,
+
+      loadState: orderedLoaders.length === 0 ? "ready" : "loading",
+
+      loadErrors: [],
+
+      installedPanels: {},
+
+      installedMessageConverters: mockMessageConverters ?? [],
+
+      installedTopicAliasFunctions: [],
+
+      panelSettings: _.merge(
+        {},
+        ...(mockMessageConverters ?? []).map(({ fromSchemaName, panelSettings }) =>
+          _.mapValues(panelSettings, (settings) => ({ [fromSchemaName]: settings })),
+        ),
+      ),
+
+      uninstallExtension: async (namespace: ExtensionNamespace, id: string) => {
+        const namespacedLoader = orderedLoaders.find((loader) => loader.namespace === namespace);
+        if (namespacedLoader == undefined) {
+          throw new Error("No extension loader found for namespace " + namespace);
+        }
+        await namespacedLoader.uninstallExtension(id);
+        await get().refreshExtensions();
+      },
+    };
+  });
 }
 
 export default function ExtensionCatalogProvider({

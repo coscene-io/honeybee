@@ -24,25 +24,18 @@ type PanelProps = {
   saveConfig: SaveConfig<unknown>;
 };
 
-type WrappedExtensionPanelCacheEntry = {
-  revision: string;
-  module: PanelInfo["module"];
-};
-
 export default function PanelCatalogProvider(props: PropsWithChildren): React.ReactElement {
   const { t } = useTranslation("panels");
 
   const { extraPanels } = useAppContext();
   const extensionPanels = useExtensionCatalog((state) => state.installedPanels);
-  const wrappedExtensionPanelCacheRef = useRef(new Map<string, WrappedExtensionPanelCacheEntry>());
+  const wrappedExtensionPanelModulesRef = useRef(new WeakMap<object, PanelInfo["module"]>());
 
   const wrappedExtensionPanels = useMemo<PanelInfo[]>(() => {
-    const activePanelTypes = new Set<string>();
-    const wrappedPanels = Object.values(extensionPanels ?? {}).map((panel) => {
+    return Object.values(extensionPanels ?? {}).map((panel) => {
       const panelType = `${panel.extensionName}.${panel.registration.name}`;
-      activePanelTypes.add(panelType);
-      let cached = wrappedExtensionPanelCacheRef.current.get(panelType);
-      if (cached?.revision !== panel.extensionRevision) {
+      let module = wrappedExtensionPanelModulesRef.current.get(panel);
+      if (module == undefined) {
         const PanelWrapper = (panelProps: PanelProps) => {
           return (
             <PanelExtensionAdapter
@@ -57,27 +50,17 @@ export default function PanelCatalogProvider(props: PropsWithChildren): React.Re
         // Extension panels own their config lifecycle. In particular, replacing UnknownPanel after
         // a late catalog load must not dirty a layout by persisting an otherwise unused empty object.
         PanelWrapper.configInitialization = "none" as const;
-        cached = {
-          revision: panel.extensionRevision,
-          module: async () => ({ default: Panel(PanelWrapper) }),
-        };
-        wrappedExtensionPanelCacheRef.current.set(panelType, cached);
+        module = async () => ({ default: Panel(PanelWrapper) });
+        wrappedExtensionPanelModulesRef.current.set(panel, module);
       }
       return {
         category: "misc",
         title: panel.registration.name,
         type: panelType,
-        module: cached.module,
+        module,
         extensionNamespace: panel.extensionNamespace,
       };
     });
-
-    for (const panelType of wrappedExtensionPanelCacheRef.current.keys()) {
-      if (!activePanelTypes.has(panelType)) {
-        wrappedExtensionPanelCacheRef.current.delete(panelType);
-      }
-    }
-    return wrappedPanels;
   }, [extensionPanels]);
 
   // Re-call the function when the language changes to ensure that the panel's information is successfully translated

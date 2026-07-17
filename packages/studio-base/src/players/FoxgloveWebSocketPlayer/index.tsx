@@ -213,6 +213,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
   /** Persistent message cache for 5-minute historical data */
   #persistentCache?: RealtimeVizHistoryCache;
+  /** Cache whose IndexedDB initialization has not completed yet. */
+  #initializingPersistentCache?: RealtimeVizHistoryCache;
   /** Whether to enable persistent caching */
   #enablePersistentCache: boolean = true;
   #retentionWindowMs?: number;
@@ -269,9 +271,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#sessionId = sessionId;
     this.#autoConnectToLan = autoConnectToLan;
 
-    this.#initializePersistentCache();
-
     this.#open();
+    this.#initializePersistentCache();
   }
 
   #initializePersistentCache(): void {
@@ -289,17 +290,28 @@ export default class FoxgloveWebSocketPlayer implements Player {
         sessionId: this.#sessionId ?? `websocket-${this.#id}`,
         metricSink: (event, data) => this.#metricsCollector.recordMessageCacheMetric?.(event, data),
       });
-      this.#persistentCache = cache;
-      void cache.init().catch((error: unknown) => {
-        log.warn("Failed to initialize persistent cache:", error);
-        // A close/reopen may have installed a replacement while this open was timing out.
-        if (this.#persistentCache === cache) {
-          this.#persistentCache = undefined;
-        }
-      });
+      this.#initializingPersistentCache = cache;
+      void cache
+        .init()
+        .then(() => {
+          if (this.#initializingPersistentCache !== cache || this.#closed) {
+            return;
+          }
+          this.#initializingPersistentCache = undefined;
+          this.#persistentCache = cache;
+          cache.storeTopics(this.#topics, this.#topicsStats);
+          cache.storeDatatypes(this.#datatypes);
+        })
+        .catch((error: unknown) => {
+          log.warn("Failed to initialize persistent cache:", error);
+          // A close/reopen may have installed a replacement while this open was timing out.
+          if (this.#initializingPersistentCache === cache) {
+            this.#initializingPersistentCache = undefined;
+          }
+        });
     } catch (error) {
       log.warn("Failed to create persistent cache:", error);
-      this.#persistentCache = undefined;
+      this.#initializingPersistentCache = undefined;
     }
   }
 
@@ -307,8 +319,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     return !this.#closed && this.#client === client && this.#clientGeneration === generation;
   }
 
-  #open = (): void => {
-    if (this.#closed) {
+  #open = ({ allowClosed = false }: { allowClosed?: boolean } = {}): void => {
+    if (this.#closed && !allowClosed) {
       return;
     }
     if (this.#client != undefined) {
@@ -451,7 +463,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
     });
 
     onCurrentClient("kicked", (message) => {
-      void this.close();
+      void this.close().catch((error: unknown) => {
+        log.error("Failed to close kicked WebSocket player:", error);
+      });
       const closeIntentGeneration = this.#closeIntentGeneration;
       void this.#confirm({
         title: t("websocket:notification"),
@@ -522,7 +536,9 @@ export default class FoxgloveWebSocketPlayer implements Player {
       if (realCloseEventMessage.data.code === WEBSOCKET_KICKED_CODE) {
         const message = JSON.parse(realCloseEventMessage.data.reason) as KickedReason;
 
-        void this.close();
+        void this.#requestClose(client).catch((error: unknown) => {
+          log.error("Failed to close kicked WebSocket player:", error);
+        });
         const closeIntentGeneration = this.#closeIntentGeneration;
         void this.#confirm({
           title: t("websocket:notification"),
@@ -1313,23 +1329,33 @@ export default class FoxgloveWebSocketPlayer implements Player {
   // Preserve promise identity so concurrent close callers wait on the exact same lifecycle task.
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   public close(): Promise<void> {
-    this.#closeIntentGeneration++;
-    this.#shouldReopen = false;
-    return this.#beginClose();
+    return this.#requestClose();
   }
 
   // eslint-disable-next-line @typescript-eslint/promise-function-async
-  #beginClose(): Promise<void> {
+  #requestClose(alreadyClosedClient?: FoxgloveClient): Promise<void> {
+    this.#closeIntentGeneration++;
+    this.#shouldReopen = false;
+    return this.#beginClose(alreadyClosedClient);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  #beginClose(alreadyClosedClient?: FoxgloveClient): Promise<void> {
     if (this.#closePromise != undefined) {
       return this.#closePromise;
     }
 
-    if (this.#closed && this.#client == undefined && this.#persistentCache == undefined) {
+    if (
+      this.#closed &&
+      this.#client == undefined &&
+      this.#persistentCache == undefined &&
+      this.#initializingPersistentCache == undefined
+    ) {
       return Promise.resolve();
     }
 
     this.#closed = true;
-    const closePromise = this.#closeCurrentGeneration().finally(() => {
+    const closePromise = this.#closeCurrentGeneration(alreadyClosedClient).finally(() => {
       if (this.#closePromise === closePromise) {
         this.#closePromise = undefined;
       }
@@ -1338,29 +1364,35 @@ export default class FoxgloveWebSocketPlayer implements Player {
     return closePromise;
   }
 
-  async #closeCurrentGeneration(): Promise<void> {
+  async #closeCurrentGeneration(alreadyClosedClient?: FoxgloveClient): Promise<void> {
     // Capture and detach this generation before waiting. A replacement generation must not be
     // created until both of these resources have finished closing.
     const persistentCache = this.#persistentCache;
+    const initializingPersistentCache = this.#initializingPersistentCache;
     this.#persistentCache = undefined;
+    this.#initializingPersistentCache = undefined;
 
     // If a client exists, wait for its "close" event so we know
     // the websocket is fully closed before resolving.
     const client = this.#client;
     let waitForClose: Promise<void> | undefined;
-    if (client) {
+    let resolveWaitForClose: (() => void) | undefined;
+    let clientCloseError: unknown;
+    if (client != undefined && client !== alreadyClosedClient) {
       waitForClose = new Promise<void>((resolve) => {
         const onClose = () => {
           client.off("close", onClose);
           resolve();
         };
+        resolveWaitForClose = onClose;
         client.on("close", onClose);
       });
 
       try {
         client.close();
-      } catch {
-        // ignore; we'll still proceed to cleanup
+      } catch (error) {
+        clientCloseError = error;
+        resolveWaitForClose?.();
       }
     }
 
@@ -1381,16 +1413,37 @@ export default class FoxgloveWebSocketPlayer implements Player {
     const clientClosePromise = waitForClose
       ? race([waitForClose, new Promise<void>((resolve) => setTimeout(resolve, 5000))])
       : Promise.resolve();
-    const cacheClosePromise = persistentCache?.close().catch((error: unknown) => {
-      log.debug("Error closing persistent cache:", error);
-    });
 
-    await Promise.all([clientClosePromise, cacheClosePromise]);
+    const caches = [persistentCache, initializingPersistentCache].filter(
+      (cache): cache is RealtimeVizHistoryCache => cache != undefined,
+    );
+    const closeResults = await Promise.allSettled([
+      clientClosePromise,
+      ...caches.map(async (cache) => {
+        await cache.close();
+      }),
+    ]);
 
-    // Release this generation after the close event (or timeout). Guard the assignment so a stale
-    // completion can never clear a replacement client.
-    if (this.#client === client) {
-      this.#client = undefined;
+    try {
+      const rejectedClose = closeResults.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+      if (clientCloseError instanceof Error) {
+        throw clientCloseError;
+      }
+      if (clientCloseError != undefined) {
+        throw new Error("WebSocket client close failed");
+      }
+      if (rejectedClose != undefined) {
+        throw rejectedClose.reason;
+      }
+    } finally {
+      resolveWaitForClose?.();
+      // Release this generation after the close event (or timeout). Guard the assignment so a stale
+      // completion can never clear a replacement client.
+      if (this.#client === client) {
+        this.#client = undefined;
+      }
     }
   }
 
@@ -1410,22 +1463,20 @@ export default class FoxgloveWebSocketPlayer implements Player {
           return;
         }
 
-        // The old cache is now fully closed, so it is safe to create a replacement with the same
-        // session id and then start the next client generation.
-        this.#initializePersistentCache();
+        // Consume this request before opening so a construction failure does not create an
+        // automatic retry loop. A later explicit reOpen() can try again.
+        this.#shouldReopen = false;
+        this.#open({ allowClosed: true });
         this.#closed = false;
-        this.#open();
+        this.#initializePersistentCache();
       })
       .catch((error: unknown) => {
+        this.#shouldReopen = false;
         log.error("Failed to reopen WebSocket player:", error);
       })
       .finally(() => {
-        const reopenWasRequestedWhileFinishing = this.#shouldReopen && this.#closed;
         if (this.#reopenPromise === reopenPromise) {
           this.#reopenPromise = undefined;
-        }
-        if (reopenWasRequestedWhileFinishing) {
-          this.reOpen();
         }
       });
     this.#reopenPromise = reopenPromise;

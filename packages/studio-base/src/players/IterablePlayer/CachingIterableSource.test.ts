@@ -15,6 +15,7 @@ import {
   IndexedDbMessageStore,
   PLAYBACK_MESSAGE_CACHE_DB_NAME,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
+import * as MessageMemoryEstimation from "@foxglove/studio-base/players/messageMemoryEstimation";
 import { SubscribePayload, TopicSelection } from "@foxglove/studio-base/players/types";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
@@ -210,6 +211,50 @@ describe("CachingIterableSource", () => {
     } finally {
       await bufferedSource.terminate();
       jest.mocked(console.warn).mockClear();
+    }
+  });
+
+  it("estimates each source message once and reuses the estimate for spill writes", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "single-message-estimate" },
+    });
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      for (let index = 0; index < 3; index++) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: index, nsec: 0 },
+            message: { index, nested: { value: `message-${index}` } },
+            sizeInBytes: 10,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    const estimateSpy = jest.spyOn(MessageMemoryEstimation, "estimateObjectSize");
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    try {
+      for await (const result of bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+      })) {
+        // Consume the source so pending memory and spill batches are both committed.
+        void result;
+      }
+
+      expect(estimateSpy).toHaveBeenCalledTimes(3);
+      expect(appendSpy).toHaveBeenCalledTimes(1);
+      expect(appendSpy.mock.calls[0]?.[1]?.estimatedSizeBytes).toHaveLength(3);
+    } finally {
+      estimateSpy.mockRestore();
+      appendSpy.mockRestore();
+      await bufferedSource.terminate();
     }
   });
 
@@ -1967,6 +2012,44 @@ describe("CachingIterableSource", () => {
     });
 
     await bufferedSource.terminate();
+  });
+
+  it("stores topic coverage as a stable fixed-length digest", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "fixed-topic-digest" },
+    });
+    await bufferedSource.initialize();
+
+    const consume = async (topics: TopicSelection): Promise<void> => {
+      for await (const result of bufferedSource.messageIterator({ topics })) {
+        // Consume the empty test source so the topic fingerprint is initialized.
+        void result;
+      }
+    };
+
+    try {
+      await consume(mockTopicSelection("a"));
+      const firstFingerprint = (await getPlaybackSpillSessions()).find(
+        (session) => session.status === "active",
+      )?.topicFingerprint;
+      expect(firstFingerprint).toBe("v3:9c741efe1fa98f93");
+
+      const largeSelection = payloadSelection(
+        Array.from({ length: 100 }, (_, index) => ({
+          topic: `/topic/${index}`,
+          fields: Array.from({ length: 10 }, (__, fieldIndex) => `field_${fieldIndex}`),
+        })),
+      );
+      await consume(largeSelection);
+      const largeFingerprint = (await getPlaybackSpillSessions()).find(
+        (session) => session.status === "active",
+      )?.topicFingerprint;
+      expect(largeFingerprint).toMatch(/^v3:[0-9a-f]{16}$/);
+      expect(largeFingerprint).not.toBe(firstFingerprint);
+    } finally {
+      await bufferedSource.terminate();
+    }
   });
 
   it("keeps playback spill ranges isolated by topic fields fingerprint", async () => {

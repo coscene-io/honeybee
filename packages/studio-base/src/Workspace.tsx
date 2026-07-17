@@ -84,7 +84,7 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
-import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -172,24 +172,28 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
   // coScene set demo layout in demo mode
   const { dialogActions, sidebarActions } = useWorkspaceActions();
 
-  const { t } = useTranslation("workspace");
+  const { i18n, t } = useTranslation("workspace");
   const { AppBarComponent = AppBar } = props;
 
   useEffect(() => {
     // Effects run after the full workspace commit, so the layout is already visible and usable
-    // before either cache database performs idle maintenance or legacy deletion.
+    // before cache databases perform idle maintenance.
     scheduleMessageCacheMaintenance((metric, data) => {
-      void analytics.logEvent(AppEvent.MESSAGE_CACHE, { metric, ...data }).catch(() => undefined);
+      logMessageCacheMetric(analytics, metric, data);
     });
+  }, [analytics]);
+
+  useEffect(() => {
     return scheduleLegacyMessageCacheDatabaseDeletion({
       onBlocked: () => {
-        toast.error(t("legacyMessageCacheDeleteBlocked"), {
+        // i18n is stable across language changes and resolves the current language on demand.
+        toast.error(i18n.t("legacyMessageCacheDeleteBlocked", { ns: "workspace" }), {
           id: "legacy-message-cache-delete-blocked",
           duration: 10_000,
         });
       },
     });
-  }, [analytics, t]);
+  }, [i18n]);
 
   // file types we support for drag/drop
   const allowedDropExtensions = useMemo(() => {

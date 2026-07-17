@@ -15,7 +15,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { Typography, Link, CircularProgress } from "@mui/material";
-import React, { PropsWithChildren, Suspense, useCallback, useMemo, useState } from "react";
+import React, { PropsWithChildren, Suspense, useCallback, useMemo } from "react";
 import { useDrop } from "react-dnd";
 import { useTranslation } from "react-i18next";
 import {
@@ -85,24 +85,10 @@ const lazyPanelComponents = new WeakMap<
 
 function getLazyPanelComponent(
   module: PanelInfo["module"],
-  // This value intentionally invalidates the caller's memo after an ErrorBoundary retry. The
-  // WeakMap still preserves every successfully loaded component across that rebuild.
-  _layoutGeneration: number,
 ): React.LazyExoticComponent<PanelComponent> {
   let component = lazyPanelComponents.get(module);
   if (component == undefined) {
-    component = React.lazy(async () => {
-      try {
-        return await module();
-      } catch (error) {
-        // React.lazy permanently memoizes a rejected loader. Evict only this failed generation so
-        // an extension refresh plus ErrorBoundary retry can load a repaired panel without reload.
-        if (lazyPanelComponents.get(module) === component) {
-          lazyPanelComponents.delete(module);
-        }
-        throw error;
-      }
-    });
+    component = React.lazy(module);
     lazyPanelComponents.set(module, component);
   }
   return component;
@@ -153,19 +139,15 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
   );
 
   const panelCatalog = usePanelCatalog();
-  const [panelLoadGeneration, setPanelLoadGeneration] = useState(0);
 
   const panelComponents = useMemo(
     () =>
       new Map(
         panelCatalog
           .getPanels()
-          .map((panelInfo) => [
-            panelInfo.type,
-            getLazyPanelComponent(panelInfo.module, panelLoadGeneration),
-          ]),
+          .map((panelInfo) => [panelInfo.type, getLazyPanelComponent(panelInfo.module)]),
       ),
-    [panelCatalog, panelLoadGeneration],
+    [panelCatalog],
   );
 
   const renderTile = useCallback(
@@ -235,17 +217,7 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
     [layout, mosaicId, onChange, renderTile, tabId],
   );
 
-  return (
-    <ErrorBoundary
-      onReset={() => {
-        // React.lazy permanently retains a rejected promise. The failed entry has already been
-        // evicted from lazyPanelComponents, so rebuild the per-layout lookup before retrying.
-        setPanelLoadGeneration((generation) => generation + 1);
-      }}
-    >
-      {bodyToRender}
-    </ErrorBoundary>
-  );
+  return <ErrorBoundary>{bodyToRender}</ErrorBoundary>;
 }
 
 const selectedLayoutExistsSelector = (state: LayoutState) =>

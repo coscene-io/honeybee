@@ -94,19 +94,23 @@ function safeEstimateObjectSize(value: unknown): number | undefined {
   }
 }
 
-function messageSize(message: MessageEvent): number {
-  return Math.max(
+type MessageSizeEstimates = {
+  memorySizeInBytes: number;
+  persistedSizeInBytes: number;
+};
+
+function estimateMessageSizes(message: MessageEvent): MessageSizeEstimates {
+  const memorySizeInBytes = Math.max(
     finiteNonNegativeSize(message.sizeInBytes) ?? 0,
     safeEstimateObjectSize(message.message) ?? 0,
   );
-}
-
-function persistedMessageSize(message: MessageEvent): number {
-  const payloadBytes = Math.max(
-    finiteNonNegativeSize(message.sizeInBytes) ?? 0,
-    safeEstimateObjectSize(message) ?? 0,
-  );
-  return Math.min(Number.MAX_SAFE_INTEGER, payloadBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES);
+  return {
+    memorySizeInBytes,
+    persistedSizeInBytes: Math.min(
+      Number.MAX_SAFE_INTEGER,
+      memorySizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
+    ),
+  };
 }
 
 function canonicalize(value: unknown): unknown {
@@ -124,6 +128,18 @@ function canonicalize(value: unknown): unknown {
   return value ?? "__undefined__";
 }
 
+function stableStringDigest(value: string): string {
+  // FNV-1a matches the synchronous fallback already used for extension source revisions. A
+  // fixed-width digest keeps IndexedDB compound keys bounded without adding asynchronous hashing
+  // to the playback iterator lifecycle.
+  let hash = 0xcbf29ce484222325n;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= BigInt(value.charCodeAt(index));
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
+  return hash.toString(16).padStart(16, "0");
+}
+
 function topicFingerprint(topics: TopicSelection): string {
   const entries = Array.from(topics.entries())
     .map(([topicName, payload]) => ({
@@ -132,9 +148,7 @@ function topicFingerprint(topics: TopicSelection): string {
       preloadType: payload.preloadType ?? "__undefined__",
     }))
     .sort((a, b) => a.topic.localeCompare(b.topic));
-  // Persist the canonical selection itself instead of a short hash. A collision here would make
-  // coverage for one fields/topic selection masquerade as another and silently skip source reads.
-  return `v2:${JSON.stringify(canonicalize(entries)) ?? ""}`;
+  return `v3:${stableStringDigest(JSON.stringify(canonicalize(entries)) ?? "")}`;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -180,6 +194,17 @@ type CacheBlock<MessageType> = {
 
   // The size of this block in bytes
   size: number;
+};
+
+type PendingCacheItem<MessageType> = {
+  cacheItem: [bigint, IteratorResult<MessageType>];
+  memorySizeInBytes: number;
+  persistedSizeInBytes: number;
+};
+
+type PendingSpillMessage = {
+  message: MessageEvent;
+  estimatedSizeInBytes: number;
 };
 
 type Options = {
@@ -723,7 +748,7 @@ class CachingIterableSource<MessageType = unknown>
   }
 
   async #appendSpillMessages(
-    messages: readonly MessageEvent[],
+    pendingMessages: readonly PendingSpillMessage[],
     expectedStore: IndexedDbMessageStore | undefined,
     expectedTopicGeneration: number,
     expectedTopicFingerprint: string,
@@ -734,13 +759,14 @@ class CachingIterableSource<MessageType = unknown>
       this.#terminated ||
       store == undefined ||
       !this.#isCurrentSpillContext(store, expectedTopicGeneration, expectedTopicFingerprint) ||
-      messages.length === 0
+      pendingMessages.length === 0
     ) {
       return false;
     }
 
     try {
-      const estimatedSizes = messages.map(persistedMessageSize);
+      const messages = pendingMessages.map((item) => item.message);
+      const estimatedSizes = pendingMessages.map((item) => item.estimatedSizeInBytes);
       if (estimatedSizes.some((size) => size > MAX_SPILL_BYTES_PER_IDB_TRANSACTION)) {
         log.warn("Skipping playback spill coverage for a range containing an oversized message");
         return false;
@@ -1116,7 +1142,10 @@ class CachingIterableSource<MessageType = unknown>
             }
           }
           pendingTimeGroup.push(message);
-          pendingTimeGroupBytes += Math.max(minimumBufferedMessageBytes, messageSize(message));
+          pendingTimeGroupBytes += Math.max(
+            minimumBufferedMessageBytes,
+            estimateMessageSizes(message).memorySizeInBytes,
+          );
           if (pendingTimeGroupBytes > hydrationBudget) {
             // A failure or fallback may replay a same-timestamp group in a different order. Keep
             // that tail uncommitted and restart it from the source instead of count-based deduping.
@@ -1244,16 +1273,13 @@ class CachingIterableSource<MessageType = unknown>
     let spillRangeWritesComplete = spillRangeStore != undefined;
     let block: CacheBlock<MessageType> | undefined;
 
-    const pendingIterResults: [bigint, IteratorResult<MessageType>][] = [];
-    let pendingSpillMessages: MessageEvent[] = [];
+    const pendingIterResults: PendingCacheItem<MessageType>[] = [];
+    let pendingSpillMessages: PendingSpillMessage[] = [];
     let pendingSpillEstimatedBytes = 0;
     const discardPendingIterResults = () => {
       if (this.#isCurrentTopicGeneration(args.topicGeneration)) {
-        for (const pendingIterResult of pendingIterResults) {
-          const item = pendingIterResult[1];
-          const pendingSizeInBytes =
-            item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
-          this.#totalSizeBytes -= pendingSizeInBytes;
+        for (const pendingItem of pendingIterResults) {
+          this.#totalSizeBytes -= pendingItem.memorySizeInBytes;
         }
       }
       pendingIterResults.length = 0;
@@ -1335,12 +1361,9 @@ class CachingIterableSource<MessageType = unknown>
           // is inclusive we only update the end time once we've moved to the next time
           if (receiveTimeNs > lastTime) {
             // write any pending messages to the block
-            for (const pendingIterResult of pendingIterResults) {
-              const item = pendingIterResult[1];
-              const pendingSizeInBytes =
-                item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
-              block.items.push(pendingIterResult);
-              block.size += pendingSizeInBytes;
+            for (const pendingItem of pendingIterResults) {
+              block.items.push(pendingItem.cacheItem);
+              block.size += pendingItem.memorySizeInBytes;
             }
 
             pendingIterResults.length = 0;
@@ -1366,26 +1389,30 @@ class CachingIterableSource<MessageType = unknown>
           block = undefined;
         }
 
-        const sizeInBytes =
+        const sizeEstimates =
           iterResult.type === "message-event"
-            ? messageSize(iterResult.msgEvent as MessageEvent)
-            : 0;
+            ? estimateMessageSizes(iterResult.msgEvent as MessageEvent)
+            : { memorySizeInBytes: 0, persistedSizeInBytes: 0 };
         if (
           this.#maybePurgeCache({
             activeBlock: block,
-            sizeInBytes,
+            sizeInBytes: sizeEstimates.memorySizeInBytes,
           })
         ) {
           this.#recomputeLoadedRangeCache();
         }
 
         // As we add items to pending we also consider them as part of the total size
-        this.#totalSizeBytes += sizeInBytes;
+        this.#totalSizeBytes += sizeEstimates.memorySizeInBytes;
 
         // Store the latest message in pending results and flush to the block when time moves forward
-        pendingIterResults.push([lastTime, iterResult]);
+        const pendingItem: PendingCacheItem<MessageType> = {
+          cacheItem: [lastTime, iterResult],
+          ...sizeEstimates,
+        };
+        pendingIterResults.push(pendingItem);
         if (args.writeSpill && iterResult.type === "message-event") {
-          const estimatedBytes = persistedMessageSize(iterResult.msgEvent as MessageEvent);
+          const estimatedBytes = pendingItem.persistedSizeInBytes;
           if (
             pendingSpillMessages.length > 0 &&
             (pendingSpillMessages.length >= MAX_SPILL_MESSAGES_BEFORE_APPEND ||
@@ -1393,7 +1420,10 @@ class CachingIterableSource<MessageType = unknown>
           ) {
             await flushPendingSpillMessages();
           }
-          pendingSpillMessages.push(iterResult.msgEvent as MessageEvent);
+          pendingSpillMessages.push({
+            message: iterResult.msgEvent as MessageEvent,
+            estimatedSizeInBytes: estimatedBytes,
+          });
           pendingSpillEstimatedBytes += estimatedBytes;
           if (
             pendingSpillMessages.length >= MAX_SPILL_MESSAGES_BEFORE_APPEND ||
@@ -1467,12 +1497,9 @@ class CachingIterableSource<MessageType = unknown>
       block.lastAccess = Date.now();
 
       // write any pending messages to the block
-      for (const pendingIterResult of pendingIterResults) {
-        const item = pendingIterResult[1];
-        const pendingSizeInBytes =
-          item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
-        block.items.push(pendingIterResult);
-        block.size += pendingSizeInBytes;
+      for (const pendingItem of pendingIterResults) {
+        block.items.push(pendingItem.cacheItem);
+        block.size += pendingItem.memorySizeInBytes;
       }
 
       this.#recomputeLoadedRangeCache();
@@ -1487,16 +1514,13 @@ class CachingIterableSource<MessageType = unknown>
         id: this.#nextBlockId++,
         start: readHead,
         end: args.end,
-        items: pendingIterResults,
+        items: pendingIterResults.map((item) => item.cacheItem),
         size: 0,
         lastAccess: Date.now(),
       };
 
-      for (const pendingIterResult of pendingIterResults) {
-        const item = pendingIterResult[1];
-        const pendingSizeInBytes =
-          item.type === "message-event" ? messageSize(item.msgEvent as MessageEvent) : 0;
-        newBlock.size += pendingSizeInBytes;
+      for (const pendingItem of pendingIterResults) {
+        newBlock.size += pendingItem.memorySizeInBytes;
       }
 
       // Find where we need to insert our new block.

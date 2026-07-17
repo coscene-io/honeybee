@@ -5,12 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import race from "race-as-promised";
-
 import Log from "@foxglove/log";
 import type { MessageEvent } from "@foxglove/studio";
 import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
-import { estimateObjectSize } from "@foxglove/studio-base/players/messageMemoryEstimation";
 import type { TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
@@ -18,43 +15,11 @@ import { IndexedDbMessageStore, type MessageCacheMetricSink } from "./IndexedDbM
 
 const log = Log.getLogger(__filename);
 const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
-const REALTIME_CACHE_FLUSH_TIMEOUT_MS = 5_000;
-
-class RealtimeCacheFlushTimeoutError extends Error {}
-
-async function withFlushDeadline(operation: Promise<void>): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await race([
-      operation,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => {
-          reject(new RealtimeCacheFlushTimeoutError("Timed out flushing realtime cache metadata"));
-        }, REALTIME_CACHE_FLUSH_TIMEOUT_MS);
-      }),
-    ]);
-  } finally {
-    if (timer != undefined) {
-      clearTimeout(timer);
-    }
-  }
-}
-
-function estimateMessageCacheBytes(event: MessageEvent): number {
-  try {
-    return (
-      Math.max(event.sizeInBytes, estimateObjectSize(event)) +
-      PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES
-    );
-  } catch (error) {
-    log.debug("Falling back to the declared message size for cache accounting", error);
-    return event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES;
-  }
-}
 
 export class RealtimeVizHistoryCache {
   #store: IndexedDbMessageStore;
   #disabled = false;
+  #initialized = false;
   #latestTopics: readonly TopicWithDecodingInfo[] | undefined;
   #latestTopicStats: Map<string, TopicStats> | undefined;
   #latestDatatypes: RosDatatypes | undefined;
@@ -83,9 +48,16 @@ export class RealtimeVizHistoryCache {
   public async init(): Promise<void> {
     try {
       await this.#store.init();
+      // A concurrent close owns teardown. Treat it as a normal lifecycle race rather than
+      // abandoning the same session twice and reporting a spurious initialization failure.
+      if (this.#disabled) {
+        return;
+      }
       if (!this.#store.isWritable()) {
         throw new Error("Realtime history cache is unavailable for writes");
       }
+      this.#initialized = true;
+      this.#persistLatestMetadata();
     } catch (error) {
       this.#disabled = true;
       await this.#store.discardAndSeal("abandoned");
@@ -95,14 +67,23 @@ export class RealtimeVizHistoryCache {
   }
 
   public append(events: readonly MessageEvent[]): void {
-    if (this.#disabled) {
+    // Realtime history is best-effort. Do not retain messages in one Promise per event while the
+    // database open is pending; the store's bounded append queue only applies after initialization.
+    if (this.#disabled || !this.#initialized) {
       return;
     }
     void this.#store
       .append(events, {
-        estimatedSizeBytes: events.map(estimateMessageCacheBytes),
+        // The WebSocket player already normalizes sizeInBytes against its decoded-size estimate.
+        // Reuse it instead of recursively walking the same message again on this hot path.
+        estimatedSizeBytes: events.map(
+          (event) => event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
+        ),
       })
       .catch((error: unknown) => {
+        if (this.#disabled) {
+          return;
+        }
         this.#disabled = true;
         log.warn("Disabling realtime viz history cache after append failure:", error);
         void this.#store.discardAndSeal("abandoned");
@@ -118,6 +99,9 @@ export class RealtimeVizHistoryCache {
     }
     this.#latestTopics = topics;
     this.#latestTopicStats = topicStats;
+    if (!this.#initialized) {
+      return;
+    }
     void this.#store.storeTopics(topics, topicStats).catch((error: unknown) => {
       log.debug("Failed to store realtime topic metadata:", error);
     });
@@ -128,22 +112,27 @@ export class RealtimeVizHistoryCache {
       return;
     }
     this.#latestDatatypes = datatypes;
+    if (!this.#initialized) {
+      return;
+    }
     void this.#store.storeDatatypes(datatypes).catch((error: unknown) => {
       log.debug("Failed to store realtime datatypes:", error);
     });
   }
 
-  public async flush(): Promise<void> {
-    if (this.#disabled) {
-      return;
-    }
+  #persistLatestMetadata(): void {
     if (this.#latestTopics != undefined) {
-      await this.#store.storeTopics(this.#latestTopics, this.#latestTopicStats);
+      void this.#store
+        .storeTopics(this.#latestTopics, this.#latestTopicStats)
+        .catch((error: unknown) => {
+          log.debug("Failed to store realtime topic metadata:", error);
+        });
     }
     if (this.#latestDatatypes != undefined) {
-      await this.#store.storeDatatypes(this.#latestDatatypes);
+      void this.#store.storeDatatypes(this.#latestDatatypes).catch((error: unknown) => {
+        log.debug("Failed to store realtime datatypes:", error);
+      });
     }
-    await this.#store.flush();
   }
 
   // Returning the stored promise directly preserves identity across concurrent callers.
@@ -154,15 +143,16 @@ export class RealtimeVizHistoryCache {
   }
 
   async #closeImpl(): Promise<void> {
-    if (this.#disabled) {
+    if (this.#disabled || !this.#initialized) {
+      this.#disabled = true;
       await this.#store.discardAndSeal("abandoned");
       return;
     }
+    this.#disabled = true;
     try {
-      await withFlushDeadline(this.flush());
+      // The store owns the single shutdown deadline and waits for tracked metadata transactions.
       await this.#store.close();
     } catch (error) {
-      this.#disabled = true;
       try {
         await this.#store.discardAndSeal("abandoned");
       } catch (closeError) {

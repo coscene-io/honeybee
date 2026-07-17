@@ -49,6 +49,7 @@ export class PersistentCacheIterableSource implements IIterableSource {
       sessionId: this.#sessionId,
       retentionWindowMs: this.#retentionWindowMs,
       maxCacheSize: this.#maxCacheSize,
+      accessMode: "reader",
     });
     this.#cache = cache;
 
@@ -229,11 +230,9 @@ export class PersistentCacheIterableSource implements IIterableSource {
   }
 
   public async terminate(): Promise<void> {
-    if (!this.#cache) {
-      throw new Error("PersistentCacheIterableSource not initialized");
-    }
-
-    await this.#cache.close();
+    const cache = this.#cache;
+    this.#cache = undefined;
+    await cache?.close();
   }
 }
 

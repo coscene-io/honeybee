@@ -108,7 +108,7 @@ describe("ExtensionCatalogProvider", () => {
       uninstallExtension: jest.fn(),
     };
     const mockPrivateLoader2: ExtensionLoader = {
-      namespace: "org",
+      namespace: "local",
       getExtensions: jest
         .fn()
         .mockResolvedValue([fakeExtension({ namespace: "local", name: "sample", version: "2" })]),
@@ -519,26 +519,64 @@ describe("ExtensionCatalogProvider", () => {
     }
   });
 
-  it("bounds concurrent extension source loads", async () => {
-    const extensions = Array.from({ length: 5 }, (_, index) =>
+  it("applies extension source deadlines concurrently", async () => {
+    jest.useFakeTimers();
+    const extensions = Array.from({ length: 8 }, (_, index) =>
       fakeExtension({ id: `extension-${index}` }),
     );
-    const sourceGates = extensions.map(() => deferred<string>());
-    let activeLoads = 0;
-    let maximumActiveLoads = 0;
-    const loadExtension = jest.fn(async (id: string) => {
-      const extensionIndex = extensions.findIndex((extension) => extension.id === id);
-      activeLoads++;
-      maximumActiveLoads = Math.max(maximumActiveLoads, activeLoads);
-      try {
-        return await sourceGates[extensionIndex]!.promise;
-      } finally {
-        activeLoads--;
-      }
-    });
+    const loadExtension = jest.fn().mockReturnValue(new Promise<string>(() => {}));
     const loader: ExtensionLoader = {
       namespace: "local",
       getExtensions: jest.fn().mockResolvedValue(extensions),
+      loadExtension,
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+
+    try {
+      const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+        wrapper: ({ children }) => (
+          <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+        ),
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(loadExtension).toHaveBeenCalledTimes(extensions.length);
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10_000);
+      });
+      expect(result.current.loadState).toBe("degraded");
+      expect(result.current.loadErrors).toHaveLength(extensions.length);
+    } finally {
+      jest.mocked(console.error).mockClear();
+      jest.useRealTimers();
+    }
+  });
+
+  it("reuses a complete activation snapshot when the source revision is unchanged", async () => {
+    const extension = fakeExtension({ id: "snapshot", qualifiedName: "snapshot" });
+    const source = `
+      module.exports = {
+        activate: function(ctx) {
+          const marker = {};
+          ctx.registerPanel({ name: "panel", initPanel: function() { return marker; } });
+          ctx.registerMessageConverter({
+            fromSchemaName: "from.Schema",
+            toSchemaName: "to.Schema",
+            converter: function() { return marker; },
+          });
+          ctx.registerTopicAliases(function() { return [marker]; });
+        }
+      }
+    `;
+    const loadExtension = jest.fn().mockResolvedValue(source);
+    const loader: ExtensionLoader = {
+      namespace: "local",
+      getExtensions: jest.fn().mockResolvedValue([extension]),
       loadExtension,
       installExtension: jest.fn(),
       uninstallExtension: jest.fn(),
@@ -549,40 +587,196 @@ describe("ExtensionCatalogProvider", () => {
         <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
       ),
     });
-
     await waitFor(() => {
-      expect(loadExtension).toHaveBeenCalledTimes(4);
+      expect(result.current.loadState).toBe("ready");
     });
-    expect(maximumActiveLoads).toBe(4);
+    const firstPanel = result.current.installedPanels?.["snapshot.panel"];
+    const firstConverter = result.current.installedMessageConverters?.[0];
+    const firstAlias = result.current.installedTopicAliasFunctions?.[0];
 
     await act(async () => {
-      sourceGates[0]!.resolve(`module.exports = { activate: function() {} }`);
-      await sourceGates[0]!.promise;
-    });
-    await waitFor(() => {
-      expect(loadExtension).toHaveBeenCalledTimes(5);
+      await result.current.refreshExtensions();
     });
 
-    await act(async () => {
-      for (const gate of sourceGates.slice(1)) {
-        gate.resolve(`module.exports = { activate: function() {} }`);
+    expect(result.current.installedPanels?.["snapshot.panel"]).toBe(firstPanel);
+    expect(result.current.installedMessageConverters?.[0]).toBe(firstConverter);
+    expect(result.current.installedTopicAliasFunctions?.[0]).toBe(firstAlias);
+    expect(loadExtension).toHaveBeenCalledTimes(2);
+  });
+
+  it("reactivates an extension when activation-relevant metadata changes", async () => {
+    const firstExtension = fakeExtension({ id: "metadata", qualifiedName: "before" });
+    const secondExtension = { ...firstExtension, qualifiedName: "after" };
+    const source = `
+      module.exports = {
+        activate: function(ctx) {
+          ctx.registerPanel({ name: "panel", initPanel: function() {} });
+        }
       }
-      await Promise.all(sourceGates.map(async (gate) => await gate.promise));
+    `;
+    const loader: ExtensionLoader = {
+      namespace: "local",
+      getExtensions: jest
+        .fn()
+        .mockResolvedValueOnce([firstExtension])
+        .mockResolvedValue([secondExtension]),
+      loadExtension: jest.fn().mockResolvedValue(source),
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+      ),
+    });
+    await waitFor(() => {
+      expect(result.current.installedPanels?.["before.panel"]).toBeDefined();
+    });
+    const firstPanel = result.current.installedPanels?.["before.panel"];
+
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+
+    expect(result.current.installedPanels?.["before.panel"]).toBeUndefined();
+    expect(result.current.installedPanels?.["after.panel"]).toBeDefined();
+    expect(result.current.installedPanels?.["after.panel"]).not.toBe(firstPanel);
+  });
+
+  it("retains the last-known-good snapshot when a source load fails", async () => {
+    const extension = fakeExtension({ id: "retained", qualifiedName: "retained" });
+    const source = `
+      module.exports = {
+        activate: function(ctx) {
+          ctx.registerPanel({ name: "panel", initPanel: function() {} });
+          ctx.registerMessageConverter({
+            fromSchemaName: "from.Schema",
+            toSchemaName: "to.Schema",
+            converter: function(message) { return message; },
+          });
+        }
+      }
+    `;
+    const loadExtension = jest
+      .fn()
+      .mockResolvedValueOnce(source)
+      .mockRejectedValueOnce(new Error("temporary load failure"));
+    const loader: ExtensionLoader = {
+      namespace: "local",
+      getExtensions: jest.fn().mockResolvedValue([extension]),
+      loadExtension,
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+      ),
     });
     await waitFor(() => {
       expect(result.current.loadState).toBe("ready");
     });
-    expect(maximumActiveLoads).toBe(4);
+    const firstPanel = result.current.installedPanels?.["retained.panel"];
+    const firstConverter = result.current.installedMessageConverters?.[0];
+
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+
+    expect(result.current.loadState).toBe("degraded");
+    expect(result.current.loadErrors).toEqual([
+      expect.objectContaining({ stage: "load", extensionId: "retained" }),
+    ]);
+    expect(result.current.installedExtensions).toEqual([extension]);
+    expect(result.current.installedPanels?.["retained.panel"]).toBe(firstPanel);
+    expect(result.current.installedMessageConverters?.[0]).toBe(firstConverter);
+    jest.mocked(console.error).mockClear();
   });
 
-  it("allows only the latest refresh generation to publish", async () => {
+  it("retains the last-known-good snapshot after list and activation failures until uninstall is confirmed", async () => {
+    const extension = fakeExtension({ id: "retained", qualifiedName: "retained" });
+    const goodSource = `
+      module.exports = {
+        activate: function(ctx) {
+          ctx.registerPanel({ name: "panel", initPanel: function() {} });
+        }
+      }
+    `;
+    const brokenSource = `
+      module.exports = {
+        activate: function() {
+          throw new Error("temporary activation failure");
+        }
+      }
+    `;
+    const getExtensions = jest
+      .fn()
+      .mockResolvedValueOnce([extension])
+      .mockRejectedValueOnce(new Error("temporary list failure"))
+      .mockResolvedValueOnce([extension])
+      .mockResolvedValueOnce([]);
+    const loadExtension = jest
+      .fn()
+      .mockResolvedValueOnce(goodSource)
+      .mockResolvedValueOnce(brokenSource);
+    const loader: ExtensionLoader = {
+      namespace: "local",
+      getExtensions,
+      loadExtension,
+      installExtension: jest.fn(),
+      uninstallExtension: jest.fn(),
+    };
+
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+      ),
+    });
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+    const firstPanel = result.current.installedPanels?.["retained.panel"];
+
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+    expect(result.current.loadState).toBe("degraded");
+    expect(result.current.loadErrors).toEqual([
+      expect.objectContaining({ stage: "list", namespace: "local" }),
+    ]);
+    expect(result.current.installedExtensions).toEqual([extension]);
+    expect(result.current.installedPanels?.["retained.panel"]).toBe(firstPanel);
+
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+    expect(result.current.loadState).toBe("degraded");
+    expect(result.current.loadErrors).toEqual([
+      expect.objectContaining({ stage: "activate", extensionId: "retained" }),
+    ]);
+    expect(result.current.installedPanels?.["retained.panel"]).toBe(firstPanel);
+
+    await act(async () => {
+      await result.current.refreshExtensions();
+    });
+    expect(result.current.loadState).toBe("ready");
+    expect(result.current.installedExtensions).toEqual([]);
+    expect(result.current.installedPanels).toEqual({});
+    expect(result.current.installedMessageConverters).toEqual([]);
+    jest.mocked(console.error).mockClear();
+  });
+
+  it("coalesces overlapping refreshes and resolves callers after the pending rerun publishes", async () => {
     const firstList = deferred<ExtensionInfo[]>();
+    const latestList = deferred<ExtensionInfo[]>();
     const staleExtension = fakeExtension({ id: "stale", version: "1" });
     const latestExtension = fakeExtension({ id: "latest", version: "2" });
     const getExtensions = jest
       .fn()
       .mockReturnValueOnce(firstList.promise)
-      .mockResolvedValueOnce([latestExtension]);
+      .mockReturnValueOnce(latestList.promise);
     const loadExtension = jest
       .fn()
       .mockResolvedValue(`module.exports = { activate: function() {} }`);
@@ -603,20 +797,40 @@ describe("ExtensionCatalogProvider", () => {
     await waitFor(() => {
       expect(getExtensions).toHaveBeenCalledTimes(1);
     });
-    await act(async () => {
-      await result.current.refreshExtensions();
+    let firstCallerResolved = false;
+    let secondCallerResolved = false;
+    let firstRefresh!: Promise<void>;
+    let secondRefresh!: Promise<void>;
+    act(() => {
+      firstRefresh = result.current.refreshExtensions().then(() => {
+        firstCallerResolved = true;
+      });
+      secondRefresh = result.current.refreshExtensions().then(() => {
+        secondCallerResolved = true;
+      });
     });
-
-    expect(result.current.installedExtensions).toEqual([latestExtension]);
-    expect(result.current.loadState).toBe("ready");
 
     await act(async () => {
       firstList.resolve([staleExtension]);
       await firstList.promise;
     });
+    await waitFor(() => {
+      expect(getExtensions).toHaveBeenCalledTimes(2);
+    });
+    expect(firstCallerResolved).toBe(false);
+    expect(secondCallerResolved).toBe(false);
+    expect(result.current.installedExtensions).toBeUndefined();
+    expect(result.current.loadState).toBe("loading");
 
+    await act(async () => {
+      latestList.resolve([latestExtension]);
+      await Promise.all([firstRefresh, secondRefresh]);
+    });
     expect(result.current.installedExtensions).toEqual([latestExtension]);
-    expect(loadExtension).toHaveBeenCalledTimes(1);
-    expect(loadExtension).toHaveBeenCalledWith("latest");
+    expect(result.current.loadState).toBe("ready");
+    expect(firstCallerResolved).toBe(true);
+    expect(secondCallerResolved).toBe(true);
+    expect(getExtensions).toHaveBeenCalledTimes(2);
+    expect(loadExtension).toHaveBeenCalledTimes(2);
   });
 });
