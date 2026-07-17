@@ -66,6 +66,7 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
 
   const [unsavedLayouts, setUnsavedLayouts] = useState(EMPTY_UNSAVED_LAYOUTS);
   const unsavedLayoutsRef = useRef(unsavedLayouts);
+  const previousSelectedLayoutIdRef = useRef(selectedLayout?.id);
   const [retryState] = useState<RetryState>(() => ({
     failed: new Map<LayoutID, UpdatedLayout>(),
     ready: new Set<LayoutID>(),
@@ -143,6 +144,20 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
     unsavedLayouts,
     SAVE_INTERVAL_MS,
   );
+
+  // Do not leave an edit only in this component after the user switches layouts. Starting the
+  // update now lets subsequent actions on the previous layout observe its edit revision.
+  useEffect(() => {
+    const previousId = previousSelectedLayoutIdRef.current;
+    previousSelectedLayoutIdRef.current = selectedLayout?.id;
+    if (
+      previousId != undefined &&
+      previousId !== selectedLayout?.id &&
+      unsavedLayoutsRef.current[previousId] != undefined
+    ) {
+      debouncedUnsavedLayoutActions.flush();
+    }
+  }, [debouncedUnsavedLayoutActions, selectedLayout?.id]);
 
   // Flush and clear pending updates on unmount.
   useEffect(() => {

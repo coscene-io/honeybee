@@ -377,6 +377,53 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("flushes a pending layout update when switching layouts", async () => {
+    jest.useFakeTimers();
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockImplementation(async ({ id }: { id: LayoutID }) => ({
+      id,
+      name: id === "example" ? "Test layout" : "Second layout",
+      baseline: {
+        data: id === "example" ? TEST_LAYOUT : { ...TEST_LAYOUT, layout: "ExamplePanel!2" },
+        updatedAt: new Date(10).toISOString(),
+      },
+    }));
+    mockLayoutManager.updateLayout.mockResolvedValue(undefined);
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { foo: "pending" } }],
+      });
+    });
+    const pendingData = result.current.layoutState.selectedLayout?.data;
+
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example2" as LayoutID);
+    });
+    await act(async () => {});
+
+    expect(mockLayoutManager.updateLayout).toHaveBeenCalledWith({
+      id: "example",
+      data: pendingData,
+      editRevision: expect.any(Number),
+    });
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {});
+    expect(mockLayoutManager.updateLayout).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
   it("ignores stale autosave change events when memory has newer edits", async () => {
     const mockLayoutManager = makeMockLayoutManager();
     mockLayoutManager.getLayout.mockImplementation(async () => {

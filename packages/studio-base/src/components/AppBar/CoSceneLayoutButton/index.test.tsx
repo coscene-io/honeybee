@@ -151,6 +151,15 @@ describe("<CoSceneLayoutButton />", () => {
       </Wrapper>,
     );
 
+    if (!currentLayoutActions) {
+      throw new Error("Current layout actions were not captured");
+    }
+    const actions = currentLayoutActions;
+    await act(async () => {
+      actions.setCurrentLayout({ id: currentId, data: layoutData("latest-before-save") });
+      await Promise.resolve();
+    });
+
     fireEvent.click(await screen.findByText("Current"));
     fireEvent.click(await screen.findByText("Second"), { shiftKey: true });
     const secondActionsButton = screen.getAllByTestId("layout-actions")[1];
@@ -164,11 +173,7 @@ describe("<CoSceneLayoutButton />", () => {
       expect(layoutManager.overwriteLayout).toHaveBeenCalledTimes(1);
     });
     expect(overwriteCalls.map((call) => call.id)).toEqual([currentId]);
-
-    if (!currentLayoutActions) {
-      throw new Error("Current layout actions were not captured");
-    }
-    const actions = currentLayoutActions;
+    expect(overwriteCalls[0]?.data).toEqual(layoutData("latest-before-save"));
     await act(async () => {
       actions.setCurrentLayout({ id: currentId, data: layoutData("changed") });
       await Promise.resolve();

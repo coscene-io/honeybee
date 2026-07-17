@@ -385,13 +385,49 @@ describe("CoSceneLayoutManager", () => {
       data: layoutData("discarded"),
       editRevision: 2,
     });
-    await manager.revertLayout({ id });
+    await manager.revertLayout({ id, editRevision: 2 });
     await manager.updateLayout({
       id,
       data: layoutData("discarded"),
       editRevision: 2,
     });
 
+    expect(await manager.getLayout({ id })).toMatchObject({
+      baseline: { data: layoutData("initial") },
+      working: undefined,
+    });
+  });
+
+  it("makes a personal copy from current memory data and fences the original autosave", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const manager = makeManager({ localStorage });
+    const id = layoutId("layouts/1");
+    await localStorage.put(
+      CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+      makeLocalLayout({
+        id,
+        parent: "",
+        working: {
+          data: layoutData("stale-working"),
+          savedAt: ts("2024-01-01T00:00:01.000Z"),
+        },
+        syncStatus: "new",
+      }),
+    );
+
+    const copy = await manager.makePersonalCopy({
+      id,
+      name: "Personal copy",
+      data: layoutData("current-memory"),
+      editRevision: 2,
+    });
+    await manager.updateLayout({
+      id,
+      data: layoutData("stale-autosave"),
+      editRevision: 1,
+    });
+
+    expect(copy.baseline.data).toEqual(layoutData("current-memory"));
     expect(await manager.getLayout({ id })).toMatchObject({
       baseline: { data: layoutData("initial") },
       working: undefined,

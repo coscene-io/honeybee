@@ -128,7 +128,12 @@ export interface ILayoutManager {
   revertLayout(params: { id: LayoutID; editRevision?: number }): Promise<Layout>;
 
   /** Transfer a shared layout's working changes into a new personal layout. */
-  makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
+  makePersonalCopy(params: {
+    id: LayoutID;
+    name: string;
+    data?: LayoutData;
+    editRevision?: number;
+  }): Promise<Layout>;
 
   putHistory(params: { id: LayoutID }): Promise<void>;
 
