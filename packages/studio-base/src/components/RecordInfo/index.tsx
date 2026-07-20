@@ -87,6 +87,11 @@ function DeviceInfoSection({ updateRecord }: { updateRecord: UpdateRecordFn }): 
     deviceInfo.value?.name != undefined && deviceInfo.value.name === deviceName
       ? deviceInfo.value
       : undefined;
+  const deviceId = currentDeviceInfo?.name.split("/").pop();
+  const deviceHref =
+    organizationSlug && projectSlug && deviceId
+      ? `/${organizationSlug}/${projectSlug}/devices/project-devices/${deviceId}`
+      : undefined;
 
   useEffect(() => {
     if (!deviceName) {
@@ -112,7 +117,7 @@ function DeviceInfoSection({ updateRecord }: { updateRecord: UpdateRecordFn }): 
           variant="body2"
           underline="hover"
           data-testid={currentDeviceInfo?.serialNumber}
-          href={`/${organizationSlug}/${projectSlug}/${currentDeviceInfo?.name}`}
+          href={deviceHref}
           target="_blank"
         >
           {currentDeviceInfo?.serialNumber}
