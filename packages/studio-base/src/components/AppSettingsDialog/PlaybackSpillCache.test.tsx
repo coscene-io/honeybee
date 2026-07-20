@@ -18,10 +18,11 @@ describe("PlaybackSpillCache", () => {
   it("is disabled by default and persists the user's choice", async () => {
     const appConfiguration = makeMockAppConfiguration();
     const setSpy = jest.spyOn(appConfiguration, "set");
+    const reload = jest.fn();
 
     render(
       <AppConfigurationContext.Provider value={appConfiguration}>
-        <PlaybackSpillCache />
+        <PlaybackSpillCache onReload={reload} />
       </AppConfigurationContext.Provider>,
     );
 
@@ -33,6 +34,13 @@ describe("PlaybackSpillCache", () => {
       expect(setSpy).toHaveBeenCalledWith(AppSetting.PLAYBACK_SPILL_CACHE_ENABLED, true);
     });
     expect(screen.getByRole("button", { name: "On" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen.getByText("Setting updated. It will take effect the next time visualization starts."),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply now" }));
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it("loads an enabled user setting", () => {

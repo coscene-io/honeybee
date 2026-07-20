@@ -72,6 +72,9 @@ export const appSettings = {
   playbackSpillCache: "Playback disk cache",
   playbackSpillCacheDescription:
     "Stores overflow playback messages on this device to reduce repeated downloads. This can use significant browser storage. Changes apply the next time visualization starts.",
+  playbackSpillCacheNextEffectiveNotice:
+    "Setting updated. It will take effect the next time visualization starts.",
+  playbackSpillCacheApplyImmediately: "Apply now",
   manifestStorageSource: "Manifest and MCAP request host",
   manifestStorageSourceDescription:
     "Selects the host used to fetch manifest files and relative MCAP shard files for data-platform playback.",
