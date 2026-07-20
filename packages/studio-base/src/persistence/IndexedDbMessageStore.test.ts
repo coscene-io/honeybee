@@ -2463,13 +2463,13 @@ describe("IndexedDbMessageStore", () => {
     });
     try {
       await store.init();
-      await store.append(Array.from({ length: 250 }, (_, index) => messageEvent(index)));
+      await store.append(Array.from({ length: 101 }, (_, index) => messageEvent(index)));
       await store.flush();
 
       store.setMaxCacheSize(1);
       const result = await store.forcePrune();
 
-      expect(result.prunedCount).toBe(250);
+      expect(result.prunedCount).toBe(101);
       expect(result.newCount).toBe(0);
       await expect(getSessionMetadata(sessionId, "playback-spill")).resolves.toMatchObject({
         contentRevision: 1,

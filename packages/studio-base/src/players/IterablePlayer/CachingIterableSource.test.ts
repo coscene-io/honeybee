@@ -2945,9 +2945,10 @@ describe("CachingIterableSource", () => {
   it("does not publish coverage into a replacement spill session for old queued writes", async () => {
     const restoreBrowserEvents = withBrowserEvents();
     const source = new TestSource();
+    const messageSizeInBytes = 32 * 1024 * 1024;
     const bufferedSource = new CachingIterableSource(source, {
-      maxBlockSize: 2_000_000,
-      maxTotalSize: 2_000_000,
+      maxBlockSize: 128 * 1024 * 1024,
+      maxTotalSize: 128 * 1024 * 1024,
       spillCache: { sourceId: "test-source" },
     });
     let releaseStamp: (() => void) | undefined;
@@ -2961,14 +2962,16 @@ describe("CachingIterableSource", () => {
         Readonly<IteratorResult>
       > {
         source.messageIteratorCalls++;
-        for (let index = 0; index < 1_000; index++) {
+        // Two messages whose combined estimate exceeds the transaction byte limit exercise the
+        // same queued-append path without making the test process 1,000 IndexedDB records.
+        for (let index = 0; index < 2; index++) {
           yield {
             type: "message-event",
             msgEvent: {
               topic: "a",
               receiveTime: { sec: 0, nsec: index },
               message: { index },
-              sizeInBytes: 1,
+              sizeInBytes: messageSizeInBytes,
               schemaName: "foo",
             },
           };
@@ -2982,7 +2985,7 @@ describe("CachingIterableSource", () => {
         start: { sec: 0, nsec: 0 },
         end: { sec: 1, nsec: 0 },
       });
-      for (let index = 0; index < 1_000; index++) {
+      for (let index = 0; index < 2; index++) {
         await expect(iterator.next()).resolves.toMatchObject({ done: false });
       }
 
@@ -2990,8 +2993,7 @@ describe("CachingIterableSource", () => {
       if (originalSession == undefined) {
         throw new Error("Expected playback spill session");
       }
-      // Remove only the liveness record so recovery can race the original writer without making
-      // this regression test synchronously delete all 1,000 queued/persisted message records.
+      // Remove only the liveness record so recovery can race the original writer.
       await deletePlaybackSpillSessionMetadata(originalSession.sessionId);
       window.dispatchEvent(new Event("pageshow"));
       await waitFor(async () => {
