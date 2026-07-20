@@ -22,12 +22,6 @@ import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { isLayoutEqual } from "@foxglove/studio-base/services/LayoutManager/compareLayouts";
 
 type UpdatedLayout = NonNullable<LayoutState["selectedLayout"]>;
-type RetryState = {
-  failed: Map<LayoutID, UpdatedLayout>;
-  ready: Set<LayoutID>;
-  delayMs: number;
-  timer: ReturnType<typeof setTimeout> | undefined;
-};
 
 const log = Logger.getLogger(__filename);
 
@@ -67,45 +61,24 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   const [unsavedLayouts, setUnsavedLayouts] = useState(EMPTY_UNSAVED_LAYOUTS);
   const unsavedLayoutsRef = useRef(unsavedLayouts);
   const previousSelectedLayoutIdRef = useRef(selectedLayout?.id);
-  const [retryState] = useState<RetryState>(() => ({
-    failed: new Map<LayoutID, UpdatedLayout>(),
-    ready: new Set<LayoutID>(),
-    delayMs: SAVE_INTERVAL_MS,
-    timer: undefined,
-  }));
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const retryDelayMsRef = useRef(SAVE_INTERVAL_MS);
+  const [retryToken, setRetryToken] = useState(0);
   useEffect(() => {
     unsavedLayoutsRef.current = unsavedLayouts;
   }, [unsavedLayouts]);
 
-  const clearRetry = useCallback(
-    (id: LayoutID) => {
-      retryState.failed.delete(id);
-      retryState.ready.delete(id);
-      if (retryState.failed.size === 0) {
-        if (retryState.timer != undefined) {
-          clearTimeout(retryState.timer);
-          retryState.timer = undefined;
-        }
-        retryState.delayMs = SAVE_INTERVAL_MS;
-      }
-    },
-    [retryState],
-  );
-
   const scheduleRetry = useCallback(() => {
-    if (retryState.timer != undefined || retryState.failed.size === 0) {
+    if (retryTimerRef.current != undefined) {
       return;
     }
-    const delayMs = retryState.delayMs;
-    retryState.delayMs = Math.min(MAX_SAVE_RETRY_INTERVAL_MS, delayMs * 2);
-    retryState.timer = setTimeout(() => {
-      retryState.timer = undefined;
-      for (const id of retryState.failed.keys()) {
-        retryState.ready.add(id);
-      }
-      setUnsavedLayouts((old) => ({ ...old }));
+    const delayMs = retryDelayMsRef.current;
+    retryDelayMsRef.current = Math.min(MAX_SAVE_RETRY_INTERVAL_MS, delayMs * 2);
+    retryTimerRef.current = setTimeout(() => {
+      retryTimerRef.current = undefined;
+      setRetryToken((value) => value + 1);
     }, delayMs);
-  }, [retryState]);
+  }, []);
 
   const analytics = useAnalytics();
 
@@ -113,7 +86,6 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
 
   useEffect(() => {
     if (selectedLayout?.edited === true && selectedLayout.transient !== true) {
-      clearRetry(selectedLayout.id);
       setUnsavedLayouts((old) => ({
         ...old,
         [selectedLayout.id]: selectedLayout,
@@ -124,21 +96,31 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
         pendingLayout != undefined &&
         cleanLayoutInvalidatesPending(selectedLayout, pendingLayout)
       ) {
-        clearRetry(selectedLayout.id);
+        setUnsavedLayouts((old) => {
+          if (old[selectedLayout.id] !== pendingLayout) {
+            return old;
+          }
+          const newUnsavedLayouts = { ...old };
+          delete newUnsavedLayouts[selectedLayout.id];
+          return Object.keys(newUnsavedLayouts).length === 0
+            ? EMPTY_UNSAVED_LAYOUTS
+            : newUnsavedLayouts;
+        });
+        return;
       }
-      setUnsavedLayouts((old) => {
-        const pending = old[selectedLayout.id];
-        if (pending == undefined || !cleanLayoutInvalidatesPending(selectedLayout, pending)) {
-          return old;
-        }
-        const newUnsavedLayouts = { ...old };
-        delete newUnsavedLayouts[selectedLayout.id];
-        return Object.keys(newUnsavedLayouts).length === 0
-          ? EMPTY_UNSAVED_LAYOUTS
-          : newUnsavedLayouts;
-      });
     }
-  }, [clearRetry, selectedLayout]);
+  }, [selectedLayout]);
+
+  useEffect(() => {
+    if (unsavedLayouts !== EMPTY_UNSAVED_LAYOUTS) {
+      return;
+    }
+    if (retryTimerRef.current != undefined) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = undefined;
+    }
+    retryDelayMsRef.current = SAVE_INTERVAL_MS;
+  }, [unsavedLayouts]);
 
   const [debouncedUnsavedLayouts, debouncedUnsavedLayoutActions] = useDebounce(
     unsavedLayouts,
@@ -164,26 +146,23 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
     return () => {
       debouncedUnsavedLayoutActions.flush();
       debouncedUnsavedLayoutActions.cancel();
-      const retryTimer = retryState.timer;
-      if (retryTimer != undefined) {
-        clearTimeout(retryTimer);
+      if (retryTimerRef.current != undefined) {
+        clearTimeout(retryTimerRef.current);
       }
     };
-  }, [debouncedUnsavedLayoutActions, retryState]);
+  }, [debouncedUnsavedLayoutActions]);
 
   // Write all pending layout updates to the layout manager. Under the hood this
   // uses useEffect so it happens after DOM updates are complete.
   useAsync(async () => {
+    void retryToken;
     const unsavedLayoutsSnapshot = { ...debouncedUnsavedLayouts };
     const successIds: LayoutID[] = [];
-    const failedLayouts: UpdatedLayout[] = [];
+    let hadFailure = false;
 
     for (const params of Object.values(unsavedLayoutsSnapshot)) {
       try {
         if (unsavedLayoutsRef.current[params.id] !== params) {
-          continue;
-        }
-        if (retryState.failed.get(params.id) === params && !retryState.ready.delete(params.id)) {
           continue;
         }
         await layoutManager.updateLayout({
@@ -191,18 +170,12 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
           data: params.data,
           editRevision: params.editRevision,
         });
-        clearRetry(params.id);
         successIds.push(params.id);
       } catch (error) {
         if (unsavedLayoutsRef.current[params.id] !== params) {
-          if (retryState.failed.get(params.id) === params) {
-            clearRetry(params.id);
-          }
           continue;
         }
-        failedLayouts.push(params);
-        retryState.failed.set(params.id, params);
-        retryState.ready.delete(params.id);
+        hadFailure = true;
         log.error("changes could not be saved", error);
 
         if (isMounted()) {
@@ -229,22 +202,14 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
       });
     }
 
-    if (failedLayouts.length > 0) {
+    if (hadFailure) {
       scheduleRetry();
     }
 
     if (successIds.length > 0) {
       void analytics.logEvent(AppEvent.LAYOUT_UPDATE);
     }
-  }, [
-    analytics,
-    clearRetry,
-    debouncedUnsavedLayouts,
-    isMounted,
-    layoutManager,
-    retryState,
-    scheduleRetry,
-  ]);
+  }, [analytics, debouncedUnsavedLayouts, isMounted, layoutManager, retryToken, scheduleRetry]);
 
   return ReactNull;
 }

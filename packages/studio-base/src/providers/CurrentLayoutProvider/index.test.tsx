@@ -673,8 +673,7 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
-  it("applies retried autosaves to clean views and preserves newer data across stale overwrites", async () => {
-    jest.useFakeTimers();
+  it("applies manager updates to clean views", async () => {
     const retryData: LayoutData = {
       ...TEST_LAYOUT,
       configById: { "ExamplePanel!1": { value: "retried" } },
@@ -749,13 +748,12 @@ describe("CurrentLayoutProvider", () => {
       });
     });
 
-    expect(result.current.layoutState.selectedLayout).toMatchObject({
+    expect(result.current.layoutState.selectedLayout).toEqual({
       id: "example",
-      data: retryData,
-      edited: true,
-      editRevision: expect.any(Number),
+      name: "Test layout",
+      loading: false,
+      data: TEST_LAYOUT,
     });
-    jest.useRealTimers();
     (console.warn as jest.Mock).mockClear();
   });
 
@@ -806,12 +804,6 @@ describe("CurrentLayoutProvider", () => {
       await firstAttemptWait;
     });
     await act(async () => {});
-
-    act(() => {
-      jest.advanceTimersByTime(1500);
-    });
-    await act(async () => {});
-    expect(mockLayoutManager.updateLayout).toHaveBeenCalledTimes(1);
 
     act(() => {
       jest.advanceTimersByTime(1000);

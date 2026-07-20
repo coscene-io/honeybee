@@ -117,60 +117,6 @@ function Wrapper({
 }
 
 describe("<CoSceneLayoutButton />", () => {
-  it("uses refreshed row data when duplicating a clean current layout", async () => {
-    const currentId = layoutId("mock-layout");
-    const rowData = layoutData("refreshed-row");
-    const currentLayout = {
-      ...makeLayout({ id: currentId, name: "Current", data: rowData }),
-      working: undefined,
-    };
-    const layoutManager = new MockCoSceneLayoutManager();
-    layoutManager.getLayouts.mockResolvedValue([currentLayout]);
-    layoutManager.saveNewLayout.mockImplementation(
-      async () => await new Promise<Layout>(() => {}),
-    );
-    let currentLayoutActions: ReturnType<typeof useCurrentLayoutActions> | undefined;
-
-    render(
-      <Wrapper
-        layoutManager={layoutManager}
-        captureActions={(actions) => {
-          currentLayoutActions = actions;
-        }}
-      >
-        <CoSceneLayoutButton />
-      </Wrapper>,
-    );
-
-    if (!currentLayoutActions) {
-      throw new Error("Current layout actions were not captured");
-    }
-    act(() => {
-      currentLayoutActions?.setCurrentLayout({
-        id: currentId,
-        data: layoutData("stale-view"),
-        edited: false,
-      });
-    });
-
-    fireEvent.click(await screen.findByText("Current"));
-    const currentActionsButton = screen.getAllByTestId("layout-actions")[0];
-    if (!currentActionsButton) {
-      throw new Error("Current layout action button was not rendered");
-    }
-    fireEvent.click(currentActionsButton);
-    fireEvent.click(await screen.findByTestId("duplicate-layout"));
-
-    await waitFor(() => {
-      expect(layoutManager.saveNewLayout).toHaveBeenCalledWith({
-        folder: currentLayout.folder,
-        name: "Current copy",
-        data: rowData,
-        permission: "PERSONAL_WRITE",
-      });
-    });
-  });
-
   it("does not restart a queued multi-save when the current layout changes during the save", async () => {
     const currentId = layoutId("mock-layout");
     const secondId = layoutId("users/u/layouts/2");
@@ -205,15 +151,6 @@ describe("<CoSceneLayoutButton />", () => {
       </Wrapper>,
     );
 
-    if (!currentLayoutActions) {
-      throw new Error("Current layout actions were not captured");
-    }
-    const actions = currentLayoutActions;
-    await act(async () => {
-      actions.setCurrentLayout({ id: currentId, data: layoutData("latest-before-save") });
-      await Promise.resolve();
-    });
-
     fireEvent.click(await screen.findByText("Current"));
     fireEvent.click(await screen.findByText("Second"), { shiftKey: true });
     const secondActionsButton = screen.getAllByTestId("layout-actions")[1];
@@ -227,7 +164,11 @@ describe("<CoSceneLayoutButton />", () => {
       expect(layoutManager.overwriteLayout).toHaveBeenCalledTimes(1);
     });
     expect(overwriteCalls.map((call) => call.id)).toEqual([currentId]);
-    expect(overwriteCalls[0]?.data).toEqual(layoutData("latest-before-save"));
+
+    if (!currentLayoutActions) {
+      throw new Error("Current layout actions were not captured");
+    }
+    const actions = currentLayoutActions;
     await act(async () => {
       actions.setCurrentLayout({ id: currentId, data: layoutData("changed") });
       await Promise.resolve();

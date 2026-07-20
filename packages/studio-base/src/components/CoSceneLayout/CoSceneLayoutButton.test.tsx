@@ -192,6 +192,7 @@ describe("<CoSceneLayoutButton />", () => {
       expect(layoutManager.overwriteLayout).toHaveBeenCalledTimes(1);
     });
     expect(overwriteCalls.map((call) => call.id)).toEqual([currentId]);
+    expect(overwriteCalls[0]).toEqual({ id: currentId });
 
     if (!currentLayoutActions) {
       throw new Error("Current layout actions were not captured");

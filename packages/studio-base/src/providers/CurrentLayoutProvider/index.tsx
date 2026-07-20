@@ -244,20 +244,11 @@ export default function CurrentLayoutProvider({
         const dataChanged =
           currentSelectedLayout.data != undefined &&
           !isLayoutEqual(updatedData, currentSelectedLayout.data);
-        if (dataChanged && event.source === "overwrite") {
-          setLayoutState({
-            selectedLayout: {
-              ...currentSelectedLayout,
-              loading: false,
-              id: updatedLayout.id,
-              name: updatedLayout.name,
-              edited: true,
-              editRevision: ++nextEditRevision,
-            },
-          });
-          return;
-        }
-        if (dataChanged && event.source === "update" && currentSelectedLayout.edited === true) {
+        if (
+          dataChanged &&
+          currentSelectedLayout.edited === true &&
+          (event.source === "update" || event.source === "overwrite")
+        ) {
           setLayoutState({
             selectedLayout: {
               ...currentSelectedLayout,

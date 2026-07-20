@@ -59,35 +59,9 @@ import LayoutSection from "./LayoutSection";
 
 const log = Logger.getLogger(__filename);
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectedLayoutSelector = (state: LayoutState) => state.selectedLayout;
 // const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectUserRole = (store: UserStore) => store.role;
-
-function getCurrentLayoutParams(state: LayoutState, id: LayoutID) {
-  const selectedLayout = state.selectedLayout;
-  if (selectedLayout?.id !== id) {
-    return { id };
-  }
-  return {
-    id,
-    ...(selectedLayout.data != undefined ? { data: selectedLayout.data } : {}),
-    ...(selectedLayout.editRevision != undefined
-      ? { editRevision: selectedLayout.editRevision }
-      : {}),
-  };
-}
-
-function getLatestLayoutData(state: LayoutState, layout: Layout): LayoutData {
-  const selectedLayout = state.selectedLayout;
-  return selectedLayout?.id === layout.id &&
-    selectedLayout.edited === true &&
-    selectedLayout.data != undefined
-    ? selectedLayout.data
-    : (layout.working?.data ?? layout.baseline.data);
-}
-
-function getCurrentEditRevision(state: LayoutState, id: LayoutID): number | undefined {
-  return state.selectedLayout?.id === id ? state.selectedLayout.editRevision : undefined;
-}
 
 const useStyles = makeStyles()((theme) => {
   const { spacing, palette } = theme;
@@ -132,9 +106,10 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const { layoutDrawer } = useWorkspaceActions();
 
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const selectedLayout = useCurrentLayoutSelector(selectedLayoutSelector);
   const { enqueueSnackbar } = useSnackbar();
   const { unsavedChangesPrompt, openUnsavedChangesPrompt } = useUnsavedChangesPrompt();
-  const { getCurrentLayoutState, setSelectedLayoutId } = useCurrentLayoutActions();
+  const { setSelectedLayoutId } = useCurrentLayoutActions();
   const analytics = useAnalytics();
   const [prompt, promptModal] = usePrompt();
   const confirm = useConfirm();
@@ -188,6 +163,19 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     online: layoutManager.isOnline,
   });
 
+  const getOverwriteLayoutParams = useCallback(
+    (id: LayoutID) => ({
+      id,
+      data: selectedLayout?.id === id ? selectedLayout.data : undefined,
+    }),
+    [selectedLayout],
+  );
+  const getOverwriteLayoutParamsRef = useRef(getOverwriteLayoutParams);
+
+  useEffect(() => {
+    getOverwriteLayoutParamsRef.current = getOverwriteLayoutParams;
+  }, [getOverwriteLayoutParams]);
+
   const pendingMultiAction = state.multiAction?.ids != undefined;
 
   const anySelectedModifiedLayouts = useMemo(() => {
@@ -239,7 +227,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
                 await layoutManager.saveNewLayout({
                   folder: layout.folder,
                   name: `${layout.name} copy`,
-                  data: getLatestLayoutData(getCurrentLayoutState(), layout),
+                  data: layout.working?.data ?? layout.baseline.data,
                   permission: "PERSONAL_WRITE",
                 });
               }
@@ -247,15 +235,12 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               break;
             }
             case "revert":
-              await layoutManager.revertLayout({
-                id: id as LayoutID,
-                editRevision: getCurrentEditRevision(getCurrentLayoutState(), id as LayoutID),
-              });
+              await layoutManager.revertLayout({ id: id as LayoutID });
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
               await layoutManager.overwriteLayout(
-                getCurrentLayoutParams(getCurrentLayoutState(), id as LayoutID),
+                getOverwriteLayoutParamsRef.current(id as LayoutID),
               );
               dispatch({ type: "shift-multi-action" });
               break;
@@ -271,7 +256,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     processAction().catch((err: unknown) => {
       log.error(err);
     });
-  }, [dispatch, enqueueSnackbar, getCurrentLayoutState, layoutManager, state.multiAction]);
+  }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
 
   /**
    * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
@@ -294,19 +279,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         case "cancel":
           return false;
         case "discard":
-          await layoutManager.revertLayout({
-            id: currentLayout.id,
-            editRevision: getCurrentEditRevision(getCurrentLayoutState(), currentLayout.id),
-          });
+          await layoutManager.revertLayout({ id: currentLayout.id });
           void analytics.logEvent(AppEvent.LAYOUT_REVERT, {
             permission: currentLayout.permission,
             context: "UnsavedChangesPrompt",
           });
           return true;
         case "overwrite":
-          await layoutManager.overwriteLayout(
-            getCurrentLayoutParams(getCurrentLayoutState(), currentLayout.id),
-          );
+          await layoutManager.overwriteLayout(getOverwriteLayoutParams(currentLayout.id));
           void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, {
             permission: currentLayout.permission,
             context: "UnsavedChangesPrompt",
@@ -315,8 +295,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         case "makePersonal":
           // We don't use onMakePersonalCopy() here because it might need to prompt for unsaved changes, and we don't want to select the newly created layout
           await layoutManager.makePersonalCopy({
+            id: currentLayout.id,
             name: result.name,
-            ...getCurrentLayoutParams(getCurrentLayoutState(), currentLayout.id),
           });
           void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
             permission: currentLayout.permission,
@@ -327,7 +307,13 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       }
     }
     return true;
-  }, [analytics, currentLayoutId, getCurrentLayoutState, layoutManager, openUnsavedChangesPrompt]);
+  }, [
+    analytics,
+    currentLayoutId,
+    getOverwriteLayoutParams,
+    layoutManager,
+    openUnsavedChangesPrompt,
+  ]);
 
   const onSelectLayout = useCallbackWithToast(
     async (
@@ -388,7 +374,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
       const newLayout = await layoutManager.saveNewLayout({
         folder: item.folder,
         name: `${item.name} copy`,
-        data: getLatestLayoutData(getCurrentLayoutState(), item),
+        data: item.working?.data ?? item.baseline.data,
         permission: "PERSONAL_WRITE",
       });
       await onSelectLayout(newLayout);
@@ -397,7 +383,6 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     [
       analytics,
       dispatch,
-      getCurrentLayoutState,
       layoutManager,
       onSelectLayout,
       promptForUnsavedChanges,
@@ -449,24 +434,23 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         const newLayout = await layoutManager.saveNewLayout({
           folder: item.folder,
           name,
-          data: getLatestLayoutData(getCurrentLayoutState(), item),
+          data: item.working?.data ?? item.baseline.data,
           permission: "PROJECT_WRITE",
         });
         void analytics.logEvent(AppEvent.LAYOUT_SHARE, { permission: item.permission });
         await onSelectLayout(newLayout);
       }
     },
-    [analytics, getCurrentLayoutState, t, layoutManager, onSelectLayout, prompt],
+    [analytics, t, layoutManager, onSelectLayout, prompt],
   );
 
   const onExportLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const content =
-        JSON.stringify(getLatestLayoutData(getCurrentLayoutState(), item), undefined, 2) ?? "";
+      const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
       downloadTextFile(content, `${item.name}.json`);
       void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
     },
-    [analytics, getCurrentLayoutState],
+    [analytics],
   );
 
   const onOverwriteLayout = useCallbackWithToast(
@@ -494,14 +478,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           return;
         }
       }
-      await layoutManager.overwriteLayout(getCurrentLayoutParams(getCurrentLayoutState(), item.id));
+      await layoutManager.overwriteLayout(getOverwriteLayoutParams(item.id));
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
     [
       analytics,
       confirm,
       dispatch,
-      getCurrentLayoutState,
+      getOverwriteLayoutParams,
       layoutManager,
       state.selectedIds.length,
       t,
@@ -515,20 +499,17 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      await layoutManager.revertLayout({
-        id: item.id,
-        editRevision: getCurrentEditRevision(getCurrentLayoutState(), item.id),
-      });
+      await layoutManager.revertLayout({ id: item.id });
       void analytics.logEvent(AppEvent.LAYOUT_REVERT, { permission: item.permission });
     },
-    [analytics, dispatch, getCurrentLayoutState, layoutManager, state.selectedIds.length],
+    [analytics, dispatch, layoutManager, state.selectedIds.length],
   );
 
   const onMakePersonalCopy = useCallbackWithToast(
     async (item: Layout) => {
       const newLayout = await layoutManager.makePersonalCopy({
+        id: item.id,
         name: `${item.name} copy`,
-        ...getCurrentLayoutParams(getCurrentLayoutState(), item.id),
       });
       await onSelectLayout(newLayout);
       void analytics.logEvent(AppEvent.LAYOUT_MAKE_PERSONAL_COPY, {
@@ -536,7 +517,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         syncStatus: item.syncInfo?.status,
       });
     },
-    [analytics, getCurrentLayoutState, layoutManager, onSelectLayout],
+    [analytics, layoutManager, onSelectLayout],
   );
 
   const createNewLayout = useCallbackWithToast(async () => {

@@ -398,7 +398,7 @@ describe("CoSceneLayoutManager", () => {
     });
   });
 
-  it("makes a personal copy from current memory data and fences the original autosave", async () => {
+  it("fences an observed autosave when reverting a non-current layout", async () => {
     const localStorage = new MemoryLayoutStorage();
     const manager = makeManager({ localStorage });
     const id = layoutId("layouts/1");
@@ -408,26 +408,28 @@ describe("CoSceneLayoutManager", () => {
         id,
         parent: "",
         working: {
-          data: layoutData("stale-working"),
+          data: layoutData("previous-draft"),
           savedAt: ts("2024-01-01T00:00:01.000Z"),
         },
         syncStatus: "new",
       }),
     );
 
-    const copy = await manager.makePersonalCopy({
-      id,
-      name: "Personal copy",
-      data: layoutData("current-memory"),
-      editRevision: 2,
-    });
+    jest.spyOn(localStorage, "put").mockRejectedValueOnce(new Error("temporary failure"));
+    await expect(
+      manager.updateLayout({
+        id,
+        data: layoutData("pending-retry"),
+        editRevision: 2,
+      }),
+    ).rejects.toThrow("temporary failure");
+    await manager.revertLayout({ id });
     await manager.updateLayout({
       id,
-      data: layoutData("stale-autosave"),
-      editRevision: 1,
+      data: layoutData("pending-retry"),
+      editRevision: 2,
     });
 
-    expect(copy.baseline.data).toEqual(layoutData("current-memory"));
     expect(await manager.getLayout({ id })).toMatchObject({
       baseline: { data: layoutData("initial") },
       working: undefined,

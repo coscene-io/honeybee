@@ -123,7 +123,19 @@ export default class CoSceneLayoutManager implements ILayoutManager {
 
   #busyCount = 0;
 
+  #latestObservedEditRevisions = new Map<LayoutID, number>();
+
   #finalizedEditRevisions = new Map<LayoutID, number>();
+
+  #recordObservedEditRevision(id: LayoutID, editRevision: number | undefined): void {
+    if (editRevision == undefined) {
+      return;
+    }
+    this.#latestObservedEditRevisions.set(
+      id,
+      Math.max(editRevision, this.#latestObservedEditRevisions.get(id) ?? editRevision),
+    );
+  }
 
   #editWasSuperseded(id: LayoutID, editRevision: number | undefined): boolean {
     if (editRevision == undefined) {
@@ -447,6 +459,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     data?: LayoutData | undefined;
     editRevision?: number | undefined;
   }): Promise<Layout | undefined> {
+    this.#recordObservedEditRevision(id, editRevision);
     return await this.#runWithBusyStatus(async () => {
       const now = new Date().toISOString() as ISO8601Timestamp;
       const data = unmigratedData == undefined ? undefined : migratePanelsState(unmigratedData);
@@ -638,6 +651,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
       });
 
       if (didDelete) {
+        this.#latestObservedEditRevisions.delete(id);
         this.#finalizedEditRevisions.delete(id);
         this.#notifyChangeListeners({ type: "delete", layoutId: id });
       }
@@ -684,27 +698,23 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           return { type: "project" as const, dataToSave, layoutForSave };
         }
 
-        const latestLayout = await local.get(id);
-        if (!latestLayout) {
-          throw new Error(`Cannot overwrite layout ${id} because it does not exist`);
-        }
         const layout = await local.put({
-          ...latestLayout,
+          ...localLayout,
           baseline: {
             data: dataToSave,
             savedAt: now,
-            modifier: latestLayout.baseline.modifier,
-            modifierNickname: latestLayout.baseline.modifierNickname,
+            modifier: localLayout.baseline.modifier,
+            modifierNickname: localLayout.baseline.modifierNickname,
           },
           working: undefined,
           syncInfo:
-            this.#remote && latestLayout.syncInfo?.status !== "new"
+            this.#remote && localLayout.syncInfo?.status !== "new"
               ? {
                   status: "updated",
-                  lastRemoteSavedAt: latestLayout.syncInfo?.lastRemoteSavedAt,
-                  lastRemoteUpdatedAt: latestLayout.syncInfo?.lastRemoteUpdatedAt,
+                  lastRemoteSavedAt: localLayout.syncInfo?.lastRemoteSavedAt,
+                  lastRemoteUpdatedAt: localLayout.syncInfo?.lastRemoteUpdatedAt,
                 }
-              : latestLayout.syncInfo,
+              : localLayout.syncInfo,
         });
         this.#recordFinalizedEditRevision(id, editRevision);
 
@@ -788,7 +798,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           ...layout,
           working: undefined,
         });
-        this.#recordFinalizedEditRevision(id, editRevision);
+        this.#recordFinalizedEditRevision(
+          id,
+          editRevision ?? this.#latestObservedEditRevisions.get(id),
+        );
         if (layoutAppearsDeleted(revertedLayout)) {
           await local.delete(id);
           return { layout: revertedLayout, deleted: true };
@@ -796,6 +809,8 @@ export default class CoSceneLayoutManager implements ILayoutManager {
         return { layout: revertedLayout, deleted: false };
       });
       if (result.deleted) {
+        this.#latestObservedEditRevisions.delete(id);
+        this.#finalizedEditRevisions.delete(id);
         this.#notifyChangeListeners({ type: "delete", layoutId: id });
       } else {
         this.#notifyChangeListeners({
@@ -808,20 +823,9 @@ export default class CoSceneLayoutManager implements ILayoutManager {
     });
   }
 
-  public async makePersonalCopy({
-    id,
-    name,
-    data: unmigratedData,
-    editRevision,
-  }: {
-    id: LayoutID;
-    name: string;
-    data?: LayoutData;
-    editRevision?: number;
-  }): Promise<Layout> {
+  public async makePersonalCopy({ id, name }: { id: LayoutID; name: string }): Promise<Layout> {
     return await this.#runWithBusyStatus(async () => {
       const now = new Date().toISOString() as ISO8601Timestamp;
-      const data = unmigratedData == undefined ? undefined : migratePanelsState(unmigratedData);
 
       const result = await this.#local.runExclusive(async (local) => {
         const layout = await local.get(id);
@@ -839,7 +843,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           name,
           permission: "PERSONAL_WRITE",
           baseline: {
-            data: data ?? layout.working?.data ?? layout.baseline.data,
+            data: layout.working?.data ?? layout.baseline.data,
             savedAt: now,
             modifier: layout.baseline.modifier,
             modifierNickname: layout.baseline.modifierNickname,
@@ -848,7 +852,6 @@ export default class CoSceneLayoutManager implements ILayoutManager {
           syncInfo: { status: "new", lastRemoteSavedAt: now, lastRemoteUpdatedAt: now },
         });
         await local.put({ ...layout, working: undefined });
-        this.#recordFinalizedEditRevision(id, editRevision);
         return newLayout;
       });
       this.#notifyChangeListeners({ type: "change", updatedLayout: undefined });

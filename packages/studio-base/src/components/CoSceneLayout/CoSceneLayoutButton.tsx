@@ -44,7 +44,7 @@ const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.i
 
 function getCurrentLayoutParams(state: LayoutState, id: LayoutID) {
   const selectedLayout = state.selectedLayout;
-  if (selectedLayout?.id !== id) {
+  if (selectedLayout?.id !== id || selectedLayout.edited !== true) {
     return { id };
   }
   return {
@@ -66,7 +66,9 @@ function getLatestLayoutData(state: LayoutState, layout: Layout): LayoutData {
 }
 
 function getCurrentEditRevision(state: LayoutState, id: LayoutID): number | undefined {
-  return state.selectedLayout?.id === id ? state.selectedLayout.editRevision : undefined;
+  return state.selectedLayout?.id === id && state.selectedLayout.edited === true
+    ? state.selectedLayout.editRevision
+    : undefined;
 }
 
 export function CoSceneLayoutButton(): React.JSX.Element {
@@ -136,7 +138,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
                 await layoutManager.saveNewLayout({
                   folder: layout.folder,
                   name: `${layout.name} copy`,
-                  data: getLatestLayoutData(getCurrentLayoutState(), layout),
+                  data: layout.working?.data ?? layout.baseline.data,
                   permission: "PERSONAL_WRITE",
                 });
               }
