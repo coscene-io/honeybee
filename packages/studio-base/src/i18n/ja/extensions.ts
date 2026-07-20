@@ -23,5 +23,10 @@ export const extensions = {
   pleaseEnterValidUrl: "有効なURLを入力してください",
   invalidUrlFormat: "無効なURL形式",
   noInstalledExtensions: "インストールされた拡張機能はありません",
+  loadingExtensions: "拡張機能を読み込んでいます…",
+  extensionLoadDegraded:
+    "{{count}} 件の拡張機能ソースまたは拡張機能を読み込めませんでした。組み込みパネルは引き続き使用できます。",
+  retryExtensionLoad: "再試行",
+  extensionRefreshFailed: "拡張機能の再読み込みに失敗しました",
   organization: "組織",
 };

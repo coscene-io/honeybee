@@ -13,6 +13,11 @@ import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 /** @deprecated Use separate PersistentMessageCache instances for session isolation */
 export type PersistenceSessionId = string;
 
+export type PersistentMessageCacheAppendOptions = {
+  /** Per-message storage estimates. When omitted, sizeInBytes is used. */
+  estimatedSizeBytes?: readonly number[];
+};
+
 /**
  * A persistent cache for message events, backed by a pluggable storage engine.
  * Each cache instance manages a single session internally.
@@ -37,7 +42,10 @@ export interface PersistentMessageCache {
    * Messages may contain multiple topics and are resilient to out-of-order inserts.
    * Optionally performs retention pruning based on the latest message time in the batch.
    */
-  append(events: readonly MessageEvent[]): Promise<void>;
+  append(
+    events: readonly MessageEvent[],
+    options?: PersistentMessageCacheAppendOptions,
+  ): Promise<void>;
 
   /**
    * Flush all currently queued writes to durable storage.

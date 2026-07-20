@@ -16,6 +16,7 @@ import QuestionAnswerOutlinedIcon from "@mui/icons-material/QuestionAnswerOutlin
 import WebIcon from "@mui/icons-material/Web";
 import {
   Autocomplete,
+  Button,
   Checkbox,
   Chip,
   Divider,
@@ -993,6 +994,61 @@ export function ReadAheadDuration(): React.ReactElement {
               }}
             />
           </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+export function PlaybackSpillCache({
+  onReload = () => {
+    window.location.reload();
+  },
+}: {
+  onReload?: () => void;
+}): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [enabled = false, setEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.PLAYBACK_SPILL_CACHE_ENABLED,
+  );
+  const [showReloadNotice, setShowReloadNotice] = useState(false);
+  const { theme } = useStyles();
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("playbackSpillCache")}:
+          <Tooltip title={t("playbackSpillCacheDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(enabled)}
+        onChange={(_, value?: string) => {
+          if (value != undefined) {
+            void setEnabled(value === "true").then(() => {
+              setShowReloadNotice(true);
+            });
+          }
+        }}
+      >
+        <ToggleButton value="false">{t("off")}</ToggleButton>
+        <ToggleButton value="true">{t("on")}</ToggleButton>
+      </ToggleButtonGroup>
+      {showReloadNotice && (
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Typography variant="body2" color={theme.palette.warning.main}>
+            {t("playbackSpillCacheNextEffectiveNotice")}
+          </Typography>
+          <Button size="small" onClick={onReload}>
+            {t("playbackSpillCacheApplyImmediately")}
+          </Button>
         </Stack>
       )}
     </Stack>

@@ -59,6 +59,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
             : {}),
           ...(result.profile != undefined ? { profile: result.profile } : {}),
         },
+        enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
       });
     }
 
@@ -83,8 +84,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
       name: "Shared MCAP",
       urlParams: { [SHARE_MANIFEST_HASH_PARAM]: result.encodedManifest },
       readAheadDuration: { sec: 10, nsec: 0 },
-      enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: JSON.stringify({ sourceId: this.id, url: miniMcapUrl }),
+      enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
     });
   }
 }

@@ -9,6 +9,7 @@ import * as _ from "lodash-es";
 import race from "race-as-promised";
 
 import { MessageEvent } from "@foxglove/studio";
+import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
 import { BufferedIterableSource } from "./BufferedIterableSource";
@@ -211,6 +212,42 @@ describe("BufferedIterableSource", () => {
 
     expect(result).toBe("stopped");
     await messageIterator.return?.();
+  });
+
+  it("seals spill storage even when the producer rejects during termination", async () => {
+    const source = new TestSource();
+    const producerStarted = waiter(1);
+    let rejectProducer: (() => void) | undefined;
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      producerStarted.notify();
+      await new Promise<void>((resolve) => {
+        rejectProducer = resolve;
+      });
+      yield* [];
+      throw new Error("producer failed");
+    };
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
+    const bufferedSource = new BufferedIterableSource(source, {
+      spillCache: { sourceId: "producer-failure" },
+    });
+
+    try {
+      await bufferedSource.initialize();
+      bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+      });
+      await producerStarted.wait();
+      rejectProducer?.();
+
+      await expect(bufferedSource.terminate()).rejects.toThrow("producer failed");
+      expect(discardSpy).toHaveBeenCalledTimes(1);
+      expect(discardSpy).toHaveBeenCalledWith("pending-delete");
+    } finally {
+      discardSpy.mockRestore();
+    }
   });
 
   it("should produce messages after buffering is complete", async () => {
