@@ -163,8 +163,7 @@ export class RealtimeVizHistoryCache {
     }
     this.#disabled = true;
     try {
-      await Promise.all(this.#metadataWrites);
-      await this.#store.close();
+      await this.#store.closeAfter(Array.from(this.#metadataWrites));
     } catch (error) {
       try {
         await this.#store.discardAndSeal("abandoned");

@@ -1922,7 +1922,7 @@ describe("IndexedDbMessageStore", () => {
       await janitor.init();
       const retryDelayMs = await janitor.runMaintenance();
       expect(console.warn).toHaveBeenCalledWith(
-        "Disabling IndexedDbMessageStore writes because active sessions exceed budget",
+        "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
         expect.objectContaining({ dbName: PLAYBACK_MESSAGE_CACHE_DB_NAME }),
       );
       jest.mocked(console.warn).mockClear();
@@ -1931,6 +1931,49 @@ describe("IndexedDbMessageStore", () => {
       expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
         status: "active",
       });
+    } finally {
+      await janitor.close();
+    }
+  });
+
+  it("requests a later maintenance pass for an over-budget session with a fresh reader lease", async () => {
+    const sessionId = "startup-fresh-reader";
+    const store = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    await store.init();
+    await store.append([messageEvent(1)]);
+    await store.flush();
+    await store.close();
+
+    const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+    const tx = db.transaction("sessions", "readwrite");
+    const metadata = (await tx.store.get(sessionId)) as CacheSessionMetadata;
+    await tx.store.put({
+      ...metadata,
+      readers: ["replay-reader"],
+      lastActiveAt: Date.now(),
+      approximateSizeBytes: 3 * 1024 * 1024 * 1024,
+    });
+    await tx.done;
+    db.close();
+
+    const janitor = new IndexedDbMessageStore({
+      kind: "playback-spill",
+      accessMode: "maintenance",
+    });
+    try {
+      await janitor.init();
+      const retryDelayMs = await janitor.runMaintenance();
+      expect(retryDelayMs).toBeGreaterThan(4 * 60 * 1_000);
+      expect(retryDelayMs).toBeLessThanOrEqual(5 * 60 * 1_000 + 1_000);
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
+        status: "closed",
+        readers: ["replay-reader"],
+      });
+      expect(console.warn).toHaveBeenCalledWith(
+        "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
+        expect.objectContaining({ dbName: PLAYBACK_MESSAGE_CACHE_DB_NAME }),
+      );
+      jest.mocked(console.warn).mockClear();
     } finally {
       await janitor.close();
     }

@@ -1058,7 +1058,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   /**
    * Run the same TTL, pressure, and global-budget pass from an idle maintenance-only store.
    * Returns when another pass should run if pressure is currently protecting a fresh active
-   * session that may belong to another tab.
+   * writer or replay reader that may belong to another tab.
    */
   public async runMaintenance(): Promise<number | undefined> {
     if (this.#accessMode !== "maintenance") {
@@ -1096,7 +1096,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         const now = Date.now();
         const nextStaleAt = sessions
           .filter(
-            (session) => session.status === "active" && session.lastActiveAt + staleAfterMs > now,
+            (session) =>
+              (session.status === "active" || (session.readers?.length ?? 0) > 0) &&
+              session.lastActiveAt + staleAfterMs > now,
           )
           .reduce<number | undefined>((earliest, session) => {
             const staleAt = session.lastActiveAt + staleAfterMs;
@@ -2464,11 +2466,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (currentSession == undefined) {
       if (totalBytes > this.#globalBudgetBytes) {
         this.#writesDisabled = true;
-        log.warn("Disabling IndexedDbMessageStore writes because active sessions exceed budget", {
-          dbName: this.#dbName,
-          totalBytes,
-          maxCacheSize: this.#globalBudgetBytes,
-        });
+        log.warn(
+          "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
+          {
+            dbName: this.#dbName,
+            totalBytes,
+            maxCacheSize: this.#globalBudgetBytes,
+          },
+        );
       }
       return;
     }
@@ -2495,11 +2500,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     await finalTx.done;
     if (finalTotalBytes > this.#globalBudgetBytes) {
       this.#writesDisabled = true;
-      log.warn("Disabling IndexedDbMessageStore writes because active sessions exceed budget", {
-        dbName: this.#dbName,
-        totalBytes: finalTotalBytes,
-        maxCacheSize: this.#globalBudgetBytes,
-      });
+      log.warn(
+        "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
+        {
+          dbName: this.#dbName,
+          totalBytes: finalTotalBytes,
+          maxCacheSize: this.#globalBudgetBytes,
+        },
+      );
     }
   }
 
@@ -3054,6 +3062,30 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   public close(): Promise<void> {
     return this.#requestShutdown("closed", { discardQueued: false });
+  }
+
+  public async closeAfter(pendingOperations: readonly Promise<unknown>[]): Promise<void> {
+    this.#beginShutdown();
+    const pendingResult = await this.#settleShutdownOperation(
+      Promise.allSettled(pendingOperations),
+      "pending close operations",
+      { reserveRemainingMs: this.#shutdownStatusReserveMs() },
+    );
+    let shutdownError: unknown =
+      pendingResult.status === "rejected"
+        ? pendingResult.reason
+        : pendingResult.value.find((result) => result.status === "rejected")?.reason;
+
+    try {
+      await this.#requestShutdown(shutdownError == undefined ? "closed" : "abandoned", {
+        discardQueued: shutdownError != undefined,
+      });
+    } catch (error) {
+      shutdownError ??= error;
+    }
+    if (shutdownError != undefined) {
+      throw toError(shutdownError);
+    }
   }
 
   // Returning the stored promise directly preserves identity across concurrent callers.
