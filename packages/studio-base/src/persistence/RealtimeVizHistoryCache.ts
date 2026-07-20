@@ -23,6 +23,7 @@ export class RealtimeVizHistoryCache {
   #latestTopics: readonly TopicWithDecodingInfo[] | undefined;
   #latestTopicStats: Map<string, TopicStats> | undefined;
   #latestDatatypes: RosDatatypes | undefined;
+  #metadataWrites = new Set<Promise<void>>();
   #closePromise: Promise<void> | undefined;
 
   public constructor({
@@ -102,9 +103,10 @@ export class RealtimeVizHistoryCache {
     if (!this.#initialized) {
       return;
     }
-    void this.#store.storeTopics(topics, topicStats).catch((error: unknown) => {
-      log.debug("Failed to store realtime topic metadata:", error);
-    });
+    this.#trackMetadataWrite(
+      this.#store.storeTopics(topics, topicStats),
+      "Failed to store realtime topic metadata:",
+    );
   }
 
   public storeDatatypes(datatypes: RosDatatypes): void {
@@ -115,24 +117,35 @@ export class RealtimeVizHistoryCache {
     if (!this.#initialized) {
       return;
     }
-    void this.#store.storeDatatypes(datatypes).catch((error: unknown) => {
-      log.debug("Failed to store realtime datatypes:", error);
-    });
+    this.#trackMetadataWrite(
+      this.#store.storeDatatypes(datatypes),
+      "Failed to store realtime datatypes:",
+    );
   }
 
   #persistLatestMetadata(): void {
     if (this.#latestTopics != undefined) {
-      void this.#store
-        .storeTopics(this.#latestTopics, this.#latestTopicStats)
-        .catch((error: unknown) => {
-          log.debug("Failed to store realtime topic metadata:", error);
-        });
+      this.#trackMetadataWrite(
+        this.#store.storeTopics(this.#latestTopics, this.#latestTopicStats),
+        "Failed to store realtime topic metadata:",
+      );
     }
     if (this.#latestDatatypes != undefined) {
-      void this.#store.storeDatatypes(this.#latestDatatypes).catch((error: unknown) => {
-        log.debug("Failed to store realtime datatypes:", error);
-      });
+      this.#trackMetadataWrite(
+        this.#store.storeDatatypes(this.#latestDatatypes),
+        "Failed to store realtime datatypes:",
+      );
     }
+  }
+
+  #trackMetadataWrite(write: Promise<void>, failureMessage: string): void {
+    const trackedWrite = write.catch((error: unknown) => {
+      log.debug(failureMessage, error);
+    });
+    this.#metadataWrites.add(trackedWrite);
+    void trackedWrite.finally(() => {
+      this.#metadataWrites.delete(trackedWrite);
+    });
   }
 
   // Returning the stored promise directly preserves identity across concurrent callers.
@@ -150,7 +163,7 @@ export class RealtimeVizHistoryCache {
     }
     this.#disabled = true;
     try {
-      // The store owns the single shutdown deadline and waits for tracked metadata transactions.
+      await Promise.all(this.#metadataWrites);
       await this.#store.close();
     } catch (error) {
       try {

@@ -84,4 +84,37 @@ describe("RealtimeVizHistoryCache", () => {
       discardSpy.mockRestore();
     }
   });
+
+  it("waits for queued metadata writes before close resolves", async () => {
+    let resolveMetadata = () => {};
+    const metadataWrite = new Promise<void>((resolve) => {
+      resolveMetadata = resolve;
+    });
+    const storeTopicsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "storeTopics")
+      .mockReturnValueOnce(metadataWrite);
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "pending-realtime-metadata",
+      retentionWindowMs: 30_000,
+    });
+
+    try {
+      await cache.init();
+      cache.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }], new Map());
+
+      let closeResolved = false;
+      const closePromise = cache.close().then(() => {
+        closeResolved = true;
+      });
+      await Promise.resolve();
+      expect(closeResolved).toBe(false);
+
+      resolveMetadata();
+      await closePromise;
+      expect(storeTopicsSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      resolveMetadata();
+      storeTopicsSpy.mockRestore();
+    }
+  });
 });

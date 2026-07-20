@@ -1409,6 +1409,55 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
+  it("does not clean up a stale session while a replay reader holds a fresh lease", async () => {
+    const sessionId = "leased-replay-session";
+    const seed = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    await seed.init();
+    await seed.append([messageEvent(1)]);
+    await seed.flush();
+    await seed.close();
+
+    const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+    const tx = db.transaction("sessions", "readwrite");
+    const metadata = (await tx.store.get(sessionId)) as CacheSessionMetadata;
+    await tx.store.put({ ...metadata, lastActiveAt: 1_000 });
+    await tx.done;
+    db.close();
+
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(10_000);
+    const reader = new IndexedDbMessageStore({
+      sessionId,
+      kind: "playback-spill",
+      accessMode: "reader",
+    });
+    const cleaner = new IndexedDbMessageStore({
+      sessionId: "reader-lease-cleaner",
+      kind: "playback-spill",
+    });
+    try {
+      await reader.init();
+      await cleaner.init();
+      await cleaner.cleanupOldSessions("playback-spill", 5_000);
+
+      await expect(
+        reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(1);
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
+        status: "closed",
+        readers: [expect.any(String)],
+      });
+    } finally {
+      await reader.close();
+      await cleaner.close();
+      nowSpy.mockRestore();
+    }
+
+    expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({ readers: [] });
+  });
+
   it("continues cleanup after one reclaimable session fails", async () => {
     const first = new IndexedDbMessageStore({
       sessionId: "cleanup-first",
@@ -1808,6 +1857,40 @@ describe("IndexedDbMessageStore", () => {
       } else {
         Reflect.deleteProperty(globalThis, "window");
       }
+    }
+  });
+
+  it("does not disable a new writer for a sealed session awaiting reclamation", async () => {
+    const previousSessionId = "sealed-previous-playback";
+    const previous = new IndexedDbMessageStore({
+      sessionId: previousSessionId,
+      kind: "playback-spill",
+    });
+    await previous.init();
+    await previous.append([messageEvent(1)]);
+    await previous.flush();
+    await previous.close();
+
+    const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+    const tx = db.transaction("sessions", "readwrite");
+    const metadata = (await tx.store.get(previousSessionId)) as CacheSessionMetadata;
+    await tx.store.put({
+      ...metadata,
+      status: "pending-delete",
+      approximateSizeBytes: 3 * 1024 * 1024 * 1024,
+    });
+    await tx.done;
+    db.close();
+
+    const current = new IndexedDbMessageStore({
+      sessionId: "next-playback",
+      kind: "playback-spill",
+    });
+    try {
+      await current.init();
+      expect(current.isWritable()).toBe(true);
+    } finally {
+      await current.close();
     }
   });
 

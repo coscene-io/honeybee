@@ -23,11 +23,13 @@ import {
 } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
+const READER_LEASE_HEARTBEAT_MS = 30_000;
 
 export class PersistentCacheIterableSource implements IIterableSource {
   #retentionWindowMs?: number;
   #maxCacheSize?: number;
   #cache?: IndexedDbMessageStore;
+  #readerLeaseHeartbeat?: ReturnType<typeof setInterval>;
   #sessionId: string;
 
   public constructor({
@@ -59,6 +61,11 @@ export class PersistentCacheIterableSource implements IIterableSource {
       const stats = await cache.stats();
       const storedTopics = await cache.getTopics();
       const datatypes = (await cache.getDatatypes()) ?? new Map();
+      this.#readerLeaseHeartbeat = setInterval(() => {
+        void cache.touchSession().catch((error: unknown) => {
+          log.debug("Failed to refresh persistent cache replay lease", error);
+        });
+      }, READER_LEASE_HEARTBEAT_MS);
 
       // If no data is available, return minimal initialization
       if (stats.count === 0 || !stats.earliest || !stats.latest) {
@@ -113,6 +120,10 @@ export class PersistentCacheIterableSource implements IIterableSource {
         problems: [],
       };
     } catch (error) {
+      if (this.#readerLeaseHeartbeat != undefined) {
+        clearInterval(this.#readerLeaseHeartbeat);
+        this.#readerLeaseHeartbeat = undefined;
+      }
       if (this.#cache === cache) {
         this.#cache = undefined;
       }
@@ -230,6 +241,10 @@ export class PersistentCacheIterableSource implements IIterableSource {
   }
 
   public async terminate(): Promise<void> {
+    if (this.#readerLeaseHeartbeat != undefined) {
+      clearInterval(this.#readerLeaseHeartbeat);
+      this.#readerLeaseHeartbeat = undefined;
+    }
     const cache = this.#cache;
     this.#cache = undefined;
     await cache?.close();

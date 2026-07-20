@@ -768,6 +768,46 @@ describe("ExtensionCatalogProvider", () => {
     jest.mocked(console.error).mockClear();
   });
 
+  it("does not restore an uninstalled extension when the follow-up list fails", async () => {
+    const extension = fakeExtension({ id: "removed", qualifiedName: "removed" });
+    const uninstallExtension = jest.fn().mockResolvedValue(undefined);
+    const loader: ExtensionLoader = {
+      namespace: "local",
+      getExtensions: jest
+        .fn()
+        .mockResolvedValueOnce([extension])
+        .mockRejectedValueOnce(new Error("temporary list failure")),
+      loadExtension: jest.fn().mockResolvedValue(`
+        module.exports = {
+          activate: function(ctx) {
+            ctx.registerPanel({ name: "panel", initPanel: function() {} });
+          }
+        }
+      `),
+      installExtension: jest.fn(),
+      uninstallExtension,
+    };
+
+    const { result } = renderHook(() => useExtensionCatalog((state) => state), {
+      wrapper: ({ children }) => (
+        <ExtensionCatalogProvider loaders={[loader]}>{children}</ExtensionCatalogProvider>
+      ),
+    });
+    await waitFor(() => {
+      expect(result.current.installedPanels?.["removed.panel"]).toBeDefined();
+    });
+
+    await act(async () => {
+      await result.current.uninstallExtension("local", extension.id);
+    });
+
+    expect(result.current.loadState).toBe("degraded");
+    expect(result.current.installedExtensions).toEqual([]);
+    expect(result.current.installedPanels).toEqual({});
+    expect(uninstallExtension).toHaveBeenCalledWith(extension.id);
+    jest.mocked(console.error).mockClear();
+  });
+
   it("coalesces overlapping refreshes and resolves callers after the pending rerun publishes", async () => {
     const firstList = deferred<ExtensionInfo[]>();
     const latestList = deferred<ExtensionInfo[]>();
