@@ -39,8 +39,11 @@ import {
   usePanelMosaicId,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import { usePanelCatalog } from "@foxglove/studio-base/context/PanelCatalogContext";
+import {
+  type PanelComponent,
+  type PanelInfo,
+  usePanelCatalog,
+} from "@foxglove/studio-base/context/PanelCatalogContext";
 import { MosaicDropResult, PanelConfig } from "@foxglove/studio-base/types/panels";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import { getPanelIdForType, getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
@@ -74,6 +77,22 @@ const useStyles = makeStyles()({
     },
   },
 });
+
+const lazyPanelComponents = new WeakMap<
+  PanelInfo["module"],
+  React.LazyExoticComponent<PanelComponent>
+>();
+
+function getLazyPanelComponent(
+  module: PanelInfo["module"],
+): React.LazyExoticComponent<PanelComponent> {
+  let component = lazyPanelComponents.get(module);
+  if (component == undefined) {
+    component = React.lazy(module);
+    lazyPanelComponents.set(module, component);
+  }
+  return component;
+}
 
 // This wrapper makes the tabId available in the drop result when something is dropped into a nested
 // drop target. This allows a panel to know which mosaic it was dropped in regardless of nesting
@@ -124,7 +143,9 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
   const panelComponents = useMemo(
     () =>
       new Map(
-        panelCatalog.getPanels().map((panelInfo) => [panelInfo.type, React.lazy(panelInfo.module)]),
+        panelCatalog
+          .getPanels()
+          .map((panelInfo) => [panelInfo.type, getLazyPanelComponent(panelInfo.module)]),
       ),
     [panelCatalog],
   );
@@ -199,17 +220,6 @@ export function UnconnectedPanelLayout(props: Props): React.ReactElement {
   return <ErrorBoundary>{bodyToRender}</ErrorBoundary>;
 }
 
-function ExtensionsLoadingState(): React.JSX.Element {
-  return (
-    <EmptyState>
-      <Stack gap={1} alignItems="center">
-        <CircularProgress size={28} />
-        <span>Loading extensions…</span>
-      </Stack>
-    </EmptyState>
-  );
-}
-
 const selectedLayoutExistsSelector = (state: LayoutState) =>
   state.selectedLayout?.data != undefined;
 const selectedLayoutMosaicSelector = (state: LayoutState) => state.selectedLayout?.data?.layout;
@@ -220,7 +230,6 @@ export default function PanelLayout(): React.JSX.Element {
   const layoutManager = useLayoutManager();
   const layoutExists = useCurrentLayoutSelector(selectedLayoutExistsSelector);
   const mosaicLayout = useCurrentLayoutSelector(selectedLayoutMosaicSelector);
-  const registeredExtensions = useExtensionCatalog((state) => state.installedExtensions);
   const { t } = useTranslation("layout");
 
   const createNewLayout = async () => {
@@ -247,10 +256,6 @@ export default function PanelLayout(): React.JSX.Element {
     },
     [changePanelLayout],
   );
-
-  if (registeredExtensions == undefined) {
-    return <ExtensionsLoadingState />;
-  }
 
   if (layoutExists) {
     return <UnconnectedPanelLayout layout={mosaicLayout} onChange={onChange} />;

@@ -1,6 +1,6 @@
 {
   "name": "honeybee-viz-cn",
   "assets": {
-    "directory": "./web/.webpack"
-  }
+    "directory": "./web/.webpack",
+  },
 }

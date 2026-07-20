@@ -108,6 +108,9 @@ export function createMessagePipelineStore({
   urdfStorage: IUrdfStorage;
   s3FileService: S3FileService;
 }): StoreApi<MessagePipelineInternalState> {
+  let pendingClose: Promise<void> | undefined;
+  let reopenAfterClose = false;
+
   return createStore((set, get) => ({
     player: initialPlayer,
     publishersById: {},
@@ -287,22 +290,54 @@ export function createMessagePipelineStore({
       },
 
       close() {
+        reopenAfterClose = false;
+        if (pendingClose != undefined) {
+          return;
+        }
+
         const state = get();
         const player = state.player;
 
         if (player) {
-          try {
-            void player.close();
-          } catch (error) {
-            log.error("Error calling player.close():", error);
-          }
+          const closePromise = Promise.resolve().then(async () => {
+            await player.close();
+          });
+          pendingClose = closePromise;
+          void closePromise
+            .catch((error: unknown) => {
+              log.error("Error calling player.close():", error);
+            })
+            .finally(() => {
+              if (pendingClose !== closePromise) {
+                return;
+              }
+              pendingClose = undefined;
+              if (reopenAfterClose && get().player === player) {
+                reopenAfterClose = false;
+                try {
+                  player.reOpen();
+                } catch (error) {
+                  log.error("Error calling player.reOpen():", error);
+                }
+              }
+            });
         } else {
           log.debug("No player available to close - player may have already been disconnected");
         }
       },
 
       reOpen() {
-        get().player?.reOpen();
+        const player = get().player;
+        if (player == undefined) {
+          return;
+        }
+
+        if (pendingClose == undefined) {
+          player.reOpen();
+          return;
+        }
+
+        reopenAfterClose = true;
       },
     },
   }));

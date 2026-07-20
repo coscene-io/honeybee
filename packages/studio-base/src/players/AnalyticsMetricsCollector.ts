@@ -135,4 +135,14 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
       data: { duration_ms: durationMs },
     });
   }
+
+  public recordMessageCacheMetric(
+    metric: string,
+    data: Readonly<Record<string, string | number | boolean | undefined>>,
+  ): void {
+    void this.#syncEventToAnalytics({
+      event: AppEvent.MESSAGE_CACHE,
+      data: { metric, ...data },
+    });
+  }
 }

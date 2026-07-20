@@ -518,4 +518,8 @@ export interface PlayerMetricsCollectorInterface {
   recordTimeToFirstMsgs(): void;
   recordSeekLatency(latencyMs: number): void;
   recordStallDuration(durationMs: number): void;
+  recordMessageCacheMetric?(
+    event: string,
+    data: Readonly<Record<string, string | number | boolean | undefined>>,
+  ): void;
 }

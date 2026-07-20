@@ -72,6 +72,7 @@ export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenu
 // Persistence
 export type {
   PersistentMessageCache,
+  PersistentMessageCacheAppendOptions,
   PersistenceSessionId,
 } from "./persistence/PersistentMessageCache";
 export { IndexedDbMessageStore } from "./persistence/IndexedDbMessageStore";

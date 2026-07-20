@@ -107,6 +107,8 @@ type Props<Config> = {
 export interface PanelStatics<Config> {
   panelType: string;
   defaultConfig: Config;
+  /** Controls whether the panel HOC persists missing default config values on mount. */
+  configInitialization?: "auto" | "none";
 }
 
 /** Used when panels are rendered outside of a <PanelLayout/> */
@@ -184,6 +186,7 @@ export default function Panel<
     );
 
     const defaultConfig = PanelComponent.defaultConfig;
+    const configInitialization = PanelComponent.configInitialization ?? "auto";
     const [savedConfig, saveConfig] = useConfigById<Config>(childId);
 
     const resetPanel = useCallback(() => {
@@ -199,7 +202,7 @@ export default function Panel<
     // An empty object can occur when swapping a panel
     const savedDefaultConfig = useRef(false);
     useLayoutEffect(() => {
-      if (savedDefaultConfig.current) {
+      if (configInitialization === "none" || savedDefaultConfig.current) {
         return;
       }
 
@@ -214,7 +217,7 @@ export default function Panel<
         savedDefaultConfig.current = true;
         saveConfig({ ...defaultConfig, ...savedConfig });
       }
-    }, [defaultConfig, saveConfig, savedConfig]);
+    }, [configInitialization, defaultConfig, saveConfig, savedConfig]);
 
     const panelComponentConfig = useMemo(
       () => ({ ...defaultConfig, ...savedConfig, ...overrideConfig }),
@@ -680,6 +683,7 @@ export default function Panel<
   return Object.assign(React.memo(ConnectedPanel), {
     defaultConfig: PanelComponent.defaultConfig,
     panelType: PanelComponent.panelType,
+    configInitialization: PanelComponent.configInitialization,
     displayName: `Panel(${PanelComponent.displayName ?? PanelComponent.name})`,
   });
 }

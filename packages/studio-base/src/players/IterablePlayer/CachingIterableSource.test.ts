@@ -13,7 +13,9 @@ import {
   CacheSessionMetadata,
   clearIndexedDbMessageStoreDatabase,
   IndexedDbMessageStore,
+  PLAYBACK_MESSAGE_CACHE_DB_NAME,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
+import * as MessageMemoryEstimation from "@foxglove/studio-base/players/messageMemoryEstimation";
 import { SubscribePayload, TopicSelection } from "@foxglove/studio-base/players/types";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
@@ -61,12 +63,24 @@ function payloadSelection(payloads: SubscribePayload[]): TopicSelection {
 }
 
 async function getPlaybackSpillSessions(): Promise<CacheSessionMetadata[]> {
-  const db = await IDB.openDB("studio-realtime-cache");
+  const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
   try {
     const tx = db.transaction("sessions", "readonly");
     const sessions = (await tx.objectStore("sessions").getAll()) as CacheSessionMetadata[];
     await tx.done;
     return sessions.filter((session) => session.kind === "playback-spill");
+  } finally {
+    db.close();
+  }
+}
+
+async function getPlaybackSpillLoadedRangeSessionIds(): Promise<string[]> {
+  const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+  try {
+    const tx = db.transaction("loadedRanges", "readonly");
+    const ranges = (await tx.objectStore("loadedRanges").getAll()) as { sessionId: string }[];
+    await tx.done;
+    return ranges.map((range) => range.sessionId);
   } finally {
     db.close();
   }
@@ -90,6 +104,17 @@ async function deletePlaybackSpillSession(sessionId: string): Promise<void> {
     await store.deleteCurrentSession();
   } finally {
     await store.close();
+  }
+}
+
+async function deletePlaybackSpillSessionMetadata(sessionId: string): Promise<void> {
+  const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+  try {
+    const tx = db.transaction("sessions", "readwrite");
+    await tx.store.delete(sessionId);
+    await tx.done;
+  } finally {
+    db.close();
   }
 }
 
@@ -133,6 +158,104 @@ describe("CachingIterableSource", () => {
 
     await bufferedSource.initialize();
     expect(bufferedSource.loadedRanges()).toEqual([{ start: 0, end: 0 }]);
+  });
+
+  it("rejects non-finite or negative cache limits", () => {
+    const source = new TestSource();
+    expect(
+      () => new CachingIterableSource(source, { maxBlockSize: Number.POSITIVE_INFINITY }),
+    ).toThrow("maxBlockSize must be a finite, non-negative number");
+    expect(() => new CachingIterableSource(source, { maxTotalSize: -1 })).toThrow(
+      "maxTotalSize must be a finite, non-negative number",
+    );
+  });
+
+  it("keeps playback fail-open when message sizing is cyclic, unsupported, or invalid", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "unsafe-size-estimates" },
+    });
+    await bufferedSource.initialize();
+
+    const cyclic: { value: string; self?: unknown } = { value: "cyclic" };
+    cyclic.self = cyclic;
+    const messages: unknown[] = [cyclic, { callback: () => undefined }, { value: "nan-size" }];
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      for (let index = 0; index < messages.length; index++) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: index, nsec: 0 },
+            message: messages[index],
+            sizeInBytes: index === 2 ? Number.NaN : 10,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    const received: unknown[] = [];
+    try {
+      for await (const result of bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+      })) {
+        if (result.type === "message-event") {
+          received.push(result.msgEvent.message);
+        }
+      }
+      expect(received).toEqual(messages);
+      expect(Number.isFinite(bufferedSource.getCacheSize())).toBe(true);
+    } finally {
+      await bufferedSource.terminate();
+      jest.mocked(console.warn).mockClear();
+    }
+  });
+
+  it("estimates each source message once and reuses the estimate for spill writes", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "single-message-estimate" },
+    });
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      for (let index = 0; index < 3; index++) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: index, nsec: 0 },
+            message: { index, nested: { value: `message-${index}` } },
+            sizeInBytes: 10,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    const estimateSpy = jest.spyOn(MessageMemoryEstimation, "estimateObjectSize");
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    try {
+      for await (const result of bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+      })) {
+        // Consume the source so pending memory and spill batches are both committed.
+        void result;
+      }
+
+      expect(estimateSpy).toHaveBeenCalledTimes(3);
+      expect(appendSpy).toHaveBeenCalledTimes(1);
+      expect(appendSpy.mock.calls[0]?.[1]?.estimatedSizeBytes).toHaveLength(3);
+    } finally {
+      estimateSpy.mockRestore();
+      appendSpy.mockRestore();
+      await bufferedSource.terminate();
+    }
   });
 
   it("should produce messages that the source produces", async () => {
@@ -1130,7 +1253,7 @@ describe("CachingIterableSource", () => {
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "same-topics" },
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1189,10 +1312,414 @@ describe("CachingIterableSource", () => {
     await bufferedSource.terminate();
   });
 
+  it("streams a persisted range across bounded spill pages", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 600_001,
+      maxTotalSize: 600_001,
+      spillCache: { sourceId: "paged-hydration" },
+    });
+
+    await bufferedSource.initialize();
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      source.messageIteratorCalls++;
+      for (let i = 0; i < 4; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { value: i },
+            sizeInBytes: 600_000,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    for await (const result of bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+    })) {
+      if (result.type === "message-event") {
+        bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+      }
+    }
+    expect(source.messageIteratorCalls).toBe(1);
+
+    source.messageIterator = function messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      throw new Error("source should not be called when paged spill coverage is available");
+    };
+    const pageSpy = jest.spyOn(IndexedDbMessageStore.prototype, "getMessagesPage");
+    try {
+      const values: unknown[] = [];
+      for await (const result of bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 3, nsec: 0 },
+      })) {
+        if (result.type === "message-event") {
+          values.push(result.msgEvent.message);
+        }
+      }
+
+      expect(values).toEqual([{ value: 0 }, { value: 1 }, { value: 2 }, { value: 3 }]);
+      expect(pageSpy.mock.calls.length).toBeGreaterThan(1);
+      expect(source.messageIteratorCalls).toBe(1);
+    } finally {
+      pageSpy.mockRestore();
+      await bufferedSource.terminate();
+    }
+  });
+
+  it("flushes byte-bounded spill chunks before the store queue can overflow", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "byte-backpressure" },
+    });
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    const flushSpy = jest.spyOn(IndexedDbMessageStore.prototype, "flush");
+    try {
+      await bufferedSource.initialize();
+      source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+        Readonly<IteratorResult>
+      > {
+        for (let index = 0; index < 70; index++) {
+          yield {
+            type: "message-event",
+            msgEvent: {
+              topic: "a",
+              receiveTime: { sec: 0, nsec: index },
+              message: { index },
+              sizeInBytes: 2 * 1024 * 1024,
+              schemaName: "foo",
+            },
+          };
+        }
+      };
+
+      for await (const result of bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+      })) {
+        void result;
+        // Consume a fast source without yielding to timer-driven background flushes.
+      }
+
+      const spillAppendCalls = appendSpy.mock.calls.filter(
+        ([, options]) => options?.estimatedSizeBytes != undefined,
+      );
+      expect(spillAppendCalls.length).toBeGreaterThan(2);
+      for (const [, options] of spillAppendCalls) {
+        expect(
+          options?.estimatedSizeBytes?.reduce((total, size) => total + size, 0),
+        ).toBeLessThanOrEqual(64 * 1024 * 1024);
+      }
+      const secondAppendOrder = appendSpy.mock.invocationCallOrder[1];
+      const thirdAppendOrder = appendSpy.mock.invocationCallOrder[2];
+      expect(
+        flushSpy.mock.invocationCallOrder.some(
+          (order) =>
+            secondAppendOrder != undefined &&
+            thirdAppendOrder != undefined &&
+            order > secondAppendOrder &&
+            order < thirdAppendOrder,
+        ),
+      ).toBe(true);
+    } finally {
+      appendSpy.mockRestore();
+      flushSpy.mockRestore();
+      await bufferedSource.terminate();
+    }
+  });
+
+  it("resumes the source without duplicating messages when a later spill page fails", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 600_001,
+      maxTotalSize: 600_001,
+      spillCache: { sourceId: "paged-hydration-failure" },
+    });
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      source.messageIteratorCalls++;
+      for (let i = 0; i < 10; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { value: i },
+            sizeInBytes: 200_000,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    for await (const result of bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+    })) {
+      if (result.type === "message-event") {
+        bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const originalGetMessagesPage = IndexedDbMessageStore.prototype.getMessagesPage;
+    let pageCallCount = 0;
+    const pageSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "getMessagesPage")
+      .mockImplementation(async function (this: IndexedDbMessageStore, params) {
+        pageCallCount++;
+        if (pageCallCount === 2) {
+          throw new Error("later spill page failed");
+        }
+        return await originalGetMessagesPage.call(this, params);
+      });
+    try {
+      const values: unknown[] = [];
+      for await (const result of bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 9, nsec: 0 },
+      })) {
+        if (result.type === "message-event") {
+          values.push(result.msgEvent.message);
+        }
+      }
+
+      expect(values).toEqual(Array.from({ length: 10 }, (_, value) => ({ value })));
+      expect(pageCallCount).toBe(2);
+      expect(source.messageIteratorCalls).toBe(2);
+    } finally {
+      pageSpy.mockRestore();
+      await bufferedSource.terminate();
+      jest.mocked(console.warn).mockClear();
+    }
+  });
+
+  it("restarts an uncommitted same-topic timestamp group when replay order changes", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 600_001,
+      maxTotalSize: 600_001,
+      spillCache: { sourceId: "same-time-page-failure" },
+    });
+    await bufferedSource.initialize();
+    const topics = mockTopicSelection("a");
+
+    // Initialize the topic fingerprint without reading or creating an in-memory coverage block.
+    await expect(
+      bufferedSource
+        .messageIterator({
+          topics,
+          start: { sec: 1, nsec: 0 },
+          end: { sec: 0, nsec: 0 },
+        })
+        .next(),
+    ).resolves.toEqual({ done: true });
+
+    const session = (await getPlaybackSpillSessions())[0];
+    if (session?.topicFingerprint == undefined) {
+      throw new Error("Expected playback spill topic fingerprint");
+    }
+    const writer = new IndexedDbMessageStore({
+      sessionId: session.sessionId,
+      kind: "playback-spill",
+    });
+    await writer.init();
+    await writer.append(
+      [
+        {
+          topic: "a",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 600_000,
+          schemaName: "foo",
+        },
+        {
+          topic: "a",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { value: 2 },
+          sizeInBytes: 600_000,
+          schemaName: "foo",
+        },
+      ],
+      { estimatedSizeBytes: [600_000, 600_000] },
+    );
+    await writer.flush();
+    await writer.putLoadedRange({
+      sessionId: session.sessionId,
+      topicFingerprint: session.topicFingerprint,
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 0, nsec: 0 },
+    });
+    await writer.close();
+
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      source.messageIteratorCalls++;
+      // Same-topic ties have no stable ordering contract. Reversing them must not duplicate or
+      // omit either message when the second spill page fails.
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { value: 2 },
+          sizeInBytes: 600_000,
+          schemaName: "foo",
+        },
+      };
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 600_000,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const originalGetMessagesPage = IndexedDbMessageStore.prototype.getMessagesPage;
+    let pageCallCount = 0;
+    const pageSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "getMessagesPage")
+      .mockImplementation(async function (this: IndexedDbMessageStore, params) {
+        pageCallCount++;
+        if (pageCallCount === 2) {
+          throw new Error("second same-time page failed");
+        }
+        return await originalGetMessagesPage.call(this, params);
+      });
+    try {
+      const values: unknown[] = [];
+      for await (const result of bufferedSource.messageIterator({
+        topics,
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 0, nsec: 0 },
+      })) {
+        if (result.type === "message-event") {
+          values.push(result.msgEvent.message);
+        }
+      }
+      expect(values).toEqual([{ value: 2 }, { value: 1 }]);
+      expect(source.messageIteratorCalls).toBe(1);
+    } finally {
+      pageSpy.mockRestore();
+      await bufferedSource.terminate();
+      jest.mocked(console.warn).mockClear();
+    }
+  });
+
+  it("falls back to the source when a playback spill read never settles", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 102,
+      maxTotalSize: 202,
+      spillCache: { sourceId: "hung-read" },
+    });
+
+    await bufferedSource.initialize();
+
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      source.messageIteratorCalls++;
+      for (let i = 0; i < 8; ++i) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: i, nsec: 0 },
+            message: { value: i, sourceCall: source.messageIteratorCalls },
+            sizeInBytes: 101,
+            schemaName: "foo",
+          },
+        };
+      }
+    };
+
+    {
+      const iterator = bufferedSource.messageIterator({ topics: mockTopicSelection("a") });
+      for await (const result of iterator) {
+        if (result.type === "message-event") {
+          bufferedSource.setCurrentReadHead(result.msgEvent.receiveTime);
+        }
+      }
+    }
+    expect(source.messageIteratorCalls).toBe(1);
+
+    let signalReadStarted: (() => void) | undefined;
+    const readStarted = new Promise<void>((resolve) => {
+      signalReadStarted = resolve;
+    });
+    const hungReadSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "getMessagesPage")
+      .mockImplementation(async () => {
+        signalReadStarted?.();
+        return await new Promise(() => undefined);
+      });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const originalDiscardAndSeal = IndexedDbMessageStore.prototype.discardAndSeal;
+    let releaseSeal: (() => void) | undefined;
+    const sealGate = new Promise<void>((resolve) => {
+      releaseSeal = resolve;
+    });
+    const discardSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "discardAndSeal")
+      .mockImplementation(async function (this: IndexedDbMessageStore, status) {
+        await sealGate;
+        await originalDiscardAndSeal.call(this, status);
+      });
+
+    jest.useFakeTimers();
+    try {
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 2, nsec: 0 },
+      });
+      const nextResult = iterator.next();
+      await readStarted;
+
+      await jest.advanceTimersByTimeAsync(5_000);
+      await expect(nextResult).resolves.toMatchObject({
+        done: false,
+        value: {
+          type: "message-event",
+          msgEvent: { message: { value: 0, sourceCall: 2 } },
+        },
+      });
+      expect(source.messageIteratorCalls).toBe(2);
+      expect(discardSpy).toHaveBeenCalledWith("abandoned");
+
+      releaseSeal?.();
+      await iterator.return?.();
+    } finally {
+      releaseSeal?.();
+      jest.useRealTimers();
+      hungReadSpy.mockRestore();
+      await bufferedSource.terminate();
+      discardSpy.mockRestore();
+      jest.mocked(console.warn).mockClear();
+    }
+  });
+
   it("records empty playback spill ranges so empty re-reads do not call the source", async () => {
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "empty-range" },
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1234,7 +1761,7 @@ describe("CachingIterableSource", () => {
   it("does not record playback spill loaded ranges for aborted source ranges", async () => {
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "aborted-range" },
+      spillCache: { sourceId: "test-source" },
     });
     const abortController = new AbortController();
 
@@ -1311,7 +1838,7 @@ describe("CachingIterableSource", () => {
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "deleted-session-read" },
+      spillCache: { sourceId: "test-source" },
     });
 
     try {
@@ -1403,7 +1930,7 @@ describe("CachingIterableSource", () => {
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "partial-coverage" },
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1487,12 +2014,50 @@ describe("CachingIterableSource", () => {
     await bufferedSource.terminate();
   });
 
+  it("stores topic coverage as a stable fixed-length digest", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "fixed-topic-digest" },
+    });
+    await bufferedSource.initialize();
+
+    const consume = async (topics: TopicSelection): Promise<void> => {
+      for await (const result of bufferedSource.messageIterator({ topics })) {
+        // Consume the empty test source so the topic fingerprint is initialized.
+        void result;
+      }
+    };
+
+    try {
+      await consume(mockTopicSelection("a"));
+      const firstFingerprint = (await getPlaybackSpillSessions()).find(
+        (session) => session.status === "active",
+      )?.topicFingerprint;
+      expect(firstFingerprint).toBe("v3:9c741efe1fa98f93");
+
+      const largeSelection = payloadSelection(
+        Array.from({ length: 100 }, (_, index) => ({
+          topic: `/topic/${index}`,
+          fields: Array.from({ length: 10 }, (__, fieldIndex) => `field_${fieldIndex}`),
+        })),
+      );
+      await consume(largeSelection);
+      const largeFingerprint = (await getPlaybackSpillSessions()).find(
+        (session) => session.status === "active",
+      )?.topicFingerprint;
+      expect(largeFingerprint).toMatch(/^v3:[0-9a-f]{16}$/);
+      expect(largeFingerprint).not.toBe(firstFingerprint);
+    } finally {
+      await bufferedSource.terminate();
+    }
+  });
+
   it("keeps playback spill ranges isolated by topic fields fingerprint", async () => {
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "field-fingerprint" },
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1587,7 +2152,7 @@ describe("CachingIterableSource", () => {
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "backfill" },
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1659,7 +2224,7 @@ describe("CachingIterableSource", () => {
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "complete-topic-state" },
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1837,7 +2402,7 @@ describe("CachingIterableSource", () => {
   it("records playback spill loaded ranges at stamp boundaries", async () => {
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "stamp-boundary" },
+      spillCache: { sourceId: "test-source" },
     });
     let releaseSource: (() => void) | undefined;
 
@@ -1893,13 +2458,16 @@ describe("CachingIterableSource", () => {
     });
     expect(appendSpy).toHaveBeenCalledTimes(1);
     expect(appendSpy.mock.calls[0]?.[0]).toHaveLength(2);
+    const estimatedSizeBytes = appendSpy.mock.calls[0]?.[1]?.estimatedSizeBytes;
+    expect(estimatedSizeBytes).toHaveLength(2);
+    expect(estimatedSizeBytes?.every((size) => size >= 10)).toBe(true);
 
     const sessions = await getPlaybackSpillSessions();
     expect(sessions).toHaveLength(1);
     const session = sessions[0]!;
     expect(session.sessionId).toMatch(/^playback-spill:test-source:/);
     expect(session.sourceId).toBe("test-source");
-    expect(session.sourceKey).toBe("stamp-boundary");
+    expect(session).not.toHaveProperty("sourceKey");
 
     const reader = new IndexedDbMessageStore({
       sessionId: session.sessionId,
@@ -1919,14 +2487,62 @@ describe("CachingIterableSource", () => {
     await iterator.return?.();
     await bufferedSource.terminate();
     appendSpy.mockRestore();
-    await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
+    await expect(getPlaybackSpillSessions()).resolves.toMatchObject([
+      { sessionId: session.sessionId, status: "pending-delete" },
+    ]);
   });
 
-  it("deletes playback spill session on terminate and does not reuse it after reopen", async () => {
+  it("does not record a spill range when pruning changed the stored content", async () => {
     const source = new TestSource();
-    const sourceKey = "reopen";
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey },
+      spillCache: { sourceId: "pruned-range" },
+    });
+    const revisionSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "getContentRevision")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValue(1);
+    const putRangeSpy = jest.spyOn(IndexedDbMessageStore.prototype, "putLoadedRange");
+
+    source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+      Readonly<IteratorResult>
+    > {
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    try {
+      await bufferedSource.initialize();
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 2, nsec: 0 },
+      });
+      for await (const result of iterator) {
+        void result;
+      }
+
+      expect(putRangeSpy).not.toHaveBeenCalled();
+    } finally {
+      await bufferedSource.terminate();
+      putRangeSpy.mockRestore();
+      revisionSpy.mockRestore();
+    }
+  });
+
+  it("seals playback spill session on terminate and does not reuse it after reopen", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source" },
     });
 
     await bufferedSource.initialize();
@@ -1952,14 +2568,25 @@ describe("CachingIterableSource", () => {
       // no-op
     }
 
+    const originalSession = (await getPlaybackSpillSessions())[0];
+    if (originalSession == undefined) {
+      throw new Error("Expected playback spill session");
+    }
     await bufferedSource.terminate();
-    await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
+    await expect(getPlaybackSpillSessions()).resolves.toMatchObject([
+      { sessionId: originalSession.sessionId, status: "pending-delete" },
+    ]);
 
     const reopenedSource = new TestSource();
     const reopenedBufferedSource = new CachingIterableSource(reopenedSource, {
-      spillCache: { sourceId: "test-source", sourceKey },
+      spillCache: { sourceId: "test-source" },
     });
     await reopenedBufferedSource.initialize();
+    const reopenedSession = (await getPlaybackSpillSessions()).find(
+      (session) => session.status === "active",
+    );
+    expect(reopenedSession?.sessionId).toBeDefined();
+    expect(reopenedSession?.sessionId).not.toBe(originalSession.sessionId);
 
     reopenedSource.messageIterator = async function* messageIterator(
       _args: MessageIteratorArgs,
@@ -2005,7 +2632,7 @@ describe("CachingIterableSource", () => {
     jest.useFakeTimers();
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "heartbeat" },
+      spillCache: { sourceId: "test-source" },
     });
     const touchSpy = jest.spyOn(IndexedDbMessageStore.prototype, "touchSession");
 
@@ -2024,11 +2651,104 @@ describe("CachingIterableSource", () => {
     }
   });
 
+  it("seals playback spill once without flushing or deleting queued data on terminate", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source" },
+    });
+    const flushSpy = jest.spyOn(IndexedDbMessageStore.prototype, "flush");
+    const deleteSpy = jest.spyOn(IndexedDbMessageStore.prototype, "deleteCurrentSession");
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
+
+    try {
+      await bufferedSource.initialize();
+      const firstTerminate = bufferedSource.terminate();
+      const secondTerminate = bufferedSource.terminate();
+
+      expect(secondTerminate).toBe(firstTerminate);
+      await firstTerminate;
+      expect(discardSpy).toHaveBeenCalledTimes(1);
+      expect(discardSpy).toHaveBeenCalledWith("pending-delete");
+      expect(flushSpy).not.toHaveBeenCalled();
+      expect(deleteSpy).not.toHaveBeenCalled();
+    } finally {
+      discardSpy.mockRestore();
+      deleteSpy.mockRestore();
+      flushSpy.mockRestore();
+    }
+  });
+
+  it("abandons and closes playback spill when initialization fails", async () => {
+    const initSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "init")
+      .mockRejectedValueOnce(new Error("init failed"));
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source" },
+    });
+
+    try {
+      await expect(bufferedSource.initialize()).resolves.toBeDefined();
+      expect(discardSpy).toHaveBeenCalledTimes(1);
+      expect(discardSpy).toHaveBeenCalledWith("abandoned");
+      await bufferedSource.terminate();
+      expect(discardSpy).toHaveBeenCalledTimes(1);
+      jest.mocked(console.warn).mockClear();
+    } finally {
+      discardSpy.mockRestore();
+      initSpy.mockRestore();
+    }
+  });
+
+  it("abandons playback spill after an append failure", async () => {
+    const appendSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "append")
+      .mockRejectedValueOnce(new Error("append failed"));
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "test-source" },
+    });
+
+    source.messageIterator = async function* messageIterator(
+      _args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { value: 1 },
+          sizeInBytes: 10,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    try {
+      await bufferedSource.initialize();
+      const iterator = bufferedSource.messageIterator({ topics: mockTopicSelection("a") });
+      for await (const result of iterator) {
+        void result;
+      }
+
+      expect(discardSpy).toHaveBeenCalledTimes(1);
+      expect(discardSpy).toHaveBeenCalledWith("abandoned");
+      await bufferedSource.terminate();
+      expect(discardSpy).toHaveBeenCalledTimes(1);
+      jest.mocked(console.warn).mockClear();
+    } finally {
+      discardSpy.mockRestore();
+      appendSpy.mockRestore();
+    }
+  });
+
   it("does not recover a playback spill session from an obsolete heartbeat after terminate", async () => {
     jest.useFakeTimers();
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "heartbeat-terminate-race" },
+      spillCache: { sourceId: "test-source" },
     });
 
     let resolveTouchAsNotTouched: (() => void) | undefined;
@@ -2052,20 +2772,22 @@ describe("CachingIterableSource", () => {
       await terminatePromise;
       await Promise.resolve();
 
-      await expect(getPlaybackSpillSessions()).resolves.toEqual([]);
+      const sessions = await getPlaybackSpillSessions();
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0]?.status).toBe("pending-delete");
     } finally {
       touchSpy.mockRestore();
       jest.useRealTimers();
     }
   });
 
-  it("runs best-effort playback spill cleanup on pagehide without clearing local ranges", async () => {
+  it("seals playback spill on pagehide without clearing local ranges", async () => {
     const restoreBrowserEvents = withBrowserEvents();
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "pagehide" },
+      spillCache: { sourceId: "test-source" },
     });
-    const deleteSpy = jest.spyOn(IndexedDbMessageStore.prototype, "deleteCurrentSession");
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
 
     await bufferedSource.initialize();
 
@@ -2097,10 +2819,11 @@ describe("CachingIterableSource", () => {
 
     try {
       window.dispatchEvent(new Event("pagehide"));
-      await waitFor(() => deleteSpy.mock.calls.length > 0);
+      await waitFor(() => discardSpy.mock.calls.length > 0);
+      expect(discardSpy).toHaveBeenCalledWith("pending-delete");
       expect(bufferedSource.loadedRanges()).toEqual(rangesBeforePageHide);
     } finally {
-      deleteSpy.mockRestore();
+      discardSpy.mockRestore();
       await bufferedSource.terminate();
       restoreBrowserEvents();
     }
@@ -2110,9 +2833,9 @@ describe("CachingIterableSource", () => {
     const restoreBrowserEvents = withBrowserEvents();
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "pagehide-bfcache" },
+      spillCache: { sourceId: "test-source" },
     });
-    const deleteSpy = jest.spyOn(IndexedDbMessageStore.prototype, "deleteCurrentSession");
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
 
     try {
       await bufferedSource.initialize();
@@ -2125,10 +2848,10 @@ describe("CachingIterableSource", () => {
       window.dispatchEvent(event);
 
       await Promise.resolve();
-      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(discardSpy).not.toHaveBeenCalled();
       await expect(getPlaybackSpillSessions()).resolves.toHaveLength(1);
     } finally {
-      deleteSpy.mockRestore();
+      discardSpy.mockRestore();
       await bufferedSource.terminate();
       restoreBrowserEvents();
     }
@@ -2140,7 +2863,7 @@ describe("CachingIterableSource", () => {
     const bufferedSource = new CachingIterableSource(source, {
       maxBlockSize: 102,
       maxTotalSize: 202,
-      spillCache: { sourceId: "test-source", sourceKey: "visible-recovery" },
+      spillCache: { sourceId: "test-source" },
     });
 
     try {
@@ -2219,11 +2942,241 @@ describe("CachingIterableSource", () => {
     }
   });
 
+  it("does not publish coverage into a replacement spill session for old queued writes", async () => {
+    const restoreBrowserEvents = withBrowserEvents();
+    const source = new TestSource();
+    const messageSizeInBytes = 32 * 1024 * 1024;
+    const bufferedSource = new CachingIterableSource(source, {
+      maxBlockSize: 128 * 1024 * 1024,
+      maxTotalSize: 128 * 1024 * 1024,
+      spillCache: { sourceId: "test-source" },
+    });
+    let releaseStamp: (() => void) | undefined;
+    const waitForStamp = new Promise<void>((resolve) => {
+      releaseStamp = resolve;
+    });
+
+    try {
+      await bufferedSource.initialize();
+      source.messageIterator = async function* messageIterator(): AsyncIterableIterator<
+        Readonly<IteratorResult>
+      > {
+        source.messageIteratorCalls++;
+        // Two messages whose combined estimate exceeds the transaction byte limit exercise the
+        // same queued-append path without making the test process 1,000 IndexedDB records.
+        for (let index = 0; index < 2; index++) {
+          yield {
+            type: "message-event",
+            msgEvent: {
+              topic: "a",
+              receiveTime: { sec: 0, nsec: index },
+              message: { index },
+              sizeInBytes: messageSizeInBytes,
+              schemaName: "foo",
+            },
+          };
+        }
+        await waitForStamp;
+        yield { type: "stamp", stamp: { sec: 1, nsec: 0 } };
+      };
+
+      const iterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 1, nsec: 0 },
+      });
+      for (let index = 0; index < 2; index++) {
+        await expect(iterator.next()).resolves.toMatchObject({ done: false });
+      }
+
+      const originalSession = (await getPlaybackSpillSessions())[0];
+      if (originalSession == undefined) {
+        throw new Error("Expected playback spill session");
+      }
+      // Remove only the liveness record so recovery can race the original writer.
+      await deletePlaybackSpillSessionMetadata(originalSession.sessionId);
+      window.dispatchEvent(new Event("pageshow"));
+      await waitFor(async () => {
+        const sessions = await getPlaybackSpillSessions();
+        return sessions.length === 1 && sessions[0]?.sessionId !== originalSession.sessionId;
+      });
+      const replacementSession = (await getPlaybackSpillSessions())[0];
+      if (replacementSession == undefined) {
+        throw new Error("Expected replacement playback spill session");
+      }
+
+      releaseStamp?.();
+      await expect(iterator.next()).resolves.toMatchObject({
+        done: false,
+        value: { type: "stamp" },
+      });
+      await expect(iterator.next()).resolves.toEqual({ done: true });
+
+      expect(await getPlaybackSpillLoadedRangeSessionIds()).not.toContain(
+        replacementSession.sessionId,
+      );
+    } finally {
+      releaseStamp?.();
+      await bufferedSource.terminate();
+      restoreBrowserEvents();
+      jest.mocked(console.warn).mockClear();
+    }
+  });
+
+  it("does not reattach an obsolete A iterator to spill after an A to B to A switch", async () => {
+    const source = new TestSource();
+    const bufferedSource = new CachingIterableSource(source, {
+      spillCache: { sourceId: "topic-generation" },
+    });
+    let releaseOldIterator: (() => void) | undefined;
+    const waitForTopicSwitch = new Promise<void>((resolve) => {
+      releaseOldIterator = resolve;
+    });
+    let firstACall = true;
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      if (args.topics.has("b")) {
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "b",
+            receiveTime: { sec: 0, nsec: 0 },
+            message: { source: "b" },
+            sizeInBytes: 1,
+            schemaName: "foo",
+          },
+        };
+        return;
+      }
+
+      if (firstACall) {
+        firstACall = false;
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: 0, nsec: 0 },
+            message: { source: "old-a-before-switch" },
+            sizeInBytes: 1,
+            schemaName: "foo",
+          },
+        };
+        await waitForTopicSwitch;
+        yield { type: "stamp", stamp: { sec: 1, nsec: 0 } };
+        yield {
+          type: "message-event",
+          msgEvent: {
+            topic: "a",
+            receiveTime: { sec: 2, nsec: 0 },
+            message: { source: "old-a-after-switch" },
+            sizeInBytes: 1,
+            schemaName: "foo",
+          },
+        };
+        return;
+      }
+
+      yield {
+        type: "message-event",
+        msgEvent: {
+          topic: "a",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { source: "new-a" },
+          sizeInBytes: 1,
+          schemaName: "foo",
+        },
+      };
+    };
+
+    await bufferedSource.initialize();
+    const oldAIterator = bufferedSource.messageIterator({
+      topics: mockTopicSelection("a"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 2, nsec: 0 },
+    });
+    let pendingOldResult: ReturnType<typeof oldAIterator.next> | undefined;
+
+    try {
+      await expect(oldAIterator.next()).resolves.toMatchObject({
+        done: false,
+        value: {
+          type: "message-event",
+          msgEvent: { message: { source: "old-a-before-switch" } },
+        },
+      });
+      pendingOldResult = oldAIterator.next();
+
+      const bIterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("b"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 0, nsec: 0 },
+      });
+      for await (const result of bIterator) {
+        void result;
+      }
+
+      const newAIterator = bufferedSource.messageIterator({
+        topics: mockTopicSelection("a"),
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 0, nsec: 0 },
+      });
+      for await (const result of newAIterator) {
+        void result;
+      }
+
+      const activeSession = (await getPlaybackSpillSessions()).find(
+        (session) => session.status === "active",
+      );
+      if (activeSession?.topicFingerprint == undefined) {
+        throw new Error("Expected active A playback spill session");
+      }
+
+      releaseOldIterator?.();
+      await expect(pendingOldResult).resolves.toMatchObject({
+        done: false,
+        value: { type: "stamp" },
+      });
+      await expect(oldAIterator.next()).resolves.toMatchObject({
+        done: false,
+        value: {
+          type: "message-event",
+          msgEvent: { message: { source: "old-a-after-switch" } },
+        },
+      });
+      await expect(oldAIterator.next()).resolves.toEqual({ done: true });
+
+      const reader = new IndexedDbMessageStore({
+        sessionId: activeSession.sessionId,
+        kind: "playback-spill",
+      });
+      await reader.init();
+      try {
+        const messages = await reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 2, nsec: 0 },
+        });
+        expect(messages.map((message) => message.message)).toEqual([{ source: "new-a" }]);
+        await expect(reader.getLoadedRanges(activeSession.topicFingerprint)).resolves.toMatchObject(
+          [{ start: { sec: 0, nsec: 0 }, end: { sec: 0, nsec: 0 } }],
+        );
+      } finally {
+        await reader.close();
+      }
+    } finally {
+      releaseOldIterator?.();
+      await pendingOldResult?.catch(() => undefined);
+      await oldAIterator.return?.();
+      await bufferedSource.terminate();
+    }
+  });
+
   it("deduplicates concurrent playback spill recovery triggers", async () => {
     const restoreBrowserEvents = withBrowserEvents();
     const source = new TestSource();
     const bufferedSource = new CachingIterableSource(source, {
-      spillCache: { sourceId: "test-source", sourceKey: "dedupe-recovery" },
+      spillCache: { sourceId: "test-source" },
     });
 
     try {

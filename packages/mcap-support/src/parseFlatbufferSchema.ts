@@ -40,6 +40,7 @@ function typeForSimpleField(type: BaseType): string {
     case BaseType.String:
       return "string";
     case BaseType.Vector:
+    case BaseType.Vector64:
     case BaseType.Obj:
     case BaseType.Union:
     case BaseType.Array:
@@ -102,10 +103,13 @@ function typeForField(schema: SchemaT, field: FieldT): MessageDefinitionField[] 
     case BaseType.Vector:
       switch (field.type.element) {
         case BaseType.Vector:
+        case BaseType.Vector64:
         case BaseType.Union:
         case BaseType.Array:
         case BaseType.None:
-          throw new Error("Vectors of vectors, unions, arrays, and None's are unsupported.");
+          throw new Error(
+            "Vectors of vectors, vector64s, unions, arrays, and None's are unsupported.",
+          );
         case BaseType.Obj:
           fields.push({
             name: flatbufferString(field.name),
@@ -146,9 +150,10 @@ function typeForField(schema: SchemaT, field: FieldT): MessageDefinitionField[] 
       break;
     case BaseType.Union:
     case BaseType.Array:
+    case BaseType.Vector64:
     case BaseType.MaxBaseType:
     case undefined:
-      throw new Error("Unions and Arrays are not supported in mcap-support currently.");
+      throw new Error("Unions, Arrays, and Vector64 are not supported in mcap-support currently.");
   }
   return fields;
 }

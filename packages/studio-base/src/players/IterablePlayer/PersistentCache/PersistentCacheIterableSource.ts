@@ -23,11 +23,13 @@ import {
 } from "../IIterableSource";
 
 const log = Logger.getLogger(__filename);
+const READER_LEASE_HEARTBEAT_MS = 30_000;
 
 export class PersistentCacheIterableSource implements IIterableSource {
   #retentionWindowMs?: number;
   #maxCacheSize?: number;
   #cache?: IndexedDbMessageStore;
+  #readerLeaseHeartbeat?: ReturnType<typeof setInterval>;
   #sessionId: string;
 
   public constructor({
@@ -45,70 +47,95 @@ export class PersistentCacheIterableSource implements IIterableSource {
   }
 
   public async initialize(): Promise<Initalization> {
-    this.#cache = new IndexedDbMessageStore({
+    const cache = new IndexedDbMessageStore({
       sessionId: this.#sessionId,
       retentionWindowMs: this.#retentionWindowMs,
       maxCacheSize: this.#maxCacheSize,
+      accessMode: "reader",
     });
+    this.#cache = cache;
 
-    await this.#cache.init();
+    try {
+      await cache.init();
 
-    const stats = await this.#cache.stats();
-    const storedTopics = await this.#cache.getTopics();
-    const datatypes = (await this.#cache.getDatatypes()) ?? new Map();
+      const stats = await cache.stats();
+      const storedTopics = await cache.getTopics();
+      const datatypes = (await cache.getDatatypes()) ?? new Map();
+      this.#readerLeaseHeartbeat = setInterval(() => {
+        void cache.touchSession().catch((error: unknown) => {
+          log.debug("Failed to refresh persistent cache replay lease", error);
+        });
+      }, READER_LEASE_HEARTBEAT_MS);
 
-    // If no data is available, return minimal initialization
-    if (stats.count === 0 || !stats.earliest || !stats.latest) {
-      return {
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 0, nsec: 0 },
-        topics: [],
-        topicStats: new Map(),
-        datatypes: new Map(),
-        profile: undefined,
-        publishersByTopic: new Map(),
-        problems: [],
-      };
-    }
+      // If no data is available, return minimal initialization
+      if (stats.count === 0 || !stats.earliest || !stats.latest) {
+        return {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 0, nsec: 0 },
+          topics: [],
+          topicStats: new Map(),
+          datatypes: new Map(),
+          profile: undefined,
+          publishersByTopic: new Map(),
+          problems: [],
+        };
+      }
 
-    const topicStats = new Map<string, { numMessages: number }>();
+      const topicStats = new Map<string, { numMessages: number }>();
 
-    const topics: TopicWithDecodingInfo[] = [];
-    for (const topic of storedTopics) {
-      const { topicStats: _topicStats, ...topicInfo } = topic;
-      topics.push(topicInfo);
-      topicStats.set(topic.name, topic.topicStats ?? { numMessages: 0 });
-    }
+      const topics: TopicWithDecodingInfo[] = [];
+      for (const topic of storedTopics) {
+        const { topicStats: _topicStats, ...topicInfo } = topic;
+        topics.push(topicInfo);
+        topicStats.set(topic.name, topic.topicStats ?? { numMessages: 0 });
+      }
 
-    if (topics.length === 0) {
+      if (topics.length === 0) {
+        return {
+          start: stats.earliest,
+          end: stats.latest,
+          topics: [],
+          topicStats,
+          datatypes,
+          profile: undefined,
+          publishersByTopic: new Map(),
+          problems: [
+            {
+              severity: "warn",
+              message:
+                "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
+            },
+          ],
+        };
+      }
+
       return {
         start: stats.earliest,
         end: stats.latest,
-        topics: [],
+        topics,
         topicStats,
         datatypes,
         profile: undefined,
         publishersByTopic: new Map(),
-        problems: [
-          {
-            severity: "warn",
-            message:
-              "Persistent cache metadata is incomplete; cached realtime data cannot be replayed.",
-          },
-        ],
+        problems: [],
       };
+    } catch (error) {
+      if (this.#readerLeaseHeartbeat != undefined) {
+        clearInterval(this.#readerLeaseHeartbeat);
+        this.#readerLeaseHeartbeat = undefined;
+      }
+      if (this.#cache === cache) {
+        this.#cache = undefined;
+      }
+      try {
+        // This source only borrows an existing realtime-history session for replay. A transient
+        // metadata read failure must not transfer ownership or make the janitor delete that data.
+        await cache.close();
+      } catch (closeError) {
+        log.warn("Failed to close persistent cache after replay initialization failed", closeError);
+      }
+      throw error;
     }
-
-    return {
-      start: stats.earliest,
-      end: stats.latest,
-      topics,
-      topicStats,
-      datatypes,
-      profile: undefined,
-      publishersByTopic: new Map(),
-      problems: [],
-    };
   }
 
   public async *messageIterator(
@@ -214,11 +241,13 @@ export class PersistentCacheIterableSource implements IIterableSource {
   }
 
   public async terminate(): Promise<void> {
-    if (!this.#cache) {
-      throw new Error("PersistentCacheIterableSource not initialized");
+    if (this.#readerLeaseHeartbeat != undefined) {
+      clearInterval(this.#readerLeaseHeartbeat);
+      this.#readerLeaseHeartbeat = undefined;
     }
-
-    await this.#cache.close();
+    const cache = this.#cache;
+    this.#cache = undefined;
+    await cache?.close();
   }
 }
 

@@ -11,52 +11,84 @@ import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePla
 import type { TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { IndexedDbMessageStore } from "./IndexedDbMessageStore";
+import { IndexedDbMessageStore, type MessageCacheMetricSink } from "./IndexedDbMessageStore";
 
 const log = Log.getLogger(__filename);
+const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
 
 export class RealtimeVizHistoryCache {
   #store: IndexedDbMessageStore;
   #disabled = false;
+  #initialized = false;
   #latestTopics: readonly TopicWithDecodingInfo[] | undefined;
   #latestTopicStats: Map<string, TopicStats> | undefined;
   #latestDatatypes: RosDatatypes | undefined;
+  #metadataWrites = new Set<Promise<void>>();
+  #closePromise: Promise<void> | undefined;
 
   public constructor({
     sessionId,
     retentionWindowMs,
     maxCacheSize,
+    metricSink,
   }: {
     sessionId: string;
     retentionWindowMs: number;
     maxCacheSize?: number;
+    metricSink?: MessageCacheMetricSink;
   }) {
     this.#store = new IndexedDbMessageStore({
       kind: "realtime-viz",
       sessionId,
       retentionWindowMs,
       maxCacheSize,
+      metricSink,
     });
   }
 
   public async init(): Promise<void> {
     try {
       await this.#store.init();
+      // A concurrent close owns teardown. Treat it as a normal lifecycle race rather than
+      // abandoning the same session twice and reporting a spurious initialization failure.
+      if (this.#disabled) {
+        return;
+      }
+      if (!this.#store.isWritable()) {
+        throw new Error("Realtime history cache is unavailable for writes");
+      }
+      this.#initialized = true;
+      this.#persistLatestMetadata();
     } catch (error) {
       this.#disabled = true;
+      await this.#store.discardAndSeal("abandoned");
       log.warn("Failed to initialize realtime viz history cache:", error);
       throw error;
     }
   }
 
   public append(events: readonly MessageEvent[]): void {
-    if (this.#disabled) {
+    // Realtime history is best-effort. Do not retain messages in one Promise per event while the
+    // database open is pending; the store's bounded append queue only applies after initialization.
+    if (this.#disabled || !this.#initialized) {
       return;
     }
-    void this.#store.append(events).catch((error: unknown) => {
-      this.#disabled = true;
-      log.warn("Disabling realtime viz history cache after append failure:", error);
-    });
+    void this.#store
+      .append(events, {
+        // The WebSocket player already normalizes sizeInBytes against its decoded-size estimate.
+        // Reuse it instead of recursively walking the same message again on this hot path.
+        estimatedSizeBytes: events.map(
+          (event) => event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
+        ),
+      })
+      .catch((error: unknown) => {
+        if (this.#disabled) {
+          return;
+        }
+        this.#disabled = true;
+        log.warn("Disabling realtime viz history cache after append failure:", error);
+        void this.#store.discardAndSeal("abandoned");
+      });
   }
 
   public storeTopics(
@@ -68,9 +100,13 @@ export class RealtimeVizHistoryCache {
     }
     this.#latestTopics = topics;
     this.#latestTopicStats = topicStats;
-    void this.#store.storeTopics(topics, topicStats).catch((error: unknown) => {
-      log.debug("Failed to store realtime topic metadata:", error);
-    });
+    if (!this.#initialized) {
+      return;
+    }
+    this.#trackMetadataWrite(
+      this.#store.storeTopics(topics, topicStats),
+      "Failed to store realtime topic metadata:",
+    );
   }
 
   public storeDatatypes(datatypes: RosDatatypes): void {
@@ -78,32 +114,63 @@ export class RealtimeVizHistoryCache {
       return;
     }
     this.#latestDatatypes = datatypes;
-    void this.#store.storeDatatypes(datatypes).catch((error: unknown) => {
-      log.debug("Failed to store realtime datatypes:", error);
+    if (!this.#initialized) {
+      return;
+    }
+    this.#trackMetadataWrite(
+      this.#store.storeDatatypes(datatypes),
+      "Failed to store realtime datatypes:",
+    );
+  }
+
+  #persistLatestMetadata(): void {
+    if (this.#latestTopics != undefined) {
+      this.#trackMetadataWrite(
+        this.#store.storeTopics(this.#latestTopics, this.#latestTopicStats),
+        "Failed to store realtime topic metadata:",
+      );
+    }
+    if (this.#latestDatatypes != undefined) {
+      this.#trackMetadataWrite(
+        this.#store.storeDatatypes(this.#latestDatatypes),
+        "Failed to store realtime datatypes:",
+      );
+    }
+  }
+
+  #trackMetadataWrite(write: Promise<void>, failureMessage: string): void {
+    const trackedWrite = write.catch((error: unknown) => {
+      log.debug(failureMessage, error);
+    });
+    this.#metadataWrites.add(trackedWrite);
+    void trackedWrite.finally(() => {
+      this.#metadataWrites.delete(trackedWrite);
     });
   }
 
-  public async flush(): Promise<void> {
-    if (this.#disabled) {
-      return;
-    }
-    if (this.#latestTopics != undefined) {
-      await this.#store.storeTopics(this.#latestTopics, this.#latestTopicStats);
-    }
-    if (this.#latestDatatypes != undefined) {
-      await this.#store.storeDatatypes(this.#latestDatatypes);
-    }
-    await this.#store.flush();
+  // Returning the stored promise directly preserves identity across concurrent callers.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public close(): Promise<void> {
+    this.#closePromise ??= this.#closeImpl();
+    return this.#closePromise;
   }
 
-  public async close(): Promise<void> {
-    if (this.#disabled) {
+  async #closeImpl(): Promise<void> {
+    if (this.#disabled || !this.#initialized) {
+      this.#disabled = true;
+      await this.#store.discardAndSeal("abandoned");
       return;
     }
+    this.#disabled = true;
     try {
-      await this.flush();
-    } finally {
-      await this.#store.close();
+      await this.#store.closeAfter(Array.from(this.#metadataWrites));
+    } catch (error) {
+      try {
+        await this.#store.discardAndSeal("abandoned");
+      } catch (closeError) {
+        log.debug("Failed to abandon realtime cache after flush failure", closeError);
+      }
+      throw error;
     }
   }
 }
