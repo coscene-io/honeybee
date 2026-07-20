@@ -18,7 +18,7 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 const initWorkers: Record<string, () => Worker> = {
   ".bag": () => {
@@ -111,7 +111,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       urlParams: { url },
       sourceId: this.id,
       readAheadDuration: { sec: 10, nsec: 0 },
-      enablePlaybackSpillCache: getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED,
+      enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
     });
   }
 

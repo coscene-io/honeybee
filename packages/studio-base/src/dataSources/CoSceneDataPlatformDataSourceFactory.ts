@@ -242,7 +242,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       sourceId: this.id,
       urlParams,
       readAheadDuration,
-      enablePlaybackSpillCache: getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED,
+      enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
     });
   }
 
@@ -258,6 +258,7 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
       profile,
       name: profile ? `Shard manifest (${profile})` : "Shard manifest",
       urlParams: args.params,
+      enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
     });
   }
 }

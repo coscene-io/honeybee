@@ -46,7 +46,6 @@ describe("buildManifestUrl", () => {
   beforeEach(() => {
     mockGetAppConfig.mockReturnValue({
       OBJECT_STORAGE_BASE_URL: "mcap.dev.coscene.cn",
-      PLAYBACK_SPILL_CACHE_ENABLED: false,
     });
     mockGetWebBasePathname.mockReturnValue("/viz");
     mockIterablePlayer.mockClear();
@@ -104,7 +103,6 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
   beforeEach(() => {
     mockGetAppConfig.mockReturnValue({
       OBJECT_STORAGE_BASE_URL: "default-storage.example.com",
-      PLAYBACK_SPILL_CACHE_ENABLED: false,
     });
     mockGetWebBasePathname.mockReturnValue("/viz");
     global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
@@ -125,6 +123,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
   async function initializeFactory(
     manifestStorageSource?: string,
     params?: Record<string, string | undefined>,
+    options?: { enablePlaybackSpillCache?: boolean },
   ) {
     const factory = new CoSceneDataPlatformDataSourceFactory();
     return await factory.initialize({
@@ -137,6 +136,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
         getBffUrl: () => "https://bff.example.com",
       } as never,
       manifestStorageSource,
+      enablePlaybackSpillCache: options?.enablePlaybackSpillCache,
     });
   }
 
@@ -185,6 +185,14 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
     expect(mockWorkerSerializedIterableSource).toHaveBeenCalledTimes(1);
   });
 
+  it("passes the user playback spill setting to manifest playback", async () => {
+    await initializeFactory(undefined, undefined, { enablePlaybackSpillCache: true });
+
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: true,
+    });
+  });
+
   it("falls back to the legacy data-platform player when the selected fixed manifest is unavailable", async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false } as Response);
 
@@ -202,14 +210,10 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
     });
   });
 
-  it("enables the legacy playback spill cache only when configured", async () => {
-    mockGetAppConfig.mockReturnValue({
-      OBJECT_STORAGE_BASE_URL: "default-storage.example.com",
-      PLAYBACK_SPILL_CACHE_ENABLED: true,
-    });
+  it("enables the legacy playback spill cache only when selected by the user", async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false } as Response);
 
-    await initializeFactory();
+    await initializeFactory(undefined, undefined, { enablePlaybackSpillCache: true });
 
     expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
       enablePlaybackSpillCache: true,

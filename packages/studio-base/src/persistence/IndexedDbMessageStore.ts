@@ -3770,7 +3770,7 @@ function scheduleMessageCacheJanitor(
 
 /**
  * Schedule maintenance for both physical cache databases after the application layout commits.
- * This intentionally does not depend on the playback writer kill switch: a disabled writer must
+ * This intentionally does not depend on the playback writer setting: a disabled writer must
  * not strand sessions left behind by a previous rollout or browser crash.
  */
 export function scheduleMessageCacheMaintenance(metricSink?: MessageCacheMetricSink): void {

@@ -311,6 +311,9 @@ export default function PlayerManager(
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
   const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
   const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
+  const [enablePlaybackSpillCache = false] = useAppConfigurationValue<boolean>(
+    AppSetting.PLAYBACK_SPILL_CACHE_ENABLED,
+  );
   const [manifestStorageSource] = useAppConfigurationValue<string>(
     AppSetting.MANIFEST_STORAGE_SOURCE,
   );
@@ -421,6 +424,7 @@ export default function PlayerManager(
                 positiveReadAheadDuration != undefined
                   ? { sec: positiveReadAheadDuration, nsec: 0 }
                   : undefined,
+              enablePlaybackSpillCache,
               manifestStorageSource,
               autoConnectToLan,
               checkOutboundTrafficEntitlement,
@@ -580,6 +584,7 @@ export default function PlayerManager(
       t,
       positiveRequestWindow,
       positiveReadAheadDuration,
+      enablePlaybackSpillCache,
       setCurrentFile,
       isMounted,
     ],

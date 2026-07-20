@@ -12,10 +12,7 @@ import {
 
 import RemoteDataSourceFactory from "./RemoteDataSourceFactory";
 
-const mockGetAppConfig = jest.fn();
-
 jest.mock("@foxglove/studio-base/util/appConfig", () => ({
-  getAppConfig: () => mockGetAppConfig(),
   getDomainConfig: () => ({ webDomain: "dev.coscene.cn" }),
 }));
 
@@ -31,26 +28,22 @@ const mockWorkerSerializedIterableSource = WorkerSerializedIterableSource as unk
 
 describe("RemoteDataSourceFactory", () => {
   beforeEach(() => {
-    mockGetAppConfig.mockReturnValue({ PLAYBACK_SPILL_CACHE_ENABLED: false });
     mockIterablePlayer.mockClear();
     mockWorkerSerializedIterableSource.mockClear();
   });
 
-  it.each([false, true])(
-    "passes playback spill cache configuration %s to the player",
-    (enabled) => {
-      mockGetAppConfig.mockReturnValue({ PLAYBACK_SPILL_CACHE_ENABLED: enabled });
-      const factory = new RemoteDataSourceFactory();
+  it.each([false, true])("passes playback spill cache setting %s to the player", (enabled) => {
+    const factory = new RemoteDataSourceFactory();
 
-      factory.initialize({
-        metricsCollector: undefined as never,
-        params: { url: "https://storage.example.com/recording.mcap" },
-      });
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: { url: "https://storage.example.com/recording.mcap" },
+      enablePlaybackSpillCache: enabled,
+    });
 
-      expect(mockWorkerSerializedIterableSource).toHaveBeenCalledTimes(1);
-      expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
-        enablePlaybackSpillCache: enabled,
-      });
-    },
-  );
+    expect(mockWorkerSerializedIterableSource).toHaveBeenCalledTimes(1);
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: enabled,
+    });
+  });
 });

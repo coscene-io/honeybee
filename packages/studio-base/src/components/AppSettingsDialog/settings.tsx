@@ -999,6 +999,41 @@ export function ReadAheadDuration(): React.ReactElement {
   );
 }
 
+export function PlaybackSpillCache(): React.ReactElement {
+  const { t } = useTranslation("appSettings");
+  const [enabled = false, setEnabled] = useAppConfigurationValue<boolean>(
+    AppSetting.PLAYBACK_SPILL_CACHE_ENABLED,
+  );
+
+  return (
+    <Stack>
+      <FormLabel>
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          {t("playbackSpillCache")}:
+          <Tooltip title={t("playbackSpillCacheDescription")}>
+            <HelpIcon fontSize="small" />
+          </Tooltip>
+        </Stack>
+      </FormLabel>
+      <ToggleButtonGroup
+        color="primary"
+        size="small"
+        fullWidth
+        exclusive
+        value={String(enabled)}
+        onChange={(_, value?: string) => {
+          if (value != undefined) {
+            void setEnabled(value === "true");
+          }
+        }}
+      >
+        <ToggleButton value="false">{t("off")}</ToggleButton>
+        <ToggleButton value="true">{t("on")}</ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
+  );
+}
+
 export function AutoConnectToLan(): React.ReactElement {
   const { t } = useTranslation("appSettings");
   const [autoConnectToLan = true, setAutoConnectToLan] = useAppConfigurationValue<boolean>(

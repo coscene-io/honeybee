@@ -28,6 +28,9 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   light: "ライト",
   noExperimentalFeatures: "現在、実験的機能はありません。",
   openLinksIn: "リンクを開く",
+  playbackSpillCache: "再生ディスクキャッシュ",
+  playbackSpillCacheDescription:
+    "メモリキャッシュを超えた再生メッセージをこのデバイスに保存し、再ダウンロードを減らします。ブラウザのストレージを多く使用する場合があり、変更は次回の可視化から有効になります。",
   privacy: "プライバシー",
   privacyDescription: "変更は次回のCoScene Studio起動時に有効になります。",
   ros: "ROS",

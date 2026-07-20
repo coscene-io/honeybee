@@ -14,7 +14,6 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import {
   SHARE_MANIFEST_DIRECT_LAYOUT_URL_PARAM,
   SHARE_MANIFEST_DIRECT_MANIFEST_URL_PARAM,
@@ -60,6 +59,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
             : {}),
           ...(result.profile != undefined ? { profile: result.profile } : {}),
         },
+        enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
       });
     }
 
@@ -84,7 +84,7 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
       name: "Shared MCAP",
       urlParams: { [SHARE_MANIFEST_HASH_PARAM]: result.encodedManifest },
       readAheadDuration: { sec: 10, nsec: 0 },
-      enablePlaybackSpillCache: getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED,
+      enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
     });
   }
 }

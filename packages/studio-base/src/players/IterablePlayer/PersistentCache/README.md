@@ -126,8 +126,7 @@ and Comlink for worker-backed playback.
 
 Normal iterable playback uses `CachingIterableSource` and may enable a `playback-spill` store. This is
 separate from the `persistent-cache` data source, but it shares the same IndexedDB primitives. The web
-runtime kill switch controls all playback spill sources and is disabled by default for the initial
-rollout.
+app's Playback disk cache setting controls all playback spill sources and is disabled by default.
 
 The spill cache creates a random session id using the source id, records a stable topic fingerprint,
 and writes messages while reading source ranges. Once a range is fully read without source problems,

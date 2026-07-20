@@ -6,23 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { getAppConfig, getDomainConfig } from "./appConfig";
-
-describe("getAppConfig", () => {
-  afterEach(() => {
-    window.cosConfig = undefined;
-  });
-
-  it("disables the playback spill cache by default", () => {
-    expect(getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED).toBe(false);
-  });
-
-  it("honors an explicitly enabled playback spill cache", () => {
-    window.cosConfig = { PLAYBACK_SPILL_CACHE_ENABLED: true };
-
-    expect(getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED).toBe(true);
-  });
-});
+import { getDomainConfig } from "./appConfig";
 
 describe("getDomainConfig", () => {
   const defaultDomainConfig = {

@@ -11,7 +11,6 @@ import {
   WorkerSerializedIterableSource,
 } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
-import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import {
   MANIFEST_URL_PARAM,
   SHARD_MODE_MANIFEST,
@@ -39,6 +38,7 @@ export function createShardManifestPlayer(args: {
   profile?: string;
   name: string;
   urlParams?: Record<string, string | undefined>;
+  enablePlaybackSpillCache?: boolean;
 }): Player {
   const sourceParams: Record<string, string> = { url: args.manifestUrl };
   if (args.profile != undefined) {
@@ -76,6 +76,6 @@ export function createShardManifestPlayer(args: {
     urlParams,
     readAheadDuration: { sec: 10, nsec: 0 },
     name: args.name,
-    enablePlaybackSpillCache: getAppConfig().PLAYBACK_SPILL_CACHE_ENABLED,
+    enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
   });
 }
