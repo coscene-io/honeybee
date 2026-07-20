@@ -1001,7 +1001,9 @@ export function ReadAheadDuration(): React.ReactElement {
 }
 
 export function PlaybackSpillCache({
-  onReload = () => { window.location.reload(); },
+  onReload = () => {
+    window.location.reload();
+  },
 }: {
   onReload?: () => void;
 }): React.ReactElement {
