@@ -15,6 +15,7 @@ import { compare, fromSec } from "@foxglove/rostime";
 import {
   CacheSessionMetadata,
   clearIndexedDbMessageStoreDatabase,
+  PLAYBACK_MESSAGE_CACHE_DB_NAME,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import {
   MessageEvent,
@@ -39,7 +40,7 @@ import { IterablePlayer, SEEK_ON_START_NS } from "./IterablePlayer";
 const INITIAL_LOADED_FRACTION_START = Number(SEEK_ON_START_NS + 1n) / 1e9;
 
 async function getPlaybackSpillSessions(): Promise<CacheSessionMetadata[]> {
-  const db = await IDB.openDB("studio-realtime-cache");
+  const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
   try {
     const tx = db.transaction("sessions", "readonly");
     const sessions = (await tx.objectStore("sessions").getAll()) as CacheSessionMetadata[];
@@ -224,7 +225,105 @@ describe("IterablePlayer", () => {
     await player.isClosed;
   });
 
-  it("uses a larger IndexedDB limit for playback spill than the in-memory cache", async () => {
+  it("returns one close promise that waits for source termination", async () => {
+    const terminateStarted = signal();
+    const releaseTerminate = signal();
+    class BlockingTerminateSource extends TestSource {
+      public terminate = jest.fn(async () => {
+        terminateStarted.resolve();
+        await releaseTerminate;
+      });
+    }
+
+    const source = new BlockingTerminateSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+    const store = new PlayerStateStore(4);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+    await store.done;
+
+    const firstClose = player.close();
+    const secondClose = player.close();
+    expect(secondClose).toBe(firstClose);
+    await terminateStarted;
+
+    let closeResolved = false;
+    void firstClose.then(() => {
+      closeResolved = true;
+    });
+    await Promise.resolve();
+    expect(closeResolved).toBe(false);
+
+    releaseTerminate.resolve();
+    await firstClose;
+    expect(closeResolved).toBe(true);
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+    await expect(player.isClosed).resolves.toBeUndefined();
+  });
+
+  it("closes without waiting for a late initialization result", async () => {
+    const initializeStarted = signal();
+    let resolveInitialize: ((result: Initalization) => void) | undefined;
+    class BlockingInitializeSource extends TestSource {
+      public override initialize = jest.fn(async () => {
+        initializeStarted.resolve();
+        return await new Promise<Initalization>((resolve) => {
+          resolveInitialize = resolve;
+        });
+      });
+      public terminate = jest.fn(async () => {});
+    }
+
+    const source = new BlockingInitializeSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+    const listener = jest.fn(async () => {});
+    player.setListener(listener);
+    await initializeStarted;
+
+    await expect(player.close()).resolves.toBeUndefined();
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+    const callsAfterClose = listener.mock.calls.length;
+
+    resolveInitialize?.(await TestSource.prototype.initialize.call(source));
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(callsAfterClose);
+  });
+
+  it("rejects close after attempting teardown when source termination fails", async () => {
+    const closeError = new Error("source termination failed");
+    class FailingTerminateSource extends TestSource {
+      public terminate = jest.fn(async () => {
+        throw closeError;
+      });
+    }
+
+    const source = new FailingTerminateSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+
+    const closePromise = player.close();
+    expect(player.close()).toBe(closePromise);
+    await expect(closePromise).rejects.toBe(closeError);
+    await expect(player.isClosed).rejects.toBe(closeError);
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates an isolated playback spill session when enabled", async () => {
     await clearIndexedDbMessageStoreDatabase();
     const originalCrypto = globalThis.crypto;
     Object.defineProperty(globalThis, "crypto", {
@@ -249,7 +348,7 @@ describe("IterablePlayer", () => {
 
       const sessions = await getPlaybackSpillSessions();
       expect(sessions).toHaveLength(1);
-      expect(sessions[0]?.maxBytes).toBe(25 * 1024 * 1024 * 1024);
+      expect(sessions[0]).toMatchObject({ kind: "playback-spill", sourceId: "test" });
     } finally {
       Object.defineProperty(globalThis, "crypto", {
         configurable: true,

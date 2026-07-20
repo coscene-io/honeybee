@@ -823,7 +823,7 @@ class CoSceneConsoleApi {
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
         if (coSceneErrorMessageKey) {
-          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "error" })}`);
+          toast.error(t(coSceneErrorMessageKey, "error", { ns: "error" }));
         }
 
         this.#problemManager.addProblem("CoScene:request-error", {

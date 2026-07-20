@@ -31,25 +31,6 @@ export function definedUrlParams(
   return definedParams;
 }
 
-function sortJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sortJsonValue);
-  }
-  if (value != undefined && typeof value === "object") {
-    const input = value as Record<string, unknown>;
-    const output: Record<string, unknown> = {};
-    for (const key of Object.keys(input).sort()) {
-      output[key] = sortJsonValue(input[key]);
-    }
-    return output;
-  }
-  return value;
-}
-
-export function stableJsonStringify(value: unknown): string {
-  return JSON.stringify(sortJsonValue(value)) ?? "";
-}
-
 export function createShardManifestPlayer(args: {
   metricsCollector: DataSourceFactoryInitializeArgs["metricsCollector"];
   sourceId: string;
@@ -57,6 +38,7 @@ export function createShardManifestPlayer(args: {
   profile?: string;
   name: string;
   urlParams?: Record<string, string | undefined>;
+  enablePlaybackSpillCache?: boolean;
 }): Player {
   const sourceParams: Record<string, string> = { url: args.manifestUrl };
   if (args.profile != undefined) {
@@ -94,10 +76,6 @@ export function createShardManifestPlayer(args: {
     urlParams,
     readAheadDuration: { sec: 10, nsec: 0 },
     name: args.name,
-    enablePlaybackSpillCache: true,
-    playbackSpillCacheSourceKey: stableJsonStringify({
-      sourceId: args.sourceId,
-      params: sourceParams,
-    }),
+    enablePlaybackSpillCache: args.enablePlaybackSpillCache === true,
   });
 }

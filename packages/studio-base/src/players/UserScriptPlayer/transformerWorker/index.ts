@@ -69,8 +69,12 @@ if (!inSharedWorker()) {
 
   setupSendReportNotificationHandler(rpc);
   // Shared workers need to be closed "from the inside" -- they have no terminate() method.
+  // Defer shutdown to the next task so Rpc can post the close acknowledgement in its promise
+  // continuation before WorkerGlobalScope.close() discards subsequent work.
   rpc.receive("close", () => {
-    global.close();
+    setTimeout(() => {
+      global.close();
+    }, 0);
   });
   rpc.receive("transform", enforceFetchIsBlocked(transform));
   rpc.receive("generateRosLib", generateRosLib);

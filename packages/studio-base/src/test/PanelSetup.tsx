@@ -157,6 +157,8 @@ function MockExtensionCatalogProvider(props: PropsWithChildren<ExtensionCatalogP
           installExtension: async () => await Promise.reject(new Error("unsupported")),
           refreshExtensions: async () => {},
           uninstallExtension: async () => {},
+          loadState: "ready",
+          loadErrors: [],
           installedExtensions: [],
           installedMessageConverters: props.messageConverters ?? [],
           installedPanels: {},

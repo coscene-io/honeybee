@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PropsWithChildren, useMemo } from "react";
+import { PropsWithChildren, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import Panel from "@foxglove/studio-base/components/Panel";
@@ -29,28 +29,35 @@ export default function PanelCatalogProvider(props: PropsWithChildren): React.Re
 
   const { extraPanels } = useAppContext();
   const extensionPanels = useExtensionCatalog((state) => state.installedPanels);
+  const wrappedExtensionPanelModulesRef = useRef(new WeakMap<object, PanelInfo["module"]>());
 
   const wrappedExtensionPanels = useMemo<PanelInfo[]>(() => {
     return Object.values(extensionPanels ?? {}).map((panel) => {
       const panelType = `${panel.extensionName}.${panel.registration.name}`;
-      const PanelWrapper = (panelProps: PanelProps) => {
-        return (
-          <>
+      let module = wrappedExtensionPanelModulesRef.current.get(panel);
+      if (module == undefined) {
+        const PanelWrapper = (panelProps: PanelProps) => {
+          return (
             <PanelExtensionAdapter
               config={panelProps.config}
               saveConfig={panelProps.saveConfig}
               initPanel={panel.registration.initPanel}
             />
-          </>
-        );
-      };
-      PanelWrapper.panelType = panelType;
-      PanelWrapper.defaultConfig = {};
+          );
+        };
+        PanelWrapper.panelType = panelType;
+        PanelWrapper.defaultConfig = {};
+        // Extension panels own their config lifecycle. In particular, replacing UnknownPanel after
+        // a late catalog load must not dirty a layout by persisting an otherwise unused empty object.
+        PanelWrapper.configInitialization = "none" as const;
+        module = async () => ({ default: Panel(PanelWrapper) });
+        wrappedExtensionPanelModulesRef.current.set(panel, module);
+      }
       return {
         category: "misc",
         title: panel.registration.name,
         type: panelType,
-        module: async () => ({ default: Panel(PanelWrapper) }),
+        module,
         extensionNamespace: panel.extensionNamespace,
       };
     });

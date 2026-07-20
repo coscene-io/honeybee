@@ -79,11 +79,7 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
       sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
       urlParams: { manifest: encodedManifest },
       name: "Shared MCAP",
-      enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: JSON.stringify({
-        sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
-        url: manifest.links.mini_mcap,
-      }),
+      enablePlaybackSpillCache: false,
     });
     expect(mockIterablePlayer.mock.calls[0]?.[0]).not.toMatchObject({
       urlParams: { shardMode: "manifest" },
@@ -121,11 +117,30 @@ describe("CoSceneShareManifestDataSourceFactory", () => {
         profile: "720p",
       },
       name: "Shared shard manifest (720p)",
+      enablePlaybackSpillCache: false,
+    });
+  });
+
+  it("enables the playback spill cache only when selected by the user", () => {
+    const encodedManifest = encodeBase64Url(manifest);
+    const factory = new CoSceneShareManifestDataSourceFactory();
+
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: { manifest: encodedManifest },
       enablePlaybackSpillCache: true,
-      playbackSpillCacheSourceKey: JSON.stringify({
-        params: { profile: "720p", url: manifestUrl },
-        sourceId: SHARE_MANIFEST_DATA_SOURCE_ID,
-      }),
+    });
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: { manifestUrl: "https://mock-storage.example.com/public/shards/manifest.json" },
+      enablePlaybackSpillCache: true,
+    });
+
+    expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: true,
+    });
+    expect(mockIterablePlayer.mock.calls[1]?.[0]).toMatchObject({
+      enablePlaybackSpillCache: true,
     });
   });
 

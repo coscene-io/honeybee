@@ -13,6 +13,7 @@ import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
 import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { sanitizeMessageCacheMetricData } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
@@ -67,6 +68,9 @@ export class AmplitudeAnalytics implements IAnalytics {
         break;
       case AppEvent.PLAYER_STALL_DURATION:
         posthog.capture(event, data);
+        break;
+      case AppEvent.MESSAGE_CACHE:
+        posthog.capture(event, sanitizeMessageCacheMetricData(data));
         break;
       default:
         log.info(`[EVENT] ${event}`, data);

@@ -43,4 +43,71 @@ describe("MessagePipeline store", () => {
     expect(result).toBe(unsubscribe);
     expect(called).toBe(true);
   });
+
+  it("waits for close before reopening and coalesces reopen requests", async () => {
+    let resolveClose: (() => void) | undefined;
+    const close = jest.fn(async () => {
+      await new Promise<void>((resolve) => {
+        resolveClose = resolve;
+      });
+    });
+    const reOpen = jest.fn();
+    const player = {
+      close,
+      reOpen,
+    } as unknown as Player;
+    const store = createMessagePipelineStore({
+      promisesToWaitForRef: { current: [] } as MutableRefObject<FramePromise[]>,
+      initialPlayer: player,
+      urdfStorage: {} as IUrdfStorage,
+      s3FileService: {} as S3FileService,
+    });
+
+    store.getState().public.close();
+    store.getState().public.reOpen();
+    store.getState().public.reOpen();
+    await Promise.resolve();
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(reOpen).not.toHaveBeenCalled();
+
+    resolveClose?.();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(reOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a later close cancel a pending reopen", async () => {
+    let resolveClose: (() => void) | undefined;
+    const close = jest.fn(async () => {
+      await new Promise<void>((resolve) => {
+        resolveClose = resolve;
+      });
+    });
+    const reOpen = jest.fn();
+    const player = {
+      close,
+      reOpen,
+    } as unknown as Player;
+    const store = createMessagePipelineStore({
+      promisesToWaitForRef: { current: [] } as MutableRefObject<FramePromise[]>,
+      initialPlayer: player,
+      urdfStorage: {} as IUrdfStorage,
+      s3FileService: {} as S3FileService,
+    });
+
+    store.getState().public.close();
+    store.getState().public.reOpen();
+    store.getState().public.close();
+    await Promise.resolve();
+    resolveClose?.();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(reOpen).not.toHaveBeenCalled();
+  });
 });
