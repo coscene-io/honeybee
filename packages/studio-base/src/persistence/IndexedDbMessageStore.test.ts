@@ -1458,6 +1458,49 @@ describe("IndexedDbMessageStore", () => {
     expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({ readers: [] });
   });
 
+  it("cleans up a terminal session even while a replay reader lease is fresh", async () => {
+    const sessionId = "terminal-reader-session";
+    const seed = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    await seed.init();
+    await seed.append([messageEvent(1)]);
+    await seed.flush();
+    await seed.close();
+
+    const reader = new IndexedDbMessageStore({
+      sessionId,
+      kind: "playback-spill",
+      accessMode: "reader",
+    });
+    const sealer = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    const cleaner = new IndexedDbMessageStore({
+      sessionId: "terminal-reader-cleaner",
+      kind: "playback-spill",
+    });
+    try {
+      await reader.init();
+      await sealer.init();
+      await sealer.discardAndSeal("pending-delete");
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
+        status: "pending-delete",
+        readers: [expect.any(String)],
+      });
+
+      await cleaner.init();
+      await cleaner.cleanupOldSessions("playback-spill");
+
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toBeUndefined();
+      await expect(
+        reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(0);
+    } finally {
+      await reader.close();
+      await cleaner.close();
+    }
+  });
+
   it("continues cleanup after one reclaimable session fails", async () => {
     const first = new IndexedDbMessageStore({
       sessionId: "cleanup-first",

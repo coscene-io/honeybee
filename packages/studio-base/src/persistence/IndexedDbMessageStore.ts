@@ -1610,11 +1610,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         return false;
       }
       if (staleGuard != undefined) {
+        const isTerminal =
+          sessionMetadata.status === "pending-delete" || sessionMetadata.status === "abandoned";
         if (
           sessionMetadata.kind !== staleGuard.kind ||
-          (sessionMetadata.status === "active" &&
-            sessionMetadata.lastActiveAt > staleGuard.cutoffTime) ||
-          this.#hasFreshReaderLease(sessionMetadata, staleGuard.cutoffTime)
+          (!isTerminal &&
+            ((sessionMetadata.status === "active" &&
+              sessionMetadata.lastActiveAt > staleGuard.cutoffTime) ||
+              this.#hasFreshReaderLease(sessionMetadata, staleGuard.cutoffTime)))
         ) {
           await sealTx.done;
           return false;
