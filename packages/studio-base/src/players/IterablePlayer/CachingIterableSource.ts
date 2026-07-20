@@ -1061,9 +1061,10 @@ class CachingIterableSource<MessageType = unknown>
     let pendingTimeGroup: MessageEvent[] = [];
     let pendingTimeGroupBytes = 0;
     let yieldedCompleteTimeGroup = false;
+    let nextUnyieldedTime = args.start;
     const incompleteResult = (): SpillRangeReadResult => ({
       complete: false,
-      resumeFrom: pendingTimeGroup[0]?.receiveTime ?? args.start,
+      resumeFrom: pendingTimeGroup[0]?.receiveTime ?? nextUnyieldedTime,
       directSource: yieldedCompleteTimeGroup || pendingTimeGroup.length > 0,
     });
     if (!this.#isCurrentTopicGeneration(args.topicGeneration)) {
@@ -1130,6 +1131,7 @@ class CachingIterableSource<MessageType = unknown>
               throw new Error("Playback spill pages were not ordered by receive time");
             }
             if (timeComparison < 0) {
+              const yieldedTime = pendingTimeGroup[0]!.receiveTime;
               for (const pendingMessage of pendingTimeGroup) {
                 yield {
                   type: "message-event",
@@ -1137,6 +1139,7 @@ class CachingIterableSource<MessageType = unknown>
                 };
               }
               yieldedCompleteTimeGroup = true;
+              nextUnyieldedTime = add(yieldedTime, { sec: 0, nsec: 1 });
               pendingTimeGroup = [];
               pendingTimeGroupBytes = 0;
             }

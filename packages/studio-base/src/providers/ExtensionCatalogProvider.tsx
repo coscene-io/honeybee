@@ -294,6 +294,17 @@ function createExtensionRegistryStore(
   let refreshInFlight: Promise<void> | undefined;
 
   return createStore((set, get) => {
+    const invalidateExtension = (loader: ExtensionLoader, id: string): void => {
+      activationSnapshots.delete(extensionIdentity(loader.namespace, id));
+      const extensions = lastSuccessfulExtensionLists.get(loader);
+      if (extensions != undefined) {
+        lastSuccessfulExtensionLists.set(
+          loader,
+          extensions.filter((extension) => extension.id !== id),
+        );
+      }
+    };
+
     const buildRefreshResult = async (): Promise<RefreshResult> => {
       const nextActivationSnapshots = new Map(activationSnapshots);
       const nextLastSuccessfulExtensionLists = new Map(lastSuccessfulExtensionLists);
@@ -549,6 +560,7 @@ function createExtensionRegistryStore(
           throw new Error("No extension loader found for namespace " + namespace);
         }
         await namespacedLoader.uninstallExtension(id);
+        invalidateExtension(namespacedLoader, id);
         await get().refreshExtensions();
       },
     };

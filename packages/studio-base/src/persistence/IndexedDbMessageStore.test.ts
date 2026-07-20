@@ -1409,6 +1409,98 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
+  it("does not clean up a stale session while a replay reader holds a fresh lease", async () => {
+    const sessionId = "leased-replay-session";
+    const seed = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    await seed.init();
+    await seed.append([messageEvent(1)]);
+    await seed.flush();
+    await seed.close();
+
+    const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+    const tx = db.transaction("sessions", "readwrite");
+    const metadata = (await tx.store.get(sessionId)) as CacheSessionMetadata;
+    await tx.store.put({ ...metadata, lastActiveAt: 1_000 });
+    await tx.done;
+    db.close();
+
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(10_000);
+    const reader = new IndexedDbMessageStore({
+      sessionId,
+      kind: "playback-spill",
+      accessMode: "reader",
+    });
+    const cleaner = new IndexedDbMessageStore({
+      sessionId: "reader-lease-cleaner",
+      kind: "playback-spill",
+    });
+    try {
+      await reader.init();
+      await cleaner.init();
+      await cleaner.cleanupOldSessions("playback-spill", 5_000);
+
+      await expect(
+        reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(1);
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
+        status: "closed",
+        readers: [expect.any(String)],
+      });
+    } finally {
+      await reader.close();
+      await cleaner.close();
+      nowSpy.mockRestore();
+    }
+
+    expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({ readers: [] });
+  });
+
+  it("cleans up a terminal session even while a replay reader lease is fresh", async () => {
+    const sessionId = "terminal-reader-session";
+    const seed = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    await seed.init();
+    await seed.append([messageEvent(1)]);
+    await seed.flush();
+    await seed.close();
+
+    const reader = new IndexedDbMessageStore({
+      sessionId,
+      kind: "playback-spill",
+      accessMode: "reader",
+    });
+    const sealer = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    const cleaner = new IndexedDbMessageStore({
+      sessionId: "terminal-reader-cleaner",
+      kind: "playback-spill",
+    });
+    try {
+      await reader.init();
+      await sealer.init();
+      await sealer.discardAndSeal("pending-delete");
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
+        status: "pending-delete",
+        readers: [expect.any(String)],
+      });
+
+      await cleaner.init();
+      await cleaner.cleanupOldSessions("playback-spill");
+
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toBeUndefined();
+      await expect(
+        reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 20, nsec: 0 },
+        }),
+      ).resolves.toHaveLength(0);
+    } finally {
+      await reader.close();
+      await cleaner.close();
+    }
+  });
+
   it("continues cleanup after one reclaimable session fails", async () => {
     const first = new IndexedDbMessageStore({
       sessionId: "cleanup-first",
@@ -1811,6 +1903,40 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
+  it("does not disable a new writer for a sealed session awaiting reclamation", async () => {
+    const previousSessionId = "sealed-previous-playback";
+    const previous = new IndexedDbMessageStore({
+      sessionId: previousSessionId,
+      kind: "playback-spill",
+    });
+    await previous.init();
+    await previous.append([messageEvent(1)]);
+    await previous.flush();
+    await previous.close();
+
+    const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+    const tx = db.transaction("sessions", "readwrite");
+    const metadata = (await tx.store.get(previousSessionId)) as CacheSessionMetadata;
+    await tx.store.put({
+      ...metadata,
+      status: "pending-delete",
+      approximateSizeBytes: 3 * 1024 * 1024 * 1024,
+    });
+    await tx.done;
+    db.close();
+
+    const current = new IndexedDbMessageStore({
+      sessionId: "next-playback",
+      kind: "playback-spill",
+    });
+    try {
+      await current.init();
+      expect(current.isWritable()).toBe(true);
+    } finally {
+      await current.close();
+    }
+  });
+
   it("requests a later maintenance pass for an over-budget active crash session", async () => {
     const sessionId = "startup-fresh-playback";
     const store = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
@@ -1839,7 +1965,7 @@ describe("IndexedDbMessageStore", () => {
       await janitor.init();
       const retryDelayMs = await janitor.runMaintenance();
       expect(console.warn).toHaveBeenCalledWith(
-        "Disabling IndexedDbMessageStore writes because active sessions exceed budget",
+        "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
         expect.objectContaining({ dbName: PLAYBACK_MESSAGE_CACHE_DB_NAME }),
       );
       jest.mocked(console.warn).mockClear();
@@ -1848,6 +1974,49 @@ describe("IndexedDbMessageStore", () => {
       expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
         status: "active",
       });
+    } finally {
+      await janitor.close();
+    }
+  });
+
+  it("requests a later maintenance pass for an over-budget session with a fresh reader lease", async () => {
+    const sessionId = "startup-fresh-reader";
+    const store = new IndexedDbMessageStore({ sessionId, kind: "playback-spill" });
+    await store.init();
+    await store.append([messageEvent(1)]);
+    await store.flush();
+    await store.close();
+
+    const db = await IDB.openDB(PLAYBACK_MESSAGE_CACHE_DB_NAME);
+    const tx = db.transaction("sessions", "readwrite");
+    const metadata = (await tx.store.get(sessionId)) as CacheSessionMetadata;
+    await tx.store.put({
+      ...metadata,
+      readers: ["replay-reader"],
+      lastActiveAt: Date.now(),
+      approximateSizeBytes: 3 * 1024 * 1024 * 1024,
+    });
+    await tx.done;
+    db.close();
+
+    const janitor = new IndexedDbMessageStore({
+      kind: "playback-spill",
+      accessMode: "maintenance",
+    });
+    try {
+      await janitor.init();
+      const retryDelayMs = await janitor.runMaintenance();
+      expect(retryDelayMs).toBeGreaterThan(4 * 60 * 1_000);
+      expect(retryDelayMs).toBeLessThanOrEqual(5 * 60 * 1_000 + 1_000);
+      expect(await getSessionMetadata(sessionId, "playback-spill")).toMatchObject({
+        status: "closed",
+        readers: ["replay-reader"],
+      });
+      expect(console.warn).toHaveBeenCalledWith(
+        "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
+        expect.objectContaining({ dbName: PLAYBACK_MESSAGE_CACHE_DB_NAME }),
+      );
+      jest.mocked(console.warn).mockClear();
     } finally {
       await janitor.close();
     }

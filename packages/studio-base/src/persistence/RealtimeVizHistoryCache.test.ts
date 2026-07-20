@@ -63,8 +63,8 @@ describe("RealtimeVizHistoryCache", () => {
 
   it("abandons the cache when store shutdown fails", async () => {
     const closeError = new Error("store shutdown failed");
-    const closeSpy = jest
-      .spyOn(IndexedDbMessageStore.prototype, "close")
+    const closeAfterSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "closeAfter")
       .mockRejectedValueOnce(closeError);
     const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
     const cache = new RealtimeVizHistoryCache({
@@ -80,8 +80,69 @@ describe("RealtimeVizHistoryCache", () => {
       await expect(closePromise).rejects.toBe(closeError);
       expect(discardSpy).toHaveBeenCalledWith("abandoned");
     } finally {
-      closeSpy.mockRestore();
+      closeAfterSpy.mockRestore();
       discardSpy.mockRestore();
+    }
+  });
+
+  it("waits for queued metadata writes before close resolves", async () => {
+    let resolveMetadata = () => {};
+    const metadataWrite = new Promise<void>((resolve) => {
+      resolveMetadata = resolve;
+    });
+    const storeTopicsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "storeTopics")
+      .mockReturnValueOnce(metadataWrite);
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "pending-realtime-metadata",
+      retentionWindowMs: 30_000,
+    });
+
+    try {
+      await cache.init();
+      cache.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }], new Map());
+
+      let closeResolved = false;
+      const closePromise = cache.close().then(() => {
+        closeResolved = true;
+      });
+      await Promise.resolve();
+      expect(closeResolved).toBe(false);
+
+      resolveMetadata();
+      await closePromise;
+      expect(storeTopicsSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      resolveMetadata();
+      storeTopicsSpy.mockRestore();
+    }
+  });
+
+  it("bounds close when a metadata write never settles", async () => {
+    jest.useFakeTimers();
+    const storeTopicsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "storeTopics")
+      .mockReturnValueOnce(new Promise<void>(() => undefined));
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "stalled-realtime-metadata",
+      retentionWindowMs: 30_000,
+    });
+
+    try {
+      await cache.init();
+      cache.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }], new Map());
+
+      const closeExpectation = expect(cache.close()).rejects.toThrow("pending close operations");
+      await jest.advanceTimersByTimeAsync(5_000);
+      await closeExpectation;
+      expect(console.warn).toHaveBeenCalledWith(
+        "IndexedDbMessageStore shutdown deadline exceeded",
+        expect.objectContaining({ operation: "pending close operations" }),
+      );
+      jest.mocked(console.warn).mockClear();
+    } finally {
+      storeTopicsSpy.mockRestore();
+      jest.useRealTimers();
     }
   });
 });

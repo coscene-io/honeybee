@@ -130,8 +130,8 @@ describe("PersistentCacheIterableSource", () => {
     await reader.close();
   });
 
-  it("opens an existing cache without reviving or rewriting its session metadata", async () => {
-    const sessionId = "reader-does-not-mutate";
+  it("leases an existing cache for replay without reviving the writer session", async () => {
+    const sessionId = "reader-lease";
     const store = new IndexedDbMessageStore({
       sessionId,
       retentionWindowMs: 120_000,
@@ -158,10 +158,22 @@ describe("PersistentCacheIterableSource", () => {
       maxCacheSize: 1,
     });
     await source.initialize();
-    expect(await readSessionMetadata(sessionId)).toEqual(metadataBeforeReplay);
+    expect(await readSessionMetadata(sessionId)).toEqual({
+      ...metadataBeforeReplay,
+      lastActiveAt: expect.any(Number),
+      status: "closed",
+      owners: [],
+      readers: [expect.any(String)],
+    });
 
     await source.terminate();
-    expect(await readSessionMetadata(sessionId)).toEqual(metadataBeforeReplay);
+    expect(await readSessionMetadata(sessionId)).toEqual({
+      ...metadataBeforeReplay,
+      lastActiveAt: expect.any(Number),
+      status: "closed",
+      owners: [],
+      readers: [],
+    });
   });
 
   it("does not create metadata when a replay session does not exist", async () => {

@@ -93,6 +93,8 @@ export type CacheSessionMetadata = {
   cleanupToken?: string;
   /** Live connection leases; stale entries are reclaimed with the session TTL after a crash. */
   owners?: readonly string[];
+  /** Active replay readers; stale entries are reclaimed with the session TTL after a crash. */
+  readers?: readonly string[];
   /** Persisted generation used to reject coverage written after another connection pruned data. */
   contentRevision?: number;
   nextSeq: number;
@@ -588,6 +590,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #maintenanceTimeoutMs: number;
   #shutdownDeadlineAt: number | undefined;
   #sessionCreated = false;
+  #readerLeaseCreated = false;
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
@@ -823,6 +826,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       }
 
       if (this.#accessMode === "reader") {
+        this.#readerLeaseCreated = await this.#awaitInitializationStage(
+          this.#registerReaderLease(),
+          "reader lease",
+        );
         await this.#awaitInitializationStage(
           this.#loadExistingMessageStats(),
           "message statistics",
@@ -878,6 +885,17 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           await this.#settleShutdownOperation(
             this.#updateSessionStatus(dbResult.value, "abandoned", { sealSession: true }),
             "session abandonment after initialization failure",
+          );
+        }
+      } else if (this.#readerLeaseCreated) {
+        const dbResult = await this.#settleShutdownOperation(
+          this.#dbPromise,
+          "database availability after reader initialization failure",
+        );
+        if (dbResult.status === "fulfilled") {
+          await this.#settleShutdownOperation(
+            this.#releaseReaderLease(dbResult.value),
+            "reader lease release after initialization failure",
           );
         }
       }
@@ -1040,7 +1058,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   /**
    * Run the same TTL, pressure, and global-budget pass from an idle maintenance-only store.
    * Returns when another pass should run if pressure is currently protecting a fresh active
-   * session that may belong to another tab.
+   * writer or replay reader that may belong to another tab.
    */
   public async runMaintenance(): Promise<number | undefined> {
     if (this.#accessMode !== "maintenance") {
@@ -1078,7 +1096,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         const now = Date.now();
         const nextStaleAt = sessions
           .filter(
-            (session) => session.status === "active" && session.lastActiveAt + staleAfterMs > now,
+            (session) =>
+              (session.status === "active" || (session.readers?.length ?? 0) > 0) &&
+              session.lastActiveAt + staleAfterMs > now,
           )
           .reduce<number | undefined>((earliest, session) => {
             const staleAt = session.lastActiveAt + staleAfterMs;
@@ -1153,9 +1173,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
 
   #trackTransaction<T extends ActiveTransaction>(
     transaction: T,
-    options: { allowWhileClosing?: boolean } = {},
+    options: { allowWhileClosing?: boolean; allowReaderMetadataWrite?: boolean } = {},
   ): T {
-    if (this.#accessMode === "reader" && transaction.mode === "readwrite") {
+    if (
+      this.#accessMode === "reader" &&
+      transaction.mode === "readwrite" &&
+      options.allowReaderMetadataWrite !== true
+    ) {
       transaction.abort();
       throw new Error("Reader IndexedDbMessageStore cannot start a readwrite transaction");
     }
@@ -1372,10 +1396,15 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       if (this.#shouldStopInitialization()) {
         return;
       }
+      const readerLeaseCutoff =
+        Date.now() -
+        (this.#kind === "playback-spill" ? PLAYBACK_SPILL_PRESSURE_STALE_MS : THREE_DAYS_MS);
       for (const session of sessions) {
-        totalBytes += normalizedStoredSize(session.approximateSizeBytes);
+        if (session.status === "active" || this.#hasFreshReaderLease(session, readerLeaseCutoff)) {
+          totalBytes += normalizedStoredSize(session.approximateSizeBytes);
+          sessionCount++;
+        }
       }
-      sessionCount = sessions.length;
     } catch (error) {
       if (this.#shouldStopInitialization()) {
         return;
@@ -1428,6 +1457,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         maxBytes: this.#maxCacheSize,
         status: "active",
         owners: Array.from(new Set([...(existing?.owners ?? []), this.#ownerId])),
+        readers: existing?.readers,
         contentRevision: normalizedContentRevision(
           existing?.contentRevision ?? this.#contentRevision,
         ),
@@ -1447,6 +1477,34 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       log.error("Failed to record session metadata:", error);
       throw error;
     }
+  }
+
+  async #registerReaderLease(): Promise<boolean> {
+    const db = await this.#dbPromise;
+    const tx = this.#trackTransaction(db.transaction(SESSIONS_STORE, "readwrite"), {
+      allowReaderMetadataWrite: true,
+    });
+    const store = tx.objectStore(SESSIONS_STORE);
+    const existing = await store.get(this.#currentSessionId);
+    if (existing == undefined) {
+      await tx.done;
+      return false;
+    }
+    if (existing.status === "pending-delete" || existing.status === "abandoned") {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be replayed");
+    }
+    await store.put({
+      ...existing,
+      readers: Array.from(new Set([...(existing.readers ?? []), this.#ownerId])),
+      lastActiveAt: Date.now(),
+    });
+    await tx.done;
+    return true;
+  }
+
+  #hasFreshReaderLease(session: CacheSessionMetadata, cutoffTime: number): boolean {
+    return (session.readers?.length ?? 0) > 0 && session.lastActiveAt > cutoffTime;
   }
 
   public async cleanupOldSessions(
@@ -1469,7 +1527,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         if (
           session.status === "pending-delete" ||
           session.status === "abandoned" ||
-          (session.sessionId !== this.#currentSessionId && session.lastActiveAt <= cutoffTime)
+          (session.sessionId !== this.#currentSessionId &&
+            session.lastActiveAt <= cutoffTime &&
+            !this.#hasFreshReaderLease(session, cutoffTime))
         ) {
           candidates.push(session);
         }
@@ -1550,10 +1610,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         return false;
       }
       if (staleGuard != undefined) {
+        const isTerminal =
+          sessionMetadata.status === "pending-delete" || sessionMetadata.status === "abandoned";
         if (
           sessionMetadata.kind !== staleGuard.kind ||
-          (sessionMetadata.status === "active" &&
-            sessionMetadata.lastActiveAt > staleGuard.cutoffTime)
+          (!isTerminal &&
+            ((sessionMetadata.status === "active" &&
+              sessionMetadata.lastActiveAt > staleGuard.cutoffTime) ||
+              this.#hasFreshReaderLease(sessionMetadata, staleGuard.cutoffTime)))
         ) {
           await sealTx.done;
           return false;
@@ -1904,18 +1968,28 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   public async touchSession(): Promise<boolean> {
-    if (!this.isWritable()) {
+    if (
+      this.#closed ||
+      this.#unavailable ||
+      (this.#accessMode === "reader" ? !this.#readerLeaseCreated : !this.isWritable())
+    ) {
       return false;
     }
     const db = await this.#dbPromise;
-    const tx = this.#trackTransaction(db.transaction(SESSIONS_STORE, "readwrite"));
+    const tx = this.#trackTransaction(db.transaction(SESSIONS_STORE, "readwrite"), {
+      allowReaderMetadataWrite: this.#accessMode === "reader",
+    });
     const store = tx.objectStore(SESSIONS_STORE);
     const existing = await store.get(this.#currentSessionId);
     if (existing == undefined) {
       await tx.done;
       return false;
     }
-    if (existing.status !== "active") {
+    if (
+      this.#accessMode === "reader"
+        ? !(existing.readers ?? []).includes(this.#ownerId)
+        : existing.status !== "active"
+    ) {
       await tx.done;
       return false;
     }
@@ -2335,6 +2409,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       .filter(
         (session) =>
           session.sessionId !== this.#currentSessionId &&
+          !this.#hasFreshReaderLease(session, staleCutoff) &&
           (session.status !== "active" || session.lastActiveAt <= staleCutoff),
       )
       .sort((left, right) => left.lastActiveAt - right.lastActiveAt);
@@ -2394,11 +2469,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (currentSession == undefined) {
       if (totalBytes > this.#globalBudgetBytes) {
         this.#writesDisabled = true;
-        log.warn("Disabling IndexedDbMessageStore writes because active sessions exceed budget", {
-          dbName: this.#dbName,
-          totalBytes,
-          maxCacheSize: this.#globalBudgetBytes,
-        });
+        log.warn(
+          "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
+          {
+            dbName: this.#dbName,
+            totalBytes,
+            maxCacheSize: this.#globalBudgetBytes,
+          },
+        );
       }
       return;
     }
@@ -2425,11 +2503,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     await finalTx.done;
     if (finalTotalBytes > this.#globalBudgetBytes) {
       this.#writesDisabled = true;
-      log.warn("Disabling IndexedDbMessageStore writes because active sessions exceed budget", {
-        dbName: this.#dbName,
-        totalBytes: finalTotalBytes,
-        maxCacheSize: this.#globalBudgetBytes,
-      });
+      log.warn(
+        "Disabling IndexedDbMessageStore writes because non-reclaimable sessions exceed budget",
+        {
+          dbName: this.#dbName,
+          totalBytes: finalTotalBytes,
+          maxCacheSize: this.#globalBudgetBytes,
+        },
+      );
     }
   }
 
@@ -2986,6 +3067,30 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     return this.#requestShutdown("closed", { discardQueued: false });
   }
 
+  public async closeAfter(pendingOperations: readonly Promise<unknown>[]): Promise<void> {
+    this.#beginShutdown();
+    const pendingResult = await this.#settleShutdownOperation(
+      Promise.allSettled(pendingOperations),
+      "pending close operations",
+      { reserveRemainingMs: this.#shutdownStatusReserveMs() },
+    );
+    let shutdownError: unknown =
+      pendingResult.status === "rejected"
+        ? pendingResult.reason
+        : pendingResult.value.find((result) => result.status === "rejected")?.reason;
+
+    try {
+      await this.#requestShutdown(shutdownError == undefined ? "closed" : "abandoned", {
+        discardQueued: shutdownError != undefined,
+      });
+    } catch (error) {
+      shutdownError ??= error;
+    }
+    if (shutdownError != undefined) {
+      throw toError(shutdownError);
+    }
+  }
+
   // Returning the stored promise directly preserves identity across concurrent callers.
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   #requestShutdown(
@@ -3084,6 +3189,19 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
             }
           }
         }
+      } else if (
+        dbResult.status === "fulfilled" &&
+        !this.#unavailable &&
+        this.#accessMode === "reader" &&
+        this.#readerLeaseCreated
+      ) {
+        const releaseResult = await this.#settleShutdownOperation(
+          this.#releaseReaderLease(dbResult.value),
+          "reader lease release",
+        );
+        if (releaseResult.status === "rejected") {
+          shutdownError ??= releaseResult.reason;
+        }
       } else if (dbResult.status === "rejected") {
         shutdownError ??= dbResult.reason;
       }
@@ -3137,6 +3255,24 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       }
     }
     await tx.done;
+  }
+
+  async #releaseReaderLease(db: IDB.IDBPDatabase<MessagesDB>): Promise<void> {
+    const tx = this.#trackTransaction(db.transaction(SESSIONS_STORE, "readwrite"), {
+      allowWhileClosing: true,
+      allowReaderMetadataWrite: true,
+    });
+    const store = tx.objectStore(SESSIONS_STORE);
+    const existing = await store.get(this.#currentSessionId);
+    if (existing != undefined) {
+      await store.put({
+        ...existing,
+        readers: (existing.readers ?? []).filter((reader) => reader !== this.#ownerId),
+        lastActiveAt: Date.now(),
+      });
+    }
+    await tx.done;
+    this.#readerLeaseCreated = false;
   }
 
   async #closeDatabaseConnection(): Promise<void> {
