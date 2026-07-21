@@ -53,6 +53,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   readonly freezeCurrentMessages: () => void;
   readonly clearFrozenMessages: () => void;
   readonly holdNavigationMessages: (messages: MessageAndData[]) => void;
+  readonly markPreviousFrameUnavailable: () => void;
   readonly resetRenderedHistory: () => void;
   readonly restoreFallbackState: () => RestoreFallbackStateResult;
   readonly runPreviousFrameToMessage: (message: MessageAndData) => boolean;
@@ -93,6 +94,10 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     frozenMessagesRef.current = undefined;
     keepFrozenMessagesAfterRestore.current = false;
     heldNavigationTime.current = undefined;
+  }, []);
+
+  const markPreviousFrameUnavailable = useCallback(() => {
+    setHasPreFrame(false);
   }, []);
 
   const resetRenderedHistory = useCallback(() => {
@@ -339,6 +344,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     freezeCurrentMessages,
     clearFrozenMessages,
     holdNavigationMessages,
+    markPreviousFrameUnavailable,
     resetRenderedHistory,
     restoreFallbackState,
     runPreviousFrameToMessage,
