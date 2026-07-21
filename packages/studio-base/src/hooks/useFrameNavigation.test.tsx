@@ -409,6 +409,9 @@ describe("useFrameNavigation", () => {
     currentTime = time(3);
     rerender();
     const playbackMessage = message(3, 1);
+    expect(result.current.getEffectiveMessages([messageAndData(playbackMessage)])).toEqual([
+      messageAndData(playbackMessage),
+    ]);
     act(() => {
       result.current.updateRenderedTime([messageAndData(playbackMessage)]);
     });

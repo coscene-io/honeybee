@@ -230,12 +230,17 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
 
   const getEffectiveMessages = useCallback(
     <T extends MessageAndData[]>(messages: T): T => {
+      const heldTime = heldNavigationTime.current;
+      const playbackPassedHeldTime =
+        heldTime != undefined &&
+        playbackTimeRef.current != undefined &&
+        compare(playbackTimeRef.current, heldTime) > 0;
       if (
         frozenMessagesRef.current != undefined &&
         (frameState.current !== "current" ||
           (keepFrozenMessagesAfterRestore.current &&
+            !playbackPassedHeldTime &&
             !messages.some((message) => {
-              const heldTime = heldNavigationTime.current;
               return (
                 heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0
               );
