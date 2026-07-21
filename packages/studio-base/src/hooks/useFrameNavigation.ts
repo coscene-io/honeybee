@@ -166,12 +166,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     setFrameNavigationStatusMessage(undefined);
   }, []);
 
-  const cancelActiveRangeNavigation = useCallback((): boolean => {
-    const hadActiveRangeNavigation = activeRangeNavigation.current != undefined;
+  const cancelActiveRangeNavigation = useCallback(() => {
     activeRangeNavigation.current?.abort();
     activeRangeNavigation.current = undefined;
     clearSearchFeedback();
-    return hadActiveRangeNavigation;
   }, [clearSearchFeedback]);
 
   const finishFrameNavigation = useCallback(() => {
@@ -227,8 +225,17 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     };
     const previousRestoreContext = lastRestoreContext.current;
     lastRestoreContext.current = latestRestoreContext;
+    const restoredAfterSeek =
+      latestActiveData != undefined &&
+      previousRestoreContext.playerId === latestRestoreContext.playerId &&
+      previousRestoreContext.lastSeekTime != undefined &&
+      latestRestoreContext.lastSeekTime !== previousRestoreContext.lastSeekTime;
 
     if (activeRangeNavigation.current != undefined) {
+      if (restoredAfterSeek) {
+        manualSeekTime.current = latestActiveData.currentTime;
+        currentMessagesRef.current = [];
+      }
       finishFrameNavigation();
       resetRenderedHistory();
       return;
@@ -241,12 +248,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         setIsFrameNavigationPending(false);
         return;
       case "manual-seek":
-        if (
-          latestActiveData != undefined &&
-          previousRestoreContext.playerId === latestRestoreContext.playerId &&
-          previousRestoreContext.lastSeekTime != undefined &&
-          latestRestoreContext.lastSeekTime !== previousRestoreContext.lastSeekTime
-        ) {
+        if (restoredAfterSeek) {
           manualSeekTime.current = latestActiveData.currentTime;
           currentMessagesRef.current = [];
         } else {
@@ -441,13 +443,12 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   );
 
   const handlePreviousFrame = useCallback(() => {
-    if (previousRangeExhausted.current) {
+    if (seekPlayback == undefined || previousRangeExhausted.current) {
       return;
     }
     if (
       subscribeMessageRange != undefined &&
       activeData != undefined &&
-      seekPlayback != undefined &&
       path.length > 0
     ) {
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
@@ -474,41 +475,35 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   const handleNextFrame = useCallback(
     (currentMessages?: MessageAndData[]) => {
+      if (seekPlayback == undefined) {
+        return;
+      }
       if (nextRangeExhausted.current) {
+        setFrameNavigationStatusMessage(noNextFrameMessage);
         return;
       }
       if (frameState.current !== "current") {
         return;
       }
       if (currentMessages) {
-        const heldTime = currentMessagesRef.current.at(-1)?.messageEvent.receiveTime;
-        const holdsPlaybackCursor =
-          heldTime != undefined &&
-          activeData != undefined &&
-          compare(heldTime, activeData.currentTime) === 0;
-        const includesHeldTime = currentMessages.some(
-          (message) =>
-            heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0,
-        );
-        if (!holdsPlaybackCursor || includesHeldTime) {
-          currentMessagesRef.current = currentMessages;
-        }
+        currentMessagesRef.current = getEffectiveMessages(currentMessages);
       }
 
       if (
         subscribeMessageRange != undefined &&
         activeData != undefined &&
-        seekPlayback != undefined &&
         path.length > 0
       ) {
         void runRangeFrameNavigation("next");
         return;
       }
 
-      runFallbackNextFrame(currentMessages);
+      runFallbackNextFrame(currentMessagesRef.current);
     },
     [
       activeData,
+      getEffectiveMessages,
+      noNextFrameMessage,
       path,
       runFallbackNextFrame,
       runRangeFrameNavigation,
@@ -548,9 +543,8 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   useEffect(() => {
     return () => {
-      if (cancelActiveRangeNavigation() || frameState.current !== "current") {
-        frameNavigationNotifier.cancelNavigation(navigationId.current);
-      }
+      cancelActiveRangeNavigation();
+      frameNavigationNotifier.cancelNavigation(navigationId.current);
     };
   }, [cancelActiveRangeNavigation]);
 

@@ -100,6 +100,15 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     heldNavigationTime.current = undefined;
   }, []);
 
+  const finishSupersededNavigation = useCallback(() => {
+    if (frameState.current !== "current") {
+      frameState.current = "current";
+      fallbackNextFrameActive.current = false;
+      fallbackNextStartTime.current = undefined;
+      clearFrozenMessages();
+    }
+  }, [clearFrozenMessages, frameState]);
+
   const markPreviousFrameUnavailable = useCallback(() => {
     setHasPreFrame(false);
   }, []);
@@ -149,7 +158,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
 
       pausePlayback?.();
-      notifier.startNavigation(navigationId.current);
+      notifier.startNavigation(navigationId.current, finishSupersededNavigation);
       fallbackNextFrameActive.current = false;
       fallbackNextStartTime.current = undefined;
       frameState.current = "previous";
@@ -162,7 +171,15 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
       return true;
     },
-    [frameState, holdNavigationMessages, navigationId, notifier, pausePlayback, seekPlayback],
+    [
+      finishSupersededNavigation,
+      frameState,
+      holdNavigationMessages,
+      navigationId,
+      notifier,
+      pausePlayback,
+      seekPlayback,
+    ],
   );
 
   const runPreviousFrameFromRenderedHistory = useCallback(
@@ -216,7 +233,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
 
       freezeCurrentMessages();
-      notifier.startNavigation(navigationId.current);
+      notifier.startNavigation(navigationId.current, finishSupersededNavigation);
       fallbackNextFrameActive.current = true;
       fallbackNextStartTime.current =
         currentMessagesRef.current.at(-1)?.messageEvent.receiveTime ??
@@ -225,7 +242,14 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       startPlayback?.();
       return true;
     },
-    [frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
+    [
+      finishSupersededNavigation,
+      frameState,
+      freezeCurrentMessages,
+      navigationId,
+      notifier,
+      startPlayback,
+    ],
   );
 
   const getEffectiveMessages = useCallback(
