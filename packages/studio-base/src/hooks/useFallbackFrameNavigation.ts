@@ -31,6 +31,7 @@ type UseFallbackFrameNavigationArgs = {
   readonly startPlayback: (() => void) | undefined;
   readonly pausePlayback: (() => void) | undefined;
   readonly activeTimes: ActiveTimes | undefined;
+  readonly playbackTime: Time | undefined;
 };
 
 function hasTimeSuffix(times: readonly Time[], suffix: readonly Time[]): boolean {
@@ -69,6 +70,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     navigationId,
     notifier,
     pausePlayback,
+    playbackTime,
     seekPlayback,
     startPlayback,
   } = args;
@@ -83,6 +85,8 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const fallbackNextStartTime = useRef<Time | undefined>();
   const activeTimesRef = useRef(activeTimes);
   activeTimesRef.current = activeTimes;
+  const playbackTimeRef = useRef(playbackTime);
+  playbackTimeRef.current = playbackTime;
 
   const freezeCurrentMessages = useCallback(() => {
     if (currentMessagesRef.current.length > 0) {
@@ -247,14 +251,18 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const updateRenderedTime = useCallback(
     (messages: MessageAndData[]) => {
       currentMessagesRef.current = messages;
+      const heldTime = heldNavigationTime.current;
+      const reachedHeldTime =
+        heldTime != undefined &&
+        messages.some((message) => compare(message.messageEvent.receiveTime, heldTime) === 0);
+      const playbackPassedHeldTime =
+        heldTime != undefined &&
+        playbackTimeRef.current != undefined &&
+        compare(playbackTimeRef.current, heldTime) > 0;
       if (
         frameState.current === "current" &&
-        messages.length > 0 &&
         keepFrozenMessagesAfterRestore.current &&
-        messages.some((message) => {
-          const heldTime = heldNavigationTime.current;
-          return heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0;
-        })
+        (reachedHeldTime || playbackPassedHeldTime)
       ) {
         clearFrozenMessages();
       }

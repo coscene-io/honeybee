@@ -127,7 +127,7 @@ function wrapper(options: {
   readonly seekPlayback?: (time: Time) => void;
   readonly pausePlayback?: () => void;
   readonly startPlayback?: () => void;
-  readonly currentTime?: Time;
+  readonly currentTime?: Time | (() => Time);
   readonly isPlaying?: boolean;
   readonly requestWindow?: number;
   readonly playerId?: () => string;
@@ -155,7 +155,11 @@ function wrapper(options: {
             pausePlayback={options.pausePlayback}
             startPlayback={options.startPlayback}
             startTime={time(0)}
-            currentTime={options.currentTime ?? time(1)}
+            currentTime={
+              typeof options.currentTime === "function"
+                ? options.currentTime()
+                : (options.currentTime ?? time(1))
+            }
             isPlaying={options.isPlaying}
             endTime={time(5)}
             playerId={options.playerId?.()}
@@ -330,12 +334,14 @@ describe("useFrameNavigation", () => {
 
   it("searches from the playback cursor after a manual seek leaves stale messages", async () => {
     const staleMessage = message(1, 1);
-    const subscribeMessageRange = makeSubscribeMessageRange([message(2, 1)]);
+    const rangeMessages = [message(2, 1)];
+    const subscribeMessageRange = makeSubscribeMessageRange(rangeMessages);
     const seekPlayback = jest.fn<void, [Time]>();
+    let currentTime = time(3);
 
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       () => useFrameNavigation({ path, noNextFrameMessage: "No next" }),
-      { wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: time(3) }) },
+      { wrapper: wrapper({ subscribeMessageRange, seekPlayback, currentTime: () => currentTime }) },
     );
 
     act(() => {
@@ -356,6 +362,55 @@ describe("useFrameNavigation", () => {
       expect(result.current.frameNavigationStatusMessage).toBe("No next");
     });
     expect(seekPlayback).not.toHaveBeenCalled();
+
+    currentTime = time(4);
+    rangeMessages.push(messageAt(time(3, 500_000_000), 1));
+    rerender();
+    act(() => {
+      const latestMessage = message(4, 1);
+      result.current.updateRenderedTime([messageAndData(latestMessage)]);
+      result.current.handleNextFrame([messageAndData(latestMessage)]);
+    });
+    await waitFor(() => {
+      expect(result.current.frameNavigationStatusMessage).toBe("No next");
+    });
+    expect(seekPlayback).not.toHaveBeenCalled();
+  });
+
+  it("releases a held frame after playback advances past it", async () => {
+    const heldMessage = message(2, 1);
+    const displayedMessage = message(1, 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([heldMessage]);
+    let currentTime = time(2);
+    const { result, rerender } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({
+        subscribeMessageRange,
+        seekPlayback: jest.fn<void, [Time]>(),
+        currentTime: () => currentTime,
+      }),
+    });
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(displayedMessage)]);
+      result.current.handleNextFrame([messageAndData(displayedMessage)]);
+    });
+    await waitFor(() => {
+      expect(result.current.isFrameNavigationPending).toBe(false);
+    });
+    expect(result.current.getEffectiveMessages([messageAndData(displayedMessage)])).toEqual([
+      messageAndData(heldMessage),
+    ]);
+
+    currentTime = time(3);
+    rerender();
+    const playbackMessage = message(3, 1);
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(playbackMessage)]);
+    });
+
+    expect(result.current.getEffectiveMessages([messageAndData(playbackMessage)])).toEqual([
+      messageAndData(playbackMessage),
+    ]);
   });
 
   it("uses rendered history before requesting a previous range", () => {

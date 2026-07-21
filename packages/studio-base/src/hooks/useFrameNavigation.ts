@@ -151,6 +151,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     startPlayback,
     pausePlayback,
     activeTimes: subscribeMessageRange != undefined && path.length > 0 ? activeTimes : undefined,
+    playbackTime: activeData?.currentTime,
   });
 
   const clearSearchFeedback = useCallback(() => {
@@ -480,6 +481,13 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const { panelRef, keyDownHandlers, keyUpHandlers } = useFrameNavigationKeyboard(keyboardActions);
 
   useEffect(() => {
+    if (
+      manualSeekTime.current != undefined &&
+      activeData != undefined &&
+      compare(manualSeekTime.current, activeData.currentTime) !== 0
+    ) {
+      manualSeekTime.current = undefined;
+    }
     nextRangeExhausted.current = false;
     previousRangeExhausted.current = false;
   }, [activeData?.currentTime.nsec, activeData?.currentTime.sec]);
