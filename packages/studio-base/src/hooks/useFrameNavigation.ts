@@ -120,6 +120,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const frameState = useRef<FrameNavigationState>("current");
   const activeRangeNavigation = useRef<AbortController | undefined>();
   const manualSeekTime = useRef<Time | undefined>();
+  const lastRestoreContext = useRef({
+    playerId,
+    lastSeekTime: activeData?.lastSeekTime,
+  });
   const nextRangeExhausted = useRef(false);
   const previousRangeExhausted = useRef(false);
   const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>();
@@ -215,6 +219,15 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   );
 
   const onRestore = useCallback(() => {
+    const latestPipelineState = getMessagePipelineState();
+    const latestActiveData = selectActiveData(latestPipelineState);
+    const latestRestoreContext = {
+      playerId: selectPlayerId(latestPipelineState),
+      lastSeekTime: latestActiveData?.lastSeekTime,
+    };
+    const previousRestoreContext = lastRestoreContext.current;
+    lastRestoreContext.current = latestRestoreContext;
+
     if (activeRangeNavigation.current != undefined) {
       finishFrameNavigation();
       resetRenderedHistory();
@@ -227,12 +240,12 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         manualSeekTime.current = undefined;
         setIsFrameNavigationPending(false);
         return;
-      case "manual-seek": {
-        const latestActiveData = selectActiveData(getMessagePipelineState());
+      case "manual-seek":
         if (
-          activeData != undefined &&
           latestActiveData != undefined &&
-          compare(activeData.currentTime, latestActiveData.currentTime) !== 0
+          previousRestoreContext.playerId === latestRestoreContext.playerId &&
+          previousRestoreContext.lastSeekTime != undefined &&
+          latestRestoreContext.lastSeekTime !== previousRestoreContext.lastSeekTime
         ) {
           manualSeekTime.current = latestActiveData.currentTime;
           currentMessagesRef.current = [];
@@ -240,12 +253,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           manualSeekTime.current = undefined;
         }
         return;
-      }
       case "other-navigation":
         return;
     }
   }, [
-    activeData,
     clearSearchFeedback,
     currentMessagesRef,
     finishFrameNavigation,
@@ -258,7 +269,12 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     (
       direction: FrameNavigationDirection,
       result: AdjacentMessagePathMatchResult,
-      context: { readonly rangeEndTime: Time; readonly wasPlaying: boolean },
+      context: {
+        readonly rangeStartTime: Time;
+        readonly rangeCurrentTime: Time;
+        readonly rangeEndTime: Time;
+        readonly wasPlaying: boolean;
+      },
     ) => {
       clearSearchFeedback();
       switch (result.type) {
@@ -277,14 +293,21 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           seekPlayback?.(targetTime);
           return;
         }
-        case "notFound":
+        case "notFound": {
+          const latestActiveData = selectActiveData(getMessagePipelineState());
           if (direction === "previous") {
-            previousRangeExhausted.current = true;
-            markPreviousFrameUnavailable();
-          } else {
-            const latestActiveData = selectActiveData(getMessagePipelineState());
             if (
               latestActiveData != undefined &&
+              compare(latestActiveData.startTime, context.rangeStartTime) === 0 &&
+              compare(latestActiveData.currentTime, context.rangeCurrentTime) === 0
+            ) {
+              previousRangeExhausted.current = true;
+              markPreviousFrameUnavailable();
+            }
+          } else {
+            if (
+              latestActiveData != undefined &&
+              compare(latestActiveData.currentTime, context.rangeCurrentTime) === 0 &&
               compare(latestActiveData.endTime, context.rangeEndTime) === 0
             ) {
               nextRangeExhausted.current = true;
@@ -295,6 +318,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
             direction === "previous" ? noPreviousFrameMessage : noNextFrameMessage,
           );
           return;
+        }
         case "unsupported": {
           frameState.current = "current";
           clearFrozenMessages();
@@ -396,6 +420,8 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       }
       activeRangeNavigation.current = undefined;
       handleRangeNavigationResult(direction, result, {
+        rangeStartTime: activeData.startTime,
+        rangeCurrentTime: activeData.currentTime,
         rangeEndTime: activeData.endTime,
         wasPlaying,
       });
