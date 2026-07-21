@@ -57,7 +57,7 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { BAG_OVERLAY_HEIGHT_PX, BagsOverlay } from "./BagsOverlay";
+import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
@@ -66,7 +66,14 @@ import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX } from "./TimelinePositionIndicator";
 import TimelineScrollbar from "./TimelineScrollbar";
-import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import {
+  BAG_OVERLAY_HEIGHT_PX,
+  EVENT_LANE_LAYER_TOP_PX,
+  getTimelineContentHeight,
+  SCRUBBER_TOOLBAR_HEIGHT_PX,
+  TIMELINE_RULER_HEIGHT_PX,
+} from "./constants";
+import { layoutEventLanes } from "./eventLanes";
 import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
@@ -88,12 +95,6 @@ import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.sv
 import RollingEditActiveIcon from "../../assets/rolling-edit-active.svg";
 import RollingEditInactiveIcon from "../../assets/rolling-edit-inactive.svg";
 
-const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
-const TIMELINE_RULER_HEIGHT_PX: number = 14;
-const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
-const EVENT_LANE_LAYER_TOP_PX: number =
-  TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
-const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 // Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
 const ZOOM_KEY_WHEEL_DELTA: number = 300;
 const TIMELINE_TOOLTIP_OFFSET_PX: number = 8;
@@ -964,12 +965,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const timelineContentHeight = useMemo((): number => {
     const effectiveEventLaneCount = previewEventLaneCount ?? eventLaneCount;
-
-    return Math.max(
-      MIN_TIMELINE_CONTENT_HEIGHT_PX,
-      EVENT_LANE_LAYER_TOP_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
-    );
-  }, [eventLaneCount, previewEventLaneCount]);
+    return getTimelineContentHeight({
+      eventLaneCount: effectiveEventLaneCount,
+      showEventLanes: resolvedViewport != undefined && enableList.event === "ENABLE",
+    });
+  }, [enableList.event, eventLaneCount, previewEventLaneCount, resolvedViewport]);
 
   const toggleRollingEdit = useCallback((): void => {
     setRollingEditEnabled((old) => !old);

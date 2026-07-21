@@ -42,11 +42,11 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
+import { EVENT_LANE_HEIGHT_PX } from "./constants";
 import {
   getEventLaneRenderStyle,
   layoutEventLanes,
   EVENT_BAR_HEIGHT_PX,
-  EVENT_LANE_HEIGHT_PX,
   type EventLaneLayout,
   type EventLaneLayoutItem,
 } from "./eventLanes";
