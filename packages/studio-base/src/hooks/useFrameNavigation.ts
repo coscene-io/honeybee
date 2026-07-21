@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import {
   useMessagePipeline,
+  useMessagePipelineGetter,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
@@ -97,6 +98,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const subscribeMessageRange = useMessagePipeline(selectSubscribeMessageRange);
   const activeData = useMessagePipeline(selectActiveData);
   const playerId = useMessagePipeline(selectPlayerId);
+  const getMessagePipelineState = useMessagePipelineGetter();
   const getMessagePathDataItems = useCachedGetMessagePathDataItems(path.length > 0 ? [path] : []);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -118,6 +120,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const frameState = useRef<FrameNavigationState>("current");
   const activeRangeNavigation = useRef<AbortController | undefined>();
   const manualSeekTime = useRef<Time | undefined>();
+  const nextRangeExhausted = useRef(false);
   const previousRangeExhausted = useRef(false);
   const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>();
 
@@ -224,17 +227,17 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         setIsFrameNavigationPending(false);
         return;
       case "manual-seek":
-        manualSeekTime.current = activeData?.currentTime;
+        manualSeekTime.current = selectActiveData(getMessagePipelineState())?.currentTime;
         currentMessagesRef.current = [];
         return;
       case "other-navigation":
         return;
     }
   }, [
-    activeData?.currentTime,
     clearSearchFeedback,
     currentMessagesRef,
     finishFrameNavigation,
+    getMessagePipelineState,
     resetRenderedHistory,
     restoreFallbackState,
   ]);
@@ -262,6 +265,8 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           if (direction === "previous") {
             previousRangeExhausted.current = true;
             markPreviousFrameUnavailable();
+          } else {
+            nextRangeExhausted.current = true;
           }
           finishFrameNavigation();
           setFrameNavigationStatusMessage(
@@ -418,6 +423,9 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   const handleNextFrame = useCallback(
     (currentMessages?: MessageAndData[]) => {
+      if (nextRangeExhausted.current) {
+        return;
+      }
       if (frameState.current !== "current") {
         return;
       }
@@ -472,6 +480,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const { panelRef, keyDownHandlers, keyUpHandlers } = useFrameNavigationKeyboard(keyboardActions);
 
   useEffect(() => {
+    nextRangeExhausted.current = false;
     previousRangeExhausted.current = false;
   }, [activeData?.currentTime.nsec, activeData?.currentTime.sec]);
 
@@ -485,6 +494,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   useEffect(() => {
     manualSeekTime.current = undefined;
+    nextRangeExhausted.current = false;
     previousRangeExhausted.current = false;
     finishFrameNavigation();
     resetRenderedHistory();

@@ -632,6 +632,12 @@ describe("useFrameNavigation", () => {
     expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
     expect(seekPlayback).not.toHaveBeenCalled();
 
+    const requestCount = subscribeMessageRange.mock.calls.length;
+    act(() => {
+      result.current.handleNextFrame([messageAndData(currentMessage)]);
+    });
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(requestCount);
+
     act(() => {
       result.current.onRestore();
     });
