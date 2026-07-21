@@ -64,6 +64,7 @@ export type LayoutState = Readonly<{
         data: LayoutData | undefined;
         name?: string;
         edited?: boolean;
+        editRevision?: number;
         transient?: boolean;
       }
     | undefined;
