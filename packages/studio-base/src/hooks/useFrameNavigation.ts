@@ -227,14 +227,25 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         manualSeekTime.current = undefined;
         setIsFrameNavigationPending(false);
         return;
-      case "manual-seek":
-        manualSeekTime.current = selectActiveData(getMessagePipelineState())?.currentTime;
-        currentMessagesRef.current = [];
+      case "manual-seek": {
+        const latestActiveData = selectActiveData(getMessagePipelineState());
+        if (
+          activeData != undefined &&
+          latestActiveData != undefined &&
+          compare(activeData.currentTime, latestActiveData.currentTime) !== 0
+        ) {
+          manualSeekTime.current = latestActiveData.currentTime;
+          currentMessagesRef.current = [];
+        } else {
+          manualSeekTime.current = undefined;
+        }
         return;
+      }
       case "other-navigation":
         return;
     }
   }, [
+    activeData,
     clearSearchFeedback,
     currentMessagesRef,
     finishFrameNavigation,
@@ -247,7 +258,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     (
       direction: FrameNavigationDirection,
       result: AdjacentMessagePathMatchResult,
-      context: { readonly wasPlaying: boolean },
+      context: { readonly rangeEndTime: Time; readonly wasPlaying: boolean },
     ) => {
       clearSearchFeedback();
       switch (result.type) {
@@ -271,7 +282,13 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
             previousRangeExhausted.current = true;
             markPreviousFrameUnavailable();
           } else {
-            nextRangeExhausted.current = true;
+            const latestActiveData = selectActiveData(getMessagePipelineState());
+            if (
+              latestActiveData != undefined &&
+              compare(latestActiveData.endTime, context.rangeEndTime) === 0
+            ) {
+              nextRangeExhausted.current = true;
+            }
           }
           finishFrameNavigation();
           setFrameNavigationStatusMessage(
@@ -378,7 +395,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         return;
       }
       activeRangeNavigation.current = undefined;
-      handleRangeNavigationResult(direction, result, { wasPlaying });
+      handleRangeNavigationResult(direction, result, {
+        rangeEndTime: activeData.endTime,
+        wasPlaying,
+      });
     },
     [
       activeData,
