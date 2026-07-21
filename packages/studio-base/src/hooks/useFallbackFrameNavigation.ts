@@ -229,7 +229,13 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       if (
         frozenMessagesRef.current != undefined &&
         (frameState.current !== "current" ||
-          (keepFrozenMessagesAfterRestore.current && messages.length === 0))
+          (keepFrozenMessagesAfterRestore.current &&
+            !messages.some((message) => {
+              const heldTime = heldNavigationTime.current;
+              return (
+                heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0
+              );
+            })))
       ) {
         return frozenMessagesRef.current as T;
       }

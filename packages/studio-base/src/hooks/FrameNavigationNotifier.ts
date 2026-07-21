@@ -6,28 +6,32 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export class FrameNavigationNotifier {
-  #activeNavigationId: string | undefined = undefined;
+  #activeNavigation: { readonly id: string; readonly onSuperseded?: () => void } | undefined =
+    undefined;
 
-  public startNavigation(navigationId: string): void {
-    this.#activeNavigationId = navigationId;
+  public startNavigation(navigationId: string, onSuperseded?: () => void): void {
+    const previousNavigation = this.#activeNavigation;
+    this.#activeNavigation = { id: navigationId, onSuperseded };
+    previousNavigation?.onSuperseded?.();
   }
 
   public endNavigation(navigationId: string): void {
-    if (this.#activeNavigationId === navigationId) {
+    const navigation = this.#activeNavigation;
+    if (navigation?.id === navigationId) {
       setTimeout(() => {
-        if (this.#activeNavigationId === navigationId) {
-          this.#activeNavigationId = undefined;
+        if (this.#activeNavigation === navigation) {
+          this.#activeNavigation = undefined;
         }
       }, 0);
     }
   }
 
   public isOtherNavigationActive(navigationId: string): boolean {
-    return this.#activeNavigationId != undefined && this.#activeNavigationId !== navigationId;
+    return this.#activeNavigation != undefined && this.#activeNavigation.id !== navigationId;
   }
 
   public isNavigationActive(navigationId: string): boolean {
-    return this.#activeNavigationId === navigationId;
+    return this.#activeNavigation?.id === navigationId;
   }
 }
 

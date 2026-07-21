@@ -117,6 +117,8 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
   const frameState = useRef<FrameNavigationState>("current");
   const activeRangeNavigation = useRef<AbortController | undefined>();
+  const manualSeekTime = useRef<Time | undefined>();
+  const previousRangeExhausted = useRef(false);
   const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>();
 
   const activeTimes = useMemo(() => {
@@ -178,7 +180,11 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       activeRangeNavigation.current = controller;
       freezeCurrentMessages();
       pausePlayback?.();
-      frameNavigationNotifier.startNavigation(navigationId.current);
+      frameNavigationNotifier.startNavigation(navigationId.current, () => {
+        if (activeRangeNavigation.current === controller) {
+          finishFrameNavigation();
+        }
+      });
       frameState.current = direction;
       setIsFrameNavigationPending(true);
       searchFeedbackTimer.current = setTimeout(() => {
@@ -194,6 +200,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     [
       clearSearchFeedback,
       freezeCurrentMessages,
+      finishFrameNavigation,
       pausePlayback,
       searchingNextFrameMessage,
       searchingPreviousFrameMessage,
@@ -213,11 +220,20 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         setIsFrameNavigationPending(false);
         return;
       case "manual-seek":
+        manualSeekTime.current = activeData?.currentTime;
+        currentMessagesRef.current = [];
         return;
       case "other-navigation":
         return;
     }
-  }, [clearSearchFeedback, finishFrameNavigation, resetRenderedHistory, restoreFallbackState]);
+  }, [
+    activeData?.currentTime,
+    clearSearchFeedback,
+    currentMessagesRef,
+    finishFrameNavigation,
+    resetRenderedHistory,
+    restoreFallbackState,
+  ]);
 
   const handleRangeNavigationResult = useCallback(
     (
@@ -240,6 +256,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         }
         case "notFound":
           if (direction === "previous") {
+            previousRangeExhausted.current = true;
             markPreviousFrameUnavailable();
           }
           finishFrameNavigation();
@@ -308,8 +325,13 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       }
 
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
+      const restoredSeekTime = manualSeekTime.current;
+      manualSeekTime.current = undefined;
       const fromTime =
-        rangeFromTime ?? latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+        rangeFromTime ??
+        restoredSeekTime ??
+        latestMessage?.messageEvent.receiveTime ??
+        activeData.currentTime;
       const controller = new AbortController();
       const wasPlaying = activeData.isPlaying;
 
@@ -360,6 +382,9 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   );
 
   const handlePreviousFrame = useCallback(() => {
+    if (previousRangeExhausted.current) {
+      return;
+    }
     if (
       subscribeMessageRange != undefined &&
       activeData != undefined &&
@@ -367,7 +392,9 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       path.length > 0
     ) {
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
-      const fromTime = latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+      const fromTime =
+        manualSeekTime.current ?? latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+      manualSeekTime.current = undefined;
       if (runPreviousFrameFromRenderedHistory(fromTime)) {
         return;
       }
@@ -432,14 +459,20 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const { panelRef, keyDownHandlers, keyUpHandlers } = useFrameNavigationKeyboard(keyboardActions);
 
   useEffect(() => {
+    previousRangeExhausted.current = false;
+  }, [activeData?.currentTime.nsec, activeData?.currentTime.sec]);
+
+  useEffect(() => {
     return () => {
-      if (cancelActiveRangeNavigation()) {
+      if (cancelActiveRangeNavigation() || frameState.current !== "current") {
         frameNavigationNotifier.endNavigation(navigationId.current);
       }
     };
   }, [cancelActiveRangeNavigation]);
 
   useEffect(() => {
+    manualSeekTime.current = undefined;
+    previousRangeExhausted.current = false;
     finishFrameNavigation();
     resetRenderedHistory();
   }, [
