@@ -679,6 +679,43 @@ describe("useFrameNavigation", () => {
     expect(requestedRanges).toHaveLength(3);
   });
 
+  it("continues previous navigation from a held frame while rendered messages are stale", async () => {
+    const firstPrevious = message(4, 1);
+    const secondPrevious = message(3, 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([secondPrevious, firstPrevious]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    let currentTime = time(5);
+    const { result, rerender } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({
+        subscribeMessageRange,
+        seekPlayback,
+        currentTime: () => currentTime,
+      }),
+    });
+    const staleCurrentFrame = messageAndData(message(5, 1));
+
+    act(() => {
+      result.current.updateRenderedTime([staleCurrentFrame]);
+      result.current.handlePreviousFrame();
+    });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(firstPrevious.receiveTime);
+    });
+
+    currentTime = firstPrevious.receiveTime;
+    rerender();
+    act(() => {
+      result.current.onRestore();
+      result.current.updateRenderedTime([staleCurrentFrame]);
+      result.current.handlePreviousFrame();
+    });
+
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(secondPrevious.receiveTime);
+    });
+    expect(seekPlayback).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps previous navigation enabled after rendered history is exhausted in range mode", async () => {
     const rangeFrame = messageAt(time(0, 500_000_000), 1);
     const subscribeMessageRange = makeSubscribeMessageRange([rangeFrame]);
@@ -786,6 +823,55 @@ describe("useFrameNavigation", () => {
 
     expect(seekPlayback).toHaveBeenCalledTimes(1);
     expect(seekPlayback).toHaveBeenCalledWith(time(3));
+  });
+
+  it("releases a held frame when another panel navigates backward", async () => {
+    const currentFrame = messageAndData(message(1, 1));
+    const heldFrame = messageAndData(message(2, 1));
+    const subscribeMessageRange = makeSubscribeMessageRange([heldFrame.messageEvent]);
+    const seekPlayback = jest.fn<void, [Time]>();
+    let currentTime = time(1);
+    const { result, rerender } = renderHook(
+      () => ({ first: useFrameNavigation({ path }), second: useFrameNavigation({ path }) }),
+      {
+        wrapper: wrapper({
+          subscribeMessageRange,
+          seekPlayback,
+          currentTime: () => currentTime,
+        }),
+      },
+    );
+
+    act(() => {
+      result.current.first.updateRenderedTime([currentFrame]);
+      result.current.second.updateRenderedTime([currentFrame]);
+      result.current.first.handleNextFrame([currentFrame]);
+    });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenLastCalledWith(heldFrame.messageEvent.receiveTime);
+    });
+
+    currentTime = heldFrame.messageEvent.receiveTime;
+    rerender();
+    act(() => {
+      result.current.first.onRestore();
+      result.current.first.updateRenderedTime([currentFrame]);
+      result.current.second.updateRenderedTime([heldFrame]);
+    });
+    expect(result.current.first.getEffectiveMessages([currentFrame])).toEqual([heldFrame]);
+
+    act(() => {
+      result.current.second.handlePreviousFrame();
+    });
+    expect(seekPlayback).toHaveBeenLastCalledWith(currentFrame.messageEvent.receiveTime);
+
+    currentTime = currentFrame.messageEvent.receiveTime;
+    rerender();
+    act(() => {
+      result.current.first.onRestore();
+      result.current.first.updateRenderedTime([currentFrame]);
+    });
+    expect(result.current.first.getEffectiveMessages([currentFrame])).toEqual([currentFrame]);
   });
 
   it("clears a completed seek when another panel supersedes it before restore", async () => {
@@ -1905,8 +1991,10 @@ describe("useFrameNavigation", () => {
     const pausePlayback = jest.fn<void, []>();
     const panelElement = document.createElement("div");
     const focusedElement = document.createElement("button");
+    const outsideInput = document.createElement("input");
     panelElement.appendChild(focusedElement);
     document.body.appendChild(panelElement);
+    document.body.appendChild(outsideInput);
 
     const { result, unmount } = renderHook(
       () =>
@@ -1939,15 +2027,14 @@ describe("useFrameNavigation", () => {
     expect(jest.getTimerCount()).toBe(1);
 
     act(() => {
-      requiredKeyHandler(
-        result.current.keyUpHandlers,
-        "ArrowUp",
-      )(new KeyboardEvent("keyup", { key: "ArrowUp" }));
+      outsideInput.focus();
+      outsideInput.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowUp", bubbles: true }));
     });
 
     expect(jest.getTimerCount()).toBe(0);
 
     act(() => {
+      focusedElement.focus();
       result.current.onRestore();
       jest.runOnlyPendingTimers();
       requiredKeyHandler(
@@ -1959,6 +2046,20 @@ describe("useFrameNavigation", () => {
     expect(startPlayback).toHaveBeenCalledTimes(1);
     expect(jest.getTimerCount()).toBe(1);
 
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(jest.getTimerCount()).toBe(0);
+
+    act(() => {
+      focusedElement.focus();
+      requiredKeyHandler(
+        result.current.keyDownHandlers,
+        "ArrowDown",
+      )(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    });
+    expect(jest.getTimerCount()).toBe(1);
+
     unmount();
 
     act(() => {
@@ -1967,5 +2068,6 @@ describe("useFrameNavigation", () => {
     expect(startPlayback).toHaveBeenCalledTimes(1);
     expect(jest.getTimerCount()).toBe(0);
     panelElement.remove();
+    outsideInput.remove();
   });
 });

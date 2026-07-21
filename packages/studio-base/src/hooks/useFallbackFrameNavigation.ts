@@ -133,6 +133,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       frameState.current === "current" &&
       notifier.isOtherNavigationActive(navigationId.current)
     ) {
+      clearFrozenMessages();
       return "other-navigation";
     }
 
