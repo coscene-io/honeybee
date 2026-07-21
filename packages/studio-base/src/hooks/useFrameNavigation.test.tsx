@@ -300,7 +300,8 @@ describe("useFrameNavigation", () => {
     const currentTime = time(2);
     const displayedMessage = message(1, 1);
     const currentMessage = messageAt(currentTime, 1);
-    const subscribeMessageRange = makeSubscribeMessageRange([currentMessage]);
+    const nextMessage = message(3, 1);
+    const subscribeMessageRange = makeSubscribeMessageRange([currentMessage, nextMessage]);
     const seekPlayback = jest.fn<void, [Time]>();
 
     const { result } = renderHook(() => useFrameNavigation({ path }), {
@@ -318,7 +319,13 @@ describe("useFrameNavigation", () => {
     expect(result.current.getEffectiveMessages([messageAndData(displayedMessage)])).toEqual([
       messageAndData(currentMessage),
     ]);
-    expect(seekPlayback).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleNextFrame([messageAndData(displayedMessage)]);
+    });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(nextMessage.receiveTime);
+    });
   });
 
   it("searches from the playback cursor after a manual seek leaves stale messages", async () => {

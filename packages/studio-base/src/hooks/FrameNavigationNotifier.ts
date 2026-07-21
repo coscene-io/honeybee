@@ -26,6 +26,12 @@ export class FrameNavigationNotifier {
     }
   }
 
+  public cancelNavigation(navigationId: string): void {
+    if (this.#activeNavigation?.id === navigationId) {
+      this.#activeNavigation = undefined;
+    }
+  }
+
   public isOtherNavigationActive(navigationId: string): boolean {
     return this.#activeNavigation != undefined && this.#activeNavigation.id !== navigationId;
   }

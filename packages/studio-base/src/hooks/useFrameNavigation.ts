@@ -420,7 +420,18 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         return;
       }
       if (currentMessages) {
-        currentMessagesRef.current = currentMessages;
+        const heldTime = currentMessagesRef.current.at(-1)?.messageEvent.receiveTime;
+        const holdsPlaybackCursor =
+          heldTime != undefined &&
+          activeData != undefined &&
+          compare(heldTime, activeData.currentTime) === 0;
+        const includesHeldTime = currentMessages.some(
+          (message) =>
+            heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0,
+        );
+        if (!holdsPlaybackCursor || includesHeldTime) {
+          currentMessagesRef.current = currentMessages;
+        }
       }
 
       if (
@@ -465,7 +476,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   useEffect(() => {
     return () => {
       if (cancelActiveRangeNavigation() || frameState.current !== "current") {
-        frameNavigationNotifier.endNavigation(navigationId.current);
+        frameNavigationNotifier.cancelNavigation(navigationId.current);
       }
     };
   }, [cancelActiveRangeNavigation]);
