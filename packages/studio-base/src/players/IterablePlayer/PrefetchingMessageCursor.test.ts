@@ -164,6 +164,21 @@ describe("PrefetchingMessageCursor", () => {
     await expect(cursor.next()).resolves.toEqual(stamp(3));
   });
 
+  it("returns EOF from readUntil when the prefetched batch is exhausted", async () => {
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValueOnce([stamp(1)])
+      .mockResolvedValueOnce(undefined);
+    const readUntil = jest.fn(async () => []);
+    const underlying = { ...makeCursor(nextBatch), readUntil };
+    const cursor = new PrefetchingMessageCursor(underlying);
+
+    await cursor.nextBatch(100);
+
+    await expect(cursor.readUntil({ sec: 2, nsec: 0 } as Time)).resolves.toBeUndefined();
+    expect(readUntil).not.toHaveBeenCalled();
+  });
+
   it("delegates direct reads before batch prefetching starts", async () => {
     const nextBatch = jest
       .fn<Promise<IteratorResult[] | undefined>, [number]>()

@@ -134,7 +134,17 @@ export function useFrameNavigationKeyboard(args: UseFrameNavigationKeyboardArgs)
   );
 
   useEffect(() => {
+    const stopRepeatOnKeyUp = (event: KeyboardEvent) => {
+      if (keyRepeatState.current.key === event.key || keyRepeatState.current.key === event.code) {
+        clearRepeatTimers();
+      }
+    };
+
+    document.addEventListener("keyup", stopRepeatOnKeyUp, true);
+    window.addEventListener("blur", clearRepeatTimers);
     return () => {
+      document.removeEventListener("keyup", stopRepeatOnKeyUp, true);
+      window.removeEventListener("blur", clearRepeatTimers);
       clearRepeatTimers();
     };
   }, [clearRepeatTimers]);
