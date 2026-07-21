@@ -128,6 +128,7 @@ function wrapper(options: {
   readonly pausePlayback?: () => void;
   readonly startPlayback?: () => void;
   readonly currentTime?: Time | (() => Time);
+  readonly endTime?: Time | (() => Time);
   readonly isPlaying?: boolean;
   readonly requestWindow?: number;
   readonly playerId?: () => string;
@@ -161,7 +162,11 @@ function wrapper(options: {
                 : (options.currentTime ?? time(1))
             }
             isPlaying={options.isPlaying}
-            endTime={time(5)}
+            endTime={
+              typeof options.endTime === "function"
+                ? options.endTime()
+                : (options.endTime ?? time(5))
+            }
             playerId={options.playerId?.()}
           >
             {children}
@@ -697,6 +702,42 @@ describe("useFrameNavigation", () => {
       result.current.onRestore();
     });
     expect(result.current.frameNavigationStatusMessage).toBeUndefined();
+  });
+
+  it("retries next navigation when the available range grows", async () => {
+    const rangeMessages: MessageEvent[] = [];
+    const subscribeMessageRange = makeSubscribeMessageRange(rangeMessages);
+    const seekPlayback = jest.fn<void, [Time]>();
+    let endTime = time(2);
+    const { result, rerender } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({
+        subscribeMessageRange,
+        seekPlayback,
+        currentTime: time(1),
+        endTime: () => endTime,
+      }),
+    });
+    const currentMessage = message(1, 1);
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(currentMessage)]);
+      result.current.handleNextFrame([messageAndData(currentMessage)]);
+    });
+    await waitFor(() => {
+      expect(result.current.isFrameNavigationPending).toBe(false);
+    });
+
+    const newMessage = message(3, 1);
+    rangeMessages.push(newMessage);
+    endTime = time(3);
+    rerender();
+    act(() => {
+      result.current.handleNextFrame([messageAndData(currentMessage)]);
+    });
+
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(newMessage.receiveTime);
+    });
   });
 
   it("exposes cancellable inline feedback for a slow range navigation", async () => {

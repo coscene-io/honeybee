@@ -493,6 +493,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   }, [activeData?.currentTime.nsec, activeData?.currentTime.sec]);
 
   useEffect(() => {
+    nextRangeExhausted.current = false;
+  }, [activeData?.endTime.nsec, activeData?.endTime.sec]);
+
+  useEffect(() => {
     return () => {
       if (cancelActiveRangeNavigation() || frameState.current !== "current") {
         frameNavigationNotifier.cancelNavigation(navigationId.current);
