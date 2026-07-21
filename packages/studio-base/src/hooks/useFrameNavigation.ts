@@ -446,11 +446,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     if (seekPlayback == undefined || previousRangeExhausted.current) {
       return;
     }
-    if (
-      subscribeMessageRange != undefined &&
-      activeData != undefined &&
-      path.length > 0
-    ) {
+    if (subscribeMessageRange != undefined && activeData != undefined && path.length > 0) {
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
       const fromTime =
         manualSeekTime.current ?? latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
@@ -489,11 +485,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         currentMessagesRef.current = getEffectiveMessages(currentMessages);
       }
 
-      if (
-        subscribeMessageRange != undefined &&
-        activeData != undefined &&
-        path.length > 0
-      ) {
+      if (subscribeMessageRange != undefined && activeData != undefined && path.length > 0) {
         void runRangeFrameNavigation("next");
         return;
       }
