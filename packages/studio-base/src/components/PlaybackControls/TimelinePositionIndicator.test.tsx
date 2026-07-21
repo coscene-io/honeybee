@@ -25,6 +25,7 @@ describe("<TimelinePositionIndicator />", () => {
 
     expect(indicatorStyle.top).toBe("0px");
     expect(indicatorStyle.bottom).toBe("0px");
+    expect(indicatorStyle.overflow).toBe("hidden");
     expect(indicatorStyle.zIndex).toBe("4");
     expect(getComputedStyle(handle!).height).toBe("129px");
     expect(getComputedStyle(line).top).toBe("128px");

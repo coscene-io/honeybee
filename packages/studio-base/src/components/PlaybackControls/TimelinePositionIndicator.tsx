@@ -12,6 +12,7 @@ import { makeStyles } from "tss-react/mui";
 const useStyles = makeStyles()(() => ({
   root: {
     bottom: 0,
+    overflow: "hidden",
     pointerEvents: "none",
     position: "absolute",
     top: 0,

@@ -242,6 +242,30 @@ describe("<Scrubber />", () => {
     expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
   });
 
+  it("does not reserve event-lane height when events are disabled", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    const timelineContent = screen.getByTestId("timeline-content");
+    expect(timelineContent.style.minHeight).toBe("26px");
+    expect(getComputedStyle(timelineContent.parentElement!).overflowY).toBe("auto");
+  });
+
+  it("reserves only the rendered event-lane height when events are enabled", async () => {
+    render(
+      <Wrapper eventEnabled>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("58px");
+    });
+  });
+
   it("shows timeline loading while keyframe search is active", () => {
     render(
       <Wrapper>

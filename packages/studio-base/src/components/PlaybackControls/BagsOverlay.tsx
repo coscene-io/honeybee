@@ -18,9 +18,11 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 
+import { BAG_OVERLAY_HEIGHT_PX } from "./constants";
 import { type TimelineViewport, timelineRangeToStyle } from "./timelineViewport";
 
-export const BAG_OVERLAY_HEIGHT_PX: number = 12;
+export { BAG_OVERLAY_HEIGHT_PX } from "./constants";
+
 const BAG_TICK_HEIGHT_PX: number = 6;
 const BAG_TICK_HOVERED_HEIGHT_PX: number = 12;
 
