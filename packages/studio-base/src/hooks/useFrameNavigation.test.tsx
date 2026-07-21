@@ -348,6 +348,14 @@ describe("useFrameNavigation", () => {
       expect(result.current.frameNavigationStatusMessage).toBe("No next");
     });
     expect(seekPlayback).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleNextFrame([messageAndData(staleMessage)]);
+    });
+    await waitFor(() => {
+      expect(result.current.frameNavigationStatusMessage).toBe("No next");
+    });
+    expect(seekPlayback).not.toHaveBeenCalled();
   });
 
   it("uses rendered history before requesting a previous range", () => {
@@ -512,6 +520,52 @@ describe("useFrameNavigation", () => {
       expect(seekPlayback).toHaveBeenCalledTimes(1);
     });
     expect(seekPlayback).toHaveBeenCalledWith(time(3));
+  });
+
+  it("clears a completed seek when another panel supersedes it before restore", async () => {
+    const secondRelease = deferred();
+    let requestIndex = 0;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      const index = requestIndex++;
+      void onNewRangeIterator(
+        (async function* () {
+          if (index === 1) {
+            await secondRelease.promise;
+          }
+          yield [message(index === 0 ? 2 : 3, 1)];
+        })(),
+      );
+      return jest.fn();
+    });
+    const seekPlayback = jest.fn<void, [Time]>();
+    const { result } = renderHook(
+      () => ({ first: useFrameNavigation({ path }), second: useFrameNavigation({ path }) }),
+      { wrapper: wrapper({ subscribeMessageRange, seekPlayback }) },
+    );
+    const currentMessage = messageAndData(message(1, 1));
+
+    act(() => {
+      result.current.first.updateRenderedTime([currentMessage]);
+      result.current.second.updateRenderedTime([currentMessage]);
+      result.current.first.handleNextFrame([currentMessage]);
+    });
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(time(2));
+    });
+
+    act(() => {
+      result.current.second.handleNextFrame([currentMessage]);
+    });
+
+    expect(result.current.first.isFrameNavigationPending).toBe(false);
+    expect(result.current.first.getEffectiveMessages([currentMessage])).toEqual([currentMessage]);
+    await act(async () => {
+      secondRelease.resolve();
+      await Promise.resolve();
+    });
   });
 
   it("keeps the found range frame visible when the seek snapshot has no matching messages", async () => {

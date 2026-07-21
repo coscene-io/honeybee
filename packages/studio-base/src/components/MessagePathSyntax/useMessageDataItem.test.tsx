@@ -190,6 +190,38 @@ describe("useMessageDataItem", () => {
     ]);
   });
 
+  it("uses the latest restore callback", () => {
+    let rosTopics: Topic[] = [];
+    const firstRestore = jest.fn();
+    const secondRestore = jest.fn();
+    const { rerender } = renderHook(
+      ({ onRestore }) => useMessageDataItem("/topic.value", { historySize: 1, onRestore }),
+      {
+        initialProps: { onRestore: firstRestore },
+        wrapper({ children }) {
+          return (
+            <MockCurrentLayoutProvider>
+              <MockMessagePipelineProvider
+                messages={fixtureMessages}
+                topics={rosTopics}
+                datatypes={datatypes}
+              >
+                {children}
+              </MockMessagePipelineProvider>
+            </MockCurrentLayoutProvider>
+          );
+        },
+      },
+    );
+    firstRestore.mockClear();
+
+    rosTopics = topics;
+    rerender({ onRestore: secondRestore });
+
+    expect(firstRestore).not.toHaveBeenCalled();
+    expect(secondRestore).toHaveBeenCalled();
+  });
+
   it("clears previous messages on topic change", async () => {
     const { result, rerender } = renderHook(
       ({ path }) => useMessageDataItem(path, { historySize: 2 }),

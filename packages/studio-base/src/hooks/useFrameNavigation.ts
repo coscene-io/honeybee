@@ -181,7 +181,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       freezeCurrentMessages();
       pausePlayback?.();
       frameNavigationNotifier.startNavigation(navigationId.current, () => {
-        if (activeRangeNavigation.current === controller) {
+        if (
+          activeRangeNavigation.current === controller ||
+          (activeRangeNavigation.current == undefined && frameState.current !== "current")
+        ) {
           finishFrameNavigation();
         }
       });
@@ -217,6 +220,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     clearSearchFeedback();
     switch (restoreFallbackState()) {
       case "restored":
+        manualSeekTime.current = undefined;
         setIsFrameNavigationPending(false);
         return;
       case "manual-seek":
@@ -326,7 +330,6 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
       const restoredSeekTime = manualSeekTime.current;
-      manualSeekTime.current = undefined;
       const fromTime =
         rangeFromTime ??
         restoredSeekTime ??
@@ -394,7 +397,6 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
       const fromTime =
         manualSeekTime.current ?? latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
-      manualSeekTime.current = undefined;
       if (runPreviousFrameFromRenderedHistory(fromTime)) {
         return;
       }
