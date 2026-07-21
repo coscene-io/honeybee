@@ -255,7 +255,11 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           currentMessagesRef.current = [result.message];
           holdNavigationMessages([result.message]);
           const targetTime = result.message.messageEvent.receiveTime;
-          if (activeData != undefined && compare(targetTime, activeData.currentTime) === 0) {
+          const latestActiveData = selectActiveData(getMessagePipelineState());
+          if (
+            latestActiveData != undefined &&
+            compare(targetTime, latestActiveData.currentTime) === 0
+          ) {
             onRestore();
             return;
           }
@@ -301,12 +305,12 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       }
     },
     [
-      activeData,
       currentMessagesRef,
       clearFrozenMessages,
       clearSearchFeedback,
       enqueueSnackbar,
       finishFrameNavigation,
+      getMessagePipelineState,
       holdNavigationMessages,
       markPreviousFrameUnavailable,
       noNextFrameMessage,

@@ -337,6 +337,47 @@ describe("useFrameNavigation", () => {
     });
   });
 
+  it("seeks when playback moves after a range search starts", async () => {
+    const release = deferred();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          await release.promise;
+          yield [message(2, 1)];
+        })(),
+      );
+      return jest.fn();
+    });
+    const seekPlayback = jest.fn<void, [Time]>();
+    let currentTime = time(2);
+    const { result, rerender } = renderHook(() => useFrameNavigation({ path }), {
+      wrapper: wrapper({
+        subscribeMessageRange,
+        seekPlayback,
+        currentTime: () => currentTime,
+      }),
+    });
+    const displayedMessage = message(1, 1);
+
+    act(() => {
+      result.current.updateRenderedTime([messageAndData(displayedMessage)]);
+      result.current.handleNextFrame([messageAndData(displayedMessage)]);
+    });
+    currentTime = time(3);
+    rerender();
+    await act(async () => {
+      release.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(seekPlayback).toHaveBeenCalledWith(time(2));
+    });
+  });
+
   it("searches from the playback cursor after a manual seek leaves stale messages", async () => {
     const staleMessage = message(1, 1);
     const rangeMessages = [message(2, 1)];
