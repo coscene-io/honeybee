@@ -20,6 +20,6 @@
     "@typescript-eslint/rule-tester": "8.61.1",
     "@typescript-eslint/utils": "8.61.1",
     "eslint": "9.39.4",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   }
 }
