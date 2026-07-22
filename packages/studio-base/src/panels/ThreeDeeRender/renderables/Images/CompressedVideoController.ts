@@ -15,6 +15,12 @@ import {
   toNanoSec,
 } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
+import {
+  rei125LookbackEnd,
+  rei125LookbackReadEnd,
+  rei125LookbackReadStart,
+  rei125LookbackStart,
+} from "@foxglove/studio-base/util/rei125PerfProbe";
 
 import type {
   CompressedVideoFrameEvent,
@@ -24,6 +30,7 @@ import type {
 import { CompressedVideo } from "./ImageTypes";
 import { normalizeCompressedVideo } from "./imageNormalizers";
 import { VideoGopCache, parseVideoFrameInfo } from "./videoGopCache";
+import { globalVideoSeekLookbackGate } from "./videoSeekLookbackGate";
 import { IRenderer } from "../../IRenderer";
 import { PartialMessageEvent } from "../../SceneExtension";
 
@@ -87,7 +94,9 @@ type ControllerRenderer = Pick<
 export class CompressedVideoController {
   readonly #topic: string;
   readonly #renderer: ControllerRenderer;
-  readonly #cache = new VideoGopCache();
+  // Shares a process-wide byte budget with the other video panels' caches (REI-125): one 64 MB
+  // cache per Image panel meant a 5-camera layout could hold 320 MB of frames in the JS heap.
+  readonly #cache = new VideoGopCache({ sharedBudget: true });
   readonly #state: ControllerState = {};
 
   #displayFrames: CompressedVideoDisplayFrames;
@@ -331,6 +340,8 @@ export class CompressedVideoController {
 
   public dispose(): void {
     this.clear();
+    // Return this panel's share of the shared GOP cache budget (REI-125).
+    this.#cache.dispose();
   }
 
   #shouldStartImplicitSeekBackfill(args: {
@@ -626,6 +637,11 @@ export class CompressedVideoController {
     lookbackTargetNs: bigint,
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
+    // REI-125 perf probe. Concurrency limiting itself lives in #readRangeGated: the gate covers
+    // only the network range read, not this whole lookback (decode/display and retry backoff must
+    // not hold a slot). See videoSeekLookbackGate.ts for why.
+    rei125LookbackStart();
+
     this.#beginSeekKeyframeSearch(generation);
     try {
       const seekTime = fromNanoSec(lookbackTargetNs);
@@ -718,6 +734,7 @@ export class CompressedVideoController {
       return false;
     } finally {
       this.#endSeekKeyframeSearch(generation);
+      rei125LookbackEnd();
     }
   }
 
@@ -792,18 +809,56 @@ export class CompressedVideoController {
     startTime: Time,
     endTime: Time,
   ): Promise<MessageEvent[] | undefined> {
-    let frames = await this.#readRange(generation, startTime, endTime);
+    let frames = await this.#readRangeGated(generation, startTime, endTime);
     for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
       if (frames != undefined || !this.#isCurrentLookback(generation)) {
         return frames;
       }
+      // Backoff happens outside the concurrency slot so a retrying camera does not block others.
       await delay(retryDelayMs);
       if (!this.#isCurrentLookback(generation)) {
         return undefined;
       }
-      frames = await this.#readRange(generation, startTime, endTime);
+      frames = await this.#readRangeGated(generation, startTime, endTime);
     }
     return frames;
+  }
+
+  /**
+   * Single range-read attempt holding a lookback concurrency slot (REI-125).
+   *
+   * This is the only section the gate covers. Keeping decode, the window ladder and retry backoff
+   * outside means a stalled camera can occupy a slot for at most one read timeout, and cameras
+   * 3-5 no longer wait on earlier cameras' decode work.
+   */
+  async #readRangeGated(
+    generation: number,
+    startTime: Time,
+    endTime: Time,
+  ): Promise<MessageEvent[] | undefined> {
+    // Prefer tryAcquire so the common under-limit path stays synchronous (tests and single-camera
+    // seeks don't pay a microtask).
+    const waitStart = performance.now();
+    if (!globalVideoSeekLookbackGate.tryAcquire()) {
+      const acquired = await globalVideoSeekLookbackGate.acquire(() =>
+        this.#isCurrentLookback(generation),
+      );
+      if (!acquired) {
+        // Superseded by a newer seek while queued; no slot held.
+        return undefined;
+      }
+      if (!this.#isCurrentLookback(generation)) {
+        globalVideoSeekLookbackGate.release();
+        return undefined;
+      }
+    }
+    rei125LookbackReadStart(performance.now() - waitStart);
+    try {
+      return await this.#readRange(generation, startTime, endTime);
+    } finally {
+      rei125LookbackReadEnd();
+      globalVideoSeekLookbackGate.release();
+    }
   }
 
   async #readRange(
