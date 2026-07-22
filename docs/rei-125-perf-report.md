@@ -3,7 +3,7 @@
 **Date:** 2026-07-22  
 **Branch:** `rei-125-astribot-perf`  
 **Scope:** Targeted, reversible optimizations for Astribot S1 share-manifest layout  
-**Status:** Implemented + revised after Codex **and Claude** second-opinion reviews; unit-tested (local browser A/B still recommended before merge)
+**Status:** Implemented + revised after Codex **and Claude** second-opinion reviews; unit-tested; dual-port A/B re-run 2026-07-22T17:20Z (see `docs/rei-125-browser/ab-compare.md`)
 
 > **Revision 3 (Claude review).** The first dual-port A/B showed no wall-clock win. Root-causing that
 > found three defects in the fixes themselves, all now resolved. Read
@@ -261,7 +261,21 @@ Local deep link on `yarn web:serve` (`http://localhost:8080/?ds=coscene-share-ma
 
 Screenshots: `docs/rei-125-browser/` (copied from run) or `/tmp/rei-125-browser/`.
 
-**Not an A/B:** no unfixed baseline measured in the same harness. Numbers validate **smoke health** of the fixed build, not % wins vs pre-fix.
+### Dual-port A/B (with-fixes :18181 vs main+probe :18182)
+
+Full table and honesty notes: **`docs/rei-125-browser/ab-compare.md`**. Fresh pair **2026-07-22T17:20Z**:
+
+| Metric | with-fixes | without-fixes |
+|--------|----------:|--------------:|
+| seekSettleMedianMs | 738 | 811 (small / noisy) |
+| seekSettleTotalMs (5 seeks) | 4896 | 4917 (tied) |
+| heap MB end | **535** | 849 |
+| stBuildMsMax | **~1.05** | ~5.09 |
+| lookbackReadMaxConcurrent | **2** | n/a (baseline hooks) |
+| blockLoadSpanCount | 1 | 1 |
+| tReadyMs | 4542 | 3628 (no load-time win) |
+
+Seek wall-clock is **run-to-run variable** (an earlier pair showed a larger settle gap; archived under `docs/rei-125-browser/archive/`). Stronger, repeatable signals this re-run: **heap** and **ST peak rebuild**. Do not claim multi-run statistical settle wins from n=1.
 
 ---
 
