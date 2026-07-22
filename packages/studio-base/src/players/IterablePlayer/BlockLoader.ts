@@ -259,6 +259,8 @@ export class BlockLoader {
         start: cursorStartTime,
         end: cursorEndTime,
         consumptionType: "full",
+        // This read fills the preload cache; sources may downsample high-rate topics.
+        allowDownsampling: true,
       };
 
       // If the source provides a message cursor we use its message cursor, otherwise we make one
