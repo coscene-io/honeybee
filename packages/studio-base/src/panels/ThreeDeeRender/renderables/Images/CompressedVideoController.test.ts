@@ -20,6 +20,7 @@ import {
 } from "./CompressedVideoController";
 import { type CompressedVideoFrameEvent, type ImageSetImageResult } from "./ImageRenderable";
 import { CompressedVideo } from "./ImageTypes";
+import { globalVideoSeekLookbackGate } from "./videoSeekLookbackGate";
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -122,6 +123,8 @@ async function flushAsyncWork(): Promise<void> {
 
 describe("CompressedVideoController", () => {
   beforeEach(() => {
+    // Isolate multi-camera seek lookback gate state across tests (REI-125).
+    globalVideoSeekLookbackGate.resetForTests();
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);
     jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
@@ -132,6 +135,7 @@ describe("CompressedVideoController", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+    globalVideoSeekLookbackGate.resetForTests();
   });
 
   afterEach(() => {
