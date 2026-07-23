@@ -93,7 +93,7 @@ export const durationToNanoSeconds = (duration?: DurationLike): bigint => {
     return BigInt(0);
   }
 
-  return BigInt(duration.seconds) * BigInt(1e9) + BigInt(duration.nanos);
+  return duration.seconds * 1_000_000_000n + BigInt(duration.nanos);
 };
 
 export const secondsToDuration = (seconds: number): Duration => {

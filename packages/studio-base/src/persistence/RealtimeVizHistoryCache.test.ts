@@ -132,6 +132,8 @@ describe("RealtimeVizHistoryCache", () => {
       await cache.init();
       cache.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }], new Map());
 
+      // The expectation must be registered before advancing the timer that settles the promise.
+      // eslint-disable-next-line jest/valid-expect
       const closeExpectation = expect(cache.close()).rejects.toThrow("pending close operations");
       await jest.advanceTimersByTimeAsync(5_000);
       await closeExpectation;

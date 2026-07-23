@@ -109,14 +109,14 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
     const isFileMode = mode === "select-files-from-record" || mode === "select-files-from-project";
 
     if (isFileMode) {
-      (onConfirm as (files: SelectedFile[]) => void)(selectedFiles);
+      onConfirm(selectedFiles);
       setSelectedFiles([]);
       closeDialog();
       return;
     }
 
     if (targetRecord && targetProject) {
-      (onConfirm as (record: Record, project: Project) => void)(targetRecord, targetProject);
+      onConfirm(targetRecord, targetProject);
       closeDialog();
     }
   }, [mode, selectedFiles, targetRecord, targetProject, onConfirm, closeDialog]);

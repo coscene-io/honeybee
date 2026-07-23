@@ -212,7 +212,7 @@ export function decodeFloat1c(
   width: number,
   height: number,
   step: number,
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   is_bigendian: boolean,
   output: Uint8ClampedArray,
 ): void {
@@ -263,7 +263,7 @@ export function decodeMono16(
   width: number,
   height: number,
   step: number,
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   is_bigendian: boolean,
   output: Uint8ClampedArray,
   options?: {

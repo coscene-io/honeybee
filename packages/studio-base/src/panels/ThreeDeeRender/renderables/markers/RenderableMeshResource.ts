@@ -51,7 +51,7 @@ export class RenderableMeshResource extends RenderableMarker {
   public override update(
     newMarker: Marker,
     receiveTime: bigint | undefined,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     forceLoad?: boolean,
   ): void {
     const prevMarker = this.userData.marker;

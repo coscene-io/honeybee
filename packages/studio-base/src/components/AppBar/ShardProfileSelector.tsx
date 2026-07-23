@@ -181,7 +181,7 @@ export function ShardProfileSelector(): React.JSX.Element | ReactNull {
       <Select
         value={selectedValue}
         onChange={(e) => {
-          onChange(String(e.target.value));
+          onChange(e.target.value);
         }}
         className={classes.select}
         displayEmpty

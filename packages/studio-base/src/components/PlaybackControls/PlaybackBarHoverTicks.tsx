@@ -91,12 +91,7 @@ function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
   });
 
   const hoverTimeDisplay = useMemo(() => {
-    if (
-      !hoverValue ||
-      hoverValue.type !== "PLAYBACK_SECONDS" ||
-      !startTime ||
-      hoverValue.value < 0
-    ) {
+    if (hoverValue?.type !== "PLAYBACK_SECONDS" || !startTime || hoverValue.value < 0) {
       return undefined;
     }
     const stamp = add(startTime, fromSec(hoverValue.value));
@@ -120,8 +115,7 @@ function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
 
   const hoverPositionPx = useMemo(() => {
     if (
-      hoverValue == undefined ||
-      hoverValue.type !== "PLAYBACK_SECONDS" ||
+      hoverValue?.type !== "PLAYBACK_SECONDS" ||
       width == undefined ||
       viewport.visibleEndSec === viewport.visibleStartSec
     ) {

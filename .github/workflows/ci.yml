@@ -30,9 +30,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .eslintcache
-          key: ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config.cjs', 'eslint.config.ci.cjs', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config*.cjs', 'eslint/**', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config.cjs', 'eslint.config.ci.cjs', 'tsconfig.json', 'tsconfig.eslint.json') }}-
+            ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config*.cjs', 'eslint/**', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-
 
       - run: set -x
 

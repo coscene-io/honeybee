@@ -316,7 +316,7 @@ export default class UserScriptPlayer implements Player {
     return !this.#lifecycleClosed && lifecycleGeneration === this.#lifecycleGeneration;
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public enableRepeatPlayback(enable: boolean): void {
     this.#player.enableRepeatPlayback?.(enable);
   }
@@ -432,9 +432,7 @@ export default class UserScriptPlayer implements Player {
             if (outputMessage) {
               // https://github.com/typescript-eslint/typescript-eslint/issues/6632
               let messages = messagesByTopic[outTopic];
-              if (!messages) {
-                messages = [];
-              }
+              messages ??= [];
               messages.push(outputMessage);
               messagesByTopic[outTopic] = messages;
             }

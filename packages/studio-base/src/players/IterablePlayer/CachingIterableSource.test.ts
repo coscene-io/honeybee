@@ -849,7 +849,7 @@ describe("CachingIterableSource", () => {
       start: { sec: 0, nsec: 0 },
       end: { sec: 10, nsec: 0 },
       abortSignal: abortController.signal,
-    } as MessageIteratorArgs & { abortSignal: AbortSignal });
+    });
 
     await expect(iterator.next()).resolves.toMatchObject({
       done: false,
@@ -1801,7 +1801,7 @@ describe("CachingIterableSource", () => {
       start: { sec: 0, nsec: 0 },
       end: { sec: 5, nsec: 0 },
       abortSignal: abortController.signal,
-    } as MessageIteratorArgs & { abortSignal: AbortSignal });
+    });
 
     await expect(iterator.next()).resolves.toMatchObject({
       done: false,

@@ -320,9 +320,9 @@ export const constructDatatypes = (
   const getRosMsgField = (
     name: string,
     tsNode: ts.Node,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     isArray: boolean = false,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     isComplex: boolean = false,
     typeMap: TypeMap = {},
     innerDepth: number = 1,
@@ -577,7 +577,7 @@ export const constructDatatypes = (
     }
   };
 
-  const { members = [] } = node;
+  const { members } = node;
   const rosMsgFields = members.map((member) => {
     if (!member.name) {
       throw new DatatypeExtractionError({

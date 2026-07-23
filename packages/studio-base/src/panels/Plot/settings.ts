@@ -27,7 +27,7 @@ export const DEFAULT_PATH: PlotPath = Object.freeze({
 });
 
 const makeSeriesNode = memoizeWeak(
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   (path: PlotPath, index: number, canDelete: boolean, t: TFunction<"plot">): SettingsTreeNode => {
     return {
       actions: canDelete
@@ -261,7 +261,7 @@ function buildSettingsTree(
         minXValue: {
           label: t("min"),
           input: "number",
-          value: config.minXValue != undefined ? Number(config.minXValue) : undefined,
+          value: config.minXValue,
           placeholder: t("auto", {
             ns: "general",
           }),
@@ -270,7 +270,7 @@ function buildSettingsTree(
           label: t("max"),
           input: "number",
           error: maxXError,
-          value: config.maxXValue != undefined ? Number(config.maxXValue) : undefined,
+          value: config.maxXValue,
           placeholder: t("auto", {
             ns: "general",
           }),

@@ -12,7 +12,12 @@ updates:
     groups:
       eslint:
         patterns:
+          - "eslint"
+          - "@eslint/*"
           - "@typescript-eslint/*"
+          - "typescript-eslint"
+          - "eslint-config-*"
+          - "eslint-plugin-*"
       emotion:
         patterns:
           - "@emotion/*"

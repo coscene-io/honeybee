@@ -143,7 +143,7 @@ export function logMessageCacheMetric(
 
 /** Final PostHog hook: SDK URL/referrer enrichment happens after capture() is called. */
 export const sanitizeMessageCacheCaptureResult: BeforeSendFn = (result) => {
-  if (!result || result.event !== AppEvent.MESSAGE_CACHE) {
+  if (result?.event !== AppEvent.MESSAGE_CACHE) {
     return result;
   }
 

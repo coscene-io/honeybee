@@ -239,7 +239,7 @@ export default function CurrentLayoutProvider({
     const listener: LayoutManagerEventTypes["change"] = (event) => {
       const { updatedLayout } = event;
       const currentSelectedLayout = layoutStateRef.current.selectedLayout;
-      if (updatedLayout && currentSelectedLayout && updatedLayout.id === currentSelectedLayout.id) {
+      if (updatedLayout && updatedLayout.id === currentSelectedLayout?.id) {
         const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
         const dataChanged =
           currentSelectedLayout.data != undefined &&

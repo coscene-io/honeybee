@@ -349,7 +349,7 @@ function EventTick({
 
   const isHovered =
     forceHovered ||
-    (hoveredEvent != undefined && eventName === hoveredEvent.event.name) ||
+    eventName === hoveredEvent?.event.name ||
     eventsAtHoverValue[eventName] != undefined ||
     loopedEvent?.event.name === eventName;
   const showEdges = isHovered || selectedEventId === eventName || isDragging;
@@ -889,8 +889,7 @@ function areEventMarksEqual(
     left.every((leftMark, index) => {
       const rightMark = right[index];
       return (
-        rightMark != undefined &&
-        leftMark.key === rightMark.key &&
+        leftMark.key === rightMark?.key &&
         Math.abs(leftMark.position - rightMark.position) < 1e-9 &&
         areEqual(leftMark.time, rightMark.time)
       );

@@ -38,7 +38,7 @@ class BenchmarkStats {
       const sortedFrameMs = values.sort();
       const medianFrameMs = sortedFrameMs[Math.floor(sortedFrameMs.length * 0.5)]!;
       const p90FrameMs = sortedFrameMs[Math.floor(sortedFrameMs.length * 0.9)]!;
-      const stddev = std(values);
+      const stddev = Number(std(values));
 
       log.info(
         `Frame time (filtered) average: ${avgFrameMs}, median: ${medianFrameMs}, P90: ${p90FrameMs}, stddev: ${stddev}`,

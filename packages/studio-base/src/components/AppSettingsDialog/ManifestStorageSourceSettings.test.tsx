@@ -76,7 +76,7 @@ function renderSetting(options: { sourceId?: string; fixedManifestOk?: boolean }
 } {
   const appConfiguration = new TestAppConfiguration();
   const reloadCurrentSource = jest.fn(async () => {});
-  global.fetch = jest.fn().mockResolvedValue({ ok: options.fixedManifestOk ?? true } as Response);
+  global.fetch = jest.fn().mockResolvedValue({ ok: options.fixedManifestOk ?? true });
   window.cosConfig = { OBJECT_STORAGE_BASE_URL: DEFAULT_OBJECT_STORAGE_BASE_URL };
 
   function Wrapper(props: PropsWithChildren): React.JSX.Element {

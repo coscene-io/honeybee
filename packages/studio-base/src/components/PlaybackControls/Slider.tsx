@@ -167,9 +167,7 @@ function Slider(props: Props): React.JSX.Element {
         return;
       }
       pendingHoverRef.current = { clientX };
-      if (hoverAnimationFrameRef.current == undefined) {
-        hoverAnimationFrameRef.current = requestAnimationFrame(flushPendingHover);
-      }
+      hoverAnimationFrameRef.current ??= requestAnimationFrame(flushPendingHover);
     },
     [cancelPendingHover, flushPendingHover, onHoverOver],
   );

@@ -326,9 +326,18 @@ describe("IterablePlayer", () => {
   it("creates an isolated playback spill session when enabled", async () => {
     await clearIndexedDbMessageStoreDatabase();
     const originalCrypto = globalThis.crypto;
+    const cryptoWithFixedUuid = new Proxy(originalCrypto, {
+      get(target, property) {
+        if (property === "randomUUID") {
+          return () => "00000000-0000-4000-8000-000000000000";
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
     Object.defineProperty(globalThis, "crypto", {
       configurable: true,
-      value: { ...originalCrypto, randomUUID: () => "00000000-0000-4000-8000-000000000000" },
+      value: cryptoWithFixedUuid,
     });
 
     const source = new TestSource();

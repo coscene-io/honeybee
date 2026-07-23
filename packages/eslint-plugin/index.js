@@ -7,23 +7,16 @@
 
 module.exports = {
   rules: {
+    "filename-match-exported": require("./filename-match-exported"),
     "link-target": require("./link-target"),
     "lodash-ramda-imports": require("./lodash-ramda-imports"),
-    "ramda-usage": require("./ramda-usage"),
+    "no-boolean-parameters": require("./no-boolean-parameters"),
     "no-map-type-argument": require("./no-map-type-argument"),
+    "no-regexp-lookbehind-assertions": require("./no-regexp-lookbehind-assertions"),
+    "no-return-promise-resolve": require("./no-return-promise-resolve"),
+    "prefer-hash-private": require("./prefer-hash-private"),
+    "ramda-usage": require("./ramda-usage"),
+    "strict-equality": require("./strict-equality"),
     "license-header": require("./license-header"),
-  },
-
-  configs: {
-    all: {
-      plugins: ["@foxglove/studio"],
-      rules: {
-        "@foxglove/studio/link-target": "error",
-        "@foxglove/studio/lodash-ramda-imports": "error",
-        "@foxglove/studio/ramda-usage": "error",
-        "@foxglove/studio/no-map-type-argument": "error",
-        "@foxglove/studio/license-header": "error",
-      },
-    },
   },
 };

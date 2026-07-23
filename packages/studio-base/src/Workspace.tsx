@@ -310,7 +310,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         {
           title: t("recordInfo"),
           component: RecordInfo,
-          hidden: dataSource == undefined || dataSource.id !== "coscene-data-platform",
+          hidden: dataSource?.id !== "coscene-data-platform",
         },
       ],
       ["variables", { title: t("variables"), component: VariablesList }],

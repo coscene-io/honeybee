@@ -70,9 +70,11 @@ export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowCon
 export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
 
 // Persistence
+/* eslint-disable @typescript-eslint/no-deprecated -- Preserve the public type export during migration. */
 export type {
   PersistentMessageCache,
   PersistentMessageCacheAppendOptions,
   PersistenceSessionId,
 } from "./persistence/PersistentMessageCache";
+/* eslint-enable @typescript-eslint/no-deprecated */
 export { IndexedDbMessageStore } from "./persistence/IndexedDbMessageStore";

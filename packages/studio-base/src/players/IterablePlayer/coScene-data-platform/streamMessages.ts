@@ -240,9 +240,7 @@ export async function* streamMessages({
             });
 
             // Assign a unique connection ID for each topic in this streaming session
-            if (connectionIdByTopic[info.channel.topic] == undefined) {
-              connectionIdByTopic[info.channel.topic] = nextConnectionId++;
-            }
+            connectionIdByTopic[info.channel.topic] ??= nextConnectionId++;
             const connectionId = connectionIdByTopic[info.channel.topic]!;
 
             results.push({

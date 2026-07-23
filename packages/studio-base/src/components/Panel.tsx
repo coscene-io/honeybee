@@ -173,8 +173,7 @@ export default function Panel<
     const panelCatalog = usePanelCatalog();
 
     const mosaicPath = useContext(MosaicPathContext);
-    const isTopLevelPanel =
-      mosaicPath != undefined && mosaicPath.length === 0 && tabId == undefined;
+    const isTopLevelPanel = mosaicPath?.length === 0 && tabId == undefined;
 
     // There may be a parent panel (when a panel is in a tab).
     const parentPanelContext = useContext(PanelContext);
@@ -396,7 +395,7 @@ export default function Panel<
     );
 
     const setHasFullscreenDescendant = useCallback(
-      // eslint-disable-next-line @foxglove/no-boolean-parameters
+      // eslint-disable-next-line @coscene-io/no-boolean-parameters
       (value: boolean) => {
         _setHasFullscreenDescendant(value);
         parentPanelContext?.setHasFullscreenDescendant(value);

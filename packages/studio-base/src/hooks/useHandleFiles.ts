@@ -59,7 +59,7 @@ export function useHandleFiles(): {
   const findMatchingSource = useCallback(
     (fileName: string) => {
       const ext = extname(fileName);
-      return availableSources.find((source) => source.supportedFileTypes?.includes(ext));
+      return availableSources.find((source) => source.supportedFileTypes?.includes(ext) ?? false);
     },
     [availableSources],
   );
@@ -85,7 +85,7 @@ export function useHandleFiles(): {
       for (const source of availableSources) {
         const filteredFiles = files.filter((file) => {
           const ext = extname(file.name);
-          return source.supportedFileTypes?.includes(ext);
+          return source.supportedFileTypes?.includes(ext) ?? false;
         });
 
         if (filteredFiles.length > 0) {

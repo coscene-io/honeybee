@@ -388,7 +388,7 @@ export default function Table({
               value={pageSize}
               size="small"
               onChange={(e) => {
-                table.setPageSize(Number(e.target.value));
+                table.setPageSize(e.target.value);
               }}
               MenuProps={{
                 slotProps: {

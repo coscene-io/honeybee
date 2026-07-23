@@ -191,11 +191,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     // Check if series changed (need to reset all data)
     const seriesChanged =
       this.#series.length !== newSeries.length ||
-      this.#series.some(
-        (s, i) =>
-          s.path.value !== newSeries[i]?.path.value ||
-          s.path.timestampMethod !== newSeries[i]?.path.timestampMethod,
-      );
+      this.#series.some((s, i) => {
+        const nextSeries = newSeries[i];
+        return (
+          s.path.value !== nextSeries?.path.value ||
+          s.path.timestampMethod !== nextSeries.path.timestampMethod
+        );
+      });
 
     if (seriesChanged) {
       this.#blockCursors.clear();
@@ -698,7 +700,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
     // Check cache - if data length and y are the same, reuse cached result
     const cached = this.#processedDataCache.get(cacheKey);
-    if (cached && cached.inputLength === data.length && cached.y === y) {
+    if (cached?.inputLength === data.length && cached.y === y) {
       return cached.data;
     }
 

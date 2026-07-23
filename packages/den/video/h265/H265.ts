@@ -60,7 +60,7 @@ export class H265 implements H26xCodec {
   }
 
   public GetFirstNALUOfType(data: Uint8Array, naluType: number): Uint8Array | undefined {
-    return H265.GetFirstNALUOfType(data, naluType as H265NaluType);
+    return H265.GetFirstNALUOfType(data, naluType);
   }
 
   public ParseDecoderConfig(data: Uint8Array): VideoDecoderConfig | undefined {
@@ -141,6 +141,6 @@ export class H265 implements H26xCodec {
   }
 
   public static GetNaluTypeFromHeader(headerByte: number): H265NaluType {
-    return ((headerByte >> 1) & 0x3f) as H265NaluType;
+    return (headerByte >> 1) & 0x3f;
   }
 }

@@ -32,7 +32,7 @@ export class DynamicBufferGeometry extends THREE.BufferGeometry {
     name: string,
     arrayConstructor: C,
     itemSize: number,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     normalized?: boolean,
   ): THREE.BufferGeometry {
     const data = new arrayConstructor(this.#itemCapacity * itemSize);

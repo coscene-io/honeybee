@@ -19,7 +19,7 @@ class MockEncodedVideoChunk {
   public readonly timestamp: number;
 
   public constructor(init: EncodedVideoChunkInit) {
-    this.timestamp = Number(init.timestamp);
+    this.timestamp = init.timestamp;
   }
 }
 

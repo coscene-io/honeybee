@@ -286,6 +286,8 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     const closeError = new Error("cache close failed");
 
     const closePromise = player.close();
+    // The expectation must be registered before the close event settles the promise.
+    // eslint-disable-next-line jest/valid-expect
     const rejection = expect(closePromise).rejects.toBe(closeError);
     client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
     cache.rejectClose(closeError);

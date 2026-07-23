@@ -87,9 +87,7 @@ type DecodeBatchState = {
 };
 
 function getVideoPlayer(): VideoPlayer {
-  if (!videoPlayer) {
-    videoPlayer = new VideoPlayer();
-  }
+  videoPlayer ??= new VideoPlayer();
   return videoPlayer;
 }
 
@@ -127,8 +125,7 @@ function retainOrResolveTargetFrame(
 ): boolean {
   const pending = pendingTargetFrame;
   if (
-    pending == undefined ||
-    pending.requestId !== requestId ||
+    pending?.requestId !== requestId ||
     pending.originalTimestamp !== decodedFrame.originalTimestamp ||
     pending.receiveTime !== decodedFrame.receiveTime
   ) {
@@ -138,9 +135,7 @@ function retainOrResolveTargetFrame(
   if (pending.resolve != undefined) {
     pendingTargetFrame = undefined;
     pending.resolve(
-      Comlink.transfer({ type: "TargetFrame", requestId, ...decodedFrame }, [
-        decodedFrame.frame,
-      ]) as AwaitTargetFrameResult,
+      Comlink.transfer({ type: "TargetFrame", requestId, ...decodedFrame }, [decodedFrame.frame]),
     );
   } else {
     closeDecodedVideoFrameResult(pending.retainedFrame);
@@ -458,7 +453,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     });
 
     if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
-      return Comlink.transfer(result, [result.frame]) as DecodeVideoFramesResult;
+      return Comlink.transfer(result, [result.frame]);
     }
     return result;
   } finally {
@@ -474,7 +469,7 @@ function isBatchAborted(batchState: { aborted: boolean }): boolean {
 
 async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
   const pending = pendingTargetFrame;
-  if (pending == undefined || pending.requestId !== args.requestId) {
+  if (pending?.requestId !== args.requestId) {
     return { type: "Aborted", requestId: args.requestId };
   }
 
@@ -483,7 +478,7 @@ async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTarget
     pendingTargetFrame = undefined;
     return Comlink.transfer({ type: "TargetFrame", requestId: args.requestId, ...retainedFrame }, [
       retainedFrame.frame,
-    ]) as AwaitTargetFrameResult;
+    ]);
   }
 
   return await new Promise<AwaitTargetFrameResult>((resolve) => {

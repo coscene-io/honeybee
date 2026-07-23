@@ -14,7 +14,6 @@ import { normalizeFrameTransform } from "@foxglove/studio-base/panels/ThreeDeeRe
 import {
   AdvertiseOptions,
   BlockCache,
-  MessageBlock,
   Player,
   PlayerCapabilities,
   PlayerPresence,
@@ -203,7 +202,7 @@ class TransformPreloadingPlayer implements Player {
           Math.min(start150HzIndex + numMessagesPerBlock150Hz, msgs150Hz.length),
         ),
       };
-      blocks.push(block as MessageBlock);
+      blocks.push(block);
     }
 
     const progressForListener = {

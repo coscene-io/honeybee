@@ -60,7 +60,7 @@ function makeDOMRect(x: number, y: number, width: number, height: number): DOMRe
     x,
     y,
     toJSON: () => ({}),
-  } as DOMRect;
+  };
 }
 
 export function getTimelinePositionIndicatorHandleAnchorRect(rect: DOMRect): DOMRect {

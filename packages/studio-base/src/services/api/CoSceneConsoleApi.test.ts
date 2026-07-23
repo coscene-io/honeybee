@@ -80,6 +80,27 @@ describe("CoSceneConsoleApi", () => {
     });
   });
 
+  it("normalizes Headers and tuple inputs without exposing a Headers instance", async () => {
+    const api = await createApi(completeBaseInfo);
+    const requestHeaders = new Headers({ "X-Headers-Input": "headers" });
+
+    const fromHeaders = api.getRequectConfig("/v1/me", { headers: requestHeaders }).fullConfig
+      .headers;
+    const fromTuples = api.getRequectConfig("/v1/me", {
+      headers: [["X-Tuple-Input", "tuples"]],
+    }).fullConfig.headers;
+
+    expect(fromHeaders).not.toBeInstanceOf(Headers);
+    expect(new Headers(fromHeaders).get("X-Headers-Input")).toBe("headers");
+    expect(fromTuples).toEqual(
+      expect.objectContaining({
+        Authorization: "Bearer test-token",
+        "Record-Name": recordName,
+        "X-Tuple-Input": "tuples",
+      }),
+    );
+  });
+
   it("omits Record-Name when record id is missing", async () => {
     const api = await createApi({
       warehouseId: "warehouse-id",

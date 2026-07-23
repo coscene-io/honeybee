@@ -204,7 +204,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         const imgId = uuidv4();
 
         const imgFileDisplayName = `${imgId}.${
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-nullish-coalescing
           ((event.imageFile as any).path || event.imageFile.name).split(".").pop()
         }`;
 

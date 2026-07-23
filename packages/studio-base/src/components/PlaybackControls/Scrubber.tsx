@@ -597,9 +597,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const scheduleTimelineHover = useCallback(
     (hoverEvent: HoverOverEvent): void => {
       pendingTimelineHoverRef.current = hoverEvent;
-      if (timelineHoverAnimationFrameRef.current == undefined) {
-        timelineHoverAnimationFrameRef.current = requestAnimationFrame(flushPendingTimelineHover);
-      }
+      timelineHoverAnimationFrameRef.current ??= requestAnimationFrame(flushPendingTimelineHover);
     },
     [flushPendingTimelineHover],
   );
