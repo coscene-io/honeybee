@@ -1,0 +1,115 @@
+{
+    "collectedAt": "2026-07-22T17:20:24.551Z",
+    "external": {
+        "fps": [
+            14.99,
+            15,
+            14.97,
+            14.99,
+            14.99
+        ],
+        "heapMB": 535,
+        "longTaskCountAll": 8,
+        "longTaskTotalAll": 1602,
+        "nav": {
+            "domContentLoadedMs": 266,
+            "loadEventEndMs": 1250
+        },
+        "paint": [
+            {
+                "name": "first-paint",
+                "startMs": 120
+            },
+            {
+                "name": "first-contentful-paint",
+                "startMs": 1453
+            }
+        ],
+        "play": {
+            "heapMB": 533,
+            "longTaskCount": 1,
+            "longTaskTotalMs": 120,
+            "longTasksOver50": 1,
+            "maxLongTaskMs": 120,
+            "wallMs": 6582
+        },
+        "seek": {
+            "heapMB": 469,
+            "inputMethod": "button",
+            "longTaskCount": 1,
+            "longTaskTotalMs": 59,
+            "longTasksOver50": 1,
+            "maxLongTaskMs": 59,
+            "noActivitySeeks": 1,
+            "settleMedianMs": 738,
+            "settleMs": [
+                525,
+                738,
+                719,
+                1170,
+                1744
+            ],
+            "settleTotalMs": 4896,
+            "wallMs": 7741
+        },
+        "tReadyFromHarnessStartMs": 1130,
+        "tReadyMs": 4542
+    },
+    "inAppProbe": {
+        "counters": {
+            "blockLoadSpanCount": 1,
+            "lookbackEnd": 10,
+            "lookbackMaxConcurrent": 5,
+            "lookbackReadEnd": 40,
+            "lookbackReadMaxConcurrent": 2,
+            "lookbackReadStart": 40,
+            "lookbackReadWaitMsTotal": 6946.230000004172,
+            "lookbackStart": 10,
+            "lookbackWaitMsTotal": 0,
+            "stBuildCount": 269,
+            "stBuildMsMax": 1.0549999997019768,
+            "stBuildMsTotal": 45.520000007003546
+        },
+        "enabled": true,
+        "longTasks": [
+            {
+                "duration": 128,
+                "start": 138.24500000104308
+            },
+            {
+                "duration": 676,
+                "start": 557.0449999999255
+            },
+            {
+                "duration": 165,
+                "start": 1255.875
+            },
+            {
+                "duration": 56,
+                "start": 2153.495000001043
+            },
+            {
+                "duration": 51,
+                "start": 2213.370000001043
+            },
+            {
+                "duration": 347,
+                "start": 3700.515000000596
+            },
+            {
+                "duration": 59,
+                "start": 10096.849999999627
+            },
+            {
+                "duration": 120,
+                "start": 15608.455000000076
+            }
+        ],
+        "marks": {},
+        "samples": [],
+        "startedAt": 2205.9049999993294,
+        "updatedAt": 19136.925000000745
+    },
+    "label": "with-fixes",
+    "port": 18181
+}

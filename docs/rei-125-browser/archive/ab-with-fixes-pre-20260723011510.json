@@ -1,0 +1,95 @@
+{
+    "collectedAt": "2026-07-22T09:25:03.814Z",
+    "external": {
+        "fps": [
+            14.99,
+            15,
+            14.97,
+            14.99,
+            14.99
+        ],
+        "heapMB": 847,
+        "longTaskCountAll": 7,
+        "longTaskTotalAll": 1367,
+        "nav": {
+            "domContentLoadedMs": 217,
+            "loadEventEndMs": 1045
+        },
+        "paint": [
+            {
+                "name": "first-paint",
+                "startMs": 81
+            },
+            {
+                "name": "first-contentful-paint",
+                "startMs": 1264
+            }
+        ],
+        "play": {
+            "heapMB": 846,
+            "longTaskCount": 0,
+            "longTaskTotalMs": 0,
+            "longTasksOver50": 0,
+            "maxLongTaskMs": 0,
+            "wallMs": 6340
+        },
+        "seek": {
+            "heapMB": 554,
+            "longTaskCount": 1,
+            "longTaskTotalMs": 61,
+            "longTasksOver50": 1,
+            "maxLongTaskMs": 61,
+            "wallMs": 4905
+        },
+        "tReadyMs": 2234
+    },
+    "inAppProbe": {
+        "counters": {
+            "blockLoadSpanCount": 8,
+            "lookbackEnd": 10,
+            "lookbackMaxConcurrent": 2,
+            "lookbackStart": 10,
+            "lookbackWaitMsTotal": 2580.554999947548,
+            "stBuildCount": 470,
+            "stBuildMsMax": 1.540000021457672,
+            "stBuildMsTotal": 63.8549998998642
+        },
+        "enabled": true,
+        "longTasks": [
+            {
+                "duration": 122,
+                "start": 96.7750000357628
+            },
+            {
+                "duration": 606,
+                "start": 421.8950000405312
+            },
+            {
+                "duration": 164,
+                "start": 1055.8100000023842
+            },
+            {
+                "duration": 52,
+                "start": 1917.2050000429151
+            },
+            {
+                "duration": 51,
+                "start": 2005.185000002384
+            },
+            {
+                "duration": 311,
+                "start": 2673.770000040531
+            },
+            {
+                "duration": 61,
+                "start": 4328.9400000572205
+            }
+        ],
+        "marks": {},
+        "samples": [],
+        "startedAt": 2053.175000011921,
+        "updatedAt": 14893.910000026226
+    },
+    "label": "with-fixes",
+    "port": 18181
+}

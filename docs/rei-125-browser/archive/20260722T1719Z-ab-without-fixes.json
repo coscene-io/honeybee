@@ -1,0 +1,103 @@
+{
+    "collectedAt": "2026-07-22T17:16:20.732Z",
+    "external": {
+        "fps": [
+            14.99,
+            15,
+            14.97,
+            14.99,
+            14.99
+        ],
+        "heapMB": 637,
+        "longTaskCountAll": 5,
+        "longTaskTotalAll": 1269,
+        "nav": {
+            "domContentLoadedMs": 239,
+            "loadEventEndMs": 1119
+        },
+        "paint": [
+            {
+                "name": "first-paint",
+                "startMs": 134
+            },
+            {
+                "name": "first-contentful-paint",
+                "startMs": 1301
+            }
+        ],
+        "play": {
+            "heapMB": 635,
+            "longTaskCount": 0,
+            "longTaskTotalMs": 0,
+            "longTasksOver50": 0,
+            "maxLongTaskMs": 0,
+            "wallMs": 7218
+        },
+        "seek": {
+            "heapMB": 919,
+            "inputMethod": "button",
+            "longTaskCount": 1,
+            "longTaskTotalMs": 53,
+            "longTasksOver50": 1,
+            "maxLongTaskMs": 53,
+            "noActivitySeeks": 1,
+            "settleMedianMs": 2158,
+            "settleMs": [
+                490,
+                2158,
+                1751,
+                10507,
+                14754
+            ],
+            "settleTotalMs": 29660,
+            "wallMs": 31942
+        },
+        "tReadyFromHarnessStartMs": 1119,
+        "tReadyMs": 4352
+    },
+    "inAppProbe": {
+        "counters": {
+            "blockLoadSpanCount": 1,
+            "lookbackEnd": 10,
+            "lookbackMaxConcurrent": 5,
+            "lookbackReadEnd": 0,
+            "lookbackReadMaxConcurrent": 0,
+            "lookbackReadStart": 0,
+            "lookbackReadWaitMsTotal": 0,
+            "lookbackStart": 10,
+            "lookbackWaitMsTotal": 0,
+            "stBuildCount": 1534,
+            "stBuildMsMax": 3.4649999998509884,
+            "stBuildMsTotal": 163.4550000037998
+        },
+        "enabled": true,
+        "longTasks": [
+            {
+                "duration": 122,
+                "start": 117.15000000037251
+            },
+            {
+                "duration": 640,
+                "start": 461.6800000015646
+            },
+            {
+                "duration": 142,
+                "start": 1123.4500000011176
+            },
+            {
+                "duration": 312,
+                "start": 3697.605000000447
+            },
+            {
+                "duration": 53,
+                "start": 12362.425000000743
+            }
+        ],
+        "marks": {},
+        "samples": [],
+        "startedAt": 3712.460000000894,
+        "updatedAt": 43835.99000000022
+    },
+    "label": "without-fixes",
+    "port": 18182
+}
