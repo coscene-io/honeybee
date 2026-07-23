@@ -1,76 +1,73 @@
-# REI-125 dual-port A/B (post D1–D3 / Q2 / Q4)
+# REI-125 dual-port A/B — multi-run (n=3)
 
 ## Setup
 
 | Side | Worktree | Port | Code |
 |------|----------|-----:|------|
-| **with-fixes** | `rei-125-astribot-perf` | **18181** | Full REI-125 changes + probe |
-| **without-fixes** | `rei-125-ab-baseline` (`origin/main` + probe hooks only) | **18182** | No product optimisations |
+| **with-fixes** | `rei-125-astribot-perf` (incl. latest `main`) | **18181** | Full REI-125 changes + probe |
+| **without-fixes** | `rei-125-ab-baseline` (main-ish + probe hooks only) | **18182** | No product optimisations |
 
-Probe enable: `?rei125Perf=1`.
+Probe: `?rei125Perf=1`. Harness: `scripts/rei125-ab-measure.sh` (seek settle polls lookbacks; button seek).
 
-Harness: `scripts/rei125-ab-measure.sh` (seek settle polls probe until lookbacks finish; not fixed 800 ms sleeps). Both sides used **button** seek input.
+Artifacts: `ab-with-fixes-r{1,2,3}.json`, `ab-without-fixes-r{1,2,3}.json` (copies under `runs/`). Prior single-pair JSON archived under `archive/*-pre-multirun-*`.
 
-## Fresh run (2026-07-22T17:20Z)
+## Per-run table (2026-07-23T01:48–01:51Z)
 
-Sources: `ab-with-fixes.json`, `ab-without-fixes.json` (overwrite prior pair; previous pair under `archive/20260722T1719Z-*` and earlier under `archive/*-pre-20260723011510.json`).
+| Run | Side | tReadyMs | seekSettleMedianMs | seekSettleTotalMs | heapMB | lookbackReadMax | stBuildMsMax | blockSpans |
+|----:|------|--------:|-------------------:|------------------:|-------:|----------------:|-------------:|-----------:|
+| 1 | with | 4312 | **662** | 6649 | 844 | **2** | 2.56 | 1 |
+| 1 | without | 3204 | 680 | **3736** | **733** | 0† | 3.32 | 1 |
+| 2 | with | **3206** | 694 | **3854** | 841 | **2** | **1.61** | 1 |
+| 2 | without | 4508 | **675** | 5286 | 885 | 0† | 5.61 | 1 |
+| 3 | with | 6487 | 7609 | 24426 | **596** | **2** | 11.77 | 1 |
+| 3 | without | **3296** | **1703** | **20026** | 778 | 0† | **2.72** | 1 |
 
-| Metric | with (18181) | without (18182) | Δ / read |
-|--------|-------------:|----------------:|----------|
-| **tReadyMs** (5× FPS chips) | 4542 | 3628 | Without ready faster this pair (noise / poll granularity) |
-| **seekSettleMedianMs** | **738** | **811** | With ~1.1× faster median (small) |
-| **seekSettleTotalMs** (5 seeks) | **4896** | **4917** | Essentially tied |
-| seek settle series (ms) | 525, 738, 719, 1170, 1744 | 570, 1147, 1582, 807, 811 | With has one slower tail seek |
-| seek longtask total ms | 59 | 111 | Mild with edge |
-| play wall ms (~6s) | 6582 | 6686 | Tied |
-| **heap MB end** | **535** | **849** | **With ~37% lower heap** |
-| **lookbackReadMaxConcurrent** | **2** | n/a† | Gate bounds range-reads at 2 |
-| lookbackMaxConcurrent (mid-lookback) | 5 | 6 | Similar decode concurrency |
-| lookbackStart count | 10 | 10 | Same |
-| lookbackReadWaitMsTotal | ~6946 | 0† | Queue cost of read gate |
-| **stBuildMsMax** | **~1.05** | **~5.09** | **With ~5× lower peak ST rebuild** |
-| stBuildCount / stBuildMsTotal | 269 / ~46 | 536 / ~83 | With fewer/cheaper rebuilds |
-| **blockLoadSpanCount** | **1** | **1** | Focus loading off by default (D1) |
-| camera FPS | ~15 all | ~15 all | Same |
+† Baseline probe hooks do not emit `lookbackRead*` (range-read gate counters); `0` is expected.
 
-† Baseline hooks call `rei125LookbackStart/End` only (whole lookback body), not `lookbackRead*` counters used after the range-read-only gate split.
+## Aggregates (n=3)
 
-### Interpretation (honest)
+| Metric | with median | with min–max | without median | without min–max |
+|--------|------------:|-------------:|---------------:|----------------:|
+| tReadyMs | 4312 | 3206–6487 | **3296** | 3204–4508 |
+| seekSettleMedianMs | 694 | 662–7609 | **680** | 675–1703 |
+| seekSettleTotalMs | 6649 | 3854–24426 | **5286** | 3736–20026 |
+| heapMB | 841 | 596–844 | **778** | 733–885 |
+| stBuildMsMax | **2.56** | 1.61–11.77 | 3.32 | 2.72–5.61 |
+| lookbackReadMaxConcurrent | **2 / 2 / 2** | — | n/a | — |
+| blockLoadSpanCount | **1 / 1 / 1** | — | **1 / 1 / 1** | — |
 
-1. **Seek settle — not a clear wall-clock win this pair.** Median 738 vs 811 ms and total ~4.9 s both sides. The prior pair (archived) had a large settle gap (849 vs 2158 ms; 5.6 s vs 29.7 s); that result is **not reproducible** in this immediate re-run under warm CDN/browser conditions. Do not treat either single pair as multi-run statistics.
-2. **Clearer wins still present:** end heap **535 vs 849 MB**; ST peak rebuild **~1.05 vs ~5.09 ms**; ST build count ~half. Gate holds **lookbackReadMaxConcurrent = 2**.
-3. **tReady** still not improved — do not claim load-time wins.
-4. **Gate wait cost** is real (`lookbackReadWaitMsTotal` ~6.9 s) — serialization tax paid for bounded concurrent range-reads.
-5. **n = 1** fresh pair (+ 1 archived prior pair with larger settle delta). Directional for heap/ST; seek wall-clock remains **variable**.
-6. **Prior JSON** under `archive/` must not be mixed with current numbers without labeling the run.
+Per-pair deltas (with − without):
 
-### Prior pair (2026-07-22T17:15Z, archived)
+| Run | settleMed Δ | settleTot Δ | heap Δ | stMax Δ |
+|----:|------------:|------------:|-------:|--------:|
+| 1 | −18 | +2913 | +111 | −0.76 |
+| 2 | +19 | −1432 | −44 | −4.00 |
+| 3 | +5906 | +4400 | −182 | +9.05 |
 
-| Metric | with | without |
-|--------|-----:|--------:|
-| seekSettleMedianMs | 849 | 2158 |
-| seekSettleTotalMs | 5596 | 29660 |
-| heap MB end | 586 | 637 |
-| stBuildMsMax | ~0.91 | ~3.46 |
+## Honest interpretation
 
-Larger seek delta; still single-pair. See `archive/20260722T1719Z-*`.
+1. **Stable mechanism signals:** with-fixes always has `lookbackReadMaxConcurrent = 2` and `blockLoadSpanCount = 1` (gate on; focus loading off).
+2. **Seek settle is noisy, not a multi-run win.** Median-of-medians is essentially tied (694 vs 680 ms). Run 3 is a heavy outlier on **both** sides (totals ~24s / ~20s); do not cite single-run settle “wins.”
+3. **Heap is not a consistent multi-run win.** Median heap is slightly **higher** on with-fixes this series (841 vs 778). Earlier single-pair ~535 vs ~849 does not hold across these three pairs.
+4. **ST peak rebuild** median favors with (2.56 vs 3.32 ms), but run 3 with-fixes spiked to ~11.8 ms — still treat as directional, not robust.
+5. **tReady** still does not favor with-fixes (median 4312 vs 3296).
+6. **n = 3 is still small.** Use for honesty about variance, not marketing percentages.
 
 ## Residual risks / deferred
 
-- One range-read can still hold a gate slot up to the 5 s timeout.
-- No BlockLoader LRU eviction — do not re-enable `playheadFocusEnabled` without it.
-- Harness still lacks per-camera “seek → first frame” and ST-readiness metrics.
-- Seek wall-clock is run-to-run noisy; multi-run (n≥3) recommended before claiming settle wins in release notes.
-- Deferred: true out-of-order block consumers, player-level windowed ST preload.
+- Range-read gate slot can hold up to ~5 s timeout.
+- No BlockLoader LRU eviction — keep playhead focus off without OOO consumers.
+- Harness lacks per-camera first-frame / ST-readiness metrics.
+- Deferred product work: player-level windowed ST preload, OOO block merge.
 
 ## Re-run
 
 ```bash
-# terminals
 cd rei-125-astribot-perf && yarn web:serve --port 18181
 cd rei-125-ab-baseline && yarn web:serve --port 18182
-
-export OUT_DIR=.../rei-125-astribot-perf/docs/rei-125-browser
-PORT=18181 ./scripts/rei125-ab-measure.sh with-fixes
-PORT=18182 ./scripts/rei125-ab-measure.sh without-fixes
+export OUT_DIR=.../docs/rei-125-browser
+for n in 1 2 3; do
+  PORT=18181 ./scripts/rei125-ab-measure.sh with-fixes-r$n
+  PORT=18182 ./scripts/rei125-ab-measure.sh without-fixes-r$n
+done
 ```

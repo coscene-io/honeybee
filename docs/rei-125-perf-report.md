@@ -3,7 +3,7 @@
 **Date:** 2026-07-22  
 **Branch:** `rei-125-astribot-perf`  
 **Scope:** Targeted, reversible optimizations for Astribot S1 share-manifest layout  
-**Status:** Implemented + revised after Codex **and Claude** second-opinion reviews; unit-tested; dual-port A/B re-run 2026-07-22T17:20Z (see `docs/rei-125-browser/ab-compare.md`)
+**Status:** Implemented + revised after Codex **and Claude** second-opinion reviews; unit-tested; dual-port multi-run A/B n=3 2026-07-23; main merged (see `docs/rei-125-browser/ab-compare.md`)
 
 > **Revision 3 (Claude review).** The first dual-port A/B showed no wall-clock win. Root-causing that
 > found three defects in the fixes themselves, all now resolved. Read
@@ -278,6 +278,9 @@ Full table and honesty notes: **`docs/rei-125-browser/ab-compare.md`**. Fresh pa
 Seek wall-clock is **run-to-run variable** (an earlier pair showed a larger settle gap; archived under `docs/rei-125-browser/archive/`). Stronger, repeatable signals this re-run: **heap** and **ST peak rebuild**. Do not claim multi-run statistical settle wins from n=1.
 
 ---
+
+
+> **Update (2026-07-23):** multi-run n=3 A/B supersedes single-pair claims — see `docs/rei-125-browser/ab-compare.md`.
 
 ## Recommended manual validation checklist
 
