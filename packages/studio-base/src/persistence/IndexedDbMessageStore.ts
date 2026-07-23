@@ -27,6 +27,11 @@ import type {
   PersistentMessageCacheAppendOptions,
 } from "./PersistentMessageCache";
 
+export const indexedDbMessageCacheApi = {
+  openDB: IDB.openDB,
+  deleteDB: IDB.deleteDB,
+};
+
 const log = Log.getLogger(__filename);
 
 export const LEGACY_MESSAGE_CACHE_DB_NAME = "studio-realtime-cache";
@@ -660,7 +665,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const openStartedAt = performance.now();
     this.#initializationDeadlineAt = openStartedAt + openTimeoutMs;
     let openStage: "opening" | "blocked" | "upgrading" = "opening";
-    const rawDbPromise = IDB.openDB<MessagesDB>(this.#dbName, DB_VERSION, {
+    const rawDbPromise = indexedDbMessageCacheApi.openDB<MessagesDB>(this.#dbName, DB_VERSION, {
       upgrade: (db, oldVersion, _newVersion, transaction) => {
         openStage = "upgrading";
         this.#reportMetric("upgrade", { status: "started", oldVersion });
@@ -3916,9 +3921,9 @@ export function scheduleMessageCacheMaintenance(metricSink?: MessageCacheMetricS
 
 export async function clearIndexedDbMessageStoreDatabase(): Promise<void> {
   await Promise.all([
-    IDB.deleteDB(REALTIME_MESSAGE_CACHE_DB_NAME),
-    IDB.deleteDB(PLAYBACK_MESSAGE_CACHE_DB_NAME),
-    IDB.deleteDB(LEGACY_MESSAGE_CACHE_DB_NAME),
+    indexedDbMessageCacheApi.deleteDB(REALTIME_MESSAGE_CACHE_DB_NAME),
+    indexedDbMessageCacheApi.deleteDB(PLAYBACK_MESSAGE_CACHE_DB_NAME),
+    indexedDbMessageCacheApi.deleteDB(LEGACY_MESSAGE_CACHE_DB_NAME),
   ]);
 }
 
@@ -3959,34 +3964,36 @@ export function scheduleLegacyMessageCacheDatabaseDeletion(
       }
       task.phase = "running";
       task.cancelSchedule = undefined;
-      void IDB.deleteDB(LEGACY_MESSAGE_CACHE_DB_NAME, {
-        blocked(currentVersion) {
-          task!.blocked = true;
-          log.warn("Legacy message cache deletion is blocked by another tab", {
-            dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
-            currentVersion,
-          });
-          for (const currentSubscriber of task!.subscribers) {
-            currentSubscriber.onBlocked?.();
-          }
-        },
-      }).then(
-        () => {
-          task!.phase = "settled";
-          task!.subscribers.clear();
-          log.info("Legacy message cache database deleted", {
-            dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
-          });
-        },
-        (error: unknown) => {
-          task!.phase = "settled";
-          task!.subscribers.clear();
-          log.warn("Legacy message cache database deletion failed", {
-            dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
-            error,
-          });
-        },
-      );
+      void indexedDbMessageCacheApi
+        .deleteDB(LEGACY_MESSAGE_CACHE_DB_NAME, {
+          blocked(currentVersion) {
+            task!.blocked = true;
+            log.warn("Legacy message cache deletion is blocked by another tab", {
+              dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
+              currentVersion,
+            });
+            for (const currentSubscriber of task!.subscribers) {
+              currentSubscriber.onBlocked?.();
+            }
+          },
+        })
+        .then(
+          () => {
+            task!.phase = "settled";
+            task!.subscribers.clear();
+            log.info("Legacy message cache database deleted", {
+              dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
+            });
+          },
+          (error: unknown) => {
+            task!.phase = "settled";
+            task!.subscribers.clear();
+            log.warn("Legacy message cache database deletion failed", {
+              dbName: LEGACY_MESSAGE_CACHE_DB_NAME,
+              error,
+            });
+          },
+        );
     };
 
     const { requestIdleCallback, cancelIdleCallback } = getIdleSchedulingGlobal();
