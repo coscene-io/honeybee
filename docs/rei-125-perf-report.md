@@ -261,26 +261,23 @@ Local deep link on `yarn web:serve` (`http://localhost:8080/?ds=coscene-share-ma
 
 Screenshots: `docs/rei-125-browser/` (copied from run) or `/tmp/rei-125-browser/`.
 
-### Dual-port A/B (with-fixes :18181 vs main+probe :18182)
+### Dual-port A/B (multi-run n=3, 2026-07-23)
 
-Full table and honesty notes: **`docs/rei-125-browser/ab-compare.md`**. Fresh pair **2026-07-22T17:20Z**:
+Full per-run table + aggregates: **`docs/rei-125-browser/ab-compare.md`** (`ab-*-r{1,2,3}.json`).
 
-| Metric | with-fixes | without-fixes |
-|--------|----------:|--------------:|
-| seekSettleMedianMs | 738 | 811 (small / noisy) |
-| seekSettleTotalMs (5 seeks) | 4896 | 4917 (tied) |
-| heap MB end | **535** | 849 |
-| stBuildMsMax | **~1.05** | ~5.09 |
-| lookbackReadMaxConcurrent | **2** | n/a (baseline hooks) |
+| Metric (median of 3) | with-fixes | without-fixes |
+|----------------------|----------:|--------------:|
+| seekSettleMedianMs | 694 | 680 (tied / noisy; r3 outlier both sides) |
+| seekSettleTotalMs | 6649 | 5286 (not a with win) |
+| heap MB end | 841 | 778 (not a multi-run with win) |
+| stBuildMsMax | **2.56** | 3.32 (mild / variable) |
+| lookbackReadMaxConcurrent | **2 every run** | n/a |
 | blockLoadSpanCount | 1 | 1 |
-| tReadyMs | 4542 | 3628 (no load-time win) |
+| tReadyMs | 4312 | **3296** (no load-time win) |
 
-Seek wall-clock is **run-to-run variable** (an earlier pair showed a larger settle gap; archived under `docs/rei-125-browser/archive/`). Stronger, repeatable signals this re-run: **heap** and **ST peak rebuild**. Do not claim multi-run statistical settle wins from n=1.
+Multi-run **does not** support marketing seek/heap wins. Stable signals: range-read gate concurrency = 2; focus loading off (`blockSpans=1`).
 
 ---
-
-
-> **Update (2026-07-23):** multi-run n=3 A/B supersedes single-pair claims — see `docs/rei-125-browser/ab-compare.md`.
 
 ## Recommended manual validation checklist
 

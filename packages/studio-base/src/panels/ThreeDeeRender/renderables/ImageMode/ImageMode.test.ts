@@ -32,6 +32,7 @@ import {
 } from "./MessageHandler";
 import { ConfigWithDefaults } from "./types";
 import { AnyImage, CompressedVideo } from "../Images/ImageTypes";
+import { globalVideoSeekLookbackGate } from "../Images/videoSeekLookbackGate";
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -61,6 +62,13 @@ function timestampFromImage(image: AnyImage): Time {
 
 async function flushAsyncWork(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+/** Drain microtasks after range-read lookback (gate finally + display continuation). */
+async function flushLookbackMicrotasks(times: number = 16): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
 }
 
 class FakeMessageHandler implements IMessageHandler {
@@ -278,6 +286,7 @@ function compressedVideoSubscription(imageMode: ImageMode) {
 
 describe("ImageMode compressed video seek replay", () => {
   beforeEach(() => {
+    globalVideoSeekLookbackGate.resetForTests();
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
       isKeyFrame: data[0] === 0x65,
@@ -287,6 +296,7 @@ describe("ImageMode compressed video seek replay", () => {
 
   afterEach(() => {
     nextMessageHandler = undefined;
+    globalVideoSeekLookbackGate.resetForTests();
     jest.restoreAllMocks();
   });
 
@@ -533,8 +543,8 @@ describe("ImageMode compressed video seek replay", () => {
           yield [keyframe, delta];
         })(),
       );
-      await Promise.resolve();
-      await Promise.resolve();
+      // Lookback continues after range read resolves (gate release finally + displayFrames).
+      await flushLookbackMicrotasks();
 
       const displayedBatches = imageMode.createdRenderables.flatMap((renderable) =>
         renderable.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
