@@ -13,6 +13,7 @@ import {
   type CacheSessionKind,
   type CacheSessionMetadata,
   clearIndexedDbMessageStoreDatabase,
+  indexedDbMessageCacheApi,
   IndexedDbMessageStore,
   LEGACY_MESSAGE_CACHE_DB_NAME,
   PLAYBACK_MESSAGE_CACHE_DB_NAME,
@@ -269,9 +270,11 @@ describe("IndexedDbMessageStore", () => {
   });
 
   it("rejects touchSession when IndexedDB open fails", async () => {
-    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(async () => {
-      throw new Error("open failed");
-    });
+    const openDBSpy = jest
+      .spyOn(indexedDbMessageCacheApi, "openDB")
+      .mockImplementation(async () => {
+        throw new Error("open failed");
+      });
     const store = new IndexedDbMessageStore({ sessionId: "touch-open-error" });
 
     try {
@@ -827,7 +830,7 @@ describe("IndexedDbMessageStore", () => {
       rejectTransaction?.(new Error("aborted stalled append transaction"));
     });
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (args[0] !== REALTIME_MESSAGE_CACHE_DB_NAME) {
@@ -913,7 +916,7 @@ describe("IndexedDbMessageStore", () => {
       rejectTransaction?.(new Error("aborted stalled readonly transaction"));
     });
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (args[0] !== PLAYBACK_MESSAGE_CACHE_DB_NAME) {
@@ -1535,7 +1538,7 @@ describe("IndexedDbMessageStore", () => {
     const originalOpenDB = IDB.openDB;
     let injectedFailure = false;
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (args[0] !== PLAYBACK_MESSAGE_CACHE_DB_NAME) {
@@ -1656,7 +1659,7 @@ describe("IndexedDbMessageStore", () => {
     const originalOpenDB = IDB.openDB;
     let touchedAfterScan = false;
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (touchedAfterScan || args[0] !== PLAYBACK_MESSAGE_CACHE_DB_NAME) {
@@ -1775,7 +1778,7 @@ describe("IndexedDbMessageStore", () => {
     await tx.done;
     v1.close();
 
-    const openDBSpy = jest.spyOn(IDB, "openDB");
+    const openDBSpy = jest.spyOn(indexedDbMessageCacheApi, "openDB");
     const store = new IndexedDbMessageStore({ sessionId: "new-realtime" });
     try {
       await store.init();
@@ -1812,7 +1815,7 @@ describe("IndexedDbMessageStore", () => {
     });
     const onBlocked = jest.fn();
     const secondOnBlocked = jest.fn();
-    const deleteDBSpy = jest.spyOn(IDB, "deleteDB");
+    const deleteDBSpy = jest.spyOn(indexedDbMessageCacheApi, "deleteDB");
 
     try {
       const cancelFirst = scheduleLegacyMessageCacheDatabaseDeletion({ onBlocked });
@@ -2049,7 +2052,7 @@ describe("IndexedDbMessageStore", () => {
       rejectTransaction?.(new Error("aborted stalled maintenance transaction"));
     });
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (args[0] !== PLAYBACK_MESSAGE_CACHE_DB_NAME) {
@@ -2221,7 +2224,7 @@ describe("IndexedDbMessageStore", () => {
       rejectTransaction?.(new Error("aborted stalled maintenance retry scan"));
     });
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const openedDb = await originalOpenDB(...args);
         if (args[0] !== PLAYBACK_MESSAGE_CACHE_DB_NAME) {
@@ -2311,7 +2314,9 @@ describe("IndexedDbMessageStore", () => {
       resolveOpen = resolve;
     });
     const lateDb = { close: jest.fn() } as unknown as IDB.IDBPDatabase;
-    const openDBSpy = jest.spyOn(IDB, "openDB").mockImplementation(async () => await pendingOpen);
+    const openDBSpy = jest
+      .spyOn(indexedDbMessageCacheApi, "openDB")
+      .mockImplementation(async () => await pendingOpen);
     const store = new IndexedDbMessageStore({ sessionId: "late-open", openTimeoutMs: 10 });
 
     try {
@@ -2336,7 +2341,7 @@ describe("IndexedDbMessageStore", () => {
       rejectTransaction?.(new Error("aborted stalled initialization transaction"));
     });
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const db = await originalOpenDB(...args);
         return new Proxy(db, {
@@ -2397,7 +2402,7 @@ describe("IndexedDbMessageStore", () => {
     const originalOpenDB = IDB.openDB;
     const initializationError = new Error("message statistics failed");
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const db = await originalOpenDB(...args);
         return new Proxy(db, {
@@ -2444,7 +2449,7 @@ describe("IndexedDbMessageStore", () => {
     const statusError = new Error("closed status update failed");
     let sessionWriteTransactions = 0;
     const openDBSpy = jest
-      .spyOn(IDB, "openDB")
+      .spyOn(indexedDbMessageCacheApi, "openDB")
       .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
         const db = await originalOpenDB(...args);
         return new Proxy(db, {
