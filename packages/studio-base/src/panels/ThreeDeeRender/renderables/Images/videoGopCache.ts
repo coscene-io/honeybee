@@ -13,6 +13,69 @@ const VIDEO_FORMATS = new Set(["h264", "h265"]);
 export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
 export const DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC = 20_000;
 
+/**
+ * Budget shared by every auto-registered {@link VideoGopCache} (REI-125).
+ *
+ * The per-cache default is 64 MB, but one cache exists per video panel, so a 5-camera layout could
+ * hold 320 MB of compressed frames in the JS heap on top of the 1 GB block cache. Multi-camera
+ * layouts now divide this shared ceiling instead of multiplying the per-cache one; a single-camera
+ * layout still gets the full 64 MB.
+ */
+export const DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES = 128 * 1024 * 1024;
+
+/**
+ * Divides {@link DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES} across the live caches and re-prunes
+ * them whenever the population changes.
+ */
+class VideoGopCacheBudget {
+  readonly #caches = new Set<VideoGopCache>();
+  #totalBytes: number;
+
+  public constructor(totalBytes: number) {
+    this.#totalBytes = totalBytes;
+  }
+
+  public shareBytes(cacheCount: number = this.#caches.size): number {
+    return Math.min(
+      DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES,
+      Math.floor(this.#totalBytes / Math.max(1, cacheCount)),
+    );
+  }
+
+  public register(cache: VideoGopCache): void {
+    this.#caches.add(cache);
+    this.#rebalance();
+  }
+
+  public unregister(cache: VideoGopCache): void {
+    if (this.#caches.delete(cache)) {
+      this.#rebalance();
+    }
+  }
+
+  public getCacheCount(): number {
+    return this.#caches.size;
+  }
+
+  /** Test helper: drop all registrations so suites do not leak shares into each other. */
+  public resetForTests(totalBytes: number = DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES): void {
+    this.#caches.clear();
+    this.#totalBytes = totalBytes;
+  }
+
+  #rebalance(): void {
+    const share = this.shareBytes();
+    for (const cache of this.#caches) {
+      cache.setMaxBytes(share);
+    }
+  }
+}
+
+/** Process-wide budget shared by all auto-registered video GOP caches. */
+export const globalVideoGopCacheBudget = new VideoGopCacheBudget(
+  DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES,
+);
+
 type CompressedVideoLike = {
   timestamp: Time;
   frame_id: string;
@@ -97,17 +160,53 @@ export class VideoGopCache {
   // #pruneToBudget eviction: even after a region's frame data is evicted we still know where the
   // keyframes are, so a later seek can read exactly [keyframe, target] instead of guessing windows.
   readonly #keyframeReceiveTimesByTopic = new Map<string, bigint[]>();
-  readonly #maxBytes: number;
   readonly #maxKeyframeIndexEntriesPerTopic: number;
+  /** When true this cache participates in the shared budget and must be `dispose()`d. */
+  readonly #sharesBudget: boolean;
+  #maxBytes: number;
   #byteSize = 0;
   #targetReceiveTimeNs = 0n;
 
   public constructor(
-    options: { maxBytes?: number; maxKeyframeIndexEntriesPerTopic?: number } = {},
+    options: {
+      maxBytes?: number;
+      maxKeyframeIndexEntriesPerTopic?: number;
+      /**
+       * Join the process-wide budget shared by all video panels (REI-125). Opt-in so standalone
+       * caches keep the fixed per-cache default. Callers must `dispose()` to release their share.
+       */
+      sharedBudget?: boolean;
+    } = {},
   ) {
+    this.#sharesBudget = options.sharedBudget === true && options.maxBytes == undefined;
     this.#maxBytes = options.maxBytes ?? DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES;
     this.#maxKeyframeIndexEntriesPerTopic =
       options.maxKeyframeIndexEntriesPerTopic ?? DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC;
+    if (this.#sharesBudget) {
+      globalVideoGopCacheBudget.register(this);
+    }
+  }
+
+  public getMaxBytes(): number {
+    return this.#maxBytes;
+  }
+
+  public getByteSize(): number {
+    return this.#byteSize;
+  }
+
+  /** Set this cache's byte ceiling and immediately evict down to it. */
+  public setMaxBytes(maxBytes: number): void {
+    this.#maxBytes = maxBytes;
+    this.#pruneToBudget();
+  }
+
+  /** Release this cache's share of the global budget. Safe to call more than once. */
+  public dispose(): void {
+    this.clear();
+    if (this.#sharesBudget) {
+      globalVideoGopCacheBudget.unregister(this);
+    }
   }
 
   public addFrame(msg: MessageEvent): boolean {
