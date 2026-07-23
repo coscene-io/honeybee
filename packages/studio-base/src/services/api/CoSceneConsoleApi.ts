@@ -396,6 +396,19 @@ export type ApiBaseInfo = {
 
 export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
 
+function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
+  if (headers == undefined) {
+    return {};
+  }
+  if (headers instanceof Headers) {
+    return Object.fromEntries(headers.entries());
+  }
+  if (Array.isArray(headers)) {
+    return Object.fromEntries(headers);
+  }
+  return headers;
+}
+
 function permissionListFromRole(role: Role | undefined) {
   if (!role?.policy?.statements) {
     return { permissionList: [], denyList: [] };
@@ -764,13 +777,11 @@ class CoSceneConsoleApi {
             : `${this.#baseUrl}${url}`;
     }
 
-    const headers = new Headers({
+    const headers = {
       Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
       ...(recordName ? { "Record-Name": recordName } : {}),
-    });
-    new Headers(config?.headers).forEach((value, key) => {
-      headers.set(key, value);
-    });
+      ...headersToRecord(config?.headers),
+    };
 
     const fullConfig: RequestInit = {
       ...config,
@@ -852,10 +863,10 @@ class CoSceneConsoleApi {
     customHost?: boolean,
     config?: RequestInit,
   ): Promise<T> {
-    const headers = new Headers({ "Content-Type": "application/json" });
-    new Headers(config?.headers).forEach((value, key) => {
-      headers.set(key, value);
-    });
+    const headers = {
+      "Content-Type": "application/json",
+      ...headersToRecord(config?.headers),
+    };
 
     return (
       await this.#request<T>(
