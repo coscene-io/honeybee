@@ -24,6 +24,7 @@ import type {
 import { CompressedVideo } from "./ImageTypes";
 import { normalizeCompressedVideo } from "./imageNormalizers";
 import { VideoGopCache, parseVideoFrameInfo } from "./videoGopCache";
+import { globalVideoSeekLookbackGate } from "./videoSeekLookbackGate";
 import { IRenderer } from "../../IRenderer";
 import { PartialMessageEvent } from "../../SceneExtension";
 
@@ -788,18 +789,53 @@ export class CompressedVideoController {
     startTime: Time,
     endTime: Time,
   ): Promise<MessageEvent[] | undefined> {
-    let frames = await this.#readRange(generation, startTime, endTime);
+    let frames = await this.#readRangeGated(generation, startTime, endTime);
     for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
       if (frames != undefined || !this.#isCurrentLookback(generation)) {
         return frames;
       }
+      // Backoff happens outside the concurrency slot so a retrying camera does not block others.
       await delay(retryDelayMs);
       if (!this.#isCurrentLookback(generation)) {
         return undefined;
       }
-      frames = await this.#readRange(generation, startTime, endTime);
+      frames = await this.#readRangeGated(generation, startTime, endTime);
     }
     return frames;
+  }
+
+  /**
+   * Single range-read attempt holding a lookback concurrency slot (REI-125).
+   *
+   * This is the only section the gate covers. Keeping decode, the window ladder and retry backoff
+   * outside means a stalled camera can occupy a slot for at most one read timeout, and cameras
+   * 3-5 no longer wait on earlier cameras' decode work.
+   */
+  async #readRangeGated(
+    generation: number,
+    startTime: Time,
+    endTime: Time,
+  ): Promise<MessageEvent[] | undefined> {
+    // Prefer tryAcquire so the common under-limit path stays synchronous (tests and single-camera
+    // seeks don't pay a microtask).
+    if (!globalVideoSeekLookbackGate.tryAcquire()) {
+      const acquired = await globalVideoSeekLookbackGate.acquire(() =>
+        this.#isCurrentLookback(generation),
+      );
+      if (!acquired) {
+        // Superseded by a newer seek while queued; no slot held.
+        return undefined;
+      }
+      if (!this.#isCurrentLookback(generation)) {
+        globalVideoSeekLookbackGate.release();
+        return undefined;
+      }
+    }
+    try {
+      return await this.#readRange(generation, startTime, endTime);
+    } finally {
+      globalVideoSeekLookbackGate.release();
+    }
   }
 
   async #readRange(

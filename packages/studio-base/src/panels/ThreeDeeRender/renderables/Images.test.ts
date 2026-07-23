@@ -25,6 +25,7 @@ import {
   type SetCompressedVideoFramesOptions,
 } from "./Images/ImageRenderable";
 import { AnyImage, CompressedVideo } from "./Images/ImageTypes";
+import { globalVideoSeekLookbackGate } from "./Images/videoSeekLookbackGate";
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -163,6 +164,7 @@ function makeRenderer(
 
 describe("Images compressed video seek lookback", () => {
   beforeEach(() => {
+    globalVideoSeekLookbackGate.resetForTests();
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
       isKeyFrame: data[0] === 0x65,
@@ -171,6 +173,7 @@ describe("Images compressed video seek lookback", () => {
   });
 
   afterEach(() => {
+    globalVideoSeekLookbackGate.resetForTests();
     jest.restoreAllMocks();
   });
 
@@ -329,6 +332,8 @@ describe("Images compressed video seek lookback", () => {
         yield [keyframe, delta, targetDelta];
       })(),
     );
+    // Range-read gate finally + displayFrames continue after the iterator settles.
+    await flushAsyncWork();
     await flushAsyncWork();
 
     expect(
