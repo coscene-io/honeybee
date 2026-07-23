@@ -87,8 +87,6 @@ describe("DataPlatformIterableSource", () => {
       end: { sec: 0, nsec: 0 },
       consumptionType: "partial",
       abortSignal: abortController.signal,
-    } as Parameters<DataPlatformIterableSource["messageIterator"]>[0] & {
-      abortSignal: AbortSignal;
     });
 
     const nextPromise = iterator.next();

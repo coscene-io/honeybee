@@ -121,9 +121,7 @@ export class VideoGopCache {
 
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
     let range = ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
-    if (range == undefined) {
-      range = this.#activeRangeByTopic.get(msg.topic);
-    }
+    range ??= this.#activeRangeByTopic.get(msg.topic);
     if (range == undefined || !ranges.includes(range)) {
       range = new CachedVideoRange();
       ranges.push(range);

@@ -186,7 +186,7 @@ export class ModelCache {
   async #loadCollada(
     url: string,
     text: string,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     ignoreUpAxis: boolean,
     reportError: ErrorCallback,
   ): Promise<LoadedModel> {

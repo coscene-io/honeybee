@@ -67,7 +67,7 @@ jest.mock("./EventsOverlay", () => {
         return createPortal(
           <input aria-label="Portalled event form input" />,
           globalThis.document.body,
-        ) as React.JSX.Element;
+        );
       }
 
       return (

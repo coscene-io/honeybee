@@ -558,7 +558,7 @@ async function fetchETag(url: string): Promise<string | undefined> {
     throw new Error(`HEAD ${res.status}`);
   }
   const etag = res.headers.get("etag");
-  return etag ? etag : undefined;
+  return etag == undefined || etag.length === 0 ? undefined : etag;
 }
 
 async function builtinFetch(

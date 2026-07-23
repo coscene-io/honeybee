@@ -451,7 +451,7 @@ export function LanguageSettings(): React.ReactElement {
         { key: "en", value: "English" },
         { key: "zh", value: "中文" },
         { key: "ja", value: "日本語" },
-      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key)),
+      ].filter((language) => appConfig.LANGUAGE?.options.includes(language.key) ?? false),
     [appConfig.LANGUAGE?.options],
   ) as { key: Language; value: string }[];
 
@@ -855,7 +855,7 @@ export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull 
 
   const onChangeManifestStorageSource = useCallback(
     (event: SelectChangeEvent<ManifestStorageSource>) => {
-      const nextValue = event.target.value as ManifestStorageSource;
+      const nextValue = event.target.value;
       if (nextValue === ManifestStorageSource.CoSceneVizData && fixedOptionDisabled) {
         return;
       }

@@ -49,7 +49,7 @@ export function UnsavedChangesPrompt({
 
   const handleChoiceGroupChange = React.useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
-      setSelectedKey((event.target as HTMLInputElement).value);
+      setSelectedKey(event.target.value);
     },
     [],
   );

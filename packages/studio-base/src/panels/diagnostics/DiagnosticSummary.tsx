@@ -54,7 +54,6 @@ import { buildSummarySettingsTree } from "./settings";
 import {
   DEFAULT_SECONDS_UNTIL_STALE,
   DiagnosticInfo,
-  DiagnosticStatusConfig,
   DiagnosticSummaryConfig,
   KNOWN_LEVELS,
   LEVEL_NAMES,
@@ -189,13 +188,12 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
     (info: DiagnosticInfo) => {
       openSiblingPanel({
         panelType: "DiagnosticStatusPanel",
-        siblingConfigCreator: () =>
-          ({
-            selectedHardwareId: info.status.hardware_id,
-            selectedName: info.status.name,
-            topicToRender,
-            collapsedSections: [],
-          }) as DiagnosticStatusConfig,
+        siblingConfigCreator: () => ({
+          selectedHardwareId: info.status.hardware_id,
+          selectedName: info.status.name,
+          topicToRender,
+          collapsedSections: [],
+        }),
         updateIfExists: true,
       });
     },
@@ -337,7 +335,7 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
             color="secondary"
             size="small"
             onChange={(event) => {
-              saveConfig({ minLevel: Number(event.target.value) });
+              saveConfig({ minLevel: event.target.value });
             }}
             MenuProps={{
               slotProps: {

@@ -66,9 +66,7 @@ export class LayerErrors extends EventEmitter<LayerErrorEvents> {
     // Get or create the node for the given path
     let node = this.errors;
     for (const segment of path) {
-      if (!node.children) {
-        node.children = new Map();
-      }
+      node.children ??= new Map();
       if (!node.children.has(segment)) {
         node.children.set(segment, new NodeError([...node.path, segment]));
       }
@@ -121,7 +119,7 @@ export class LayerErrors extends EventEmitter<LayerErrorEvents> {
    * @param errorId - id unique to error
    * @param errorMessage - error message
    */
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public errorIfFalse(value: boolean, path: Path, errorId: string, errorMessage: string): void {
     if (!value) {
       this.add(path, errorId, errorMessage);

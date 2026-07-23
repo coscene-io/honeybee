@@ -349,7 +349,7 @@ export class IterablePlayer implements Player {
     this.#queueEmitState();
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public enableRepeatPlayback(enable: boolean): void {
     this.#repeatEnabled = enable;
 
@@ -1068,7 +1068,7 @@ export class IterablePlayer implements Player {
     // belongs to our tick. This logic brings that message into our current batch of message events.
     if (this.#lastMessageEvent != undefined) {
       // If the last message we saw is still ahead of the tick end time, we don't emit anything
-      if (compare(this.#lastMessageEvent.receiveTime as Time, end) > 0) {
+      if (compare(this.#lastMessageEvent.receiveTime, end) > 0) {
         // Wait for the previous render frame to finish
         await this.#queueEmitState.currentPromise;
 

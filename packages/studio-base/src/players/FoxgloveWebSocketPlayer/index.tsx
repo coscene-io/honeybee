@@ -356,7 +356,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         }
         (listener as unknown as (...listenerArgs: unknown[]) => void)(...args);
       };
-      client.on(name, guardedListener as typeof listener);
+      client.on(name, guardedListener);
     };
 
     // Set a timeout to abort this connection generation if it is still not connected by then.
@@ -1680,7 +1680,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
           const data = parsedResponse.deserialize(response.data);
           resolve(data as Record<string, unknown>);
         } catch (error: unknown) {
-          reject(error as Error);
+          reject(
+            error instanceof Error
+              ? error
+              : new Error("Failed to deserialize service response", { cause: error }),
+          );
         }
       });
     });
@@ -1954,9 +1958,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           severity: "error",
         });
       } else {
-        if (updatedDatatypes == undefined) {
-          updatedDatatypes = new Map(this.#datatypes);
-        }
+        updatedDatatypes ??= new Map(this.#datatypes);
         updatedDatatypes.set(name, types);
 
         const fullTypeName = dataTypeToFullName(name);

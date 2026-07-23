@@ -5,13 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { MutableRefObject } from "react";
-
 import type { Player, SubscribeMessageRangeArgs } from "@foxglove/studio-base/players/types";
 import type { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
 import type { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 
-import type { FramePromise } from "./pauseFrameForPromise";
 import { createMessagePipelineStore } from "./store";
 
 describe("MessagePipeline store", () => {
@@ -28,7 +25,7 @@ describe("MessagePipeline store", () => {
     } as unknown as Player;
 
     const store = createMessagePipelineStore({
-      promisesToWaitForRef: { current: [] } as MutableRefObject<FramePromise[]>,
+      promisesToWaitForRef: { current: [] },
       initialPlayer: player,
       urdfStorage: {} as IUrdfStorage,
       s3FileService: {} as S3FileService,
@@ -57,7 +54,7 @@ describe("MessagePipeline store", () => {
       reOpen,
     } as unknown as Player;
     const store = createMessagePipelineStore({
-      promisesToWaitForRef: { current: [] } as MutableRefObject<FramePromise[]>,
+      promisesToWaitForRef: { current: [] },
       initialPlayer: player,
       urdfStorage: {} as IUrdfStorage,
       s3FileService: {} as S3FileService,
@@ -92,7 +89,7 @@ describe("MessagePipeline store", () => {
       reOpen,
     } as unknown as Player;
     const store = createMessagePipelineStore({
-      promisesToWaitForRef: { current: [] } as MutableRefObject<FramePromise[]>,
+      promisesToWaitForRef: { current: [] },
       initialPlayer: player,
       urdfStorage: {} as IUrdfStorage,
       s3FileService: {} as S3FileService,

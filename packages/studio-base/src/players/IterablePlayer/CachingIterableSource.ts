@@ -1168,8 +1168,7 @@ class CachingIterableSource<MessageType = unknown>
           throw new Error("Playback spill pagination did not provide a continuation cursor");
         }
         if (
-          after != undefined &&
-          after.seq === page.nextCursor.seq &&
+          after?.seq === page.nextCursor.seq &&
           compare(after.receiveTime, page.nextCursor.receiveTime) === 0
         ) {
           throw new Error("Playback spill pagination did not advance");
@@ -1394,7 +1393,7 @@ class CachingIterableSource<MessageType = unknown>
 
         const sizeEstimates =
           iterResult.type === "message-event"
-            ? estimateMessageSizes(iterResult.msgEvent as MessageEvent)
+            ? estimateMessageSizes(iterResult.msgEvent)
             : { memorySizeInBytes: 0, persistedSizeInBytes: 0 };
         if (
           this.#maybePurgeCache({
@@ -1424,7 +1423,7 @@ class CachingIterableSource<MessageType = unknown>
             await flushPendingSpillMessages();
           }
           pendingSpillMessages.push({
-            message: iterResult.msgEvent as MessageEvent,
+            message: iterResult.msgEvent,
             estimatedSizeInBytes: estimatedBytes,
           });
           pendingSpillEstimatedBytes += estimatedBytes;
@@ -1883,7 +1882,7 @@ class CachingIterableSource<MessageType = unknown>
 
       for (let i = readIdx; i >= 0; --i) {
         const record = cacheBlock.items[i];
-        if (!record || record[1].type !== "message-event") {
+        if (record?.[1].type !== "message-event") {
           continue;
         }
 

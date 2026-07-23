@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-/* eslint-disable @foxglove/no-boolean-parameters */
+/* eslint-disable @coscene-io/no-boolean-parameters */
 
 import { mat4, quat, vec3, vec4 } from "gl-matrix";
 

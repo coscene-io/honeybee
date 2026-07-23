@@ -56,7 +56,10 @@ all_versions_in_group(Group, Result) :-
 % Define version groups for dependencies. All dependencies in the same group will be required to have the same version.
 version_group(Dep, typescript_eslint) :-
   has_prefix('@typescript-eslint/', Dep).
-version_group(Dep, emotion) :-
+version_group('typescript-eslint', typescript_eslint).
+% Emotion packages publish independently; align each package across workspaces rather than forcing
+% every @emotion package to share one version.
+version_group(Dep, Dep) :-
   has_prefix('@emotion/', Dep).
 
 % Enforce the requirements defined on version groups above.

@@ -320,7 +320,7 @@ export function Playlist(): React.JSX.Element {
           </Typography>
         </Stack>
       )}
-      {bagFiles.value && bagFiles.value.length === 0 && (
+      {bagFiles.value?.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" color="text.secondary">
             {t("noBag")}
@@ -371,8 +371,7 @@ export function Playlist(): React.JSX.Element {
                         bag={bag}
                         filter={filterText}
                         isHovered={
-                          (hoveredBag && hoveredBag.name === bag.name) ??
-                          bagsAtHoverValue[bag.name] != undefined
+                          hoveredBag?.name === bag.name || bagsAtHoverValue[bag.name] != undefined
                         }
                         isCurrent={
                           currentBagFiles?.find((currentBag) => currentBag.name === bag.name) !=

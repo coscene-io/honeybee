@@ -231,7 +231,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
   }, [open, state.open]);
 
   const setOpen = useCallback(
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     (openState: boolean) => {
       setState((draft) => {
         draft.open = openState;
@@ -514,17 +514,16 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
               <EditIcon fontSize="small" />
             </IconButton>
           )}
-          {statusButton
-            ? statusButton
-            : settings.visible != undefined && (
-                <VisibilityToggle
-                  size="small"
-                  checked={visible}
-                  onChange={toggleVisibility}
-                  style={{ opacity: allowVisibilityToggle ? 1 : 0 }}
-                  disabled={!allowVisibilityToggle}
-                />
-              )}
+          {statusButton ??
+            (settings.visible != undefined && (
+              <VisibilityToggle
+                size="small"
+                checked={visible}
+                onChange={toggleVisibility}
+                style={{ opacity: allowVisibilityToggle ? 1 : 0 }}
+                disabled={!allowVisibilityToggle}
+              />
+            ))}
           {inlineActions.map((action) => {
             const Icon = action.icon ? icons[action.icon] : undefined;
             const handler = () => {

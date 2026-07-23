@@ -105,7 +105,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
       OBJECT_STORAGE_BASE_URL: "default-storage.example.com",
     });
     mockGetWebBasePathname.mockReturnValue("/viz");
-    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
     mockIterablePlayer.mockClear();
     mockWorkerIterableSource.mockClear();
     mockWorkerSerializedIterableSource.mockClear();
@@ -194,7 +194,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
   });
 
   it("falls back to the legacy data-platform player when the selected fixed manifest is unavailable", async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: false } as Response);
+    global.fetch = jest.fn().mockResolvedValue({ ok: false });
 
     await initializeFactory(ManifestStorageSource.CoSceneVizData);
 
@@ -211,7 +211,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
   });
 
   it("enables the legacy playback spill cache only when selected by the user", async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: false } as Response);
+    global.fetch = jest.fn().mockResolvedValue({ ok: false });
 
     await initializeFactory(undefined, undefined, { enablePlaybackSpillCache: true });
 
@@ -245,7 +245,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
           ],
         }),
       } as Response;
-    }) as unknown as typeof fetch;
+    });
 
     await initializeFactory();
 
@@ -284,7 +284,7 @@ describe("CoSceneDataPlatformDataSourceFactory manifest storage selection", () =
           ],
         }),
       } as Response;
-    }) as unknown as typeof fetch;
+    });
 
     await initializeFactory(undefined, { profile: "old-hd" });
 

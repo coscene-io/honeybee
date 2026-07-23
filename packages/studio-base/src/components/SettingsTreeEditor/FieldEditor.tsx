@@ -323,12 +323,12 @@ function FieldInput({
 
       const isEmpty = field.options.length === 0;
       let selectValue = field.value;
-      if (!selectedOption) {
+      if (selectedOption == undefined) {
         selectValue = INVALID_SENTINEL_VALUE;
-      } else if (selectValue == undefined) {
+      } else {
         // We can't pass value={undefined} or we get a React error "A component is changing an
         // uncontrolled input to be controlled" when changing the value to be non-undefined.
-        selectValue = UNDEFINED_SENTINEL_VALUE;
+        selectValue ??= UNDEFINED_SENTINEL_VALUE;
       }
 
       const hasError = !selectedOption && (!isEmpty || field.value != undefined);
@@ -408,11 +408,9 @@ function FieldInput({
     case "multipleSelect": {
       const isEmpty = field.options.length === 0;
       let selectValue = field.value;
-      if (selectValue == undefined) {
-        // We can't pass value={undefined} or we get a React error "A component is changing an
-        // uncontrolled input to be controlled" when changing the value to be non-undefined.
-        selectValue = [];
-      }
+      // We can't pass value={undefined} or we get a React error "A component is changing an
+      // uncontrolled input to be controlled" when changing the value to be non-undefined.
+      selectValue ??= [];
 
       return (
         <Select

@@ -23,7 +23,7 @@ const useStyles = makeStyles<StackProps>({ name: "FoxgloveStack" })((theme, prop
     alignContent: props.alignContent,
     alignSelf: props.alignSelf,
     order: props.order,
-    overflow: props.overflow as CSSObject["overflow"],
+    overflow: props.overflow,
     overflowX: props.overflowX as CSSObject["overflowX"],
     overflowY: props.overflowY as CSSObject["overflowY"],
     position: props.position,

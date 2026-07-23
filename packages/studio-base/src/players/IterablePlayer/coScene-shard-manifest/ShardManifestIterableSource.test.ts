@@ -122,7 +122,7 @@ describe("ShardManifestIterableSource", () => {
           ok: true,
           json: async () => manifest(),
         }) as Response,
-    ) as unknown as typeof fetch;
+    );
 
     mockInitializeReader.mockReset();
     mockInitializeReader.mockResolvedValue(mockReader);

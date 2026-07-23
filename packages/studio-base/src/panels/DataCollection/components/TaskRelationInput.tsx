@@ -34,7 +34,7 @@ export const TaskRelationInput = memo(function TaskRelationInput({
           id="task-relation-display"
           size="small"
           fullWidth
-          value={String(`#${currentFocusedTask?.number ?? ""}`)}
+          value={`#${currentFocusedTask?.number ?? ""}`}
           placeholder={t("clickTaskInPanel")}
           slotProps={{
             input: {

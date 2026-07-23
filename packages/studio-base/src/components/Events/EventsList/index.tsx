@@ -398,7 +398,7 @@ export function EventsList(): React.JSX.Element {
           </Typography>
         </Stack>
       )}
-      {events.value && events.value.length === 0 && (
+      {events.value?.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
           <Typography align="center" color="text.secondary">
             {t("noMoment")}

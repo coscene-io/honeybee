@@ -396,7 +396,7 @@ type IdleSchedulingGlobal = {
 };
 
 function getIdleSchedulingGlobal(): IdleSchedulingGlobal {
-  return globalThis as IdleSchedulingGlobal;
+  return globalThis;
 }
 
 function storedEventSize(event: StoredMessageEvent): number {
@@ -2197,7 +2197,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const sessionsStore = tx.objectStore(SESSIONS_STORE);
       const sessionId = this.#currentSessionId;
       const sessionData = await sessionsStore.get(sessionId);
-      if (sessionData == undefined || sessionData.status !== "active") {
+      if (sessionData?.status !== "active") {
         await tx.done;
         throw new Error("IndexedDbMessageStore session is no longer active");
       }
@@ -3597,7 +3597,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const store = tx.objectStore(LOADED_RANGES_STORE);
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const existingSession = await sessionsStore.get(this.#currentSessionId);
-    if (existingSession == undefined || existingSession.status !== "active") {
+    if (existingSession?.status !== "active") {
       await tx.done;
       return false;
     }
@@ -3627,8 +3627,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       "prev",
     );
     if (
-      predecessor != undefined &&
-      predecessor.value.sessionId === range.sessionId &&
+      predecessor?.value.sessionId === range.sessionId &&
       predecessor.value.topicFingerprint === range.topicFingerprint
     ) {
       if (
@@ -3711,7 +3710,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       db.transaction([LOADED_RANGES_STORE, SESSIONS_STORE], "readonly"),
     );
     const session = await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId);
-    if (session == undefined || session.status !== "active") {
+    if (session?.status !== "active") {
       await tx.done;
       return [];
     }

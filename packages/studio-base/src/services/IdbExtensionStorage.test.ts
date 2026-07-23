@@ -48,6 +48,8 @@ describe("IdbExtensionStorage", () => {
     const storage = new IdbExtensionStorage("local");
 
     const firstList = storage.list();
+    // The expectation must be registered before advancing the timer that rejects the promise.
+    // eslint-disable-next-line jest/valid-expect
     const rejection = expect(firstList).rejects.toThrow(
       "Timed out opening extension database foxglove-extensions-local",
     );

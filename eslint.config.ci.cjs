@@ -19,8 +19,6 @@ module.exports = [
       prettier: prettierPlugin,
     },
     rules: {
-      // disable progress spinner
-      "file-progress/activate": "off",
       // VScode is already configured to run prettier on save
       "prettier/prettier": "error",
       // Common sense should prevent triggering this in development

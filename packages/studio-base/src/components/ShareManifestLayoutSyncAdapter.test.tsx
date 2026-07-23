@@ -63,7 +63,7 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
         globalVariables: {},
         userNodes: {},
       }),
-    } as Response);
+    });
     const manifest = encodeBase64Url({
       version: 1,
       expireTime: "2026-06-30T10:00:00Z",
@@ -151,7 +151,7 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
         json: async () => ({
           links: { layout: directLayoutUrl },
         }),
-      } as Response)
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -160,7 +160,7 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
           globalVariables: {},
           userNodes: {},
         }),
-      } as Response);
+      });
 
     render(<ShareManifestLayoutSyncAdapter />);
 
@@ -196,7 +196,7 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ links: {} }),
-    } as Response);
+    });
 
     render(<ShareManifestLayoutSyncAdapter />);
 
@@ -216,7 +216,7 @@ describe("<ShareManifestLayoutSyncAdapter />", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
       status: 403,
-    } as Response);
+    });
 
     render(<ShareManifestLayoutSyncAdapter />);
 

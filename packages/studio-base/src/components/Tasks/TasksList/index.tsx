@@ -96,7 +96,7 @@ export function TasksList(): React.JSX.Element {
           size="small"
           value={currentAssigneeFilter}
           onChange={(event) => {
-            handleAssigneeFilterChange(event.target.value as AssigneeFilterType);
+            handleAssigneeFilterChange(event.target.value);
           }}
           variant="filled"
         >
@@ -148,7 +148,7 @@ export function TasksList(): React.JSX.Element {
           <CircularProgress />
         </Stack>
       )}
-      {projectTasks.value && projectTasks.value.length === 0 && (
+      {projectTasks.value?.length === 0 && (
         <Stack flex="auto" padding={2} height="100%" alignItems="center" justifyContent="center">
           <Typography align="center" color="text.secondary">
             {t("noContent")}

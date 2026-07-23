@@ -409,7 +409,7 @@ describe("IndexedDbMessageStore", () => {
       {
         ...messageEvent(1),
         message: { unsupported: () => undefined },
-      } as unknown as MessageEvent,
+      },
     ]);
 
     await expect(store.close()).rejects.toThrow();

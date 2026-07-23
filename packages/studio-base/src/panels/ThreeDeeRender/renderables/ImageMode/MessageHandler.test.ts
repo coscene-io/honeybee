@@ -11,7 +11,6 @@ import { DeepPartial } from "ts-essentials";
 import { fromNanoSec } from "@foxglove/rostime";
 import {
   CameraCalibration,
-  CircleAnnotation,
   ImageAnnotations,
   PointsAnnotation,
   RawImage,
@@ -1122,7 +1121,7 @@ function createCircleAnnotations(atTimes: bigint[]): ImageAnnotations {
       thickness: 1,
       fill_color: { r: 1, g: 0, b: 1, a: 1 },
       outline_color: { r: 1, g: 1, b: 0, a: 1 },
-    })) as CircleAnnotation[],
+    })),
     points: [] as PointsAnnotation[],
     texts: [] as TextAnnotation[],
   };

@@ -548,7 +548,7 @@ class CoSceneConsoleApi {
   async #get<T>(
     apiPath: string,
     query?: Record<string, string | undefined>,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
     config?: RequestInit,
   ): Promise<T> {
@@ -747,7 +747,7 @@ class CoSceneConsoleApi {
   public getRequectConfig(
     url: string,
     config?: RequestInit,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
   ): { fullUrl: string; fullConfig: RequestInit } {
     const recordName = this.#getRecordName();
@@ -764,13 +764,17 @@ class CoSceneConsoleApi {
             : `${this.#baseUrl}${url}`;
     }
 
+    const headers = new Headers({
+      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+      ...(recordName ? { "Record-Name": recordName } : {}),
+    });
+    new Headers(config?.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+
     const fullConfig: RequestInit = {
       ...config,
-      headers: {
-        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
-        ...(recordName ? { "Record-Name": recordName } : {}),
-        ...config?.headers,
-      },
+      headers,
     };
 
     return { fullUrl, fullConfig };
@@ -785,7 +789,7 @@ class CoSceneConsoleApi {
       /** By default, status codes other than 200 will throw an error. */
       allowedStatuses?: number[];
     } = {},
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
   ): Promise<ApiResponse<T>> {
     if (url.length === 0 || url === "/") {
@@ -844,10 +848,15 @@ class CoSceneConsoleApi {
   async #post<T>(
     apiPath: string,
     body?: unknown,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
     config?: RequestInit,
   ): Promise<T> {
+    const headers = new Headers({ "Content-Type": "application/json" });
+    new Headers(config?.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+
     return (
       await this.#request<T>(
         apiPath,
@@ -855,7 +864,7 @@ class CoSceneConsoleApi {
           method: "POST",
           body: JSON.stringify(body),
           ...(config ?? {}),
-          headers: { "Content-Type": "application/json", ...(config?.headers ?? {}) },
+          headers,
         },
         {},
         customHost,
@@ -894,7 +903,7 @@ class CoSceneConsoleApi {
 
     const metaData = topics.topics.map((topic) => {
       if (topic.schema == undefined) {
-        return topic as Omit<RawTopicResponse, "schema">;
+        return topic;
       }
       const decodedSchema = new Uint8Array(base64.length(topic.schema));
       base64.decode(topic.schema, decodedSchema, 0);

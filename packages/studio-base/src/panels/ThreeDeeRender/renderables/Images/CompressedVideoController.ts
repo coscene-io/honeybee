@@ -484,11 +484,7 @@ export class CompressedVideoController {
 
   #resumePendingPlaybackAfterFailedResetReplay(generation: number): void {
     const pendingPlayback = this.#state.pendingPlaybackAfterReplay;
-    if (
-      pendingPlayback == undefined ||
-      pendingPlayback.generation !== generation ||
-      !this.#isCurrentGeneration(generation)
-    ) {
+    if (pendingPlayback?.generation !== generation || !this.#isCurrentGeneration(generation)) {
       return;
     }
 
@@ -1145,5 +1141,5 @@ function normalizeVideoMessageEvent(
   return {
     ...messageEvent,
     message: normalizeCompressedVideo(messageEvent.message),
-  } as MessageEvent<CompressedVideo>;
+  };
 }

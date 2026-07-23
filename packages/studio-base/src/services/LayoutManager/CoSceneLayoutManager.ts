@@ -182,7 +182,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
   public userName: string | undefined;
   #currentUser: User | undefined;
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public setOnline(online: boolean): void {
     this.isOnline = online;
     this.#emitter.emit("onlinechange");

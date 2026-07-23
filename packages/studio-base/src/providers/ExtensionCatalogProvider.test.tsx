@@ -463,7 +463,7 @@ describe("ExtensionCatalogProvider", () => {
   it("publishes a retryable degraded state after an unexpected loader result", async () => {
     const loader: ExtensionLoader = {
       namespace: "local",
-      getExtensions: jest.fn().mockResolvedValue({ malformed: true } as unknown as ExtensionInfo[]),
+      getExtensions: jest.fn().mockResolvedValue({ malformed: true }),
       loadExtension: jest.fn(),
       installExtension: jest.fn(),
       uninstallExtension: jest.fn(),
