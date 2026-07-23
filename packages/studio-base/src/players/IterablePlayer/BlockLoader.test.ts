@@ -10,7 +10,11 @@ import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemMan
 import { MessageBlock } from "@foxglove/studio-base/players/types";
 import { mockTopicSelection } from "@foxglove/studio-base/test/mocks/mockTopicSelection";
 
-import { BlockLoader, MEMORY_INFO_PRELOADED_MSGS } from "./BlockLoader";
+import {
+  BLOCK_LOAD_MAX_SPAN_DURATION_NS,
+  BlockLoader,
+  MEMORY_INFO_PRELOADED_MSGS,
+} from "./BlockLoader";
 import {
   GetBackfillMessagesArgs,
   IDeserializedIterableSource,
@@ -671,5 +675,272 @@ describe("BlockLoader", () => {
     // arrays should be unchanged.
     expect(firstBlockLoad?.[0]?.messagesByTopic["a"]).toBe(lastBlocks?.[0]?.messagesByTopic["a"]);
     expect(firstBlockLoad?.[1]?.messagesByTopic["a"]).toBe(lastBlocks?.[1]?.messagesByTopic["a"]);
+  });
+
+  it("loads blocks near focus time before earlier blocks (REI-125)", async () => {
+    const source = new TestSource();
+    const loadStarts: Array<{ start: number; end: number }> = [];
+
+    const loader = new BlockLoader({
+      maxBlocks: 4,
+      cacheSizeBytes: 100,
+      minBlockDurationNs: 1e9, // 1s blocks over [0,4)
+      source,
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 3, nsec: 999_999_999 },
+      problemManager: new PlayerProblemManager(),
+      playheadFocusEnabled: true,
+    });
+
+    // One message per second → one message per block
+    const msgEvents: MessageEvent[] = [0, 1, 2, 3].map((sec) => ({
+      topic: "a",
+      receiveTime: { sec, nsec: 0 },
+      message: undefined,
+      sizeInBytes: 1,
+      schemaName: "foo",
+    }));
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      loadStarts.push({
+        start: args.start?.sec ?? -1,
+        end: args.end?.sec ?? -1,
+      });
+      for (const msgEvent of msgEvents) {
+        const t = msgEvent.receiveTime.sec;
+        const startSec = args.start?.sec ?? 0;
+        const endSec = args.end?.sec ?? Number.MAX_SAFE_INTEGER;
+        if (t >= startSec && t <= endSec) {
+          yield { type: "message-event", msgEvent };
+        }
+      }
+    };
+
+    // Focus near the end (block ~3) so the first span should start there, not at 0.
+    loader.setFocusTime({ sec: 3, nsec: 0 });
+    loader.setTopics(mockTopicSelection("a"));
+
+    await loader.startLoading({
+      progress: async (progress) => {
+        const ranges = progress.fullyLoadedFractionRanges ?? [];
+        const fullyLoaded = ranges.some((r) => r.start === 0 && r.end === 1);
+        if (fullyLoaded) {
+          await loader.stopLoading();
+        }
+      },
+    });
+
+    expect(loadStarts.length).toBeGreaterThanOrEqual(1);
+    // First range request should begin at/near the focus (sec >= 2), not at the bag start.
+    expect(loadStarts[0]!.start).toBeGreaterThanOrEqual(2);
+    // Later a range covering earlier history should also run.
+    expect(loadStarts.some((r) => r.start === 0)).toBe(true);
+  });
+
+  it("caps each load span duration so focus does not pull focus→EOF (REI-125)", async () => {
+    const source = new TestSource();
+    const loadRanges: Array<{ startSec: number; endSec: number }> = [];
+    // 30 one-second blocks; span cap is 10s so first focused request must not cover all 30.
+    const blockCount = 30;
+    const loader = new BlockLoader({
+      maxBlocks: blockCount,
+      cacheSizeBytes: 1_000_000,
+      minBlockDurationNs: 1e9,
+      source,
+      start: { sec: 0, nsec: 0 },
+      end: { sec: blockCount - 1, nsec: 999_999_999 },
+      problemManager: new PlayerProblemManager(),
+      playheadFocusEnabled: true,
+    });
+
+    const msgEvents: MessageEvent[] = Array.from({ length: blockCount }, (_, sec) => ({
+      topic: "a",
+      receiveTime: { sec, nsec: 0 },
+      message: undefined,
+      sizeInBytes: 1,
+      schemaName: "foo",
+    }));
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      const startSec = args.start?.sec ?? 0;
+      const endSec = args.end?.sec ?? Number.MAX_SAFE_INTEGER;
+      loadRanges.push({ startSec, endSec });
+      for (const msgEvent of msgEvents) {
+        const t = msgEvent.receiveTime.sec;
+        if (t >= startSec && t <= endSec) {
+          yield { type: "message-event", msgEvent };
+        }
+      }
+    };
+
+    // Focus mid-bag so without a cap the first span would expand to EOF.
+    loader.setFocusTime({ sec: 15, nsec: 0 });
+    loader.setTopics(mockTopicSelection("a"));
+
+    await loader.startLoading({
+      progress: async (progress) => {
+        const ranges = progress.fullyLoadedFractionRanges ?? [];
+        if (ranges.some((r) => r.start === 0 && r.end === 1)) {
+          await loader.stopLoading();
+        }
+      },
+    });
+
+    expect(loadRanges.length).toBeGreaterThan(1);
+    const first = loadRanges[0]!;
+    // First request starts at/near focus.
+    expect(first.startSec).toBeGreaterThanOrEqual(14);
+    // And is capped (~10s of blocks), not the full remaining timeline to ~29s.
+    const firstDurationSec = first.endSec - first.startSec;
+    const maxSpanSec = BLOCK_LOAD_MAX_SPAN_DURATION_NS / 1e9;
+    expect(firstDurationSec).toBeLessThanOrEqual(maxSpanSec + 1);
+    expect(first.endSec).toBeLessThan(blockCount - 1);
+  });
+
+  it("aborts in-flight load and restarts near a new focus on seek (REI-125)", async () => {
+    const source = new TestSource();
+    const loadStarts: number[] = [];
+    let resolveSlow: (() => void) | undefined;
+    const slowGate = new Promise<void>((resolve) => {
+      resolveSlow = resolve;
+    });
+    let iteratorCalls = 0;
+
+    const loader = new BlockLoader({
+      maxBlocks: 20,
+      cacheSizeBytes: 1_000_000,
+      minBlockDurationNs: 1e9,
+      source,
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 19, nsec: 999_999_999 },
+      problemManager: new PlayerProblemManager(),
+      playheadFocusEnabled: true,
+    });
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      iteratorCalls += 1;
+      const startSec = args.start?.sec ?? 0;
+      loadStarts.push(startSec);
+
+      // First open stalls until we seek, simulating a slow range read from bag start.
+      if (iteratorCalls === 1) {
+        await slowGate;
+        if (args.abortSignal?.aborted === true) {
+          return;
+        }
+      }
+
+      for (let sec = 0; sec < 20; sec++) {
+        if (args.abortSignal?.aborted === true) {
+          return;
+        }
+        const t = sec;
+        const endSec = args.end?.sec ?? Number.MAX_SAFE_INTEGER;
+        if (t >= startSec && t <= endSec) {
+          yield {
+            type: "message-event",
+            msgEvent: {
+              topic: "a",
+              receiveTime: { sec: t, nsec: 0 },
+              message: undefined,
+              sizeInBytes: 1,
+              schemaName: "foo",
+            },
+          };
+        }
+      }
+    };
+
+    loader.setTopics(mockTopicSelection("a"));
+
+    const loading = loader.startLoading({
+      progress: async (progress) => {
+        const ranges = progress.fullyLoadedFractionRanges ?? [];
+        if (ranges.some((r) => r.start === 0 && r.end === 1)) {
+          await loader.stopLoading();
+        }
+      },
+    });
+
+    // Wait until the first iterator has started at bag start.
+    for (let i = 0; i < 50 && loadStarts.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(loadStarts[0]).toBe(0);
+
+    // Seek focus to mid-bag with abort — should cancel the start-of-bag span.
+    loader.setFocusTime({ sec: 12, nsec: 0 }, { abortInFlight: true });
+    resolveSlow?.();
+
+    await loading;
+
+    // A later request should start near the seek focus (not only complete from 0).
+    expect(loadStarts.some((s) => s >= 10)).toBe(true);
+  });
+
+  it("ignores focus and loads one contiguous span by default (REI-125)", async () => {
+    const source = new TestSource();
+    const loadRanges: Array<{ startSec: number; endSec: number }> = [];
+    const blockCount = 30;
+
+    // No playheadFocusEnabled: block consumers use ascending cursors, so focus must stay off.
+    const loader = new BlockLoader({
+      maxBlocks: blockCount,
+      cacheSizeBytes: 1_000_000,
+      minBlockDurationNs: 1e9,
+      source,
+      start: { sec: 0, nsec: 0 },
+      end: { sec: blockCount - 1, nsec: 999_999_999 },
+      problemManager: new PlayerProblemManager(),
+    });
+
+    const msgEvents: MessageEvent[] = Array.from({ length: blockCount }, (_, sec) => ({
+      topic: "a",
+      receiveTime: { sec, nsec: 0 },
+      message: undefined,
+      sizeInBytes: 1,
+      schemaName: "foo",
+    }));
+
+    source.messageIterator = async function* messageIterator(
+      args: MessageIteratorArgs,
+    ): AsyncIterableIterator<Readonly<IteratorResult>> {
+      loadRanges.push({
+        startSec: args.start?.sec ?? -1,
+        endSec: args.end?.sec ?? -1,
+      });
+      for (const msgEvent of msgEvents) {
+        const t = msgEvent.receiveTime.sec;
+        const startSec = args.start?.sec ?? 0;
+        const endSec = args.end?.sec ?? Number.MAX_SAFE_INTEGER;
+        if (t >= startSec && t <= endSec) {
+          yield { type: "message-event", msgEvent };
+        }
+      }
+    };
+
+    // Focus calls are no-ops while the feature is off; an abort here must not restart loading.
+    loader.setFocusTime({ sec: 25, nsec: 0 }, { abortInFlight: true });
+    loader.setTopics(mockTopicSelection("a"));
+
+    await loader.startLoading({
+      progress: async (progress) => {
+        const ranges = progress.fullyLoadedFractionRanges ?? [];
+        if (ranges.some((r) => r.start === 0 && r.end === 1)) {
+          await loader.stopLoading();
+        }
+      },
+    });
+
+    // Exactly one contiguous span from the bag start — no focus jump, no 10s span fragmentation.
+    expect(loadRanges).toHaveLength(1);
+    expect(loadRanges[0]!.startSec).toBe(0);
+    expect(loadRanges[0]!.endSec).toBe(blockCount - 1);
   });
 });
