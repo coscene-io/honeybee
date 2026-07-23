@@ -391,6 +391,10 @@ export class IterablePlayer implements Player {
     this.#lastRangeMillis = undefined;
     this.#lastStamp = undefined;
 
+    // Prioritize block preloading near the seek target (REI-125). No-op unless the block loader
+    // was constructed with `playheadFocusEnabled` — see BLOCK_LOADER_PLAYHEAD_FOCUS_DEFAULT.
+    this.#blockLoader?.setFocusTime(targetTime, { abortInFlight: true });
+
     this.#setState("seek-backfill");
   }
 
@@ -762,6 +766,9 @@ export class IterablePlayer implements Player {
       }
 
       this.#blockLoader?.setTopics(this.#preloadTopics);
+      if (this.#currentTime) {
+        this.#blockLoader?.setFocusTime(this.#currentTime);
+      }
 
       // Block loadings is constantly running and tries to keep the preloaded messages in memory
       this.#blockLoadingProcess = this.#startBlockLoading().catch((err: unknown) => {
@@ -898,6 +905,7 @@ export class IterablePlayer implements Player {
 
       this.#messages = messages;
       this.#currentTime = targetTime;
+      this.#blockLoader?.setFocusTime(targetTime, { abortInFlight: true });
       this.#lastSeekEmitTime = Date.now();
       this.#presence = PlayerPresence.PRESENT;
 
@@ -1149,6 +1157,7 @@ export class IterablePlayer implements Player {
     await this.#queueEmitState.currentPromise;
 
     this.#currentTime = end;
+    this.#blockLoader?.setFocusTime(end);
     this.#messages = msgEvents;
     this.#queueEmitState();
 
