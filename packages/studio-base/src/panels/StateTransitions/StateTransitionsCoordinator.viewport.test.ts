@@ -422,6 +422,58 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
     coordinator.destroy();
   });
 
+  it("retains streaming history when Show Points changes without cached blocks", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer);
+    const config = {
+      isSynced: false,
+      paths: [{ value: "/t.data", timestampMethod: "receiveTime" as const }],
+    };
+
+    coordinator.handleConfig(config, {});
+    coordinator.handlePlayerState(
+      playerState({ messages: [makeMsg(0, 1), makeMsg(1, 1), makeMsg(2, 1)] }),
+    );
+    await settleCoordinator();
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).toEqual([0, 2]);
+
+    coordinator.handleConfig({ ...config, showPoints: true }, {});
+    coordinator.handlePlayerState(playerState({ messages: [] }));
+    await settleCoordinator();
+
+    // The collapsed history cannot recover its interior sample without blocks, but it must not
+    // disappear while waiting for future live messages.
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).toEqual([0, 2]);
+    coordinator.destroy();
+  });
+
+  it("sorts header-stamped block data before viewport slicing", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer);
+    const headerStampedMessages = [
+      { receiveSec: 0, stampSec: 0, value: 0 },
+      { receiveSec: 1, stampSec: 100, value: 2 },
+      { receiveSec: 2, stampSec: 50, value: 1 },
+    ].map(({ receiveSec, stampSec, value }) => ({
+      ...makeMsg(receiveSec, value),
+      message: { data: value, header: { stamp: { sec: stampSec, nsec: 0 } } },
+    }));
+
+    coordinator.handleConfig(
+      {
+        isSynced: true,
+        paths: [{ value: "/t.data", timestampMethod: "headerStamp" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({ blockMessages: headerStampedMessages }));
+    coordinator.setGlobalBounds({ min: 40, max: 60 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).toEqual([0, 50, 100]);
+    coordinator.destroy();
+  });
+
   it("keeps the first streaming value when duplicate timestamps arrive", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
     const coordinator = new StateTransitionsCoordinator(renderer);

@@ -205,9 +205,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
         );
       });
 
-    if (seriesChanged || showPointsChanged) {
-      // showPoints changes the required ingestion representation. Rebuild from cached blocks so
-      // enabling it can restore every raw sample rather than displaying already-collapsed data.
+    if (seriesChanged) {
       this.#blockCursors.clear();
       this.#fullData.clear();
       this.#currentData.clear();
@@ -215,6 +213,33 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#seriesIsArray.clear();
       this.#firstBlockRefs.clear();
       this.#lastBlockRefs.clear();
+      this.#latestBlocks = undefined; // Force reprocessing of blocks
+    } else if (showPointsChanged) {
+      // Rebuild preloaded history from cached blocks in the new representation, but retain live
+      // history because streaming-only sources have no blocks from which it can be reconstructed.
+      this.#blockCursors.clear();
+      this.#fullData.clear();
+      this.#processedDataCache.clear();
+
+      // Keep block references consistent with cursor 0 so the representation-only rebuild does
+      // not look like a data-source reset and clear the retained streaming history.
+      for (const series of newSeries) {
+        const cursorKey = `${series.configIndex}:${series.parsed.topicName}`;
+        const firstBlockRef = this.#latestBlocks?.[0]?.messagesByTopic[series.parsed.topicName];
+        this.#firstBlockRefs.set(cursorKey, firstBlockRef);
+        this.#lastBlockRefs.set(cursorKey, firstBlockRef);
+
+        if (!this.#showPoints) {
+          const currentData = this.#currentData.get(cursorKey);
+          if (currentData != undefined) {
+            const collapsed: Datum[] = [];
+            for (const datum of currentData) {
+              appendCollapsedStateSample(collapsed, datum);
+            }
+            this.#currentData.set(cursorKey, collapsed);
+          }
+        }
+      }
       this.#latestBlocks = undefined; // Force reprocessing of blocks
     }
 
@@ -339,7 +364,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
           if (datum) {
             // Collapse consecutive equal values at ingestion (REI-125): high-rate
             // joint/state topics often plateaus; storing every sample ballooned memory.
-            if (this.#showPoints) {
+            if (this.#showPoints || series.path.timestampMethod === "headerStamp") {
               existingData.push(datum);
             } else {
               appendCollapsedStateSample(existingData, datum);
@@ -350,6 +375,19 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
         // Update last block reference after processing each block
         this.#lastBlockRefs.set(cursorKey, messagesForTopic);
         cursor = blockIdx + 1;
+      }
+
+      if (series.path.timestampMethod === "headerStamp") {
+        // Blocks are receive-time ordered, but header stamps can move backwards. Normalize before
+        // any binary viewport slicing; otherwise valid transitions can be omitted from the window.
+        existingData.sort((a, b) => a.x - b.x);
+        if (!this.#showPoints) {
+          const collapsed: Datum[] = [];
+          for (const datum of existingData) {
+            appendCollapsedStateSample(collapsed, datum);
+          }
+          existingData.splice(0, existingData.length, ...collapsed);
+        }
       }
 
       this.#blockCursors.set(cursorKey, cursor);
@@ -729,7 +767,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     // Include head/tail so plateau endpoint mutation (same length) still busts the cache.
     const fingerprint = processCacheFingerprint(data, y, viewMin, viewMax);
     const cached = this.#processedDataCache.get(cacheKey);
-    if (cached && cached.fingerprint === fingerprint) {
+    if (cached?.fingerprint === fingerprint) {
       return cached.data;
     }
 
