@@ -25,6 +25,7 @@ import {
   type SetCompressedVideoFramesOptions,
 } from "./Images/ImageRenderable";
 import { AnyImage, CompressedVideo } from "./Images/ImageTypes";
+import { globalVideoGopCacheBudget } from "./Images/videoGopCache";
 
 function timeFromNanoseconds(timestamp: bigint): Time {
   return {
@@ -225,6 +226,45 @@ describe("Images compressed video seek lookback", () => {
     images.handleSeek();
 
     expect(subscribeMessageRange).not.toHaveBeenCalled();
+  });
+
+  it("keeps hidden compressed video topics out of the shared GOP cache budget", () => {
+    const renderer = makeRenderer({
+      topicSettings: {
+        "/video": { visible: false },
+        "/raw": { visible: true },
+      },
+    });
+    const images = new TestImages(renderer);
+    const subscription = compressedVideoSubscription(images);
+    const initialCacheCount = globalVideoGopCacheBudget.getCacheCount();
+
+    expect(subscription.shouldSubscribe?.("/video")).toBe(false);
+    subscription.handler(makeVideoMessage(0n, "key"));
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(initialCacheCount);
+
+    images.handleSettingsAction({
+      action: "update",
+      payload: {
+        path: ["topics", "/video", "visible"],
+        input: "boolean",
+        value: true,
+      },
+    });
+    expect(subscription.shouldSubscribe?.("/video")).toBe(true);
+    subscription.handler(makeVideoMessage(0n, "key"));
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(initialCacheCount + 1);
+
+    images.handleSettingsAction({
+      action: "update",
+      payload: {
+        path: ["topics", "/video", "visible"],
+        input: "boolean",
+        value: false,
+      },
+    });
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(initialCacheCount);
+    images.dispose();
   });
 
   it("registers a compressed video topic when it becomes visible from settings", () => {

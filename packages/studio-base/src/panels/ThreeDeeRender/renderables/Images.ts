@@ -189,6 +189,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
           handler: this.#handleCompressedVideo,
+          shouldSubscribe: this.#compressedVideoTopicShouldSubscribe,
           filterQueue: this.#filterCompressedVideoQueue,
         },
       },
@@ -213,7 +214,7 @@ export class Images extends SceneExtension<ImageRenderable> {
       }
     }
     for (const [topic, controller] of this.#compressedVideoControllers) {
-      if (!compressedVideoTopics.has(topic)) {
+      if (!compressedVideoTopics.has(topic) || !this.#compressedVideoTopicShouldSubscribe(topic)) {
         controller.dispose();
         this.#compressedVideoControllers.delete(topic);
       }
@@ -313,6 +314,12 @@ export class Images extends SceneExtension<ImageRenderable> {
       this.renderer.config.topics[imageTopic];
     const cameraInfoTopic = settings?.cameraInfoTopic;
 
+    // Hidden video layers must not retain a controller or consume a share of the process-wide GOP
+    // cache budget. A fresh controller will be created if the layer becomes visible again.
+    if (settings?.visible !== true) {
+      this.#disposeCompressedVideoController(imageTopic);
+    }
+
     // Add this camera_info_topic -> image_topic mapping
     if (cameraInfoTopic !== prevCameraInfoTopic && cameraInfoTopic != undefined) {
       this.#cameraInfoToImageTopics.set(cameraInfoTopic, imageTopic);
@@ -367,6 +374,11 @@ export class Images extends SceneExtension<ImageRenderable> {
     return false;
   };
 
+  #compressedVideoTopicShouldSubscribe = (topic: string): boolean => {
+    const settings: Partial<LayerSettingsImage> | undefined = this.renderer.config.topics[topic];
+    return settings?.visible === true;
+  };
+
   #handleRosRawImage = (messageEvent: PartialMessageEvent<RosImage>): void => {
     void this.handleImage(messageEvent, normalizeRosImage(messageEvent.message));
   };
@@ -384,6 +396,9 @@ export class Images extends SceneExtension<ImageRenderable> {
   };
 
   #handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
+    if (!this.#compressedVideoTopicShouldSubscribe(messageEvent.topic)) {
+      return;
+    }
     const normalizedEvent = {
       ...messageEvent,
       message: normalizeCompressedVideo(messageEvent.message),
@@ -419,6 +434,9 @@ export class Images extends SceneExtension<ImageRenderable> {
     queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
   ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
     return recordKeyframesAndFilterCompressedVideoQueue(queue, (topic, receiveTime) => {
+      if (!this.#compressedVideoTopicShouldSubscribe(topic)) {
+        return;
+      }
       this.#compressedVideoControllerForTopic(topic).recordKnownKeyframeReceiveTime(
         topic,
         receiveTime,
@@ -449,6 +467,14 @@ export class Images extends SceneExtension<ImageRenderable> {
       });
     }
     return controller;
+  }
+
+  #disposeCompressedVideoController(topic: string): void {
+    const controller = this.#compressedVideoControllers.get(topic);
+    if (controller != undefined) {
+      controller.dispose();
+      this.#compressedVideoControllers.delete(topic);
+    }
   }
 
   #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
