@@ -87,7 +87,9 @@ type ControllerRenderer = Pick<
 export class CompressedVideoController {
   readonly #topic: string;
   readonly #renderer: ControllerRenderer;
-  readonly #cache = new VideoGopCache();
+  // Share one byte ceiling across all active video panels instead of multiplying a per-panel
+  // allocation in multi-camera layouts.
+  readonly #cache = new VideoGopCache({ sharedBudget: true });
   readonly #state: ControllerState = {};
 
   #displayFrames: CompressedVideoDisplayFrames;
@@ -331,6 +333,7 @@ export class CompressedVideoController {
 
   public dispose(): void {
     this.clear();
+    this.#cache.dispose();
   }
 
   #shouldStartImplicitSeekBackfill(args: {

@@ -8,7 +8,12 @@
 import { Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
-import { VideoGopCache } from "./videoGopCache";
+import {
+  DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES,
+  DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES,
+  VideoGopCache,
+  globalVideoGopCacheBudget,
+} from "./videoGopCache";
 
 const TOPIC = "/camera";
 
@@ -300,5 +305,74 @@ describe("VideoGopCache", () => {
     // ...but its keyframe location survives, so a later seek can read exactly that GOP.
     expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(2))).toEqual(t(1));
     expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(4))).toEqual(t(3));
+  });
+});
+
+describe("VideoGopCache shared budget (REI-125)", () => {
+  afterEach(() => {
+    globalVideoGopCacheBudget.resetForTests();
+  });
+
+  it("leaves standalone caches on the fixed per-cache default", () => {
+    const cache = new VideoGopCache();
+    expect(cache.getMaxBytes()).toBe(DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES);
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(0);
+  });
+
+  it("divides the shared ceiling across participating caches", () => {
+    const first = new VideoGopCache({ sharedBudget: true });
+    // A single camera still gets the full per-cache default.
+    expect(first.getMaxBytes()).toBe(DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES);
+
+    const rest = [1, 2, 3, 4].map(() => new VideoGopCache({ sharedBudget: true }));
+    const all = [first, ...rest];
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(5);
+
+    const share = Math.floor(DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES / 5);
+    for (const cache of all) {
+      expect(cache.getMaxBytes()).toBe(share);
+    }
+    // The whole 5-camera layout now fits the shared ceiling instead of 5 x 64 MB.
+    const total = all.reduce((sum, cache) => sum + cache.getMaxBytes(), 0);
+    expect(total).toBeLessThanOrEqual(DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES);
+    expect(total).toBeLessThan(5 * DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES);
+  });
+
+  it("keeps the aggregate allocation within the ceiling for many cameras", () => {
+    const caches = Array.from({ length: 32 }, () => new VideoGopCache({ sharedBudget: true }));
+    const expectedShare = Math.floor(DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES / caches.length);
+    for (const cache of caches) {
+      expect(cache.getMaxBytes()).toBe(expectedShare);
+    }
+    expect(caches.reduce((sum, cache) => sum + cache.getMaxBytes(), 0)).toBeLessThanOrEqual(
+      DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES,
+    );
+  });
+
+  it("returns a disposed cache's share to the remaining caches", () => {
+    const caches = [1, 2, 3, 4].map(() => new VideoGopCache({ sharedBudget: true }));
+    expect(caches[0]!.getMaxBytes()).toBe(Math.floor(DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES / 4));
+
+    caches[3]!.dispose();
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(3);
+    for (const cache of caches.slice(0, 3)) {
+      expect(cache.getMaxBytes()).toBe(Math.floor(DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES / 3));
+    }
+
+    // dispose() is idempotent.
+    caches[3]!.dispose();
+    expect(globalVideoGopCacheBudget.getCacheCount()).toBe(3);
+  });
+
+  it("evicts down to the new ceiling when a later camera joins", () => {
+    const cache = new VideoGopCache({ sharedBudget: true });
+    for (let i = 0; i < 40; i++) {
+      cache.addFrame(h264Frame(i, i, i % 5 === 0 ? "key" : "delta"));
+    }
+    expect(cache.getByteSize()).toBeGreaterThan(0);
+
+    // Frames are ~1 MB each in this harness; force a tiny ceiling and confirm it is honoured.
+    cache.setMaxBytes(4 * 1024 * 1024);
+    expect(cache.getByteSize()).toBeLessThanOrEqual(4 * 1024 * 1024);
   });
 });
