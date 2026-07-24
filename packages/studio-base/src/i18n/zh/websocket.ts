@@ -17,9 +17,9 @@ export const websocket: Partial<TypeOptions["resources"]["websocket"]> = {
   confirm: "继续",
   cancel: "取消",
   notification: "通知",
-  vizIsTkenNow:
+  vizIsTakenNow:
     "当前设备<strong>{{deviceName}}</strong>的实时可视化已被用户<strong>{{username}}</strong>接管，您已自动登出。",
-  reconnetDesc: "如果需要，请重新连接。",
+  reconnectDesc: "如果需要，请重新连接。",
   reconnect: "重新连接",
   IKnow: "我知道了",
   vizIsDisconnected: "实时可视化已断开",

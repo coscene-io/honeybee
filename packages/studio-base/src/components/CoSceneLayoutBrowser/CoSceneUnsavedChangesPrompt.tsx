@@ -103,7 +103,7 @@ export function UnsavedChangesPrompt({
             <RadioGroup defaultValue="discard" onChange={handleChoiceGroupChange}>
               <FormControlLabel
                 value="discard"
-                label={t("revertLayoutsConfim", {
+                label={t("revertLayoutsConfirm", {
                   layoutName: layout.name,
                 })}
                 control={<Radio />}
@@ -162,7 +162,7 @@ export function UnsavedChangesPrompt({
             color={selectedKey === "discard" ? "error" : "primary"}
             disabled={selectedKey === "makePersonal" && nameError != undefined}
           >
-            {selectedKey === "discard" ? t("revertLayoutsConfim") : t("save", { ns: "general" })}
+            {selectedKey === "discard" ? t("revertLayoutsConfirm") : t("save", { ns: "general" })}
           </Button>
         </DialogActions>
       </form>

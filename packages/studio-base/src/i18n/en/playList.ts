@@ -16,7 +16,7 @@ export const playList = {
   shadowMode: "Shadow mode",
   addFiles: "Add files",
   selectedFilesCount: "Selected: {{count}} files",
-  selecteFilesFromRecord: "Select files from record",
+  selectFilesFromRecord: "Select files from record",
   deleteConfirmTitle: "Removing files from a playlist",
   deleteConfirmPrompt:
     "After removing the file {{filename}}, it will be unplayable in the current window and can be added to the playlist again.",

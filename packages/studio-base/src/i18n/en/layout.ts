@@ -30,7 +30,7 @@ export const layout = {
   copyToProject: "Copy to project",
   someoneElseHasDeletedThisLayout: "Someone else has deleted this layout",
   noPersonalLayouts: "Add a new layout to get started!",
-  noOrgnizationLayouts:
+  noOrganizationLayouts:
     "Your organization doesn't have any shared layouts yet. Share a layout to collaborate with others.",
   shareWithTeam: "Share with team ...",
   shareDialogTitle: "Share a copy with your organization",
@@ -39,8 +39,8 @@ export const layout = {
   layoutName: "Layout name",
   revertLayouts: "Revert layouts",
   revertTargetLayout: 'Revert "{{layoutName}}"?',
-  revertLayoutsPrompt: "Your changes will be permantly discarded. This cannot be undone.",
-  revertLayoutsConfim: "Discard changes",
+  revertLayoutsPrompt: "Your changes will be permanently discarded. This cannot be undone.",
+  revertLayoutsConfirm: "Discard changes",
   deleteLayoutsWarning: "Organization members will no longer be able to access this layout. ",
   deleteLayoutsPrompt: "{{layoutWarning}}This action cannot be undone.",
   deleteSelectedLayoutsTitle: "Delete selected layouts?",
@@ -51,8 +51,8 @@ export const layout = {
   updateSharedLayout: 'Update shared layout "{{layoutName}}"',
   unavailableWhileOffline: "(unavailable while offline)",
   saveAPersonalCopy: "Save a personal copy",
-  discardTip: "Your changes will be permantly deleted. This cannot be undone.",
-  projectRecommandedLayout: "Project preferred",
+  discardTip: "Your changes will be permanently deleted. This cannot be undone.",
+  projectRecommendedLayout: "Project preferred",
   recordDefaultLayout: "Record preferred",
   update: "Update",
   updateRemoteLayoutConfirm:

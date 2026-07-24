@@ -13,18 +13,18 @@ export const websocket = {
     'Click the shield icon at the end of your address bar, and then click "Load Unsafe Scripts."',
   note: "Note",
   connectionOccupied:
-    "The real-time visualisation of the device {{deviceName}} is being used by {{username}} and continuing to view it may affect others. Are you sure you want to continue?",
+    "The real-time visualization of the device {{deviceName}} is being used by {{username}} and continuing to view it may affect others. Are you sure you want to continue?",
   confirm: "Confirm",
   cancel: "Cancel",
   notification: "Notification",
-  vizIsTkenNow:
-    "The real-time visualisation of the current device {{deviceName}} has been taken over by the user {{username}} and you are automatically logged out!",
-  reconnetDesc: "Reconnect if necessary.",
+  vizIsTakenNow:
+    "The real-time visualization of the current device {{deviceName}} has been taken over by the user {{username}} and you are automatically logged out!",
+  reconnectDesc: "Reconnect if necessary.",
   reconnect: "Reconnect",
   IKnow: "I know",
-  vizIsDisconnected: "The real-time visualisation has been disconnected",
+  vizIsDisconnected: "The real-time visualization has been disconnected",
   inactivePageDescription:
-    "You have been inactive for {{time}} minutes without any operation on this real-time visualisation, the connection has been automatically disconnected to save device traffic. You can adjust the disconnection duration in the settings.",
+    "You have been inactive for {{time}} minutes without any operation on this real-time visualization, the connection has been automatically disconnected to save device traffic. You can adjust the disconnection duration in the settings.",
   exitAndClosePage: "Exit and close the page",
   lanAvailable: "LAN Available",
   lanConnectionPrompt:
@@ -37,7 +37,7 @@ export const websocket = {
   switchToPlaybackDesc:
     "Playback the data that has been played, up to {{duration}} of data. Want to play more time? <ToSettings>Go to Settings</ToSettings>",
   switchToRealTime: "Switch to real-time mode",
-  realTimeVizPlayback: "Real-time visualisation playback",
+  realTimeVizPlayback: "Real-time visualization playback",
   switchToRealTimeFromPlayback: "Exit playback, view real-time view",
   noCacheSetPrompt: "No cache duration set, <ToSettings>Go to Settings</ToSettings>",
 };
