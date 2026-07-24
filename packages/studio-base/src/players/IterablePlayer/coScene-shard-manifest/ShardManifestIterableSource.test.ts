@@ -387,4 +387,40 @@ describe("ShardManifestIterableSource", () => {
 
     expect(mockInitializeReader).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    {
+      label: "start",
+      start: undefined,
+      end: { sec: 0, nsec: 100_000_000 },
+    },
+    {
+      label: "end",
+      start: { sec: 0, nsec: 0 },
+      end: undefined,
+    },
+    {
+      label: "both bounds",
+      start: undefined,
+      end: undefined,
+    },
+  ])("does not prune shards when $label is omitted", async ({ start, end }) => {
+    mockSecondShardTimeRange("500000000", "1000000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+    mockInitializeReader.mockClear();
+
+    const iterator = source.messageIterator({
+      topics: mockTopicSelection("/cam/h264"),
+      start,
+      end,
+      consumptionType: "partial",
+    });
+    await iterator.next();
+
+    expect(mockInitializeReader).toHaveBeenCalledTimes(2);
+  });
 });

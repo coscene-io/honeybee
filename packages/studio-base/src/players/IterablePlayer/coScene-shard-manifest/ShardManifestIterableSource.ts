@@ -369,12 +369,19 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return;
     }
 
-    const requestStartNs = toNanoSec(args.start);
-    const requestEndNs = toNanoSec(args.end);
+    const requestTimeRange =
+      args.start != undefined && args.end != undefined
+        ? { startNs: toNanoSec(args.start), endNs: toNanoSec(args.end) }
+        : undefined;
 
     // Open any shards whose topic set overlaps the request, in parallel.
     const matchingShards = this.#activeShards.filter((shard) => {
-      if (!shardOverlapsTimeRange(shard, requestStartNs, requestEndNs)) {
+      // Iterator bounds are optional. Without a complete closed range, conservatively retain every
+      // topic-matching shard instead of converting `undefined` or incorrectly pruning data.
+      if (
+        requestTimeRange != undefined &&
+        !shardOverlapsTimeRange(shard, requestTimeRange.startNs, requestTimeRange.endNs)
+      ) {
         return false;
       }
       const shardTopics = manifestTopicSet(shard);
