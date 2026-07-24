@@ -9,7 +9,7 @@ import { McapIndexedReader, McapTypes } from "@mcap/core";
 
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers } from "@foxglove/mcap-support";
-import { compare, fromNanoSec } from "@foxglove/rostime";
+import { compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import {
   GetBackfillMessagesArgs,
@@ -94,6 +94,31 @@ function readAheadBytesForShard(shard: ShardEntry): number {
   const avgBytesPerSec = shard.sizeBytes / durationSec;
   const target = Math.round(avgBytesPerSec * READ_AHEAD_SECONDS);
   return Math.max(READ_AHEAD_MIN_BYTES, Math.min(READ_AHEAD_MAX_BYTES, target));
+}
+
+function shardOverlapsTimeRange(
+  shard: ShardEntry,
+  requestStartNs: bigint,
+  requestEndNs: bigint,
+): boolean {
+  try {
+    const shardStartNs = BigInt(shard.timeRange.startNs);
+    const shardEndNs = BigInt(shard.timeRange.endNs);
+    return shardStartNs <= requestEndNs && shardEndNs >= requestStartNs;
+  } catch {
+    // Manifest validation normally rejects invalid time ranges. Preserve the conservative read
+    // behavior if a future manifest representation cannot be compared here.
+    return true;
+  }
+}
+
+function shardCanContainBackfill(shard: ShardEntry, targetNs: bigint): boolean {
+  try {
+    return BigInt(shard.timeRange.startNs) <= targetNs;
+  } catch {
+    // See shardOverlapsTimeRange: an uncomparable range must not cause data to be skipped.
+    return true;
+  }
 }
 
 export class ShardManifestIterableSource implements ISerializedIterableSource {
@@ -344,8 +369,14 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return;
     }
 
+    const requestStartNs = toNanoSec(args.start);
+    const requestEndNs = toNanoSec(args.end);
+
     // Open any shards whose topic set overlaps the request, in parallel.
     const matchingShards = this.#activeShards.filter((shard) => {
+      if (!shardOverlapsTimeRange(shard, requestStartNs, requestEndNs)) {
+        return false;
+      }
       const shardTopics = manifestTopicSet(shard);
       for (const t of requestedTopics.keys()) {
         if (shardTopics.has(t)) {
@@ -444,7 +475,11 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return [];
     }
 
+    const targetNs = toNanoSec(args.time);
     const matchingShards = this.#activeShards.filter((shard) => {
+      if (!shardCanContainBackfill(shard, targetNs)) {
+        return false;
+      }
       const shardTopics = manifestTopicSet(shard);
       for (const t of requestedTopics.keys()) {
         if (shardTopics.has(t)) {
