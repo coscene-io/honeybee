@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { MessageBlock, PlayerState, Topic } from "@foxglove/studio-base/players/types";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { enumValuesByDatatypeAndField } from "@foxglove/studio-base/util/enums";
 import { expandedLineColors } from "@foxglove/studio-base/util/plotColors";
@@ -627,7 +628,11 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       return;
     }
 
+    const shouldRecordPerformance = playbackPerformanceMetrics.captureActiveSeek() != undefined;
+    const startedAt = shouldRecordPerformance ? performance.now() : undefined;
     const datasets: Dataset[] = [];
+    let inputPointCount = 0;
+    let outputPointCount = 0;
     let minY: number | undefined;
 
     for (const series of this.#series) {
@@ -638,9 +643,11 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
       // Merge fullData and currentData
       const data = this.#getMergedData(cursorKey);
+      inputPointCount += data.length;
 
       // Process data to create state transition segments (with caching)
       const processedData = this.#processDataForStateTransitions(data, y, cursorKey);
+      outputPointCount += processedData.length;
 
       const dataset: Dataset = {
         borderWidth: 10,
@@ -687,6 +694,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
     this.emit("pathStateChanged", pathState);
     this.updateDatasets(datasets);
+    if (startedAt != undefined) {
+      playbackPerformanceMetrics.recordStateTransitionBuild(
+        performance.now() - startedAt,
+        inputPointCount,
+        outputPointCount,
+      );
+    }
   }
 
   /**
