@@ -129,7 +129,7 @@ A layout is a serializable workspace (`LayoutData`): mosaic arrangement, per-pan
 | --- | --- | --- |
 | Personal layout | `PERSONAL_WRITE` | Private workspace; may be created offline and synced later |
 | Project layout | `PROJECT_WRITE` | Shared project template; requires online access and project write permission |
-| Read-only project layout | `PROJECT_READ` | May be opened for viewing; client blocks overwrite save (compatibility) |
+| Read-only project layout | `PROJECT_READ` | May be opened for viewing; the current layout UI blocks overwrite save, while direct layout-manager callers must enforce read-only access |
 
 The create UI type selector currently offers **personal** and **project** (`PROJECT_WRITE`) only.
 
@@ -146,7 +146,6 @@ The create UI type selector currently offers **personal** and **project** (`PROJ
 | URL `layoutId` | Deep-link to an existing personal or project layout |
 | Layout history | Restore the last used layout |
 | Folders | Organization only; no permission change |
-| Desktop `~/.coStudio/layouts/*.json` | Local preset files on desktop |
 
 #### Shipped default and sample compositions
 

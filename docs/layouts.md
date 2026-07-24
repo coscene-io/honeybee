@@ -32,14 +32,14 @@ This maps to the backend `LayoutScope`:
 | --- | --- | --- | --- |
 | `PERSONAL_WRITE` | `LAYOUT_SCOPE_PERSONAL` | `users/{user}/layouts/{layout}` | Owning user |
 | `PROJECT_WRITE` | `LAYOUT_SCOPE_PROJECT` | `warehouses/{wh}/projects/{project}/layouts/{layout}` | Project members with write permission |
-| `PROJECT_READ` | (project scope, read-only client flag) | project layout name pattern | **Read-only** in the client |
+| `PROJECT_READ` | (project scope, read-only client flag) | project layout name pattern | The current layout UI hides or disables editing |
 
 ### 1.1 Personal layout (`PERSONAL_WRITE`)
 
 - Owned by a single user.
 - Default type when creating a blank layout, importing a file, or duplicating into personal space.
-- Stored under the user parent (`users/{userId}`).
-- Can be created while offline (queued as `syncInfo.status = "new"` and synced later when online).
+- When a user is loaded, stored under the user parent (`users/{userId}`).
+- Can be created while offline (queued as `syncInfo.status = "new"` and synced later when online). If no user is loaded yet, the local record has an empty parent and an id such as `/layouts/{layout}` until synchronization assigns its remote user parent.
 - Shown under the **Personal** sidebar category in the layout drawer.
 - Icon: person.
 
@@ -55,7 +55,8 @@ This maps to the backend `LayoutScope`:
 ### 1.3 Read-only project layout (`PROJECT_READ`)
 
 - Still part of the client type union.
-- Treated as project-scoped via `layoutIsProject()`, but `layoutIsRead()` disables rename, move, delete, and save-overwrite actions.
+- Treated as project-scoped via `layoutIsProject()`. Current layout UI call sites use `layoutIsRead()` to disable rename, move, delete, and save-overwrite actions.
+- `CoSceneLayoutManager.overwriteLayout()` does not itself reject `PROJECT_READ`; callers outside those UI paths must enforce the read-only permission before invoking manager mutations.
 - Not offered as a create option in the current create/copy dialogs (only `PERSONAL_WRITE` and `PROJECT_WRITE` appear in the **Type** selector).
 - Kept for compatibility with older shared/read layouts and permission checks.
 
@@ -119,7 +120,6 @@ Supported ways to create or load a layout:
 | **Copy / duplicate existing** | Copy dialog or “make a personal copy” of a shared layout | Personal or project |
 | **Import from file** | Load a `.json` layout export | Personal or project |
 | **Export to file** | Download layout JSON (inverse of import) | n/a |
-| **Desktop folder load** | Desktop app loads `~/.coStudio/layouts/*.json` | Local default layouts |
 | **Built-in default** | `defaultLayout` (and brand variants such as Keenon / Gaussian) when nothing is selected | Not a saved remote layout |
 | **Sample data layout** | Data source factories may ship a `sampleLayout` (e.g. NuScenes) | Applied as current layout data |
 | **Share-manifest layout** | Transient layout from a share link / manifest (`share-manifest-layout`) | Transient, not persisted as personal/project |
