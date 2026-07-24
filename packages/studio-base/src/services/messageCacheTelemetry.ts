@@ -29,6 +29,11 @@ const SAFE_MESSAGE_CACHE_NUMBER_KEYS = new Set([
 ]);
 
 const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set(["writesDisabled", "interrupted"]);
+const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set(["latency_ms", "topic_count", "message_count"]);
+const PLAYER_PERFORMANCE_EVENTS = new Set<AppEvent>([
+  AppEvent.PLAYER_SEEK,
+  AppEvent.PLAYER_SEEK_LATENCY,
+]);
 
 // PostHog needs a small number of primitive transport and environment fields for ingestion and
 // useful grouping. Objects, page data, campaign data, and SDK-added URLs are deliberately omitted.
@@ -57,6 +62,7 @@ const SAFE_POSTHOG_PRIMITIVE_KEYS = new Set([
   "time",
   "platform",
   "environment",
+  "release",
   "os",
   "gl_vendor",
   "gl_renderer",
@@ -120,14 +126,46 @@ export function sanitizeMessageCacheMetricData(
   return sanitized;
 }
 
-function sanitizeMessageCacheCaptureProperties(properties: Properties): Properties {
+/** Restrict seek telemetry to finite aggregate measurements with bounded cardinality. */
+export function sanitizePlayerPerformanceMetricData(
+  data: Readonly<Record<string, unknown>> | undefined,
+): Record<string, number> {
+  const sanitized: Record<string, number> = {};
+  if (data == undefined) {
+    return sanitized;
+  }
+  for (const [key, value] of Object.entries(data)) {
+    if (
+      SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS.has(key) &&
+      typeof value === "number" &&
+      Number.isFinite(value)
+    ) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+export function sanitizePostHogPrimitiveProperties(properties: Properties): Properties {
   const sanitized: Properties = {};
   for (const [key, value] of Object.entries(properties)) {
     if (SAFE_POSTHOG_PRIMITIVE_KEYS.has(key) && isSafePrimitive(value)) {
       sanitized[key] = value;
     }
   }
-  return Object.assign(sanitized, sanitizeMessageCacheMetricData(properties));
+  return sanitized;
+}
+
+function sanitizedCaptureResult(result: CaptureResult, properties: Properties): CaptureResult {
+  const sanitized: CaptureResult = {
+    uuid: result.uuid,
+    event: result.event,
+    properties,
+  };
+  if (result.timestamp != undefined) {
+    sanitized.timestamp = result.timestamp;
+  }
+  return sanitized;
 }
 
 /** Fire-and-forget metrics support both synchronous and asynchronous analytics implementations. */
@@ -147,13 +185,29 @@ export const sanitizeMessageCacheCaptureResult: BeforeSendFn = (result) => {
     return result;
   }
 
-  const sanitized: CaptureResult = {
-    uuid: result.uuid,
-    event: result.event,
-    properties: sanitizeMessageCacheCaptureProperties(result.properties),
-  };
-  if (result.timestamp != undefined) {
-    sanitized.timestamp = result.timestamp;
+  return sanitizedCaptureResult(
+    result,
+    Object.assign(
+      sanitizePostHogPrimitiveProperties(result.properties),
+      sanitizeMessageCacheMetricData(result.properties),
+    ),
+  );
+};
+
+/** Strip SDK-added page data from privacy-safe aggregate telemetry after PostHog enrichment. */
+export const sanitizeAnalyticsCaptureResult: BeforeSendFn = (result) => {
+  const cacheResult = sanitizeMessageCacheCaptureResult(result);
+  if (!result || cacheResult !== result) {
+    return cacheResult;
   }
-  return sanitized;
+  if (!PLAYER_PERFORMANCE_EVENTS.has(result.event as AppEvent)) {
+    return result;
+  }
+  return sanitizedCaptureResult(
+    result,
+    Object.assign(
+      sanitizePostHogPrimitiveProperties(result.properties),
+      sanitizePlayerPerformanceMetricData(result.properties),
+    ),
+  );
 };
