@@ -81,6 +81,9 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
 
   public seek(time: Time): void {
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
+    void this.#syncEventToAnalytics({
+      event: AppEvent.PLAYER_SEEK,
+    });
   }
   public setSpeed(speed: number): void {
     this.#analytics.setSpeed(speed);
@@ -122,10 +125,17 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     this.#playing = false;
   }
 
-  public recordSeekLatency(latencyMs: number): void {
+  public recordSeekLatency(
+    latencyMs: number,
+    details: Readonly<{ topicCount: number; messageCount: number }>,
+  ): void {
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK_LATENCY,
-      data: { latency_ms: latencyMs },
+      data: {
+        latency_ms: latencyMs,
+        topic_count: details.topicCount,
+        message_count: details.messageCount,
+      },
     });
   }
 

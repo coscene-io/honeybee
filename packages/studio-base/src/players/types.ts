@@ -516,7 +516,10 @@ export interface PlayerMetricsCollectorInterface {
   recordPlaybackTime(time: Time, params: { stillLoadingData: boolean }): void;
   recordUncachedRangeRequest(): void;
   recordTimeToFirstMsgs(): void;
-  recordSeekLatency(latencyMs: number): void;
+  recordSeekLatency(
+    latencyMs: number,
+    details: Readonly<{ topicCount: number; messageCount: number }>,
+  ): void;
   recordStallDuration(durationMs: number): void;
   recordMessageCacheMetric?(
     event: string,

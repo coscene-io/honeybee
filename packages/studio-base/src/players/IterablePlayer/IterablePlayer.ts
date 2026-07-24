@@ -902,7 +902,10 @@ export class IterablePlayer implements Player {
       this.#presence = PlayerPresence.PRESENT;
 
       if (this.#seekStartTime != undefined) {
-        this.#metricsCollector.recordSeekLatency(Date.now() - this.#seekStartTime);
+        this.#metricsCollector.recordSeekLatency(Date.now() - this.#seekStartTime, {
+          topicCount: this.#allTopics.size,
+          messageCount: messages.length,
+        });
         this.#seekStartTime = undefined;
       }
 
