@@ -808,7 +808,10 @@ export class CompressedVideoController {
     endTime: Time,
     metricsSeekId: number | undefined,
   ): Promise<MessageEvent[] | undefined> {
-    let frames = await this.#readRangeMeasured(generation, startTime, endTime, metricsSeekId);
+    let frames =
+      metricsSeekId == undefined
+        ? await this.#readRange(generation, startTime, endTime)
+        : await this.#readRangeMeasured(generation, startTime, endTime, metricsSeekId);
     for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
       if (frames != undefined || !this.#isCurrentLookback(generation)) {
         return frames;
@@ -818,7 +821,10 @@ export class CompressedVideoController {
         return undefined;
       }
       playbackPerformanceMetrics.recordVideoRangeReadRetry(metricsSeekId);
-      frames = await this.#readRangeMeasured(generation, startTime, endTime, metricsSeekId);
+      frames =
+        metricsSeekId == undefined
+          ? await this.#readRange(generation, startTime, endTime)
+          : await this.#readRangeMeasured(generation, startTime, endTime, metricsSeekId);
     }
     return frames;
   }
@@ -827,11 +833,8 @@ export class CompressedVideoController {
     generation: number,
     startTime: Time,
     endTime: Time,
-    metricsSeekId: number | undefined,
+    metricsSeekId: number,
   ): Promise<MessageEvent[] | undefined> {
-    if (metricsSeekId == undefined) {
-      return await this.#readRange(generation, startTime, endTime);
-    }
     const startedAt = performance.now();
     const frames = await this.#readRange(generation, startTime, endTime);
     playbackPerformanceMetrics.recordVideoRangeRead(
