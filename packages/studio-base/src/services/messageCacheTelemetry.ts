@@ -29,11 +29,7 @@ const SAFE_MESSAGE_CACHE_NUMBER_KEYS = new Set([
 ]);
 
 const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set(["writesDisabled", "interrupted"]);
-const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set([
-  "latency_ms",
-  "topic_count",
-  "message_count",
-]);
+const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set(["latency_ms", "topic_count", "message_count"]);
 const PLAYER_PERFORMANCE_EVENTS = new Set<AppEvent>([
   AppEvent.PLAYER_SEEK,
   AppEvent.PLAYER_SEEK_LATENCY,

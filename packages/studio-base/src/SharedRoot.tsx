@@ -70,8 +70,10 @@ export function SharedRoot(
   posthog.register_once({
     platform: isDesktopApp() ? "coStudio" : "honeybee",
     environment: appConfig.VITE_APP_PROJECT_ENV,
-    release: appConfig.RELEASE_TAG,
   });
+  // Release changes across upgrades, so refresh it on every startup instead of preserving the
+  // first value stored in PostHog persistence.
+  posthog.register({ release: appConfig.RELEASE_TAG });
 
   if (
     appConfig.VITE_APP_PROJECT_ENV !== "local" &&
