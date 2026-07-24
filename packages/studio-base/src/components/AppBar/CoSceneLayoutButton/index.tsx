@@ -665,7 +665,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           {layoutManager.supportsSharing && orgLayouts != undefined && orgLayouts.length > 0 && (
             <LayoutSection
               title={t("organization")}
-              emptyText={t("noOrgnizationLayouts")}
+              emptyText={t("noOrganizationLayouts")}
               items={orgLayouts}
               anySelectedModifiedLayouts={anySelectedModifiedLayouts}
               multiSelectedIds={state.selectedIds}

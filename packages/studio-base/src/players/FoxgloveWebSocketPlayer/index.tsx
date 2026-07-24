@@ -419,7 +419,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         prompt: (
           <Trans
             t={t}
-            i18nKey="websocket:vizIsTkenNow"
+            i18nKey="websocket:vizIsTakenNow"
             values={{
               deviceName: this.#deviceName,
               username: message.username,
@@ -490,7 +490,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           prompt: (
             <Trans
               t={t}
-              i18nKey="websocket:vizIsTkenNow"
+              i18nKey="websocket:vizIsTakenNow"
               values={{
                 deviceName: this.#deviceName,
                 username: message.username,
