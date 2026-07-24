@@ -8,6 +8,7 @@
 import { H264, H265 } from "@foxglove/den/video";
 import { Time, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
@@ -27,6 +28,11 @@ type CachedVideoFrame = {
   isKeyframe: boolean;
   byteLength: number;
 };
+
+function recordCacheLookup(frames: MessageEvent[] | undefined): MessageEvent[] | undefined {
+  playbackPerformanceMetrics.recordGopCacheLookup(frames != undefined ? "hit" : "miss");
+  return frames;
+}
 
 export type VideoFrameInfo = {
   frame: CompressedVideoLike;
@@ -132,6 +138,7 @@ export class VideoGopCache {
     this.#activeRangeByTopic.set(msg.topic, range);
     this.#mergeOverlappingRanges(msg.topic);
     this.#pruneToBudget();
+    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     return true;
   }
 
@@ -180,6 +187,7 @@ export class VideoGopCache {
       this.#targetReceiveTimeNs = range.lastReceiveTime();
       this.#mergeOverlappingRanges(topic);
       this.#pruneToBudget();
+      playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     }
   }
 
@@ -190,42 +198,44 @@ export class VideoGopCache {
   }
 
   public framesForReceiveTime(topic: string, targetTime: Time): MessageEvent[] | undefined {
+    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsReceiveTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForReceiveTime(targetNs);
-    return replayableFrames.length > 0 ? replayableFrames : undefined;
+    return recordCacheLookup(replayableFrames.length > 0 ? replayableFrames : undefined);
   }
 
   public seekAndReturnFramesForReceiveTime(
     topic: string,
     targetTime: Time,
   ): MessageEvent[] | undefined {
+    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsReceiveTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForReceiveTime(targetNs);
     if (replayableFrames.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
     this.#activeRangeByTopic.set(topic, range);
-    return replayableFrames;
+    return recordCacheLookup(replayableFrames);
   }
 
   public framesForPublishTime(
@@ -233,43 +243,45 @@ export class VideoGopCache {
     targetTime: Time,
     afterTime?: Time,
   ): MessageEvent[] | undefined {
+    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const afterNs = afterTime != undefined ? toNanoSec(afterTime) : undefined;
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsPublishTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForPublishTime(targetNs, afterNs);
-    return replayableFrames.length > 0 ? replayableFrames : undefined;
+    return recordCacheLookup(replayableFrames.length > 0 ? replayableFrames : undefined);
   }
 
   public seekAndReturnFramesForPublishTime(
     topic: string,
     targetTime: Time,
   ): MessageEvent[] | undefined {
+    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsPublishTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForPublishTime(targetNs);
     if (replayableFrames.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
     this.#activeRangeByTopic.set(topic, range);
-    return replayableFrames;
+    return recordCacheLookup(replayableFrames);
   }
 
   /**
@@ -376,13 +388,16 @@ export class VideoGopCache {
       const removedBytes = candidate.range.trimFurthestFromReceiveTime(this.#targetReceiveTimeNs);
       if (removedBytes > 0) {
         this.#byteSize -= removedBytes;
+        playbackPerformanceMetrics.recordGopCacheEviction(removedBytes);
         if (candidate.range.isEmpty()) {
           this.#removeRange(candidate.topic, candidate.range);
         }
         continue;
       }
 
-      this.#byteSize -= candidate.range.size;
+      const removedBytesForRange = candidate.range.size;
+      this.#byteSize -= removedBytesForRange;
+      playbackPerformanceMetrics.recordGopCacheEviction(removedBytesForRange);
       this.#removeRange(candidate.topic, candidate.range);
     }
   }

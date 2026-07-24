@@ -33,6 +33,7 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import type {
@@ -543,13 +544,23 @@ export function ThreeDeeRender(props: {
   }, [renderer, subscribeMessageRange]);
 
   const acquireSeekKeyframeSearchPlaybackPause = useCallback(() => {
-    return (
+    const finishVisualTask = playbackPerformanceMetrics.beginVisualTask();
+    const releasePlaybackPause =
       context.unstable_acquireKeyframeSearchLock?.({
         isPlaying: context.unstable_getPlaybackIsPlaying?.() ?? false,
         pausePlayback: context.unstable_pausePlayback,
         startPlayback: context.unstable_startPlayback,
-      }) ?? (() => {})
-    );
+      }) ?? (() => {});
+    if (finishVisualTask == undefined) {
+      return releasePlaybackPause;
+    }
+    return () => {
+      try {
+        releasePlaybackPause();
+      } finally {
+        finishVisualTask();
+      }
+    };
   }, [context]);
 
   useEffect(() => {
