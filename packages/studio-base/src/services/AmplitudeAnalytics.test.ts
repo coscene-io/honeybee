@@ -118,6 +118,24 @@ describe("AmplitudeAnalytics", () => {
     });
   });
 
+  it("sends only fixed playback performance fields to the analytics backend", async () => {
+    const analytics = Object.create(AmplitudeAnalytics.prototype) as AmplitudeAnalytics;
+
+    await analytics.logEvent(AppEvent.PLAYBACK_PERFORMANCE, {
+      status: "settled",
+      duration_ms: 150,
+      visual_task_count: 2,
+      topic: "/private/topic",
+      source_url: "https://example.test/file?signature=secret",
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith(AppEvent.PLAYBACK_PERFORMANCE, {
+      status: "settled",
+      duration_ms: 150,
+      visual_task_count: 2,
+    });
+  });
+
   it("removes URL, referrer, campaign, topic, and message fields after SDK enrichment", () => {
     const result = sanitizeMessageCacheCaptureResult({
       uuid: "metric-id",

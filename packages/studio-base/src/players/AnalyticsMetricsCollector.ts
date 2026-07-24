@@ -13,6 +13,7 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 const log = Log.getLogger(__filename);
 
@@ -80,6 +81,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   }
 
   public seek(time: Time): void {
+    playbackPerformanceMetrics.beginSeek();
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK,
@@ -90,6 +92,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene setSpeed: ${speed}`);
   }
   public close(): void {
+    playbackPerformanceMetrics.finishCurrent("closed");
     if (this.#intervalId != undefined) {
       clearInterval(this.#intervalId);
       this.#intervalId = undefined;
@@ -129,6 +132,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     latencyMs: number,
     details: Readonly<{ topicCount: number; messageCount: number }>,
   ): void {
+    playbackPerformanceMetrics.markPlayerReady(latencyMs, details);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK_LATENCY,
       data: {
