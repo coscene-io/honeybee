@@ -29,7 +29,12 @@ const SAFE_MESSAGE_CACHE_NUMBER_KEYS = new Set([
 ]);
 
 const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set(["writesDisabled", "interrupted"]);
-const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set(["latency_ms", "topic_count", "message_count"]);
+const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set([
+  "seek_id",
+  "latency_ms",
+  "topic_count",
+  "message_count",
+]);
 const PLAYER_PERFORMANCE_EVENTS = new Set<AppEvent>([
   AppEvent.PLAYER_SEEK,
   AppEvent.PLAYER_SEEK_LATENCY,
@@ -37,6 +42,15 @@ const PLAYER_PERFORMANCE_EVENTS = new Set<AppEvent>([
 
 // PostHog needs a small number of primitive transport and environment fields for ingestion and
 // useful grouping. Objects, page data, campaign data, and SDK-added URLs are deliberately omitted.
+//
+// Scope note: "privacy-safe" means the event payload is bounded to the allowlists in this
+// file — it does not mean anonymous. The keys below are the same identity set every existing
+// analytics event already carries (user, device, session, window, and organization identity
+// plus gl_renderer), and PostHog person profiles are enabled, so every event is attributable
+// to an identified user; the events in this file add no identity surface beyond that accepted
+// baseline. This filtering also applies only to the events the before_send hooks below match;
+// identify() calls and other events (e.g. PLAYER_INIT with its data-source args) are not
+// filtered here.
 const SAFE_POSTHOG_PRIMITIVE_KEYS = new Set([
   "token",
   "distinct_id",

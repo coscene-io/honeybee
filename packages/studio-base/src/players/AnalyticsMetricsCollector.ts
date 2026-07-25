@@ -26,6 +26,10 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   #metadata: EventData = {};
   #intervalId: ReturnType<typeof setInterval> | undefined;
   #lastTickTime: number | undefined;
+  // Session-local sequence joining a PLAYER_SEEK attempt to its PLAYER_SEEK_LATENCY completion.
+  // recordSeekLatency always refers to the most recent accepted seek: the player skips the
+  // completion path for superseded backfills before any newer seek() can run.
+  #seekSequence: number = 0;
 
   public constructor({ analytics }: { analytics: IAnalytics }) {
     log.debug("New AnalyticsMetricsCollector");
@@ -79,10 +83,18 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     }
   }
 
+  /**
+   * One event per accepted seek. `seek_id` joins the attempt to its completion event within this
+   * session. Superseded and aborted seeks never emit a completion, so completions divided by
+   * attempts is a completion-event ratio, not a failure rate — analysts must not label the
+   * difference "failures" without joining on `seek_id`.
+   */
   public seek(time: Time): void {
+    this.#seekSequence += 1;
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK,
+      data: { seek_id: this.#seekSequence },
     });
   }
   public setSpeed(speed: number): void {
@@ -132,6 +144,9 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK_LATENCY,
       data: {
+        // 0 means no attempt was recorded (e.g. a completion from a seek issued during player
+        // initialization, which emits no PLAYER_SEEK event).
+        seek_id: this.#seekSequence,
         latency_ms: latencyMs,
         topic_count: details.topicCount,
         message_count: details.messageCount,
