@@ -308,7 +308,7 @@ describe("VideoGopCache", () => {
   });
 });
 
-describe("VideoGopCache shared budget (REI-125)", () => {
+describe("VideoGopCache shared budget", () => {
   afterEach(() => {
     globalVideoGopCacheBudget.resetForTests();
   });
@@ -347,6 +347,51 @@ describe("VideoGopCache shared budget (REI-125)", () => {
     expect(caches.reduce((sum, cache) => sum + cache.getMaxBytes(), 0)).toBeLessThanOrEqual(
       DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES,
     );
+  });
+
+  it("allocates the documented share at every supported camera count", () => {
+    // The quota table reviewers should sanity-check: static equal shares, ceiling wins, no floor.
+    const mib = 1024 * 1024;
+    const expectedShareByCameraCount: Array<[cameras: number, shareBytes: number]> = [
+      [1, 64 * mib],
+      [2, 64 * mib],
+      [5, 25.6 * mib],
+      [8, 16 * mib],
+      [16, 8 * mib],
+      [32, 4 * mib],
+    ];
+
+    for (const [cameras, shareBytes] of expectedShareByCameraCount) {
+      globalVideoGopCacheBudget.resetForTests();
+      const caches = Array.from({ length: cameras }, () => new VideoGopCache({ sharedBudget: true }));
+      for (const cache of caches) {
+        expect(cache.getMaxBytes()).toBe(Math.floor(shareBytes));
+      }
+      const total = caches.reduce((sum, cache) => sum + cache.getMaxBytes(), 0);
+      expect(total).toBeLessThanOrEqual(DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES);
+      for (const cache of caches) {
+        cache.dispose();
+      }
+    }
+  });
+
+  it("prunes existing caches synchronously when a new camera registers", () => {
+    // Use a small budget with 1 MB frames so eviction is exercised quickly.
+    globalVideoGopCacheBudget.resetForTests(8 * 1024 * 1024);
+    const first = new VideoGopCache({ sharedBudget: true });
+    for (let i = 0; i < 12; i++) {
+      first.addFrame(h264Frame(i, i, i % 3 === 0 ? "key" : "delta", 1024 * 1024));
+    }
+    expect(first.getByteSize()).toBeGreaterThan(4 * 1024 * 1024);
+    expect(first.getByteSize()).toBeLessThanOrEqual(8 * 1024 * 1024);
+
+    // Registration rebalances and prunes in the same call stack: by the time the second camera's
+    // constructor returns, the first cache is already under its halved share. No transient
+    // over-budget window exists.
+    const second = new VideoGopCache({ sharedBudget: true });
+    expect(first.getByteSize()).toBeLessThanOrEqual(4 * 1024 * 1024);
+    expect(first.getMaxBytes()).toBe(4 * 1024 * 1024);
+    expect(second.getMaxBytes()).toBe(4 * 1024 * 1024);
   });
 
   it("returns a disposed cache's share to the remaining caches", () => {

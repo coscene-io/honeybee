@@ -14,12 +14,24 @@ export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
 export const DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC = 20_000;
 
 /**
- * Budget shared by every auto-registered {@link VideoGopCache} (REI-125).
+ * Budget shared by every auto-registered {@link VideoGopCache}.
  *
  * The per-cache default is 64 MB, but one cache exists per video panel, so a 5-camera layout could
  * hold 320 MB of compressed frames in the JS heap on top of the 1 GB block cache. Multi-camera
  * layouts now divide this shared ceiling instead of multiplying the per-cache one; a single-camera
  * layout still gets the full 64 MB.
+ *
+ * Quota semantics (deliberate, see the camera-count matrix test):
+ * - Static equal partition: every registered cache gets `min(64 MB, floor(total / count))`. A
+ *   quiet camera's unused quota is NOT borrowed by a busy one. Elastic sharing was considered
+ *   and rejected for now; revisit only if real usage shows quiet-camera quota stranding matters.
+ * - The ceiling always wins and there is no per-cache floor: 8 cameras get 16 MB each, 32 cameras
+ *   get 4 MB each. Small shares increase seek backfill reads (mitigated by the keyframe index,
+ *   which survives eviction and keeps backfills single-request).
+ * - Rebalancing is synchronous: registering a cache prunes existing caches down to their new
+ *   shares before the constructor returns, so actual bytes never exceed the ceiling.
+ * - The budget holds strong references. A shared cache that is never `dispose()`d permanently
+ *   shrinks every other camera's share and pins its memory.
  */
 export const DEFAULT_VIDEO_GOP_CACHE_TOTAL_MAX_BYTES = 128 * 1024 * 1024;
 
@@ -172,7 +184,7 @@ export class VideoGopCache {
       maxBytes?: number;
       maxKeyframeIndexEntriesPerTopic?: number;
       /**
-       * Join the process-wide budget shared by all video panels (REI-125). Opt-in so standalone
+       * Join the process-wide budget shared by all video panels. Opt-in so standalone
        * caches keep the fixed per-cache default. Callers must `dispose()` to release their share.
        */
       sharedBudget?: boolean;
