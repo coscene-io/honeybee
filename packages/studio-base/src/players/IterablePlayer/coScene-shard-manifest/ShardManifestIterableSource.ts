@@ -96,29 +96,50 @@ function readAheadBytesForShard(shard: ShardEntry): number {
   return Math.max(READ_AHEAD_MIN_BYTES, Math.min(READ_AHEAD_MAX_BYTES, target));
 }
 
+// Pruning correctness depends on two invariants that manifest parsing does not enforce
+// (parseManifest only checks that startNs/endNs are strings):
+//   1. The range is a well-formed, ordered pair of decimal nanosecond strings. BigInt() alone is
+//      not a sufficient check — it throws on "NaN" but silently coerces "" and whitespace to 0n,
+//      which would make a shard look like [0, 0] and prune it while it still holds data.
+//   2. The range is expressed in the same time domain the child iterator filters on: MCAP
+//      logTime, which McapIndexedIterableSource surfaces as receiveTime. A manifest written in
+//      publish/header time could declare a range that excludes messages the iterator would yield.
+// A range that fails (1) must not prune; (2) is a contract on the manifest producer that cannot
+// be checked here without opening the shard.
+const DECIMAL_NS = /^\d+$/;
+
+function shardTimeRangeNs(shard: ShardEntry): { startNs: bigint; endNs: bigint } | undefined {
+  const { startNs, endNs } = shard.timeRange;
+  if (!DECIMAL_NS.test(startNs) || !DECIMAL_NS.test(endNs)) {
+    return undefined;
+  }
+  const start = BigInt(startNs);
+  const end = BigInt(endNs);
+  if (start > end) {
+    return undefined;
+  }
+  return { startNs: start, endNs: end };
+}
+
 function shardOverlapsTimeRange(
   shard: ShardEntry,
   requestStartNs: bigint,
   requestEndNs: bigint,
 ): boolean {
-  try {
-    const shardStartNs = BigInt(shard.timeRange.startNs);
-    const shardEndNs = BigInt(shard.timeRange.endNs);
-    return shardStartNs <= requestEndNs && shardEndNs >= requestStartNs;
-  } catch {
-    // Manifest validation normally rejects invalid time ranges. Preserve the conservative read
-    // behavior if a future manifest representation cannot be compared here.
+  const range = shardTimeRangeNs(shard);
+  if (range == undefined) {
+    // An uncomparable range must not cause data to be skipped: read the shard instead.
     return true;
   }
+  return range.startNs <= requestEndNs && range.endNs >= requestStartNs;
 }
 
 function shardCanContainBackfill(shard: ShardEntry, targetNs: bigint): boolean {
-  try {
-    return BigInt(shard.timeRange.startNs) <= targetNs;
-  } catch {
-    // See shardOverlapsTimeRange: an uncomparable range must not cause data to be skipped.
+  const range = shardTimeRangeNs(shard);
+  if (range == undefined) {
     return true;
   }
+  return range.startNs <= targetNs;
 }
 
 export class ShardManifestIterableSource implements ISerializedIterableSource {
