@@ -84,6 +84,9 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     this.#metadata[key] = value;
     console.debug(`coScene setProperty: ${key}=${value}`);
     if (key === "player") {
+      // A new player is initializing. Flush any seek still tracked for the previous player so its
+      // metrics cannot absorb the new player's activity (IterablePlayer never calls close()).
+      playbackPerformanceMetrics.handlePlayerChange();
       this.#sourceId = value as string;
       this.#analytics.initPlayer(this.#sourceId, args);
     }

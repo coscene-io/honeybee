@@ -74,7 +74,6 @@ describe("PlaybackPerformanceMetrics", () => {
         player_ready_ms: 39,
         topic_count: 11,
         message_count: 3,
-        visual_settle_ms: 190,
         visual_task_count: 2,
         visual_task_count_bucket: "2",
         visual_task_ms_max: 90,
@@ -83,9 +82,10 @@ describe("PlaybackPerformanceMetrics", () => {
         lookback_success_count: 1,
         range_read_count: 1,
         range_read_retry_count: 1,
+        range_read_cancel_count: 0,
         gop_cache_hit_count: 1,
         gop_cache_miss_count: 1,
-        gop_cache_peak_bytes: 1_024,
+        gop_cache_single_peak_bytes: 1_024,
         gop_cache_evicted_bytes: 256,
         state_build_count: 1,
         state_build_ms_total: 9,
@@ -175,6 +175,65 @@ describe("PlaybackPerformanceMetrics", () => {
     jest.runOnlyPendingTimers();
 
     expect(sink).not.toHaveBeenCalled();
+    uninstall();
+  });
+
+  it("distinguishes cancelled range reads from failures", () => {
+    let now = 0;
+    const sink = jest.fn();
+    const metrics = new PlaybackPerformanceMetrics({
+      sampleRate: 1,
+      now: () => now,
+      random: () => 0,
+    });
+    const uninstall = metrics.installSink(sink);
+
+    metrics.beginSeek();
+    const seekId = metrics.captureActiveSeek();
+    metrics.recordVideoRangeRead(seekId, 10, "success");
+    metrics.recordVideoRangeRead(seekId, 20, "cancelled");
+    metrics.recordVideoRangeRead(seekId, 30, "failure");
+    now = 100;
+    metrics.finishCurrent("closed");
+
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        range_read_count: 3,
+        range_read_failure_count: 1,
+        range_read_cancel_count: 1,
+        range_read_ms_total: 60,
+        range_read_ms_max: 30,
+      }),
+    );
+    uninstall();
+  });
+
+  it("flushes the tracked seek when the player changes so metrics cannot mix players", () => {
+    let now = 0;
+    const sink = jest.fn();
+    const metrics = new PlaybackPerformanceMetrics({
+      sampleRate: 1,
+      now: () => now,
+      random: () => 0,
+    });
+    const uninstall = metrics.installSink(sink);
+
+    metrics.beginSeek();
+    metrics.recordGopCacheLookup("hit");
+    now = 50;
+    metrics.handlePlayerChange();
+
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "closed", gop_cache_hit_count: 1, duration_ms: 50 }),
+    );
+
+    // The new player's readiness and cache activity land on no seek — not the flushed one.
+    metrics.markPlayerReady(10);
+    metrics.recordGopCacheLookup("hit");
+    jest.runOnlyPendingTimers();
+    expect(sink).toHaveBeenCalledTimes(1);
+
     uninstall();
   });
 });

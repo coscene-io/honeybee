@@ -21,13 +21,18 @@ const DEFAULT_SEEK_TIMEOUT_MS = 15_000;
 const SAFE_STATUS_VALUES = new Set(["settled", "timeout", "superseded", "closed"]);
 const SAFE_VISUAL_TASK_COUNT_BUCKETS = new Set(["0", "1", "2", "3-4", "5-8", "9+"]);
 const SAFE_STRING_KEYS = new Set(["status", "visual_task_count_bucket"]);
+// Metric semantics notes:
+// - `duration_ms` with status "settled" is a task-quiet proxy: time from the accepted seek until
+//   player readiness plus a quiet period with no pending keyframe-search visual tasks. It is NOT
+//   observed paint or decoded-frame presentation, and long tasks do not extend it.
+// - `gop_cache_single_peak_bytes` is the largest post-prune size observed for any single
+//   controller's GOP cache during the seek — not aggregate cache pressure across cameras.
 const SAFE_NUMBER_KEYS = new Set([
   "sample_rate",
   "duration_ms",
   "player_ready_ms",
   "topic_count",
   "message_count",
-  "visual_settle_ms",
   "visual_task_count",
   "visual_task_ms_max",
   "lookback_count",
@@ -41,9 +46,10 @@ const SAFE_NUMBER_KEYS = new Set([
   "range_read_ms_max",
   "range_read_retry_count",
   "range_read_failure_count",
+  "range_read_cancel_count",
   "gop_cache_hit_count",
   "gop_cache_miss_count",
-  "gop_cache_peak_bytes",
+  "gop_cache_single_peak_bytes",
   "gop_cache_evicted_bytes",
   "state_build_count",
   "state_build_ms_total",
@@ -56,6 +62,7 @@ const SAFE_NUMBER_KEYS = new Set([
 
 export type PlaybackPerformanceStatus = "settled" | "timeout" | "superseded" | "closed";
 export type VideoLookbackOutcome = "success" | "failure" | "cancelled";
+export type VideoRangeReadOutcome = "success" | "failure" | "cancelled";
 export type PlaybackPerformanceMetricData = Readonly<Record<string, string | number>>;
 
 type MetricSink = (data: PlaybackPerformanceMetricData) => void;
@@ -81,6 +88,7 @@ type ActiveSeek = {
   rangeReadMsMax: number;
   rangeReadRetryCount: number;
   rangeReadFailureCount: number;
+  rangeReadCancelCount: number;
   gopCacheHitCount: number;
   gopCacheMissCount: number;
   gopCachePeakBytes: number;
@@ -142,7 +150,7 @@ export class PlaybackPerformanceMetrics {
   readonly #settleDelayMs: number;
   readonly #seekTimeoutMs: number;
   readonly #now: () => number;
-  readonly #random: () => number;
+  #random: () => number;
 
   #sink: MetricSink | undefined;
   #activeSeek: ActiveSeek | undefined;
@@ -180,6 +188,25 @@ export class PlaybackPerformanceMetrics {
     };
   }
 
+  /**
+   * Test helper: force or restore the sampling decision on the process-wide singleton. The
+   * constructor captures Math.random by reference, so spying on Math.random in a test has no
+   * effect on an already-constructed instance.
+   */
+  public overrideRandomForTests(random: (() => number) | undefined): void {
+    this.#random = random ?? Math.random;
+  }
+
+  /**
+   * Called when a new player instance is initialized for a (possibly different) data source. The
+   * singleton outlives player instances and IterablePlayer never calls the metrics collector's
+   * close(), so without this a seek sampled on the old player could absorb the new player's
+   * cache/state/readiness activity for up to the deadline timeout and emit cross-player metrics.
+   */
+  public handlePlayerChange(): void {
+    this.finishCurrent("closed");
+  }
+
   public beginSeek(): void {
     this.finishCurrent("superseded");
     if (this.#sink == undefined || this.#random() >= this.#sampleRate) {
@@ -203,6 +230,7 @@ export class PlaybackPerformanceMetrics {
       rangeReadMsMax: 0,
       rangeReadRetryCount: 0,
       rangeReadFailureCount: 0,
+      rangeReadCancelCount: 0,
       gopCacheHitCount: 0,
       gopCacheMissCount: 0,
       gopCachePeakBytes: 0,
@@ -306,7 +334,7 @@ export class PlaybackPerformanceMetrics {
   public recordVideoRangeRead(
     seekId: number | undefined,
     durationMs: number,
-    outcome: "success" | "failure",
+    outcome: VideoRangeReadOutcome,
   ): void {
     const activeSeek = this.#activeSeek;
     if (activeSeek == undefined || activeSeek.id !== seekId) {
@@ -318,6 +346,8 @@ export class PlaybackPerformanceMetrics {
     activeSeek.rangeReadMsMax = Math.max(activeSeek.rangeReadMsMax, duration);
     if (outcome === "failure") {
       activeSeek.rangeReadFailureCount++;
+    } else if (outcome === "cancelled") {
+      activeSeek.rangeReadCancelCount++;
     }
   }
 
@@ -340,6 +370,12 @@ export class PlaybackPerformanceMetrics {
     }
   }
 
+  /**
+   * Records one controller's post-prune cache size. The emitted
+   * `gop_cache_single_peak_bytes` is the max across these observations — the largest any single
+   * cache got, never a sum across cameras, and it is capped by the per-cache budget because the
+   * sampling sites run after pruning.
+   */
   public recordGopCacheSize(bytes: number): void {
     const activeSeek = this.#activeSeek;
     if (activeSeek != undefined) {
@@ -422,9 +458,10 @@ export class PlaybackPerformanceMetrics {
       range_read_ms_max: rounded(activeSeek.rangeReadMsMax),
       range_read_retry_count: activeSeek.rangeReadRetryCount,
       range_read_failure_count: activeSeek.rangeReadFailureCount,
+      range_read_cancel_count: activeSeek.rangeReadCancelCount,
       gop_cache_hit_count: activeSeek.gopCacheHitCount,
       gop_cache_miss_count: activeSeek.gopCacheMissCount,
-      gop_cache_peak_bytes: rounded(activeSeek.gopCachePeakBytes),
+      gop_cache_single_peak_bytes: rounded(activeSeek.gopCachePeakBytes),
       gop_cache_evicted_bytes: rounded(activeSeek.gopCacheEvictedBytes),
       state_build_count: activeSeek.stateBuildCount,
       state_build_ms_total: rounded(activeSeek.stateBuildMsTotal),
@@ -443,9 +480,10 @@ export class PlaybackPerformanceMetrics {
     if (activeSeek.messageCount != undefined) {
       metric.message_count = rounded(activeSeek.messageCount);
     }
-    if (status === "settled") {
-      metric.visual_settle_ms = rounded(durationMs);
-    }
+    // No separate settle field: `duration_ms` with status "settled" IS the task-quiet settle
+    // proxy (see the schema note above SAFE_NUMBER_KEYS). A duplicate field previously named
+    // "visual_settle_ms" was removed because it was byte-identical to duration_ms and its name
+    // implied paint observation that does not happen.
 
     try {
       this.#sink?.(metric);
