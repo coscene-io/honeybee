@@ -123,7 +123,7 @@ async function flushAsyncWork(): Promise<void> {
 
 describe("CompressedVideoController", () => {
   beforeEach(() => {
-    // Isolate multi-camera seek lookback gate state across tests (REI-125).
+    // Isolate multi-camera seek lookback gate state across tests.
     globalVideoSeekLookbackGate.resetForTests();
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);

@@ -34,9 +34,13 @@ function timeFromNanoseconds(timestamp: bigint): Time {
   };
 }
 
-function makeVideoMessage(timestamp: bigint, type: "key" | "delta"): MessageEvent<CompressedVideo> {
+function makeVideoMessage(
+  timestamp: bigint,
+  type: "key" | "delta",
+  topic: string = "/video",
+): MessageEvent<CompressedVideo> {
   return {
-    topic: "/video",
+    topic,
     schemaName: "foxglove.CompressedVideo",
     receiveTime: timeFromNanoseconds(timestamp),
     message: {
@@ -107,11 +111,13 @@ function makeRenderer(
   options: {
     topicSettings?: Record<string, Partial<LayerSettingsImage> | undefined>;
     subscribeMessageRange?: SubscribeMessageRange;
+    videoTopics?: string[];
   } = {},
 ): IRenderer {
   const emitter = new EventEmitter();
+  const videoTopics = options.videoTopics ?? ["/video"];
   const topics = [
-    { name: "/video", schemaName: "foxglove.CompressedVideo" },
+    ...videoTopics.map((name) => ({ name, schemaName: "foxglove.CompressedVideo" })),
     { name: "/raw", schemaName: "foxglove.RawImage" },
   ];
   const config: RendererConfig = {
@@ -122,7 +128,7 @@ function makeRenderer(
     publish: {},
     transforms: {},
     topics: options.topicSettings ?? {
-      "/video": { visible: true },
+      ...Object.fromEntries(videoTopics.map((name) => [name, { visible: true }])),
       "/raw": { visible: true },
     },
     layers: {},
@@ -346,5 +352,200 @@ describe("Images compressed video seek lookback", () => {
       targetDelta.message.timestamp,
     ]);
     expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
+  });
+});
+
+describe("Images compressed video seek lookback gate contention", () => {
+  // Five cameras — the Astribot S1 layout shape. Unlike the gate unit tests, real keyframe/delta
+  // frames flow through the gated range reads here, so queueing and stale-waiter dropping are
+  // exercised together with GOP recovery and display, not in isolation.
+  const VIDEO_TOPICS = ["/video0", "/video1", "/video2", "/video3", "/video4"];
+
+  type CapturedRead = {
+    topic: string;
+    timeRange: { start: Time; end: Time };
+    onNewRangeIterator: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"];
+    unsubscribe: jest.Mock;
+    resolved: boolean;
+  };
+
+  beforeEach(() => {
+    globalVideoSeekLookbackGate.resetForTests();
+    jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
+    jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
+      isKeyFrame: data[0] === 0x65,
+      mayNeedRewrite: false,
+    }));
+  });
+
+  afterEach(() => {
+    globalVideoSeekLookbackGate.resetForTests();
+    jest.restoreAllMocks();
+  });
+
+  function makeContendedSetup() {
+    const reads: CapturedRead[] = [];
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((args) => {
+      const unsubscribe = jest.fn();
+      reads.push({
+        topic: args.topic,
+        timeRange: args.timeRange,
+        onNewRangeIterator: args.onNewRangeIterator,
+        unsubscribe,
+        resolved: false,
+      });
+      return unsubscribe;
+    });
+    const renderer = makeRenderer({ videoTopics: VIDEO_TOPICS, subscribeMessageRange });
+    renderer.currentTime = 0n;
+    const images = new TestImages(renderer);
+    const subscription = images
+      .getSubscriptions()
+      .find(
+        (entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"),
+      )?.subscription;
+    if (subscription == undefined) {
+      throw new Error("Missing compressed video subscription");
+    }
+    return { reads, renderer, images, subscription };
+  }
+
+  async function resolveRead(read: CapturedRead, frames: MessageEvent<CompressedVideo>[]) {
+    read.resolved = true;
+    await read.onNewRangeIterator(
+      (async function* () {
+        yield frames;
+      })(),
+    );
+    await flushAsyncWork();
+  }
+
+  function displayedSeekBatches(images: TestImages, topic: string): Time[][] {
+    const renderable = images.renderables.get(topic) as TestImageRenderable | undefined;
+    return (renderable?.setCompressedVideoFrameBatches ?? []).map((batch) =>
+      batch.map(timestampFromImage),
+    );
+  }
+
+  it("recovers GOPs on five cameras while at most two range reads run concurrently", async () => {
+    const { reads, renderer, images, subscription } = makeContendedSetup();
+
+    for (const topic of VIDEO_TOPICS) {
+      subscription.handler(makeVideoMessage(0n, "key", topic));
+      subscription.handler(makeVideoMessage(10_000_000n, "delta", topic));
+    }
+    await flushAsyncWork();
+
+    (
+      images as unknown as { removeAllRenderables(args?: { reason?: "seek" }): void }
+    ).removeAllRenderables({ reason: "seek" });
+    renderer.currentTime = 20_000_000n;
+    images.handleSeek();
+
+    // All five cameras want a lookback read, but only two slots exist.
+    expect(reads).toHaveLength(2);
+    expect(reads.map((read) => read.topic)).toEqual(["/video0", "/video1"]);
+    expect(globalVideoSeekLookbackGate.getActiveCount()).toBe(2);
+    expect(globalVideoSeekLookbackGate.getPendingCount()).toBe(3);
+
+    // Each resolved read frees its slot for exactly one queued camera.
+    for (const expectedCount of [3, 4, 5, 5, 5]) {
+      const nextUnresolved = reads.find((read) => !read.resolved);
+      expect(nextUnresolved).toBeDefined();
+      const topic = nextUnresolved!.topic;
+      await resolveRead(nextUnresolved!, [
+        makeVideoMessage(0n, "key", topic),
+        makeVideoMessage(10_000_000n, "delta", topic),
+        makeVideoMessage(20_000_000n, "delta", topic),
+      ]);
+      expect(reads.length).toBe(expectedCount);
+      expect(globalVideoSeekLookbackGate.getActiveCount()).toBeLessThanOrEqual(2);
+    }
+
+    // Every camera issued exactly one read and displayed its recovered GOP up to the target.
+    expect(reads.map((read) => read.topic).sort()).toEqual([...VIDEO_TOPICS].sort());
+    for (const topic of VIDEO_TOPICS) {
+      expect(displayedSeekBatches(images, topic)).toContainEqual([
+        timeFromNanoseconds(0n),
+        timeFromNanoseconds(10_000_000n),
+        timeFromNanoseconds(20_000_000n),
+      ]);
+    }
+    expect(globalVideoSeekLookbackGate.getActiveCount()).toBe(0);
+    expect(globalVideoSeekLookbackGate.getPendingCount()).toBe(0);
+  });
+
+  it("drops queued waiters superseded by a newer seek and completes the new seek with frames", async () => {
+    const { reads, renderer, images, subscription } = makeContendedSetup();
+
+    for (const topic of VIDEO_TOPICS) {
+      subscription.handler(makeVideoMessage(0n, "key", topic));
+      subscription.handler(makeVideoMessage(10_000_000n, "delta", topic));
+    }
+    await flushAsyncWork();
+
+    (
+      images as unknown as { removeAllRenderables(args?: { reason?: "seek" }): void }
+    ).removeAllRenderables({ reason: "seek" });
+    renderer.currentTime = 20_000_000n;
+    images.handleSeek();
+
+    expect(reads).toHaveLength(2);
+    expect(globalVideoSeekLookbackGate.getPendingCount()).toBe(3);
+
+    // A newer seek supersedes everything: the two in-flight reads are cancelled and the three
+    // queued waiters must be dropped without ever issuing their stale reads.
+    renderer.currentTime = 40_000_000n;
+    images.handleSeek();
+    await flushAsyncWork();
+
+    // 2 cancelled reads from the first seek + 2 new reads now holding the slots. The three stale
+    // waiters produced no reads.
+    expect(reads).toHaveLength(4);
+    expect(reads[0]!.unsubscribe).toHaveBeenCalled();
+    expect(reads[1]!.unsubscribe).toHaveBeenCalled();
+    const newReads = reads.slice(2);
+    expect(newReads.map((read) => read.topic)).toEqual(["/video0", "/video1"]);
+    for (const read of newReads) {
+      expect(read.timeRange.end).toEqual(timeFromNanoseconds(40_000_000n));
+    }
+    expect(globalVideoSeekLookbackGate.getActiveCount()).toBe(2);
+    expect(globalVideoSeekLookbackGate.getPendingCount()).toBe(3);
+
+    // The new seek settles: every camera reads once for the new target and displays its GOP.
+    reads[0]!.resolved = true;
+    reads[1]!.resolved = true;
+    for (;;) {
+      const nextUnresolved = reads.find((read) => !read.resolved);
+      if (nextUnresolved == undefined) {
+        break;
+      }
+      const topic = nextUnresolved.topic;
+      await resolveRead(nextUnresolved, [
+        makeVideoMessage(0n, "key", topic),
+        makeVideoMessage(10_000_000n, "delta", topic),
+        makeVideoMessage(40_000_000n, "delta", topic),
+      ]);
+    }
+
+    expect(reads).toHaveLength(7);
+    expect(
+      reads
+        .slice(2)
+        .map((read) => read.topic)
+        .sort(),
+    ).toEqual([...VIDEO_TOPICS].sort());
+    for (const topic of VIDEO_TOPICS) {
+      expect(displayedSeekBatches(images, topic)).toContainEqual([
+        timeFromNanoseconds(0n),
+        timeFromNanoseconds(10_000_000n),
+        timeFromNanoseconds(40_000_000n),
+      ]);
+    }
+    expect(globalVideoSeekLookbackGate.getActiveCount()).toBe(0);
+    expect(globalVideoSeekLookbackGate.getPendingCount()).toBe(0);
   });
 });

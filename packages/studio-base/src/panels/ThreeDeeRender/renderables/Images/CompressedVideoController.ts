@@ -805,7 +805,7 @@ export class CompressedVideoController {
   }
 
   /**
-   * Single range-read attempt holding a lookback concurrency slot (REI-125).
+   * Single range-read attempt holding a lookback concurrency slot.
    *
    * This is the only section the gate covers. Keeping decode, the window ladder and retry backoff
    * outside means a stalled camera can occupy a slot for at most one read timeout, and cameras

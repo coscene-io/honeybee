@@ -13,13 +13,13 @@
  * remote shard readers, causing seek jank. Limiting concurrent reads keeps early cameras
  * responsive while others queue.
  *
- * Scope note (REI-125 review): the gate deliberately covers only the network range read, **not**
+ * Scope note: the gate deliberately covers only the network range read, **not**
  * WebCodecs decode/display. Decode runs on a separate worker/hardware path and is not a contended
  * resource, so holding a slot across it only serialized cameras 3-5 for no benefit (measured
  * ~2.6 s of aggregate queue wait with no wall-clock win). Retry backoff sleeps are likewise
  * outside the slot.
  *
- * REI-125: Astribot S1 public share-manifest has 5 concurrent video panels.
+ * Motivating workload: the Astribot S1 share-manifest layout has 5 concurrent video panels.
  */
 export const DEFAULT_VIDEO_SEEK_LOOKBACK_CONCURRENCY = 2;
 
