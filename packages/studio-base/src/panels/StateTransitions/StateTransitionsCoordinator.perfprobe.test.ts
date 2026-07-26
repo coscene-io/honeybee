@@ -180,7 +180,9 @@ function median(values: number[]): number {
 
 function p95(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]!;
+  return sorted.length === 0
+    ? 0
+    : sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]!;
 }
 
 const probeIt = process.env.PERF_PROBE === "1" ? it : it.skip;
@@ -204,7 +206,9 @@ probeIt("viewport perf probe (prints measurements; asserts nothing)", async () =
   // ---- Phase 1: block ingestion (one emit carrying the full 200k-point cache) ----
   const ingestStartBlocked = sampler.read();
   const ingestStartWall = performance.now();
-  coordinator.handlePlayerState(makePlayerState({ blocks, messages: [], currentTimeSec: TOTAL_SECONDS }) as never);
+  coordinator.handlePlayerState(
+    makePlayerState({ blocks, messages: [], currentTimeSec: TOTAL_SECONDS }) as never,
+  );
   await settle();
   // Some implementations process blocks across several passes; give them a second settle.
   await settle();
@@ -225,9 +229,7 @@ probeIt("viewport perf probe (prints measurements; asserts nothing)", async () =
     );
     const beforeBlocked = sampler.read();
     const beforeDelivered = stats().deliveredPoints;
-    coordinator.handlePlayerState(
-      makePlayerState({ blocks, messages, currentTimeSec }) as never,
-    );
+    coordinator.handlePlayerState(makePlayerState({ blocks, messages, currentTimeSec }) as never);
     await settle();
     emitBlocked.push(sampler.read() - beforeBlocked);
     emitDelivered.push(stats().deliveredPoints - beforeDelivered);
@@ -250,29 +252,29 @@ probeIt("viewport perf probe (prints measurements; asserts nothing)", async () =
   coordinator.destroy();
 
   const resultJson = JSON.stringify({
-        fixture: {
-          totalPoints: BLOCK_COUNT * MSGS_PER_BLOCK,
-          blocks: BLOCK_COUNT,
-          hz: HZ,
-          transitionEvery: TRANSITION_EVERY,
-          followWindowSec: 30,
-        },
-        ingest,
-        emits: {
-          count: emitBlocked.length,
-          blockedMsMedian: Math.round(median(emitBlocked)),
-          blockedMsP95: Math.round(p95(emitBlocked)),
-          blockedMsTotal: Math.round(emitBlocked.reduce((a, b) => a + b, 0)),
-          deliveredPointsMedian: Math.round(median(emitDelivered)),
-        },
-        bounds: {
-          count: boundsBlocked.length,
-          blockedMsMedian: Math.round(median(boundsBlocked)),
-          blockedMsP95: Math.round(p95(boundsBlocked)),
-          blockedMsTotal: Math.round(boundsBlocked.reduce((a, b) => a + b, 0)),
-          deliveredPointsMedian: Math.round(median(boundsDelivered)),
-        },
-        totals: stats(),
+    fixture: {
+      totalPoints: BLOCK_COUNT * MSGS_PER_BLOCK,
+      blocks: BLOCK_COUNT,
+      hz: HZ,
+      transitionEvery: TRANSITION_EVERY,
+      followWindowSec: 30,
+    },
+    ingest,
+    emits: {
+      count: emitBlocked.length,
+      blockedMsMedian: Math.round(median(emitBlocked)),
+      blockedMsP95: Math.round(p95(emitBlocked)),
+      blockedMsTotal: Math.round(emitBlocked.reduce((a, b) => a + b, 0)),
+      deliveredPointsMedian: Math.round(median(emitDelivered)),
+    },
+    bounds: {
+      count: boundsBlocked.length,
+      blockedMsMedian: Math.round(median(boundsBlocked)),
+      blockedMsP95: Math.round(p95(boundsBlocked)),
+      blockedMsTotal: Math.round(boundsBlocked.reduce((a, b) => a + b, 0)),
+      deliveredPointsMedian: Math.round(median(boundsDelivered)),
+    },
+    totals: stats(),
   });
   process.stdout.write(`PERFPROBE_RESULT ${resultJson}\n`);
 });

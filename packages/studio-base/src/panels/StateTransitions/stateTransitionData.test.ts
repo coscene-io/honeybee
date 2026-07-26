@@ -75,7 +75,6 @@ describe("sliceStateDataForViewport", () => {
     // startIdx points at last element (x=40 <= 50), endIdx same after search → single continuity point
     expect(sliced.map((p) => p.x)).toEqual([40]);
   });
-
 });
 
 describe("processCacheFingerprint", () => {
@@ -185,7 +184,6 @@ describe("sliceMergedStateDataForViewport", () => {
       );
     }
   });
-
 });
 
 describe("sliceInterleavedStateDataForViewport", () => {
