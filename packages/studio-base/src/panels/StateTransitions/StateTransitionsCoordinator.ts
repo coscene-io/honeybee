@@ -42,6 +42,7 @@ import { Viewport } from "./downsampleStates";
 import positiveModulo from "./positiveModulo";
 import { PathState } from "./settings";
 import {
+  mergeSortedByX,
   processCacheFingerprint,
   sliceInterleavedStateDataForViewport,
   sliceMergedStateDataForViewport,
@@ -340,7 +341,8 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       }
 
       let cursor = this.#blockCursors.get(cursorKey) ?? 0;
-      const existingData = this.#fullData.get(cursorKey) ?? [];
+      let existingData = this.#fullData.get(cursorKey) ?? [];
+      const appendedFrom = existingData.length;
 
       for (let blockIdx = cursor; blockIdx < blocks.length; blockIdx++) {
         const messagesForTopic = blocks[blockIdx]?.messagesByTopic[topicName];
@@ -365,10 +367,25 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
         cursor = blockIdx + 1;
       }
 
-      if (series.path.timestampMethod === "headerStamp") {
+      if (series.path.timestampMethod === "headerStamp" && existingData.length > appendedFrom) {
         // Blocks are receive-time ordered, but header stamps can move backwards. Normalize before
         // any binary viewport slicing; otherwise valid transitions can be omitted from the window.
-        existingData.sort((a, b) => a.x - b.x);
+        // Only this pass's appended samples are sorted, then merged with the already-sorted
+        // prefix: the block loader emits progress once per loaded block, so re-sorting the whole
+        // accumulated history here made loading quadratic in total samples. Passes that append
+        // nothing (every non-block player emit) skip sorting entirely.
+        const appended = existingData.slice(appendedFrom).sort((a, b) => a.x - b.x);
+        const prefixMaxX = appendedFrom > 0 ? existingData[appendedFrom - 1]!.x : -Infinity;
+        if (appended[0]!.x >= prefixMaxX) {
+          // Common case: the new stamps do not interleave with the prefix; write the sorted
+          // tail back in place.
+          for (let i = 0; i < appended.length; i++) {
+            existingData[appendedFrom + i] = appended[i]!;
+          }
+        } else {
+          existingData.length = appendedFrom;
+          existingData = mergeSortedByX(existingData, appended);
+        }
       }
 
       this.#blockCursors.set(cursorKey, cursor);

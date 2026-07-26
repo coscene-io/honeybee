@@ -153,7 +153,7 @@ export function sliceInterleavedStateDataForViewport(
 }
 
 /** Merge two x-sorted arrays into one x-sorted array (stable: `a` wins ties). */
-function mergeSortedByX(a: readonly Datum[], b: readonly Datum[]): Datum[] {
+export function mergeSortedByX(a: readonly Datum[], b: readonly Datum[]): Datum[] {
   const merged: Datum[] = [];
   let i = 0;
   let j = 0;

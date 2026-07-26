@@ -573,6 +573,48 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
     coordinator.destroy();
   });
 
+  it("keeps header-stamped history sorted across incremental block loads", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer);
+    const stamped = (receiveSec: number, stampSec: number, value: number) => ({
+      ...makeMsg(receiveSec, value),
+      message: { data: value, header: { stamp: { sec: stampSec, nsec: 0 } } },
+    });
+    // Later-loaded blocks carry stamps that interleave with the already-sorted prefix
+    // ([0, 50, 100] then [25, 75]), exercising the incremental merge rather than a full re-sort.
+    const blockA = [stamped(0, 0, 0), stamped(1, 100, 2), stamped(2, 50, 1)];
+    const blockB = [stamped(3, 75, 4), stamped(4, 25, 3)];
+
+    coordinator.handleConfig(
+      {
+        isSynced: true,
+        paths: [{ value: "/t.data", timestampMethod: "headerStamp" }],
+      },
+      {},
+    );
+
+    const firstState = playerState({ blockMessages: blockA });
+    coordinator.handlePlayerState(firstState);
+
+    // Second progress emission: same first block reference plus a newly loaded block, the shape
+    // BlockLoader produces as the cache fills.
+    const secondState = playerState({ blockMessages: blockA }) as {
+      progress: { messageCache: { blocks: unknown[] } };
+    };
+    secondState.progress.messageCache.blocks.push({
+      messagesByTopic: { "/t": blockB },
+      sizeInBytes: blockB.length * 8,
+    });
+    coordinator.handlePlayerState(secondState as never);
+    coordinator.setGlobalBounds({ min: 0, max: 200 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).toEqual([
+      0, 25, 50, 75, 100,
+    ]);
+    coordinator.destroy();
+  });
+
   it("keeps the first streaming value when duplicate timestamps arrive", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
     const coordinator = new StateTransitionsCoordinator(renderer);
