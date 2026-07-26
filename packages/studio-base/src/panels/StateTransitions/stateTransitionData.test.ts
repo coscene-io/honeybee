@@ -7,6 +7,7 @@
 
 import {
   processCacheFingerprint,
+  sliceInterleavedStateDataForViewport,
   sliceMergedStateDataForViewport,
   sliceStateDataForViewport,
 } from "./stateTransitionData";
@@ -185,4 +186,53 @@ describe("sliceMergedStateDataForViewport", () => {
     }
   });
 
+});
+
+describe("sliceInterleavedStateDataForViewport", () => {
+  it("keeps a current sample whose x falls between fullData samples", () => {
+    const fullData = [d(0, "a"), d(50, "b"), d(100, "c")];
+    const currentData = [d(75, "live")];
+
+    expect(sliceInterleavedStateDataForViewport(fullData, currentData, 40, 90)).toEqual([
+      d(0, "a"),
+      d(50, "b"),
+      d(75, "live"),
+      d(100, "c"),
+    ]);
+  });
+
+  it("matches slicing the materialized sorted merge across randomized interleaved inputs", () => {
+    let seed = 7;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+
+    for (let trial = 0; trial < 200; trial++) {
+      // Draw distinct x values, then deal them randomly into the two stores so their ranges
+      // fully interleave (the header-stamp case the concatenation-based slice cannot handle).
+      const xs = new Set<number>();
+      const count = Math.floor(rand() * 20);
+      while (xs.size < count) {
+        xs.add(Math.floor(rand() * 60));
+      }
+      const fullData: Datum[] = [];
+      const currentData: Datum[] = [];
+      for (const x of [...xs].sort((a, b) => a - b)) {
+        (rand() < 0.5 ? fullData : currentData).push(d(x, `v${x}`));
+      }
+
+      const minX = Math.floor(rand() * 70) - 5;
+      const maxX = minX + Math.floor(rand() * 40);
+
+      const oracle = sliceStateDataForViewport(
+        [...fullData, ...currentData].sort((a, b) => a.x - b.x),
+        minX,
+        maxX,
+      );
+      expect(sliceInterleavedStateDataForViewport(fullData, currentData, minX, maxX)).toEqual(
+        oracle,
+      );
+    }
+  });
 });

@@ -35,7 +35,10 @@ export function processCacheFingerprint(
  * concatenation and copies only the visible window.
  *
  * Result is identical to slicing the materialized merge: `currentData` contributes only samples
- * strictly newer than the last `fullData` sample, matching the previous merge semantics.
+ * strictly newer than the last `fullData` sample, matching the previous merge semantics. This is
+ * only valid for receive-time-ordered series; header-stamped series must use
+ * {@link sliceInterleavedStateDataForViewport} because their currentData can interleave with
+ * fullData on the x axis.
  *
  * The window is materialized with native `Array.slice` rather than an element-by-element copy
  * through the virtual accessor. A/B measurement showed the naive loop was ~2x *slower* than the
@@ -102,6 +105,72 @@ export function sliceMergedStateDataForViewport(
   }
 
   return collect(startIdx, endIdx);
+}
+
+/**
+ * As {@link sliceMergedStateDataForViewport}, but for series whose currentData can interleave
+ * with fullData on the x axis. Header stamps are not monotonic in receive order, so a live
+ * sample's stamp may fall between block stamps; the concatenation-based slice would silently
+ * drop it.
+ *
+ * Each store contributes a bounded candidate window (its last sample at or before minX through
+ * its first sample after maxX); the two windows are merged and the standard single-array slice
+ * applies the margin semantics to the merge. Every global boundary candidate is inside some
+ * store's candidate window, so the result equals slicing the materialized sorted merge — at
+ * O(log history + window) cost, never O(history).
+ *
+ * Assumes exact-x duplicates across the two stores were already removed at ingestion
+ * (StateTransitionsCoordinator dedupes header-stamped samples by stamp membership).
+ */
+export function sliceInterleavedStateDataForViewport(
+  fullData: readonly Datum[],
+  currentData: readonly Datum[],
+  minX: number,
+  maxX: number,
+): Datum[] {
+  if (fullData.length === 0) {
+    return sliceStateDataForViewport(currentData, minX, maxX);
+  }
+  if (currentData.length === 0) {
+    return sliceStateDataForViewport(fullData, minX, maxX);
+  }
+  if (!(maxX >= minX)) {
+    // Degenerate/NaN bounds: preserve the "return everything" behaviour of the base slice.
+    return mergeSortedByX(fullData.slice(), currentData.slice());
+  }
+
+  const candidateWindow = (data: readonly Datum[]): Datum[] => {
+    const from = Math.max(0, firstIndexAfter(data, minX) - 1);
+    const to = Math.min(data.length, firstIndexAfter(data, maxX) + 1);
+    return data.slice(from, Math.max(from, to));
+  };
+
+  return sliceStateDataForViewport(
+    mergeSortedByX(candidateWindow(fullData), candidateWindow(currentData)),
+    minX,
+    maxX,
+  );
+}
+
+/** Merge two x-sorted arrays into one x-sorted array (stable: `a` wins ties). */
+function mergeSortedByX(a: readonly Datum[], b: readonly Datum[]): Datum[] {
+  const merged: Datum[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i]!.x <= b[j]!.x) {
+      merged.push(a[i++]!);
+    } else {
+      merged.push(b[j++]!);
+    }
+  }
+  while (i < a.length) {
+    merged.push(a[i++]!);
+  }
+  while (j < b.length) {
+    merged.push(b[j++]!);
+  }
+  return merged;
 }
 
 /** First index of a sorted array whose x is strictly greater than `x`. */

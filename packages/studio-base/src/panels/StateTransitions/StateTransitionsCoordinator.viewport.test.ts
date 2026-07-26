@@ -474,6 +474,105 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
     coordinator.destroy();
   });
 
+  it("rebuilds sliced datasets when axis config bounds change without a player emit", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer);
+    const blockMessages = Array.from({ length: 10 }, (_, sec) => makeMsg(sec, sec));
+
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        xAxisMinValue: 0,
+        xAxisMaxValue: 4,
+        paths: [{ value: "/t.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({ blockMessages }));
+    await settleCoordinator();
+
+    // The narrow view's slice cannot include the tail of the recording.
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).not.toContain(9);
+
+    // Widening the configured axis on a paused source must rebuild the slice immediately —
+    // there is no player emit coming to do it later.
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        xAxisMinValue: 0,
+        xAxisMaxValue: 9,
+        paths: [{ value: "/t.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).toContain(9);
+    coordinator.destroy();
+  });
+
+  it("keeps a live header-stamped sample whose stamp falls between block stamps", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer);
+    // Blocks receive-ordered with non-monotonic header stamps: [0, 100, 50].
+    const headerStampedBlocks = [
+      { receiveSec: 0, stampSec: 0, value: 0 },
+      { receiveSec: 1, stampSec: 100, value: 2 },
+      { receiveSec: 2, stampSec: 50, value: 1 },
+    ].map(({ receiveSec, stampSec, value }) => ({
+      ...makeMsg(receiveSec, value),
+      message: { data: value, header: { stamp: { sec: stampSec, nsec: 0 } } },
+    }));
+    // Live sample stamped 75: below the blocks' max stamp but absent from the blocks. Range
+    // dedupe against the sorted maximum would silently discard this transition.
+    const liveMsg = {
+      ...makeMsg(3, 3),
+      message: { data: 3, header: { stamp: { sec: 75, nsec: 0 } } },
+    };
+
+    coordinator.handleConfig(
+      {
+        isSynced: true,
+        paths: [{ value: "/t.data", timestampMethod: "headerStamp" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({ blockMessages: headerStampedBlocks }));
+    coordinator.handlePlayerState(
+      playerState({ blockMessages: headerStampedBlocks, messages: [liveMsg] }),
+    );
+    coordinator.setGlobalBounds({ min: 40, max: 80 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x)).toContain(75);
+    coordinator.destroy();
+  });
+
+  it("slices at least the renderer's half-range pan buffer around the viewport", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer);
+    const blockMessages = Array.from({ length: 100 }, (_, sec) => makeMsg(sec, sec));
+
+    coordinator.handleConfig(
+      {
+        isSynced: true,
+        paths: [{ value: "/t.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({ blockMessages }));
+    coordinator.setGlobalBounds({ min: 40, max: 60 });
+    await settleCoordinator();
+
+    // downsampleStates keeps half a view range on each side as its pan/zoom buffer; the slice
+    // must cover it ([30, 70] here) or fast pans expose blank regions until the next rebuild.
+    const xs = datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.x) ?? [];
+    expect(xs).toContain(32);
+    expect(xs).toContain(68);
+    expect(xs).not.toContain(20);
+    coordinator.destroy();
+  });
+
   it("keeps the first streaming value when duplicate timestamps arrive", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
     const coordinator = new StateTransitionsCoordinator(renderer);
