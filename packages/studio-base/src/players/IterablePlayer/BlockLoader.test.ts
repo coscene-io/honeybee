@@ -672,4 +672,57 @@ describe("BlockLoader", () => {
     expect(firstBlockLoad?.[0]?.messagesByTopic["a"]).toBe(lastBlocks?.[0]?.messagesByTopic["a"]);
     expect(firstBlockLoad?.[1]?.messagesByTopic["a"]).toBe(lastBlocks?.[1]?.messagesByTopic["a"]);
   });
+
+  it("ends a source-provided cursor when topics change during a block read", async () => {
+    // Iterator-backed cursors return undefined from readUntil once the loader's abort controller
+    // fires, so the topics-changed early return with live results is only reachable through a
+    // source-provided message cursor - exactly the kind whose end() releases external resources
+    // (open readers, network streams). That early return must not abandon the cursor.
+    const source = new TestSource() as TestSource & {
+      getMessageCursor?: () => unknown;
+    };
+    let firstCursor = true;
+    let firstCursorEnded = false;
+
+    const loader = new BlockLoader({
+      maxBlocks: 2,
+      cacheSizeBytes: 100,
+      minBlockDurationNs: 1,
+      source,
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 1, nsec: 0 },
+      problemManager: new PlayerProblemManager(),
+    });
+
+    source.getMessageCursor = () => {
+      const isFirst = firstCursor;
+      firstCursor = false;
+      return {
+        next: async () => undefined,
+        nextBatch: async () => undefined,
+        readUntil: async (): Promise<IteratorResult[]> => {
+          if (isFirst) {
+            // Topics change while the read is in flight; this cursor still resolves results.
+            loader.setTopics(mockTopicSelection("a", "b"));
+          }
+          return [];
+        },
+        end: async () => {
+          if (isFirst) {
+            firstCursorEnded = true;
+          }
+        },
+      };
+    };
+
+    loader.setTopics(mockTopicSelection("a"));
+    await loader.startLoading({
+      progress: async () => {
+        // The aborted first pass emits no progress; stop once the reload with new topics runs.
+        await loader.stopLoading();
+      },
+    });
+
+    expect(firstCursorEnded).toBe(true);
+  });
 });
