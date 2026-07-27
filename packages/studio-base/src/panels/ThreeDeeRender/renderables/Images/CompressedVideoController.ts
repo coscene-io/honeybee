@@ -631,7 +631,6 @@ export class CompressedVideoController {
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
     const metricsSeekId = playbackPerformanceMetrics.captureActiveSeek();
-    const startedAt = metricsSeekId != undefined ? performance.now() : undefined;
     let outcome: VideoLookbackOutcome = "failure";
     this.#beginSeekKeyframeSearch(generation);
     try {
@@ -730,12 +729,8 @@ export class CompressedVideoController {
       return false;
     } finally {
       this.#endSeekKeyframeSearch(generation);
-      if (startedAt != undefined) {
-        playbackPerformanceMetrics.recordVideoLookback(
-          metricsSeekId,
-          performance.now() - startedAt,
-          outcome,
-        );
+      if (metricsSeekId != undefined) {
+        playbackPerformanceMetrics.recordVideoLookback(metricsSeekId, outcome);
       }
     }
   }
@@ -839,14 +834,12 @@ export class CompressedVideoController {
     endTime: Time,
     metricsSeekId: number,
   ): Promise<MessageEvent[] | undefined> {
-    const startedAt = performance.now();
     // The returned frames alone cannot distinguish outcomes: cancellation and iterator exceptions
     // both resolve `[]` (so the retry loop stops), which must not be counted as successful reads.
     const outcomeRef: { outcome: RangeReadResolution } = { outcome: "timeout" };
     const frames = await this.#readRange(generation, startTime, endTime, outcomeRef);
     playbackPerformanceMetrics.recordVideoRangeRead(
       metricsSeekId,
-      performance.now() - startedAt,
       outcomeRef.outcome === "success"
         ? "success"
         : outcomeRef.outcome === "cancelled"

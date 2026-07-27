@@ -19,43 +19,30 @@ const DEFAULT_SETTLE_DELAY_MS = 250;
 const DEFAULT_SEEK_TIMEOUT_MS = 15_000;
 
 const SAFE_STATUS_VALUES = new Set(["settled", "timeout", "superseded", "closed"]);
-const SAFE_VISUAL_TASK_COUNT_BUCKETS = new Set(["0", "1", "2", "3-4", "5-8", "9+"]);
-const SAFE_STRING_KEYS = new Set(["status", "visual_task_count_bucket"]);
+const SAFE_STRING_KEYS = new Set(["status"]);
 // Metric semantics notes:
 // - `duration_ms` with status "settled" is a task-quiet proxy: time from the accepted seek until
 //   player readiness plus a quiet period with no pending keyframe-search visual tasks. It is NOT
 //   observed paint or decoded-frame presentation, and long tasks do not extend it.
-// - `gop_cache_single_peak_bytes` is the largest post-prune size observed for any single
-//   controller's GOP cache during the seek — not aggregate cache pressure across cameras.
+// - The field set is deliberately restricted to outcome/count metrics our code controls.
+//   Externally-dominated measurements (network/data-shaped durations, byte gauges, point maxima)
+//   were removed per review: they varied with device, data, and network rather than with our
+//   design decisions.
 const SAFE_NUMBER_KEYS = new Set([
   "sample_rate",
   "duration_ms",
   "player_ready_ms",
   "topic_count",
   "message_count",
-  "visual_task_count",
-  "visual_task_ms_max",
   "lookback_count",
-  "lookback_ms_total",
-  "lookback_ms_max",
-  "lookback_success_count",
   "lookback_failure_count",
   "lookback_cancel_count",
   "range_read_count",
-  "range_read_ms_total",
-  "range_read_ms_max",
   "range_read_retry_count",
   "range_read_failure_count",
   "range_read_cancel_count",
   "gop_cache_hit_count",
   "gop_cache_miss_count",
-  "gop_cache_single_peak_bytes",
-  "gop_cache_evicted_bytes",
-  "state_build_count",
-  "state_build_ms_total",
-  "state_build_ms_max",
-  "state_input_points_max",
-  "state_output_points_max",
   "long_task_count",
   "long_task_ms_total",
 ]);
@@ -74,30 +61,17 @@ type ActiveSeek = {
   playerReadyMs?: number;
   topicCount?: number;
   messageCount?: number;
+  // Pending visual tasks gate the "settled" status; their counts/durations are not emitted.
   pendingVisualTasks: number;
-  visualTaskCount: number;
-  visualTaskMsMax: number;
   lookbackCount: number;
-  lookbackMsTotal: number;
-  lookbackMsMax: number;
-  lookbackSuccessCount: number;
   lookbackFailureCount: number;
   lookbackCancelCount: number;
   rangeReadCount: number;
-  rangeReadMsTotal: number;
-  rangeReadMsMax: number;
   rangeReadRetryCount: number;
   rangeReadFailureCount: number;
   rangeReadCancelCount: number;
   gopCacheHitCount: number;
   gopCacheMissCount: number;
-  gopCachePeakBytes: number;
-  gopCacheEvictedBytes: number;
-  stateBuildCount: number;
-  stateBuildMsTotal: number;
-  stateBuildMsMax: number;
-  stateInputPointsMax: number;
-  stateOutputPointsMax: number;
   longTaskCount: number;
   longTaskMsTotal: number;
   settleTimer?: ReturnType<typeof setTimeout>;
@@ -118,25 +92,6 @@ function finiteNonNegative(value: number): number {
 
 function rounded(value: number): number {
   return Math.round(finiteNonNegative(value));
-}
-
-function visualTaskCountBucket(count: number): string {
-  if (count <= 0) {
-    return "0";
-  }
-  if (count === 1) {
-    return "1";
-  }
-  if (count === 2) {
-    return "2";
-  }
-  if (count <= 4) {
-    return "3-4";
-  }
-  if (count <= 8) {
-    return "5-8";
-  }
-  return "9+";
 }
 
 /**
@@ -208,6 +163,9 @@ export class PlaybackPerformanceMetrics {
   }
 
   public beginSeek(): void {
+    // Video work already in flight for the superseded seek may be cancelled after this flush.
+    // Those late callbacks carry the old seek id and are rejected, so lookback/range-read counts
+    // are lower bounds around a supersede — a deliberate trade-off to keep the flush synchronous.
     this.finishCurrent("superseded");
     if (this.#sink == undefined || this.#random() >= this.#sampleRate) {
       return;
@@ -217,29 +175,15 @@ export class PlaybackPerformanceMetrics {
       id: ++this.#nextSeekId,
       startedAt: this.#now(),
       pendingVisualTasks: 0,
-      visualTaskCount: 0,
-      visualTaskMsMax: 0,
       lookbackCount: 0,
-      lookbackMsTotal: 0,
-      lookbackMsMax: 0,
-      lookbackSuccessCount: 0,
       lookbackFailureCount: 0,
       lookbackCancelCount: 0,
       rangeReadCount: 0,
-      rangeReadMsTotal: 0,
-      rangeReadMsMax: 0,
       rangeReadRetryCount: 0,
       rangeReadFailureCount: 0,
       rangeReadCancelCount: 0,
       gopCacheHitCount: 0,
       gopCacheMissCount: 0,
-      gopCachePeakBytes: 0,
-      gopCacheEvictedBytes: 0,
-      stateBuildCount: 0,
-      stateBuildMsTotal: 0,
-      stateBuildMsMax: 0,
-      stateInputPointsMax: 0,
-      stateOutputPointsMax: 0,
       longTaskCount: 0,
       longTaskMsTotal: 0,
     };
@@ -279,10 +223,8 @@ export class PlaybackPerformanceMetrics {
       clearTimeout(activeSeek.settleTimer);
       activeSeek.settleTimer = undefined;
     }
-    const startedAt = this.#now();
     const seekId = activeSeek.id;
     activeSeek.pendingVisualTasks++;
-    activeSeek.visualTaskCount++;
 
     let finished = false;
     return () => {
@@ -296,10 +238,6 @@ export class PlaybackPerformanceMetrics {
       }
 
       currentSeek.pendingVisualTasks = Math.max(0, currentSeek.pendingVisualTasks - 1);
-      currentSeek.visualTaskMsMax = Math.max(
-        currentSeek.visualTaskMsMax,
-        finiteNonNegative(this.#now() - startedAt),
-      );
       this.#scheduleSettle(currentSeek);
     };
   }
@@ -309,41 +247,25 @@ export class PlaybackPerformanceMetrics {
     return this.#activeSeek?.id;
   }
 
-  public recordVideoLookback(
-    seekId: number | undefined,
-    durationMs: number,
-    outcome: VideoLookbackOutcome,
-  ): void {
+  public recordVideoLookback(seekId: number | undefined, outcome: VideoLookbackOutcome): void {
     const activeSeek = this.#activeSeek;
     if (activeSeek == undefined || activeSeek.id !== seekId) {
       return;
     }
-    const duration = finiteNonNegative(durationMs);
     activeSeek.lookbackCount++;
-    activeSeek.lookbackMsTotal += duration;
-    activeSeek.lookbackMsMax = Math.max(activeSeek.lookbackMsMax, duration);
-    if (outcome === "success") {
-      activeSeek.lookbackSuccessCount++;
-    } else if (outcome === "cancelled") {
+    if (outcome === "cancelled") {
       activeSeek.lookbackCancelCount++;
-    } else {
+    } else if (outcome === "failure") {
       activeSeek.lookbackFailureCount++;
     }
   }
 
-  public recordVideoRangeRead(
-    seekId: number | undefined,
-    durationMs: number,
-    outcome: VideoRangeReadOutcome,
-  ): void {
+  public recordVideoRangeRead(seekId: number | undefined, outcome: VideoRangeReadOutcome): void {
     const activeSeek = this.#activeSeek;
     if (activeSeek == undefined || activeSeek.id !== seekId) {
       return;
     }
-    const duration = finiteNonNegative(durationMs);
     activeSeek.rangeReadCount++;
-    activeSeek.rangeReadMsTotal += duration;
-    activeSeek.rangeReadMsMax = Math.max(activeSeek.rangeReadMsMax, duration);
     if (outcome === "failure") {
       activeSeek.rangeReadFailureCount++;
     } else if (outcome === "cancelled") {
@@ -370,51 +292,6 @@ export class PlaybackPerformanceMetrics {
     }
   }
 
-  /**
-   * Records one controller's post-prune cache size. The emitted
-   * `gop_cache_single_peak_bytes` is the max across these observations — the largest any single
-   * cache got, never a sum across cameras, and it is capped by the per-cache budget because the
-   * sampling sites run after pruning.
-   */
-  public recordGopCacheSize(bytes: number): void {
-    const activeSeek = this.#activeSeek;
-    if (activeSeek != undefined) {
-      activeSeek.gopCachePeakBytes = Math.max(
-        activeSeek.gopCachePeakBytes,
-        finiteNonNegative(bytes),
-      );
-    }
-  }
-
-  public recordGopCacheEviction(bytes: number): void {
-    if (this.#activeSeek != undefined) {
-      this.#activeSeek.gopCacheEvictedBytes += finiteNonNegative(bytes);
-    }
-  }
-
-  public recordStateTransitionBuild(
-    durationMs: number,
-    inputPointCount: number,
-    outputPointCount: number,
-  ): void {
-    const activeSeek = this.#activeSeek;
-    if (activeSeek == undefined) {
-      return;
-    }
-    const duration = finiteNonNegative(durationMs);
-    activeSeek.stateBuildCount++;
-    activeSeek.stateBuildMsTotal += duration;
-    activeSeek.stateBuildMsMax = Math.max(activeSeek.stateBuildMsMax, duration);
-    activeSeek.stateInputPointsMax = Math.max(
-      activeSeek.stateInputPointsMax,
-      finiteNonNegative(inputPointCount),
-    );
-    activeSeek.stateOutputPointsMax = Math.max(
-      activeSeek.stateOutputPointsMax,
-      finiteNonNegative(outputPointCount),
-    );
-  }
-
   public recordLongTask(durationMs: number, startTime?: number): void {
     const activeSeek = this.#activeSeek;
     if (activeSeek != undefined && (startTime == undefined || startTime >= activeSeek.startedAt)) {
@@ -429,6 +306,14 @@ export class PlaybackPerformanceMetrics {
       return;
     }
     this.#activeSeek = undefined;
+    // Drain entries the observer has queued but not yet delivered; disconnect() would silently
+    // drop them and undercount completed long tasks (review finding).
+    for (const entry of this.#longTaskObserver?.takeRecords() ?? []) {
+      if (entry.startTime >= activeSeek.startedAt) {
+        activeSeek.longTaskCount++;
+        activeSeek.longTaskMsTotal += finiteNonNegative(entry.duration);
+      }
+    }
     this.#longTaskObserver?.disconnect();
     this.#longTaskObserver = undefined;
     if (activeSeek.settleTimer != undefined) {
@@ -444,30 +329,15 @@ export class PlaybackPerformanceMetrics {
       status,
       sample_rate: this.#sampleRate,
       duration_ms: rounded(durationMs),
-      visual_task_count: activeSeek.visualTaskCount,
-      visual_task_ms_max: rounded(activeSeek.visualTaskMsMax),
-      visual_task_count_bucket: visualTaskCountBucket(activeSeek.visualTaskCount),
       lookback_count: activeSeek.lookbackCount,
-      lookback_ms_total: rounded(activeSeek.lookbackMsTotal),
-      lookback_ms_max: rounded(activeSeek.lookbackMsMax),
-      lookback_success_count: activeSeek.lookbackSuccessCount,
       lookback_failure_count: activeSeek.lookbackFailureCount,
       lookback_cancel_count: activeSeek.lookbackCancelCount,
       range_read_count: activeSeek.rangeReadCount,
-      range_read_ms_total: rounded(activeSeek.rangeReadMsTotal),
-      range_read_ms_max: rounded(activeSeek.rangeReadMsMax),
       range_read_retry_count: activeSeek.rangeReadRetryCount,
       range_read_failure_count: activeSeek.rangeReadFailureCount,
       range_read_cancel_count: activeSeek.rangeReadCancelCount,
       gop_cache_hit_count: activeSeek.gopCacheHitCount,
       gop_cache_miss_count: activeSeek.gopCacheMissCount,
-      gop_cache_single_peak_bytes: rounded(activeSeek.gopCachePeakBytes),
-      gop_cache_evicted_bytes: rounded(activeSeek.gopCacheEvictedBytes),
-      state_build_count: activeSeek.stateBuildCount,
-      state_build_ms_total: rounded(activeSeek.stateBuildMsTotal),
-      state_build_ms_max: rounded(activeSeek.stateBuildMsMax),
-      state_input_points_max: rounded(activeSeek.stateInputPointsMax),
-      state_output_points_max: rounded(activeSeek.stateOutputPointsMax),
       long_task_count: activeSeek.longTaskCount,
       long_task_ms_total: rounded(activeSeek.longTaskMsTotal),
     };
@@ -545,13 +415,13 @@ export function sanitizePlaybackPerformanceMetricData(
   for (const [key, value] of Object.entries(data)) {
     if (SAFE_NUMBER_KEYS.has(key) && typeof value === "number" && Number.isFinite(value)) {
       sanitized[key] = value;
-    } else if (SAFE_STRING_KEYS.has(key) && typeof value === "string") {
-      if (
-        (key === "status" && SAFE_STATUS_VALUES.has(value)) ||
-        (key === "visual_task_count_bucket" && SAFE_VISUAL_TASK_COUNT_BUCKETS.has(value))
-      ) {
-        sanitized[key] = value;
-      }
+    } else if (
+      SAFE_STRING_KEYS.has(key) &&
+      typeof value === "string" &&
+      key === "status" &&
+      SAFE_STATUS_VALUES.has(value)
+    ) {
+      sanitized[key] = value;
     }
   }
   return sanitized;

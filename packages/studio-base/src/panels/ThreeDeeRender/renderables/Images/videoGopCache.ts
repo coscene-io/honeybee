@@ -138,7 +138,6 @@ export class VideoGopCache {
     this.#activeRangeByTopic.set(msg.topic, range);
     this.#mergeOverlappingRanges(msg.topic);
     this.#pruneToBudget();
-    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     return true;
   }
 
@@ -187,7 +186,6 @@ export class VideoGopCache {
       this.#targetReceiveTimeNs = range.lastReceiveTime();
       this.#mergeOverlappingRanges(topic);
       this.#pruneToBudget();
-      playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     }
   }
 
@@ -198,7 +196,6 @@ export class VideoGopCache {
   }
 
   public framesForReceiveTime(topic: string, targetTime: Time): MessageEvent[] | undefined {
-    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
@@ -218,7 +215,6 @@ export class VideoGopCache {
     topic: string,
     targetTime: Time,
   ): MessageEvent[] | undefined {
-    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
@@ -243,7 +239,6 @@ export class VideoGopCache {
     targetTime: Time,
     afterTime?: Time,
   ): MessageEvent[] | undefined {
-    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const afterNs = afterTime != undefined ? toNanoSec(afterTime) : undefined;
     const ranges = this.#rangesByTopic.get(topic);
@@ -264,7 +259,6 @@ export class VideoGopCache {
     topic: string,
     targetTime: Time,
   ): MessageEvent[] | undefined {
-    playbackPerformanceMetrics.recordGopCacheSize(this.#byteSize);
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
@@ -388,7 +382,6 @@ export class VideoGopCache {
       const removedBytes = candidate.range.trimFurthestFromReceiveTime(this.#targetReceiveTimeNs);
       if (removedBytes > 0) {
         this.#byteSize -= removedBytes;
-        playbackPerformanceMetrics.recordGopCacheEviction(removedBytes);
         if (candidate.range.isEmpty()) {
           this.#removeRange(candidate.topic, candidate.range);
         }
@@ -397,7 +390,6 @@ export class VideoGopCache {
 
       const removedBytesForRange = candidate.range.size;
       this.#byteSize -= removedBytesForRange;
-      playbackPerformanceMetrics.recordGopCacheEviction(removedBytesForRange);
       this.#removeRange(candidate.topic, candidate.range);
     }
   }

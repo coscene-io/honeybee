@@ -39,14 +39,11 @@ describe("PlaybackPerformanceMetrics", () => {
     const seekId = metrics.captureActiveSeek();
     const finishFirstVisualTask = metrics.beginVisualTask()!;
     const finishSecondVisualTask = metrics.beginVisualTask()!;
-    metrics.recordVideoLookback(seekId, 30.4, "success");
-    metrics.recordVideoRangeRead(seekId, 12.2, "success");
+    metrics.recordVideoLookback(seekId, "success");
+    metrics.recordVideoRangeRead(seekId, "success");
     metrics.recordVideoRangeReadRetry(seekId);
     metrics.recordGopCacheLookup("hit");
     metrics.recordGopCacheLookup("miss");
-    metrics.recordGopCacheSize(1_024);
-    metrics.recordGopCacheEviction(256);
-    metrics.recordStateTransitionBuild(8.6, 100, 20);
     metrics.recordLongTask(51.2);
 
     now = 40;
@@ -74,23 +71,15 @@ describe("PlaybackPerformanceMetrics", () => {
         player_ready_ms: 39,
         topic_count: 11,
         message_count: 3,
-        visual_task_count: 2,
-        visual_task_count_bucket: "2",
-        visual_task_ms_max: 90,
         lookback_count: 1,
-        lookback_ms_total: 30,
-        lookback_success_count: 1,
+        lookback_failure_count: 0,
+        lookback_cancel_count: 0,
         range_read_count: 1,
         range_read_retry_count: 1,
+        range_read_failure_count: 0,
         range_read_cancel_count: 0,
         gop_cache_hit_count: 1,
         gop_cache_miss_count: 1,
-        gop_cache_single_peak_bytes: 1_024,
-        gop_cache_evicted_bytes: 256,
-        state_build_count: 1,
-        state_build_ms_total: 9,
-        state_input_points_max: 100,
-        state_output_points_max: 20,
         long_task_count: 1,
         long_task_ms_total: 51,
       }),
@@ -116,7 +105,7 @@ describe("PlaybackPerformanceMetrics", () => {
     now = 5;
     metrics.beginSeek();
     metrics.markPlayerReady(2);
-    metrics.recordVideoLookback(staleSeekId, 25, "cancelled");
+    metrics.recordVideoLookback(staleSeekId, "cancelled");
     metrics.recordLongTask(50, 0);
     finishStaleTask();
     now = 15;
@@ -125,8 +114,6 @@ describe("PlaybackPerformanceMetrics", () => {
     expect(sink.mock.calls.map(([metric]) => metric.status)).toEqual(["superseded", "settled"]);
     expect(sink.mock.calls[1]![0]).toEqual(
       expect.objectContaining({
-        visual_task_count: 0,
-        visual_task_count_bucket: "0",
         lookback_count: 0,
         long_task_count: 0,
       }),
@@ -190,9 +177,9 @@ describe("PlaybackPerformanceMetrics", () => {
 
     metrics.beginSeek();
     const seekId = metrics.captureActiveSeek();
-    metrics.recordVideoRangeRead(seekId, 10, "success");
-    metrics.recordVideoRangeRead(seekId, 20, "cancelled");
-    metrics.recordVideoRangeRead(seekId, 30, "failure");
+    metrics.recordVideoRangeRead(seekId, "success");
+    metrics.recordVideoRangeRead(seekId, "cancelled");
+    metrics.recordVideoRangeRead(seekId, "failure");
     now = 100;
     metrics.finishCurrent("closed");
 
@@ -201,8 +188,6 @@ describe("PlaybackPerformanceMetrics", () => {
         range_read_count: 3,
         range_read_failure_count: 1,
         range_read_cancel_count: 1,
-        range_read_ms_total: 60,
-        range_read_ms_max: 30,
       }),
     );
     uninstall();
@@ -245,6 +230,7 @@ describe("playback performance telemetry transport", () => {
         status: "settled",
         sample_rate: 0.1,
         duration_ms: 123,
+        gop_cache_hit_count: 4,
         visual_task_count_bucket: "3-4",
         source_url: "https://example.test/file?signature=secret",
         topic: "/private/topic",
@@ -255,7 +241,7 @@ describe("playback performance telemetry transport", () => {
       status: "settled",
       sample_rate: 0.1,
       duration_ms: 123,
-      visual_task_count_bucket: "3-4",
+      gop_cache_hit_count: 4,
     });
   });
 

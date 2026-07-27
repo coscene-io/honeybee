@@ -126,7 +126,7 @@ describe("AmplitudeAnalytics", () => {
     await analytics.logEvent(AppEvent.PLAYBACK_PERFORMANCE, {
       status: "settled",
       duration_ms: 150,
-      visual_task_count: 2,
+      gop_cache_hit_count: 2,
       topic: "/private/topic",
       source_url: "https://example.test/file?signature=secret",
     });
@@ -134,7 +134,7 @@ describe("AmplitudeAnalytics", () => {
     expect(mockCapture).toHaveBeenCalledWith(AppEvent.PLAYBACK_PERFORMANCE, {
       status: "settled",
       duration_ms: 150,
-      visual_task_count: 2,
+      gop_cache_hit_count: 2,
     });
   });
 
