@@ -41,6 +41,12 @@ import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
 import { Viewport } from "./downsampleStates";
 import positiveModulo from "./positiveModulo";
 import { PathState } from "./settings";
+import {
+  mergeSortedByX,
+  processCacheFingerprint,
+  sliceInterleavedStateDataForViewport,
+  sliceMergedStateDataForViewport,
+} from "./stateTransitionData";
 import { StateTransitionConfig, StateTransitionPath, Datum } from "./types";
 
 type EventTypes = {
@@ -127,8 +133,9 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   #fullData = new Map<string, Datum[]>(); // Preloaded block data (complete history)
   #currentData = new Map<string, Datum[]>(); // Streaming data (real-time)
 
-  // Cache for processed data to avoid reprocessing unchanged data
-  #processedDataCache = new Map<string, { data: Datum[]; inputLength: number; y: number }>();
+  // Cache for processed data to avoid reprocessing unchanged data. Cleared when Show Points
+  // toggles because the fingerprint does not encode the render representation.
+  #processedDataCache = new Map<string, { data: Datum[]; fingerprint: string }>();
 
   // Track which series have detected array input (invalid for StateTransitions)
   #seriesIsArray = new Map<string, boolean>();
@@ -164,6 +171,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       return;
     }
 
+    const prevConfig = this.#config;
     this.#config = config;
 
     // Detect showPoints change - need to invalidate processed data cache
@@ -209,9 +217,9 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#lastBlockRefs.clear();
       this.#latestBlocks = undefined; // Force reprocessing of blocks
     } else if (showPointsChanged) {
-      // showPoints affects how data is processed: when true, all points are emitted;
-      // when false, only state-change points are emitted. Invalidate the processed
-      // cache to ensure the UI reflects the new setting immediately.
+      // Canonical stores always retain raw samples, so toggling Show Points only changes the
+      // render representation: drop the processed cache and rebuild from the same data. No block
+      // reprocessing and no player re-emit is required, and live-only history is lossless.
       this.#processedDataCache.clear();
     }
 
@@ -225,6 +233,19 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       x: { min: xMin, max: xMax },
       y: {},
     };
+
+    // Datasets are viewport-sliced, so any config change that moves the slice window (axis
+    // bounds, follow range) or changes the render representation (Show Points) must rebuild
+    // them from canonical data. A render dispatch alone would keep the old narrow slice on
+    // screen until the next player emit — invisible on live sources, stale on paused ones.
+    const axisBoundsChanged =
+      prevConfig != undefined &&
+      (prevConfig.xAxisMinValue !== config.xAxisMinValue ||
+        prevConfig.xAxisMaxValue !== config.xAxisMaxValue ||
+        prevConfig.xAxisRange !== config.xAxisRange);
+    if (!seriesChanged && (showPointsChanged || axisBoundsChanged)) {
+      this.#buildAndUpdateDatasets();
+    }
 
     // Emit pathStateChanged for all config.paths (including unparseable ones)
     // This ensures settings panel reflects all paths immediately
@@ -320,22 +341,23 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       }
 
       let cursor = this.#blockCursors.get(cursorKey) ?? 0;
-      const existingData = this.#fullData.get(cursorKey) ?? [];
+      let existingData = this.#fullData.get(cursorKey) ?? [];
+      const appendedFrom = existingData.length;
 
       for (let blockIdx = cursor; blockIdx < blocks.length; blockIdx++) {
-        const block = blocks[blockIdx];
-        if (!block) {
-          continue;
-        }
-
-        const messagesForTopic = block.messagesByTopic[topicName];
-        if (!messagesForTopic) {
-          continue;
+        const messagesForTopic = blocks[blockIdx]?.messagesByTopic[topicName];
+        if (messagesForTopic == undefined) {
+          // Gap: stop here instead of skipping ahead. Advancing the cursor past an unloaded block
+          // would permanently drop its history once it loads *behind* the cursor, leaving a silent
+          // hole in the plot. Matches Plot's BlockTopicCursor semantics.
+          break;
         }
 
         for (const msgEvent of messagesForTopic) {
           const datum = this.#messageEventToDatum(msgEvent, series, startTime);
           if (datum) {
+            // Canonical stores retain every raw sample. Plateau collapsing happens only in the
+            // render transform, so Show Points and troubleshooting always see the original data.
             existingData.push(datum);
           }
         }
@@ -345,11 +367,35 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
         cursor = blockIdx + 1;
       }
 
+      if (series.path.timestampMethod === "headerStamp" && existingData.length > appendedFrom) {
+        // Blocks are receive-time ordered, but header stamps can move backwards. Normalize before
+        // any binary viewport slicing; otherwise valid transitions can be omitted from the window.
+        // Only this pass's appended samples are sorted, then merged with the already-sorted
+        // prefix: the block loader emits progress once per loaded block, so re-sorting the whole
+        // accumulated history here made loading quadratic in total samples. Passes that append
+        // nothing (every non-block player emit) skip sorting entirely.
+        const appended = existingData.slice(appendedFrom).sort((a, b) => a.x - b.x);
+        const prefixMaxX = appendedFrom > 0 ? existingData[appendedFrom - 1]!.x : -Infinity;
+        if (appended[0]!.x >= prefixMaxX) {
+          // Common case: the new stamps do not interleave with the prefix; write the sorted
+          // tail back in place.
+          for (let i = 0; i < appended.length; i++) {
+            existingData[appendedFrom + i] = appended[i]!;
+          }
+        } else {
+          existingData.length = appendedFrom;
+          existingData = mergeSortedByX(existingData, appended);
+        }
+      }
+
       this.#blockCursors.set(cursorKey, cursor);
       this.#fullData.set(cursorKey, existingData);
+      // Record blocks[0] every pass, not only on reset. Leaving it unset made the *second* pass
+      // always see "first block changed" and wipe + reprocess the whole series once.
+      this.#firstBlockRefs.set(cursorKey, blocks[0]?.messagesByTopic[topicName]);
 
       // After updating fullData, trim currentData to remove duplicates
-      this.#trimCurrentData(cursorKey);
+      this.#trimCurrentData(cursorKey, series.path.timestampMethod);
     }
   }
 
@@ -376,12 +422,25 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   /**
    * Trim currentData to remove entries that are already covered by fullData.
    * This ensures no duplicate data points when merging.
+   *
+   * Receive-time series are receive-ordered, so everything at or below fullData's last x is
+   * covered by blocks and can be range-trimmed. Header stamps are not monotonic in receive
+   * order: blocks containing stamps [0, 100, 50] do not cover a live sample stamped 75, so for
+   * header-stamped series only exact-stamp duplicates may be removed.
    */
-  #trimCurrentData(cursorKey: string): void {
+  #trimCurrentData(cursorKey: string, timestampMethod: string | undefined): void {
     const fullData = this.#fullData.get(cursorKey);
     const currentData = this.#currentData.get(cursorKey);
 
     if (!fullData || fullData.length === 0 || !currentData || currentData.length === 0) {
+      return;
+    }
+
+    if (timestampMethod === "headerStamp") {
+      const kept = currentData.filter((datum) => !this.#sortedDataContainsX(fullData, datum.x));
+      if (kept.length !== currentData.length) {
+        this.#currentData.set(cursorKey, kept);
+      }
       return;
     }
 
@@ -405,6 +464,12 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     }
   }
 
+  /** Whether sorted data contains a datum at exactly x (binary search). */
+  #sortedDataContainsX(data: Datum[], x: number): boolean {
+    const pos = this.#findInsertPosition(data, x);
+    return data[pos]?.x === x;
+  }
+
   /**
    * Process streaming messages into currentData.
    * Streaming data is kept separate from block data and merged at render time.
@@ -413,6 +478,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     for (const series of this.#series) {
       const topicName = series.parsed.topicName;
       const cursorKey = `${series.configIndex}:${topicName}`;
+      const isHeaderStamp = series.path.timestampMethod === "headerStamp";
 
       // Get the last timestamp from fullData to avoid duplicates
       const fullData = this.#fullData.get(cursorKey);
@@ -428,12 +494,28 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
           continue;
         }
 
-        // Skip if this datum is already covered by fullData
-        if (datum.x <= lastFullX) {
+        // Skip if this datum is already covered by fullData. Header stamps are not monotonic in
+        // receive order, so block coverage of stamp 100 does not imply coverage of a live sample
+        // stamped 75 — dedupe those by exact stamp membership instead of range (see
+        // #trimCurrentData).
+        if (isHeaderStamp) {
+          if (fullData != undefined && this.#sortedDataContainsX(fullData, datum.x)) {
+            continue;
+          }
+        } else if (datum.x <= lastFullX) {
           continue;
         }
 
         const currentData = this.#currentData.get(cursorKey) ?? [];
+
+        // Streaming path is usually already sorted by time; append raw samples to the end
+        // (common case). Fall back to ordered insert otherwise.
+        const last = currentData[currentData.length - 1];
+        if (last == undefined || datum.x > last.x) {
+          currentData.push(datum);
+          this.#currentData.set(cursorKey, currentData);
+          continue;
+        }
 
         // Check for duplicates in currentData using binary search position
         const insertPos = this.#findInsertPosition(currentData, datum.x);
@@ -446,7 +528,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
           continue;
         }
 
-        // Insert in sorted order
+        // Insert in sorted order (rare out-of-order stream).
         currentData.splice(insertPos, 0, datum);
         this.#currentData.set(cursorKey, currentData);
       }
@@ -470,32 +552,6 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     }
 
     return low;
-  }
-
-  /**
-   * Merge fullData and currentData for a given series.
-   * fullData has priority - currentData only includes points after fullData's last point.
-   */
-  #getMergedData(cursorKey: string): Datum[] {
-    const fullData = this.#fullData.get(cursorKey) ?? [];
-    const currentData = this.#currentData.get(cursorKey) ?? [];
-
-    if (currentData.length === 0) {
-      return fullData;
-    }
-
-    if (fullData.length === 0) {
-      return currentData;
-    }
-
-    // Get the last timestamp from fullData
-    const lastFullX = fullData[fullData.length - 1]?.x ?? -Infinity;
-
-    // Filter currentData to only include points after fullData
-    const filteredCurrent = currentData.filter((datum) => datum.x > lastFullX);
-
-    // Concatenate: fullData first, then currentData
-    return [...fullData, ...filteredCurrent];
   }
 
   /**
@@ -630,17 +686,65 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     const datasets: Dataset[] = [];
     let minY: number | undefined;
 
+    // Resolve x bounds first so we can window-process only the visible range.
+    if (this.#followRange != undefined && this.#currentSeconds != undefined) {
+      this.#configBounds.x = {
+        min: this.#currentSeconds - this.#followRange,
+        max: this.#currentSeconds,
+      };
+    } else {
+      this.#configBounds.x = {
+        min: this.#config.xAxisMinValue ?? 0,
+        max: this.#config.xAxisMaxValue ?? this.#datasetRange?.max,
+      };
+    }
+
+    // Prefer interaction / global bounds when set (zoom/pan/sync).
+    const viewMin =
+      this.#interactionBounds?.x.min ?? this.#globalBounds?.min ?? this.#configBounds.x.min ?? 0;
+    const viewMax =
+      this.#interactionBounds?.x.max ??
+      this.#globalBounds?.max ??
+      this.#configBounds.x.max ??
+      viewMin + 1;
+    // Pad the window so pan/edge segments stay connected without processing the full bag. The
+    // pad must cover at least the renderer's own pan/zoom buffer (downsampleStates keeps half a
+    // view range on each side): #dispatchRender applies an interaction to the already-loaded
+    // dataset before the throttled rebuild lands, so a smaller upstream slice would expose
+    // blank regions during fast pans.
+    const viewPad = Math.max(0, (viewMax - viewMin) * 0.5);
+    const sliceMin = viewMin - viewPad;
+    const sliceMax = viewMax + viewPad;
+
     for (const series of this.#series) {
       const y = this.#getYForSeries(series.configIndex);
       minY = Math.min(minY ?? y, y - 5);
 
       const cursorKey = `${series.configIndex}:${series.parsed.topicName}`;
 
-      // Merge fullData and currentData
-      const data = this.#getMergedData(cursorKey);
+      // Window to the viewport *while* merging fullData and currentData. Materializing the merge
+      // first copied the whole preloaded history on every rebuild. Header-stamped series need the
+      // interleave-safe variant: their live samples' stamps can fall between block stamps, which
+      // the concatenation-based slice would drop.
+      const sliceForViewport =
+        series.path.timestampMethod === "headerStamp"
+          ? sliceInterleavedStateDataForViewport
+          : sliceMergedStateDataForViewport;
+      const data = sliceForViewport(
+        this.#fullData.get(cursorKey) ?? [],
+        this.#currentData.get(cursorKey) ?? [],
+        sliceMin,
+        sliceMax,
+      );
 
       // Process data to create state transition segments (with caching)
-      const processedData = this.#processDataForStateTransitions(data, y, cursorKey);
+      const processedData = this.#processDataForStateTransitions(
+        data,
+        y,
+        cursorKey,
+        sliceMin,
+        sliceMax,
+      );
 
       const dataset: Dataset = {
         borderWidth: 10,
@@ -661,19 +765,6 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     this.#configBounds.y = { min: minY, max: -3 };
     this.#updateAction.yBounds = this.#configBounds.y;
 
-    // Update x bounds with follow mode
-    if (this.#followRange != undefined && this.#currentSeconds != undefined) {
-      this.#configBounds.x = {
-        min: this.#currentSeconds - this.#followRange,
-        max: this.#currentSeconds,
-      };
-    } else {
-      this.#configBounds.x = {
-        min: this.#config.xAxisMinValue ?? 0,
-        max: this.#config.xAxisMaxValue ?? this.#datasetRange?.max,
-      };
-    }
-
     // Build pathState from all config.paths (including unparseable ones)
     // This ensures settings panel reflects all paths with updated isArray status
     const pathState: PathState[] = this.#config.paths.map((path, index) => {
@@ -693,14 +784,21 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
    * Process raw data into state transition format (only show state changes).
    * Uses caching to avoid reprocessing unchanged data.
    */
-  #processDataForStateTransitions(data: Datum[], y: number, cacheKey: string): Datum[] {
+  #processDataForStateTransitions(
+    data: Datum[],
+    y: number,
+    cacheKey: string,
+    viewMin: number,
+    viewMax: number,
+  ): Datum[] {
     if (data.length === 0) {
       return [];
     }
 
-    // Check cache - if data length and y are the same, reuse cached result
+    // Include head/tail so plateau endpoint mutation (same length) still busts the cache.
+    const fingerprint = processCacheFingerprint(data, y, viewMin, viewMax);
     const cached = this.#processedDataCache.get(cacheKey);
-    if (cached?.inputLength === data.length && cached.y === y) {
+    if (cached?.fingerprint === fingerprint) {
       return cached.data;
     }
 
@@ -753,7 +851,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     }
 
     // Cache the result
-    this.#processedDataCache.set(cacheKey, { data: result, inputLength: data.length, y });
+    this.#processedDataCache.set(cacheKey, { data: result, fingerprint });
 
     return result;
   }
@@ -798,6 +896,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
   /**
    * Set the global bounds (from synced panels).
+   * Rebuild datasets so viewport-windowed series match the new bounds.
    */
   public setGlobalBounds(bounds: Immutable<Bounds1D> | undefined): void {
     if (this.isDestroyed()) {
@@ -805,11 +904,14 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     }
     this.#globalBounds = bounds;
     this.#interactionBounds = undefined;
+    // Slice bounds changed — rebuild from fullData/currentData, then render.
+    this.#buildAndUpdateDatasets();
     this.#queueDispatchRender();
   }
 
   /**
    * Reset the view to the default bounds.
+   * Rebuild datasets so viewport-windowed series match the reset window.
    */
   public resetBounds(): void {
     if (this.isDestroyed()) {
@@ -818,6 +920,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     this.#interactionBounds = undefined;
     this.#globalBounds = undefined;
     this.#updateAction.yBounds = this.#configBounds.y;
+    this.#buildAndUpdateDatasets();
     this.#queueDispatchRender();
   }
 
@@ -956,7 +1059,14 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
     this.emit("viewportChange", this.#canReset());
 
-    // After render update, dispatch datasets to update the chart data
+    if (haveInteractionEvents) {
+      // Pan/zoom changed the visible window — rebuild sliced series from fullData
+      // (previously only re-dispatched stale pending datasets).
+      this.#buildAndUpdateDatasets();
+      return;
+    }
+
+    // After non-interaction render update, dispatch any pending datasets.
     this.#queueDispatchDatasets();
   }
 
