@@ -361,6 +361,10 @@ export class IterablePlayer implements Player {
     if (this.#state === "preinit" || this.#state === "initialize") {
       log.debug(`Ignoring seek, state=${this.#state}`);
       this.#seekTarget = time;
+      // Start the latency clock now so the deferred backfill still emits a completion event
+      // (with seek_id 0 — no attempt event exists for initialization seeks). Without this,
+      // deep-link seeks were silently excluded from latency data.
+      this.#seekStartTime = Date.now();
       return;
     }
 

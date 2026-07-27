@@ -83,10 +83,15 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
       cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "https://bff.dev.coscene.cn",
     IMAGE_TAG: process.env.IMAGE_TAG,
     GITHUB_SHA: process.env.GITHUB_SHA,
+    // Runtime-declared value first (desktop and self-hosted deployments have no build-time
+    // GITHUB_SHA/IMAGE_TAG), then the CI build identity, then the package version so desktop
+    // builds still carry a release dimension for release-over-release comparisons.
     RELEASE_TAG:
-      process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
+      cosConfig.RELEASE_TAG ??
+      (process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
         ? process.env.GITHUB_SHA
-        : process.env.IMAGE_TAG,
+        : process.env.IMAGE_TAG) ??
+      process.env.NPM_PACKAGE_VERSION,
     LAST_BUILD_TIME: process.env.LAST_BUILD_TIME,
     NPM_PACKAGE_VERSION: process.env.NPM_PACKAGE_VERSION,
     LAYOUT_TEMPLATE_INDEX_OSS_URL:

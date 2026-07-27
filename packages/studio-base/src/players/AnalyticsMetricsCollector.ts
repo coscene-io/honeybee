@@ -26,9 +26,14 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   #metadata: EventData = {};
   #intervalId: ReturnType<typeof setInterval> | undefined;
   #lastTickTime: number | undefined;
-  // Session-local sequence joining a PLAYER_SEEK attempt to its PLAYER_SEEK_LATENCY completion.
-  // recordSeekLatency always refers to the most recent accepted seek: the player skips the
-  // completion path for superseded backfills before any newer seek() can run.
+  // Session-local id joining a PLAYER_SEEK attempt to its PLAYER_SEEK_LATENCY completion.
+  // Derived from wall-clock milliseconds plus a sub-millisecond sequence so ids remain unique
+  // across page reloads and collector remounts within one PostHog session — a plain counter
+  // restarted at 1 after a reload and collided with the pre-reload ids. (Safe in double
+  // precision: Date.now()*1000 ≈ 1.8e15 < 2^53.) recordSeekLatency always refers to the most
+  // recent accepted seek: the player skips the completion path for superseded backfills before
+  // any newer seek() can run.
+  #currentSeekId: number = 0;
   #seekSequence: number = 0;
 
   public constructor({ analytics }: { analytics: IAnalytics }) {
@@ -90,11 +95,11 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
    * difference "failures" without joining on `seek_id`.
    */
   public seek(time: Time): void {
-    this.#seekSequence += 1;
+    this.#currentSeekId = Date.now() * 1000 + (this.#seekSequence++ % 1000);
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK,
-      data: { seek_id: this.#seekSequence },
+      data: { seek_id: this.#currentSeekId },
     });
   }
   public setSpeed(speed: number): void {
@@ -146,7 +151,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
       data: {
         // 0 means no attempt was recorded (e.g. a completion from a seek issued during player
         // initialization, which emits no PLAYER_SEEK event).
-        seek_id: this.#seekSequence,
+        seek_id: this.#currentSeekId,
         latency_ms: latencyMs,
         topic_count: details.topicCount,
         message_count: details.messageCount,
