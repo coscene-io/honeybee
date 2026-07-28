@@ -100,7 +100,7 @@ export default function getDiff({
 
     if (idToCompareWith != undefined) {
       const unmatchedAfterById = _.keyBy(after, idToCompareWith);
-      const diff = [];
+      const diff: DiffObject[] = [];
       for (const beforeItem of before) {
         if (beforeItem == undefined || typeof beforeItem !== "object") {
           throw new Error("beforeItem is invalid; should have checked this earlier");
@@ -135,7 +135,10 @@ export default function getDiff({
           showFullMessageForDiff,
         });
         if (!_.isEmpty(innerDiff)) {
-          diff.push(innerDiff);
+          // `before` is always `undefined` here, so `getDiff` only ever takes the
+          // `before == undefined` branch below, which always returns a `DiffObject`
+          // (never a `DiffObject[]`).
+          diff.push(innerDiff as DiffObject);
         }
       }
       return diff;
