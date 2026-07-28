@@ -11,8 +11,8 @@
 // - jfaust https://github.com/jfaust
 
 import * as THREE from "three";
-import { WebGLProgram } from "three/src/renderers/webgl/WebGLProgram";
-import { RenderItem } from "three/src/renderers/webgl/WebGLRenderLists";
+import { WebGLProgram } from "three/src/renderers/webgl/WebGLProgram.js";
+import { RenderItem } from "three/src/renderers/webgl/WebGLRenderLists.js";
 import { assert } from "ts-essentials";
 
 import type { Renderable } from "./Renderable";

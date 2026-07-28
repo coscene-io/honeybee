@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { render } from "@testing-library/react";
-import { ModuleKind, ModuleResolutionKind } from "typescript";
+import { ModuleKind, ModuleResolutionKind } from "typescript-for-user-script";
 
 import Editor from "./Editor";
 
@@ -83,11 +83,11 @@ jest.mock("react-monaco-editor", () => ({
   },
 }));
 
-jest.mock("monaco-editor/esm/vs/editor/browser/services/codeEditorService", () => ({
+jest.mock("monaco-editor/esm/vs/editor/browser/services/codeEditorService.js", () => ({
   ICodeEditorService: Symbol("ICodeEditorService"),
 }));
 
-jest.mock("monaco-editor/esm/vs/editor/standalone/browser/standaloneServices", () => ({
+jest.mock("monaco-editor/esm/vs/editor/standalone/browser/standaloneServices.js", () => ({
   StandaloneServices: {
     get: () => ({
       registerCodeEditorOpenHandler: jest.fn(() => ({ dispose: jest.fn() })),
@@ -95,7 +95,7 @@ jest.mock("monaco-editor/esm/vs/editor/standalone/browser/standaloneServices", (
   },
 }));
 
-jest.mock("monaco-editor/esm/vs/editor/editor.api", () => ({
+jest.mock("monaco-editor/esm/vs/editor/editor.api.js", () => ({
   editor: {
     createModel: mockCreateModel,
     defineTheme: jest.fn(),
@@ -108,7 +108,7 @@ jest.mock("monaco-editor/esm/vs/editor/editor.api", () => ({
   },
 }));
 
-jest.mock("monaco-editor/esm/vs/language/typescript/monaco.contribution", () => ({
+jest.mock("monaco-editor/esm/vs/language/typescript/monaco.contribution.js", () => ({
   javascriptDefaults: {
     setEagerModelSync: jest.fn(),
   },
