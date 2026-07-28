@@ -37,8 +37,11 @@ jobs:
       - run: set -x
 
       - run: yarn run tsc --noEmit
-      - run: yarn run build:packages
       - run: yarn run lint:ci
+      # Runs last: unlike the two steps above, this emits .js/.d.ts files in-place under
+      # packages/** (these tsconfigs aren't noEmit), which would otherwise get picked up
+      # by lint:ci's glob and produce thousands of bogus errors on generated code.
+      - run: yarn run build:packages
 
   unit-test:
     if: github.event.pull_request.draft == false
