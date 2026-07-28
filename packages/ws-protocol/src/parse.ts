@@ -92,6 +92,8 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
           throw new Error(`Unrecognized pre-fetch asset status: ${status}`);
       }
     }
+    default:
+      throw new Error(`Unrecognized server opcode: ${op}`);
   }
 }
 
@@ -122,5 +124,7 @@ export function parseClientMessage(buffer: ArrayBuffer): ClientMessage {
       const data = new DataView(buffer, offset, buffer.byteLength - offset);
       return { op, serviceId, callId, encoding, data };
     }
+    default:
+      throw new Error(`Unrecognized client opcode: ${op}`);
   }
 }

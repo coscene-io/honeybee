@@ -912,9 +912,9 @@ class CoSceneConsoleApi {
       },
     );
 
-    const metaData = topics.topics.map((topic) => {
+    const metaData = topics.topics.map((topic): TopicResponse => {
       if (topic.schema == undefined) {
-        return topic;
+        return { ...topic, schema: undefined };
       }
       const decodedSchema = new Uint8Array(base64.length(topic.schema));
       base64.decode(topic.schema, decodedSchema, 0);
