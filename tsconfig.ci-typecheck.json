@@ -17,10 +17,14 @@
   "include": ["**/*"],
   "exclude": [
     // Specifying "exclude" at all replaces TypeScript's implicit default (which normally
-    // excludes node_modules) rather than adding to it, so it must be listed explicitly --
-    // otherwise "**/*" also sweeps in node_modules/@foxglove/*, which yarn workspaces
-    // symlinks back to these same packages/* directories, double-including every file.
+    // excludes node_modules) rather than adding to it, so it must be restated explicitly to
+    // avoid treating every third-party package under node_modules/** as a root file to check.
+    // (Workspace packages symlinked into node_modules/@foxglove/* are *not* the concern here --
+    // TypeScript canonicalizes symlinks, so it already dedupes those against packages/*.)
     "node_modules/**",
+    // Neither of these is under packages/**, so build:packages never covered them either;
+    // excluding them here keeps this config's scope matching that precedent rather than
+    // silently expanding it. (desktop/ currently also has real, unrelated type errors.)
     "desktop/**",
     "benchmark/**",
     // Has its own tsconfig.json overriding module/moduleResolution to NodeNext (required
