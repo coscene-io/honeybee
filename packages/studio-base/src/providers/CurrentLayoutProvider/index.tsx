@@ -40,6 +40,7 @@ import {
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { isLayoutEqual } from "@foxglove/studio-base/services/LayoutManager/compareLayouts";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -48,6 +49,7 @@ import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert
 const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
+let nextEditRevision = 0;
 
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
@@ -209,6 +211,7 @@ export default function CurrentLayoutProvider({
           loading: false,
           name: layoutStateRef.current.selectedLayout.name,
           edited: true,
+          editRevision: ++nextEditRevision,
           ...(layoutStateRef.current.selectedLayout.transient === true ? { transient: true } : {}),
         },
       });
@@ -236,12 +239,15 @@ export default function CurrentLayoutProvider({
     const listener: LayoutManagerEventTypes["change"] = (event) => {
       const { updatedLayout } = event;
       const currentSelectedLayout = layoutStateRef.current.selectedLayout;
-      if (updatedLayout && currentSelectedLayout && updatedLayout.id === currentSelectedLayout.id) {
+      if (updatedLayout && updatedLayout.id === currentSelectedLayout?.id) {
         const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
-        if (
-          (event.source === "update" || event.source === "overwrite") &&
+        const dataChanged =
           currentSelectedLayout.data != undefined &&
-          !_.isEqual(currentSelectedLayout.data, updatedData)
+          !isLayoutEqual(updatedData, currentSelectedLayout.data);
+        if (
+          dataChanged &&
+          currentSelectedLayout.edited === true &&
+          (event.source === "update" || event.source === "overwrite")
         ) {
           setLayoutState({
             selectedLayout: {
@@ -260,6 +266,7 @@ export default function CurrentLayoutProvider({
             id: updatedLayout.id,
             data: updatedData,
             name: updatedLayout.name,
+            ...(event.source === "revert" ? { editRevision: ++nextEditRevision } : {}),
           },
         });
       }

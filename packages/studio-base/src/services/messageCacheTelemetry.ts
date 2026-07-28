@@ -1,0 +1,227 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import type { BeforeSendFn, CaptureResult, Properties } from "posthog-js";
+
+import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+
+const SAFE_MESSAGE_CACHE_STRING_KEYS = new Set(["metric", "kind", "status", "stage", "operation"]);
+
+const SAFE_MESSAGE_CACHE_NUMBER_KEYS = new Set([
+  "oldVersion",
+  "currentVersion",
+  "blockedVersion",
+  "durationMs",
+  "maxCacheSize",
+  "usage",
+  "quota",
+  "usageRatio",
+  "budget",
+  "candidateCount",
+  "succeededCount",
+  "failedCount",
+  "sessionCount",
+  "totalBytes",
+]);
+
+const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set(["writesDisabled", "interrupted"]);
+const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set([
+  "seek_id",
+  "latency_ms",
+  "topic_count",
+  "message_count",
+]);
+const PLAYER_PERFORMANCE_EVENTS = new Set<AppEvent>([
+  AppEvent.PLAYER_SEEK,
+  AppEvent.PLAYER_SEEK_LATENCY,
+]);
+
+// PostHog needs a small number of primitive transport and environment fields for ingestion and
+// useful grouping. Objects, page data, campaign data, and SDK-added URLs are deliberately omitted.
+//
+// Scope note: "privacy-safe" means the event payload is bounded to the allowlists in this
+// file — it does not mean anonymous. The keys below are the same identity set every existing
+// analytics event already carries (user, device, session, window, and organization identity
+// plus gl_renderer), and PostHog person profiles are enabled, so every event is attributable
+// to an identified user; the events in this file add no identity surface beyond that accepted
+// baseline. This filtering also applies only to the events the before_send hooks below match;
+// identify() calls and other events (e.g. PLAYER_INIT with its data-source args) are not
+// filtered here.
+const SAFE_POSTHOG_PRIMITIVE_KEYS = new Set([
+  "token",
+  "distinct_id",
+  "$anon_distinct_id",
+  "$device_id",
+  "$user_id",
+  "$session_id",
+  "$window_id",
+  "$lib",
+  "$lib_version",
+  "$insert_id",
+  "$device_type",
+  "$browser",
+  "$browser_version",
+  "$os",
+  "$os_version",
+  "$screen_height",
+  "$screen_width",
+  "$viewport_height",
+  "$viewport_width",
+  "$had_persisted_distinct_id",
+  "$process_person_profile",
+  "time",
+  "platform",
+  "environment",
+  "release",
+  "os",
+  "gl_vendor",
+  "gl_renderer",
+  "source_id",
+  "speed",
+  "org_id",
+  "org_display_name",
+]);
+
+const MAX_SAFE_AUTOMATIC_STRING_LENGTH = 256;
+const MAX_SAFE_METRIC_STRING_LENGTH = 64;
+const SAFE_METRIC_STRING = /^[a-z][a-z0-9]*(?:[- ][a-z0-9]+)*$/;
+const SUSPICIOUS_STRING_VALUE =
+  /(?:^\s*[/[{]|(?:https?|file|blob|data):|[?&](?:x-amz-[^=]*|signature|sig|token|credential|key)=|[\r\n])/i;
+
+function isSafePrimitive(value: unknown): value is string | number | boolean {
+  switch (typeof value) {
+    case "boolean":
+      return true;
+    case "number":
+      return Number.isFinite(value);
+    case "string":
+      return (
+        value.length <= MAX_SAFE_AUTOMATIC_STRING_LENGTH && !SUSPICIOUS_STRING_VALUE.test(value)
+      );
+    default:
+      return false;
+  }
+}
+
+function isSafeMetricString(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= MAX_SAFE_METRIC_STRING_LENGTH &&
+    SAFE_METRIC_STRING.test(value)
+  );
+}
+
+/** Restrict caller-supplied metric data so future call sites cannot accidentally send cache data. */
+export function sanitizeMessageCacheMetricData(
+  data: Readonly<Record<string, unknown>> | undefined,
+): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  if (data == undefined) {
+    return sanitized;
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (SAFE_MESSAGE_CACHE_STRING_KEYS.has(key) && isSafeMetricString(value)) {
+      sanitized[key] = value;
+    } else if (
+      SAFE_MESSAGE_CACHE_NUMBER_KEYS.has(key) &&
+      typeof value === "number" &&
+      Number.isFinite(value)
+    ) {
+      sanitized[key] = value;
+    } else if (SAFE_MESSAGE_CACHE_BOOLEAN_KEYS.has(key) && typeof value === "boolean") {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+/** Restrict seek telemetry to finite aggregate measurements with bounded cardinality. */
+export function sanitizePlayerPerformanceMetricData(
+  data: Readonly<Record<string, unknown>> | undefined,
+): Record<string, number> {
+  const sanitized: Record<string, number> = {};
+  if (data == undefined) {
+    return sanitized;
+  }
+  for (const [key, value] of Object.entries(data)) {
+    if (
+      SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS.has(key) &&
+      typeof value === "number" &&
+      Number.isFinite(value)
+    ) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+export function sanitizePostHogPrimitiveProperties(properties: Properties): Properties {
+  const sanitized: Properties = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (SAFE_POSTHOG_PRIMITIVE_KEYS.has(key) && isSafePrimitive(value)) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+function sanitizedCaptureResult(result: CaptureResult, properties: Properties): CaptureResult {
+  const sanitized: CaptureResult = {
+    uuid: result.uuid,
+    event: result.event,
+    properties,
+  };
+  if (result.timestamp != undefined) {
+    sanitized.timestamp = result.timestamp;
+  }
+  return sanitized;
+}
+
+/** Fire-and-forget metrics support both synchronous and asynchronous analytics implementations. */
+export function logMessageCacheMetric(
+  analytics: Pick<IAnalytics, "logEvent">,
+  metric: string,
+  data: Readonly<Record<string, unknown>>,
+): void {
+  void Promise.resolve(analytics.logEvent(AppEvent.MESSAGE_CACHE, { ...data, metric })).catch(
+    () => undefined,
+  );
+}
+
+/** Final PostHog hook: SDK URL/referrer enrichment happens after capture() is called. */
+export const sanitizeMessageCacheCaptureResult: BeforeSendFn = (result) => {
+  if (result?.event !== AppEvent.MESSAGE_CACHE) {
+    return result;
+  }
+
+  return sanitizedCaptureResult(
+    result,
+    Object.assign(
+      sanitizePostHogPrimitiveProperties(result.properties),
+      sanitizeMessageCacheMetricData(result.properties),
+    ),
+  );
+};
+
+/** Strip SDK-added page data from privacy-safe aggregate telemetry after PostHog enrichment. */
+export const sanitizeAnalyticsCaptureResult: BeforeSendFn = (result) => {
+  const cacheResult = sanitizeMessageCacheCaptureResult(result);
+  if (!result || cacheResult !== result) {
+    return cacheResult;
+  }
+  if (!PLAYER_PERFORMANCE_EVENTS.has(result.event as AppEvent)) {
+    return result;
+  }
+  return sanitizedCaptureResult(
+    result,
+    Object.assign(
+      sanitizePostHogPrimitiveProperties(result.properties),
+      sanitizePlayerPerformanceMetricData(result.properties),
+    ),
+  );
+};

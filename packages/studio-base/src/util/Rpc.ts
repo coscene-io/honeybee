@@ -138,7 +138,9 @@ export default class Rpc {
 
   /** Call this when the channel has been terminated to reject any outstanding send callbacks. */
   public terminate(): void {
-    for (const [id, callback] of Object.entries(this.#pendingCallbacks)) {
+    const pendingCallbacks = this.#pendingCallbacks;
+    this.#pendingCallbacks = {};
+    for (const [id, callback] of Object.entries(pendingCallbacks)) {
       callback({
         topic: RESPONSE,
         id,

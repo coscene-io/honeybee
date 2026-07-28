@@ -51,7 +51,7 @@ export class MarkersNamespace {
     this.namespace = namespace;
 
     // Set the initial settings from default values merged with any user settings
-    const topicSettings = renderer.config.topics[topic] as PartialMarkerSettings;
+    const topicSettings: PartialMarkerSettings = renderer.config.topics[topic];
     const userSettings = topicSettings?.namespaces?.[namespace];
     this.settings = { ...DEFAULT_NAMESPACE_SETTINGS, ...userSettings };
   }
@@ -72,7 +72,7 @@ export class TopicMarkers extends Renderable<MarkerTopicUserData> {
   }
 
   public addMarkerMessage(marker: Marker, receiveTime: bigint): void {
-    switch (marker.action as MarkerAction) {
+    switch (marker.action) {
       case MarkerAction.ADD:
       case MarkerAction.MODIFY:
         this.#addOrUpdateMarker(marker, receiveTime);
@@ -219,7 +219,7 @@ export class TopicMarkers extends Renderable<MarkerTopicUserData> {
 
   #createMarkerRenderable(marker: Marker, receiveTime: bigint): RenderableMarker | undefined {
     const pool = this.renderer.markerPool;
-    switch (marker.type as MarkerType) {
+    switch (marker.type) {
       case MarkerType.ARROW:
         return pool.acquire(MarkerType.ARROW, this.topic, marker, receiveTime);
       case MarkerType.CUBE:

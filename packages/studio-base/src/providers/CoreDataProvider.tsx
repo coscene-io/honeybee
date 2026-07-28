@@ -145,8 +145,7 @@ function CreateCoreDataStore() {
           recordInfo: "DISABLE",
         };
         if (
-          cachedEnableList &&
-          cachedEnableList.event === next.event &&
+          cachedEnableList?.event === next.event &&
           cachedEnableList.playlist === next.playlist &&
           cachedEnableList.task === next.task &&
           cachedEnableList.layoutSync === next.layoutSync &&
@@ -177,8 +176,7 @@ function CreateCoreDataStore() {
       };
 
       if (
-        cachedEnableList &&
-        cachedEnableList.event === next.event &&
+        cachedEnableList?.event === next.event &&
         cachedEnableList.playlist === next.playlist &&
         cachedEnableList.task === next.task &&
         cachedEnableList.layoutSync === next.layoutSync &&

@@ -235,7 +235,7 @@ export class ImageAnnotations extends THREE.Object3D {
 
   #handleTopicVisibilityChange(
     topic: TopicName,
-    visible: boolean, // eslint-disable-line @foxglove/no-boolean-parameters
+    visible: boolean, // eslint-disable-line @coscene-io/no-boolean-parameters
   ): void {
     this.#context.updateConfig((draft) => {
       draft.annotations ??= {};

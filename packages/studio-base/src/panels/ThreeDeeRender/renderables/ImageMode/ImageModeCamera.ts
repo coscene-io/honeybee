@@ -75,13 +75,13 @@ export class ImageModeCamera extends THREE.PerspectiveCamera {
     this.resetModifications();
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public setFlipHorizontal(flipHorizontal: boolean): void {
     this.#flipHorizontal = flipHorizontal;
     this.resetModifications();
   }
 
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public setFlipVertical(flipVertical: boolean): void {
     this.#flipVertical = flipVertical;
     this.resetModifications();

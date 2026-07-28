@@ -32,7 +32,9 @@ export function NodeActionsMenu({
     setAnchorEl(undefined);
   };
 
-  const anyItemHasIcon = actions.some((action) => action.type === "action" && action.icon);
+  const anyItemHasIcon = actions.some(
+    (action) => action.type === "action" && action.icon != undefined,
+  );
 
   return (
     <>

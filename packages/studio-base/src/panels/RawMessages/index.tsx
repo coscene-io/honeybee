@@ -401,10 +401,10 @@ function RawMessages(props: Props) {
       }
 
       const joinedPath = keypath.join("~");
-      if (expansion && expansion[joinedPath] === NodeState.Collapsed) {
+      if (expansion?.[joinedPath] === NodeState.Collapsed) {
         return false;
       }
-      if (expansion && expansion[joinedPath] === NodeState.Expanded) {
+      if (expansion?.[joinedPath] === NodeState.Expanded) {
         return true;
       }
 

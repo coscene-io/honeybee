@@ -21,7 +21,6 @@ import {
   LayoutData,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { TabPanelConfig } from "@foxglove/studio-base/types/layouts";
-import { MosaicDropTargetPosition } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -1327,7 +1326,7 @@ describe("layout reducers", () => {
           panelId: "Audio!a",
           sourceTabId: undefined,
           targetTabId: undefined,
-          position: undefined as unknown as MosaicDropTargetPosition,
+          position: undefined,
           destinationPath: ["second"],
           ownPath: ["first"],
         },

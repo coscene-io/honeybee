@@ -77,7 +77,7 @@ export function setRayDistance(pt: Point, distance: number): Point {
   };
 }
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 export function convertToRangeView(points: Point[], range: number, makeColors: boolean): RGBA[] {
   const colors: RGBA[] = makeColors ? new Array(points.length) : [];
   // First pass to get min and max ranges

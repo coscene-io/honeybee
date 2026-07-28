@@ -83,10 +83,17 @@ export function getAppConfig(): NonNullable<Window["cosConfig"]> {
       cosConfig.VITE_APP_BFF_URL ?? process.env.VITE_APP_BFF_URL ?? "https://bff.dev.coscene.cn",
     IMAGE_TAG: process.env.IMAGE_TAG,
     GITHUB_SHA: process.env.GITHUB_SHA,
+    // Runtime-declared value first, then the CI build identity (web builds inline these env
+    // values), then the app version. On desktop everything before the last term is undefined:
+    // cos-config.js is empty and the renderer's process shim has no env — so the release
+    // dimension comes from FOXGLOVE_STUDIO_VERSION, the compile-time app version constant the
+    // About dialog shows (i.e. the desktop release version).
     RELEASE_TAG:
-      process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
+      cosConfig.RELEASE_TAG ??
+      (process.env.GITHUB_SHA && process.env.IMAGE_TAG === "latest"
         ? process.env.GITHUB_SHA
-        : process.env.IMAGE_TAG,
+        : process.env.IMAGE_TAG) ??
+      FOXGLOVE_STUDIO_VERSION,
     LAST_BUILD_TIME: process.env.LAST_BUILD_TIME,
     NPM_PACKAGE_VERSION: process.env.NPM_PACKAGE_VERSION,
     LAYOUT_TEMPLATE_INDEX_OSS_URL:

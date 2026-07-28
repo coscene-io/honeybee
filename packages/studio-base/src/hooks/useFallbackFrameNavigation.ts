@@ -31,6 +31,7 @@ type UseFallbackFrameNavigationArgs = {
   readonly startPlayback: (() => void) | undefined;
   readonly pausePlayback: (() => void) | undefined;
   readonly activeTimes: ActiveTimes | undefined;
+  readonly playbackTime: Time | undefined;
 };
 
 function hasTimeSuffix(times: readonly Time[], suffix: readonly Time[]): boolean {
@@ -53,6 +54,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   readonly freezeCurrentMessages: () => void;
   readonly clearFrozenMessages: () => void;
   readonly holdNavigationMessages: (messages: MessageAndData[]) => void;
+  readonly markPreviousFrameUnavailable: () => void;
   readonly resetRenderedHistory: () => void;
   readonly restoreFallbackState: () => RestoreFallbackStateResult;
   readonly runPreviousFrameToMessage: (message: MessageAndData) => boolean;
@@ -68,6 +70,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     navigationId,
     notifier,
     pausePlayback,
+    playbackTime,
     seekPlayback,
     startPlayback,
   } = args;
@@ -82,6 +85,8 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const fallbackNextStartTime = useRef<Time | undefined>();
   const activeTimesRef = useRef(activeTimes);
   activeTimesRef.current = activeTimes;
+  const playbackTimeRef = useRef(playbackTime);
+  playbackTimeRef.current = playbackTime;
 
   const freezeCurrentMessages = useCallback(() => {
     if (currentMessagesRef.current.length > 0) {
@@ -93,6 +98,19 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     frozenMessagesRef.current = undefined;
     keepFrozenMessagesAfterRestore.current = false;
     heldNavigationTime.current = undefined;
+  }, []);
+
+  const finishSupersededNavigation = useCallback(() => {
+    if (frameState.current !== "current") {
+      frameState.current = "current";
+      fallbackNextFrameActive.current = false;
+      fallbackNextStartTime.current = undefined;
+      clearFrozenMessages();
+    }
+  }, [clearFrozenMessages, frameState]);
+
+  const markPreviousFrameUnavailable = useCallback(() => {
+    setHasPreFrame(false);
   }, []);
 
   const resetRenderedHistory = useCallback(() => {
@@ -115,6 +133,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       frameState.current === "current" &&
       notifier.isOtherNavigationActive(navigationId.current)
     ) {
+      clearFrozenMessages();
       return "other-navigation";
     }
 
@@ -140,7 +159,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
 
       pausePlayback?.();
-      notifier.startNavigation(navigationId.current);
+      notifier.startNavigation(navigationId.current, finishSupersededNavigation);
       fallbackNextFrameActive.current = false;
       fallbackNextStartTime.current = undefined;
       frameState.current = "previous";
@@ -153,7 +172,15 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
       return true;
     },
-    [frameState, holdNavigationMessages, navigationId, notifier, pausePlayback, seekPlayback],
+    [
+      finishSupersededNavigation,
+      frameState,
+      holdNavigationMessages,
+      navigationId,
+      notifier,
+      pausePlayback,
+      seekPlayback,
+    ],
   );
 
   const runPreviousFrameFromRenderedHistory = useCallback(
@@ -207,7 +234,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       }
 
       freezeCurrentMessages();
-      notifier.startNavigation(navigationId.current);
+      notifier.startNavigation(navigationId.current, finishSupersededNavigation);
       fallbackNextFrameActive.current = true;
       fallbackNextStartTime.current =
         currentMessagesRef.current.at(-1)?.messageEvent.receiveTime ??
@@ -216,15 +243,33 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
       startPlayback?.();
       return true;
     },
-    [frameState, freezeCurrentMessages, navigationId, notifier, startPlayback],
+    [
+      finishSupersededNavigation,
+      frameState,
+      freezeCurrentMessages,
+      navigationId,
+      notifier,
+      startPlayback,
+    ],
   );
 
   const getEffectiveMessages = useCallback(
     <T extends MessageAndData[]>(messages: T): T => {
+      const heldTime = heldNavigationTime.current;
+      const playbackPassedHeldTime =
+        heldTime != undefined &&
+        playbackTimeRef.current != undefined &&
+        compare(playbackTimeRef.current, heldTime) > 0;
       if (
         frozenMessagesRef.current != undefined &&
         (frameState.current !== "current" ||
-          (keepFrozenMessagesAfterRestore.current && messages.length === 0))
+          (keepFrozenMessagesAfterRestore.current &&
+            !playbackPassedHeldTime &&
+            !messages.some((message) => {
+              return (
+                heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0
+              );
+            })))
       ) {
         return frozenMessagesRef.current as T;
       }
@@ -236,14 +281,18 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
   const updateRenderedTime = useCallback(
     (messages: MessageAndData[]) => {
       currentMessagesRef.current = messages;
+      const heldTime = heldNavigationTime.current;
+      const reachedHeldTime =
+        heldTime != undefined &&
+        messages.some((message) => compare(message.messageEvent.receiveTime, heldTime) === 0);
+      const playbackPassedHeldTime =
+        heldTime != undefined &&
+        playbackTimeRef.current != undefined &&
+        compare(playbackTimeRef.current, heldTime) > 0;
       if (
         frameState.current === "current" &&
-        messages.length > 0 &&
         keepFrozenMessagesAfterRestore.current &&
-        messages.some((message) => {
-          const heldTime = heldNavigationTime.current;
-          return heldTime != undefined && compare(message.messageEvent.receiveTime, heldTime) === 0;
-        })
+        (reachedHeldTime || playbackPassedHeldTime)
       ) {
         clearFrozenMessages();
       }
@@ -339,6 +388,7 @@ export function useFallbackFrameNavigation(args: UseFallbackFrameNavigationArgs)
     freezeCurrentMessages,
     clearFrozenMessages,
     holdNavigationMessages,
+    markPreviousFrameUnavailable,
     resetRenderedHistory,
     restoreFallbackState,
     runPreviousFrameToMessage,

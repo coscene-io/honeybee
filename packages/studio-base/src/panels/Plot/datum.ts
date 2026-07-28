@@ -5,14 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { ScatterDataPoint } from "chart.js";
-
 import { isTime, toSec } from "@foxglove/rostime";
 import { Time } from "@foxglove/studio";
+import { ScatterPoint } from "@foxglove/studio-base/components/Chart/types";
 
 // In addition to the base datum, we also add receiveTime and optionally header stamp to our datums
 // These are used in the csv export.
-export type Datum = ScatterDataPoint & {
+export type Datum = ScatterPoint & {
   value: OriginalValue;
   receiveTime: Time;
   headerStamp?: Time;

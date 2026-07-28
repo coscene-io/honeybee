@@ -36,11 +36,15 @@ const validateWorkerArgs = (arg: unknown) => {
 
 // One test class that implements both typescript compilation and message transformation.
 export default class MockUserScriptPlayerWorker {
-  public port: Channel;
+  public port: Channel & { close: () => void };
 
   public constructor() {
     const { local, remote } = createLinkedChannels();
-    this.port = local;
+    this.port = Object.assign(local, {
+      close: () => {
+        local.terminate();
+      },
+    });
 
     (local as { start?: () => void }).start = () => {
       // no-op
@@ -60,6 +64,7 @@ export default class MockUserScriptPlayerWorker {
     };
     receiveAndLog("generateRosLib", generateRosLib);
     receiveAndLog("transform", transform);
+    receiveAndLog("close", () => undefined);
     receiveAndLog("registerScript", registerScript);
     receiveAndLog("processMessage", processMessage);
   }

@@ -38,7 +38,7 @@ describe("<ShardProfileSelector />", () => {
           { id: "raw", modality: "video", label: "Raw", params: { h: 1080 } },
         ],
       }),
-    } as Response);
+    });
   });
 
   afterEach(() => {
@@ -64,7 +64,7 @@ describe("<ShardProfileSelector />", () => {
           { id: "raw", modality: "video", label: "Raw", params: { h: 1080 } },
         ],
       }),
-    } as Response);
+    });
 
     renderSelector({
       sourceId: "coscene-share-manifest",

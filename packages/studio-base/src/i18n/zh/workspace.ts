@@ -27,4 +27,5 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
   playlist: "播放列表",
   moment: "一刻",
   tasks: "任务",
+  legacyMessageCacheDeleteBlocked: "请关闭其他 Honeybee 标签页，以完成旧版消息缓存的清理。",
 };

@@ -216,16 +216,6 @@ const CHINA_STANDARD_TIME_ZONES = new Set([
 
 const STREAM_ENDPOINTS_REQUIRING_INTL_REDIRECT = new Set(["/v1/data/getStreams"]);
 
-function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
-  if (headers == undefined) {
-    return {};
-  }
-  if (headers instanceof Headers) {
-    return Object.fromEntries(headers.entries());
-  }
-  return Array.isArray(headers) ? Object.fromEntries(headers) : headers;
-}
-
 export type User = {
   id: string;
   email: string;
@@ -406,6 +396,19 @@ export type ApiBaseInfo = {
 
 export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
 
+function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
+  if (headers == undefined) {
+    return {};
+  }
+  if (headers instanceof Headers) {
+    return Object.fromEntries(headers.entries());
+  }
+  if (Array.isArray(headers)) {
+    return Object.fromEntries(headers);
+  }
+  return headers;
+}
+
 function permissionListFromRole(role: Role | undefined) {
   if (!role?.policy?.statements) {
     return { permissionList: [], denyList: [] };
@@ -558,7 +561,7 @@ class CoSceneConsoleApi {
   async #get<T>(
     apiPath: string,
     query?: Record<string, string | undefined>,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
     config?: RequestInit,
   ): Promise<T> {
@@ -757,7 +760,7 @@ class CoSceneConsoleApi {
   public getRequectConfig(
     url: string,
     config?: RequestInit,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
   ): { fullUrl: string; fullConfig: RequestInit } {
     const recordName = this.#getRecordName();
@@ -774,13 +777,15 @@ class CoSceneConsoleApi {
             : `${this.#baseUrl}${url}`;
     }
 
+    const headers = {
+      Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
+      ...(recordName ? { "Record-Name": recordName } : {}),
+      ...headersToRecord(config?.headers),
+    };
+
     const fullConfig: RequestInit = {
       ...config,
-      headers: {
-        Authorization: this.#authHeader?.replace(/(^\s*)|(\s*$)/g, "") ?? "",
-        ...(recordName ? { "Record-Name": recordName } : {}),
-        ...headersToRecord(config?.headers),
-      },
+      headers,
     };
 
     return { fullUrl, fullConfig };
@@ -795,7 +800,7 @@ class CoSceneConsoleApi {
       /** By default, status codes other than 200 will throw an error. */
       allowedStatuses?: number[];
     } = {},
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
   ): Promise<ApiResponse<T>> {
     if (url.length === 0 || url === "/") {
@@ -833,7 +838,7 @@ class CoSceneConsoleApi {
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
         if (coSceneErrorMessageKey) {
-          toast.error(`${t(coSceneErrorMessageKey, "error", { ns: "error" })}`);
+          toast.error(t(coSceneErrorMessageKey, "error", { ns: "error" }));
         }
 
         this.#problemManager.addProblem("CoScene:request-error", {
@@ -854,10 +859,15 @@ class CoSceneConsoleApi {
   async #post<T>(
     apiPath: string,
     body?: unknown,
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     customHost?: boolean,
     config?: RequestInit,
   ): Promise<T> {
+    const headers = {
+      "Content-Type": "application/json",
+      ...headersToRecord(config?.headers),
+    };
+
     return (
       await this.#request<T>(
         apiPath,
@@ -865,7 +875,7 @@ class CoSceneConsoleApi {
           method: "POST",
           body: JSON.stringify(body),
           ...(config ?? {}),
-          headers: { "Content-Type": "application/json", ...headersToRecord(config?.headers) },
+          headers,
         },
         {},
         customHost,
@@ -902,12 +912,12 @@ class CoSceneConsoleApi {
       },
     );
 
-    const metaData = topics.topics.map((topic) => {
-      if (topic.schema == undefined) {
-        return topic as Omit<RawTopicResponse, "schema">;
+    const metaData = topics.topics.map(({ schema, ...topic }): TopicResponse => {
+      if (schema == undefined) {
+        return topic;
       }
-      const decodedSchema = new Uint8Array(base64.length(topic.schema));
-      base64.decode(topic.schema, decodedSchema, 0);
+      const decodedSchema = new Uint8Array(base64.length(schema));
+      base64.decode(schema, decodedSchema, 0);
       return { ...topic, schema: decodedSchema };
     });
 

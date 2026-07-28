@@ -64,6 +64,12 @@ type Props = {
   saveConfig: SaveConfig<Config>;
 };
 
+const DEFAULT_CONFIG: Config = {
+  searchTerms: [],
+  minLogLevel: 1,
+  reverseOrder: false,
+};
+
 const SUPPORTED_DATATYPES = [
   "foxglove_msgs/Log",
   "foxglove_msgs/msg/Log",
@@ -223,7 +229,7 @@ LogPanel.displayName = "Log";
 
 export default Panel(
   Object.assign(LogPanel, {
-    defaultConfig: { searchTerms: [], minLogLevel: 1, reverseOrder: false } as Config,
+    defaultConfig: DEFAULT_CONFIG,
     panelType: "RosOut", // The legacy RosOut name is used for backwards compatibility
   }),
 );

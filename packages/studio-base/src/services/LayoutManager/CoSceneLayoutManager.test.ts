@@ -330,6 +330,183 @@ describe("CoSceneLayoutManager", () => {
     expect(result.working).toBeUndefined();
   });
 
+  it("does not restore an autosave older than a completed explicit save", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const manager = makeManager({ localStorage });
+    const id = layoutId("layouts/1");
+    await localStorage.put(
+      CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+      makeLocalLayout({ id, parent: "", syncStatus: "new" }),
+    );
+
+    await manager.overwriteLayout({
+      id,
+      data: layoutData("explicit-save"),
+      editRevision: 2,
+    });
+    await manager.updateLayout({
+      id,
+      data: layoutData("stale-autosave"),
+      editRevision: 1,
+    });
+
+    expect(await manager.getLayout({ id })).toMatchObject({
+      baseline: { data: layoutData("explicit-save") },
+      working: undefined,
+    });
+
+    await manager.updateLayout({
+      id,
+      data: layoutData("newer-autosave"),
+      editRevision: 3,
+    });
+    expect((await manager.getLayout({ id }))?.working?.data).toEqual(layoutData("newer-autosave"));
+  });
+
+  it("does not restore an autosave that completed after a revert", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const manager = makeManager({ localStorage });
+    const id = layoutId("layouts/1");
+    await localStorage.put(
+      CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+      makeLocalLayout({
+        id,
+        parent: "",
+        working: {
+          data: layoutData("discarded"),
+          savedAt: ts("2024-01-01T00:00:01.000Z"),
+        },
+        syncStatus: "new",
+      }),
+    );
+
+    await manager.updateLayout({
+      id,
+      data: layoutData("discarded"),
+      editRevision: 2,
+    });
+    await manager.revertLayout({ id, editRevision: 2 });
+    await manager.updateLayout({
+      id,
+      data: layoutData("discarded"),
+      editRevision: 2,
+    });
+
+    expect(await manager.getLayout({ id })).toMatchObject({
+      baseline: { data: layoutData("initial") },
+      working: undefined,
+    });
+  });
+
+  it("fences an observed autosave when reverting a non-current layout", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const manager = makeManager({ localStorage });
+    const id = layoutId("layouts/1");
+    await localStorage.put(
+      CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE,
+      makeLocalLayout({
+        id,
+        parent: "",
+        working: {
+          data: layoutData("previous-draft"),
+          savedAt: ts("2024-01-01T00:00:01.000Z"),
+        },
+        syncStatus: "new",
+      }),
+    );
+
+    jest.spyOn(localStorage, "put").mockRejectedValueOnce(new Error("temporary failure"));
+    await expect(
+      manager.updateLayout({
+        id,
+        data: layoutData("pending-retry"),
+        editRevision: 2,
+      }),
+    ).rejects.toThrow("temporary failure");
+    await manager.revertLayout({ id });
+    await manager.updateLayout({
+      id,
+      data: layoutData("pending-retry"),
+      editRevision: 2,
+    });
+
+    expect(await manager.getLayout({ id })).toMatchObject({
+      baseline: { data: layoutData("initial") },
+      working: undefined,
+    });
+  });
+
+  it("does not apply an older autosave while a project overwrite is in flight", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("warehouses/w/projects/p/layouts/1");
+    const namespace = `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`;
+    await localStorage.put(
+      namespace,
+      makeLocalLayout({
+        id,
+        parent: "warehouses/w/projects/p",
+        permission: "PROJECT_WRITE",
+      }),
+    );
+    remoteStorage.layouts.set(
+      id,
+      makeRemoteLayout({
+        id,
+        parent: "warehouses/w/projects/p",
+        permission: "PROJECT_WRITE",
+      }),
+    );
+
+    let notifyRemoteStarted: () => void = () => {};
+    const remoteStarted = new Promise<void>((resolve) => {
+      notifyRemoteStarted = resolve;
+    });
+    let finishRemoteSave: () => void = () => {};
+    const remoteSaveGate = new Promise<void>((resolve) => {
+      finishRemoteSave = resolve;
+    });
+    remoteStorage.updateLayout.mockImplementationOnce(async () => {
+      notifyRemoteStarted();
+      await remoteSaveGate;
+      const savedAt = ts("2024-01-01T00:00:20.000Z");
+      const newLayout = {
+        ...makeRemoteLayout({
+          id,
+          parent: "warehouses/w/projects/p",
+          permission: "PROJECT_WRITE",
+          data: layoutData("explicit-save"),
+        }),
+        savedAt,
+        updatedAt: savedAt,
+      };
+      remoteStorage.layouts.set(id, newLayout);
+      return { status: "success", newLayout };
+    });
+
+    const overwrite = manager.overwriteLayout({
+      id,
+      data: layoutData("explicit-save"),
+      editRevision: 2,
+    });
+    await remoteStarted;
+    await manager.updateLayout({
+      id,
+      data: layoutData("stale-autosave"),
+      editRevision: 1,
+    });
+
+    expect((await manager.getLayout({ id }))?.working?.data).toEqual(layoutData("explicit-save"));
+
+    finishRemoteSave();
+    await overwrite;
+    expect(await manager.getLayout({ id })).toMatchObject({
+      baseline: { data: layoutData("explicit-save") },
+      working: undefined,
+    });
+  });
+
   it("keeps local working data when project overwrite sees a remote timestamp conflict", async () => {
     const localStorage = new MemoryLayoutStorage();
     const remoteStorage = new MemoryRemoteLayoutStorage();
@@ -399,8 +576,17 @@ describe("CoSceneLayoutManager", () => {
     );
 
     await expect(
-      manager.overwriteLayout({ id, data: layoutData("current-memory") }),
+      manager.overwriteLayout({
+        id,
+        data: layoutData("current-memory"),
+        editRevision: 2,
+      }),
     ).rejects.toThrow("changed on the server");
+    await manager.updateLayout({
+      id,
+      data: layoutData("stale-autosave"),
+      editRevision: 1,
+    });
 
     const localLayout = await manager.getLayout({ id });
     expect(localLayout?.baseline.data).toEqual(layoutData("baseline"));

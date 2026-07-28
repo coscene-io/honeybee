@@ -35,7 +35,7 @@ async function collect(
 ): Promise<IteratorResult<Uint8Array>[]> {
   const out: IteratorResult<Uint8Array>[] = [];
   for await (const v of iter) {
-    out.push(v as IteratorResult<Uint8Array>);
+    out.push(v);
   }
   return out;
 }
@@ -148,7 +148,7 @@ describe("mergeShards", () => {
     const merged = mergeShards([infinite()], ctrl.signal);
     const out: IteratorResult<Uint8Array>[] = [];
     for await (const v of merged) {
-      out.push(v as IteratorResult<Uint8Array>);
+      out.push(v);
       if (out.length >= 3) {
         ctrl.abort();
         break;

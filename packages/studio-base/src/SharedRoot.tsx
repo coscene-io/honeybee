@@ -22,6 +22,7 @@ import {
   ISharedRootContext,
   SharedRootContext,
 } from "@foxglove/studio-base/context/SharedRootContext";
+import { sanitizePrivacySafeCaptureResult } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -62,6 +63,7 @@ export function SharedRoot(
     posthog.init(appConfig.POSTHOG.token, {
       api_host: appConfig.POSTHOG.api_host,
       person_profiles: "always",
+      before_send: sanitizePrivacySafeCaptureResult,
     });
   }
 
@@ -69,6 +71,9 @@ export function SharedRoot(
     platform: isDesktopApp() ? "coStudio" : "honeybee",
     environment: appConfig.VITE_APP_PROJECT_ENV,
   });
+  // Release changes across upgrades, so refresh it on every startup instead of preserving the
+  // first value stored in PostHog persistence.
+  posthog.register({ release: appConfig.RELEASE_TAG });
 
   if (
     appConfig.VITE_APP_PROJECT_ENV !== "local" &&

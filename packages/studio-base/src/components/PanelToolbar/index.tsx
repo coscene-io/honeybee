@@ -67,7 +67,7 @@ export default React.memo<Props>(function PanelToolbar({
   const {
     isFullscreen,
     exitFullscreen,
-    config: { [PANEL_TITLE_CONFIG_KEY]: customTitle = undefined } = {},
+    config: { [PANEL_TITLE_CONFIG_KEY]: customTitle } = {},
   } = useContext(PanelContext) ?? {};
 
   const panelContext = useContext(PanelContext);
@@ -121,7 +121,7 @@ export default React.memo<Props>(function PanelToolbar({
         ))}
       <PanelToolbarControls
         additionalIcons={additionalIconsWithHelp}
-        isUnknownPanel={!!isUnknownPanel}
+        isUnknownPanel={isUnknownPanel}
         ref={controlsDragRef}
       />
     </header>

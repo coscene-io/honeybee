@@ -255,6 +255,7 @@ const createTabPanelWithSingleTab = (
   { idToReplace, layout, idsToRemove }: CreateTabPanelPayload,
 ): LayoutData => {
   const newId = getPanelIdForType(TAB_PANEL_TYPE);
+
   const { configById: savedProps } = panelsState;
   // Build the layout for the new tab
   const layoutWithInlinedTabs = inlineTabPanelLayouts(layout, savedProps, idsToRemove);

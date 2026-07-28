@@ -37,7 +37,7 @@ export const useGetPassingFile = (): BagFileInfo[] | undefined => {
 
     return (
       bag.fileType !== "GHOST_RESULT_FILE" &&
-      markStartTime &&
+      markStartTime != undefined &&
       !isGreaterThan(bagStartTime, markStartTime) &&
       !isLessThan(bagEndTime, markStartTime)
     );

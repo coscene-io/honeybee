@@ -87,6 +87,21 @@ function manifest(): Manifest {
   };
 }
 
+function mockSecondShardTimeRange(startNs: string, endNs: string): void {
+  const modifiedManifest = manifest();
+  modifiedManifest.shards[1] = {
+    ...modifiedManifest.shards[1]!,
+    timeRange: { startNs, endNs },
+  };
+  global.fetch = jest.fn(
+    async (..._args: Parameters<typeof fetch>): Promise<Response> =>
+      ({
+        ok: true,
+        json: async () => modifiedManifest,
+      }) as Response,
+  );
+}
+
 function initResult(): Initalization {
   return {
     start: { sec: 0, nsec: 0 },
@@ -122,7 +137,7 @@ describe("ShardManifestIterableSource", () => {
           ok: true,
           json: async () => manifest(),
         }) as Response,
-    ) as unknown as typeof fetch;
+    );
 
     mockInitializeReader.mockReset();
     mockInitializeReader.mockResolvedValue(mockReader);
@@ -278,5 +293,188 @@ describe("ShardManifestIterableSource", () => {
         time: { sec: 0, nsec: 0 },
       }),
     ).rejects.toThrow("open failed");
+  });
+
+  it("skips backfill shards whose first message is after the target", async () => {
+    mockSecondShardTimeRange("500000000", "1000000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+    expect(mockMcapIndexedIterableSource).toHaveBeenCalledTimes(1);
+
+    await source.getBackfillMessages({
+      topics: mockTopicSelection("/cam/h264"),
+      time: { sec: 0, nsec: 100_000_000 },
+    });
+
+    expect(mockMcapIndexedIterableSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("includes a backfill shard whose first message is at the target", async () => {
+    mockSecondShardTimeRange("100000000", "1000000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+
+    await source.getBackfillMessages({
+      topics: mockTopicSelection("/cam/h264"),
+      time: { sec: 0, nsec: 100_000_000 },
+    });
+
+    expect(mockMcapIndexedIterableSource).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips message iterator shards outside the requested time range", async () => {
+    mockSecondShardTimeRange("500000000", "1000000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+    mockInitializeReader.mockClear();
+
+    const iterator = source.messageIterator({
+      topics: mockTopicSelection("/cam/h264"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 0, nsec: 100_000_000 },
+      consumptionType: "partial",
+    });
+    await iterator.next();
+
+    expect(mockInitializeReader).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips message iterator shards that end before the requested time range", async () => {
+    mockSecondShardTimeRange("0", "100000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+    mockInitializeReader.mockClear();
+
+    const iterator = source.messageIterator({
+      topics: mockTopicSelection("/cam/h264"),
+      start: { sec: 0, nsec: 500_000_000 },
+      end: { sec: 0, nsec: 600_000_000 },
+      consumptionType: "partial",
+    });
+    await iterator.next();
+
+    expect(mockInitializeReader).toHaveBeenCalledTimes(1);
+  });
+
+  it("includes a message iterator shard that starts at the requested range end", async () => {
+    mockSecondShardTimeRange("100000000", "1000000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+    mockInitializeReader.mockClear();
+
+    const iterator = source.messageIterator({
+      topics: mockTopicSelection("/cam/h264"),
+      start: { sec: 0, nsec: 0 },
+      end: { sec: 0, nsec: 100_000_000 },
+      consumptionType: "partial",
+    });
+    await iterator.next();
+
+    expect(mockInitializeReader).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { label: "empty-string", startNs: "", endNs: "" },
+    { label: "whitespace", startNs: " ", endNs: " " },
+    { label: "non-numeric", startNs: "NaN", endNs: "abc" },
+    { label: "reversed", startNs: "1000000000", endNs: "0" },
+  ])(
+    "conservatively keeps message iterator shards with a $label time range",
+    async ({ startNs, endNs }) => {
+      // BigInt("") silently coerces to 0n and reversed ranges compare "validly", so a naive
+      // comparison would prune a shard that still contains data. Malformed ranges must fall back
+      // to reading the shard.
+      mockSecondShardTimeRange(startNs, endNs);
+
+      const source = new ShardManifestIterableSource({
+        manifestUrl: "https://example.com/manifest.json",
+      });
+      await source.initialize();
+      mockInitializeReader.mockClear();
+
+      const iterator = source.messageIterator({
+        topics: mockTopicSelection("/cam/h264"),
+        start: { sec: 0, nsec: 500_000_000 },
+        end: { sec: 0, nsec: 600_000_000 },
+        consumptionType: "partial",
+      });
+      await iterator.next();
+
+      expect(mockInitializeReader).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([
+    { label: "empty-string", startNs: "", endNs: "" },
+    { label: "reversed", startNs: "1000000000", endNs: "0" },
+  ])(
+    "conservatively keeps backfill shards with a $label time range",
+    async ({ startNs, endNs }) => {
+      mockSecondShardTimeRange(startNs, endNs);
+
+      const source = new ShardManifestIterableSource({
+        manifestUrl: "https://example.com/manifest.json",
+      });
+      await source.initialize();
+      expect(mockMcapIndexedIterableSource).toHaveBeenCalledTimes(1);
+
+      await source.getBackfillMessages({
+        topics: mockTopicSelection("/cam/h264"),
+        time: { sec: 0, nsec: 100_000_000 },
+      });
+
+      expect(mockMcapIndexedIterableSource).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([
+    {
+      label: "start",
+      start: undefined,
+      end: { sec: 0, nsec: 100_000_000 },
+    },
+    {
+      label: "end",
+      start: { sec: 0, nsec: 0 },
+      end: undefined,
+    },
+    {
+      label: "both bounds",
+      start: undefined,
+      end: undefined,
+    },
+  ])("does not prune shards when $label is omitted", async ({ start, end }) => {
+    mockSecondShardTimeRange("500000000", "1000000000");
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    await source.initialize();
+    mockInitializeReader.mockClear();
+
+    const iterator = source.messageIterator({
+      topics: mockTopicSelection("/cam/h264"),
+      start,
+      end,
+      consumptionType: "partial",
+    });
+    await iterator.next();
+
+    expect(mockInitializeReader).toHaveBeenCalledTimes(2);
   });
 });

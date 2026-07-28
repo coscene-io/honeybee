@@ -24,6 +24,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import {
   useMessagePipeline,
+  useMessagePipelineGetter,
   MessagePipelineContext,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getRequestWindowDefaultTime } from "@foxglove/studio-base/constants/appSettingsDefaults";
@@ -97,6 +98,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const subscribeMessageRange = useMessagePipeline(selectSubscribeMessageRange);
   const activeData = useMessagePipeline(selectActiveData);
   const playerId = useMessagePipeline(selectPlayerId);
+  const getMessagePipelineState = useMessagePipelineGetter();
   const getMessagePathDataItems = useCachedGetMessagePathDataItems(path.length > 0 ? [path] : []);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -117,6 +119,13 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   // Flag bit to indicate that the next message is the previous frame, current frame, next frame.
   const frameState = useRef<FrameNavigationState>("current");
   const activeRangeNavigation = useRef<AbortController | undefined>();
+  const manualSeekTime = useRef<Time | undefined>();
+  const lastRestoreContext = useRef({
+    playerId,
+    lastSeekTime: activeData?.lastSeekTime,
+  });
+  const nextRangeExhausted = useRef(false);
+  const previousRangeExhausted = useRef(false);
   const searchFeedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>();
 
   const activeTimes = useMemo(() => {
@@ -130,6 +139,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     freezeCurrentMessages,
     clearFrozenMessages,
     holdNavigationMessages,
+    markPreviousFrameUnavailable,
     resetRenderedHistory,
     restoreFallbackState,
     runPreviousFrameFromRenderedHistory,
@@ -145,6 +155,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     startPlayback,
     pausePlayback,
     activeTimes: subscribeMessageRange != undefined && path.length > 0 ? activeTimes : undefined,
+    playbackTime: activeData?.currentTime,
   });
 
   const clearSearchFeedback = useCallback(() => {
@@ -155,12 +166,10 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     setFrameNavigationStatusMessage(undefined);
   }, []);
 
-  const cancelActiveRangeNavigation = useCallback((): boolean => {
-    const hadActiveRangeNavigation = activeRangeNavigation.current != undefined;
+  const cancelActiveRangeNavigation = useCallback(() => {
     activeRangeNavigation.current?.abort();
     activeRangeNavigation.current = undefined;
     clearSearchFeedback();
-    return hadActiveRangeNavigation;
   }, [clearSearchFeedback]);
 
   const finishFrameNavigation = useCallback(() => {
@@ -177,7 +186,14 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       activeRangeNavigation.current = controller;
       freezeCurrentMessages();
       pausePlayback?.();
-      frameNavigationNotifier.startNavigation(navigationId.current);
+      frameNavigationNotifier.startNavigation(navigationId.current, () => {
+        if (
+          activeRangeNavigation.current === controller ||
+          (activeRangeNavigation.current == undefined && frameState.current !== "current")
+        ) {
+          finishFrameNavigation();
+        }
+      });
       frameState.current = direction;
       setIsFrameNavigationPending(true);
       searchFeedbackTimer.current = setTimeout(() => {
@@ -193,6 +209,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     [
       clearSearchFeedback,
       freezeCurrentMessages,
+      finishFrameNavigation,
       pausePlayback,
       searchingNextFrameMessage,
       searchingPreviousFrameMessage,
@@ -200,7 +217,25 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   );
 
   const onRestore = useCallback(() => {
+    const latestPipelineState = getMessagePipelineState();
+    const latestActiveData = selectActiveData(latestPipelineState);
+    const latestRestoreContext = {
+      playerId: selectPlayerId(latestPipelineState),
+      lastSeekTime: latestActiveData?.lastSeekTime,
+    };
+    const previousRestoreContext = lastRestoreContext.current;
+    lastRestoreContext.current = latestRestoreContext;
+    const restoredAfterSeek =
+      latestActiveData != undefined &&
+      previousRestoreContext.playerId === latestRestoreContext.playerId &&
+      previousRestoreContext.lastSeekTime != undefined &&
+      latestRestoreContext.lastSeekTime !== previousRestoreContext.lastSeekTime;
+
     if (activeRangeNavigation.current != undefined) {
+      if (restoredAfterSeek) {
+        manualSeekTime.current = latestActiveData.currentTime;
+        currentMessagesRef.current = [];
+      }
       finishFrameNavigation();
       resetRenderedHistory();
       return;
@@ -209,30 +244,83 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
     clearSearchFeedback();
     switch (restoreFallbackState()) {
       case "restored":
+        manualSeekTime.current = undefined;
         setIsFrameNavigationPending(false);
         return;
       case "manual-seek":
+        if (restoredAfterSeek) {
+          manualSeekTime.current = latestActiveData.currentTime;
+          currentMessagesRef.current = [];
+        } else {
+          manualSeekTime.current = undefined;
+        }
         return;
       case "other-navigation":
         return;
     }
-  }, [clearSearchFeedback, finishFrameNavigation, resetRenderedHistory, restoreFallbackState]);
+  }, [
+    clearSearchFeedback,
+    currentMessagesRef,
+    finishFrameNavigation,
+    getMessagePipelineState,
+    resetRenderedHistory,
+    restoreFallbackState,
+  ]);
 
   const handleRangeNavigationResult = useCallback(
-    (direction: FrameNavigationDirection, result: AdjacentMessagePathMatchResult) => {
+    (
+      direction: FrameNavigationDirection,
+      result: AdjacentMessagePathMatchResult,
+      context: {
+        readonly rangeStartTime: Time;
+        readonly rangeCurrentTime: Time;
+        readonly rangeEndTime: Time;
+        readonly wasPlaying: boolean;
+      },
+    ) => {
       clearSearchFeedback();
       switch (result.type) {
-        case "found":
+        case "found": {
           currentMessagesRef.current = [result.message];
           holdNavigationMessages([result.message]);
-          seekPlayback?.(result.message.messageEvent.receiveTime);
+          const targetTime = result.message.messageEvent.receiveTime;
+          const latestActiveData = selectActiveData(getMessagePipelineState());
+          if (
+            latestActiveData != undefined &&
+            compare(targetTime, latestActiveData.currentTime) === 0
+          ) {
+            onRestore();
+            return;
+          }
+          seekPlayback?.(targetTime);
           return;
-        case "notFound":
+        }
+        case "notFound": {
+          const latestActiveData = selectActiveData(getMessagePipelineState());
+          if (direction === "previous") {
+            if (
+              latestActiveData != undefined &&
+              compare(latestActiveData.startTime, context.rangeStartTime) === 0 &&
+              compare(latestActiveData.currentTime, context.rangeCurrentTime) === 0
+            ) {
+              previousRangeExhausted.current = true;
+              markPreviousFrameUnavailable();
+            }
+          } else {
+            if (
+              latestActiveData != undefined &&
+              compare(latestActiveData.currentTime, context.rangeCurrentTime) === 0 &&
+              compare(latestActiveData.endTime, context.rangeEndTime) === 0
+            ) {
+              nextRangeExhausted.current = true;
+            }
+          }
           finishFrameNavigation();
           setFrameNavigationStatusMessage(
             direction === "previous" ? noPreviousFrameMessage : noNextFrameMessage,
           );
           return;
+        }
         case "unsupported": {
           frameState.current = "current";
           clearFrozenMessages();
@@ -244,6 +332,9 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
           if (!fallbackHandled) {
             resetRenderedHistory();
             frameNavigationNotifier.endNavigation(navigationId.current);
+            if (context.wasPlaying) {
+              startPlayback?.();
+            }
           }
           return;
         }
@@ -262,13 +353,17 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       clearSearchFeedback,
       enqueueSnackbar,
       finishFrameNavigation,
+      getMessagePipelineState,
       holdNavigationMessages,
+      markPreviousFrameUnavailable,
       noNextFrameMessage,
       noPreviousFrameMessage,
+      onRestore,
       resetRenderedHistory,
       runFallbackNextFrame,
       runFallbackPreviousFrame,
       seekPlayback,
+      startPlayback,
     ],
   );
 
@@ -287,9 +382,14 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
       }
 
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
+      const restoredSeekTime = manualSeekTime.current;
       const fromTime =
-        rangeFromTime ?? latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+        rangeFromTime ??
+        restoredSeekTime ??
+        latestMessage?.messageEvent.receiveTime ??
+        activeData.currentTime;
       const controller = new AbortController();
+      const wasPlaying = activeData.isPlaying;
 
       beginRangeFrameNavigation(direction, controller);
       let searchFromTime = fromTime;
@@ -321,7 +421,12 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
         return;
       }
       activeRangeNavigation.current = undefined;
-      handleRangeNavigationResult(direction, result);
+      handleRangeNavigationResult(direction, result, {
+        rangeStartTime: activeData.startTime,
+        rangeCurrentTime: activeData.currentTime,
+        rangeEndTime: activeData.endTime,
+        wasPlaying,
+      });
     },
     [
       activeData,
@@ -338,14 +443,14 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   );
 
   const handlePreviousFrame = useCallback(() => {
-    if (
-      subscribeMessageRange != undefined &&
-      activeData != undefined &&
-      seekPlayback != undefined &&
-      path.length > 0
-    ) {
+    if (seekPlayback == undefined || previousRangeExhausted.current) {
+      return;
+    }
+    currentMessagesRef.current = getEffectiveMessages(currentMessagesRef.current);
+    if (subscribeMessageRange != undefined && activeData != undefined && path.length > 0) {
       const latestMessage = currentMessagesRef.current[currentMessagesRef.current.length - 1];
-      const fromTime = latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
+      const fromTime =
+        manualSeekTime.current ?? latestMessage?.messageEvent.receiveTime ?? activeData.currentTime;
       if (runPreviousFrameFromRenderedHistory(fromTime)) {
         return;
       }
@@ -357,6 +462,7 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   }, [
     activeData,
     currentMessagesRef,
+    getEffectiveMessages,
     path,
     runFallbackPreviousFrame,
     runPreviousFrameFromRenderedHistory,
@@ -367,27 +473,31 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
 
   const handleNextFrame = useCallback(
     (currentMessages?: MessageAndData[]) => {
+      if (seekPlayback == undefined) {
+        return;
+      }
+      if (nextRangeExhausted.current) {
+        setFrameNavigationStatusMessage(noNextFrameMessage);
+        return;
+      }
       if (frameState.current !== "current") {
         return;
       }
       if (currentMessages) {
-        currentMessagesRef.current = currentMessages;
+        currentMessagesRef.current = getEffectiveMessages(currentMessages);
       }
 
-      if (
-        subscribeMessageRange != undefined &&
-        activeData != undefined &&
-        seekPlayback != undefined &&
-        path.length > 0
-      ) {
+      if (subscribeMessageRange != undefined && activeData != undefined && path.length > 0) {
         void runRangeFrameNavigation("next");
         return;
       }
 
-      runFallbackNextFrame(currentMessages);
+      runFallbackNextFrame(currentMessagesRef.current);
     },
     [
       activeData,
+      getEffectiveMessages,
+      noNextFrameMessage,
       path,
       runFallbackNextFrame,
       runRangeFrameNavigation,
@@ -410,14 +520,32 @@ export function useFrameNavigation(options: UseFrameNavigationOptions = {}): Fra
   const { panelRef, keyDownHandlers, keyUpHandlers } = useFrameNavigationKeyboard(keyboardActions);
 
   useEffect(() => {
+    if (
+      manualSeekTime.current != undefined &&
+      activeData != undefined &&
+      compare(manualSeekTime.current, activeData.currentTime) !== 0
+    ) {
+      manualSeekTime.current = undefined;
+    }
+    nextRangeExhausted.current = false;
+    previousRangeExhausted.current = false;
+  }, [activeData?.currentTime.nsec, activeData?.currentTime.sec]);
+
+  useEffect(() => {
+    nextRangeExhausted.current = false;
+  }, [activeData?.endTime.nsec, activeData?.endTime.sec]);
+
+  useEffect(() => {
     return () => {
-      if (cancelActiveRangeNavigation()) {
-        frameNavigationNotifier.endNavigation(navigationId.current);
-      }
+      cancelActiveRangeNavigation();
+      frameNavigationNotifier.cancelNavigation(navigationId.current);
     };
   }, [cancelActiveRangeNavigation]);
 
   useEffect(() => {
+    manualSeekTime.current = undefined;
+    nextRangeExhausted.current = false;
+    previousRangeExhausted.current = false;
     finishFrameNavigation();
     resetRenderedHistory();
   }, [

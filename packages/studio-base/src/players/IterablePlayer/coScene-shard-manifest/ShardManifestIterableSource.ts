@@ -9,7 +9,7 @@ import { McapIndexedReader, McapTypes } from "@mcap/core";
 
 import Logger from "@foxglove/log";
 import { loadDecompressHandlers } from "@foxglove/mcap-support";
-import { compare, fromNanoSec } from "@foxglove/rostime";
+import { compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { Immutable, MessageEvent } from "@foxglove/studio";
 import {
   GetBackfillMessagesArgs,
@@ -94,6 +94,52 @@ function readAheadBytesForShard(shard: ShardEntry): number {
   const avgBytesPerSec = shard.sizeBytes / durationSec;
   const target = Math.round(avgBytesPerSec * READ_AHEAD_SECONDS);
   return Math.max(READ_AHEAD_MIN_BYTES, Math.min(READ_AHEAD_MAX_BYTES, target));
+}
+
+// Pruning correctness depends on two invariants that manifest parsing does not enforce
+// (parseManifest only checks that startNs/endNs are strings):
+//   1. The range is a well-formed, ordered pair of decimal nanosecond strings. BigInt() alone is
+//      not a sufficient check — it throws on "NaN" but silently coerces "" and whitespace to 0n,
+//      which would make a shard look like [0, 0] and prune it while it still holds data.
+//   2. The range is expressed in the same time domain the child iterator filters on: MCAP
+//      logTime, which McapIndexedIterableSource surfaces as receiveTime. A manifest written in
+//      publish/header time could declare a range that excludes messages the iterator would yield.
+// A range that fails (1) must not prune; (2) is a contract on the manifest producer that cannot
+// be checked here without opening the shard.
+const DECIMAL_NS = /^\d+$/;
+
+function shardTimeRangeNs(shard: ShardEntry): { startNs: bigint; endNs: bigint } | undefined {
+  const { startNs, endNs } = shard.timeRange;
+  if (!DECIMAL_NS.test(startNs) || !DECIMAL_NS.test(endNs)) {
+    return undefined;
+  }
+  const start = BigInt(startNs);
+  const end = BigInt(endNs);
+  if (start > end) {
+    return undefined;
+  }
+  return { startNs: start, endNs: end };
+}
+
+function shardOverlapsTimeRange(
+  shard: ShardEntry,
+  requestStartNs: bigint,
+  requestEndNs: bigint,
+): boolean {
+  const range = shardTimeRangeNs(shard);
+  if (range == undefined) {
+    // An uncomparable range must not cause data to be skipped: read the shard instead.
+    return true;
+  }
+  return range.startNs <= requestEndNs && range.endNs >= requestStartNs;
+}
+
+function shardCanContainBackfill(shard: ShardEntry, targetNs: bigint): boolean {
+  const range = shardTimeRangeNs(shard);
+  if (range == undefined) {
+    return true;
+  }
+  return range.startNs <= targetNs;
 }
 
 export class ShardManifestIterableSource implements ISerializedIterableSource {
@@ -344,8 +390,21 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return;
     }
 
+    const requestTimeRange =
+      args.start != undefined && args.end != undefined
+        ? { startNs: toNanoSec(args.start), endNs: toNanoSec(args.end) }
+        : undefined;
+
     // Open any shards whose topic set overlaps the request, in parallel.
     const matchingShards = this.#activeShards.filter((shard) => {
+      // Iterator bounds are optional. Without a complete closed range, conservatively retain every
+      // topic-matching shard instead of converting `undefined` or incorrectly pruning data.
+      if (
+        requestTimeRange != undefined &&
+        !shardOverlapsTimeRange(shard, requestTimeRange.startNs, requestTimeRange.endNs)
+      ) {
+        return false;
+      }
       const shardTopics = manifestTopicSet(shard);
       for (const t of requestedTopics.keys()) {
         if (shardTopics.has(t)) {
@@ -444,7 +503,11 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       return [];
     }
 
+    const targetNs = toNanoSec(args.time);
     const matchingShards = this.#activeShards.filter((shard) => {
+      if (!shardCanContainBackfill(shard, targetNs)) {
+        return false;
+      }
       const shardTopics = manifestTopicSet(shard);
       for (const t of requestedTopics.keys()) {
         if (shardTopics.has(t)) {

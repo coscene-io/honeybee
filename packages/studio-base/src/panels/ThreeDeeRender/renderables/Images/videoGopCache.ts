@@ -8,6 +8,7 @@
 import { H264, H265 } from "@foxglove/den/video";
 import { Time, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
@@ -27,6 +28,11 @@ type CachedVideoFrame = {
   isKeyframe: boolean;
   byteLength: number;
 };
+
+function recordCacheLookup(frames: MessageEvent[] | undefined): MessageEvent[] | undefined {
+  playbackPerformanceMetrics.recordGopCacheLookup(frames != undefined ? "hit" : "miss");
+  return frames;
+}
 
 export type VideoFrameInfo = {
   frame: CompressedVideoLike;
@@ -121,9 +127,7 @@ export class VideoGopCache {
 
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
     let range = ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
-    if (range == undefined) {
-      range = this.#activeRangeByTopic.get(msg.topic);
-    }
+    range ??= this.#activeRangeByTopic.get(msg.topic);
     if (range == undefined || !ranges.includes(range)) {
       range = new CachedVideoRange();
       ranges.push(range);
@@ -195,16 +199,16 @@ export class VideoGopCache {
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsReceiveTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForReceiveTime(targetNs);
-    return replayableFrames.length > 0 ? replayableFrames : undefined;
+    return recordCacheLookup(replayableFrames.length > 0 ? replayableFrames : undefined);
   }
 
   public seekAndReturnFramesForReceiveTime(
@@ -214,20 +218,20 @@ export class VideoGopCache {
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsReceiveTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForReceiveTime(targetNs);
     if (replayableFrames.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
     this.#activeRangeByTopic.set(topic, range);
-    return replayableFrames;
+    return recordCacheLookup(replayableFrames);
   }
 
   public framesForPublishTime(
@@ -239,16 +243,16 @@ export class VideoGopCache {
     const afterNs = afterTime != undefined ? toNanoSec(afterTime) : undefined;
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsPublishTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForPublishTime(targetNs, afterNs);
-    return replayableFrames.length > 0 ? replayableFrames : undefined;
+    return recordCacheLookup(replayableFrames.length > 0 ? replayableFrames : undefined);
   }
 
   public seekAndReturnFramesForPublishTime(
@@ -258,20 +262,20 @@ export class VideoGopCache {
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined || ranges.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const range = ranges.find((entry) => entry.overlapsPublishTime(targetNs));
     if (range == undefined) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
 
     const replayableFrames = range.framesForPublishTime(targetNs);
     if (replayableFrames.length === 0) {
-      return undefined;
+      return recordCacheLookup(undefined);
     }
     this.#activeRangeByTopic.set(topic, range);
-    return replayableFrames;
+    return recordCacheLookup(replayableFrames);
   }
 
   /**
@@ -384,7 +388,8 @@ export class VideoGopCache {
         continue;
       }
 
-      this.#byteSize -= candidate.range.size;
+      const removedBytesForRange = candidate.range.size;
+      this.#byteSize -= removedBytesForRange;
       this.#removeRange(candidate.topic, candidate.range);
     }
   }

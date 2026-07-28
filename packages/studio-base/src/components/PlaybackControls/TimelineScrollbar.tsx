@@ -12,6 +12,7 @@ import { useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
+import { TIMELINE_SCROLLBAR_HEIGHT_PX } from "./constants";
 import {
   getViewportScrollMetrics,
   type TimelineScrollMetrics,
@@ -21,7 +22,7 @@ import {
 // Horizontal scrollbar shown beneath the timeline while it is zoomed in. The thumb mirrors the
 // share of the recording currently visible; dragging it (or clicking the track) pans the viewport.
 
-export const TIMELINE_SCROLLBAR_HEIGHT_PX: number = 12;
+export { TIMELINE_SCROLLBAR_HEIGHT_PX } from "./constants";
 
 // Keep the thumb grabbable even when zoomed in so far that its true proportional width would be a
 // sliver. The drag math accounts for this widened thumb so panning still reaches both ends.

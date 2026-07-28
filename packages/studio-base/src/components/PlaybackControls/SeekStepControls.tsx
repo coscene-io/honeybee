@@ -38,7 +38,7 @@ export interface SeekStepControlsProps {
   /** Whether the controls should be disabled */
   disabled?: boolean;
   /** Called when editing state changes to disable/enable global key listeners */
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   onEditingChange?: (editing: boolean) => void;
 }
 

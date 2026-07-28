@@ -11,6 +11,7 @@ interface WindowOrWorkerGlobalScope {
 
 declare function structuredClone<T>(value: T, options?: StructuredSerializeOptions): T;
 
+declare const FOXGLOVE_STUDIO_VERSION: string | undefined;
 declare const HONEYBEE_WEB_PUBLIC_PATH: string | undefined;
 
 type MemoryInfo = {

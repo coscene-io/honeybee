@@ -185,7 +185,7 @@ export async function handleTaskProgress({
   timeout,
   addLog,
   t,
-  showRecordLink = true,
+  showRecordLink,
   targetOrg,
   targetProject,
   focusedTask,

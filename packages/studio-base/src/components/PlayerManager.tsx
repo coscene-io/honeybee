@@ -67,6 +67,7 @@ import {
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
 import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { UserScripts } from "@foxglove/studio-base/types/panels";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
@@ -148,21 +149,29 @@ function useBeforeConnectionSource(): (
   return beforeConnectionSource;
 }
 
-async function clearIdbCache(sessionId?: string) {
+/** Mark a previous realtime cache session for asynchronous janitor cleanup. */
+export async function markRealtimeCacheForCleanup(sessionId?: string): Promise<void> {
+  if (sessionId == undefined) {
+    return;
+  }
+
+  let idbCache: IndexedDbMessageStore | undefined;
   try {
-    const idbCache = new IndexedDbMessageStore({
+    idbCache = new IndexedDbMessageStore({
       sessionId,
       kind: "realtime-viz",
     });
-    // Ensure initialization completes to avoid racing init/close transactions
-    await idbCache.init();
-    if (sessionId != undefined) {
-      await idbCache.clear();
-    }
-    await idbCache.cleanupOldSessions();
-    await idbCache.close();
+    // Sealing starts shutdown synchronously, before the store's asynchronous initialization can
+    // register this connection as a new writer for the existing session.
+    await idbCache.discardAndSeal("pending-delete");
   } catch (error) {
-    log.error("Failed to clear idb cache:", error);
+    log.warn("Failed to mark realtime cache for cleanup:", error);
+  } finally {
+    try {
+      await idbCache?.close();
+    } catch (error) {
+      log.debug("Failed to close idb cache after cleanup:", error);
+    }
   }
 }
 
@@ -303,6 +312,9 @@ export default function PlayerManager(
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
   const [requestWindow] = useAppConfigurationValue<number>(AppSetting.REQUEST_WINDOW);
   const [readAheadDuration] = useAppConfigurationValue<number>(AppSetting.READ_AHEAD_DURATION);
+  const [enablePlaybackSpillCache = false] = useAppConfigurationValue<boolean>(
+    AppSetting.PLAYBACK_SPILL_CACHE_ENABLED,
+  );
   const [manifestStorageSource] = useAppConfigurationValue<string>(
     AppSetting.MANIFEST_STORAGE_SOURCE,
   );
@@ -323,6 +335,11 @@ export default function PlayerManager(
 
       // If sourceId is undefined, clear the current source selection
       if (sourceId == undefined) {
+        // Flush any tracked sampled seek before the player goes away: this path bypasses both
+        // setProperty("player", ...) and the collector's close(), so without the flush a stale
+        // seek could later emit as settled/timeout with counters from a player that no longer
+        // exists.
+        playbackPerformanceMetrics.handlePlayerChange();
         setCurrentSourceId(undefined);
         setSelectedSource(undefined);
         setCurrentSourceArgs(undefined);
@@ -335,7 +352,7 @@ export default function PlayerManager(
       setCurrentSourceId(sourceId);
 
       const foundSource = playerSources.find(
-        (source) => source.id === sourceId || source.legacyIds?.includes(sourceId),
+        (source) => source.id === sourceId || (source.legacyIds?.includes(sourceId) ?? false),
       );
 
       if (!foundSource) {
@@ -374,7 +391,7 @@ export default function PlayerManager(
       try {
         switch (args.type) {
           case "connection": {
-            await clearIdbCache(dataSourceState?.sessionId);
+            void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
             const params: Record<string, string | undefined> = {
               ...args.params,
             };
@@ -413,6 +430,7 @@ export default function PlayerManager(
                 positiveReadAheadDuration != undefined
                   ? { sec: positiveReadAheadDuration, nsec: 0 }
                   : undefined,
+              enablePlaybackSpillCache,
               manifestStorageSource,
               autoConnectToLan,
               checkOutboundTrafficEntitlement,
@@ -476,7 +494,7 @@ export default function PlayerManager(
           }
 
           case "file": {
-            void clearIdbCache(dataSourceState?.sessionId);
+            void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
             setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;
@@ -572,6 +590,7 @@ export default function PlayerManager(
       t,
       positiveRequestWindow,
       positiveReadAheadDuration,
+      enablePlaybackSpillCache,
       setCurrentFile,
       isMounted,
     ],

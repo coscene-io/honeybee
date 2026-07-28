@@ -133,7 +133,7 @@ export default function TaskView(params: { task: Task }): React.JSX.Element {
         <Stack
           data-testid="sidebar-event"
           className={cx(classes.task, {
-            [classes.taskSelected]: focusedTask != undefined && focusedTask.name === task.name,
+            [classes.taskSelected]: focusedTask?.name === task.name,
           })}
           onClick={() => {
             setFocusedTask(task);

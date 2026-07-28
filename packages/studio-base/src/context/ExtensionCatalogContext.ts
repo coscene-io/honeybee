@@ -25,6 +25,14 @@ export type RegisteredPanel = {
   registration: ExtensionPanelRegistration;
 };
 
+export type ExtensionCatalogLoadError = {
+  namespace: ExtensionNamespace | "internal";
+  stage: "list" | "load" | "activate" | "refresh";
+  extensionId?: string;
+  message: string;
+  timedOut: boolean;
+};
+
 export type ExtensionCatalog = Immutable<{
   downloadExtension: (url: string) => Promise<Uint8Array>;
   installExtension: (
@@ -34,6 +42,8 @@ export type ExtensionCatalog = Immutable<{
   refreshExtensions: () => Promise<void>;
   uninstallExtension: (namespace: ExtensionNamespace, id: string) => Promise<void>;
 
+  loadState: "loading" | "ready" | "degraded";
+  loadErrors: ExtensionCatalogLoadError[];
   installedExtensions: undefined | ExtensionInfo[];
   installedPanels: undefined | Record<string, RegisteredPanel>;
   installedMessageConverters:

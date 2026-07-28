@@ -26,7 +26,6 @@ import type { WorkspaceActions } from "@foxglove/studio-base/context/Workspace/u
 import { useSyncLayoutFromUrl } from "@foxglove/studio-base/hooks/useSyncLayoutFromUrl";
 import type { ILayoutManager } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import type { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
-import type { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 jest.mock("@foxglove/studio-base/context/CoSceneLayoutManagerContext", () => ({
   useLayoutManager: jest.fn(),
@@ -175,7 +174,7 @@ describe("useSyncLayoutFromUrl", () => {
     renderHook(() => {
       useSyncLayoutFromUrl({
         layoutId: urlLayoutId,
-      } as AppURLState);
+      });
     });
 
     await waitFor(() => {
@@ -193,7 +192,7 @@ describe("useSyncLayoutFromUrl", () => {
     renderHook(() => {
       useSyncLayoutFromUrl({
         layoutId: urlLayoutId,
-      } as AppURLState);
+      });
     });
 
     await waitFor(() => {

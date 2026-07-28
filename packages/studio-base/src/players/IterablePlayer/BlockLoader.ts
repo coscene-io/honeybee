@@ -291,6 +291,7 @@ export class BlockLoader {
         // Check whether the topics are changed and abort this loading instance because the results
         // may no longer be valid for the data we should be loading.
         if (!_.isEqual(topics, this.#topics)) {
+          await cursor.end();
           return;
         }
 
@@ -357,6 +358,7 @@ export class BlockLoader {
             // We need to emit progress here so the player will emit a new state
             // containing the problem.
             progress(this.#calculateProgress(topics, totalBlockSizeBytes));
+            await cursor.end();
             return;
           }
         }

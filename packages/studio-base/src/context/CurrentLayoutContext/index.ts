@@ -64,6 +64,7 @@ export type LayoutState = Readonly<{
         data: LayoutData | undefined;
         name?: string;
         edited?: boolean;
+        editRevision?: number;
         transient?: boolean;
       }
     | undefined;
@@ -163,7 +164,7 @@ export function useCurrentLayoutSelector<T>(selector: (layoutState: LayoutState)
   });
 
   const state = useRef<{ value: T; selector: typeof selector } | undefined>(undefined);
-  if (!state.current || selector !== state.current.selector) {
+  if (selector !== state.current?.selector) {
     state.current = {
       value: selectWithUnstableIdentityWarning(
         currentLayout.actions.getCurrentLayoutState(),

@@ -868,7 +868,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   /** Enable or disable object selection mode */
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   public setPickingEnabled(enabled: boolean): void {
     this.#pickingEnabled = enabled;
     if (!enabled) {
@@ -1372,7 +1372,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     }
     log.debug(`handleTopicsAction(${action.payload.id})`);
 
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     const toggleTopicVisibility = (value: boolean) => {
       for (const extension of this.sceneExtensions.values()) {
         for (const node of extension.settingsNodes()) {

@@ -32,12 +32,11 @@
     "test": "jest"
   },
   "devDependencies": {
-    "@foxglove/eslint-plugin": "2.1.2",
     "@foxglove/tsconfig": "3.2.0",
     "@types/jest": "^30.0.0",
     "@types/lodash": "4.17.15",
     "@types/node": "^24.13.1",
-    "eslint": "9.39.2",
+    "eslint": "9.39.4",
     "jest": "30.4.2",
     "prettier": "3.8.4",
     "ts-jest": "29.4.11",

@@ -84,7 +84,7 @@ function setupWorkerRemote() {
   const dispose = jest.fn();
   (ComlinkWrap as jest.Mock).mockReturnValue({ remote: initializeWorker, dispose });
 
-  return { first, second, remoteCursor, releaseProxy };
+  return { dispose, first, second, remoteCursor, releaseProxy, sourceWorkerRemote };
 }
 
 describe("WorkerIterableSource", () => {
@@ -138,6 +138,45 @@ describe("WorkerIterableSource", () => {
 
     await cursor.end();
     expect(releaseProxy).toHaveBeenCalledTimes(1);
+  });
+
+  it("disposes the worker remote when remote termination fails", async () => {
+    const { dispose, sourceWorkerRemote } = setupWorkerRemote();
+    sourceWorkerRemote.terminate.mockRejectedValueOnce(new Error("terminate failed"));
+    const source = new WorkerIterableSource({
+      initWorker: () => ({}) as Worker,
+      initArgs: {},
+    });
+    await source.initialize();
+
+    await expect(source.terminate()).rejects.toThrow("terminate failed");
+    expect(dispose).toHaveBeenCalledTimes(1);
+
+    await expect(source.terminate()).resolves.toBeUndefined();
+    expect(sourceWorkerRemote.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not publish a worker remote that arrives after termination", async () => {
+    const { dispose, sourceWorkerRemote } = setupWorkerRemote();
+    const remote = deferred<typeof sourceWorkerRemote>();
+    (ComlinkWrap as jest.Mock).mockReturnValue({
+      remote: jest.fn(async () => await remote.promise),
+      dispose,
+    });
+    const source = new WorkerIterableSource({
+      initWorker: () => ({}) as Worker,
+      initArgs: {},
+    });
+
+    const initialization = source.initialize();
+    await source.terminate();
+    remote.resolve(sourceWorkerRemote);
+
+    await expect(initialization).rejects.toThrow(
+      "WorkerIterableSource initialization was cancelled",
+    );
+    expect(sourceWorkerRemote.initialize).not.toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 });
 

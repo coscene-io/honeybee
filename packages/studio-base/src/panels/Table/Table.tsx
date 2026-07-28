@@ -22,6 +22,7 @@ import KeyboardDoubleArrowLeftIcon from "@mui/icons-material/KeyboardDoubleArrow
 import KeyboardDoubleArrowRightIcon from "@mui/icons-material/KeyboardDoubleArrowRight";
 import { Container, IconButton, MenuItem, Select, Typography } from "@mui/material";
 import {
+  ColumnDef,
   ExpandedState,
   PaginationState,
   createColumnHelper,
@@ -187,7 +188,7 @@ function getColumnsFromObject(val: CellValue, accessorPath: string) {
       }),
     ];
   }
-  const columns = Object.keys(val).map((accessor) => {
+  const columns: ColumnDef<CellValue>[] = Object.keys(val).map((accessor) => {
     const id = accessorPath.length !== 0 ? `${accessorPath}.${accessor}` : accessor;
     return columnHelper.accessor(accessor, {
       header: accessor,
@@ -387,7 +388,7 @@ export default function Table({
               value={pageSize}
               size="small"
               onChange={(e) => {
-                table.setPageSize(Number(e.target.value));
+                table.setPageSize(e.target.value);
               }}
               MenuProps={{
                 slotProps: {

@@ -356,7 +356,7 @@ describe("CurrentLayoutProvider", () => {
     };
 
     expect(mockLayoutManager.updateLayout.mock.calls).toEqual([
-      [{ id: "example", data: newState }],
+      [{ id: "example", data: newState, editRevision: expect.any(Number) }],
     ]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
@@ -369,9 +369,57 @@ describe("CurrentLayoutProvider", () => {
           data: newState,
           name: "Test layout",
           edited: true,
+          editRevision: expect.any(Number),
         },
       },
     ]);
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
+  it("flushes a pending layout update when switching layouts", async () => {
+    jest.useFakeTimers();
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockImplementation(async ({ id }: { id: LayoutID }) => ({
+      id,
+      name: id === "example" ? "Test layout" : "Second layout",
+      baseline: {
+        data: id === "example" ? TEST_LAYOUT : { ...TEST_LAYOUT, layout: "ExamplePanel!2" },
+        updatedAt: new Date(10).toISOString(),
+      },
+    }));
+    mockLayoutManager.updateLayout.mockResolvedValue(undefined);
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { foo: "pending" } }],
+      });
+    });
+    const pendingData = result.current.layoutState.selectedLayout?.data;
+
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example2" as LayoutID);
+    });
+    await act(async () => {});
+
+    expect(mockLayoutManager.updateLayout).toHaveBeenCalledWith({
+      id: "example",
+      data: pendingData,
+      editRevision: expect.any(Number),
+    });
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {});
+    expect(mockLayoutManager.updateLayout).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
     (console.warn as jest.Mock).mockClear();
   });
@@ -503,6 +551,71 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("uses layout equality when an autosave only adds undefined fields", async () => {
+    jest.useFakeTimers();
+    const baselineData: LayoutData = {
+      ...TEST_LAYOUT,
+      configById: { "ExamplePanel!1": {} },
+    };
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockResolvedValue({
+      id: "example",
+      name: "Test layout",
+      baseline: { data: baselineData, updatedAt: new Date(10).toISOString() },
+    });
+    mockLayoutManager.updateLayout.mockResolvedValue(undefined);
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { optional: undefined } }],
+      });
+    });
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "update",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: baselineData,
+            savedAt: undefined,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: undefined,
+          syncInfo: undefined,
+        },
+      });
+    });
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {});
+
+    expect(result.current.layoutState.selectedLayout).toEqual({
+      id: "example",
+      name: "Test layout",
+      loading: false,
+      data: baselineData,
+    });
+    expect(mockLayoutManager.updateLayout).not.toHaveBeenCalled();
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
   it("applies layout renames while preserving newer in-memory edits", async () => {
     const mockLayoutManager = makeMockLayoutManager();
     mockLayoutManager.getLayout.mockImplementation(async () => {
@@ -560,6 +673,90 @@ describe("CurrentLayoutProvider", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("applies manager updates to clean views", async () => {
+    const retryData: LayoutData = {
+      ...TEST_LAYOUT,
+      configById: { "ExamplePanel!1": { value: "retried" } },
+    };
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockResolvedValue({
+      id: "example",
+      name: "Test layout",
+      baseline: { data: TEST_LAYOUT, updatedAt: new Date(10).toISOString() },
+    });
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "update",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: TEST_LAYOUT,
+            savedAt: new Date(10).toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: {
+            data: retryData,
+            savedAt: new Date(11).toISOString() as ISO8601Timestamp,
+          },
+          syncInfo: undefined,
+        },
+      });
+    });
+
+    expect(result.current.layoutState.selectedLayout).toEqual({
+      id: "example",
+      name: "Test layout",
+      loading: false,
+      data: retryData,
+    });
+
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "overwrite",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: TEST_LAYOUT,
+            savedAt: new Date(12).toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: undefined,
+          syncInfo: undefined,
+        },
+      });
+    });
+
+    expect(result.current.layoutState.selectedLayout).toEqual({
+      id: "example",
+      name: "Test layout",
+      loading: false,
+      data: TEST_LAYOUT,
+    });
+    (console.warn as jest.Mock).mockClear();
+  });
+
   it("retries pending layout updates after layoutManager.updateLayout fails", async () => {
     jest.useFakeTimers();
     const firstAttempt = new Condvar();
@@ -609,7 +806,7 @@ describe("CurrentLayoutProvider", () => {
     await act(async () => {});
 
     act(() => {
-      jest.advanceTimersByTime(1500);
+      jest.advanceTimersByTime(1000);
     });
     await act(async () => {
       await secondAttemptWait;
@@ -617,6 +814,75 @@ describe("CurrentLayoutProvider", () => {
 
     (console.error as jest.Mock).mockClear();
     expect(mockLayoutManager.updateLayout).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
+  it("drops a failed autosave after the user reverts the layout", async () => {
+    jest.useFakeTimers();
+    const firstAttempt = new Condvar();
+    const firstAttemptWait = firstAttempt.wait();
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.getLayout.mockResolvedValue({
+      id: "example",
+      name: "Test layout",
+      baseline: { data: TEST_LAYOUT, updatedAt: new Date(10).toISOString() },
+    });
+    mockLayoutManager.updateLayout.mockImplementation(async () => {
+      firstAttempt.notifyAll();
+      throw new Error("temporary failure");
+    });
+
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setSelectedLayoutId("example" as LayoutID);
+    });
+    await act(async () => {});
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { foo: "discarded" } }],
+      });
+    });
+    act(() => {
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {
+      await firstAttemptWait;
+    });
+    await act(async () => {});
+
+    act(() => {
+      mockLayoutManager.emitChange({
+        type: "change",
+        source: "revert",
+        updatedLayout: {
+          id: "example" as LayoutID,
+          parent: "",
+          folder: "",
+          name: "Test layout",
+          permission: "PERSONAL_WRITE",
+          baseline: {
+            data: TEST_LAYOUT,
+            savedAt: new Date(11).toISOString() as ISO8601Timestamp,
+            modifier: undefined,
+            modifierNickname: undefined,
+          },
+          working: undefined,
+          syncInfo: undefined,
+        },
+      });
+    });
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    await act(async () => {});
+
+    expect(mockLayoutManager.updateLayout).toHaveBeenCalledTimes(1);
+    expect(result.current.layoutState.selectedLayout?.data).toEqual(TEST_LAYOUT);
+    (console.error as jest.Mock).mockClear();
     jest.useRealTimers();
     (console.warn as jest.Mock).mockClear();
   });
@@ -661,6 +927,7 @@ describe("CurrentLayoutProvider", () => {
     expect(mockLayoutManager.updateLayout).toHaveBeenCalledWith({
       id: "example",
       data: pendingData,
+      editRevision: expect.any(Number),
     });
     jest.useRealTimers();
     (console.warn as jest.Mock).mockClear();

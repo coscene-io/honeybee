@@ -27,4 +27,6 @@ export const workspace = {
   playlist: "Playlist",
   moment: "Moment",
   tasks: "Tasks",
+  legacyMessageCacheDeleteBlocked:
+    "Close other Honeybee tabs to finish clearing the legacy message cache.",
 };

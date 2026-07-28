@@ -394,5 +394,11 @@ describe("parseFlatbufferSchema", () => {
     const byteVectorSchemaArray = fixtureBytes("ByteVector.bfbs");
     const { deserialize } = parseFlatbufferSchema("ByteVector", byteVectorSchemaArray);
     expect(deserialize(byteVectorBin)).toEqual({ data: new Uint8Array([1, 2, 3]) });
+
+    const paddedBytes = new Uint8Array(byteVectorBin.byteLength + 8);
+    paddedBytes.set(byteVectorBin, 4);
+    expect(deserialize(paddedBytes.subarray(4, 4 + byteVectorBin.byteLength))).toEqual({
+      data: new Uint8Array([1, 2, 3]),
+    });
   });
 });

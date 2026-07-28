@@ -123,8 +123,8 @@ export function Plot(props: Props): React.JSX.Element {
     showLegend,
     xAxisVal: xAxisMode,
     xAxisPath,
-    legendDisplay = config.showSidebar === true ? "left" : "floating",
-    sidebarDimension = config.sidebarWidth ?? defaultSidebarDimension,
+    legendDisplay,
+    sidebarDimension,
     [PANEL_TITLE_CONFIG_KEY]: customTitle,
   } = config;
 

@@ -80,18 +80,25 @@ describe("CoSceneConsoleApi", () => {
     });
   });
 
-  it("supports Headers instances in request config", async () => {
+  it("normalizes Headers and tuple inputs without exposing a Headers instance", async () => {
     const api = await createApi(completeBaseInfo);
+    const requestHeaders = new Headers({ "X-Headers-Input": "headers" });
 
-    const { fullConfig } = api.getRequectConfig("/v1/me", {
-      headers: new Headers({ "X-Test": "1" }),
-    });
+    const fromHeaders = api.getRequectConfig("/v1/me", { headers: requestHeaders }).fullConfig
+      .headers;
+    const fromTuples = api.getRequectConfig("/v1/me", {
+      headers: [["X-Tuple-Input", "tuples"]],
+    }).fullConfig.headers;
 
-    expect(fullConfig.headers).toEqual({
-      Authorization: "Bearer test-token",
-      "Record-Name": recordName,
-      "x-test": "1",
-    });
+    expect(fromHeaders).not.toBeInstanceOf(Headers);
+    expect(new Headers(fromHeaders).get("X-Headers-Input")).toBe("headers");
+    expect(fromTuples).toEqual(
+      expect.objectContaining({
+        Authorization: "Bearer test-token",
+        "Record-Name": recordName,
+        "X-Tuple-Input": "tuples",
+      }),
+    );
   });
 
   it("omits Record-Name when record id is missing", async () => {
@@ -175,5 +182,37 @@ describe("CoSceneConsoleApi", () => {
         }),
       }),
     );
+  });
+
+  it("converts metadata schemas from base64 without retaining raw schema strings", async () => {
+    const api = await createApi(completeBaseInfo);
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        startTime: 0,
+        endTime: 1,
+        topics: [
+          {
+            topic: "/without-schema",
+            encoding: "json",
+            schemaName: "example.Empty",
+            schemaEncoding: "jsonschema",
+            version: "1",
+          },
+          {
+            topic: "/with-schema",
+            encoding: "protobuf",
+            schemaName: "example.Message",
+            schemaEncoding: "protobuf",
+            schema: "AQI=",
+            version: "1",
+          },
+        ],
+      }),
+    );
+
+    const result = await api.topics("file-key");
+
+    expect(result.metaData[0]).not.toHaveProperty("schema");
+    expect(Array.from(result.metaData[1]?.schema ?? [])).toEqual([1, 2]);
   });
 });

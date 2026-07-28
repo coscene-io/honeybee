@@ -117,8 +117,8 @@ export function useVizTargetSource(): (
         )?.data;
 
         const wsUrl = `wss://${deviceColinkInfo?.network_id}-${ipToHex(
-          String(deviceColinkInfo?.private_ip ?? ""),
-        )}${Number(REALTIME_VISUALIZATION_PORT).toString(16)}.${proxy_server}`;
+          deviceColinkInfo?.private_ip ?? "",
+        )}${REALTIME_VISUALIZATION_PORT.toString(16)}.${proxy_server}`;
 
         const fullName = targetDevice.displayName;
 

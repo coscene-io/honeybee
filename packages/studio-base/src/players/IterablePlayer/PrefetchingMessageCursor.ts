@@ -84,7 +84,8 @@ export class PrefetchingMessageCursor<
   }
 
   public async readUntil(end: Time): ReturnType<IMessageCursor<MessageType>["readUntil"]> {
-    this.#bufferPendingBatch(await this.#consumePendingBatch());
+    const pendingBatch = await this.#consumePendingBatch();
+    this.#bufferPendingBatch(pendingBatch);
 
     const results: IteratorResult<MessageType>[] = [];
     while (this.#bufferedResults.length > 0) {
@@ -93,6 +94,10 @@ export class PrefetchingMessageCursor<
         return results;
       }
       results.push(this.#bufferedResults.shift()!);
+    }
+
+    if (pendingBatch.status === "done") {
+      return results.length === 0 ? undefined : results;
     }
 
     const remainingResults = await this.#cursor.readUntil(end);

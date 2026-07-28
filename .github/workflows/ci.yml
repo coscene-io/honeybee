@@ -15,7 +15,7 @@ jobs:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - run: corepack enable yarn
 
@@ -27,16 +27,19 @@ jobs:
       - run: yarn install --immutable
 
       - name: Restore ESLint cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .eslintcache
-          key: ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config.cjs', 'eslint.config.ci.cjs', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config*.cjs', 'eslint/**', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config.cjs', 'eslint.config.ci.cjs', 'tsconfig.json', 'tsconfig.eslint.json') }}-
+            ${{ runner.os }}-eslint-${{ hashFiles('yarn.lock', 'eslint.config*.cjs', 'eslint/**', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-
 
       - run: set -x
 
       - run: yarn run tsc --noEmit
+      - run: yarn run typecheck:ci
+      - run: yarn run typecheck:eslint-plugin
+      - run: yarn run typecheck:message-path
       - run: yarn run lint:ci
 
   unit-test:
@@ -47,7 +50,7 @@ jobs:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - run: corepack enable yarn
 

@@ -60,12 +60,10 @@ version_group(Dep, typescript_eslint) :-
   Dep = 'typescript-eslint'.
 version_group(Dep, typescript_eslint) :-
   has_prefix('@typescript-eslint/', Dep).
-version_group(Dep, emotion_cache) :-
-  Dep = '@emotion/cache'.
-version_group(Dep, emotion_react) :-
-  Dep = '@emotion/react'.
-version_group(Dep, emotion_styled) :-
-  Dep = '@emotion/styled'.
+% Emotion packages publish independently; align each package across workspaces rather than forcing
+% every @emotion package to share one version.
+version_group(Dep, Dep) :-
+  has_prefix('@emotion/', Dep).
 
 % Enforce the requirements defined on version groups above.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType) :-

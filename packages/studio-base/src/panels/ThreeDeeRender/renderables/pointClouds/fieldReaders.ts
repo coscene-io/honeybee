@@ -11,7 +11,7 @@ import { PointField, PointFieldType } from "../../ros";
 
 export type FieldReader = (view: DataView, pointOffset: number) => number;
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 function int8Reader(fieldOffset: number, normalize: boolean): FieldReader {
   return (view: DataView, pointOffset: number) => {
     const value = view.getInt8(pointOffset + fieldOffset);
@@ -22,7 +22,7 @@ function int8Reader(fieldOffset: number, normalize: boolean): FieldReader {
   };
 }
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 function uint8Reader(fieldOffset: number, normalize: boolean): FieldReader {
   return (view: DataView, pointOffset: number) => {
     const value = view.getUint8(pointOffset + fieldOffset);
@@ -33,7 +33,7 @@ function uint8Reader(fieldOffset: number, normalize: boolean): FieldReader {
   };
 }
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 function int16Reader(fieldOffset: number, normalize: boolean): FieldReader {
   return (view: DataView, pointOffset: number) => {
     const value = view.getInt16(pointOffset + fieldOffset, true);
@@ -44,7 +44,7 @@ function int16Reader(fieldOffset: number, normalize: boolean): FieldReader {
   };
 }
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 function uint16Reader(fieldOffset: number, normalize: boolean): FieldReader {
   return (view: DataView, pointOffset: number) => {
     const value = view.getUint16(pointOffset + fieldOffset, true);
@@ -55,7 +55,7 @@ function uint16Reader(fieldOffset: number, normalize: boolean): FieldReader {
   };
 }
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 function int32Reader(fieldOffset: number, normalize: boolean): FieldReader {
   return (view: DataView, pointOffset: number) => {
     const value = view.getInt32(pointOffset + fieldOffset, true);
@@ -66,7 +66,7 @@ function int32Reader(fieldOffset: number, normalize: boolean): FieldReader {
   };
 }
 
-// eslint-disable-next-line @foxglove/no-boolean-parameters
+// eslint-disable-next-line @coscene-io/no-boolean-parameters
 function uint32Reader(fieldOffset: number, normalize: boolean): FieldReader {
   return (view: DataView, pointOffset: number) => {
     const value = view.getUint32(pointOffset + fieldOffset, true);
@@ -98,7 +98,7 @@ export function getReader(
   stride: number,
   /** @see https://www.khronos.org/opengl/wiki/Normalized_Integer */
   // Performance-sensitive: this code is called for every point cloud message
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   normalize = false,
   forceType?: PointFieldType | NumericType,
 ): FieldReader | undefined {
@@ -109,7 +109,7 @@ export function getReader(
   const numericType = (field as Partial<PackedElementField>).type;
   if (numericType == undefined) {
     const type = forceType ?? (field as PointField).datatype;
-    switch (type as PointFieldType) {
+    switch (type) {
       case PointFieldType.INT8:
         return field.offset + 1 <= stride ? int8Reader(field.offset, normalize) : undefined;
       case PointFieldType.UINT8:

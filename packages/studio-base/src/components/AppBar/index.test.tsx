@@ -136,7 +136,7 @@ describe("<AppBar />", () => {
     const originalFetch = global.fetch;
     global.fetch = jest.fn().mockResolvedValue({
       text: async () => "version: 1.0.0",
-    } as Response);
+    });
     window.cosConfig = {
       ...window.cosConfig,
       COSTUDIO_DOWNLOAD_URL: "https://download.example.com",

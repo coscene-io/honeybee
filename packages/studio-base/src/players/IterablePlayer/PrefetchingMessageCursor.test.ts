@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Time } from "@foxglove/studio";
-
 import { IMessageCursor, IteratorResult } from "./IIterableSource";
 import { PrefetchingMessageCursor } from "./PrefetchingMessageCursor";
 
@@ -160,8 +158,23 @@ describe("PrefetchingMessageCursor", () => {
     const cursor = new PrefetchingMessageCursor(makeCursor(nextBatch));
 
     await cursor.nextBatch(100);
-    await expect(cursor.readUntil({ sec: 3, nsec: 0 } as Time)).resolves.toEqual([stamp(2)]);
+    await expect(cursor.readUntil({ sec: 3, nsec: 0 })).resolves.toEqual([stamp(2)]);
     await expect(cursor.next()).resolves.toEqual(stamp(3));
+  });
+
+  it("returns EOF from readUntil when the prefetched batch is exhausted", async () => {
+    const nextBatch = jest
+      .fn<Promise<IteratorResult[] | undefined>, [number]>()
+      .mockResolvedValueOnce([stamp(1)])
+      .mockResolvedValueOnce(undefined);
+    const readUntil = jest.fn(async () => []);
+    const underlying = { ...makeCursor(nextBatch), readUntil };
+    const cursor = new PrefetchingMessageCursor(underlying);
+
+    await cursor.nextBatch(100);
+
+    await expect(cursor.readUntil({ sec: 2, nsec: 0 })).resolves.toBeUndefined();
+    expect(readUntil).not.toHaveBeenCalled();
   });
 
   it("delegates direct reads before batch prefetching starts", async () => {
@@ -171,7 +184,7 @@ describe("PrefetchingMessageCursor", () => {
     const readUntil = jest.fn(async () => []);
     const underlying = { ...makeCursor(nextBatch), readUntil };
     const cursor = new PrefetchingMessageCursor(underlying);
-    const end = { sec: 1, nsec: 0 } as Time;
+    const end = { sec: 1, nsec: 0 };
 
     await cursor.readUntil(end);
 

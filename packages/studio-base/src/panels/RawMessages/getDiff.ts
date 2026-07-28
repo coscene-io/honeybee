@@ -100,7 +100,7 @@ export default function getDiff({
 
     if (idToCompareWith != undefined) {
       const unmatchedAfterById = _.keyBy(after, idToCompareWith);
-      const diff = [];
+      const diff: DiffObject[] = [];
       for (const beforeItem of before) {
         if (beforeItem == undefined || typeof beforeItem !== "object") {
           throw new Error("beforeItem is invalid; should have checked this earlier");
@@ -115,8 +115,8 @@ export default function getDiff({
         delete unmatchedAfterById[id];
         if (!_.isEmpty(innerDiff)) {
           const isDeleted =
-            Object.keys(innerDiff as DiffObject).length === 1 &&
-            Object.keys(innerDiff as DiffObject)[0] === diffLabels.DELETED.labelText;
+            Object.keys(innerDiff).length === 1 &&
+            Object.keys(innerDiff)[0] === diffLabels.DELETED.labelText;
           diff.push(
             isDeleted
               ? (innerDiff as DiffObject)
@@ -135,6 +135,8 @@ export default function getDiff({
           showFullMessageForDiff,
         });
         if (!_.isEmpty(innerDiff)) {
+          // This branch compares keyed object entries, so the recursive result is a DiffObject.
+          // The production tsconfig cannot infer that from getDiff's general return type.
           diff.push(innerDiff as DiffObject);
         }
       }

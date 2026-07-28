@@ -438,7 +438,7 @@ export default class Ros1Player implements Player {
     sizeInBytes: number,
     schemaName: string,
     // This is a hot path so we avoid extra object allocation from a parameters struct
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     external: boolean,
   ): void => {
     if (this.#providerTopics == undefined) {

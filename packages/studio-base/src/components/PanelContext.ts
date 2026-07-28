@@ -36,7 +36,7 @@ export type PanelContextType<T> = {
   hasFullscreenDescendant: boolean;
 
   /** Used to adjust z-index settings on parent panels when children are fullscreen */
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   setHasFullscreenDescendant: (hasFullscreenDescendant: boolean) => void;
 
   connectToolbarDragHandle?: (el: Element | ReactNull) => void;

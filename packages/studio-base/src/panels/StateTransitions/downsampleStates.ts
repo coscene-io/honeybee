@@ -49,7 +49,7 @@ type Label = {
  */
 function addLabel(label: Label, labels: Label[]): void {
   const last = labels.at(-1);
-  if (last == undefined || label.value !== last.value) {
+  if (label.value !== last?.value) {
     labels.push(label);
   }
 }
