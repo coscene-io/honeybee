@@ -183,4 +183,36 @@ describe("CoSceneConsoleApi", () => {
       }),
     );
   });
+
+  it("converts metadata schemas from base64 without retaining raw schema strings", async () => {
+    const api = await createApi(completeBaseInfo);
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        startTime: 0,
+        endTime: 1,
+        topics: [
+          {
+            topic: "/without-schema",
+            encoding: "json",
+            schemaName: "example.Empty",
+            schemaEncoding: "jsonschema",
+            version: "1",
+          },
+          {
+            topic: "/with-schema",
+            encoding: "protobuf",
+            schemaName: "example.Message",
+            schemaEncoding: "protobuf",
+            schema: "AQI=",
+            version: "1",
+          },
+        ],
+      }),
+    );
+
+    const result = await api.topics("file-key");
+
+    expect(result.metaData[0]).not.toHaveProperty("schema");
+    expect(Array.from(result.metaData[1]?.schema ?? [])).toEqual([1, 2]);
+  });
 });

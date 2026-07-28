@@ -500,7 +500,8 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const topic = messageEvent.topic;
 
     // Set the initial settings from default values merged with any user settings
-    const userSettings = this.renderer.config.topics[topic];
+    const userSettings: Partial<LayerSettingsFoxgloveGrid> | undefined =
+      this.renderer.config.topics[topic];
     const settings = { ...DEFAULT_SETTINGS, ...userSettings };
 
     const foxgloveGrid = normalizeFoxgloveGrid(messageEvent.message, settings.modifyHeight);
