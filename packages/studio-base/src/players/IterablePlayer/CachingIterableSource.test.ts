@@ -2912,9 +2912,12 @@ describe("CachingIterableSource", () => {
         configurable: true,
         value: "visible",
       });
+      const recoveryComplete = new Promise<void>((resolve) => {
+        bufferedSource.once("loadedRangesChange", resolve);
+      });
       document.dispatchEvent(new Event("visibilitychange"));
 
-      await waitFor(async () => (await getPlaybackSpillSessions()).length === 1);
+      await recoveryComplete;
       const recoveredSession = (await getPlaybackSpillSessions())[0];
       expect(recoveredSession?.sessionId).not.toBe(originalSession.sessionId);
       expect(bufferedSource.loadedRanges()).toEqual([{ start: 0.2, end: 0.3 }]);
