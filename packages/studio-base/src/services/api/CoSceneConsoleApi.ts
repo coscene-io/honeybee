@@ -912,12 +912,12 @@ class CoSceneConsoleApi {
       },
     );
 
-    const metaData = topics.topics.map((topic): TopicResponse => {
-      if (topic.schema == undefined) {
-        return { ...topic, schema: undefined };
+    const metaData = topics.topics.map(({ schema, ...topic }): TopicResponse => {
+      if (schema == undefined) {
+        return topic;
       }
-      const decodedSchema = new Uint8Array(base64.length(topic.schema));
-      base64.decode(topic.schema, decodedSchema, 0);
+      const decodedSchema = new Uint8Array(base64.length(schema));
+      base64.decode(schema, decodedSchema, 0);
       return { ...topic, schema: decodedSchema };
     });
 

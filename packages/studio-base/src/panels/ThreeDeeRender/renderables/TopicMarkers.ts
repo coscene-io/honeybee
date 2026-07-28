@@ -51,8 +51,7 @@ export class MarkersNamespace {
     this.namespace = namespace;
 
     // Set the initial settings from default values merged with any user settings
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- PartialMarkerSettings and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access Marker-specific fields below.
-    const topicSettings = renderer.config.topics[topic] as PartialMarkerSettings;
+    const topicSettings: PartialMarkerSettings = renderer.config.topics[topic];
     const userSettings = topicSettings?.namespaces?.[namespace];
     this.settings = { ...DEFAULT_NAMESPACE_SETTINGS, ...userSettings };
   }

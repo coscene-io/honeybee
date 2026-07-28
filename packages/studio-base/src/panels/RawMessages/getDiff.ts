@@ -135,9 +135,8 @@ export default function getDiff({
           showFullMessageForDiff,
         });
         if (!_.isEmpty(innerDiff)) {
-          // `before` is always `undefined` here, so `getDiff` only ever takes the
-          // `before == undefined` branch below, which always returns a `DiffObject`
-          // (never a `DiffObject[]`).
+          // This branch compares keyed object entries, so the recursive result is a DiffObject.
+          // The production tsconfig cannot infer that from getDiff's general return type.
           diff.push(innerDiff as DiffObject);
         }
       }

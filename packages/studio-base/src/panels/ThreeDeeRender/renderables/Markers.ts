@@ -142,10 +142,7 @@ export class Markers extends SceneExtension<TopicMarkers> {
     const topicName = path[1]!;
     const topicMarkers = this.renderables.get(topicName);
     if (topicMarkers) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsMarker> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access Marker-specific fields below.
-      const settings = this.renderer.config.topics[topicName] as
-        | Partial<LayerSettingsMarker>
-        | undefined;
+      const settings = this.renderer.config.topics[topicName];
       topicMarkers.userData.settings = { ...DEFAULT_SETTINGS, ...settings };
       topicMarkers.update();
     }
@@ -174,10 +171,8 @@ export class Markers extends SceneExtension<TopicMarkers> {
     // Update the MarkersNamespace settings
     const renderable = this.renderables.get(topicName);
     if (renderable) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsMarker> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access Marker-specific fields below.
-      const settings = this.renderer.config.topics[topicName] as
-        | Partial<LayerSettingsMarker>
-        | undefined;
+      const settings: Partial<LayerSettingsMarker> | undefined =
+        this.renderer.config.topics[topicName];
       const ns = renderable.namespaces.get(namespace);
       if (ns) {
         const nsSettings = settings?.namespaces?.[namespace] as
@@ -265,10 +260,7 @@ export class Markers extends SceneExtension<TopicMarkers> {
   #getTopicMarkers(topic: string, marker: Marker, receiveTime: bigint): TopicMarkers {
     let topicMarkers = this.renderables.get(topic);
     if (!topicMarkers) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsMarker> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access Marker-specific fields below.
-      const userSettings = this.renderer.config.topics[topic] as
-        | Partial<LayerSettingsMarker>
-        | undefined;
+      const userSettings = this.renderer.config.topics[topic];
 
       topicMarkers = new TopicMarkers(topic, this.renderer, {
         receiveTime,

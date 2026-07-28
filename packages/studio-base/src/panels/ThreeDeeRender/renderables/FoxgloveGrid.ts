@@ -474,10 +474,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const topicName = path[1]!;
     const renderable = this.renderables.get(topicName);
     if (renderable) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsFoxgloveGrid> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access FoxgloveGrid-specific fields below.
-      const settings = this.renderer.config.topics[topicName] as
-        | Partial<LayerSettingsFoxgloveGrid>
-        | undefined;
+      const settings = this.renderer.config.topics[topicName];
       renderable.userData.settings = { ...DEFAULT_SETTINGS, ...settings };
 
       renderable.userData.pose.position.z = renderable.userData.settings.modifyHeight;
@@ -503,10 +500,8 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const topic = messageEvent.topic;
 
     // Set the initial settings from default values merged with any user settings
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsFoxgloveGrid> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access FoxgloveGrid-specific fields below.
-    const userSettings = this.renderer.config.topics[topic] as
-      | Partial<LayerSettingsFoxgloveGrid>
-      | undefined;
+    const userSettings: Partial<LayerSettingsFoxgloveGrid> | undefined =
+      this.renderer.config.topics[topic];
     const settings = { ...DEFAULT_SETTINGS, ...userSettings };
 
     const foxgloveGrid = normalizeFoxgloveGrid(messageEvent.message, settings.modifyHeight);

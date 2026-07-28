@@ -93,7 +93,7 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
       }
     }
     default:
-      throw new Error(`Unrecognized server opcode: ${op}`);
+      throw new Error(`Unrecognized server message opcode: ${op}`);
   }
 }
 
@@ -125,6 +125,6 @@ export function parseClientMessage(buffer: ArrayBuffer): ClientMessage {
       return { op, serviceId, callId, encoding, data };
     }
     default:
-      throw new Error(`Unrecognized client opcode: ${op}`);
+      throw new Error(`Unrecognized client message opcode: ${op}`);
   }
 }

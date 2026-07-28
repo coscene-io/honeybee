@@ -353,10 +353,8 @@ export class LaserScans extends SceneExtension<LaserScanHistoryRenderable> {
     const finalQueue: MessageEvent<T>[] = [];
     for (const topic in msgsByTopic) {
       const topicMsgs = msgsByTopic[topic]!;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsLaserScan> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access LaserScan-specific fields below.
-      const userSettings = this.renderer.config.topics[topic] as
-        | Partial<LayerSettingsLaserScan>
-        | undefined;
+      const userSettings: Partial<LayerSettingsLaserScan> | undefined =
+        this.renderer.config.topics[topic];
       // if the topic has a decaytime add all messages to queue for topic
       if ((userSettings?.decayTime ?? DEFAULT_SETTINGS.decayTime) > 0) {
         finalQueue.push(...topicMsgs);
@@ -425,10 +423,7 @@ export class LaserScans extends SceneExtension<LaserScanHistoryRenderable> {
     const topicName = path[1]!;
     const renderable = this.renderables.get(topicName);
     if (renderable) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsLaserScan> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access LaserScan-specific fields below.
-      const prevSettings = this.renderer.config.topics[topicName] as
-        | Partial<LayerSettingsLaserScan>
-        | undefined;
+      const prevSettings = this.renderer.config.topics[topicName];
       const settings = { ...DEFAULT_SETTINGS, ...prevSettings };
 
       renderable.updateLaserScan(
@@ -453,10 +448,8 @@ export class LaserScans extends SceneExtension<LaserScanHistoryRenderable> {
     let renderable = this.renderables.get(topic);
     if (!renderable) {
       // Set the initial settings from default values merged with any user settings
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- Partial<LayerSettingsLaserScan> and Partial<BaseSettings> are mutually assignable since all fields are optional, but the assertion is required to access LaserScan-specific fields below.
-      const userSettings = this.renderer.config.topics[topic] as
-        | Partial<LayerSettingsLaserScan>
-        | undefined;
+      const userSettings: Partial<LayerSettingsLaserScan> | undefined =
+        this.renderer.config.topics[topic];
       const settings = { ...DEFAULT_SETTINGS, ...userSettings };
       if (settings.colorField == undefined) {
         settings.colorField = "intensity";
