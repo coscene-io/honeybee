@@ -13,6 +13,7 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 const log = Log.getLogger(__filename);
 
@@ -26,6 +27,15 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
   #metadata: EventData = {};
   #intervalId: ReturnType<typeof setInterval> | undefined;
   #lastTickTime: number | undefined;
+  // Session-local id joining a PLAYER_SEEK attempt to its PLAYER_SEEK_LATENCY completion.
+  // Derived from wall-clock milliseconds plus a sub-millisecond sequence so ids remain unique
+  // across page reloads and collector remounts within one PostHog session — a plain counter
+  // restarted at 1 after a reload and collided with the pre-reload ids. (Safe in double
+  // precision: Date.now()*1000 ≈ 1.8e15 < 2^53.) recordSeekLatency always refers to the most
+  // recent accepted seek: the player skips the completion path for superseded backfills before
+  // any newer seek() can run.
+  #currentSeekId: number = 0;
+  #seekSequence: number = 0;
 
   public constructor({ analytics }: { analytics: IAnalytics }) {
     log.debug("New AnalyticsMetricsCollector");
@@ -74,19 +84,39 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     this.#metadata[key] = value;
     console.debug(`coScene setProperty: ${key}=${value}`);
     if (key === "player") {
+      // A new player is initializing. Flush any seek still tracked for the previous player so its
+      // metrics cannot absorb the new player's activity (IterablePlayer never calls close()).
+      playbackPerformanceMetrics.handlePlayerChange();
+      // Also reset the join id: the collector is memoized across data-source switches, and a
+      // deep-link seek issued during the new player's initialization emits a completion without
+      // a new seek() call — it must carry the documented 0, not the previous player's id.
+      this.#currentSeekId = 0;
       this.#sourceId = value as string;
       this.#analytics.initPlayer(this.#sourceId, args);
     }
   }
 
+  /**
+   * One event per accepted seek. `seek_id` joins the attempt to its completion event within this
+   * session. Superseded and aborted seeks never emit a completion, so completions divided by
+   * attempts is a completion-event ratio, not a failure rate — analysts must not label the
+   * difference "failures" without joining on `seek_id`.
+   */
   public seek(time: Time): void {
+    this.#currentSeekId = Date.now() * 1000 + (this.#seekSequence++ % 1000);
+    playbackPerformanceMetrics.beginSeek();
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
+    void this.#syncEventToAnalytics({
+      event: AppEvent.PLAYER_SEEK,
+      data: { seek_id: this.#currentSeekId },
+    });
   }
   public setSpeed(speed: number): void {
     this.#analytics.setSpeed(speed);
     console.debug(`coScene setSpeed: ${speed}`);
   }
   public close(): void {
+    playbackPerformanceMetrics.finishCurrent("closed");
     if (this.#intervalId != undefined) {
       clearInterval(this.#intervalId);
       this.#intervalId = undefined;
@@ -122,10 +152,21 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     this.#playing = false;
   }
 
-  public recordSeekLatency(latencyMs: number): void {
+  public recordSeekLatency(
+    latencyMs: number,
+    details: Readonly<{ topicCount: number; messageCount: number }>,
+  ): void {
+    playbackPerformanceMetrics.markPlayerReady(latencyMs, details);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK_LATENCY,
-      data: { latency_ms: latencyMs },
+      data: {
+        // 0 means no attempt was recorded (e.g. a completion from a seek issued during player
+        // initialization, which emits no PLAYER_SEEK event).
+        seek_id: this.#currentSeekId,
+        latency_ms: latencyMs,
+        topic_count: details.topicCount,
+        message_count: details.messageCount,
+      },
     });
   }
 

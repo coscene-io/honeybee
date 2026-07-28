@@ -15,6 +15,10 @@ import {
   toNanoSec,
 } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
+import {
+  playbackPerformanceMetrics,
+  VideoLookbackOutcome,
+} from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 import type {
   CompressedVideoFrameEvent,
@@ -33,6 +37,10 @@ import { PartialMessageEvent } from "../../SceneExtension";
 const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
+
+// How a single range read actually resolved. The return value alone conflates these: cancellation
+// and iterator exceptions resolve `[]`, timeout and missing-unsubscribe resolve `undefined`.
+type RangeReadResolution = "success" | "cancelled" | "exception" | "timeout" | "unavailable";
 
 export type VideoDisplayMode = "playback" | "seek" | "direct";
 
@@ -622,6 +630,8 @@ export class CompressedVideoController {
     lookbackTargetNs: bigint,
     options?: SetCompressedVideoFramesOptions,
   ): Promise<boolean> {
+    const metricsSeekId = playbackPerformanceMetrics.captureActiveSeek();
+    let outcome: VideoLookbackOutcome = "failure";
     this.#beginSeekKeyframeSearch(generation);
     try {
       const seekTime = fromNanoSec(lookbackTargetNs);
@@ -654,6 +664,7 @@ export class CompressedVideoController {
 
       for (const { time: windowStart, windowSec } of windowStarts) {
         if (!this.#isCurrentLookback(generation)) {
+          outcome = "cancelled";
           return false;
         }
         const windowStartNs = toNanoSec(windowStart);
@@ -669,8 +680,10 @@ export class CompressedVideoController {
           generation,
           windowStart,
           fromNanoSec(coveredStartNs),
+          metricsSeekId,
         );
         if (!this.#isCurrentLookback(generation)) {
+          outcome = "cancelled";
           return false;
         }
         if (slice == undefined) {
@@ -692,6 +705,7 @@ export class CompressedVideoController {
 
         const ok = await this.#displayReplayFrames(replayFrames, generation, "seek", options);
         if (!this.#isCurrentLookback(generation)) {
+          outcome = "cancelled";
           return false;
         }
         if (!ok) {
@@ -705,6 +719,7 @@ export class CompressedVideoController {
         this.#state.lookbackCancel = undefined;
         this.#state.lookbackGeneration = undefined;
         this.#flushPendingPlaybackAfterReplay(generation);
+        outcome = "success";
         return true;
       }
 
@@ -714,6 +729,9 @@ export class CompressedVideoController {
       return false;
     } finally {
       this.#endSeekKeyframeSearch(generation);
+      if (metricsSeekId != undefined) {
+        playbackPerformanceMetrics.recordVideoLookback(metricsSeekId, outcome);
+      }
     }
   }
 
@@ -787,8 +805,12 @@ export class CompressedVideoController {
     generation: number,
     startTime: Time,
     endTime: Time,
+    metricsSeekId: number | undefined,
   ): Promise<MessageEvent[] | undefined> {
-    let frames = await this.#readRange(generation, startTime, endTime);
+    let frames =
+      metricsSeekId == undefined
+        ? await this.#readRange(generation, startTime, endTime)
+        : await this.#readRangeMeasured(generation, startTime, endTime, metricsSeekId);
     for (const retryDelayMs of LOOKBACK_RANGE_RETRY_DELAYS_MS) {
       if (frames != undefined || !this.#isCurrentLookback(generation)) {
         return frames;
@@ -797,8 +819,33 @@ export class CompressedVideoController {
       if (!this.#isCurrentLookback(generation)) {
         return undefined;
       }
-      frames = await this.#readRange(generation, startTime, endTime);
+      playbackPerformanceMetrics.recordVideoRangeReadRetry(metricsSeekId);
+      frames =
+        metricsSeekId == undefined
+          ? await this.#readRange(generation, startTime, endTime)
+          : await this.#readRangeMeasured(generation, startTime, endTime, metricsSeekId);
     }
+    return frames;
+  }
+
+  async #readRangeMeasured(
+    generation: number,
+    startTime: Time,
+    endTime: Time,
+    metricsSeekId: number,
+  ): Promise<MessageEvent[] | undefined> {
+    // The returned frames alone cannot distinguish outcomes: cancellation and iterator exceptions
+    // both resolve `[]` (so the retry loop stops), which must not be counted as successful reads.
+    const outcomeRef: { outcome: RangeReadResolution } = { outcome: "timeout" };
+    const frames = await this.#readRange(generation, startTime, endTime, outcomeRef);
+    playbackPerformanceMetrics.recordVideoRangeRead(
+      metricsSeekId,
+      outcomeRef.outcome === "success"
+        ? "success"
+        : outcomeRef.outcome === "cancelled"
+          ? "cancelled"
+          : "failure",
+    );
     return frames;
   }
 
@@ -806,9 +853,13 @@ export class CompressedVideoController {
     generation: number,
     startTime: Time,
     endTime: Time,
+    outcomeRef?: { outcome: RangeReadResolution },
   ): Promise<MessageEvent[] | undefined> {
     const subscribeMessageRange = this.#renderer.subscribeMessageRange;
     if (subscribeMessageRange == undefined) {
+      if (outcomeRef) {
+        outcomeRef.outcome = "unavailable";
+      }
       return [];
     }
 
@@ -817,13 +868,16 @@ export class CompressedVideoController {
       let timeout: ReturnType<typeof setTimeout> | undefined;
       let unsubscribe: (() => void) | undefined;
       const currentCancel = () => {
-        finish([]);
+        finish([], "cancelled");
       };
-      const finish = (frames: MessageEvent[] | undefined) => {
+      const finish = (frames: MessageEvent[] | undefined, resolution: RangeReadResolution) => {
         if (finished) {
           return;
         }
         finished = true;
+        if (outcomeRef) {
+          outcomeRef.outcome = resolution;
+        }
         if (timeout != undefined) {
           clearTimeout(timeout);
           timeout = undefined;
@@ -844,21 +898,22 @@ export class CompressedVideoController {
           try {
             const frames = await collectFramesInRange(iterator, this.#topic, startTime, endTime);
             if (this.#isCurrentLookback(generation)) {
-              finish(frames);
+              // A genuinely empty range is still a successful read.
+              finish(frames, "success");
             }
           } catch {
             if (this.#isCurrentLookback(generation)) {
-              finish([]);
+              finish([], "exception");
             }
           }
         },
       });
       if (unsubscribe == undefined) {
-        finish(undefined);
+        finish(undefined, "unavailable");
         return;
       }
       timeout = setTimeout(() => {
-        finish(undefined);
+        finish(undefined, "timeout");
       }, LOOKBACK_RANGE_READ_TIMEOUT_MS);
     });
   }

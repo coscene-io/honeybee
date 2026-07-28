@@ -85,6 +85,10 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
+import {
+  logPlaybackPerformanceMetric,
+  playbackPerformanceMetrics,
+} from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -180,6 +184,12 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     // before cache databases perform idle maintenance.
     scheduleMessageCacheMaintenance((metric, data) => {
       logMessageCacheMetric(analytics, metric, data);
+    });
+  }, [analytics]);
+
+  useEffect(() => {
+    return playbackPerformanceMetrics.installSink((data) => {
+      logPlaybackPerformanceMetric(analytics, data);
     });
   }, [analytics]);
 

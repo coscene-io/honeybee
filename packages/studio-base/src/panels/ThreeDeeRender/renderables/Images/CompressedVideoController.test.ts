@@ -11,6 +11,7 @@ import { H264 } from "@foxglove/den/video";
 import { Time, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 import {
   CompressedVideoController,
@@ -1676,5 +1677,57 @@ describe("CompressedVideoController", () => {
       [20_000_000n, 30_000_000n],
     ]);
     expect(renderer.queueAnimationFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies cancelled and failed lookback range reads distinctly in playback telemetry", async () => {
+    // Force sampling on the process-wide metrics singleton the controller reports to.
+    playbackPerformanceMetrics.overrideRandomForTests(() => 0);
+    const emitted: Array<Record<string, string | number>> = [];
+    const uninstall = playbackPerformanceMetrics.installSink((data) => emitted.push({ ...data }));
+    try {
+      playbackPerformanceMetrics.beginSeek();
+
+      const subscribeMessageRange = jest.fn<
+        ReturnType<SubscribeMessageRange>,
+        Parameters<SubscribeMessageRange>
+      >(({ onNewRangeIterator }) => {
+        if (subscribeMessageRange.mock.calls.length > 1) {
+          // Second seek's read: the range iterator throws mid-collection.
+          void onNewRangeIterator(
+            // eslint-disable-next-line require-yield
+            (async function* (): AsyncGenerator<MessageEvent<CompressedVideo>[]> {
+              throw new Error("iterator failed");
+            })(),
+          );
+        }
+        // First seek's read stays pending until the newer seek cancels it.
+        return jest.fn();
+      });
+      const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+      const controller = makeController({ renderer });
+
+      controller.handleSeek();
+      renderer.currentTime = 30_000_000n;
+      controller.handleSeek();
+      await flushAsyncWork();
+
+      playbackPerformanceMetrics.finishCurrent("closed");
+      expect(emitted).toHaveLength(1);
+      // Neither the cancelled read nor the exception may be counted as a successful range read.
+      expect(emitted[0]).toEqual(
+        expect.objectContaining({
+          status: "closed",
+          range_read_count: 2,
+          range_read_cancel_count: 1,
+          range_read_failure_count: 1,
+          lookback_count: 2,
+          lookback_cancel_count: 1,
+          lookback_failure_count: 1,
+        }),
+      );
+    } finally {
+      uninstall();
+      playbackPerformanceMetrics.overrideRandomForTests(undefined);
+    }
   });
 });
