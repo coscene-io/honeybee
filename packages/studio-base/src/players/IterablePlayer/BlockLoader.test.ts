@@ -679,7 +679,7 @@ describe("BlockLoader", () => {
     // source-provided message cursor - exactly the kind whose end() releases external resources
     // (open readers, network streams). That early return must not abandon the cursor.
     const source = new TestSource() as TestSource & {
-      getMessageCursor?: () => unknown;
+      getMessageCursor?: IDeserializedIterableSource["getMessageCursor"];
     };
     let firstCursor = true;
     let firstCursorEnded = false;
