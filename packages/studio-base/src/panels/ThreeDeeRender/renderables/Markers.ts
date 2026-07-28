@@ -171,7 +171,8 @@ export class Markers extends SceneExtension<TopicMarkers> {
     // Update the MarkersNamespace settings
     const renderable = this.renderables.get(topicName);
     if (renderable) {
-      const settings = this.renderer.config.topics[topicName];
+      const settings: Partial<LayerSettingsMarker> | undefined =
+        this.renderer.config.topics[topicName];
       const ns = renderable.namespaces.get(namespace);
       if (ns) {
         const nsSettings = settings?.namespaces?.[namespace] as

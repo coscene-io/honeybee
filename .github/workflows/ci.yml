@@ -37,6 +37,12 @@ jobs:
       - run: set -x
 
       - run: yarn run tsc --noEmit
+      - name: Verify production web build
+        run: yarn run web:build:prod
+        env:
+          # Production builds upload source maps when this token is present. CI only needs to
+          # compile and type-check the application.
+          SENTRY_AUTH_TOKEN: ""
       - run: yarn run lint:ci
 
   unit-test:

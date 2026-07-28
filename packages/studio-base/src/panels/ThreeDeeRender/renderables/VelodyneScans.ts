@@ -161,7 +161,8 @@ export class VelodyneScans extends SceneExtension<PointCloudHistoryRenderable> {
     const finalQueue: MessageEvent<T>[] = [];
     for (const topic in msgsByTopic) {
       const topicMsgs = msgsByTopic[topic]!;
-      const userSettings = this.renderer.config.topics[topic];
+      const userSettings: Partial<LayerSettingsVelodyneScans> | undefined =
+        this.renderer.config.topics[topic];
       // if the topic has a decaytime add all messages to queue for topic
       if ((userSettings?.decayTime ?? DEFAULT_SETTINGS.decayTime) > 0) {
         finalQueue.push(...topicMsgs);
@@ -262,7 +263,8 @@ export class VelodyneScans extends SceneExtension<PointCloudHistoryRenderable> {
     let renderable = this.renderables.get(topic);
     if (!renderable) {
       // Set the initial settings from default values merged with any user settings
-      const userSettings = this.renderer.config.topics[topic];
+      const userSettings: Partial<LayerSettingsVelodyneScans> | undefined =
+        this.renderer.config.topics[topic];
       const settings = { ...DEFAULT_SETTINGS, ...userSettings };
       if (settings.colorField == undefined && fieldsUpdated) {
         autoSelectColorSettings(settings, fields, { supportsPackedRgbModes: false });
