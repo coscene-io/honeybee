@@ -24,7 +24,7 @@
     "@types/tinycolor2": "1.4.6",
     "@types/utif": "^3.0.2",
     "@xmldom/xmldom": "0.8.10",
-    "app-builder-lib": "26.0.11",
+    "app-builder-lib": "26.15.3",
     "async-mutex": "0.4.0",
     "builder-util": "*",
     "electron": "35.0.3",
