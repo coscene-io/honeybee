@@ -37,6 +37,7 @@ jobs:
       - run: set -x
 
       - run: yarn run tsc --noEmit
+      - run: yarn run build:packages
       - run: yarn run lint:ci
 
   unit-test:
