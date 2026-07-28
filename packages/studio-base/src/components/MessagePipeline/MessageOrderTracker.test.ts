@@ -54,10 +54,12 @@ const playerStateWithMessages = (messages: any): PlayerState => ({
 
 const message = (
   headerStampSeconds: number | undefined,
-  receiveTimeSeconds: number | undefined,
+  receiveTimeSeconds: number,
 ): MessageEvent => ({
   topic: "/foo",
-  receiveTime: receiveTimeSeconds == undefined ? undefined : { sec: receiveTimeSeconds, nsec: 1 },
+  // `MessageEvent.receiveTime` is always a concrete `Time` (never optional), so unlike
+  // `headerStampSeconds` below, `receiveTimeSeconds` must always be provided.
+  receiveTime: { sec: receiveTimeSeconds, nsec: 1 },
   message: {
     header:
       headerStampSeconds == undefined ? undefined : { stamp: { sec: headerStampSeconds, nsec: 1 } },

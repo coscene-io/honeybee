@@ -37,6 +37,9 @@ jobs:
       - run: set -x
 
       - run: yarn run tsc --noEmit
+      - run: yarn run typecheck:ci
+      - run: yarn run typecheck:eslint-plugin
+      - run: yarn run typecheck:message-path
       - run: yarn run lint:ci
 
   unit-test:

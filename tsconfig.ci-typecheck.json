@@ -1,0 +1,51 @@
+// Single-project tsconfig for a full, whole-repo type check in CI.
+//
+// This deliberately does NOT reuse tsconfig.eslint.json, even though the two are similar:
+// lint:ci's type-aware ESLint rules point at tsconfig.eslint.json for every package
+// (including packages/eslint-plugin), so narrowing that file's scope to work around
+// packages/eslint-plugin's NodeNext module resolution (see exclude below) would break
+// ESLint's parsing of that package's files. Keeping this as a separate file means this
+// config's scope/lib/exclude choices can't affect lint:ci at all.
+//
+// We use a single non-composite project here instead of `tsc --build` across each
+// package's own tsconfig.json: none of these packages are published/consumed
+// independently (they only ever feed one rspack bundle), so project references buy
+// nothing but overhead, and `tsc --build`'s multi-project solution mode has real quirks
+// (observed: an ambient global declaration becoming invisible depending on build order).
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["**/*"],
+  "exclude": [
+    // Specifying "exclude" at all replaces TypeScript's implicit default (which normally
+    // excludes node_modules) rather than adding to it, so it must be restated explicitly to
+    // avoid treating every third-party package under node_modules/** as a root file to check.
+    // (Workspace packages symlinked into node_modules/@foxglove/* are *not* the concern here --
+    // TypeScript canonicalizes symlinks, so it already dedupes those against packages/*.)
+    "node_modules/**",
+    // Neither of these is under packages/**, so build:packages never covered them either;
+    // excluding them here keeps this config's scope matching that precedent rather than
+    // silently expanding it. (desktop/ currently also has real, unrelated type errors.)
+    "desktop/**",
+    "benchmark/**",
+    // Has its own tsconfig.json overriding module/moduleResolution to NodeNext (required
+    // for @typescript-eslint/rule-tester's package.json "exports" map), which conflicts
+    // with the rest of the repo's "node" resolution if applied repo-wide. Still covered
+    // by lint:ci's type-aware rules (via tsconfig.eslint.json) and by its own jest run.
+    "packages/eslint-plugin/**",
+    // message-path's own copy of the "*.ne" ambient module declaration (needed only for
+    // message-path's own isolated compilation, e.g. under build:packages) duplicates
+    // studio-base's identical one once merged into a single program: two independent
+    // `declare module "*.ne" { export default ...; }` blocks can't both have an export
+    // default for the same module, regardless of the inner identifier name.
+    "packages/message-path/src/typings/extensions.ts"
+  ],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "lib": ["dom", "dom.iterable", "es2022", "esnext.disposable", "webworker"],
+    "useUnknownInCatchVariables": false,
+    "paths": {
+      "@foxglove/studio-base/*": ["./packages/studio-base/src/*"]
+    }
+  }
+}

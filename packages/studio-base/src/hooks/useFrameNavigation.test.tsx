@@ -1205,11 +1205,17 @@ describe("useFrameNavigation", () => {
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ onNewRangeIterator }) => {
-      void onNewRangeIterator(
-        (async function* () {
-          await releaseRange.promise;
-          yield [];
-        })(),
+      // `onNewRangeIterator` is typed as `void | Promise<void>` because the interface allows
+      // synchronous implementations, but the real implementation (in
+      // findAdjacentMessagePathMatch.ts) is always async. Promise.resolve(...) normalizes either
+      // shape into a promise so we can await completion here without assuming a Promise return.
+      void Promise.resolve(
+        onNewRangeIterator(
+          (async function* () {
+            await releaseRange.promise;
+            yield [];
+          })(),
+        ),
       ).then(iteratorDone.resolve);
       return jest.fn();
     });

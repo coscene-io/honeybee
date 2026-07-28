@@ -26,11 +26,16 @@ new RuleTester({
         {
           message: "Links must specify a target",
           suggestions: [
+            // `link-target` suggestions report a plain `desc` (it has no `meta.messages`/
+            // `messageId`s), which @typescript-eslint/rule-tester's types no longer model even
+            // though the runtime still supports it for backwards compatibility.
             {
+              // @ts-expect-error -- suggestion reports `desc`, not `messageId`
               desc: 'Add target="_blank"',
               output: 'const link = <a href="/" target="_blank">Home</a>;',
             },
             {
+              // @ts-expect-error -- suggestion reports `desc`, not `messageId`
               desc: 'Add target="_self" (the default)',
               output: 'const link = <a href="/" target="_self">Home</a>;',
             },
