@@ -107,6 +107,8 @@ type Props<Config> = {
 export interface PanelStatics<Config> {
   panelType: string;
   defaultConfig: Config;
+  /** Controls whether the panel HOC persists missing default config values on mount. */
+  configInitialization?: "auto" | "none";
 }
 
 /** Used when panels are rendered outside of a <PanelLayout/> */
@@ -171,8 +173,7 @@ export default function Panel<
     const panelCatalog = usePanelCatalog();
 
     const mosaicPath = useContext(MosaicPathContext);
-    const isTopLevelPanel =
-      mosaicPath != undefined && mosaicPath.length === 0 && tabId == undefined;
+    const isTopLevelPanel = mosaicPath?.length === 0 && tabId == undefined;
 
     // There may be a parent panel (when a panel is in a tab).
     const parentPanelContext = useContext(PanelContext);
@@ -184,6 +185,7 @@ export default function Panel<
     );
 
     const defaultConfig = PanelComponent.defaultConfig;
+    const configInitialization = PanelComponent.configInitialization ?? "auto";
     const [savedConfig, saveConfig] = useConfigById<Config>(childId);
 
     const resetPanel = useCallback(() => {
@@ -199,7 +201,7 @@ export default function Panel<
     // An empty object can occur when swapping a panel
     const savedDefaultConfig = useRef(false);
     useLayoutEffect(() => {
-      if (savedDefaultConfig.current) {
+      if (configInitialization === "none" || savedDefaultConfig.current) {
         return;
       }
 
@@ -214,7 +216,7 @@ export default function Panel<
         savedDefaultConfig.current = true;
         saveConfig({ ...defaultConfig, ...savedConfig });
       }
-    }, [defaultConfig, saveConfig, savedConfig]);
+    }, [configInitialization, defaultConfig, saveConfig, savedConfig]);
 
     const panelComponentConfig = useMemo(
       () => ({ ...defaultConfig, ...savedConfig, ...overrideConfig }),
@@ -393,7 +395,7 @@ export default function Panel<
     );
 
     const setHasFullscreenDescendant = useCallback(
-      // eslint-disable-next-line @foxglove/no-boolean-parameters
+      // eslint-disable-next-line @coscene-io/no-boolean-parameters
       (value: boolean) => {
         _setHasFullscreenDescendant(value);
         parentPanelContext?.setHasFullscreenDescendant(value);
@@ -680,6 +682,7 @@ export default function Panel<
   return Object.assign(React.memo(ConnectedPanel), {
     defaultConfig: PanelComponent.defaultConfig,
     panelType: PanelComponent.panelType,
+    configInitialization: PanelComponent.configInitialization,
     displayName: `Panel(${PanelComponent.displayName ?? PanelComponent.name})`,
   });
 }

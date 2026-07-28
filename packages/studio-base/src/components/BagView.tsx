@@ -7,7 +7,8 @@
 import { ImageShadow20Filled } from "@fluentui/react-icons";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import Clear from "@mui/icons-material/Clear";
-import { Stack, alpha } from "@mui/material";
+import PlayArrow from "@mui/icons-material/PlayArrow";
+import { IconButton, Stack, alpha } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
@@ -28,6 +29,7 @@ import {
   usePlaylist,
   CoScenePlaylistStore,
   BagFileInfo,
+  ParamsFile,
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
@@ -55,6 +57,7 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
       },
     },
     padding: "12px",
+    paddingRight: theme.spacing(9),
     margin: "0px 15px 0px 12px",
     position: "relative",
     backgroundColor: theme.palette.background.default,
@@ -133,16 +136,24 @@ const useStyles = makeStyles<void, "bagMetadata">()((theme, _params, classes) =>
   hiddenBarChartIcon: {
     display: "none",
   },
-  hideDeleteButton: {
+  hideActionButtons: {
     display: "none",
   },
-  deleteButton: {
+  actionButtons: {
     position: "absolute",
-    cursor: "pointer",
     top: "50%",
     transform: "translateY(-50%)",
-    right: theme.spacing(2),
+    right: theme.spacing(1.5),
+    display: "flex",
+    gap: theme.spacing(0.5),
+  },
+  actionButton: {
+    color: theme.palette.text.secondary,
     padding: theme.spacing(0.5),
+
+    "&:hover": {
+      color: theme.palette.text.primary,
+    },
   },
   bagFileName: {
     color: theme.palette.text.primary,
@@ -212,6 +223,38 @@ function BagViewComponent(params: {
     return externalInitConfig?.files ?? [];
   }, [externalInitConfig?.files]);
 
+  const saveExternalInitConfig = useCallback(
+    (newFiles: ParamsFile[], targetFileName?: string) => {
+      if (urlState == undefined) {
+        return;
+      }
+
+      consoleApi
+        .setExternalInitConfig({
+          ...externalInitConfig,
+          files: newFiles,
+          ...(targetFileName != undefined ? { targetFileName } : {}),
+        })
+        .then((key) => {
+          updateUrl({
+            dsParams: {
+              key,
+            },
+          });
+
+          selectSource("coscene-data-platform", {
+            type: "connection",
+            params: { ...currentUser, key },
+          });
+        })
+        .catch((error: unknown) => {
+          toast.error(t("updatePlaylistFailed"));
+          console.error("Failed to update playlist", error);
+        });
+    },
+    [urlState, consoleApi, externalInitConfig, updateUrl, selectSource, currentUser, t],
+  );
+
   /**
    *  - cannot delete shadow mode files
    *
@@ -220,7 +263,7 @@ function BagViewComponent(params: {
    *  in the playlist and the remaining files are added back to the file list.
    */
   const deleteBag = useCallback(() => {
-    const newFiles = files.filter((file) => {
+    const newFiles: ParamsFile[] = files.filter((file) => {
       if ("jobRunsName" in file) {
         return true;
       }
@@ -242,41 +285,12 @@ function BagViewComponent(params: {
       });
     });
 
-    if (urlState != undefined) {
-      consoleApi
-        .setExternalInitConfig({
-          ...externalInitConfig,
-          files: newFiles,
-        })
-        .then((key) => {
-          updateUrl({
-            dsParams: {
-              key,
-            },
-          });
+    saveExternalInitConfig(newFiles);
+  }, [files, bagFiles.value, bag.name, saveExternalInitConfig]);
 
-          selectSource("coscene-data-platform", {
-            type: "connection",
-            params: { ...currentUser, key },
-          });
-        })
-        .catch((error: unknown) => {
-          toast.error(t("addFilesFailed"));
-          console.error("Failed to set base info", error);
-        });
-    }
-  }, [
-    files,
-    bagFiles.value,
-    urlState,
-    bag.name,
-    consoleApi,
-    externalInitConfig,
-    updateUrl,
-    selectSource,
-    currentUser,
-    t,
-  ]);
+  const playOnlyBag = useCallback(() => {
+    saveExternalInitConfig([{ filename: bag.name }], bag.name);
+  }, [bag.name, saveExternalInitConfig]);
 
   const onDeleteBag = useCallback(async () => {
     const response = await confirm({
@@ -296,6 +310,25 @@ function BagViewComponent(params: {
 
     deleteBag();
   }, [confirm, bag, deleteBag, t]);
+
+  const onPlayOnlyBag = useCallback(async () => {
+    const response = await confirm({
+      title: t("playOnlyConfirmTitle"),
+      prompt: t("playOnlyConfirmPrompt", {
+        filename: bag.displayName,
+      }),
+      ok: t("playOnlyThisFile"),
+      cancel: t("cancel", {
+        ns: "general",
+      }),
+      variant: "danger",
+    });
+    if (response !== "ok") {
+      return;
+    }
+
+    playOnlyBag();
+  }, [confirm, bag.displayName, playOnlyBag, t]);
 
   return (
     <div className={classes.lineBox}>
@@ -384,17 +417,42 @@ function BagViewComponent(params: {
           </Tooltip>
         )}
         {bag.fileType !== "GHOST_RESULT_FILE" && bag.fileType !== "GHOST_SOURCE_FILE" && (
-          <Clear
-            className={cx(classes.deleteButton, {
-              [classes.hideDeleteButton]: !boxIsHovered,
+          <div
+            className={cx(classes.actionButtons, {
+              [classes.hideActionButtons]: !boxIsHovered,
             })}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteBag().catch((err: unknown) => {
-                console.error(err);
-              });
-            }}
-          />
+          >
+            <Tooltip title={t("remove")} placement="top">
+              <IconButton
+                aria-label={t("remove")}
+                className={classes.actionButton}
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteBag().catch((err: unknown) => {
+                    console.error(err);
+                  });
+                }}
+              >
+                <Clear fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={t("playOnlyThisFile")} placement="top">
+              <IconButton
+                aria-label={t("playOnlyThisFile")}
+                className={classes.actionButton}
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPlayOnlyBag().catch((err: unknown) => {
+                    console.error(err);
+                  });
+                }}
+              >
+                <PlayArrow fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </div>
         )}
       </Stack>
       {bag.mediaStatues === "GENERATED_SUCCESS" && (

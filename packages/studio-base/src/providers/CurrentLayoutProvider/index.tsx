@@ -40,6 +40,7 @@ import {
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { isLayoutEqual } from "@foxglove/studio-base/services/LayoutManager/compareLayouts";
 import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
 
@@ -48,6 +49,7 @@ import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert
 const log = Logger.getLogger(__filename);
 
 export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
+let nextEditRevision = 0;
 
 /**
  * Concrete implementation of CurrentLayoutContext.Provider which handles
@@ -149,7 +151,8 @@ export default function CurrentLayoutProvider({
         }
       } catch (error) {
         console.error(error);
-        enqueueSnackbar(`The layout could not be loaded. ${error.toString()}`, {
+        const message = error instanceof Error ? error.toString() : String(error);
+        enqueueSnackbar(`The layout could not be loaded. ${message}`, {
           variant: "error",
         });
         setIncompatibleLayoutVersionError(false);
@@ -157,6 +160,30 @@ export default function CurrentLayoutProvider({
       }
     },
     [enqueueSnackbar, isMounted, layoutManager, setLayoutState],
+  );
+
+  const setCurrentLayout = useCallback<ICurrentLayout["actions"]["setCurrentLayout"]>(
+    (newLayout) => {
+      if (newLayout == undefined) {
+        setLayoutState({ selectedLayout: undefined });
+        return;
+      }
+      setIncompatibleLayoutVersionError(false);
+      const selectedLayout: NonNullable<LayoutState["selectedLayout"]> = {
+        loading: false,
+        id: newLayout.id ?? (uuidv4() as LayoutID),
+        data: newLayout.data,
+        name: newLayout.name,
+        edited: newLayout.edited,
+      };
+      if (newLayout.transient === true) {
+        selectedLayout.transient = true;
+      }
+      setLayoutState({
+        selectedLayout,
+      });
+    },
+    [setLayoutState],
   );
 
   const performAction = useCallback(
@@ -184,6 +211,8 @@ export default function CurrentLayoutProvider({
           loading: false,
           name: layoutStateRef.current.selectedLayout.name,
           edited: true,
+          editRevision: ++nextEditRevision,
+          ...(layoutStateRef.current.selectedLayout.transient === true ? { transient: true } : {}),
         },
       });
     },
@@ -207,18 +236,37 @@ export default function CurrentLayoutProvider({
   // Changes to the layout storage from external user actions (such as resetting a layout to a
   // previous saved state) need to trigger setLayoutState.
   useEffect(() => {
-    const listener: LayoutManagerEventTypes["change"] = ({ updatedLayout }) => {
-      if (
-        updatedLayout &&
-        layoutStateRef.current.selectedLayout &&
-        updatedLayout.id === layoutStateRef.current.selectedLayout.id
-      ) {
+    const listener: LayoutManagerEventTypes["change"] = (event) => {
+      const { updatedLayout } = event;
+      const currentSelectedLayout = layoutStateRef.current.selectedLayout;
+      if (updatedLayout && updatedLayout.id === currentSelectedLayout?.id) {
+        const updatedData = updatedLayout.working?.data ?? updatedLayout.baseline.data;
+        const dataChanged =
+          currentSelectedLayout.data != undefined &&
+          !isLayoutEqual(updatedData, currentSelectedLayout.data);
+        if (
+          dataChanged &&
+          currentSelectedLayout.edited === true &&
+          (event.source === "update" || event.source === "overwrite")
+        ) {
+          setLayoutState({
+            selectedLayout: {
+              ...currentSelectedLayout,
+              loading: false,
+              id: updatedLayout.id,
+              name: updatedLayout.name,
+            },
+          });
+          return;
+        }
+
         setLayoutState({
           selectedLayout: {
             loading: false,
             id: updatedLayout.id,
-            data: updatedLayout.working?.data ?? updatedLayout.baseline.data,
+            data: updatedData,
             name: updatedLayout.name,
+            ...(event.source === "revert" ? { editRevision: ++nextEditRevision } : {}),
           },
         });
       }
@@ -252,7 +300,7 @@ export default function CurrentLayoutProvider({
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
       updateSharedPanelState,
-      setCurrentLayout: () => {},
+      setCurrentLayout,
       setSelectedLayoutId,
       getCurrentLayoutState: () => layoutStateRef.current,
 
@@ -339,7 +387,14 @@ export default function CurrentLayoutProvider({
         performAction({ type: "END_DRAG", payload });
       },
     }),
-    [analytics, performAction, setSelectedLayoutId, setSelectedPanelIds, updateSharedPanelState],
+    [
+      analytics,
+      performAction,
+      setCurrentLayout,
+      setSelectedLayoutId,
+      setSelectedPanelIds,
+      updateSharedPanelState,
+    ],
   );
 
   const value: ICurrentLayout = useShallowMemo({

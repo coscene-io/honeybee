@@ -22,7 +22,7 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
   const op = view.getUint8(offset);
   offset += 1;
 
-  switch (op as BinaryOpcode) {
+  switch (op) {
     case BinaryOpcode.MESSAGE_DATA: {
       const subscriptionId = view.getUint32(offset, true);
       offset += 4;
@@ -51,7 +51,7 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
     case BinaryOpcode.FETCH_ASSET_RESPONSE: {
       const requestId = view.getUint32(offset, true);
       offset += 4;
-      const status = view.getUint8(offset) as FetchAssetStatus;
+      const status = view.getUint8(offset);
       offset += 1;
       const errorMsgLength = view.getUint32(offset, true);
       offset += 4;
@@ -66,13 +66,13 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
         case FetchAssetStatus.ERROR:
           return { op, requestId, status, error, receiveTime };
         default:
-          throw new Error(`Unrecognized fetch asset status: ${status as number}`);
+          throw new Error(`Unrecognized fetch asset status: ${status}`);
       }
     }
     case BinaryOpcode.PRE_FETCH_ASSET_RESPONSE: {
       const requestId = view.getUint32(offset, true);
       offset += 4;
-      const status = view.getUint8(offset) as FetchAssetStatus;
+      const status = view.getUint8(offset);
       offset += 1;
       // 8 * getUint8 but we just need file hash do not need to decode it
       const etag = view.getBigUint64(offset, true);
@@ -89,7 +89,7 @@ export function parseServerMessage(buffer: ArrayBuffer, receiveTime: number): Se
         case FetchAssetStatus.ERROR:
           return { op, requestId, status, error, receiveTime };
         default:
-          throw new Error(`Unrecognized pre-fetch asset status: ${status as number}`);
+          throw new Error(`Unrecognized pre-fetch asset status: ${status}`);
       }
     }
   }
@@ -102,7 +102,7 @@ export function parseClientMessage(buffer: ArrayBuffer): ClientMessage {
   const op = view.getUint8(offset);
   offset += 1;
 
-  switch (op as ClientBinaryOpcode) {
+  switch (op) {
     case ClientBinaryOpcode.MESSAGE_DATA: {
       const channelId = view.getUint32(offset, true);
       offset += 4;

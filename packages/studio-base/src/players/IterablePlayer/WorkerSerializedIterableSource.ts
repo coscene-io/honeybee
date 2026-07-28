@@ -20,7 +20,9 @@ import type {
   ISerializedIterableSource,
   Initalization,
 } from "./IIterableSource";
+import { PrefetchingMessageCursor } from "./PrefetchingMessageCursor";
 import type { WorkerSerializedIterableSourceWorker } from "./WorkerSerializedIterableSourceWorker";
+import { WORKER_CURSOR_BATCH_DURATION_MS } from "./workerCursorBatchDuration";
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
 
@@ -63,14 +65,10 @@ export class WorkerSerializedIterableSource implements ISerializedIterableSource
       throw new Error(`WorkerIterableSource is not initialized`);
     }
 
-    const cursor = this.getMessageCursor(args);
+    const cursor = new PrefetchingMessageCursor(this.getMessageCursor(args));
     try {
       for (;;) {
-        // The fastest framerate that studio renders at is 60fps. So to render a frame studio needs
-        // at minimum ~16 milliseconds of messages before it will render a frame. Here we fetch
-        // batches of 17 milliseconds so that one batch fetch could result in one frame render.
-        // Fetching too much in a batch means we cannot render until the batch is returned.
-        const results = await cursor.nextBatch(17 /* milliseconds */);
+        const results = await cursor.nextBatch(WORKER_CURSOR_BATCH_DURATION_MS);
         if (!results || results.length === 0) {
           break;
         }

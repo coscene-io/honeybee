@@ -25,6 +25,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   openConnection: "打开连接……",
   openLocalFile: "打开本地文件……",
   recentDataSources: "最近使用的数据源",
+  resetPanels: "重置布局",
   visualizationSettings: "可视化设置",
   showLeftSidebar: "显示左侧边栏",
   showRightSidebar: "显示右侧边栏",

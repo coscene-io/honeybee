@@ -81,7 +81,7 @@ export default class CachedFilelike implements Filelike {
   #virtualBuffer: VirtualLRUBuffer;
   #log: ILogger;
   #closed: boolean = false;
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   #keepReconnectingCallback?: (reconnecting: boolean) => void;
 
   // The current active connection, if there is one. `remainingRange.start` gets updated whenever
@@ -106,7 +106,7 @@ export default class CachedFilelike implements Filelike {
     fileReader: FileReader;
     cacheSizeInBytes?: number;
     log?: ILogger;
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     keepReconnectingCallback?: (reconnecting: boolean) => void;
   }) {
     this.#fileReader = options.fileReader;
@@ -239,7 +239,7 @@ export default class CachedFilelike implements Filelike {
 
     stream.on("error", (error: Error) => {
       const currentConnection = this.#currentConnection;
-      if (!currentConnection || stream !== currentConnection.stream) {
+      if (stream !== currentConnection?.stream) {
         return; // Ignore errors from old streams.
       }
 
@@ -285,7 +285,7 @@ export default class CachedFilelike implements Filelike {
     let lastReportedBytesRead = 0;
     stream.on("data", (chunk: Uint8Array) => {
       const currentConnection = this.#currentConnection;
-      if (!currentConnection || stream !== currentConnection.stream) {
+      if (stream !== currentConnection?.stream) {
         return; // Ignore data from old streams.
       }
 

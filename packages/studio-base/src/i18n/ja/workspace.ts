@@ -15,4 +15,6 @@ export const workspace: Partial<TypeOptions["resources"]["workspace"]> = {
   studioLogs: "ログ",
   topics: "トピック",
   variables: "変数",
+  legacyMessageCacheDeleteBlocked:
+    "従来のメッセージキャッシュの消去を完了するには、他の Honeybee タブを閉じてください。",
 };

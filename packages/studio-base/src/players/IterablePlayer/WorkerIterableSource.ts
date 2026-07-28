@@ -20,7 +20,9 @@ import type {
   IterableSourceInitializeArgs,
   IDeserializedIterableSource,
 } from "./IIterableSource";
+import { PrefetchingMessageCursor } from "./PrefetchingMessageCursor";
 import type { WorkerIterableSourceWorker } from "./WorkerIterableSourceWorker";
+import { WORKER_CURSOR_BATCH_DURATION_MS } from "./workerCursorBatchDuration";
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
 
@@ -34,6 +36,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
 
   #sourceWorkerRemote?: Comlink.Remote<WorkerIterableSourceWorker>;
   #disposeRemote?: () => void;
+  #lifecycleGeneration = 0;
 
   public readonly sourceType = "deserialized";
 
@@ -42,7 +45,10 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   }
 
   public async initialize(): Promise<Initalization> {
+    const lifecycleGeneration = ++this.#lifecycleGeneration;
     this.#disposeRemote?.();
+    this.#disposeRemote = undefined;
+    this.#sourceWorkerRemote = undefined;
 
     // Note: this launches the worker.
     const worker = this.#args.initWorker();
@@ -53,8 +59,26 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
       >(worker);
 
     this.#disposeRemote = dispose;
-    this.#sourceWorkerRemote = await initializeWorker(this.#args.initArgs);
-    return await this.#sourceWorkerRemote.initialize();
+    try {
+      const sourceWorkerRemote = await initializeWorker(this.#args.initArgs);
+      if (lifecycleGeneration !== this.#lifecycleGeneration || this.#disposeRemote !== dispose) {
+        throw new Error("WorkerIterableSource initialization was cancelled");
+      }
+
+      this.#sourceWorkerRemote = sourceWorkerRemote;
+      const result = await sourceWorkerRemote.initialize();
+      if (lifecycleGeneration !== this.#lifecycleGeneration) {
+        throw new Error("WorkerIterableSource initialization was cancelled");
+      }
+      return result;
+    } catch (error) {
+      if (lifecycleGeneration === this.#lifecycleGeneration && this.#disposeRemote === dispose) {
+        this.#disposeRemote = undefined;
+        this.#sourceWorkerRemote = undefined;
+        dispose();
+      }
+      throw error;
+    }
   }
 
   public async *messageIterator(
@@ -64,7 +88,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
       throw new Error(`WorkerIterableSource is not initialized`);
     }
 
-    const cursor = this.getMessageCursor(args);
+    const cursor = new PrefetchingMessageCursor(this.getMessageCursor(args));
     try {
       for (;;) {
         // We previously used 17ms batches (roughly one 60fps frame) so each fetch could feed a frame,
@@ -73,7 +97,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
         // significantly reducing time lost to cross-thread overhead while still returning data fast enough
         // for playback and preloading consumers. With the same 6-15ms per-call cost but 5-6x more payload per call,
         // our downstream consumers see roughly 2x higher effective throughput even though the per-batch latency grew modestly.
-        const results = await cursor.nextBatch(100 /* milliseconds */);
+        const results = await cursor.nextBatch(WORKER_CURSOR_BATCH_DURATION_MS);
         if (!results || results.length === 0) {
           break;
         }
@@ -142,11 +166,18 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   }
 
   public async terminate(): Promise<void> {
-    await this.#sourceWorkerRemote?.terminate();
-    this.#disposeRemote?.();
-    // shouldn't normally have to do this, but if `initialize` is called after again we don't want
-    // to reuse the old remote
+    this.#lifecycleGeneration++;
+    const sourceWorkerRemote = this.#sourceWorkerRemote;
+    const disposeRemote = this.#disposeRemote;
+
+    // Clear references before awaiting the remote so concurrent terminate calls cannot reuse it.
     this.#disposeRemote = undefined;
     this.#sourceWorkerRemote = undefined;
+
+    try {
+      await sourceWorkerRemote?.terminate();
+    } finally {
+      disposeRemote?.();
+    }
   }
 }

@@ -11,10 +11,12 @@ import type React from "react";
 import { toSec } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
+import { EVENT_LANE_HEIGHT_PX } from "./constants";
 import { timeToFraction, type TimelineViewport } from "./timelineViewport";
 
+export { EVENT_LANE_HEIGHT_PX } from "./constants";
+
 export const EVENT_LANE_OVERLAP_TOLERANCE_FRACTION: number = 0.002;
-export const EVENT_LANE_HEIGHT_PX: number = 28;
 export const EVENT_BAR_HEIGHT_PX: number = 24;
 export const EVENT_BAR_TOP_OFFSET_PX: number = 2;
 export const EVENT_MIN_WIDTH_PX: number = 4;

@@ -5,14 +5,30 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as IDB from "idb";
+
 import {
+  type CacheSessionMetadata,
   clearIndexedDbMessageStoreDatabase,
   IndexedDbMessageStore,
+  REALTIME_MESSAGE_CACHE_DB_NAME,
 } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 
 import { PersistentCacheIterableSource } from "./PersistentCacheIterableSource";
 
 describe("PersistentCacheIterableSource", () => {
+  async function readSessionMetadata(sessionId: string): Promise<CacheSessionMetadata | undefined> {
+    const db = await IDB.openDB(REALTIME_MESSAGE_CACHE_DB_NAME);
+    try {
+      const tx = db.transaction("sessions", "readonly");
+      const metadata = await tx.store.get(sessionId);
+      await tx.done;
+      return metadata;
+    } finally {
+      db.close();
+    }
+  }
+
   beforeEach(async () => {
     await clearIndexedDbMessageStoreDatabase();
   });
@@ -109,6 +125,95 @@ describe("PersistentCacheIterableSource", () => {
     await source.terminate();
 
     const reader = new IndexedDbMessageStore({ sessionId: "readonly-terminate" });
+    await reader.init();
+    expect((await reader.stats()).count).toBe(1);
+    await reader.close();
+  });
+
+  it("leases an existing cache for replay without reviving the writer session", async () => {
+    const sessionId = "reader-lease";
+    const store = new IndexedDbMessageStore({
+      sessionId,
+      retentionWindowMs: 120_000,
+      maxCacheSize: 16 * 1024 * 1024,
+    });
+    await store.init();
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: { value: 1 },
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.flush();
+    await store.close();
+    const metadataBeforeReplay = await readSessionMetadata(sessionId);
+    expect(metadataBeforeReplay).toMatchObject({ status: "closed", owners: [] });
+
+    const source = new PersistentCacheIterableSource({
+      sessionId,
+      retentionWindowMs: 1,
+      maxCacheSize: 1,
+    });
+    await source.initialize();
+    expect(await readSessionMetadata(sessionId)).toEqual({
+      ...metadataBeforeReplay,
+      lastActiveAt: expect.any(Number),
+      status: "closed",
+      owners: [],
+      readers: [expect.any(String)],
+    });
+
+    await source.terminate();
+    expect(await readSessionMetadata(sessionId)).toEqual({
+      ...metadataBeforeReplay,
+      lastActiveAt: expect.any(Number),
+      status: "closed",
+      owners: [],
+      readers: [],
+    });
+  });
+
+  it("does not create metadata when a replay session does not exist", async () => {
+    const sessionId = "missing-readonly-session";
+    const source = new PersistentCacheIterableSource({ sessionId });
+
+    await expect(source.initialize()).resolves.toMatchObject({ topics: [] });
+    expect(await readSessionMetadata(sessionId)).toBeUndefined();
+
+    await source.terminate();
+    expect(await readSessionMetadata(sessionId)).toBeUndefined();
+  });
+
+  it("preserves a borrowed cache session when replay metadata initialization fails", async () => {
+    const store = new IndexedDbMessageStore({ sessionId: "readonly-init-failure" });
+    await store.init();
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: { value: 1 },
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.flush();
+    await store.close();
+
+    const metadataFailure = new Error("metadata transaction failed");
+    const statsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "stats")
+      .mockRejectedValueOnce(metadataFailure);
+    const source = new PersistentCacheIterableSource({ sessionId: "readonly-init-failure" });
+
+    await expect(source.initialize()).rejects.toBe(metadataFailure);
+    statsSpy.mockRestore();
+    await expect(source.terminate()).resolves.toBeUndefined();
+    await expect(source.terminate()).resolves.toBeUndefined();
+
+    const reader = new IndexedDbMessageStore({ sessionId: "readonly-init-failure" });
     await reader.init();
     expect((await reader.stats()).count).toBe(1);
     await reader.close();

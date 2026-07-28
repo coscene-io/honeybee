@@ -11,6 +11,7 @@ import { MessageEvent } from "@foxglove/studio";
 
 const VIDEO_FORMATS = new Set(["h264", "h265"]);
 export const DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+export const DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC = 20_000;
 
 type CompressedVideoLike = {
   timestamp: Time;
@@ -97,11 +98,16 @@ export class VideoGopCache {
   // keyframes are, so a later seek can read exactly [keyframe, target] instead of guessing windows.
   readonly #keyframeReceiveTimesByTopic = new Map<string, bigint[]>();
   readonly #maxBytes: number;
+  readonly #maxKeyframeIndexEntriesPerTopic: number;
   #byteSize = 0;
   #targetReceiveTimeNs = 0n;
 
-  public constructor(options: { maxBytes?: number } = {}) {
+  public constructor(
+    options: { maxBytes?: number; maxKeyframeIndexEntriesPerTopic?: number } = {},
+  ) {
     this.#maxBytes = options.maxBytes ?? DEFAULT_VIDEO_GOP_CACHE_MAX_BYTES;
+    this.#maxKeyframeIndexEntriesPerTopic =
+      options.maxKeyframeIndexEntriesPerTopic ?? DEFAULT_KEYFRAME_INDEX_MAX_ENTRIES_PER_TOPIC;
   }
 
   public addFrame(msg: MessageEvent): boolean {
@@ -115,9 +121,7 @@ export class VideoGopCache {
 
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
     let range = ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
-    if (range == undefined) {
-      range = this.#activeRangeByTopic.get(msg.topic);
-    }
+    range ??= this.#activeRangeByTopic.get(msg.topic);
     if (range == undefined || !ranges.includes(range)) {
       range = new CachedVideoRange();
       ranges.push(range);
@@ -129,6 +133,10 @@ export class VideoGopCache {
     this.#mergeOverlappingRanges(msg.topic);
     this.#pruneToBudget();
     return true;
+  }
+
+  public addKnownKeyframeReceiveTime(topic: string, receiveTime: Time): void {
+    this.#recordKeyframeReceiveTime(topic, toNanoSec(receiveTime));
   }
 
   public handleSeek(targetTime: Time): void {
@@ -302,13 +310,19 @@ export class VideoGopCache {
     if (!frame.isKeyframe) {
       return;
     }
-    const topic = frame.messageEvent.topic;
+    this.#recordKeyframeReceiveTime(frame.messageEvent.topic, frame.receiveTimeNs);
+  }
+
+  #recordKeyframeReceiveTime(topic: string, receiveTimeNs: bigint): void {
     let times = this.#keyframeReceiveTimesByTopic.get(topic);
     if (times == undefined) {
       times = [];
       this.#keyframeReceiveTimesByTopic.set(topic, times);
     }
-    sortedInsertUnique(times, frame.receiveTimeNs);
+    sortedInsertUnique(times, receiveTimeNs);
+    if (times.length > this.#maxKeyframeIndexEntriesPerTopic) {
+      times.splice(0, times.length - this.#maxKeyframeIndexEntriesPerTopic);
+    }
   }
 
   public byteSize(): number {
@@ -413,17 +427,40 @@ class CachedVideoRange {
   public size = 0;
 
   public addFrame(frame: CachedVideoFrame): number {
-    const existingIndex = this.frames.findIndex(
-      (entry) => entry.publishTimeNs === frame.publishTimeNs,
-    );
+    const lastFrame = this.frames[this.frames.length - 1];
     let byteDelta = frame.byteLength;
-    if (existingIndex >= 0) {
-      byteDelta -= this.frames[existingIndex]!.byteLength;
-      this.frames.splice(existingIndex, 1, frame);
-    } else {
+    if (lastFrame == undefined || lastFrame.publishTimeNs < frame.publishTimeNs) {
       this.frames.push(frame);
+      this.size += byteDelta;
+      return byteDelta;
     }
-    this.frames.sort(compareCachedFramesByPublishTime);
+
+    if (lastFrame.publishTimeNs === frame.publishTimeNs) {
+      byteDelta -= lastFrame.byteLength;
+      this.frames.splice(this.frames.length - 1, 1, frame);
+      this.size += byteDelta;
+      return byteDelta;
+    }
+
+    let lo = 0;
+    let hi = this.frames.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (this.frames[mid]!.publishTimeNs < frame.publishTimeNs) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    const existingFrame = this.frames[lo];
+    if (existingFrame?.publishTimeNs === frame.publishTimeNs) {
+      byteDelta -= existingFrame.byteLength;
+      this.frames.splice(lo, 1, frame);
+    } else {
+      this.frames.splice(lo, 0, frame);
+    }
+
     this.size += byteDelta;
     return byteDelta;
   }
@@ -542,22 +579,6 @@ class CachedVideoRange {
   public lastReceiveTime(): bigint {
     return maxBigInt(this.frames.map((frame) => frame.receiveTimeNs));
   }
-}
-
-function compareCachedFramesByPublishTime(a: CachedVideoFrame, b: CachedVideoFrame): number {
-  if (a.publishTimeNs < b.publishTimeNs) {
-    return -1;
-  }
-  if (a.publishTimeNs > b.publishTimeNs) {
-    return 1;
-  }
-  if (a.receiveTimeNs < b.receiveTimeNs) {
-    return -1;
-  }
-  if (a.receiveTimeNs > b.receiveTimeNs) {
-    return 1;
-  }
-  return 0;
 }
 
 function compareRangesByPublishTime(a: CachedVideoRange, b: CachedVideoRange): number {

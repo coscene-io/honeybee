@@ -12,6 +12,7 @@ import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
+import { TIMELINE_MIN_HEIGHT_PX } from "@foxglove/studio-base/components/PlaybackControls/constants";
 import {
   IDataSourceFactory,
   usePlayerSelection,
@@ -27,6 +28,7 @@ import {
   WorkspaceContext,
   WorkspaceContextStore,
 } from "./WorkspaceContext";
+import { SHARE_MANIFEST_PANEL_DEFAULTS } from "./shareManifestWorkspaceDefaults";
 import { useOpenFile } from "./useOpenFile";
 
 export type WorkspaceActions = {
@@ -78,6 +80,13 @@ export type WorkspaceActions = {
       setSize: (size: undefined | number) => void;
     };
   };
+
+  /**
+   * Reset panel visibility + size to the share-manifest default layout: left and
+   * right sidebars hidden, timeline panel at minimum height. Sidebar tab selection
+   * and other playback settings are left untouched.
+   */
+  resetPanels: () => void;
 };
 
 function setterValue<T>(action: SetStateAction<T>, value: T): T {
@@ -291,6 +300,22 @@ export function useWorkspaceActions(): WorkspaceActions {
             });
           },
         },
+      },
+
+      resetPanels: () => {
+        set((draft) => {
+          // Single source of truth: every field is read from SHARE_MANIFEST_PANEL_DEFAULTS
+          // so first-load defaults and reset can never diverge. Fallbacks satisfy the
+          // DeepPartial typing but are never hit — the constant defines all of them.
+          const { sidebars, playbackControls } = SHARE_MANIFEST_PANEL_DEFAULTS;
+
+          draft.sidebars.left.open = sidebars?.left?.open ?? false;
+          draft.sidebars.left.size = sidebars?.left?.size;
+          draft.sidebars.right.open = sidebars?.right?.open ?? false;
+          draft.sidebars.right.size = sidebars?.right?.size;
+          draft.playbackControls.timelineHeight =
+            playbackControls?.timelineHeight ?? TIMELINE_MIN_HEIGHT_PX;
+        });
       },
     };
   }, [openFile, set]);

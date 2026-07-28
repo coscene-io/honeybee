@@ -259,18 +259,17 @@ describe("<MomentSubtitleOverlay />", () => {
 
     const container = screen.getByTestId("moment-subtitle-container");
     const subtitle = screen.getByTestId("moment-subtitle");
-    subtitle.getBoundingClientRect = () =>
-      ({
-        bottom: 520,
-        height: 40,
-        left: 300,
-        right: 500,
-        top: 480,
-        width: 200,
-        x: 300,
-        y: 480,
-        toJSON: () => ({}),
-      }) as DOMRect;
+    subtitle.getBoundingClientRect = () => ({
+      bottom: 520,
+      height: 40,
+      left: 300,
+      right: 500,
+      top: 480,
+      width: 200,
+      x: 300,
+      y: 480,
+      toJSON: () => ({}),
+    });
 
     fireEvent.mouseEnter(container);
     expect(

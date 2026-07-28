@@ -23,6 +23,11 @@ export const extensions = {
   pleaseEnterValidUrl: "Please enter a valid URL",
   invalidUrlFormat: "Invalid URL format",
   noInstalledExtensions: "No installed extensions",
+  loadingExtensions: "Loading extensions…",
+  extensionLoadDegraded:
+    "Some extension sources or extensions could not be loaded ({{count}} errors). Built-in panels remain available.",
+  retryExtensionLoad: "Retry",
+  extensionRefreshFailed: "Failed to retry loading extensions",
   organization: "Organization",
   local: "Local",
   back: "Back",

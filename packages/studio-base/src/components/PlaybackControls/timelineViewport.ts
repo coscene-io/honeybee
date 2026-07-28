@@ -212,6 +212,46 @@ export function panViewportBySeconds(
   });
 }
 
+// Move the visible window so it begins at `visibleStartSec`, preserving its duration. Used by the
+// horizontal scrollbar to map an absolute thumb position back onto the viewport.
+export function setViewportVisibleStartSec(
+  viewport: TimelineViewport,
+  visibleStartSec: number,
+): TimelineViewport {
+  const duration = getVisibleDuration(viewport);
+
+  return clampTimelineViewport({
+    ...viewport,
+    visibleStartSec,
+    visibleEndSec: visibleStartSec + duration,
+  });
+}
+
+export type TimelineScrollMetrics = {
+  /** Thumb offset from the track start, as a fraction (0-1) of the total range. */
+  thumbStartFraction: number;
+  /** Thumb length, as a fraction (0-1) of the total range. */
+  thumbSizeFraction: number;
+};
+
+// Describe where the horizontal scrollbar thumb sits: its size is the share of the total range
+// currently visible, and its offset is how far into the total range the visible window begins.
+export function getViewportScrollMetrics(viewport: TimelineViewport): TimelineScrollMetrics {
+  const totalDuration = viewport.totalEndSec - viewport.totalStartSec;
+  if (totalDuration <= 0) {
+    return { thumbStartFraction: 0, thumbSizeFraction: 1 };
+  }
+
+  const thumbSizeFraction = _.clamp(getVisibleDuration(viewport) / totalDuration, 0, 1);
+  const thumbStartFraction = _.clamp(
+    (viewport.visibleStartSec - viewport.totalStartSec) / totalDuration,
+    0,
+    1 - thumbSizeFraction,
+  );
+
+  return { thumbStartFraction, thumbSizeFraction };
+}
+
 export function viewportEquals(left: TimelineViewport, right: TimelineViewport): boolean {
   return (
     left.totalStartSec === right.totalStartSec &&

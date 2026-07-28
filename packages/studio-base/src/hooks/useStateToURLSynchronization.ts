@@ -23,7 +23,8 @@ import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appUR
 const selectCanSeek = (ctx: MessagePipelineContext) =>
   ctx.playerState.capabilities.includes(PlayerCapabilities.playbackControl);
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
-const selectLayoutId = (layoutState: LayoutState) => layoutState.selectedLayout?.id;
+const selectLayoutIdForUrlSync = (layoutState: LayoutState) =>
+  layoutState.selectedLayout?.transient === true ? undefined : layoutState.selectedLayout?.id;
 
 function updateUrl(newState: AppURLState) {
   const newStateUrl = updateAppURLState(new URL(window.location.href), newState);
@@ -38,7 +39,7 @@ export function useStateToURLSynchronization(): void {
   const canSeek = useMessagePipeline(selectCanSeek);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [debouncedCurrentTime] = useDebounce(currentTime, 500, { maxWait: 500 });
-  const layoutId = useCurrentLayoutSelector(selectLayoutId);
+  const layoutId = useCurrentLayoutSelector(selectLayoutIdForUrlSync);
 
   // Sync layoutId with the url.
   useEffect(() => {

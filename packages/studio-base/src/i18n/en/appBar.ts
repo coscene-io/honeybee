@@ -25,6 +25,7 @@ export const appBar = {
   openLocalFile: "Open local file…",
   recentDataSources: "Recent data sources",
   recentlyViewed: "Recently viewed",
+  resetPanels: "Reset layout",
   visualizationSettings: "Visualization settings",
   showLeftSidebar: "Show left sidebar",
   showRightSidebar: "Show right sidebar",

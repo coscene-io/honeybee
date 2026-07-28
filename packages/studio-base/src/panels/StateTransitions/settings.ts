@@ -170,14 +170,14 @@ function buildSettingsTree(
         xAxisMinValue: {
           label: t("min"),
           input: "number",
-          value: config.xAxisMinValue != undefined ? Number(config.xAxisMinValue) : undefined,
+          value: config.xAxisMinValue,
           placeholder: "auto",
         },
         xAxisMaxValue: {
           label: t("max"),
           input: "number",
           error: maxXError,
-          value: config.xAxisMaxValue != undefined ? Number(config.xAxisMaxValue) : undefined,
+          value: config.xAxisMaxValue,
           placeholder: "auto",
         },
         xAxisRange: {

@@ -199,7 +199,7 @@ export default function MomentsList({
     >
       {events.map((event) => {
         const isHovered =
-          (hoveredEvent != undefined && event.event.name === hoveredEvent.event.name) ||
+          event.event.name === hoveredEvent?.event.name ||
           eventsAtHoverValue[event.event.name] != undefined ||
           loopedEvent?.event.name === event.event.name;
 

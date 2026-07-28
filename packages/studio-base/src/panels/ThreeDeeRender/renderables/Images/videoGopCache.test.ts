@@ -85,6 +85,20 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, replacement]);
   });
 
+  it("replaces an out-of-order duplicate publish timestamp without changing frame order", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key", 8);
+    const later = h264Frame(12, 102, "delta", 8);
+    const first = h264Frame(11, 101, "delta", 8);
+    const replacement = h264Frame(13, 101, "delta", 16);
+
+    cache.addFrames([key, later, first]);
+    cache.addFrame(replacement);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(13))).toEqual([key, replacement, later]);
+    expect(cache.byteSize()).toBe(32);
+  });
+
   it("does not stitch a post-seek delta onto an older cached range", () => {
     const cache = new VideoGopCache();
     const oldKey = h264Frame(10, 100, "key");
@@ -246,6 +260,30 @@ describe("VideoGopCache", () => {
 
     cache.clearTopic(TOPIC);
     expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(11))).toBeUndefined();
+  });
+
+  it("indexes a known keyframe receive time without caching GOP frame data", () => {
+    const cache = new VideoGopCache();
+
+    cache.addKnownKeyframeReceiveTime(TOPIC, t(10));
+
+    expect(cache.byteSize()).toBe(0);
+    expect(cache.framesForReceiveTime(TOPIC, t(10))).toBeUndefined();
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(12))).toEqual(t(10));
+  });
+
+  it("caps known keyframe receive time indexes without affecting cached GOP data", () => {
+    const cache = new VideoGopCache({ maxKeyframeIndexEntriesPerTopic: 2 });
+
+    cache.addKnownKeyframeReceiveTime(TOPIC, t(1));
+    cache.addKnownKeyframeReceiveTime(TOPIC, t(2));
+    cache.addKnownKeyframeReceiveTime(TOPIC, t(3));
+
+    expect(cache.byteSize()).toBe(0);
+    expect(cache.framesForReceiveTime(TOPIC, t(3))).toBeUndefined();
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(1))).toBeUndefined();
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(2))).toEqual(t(2));
+    expect(cache.nearestKeyframeReceiveTimeAtOrBefore(TOPIC, t(4))).toEqual(t(3));
   });
 
   it("retains keyframe times in the index after frame data is evicted", () => {

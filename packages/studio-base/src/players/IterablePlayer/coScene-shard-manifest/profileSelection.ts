@@ -105,7 +105,7 @@ export function selectActiveShards(
       // never picked by default. Groups with no video variant (depth,
       // pointcloud, telemetry) are excluded.
       const videoVariants = bucket
-        .filter((s) => s.profile && s.profile !== "full" && s.profile !== "raw")
+        .filter((s) => s.profile != undefined && s.profile !== "full" && s.profile !== "raw")
         .sort(
           (a, b) =>
             (heightByProfileId.get(a.profile!) ?? Number.MAX_SAFE_INTEGER) -

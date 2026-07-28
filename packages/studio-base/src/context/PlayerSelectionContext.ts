@@ -25,6 +25,7 @@ export type DataSourceFactoryInitializeArgs = {
   confirm?: confirmTypes;
   requestWindow?: Time;
   readAheadDuration?: Time;
+  enablePlaybackSpillCache?: boolean;
   manifestStorageSource?: string;
   autoConnectToLan?: boolean;
   checkOutboundTrafficEntitlement?: () => boolean;

@@ -14,7 +14,9 @@ import Editor from "./Editor";
 const mockSetCompilerOptionsSpy = jest.fn();
 const mockSetDiagnosticsOptionsSpy = jest.fn();
 const mockGetCompilerOptionsSpy = jest.fn(() => ({ allowNonTsExtensions: true, target: 99 }));
-const mockAddExtraLibSpy = jest.fn(() => ({ dispose: jest.fn() }));
+const mockAddExtraLibSpy = jest.fn((_content: string, _filePath?: string) => ({
+  dispose: jest.fn(),
+}));
 const mockReactNull = ReactNull;
 
 function mockSetCompilerOptions(...args: unknown[]): void {
@@ -29,8 +31,8 @@ function mockGetCompilerOptions(): { allowNonTsExtensions: boolean; target: numb
   return mockGetCompilerOptionsSpy();
 }
 
-function mockAddExtraLib(...args: unknown[]): { dispose: () => void } {
-  return mockAddExtraLibSpy(...args);
+function mockAddExtraLib(content: string, filePath?: string): { dispose: () => void } {
+  return mockAddExtraLibSpy(content, filePath);
 }
 
 function mockUriParse(value: string) {
@@ -134,7 +136,7 @@ describe("UserScriptEditor Editor", () => {
         autoFormatOnSave={false}
         rosLib=""
         save={jest.fn()}
-        script={{ code: "", filePath: "script.ts" }}
+        script={{ code: "", filePath: "script.ts", readOnly: false }}
         setScriptCode={jest.fn()}
         setScriptOverride={jest.fn()}
         typesLib=""

@@ -21,6 +21,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   CreateLayoutForm,
   CreateLayoutParams,
@@ -54,6 +55,7 @@ export function CopyLayoutDialog({
 }): React.JSX.Element {
   const { t } = useTranslation("layout");
   const { classes } = useStyles();
+  const { getCurrentLayoutState } = useCurrentLayoutActions();
 
   const form = useForm<CreateLayoutForm>({
     defaultValues: {
@@ -64,11 +66,17 @@ export function CopyLayoutDialog({
   });
 
   const onSubmit = (data: CreateLayoutForm) => {
+    const selectedLayout = getCurrentLayoutState().selectedLayout;
     onCreateLayout({
       folder: data.folder.value,
       name: data.name,
       permission: data.permission,
-      data: layout.working?.data ?? layout.baseline.data,
+      data:
+        selectedLayout?.id === layout.id &&
+        selectedLayout.edited === true &&
+        selectedLayout.data != undefined
+          ? selectedLayout.data
+          : (layout.working?.data ?? layout.baseline.data),
     });
     onClose();
   };

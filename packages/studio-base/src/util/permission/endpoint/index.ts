@@ -26,14 +26,7 @@ const checkPermissionList = (permissionCode: Endpoints, permissionList: string[]
   let hasPermission = false;
 
   permissionList.forEach((permission) => {
-    const rx = permission
-      .replace(".", "\\.")
-      .replace("*", ".*")
-      .replace("?", ".")
-      .replaceAll("\\[([^\\]\\[]*)]", "($1)")
-      .replaceAll("<([^<>]+)>", "(?:(?!$1)[^.])*")
-      .replace(",", "|");
-    const regex = new RegExp("^" + rx + "$");
+    const regex = getPermissionRegex(permission);
 
     if (regex.test(permissionCode)) {
       hasPermission = true;
@@ -42,6 +35,26 @@ const checkPermissionList = (permissionCode: Endpoints, permissionList: string[]
 
   return hasPermission;
 };
+
+const permissionRegexCache = new Map<string, RegExp>();
+
+function getPermissionRegex(permission: string): RegExp {
+  const cachedRegex = permissionRegexCache.get(permission);
+  if (cachedRegex) {
+    return cachedRegex;
+  }
+
+  const rx = permission
+    .replace(".", "\\.")
+    .replace("*", ".*")
+    .replace("?", ".")
+    .replaceAll("\\[([^\\]\\[]*)]", "($1)")
+    .replaceAll("<([^<>]+)>", "(?:(?!$1)[^.])*")
+    .replace(",", "|");
+  const regex = new RegExp("^" + rx + "$");
+  permissionRegexCache.set(permission, regex);
+  return regex;
+}
 
 function checkUserPermission(
   permissionCode: Endpoints | undefined,

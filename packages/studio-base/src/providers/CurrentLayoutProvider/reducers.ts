@@ -255,7 +255,7 @@ const createTabPanelWithSingleTab = (
   { idToReplace, layout, idsToRemove }: CreateTabPanelPayload,
 ): LayoutData => {
   const newId = getPanelIdForType(TAB_PANEL_TYPE);
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
+
   const { configById: savedProps } = panelsState;
   // Build the layout for the new tab
   const layoutWithInlinedTabs = inlineTabPanelLayouts(layout, savedProps, idsToRemove);
@@ -293,7 +293,6 @@ const createTabPanelWithMultipleTabs = (
   panelsState: LayoutData,
   { idToReplace, layout, idsToRemove }: CreateTabPanelPayload,
 ): LayoutData => {
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const { configById: savedProps } = panelsState;
   const newId = getPanelIdForType(TAB_PANEL_TYPE);
   const newLayout = replaceAndRemovePanels({ originalId: idToReplace, newId, idsToRemove }, layout);

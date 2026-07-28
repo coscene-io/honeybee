@@ -29,6 +29,6 @@ export function filterMatches(filter: Immutable<MessagePathFilter>, value: unkno
 
   // Test equality using `==` so we can be forgiving for comparing booleans with integers,
   // comparing numbers with strings, bigints with numbers, and so on.
-  // eslint-disable-next-line @foxglove/strict-equality
+  // eslint-disable-next-line @coscene-io/strict-equality
   return currentValue != undefined && currentValue == filter.value;
 }

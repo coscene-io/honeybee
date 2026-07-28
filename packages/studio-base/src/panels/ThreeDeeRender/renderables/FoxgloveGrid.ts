@@ -137,7 +137,7 @@ const tempRgbaFieldReaders: RgbaFieldReaders = {
 };
 
 function numericTypeName(type: NumericType): string {
-  return NumericType[type as number] ?? `${type}`;
+  return NumericType[type];
 }
 
 function getTextureColorSpace(settings: GridColorModeSettings): THREE.ColorSpace {
@@ -474,9 +474,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const topicName = path[1]!;
     const renderable = this.renderables.get(topicName);
     if (renderable) {
-      const settings = this.renderer.config.topics[topicName] as
-        | Partial<LayerSettingsFoxgloveGrid>
-        | undefined;
+      const settings = this.renderer.config.topics[topicName];
       renderable.userData.settings = { ...DEFAULT_SETTINGS, ...settings };
 
       renderable.userData.pose.position.z = renderable.userData.settings.modifyHeight;
@@ -502,9 +500,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const topic = messageEvent.topic;
 
     // Set the initial settings from default values merged with any user settings
-    const userSettings = this.renderer.config.topics[topic] as
-      | Partial<LayerSettingsFoxgloveGrid>
-      | undefined;
+    const userSettings = this.renderer.config.topics[topic];
     const settings = { ...DEFAULT_SETTINGS, ...userSettings };
 
     const foxgloveGrid = normalizeFoxgloveGrid(messageEvent.message, settings.modifyHeight);
@@ -521,7 +517,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
 
     let fields = this.#fieldsByTopic.get(topic);
     let fieldsUpdated = false;
-    if (!fields || fields.length !== foxgloveGrid.fields.length) {
+    if (fields?.length !== foxgloveGrid.fields.length) {
       fields = foxgloveGrid.fields.map((field) => field.name);
       this.#fieldsByTopic.set(topic, fields);
       this.updateSettingsTree();

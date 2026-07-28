@@ -7,14 +7,13 @@
 
 import KeyboardIcon from "@mui/icons-material/KeyboardOutlined";
 import { Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
-const MOD = isMac ? "⌘" : "Ctrl";
+import { MOD, SHORTCUTS, ShortcutKeys } from "./keyboardShortcuts";
 
 const useStyles = makeStyles()((theme) => ({
   section: {
@@ -40,26 +39,6 @@ const useStyles = makeStyles()((theme) => ({
   label: {
     color: theme.palette.text.primary,
   },
-  keyGroup: {
-    alignItems: "center",
-    display: "inline-flex",
-    flex: "0 0 auto",
-    gap: theme.spacing(0.5),
-  },
-  keySeparator: {
-    color: theme.palette.text.secondary,
-  },
-  key: {
-    backgroundColor: theme.palette.action.hover,
-    border: `1px solid ${theme.palette.divider}`,
-    borderRadius: 4,
-    color: theme.palette.text.primary,
-    fontFamily: theme.typography.fontMonospace,
-    fontSize: theme.typography.pxToRem(12),
-    paddingBlock: theme.spacing(0.25),
-    paddingInline: theme.spacing(0.75),
-    whiteSpace: "nowrap",
-  },
 }));
 
 export function ShortcutsHelpButton(): React.JSX.Element {
@@ -67,34 +46,34 @@ export function ShortcutsHelpButton(): React.JSX.Element {
   const { t } = useTranslation("general");
   const [open, setOpen] = useState(false);
 
-  // Each row's `keys` is a list of interchangeable shortcuts rendered as separate key chips
-  // joined by a "/" — e.g. ["←", "→"] reads "← / →". Combined chords stay one chip ("Alt + 1").
+  // Rows reference the shared SHORTCUTS definitions so the dialog stays in sync with the per-control
+  // tooltips. The zoom-at-cursor row interpolates the localized "scroll" word, so it's built here.
   const sections = useMemo(
     () =>
       [
         {
           titleKey: "shortcutsSectionPlayback",
           rows: [
-            { keys: ["Space"], labelKey: "shortcutPlayPause" },
-            { keys: ["←", "→"], labelKey: "shortcutSeekStep" },
-            { keys: ["−", "+"], labelKey: "shortcutPlaybackSpeed" },
+            { keys: SHORTCUTS.playPause, labelKey: "shortcutPlayPause" },
+            { keys: SHORTCUTS.seekStep, labelKey: "shortcutSeekStep" },
+            { keys: SHORTCUTS.playbackSpeed, labelKey: "shortcutPlaybackSpeed" },
           ],
         },
         {
           titleKey: "shortcutsSectionMoments",
           rows: [
-            { keys: ["↑", "↓"], labelKey: "shortcutSelectMoment" },
-            { keys: ["Enter"], labelKey: "shortcutSeekToMoment" },
-            { keys: ["Alt + 1"], labelKey: "shortcutCreateMoment" },
-            { keys: ["I", "O"], labelKey: "shortcutSetInOut" },
-            { keys: ["Delete", "Backspace"], labelKey: "shortcutDeleteMoment" },
+            { keys: SHORTCUTS.selectMoment, labelKey: "shortcutSelectMoment" },
+            { keys: SHORTCUTS.seekToMoment, labelKey: "shortcutSeekToMoment" },
+            { keys: SHORTCUTS.createMoment, labelKey: "shortcutCreateMoment" },
+            { keys: SHORTCUTS.setInOut, labelKey: "shortcutSetInOut" },
+            { keys: SHORTCUTS.deleteMoment, labelKey: "shortcutDeleteMoment" },
           ],
         },
         {
           titleKey: "shortcutsSectionTimeline",
           rows: [
-            { keys: [`${MOD} + =`, `${MOD} + −`], labelKey: "shortcutZoom" },
-            { keys: ["Shift + Z"], labelKey: "shortcutZoomFit" },
+            { keys: SHORTCUTS.zoom, labelKey: "shortcutZoom" },
+            { keys: SHORTCUTS.zoomFit, labelKey: "shortcutZoomFit" },
             { keys: [`${MOD} + ${t("mouseWheel")}`], labelKey: "shortcutZoomCursor" },
           ],
         },
@@ -133,14 +112,7 @@ export function ShortcutsHelpButton(): React.JSX.Element {
                   <Typography variant="body2" className={classes.label}>
                     {t(row.labelKey)}
                   </Typography>
-                  <div className={classes.keyGroup}>
-                    {row.keys.map((key, index) => (
-                      <Fragment key={key}>
-                        {index > 0 && <span className={classes.keySeparator}>/</span>}
-                        <span className={classes.key}>{key}</span>
-                      </Fragment>
-                    ))}
-                  </div>
+                  <ShortcutKeys keys={row.keys} />
                 </div>
               ))}
             </div>

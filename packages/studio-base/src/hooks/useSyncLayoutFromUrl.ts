@@ -47,7 +47,6 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
       return;
     }
 
-    // Don't restore the layout if there's one specified in the app state url.
     if (layoutId) {
       const urlLayout = await layoutManager.getLayout({ id: layoutId });
       if (urlLayout) {

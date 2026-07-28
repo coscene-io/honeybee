@@ -87,6 +87,9 @@ enum AppEvent {
   PLAYER_INITIALIZING_TIME = "player_initializing_time",
   PLAYER_SEEK_LATENCY = "player_seek_latency",
   PLAYER_STALL_DURATION = "player_stall_duration",
+
+  // Cache reliability and storage-pressure events (privacy-safe aggregate fields only)
+  MESSAGE_CACHE = "message_cache",
 }
 
 interface IAnalytics {

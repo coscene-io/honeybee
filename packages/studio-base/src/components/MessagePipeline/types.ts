@@ -37,7 +37,7 @@ export type MessagePipelineContext = Immutable<{
   startPlayback?: () => void;
   pausePlayback?: () => void;
   setPlaybackSpeed?: (speedFraction: PlaybackSpeed) => void;
-  // eslint-disable-next-line @foxglove/no-boolean-parameters
+  // eslint-disable-next-line @coscene-io/no-boolean-parameters
   enableRepeatPlayback?: (enable: boolean) => void;
   playUntil?: (time: Time) => void;
   seekPlayback?: (time: Time) => void;

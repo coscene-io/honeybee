@@ -40,6 +40,7 @@ export { default as RemoteDataSourceFactory } from "./dataSources/RemoteDataSour
 export { default as McapLocalDataSourceFactory } from "./dataSources/McapLocalDataSourceFactory";
 export { default as SampleNuscenesDataSourceFactory } from "./dataSources/SampleNuscenesDataSourceFactory";
 export { default as PersistentCacheDataSourceFactory } from "./dataSources/PersistentCacheDataSourceFactory";
+export { default as CoSceneShareManifestDataSourceFactory } from "./dataSources/CoSceneShareManifestDataSourceFactory";
 export { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
@@ -69,8 +70,11 @@ export type { INativeWindow, NativeWindowEvent } from "./context/NativeWindowCon
 export type { INativeAppMenu, NativeAppMenuEvent } from "./context/NativeAppMenuContext";
 
 // Persistence
+/* eslint-disable @typescript-eslint/no-deprecated -- Preserve the public type export during migration. */
 export type {
   PersistentMessageCache,
+  PersistentMessageCacheAppendOptions,
   PersistenceSessionId,
 } from "./persistence/PersistentMessageCache";
+/* eslint-enable @typescript-eslint/no-deprecated */
 export { IndexedDbMessageStore } from "./persistence/IndexedDbMessageStore";

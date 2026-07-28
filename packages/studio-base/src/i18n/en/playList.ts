@@ -20,7 +20,11 @@ export const playList = {
   deleteConfirmTitle: "Removing files from a playlist",
   deleteConfirmPrompt:
     "After removing the file {{filename}}, it will be unplayable in the current window and can be added to the playlist again.",
+  playOnlyThisFile: "Play this file only",
+  playOnlyConfirmTitle: "Play this file only?",
+  playOnlyConfirmPrompt: "Only {{filename}} will remain playable in this window.",
   addFilesFailed: "Failed to add file",
+  updatePlaylistFailed: "Failed to update playlist",
   remove: "Remove",
   generateMediaSuccess: "Media generation completed, refresh the page to play",
   generateMediaFailed: "Media generation failed, please check the file",

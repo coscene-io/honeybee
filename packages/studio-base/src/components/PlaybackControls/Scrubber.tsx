@@ -8,9 +8,18 @@
 import FitScreenIcon from "@mui/icons-material/FitScreen";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
-import { Fade, PopperProps, Slider as MuiSlider, Tooltip } from "@mui/material";
-import type { Instance } from "@popperjs/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { alpha, Slider as MuiSlider, Tooltip } from "@mui/material";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
@@ -48,14 +57,24 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
-import { BAG_OVERLAY_HEIGHT_PX, BagsOverlay } from "./BagsOverlay";
+import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
-import { layoutEventLanes, EVENT_LANE_HEIGHT_PX } from "./eventLanes";
+import { TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX } from "./TimelinePositionIndicator";
+import TimelineScrollbar from "./TimelineScrollbar";
+import {
+  BAG_OVERLAY_HEIGHT_PX,
+  EVENT_LANE_LAYER_TOP_PX,
+  getTimelineContentHeight,
+  SCRUBBER_TOOLBAR_HEIGHT_PX,
+  TIMELINE_RULER_HEIGHT_PX,
+} from "./constants";
+import { layoutEventLanes } from "./eventLanes";
+import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
   clampTimelineViewport,
@@ -65,6 +84,7 @@ import {
   makeTimelineViewport,
   panViewportBySeconds,
   setTimelineViewportZoomPercentAtTime,
+  setViewportVisibleStartSec,
   viewportEquals,
   zoomViewportAtTime,
   type TimelineViewport,
@@ -75,17 +95,21 @@ import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.sv
 import RollingEditActiveIcon from "../../assets/rolling-edit-active.svg";
 import RollingEditInactiveIcon from "../../assets/rolling-edit-inactive.svg";
 
-const SCRUBBER_TOOLBAR_HEIGHT_PX: number = 32;
-const TIMELINE_RULER_HEIGHT_PX: number = 14;
-const TIMELINE_BAG_TO_EVENT_GAP_PX: number = 4;
-const EVENT_LANE_LAYER_TOP_PX: number =
-  TIMELINE_RULER_HEIGHT_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
-const MIN_TIMELINE_CONTENT_HEIGHT_PX: number = 90;
 // Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
 const ZOOM_KEY_WHEEL_DELTA: number = 300;
+const TIMELINE_TOOLTIP_OFFSET_PX: number = 8;
+const TIMELINE_TOOLTIP_VIEWPORT_PADDING_PX: number = 8;
 
 function isTimelineZoomEnabled(): boolean {
   return true;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (max < min) {
+    return (min + max) / 2;
+  }
+
+  return Math.min(Math.max(value, min), max);
 }
 
 const useStyles = makeStyles()((theme) => ({
@@ -175,6 +199,31 @@ const useStyles = makeStyles()((theme) => ({
   hoverTickLayer: {
     pointerEvents: "none",
   },
+  timelineHoverTooltip: {
+    backgroundColor: alpha(theme.palette.grey[700], 0.92),
+    backdropFilter: "blur(3px)",
+    borderRadius: theme.shape.borderRadius,
+    color: theme.palette.common.white,
+    filter: "drop-shadow(0 3px 8px rgba(0, 0, 0, 0.24))",
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: theme.typography.fontWeightRegular,
+    left: 0,
+    padding: theme.spacing(0.75, 1),
+    pointerEvents: "none",
+    position: "fixed",
+    top: 0,
+    zIndex: theme.zIndex.tooltip,
+    willChange: "transform",
+  },
+  timelineHoverTooltipArrow: {
+    backgroundColor: alpha(theme.palette.grey[700], 0.92),
+    bottom: -4,
+    height: 8,
+    left: "50%",
+    position: "absolute",
+    transform: "translateX(-50%) rotate(45deg)",
+    width: 8,
+  },
 }));
 
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
@@ -195,6 +244,95 @@ type Props = {
 };
 
 export type EventContextMenuRequest = ContextMenuEvent;
+
+type TimelineHoverTooltipInfo = {
+  stamp: Time;
+  clientX: number;
+  clientY: number;
+};
+
+export type TimelineHoverTooltipHandle = {
+  show: (info: TimelineHoverTooltipInfo) => void;
+  hide: () => void;
+};
+
+const TimelineHoverTooltip = forwardRef<TimelineHoverTooltipHandle>(
+  function TimelineHoverTooltip(_props, ref): React.JSX.Element | ReactNull {
+    const { classes } = useStyles();
+    const [hoverInfo, setHoverInfo] = useState<TimelineHoverTooltipInfo | undefined>();
+    const tooltipRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+    const [tooltipSize, setTooltipSize] = useState({ width: 0, height: 0 });
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        show: setHoverInfo,
+        hide: () => {
+          setHoverInfo(undefined);
+        },
+      }),
+      [],
+    );
+
+    useLayoutEffect(() => {
+      if (hoverInfo == undefined) {
+        return;
+      }
+
+      const tooltip = tooltipRef.current;
+      if (tooltip == undefined) {
+        return;
+      }
+
+      const rect = tooltip.getBoundingClientRect();
+      setTooltipSize((oldSize) => {
+        return oldSize.width === rect.width && oldSize.height === rect.height
+          ? oldSize
+          : { width: rect.width, height: rect.height };
+      });
+    }, [hoverInfo]);
+
+    if (hoverInfo == undefined) {
+      return ReactNull;
+    }
+
+    if (typeof document === "undefined") {
+      return ReactNull;
+    }
+
+    const clientX =
+      tooltipSize.width > 0
+        ? clamp(
+            hoverInfo.clientX,
+            tooltipSize.width / 2 + TIMELINE_TOOLTIP_VIEWPORT_PADDING_PX,
+            window.innerWidth - tooltipSize.width / 2 - TIMELINE_TOOLTIP_VIEWPORT_PADDING_PX,
+          )
+        : hoverInfo.clientX;
+    const clientY =
+      tooltipSize.height > 0
+        ? clamp(
+            hoverInfo.clientY,
+            tooltipSize.height + TIMELINE_TOOLTIP_OFFSET_PX + TIMELINE_TOOLTIP_VIEWPORT_PADDING_PX,
+            window.innerHeight,
+          )
+        : hoverInfo.clientY;
+
+    return createPortal(
+      <div
+        ref={tooltipRef}
+        className={classes.timelineHoverTooltip}
+        data-testid="timeline-hover-tooltip"
+        style={{
+          transform: `translate3d(${clientX}px, ${clientY}px, 0) translate(-50%, -100%) translateY(-${TIMELINE_TOOLTIP_OFFSET_PX}px)`,
+        }}
+      >
+        <PlaybackControlsTooltipContent stamp={hoverInfo.stamp} />
+        <span className={classes.timelineHoverTooltipArrow} />
+      </div>,
+      document.body,
+    );
+  },
+);
 
 function dispatchCreateMomentShortcut(): void {
   const event = new KeyboardEvent("keydown", {
@@ -226,7 +364,7 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
       aria-label={label}
       disabled={disableControls}
       size="small"
-      title={label}
+      title={<ShortcutHint label={label} keys={SHORTCUTS.createMoment} />}
       icon={<EventIcon />}
       onClick={dispatchCreateMomentShortcut}
     />
@@ -315,17 +453,17 @@ export default function Scrubber(props: Props): React.JSX.Element {
   } = useWorkspaceActions();
 
   const setHoverValue = useSetHoverValue();
-
-  type HoverInfo = {
-    stamp: Time;
-    clientX: number;
-    clientY: number;
-  };
-  const [hoverInfo, setHoverInfo] = useState<HoverInfo | undefined>();
-  const latestHoverInfo = useLatest(hoverInfo);
+  const hoverTooltipRef = useRef<TimelineHoverTooltipHandle>(ReactNull);
 
   const latestStartTime = useLatest(startTime);
   const latestEndTime = useLatest(endTime);
+
+  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
+  const loading =
+    presence === PlayerPresence.INITIALIZING ||
+    presence === PlayerPresence.BUFFERING ||
+    isKeyframeSearchActive;
+  const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
 
   const defaultViewport = useMemo<TimelineViewport | undefined>(() => {
     if (startTime == undefined || endTime == undefined) {
@@ -345,6 +483,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const resolvedViewport = viewport ?? defaultViewport;
   const latestViewport = useLatest(resolvedViewport);
   const scrubberRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+  const timelineContentRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+  const sliderLayerRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
+  const pendingTimelineHoverRef = useRef<HoverOverEvent | undefined>();
+  const timelineHoverAnimationFrameRef = useRef<number | undefined>();
+  const timelineDragLeftRef = useRef(false);
+  const cleanupTimelineDragPointerUpRef = useRef<(() => void) | undefined>();
 
   // Keep the playhead visible while zoomed in: when the current time leaves the visible
   // window, page the window so the playhead lands back at its left edge. For forward
@@ -385,12 +529,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const onChange = useCallback(
     (playbackSeconds: number) => {
-      if (!latestStartTime.current || !latestEndTime.current) {
+      if (disableControls || !latestStartTime.current || !latestEndTime.current) {
         return;
       }
       onSeek(addTimes(latestStartTime.current, fromSec(playbackSeconds)));
     },
-    [onSeek, latestEndTime, latestStartTime],
+    [disableControls, onSeek, latestEndTime, latestStartTime],
   );
 
   const onHoverOver = useCallback(
@@ -399,7 +543,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return;
       }
       const timeFromStart = fromSec(playbackSeconds);
-      setHoverInfo({ stamp: addTimes(latestStartTime.current, timeFromStart), clientX, clientY });
+      hoverTooltipRef.current?.show({
+        stamp: addTimes(latestStartTime.current, timeFromStart),
+        clientX,
+        clientY,
+      });
       setHoverValue({
         componentId: hoverComponentId,
         type: "PLAYBACK_SECONDS",
@@ -417,7 +565,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const onHoverOut = useCallback(() => {
     clearHoverValue(hoverComponentId);
-    setHoverInfo(undefined);
+    hoverTooltipRef.current?.hide();
   }, [clearHoverValue, hoverComponentId]);
 
   // Clean up the hover value when we are unmounted.
@@ -426,60 +574,172 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const min = useMemo(() => startTime && toSec(startTime), [startTime]);
   const max = useMemo(() => endTime && toSec(endTime), [endTime]);
 
-  const isKeyframeSearchActive = usePlaybackInteractionState(selectIsKeyframeSearchActive);
-  const loading =
-    presence === PlayerPresence.INITIALIZING ||
-    presence === PlayerPresence.BUFFERING ||
-    isKeyframeSearchActive;
-  const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
+  const [isDragging, setIsDragging] = useState(false);
 
-  const popperRef = React.useRef<Instance>(ReactNull);
+  const cancelPendingTimelineHover = useCallback((): void => {
+    if (timelineHoverAnimationFrameRef.current != undefined) {
+      cancelAnimationFrame(timelineHoverAnimationFrameRef.current);
+      timelineHoverAnimationFrameRef.current = undefined;
+    }
+    pendingTimelineHoverRef.current = undefined;
+  }, []);
 
-  const isHovered = hoverInfo != undefined;
+  const flushPendingTimelineHover = useCallback((): void => {
+    timelineHoverAnimationFrameRef.current = undefined;
+    const pendingHover = pendingTimelineHoverRef.current;
+    pendingTimelineHoverRef.current = undefined;
 
-  const popperProps: Partial<PopperProps> = useMemo(
-    () => ({
-      open: isHovered, // Keep the tooltip visible while dragging even when the mouse is outside the playback bar
-      popperRef,
-      modifiers: [
-        {
-          name: "computeStyles",
-          options: {
-            gpuAcceleration: false, // Fixes hairline seam on arrow in chrome.
-          },
-        },
-        {
-          name: "offset",
-          options: {
-            // Offset popper to hug the track better.
-            offset: [0, 4],
-          },
-        },
-      ],
-      anchorEl: {
-        getBoundingClientRect: () => {
-          return new DOMRect(
-            latestHoverInfo.current?.clientX ?? 0,
-            latestHoverInfo.current?.clientY ?? 0,
-            0,
-            0,
-          );
-        },
-      },
-    }),
-    [isHovered, latestHoverInfo],
+    if (pendingHover != undefined) {
+      onHoverOver(pendingHover);
+    }
+  }, [onHoverOver]);
+
+  const scheduleTimelineHover = useCallback(
+    (hoverEvent: HoverOverEvent): void => {
+      pendingTimelineHoverRef.current = hoverEvent;
+      timelineHoverAnimationFrameRef.current ??= requestAnimationFrame(flushPendingTimelineHover);
+    },
+    [flushPendingTimelineHover],
   );
 
   useEffect(() => {
-    if (popperRef.current != undefined) {
-      void popperRef.current.update();
+    return cancelPendingTimelineHover;
+  }, [cancelPendingTimelineHover]);
+
+  const cleanupTimelineDragPointerUp = useCallback((): void => {
+    cleanupTimelineDragPointerUpRef.current?.();
+    cleanupTimelineDragPointerUpRef.current = undefined;
+  }, []);
+
+  const onScrubberPointerMoveCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>): void => {
+      if (resolvedViewport == undefined || disableControls) {
+        return;
+      }
+
+      const timelineContent = timelineContentRef.current;
+      if (timelineContent == undefined) {
+        return;
+      }
+
+      const rect = timelineContent.getBoundingClientRect();
+      if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      ) {
+        return;
+      }
+
+      timelineDragLeftRef.current = false;
+
+      const target = event.target;
+      if (target instanceof Node && sliderLayerRef.current?.contains(target) === true) {
+        return;
+      }
+
+      scheduleTimelineHover({
+        playbackSeconds: clientXToTime(event.clientX, rect, resolvedViewport),
+        clientX: event.clientX,
+        clientY: rect.y + TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX / 2,
+      });
+    },
+    [disableControls, resolvedViewport, scheduleTimelineHover],
+  );
+
+  const finishTimelinePointerInteraction = useCallback(
+    (event?: Pick<PointerEvent, "clientX" | "clientY">): void => {
+      const timelineContent = timelineContentRef.current;
+      const endedOutsideTimeline =
+        event != undefined && timelineContent != undefined
+          ? (() => {
+              const rect = timelineContent.getBoundingClientRect();
+              return (
+                event.clientX < rect.left ||
+                event.clientX > rect.right ||
+                event.clientY < rect.top ||
+                event.clientY > rect.bottom
+              );
+            })()
+          : false;
+
+      if (timelineDragLeftRef.current || endedOutsideTimeline) {
+        cancelPendingTimelineHover();
+        onHoverOut();
+      }
+
+      timelineDragLeftRef.current = false;
+      cleanupTimelineDragPointerUp();
+      setIsDragging(false);
+    },
+    [cancelPendingTimelineHover, cleanupTimelineDragPointerUp, onHoverOut],
+  );
+
+  const beginTimelinePointerInteraction = useCallback((): void => {
+    timelineDragLeftRef.current = false;
+    cleanupTimelineDragPointerUp();
+
+    const onWindowPointerUp = (event: PointerEvent): void => {
+      finishTimelinePointerInteraction(event);
+    };
+    window.addEventListener("pointerup", onWindowPointerUp, { once: true });
+    cleanupTimelineDragPointerUpRef.current = () => {
+      window.removeEventListener("pointerup", onWindowPointerUp);
+    };
+
+    setIsDragging(true);
+  }, [cleanupTimelineDragPointerUp, finishTimelinePointerInteraction]);
+
+  useEffect(() => {
+    return cleanupTimelineDragPointerUp;
+  }, [cleanupTimelineDragPointerUp]);
+
+  const onTimelineContentPointerLeave = useCallback((): void => {
+    cancelPendingTimelineHover();
+    if (!isDragging) {
+      onHoverOut();
+    } else {
+      timelineDragLeftRef.current = true;
     }
-  }, [hoverInfo]);
+  }, [cancelPendingTimelineHover, isDragging, onHoverOut]);
 
-  const [isDragging, setIsDragging] = useState(false);
+  const onScrubberPointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>): void => {
+      const scrubber = scrubberRef.current;
+      const target = event.target;
+      if (scrubber == undefined || !(target instanceof Node) || !scrubber.contains(target)) {
+        return;
+      }
 
+      requestAnimationFrame(() => {
+        scrubberRef.current?.focus({ preventScroll: true });
+      });
+
+      const timelineContent = timelineContentRef.current;
+      if (timelineContent == undefined) {
+        return;
+      }
+
+      const rect = timelineContent.getBoundingClientRect();
+      if (
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      ) {
+        beginTimelinePointerInteraction();
+      }
+    },
+    [beginTimelinePointerInteraction],
+  );
+
+  // Attached as a non-passive native listener (see the effect below) rather than via React's
+  // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
+  // no-op. Without it the browser's own Ctrl+wheel page-zoom fires on Windows/Linux (on macOS
+  // Ctrl+wheel isn't a page-zoom gesture, so the bug only shows up off-Mac).
   const onWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>): void => {
+    (event: WheelEvent): void => {
       const currentViewport = latestViewport.current;
       const target = scrubberRef.current;
       if (currentViewport == undefined || target == undefined) {
@@ -515,6 +775,19 @@ export default function Scrubber(props: Props): React.JSX.Element {
     },
     [latestViewport],
   );
+
+  // Register the wheel handler natively with `{ passive: false }` so the `preventDefault()` calls
+  // above actually suppress the browser default (Ctrl+wheel page zoom, horizontal trackpad scroll).
+  useEffect(() => {
+    const target = scrubberRef.current;
+    if (target == undefined) {
+      return;
+    }
+    target.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      target.removeEventListener("wheel", onWheel);
+    };
+  }, [onWheel]);
 
   const zoomPercent = useMemo(
     () =>
@@ -555,6 +828,38 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport, zoomAnchorSec],
   );
 
+  // After a mouse drag on the zoom slider, MUI releases focus to <body>, which sits outside the
+  // [data-timeline-scrubber] subtree. The timeline zoom shortcuts (Shift+Z, Ctrl/Cmd +/-) gate on
+  // focus being inside that subtree, so they'd go dead right after the user tweaks zoom via the
+  // slider. Return focus to the scrubber on drag-commit so the shortcuts stay active.
+  const restoreScrubberFocus = useCallback((): void => {
+    // Only reclaim focus when the slider released it to <body> (the end of a pointer drag).
+    // Keyboard slider changes also fire onChangeCommitted but keep focus on the slider thumb;
+    // stealing it there would break repeated Arrow/Page/Home/End zoom adjustments.
+    if (document.activeElement !== document.body) {
+      return;
+    }
+    scrubberRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // Surface the Ctrl/Cmd + scroll quick-zoom hint on the zoom slider — both on hover and while the
+  // user drags the thumb, since dragging is the moment they're most likely wanting a faster way.
+  const [zoomSliderHovered, setZoomSliderHovered] = useState(false);
+  const [zoomSliderDragging, setZoomSliderDragging] = useState(false);
+
+  const handleZoomSliderChange = useCallback(
+    (event: Event, value: number | number[]): void => {
+      setZoomSliderDragging(true);
+      onZoomSliderChange(event, value);
+    },
+    [onZoomSliderChange],
+  );
+
+  const handleZoomSliderChangeCommitted = useCallback((): void => {
+    setZoomSliderDragging(false);
+    restoreScrubberFocus();
+  }, [restoreScrubberFocus]);
+
   // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
   const zoomAnchorSecRef = useLatest(zoomAnchorSec);
 
@@ -583,6 +888,23 @@ export default function Scrubber(props: Props): React.JSX.Element {
     }
     setViewport(defaultViewport);
   }, [defaultViewport]);
+
+  // Pan the visible window to start at the position requested by the horizontal scrollbar.
+  const onScrollbarScroll = useCallback(
+    (visibleStartSec: number): void => {
+      setViewport((oldViewport) => {
+        const sourceViewport = oldViewport ?? latestViewport.current;
+        if (sourceViewport == undefined) {
+          return oldViewport;
+        }
+        const nextViewport = setViewportVisibleStartSec(sourceViewport, visibleStartSec);
+        return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
+      });
+    },
+    [latestViewport],
+  );
+
+  const isZoomed = resolvedViewport != undefined && isViewportZoomed(resolvedViewport);
 
   // Zoom shortcuts only respond when focus is on the timeline scrubber, so they don't fire
   // globally (Ctrl/Cmd +/- otherwise also fights the browser's own zoom elsewhere).
@@ -613,17 +935,23 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [resetZoom, zoomTimelineByKey],
   );
 
-  const canCreateEvents =
-    enableList.event === "ENABLE" &&
-    consoleApi.createEvent.permission() &&
-    project.value?.isArchived === false &&
-    record.value?.isArchived === false;
+  const canCreateEvents = useMemo(
+    () =>
+      enableList.event === "ENABLE" &&
+      consoleApi.createEvent.permission() &&
+      project.value?.isArchived === false &&
+      record.value?.isArchived === false,
+    [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
+  );
 
-  const canWriteEvents =
-    enableList.event === "ENABLE" &&
-    consoleApi.updateEvent.permission() &&
-    project.value?.isArchived === false &&
-    record.value?.isArchived === false;
+  const canWriteEvents = useMemo(
+    () =>
+      enableList.event === "ENABLE" &&
+      consoleApi.updateEvent.permission() &&
+      project.value?.isArchived === false &&
+      record.value?.isArchived === false,
+    [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
+  );
 
   const eventLaneCount = useMemo((): number => {
     if (resolvedViewport == undefined || enableList.event !== "ENABLE") {
@@ -635,12 +963,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const timelineContentHeight = useMemo((): number => {
     const effectiveEventLaneCount = previewEventLaneCount ?? eventLaneCount;
-
-    return Math.max(
-      MIN_TIMELINE_CONTENT_HEIGHT_PX,
-      EVENT_LANE_LAYER_TOP_PX + Math.max(effectiveEventLaneCount, 1) * EVENT_LANE_HEIGHT_PX,
-    );
-  }, [eventLaneCount, previewEventLaneCount]);
+    return getTimelineContentHeight({
+      eventLaneCount: effectiveEventLaneCount,
+      showEventLanes: resolvedViewport != undefined && enableList.event === "ENABLE",
+    });
+  }, [enableList.event, eventLaneCount, previewEventLaneCount, resolvedViewport]);
 
   const toggleRollingEdit = useCallback((): void => {
     setRollingEditEnabled((old) => !old);
@@ -658,19 +985,16 @@ export default function Scrubber(props: Props): React.JSX.Element {
     <div
       ref={scrubberRef}
       className={classes.root}
-      onWheel={onWheel}
+      onPointerMoveCapture={onScrubberPointerMoveCapture}
       tabIndex={0}
       data-timeline-scrubber="true"
       // Focus the timeline on any pointer interaction so its keyboard shortcuts activate.
       // Deferred to the next frame because the slider's mousedown preventDefault would
       // otherwise cancel the focus; capture phase so a child stopPropagation can't block it.
-      onPointerDownCapture={() => {
-        requestAnimationFrame(() => {
-          scrubberRef.current?.focus({ preventScroll: true });
-        });
-      }}
+      onPointerDownCapture={onScrubberPointerDownCapture}
     >
       {isTimelineZoomEnabled() && <KeyListener global keyDownHandlers={zoomKeyDownHandlers} />}
+      <TimelineHoverTooltip ref={hoverTooltipRef} />
       <div className={classes.toolbar}>
         <div className={classes.toolbarGroup}>
           {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
@@ -678,30 +1002,50 @@ export default function Scrubber(props: Props): React.JSX.Element {
         <div className={classes.toolbarActions}>
           {isTimelineZoomEnabled() && (
             <div className={classes.zoomControl}>
-              <Tooltip title={t("zoomOut")}>
+              <Tooltip title={<ShortcutHint label={t("zoomOut")} keys={SHORTCUTS.zoomOut} />}>
                 <ZoomOutIcon className={classes.zoomIcon} />
               </Tooltip>
-              <MuiSlider
-                aria-label={t("timelineZoom")}
-                className={classes.zoomSlider}
-                disabled={
-                  zoomPercent == undefined ||
-                  zoomAnchorSec == undefined ||
-                  startTime == undefined ||
-                  endTime == undefined
+              <Tooltip
+                // The slider is already labeled "Timeline zoom"; surface the quick-zoom hint as a
+                // description so it doesn't override the slider's accessible name.
+                describeChild
+                open={zoomSliderHovered || zoomSliderDragging}
+                title={
+                  <ShortcutHint
+                    label={t("shortcutZoomCursor")}
+                    keys={[`${MOD} + ${t("mouseWheel")}`]}
+                  />
                 }
-                min={0}
-                max={100}
-                size="small"
-                value={zoomPercent ?? 0}
-                onChange={onZoomSliderChange}
-              />
-              <Tooltip title={t("zoomIn")}>
+              >
+                <MuiSlider
+                  aria-label={t("timelineZoom")}
+                  className={classes.zoomSlider}
+                  disabled={
+                    zoomPercent == undefined ||
+                    zoomAnchorSec == undefined ||
+                    startTime == undefined ||
+                    endTime == undefined
+                  }
+                  min={0}
+                  max={100}
+                  size="small"
+                  value={zoomPercent ?? 0}
+                  onChange={handleZoomSliderChange}
+                  onChangeCommitted={handleZoomSliderChangeCommitted}
+                  onMouseEnter={() => {
+                    setZoomSliderHovered(true);
+                  }}
+                  onMouseLeave={() => {
+                    setZoomSliderHovered(false);
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title={<ShortcutHint label={t("zoomIn")} keys={SHORTCUTS.zoomIn} />}>
                 <ZoomInIcon className={classes.zoomIcon} />
               </Tooltip>
               <HoverableIconButton
                 size="small"
-                title={t("shortcutZoomFit")}
+                title={<ShortcutHint label={t("shortcutZoomFit")} keys={SHORTCUTS.zoomFit} />}
                 aria-label={t("shortcutZoomFit")}
                 icon={<FitScreenIcon fontSize="small" />}
                 onClick={resetZoom}
@@ -728,99 +1072,87 @@ export default function Scrubber(props: Props): React.JSX.Element {
           <ShortcutsHelpButton />
         </div>
       </div>
-      <Tooltip
-        title={
-          hoverInfo != undefined ? <PlaybackControlsTooltipContent stamp={hoverInfo.stamp} /> : ""
-        }
-        placement="top"
-        disableInteractive
-        slotProps={{
-          popper: popperProps,
-          transition: { timeout: 0 },
-        }}
-        slots={{
-          transition: Fade,
-        }}
-      >
-        <div className={classes.timelineViewport}>
-          <div
-            className={classes.timelineContent}
-            style={{ minHeight: timelineContentHeight }}
-            onPointerDown={() => {
-              setIsDragging(true);
-            }}
-            onPointerUp={() => {
-              setIsDragging(false);
-            }}
-            onPointerLeave={() => {
-              setIsDragging(false);
-            }}
-          >
-            {resolvedViewport && (
-              <Stack
-                position="absolute"
-                flex="auto"
-                fullWidth
-                style={{ height: TIMELINE_RULER_HEIGHT_PX, top: 0 }}
-              >
-                <ProgressPlot loading={loading} viewport={resolvedViewport} />
-              </Stack>
-            )}
-            <Stack fullHeight fullWidth position="absolute" flex={1}>
-              {resolvedViewport && (
-                <Slider
-                  disabled={disableControls || min == undefined || max == undefined}
-                  onContextMenu={onContextMenu}
-                  onHoverOver={onHoverOver}
-                  onHoverOut={onHoverOut}
-                  onChange={onChange}
-                  cursor={cursor}
-                  viewport={resolvedViewport}
-                />
-              )}
+      <div className={classes.timelineViewport}>
+        <div
+          ref={timelineContentRef}
+          id="timeline-content"
+          className={classes.timelineContent}
+          data-testid="timeline-content"
+          style={{ minHeight: timelineContentHeight }}
+          onPointerUp={finishTimelinePointerInteraction}
+          onPointerLeave={onTimelineContentPointerLeave}
+        >
+          {resolvedViewport && (
+            <Stack
+              position="absolute"
+              flex="auto"
+              fullWidth
+              style={{ height: TIMELINE_RULER_HEIGHT_PX, top: 0 }}
+            >
+              <ProgressPlot loading={loading} viewport={resolvedViewport} />
             </Stack>
+          )}
+          <Stack ref={sliderLayerRef} fullHeight fullWidth position="absolute" flex={1}>
             {resolvedViewport && (
-              <Stack
-                position="absolute"
-                fullWidth
-                style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
-              >
-                <BagsOverlay viewport={resolvedViewport} />
-              </Stack>
+              <Slider
+                disabled={disableControls || min == undefined || max == undefined}
+                onContextMenu={onContextMenu}
+                onHoverOver={onHoverOver}
+                onHoverOut={onHoverOut}
+                onChange={onChange}
+                cursor={cursor}
+                viewport={resolvedViewport}
+              />
             )}
-            <div className={classes.laneLayer} data-testid="event-lane-layer">
-              {resolvedViewport && enableList.event === "ENABLE" && (
-                <EventsOverlay
-                  componentId={hoverComponentId}
-                  canWriteEvents={canWriteEvents}
-                  isDragging={isDragging}
-                  eventContextMenuRequest={eventContextMenuRequest}
-                  onEventContextMenuHandled={() => {
-                    setEventContextMenuRequest(undefined);
-                  }}
-                  onPreviewLaneCountChange={handlePreviewEventLaneCountChange}
-                  onSeek={onChange}
-                  rollingEditEnabled={rollingEditEnabled}
-                  setCursor={setCursor}
-                  viewport={resolvedViewport}
-                />
-              )}
-            </div>
-            {resolvedViewport && (
-              <Stack
-                className={classes.hoverTickLayer}
-                data-testid="playback-hover-tick-layer"
-                fullHeight
-                fullWidth
-                position="absolute"
-                flex={1}
-              >
-                <PlaybackBarHoverTicks componentId={hoverComponentId} viewport={resolvedViewport} />
-              </Stack>
+          </Stack>
+          {resolvedViewport && (
+            <Stack
+              position="absolute"
+              fullWidth
+              style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
+            >
+              <BagsOverlay viewport={resolvedViewport} />
+            </Stack>
+          )}
+          <div className={classes.laneLayer} data-testid="event-lane-layer">
+            {resolvedViewport && enableList.event === "ENABLE" && (
+              <EventsOverlay
+                componentId={hoverComponentId}
+                canWriteEvents={canWriteEvents}
+                isDragging={isDragging}
+                eventContextMenuRequest={eventContextMenuRequest}
+                onEventContextMenuHandled={() => {
+                  setEventContextMenuRequest(undefined);
+                }}
+                onPreviewLaneCountChange={handlePreviewEventLaneCountChange}
+                onSeek={onChange}
+                rollingEditEnabled={rollingEditEnabled}
+                setCursor={setCursor}
+                viewport={resolvedViewport}
+              />
             )}
           </div>
+          {resolvedViewport && (
+            <Stack
+              className={classes.hoverTickLayer}
+              data-testid="playback-hover-tick-layer"
+              fullHeight
+              fullWidth
+              position="absolute"
+              flex={1}
+            >
+              <PlaybackBarHoverTicks componentId={hoverComponentId} viewport={resolvedViewport} />
+            </Stack>
+          )}
         </div>
-      </Tooltip>
+      </div>
+      {isZoomed && (
+        <TimelineScrollbar
+          viewport={resolvedViewport}
+          onScroll={onScrollbarScroll}
+          disabled={disableControls}
+        />
+      )}
     </div>
   );
 }

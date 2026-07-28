@@ -50,6 +50,7 @@ import {
   RequestWindow,
   ManifestStorageSourceSettings,
   ReadAheadDuration,
+  PlaybackSpillCache,
   StudioRemoteConfigUrl,
   AutoConnectToLan,
   IsRenderAllTabs,
@@ -260,6 +261,7 @@ export function AppSettingsDialog(
               <RequestWindow />
               <ManifestStorageSourceSettings />
               <ReadAheadDuration />
+              <PlaybackSpillCache />
               {showLanguageOptions && <LanguageSettings />}
               <IsRenderAllTabs />
               {isDesktopApp() && <AutoConnectToLan />}

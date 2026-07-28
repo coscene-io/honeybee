@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
+import FrameNavigationStatus from "@foxglove/studio-base/components/FrameNavigationStatus";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import { useMessageDataItem } from "@foxglove/studio-base/components/MessagePathSyntax/useMessageDataItem";
@@ -80,7 +81,16 @@ function TablePanel({ config, saveConfig }: Props) {
     keyDownHandlers,
     keyUpHandlers,
     panelRef,
-  } = useFrameNavigation();
+    isFrameNavigationPending,
+    frameNavigationStatusMessage,
+    cancelFrameNavigation,
+  } = useFrameNavigation({
+    path: topicPath,
+    noPreviousFrameMessage: t("noPreviousMatchingFrame"),
+    noNextFrameMessage: t("noNextMatchingFrame"),
+    searchingPreviousFrameMessage: t("searchingPreviousMatchingFrame"),
+    searchingNextFrameMessage: t("searchingNextMatchingFrame"),
+  });
 
   const messageDataItems = useMessageDataItem(topicPath ? topicPath : "", {
     historySize: "all",
@@ -136,6 +146,7 @@ function TablePanel({ config, saveConfig }: Props) {
               className={classes.iconButton}
               title={t("previousFrame")}
               onClick={handlePreviousFrame}
+              disabled={isFrameNavigationPending}
               data-testid="previous-frame"
               size="small"
             >
@@ -149,6 +160,7 @@ function TablePanel({ config, saveConfig }: Props) {
               onClick={() => {
                 handleNextFrame(messageDataItems);
               }}
+              disabled={isFrameNavigationPending}
               data-testid="next-frame"
               size="small"
             >
@@ -156,6 +168,15 @@ function TablePanel({ config, saveConfig }: Props) {
             </IconButton>
           )}
         </PanelToolbar>
+        {frameNavigationStatusMessage != undefined && (
+          <FrameNavigationStatus
+            message={frameNavigationStatusMessage}
+            cancelLabel={t("cancel", { ns: "general" })}
+            onCancel={isFrameNavigationPending ? cancelFrameNavigation : undefined}
+            closeLabel={t("close", { ns: "general" })}
+            onClose={cancelFrameNavigation}
+          />
+        )}
         {topicPath.length === 0 && <EmptyState>{t("noTopicSelected")}</EmptyState>}
         {topicPath.length !== 0 && cachedMessages.length === 0 && (
           <EmptyState>{t("waitingForNextMessage")}</EmptyState>

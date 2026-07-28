@@ -1,6 +1,7 @@
 *.log
 *.tsbuildinfo
 .eslintcache
+.codegraph
 .idea/
 .DS_Store
 .webpack/

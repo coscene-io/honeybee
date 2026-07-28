@@ -36,7 +36,7 @@ if (typeof window !== "undefined") {
   (window as { setImmediate?: typeof setImmediate }).setImmediate ??= setImmediate;
 }
 
-global.TextEncoder = util.TextEncoder as unknown as typeof global.TextEncoder;
+global.TextEncoder = util.TextEncoder;
 
 // React available everywhere (matches webpack config)
 // eslint-disable-next-line @typescript-eslint/no-require-imports

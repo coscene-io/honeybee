@@ -29,12 +29,14 @@ import {
   // VelodyneDataSourceFactory,
   ConsoleApi,
   CoSceneDataPlatformDataSourceFactory,
+  CoSceneShareManifestDataSourceFactory,
   SharedProviders,
   PersistentCacheDataSourceFactory,
 } from "@foxglove/studio-base";
 import NativeAppMenuContext from "@foxglove/studio-base/context/NativeAppMenuContext";
 import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowContext";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { isShareManifestUrl } from "@foxglove/studio-base/util/shareManifest";
 
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
@@ -141,6 +143,7 @@ export default function Root(props: {
       new RosbridgeDataSourceFactory(),
       new Ros1SocketDataSourceFactory(),
       new CoSceneDataPlatformDataSourceFactory(),
+      new CoSceneShareManifestDataSourceFactory(),
       new Ros1LocalBagDataSourceFactory(),
       new Ros2LocalBagDataSourceFactory(),
       new UlogLocalDataSourceFactory(),
@@ -163,7 +166,9 @@ export default function Root(props: {
     // We treat presence of the `ds` or `layoutId` params as indicative of active state.
     const windowUrl = new URL(window.location.href);
     const hasActiveURLState =
-      windowUrl.searchParams.has("ds") || windowUrl.searchParams.has("layoutId");
+      windowUrl.searchParams.has("ds") ||
+      windowUrl.searchParams.has("layoutId") ||
+      isShareManifestUrl(windowUrl);
     return hasActiveURLState ? [window.location.href] : desktopBridge.getDeepLinks();
   });
 

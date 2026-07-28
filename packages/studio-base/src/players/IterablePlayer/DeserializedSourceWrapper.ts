@@ -142,9 +142,7 @@ export class DeserializedSourceWrapper implements IDeserializedIterableSource {
     const message = msgEvent.message as Record<string, unknown>;
 
     // Apply field slicing if fields are specified
-    const slicedMessage = subscription.fields
-      ? pickFields(message, subscription.fields as string[])
-      : message;
+    const slicedMessage = subscription.fields ? pickFields(message, subscription.fields) : message;
 
     // Lookup the size estimate for this subscription hash or compute it if not found in the cache.
     let msgSizeEstimate = this.#messageSizeEstimateBySubHash[subscription.subscriptionHash];

@@ -14,6 +14,7 @@ import {
   QuestionCircle24Regular,
   ChevronDown12Regular,
   Desktop24Regular,
+  ArrowCounterclockwise24Regular,
 } from "@fluentui/react-icons";
 import PersonIcon from "@mui/icons-material/Person";
 import { Avatar, Checkbox, IconButton, Link, Tooltip, Typography, Divider } from "@mui/material";
@@ -31,6 +32,7 @@ import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   LayoutState,
   useCurrentLayoutSelector,
@@ -48,6 +50,7 @@ import {
 } from "@foxglove/studio-base/util/download";
 import { getDocsLink } from "@foxglove/studio-base/util/getDocsLink";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
+import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 import { AddPanelMenu } from "./AddPanelMenu";
 import { AppBarContainer } from "./AppBarContainer";
@@ -175,6 +178,7 @@ const selectRightSidebarOpen = (store: WorkspaceContextStore) => store.sidebars.
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (state: UserStore) => state.loginStatus;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 export function AppBar(props: AppBarProps): React.JSX.Element {
   const {
@@ -195,13 +199,15 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
   const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
 
   const { appBarLayoutButton } = useAppContext();
+  const dataSource = useCoreData(selectDataSource);
+  const isShareManifestSource = dataSource?.id === SHARE_MANIFEST_DATA_SOURCE_ID;
 
   const hasCurrentLayout = useCurrentLayoutSelector(selectHasCurrentLayout);
 
   const leftSidebarOpen = useWorkspaceStore(selectLeftSidebarOpen);
   const rightSidebarOpen = useWorkspaceStore(selectRightSidebarOpen);
 
-  const { sidebarActions } = useWorkspaceActions();
+  const { sidebarActions, resetPanels } = useWorkspaceActions();
 
   const [appMenuEl, setAppMenuEl] = useState<undefined | HTMLElement>(undefined);
   const [userAnchorEl, setUserAnchorEl] = useState<undefined | HTMLElement>(undefined);
@@ -323,10 +329,10 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
 
           <div className={classes.end}>
             <div className={classes.endInner} onDoubleClick={handleStopDoubleClick}>
-              {appBarLayoutButton}
+              {!isShareManifestSource && appBarLayoutButton}
               <ShardProfileSelector />
               {/* <CoSceneLayoutButtonOld /> */}
-              <CoSceneLayoutButton />
+              {!isShareManifestSource && <CoSceneLayoutButton />}
               <Stack direction="row" alignItems="center" data-tourid="sidebar-button-group">
                 <AppBarIconButton
                   className={cx({ "Mui-selected": panelMenuOpen })}
@@ -345,7 +351,7 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                 >
                   <SlideAdd24Regular color={theme.palette.appBar.icon} />
                 </AppBarIconButton>
-                {checkSupportCoStudioDownload() && (
+                {!isShareManifestSource && checkSupportCoStudioDownload() && (
                   <AppBarIconButton
                     title={t("openInCoStudio")}
                     aria-label={t("openInCoStudio")}
@@ -398,6 +404,18 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
                     <PanelRight24Regular color={theme.palette.appBar.icon} />
                   )}
                 </AppBarIconButton>
+                {isShareManifestSource && (
+                  <AppBarIconButton
+                    title={t("resetPanels")}
+                    aria-label={t("resetPanels")}
+                    onClick={() => {
+                      resetPanels();
+                    }}
+                    data-tourid="reset-panels-button"
+                  >
+                    <ArrowCounterclockwise24Regular color={theme.palette.appBar.icon} />
+                  </AppBarIconButton>
+                )}
                 <AppBarIconButton
                   title={t("help")}
                   aria-label={t("help")}

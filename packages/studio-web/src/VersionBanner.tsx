@@ -11,6 +11,7 @@ import { useMemo, ReactElement, PropsWithChildren, CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
+import { getWebAssetPath } from "@foxglove/studio-base/util/appConfig";
 import { createMuiTheme } from "@foxglove/theme";
 
 const MINIMUM_CHROME_VERSION = 104;
@@ -58,7 +59,7 @@ const FullSizeStack = () => {
   return (
     <div style={style}>
       <Stack alignItems="center" fullHeight fullWidth justifyContent="center" gap={3}>
-        <img src="/viz/logo-with-text.svg" alt="logo" />
+        <img src={getWebAssetPath("logo-with-text.svg")} alt="logo" />
         <Typography align="center" color="#111827" variant="body1">
           {browserLang === "zh-CN"
             ? "当前使用的 Chrome 版本过低，建议升级至最新版本以获得最佳体验"

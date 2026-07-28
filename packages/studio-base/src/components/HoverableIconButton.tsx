@@ -14,7 +14,10 @@ type Props = {
   color?: IconButtonProps["color"];
   activeColor?: IconButtonProps["color"];
   children?: React.ReactNode;
-} & Omit<IconButtonProps, "children" | "color">;
+  // Widen beyond the DOM `title` attribute (string) so callers can pass rich tooltip content,
+  // e.g. a label paired with keyboard-shortcut chips. Forwarded to the MUI Tooltip, not the button.
+  title?: React.ReactNode;
+} & Omit<IconButtonProps, "children" | "color" | "title">;
 
 const HoverableIconButton = forwardRef<HTMLButtonElement, Props>((props, ref) => {
   const {

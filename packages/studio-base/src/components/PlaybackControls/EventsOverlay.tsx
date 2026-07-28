@@ -7,7 +7,6 @@
 
 import { create } from "@bufbuild/protobuf";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import { alpha, Menu, MenuItem, type PopoverPosition, Tooltip } from "@mui/material";
 import Fade from "@mui/material/Fade";
 import Popper from "@mui/material/Popper";
@@ -43,11 +42,11 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
+import { EVENT_LANE_HEIGHT_PX } from "./constants";
 import {
   getEventLaneRenderStyle,
   layoutEventLanes,
   EVENT_BAR_HEIGHT_PX,
-  EVENT_LANE_HEIGHT_PX,
   type EventLaneLayout,
   type EventLaneLayoutItem,
 } from "./eventLanes";
@@ -74,6 +73,7 @@ import {
   timelinePointToPercent,
   type TimelineViewport,
 } from "./timelineViewport";
+import EventCreateInactiveIcon from "../../assets/event-create-inactive.svg";
 import EventMarkIcon from "../../assets/event-mark.svg";
 
 const HOTSPOT_WIDTH_PER_CENT = 0.01;
@@ -153,6 +153,7 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
   },
   emptyEventHintIcon: {
     color: "currentColor",
+    display: "inline-flex",
     flex: "0 0 auto",
     fontSize: 16,
   },
@@ -348,7 +349,7 @@ function EventTick({
 
   const isHovered =
     forceHovered ||
-    (hoveredEvent != undefined && eventName === hoveredEvent.event.name) ||
+    eventName === hoveredEvent?.event.name ||
     eventsAtHoverValue[eventName] != undefined ||
     loopedEvent?.event.name === eventName;
   const showEdges = isHovered || selectedEventId === eventName || isDragging;
@@ -888,8 +889,7 @@ function areEventMarksEqual(
     left.every((leftMark, index) => {
       const rightMark = right[index];
       return (
-        rightMark != undefined &&
-        leftMark.key === rightMark.key &&
+        leftMark.key === rightMark?.key &&
         Math.abs(leftMark.position - rightMark.position) < 1e-9 &&
         areEqual(leftMark.time, rightMark.time)
       );
@@ -1706,7 +1706,13 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         ))}
         {showEmptyEventHint && (
           <div className={classes.emptyEventHint} data-testid="timeline-empty-event-hint">
-            <ShieldOutlinedIcon className={classes.emptyEventHintIcon} />
+            <span
+              aria-hidden="true"
+              className={classes.emptyEventHintIcon}
+              data-testid="timeline-empty-event-create-icon"
+            >
+              <EventCreateInactiveIcon focusable="false" />
+            </span>
             <span className={classes.emptyEventHintText}>{t("emptyTimelineHint")}</span>
           </div>
         )}

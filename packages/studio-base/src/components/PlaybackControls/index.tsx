@@ -61,10 +61,9 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
 import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
+import { TIMELINE_MIN_HEIGHT_PX, TIMELINE_MAX_HEIGHT_PX } from "./constants";
+import { SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
-
-const TIMELINE_MIN_HEIGHT_PX = 126;
-const TIMELINE_MAX_HEIGHT_PX = 360;
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -205,6 +204,16 @@ export default function PlaybackControls(props: {
     }
   }, [repeat, repeatEnabled, enableRepeatPlayback]);
 
+  const seekIfAllowed = useCallback(
+    (seekTo: Time) => {
+      if (isKeyframeSearchActive) {
+        return;
+      }
+      seek(seekTo);
+    },
+    [isKeyframeSearchActive, seek],
+  );
+
   const togglePlayPause = useCallback(() => {
     if (isKeyframeSearchActive) {
       return;
@@ -216,11 +225,11 @@ export default function PlaybackControls(props: {
       const { startTime: start, endTime: end, currentTime: current } = getTimeInfo();
       // if we are at the end, we need to go back to start
       if (current && end && start && compare(current, end) >= 0) {
-        seek(start);
+        seekIfAllowed(start);
       }
       play();
     }
-  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, play, seek]);
+  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, seekIfAllowed, play]);
 
   // Track SeekStep editing state for KeyListener management
   const [seekStepEditing, setSeekStepEditing] = useState(false);
@@ -262,10 +271,10 @@ export default function PlaybackControls(props: {
       if (playUntil) {
         playUntil(clampedTargetTime);
       } else {
-        seek(clampedTargetTime);
+        seekIfAllowed(clampedTargetTime);
       }
     },
-    [isKeyframeSearchActive, getTimeInfo, playUntil, seek, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, playUntil, seekIfAllowed, effectiveSeekMs],
   );
 
   const seekBackwardAction = useCallback(
@@ -278,9 +287,9 @@ export default function PlaybackControls(props: {
       if (!currentTime) {
         return;
       }
-      seek(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
+      seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
     },
-    [isKeyframeSearchActive, getTimeInfo, seek, effectiveSeekMs],
+    [isKeyframeSearchActive, getTimeInfo, seekIfAllowed, effectiveSeekMs],
   );
 
   const adjustPlaybackSpeed = useCallback(
@@ -389,7 +398,7 @@ export default function PlaybackControls(props: {
           data-testid="playback-controls-resize-handle"
           onPointerDown={startTimelineResize}
         />
-        <Scrubber onSeek={seek} />
+        <Scrubber onSeek={seekIfAllowed} />
         <Stack className={classes.controlsRow} direction="row" alignItems="center" gap={1}>
           <Stack direction="row" flex={1} gap={0.5}>
             <Tooltip
@@ -415,7 +424,7 @@ export default function PlaybackControls(props: {
                 icon={<Info20Regular />}
               />
             </Tooltip>
-            <PlaybackTimeDisplay onSeek={seek} onPause={pause} />
+            <PlaybackTimeDisplay onSeek={seekIfAllowed} onPause={pause} />
             {dataSource?.type === "persistent-cache" &&
               dataSource.previousRecentId != undefined && (
                 <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "websocket" })}>
@@ -439,9 +448,13 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title={t("seekBackward", {
-                ns: "general",
-              })}
+              aria-label={t("seekBackward", { ns: "general" })}
+              title={
+                <ShortcutHint
+                  label={t("seekBackward", { ns: "general" })}
+                  keys={SHORTCUTS.seekBackward}
+                />
+              }
               icon={<Previous20Regular />}
               activeIcon={<Previous20Filled />}
               onClick={() => {
@@ -452,14 +465,12 @@ export default function PlaybackControls(props: {
               disabled={disableControls}
               size="small"
               id="play-pause-button"
+              aria-label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
               title={
-                isPlaying
-                  ? t("pause", {
-                      ns: "general",
-                    })
-                  : t("play", {
-                      ns: "general",
-                    })
+                <ShortcutHint
+                  label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
+                  keys={SHORTCUTS.playPause}
+                />
               }
               onClick={togglePlayPause}
               icon={isPlaying ? <Pause20Regular /> : <Play20Regular />}
@@ -468,9 +479,13 @@ export default function PlaybackControls(props: {
             <HoverableIconButton
               disabled={disableControls}
               size="small"
-              title={t("seekForward", {
-                ns: "general",
-              })}
+              aria-label={t("seekForward", { ns: "general" })}
+              title={
+                <ShortcutHint
+                  label={t("seekForward", { ns: "general" })}
+                  keys={SHORTCUTS.seekForward}
+                />
+              }
               icon={<Next20Regular />}
               activeIcon={<Next20Filled />}
               onClick={() => {

@@ -71,4 +71,7 @@ export default class NoopMetricsCollector implements PlayerMetricsCollectorInter
   public recordStallDuration(_durationMs: number): void {
     // no-op
   }
+  public recordMessageCacheMetric(): void {
+    // no-op
+  }
 }

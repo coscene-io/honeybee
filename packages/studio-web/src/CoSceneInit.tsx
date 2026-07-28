@@ -9,7 +9,11 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useFavicon } from "react-use";
 
-import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import {
+  getAppConfig,
+  getDomainConfig,
+  getWebAssetPath,
+} from "@foxglove/studio-base/util/appConfig";
 
 export function useCoSceneInit(): void {
   const url = new URL(window.location.href);
@@ -28,15 +32,15 @@ export function useCoSceneInit(): void {
   const favicon = useMemo(() => {
     const logo = getDomainConfig().logo;
     if (logo === "agibot") {
-      return "/viz/agibot_favicon.svg";
+      return getWebAssetPath("agibot_favicon.svg");
     } else {
       switch (appConfig.VITE_APP_PROJECT_ENV) {
         case "local":
-          return "/logo-light.svg";
+          return getWebAssetPath("logo-light.svg");
         case "keenon":
-          return "/viz/keenon_favicon.svg";
+          return getWebAssetPath("keenon_favicon.svg");
         default:
-          return "/viz/logo-light.svg";
+          return getWebAssetPath("logo-light.svg");
       }
     }
   }, [appConfig.VITE_APP_PROJECT_ENV]);

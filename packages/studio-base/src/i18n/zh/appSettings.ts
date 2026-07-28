@@ -61,6 +61,11 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   readAheadDurationDescription:
     "设置播放器在当前播放位置前预加载的时长。值越大播放更平滑但占用更多内存，值越小则更省内存。",
   readAheadDurationNextEffectiveNotice: "设置已更新，将在下一次可视化时生效 <Link>立即刷新</Link>",
+  playbackSpillCache: "回放磁盘缓存",
+  playbackSpillCacheDescription:
+    "将超出内存缓存的回放消息存储在本机，以减少重复下载。此功能会加大数据的缓存量，但是可能占用较多浏览器存储空间，设置将在下一次可视化时生效。",
+  playbackSpillCacheNextEffectiveNotice: "设置已更新，将在下一次可视化时生效。",
+  playbackSpillCacheApplyImmediately: "立即生效",
   manifestStorageSource: "Manifest 和 MCAP 请求地址",
   manifestStorageSourceDescription:
     "选择数据平台回放时拉取 manifest 文件以及相对路径 MCAP 分片文件的地址。",

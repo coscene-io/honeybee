@@ -9,6 +9,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 
+import type { Time } from "@foxglove/rostime";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -24,14 +25,32 @@ import PlaybackControls from ".";
 
 jest.mock("./PlaybackTimeDisplay", () => ({
   __esModule: true,
-  default: function MockPlaybackTimeDisplay() {
-    return <div data-testid="playback-time-display" />;
+  default: function MockPlaybackTimeDisplay({ onSeek }: { onSeek: (seekTo: Time) => void }) {
+    return (
+      <button
+        data-testid="playback-time-display"
+        onClick={() => {
+          onSeek({ sec: 3, nsec: 0 });
+        }}
+      >
+        time
+      </button>
+    );
   },
 }));
 jest.mock("./Scrubber", () => ({
   __esModule: true,
-  default: function MockScrubber() {
-    return <div data-testid="scrubber" />;
+  default: function MockScrubber({ onSeek }: { onSeek: (seekTo: Time) => void }) {
+    return (
+      <button
+        data-testid="scrubber"
+        onClick={() => {
+          onSeek({ sec: 2, nsec: 0 });
+        }}
+      >
+        scrubber
+      </button>
+    );
   },
 }));
 jest.mock("./SeekStepControls", () => ({
@@ -53,14 +72,17 @@ function TimelineHeightObserver(): React.JSX.Element {
   return <div data-testid="timeline-height">{timelineHeight}</div>;
 }
 
-function KeyframeSearchLock(): ReactNull {
+function KeyframeSearchLock({ active = true }: { active?: boolean }): ReactNull {
   const acquireKeyframeSearchLock = usePlaybackInteractionState(
     (store) => store.acquireKeyframeSearchLock,
   );
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
     return acquireKeyframeSearchLock({ isPlaying: false });
-  }, [acquireKeyframeSearchLock]);
+  }, [acquireKeyframeSearchLock, active]);
 
   return ReactNull;
 }
@@ -212,6 +234,61 @@ describe("<PlaybackControls />", () => {
     expect(play).not.toHaveBeenCalled();
   });
 
+  it("does not own playback pause while keyframe search is active", () => {
+    const pause = jest.fn();
+
+    render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <PlaybackControls
+          isPlaying
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={pause}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+    jest.mocked(console.warn).mockClear();
+
+    expect(pause).not.toHaveBeenCalled();
+  });
+
+  it("does not own playback resume after keyframe search ends", () => {
+    const play = jest.fn();
+    const pause = jest.fn();
+    const renderControls = ({ active, isPlaying }: { active: boolean; isPlaying: boolean }) => (
+      <Wrapper>
+        <KeyframeSearchLock active={active} />
+        <PlaybackControls
+          isPlaying={isPlaying}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={play}
+          pause={pause}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>
+    );
+
+    const { rerender } = render(renderControls({ active: true, isPlaying: true }));
+    jest.mocked(console.warn).mockClear();
+
+    expect(pause).not.toHaveBeenCalled();
+    expect(play).not.toHaveBeenCalled();
+
+    rerender(renderControls({ active: true, isPlaying: false }));
+    jest.mocked(console.warn).mockClear();
+    expect(play).not.toHaveBeenCalled();
+
+    rerender(renderControls({ active: false, isPlaying: false }));
+    jest.mocked(console.warn).mockClear();
+    expect(play).not.toHaveBeenCalled();
+  });
+
   it("ignores seek and speed keyboard shortcuts while keyframe search is active", () => {
     const seek = jest.fn();
     render(
@@ -261,6 +338,34 @@ describe("<PlaybackControls />", () => {
 
     expect(seek).not.toHaveBeenCalled();
     expect(screen.getByTestId("playback-speed").textContent).toBe("1");
+  });
+
+  it("blocks child seek callbacks while keyframe search is active", () => {
+    const seek = jest.fn();
+    render(
+      <Wrapper>
+        <KeyframeSearchLock />
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({
+            startTime: { sec: 0, nsec: 0 },
+            endTime: { sec: 10, nsec: 0 },
+            currentTime: { sec: 1, nsec: 0 },
+          })}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={seek}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+    jest.mocked(console.warn).mockClear();
+
+    fireEvent.click(screen.getByTestId("scrubber"));
+    fireEvent.click(screen.getByTestId("playback-time-display"));
+
+    expect(seek).not.toHaveBeenCalled();
   });
 
   it("resizes the timeline and stores the height in the workspace", () => {

@@ -115,8 +115,8 @@ export default function getDiff({
         delete unmatchedAfterById[id];
         if (!_.isEmpty(innerDiff)) {
           const isDeleted =
-            Object.keys(innerDiff as DiffObject).length === 1 &&
-            Object.keys(innerDiff as DiffObject)[0] === diffLabels.DELETED.labelText;
+            Object.keys(innerDiff).length === 1 &&
+            Object.keys(innerDiff)[0] === diffLabels.DELETED.labelText;
           diff.push(
             isDeleted
               ? (innerDiff as DiffObject)
@@ -135,7 +135,7 @@ export default function getDiff({
           showFullMessageForDiff,
         });
         if (!_.isEmpty(innerDiff)) {
-          diff.push(innerDiff as DiffObject);
+          diff.push(innerDiff);
         }
       }
       return diff;

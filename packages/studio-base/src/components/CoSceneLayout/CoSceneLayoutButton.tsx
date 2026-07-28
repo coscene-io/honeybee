@@ -20,6 +20,7 @@ import {
   useCurrentLayoutSelector,
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import {
   useWorkspaceStore,
   WorkspaceContextStore,
@@ -41,6 +42,35 @@ const log = Logger.getLogger(__filename);
 const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
+function getCurrentLayoutParams(state: LayoutState, id: LayoutID) {
+  const selectedLayout = state.selectedLayout;
+  if (selectedLayout?.id !== id || selectedLayout.edited !== true) {
+    return { id };
+  }
+  return {
+    id,
+    ...(selectedLayout.data != undefined ? { data: selectedLayout.data } : {}),
+    ...(selectedLayout.editRevision != undefined
+      ? { editRevision: selectedLayout.editRevision }
+      : {}),
+  };
+}
+
+function getLatestLayoutData(state: LayoutState, layout: Layout): LayoutData {
+  const selectedLayout = state.selectedLayout;
+  return selectedLayout?.id === layout.id &&
+    selectedLayout.edited === true &&
+    selectedLayout.data != undefined
+    ? selectedLayout.data
+    : (layout.working?.data ?? layout.baseline.data);
+}
+
+function getCurrentEditRevision(state: LayoutState, id: LayoutID): number | undefined {
+  return state.selectedLayout?.id === id && state.selectedLayout.edited === true
+    ? state.selectedLayout.editRevision
+    : undefined;
+}
+
 export function CoSceneLayoutButton(): React.JSX.Element {
   const open = useWorkspaceStore(layoutDrawerOpen);
   const { layoutDrawer } = useWorkspaceActions();
@@ -56,7 +86,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
   const confirm = useConfirm();
 
   const layoutManager = useLayoutManager();
-  const { setSelectedLayoutId } = useCurrentLayoutActions();
+  const { getCurrentLayoutState, setSelectedLayoutId } = useCurrentLayoutActions();
 
   const [state, dispatch] = useLayoutBrowserReducer({
     lastSelectedId: currentLayoutId,
@@ -116,16 +146,22 @@ export function CoSceneLayoutButton(): React.JSX.Element {
               break;
             }
             case "revert":
-              await layoutManager.revertLayout({ id: id as LayoutID });
+              await layoutManager.revertLayout({
+                id: id as LayoutID,
+                editRevision: getCurrentEditRevision(getCurrentLayoutState(), id as LayoutID),
+              });
               dispatch({ type: "shift-multi-action" });
               break;
             case "save":
-              await layoutManager.overwriteLayout({ id: id as LayoutID });
+              await layoutManager.overwriteLayout(
+                getCurrentLayoutParams(getCurrentLayoutState(), id as LayoutID),
+              );
               dispatch({ type: "shift-multi-action" });
               break;
           }
         } catch (err) {
-          enqueueSnackbar(`Error processing layouts: ${err.message}`, { variant: "error" });
+          const message = err instanceof Error ? err.message : "Unknown error";
+          enqueueSnackbar(`Error processing layouts: ${message}`, { variant: "error" });
           dispatch({ type: "clear-multi-action" });
         }
       }
@@ -134,7 +170,7 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     processAction().catch((err: unknown) => {
       log.error(err);
     });
-  }, [dispatch, enqueueSnackbar, layoutManager, state.multiAction]);
+  }, [dispatch, enqueueSnackbar, getCurrentLayoutState, layoutManager, state.multiAction]);
 
   const onSelectLayout = useCallbackWithToast(
     async (item: Layout) => {
@@ -196,11 +232,12 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onExportLayout = useCallbackWithToast(
     async (item: Layout) => {
-      const content = JSON.stringify(item.working?.data ?? item.baseline.data, undefined, 2) ?? "";
+      const content =
+        JSON.stringify(getLatestLayoutData(getCurrentLayoutState(), item), undefined, 2) ?? "";
       downloadTextFile(content, `${item.name}.json`);
       void analytics.logEvent(AppEvent.LAYOUT_EXPORT, { permission: item.permission });
     },
-    [analytics],
+    [analytics, getCurrentLayoutState],
   );
 
   const onOverwriteLayout = useCallbackWithToast(
@@ -228,10 +265,18 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           return;
         }
       }
-      await layoutManager.overwriteLayout({ id: item.id });
+      await layoutManager.overwriteLayout(getCurrentLayoutParams(getCurrentLayoutState(), item.id));
       void analytics.logEvent(AppEvent.LAYOUT_OVERWRITE, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+    [
+      analytics,
+      confirm,
+      dispatch,
+      getCurrentLayoutState,
+      layoutManager,
+      state.selectedIds.length,
+      t,
+    ],
   );
 
   const onRevertLayout = useCallbackWithToast(
@@ -254,10 +299,21 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         return;
       }
 
-      await layoutManager.revertLayout({ id: item.id });
+      await layoutManager.revertLayout({
+        id: item.id,
+        editRevision: getCurrentEditRevision(getCurrentLayoutState(), item.id),
+      });
       void analytics.logEvent(AppEvent.LAYOUT_REVERT, { permission: item.permission });
     },
-    [analytics, confirm, dispatch, layoutManager, state.selectedIds.length, t],
+    [
+      analytics,
+      confirm,
+      dispatch,
+      getCurrentLayoutState,
+      layoutManager,
+      state.selectedIds.length,
+      t,
+    ],
   );
 
   const onCreateLayout = useCallbackWithToast(

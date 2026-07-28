@@ -16,7 +16,7 @@ Cytoscape.warnings(false);
 const DAG_LAYOUT = {
   name: "dagre",
   fit: false,
-  nodesep: 20,
+  nodeSep: 20,
   rankDir: "TB",
   ranker: "longest-path",
 };

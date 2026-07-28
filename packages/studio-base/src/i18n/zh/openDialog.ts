@@ -69,7 +69,7 @@ export const openDialog: Partial<TypeOptions["resources"]["openDialog"]> = {
   coSceneDataPlatform: "刻行时空数据平台",
   coSceneDataPlatformDesc: "粘贴平台可视化页面中的网页链接，在 coStudio 中进行播放。",
   onlySupportDomain: "仅支持 {{domain}} 域名",
-  urlPathnameMustBeViz: "url pathname 必须为 /viz",
+  urlPathnameMustBeViz: "url pathname 必须为 {{path}}",
   dataSourceMustBeCosSceneDataPlatform: "数据源必须为 coScene 数据平台",
   dataSourceParamsKeyIsRequired: "url 中必须包含 key 参数",
   pleaseLoginFirst: "请先登录",

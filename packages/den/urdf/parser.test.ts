@@ -9,6 +9,21 @@
 import { parseUrdf } from "./parser";
 
 describe("parseUrdf", () => {
+  it("parses inertial mass from the standard value attribute", () => {
+    const robot = parseUrdf(/* xml */ `<?xml version="1.0" ?>
+    <robot name="X">
+      <link name="base">
+        <inertial>
+          <mass value="3.813"/>
+          <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+        </inertial>
+      </link>
+    </robot>
+`);
+
+    expect(robot.links.get("base")?.inertial?.mass).toBe(3.813);
+  });
+
   it("parses pose with arbitrary whitespace", () => {
     expect(
       parseUrdf(/* xml */ `<?xml version="1.0" ?>

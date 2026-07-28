@@ -374,8 +374,9 @@ describe("PanelExtensionAdapter", () => {
     await sig;
   });
 
-  it("should unadvertise when unmounting", (done) => {
+  it("should unadvertise when unmounting", async () => {
     expect.assertions(5);
+    const unadvertised = signal();
     let count = 0;
 
     const initPanel = (context: PanelExtensionContext) => {
@@ -405,7 +406,7 @@ describe("PanelExtensionAdapter", () => {
           );
         } else if (count === 2) {
           expect(advertisements).toEqual(expect.arrayContaining([]));
-          done();
+          unadvertised.resolve();
         }
       },
     };
@@ -433,6 +434,7 @@ describe("PanelExtensionAdapter", () => {
 
     const handle = render(<Wrapper mounted />);
     handle.rerender(<Wrapper mounted={false} />);
+    await unadvertised;
   });
 
   it("supports adding new panels to the layout", async () => {

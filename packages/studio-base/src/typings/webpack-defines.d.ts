@@ -9,3 +9,5 @@
 declare const ReactNull: ReactNull;
 
 declare const FOXGLOVE_STUDIO_VERSION: string | undefined;
+
+declare const HONEYBEE_WEB_PUBLIC_PATH: string | undefined;

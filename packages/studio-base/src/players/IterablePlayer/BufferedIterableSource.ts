@@ -16,6 +16,7 @@ import {
   getReadAheadDurationDefaultTime,
   getReadAheadDurationMinTime,
 } from "@foxglove/studio-base/constants/appSettingsDefaults";
+import type { MessageCacheMetricSink } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import { Range } from "@foxglove/studio-base/util/ranges";
 
 import { CachingIterableSource } from "./CachingIterableSource";
@@ -42,8 +43,7 @@ type Options = {
   // Optional IndexedDB-backed overflow cache for evicted playback ranges.
   spillCache?: {
     sourceId: string;
-    sourceKey?: string;
-    maxCacheSize?: number;
+    metricSink?: MessageCacheMetricSink;
   };
 };
 
@@ -86,6 +86,7 @@ class BufferedIterableSource<MessageType = unknown>
   // producer before exiting.
   #producer?: Promise<void>;
   #producerAbortController?: AbortController;
+  #terminatePromise?: Promise<void>;
 
   #initResult?: Initalization;
 
@@ -260,11 +261,41 @@ class BufferedIterableSource<MessageType = unknown>
   }
 
   /** Calls stopProducer, clears cache, and terminates sources */
-  public async terminate(): Promise<void> {
-    await this.stopProducer();
+  // Returning the stored promise directly preserves identity across concurrent callers.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public terminate(): Promise<void> {
+    this.#terminatePromise ??= this.#terminateImpl();
+    return this.#terminatePromise;
+  }
+
+  async #terminateImpl(): Promise<void> {
+    let firstError: unknown;
+    try {
+      await this.stopProducer();
+    } catch (error) {
+      firstError = error;
+    }
+
     this.#cache.clear();
     this.#source.removeAllListeners("loadedRangesChange");
-    await this.#source.terminate();
+    try {
+      await this.#source.terminate();
+    } catch (error) {
+      if (firstError == undefined) {
+        firstError = error;
+      } else {
+        log.warn("Source termination also failed after the producer stopped with an error", error);
+      }
+    }
+
+    if (firstError != undefined) {
+      if (firstError instanceof Error) {
+        throw firstError;
+      }
+      throw new Error(
+        typeof firstError === "string" ? firstError : "Buffered iterable source termination failed",
+      );
+    }
   }
 
   public async stopProducer(): Promise<void> {
@@ -273,8 +304,14 @@ class BufferedIterableSource<MessageType = unknown>
     this.#producerAbortController?.abort();
     this.#readSignal.notifyAll();
     this.#writeSignal.notifyAll();
-    await this.#producer;
-    this.#producer = undefined;
+    const producer = this.#producer;
+    try {
+      await producer;
+    } finally {
+      if (this.#producer === producer) {
+        this.#producer = undefined;
+      }
+    }
   }
 
   public loadedRanges(): Range[] {

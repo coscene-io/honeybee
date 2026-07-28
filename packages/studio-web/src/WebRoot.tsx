@@ -18,6 +18,7 @@ import {
   ConsoleApi,
   SharedProviders,
   PersistentCacheDataSourceFactory,
+  CoSceneShareManifestDataSourceFactory,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
@@ -56,6 +57,7 @@ export function WebRoot(props: {
   const dataSources = useMemo(() => {
     const sources = [
       new CoSceneDataPlatformDataSourceFactory(),
+      new CoSceneShareManifestDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory(),
       new PersistentCacheDataSourceFactory(),
     ];

@@ -15,6 +15,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { useCallback, useMemo } from "react";
+import { useLatest } from "react-use";
 
 import { useMessageReducer } from "@foxglove/studio-base/PanelAPI";
 import { subscribePayloadFromMessagePath } from "@foxglove/studio-base/players/subscribePayloadFromMessagePath";
@@ -71,6 +72,7 @@ type ReducedValue = {
  */
 export function useMessageDataItem(path: string, options?: Options): ReducedValue["matches"] {
   const { historySize = 1, onRestore } = options ?? {};
+  const onRestoreRef = useLatest(onRestore);
   const topics: SubscribePayload[] = useMemo(() => {
     const payload = subscribePayloadFromMessagePath(path, "partial");
     if (payload) {
@@ -124,7 +126,7 @@ export function useMessageDataItem(path: string, options?: Options): ReducedValu
 
   const restore = useCallback(
     (prevValue?: ReducedValue): ReducedValue => {
-      onRestore?.();
+      onRestoreRef.current?.();
 
       if (!prevValue) {
         return {
@@ -156,7 +158,7 @@ export function useMessageDataItem(path: string, options?: Options): ReducedValu
 
       return prevValue;
     },
-    [cachedGetMessagePathDataItems, historySize, path],
+    [cachedGetMessagePathDataItems, historySize, onRestoreRef, path],
   );
 
   const reducedValue = useMessageReducer<ReducedValue>({

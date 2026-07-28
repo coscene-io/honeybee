@@ -33,7 +33,7 @@ import {
   normalizeRosImage,
 } from "./Images/imageNormalizers";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPrefixMatching";
-import { filterCompressedVideoQueue } from "./Images/videoMessageQueue";
+import { recordKeyframesAndFilterCompressedVideoQueue } from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
 import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import {
@@ -189,7 +189,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
           handler: this.#handleCompressedVideo,
-          filterQueue: filterCompressedVideoQueue,
+          filterQueue: this.#filterCompressedVideoQueue,
         },
       },
     ];
@@ -226,9 +226,8 @@ export class Images extends SceneExtension<ImageRenderable> {
       if (!topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
         continue;
       }
-      const settings = this.renderer.config.topics[topic.name] as
-        | Partial<LayerSettingsImage>
-        | undefined;
+      const settings: Partial<LayerSettingsImage> | undefined =
+        this.renderer.config.topics[topic.name];
       if (settings?.visible === true) {
         topics.add(topic.name);
       }
@@ -304,16 +303,14 @@ export class Images extends SceneExtension<ImageRenderable> {
     }
 
     const imageTopic = path[1]!;
-    const prevSettings = this.renderer.config.topics[imageTopic] as
-      | Partial<LayerSettingsImage>
-      | undefined;
+    const prevSettings: Partial<LayerSettingsImage> | undefined =
+      this.renderer.config.topics[imageTopic];
     const prevCameraInfoTopic = prevSettings?.cameraInfoTopic;
 
     this.saveSetting(path, action.payload.value);
 
-    const settings = this.renderer.config.topics[imageTopic] as
-      | Partial<LayerSettingsImage>
-      | undefined;
+    const settings: Partial<LayerSettingsImage> | undefined =
+      this.renderer.config.topics[imageTopic];
     const cameraInfoTopic = settings?.cameraInfoTopic;
 
     // Add this camera_info_topic -> image_topic mapping
@@ -335,7 +332,7 @@ export class Images extends SceneExtension<ImageRenderable> {
     }
 
     // apply camera info to new renderable
-    if (!cameraInfoTopic) {
+    if (cameraInfoTopic == undefined) {
       return;
     }
 
@@ -407,12 +404,25 @@ export class Images extends SceneExtension<ImageRenderable> {
   #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (frames, _mode, options) => {
     const targetFrame = frames[frames.length - 1];
     if (targetFrame == undefined) {
-      return { ok: false };
+      return { ok: false, reason: "failed" };
     }
-    const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message);
+    const renderable = this.#prepareImageRenderable(targetFrame, targetFrame.message, {
+      deferImageState: true,
+    });
     return await renderable.setCompressedVideoFrames(frames, {
       ...options,
       resizeWidth: options?.resizeWidth ?? DEFAULT_BITMAP_WIDTH,
+    });
+  };
+
+  #filterCompressedVideoQueue = (
+    queue: Parameters<typeof recordKeyframesAndFilterCompressedVideoQueue>[0],
+  ): ReturnType<typeof recordKeyframesAndFilterCompressedVideoQueue> => {
+    return recordKeyframesAndFilterCompressedVideoQueue(queue, (topic, receiveTime) => {
+      this.#compressedVideoControllerForTopic(topic).recordKnownKeyframeReceiveTime(
+        topic,
+        receiveTime,
+      );
     });
   };
 
@@ -448,14 +458,22 @@ export class Images extends SceneExtension<ImageRenderable> {
   #prepareImageRenderable(
     messageEvent: PartialMessageEvent<AnyImage>,
     image: AnyImage,
+    options: { deferImageState?: boolean } = {},
   ): ImageRenderable {
     const imageTopic = messageEvent.topic;
     const receiveTime = toNanoSec(messageEvent.receiveTime);
     const frameId = "header" in image ? image.header.frame_id : image.frame_id;
 
-    const renderable = this.#getImageRenderable(imageTopic, receiveTime, image, frameId);
+    const renderable = this.#getImageRenderable(
+      imageTopic,
+      receiveTime,
+      options.deferImageState === true ? undefined : image,
+      frameId,
+    );
 
-    renderable.userData.receiveTime = receiveTime;
+    if (options.deferImageState !== true) {
+      renderable.userData.receiveTime = receiveTime;
+    }
     // Auto-select settings.cameraInfoTopic if it's not already set
     const settings = renderable.userData.settings;
     if (settings.cameraInfoTopic == undefined) {
@@ -580,9 +598,8 @@ export class Images extends SceneExtension<ImageRenderable> {
     }
 
     // Look up any existing settings for the image topic to save as user data with the renderable
-    const userSettings = this.renderer.config.topics[imageTopic] as
-      | Partial<LayerSettingsImage>
-      | undefined;
+    const userSettings: Partial<LayerSettingsImage> | undefined =
+      this.renderer.config.topics[imageTopic];
 
     const messageTime = image
       ? toNanoSec("header" in image ? image.header.stamp : image.timestamp)

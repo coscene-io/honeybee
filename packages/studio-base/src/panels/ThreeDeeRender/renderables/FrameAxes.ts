@@ -356,7 +356,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
   public override handleSettingsAction = (action: SettingsTreeAction): void => {
     const path = action.payload.path;
 
-    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
     const toggleFrameVisibility = (value: boolean) => {
       for (const renderable of this.renderables.values()) {
         renderable.userData.settings.visible = value;
@@ -417,9 +417,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
       const frameId = frameKey.replace(/^frame:/, "");
       const renderable = this.renderables.get(frameId);
       if (renderable) {
-        const settings = this.renderer.config.transforms[frameKey] as
-          | Partial<LayerSettingsTransform>
-          | undefined;
+        const settings = this.renderer.config.transforms[frameKey];
         renderable.userData.settings = this.#getRenderableSettingsWithDefaults(settings ?? {});
 
         this.#updateFrameAxis(renderable);
@@ -474,7 +472,7 @@ export class FrameAxes extends SceneExtension<FrameAxisRenderable> {
 
     // Set the initial settings from default values merged with any user settings
     const frameKey = `frame:${frameId}`;
-    const userSettings = config.transforms[frameKey] as Partial<LayerSettingsTransform> | undefined;
+    const userSettings = config.transforms[frameKey];
     const settings = this.#getRenderableSettingsWithDefaults(userSettings ?? {});
 
     // Parent line
