@@ -23,6 +23,7 @@
     "clean": "tsc --build --clean $(git ls-files 'packages/**/tsconfig.json') && rimraf --glob .webpack \"*/.webpack\" dist",
     "build:packages": "tsc --build --verbose $(git ls-files 'packages/**/tsconfig.json')",
     "typecheck:ci": "tsc --noEmit -p tsconfig.ci-typecheck.json",
+    "typecheck:eslint-plugin": "tsc --noEmit -p packages/eslint-plugin/tsconfig.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "web:build:dev": "rspack build --mode development --config web/rspack.config.ts",
