@@ -65,6 +65,35 @@ describe("AnalyticsMetricsCollector", () => {
     });
   });
 
+  it("resets the join id when a new player initializes", () => {
+    const logEvent = jest.fn();
+    const analytics: IAnalytics = {
+      initPlayer: jest.fn(),
+      logEvent,
+      setSpeed: jest.fn(),
+    };
+    const collector = new AnalyticsMetricsCollector({ analytics });
+
+    // A seek on the first data source sets a nonzero join id...
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    collector.seek({ sec: 1, nsec: 0 });
+
+    // ...then the user switches sources. A deep-link seek during the new player's
+    // initialization emits a completion without a new seek() call; it must carry the
+    // documented 0, not the previous player's id.
+    collector.setProperty("player", "new-source");
+    collector.recordSeekLatency(80, { topicCount: 3, messageCount: 1 });
+    collector.close();
+    nowSpy.mockRestore();
+
+    expect(logEvent).toHaveBeenLastCalledWith(AppEvent.PLAYER_SEEK_LATENCY, {
+      seek_id: 0,
+      latency_ms: 80,
+      message_count: 1,
+      topic_count: 3,
+    });
+  });
+
   it("keeps seek ids unique across collector lifetimes within one session", () => {
     const logEvent = jest.fn();
     const analytics: IAnalytics = {

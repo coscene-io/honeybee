@@ -87,6 +87,10 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
       // A new player is initializing. Flush any seek still tracked for the previous player so its
       // metrics cannot absorb the new player's activity (IterablePlayer never calls close()).
       playbackPerformanceMetrics.handlePlayerChange();
+      // Also reset the join id: the collector is memoized across data-source switches, and a
+      // deep-link seek issued during the new player's initialization emits a completion without
+      // a new seek() call — it must carry the documented 0, not the previous player's id.
+      this.#currentSeekId = 0;
       this.#sourceId = value as string;
       this.#analytics.initPlayer(this.#sourceId, args);
     }
