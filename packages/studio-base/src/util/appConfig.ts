@@ -5,9 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- forces this ambient global declaration to be visible under `tsc --build`'s multi-project solution mode, which (unlike a single-project check) can otherwise drop it depending on build order; an `import` doesn't work here since webpack-defines.d.ts declares globals, not exports.
-/// <reference path="../typings/webpack-defines.d.ts" />
-
 interface DomainConfig {
   env: string;
   logo: string;
