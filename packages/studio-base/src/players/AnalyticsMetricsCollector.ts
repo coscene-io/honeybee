@@ -13,6 +13,7 @@ import {
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
 import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 const log = Log.getLogger(__filename);
 
@@ -83,6 +84,9 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     this.#metadata[key] = value;
     console.debug(`coScene setProperty: ${key}=${value}`);
     if (key === "player") {
+      // A new player is initializing. Flush any seek still tracked for the previous player so its
+      // metrics cannot absorb the new player's activity (IterablePlayer never calls close()).
+      playbackPerformanceMetrics.handlePlayerChange();
       this.#sourceId = value as string;
       this.#analytics.initPlayer(this.#sourceId, args);
     }
@@ -96,6 +100,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
    */
   public seek(time: Time): void {
     this.#currentSeekId = Date.now() * 1000 + (this.#seekSequence++ % 1000);
+    playbackPerformanceMetrics.beginSeek();
     console.debug(`coScene seek: ${time.sec}.${time.nsec}`);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK,
@@ -107,6 +112,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     console.debug(`coScene setSpeed: ${speed}`);
   }
   public close(): void {
+    playbackPerformanceMetrics.finishCurrent("closed");
     if (this.#intervalId != undefined) {
       clearInterval(this.#intervalId);
       this.#intervalId = undefined;
@@ -146,6 +152,7 @@ export default class AnalyticsMetricsCollector implements PlayerMetricsCollector
     latencyMs: number,
     details: Readonly<{ topicCount: number; messageCount: number }>,
   ): void {
+    playbackPerformanceMetrics.markPlayerReady(latencyMs, details);
     void this.#syncEventToAnalytics({
       event: AppEvent.PLAYER_SEEK_LATENCY,
       data: {

@@ -22,7 +22,7 @@ import {
   ISharedRootContext,
   SharedRootContext,
 } from "@foxglove/studio-base/context/SharedRootContext";
-import { sanitizeAnalyticsCaptureResult } from "@foxglove/studio-base/services/messageCacheTelemetry";
+import { sanitizePrivacySafeCaptureResult } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -63,7 +63,7 @@ export function SharedRoot(
     posthog.init(appConfig.POSTHOG.token, {
       api_host: appConfig.POSTHOG.api_host,
       person_profiles: "always",
-      before_send: sanitizeAnalyticsCaptureResult,
+      before_send: sanitizePrivacySafeCaptureResult,
     });
   }
 

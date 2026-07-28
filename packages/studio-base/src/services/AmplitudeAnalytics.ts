@@ -17,6 +17,7 @@ import {
   sanitizeMessageCacheMetricData,
   sanitizePlayerPerformanceMetricData,
 } from "@foxglove/studio-base/services/messageCacheTelemetry";
+import { sanitizePlaybackPerformanceMetricData } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
@@ -77,6 +78,9 @@ export class AmplitudeAnalytics implements IAnalytics {
         break;
       case AppEvent.MESSAGE_CACHE:
         posthog.capture(event, sanitizeMessageCacheMetricData(data));
+        break;
+      case AppEvent.PLAYBACK_PERFORMANCE:
+        posthog.capture(event, sanitizePlaybackPerformanceMetricData(data));
         break;
       default:
         log.info(`[EVENT] ${event}`, data);
