@@ -48,7 +48,7 @@ module.exports = {
     const sourceCode = context.sourceCode;
     const classes = [];
     const classStack = [];
-    const memberOwners = new Map();
+    const unknownReferenceNames = new Set();
 
     function enterClass(node) {
       classStack.push({
@@ -74,27 +74,24 @@ module.exports = {
         return;
       }
 
-      const owners = memberOwners.get(propertyName) ?? new Set();
-      owners.add(currentClass?.node);
-      memberOwners.set(propertyName, owners);
+      const isThisReference = node.object.type === "ThisExpression";
+      const isClassReference =
+        currentClass &&
+        node.object.type === "Identifier" &&
+        node.object.name === currentClass.name &&
+        isClassNameReference(sourceCode, node.object, currentClass.node);
+      const isSelfReference =
+        currentClass &&
+        (isClassReference ||
+          (isThisReference && !isThisBindingResetBetween(node, currentClass.node)));
+      if (!isSelfReference) {
+        unknownReferenceNames.add(propertyName);
+      }
 
       if (!currentClass) {
         return;
       }
-      if (node.computed) {
-        currentClass.unsafeReferences.add(propertyName);
-        return;
-      }
-
-      const isThisReference = node.object.type === "ThisExpression";
-      const isClassReference =
-        node.object.type === "Identifier" &&
-        node.object.name === currentClass.name &&
-        isClassNameReference(sourceCode, node.object, currentClass.node);
-      if (
-        (!isThisReference && !isClassReference) ||
-        (isThisReference && isThisBindingResetBetween(node, currentClass.node))
-      ) {
+      if (node.computed || !isSelfReference) {
         currentClass.unsafeReferences.add(propertyName);
         return;
       }
@@ -117,12 +114,10 @@ module.exports = {
           const oldName = definition.key.name;
           const newName = `#${oldName.replace(/^_/, "")}`;
           const references = currentClass.references.get(oldName) ?? [];
-          const owners = memberOwners.get(oldName) ?? new Set();
-          const hasExternalReference = [...owners].some((owner) => owner !== currentClass.node);
           const suggestionIsUnsafe =
             currentClass.unsafeReferences.has(oldName) ||
             currentClass.privateNames.has(newName.slice(1)) ||
-            hasExternalReference;
+            unknownReferenceNames.has(oldName);
           const suggest = suggestionIsUnsafe
             ? undefined
             : [

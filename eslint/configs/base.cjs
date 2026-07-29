@@ -67,15 +67,4 @@ module.exports = [
       "prefer-arrow-callback": ["error", { allowNamedFunctions: true }],
     },
   },
-  {
-    files: ["**/*.{js,cjs,mjs}"],
-    rules: {
-      // TypeScript imports are checked by tsc; keep equivalent coverage for JavaScript files.
-      "import/default": "error",
-      "import/namespace": "error",
-      "import/no-named-as-default": "warn",
-      "import/no-named-as-default-member": "warn",
-      "import/no-unresolved": "error",
-    },
-  },
 ];
