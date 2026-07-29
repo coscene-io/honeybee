@@ -15,8 +15,9 @@
 //   You may not use this file except in compliance with the License.
 
 import Logger from "@foxglove/log";
-import { Time, isLessThan, subtract as subtractTimes, toSec } from "@foxglove/rostime";
-import { PlayerState, MessageEvent, PlayerProblem } from "@foxglove/studio-base/players/types";
+import type { Time } from "@foxglove/rostime";
+import { isLessThan, subtract as subtractTimes, toSec } from "@foxglove/rostime";
+import type { PlayerState, MessageEvent, PlayerProblem } from "@foxglove/studio-base/players/types";
 import { formatFrame } from "@foxglove/studio-base/util/time";
 
 const DRIFT_THRESHOLD_SEC = 1; // Maximum amount of drift allowed.

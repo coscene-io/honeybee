@@ -22,13 +22,15 @@ import {
   DraggedMessagePath,
   MessagePathDropStatus,
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
+import {
+  HUDItemManager,
+  HUDItem,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import { LabelPool } from "@foxglove/three-text";
 
-import { HUDItem } from "./HUDItemManager";
 import { Input } from "./Input";
 import { MeshUpAxis, ModelCache } from "./ModelCache";
 import { PickedRenderable } from "./Picker";

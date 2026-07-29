@@ -15,18 +15,18 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { StoreApi, useStore } from "zustand";
+import type { StoreApi } from "zustand";
+import { useStore } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
-import { Immutable } from "@foxglove/studio";
-import CurrentLayoutContext, {
-  LayoutState,
-} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import type { Immutable } from "@foxglove/studio";
+import type { LayoutState } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import CurrentLayoutContext from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useS3FileService } from "@foxglove/studio-base/context/S3FileServiceContext";
 import { useUrdfStorage } from "@foxglove/studio-base/context/UrdfStorageContext";
-import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import {
+import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import type {
   Player,
   PlayerProblem,
   PlayerState,
@@ -34,13 +34,11 @@ import {
 } from "@foxglove/studio-base/players/types";
 
 import MessageOrderTracker from "./MessageOrderTracker";
-import { pauseFrameForPromises, FramePromise } from "./pauseFrameForPromise";
-import {
-  MessagePipelineInternalState,
-  createMessagePipelineStore,
-  defaultPlayerState,
-} from "./store";
-import { MessagePipelineContext } from "./types";
+import type { FramePromise } from "./pauseFrameForPromise";
+import { pauseFrameForPromises } from "./pauseFrameForPromise";
+import type { MessagePipelineInternalState } from "./store";
+import { createMessagePipelineStore, defaultPlayerState } from "./store";
+import type { MessagePipelineContext } from "./types";
 
 export type { MessagePipelineContext };
 

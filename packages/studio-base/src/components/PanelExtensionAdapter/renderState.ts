@@ -7,11 +7,11 @@
 
 import * as _ from "lodash-es";
 import memoizeWeak from "memoize-weak";
-import { Writable } from "ts-essentials";
+import type { Writable } from "ts-essentials";
 
 import { filterMap } from "@foxglove/den/collection";
 import { compare, toSec } from "@foxglove/rostime";
-import {
+import type {
   AppSettingValue,
   Immutable,
   MessageEvent,
@@ -21,23 +21,21 @@ import {
   Subscription,
   Topic,
 } from "@foxglove/studio";
-import {
-  EMPTY_GLOBAL_VARIABLES,
-  GlobalVariables,
-} from "@foxglove/studio-base/hooks/useGlobalVariables";
-import {
+import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { EMPTY_GLOBAL_VARIABLES } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import type {
   MessageBlock,
   PlayerState,
   Topic as PlayerTopic,
 } from "@foxglove/studio-base/players/types";
-import { HoverValue } from "@foxglove/studio-base/types/hoverValue";
+import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 
+import type { TopicSchemaConversions } from "./messageProcessing";
 import {
   collateTopicSchemaConversions,
   convertMessage,
   forEachSortedArrays,
   mapDifference,
-  TopicSchemaConversions,
 } from "./messageProcessing";
 
 const EmptyParameters = new Map<string, ParameterValue>();

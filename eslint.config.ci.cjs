@@ -10,6 +10,10 @@
 // during normal development.
 const prettierPlugin = require("eslint-plugin-prettier");
 
+const {
+  muiRestrictedImportPaths,
+  studioBaseEntryPointRestrictedImportPaths,
+} = require("./eslint/configs/restrictedImports.cjs");
 const baseConfig = require("./eslint.config.cjs");
 
 module.exports = [
@@ -36,6 +40,28 @@ module.exports = [
         "error",
         {
           ignoreExternal: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/studio-base/src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: studioBaseEntryPointRestrictedImportPaths,
+        },
+      ],
+    },
+  },
+  {
+    files: ["packages/studio-base/src/**/*.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...muiRestrictedImportPaths, ...studioBaseEntryPointRestrictedImportPaths],
         },
       ],
     },

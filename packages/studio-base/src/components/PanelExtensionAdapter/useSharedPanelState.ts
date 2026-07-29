@@ -7,11 +7,13 @@
 
 import { useCallback, useMemo } from "react";
 
-import { Immutable } from "@foxglove/studio";
+import type { Immutable } from "@foxglove/studio";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
-import {
+import type {
   LayoutState,
   SharedPanelState,
+} from "@foxglove/studio-base/context/CurrentLayoutContext";
+import {
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";

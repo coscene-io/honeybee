@@ -14,26 +14,24 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Immutable } from "immer";
+import type { Immutable } from "immer";
 import * as _ from "lodash-es";
-import { MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import shallowequal from "shallowequal";
-import { Writable } from "ts-essentials";
+import type { Writable } from "ts-essentials";
 import { createStore } from "zustand";
 
 import { Condvar } from "@foxglove/den/async";
-import { Time, isLessThan } from "@foxglove/rostime";
-import { ParameterValue } from "@foxglove/studio";
-import {
-  FramePromise,
-  pauseFrameForPromises,
-} from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
-import { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import {
+import type { Time } from "@foxglove/rostime";
+import { isLessThan } from "@foxglove/rostime";
+import type { ParameterValue } from "@foxglove/studio";
+import type { FramePromise } from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
+import { pauseFrameForPromises } from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
+import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import type {
   AdvertiseOptions,
   MessageEvent,
-  PlayerCapabilities,
-  PlayerPresence,
   PlayerProblem,
   PlayerState,
   PlayerStateActiveData,
@@ -45,10 +43,12 @@ import {
   Topic,
   TopicStats,
 } from "@foxglove/studio-base/players/types";
-import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
+import type { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { ContextInternal } from "./index";
-import { MessagePipelineInternalState, MessagePipelineStateAction, reducer } from "./store";
+import type { MessagePipelineInternalState, MessagePipelineStateAction } from "./store";
+import { reducer } from "./store";
 import { makeSubscriptionMemoizer } from "./subscriptions";
 
 const NO_DATATYPES = new Map();

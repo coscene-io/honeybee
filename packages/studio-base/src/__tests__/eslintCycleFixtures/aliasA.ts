@@ -5,10 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import { aliasB } from "@foxglove/studio-base/__tests__/eslintCycleFixtures/aliasB";
 
-export default class NullAnalytics implements IAnalytics {
-  public logEvent(): void | Promise<void> {}
-  public setSpeed(_speed: number): void {}
-  public initPlayer(_sourceId: string): void {}
+export function aliasA(): number {
+  return aliasB();
 }

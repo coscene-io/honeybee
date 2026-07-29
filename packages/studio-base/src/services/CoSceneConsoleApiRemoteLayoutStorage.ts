@@ -5,26 +5,27 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { create, JsonObject } from "@bufbuild/protobuf";
+import type { JsonObject } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 import { FieldMaskSchema, timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
+import type { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { LayoutSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import type { Layout } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import _uniq from "lodash/uniq";
 
 import Logger from "@foxglove/log";
-import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import {
+import type { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import type { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import type {
   IRemoteLayoutStorage,
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
-import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { isAuthlessDataSource, replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
-import { ISO8601Timestamp } from "./CoSceneILayoutStorage";
+import type { ISO8601Timestamp } from "./CoSceneILayoutStorage";
 
 const log = Logger.getLogger(__filename);
 

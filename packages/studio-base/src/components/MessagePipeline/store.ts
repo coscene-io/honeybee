@@ -6,31 +6,31 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { MutableRefObject } from "react";
+import type { MutableRefObject } from "react";
 import shallowequal from "shallowequal";
-import { createStore, StoreApi } from "zustand";
+import type { StoreApi } from "zustand";
+import { createStore } from "zustand";
 
 import { Condvar } from "@foxglove/den/async";
 import Log from "@foxglove/log";
-import { Immutable, MessageEvent } from "@foxglove/studio";
+import type { Immutable, MessageEvent } from "@foxglove/studio";
 import {
   makeSubscriptionMemoizer,
   mergeSubscriptions,
 } from "@foxglove/studio-base/components/MessagePipeline/subscriptions";
-import {
+import type {
   AdvertiseOptions,
   Player,
-  PlayerCapabilities,
-  PlayerPresence,
   PlayerState,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
-import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
+import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
+import type { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
+import type { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
-import { FramePromise } from "./pauseFrameForPromise";
-import { MessagePipelineContext } from "./types";
+import type { FramePromise } from "./pauseFrameForPromise";
+import type { MessagePipelineContext } from "./types";
 
 const log = Log.getLogger(__filename);
 

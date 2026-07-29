@@ -6,14 +6,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createContext, useContext } from "react";
-import { DeepPartial } from "ts-essentials";
-import { StoreApi } from "zustand";
+import type { DeepPartial } from "ts-essentials";
+import type { StoreApi } from "zustand";
 
-import { Immutable, SettingsTreeField, SettingsTreeNode } from "@foxglove/studio";
-import { AppBarMenuItem } from "@foxglove/studio-base/components/AppBar/types";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
-import { WorkspaceContextStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import type { Immutable, SettingsTreeField, SettingsTreeNode } from "@foxglove/studio";
+import type { AppBarMenuItem } from "@foxglove/studio-base/components/AppBar/types";
+import type { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import type { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
+import type { WorkspaceContextStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import type { SceneExtensionConfig } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
 
 interface IAppContext {

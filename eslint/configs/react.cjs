@@ -8,6 +8,8 @@
 const reactPlugin = require("eslint-plugin-react");
 const reactHooksPlugin = require("eslint-plugin-react-hooks");
 
+const { muiRestrictedImportPaths } = require("./restrictedImports.cjs");
+
 const files = ["**/*.{jsx,tsx}"];
 
 module.exports = [
@@ -41,25 +43,7 @@ module.exports = [
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "@mui/material",
-              importNames: ["styled"],
-              message: "@mui/styled has performance implications. Use tss-react/mui instead.",
-            },
-            {
-              name: "@mui/styles",
-              message: "@mui/styles has performance implications. Use tss-react/mui instead.",
-            },
-            {
-              name: "@mui/material/styles/styled",
-              message: "@mui/styled has performance implications. Use tss-react/mui instead.",
-            },
-            {
-              name: "@emotion/styled",
-              message: "@emotion/styled has performance implications. Use tss-react/mui instead.",
-            },
-          ],
+          paths: muiRestrictedImportPaths,
         },
       ],
       "react/forbid-component-props": [

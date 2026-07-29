@@ -5,25 +5,25 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { CSSProperties, useCallback, useContext, useLayoutEffect, useRef, useState } from "react";
-import {
+import type { CSSProperties } from "react";
+import { useCallback, useContext, useLayoutEffect, useRef, useState } from "react";
+import type {
   ConnectDragPreview,
   ConnectDragSource,
   ConnectDropTarget,
   DragSourceMonitor,
-  useDrag,
-  useDrop,
 } from "react-dnd";
+import { useDrag, useDrop } from "react-dnd";
 
 import Logger from "@foxglove/log";
-import {
+import type {
   DraggedMessagePath,
   MessagePathDropConfig,
   MessagePathDropStatus,
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 import { MessagePathSelectionContextInternal } from "@foxglove/studio-base/services/messagePathDragging/MessagePathSelectionProvider";
 
-import { MessagePathDragParams } from "./types";
+import type { MessagePathDragParams } from "./types";
 
 const log = Logger.getLogger(__filename);
 

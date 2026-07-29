@@ -10,9 +10,9 @@ import { DurationSchema } from "@bufbuild/protobuf/wkt";
 import type { Duration } from "@bufbuild/protobuf/wkt";
 
 import log from "@foxglove/log";
-import { Time } from "@foxglove/rostime";
-import { MessageEvent } from "@foxglove/studio-base/players/types";
-import { MarkerArray, StampedMessage } from "@foxglove/studio-base/types/Messages";
+import type { Time } from "@foxglove/rostime";
+import type { MessageEvent } from "@foxglove/studio-base/players/types";
+import type { MarkerArray, StampedMessage } from "@foxglove/studio-base/types/Messages";
 
 export type TimestampMethod = "receiveTime" | "headerStamp";
 
