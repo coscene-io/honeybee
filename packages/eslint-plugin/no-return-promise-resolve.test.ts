@@ -35,6 +35,11 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
         errors: [{ messageId: "returnDirectly" }],
       },
       {
+        code: "async function run(value) { type Promise = {}; return Promise.resolve(value); }",
+        output: "async function run(value) { type Promise = {}; return value; }",
+        errors: [{ messageId: "returnDirectly" }],
+      },
+      {
         code: "const run = async () => Promise.resolve({ value: 1 });",
         output: "const run = async () => ({ value: 1 });",
         errors: [{ messageId: "returnDirectly" }],

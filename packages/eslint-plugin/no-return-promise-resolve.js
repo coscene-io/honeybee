@@ -22,7 +22,7 @@ function isShadowed(sourceCode, node, name) {
   for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
     const variable = scope.variables.find((candidate) => candidate.name === name);
     if (variable) {
-      return variable.defs.length > 0;
+      return variable.isValueVariable ?? variable.defs.length > 0;
     }
   }
   return false;
