@@ -8,8 +8,13 @@
 function isShadowed(sourceCode, node, name) {
   for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
     const variable = scope.variables.find((candidate) => candidate.name === name);
-    if (variable) {
-      return variable.defs.length > 0;
+    const hasRuntimeDefinition = variable?.defs.some(
+      (definition) =>
+        definition.type !== "ImportBinding" ||
+        (definition.parent?.importKind !== "type" && definition.node.importKind !== "type"),
+    );
+    if (hasRuntimeDefinition && (variable.isValueVariable ?? true)) {
+      return true;
     }
   }
   return false;

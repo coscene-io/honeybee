@@ -43,6 +43,12 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
         errors: [{ messageId: "returnDirectly" }],
       },
       {
+        code: 'import type { Foo as Promise } from "./types"; async function run(value) { return Promise.resolve(value); }',
+        output:
+          'import type { Foo as Promise } from "./types"; async function run(value) { return value; }',
+        errors: [{ messageId: "returnDirectly" }],
+      },
+      {
         code: "const run = async () => Promise.resolve({ value: 1 });",
         output: "const run = async () => ({ value: 1 });",
         errors: [{ messageId: "returnDirectly" }],

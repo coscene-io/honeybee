@@ -33,6 +33,10 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run("strict-equal
       errors: [{ messageId: "requireLooseNullish", data: { expectedOperator: "!=" } }],
     },
     {
+      code: 'import type { Foo as undefined } from "./types"; value !== undefined;',
+      errors: [{ messageId: "requireLooseNullish", data: { expectedOperator: "!=" } }],
+    },
+    {
       code: "value === null;",
       errors: [{ messageId: "requireLooseNullish", data: { expectedOperator: "==" } }],
     },
