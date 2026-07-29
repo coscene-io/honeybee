@@ -28,6 +28,21 @@ function isShadowed(sourceCode, node, name) {
   return false;
 }
 
+function isCaughtByTry(node, enclosingFunction) {
+  let child = node;
+  for (
+    let current = node.parent;
+    current && current !== enclosingFunction;
+    current = current.parent
+  ) {
+    if (current.type === "TryStatement" && current.handler && child === current.block) {
+      return true;
+    }
+    child = current;
+  }
+  return false;
+}
+
 /** @type {import("eslint").Rule.RuleModule} */
 module.exports = {
   meta: {
@@ -67,6 +82,10 @@ module.exports = {
         }
 
         const rejects = node.callee.property.name === "reject";
+        if (rejects && isReturned && isCaughtByTry(parent, enclosingFunction)) {
+          return;
+        }
+
         context.report({
           node: rejects && isReturned ? parent : node,
           messageId: rejects ? "throwDirectly" : "returnDirectly",
