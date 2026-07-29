@@ -19,6 +19,7 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
       "const pattern = /(?=prefix)value/;",
       "const pattern = new RegExp(source);",
       "function run(RegExp) { return new RegExp('(?<=prefix)value'); }",
+      "function outer(RegExp) { function run() { type RegExp = string; return new RegExp('(?<=prefix)value'); } return run(); }",
       "const pattern = new RegExp('[');",
     ],
     invalid: [

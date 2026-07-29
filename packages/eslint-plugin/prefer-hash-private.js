@@ -34,7 +34,9 @@ module.exports = {
 
   create(context) {
     const sourceCode = context.sourceCode;
+    const classes = [];
     const classStack = [];
+    const memberOwners = new Map();
 
     function enterClass(node) {
       classStack.push({
@@ -49,16 +51,26 @@ module.exports = {
 
     function recordReference(node) {
       const currentClass = classStack.at(-1);
+      const propertyName = node.computed
+        ? node.property.type === "Literal" && typeof node.property.value === "string"
+          ? node.property.value
+          : undefined
+        : node.property.type === "Identifier"
+          ? node.property.name
+          : undefined;
+      if (!propertyName) {
+        return;
+      }
+
+      const owners = memberOwners.get(propertyName) ?? new Set();
+      owners.add(currentClass?.node);
+      memberOwners.set(propertyName, owners);
+
       if (!currentClass) {
         return;
       }
       if (node.computed) {
-        if (node.property.type === "Literal" && typeof node.property.value === "string") {
-          currentClass.unsafeReferences.add(node.property.value);
-        }
-        return;
-      }
-      if (node.property.type !== "Identifier") {
+        currentClass.unsafeReferences.add(propertyName);
         return;
       }
 
@@ -71,59 +83,66 @@ module.exports = {
         (!isThisReference && !isClassReference) ||
         (isThisReference && isThisBindingResetBetween(node, currentClass.node))
       ) {
-        currentClass.unsafeReferences.add(node.property.name);
+        currentClass.unsafeReferences.add(propertyName);
         return;
       }
 
-      const references = currentClass.references.get(node.property.name) ?? [];
+      const references = currentClass.references.get(propertyName) ?? [];
       references.push(node.property);
-      currentClass.references.set(node.property.name, references);
+      currentClass.references.set(propertyName, references);
     }
 
     function exitClass() {
       const currentClass = classStack.pop();
-      if (!currentClass) {
-        return;
+      if (currentClass) {
+        classes.push(currentClass);
       }
+    }
 
-      for (const definition of currentClass.definitions) {
-        const oldName = definition.key.name;
-        const newName = `#${oldName.replace(/^_/, "")}`;
-        const references = currentClass.references.get(oldName) ?? [];
-        const suggestionIsUnsafe =
-          currentClass.unsafeReferences.has(oldName) ||
-          currentClass.privateNames.has(newName.slice(1));
-        const suggest = suggestionIsUnsafe
-          ? undefined
-          : [
-              {
-                messageId: "rename",
-                data: { oldName, newName },
-                *fix(fixer) {
-                  const privateToken = sourceCode
-                    .getTokens(definition)
-                    .find((token) => token.type === "Keyword" && token.value === "private");
-                  if (privateToken) {
-                    const nextToken = sourceCode.getTokenAfter(privateToken);
-                    yield fixer.removeRange([
-                      privateToken.range[0],
-                      nextToken?.range[0] ?? privateToken.range[1],
-                    ]);
-                  }
-                  yield fixer.replaceText(definition.key, newName);
-                  for (const reference of references) {
-                    yield fixer.replaceText(reference, newName);
-                  }
+    function reportClasses() {
+      for (const currentClass of classes) {
+        for (const definition of currentClass.definitions) {
+          const oldName = definition.key.name;
+          const newName = `#${oldName.replace(/^_/, "")}`;
+          const references = currentClass.references.get(oldName) ?? [];
+          const owners = memberOwners.get(oldName) ?? new Set();
+          const hasExternalReference = [...owners].some((owner) => owner !== currentClass.node);
+          const suggestionIsUnsafe =
+            currentClass.unsafeReferences.has(oldName) ||
+            currentClass.privateNames.has(newName.slice(1)) ||
+            hasExternalReference;
+          const suggest = suggestionIsUnsafe
+            ? undefined
+            : [
+                {
+                  messageId: "rename",
+                  data: { oldName, newName },
+                  *fix(fixer) {
+                    const privateToken = sourceCode
+                      .getTokens(definition)
+                      .find((token) => token.type === "Keyword" && token.value === "private");
+                    if (privateToken) {
+                      const nextToken = sourceCode.getTokenAfter(privateToken);
+                      yield fixer.removeRange([
+                        privateToken.range[0],
+                        nextToken?.range[0] ?? privateToken.range[1],
+                      ]);
+                    }
+                    yield fixer.replaceText(definition.key, newName);
+                    for (const reference of references) {
+                      yield fixer.replaceText(reference, newName);
+                    }
+                  },
                 },
-              },
-            ];
+              ];
 
-        context.report({
-          node: definition.key,
-          messageId: "preferHash",
-          data: { newName },
-          suggest,
-        });
+          context.report({
+            node: definition.key,
+            messageId: "preferHash",
+            data: { newName },
+            suggest,
+          });
+        }
       }
     }
 
@@ -131,6 +150,7 @@ module.exports = {
       ClassDeclaration: enterClass,
       ClassExpression: enterClass,
       MemberExpression: recordReference,
+      "Program:exit": reportClasses,
       ":matches(PropertyDefinition, MethodDefinition)[computed=false] > PrivateIdentifier.key": (
         node,
       ) => {

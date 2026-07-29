@@ -62,5 +62,9 @@ new RuleTester({
       code: "class Example { #value = 1; private _value = 2; }",
       errors: [{ messageId: "preferHash", suggestions: [] }],
     },
+    {
+      code: "class Example { private value = 1; } const instance = new Example(); (instance as any).value;",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
   ],
 });
