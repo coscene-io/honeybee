@@ -50,5 +50,9 @@ new RuleTester({
         },
       ],
     },
+    {
+      code: "class Example { private value = 1; read(other: Example) { return other.value; } }",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
   ],
 });

@@ -68,7 +68,8 @@ module.exports = {
           isShadowed(sourceCode, node, "Promise") ||
           node.callee.property.type !== "Identifier" ||
           (node.callee.property.name !== "resolve" && node.callee.property.name !== "reject") ||
-          node.arguments.length > 1
+          node.arguments.length > 1 ||
+          node.arguments[0]?.type === "SpreadElement"
         ) {
           return;
         }

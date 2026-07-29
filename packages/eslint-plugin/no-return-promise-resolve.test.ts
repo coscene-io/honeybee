@@ -26,6 +26,8 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
       "async function run() { const Promise = customPromise; return Promise.reject(error); }",
       "async function run() { return Promise.resolve(value, sideEffect()); }",
       "async function run() { return Promise.reject(error, sideEffect()); }",
+      "async function run(args) { return Promise.resolve(...args); }",
+      "async function run(args) { return Promise.reject(...args); }",
       "async function run() { try { return Promise.reject(error); } catch { return fallback; } }",
     ],
     invalid: [

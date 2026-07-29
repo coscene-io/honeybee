@@ -42,6 +42,7 @@ module.exports = {
         name: node.id?.name,
         definitions: [],
         references: new Map(),
+        unsafeReferences: new Set(),
       });
     }
 
@@ -60,6 +61,7 @@ module.exports = {
         (!isThisReference && !isClassReference) ||
         (isThisReference && isThisBindingResetBetween(node, currentClass.node))
       ) {
+        currentClass.unsafeReferences.add(node.property.name);
         return;
       }
 
@@ -78,33 +80,36 @@ module.exports = {
         const oldName = definition.key.name;
         const newName = `#${oldName.replace(/^_/, "")}`;
         const references = currentClass.references.get(oldName) ?? [];
+        const suggest = currentClass.unsafeReferences.has(oldName)
+          ? undefined
+          : [
+              {
+                messageId: "rename",
+                data: { oldName, newName },
+                *fix(fixer) {
+                  const privateToken = sourceCode
+                    .getTokens(definition)
+                    .find((token) => token.type === "Keyword" && token.value === "private");
+                  if (privateToken) {
+                    const nextToken = sourceCode.getTokenAfter(privateToken);
+                    yield fixer.removeRange([
+                      privateToken.range[0],
+                      nextToken?.range[0] ?? privateToken.range[1],
+                    ]);
+                  }
+                  yield fixer.replaceText(definition.key, newName);
+                  for (const reference of references) {
+                    yield fixer.replaceText(reference, newName);
+                  }
+                },
+              },
+            ];
 
         context.report({
           node: definition.key,
           messageId: "preferHash",
           data: { newName },
-          suggest: [
-            {
-              messageId: "rename",
-              data: { oldName, newName },
-              *fix(fixer) {
-                const privateToken = sourceCode
-                  .getTokens(definition)
-                  .find((token) => token.type === "Keyword" && token.value === "private");
-                if (privateToken) {
-                  const nextToken = sourceCode.getTokenAfter(privateToken);
-                  yield fixer.removeRange([
-                    privateToken.range[0],
-                    nextToken?.range[0] ?? privateToken.range[1],
-                  ]);
-                }
-                yield fixer.replaceText(definition.key, newName);
-                for (const reference of references) {
-                  yield fixer.replaceText(reference, newName);
-                }
-              },
-            },
-          ],
+          suggest,
         });
       }
     }
