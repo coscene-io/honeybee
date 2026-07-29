@@ -16,7 +16,7 @@
     "@foxglove/theme": "workspace:*",
     "@foxglove/tsconfig": "3.2.0",
     "@mcap/core": "2.1.7",
-    "@rspack/core": "2.0.8",
+    "@rspack/core": "2.1.7",
     "@rspack/plugin-react-refresh": "2.0.2",
     "@types/electron-devtools-installer": "2.2.3",
     "@types/plist": "^3.0.3",
@@ -42,9 +42,8 @@
     "react-dom": "18.3.1",
     "react-refresh": "0.18.0",
     "tinycolor2": "1.6.0",
-    "ts-checker-rspack-plugin": "1.5.2",
     "tss-react": "4.9.2",
-    "typescript": "6.0.3",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
     "utif": "3.1.0",
     "webpack-dev-server": "5.2.0"
   }

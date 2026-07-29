@@ -170,8 +170,6 @@ export const mainConfig =
     const isDev = argv.mode === "development";
     const isServe = isRspackServe(argv);
 
-    const allowUnusedVariables = isDev;
-
     // 在rspack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
     const buildTime = new Date().toISOString();
     const webPublicPath = isServe ? "/" : normalizePublicPath(process.env.HONEYBEE_WEB_PUBLIC_PATH);
@@ -214,7 +212,10 @@ export const mainConfig =
     }
 
     const appRspackConfig = makeConfig(env, argv, {
-      allowUnusedVariables,
+      tsconfigPath: path.resolve(
+        params.contextPath,
+        isDev ? "tsconfig.rspack-dev.json" : "tsconfig.json",
+      ),
       version: params.version,
     });
 

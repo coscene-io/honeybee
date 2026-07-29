@@ -7,9 +7,9 @@
 
 import { rspack, type Configuration } from "@rspack/core";
 import path from "path";
-import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import type { WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import { createNativeTypeScriptChecker } from "@foxglove/studio-base/createNativeTypeScriptChecker";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
 
@@ -66,11 +66,7 @@ export const webpackPreloadConfig =
           COSCENE_PRODUCT_VERSION: JSON.stringify(params.packageJson.version),
           COSCENE_PRODUCT_HOMEPAGE: JSON.stringify(params.packageJson.homepage),
         }),
-        new TsCheckerRspackPlugin({
-          typescript: {
-            memoryLimit: 4096, // 增加内存限制到 4GB
-          },
-        }),
+        createNativeTypeScriptChecker(path.resolve(params.preloadContext, "tsconfig.json")),
       ],
 
       resolve: {

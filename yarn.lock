@@ -4149,10 +4149,10 @@ __metadata:
     "@typescript-eslint/rule-tester": 8.63.0
     "@typescript-eslint/utils": 8.63.0
     eslint: 9.39.4
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   peerDependencies:
     eslint: ^9.39.4
-    typescript: 6.0.3
+    typescript: 6.0.2
   languageName: unknown
   linkType: soft
 
@@ -4409,6 +4409,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@emnapi/core@npm:1.11.2":
+  version: 1.11.2
+  resolution: "@emnapi/core@npm:1.11.2"
+  dependencies:
+    "@emnapi/wasi-threads": 1.2.2
+    tslib: ^2.4.0
+  checksum: 714cd078cb4f13629c4375632975780e5053a1fd0fce7bcb763af53981ffed46e01e74a8af8be863a26c7084eed57429422db0f67e484a7863a9a9dcabf81c69
+  languageName: node
+  linkType: hard
+
 "@emnapi/runtime@npm:1.10.0":
   version: 1.10.0
   resolution: "@emnapi/runtime@npm:1.10.0"
@@ -4418,12 +4428,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@emnapi/runtime@npm:1.11.2":
+  version: 1.11.2
+  resolution: "@emnapi/runtime@npm:1.11.2"
+  dependencies:
+    tslib: ^2.4.0
+  checksum: dc88233176be74958b1609620e0e90c9ce6fc1aba4648c56fb89f6b242e0b192e0f3422c4f65861f94479cb5052247a12b99e9ecae3eeb0209024b356a5d3336
+  languageName: node
+  linkType: hard
+
 "@emnapi/wasi-threads@npm:1.2.1":
   version: 1.2.1
   resolution: "@emnapi/wasi-threads@npm:1.2.1"
   dependencies:
     tslib: ^2.4.0
   checksum: a2360553f8056e3e676f708b7e1639bae84212714ace6ee13b6e0ce667b3057bea6d120c7a4f5b32851f93d287fd4b5a0fd58b14f43363d365cb83bc538254d1
+  languageName: node
+  linkType: hard
+
+"@emnapi/wasi-threads@npm:1.2.2":
+  version: 1.2.2
+  resolution: "@emnapi/wasi-threads@npm:1.2.2"
+  dependencies:
+    tslib: ^2.4.0
+  checksum: 6cb1a1ddd1902c2bb8ec09090afa0e950f21b2801a38903d33b29ec8223c03e7862e820dc2807842e8dea0575421641fabbde4fd4fabecf8d176d443794e5f72
   languageName: node
   linkType: hard
 
@@ -4972,7 +5000,7 @@ __metadata:
   dependencies:
     "@coscene-io/comlink": 4.4.1
     "@foxglove/tsconfig": 3.2.0
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -5025,7 +5053,7 @@ __metadata:
     "@types/lodash-es": ^4
     lodash-es: 4.17.21
     shallowequal: 1.1.0
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   peerDependencies:
     react: ^18.3.1
   languageName: unknown
@@ -5045,7 +5073,7 @@ __metadata:
   resolution: "@foxglove/log@workspace:packages/log"
   dependencies:
     "@foxglove/tsconfig": 3.2.0
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -5071,7 +5099,7 @@ __metadata:
     flatbuffers: 23.5.26
     flatbuffers_reflection: 1.3.0
     protobufjs: "patch:protobufjs@7.2.4#../../patches/protobufjs.patch"
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -5110,7 +5138,7 @@ __metadata:
     "@foxglove/tsconfig": 3.2.0
     "@types/nearley": 2.11.5
     nearley: 2.20.1
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -5404,7 +5432,7 @@ __metadata:
     "@mui/x-date-pickers": 8.8.0
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
-    "@rspack/core": 2.0.8
+    "@rspack/core": 2.1.7
     "@sentry/browser": 8.24.0
     "@sentry/core": 8.24.0
     "@sentry/types": 8.24.0
@@ -5439,6 +5467,7 @@ __metadata:
     "@types/use-sync-external-store": ^1
     "@types/uuid": 9.0.7
     "@types/wicg-file-system-access": 2020.9.6
+    "@typescript/native": "npm:typescript@7.0.2"
     "@uiw/react-textarea-code-editor": 3.0.2
     arch: 3.0.0
     axios: 1.11.0
@@ -5522,11 +5551,11 @@ __metadata:
     text-metrics: 3.0.0
     three: "patch:three@0.166.1#../../patches/three.patch"
     tinycolor2: 1.6.0
-    ts-checker-rspack-plugin: 1.5.2
+    ts-checker-rspack-plugin: 1.6.0
     ts-essentials: 10.0.4
     ts-key-enum: 2.0.12
     tss-react: 4.9.3
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
     typescript-for-user-script: "npm:typescript@5.9.3"
     use-debounce: 10.1.1
     use-immer: 0.9.0
@@ -5553,7 +5582,7 @@ __metadata:
     "@foxglove/theme": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
     "@mcap/core": 2.1.7
-    "@rspack/core": 2.0.8
+    "@rspack/core": 2.1.7
     "@rspack/plugin-react-refresh": 2.0.2
     "@types/electron-devtools-installer": 2.2.3
     "@types/plist": ^3.0.3
@@ -5579,9 +5608,8 @@ __metadata:
     react-dom: 18.3.1
     react-refresh: 0.18.0
     tinycolor2: 1.6.0
-    ts-checker-rspack-plugin: 1.5.2
     tss-react: 4.9.2
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
     utif: 3.1.0
     webpack-dev-server: 5.2.0
   languageName: unknown
@@ -5597,7 +5625,7 @@ __metadata:
     "@foxglove/theme": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
     "@mui/material": 7.3.11
-    "@rspack/core": 2.0.8
+    "@rspack/core": 2.1.7
     "@rspack/plugin-react-refresh": 2.0.2
     "@sentry/webpack-plugin": 2.22.0
     "@types/react-refresh": ^0
@@ -5617,7 +5645,7 @@ __metadata:
   resolution: "@foxglove/studio@workspace:packages/studio"
   dependencies:
     "@foxglove/tsconfig": 3.2.0
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -5662,7 +5690,7 @@ __metadata:
   resolution: "@foxglove/typescript-transformers@workspace:packages/typescript-transformers"
   dependencies:
     "@foxglove/tsconfig": 3.2.0
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -5717,7 +5745,7 @@ __metadata:
     prettier: 3.8.4
     ts-jest: 29.4.11
     ts-node: 10.9.2
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
   languageName: unknown
   linkType: soft
 
@@ -7021,15 +7049,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@napi-rs/wasm-runtime@npm:1.1.4":
-  version: 1.1.4
-  resolution: "@napi-rs/wasm-runtime@npm:1.1.4"
+"@napi-rs/wasm-runtime@npm:1.1.6":
+  version: 1.1.6
+  resolution: "@napi-rs/wasm-runtime@npm:1.1.6"
   dependencies:
-    "@tybys/wasm-util": ^0.10.1
+    "@tybys/wasm-util": ^0.10.3
   peerDependencies:
     "@emnapi/core": ^1.7.1
     "@emnapi/runtime": ^1.7.1
-  checksum: b4e73515605a7d90a1e629e9c2a917f3719af6650637029cb791cb1db4703221fe55b038366ae11819fb9ccfbec026c0c30d6c40b0a19ec0936068fe7d4a0d4a
+  checksum: 459f5cc1388e3ea5ac051d64148bceaa1a4b8c96247adbde462390a6290f989e6c212fb35c3f559a4662266a7c32f9ae8705281cddf4119985a9b54a665e5f3c
   languageName: node
   linkType: hard
 
@@ -7264,94 +7292,110 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rspack/binding-darwin-arm64@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-darwin-arm64@npm:2.0.8"
+"@rspack/binding-darwin-arm64@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-darwin-arm64@npm:2.1.7"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@rspack/binding-darwin-x64@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-darwin-x64@npm:2.0.8"
+"@rspack/binding-darwin-x64@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-darwin-x64@npm:2.1.7"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-arm64-gnu@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-linux-arm64-gnu@npm:2.0.8"
+"@rspack/binding-linux-arm64-gnu@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-linux-arm64-gnu@npm:2.1.7"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-arm64-musl@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-linux-arm64-musl@npm:2.0.8"
+"@rspack/binding-linux-arm64-musl@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-linux-arm64-musl@npm:2.1.7"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-x64-gnu@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-linux-x64-gnu@npm:2.0.8"
+"@rspack/binding-linux-riscv64-gnu@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-linux-riscv64-gnu@npm:2.1.7"
+  conditions: os=linux & cpu=riscv64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@rspack/binding-linux-riscv64-musl@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-linux-riscv64-musl@npm:2.1.7"
+  conditions: os=linux & cpu=riscv64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@rspack/binding-linux-x64-gnu@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-linux-x64-gnu@npm:2.1.7"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-x64-musl@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-linux-x64-musl@npm:2.0.8"
+"@rspack/binding-linux-x64-musl@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-linux-x64-musl@npm:2.1.7"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rspack/binding-wasm32-wasi@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-wasm32-wasi@npm:2.0.8"
+"@rspack/binding-wasm32-wasi@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-wasm32-wasi@npm:2.1.7"
   dependencies:
-    "@emnapi/core": 1.10.0
-    "@emnapi/runtime": 1.10.0
-    "@napi-rs/wasm-runtime": 1.1.4
+    "@emnapi/core": 1.11.2
+    "@emnapi/runtime": 1.11.2
+    "@napi-rs/wasm-runtime": 1.1.6
   conditions: cpu=wasm32
   languageName: node
   linkType: hard
 
-"@rspack/binding-win32-arm64-msvc@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-win32-arm64-msvc@npm:2.0.8"
+"@rspack/binding-win32-arm64-msvc@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-win32-arm64-msvc@npm:2.1.7"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@rspack/binding-win32-ia32-msvc@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-win32-ia32-msvc@npm:2.0.8"
+"@rspack/binding-win32-ia32-msvc@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-win32-ia32-msvc@npm:2.1.7"
   conditions: os=win32 & cpu=ia32
   languageName: node
   linkType: hard
 
-"@rspack/binding-win32-x64-msvc@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding-win32-x64-msvc@npm:2.0.8"
+"@rspack/binding-win32-x64-msvc@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding-win32-x64-msvc@npm:2.1.7"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@rspack/binding@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/binding@npm:2.0.8"
+"@rspack/binding@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/binding@npm:2.1.7"
   dependencies:
-    "@rspack/binding-darwin-arm64": 2.0.8
-    "@rspack/binding-darwin-x64": 2.0.8
-    "@rspack/binding-linux-arm64-gnu": 2.0.8
-    "@rspack/binding-linux-arm64-musl": 2.0.8
-    "@rspack/binding-linux-x64-gnu": 2.0.8
-    "@rspack/binding-linux-x64-musl": 2.0.8
-    "@rspack/binding-wasm32-wasi": 2.0.8
-    "@rspack/binding-win32-arm64-msvc": 2.0.8
-    "@rspack/binding-win32-ia32-msvc": 2.0.8
-    "@rspack/binding-win32-x64-msvc": 2.0.8
+    "@rspack/binding-darwin-arm64": 2.1.7
+    "@rspack/binding-darwin-x64": 2.1.7
+    "@rspack/binding-linux-arm64-gnu": 2.1.7
+    "@rspack/binding-linux-arm64-musl": 2.1.7
+    "@rspack/binding-linux-riscv64-gnu": 2.1.7
+    "@rspack/binding-linux-riscv64-musl": 2.1.7
+    "@rspack/binding-linux-x64-gnu": 2.1.7
+    "@rspack/binding-linux-x64-musl": 2.1.7
+    "@rspack/binding-wasm32-wasi": 2.1.7
+    "@rspack/binding-win32-arm64-msvc": 2.1.7
+    "@rspack/binding-win32-ia32-msvc": 2.1.7
+    "@rspack/binding-win32-x64-msvc": 2.1.7
   dependenciesMeta:
     "@rspack/binding-darwin-arm64":
       optional: true
@@ -7360,6 +7404,10 @@ __metadata:
     "@rspack/binding-linux-arm64-gnu":
       optional: true
     "@rspack/binding-linux-arm64-musl":
+      optional: true
+    "@rspack/binding-linux-riscv64-gnu":
+      optional: true
+    "@rspack/binding-linux-riscv64-musl":
       optional: true
     "@rspack/binding-linux-x64-gnu":
       optional: true
@@ -7373,13 +7421,13 @@ __metadata:
       optional: true
     "@rspack/binding-win32-x64-msvc":
       optional: true
-  checksum: 28731719f66777ecf503ac5a15698637704df200dbf1e422b180f360f79b1165e5ea9b81e7e2a79005b27b28ff41991f2468f5acadf2c661221e8070e135b2da
+  checksum: 5bc98e790f9eca9803af69a083896d86e922ae6a00348a9818496ed6ac14e3dae38a4b84178140f9f1d007e700c8773533c4ce140c853dfac2c673fe828d9dea
   languageName: node
   linkType: hard
 
-"@rspack/cli@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/cli@npm:2.0.8"
+"@rspack/cli@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/cli@npm:2.1.7"
   peerDependencies:
     "@rspack/core": ^2.0.0-0
     "@rspack/dev-server": ^2.0.0-0
@@ -7388,15 +7436,15 @@ __metadata:
       optional: true
   bin:
     rspack: ./bin/rspack.js
-  checksum: fc569b10525abd7dd0dc84743657cf2b611ea7d4ea18c26ee1061ed302cccee200d53b16acd3373a03c4930b20543b659f6495ba723592116af3e2484575b6cc
+  checksum: 538765581fb95abe0ecc91ab5de1ad0baf5b1436cc8503567969043adccea2d13c7c73f8a0e1f0bab5d786f9003d2e138004749c2a440600c49166f010e1402c
   languageName: node
   linkType: hard
 
-"@rspack/core@npm:2.0.8":
-  version: 2.0.8
-  resolution: "@rspack/core@npm:2.0.8"
+"@rspack/core@npm:2.1.7":
+  version: 2.1.7
+  resolution: "@rspack/core@npm:2.1.7"
   dependencies:
-    "@rspack/binding": 2.0.8
+    "@rspack/binding": 2.1.7
   peerDependencies:
     "@module-federation/runtime-tools": ^0.24.1 || ^2.0.0
     "@swc/helpers": ^0.5.23
@@ -7405,11 +7453,11 @@ __metadata:
       optional: true
     "@swc/helpers":
       optional: true
-  checksum: 76fab2fa87059dc46c8db23488e3fc6206c2f7bf3f3a9faad2bbfb79efc5236a5fce0d0916c99c9cb1491f56085f0391202341198f57c3294459216ae7761f14
+  checksum: db8072c5daaac9efb82dcec5e0830a4bb177be5a380c1056b33172d9d1b6ff61e3d7dd6a7b0369bdb54f0ab8d11c27c20a03f86f2444a176ea80410dd28a1f80
   languageName: node
   linkType: hard
 
-"@rspack/dev-middleware@npm:^2.0.1":
+"@rspack/dev-middleware@npm:^2.0.3":
   version: 2.0.3
   resolution: "@rspack/dev-middleware@npm:2.0.3"
   peerDependencies:
@@ -7421,18 +7469,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rspack/dev-server@npm:2.0.3":
-  version: 2.0.3
-  resolution: "@rspack/dev-server@npm:2.0.3"
+"@rspack/dev-server@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@rspack/dev-server@npm:2.1.0"
   dependencies:
-    "@rspack/dev-middleware": ^2.0.1
+    "@rspack/dev-middleware": ^2.0.3
   peerDependencies:
-    "@rspack/core": ^2.0.0-0
+    "@rspack/core": ^2.0.0
     selfsigned: ^5.0.0
   peerDependenciesMeta:
     selfsigned:
       optional: true
-  checksum: 88b53a8513945b0622141994a916d59c9e5329cc4d799a092ae89a9578bddedcb1f98b666034eb22636fbe8113d92115a01d21fe62cd7c400673c0835399963b
+  checksum: 7eec0c3e410a6f1862bea30a7eb6748ee51d49bedfa485ccb92edd27ec638f171abb084f11b20a55c5f05030eff4b095b067592d533403a07507199e6de2c52c
   languageName: node
   linkType: hard
 
@@ -8588,21 +8636,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tybys/wasm-util@npm:^0.10.1":
-  version: 0.10.1
-  resolution: "@tybys/wasm-util@npm:0.10.1"
-  dependencies:
-    tslib: ^2.4.0
-  checksum: b8b281ffa9cd01cb6d45a4dddca2e28fd0cb6ad67cf091ba4a73ac87c0d6bd6ce188c332c489e87c20b0750b0b6fe3b99e30e1cd2227ec16da692f51c778944e
-  languageName: node
-  linkType: hard
-
 "@tybys/wasm-util@npm:^0.10.2":
   version: 0.10.2
   resolution: "@tybys/wasm-util@npm:0.10.2"
   dependencies:
     tslib: ^2.4.0
   checksum: acff4b9d831efcb4292e4c1562accc3921d004e3edba3b2d05f7ab9313f42294d49ff46eacafd93df6f32e0736466d52e435ed0210073d77e826210ea2d31be3
+  languageName: node
+  linkType: hard
+
+"@tybys/wasm-util@npm:^0.10.3":
+  version: 0.10.3
+  resolution: "@tybys/wasm-util@npm:0.10.3"
+  dependencies:
+    tslib: ^2.4.0
+  checksum: 865f76e01c5834550e634690fa85b21a89cac90d9ef65354e9f7b022582d85f394bf4b8b7710c987dac2b66bb3de37f1d79e28605c3e09b3384ae09a864b5ab6
   languageName: node
   linkType: hard
 
@@ -9923,6 +9971,227 @@ __metadata:
     "@typescript-eslint/types": 8.63.0
     eslint-visitor-keys: ^5.0.0
   checksum: d3095d338c29f2a3479afac2f679096ac9b9d4a82a23fa1d499c6a983aabe8a7357b37c5857c8535a1dc45107d65d71032ff5a236239c5d2b1ec94975dfc8678
+  languageName: node
+  linkType: hard
+
+"@typescript/native@npm:typescript@7.0.2":
+  version: 7.0.2
+  resolution: "typescript@npm:7.0.2"
+  dependencies:
+    "@typescript/typescript-aix-ppc64": 7.0.2
+    "@typescript/typescript-darwin-arm64": 7.0.2
+    "@typescript/typescript-darwin-x64": 7.0.2
+    "@typescript/typescript-freebsd-arm64": 7.0.2
+    "@typescript/typescript-freebsd-x64": 7.0.2
+    "@typescript/typescript-linux-arm": 7.0.2
+    "@typescript/typescript-linux-arm64": 7.0.2
+    "@typescript/typescript-linux-loong64": 7.0.2
+    "@typescript/typescript-linux-mips64el": 7.0.2
+    "@typescript/typescript-linux-ppc64": 7.0.2
+    "@typescript/typescript-linux-riscv64": 7.0.2
+    "@typescript/typescript-linux-s390x": 7.0.2
+    "@typescript/typescript-linux-x64": 7.0.2
+    "@typescript/typescript-netbsd-arm64": 7.0.2
+    "@typescript/typescript-netbsd-x64": 7.0.2
+    "@typescript/typescript-openbsd-arm64": 7.0.2
+    "@typescript/typescript-openbsd-x64": 7.0.2
+    "@typescript/typescript-sunos-x64": 7.0.2
+    "@typescript/typescript-win32-arm64": 7.0.2
+    "@typescript/typescript-win32-x64": 7.0.2
+  dependenciesMeta:
+    "@typescript/typescript-aix-ppc64":
+      optional: true
+    "@typescript/typescript-darwin-arm64":
+      optional: true
+    "@typescript/typescript-darwin-x64":
+      optional: true
+    "@typescript/typescript-freebsd-arm64":
+      optional: true
+    "@typescript/typescript-freebsd-x64":
+      optional: true
+    "@typescript/typescript-linux-arm":
+      optional: true
+    "@typescript/typescript-linux-arm64":
+      optional: true
+    "@typescript/typescript-linux-loong64":
+      optional: true
+    "@typescript/typescript-linux-mips64el":
+      optional: true
+    "@typescript/typescript-linux-ppc64":
+      optional: true
+    "@typescript/typescript-linux-riscv64":
+      optional: true
+    "@typescript/typescript-linux-s390x":
+      optional: true
+    "@typescript/typescript-linux-x64":
+      optional: true
+    "@typescript/typescript-netbsd-arm64":
+      optional: true
+    "@typescript/typescript-netbsd-x64":
+      optional: true
+    "@typescript/typescript-openbsd-arm64":
+      optional: true
+    "@typescript/typescript-openbsd-x64":
+      optional: true
+    "@typescript/typescript-sunos-x64":
+      optional: true
+    "@typescript/typescript-win32-arm64":
+      optional: true
+    "@typescript/typescript-win32-x64":
+      optional: true
+  bin:
+    tsc: bin/tsc
+  checksum: ca080a72699001d8c636cf78289bae3dfbd67e60a75dbbdb03d36f9529da65653eca7a61d925b850029e1128a87aa2bae900331163bcff6d401e7ec213398c38
+  languageName: node
+  linkType: hard
+
+"@typescript/old@npm:typescript@6.0.2":
+  version: 6.0.2
+  resolution: "typescript@npm:6.0.2"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: a95632e5e4f7b9e7d9e9e9b79b4f147b45181258e7cae4c9f9f2a24176aff688d25e798cddf78cc39cb95423c8c63b36fd4ed5ac4028d37667dcc62a1e89e9e7
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-aix-ppc64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-aix-ppc64@npm:7.0.2"
+  conditions: os=aix & cpu=ppc64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-darwin-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-darwin-arm64@npm:7.0.2"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-darwin-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-darwin-x64@npm:7.0.2"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-freebsd-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-freebsd-arm64@npm:7.0.2"
+  conditions: os=freebsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-freebsd-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-freebsd-x64@npm:7.0.2"
+  conditions: os=freebsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-arm64@npm:7.0.2"
+  conditions: os=linux & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-arm@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-arm@npm:7.0.2"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-loong64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-loong64@npm:7.0.2"
+  conditions: os=linux & cpu=loong64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-mips64el@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-mips64el@npm:7.0.2"
+  conditions: os=linux & cpu=mips64el
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-ppc64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-ppc64@npm:7.0.2"
+  conditions: os=linux & cpu=ppc64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-riscv64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-riscv64@npm:7.0.2"
+  conditions: os=linux & cpu=riscv64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-s390x@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-s390x@npm:7.0.2"
+  conditions: os=linux & cpu=s390x
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-x64@npm:7.0.2"
+  conditions: os=linux & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-netbsd-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-netbsd-arm64@npm:7.0.2"
+  conditions: os=netbsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-netbsd-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-netbsd-x64@npm:7.0.2"
+  conditions: os=netbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-openbsd-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-openbsd-arm64@npm:7.0.2"
+  conditions: os=openbsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-openbsd-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-openbsd-x64@npm:7.0.2"
+  conditions: os=openbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-sunos-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-sunos-x64@npm:7.0.2"
+  conditions: os=sunos & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-win32-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-win32-arm64@npm:7.0.2"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-win32-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-win32-x64@npm:7.0.2"
+  conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
@@ -11484,7 +11753,7 @@ __metadata:
     "@foxglove/schemas": 2.0.0
     "@foxglove/studio": "workspace:*"
     "@foxglove/studio-base": "workspace:*"
-    "@rspack/core": 2.0.8
+    "@rspack/core": 2.1.7
     "@rspack/plugin-react-refresh": 2.0.2
     "@types/react": 18.3.27
     "@types/react-dom": 18.2.7
@@ -13570,8 +13839,8 @@ __metadata:
     "@foxglove/studio-base": "workspace:*"
     "@foxglove/studio-desktop": "workspace:*"
     "@foxglove/ws-protocol": 0.1.2
-    "@rspack/cli": 2.0.8
-    "@rspack/core": 2.0.8
+    "@rspack/cli": 2.1.7
+    "@rspack/core": 2.1.7
     "@types/ws": ^8
     electron: 35.0.3
     playwright: 1.60.0
@@ -16822,9 +17091,9 @@ __metadata:
     "@coscene-io/eslint-plugin": "workspace:*"
     "@eslint/js": 9.39.4
     "@foxglove/tsconfig": 3.2.0
-    "@rspack/cli": 2.0.8
-    "@rspack/core": 2.0.8
-    "@rspack/dev-server": 2.0.3
+    "@rspack/cli": 2.1.7
+    "@rspack/core": 2.1.7
+    "@rspack/dev-server": 2.1.0
     "@types/babel__core": ^7.20.5
     "@types/babel__preset-env": ^7.10.0
     "@types/case-sensitive-paths-webpack-plugin": 2.1.9
@@ -16832,6 +17101,7 @@ __metadata:
     "@types/license-checker": ^25.0.6
     "@types/node": 24.13.1
     "@types/semver": ^7.5.6
+    "@typescript/native": "npm:typescript@7.0.2"
     babel-plugin-transform-import-meta: 2.3.3
     cross-env: 7.0.3
     depcheck: 1.4.7
@@ -16856,7 +17126,7 @@ __metadata:
     ts-node: 10.9.2
     ts-unused-exports: 10.0.1
     tslib: 2.8.1
-    typescript: 6.0.3
+    typescript: "npm:@typescript/typescript6@6.0.2"
     typescript-eslint: 8.63.0
     webpack: 5.97.1
     webpack-cli: 6.0.1
@@ -19913,7 +20183,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"memfs@npm:^4.57.8":
+"memfs@npm:^4.6.0":
+  version: 4.14.0
+  resolution: "memfs@npm:4.14.0"
+  dependencies:
+    "@jsonjoy.com/json-pack": ^1.0.3
+    "@jsonjoy.com/util": ^1.3.0
+    tree-dump: ^1.0.1
+    tslib: ^2.0.0
+  checksum: 162e61510983488b0c524bd24191ab8be0f8a95636906ee305c10f2027e6a9f90831f42c072657aaf5fa859bb5132c5e97aa97aa96dfd959810327aec5b067c3
+  languageName: node
+  linkType: hard
+
+"memfs@npm:^4.64.0":
   version: 4.64.0
   resolution: "memfs@npm:4.64.0"
   dependencies:
@@ -19934,18 +20216,6 @@ __metadata:
   peerDependencies:
     tslib: 2
   checksum: ab5040455a949beb9cb35f8a6ff3d3999731b4bbd9b090f6fc2055e703ff7ec68cbb25597b7b96b3e67ed9a804e5383efd7949f606cba9405262cb30051c4c51
-  languageName: node
-  linkType: hard
-
-"memfs@npm:^4.6.0":
-  version: 4.14.0
-  resolution: "memfs@npm:4.14.0"
-  dependencies:
-    "@jsonjoy.com/json-pack": ^1.0.3
-    "@jsonjoy.com/util": ^1.3.0
-    tree-dump: ^1.0.1
-    tslib: ^2.0.0
-  checksum: 162e61510983488b0c524bd24191ab8be0f8a95636906ee305c10f2027e6a9f90831f42c072657aaf5fa859bb5132c5e97aa97aa96dfd959810327aec5b067c3
   languageName: node
   linkType: hard
 
@@ -25406,13 +25676,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-checker-rspack-plugin@npm:1.5.2":
-  version: 1.5.2
-  resolution: "ts-checker-rspack-plugin@npm:1.5.2"
+"ts-checker-rspack-plugin@npm:1.6.0":
+  version: 1.6.0
+  resolution: "ts-checker-rspack-plugin@npm:1.6.0"
   dependencies:
     "@rspack/lite-tapable": ^1.1.2
     chokidar: ^3.6.0
-    memfs: ^4.57.8
+    memfs: ^4.64.0
     picocolors: ^1.1.1
   peerDependencies:
     "@rspack/core": ^1.0.0 || ^2.0.0
@@ -25423,7 +25693,7 @@ __metadata:
       optional: true
     "@typescript/native-preview":
       optional: true
-  checksum: 21035b86c28694da886fc4eeadab40008a81f6572c1ddc83a44706ba3998f696e5ebfee53f7409fb7efdacb4ae6f48a3a2c21de1f635e6cbab38bd0d4132f70b
+  checksum: 4b99058af81ebdba8a5d873c3ca682af1eb39905bffc931f0d0d3fce1a97cb1571d06a08173794e7316e675a9f67bd8967f61a7e463b2cd4287d871dccbfdb58
   languageName: node
   linkType: hard
 
@@ -25896,13 +26166,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:6.0.3":
-  version: 6.0.3
-  resolution: "typescript@npm:6.0.3"
+"typescript@npm:@typescript/typescript6@6.0.2":
+  version: 6.0.2
+  resolution: "@typescript/typescript6@npm:6.0.2"
+  dependencies:
+    "@typescript/old": "npm:typescript@^6"
   bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: c1182dfadf8a8cb22a4e32442715afef1af1b950ae635b1c52c27e0d7fb7a5e2607ed7c7c4079bba4163579250e02445fd8d46b09cbceda71ff72a5b7d69db61
+    tsc6: bin/tsc6
+  checksum: 8d8aba15d1fa0391e310c3493e52491b9237191deacd82bd5a67d78e4bbabf1063c723dbc32fbda47d40d9b6fc752043acec2db6568b9d95eb7320af7fc61951
   languageName: node
   linkType: hard
 
@@ -25916,16 +26187,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@6.0.3#~builtin<compat/typescript>":
-  version: 6.0.3
-  resolution: "typescript@patch:typescript@npm%3A6.0.3#~builtin<compat/typescript>::version=6.0.3&hash=f3b441"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 8ed159a81ab4901a620c19fda539632cee610f8ec34dde57a3acc6b6df72894ad0b50bdd1946b763313d9b73dedb019d2e81c03eff06c0f2c785cde30a537d15
-  languageName: node
-  linkType: hard
-
 "typescript@patch:typescript@^5.4.3#~builtin<compat/typescript>":
   version: 5.7.2
   resolution: "typescript@patch:typescript@npm%3A5.7.2#~builtin<compat/typescript>::version=5.7.2&hash=f3b441"
@@ -25933,6 +26194,17 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 803430c6da2ba73c25a21880d8d4f08a56d9d2444e6db2ea949ac4abceeece8e4a442b7b9b585db7d8a0b47ebda2060e45fe8ee8b8aca23e27ec1d4844987ee6
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@npm%3A@typescript/typescript6@6.0.2#~builtin<compat/typescript>":
+  version: 6.0.2
+  resolution: "typescript@patch:@typescript/typescript6@npm%3A6.0.2#~builtin<compat/typescript>::version=6.0.2&hash=f3b441"
+  dependencies:
+    "@typescript/old": "npm:typescript@^6"
+  bin:
+    tsc6: bin/tsc6
+  checksum: e67e243134be573206c01c857f853ecba631702e53e71eaf93634e9cfffea63bfe81c5e6cf3e2f9e04c7262312a9bffe2b75e67ae22c98ae04421a2ea328d55b
   languageName: node
   linkType: hard
 
@@ -26687,8 +26959,8 @@ __metadata:
     "@foxglove/log": "workspace:*"
     "@foxglove/studio-desktop": "workspace:*"
     "@foxglove/studio-web": "workspace:*"
-    "@rspack/cli": 2.0.8
-    "@rspack/core": 2.0.8
+    "@rspack/cli": 2.1.7
+    "@rspack/core": 2.1.7
     "@types/serve-handler": ^6
     electron: 35.0.3
     playwright: 1.60.0
