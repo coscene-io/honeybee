@@ -1,0 +1,2087 @@
+{
+  "packages/studio-base/src/PanelAPI/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/PanelAPI/useBlocksSubscriptions.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/PanelAPI/useDataSourceInfo.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/PanelAPI/useMessageReducer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/PanelAPI/useMessagesByTopic.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/SharedRoot.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/StudioApp.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/Workspace.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/AddPanelMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/AppBarProject.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/AppMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/AppStateBar.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/CoSceneUserMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/DataSource.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/ShardProfileSelector.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/UploadFile/ChoiceRecord.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/UploadFile/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/hooks/useAutoDisconnection.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppBar/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppSettingsDialog/AppSettingsDialog.tsx": {
+    "import/no-cycle": {
+      "count": 2
+    }
+  },
+  "packages/studio-base/src/components/AppSettingsDialog/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/AppSettingsDialog/settings.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Avatar.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/BagView.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneChooser/ChooserComponent.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneChooser/CreateRecordForm.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneChooser/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneCurrentLayoutSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneCurrentUserSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/CoSceneLayoutButton.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/CoSceneLayoutContent.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/CoSceneLayoutDrawer.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/CurrentLayoutButton.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/LayoutTableRowMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/createLayout/CopyFromOtherProjectDialog.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/createLayout/CreateLayoutItems.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/createLayout/ProjectLayoutList.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoSceneLayout/createLayout/ProjectSelector.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoScenePlaylistSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ColorSchemeThemeProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CoreDataSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/editor/CustomFieldUserEditor.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/editor/CustomFieldValueFieldEditor.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/field/CustomFieldValueField.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/field/CustomFieldValueFieldDisplay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/field/CustomFieldValuesFields.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/form/CustomFieldValuesForm.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/CustomFieldProperty/utils/convertCustomFieldValue.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceDialog/Connection.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceDialog/DataSourceDialog.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceDialog/FormField.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceDialog/Start.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceDialog/View.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceDialog/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DataSourceInfoView.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DeepLinksSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/DirectTopicStatsUpdater.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/EmptyPanelLayout.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/CreateEventContainer/component/EventForm.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/CreateEventContainer/component/TaskForm.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/CreateEventContainer/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/EventsList/EventView.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/EventsList/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/EventsSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Events/MomentSubtitleOverlay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ExperimentalFeatureSettings.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ExtensionDetails.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ExtensionsSettings/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ForwardAnalyticsContextProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePathSyntax/MessagePathInput.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePathSyntax/simpleGetMessagePathDataItems.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePathSyntax/useCachedGetMessagePathDataItems.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePathSyntax/useMessageDataItem.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePipeline/MessageOrderTracker.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePipeline/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePipeline/store.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePipeline/subscriptions.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/MessagePipeline/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Panel.tsx": {
+    "import/no-cycle": {
+      "count": 2
+    }
+  },
+  "packages/studio-base/src/components/PanelCatalog/PanelCatalog.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelCatalog/PanelGrid.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelCatalog/PanelGridCard.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelCatalog/PanelList.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelCatalog/PanelListItem.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelCatalog/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelExtensionAdapter/PanelExtensionAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelExtensionAdapter/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelExtensionAdapter/messageProcessing.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelExtensionAdapter/renderState.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelExtensionAdapter/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelLayout.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelOverlay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelSettings/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelToolbar/ChangePanelMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelToolbar/PanelActionsDropdown.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelToolbar/PanelToolbarControls.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PanelToolbar/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/EventsOverlay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/PlaybackBarHoverTicks.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/PlaybackControlsTooltipContent.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/PlaybackTimeDisplay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/ProgressPlot.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/Scrubber.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/Slider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/UnconnectedPlaybackTimeDisplay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/eventRollingEdit.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/eventTimeEdit.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackControls/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlaybackSpeedControls.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/PlayerManager.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Playlist.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ProblemsList.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/RecordInfo/ProjectDeviceSelector.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/RecordInfo/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/SettingsTreeEditor/FieldEditor.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/SettingsTreeEditor/NodeEditor.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/SettingsTreeEditor/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/SettingsTreeEditor/inputs/CommonResourceSelecter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/ShareManifestLayoutSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/StudioLogsSettings/StudioLogsSettings.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/StudioLogsSettings/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/SubscriptionEntitlementSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/SyncAdapters.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/AssignedCard.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/DevicesTable.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/components/LinkDevice.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedDevicesTable/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/LinkRecord.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/RecordTable.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/components/RecordTableFilter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/components/LinkedRecordsTable/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskDetailDrawer/useSelectSource.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TaskPanel.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TasksList/components/TaskView.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TasksList/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Tasks/TasksSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/Timestamp.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/ContextMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/MessagePathRow.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/TopicList.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/TopicRow.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/getMessagePathSearchItems.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/TopicList/useTopicListSearch.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/URLStateSyncAdapter.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/UnknownPanel.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/UserSelect.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/VariablesList/Variable.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/VariablesList/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/WorkspaceDialogs.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/WssErrorModal.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/components/playbackSpeed.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/AnalyticsContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/AnalyticsProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/AppContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/CoSceneConsoleApiContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/CurrentLayoutContext/actions.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/CurrentLayoutContext/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/ExtensionCatalogContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/PanelCatalogContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/PlayerSelectionContext.ts": {
+    "import/no-cycle": {
+      "count": 2
+    }
+  },
+  "packages/studio-base/src/context/ProblemsContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/SharedRootContext.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/UserScriptStateContext.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/Workspace/WorkspaceContext.ts": {
+    "import/no-cycle": {
+      "count": 3
+    }
+  },
+  "packages/studio-base/src/context/Workspace/migrations.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/Workspace/shareManifestWorkspaceDefaults.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/Workspace/useOpenFile.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/context/Workspace/useWorkspaceActions.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/CoSceneDataPlatformDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/CoSceneShareManifestDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/FoxgloveWebSocketDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/McapLocalDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/PersistentCacheDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/RemoteDataSourceFactory.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/Ros1LocalBagDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/Ros1SocketDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/Ros2LocalBagDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/RosbridgeDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/SampleNuscenesDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/UlogLocalDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/VelodyneDataSourceFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/dataSources/createShardManifestPlayer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useAddPanel.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useAppTimeFormat.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useDefaultWebLaunchPreference.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useFrameNavigation.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useGlobalVariables.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useHandleFiles.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/usePublisher.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useStateToURLSynchronization.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useSyncLayoutFromUrl.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useSyncTimeFromUrl.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/hooks/useTopicPublishFrequences.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/index.ts": {
+    "import/no-cycle": {
+      "count": 2
+    }
+  },
+  "packages/studio-base/src/panels/CallService/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/DataCollection/DataCollection.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/DataCollection/DataCollectionContext.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/DataCollection/hooks.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/DataCollection/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/DataCollection/utils.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/DataSourceInfo/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Gauge/Gauge.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Gauge/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Image/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Indicator/Indicator.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Indicator/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Log/LogList.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Log/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Log/settings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Map/FilteredPointLayer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Map/MapPanel.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Map/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Map/initPanel.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/MomentsBar/MomentsList.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/MomentsBar/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Parameters/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/Plot.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/PlotCoordinator.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/PlotLegend.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/PlotLegendRow.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/VerticalBars.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/BlockTopicCursor.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/CurrentCustomDatasetsBuilder.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/CustomDatasetsBuilder.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/CustomDatasetsBuilderImpl.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/IDatasetsBuilder.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/IndexDatasetsBuilder.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/builders/TimestampDatasetsBuilder.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/config.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/csv.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Plot/settings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Publish/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Publish/settings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/RawMessages/Metadata.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/RawMessages/Toolbar.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/RawMessages/Value.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/RawMessages/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/PathLegend.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/StateTransitionsChartRenderer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/StateTransitionsCoordinator.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/StateTransitionsRenderer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/VerticalBars.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/downsampleStates.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/openSiblingStateTransitionsPanel.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/settings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/shared.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/stateTransitionData.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/StateTransitions/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Tab/DraggableToolbarTab.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Tab/TabbedToolbar.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Tab/ToolbarTab.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Tab/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Table/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/Teleop/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/HUD.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/HUDItemManager.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/IRenderer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/Interactions/InteractionContextMenu.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/Interactions/Interactions.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/Interactions/ObjectDetails.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/Interactions/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/Interactions/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/ModelCache.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/Renderer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/RendererOverlay.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/SceneExtension.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/SceneExtensionConfig.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/ThreeDeeRender.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/CameraStateSettings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Cameras.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/FoxgloveGrid.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/FrameAxes.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Grids.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ICameraHandler.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/ImageMode.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/MessageHandler.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/annotations/ImageAnnotations.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/annotations/RenderableLineAnnotation.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/annotations/RenderablePointsAnnotation.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/annotations/RenderableTextAnnotation.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/annotations/RenderableTopicAnnotations.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/annotations/normalizeAnnotations.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/constants.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/ImageMode/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Images.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Images/CompressedVideoController.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Images/ImageRenderable.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Images/imageNormalizers.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Images/videoGopCache.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Images/videoMessageQueue.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/LaserScans.ts": {
+    "import/no-cycle": {
+      "count": 2
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Markers.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/MeasurementTool.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/OccupancyGrids.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/PointClouds.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Polygons.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/PoseArrays.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Poses.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/PublishClickTool.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/PublishSettings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/SceneEntities.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/SceneSettings.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/TopicEntities.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/TopicMarkers.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/Urdfs.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/VelodyneScans.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/MarkerPool.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableArrow.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableCube.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableCubeList.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableCylinder.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableLineList.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableLineStrip.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableMarker.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableMeshResource.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderablePoints.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableSphere.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableSphereList.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableTextViewFacing.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/markers/RenderableTriangleList.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/models.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/pointExtensionUtils.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/PrimitivePool.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableArrows.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableCubes.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableCylinders.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableLines.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableModels.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderablePrimitive.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableSpheres.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableTexts.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/primitives/RenderableTriangles.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/ThreeDeeRender/renderables/projections.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/TopicGraph/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/UserScriptEditor/BottomBar/DiagnosticsSection.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/UserScriptEditor/BottomBar/LogsSection.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/UserScriptEditor/BottomBar/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/UserScriptEditor/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/VariableSlider/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/diagnostics/DiagnosticStatus.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/diagnostics/DiagnosticStatusPanel.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/diagnostics/DiagnosticSummary.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/diagnostics/useAvailableDiagnostics.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/diagnostics/useDiagnostics.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/diagnostics/useStaleTime.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/panels/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/persistence/IndexedDbMessageStore.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/persistence/PersistentMessageCache.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/persistence/RealtimeVizHistoryCache.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/AnalyticsMetricsCollector.ts": {
+    "import/no-cycle": {
+      "count": 2
+    }
+  },
+  "packages/studio-base/src/players/FoxgloveWebSocketPlayer/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/BlockLoader.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/BufferedIterableSource.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/CachingIterableSource.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/DeserializedSourceWrapper.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/DeserializingIterableSource.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/IIterableSource.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/IterablePlayer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/IterablePlayer/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/NoopMetricsCollector.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/PlayerProblemManager.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/Ros1Player.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/RosbridgePlayer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/TopicAliasingPlayer/AliasingStateProcessor.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/TopicAliasingPlayer/IStateProcessor.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/TopicAliasingPlayer/NoopStateProcessor.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/TopicAliasingPlayer/StateProcessorFactory.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/TopicAliasingPlayer/TopicAliasingPlayer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/TopicAliasingPlayer/aliasing.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/MemoizedLibGenerator.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/subscriptions.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/transformerWorker/generateTypesLib.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/transformerWorker/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/UserScriptPlayer/utils.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/VelodynePlayer.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/subscribePayloadFromMessagePath.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/players/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/CoSceneConsoleApiRemoteLayoutStorageProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/CoSceneLayoutManagerProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/CurrentLayoutProvider/index.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/CurrentLayoutProvider/toggleSelectedPanel.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/ExtensionCatalogProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/PanelCatalogProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/ProblemsContextProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/SharedProviders.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/providers/WorkspaceContextProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/screens/LaunchPreference.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/screens/LaunchPreferenceScreen.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/AmplitudeAnalytics.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/CoSceneConsoleApiRemoteLayoutStorage.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/CoSceneIdbLayoutStorage.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/IAnalytics.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/IdbUrdfStorage.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/LayoutManager/CoSceneLayoutManager.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/NullAnalytics.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/api/CoSceneConsoleApi.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/messageCacheTelemetry.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/messagePathDragging/MessagePathSelectionProvider.tsx": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/messagePathDragging/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/messagePathDragging/types.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/migrateLayout/coSceneMigratePanelsState.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/migrateLayout/index.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/migrateLayout/migrateLegacyToNewImagePanels.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/services/playbackPerformanceTelemetry.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/util/appURLState.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/util/errors.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/util/layout.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/util/sendNotification.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  },
+  "packages/studio-base/src/util/time.ts": {
+    "import/no-cycle": {
+      "count": 1
+    }
+  }
+}

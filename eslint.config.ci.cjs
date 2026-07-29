@@ -32,6 +32,7 @@ module.exports = [
     ignores: ["**/*.test.@(js|jsx|ts|tsx)", "**/__tests__/**"],
     rules: {
       // https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-cycle.md
+      // Existing violations are tracked in eslint-suppressions.json so new cycles still fail CI.
       "import/no-cycle": [
         "error",
         {

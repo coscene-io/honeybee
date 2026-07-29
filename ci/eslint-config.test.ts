@@ -13,10 +13,25 @@ import path from "node:path";
 const rootDir = path.resolve(__dirname, "..");
 const loadModule = createRequire(__filename);
 const eslintConfig = loadModule("../eslint.config.cjs") as Linter.Config[];
+const eslintCiConfig = loadModule("../eslint.config.ci.cjs") as Linter.Config[];
 
 const eslint = new ESLint({
   cwd: rootDir,
   overrideConfig: eslintConfig,
+  overrideConfigFile: true,
+});
+
+const eslintWithCycleFixtures = new ESLint({
+  cwd: rootDir,
+  overrideConfig: [
+    ...eslintCiConfig,
+    {
+      files: ["**/__tests__/eslintCycleFixtures/**/*.ts"],
+      rules: {
+        "import/no-cycle": "error",
+      },
+    },
+  ],
   overrideConfigFile: true,
 });
 
@@ -26,6 +41,18 @@ async function configFor(relativePath: string) {
     throw new Error(`No ESLint configuration matched ${relativePath}`);
   }
   return config;
+}
+
+async function cycleMessagesFor(importStyle: string) {
+  const fixtureRoot = "packages/studio-base/src/__tests__/eslintCycleFixtures";
+  const results = await eslintWithCycleFixtures.lintFiles([
+    path.join(rootDir, fixtureRoot, `${importStyle}A.ts`),
+    path.join(rootDir, fixtureRoot, `${importStyle}B.ts`),
+  ]);
+
+  return results.flatMap((result) =>
+    result.messages.filter((message) => message.ruleId === "import/no-cycle"),
+  );
 }
 
 describe("ESLint flat config", () => {
@@ -73,4 +100,16 @@ describe("ESLint flat config", () => {
 
     expect(config.rules["@coscene-io/license-header"]?.[0]).toBe(2);
   });
+
+  it.each(["relative", "alias", "mixed"])(
+    "detects dependency cycles using %s imports",
+    async (importStyle) => {
+      const messages = await cycleMessagesFor(importStyle);
+
+      expect(messages).toHaveLength(2);
+      for (const message of messages) {
+        expect(message.message).toMatch(/^Dependency cycle/);
+      }
+    },
+  );
 });

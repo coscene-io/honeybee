@@ -35,7 +35,10 @@ import {
   DraggedMessagePath,
   MessagePathDropStatus,
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
+import {
+  HUDItemManager,
+  HUDItem,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { LayerErrors } from "@foxglove/studio-base/panels/ThreeDeeRender/LayerErrors";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
@@ -43,7 +46,6 @@ import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import { palette, fontMonospace } from "@foxglove/theme";
 import { LabelMaterial, LabelPool } from "@foxglove/three-text";
 
-import { HUDItem } from "./HUDItemManager";
 import {
   IRenderer,
   InstancedLineMaterial,
