@@ -41,6 +41,7 @@ module.exports = {
         node,
         name: node.id?.name,
         definitions: [],
+        privateNames: new Set(),
         references: new Map(),
         unsafeReferences: new Set(),
       });
@@ -48,7 +49,16 @@ module.exports = {
 
     function recordReference(node) {
       const currentClass = classStack.at(-1);
-      if (!currentClass || node.computed || node.property.type !== "Identifier") {
+      if (!currentClass) {
+        return;
+      }
+      if (node.computed) {
+        if (node.property.type === "Literal" && typeof node.property.value === "string") {
+          currentClass.unsafeReferences.add(node.property.value);
+        }
+        return;
+      }
+      if (node.property.type !== "Identifier") {
         return;
       }
 
@@ -80,7 +90,10 @@ module.exports = {
         const oldName = definition.key.name;
         const newName = `#${oldName.replace(/^_/, "")}`;
         const references = currentClass.references.get(oldName) ?? [];
-        const suggest = currentClass.unsafeReferences.has(oldName)
+        const suggestionIsUnsafe =
+          currentClass.unsafeReferences.has(oldName) ||
+          currentClass.privateNames.has(newName.slice(1));
+        const suggest = suggestionIsUnsafe
           ? undefined
           : [
               {
@@ -118,6 +131,11 @@ module.exports = {
       ClassDeclaration: enterClass,
       ClassExpression: enterClass,
       MemberExpression: recordReference,
+      ":matches(PropertyDefinition, MethodDefinition)[computed=false] > PrivateIdentifier.key": (
+        node,
+      ) => {
+        classStack.at(-1)?.privateNames.add(node.name);
+      },
       ":matches(PropertyDefinition, MethodDefinition)[accessibility='private'][computed=false]": (
         node,
       ) => {

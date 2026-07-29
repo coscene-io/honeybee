@@ -54,5 +54,13 @@ new RuleTester({
       code: "class Example { private value = 1; read(other: Example) { return other.value; } }",
       errors: [{ messageId: "preferHash", suggestions: [] }],
     },
+    {
+      code: 'class Example { private value = 1; read() { return this["value"]; } }',
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
+    {
+      code: "class Example { #value = 1; private _value = 2; }",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
   ],
 });

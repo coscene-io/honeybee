@@ -34,6 +34,10 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
         code: "const pattern = new RegExp(`(?<=prefix)value`, 'u');",
         errors: [{ messageId: "unsupported" }],
       },
+      {
+        code: "function run() { type RegExp = string; return new RegExp('(?<=prefix)value'); }",
+        errors: [{ messageId: "unsupported" }],
+      },
     ],
   },
 );
