@@ -102,7 +102,10 @@ function mockSecondShardTimeRange(startNs: string, endNs: string): void {
   );
 }
 
-function mockSourceFileTimeRanges(ranges: Array<{ startNs: string; endNs: string }>): void {
+function mockSourceFileTimeRanges(
+  ranges: Array<{ startNs: string; endNs: string }>,
+  shardRanges?: Array<{ startNs: string; endNs: string }>,
+): void {
   const modifiedManifest = manifest();
   modifiedManifest.sourceFiles = ranges.map((timeRange, i) => ({
     name: `record-${i}`,
@@ -110,6 +113,12 @@ function mockSourceFileTimeRanges(ranges: Array<{ startNs: string; endNs: string
     sizeBytes: 2048,
     timeRange,
   }));
+  if (shardRanges) {
+    modifiedManifest.shards = modifiedManifest.shards.map((shard, i) => ({
+      ...shard,
+      timeRange: shardRanges[i] ?? shard.timeRange,
+    }));
+  }
   global.fetch = jest.fn(
     async (..._args: Parameters<typeof fetch>): Promise<Response> =>
       ({
@@ -469,11 +478,19 @@ describe("ShardManifestIterableSource", () => {
       // BigInt("NaN") throws and BigInt("") silently coerces to 0n, so an unguarded min/max over
       // sourceFiles either aborts the open or poisons the range with 0. A malformed entry must be
       // skipped and the range computed from the remaining valid entries.
-      mockSourceFileTimeRanges([
-        { startNs, endNs },
-        { startNs: "100000000", endNs: "500000000" },
-        { startNs: "200000000", endNs: "1000000000" },
-      ]);
+      // Shard ranges sit inside the valid sourceFiles span so this test isolates the
+      // sourceFiles fold (shard ranges also participate; see the shard-recovery test below).
+      mockSourceFileTimeRanges(
+        [
+          { startNs, endNs },
+          { startNs: "100000000", endNs: "500000000" },
+          { startNs: "200000000", endNs: "1000000000" },
+        ],
+        [
+          { startNs: "100000000", endNs: "400000000" },
+          { startNs: "300000000", endNs: "900000000" },
+        ],
+      );
 
       const source = new ShardManifestIterableSource({
         manifestUrl: "https://example.com/manifest.json",
@@ -485,12 +502,41 @@ describe("ShardManifestIterableSource", () => {
     },
   );
 
-  it("falls back to a zero recording range when every sourceFile range is malformed", async () => {
-    mockSourceFileTimeRanges([
-      { startNs: "", endNs: "" },
-      { startNs: "NaN", endNs: "abc" },
-      { startNs: "1000000000", endNs: "0" },
-    ]);
+  it("recovers the recording range from valid shard ranges when every sourceFile is malformed", async () => {
+    // The malformed-only sourceFiles must not collapse the interval to zero while the shards
+    // still declare where the data lives.
+    mockSourceFileTimeRanges(
+      [
+        { startNs: "", endNs: "" },
+        { startNs: "NaN", endNs: "abc" },
+        { startNs: "1000000000", endNs: "0" },
+      ],
+      [
+        { startNs: "100000000", endNs: "600000000" },
+        { startNs: "200000000", endNs: "1000000000" },
+      ],
+    );
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    const init = await source.initialize();
+
+    expect(init.start).toEqual({ sec: 0, nsec: 100_000_000 });
+    expect(init.end).toEqual({ sec: 1, nsec: 0 });
+  });
+
+  it("falls back to a zero recording range when every sourceFile and shard range is malformed", async () => {
+    mockSourceFileTimeRanges(
+      [
+        { startNs: "", endNs: "" },
+        { startNs: "NaN", endNs: "abc" },
+      ],
+      [
+        { startNs: "", endNs: "" },
+        { startNs: "5", endNs: "1" },
+      ],
+    );
 
     const source = new ShardManifestIterableSource({
       manifestUrl: "https://example.com/manifest.json",

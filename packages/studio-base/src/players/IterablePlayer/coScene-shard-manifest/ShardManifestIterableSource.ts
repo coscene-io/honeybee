@@ -310,13 +310,15 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     // every shard being open at init (the lazy ones aren't). A malformed range
     // must not prevent the recording from opening (and BigInt("") coerces to 0n,
     // which would poison the min/max), so entries that fail the same validation
-    // shards get are skipped.
+    // shards get are skipped. Valid shard ranges also join the fold: for a
+    // consistent manifest they lie inside the sourceFiles range (no-op), and
+    // when the widest — or only — sourceFiles entry is malformed they keep the
+    // interval from collapsing to zero or truncating below the shards' extent.
     let startNs: bigint | undefined;
     let endNs: bigint | undefined;
-    for (const sf of manifest.sourceFiles) {
-      const range = parseTimeRangeNs(sf.timeRange);
+    const foldRange = (range: { startNs: bigint; endNs: bigint } | undefined) => {
       if (range == undefined) {
-        continue;
+        return;
       }
       if (startNs == undefined || range.startNs < startNs) {
         startNs = range.startNs;
@@ -324,6 +326,12 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
       if (endNs == undefined || range.endNs > endNs) {
         endNs = range.endNs;
       }
+    };
+    for (const sf of manifest.sourceFiles) {
+      foldRange(parseTimeRangeNs(sf.timeRange));
+    }
+    for (const shard of active.shards) {
+      foldRange(parseTimeRangeNs(shard.timeRange));
     }
     const start = startNs != undefined ? fromNanoSec(startNs) : { sec: 0, nsec: 0 };
     const end = endNs != undefined ? fromNanoSec(endNs) : { sec: 0, nsec: 0 };
