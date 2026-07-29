@@ -137,7 +137,7 @@ function CoSceneChooser(props: ChooserDialogProps): React.JSX.Element {
       case "create-record":
         return t("createRecord");
       case "select-files-from-record":
-        return t("selecteFilesFromRecord");
+        return t("selectFilesFromRecord");
       case "select-files-from-project":
         return t("selectRecordFromProjectResources");
       default:

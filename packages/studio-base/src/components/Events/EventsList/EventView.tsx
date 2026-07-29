@@ -492,7 +492,7 @@ function EventViewComponent(params: {
                 color={theme.palette.text.secondary}
               >
                 <Stack flexDirection="row" alignItems="center" gap={0.5}>
-                  <Stack justifyContent="center">{t("creater")}</Stack>
+                  <Stack justifyContent="center">{t("creator")}</Stack>
                 </Stack>
                 <Stack marginRight={1}>:</Stack>
                 <Stack>
