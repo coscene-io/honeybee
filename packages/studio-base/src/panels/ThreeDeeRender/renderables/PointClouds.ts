@@ -966,7 +966,8 @@ export class PointClouds extends SceneExtension<PointCloudHistoryRenderable> {
 }
 
 function pointFieldTypeName(type: PointFieldType): string {
-  return PointFieldType[type];
+  const typeName = (PointFieldType as Record<number, string | undefined>)[type];
+  return typeName ?? `${type}`;
 }
 
 function pointFieldWidth(type: PointFieldType): number {

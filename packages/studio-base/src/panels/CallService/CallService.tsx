@@ -266,7 +266,9 @@ function CallServiceContent(
               onClick={callServiceClicked}
               data-testid="call-service-button"
             >
-              {config.buttonText ?? `Call service ${config.serviceName ?? ""}`}
+              {config.buttonText == undefined || config.buttonText === ""
+                ? `Call service ${config.serviceName ?? ""}`
+                : config.buttonText}
             </Button>
           </span>
         </Tooltip>

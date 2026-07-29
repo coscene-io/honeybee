@@ -49,6 +49,20 @@ function functionName(parameter) {
   return undefined;
 }
 
+function parameterIsRead(sourceCode, identifier) {
+  for (let scope = sourceCode.getScope(identifier); scope; scope = scope.upper) {
+    const variable = scope.variables.find(
+      (candidate) =>
+        candidate.name === identifier.name &&
+        candidate.defs.some((definition) => definition.name === identifier),
+    );
+    if (variable) {
+      return variable.references.some((reference) => reference.isRead());
+    }
+  }
+  return false;
+}
+
 function suggestions(parameter, context) {
   const identifier = parameterIdentifier(parameter);
   if (!identifier) {
@@ -90,25 +104,27 @@ function suggestions(parameter, context) {
     ? sourceCode.getText(identifier.typeAnnotation.typeAnnotation)
     : "boolean";
 
-  return [
-    {
+  const results = [];
+  if (!parameterIsRead(sourceCode, identifier)) {
+    results.push({
       messageId: "useStringUnion",
       data: { type: stringUnion },
       fix(fixer) {
         return fixer.replaceText(parameter, `${name}${optional}: ${stringUnion}${defaultText}`);
       },
+    });
+  }
+  results.push({
+    messageId: "wrapInObject",
+    data: { name },
+    fix(fixer) {
+      return fixer.replaceText(
+        parameter,
+        `{ ${name}${objectDefault} }: { ${name}${optional}: ${objectAnnotation} }`,
+      );
     },
-    {
-      messageId: "wrapInObject",
-      data: { name },
-      fix(fixer) {
-        return fixer.replaceText(
-          parameter,
-          `{ ${name}${objectDefault} }: { ${name}${optional}: ${objectAnnotation} }`,
-        );
-      },
-    },
-  ];
+  });
+  return results;
 }
 
 /** @type {import("@typescript-eslint/utils").TSESLint.RuleModule} */

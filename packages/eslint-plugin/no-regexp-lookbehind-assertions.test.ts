@@ -19,6 +19,7 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
       "const pattern = /(?=prefix)value/;",
       "const pattern = new RegExp(source);",
       "function run(RegExp) { return new RegExp('(?<=prefix)value'); }",
+      "function outer(RegExp) { function run() { type RegExp = string; return new RegExp('(?<=prefix)value'); } return run(); }",
       "const pattern = new RegExp('[');",
     ],
     invalid: [
@@ -32,6 +33,14 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
       },
       {
         code: "const pattern = new RegExp(`(?<=prefix)value`, 'u');",
+        errors: [{ messageId: "unsupported" }],
+      },
+      {
+        code: "function run() { type RegExp = string; return new RegExp('(?<=prefix)value'); }",
+        errors: [{ messageId: "unsupported" }],
+      },
+      {
+        code: 'import type { Foo as RegExp } from "./types"; new RegExp("(?<=prefix)value");',
         errors: [{ messageId: "unsupported" }],
       },
     ],

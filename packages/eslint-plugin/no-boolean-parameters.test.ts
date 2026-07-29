@@ -83,5 +83,21 @@ ruleTester.run("no-boolean-parameters", rule, {
         },
       ],
     },
+    {
+      code: "function setEnabled(enabled: boolean = false, count = 0) { if (enabled) {} }",
+      filename: "file.ts",
+      errors: [
+        {
+          messageId: "booleanTrap",
+          suggestions: [
+            {
+              messageId: "wrapInObject",
+              output:
+                "function setEnabled({ enabled = false }: { enabled: boolean }, count = 0) { if (enabled) {} }",
+            },
+          ],
+        },
+      ],
+    },
   ],
 });
