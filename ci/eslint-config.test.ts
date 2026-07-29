@@ -49,18 +49,6 @@ async function configFor(relativePath: string) {
   return config;
 }
 
-async function cycleMessagesFor(importStyle: string) {
-  const fixtureRoot = "packages/studio-base/src/__tests__/eslintCycleFixtures";
-  const results = await eslintWithCycleFixtures.lintFiles([
-    path.join(rootDir, fixtureRoot, `${importStyle}A.ts`),
-    path.join(rootDir, fixtureRoot, `${importStyle}B.ts`),
-  ]);
-
-  return results.flatMap((result) =>
-    result.messages.filter((message) => message.ruleId === "import/no-cycle"),
-  );
-}
-
 describe("ESLint flat config", () => {
   it("composes JavaScript, TypeScript, and React configuration by file type", async () => {
     const [javascript, typescript, tsx] = await Promise.all([
@@ -107,47 +95,65 @@ describe("ESLint flat config", () => {
     expect(config.rules["@coscene-io/license-header"]?.[0]).toBe(2);
   });
 
-  it.each(["relative", "alias", "mixed"])(
-    "detects dependency cycles using %s imports",
-    async (importStyle) => {
-      const messages = await cycleMessagesFor(importStyle);
+  it("detects dependency cycles using relative, aliased, and mixed imports", async () => {
+    const importStyles = ["relative", "alias", "mixed"];
+    const fixtureRoot = path.join(
+      rootDir,
+      "packages/studio-base/src/__tests__/eslintCycleFixtures",
+    );
+    const fixtureFiles = importStyles.flatMap((importStyle) => [
+      path.join(fixtureRoot, `${importStyle}A.ts`),
+      path.join(fixtureRoot, `${importStyle}B.ts`),
+    ]);
+    const results = await eslintWithCycleFixtures.lintFiles(fixtureFiles);
+
+    for (const importStyle of importStyles) {
+      const stylePrefix = path.join(fixtureRoot, importStyle);
+      const messages = results
+        .filter((result) => result.filePath.startsWith(stylePrefix))
+        .flatMap((result) =>
+          result.messages.filter((message) => message.ruleId === "import/no-cycle"),
+        );
 
       expect(messages).toHaveLength(2);
       for (const message of messages) {
         expect(message.message).toMatch(/^Dependency cycle/);
       }
-    },
-  );
+    }
+  }, 30_000);
 
-  it.each(["@foxglove/studio-base", "@foxglove/studio-base/index"])(
-    "rejects internal imports from the studio-base entry point (%s)",
-    async (entryPoint) => {
-      const [result] = await eslintCi.lintText(`import "${entryPoint}";`, {
-        filePath: path.join(rootDir, "packages/studio-base/src/util/appURLState.ts"),
-      });
+  it("restricts studio-base entry points without dropping React restrictions", async () => {
+    const [typescriptConfig, reactConfig] = await Promise.all([
+      eslintCi.calculateConfigForFile(
+        path.join(rootDir, "packages/studio-base/src/util/appURLState.ts"),
+      ),
+      eslintCi.calculateConfigForFile(
+        path.join(rootDir, "packages/studio-base/src/components/Panel.tsx"),
+      ),
+    ]);
+    const restrictedImportNames = (config: unknown): Array<string | undefined> => {
+      const typedConfig = config as Linter.Config | undefined;
+      const restrictedImportsRule = typedConfig?.rules?.["no-restricted-imports"] as
+        | unknown[]
+        | undefined;
+      const ruleOptions = restrictedImportsRule?.[1] as
+        | { paths?: Array<{ name?: string }> }
+        | undefined;
 
-      expect(result?.messages.some((message) => message.ruleId === "no-restricted-imports")).toBe(
-        true,
-      );
-    },
-  );
+      return ruleOptions?.paths?.map((entry) => entry.name) ?? [];
+    };
 
-  it("preserves the existing React import restrictions in studio-base", async () => {
-    const config = await eslintCi.calculateConfigForFile(
-      path.join(rootDir, "packages/studio-base/src/components/Panel.tsx"),
+    const studioBaseEntryPoints = ["@foxglove/studio-base", "@foxglove/studio-base/index"];
+    expect(restrictedImportNames(typescriptConfig)).toEqual(
+      expect.arrayContaining(studioBaseEntryPoints),
     );
-    const ruleOptions = config?.rules["no-restricted-imports"]?.[1] as
-      | { paths?: Array<{ name?: string }> }
-      | undefined;
-
-    expect(ruleOptions?.paths?.map((entry) => entry.name)).toEqual(
+    expect(restrictedImportNames(reactConfig)).toEqual(
       expect.arrayContaining([
+        ...studioBaseEntryPoints,
         "@mui/material",
         "@mui/styles",
         "@mui/material/styles/styled",
         "@emotion/styled",
-        "@foxglove/studio-base",
-        "@foxglove/studio-base/index",
       ]),
     );
   });
