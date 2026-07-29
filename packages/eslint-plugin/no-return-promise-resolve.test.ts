@@ -22,6 +22,10 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
       "function run() { return Promise.resolve(value); }",
       "async function outer() { return function inner() { return Promise.resolve(value); }; }",
       "async function run() { const promise = Promise.resolve(value); return promise; }",
+      "async function run(Promise) { return Promise.resolve(value); }",
+      "async function run() { const Promise = customPromise; return Promise.reject(error); }",
+      "async function run() { return Promise.resolve(value, sideEffect()); }",
+      "async function run() { return Promise.reject(error, sideEffect()); }",
     ],
     invalid: [
       {

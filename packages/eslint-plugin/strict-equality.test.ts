@@ -14,7 +14,13 @@ const rule = require("./strict-equality") as TSESLint.RuleModule<
 >;
 
 new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run("strict-equality", rule, {
-  valid: ["value === 1;", "value !== '1';", "value == null;", "value != undefined;"],
+  valid: [
+    "value === 1;",
+    "value !== '1';",
+    "value == null;",
+    "value != undefined;",
+    "function compare(undefined) { return value !== undefined; }",
+  ],
   invalid: [
     {
       code: "value == 1;",
@@ -29,6 +35,12 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run("strict-equal
     {
       code: "value === null;",
       errors: [{ messageId: "requireLooseNullish", data: { expectedOperator: "==" } }],
+    },
+    {
+      code: "function compare(undefined) { return value != undefined; }",
+      errors: [
+        { messageId: "requireStrict", data: { actualOperator: "!=", expectedOperator: "!==" } },
+      ],
     },
   ],
 });

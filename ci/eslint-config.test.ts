@@ -37,6 +37,10 @@ describe("ESLint flat config", () => {
     ]);
 
     expect(javascript.rules["@coscene-io/no-regexp-lookbehind-assertions"]?.[0]).toBe(2);
+    expect(javascript.rules["import/default"]?.[0]).toBe(2);
+    expect(javascript.rules["import/namespace"]?.[0]).toBe(2);
+    expect(javascript.rules["import/no-named-as-default"]?.[0]).toBe(1);
+    expect(javascript.rules["import/no-named-as-default-member"]?.[0]).toBe(1);
     expect(javascript.rules["import/no-unresolved"]?.[0]).toBe(2);
     expect(typescript.rules["@typescript-eslint/no-floating-promises"]?.[0]).toBe(2);
     expect(tsx.rules["react/prop-types"]?.[0]).toBe(0);

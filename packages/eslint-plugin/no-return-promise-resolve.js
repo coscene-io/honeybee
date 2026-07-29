@@ -18,6 +18,16 @@ function nearestFunction(node) {
   return undefined;
 }
 
+function isShadowed(sourceCode, node, name) {
+  for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+    const variable = scope.variables.find((candidate) => candidate.name === name);
+    if (variable) {
+      return variable.defs.length > 0;
+    }
+  }
+  return false;
+}
+
 /** @type {import("eslint").Rule.RuleModule} */
 module.exports = {
   meta: {
@@ -40,8 +50,10 @@ module.exports = {
           node.callee.computed ||
           node.callee.object.type !== "Identifier" ||
           node.callee.object.name !== "Promise" ||
+          isShadowed(sourceCode, node, "Promise") ||
           node.callee.property.type !== "Identifier" ||
-          (node.callee.property.name !== "resolve" && node.callee.property.name !== "reject")
+          (node.callee.property.name !== "resolve" && node.callee.property.name !== "reject") ||
+          node.arguments.length > 1
         ) {
           return;
         }
