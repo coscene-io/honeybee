@@ -8,8 +8,12 @@
 import { Datum } from "./types";
 
 /**
- * Fingerprint for processed-dataset caches. Includes the head/tail endpoints as well as length so
- * any in-place endpoint mutation (same length, new x) still invalidates the cache.
+ * Fingerprint for processed-dataset caches. O(1) by design: it samples rather than hashes the
+ * series, combining the length, the head/tail endpoints, the middle datum (index length >> 1),
+ * and type-tagged values (so 1 and "1" differ). This catches in-place endpoint mutations, tail
+ * value edits including type-only changes, and any mutation that lands on the sampled middle
+ * datum. It can still theoretically miss mutations that leave the length, both endpoints, and
+ * the middle sample unchanged — e.g. offsetting edits confined to other interior indices.
  */
 export function processCacheFingerprint(
   data: readonly Datum[],
@@ -21,8 +25,24 @@ export function processCacheFingerprint(
     return `0|${y}|${viewMin}|${viewMax}`;
   }
   const head = data[0]!;
+  const mid = data[data.length >> 1]!;
   const tail = data[data.length - 1]!;
-  return [data.length, y, viewMin, viewMax, head.x, tail.x, String(tail.value)].join("|");
+  return [
+    data.length,
+    y,
+    viewMin,
+    viewMax,
+    head.x,
+    tail.x,
+    taggedValue(tail.value),
+    mid.x,
+    taggedValue(mid.value),
+  ].join("|");
+}
+
+/** Stringify a datum value prefixed with its type so e.g. 1 and "1" fingerprint differently. */
+function taggedValue(value: Datum["value"]): string {
+  return `${typeof value}:${String(value)}`;
 }
 
 /**

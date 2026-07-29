@@ -99,6 +99,24 @@ describe("processCacheFingerprint", () => {
     const data = [d(0, "a"), d(2, "a")];
     expect(processCacheFingerprint(data, 1, 0, 3)).toEqual(processCacheFingerprint(data, 1, 0, 3));
   });
+
+  it("distinguishes a numeric tail value from its string form", () => {
+    const numeric = [d(0, "a"), d(1, 1)];
+    const stringy = [d(0, "a"), d(1, "1")];
+    expect(processCacheFingerprint(numeric, 0, 0, 10)).not.toEqual(
+      processCacheFingerprint(stringy, 0, 0, 10),
+    );
+  });
+
+  it("changes when a mid-window value mutates with unchanged endpoints and length", () => {
+    const data: Datum[] = [d(0, "a"), d(1, "b"), d(2, "c"), d(3, "d"), d(4, "e")];
+
+    const before = processCacheFingerprint(data, 0, 0, 10);
+    data[2]!.value = "z"; // in-place mutation at the sampled middle index (length >> 1)
+    const after = processCacheFingerprint(data, 0, 0, 10);
+
+    expect(after).not.toEqual(before);
+  });
 });
 
 describe("sliceMergedStateDataForViewport", () => {

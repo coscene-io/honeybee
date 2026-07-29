@@ -38,7 +38,7 @@ import {
   UpdateAction,
 } from "./StateTransitionsChartRenderer";
 import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
-import { Viewport } from "./downsampleStates";
+import { VIEWPORT_PAN_BUFFER_FRACTION, Viewport } from "./downsampleStates";
 import positiveModulo from "./positiveModulo";
 import { PathState } from "./settings";
 import {
@@ -707,12 +707,11 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       this.#globalBounds?.max ??
       this.#configBounds.x.max ??
       viewMin + 1;
-    // Pad the window so pan/edge segments stay connected without processing the full bag. The
-    // pad must cover at least the renderer's own pan/zoom buffer (downsampleStates keeps half a
-    // view range on each side): #dispatchRender applies an interaction to the already-loaded
-    // dataset before the throttled rebuild lands, so a smaller upstream slice would expose
-    // blank regions during fast pans.
-    const viewPad = Math.max(0, (viewMax - viewMin) * 0.5);
+    // Pad the window by the renderer's shared pan buffer (VIEWPORT_PAN_BUFFER_FRACTION) so
+    // pan/edge segments stay connected without processing the full bag: #dispatchRender applies
+    // an interaction to the already-loaded dataset before the throttled rebuild lands, so a
+    // smaller upstream slice would expose blank regions during fast pans.
+    const viewPad = Math.max(0, (viewMax - viewMin) * VIEWPORT_PAN_BUFFER_FRACTION);
     const sliceMin = viewMin - viewPad;
     const sliceMax = viewMax + viewPad;
 

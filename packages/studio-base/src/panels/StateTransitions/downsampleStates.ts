@@ -16,6 +16,14 @@ const MINIMUM_PIXEL_DISTANCE = 3;
 // Beyond this threshold, ChartJS can no longer render at 60FPS.
 export const MAX_POINTS = 5_000;
 
+/**
+ * Fraction of the visible x-range kept as extra buffer on each side of the viewport so points
+ * near the bounds stay connected to their peers during pan/zoom. The coordinator's upstream
+ * viewport slice (StateTransitionsCoordinator) pads by this same fraction: it must cover at
+ * least the renderer's buffer window or fast pans would expose blank regions.
+ */
+export const VIEWPORT_PAN_BUFFER_FRACTION = 0.5;
+
 export type Viewport = {
   width: number;
   height: number;
@@ -123,12 +131,10 @@ export function downsampleStates(data: Datum[], view: Viewport, maxPoints?: numb
   const indices: StatePoint[] = [];
   let interval: Interval | undefined;
 
-  // We keep points within a buffer window around the bounds so points near the bounds are
-  // connected to their peers and available for pan/zoom.
-  // Points outside this buffer window are dropped.
+  // Points outside the shared pan buffer window (see VIEWPORT_PAN_BUFFER_FRACTION) are dropped.
   const xRange = bounds.x.max - bounds.x.min;
-  const minX = bounds.x.min - xRange * 0.5;
-  const maxX = bounds.x.max + xRange * 0.5;
+  const minX = bounds.x.min - xRange * VIEWPORT_PAN_BUFFER_FRACTION;
+  const maxX = bounds.x.max + xRange * VIEWPORT_PAN_BUFFER_FRACTION;
 
   let firstPastBounds: number | undefined = undefined;
 
