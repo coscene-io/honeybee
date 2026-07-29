@@ -19,6 +19,18 @@ function isThisBindingResetBetween(node, classNode) {
   return false;
 }
 
+function isClassNameReference(sourceCode, identifier, classNode) {
+  for (let scope = sourceCode.getScope(identifier); scope; scope = scope.upper) {
+    const variable = scope.variables.find((candidate) => candidate.name === identifier.name);
+    if (variable) {
+      return variable.defs.some(
+        (definition) => definition.type === "ClassName" && definition.node === classNode,
+      );
+    }
+  }
+  return false;
+}
+
 /** @type {import("eslint").Rule.RuleModule} */
 module.exports = {
   meta: {
@@ -76,9 +88,9 @@ module.exports = {
 
       const isThisReference = node.object.type === "ThisExpression";
       const isClassReference =
-        currentClass.name &&
         node.object.type === "Identifier" &&
-        node.object.name === currentClass.name;
+        node.object.name === currentClass.name &&
+        isClassNameReference(sourceCode, node.object, currentClass.node);
       if (
         (!isThisReference && !isClassReference) ||
         (isThisReference && isThisBindingResetBetween(node, currentClass.node))

@@ -66,5 +66,9 @@ new RuleTester({
       code: "class Example { private value = 1; } const instance = new Example(); (instance as any).value;",
       errors: [{ messageId: "preferHash", suggestions: [] }],
     },
+    {
+      code: "class Example { private static value = 1; static read() { const Example = { value: 2 }; return Example.value; } }",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
   ],
 });
