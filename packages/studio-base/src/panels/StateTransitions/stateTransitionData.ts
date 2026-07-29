@@ -40,9 +40,13 @@ export function processCacheFingerprint(
   ].join("|");
 }
 
-/** Stringify a datum value prefixed with its type so e.g. 1 and "1" fingerprint differently. */
+/**
+ * Encode a datum value with its type so e.g. 1 and "1" fingerprint differently. JSON-encoding
+ * makes the field boundary unambiguous: a string value containing the join delimiter ("|")
+ * stays inside its quotes, so it cannot forge adjacent fingerprint fields.
+ */
 function taggedValue(value: Datum["value"]): string {
-  return `${typeof value}:${String(value)}`;
+  return `${typeof value}:${JSON.stringify(value) ?? String(value)}`;
 }
 
 /**

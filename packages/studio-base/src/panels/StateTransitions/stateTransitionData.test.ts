@@ -95,6 +95,15 @@ describe("processCacheFingerprint", () => {
     expect(a).not.toEqual(b);
   });
 
+  it("does not collide when string values contain the join delimiter", () => {
+    // Unescaped concatenation would let a crafted value forge adjacent fields: a middle value
+    // of 'y|2|string:z' could produce the same joined string as different mid/tail data.
+    const a = [d(0, "a"), d(1, "y|2|string:z"), d(2, "x")];
+    const b = [d(0, "a"), d(1, "y"), d(2, "z")];
+
+    expect(processCacheFingerprint(a, 0, 0, 10)).not.toEqual(processCacheFingerprint(b, 0, 0, 10));
+  });
+
   it("is stable for identical inputs", () => {
     const data = [d(0, "a"), d(2, "a")];
     expect(processCacheFingerprint(data, 1, 0, 3)).toEqual(processCacheFingerprint(data, 1, 0, 3));
