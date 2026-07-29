@@ -21,6 +21,9 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   // next readUntil call otherwise it would be lost.
   #lastIteratorResult?: IteratorResult<MessageType>;
   #abort?: AbortSignal;
+  // Set once the underlying iterator has been finalized (its return() invoked). Finalization
+  // happens on end() or on the first read that observes an aborted signal, whichever comes first.
+  #finalized?: Promise<void>;
 
   public constructor(
     iterator: AsyncIterableIterator<Readonly<IteratorResult<MessageType>>>,
@@ -32,6 +35,7 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
 
   public async next(): ReturnType<IMessageCursor<MessageType>["next"]> {
     if (this.#abort?.aborted === true) {
+      await this.#finalize();
       return undefined;
     }
 
@@ -87,6 +91,7 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
     // that this value could change after the _await_
     const isAborted = this.#abort?.aborted;
     if (isAborted === true) {
+      await this.#finalize();
       return undefined;
     }
 
@@ -115,6 +120,7 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
     for (;;) {
       const result = await this.#iter.next();
       if (this.#abort?.aborted === true) {
+        await this.#finalize();
         return undefined;
       }
 
@@ -138,7 +144,22 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   }
 
   public async end(): ReturnType<IMessageCursor<MessageType>["end"]> {
-    await this.#iter.return?.();
+    await this.#finalize();
+  }
+
+  // Invoke the underlying iterator's return() exactly once so its cleanup (finally blocks) runs
+  // even when callers never call end() after an abort. Memoizing the promise keeps concurrent
+  // callers awaiting the same return() invocation. Best-effort: rejections are swallowed since
+  // callers finalizing an aborted or ended cursor have no use for cleanup errors.
+  async #finalize(): Promise<void> {
+    this.#finalized ??= (async () => {
+      try {
+        await this.#iter.return?.();
+      } catch {
+        // ignore cleanup errors
+      }
+    })();
+    await this.#finalized;
   }
 }
 
