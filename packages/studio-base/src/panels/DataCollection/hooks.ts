@@ -11,7 +11,7 @@ import { ListUserProjectsResponse } from "@coscene-io/cosceneapis-es-v2/coscene/
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useAsyncFn } from "react-use";
 
-import { ConsoleApi } from "@foxglove/studio-base/index";
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { MAX_PROJECTS_PAGE_SIZE, SCROLL_TOLERANCE } from "./constants";
 

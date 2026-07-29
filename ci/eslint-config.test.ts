@@ -21,6 +21,12 @@ const eslint = new ESLint({
   overrideConfigFile: true,
 });
 
+const eslintCi = new ESLint({
+  cwd: rootDir,
+  overrideConfig: eslintCiConfig,
+  overrideConfigFile: true,
+});
+
 const eslintWithCycleFixtures = new ESLint({
   cwd: rootDir,
   overrideConfig: [
@@ -112,4 +118,37 @@ describe("ESLint flat config", () => {
       }
     },
   );
+
+  it.each(["@foxglove/studio-base", "@foxglove/studio-base/index"])(
+    "rejects internal imports from the studio-base entry point (%s)",
+    async (entryPoint) => {
+      const [result] = await eslintCi.lintText(`import "${entryPoint}";`, {
+        filePath: path.join(rootDir, "packages/studio-base/src/util/appURLState.ts"),
+      });
+
+      expect(result?.messages.some((message) => message.ruleId === "no-restricted-imports")).toBe(
+        true,
+      );
+    },
+  );
+
+  it("preserves the existing React import restrictions in studio-base", async () => {
+    const config = await eslintCi.calculateConfigForFile(
+      path.join(rootDir, "packages/studio-base/src/components/Panel.tsx"),
+    );
+    const ruleOptions = config?.rules["no-restricted-imports"]?.[1] as
+      | { paths?: Array<{ name?: string }> }
+      | undefined;
+
+    expect(ruleOptions?.paths?.map((entry) => entry.name)).toEqual(
+      expect.arrayContaining([
+        "@mui/material",
+        "@mui/styles",
+        "@mui/material/styles/styled",
+        "@emotion/styled",
+        "@foxglove/studio-base",
+        "@foxglove/studio-base/index",
+      ]),
+    );
+  });
 });

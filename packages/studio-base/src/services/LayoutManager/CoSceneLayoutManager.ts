@@ -11,24 +11,26 @@ import { v4 as uuidv4 } from "uuid";
 
 import { MutexLocked } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import {
+import type { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import type { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import type { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import type {
   ILayoutManager,
   LayoutManagerChangeEvent,
   LayoutManagerEventTypes,
 } from "@foxglove/studio-base/services/CoSceneILayoutManager";
-import {
+import type {
   ILayoutStorage,
   ISO8601Timestamp,
   Layout,
-  layoutAppearsDeleted,
-  layoutIsProject,
   LayoutPermission,
-  layoutPermissionIsProject,
 } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import {
+  layoutAppearsDeleted,
+  layoutIsProject,
+  layoutPermissionIsProject,
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import type {
   IRemoteLayoutStorage,
   RemoteLayout,
 } from "@foxglove/studio-base/services/CoSceneIRemoteLayoutStorage";
@@ -36,7 +38,8 @@ import { replaceNullWithUndefined } from "@foxglove/studio-base/util/coscene";
 
 import { NamespacedLayoutStorage } from "./CoSceneNamespacedLayoutStorage";
 import WriteThroughLayoutCache from "./CoSceneWriteThroughLayoutCache";
-import computeLayoutSyncOperations, { SyncOperation } from "./coSceneComputeLayoutSyncOperations";
+import type { SyncOperation } from "./coSceneComputeLayoutSyncOperations";
+import computeLayoutSyncOperations from "./coSceneComputeLayoutSyncOperations";
 import { isLayoutEqual } from "./compareLayouts";
 import { migratePanelsState } from "../migrateLayout";
 

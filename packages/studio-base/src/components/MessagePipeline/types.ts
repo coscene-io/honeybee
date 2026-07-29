@@ -5,10 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Time } from "@foxglove/rostime";
-import { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
-import { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import {
+import type { Time } from "@foxglove/rostime";
+import type { Immutable, MessageEvent, Metadata, ParameterValue } from "@foxglove/studio";
+import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import type {
   AdvertiseOptions,
   PlaybackSpeed,
   PlayerState,
@@ -17,7 +17,7 @@ import {
   SubscribePayload,
   Topic,
 } from "@foxglove/studio-base/players/types";
-import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+import type { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 type ResumeFrame = () => void;
 export type MessagePipelineContext = Immutable<{

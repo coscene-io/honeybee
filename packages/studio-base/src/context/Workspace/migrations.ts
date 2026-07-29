@@ -5,16 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
-import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
-import { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import {
+import type { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
+import type { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
+import type { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type {
   LeftSidebarItemKey,
-  type MomentSubtitleSettings,
   RightSidebarItemKey,
   WorkspaceContextStore,
+  MomentSubtitleSettings,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
-import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
+import type { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
 // Type of version 0 store, used for migration.
 type WorkspaceContextStoreV0 = {

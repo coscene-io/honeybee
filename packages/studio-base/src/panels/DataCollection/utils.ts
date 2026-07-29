@@ -12,7 +12,7 @@ import dayjs from "dayjs";
 import { TFunction } from "i18next";
 
 import { PanelExtensionContext } from "@foxglove/studio";
-import { ConsoleApi } from "@foxglove/studio-base/index";
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { LOG_TIMESTAMP_FORMAT } from "./constants";

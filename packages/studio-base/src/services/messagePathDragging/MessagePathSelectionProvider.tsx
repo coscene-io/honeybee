@@ -7,7 +7,7 @@
 
 import { createContext, useMemo } from "react";
 
-import { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import type { DraggedMessagePath } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 
 type MessagePathSelectionContext = {
   getSelectedItems: () => DraggedMessagePath[];

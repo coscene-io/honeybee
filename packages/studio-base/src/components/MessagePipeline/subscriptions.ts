@@ -8,8 +8,8 @@
 import moize from "moize";
 import * as R from "ramda";
 
-import { Immutable } from "@foxglove/studio";
-import { SubscribePayload } from "@foxglove/studio-base/players/types";
+import type { Immutable } from "@foxglove/studio";
+import type { SubscribePayload } from "@foxglove/studio-base/players/types";
 
 /**
  * Create a deep equal memoized identify function. Used for stabilizing the subscription payloads we

@@ -7,7 +7,8 @@
 
 import type { BeforeSendFn, CaptureResult, Properties } from "posthog-js";
 
-import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 const SAFE_MESSAGE_CACHE_STRING_KEYS = new Set(["metric", "kind", "status", "stage", "operation"]);
 

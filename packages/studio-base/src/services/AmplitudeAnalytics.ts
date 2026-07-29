@@ -5,14 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import type { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { posthog } from "posthog-js";
 
 import Logger from "@foxglove/log";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import type { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import type { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import {
   sanitizeMessageCacheMetricData,
   sanitizePlayerPerformanceMetricData,
