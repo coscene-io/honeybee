@@ -16,7 +16,7 @@ export const playList: Partial<TypeOptions["resources"]["playList"]> = {
   shadowMode: "影子模式",
   addFiles: "添加文件",
   selectedFilesCount: "已选择：{{count}}个文件",
-  selecteFilesFromRecord: "从记录中选择文件",
+  selectFilesFromRecord: "从记录中选择文件",
   deleteConfirmTitle: "从播放列表移除文件",
   deleteConfirmPrompt: "移除文件 {{filename}} 后，将在当前窗口不可播放，可再次添加至播放列表",
   playOnlyThisFile: "仅播放此文件",

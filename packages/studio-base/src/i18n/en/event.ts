@@ -88,7 +88,7 @@ export const event = {
   showDetail: "Show Detail",
   toView: "to view",
   rule: "Rule",
-  creater: "Creater",
+  creator: "Creator",
   share: "Share",
   loopPlay: "Loop Play",
   startTimeAndDurationRequired: "Start time and duration are required",

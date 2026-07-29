@@ -87,7 +87,7 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   showDetail: "展示详情",
   toView: "前往查看",
   rule: "规则",
-  creater: "创建者",
+  creator: "创建者",
   share: "分享",
   loopPlay: "循环播放",
   startTimeAndDurationRequired: "开始时间和持续时间不能为空",
