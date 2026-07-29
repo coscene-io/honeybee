@@ -25,7 +25,7 @@ import { PlayerProblem, TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { CoalescingRemoteReadable } from "./CoalescingRemoteReadable";
-import { Manifest, parseManifest, ShardEntry } from "./manifest";
+import { Manifest, parseManifest, ShardEntry, TimeRange } from "./manifest";
 import { mergeShards } from "./mergeShards";
 import { selectActiveShards } from "./profileSelection";
 
@@ -105,11 +105,12 @@ function readAheadBytesForShard(shard: ShardEntry): number {
 //      logTime, which McapIndexedIterableSource surfaces as receiveTime. A manifest written in
 //      publish/header time could declare a range that excludes messages the iterator would yield.
 // A range that fails (1) must not prune; (2) is a contract on the manifest producer that cannot
-// be checked here without opening the shard.
+// be checked here without opening the shard. The same validation guards the overall recording
+// range initialize() computes from sourceFiles[], where a malformed entry must not abort the open.
 const DECIMAL_NS = /^\d+$/;
 
-function shardTimeRangeNs(shard: ShardEntry): { startNs: bigint; endNs: bigint } | undefined {
-  const { startNs, endNs } = shard.timeRange;
+function parseTimeRangeNs(range: TimeRange): { startNs: bigint; endNs: bigint } | undefined {
+  const { startNs, endNs } = range;
   if (!DECIMAL_NS.test(startNs) || !DECIMAL_NS.test(endNs)) {
     return undefined;
   }
@@ -126,7 +127,7 @@ function shardOverlapsTimeRange(
   requestStartNs: bigint,
   requestEndNs: bigint,
 ): boolean {
-  const range = shardTimeRangeNs(shard);
+  const range = parseTimeRangeNs(shard.timeRange);
   if (range == undefined) {
     // An uncomparable range must not cause data to be skipped: read the shard instead.
     return true;
@@ -135,7 +136,7 @@ function shardOverlapsTimeRange(
 }
 
 function shardCanContainBackfill(shard: ShardEntry, targetNs: bigint): boolean {
-  const range = shardTimeRangeNs(shard);
+  const range = parseTimeRangeNs(shard.timeRange);
   if (range == undefined) {
     return true;
   }
@@ -306,17 +307,22 @@ export class ShardManifestIterableSource implements ISerializedIterableSource {
     }
 
     // Time range from the manifest's sourceFiles[]. This avoids depending on
-    // every shard being open at init (the lazy ones aren't).
+    // every shard being open at init (the lazy ones aren't). A malformed range
+    // must not prevent the recording from opening (and BigInt("") coerces to 0n,
+    // which would poison the min/max), so entries that fail the same validation
+    // shards get are skipped.
     let startNs: bigint | undefined;
     let endNs: bigint | undefined;
     for (const sf of manifest.sourceFiles) {
-      const s = BigInt(sf.timeRange.startNs);
-      const e = BigInt(sf.timeRange.endNs);
-      if (startNs == undefined || s < startNs) {
-        startNs = s;
+      const range = parseTimeRangeNs(sf.timeRange);
+      if (range == undefined) {
+        continue;
       }
-      if (endNs == undefined || e > endNs) {
-        endNs = e;
+      if (startNs == undefined || range.startNs < startNs) {
+        startNs = range.startNs;
+      }
+      if (endNs == undefined || range.endNs > endNs) {
+        endNs = range.endNs;
       }
     }
     const start = startNs != undefined ? fromNanoSec(startNs) : { sec: 0, nsec: 0 };

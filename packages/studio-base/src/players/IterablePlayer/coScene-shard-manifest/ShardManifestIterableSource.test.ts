@@ -102,6 +102,23 @@ function mockSecondShardTimeRange(startNs: string, endNs: string): void {
   );
 }
 
+function mockSourceFileTimeRanges(ranges: Array<{ startNs: string; endNs: string }>): void {
+  const modifiedManifest = manifest();
+  modifiedManifest.sourceFiles = ranges.map((timeRange, i) => ({
+    name: `record-${i}`,
+    sha256: "0".repeat(64),
+    sizeBytes: 2048,
+    timeRange,
+  }));
+  global.fetch = jest.fn(
+    async (..._args: Parameters<typeof fetch>): Promise<Response> =>
+      ({
+        ok: true,
+        json: async () => modifiedManifest,
+      }) as Response,
+  );
+}
+
 function initResult(): Initalization {
   return {
     start: { sec: 0, nsec: 0 },
@@ -441,6 +458,48 @@ describe("ShardManifestIterableSource", () => {
       expect(mockMcapIndexedIterableSource).toHaveBeenCalledTimes(2);
     },
   );
+
+  it.each([
+    { label: "empty-string", startNs: "", endNs: "" },
+    { label: "non-numeric", startNs: "NaN", endNs: "abc" },
+    { label: "reversed", startNs: "1000000000", endNs: "0" },
+  ])(
+    "computes the recording range from valid sourceFiles when one entry is $label",
+    async ({ startNs, endNs }) => {
+      // BigInt("NaN") throws and BigInt("") silently coerces to 0n, so an unguarded min/max over
+      // sourceFiles either aborts the open or poisons the range with 0. A malformed entry must be
+      // skipped and the range computed from the remaining valid entries.
+      mockSourceFileTimeRanges([
+        { startNs, endNs },
+        { startNs: "100000000", endNs: "500000000" },
+        { startNs: "200000000", endNs: "1000000000" },
+      ]);
+
+      const source = new ShardManifestIterableSource({
+        manifestUrl: "https://example.com/manifest.json",
+      });
+      const init = await source.initialize();
+
+      expect(init.start).toEqual({ sec: 0, nsec: 100_000_000 });
+      expect(init.end).toEqual({ sec: 1, nsec: 0 });
+    },
+  );
+
+  it("falls back to a zero recording range when every sourceFile range is malformed", async () => {
+    mockSourceFileTimeRanges([
+      { startNs: "", endNs: "" },
+      { startNs: "NaN", endNs: "abc" },
+      { startNs: "1000000000", endNs: "0" },
+    ]);
+
+    const source = new ShardManifestIterableSource({
+      manifestUrl: "https://example.com/manifest.json",
+    });
+    const init = await source.initialize();
+
+    expect(init.start).toEqual({ sec: 0, nsec: 0 });
+    expect(init.end).toEqual({ sec: 0, nsec: 0 });
+  });
 
   it.each([
     {
