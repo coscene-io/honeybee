@@ -29,7 +29,8 @@ export function ResidualLintFixture({
   const displayValue = fallback || "fallback";
 
   useAsync(
-    () => {
+    async () => {
+      await Promise.resolve();
       console.debug(value);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
