@@ -66,6 +66,7 @@ import {
   type EventResizeEdge,
   type EventTimeRange,
 } from "./eventTimeEdit";
+import { SHORTCUTS } from "./keyboardShortcuts";
 import {
   clientXToFraction,
   clientXToTime,
@@ -1713,7 +1714,9 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
             >
               <EventCreateInactiveIcon focusable="false" />
             </span>
-            <span className={classes.emptyEventHintText}>{t("emptyTimelineHint")}</span>
+            <span className={classes.emptyEventHintText}>
+              {t("emptyTimelineHint", { shortcut: SHORTCUTS.createMoment[0] })}
+            </span>
           </div>
         )}
         {renderLaneLayout.items.map((item) => {
