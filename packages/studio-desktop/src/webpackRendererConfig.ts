@@ -21,8 +21,6 @@ export const webpackRendererConfig =
     const isDev = argv.mode === "development";
     const isServe = isRspackServe(argv);
 
-    const allowUnusedVariables = isDev;
-
     // 在rspack配置阶段生成构建时间，确保HTML模板和DefinePlugin使用相同的值
     const buildTime = new Date().toISOString();
 
@@ -33,7 +31,10 @@ export const webpackRendererConfig =
     }
 
     const appRspackConfig = makeConfig(env, argv, {
-      allowUnusedVariables,
+      tsconfigPath: path.resolve(
+        params.rendererContext,
+        isDev ? "tsconfig.rspack-dev.json" : "tsconfig.json",
+      ),
       version: params.packageJson.version,
     });
 

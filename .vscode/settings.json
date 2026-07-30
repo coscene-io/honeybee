@@ -21,6 +21,8 @@
     ".yarn/**": true,
     "yarn.lock": true
   },
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "./node_modules/@typescript/native",
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "jest.autoRun": {
