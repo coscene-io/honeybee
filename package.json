@@ -23,7 +23,7 @@
     "clean": "tsc --build --clean $(git ls-files 'packages/**/tsconfig.json') && rimraf --glob .webpack \"*/.webpack\" dist",
     "build:packages": "tsc --build --verbose $(git ls-files 'packages/**/tsconfig.json')",
     "typecheck:ci": "tsc --noEmit -p tsconfig.ci-typecheck.json",
-    "typecheck:tooling:ts6": "tsc6 --noEmit -p tsconfig.json && tsc6 --noEmit -p packages/eslint-plugin/tsconfig.json && tsc6 --noEmit -p packages/studio-desktop/tsconfig.ts6-compat.json && tsc6 --noEmit -p packages/typescript-transformers/tsconfig.json && tsc6 --noEmit -p packages/ws-protocol/tsconfig.json",
+    "typecheck:tooling:ts6": "tsc6 --noEmit -p tsconfig.json && tsc6 --noEmit -p packages/eslint-plugin/tsconfig.json && tsc6 --noEmit -p packages/studio-desktop/tsconfig.ts6-compat.json && tsc6 --noEmit -p packages/ws-protocol/tsconfig.json",
     "typecheck:eslint-plugin": "tsc --noEmit -p packages/eslint-plugin/tsconfig.json",
     "typecheck:message-path": "tsc --noEmit -p packages/message-path/tsconfig.json",
     "format": "prettier --write .",

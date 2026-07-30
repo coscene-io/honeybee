@@ -50,7 +50,6 @@
     "@foxglove/theme": "workspace:*",
     "@foxglove/three-text": "0.6.0",
     "@foxglove/tsconfig": "3.2.0",
-    "@foxglove/typescript-transformers": "workspace:*",
     "@foxglove/ulog": "2.3.2",
     "@foxglove/velodyne-cloud": "1.0.1",
     "@foxglove/wasm-bz2": "0.3.0",

@@ -5413,7 +5413,6 @@ __metadata:
     "@foxglove/theme": "workspace:*"
     "@foxglove/three-text": 0.6.0
     "@foxglove/tsconfig": 3.2.0
-    "@foxglove/typescript-transformers": "workspace:*"
     "@foxglove/ulog": 2.3.2
     "@foxglove/velodyne-cloud": 1.0.1
     "@foxglove/wasm-bz2": 0.3.0
@@ -5677,15 +5676,6 @@ __metadata:
   checksum: 219cb78e9dd0c174acc5ddcbd9324345f648ecf8ac8c4930d494ba3c08fdc3fccd19dcd6f6c6d8e1afce0d3b34c4f4045d6e8e7a3179c0e965840d6fa23514ca
   languageName: node
   linkType: hard
-
-"@foxglove/typescript-transformers@workspace:*, @foxglove/typescript-transformers@workspace:packages/typescript-transformers":
-  version: 0.0.0-use.local
-  resolution: "@foxglove/typescript-transformers@workspace:packages/typescript-transformers"
-  dependencies:
-    "@foxglove/tsconfig": 3.2.0
-    typescript: "npm:@typescript/typescript6@6.0.2"
-  languageName: unknown
-  linkType: soft
 
 "@foxglove/ulog@npm:2.3.2":
   version: 2.3.2
