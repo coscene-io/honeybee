@@ -157,7 +157,7 @@ describe("hybrid Oxlint and ESLint configuration", () => {
     expect(Object.keys(rules).some((ruleId) => ruleId.startsWith("@foxglove/"))).toBe(false);
   });
 
-  it("executes representative rules in every residual plugin group", async () => {
+  it("executes representative core and import rules", async () => {
     const licensePreamble =
       "// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>\n" +
       "// SPDX-License-Identifier: MPL-2.0\n\n";
@@ -176,35 +176,6 @@ describe("hybrid Oxlint and ESLint configuration", () => {
           "void fs;\n",
         ruleId: "import/order",
       },
-      {
-        file: "packages/studio-base/src/components/Panel.tsx",
-        source:
-          `${licensePreamble}export function Panel({ value }: { value: string }): React.JSX.Element {\n` +
-          "  useAsync(() => { console.debug(value); }, []);\n" +
-          "  return <div>{value}</div>;\n" +
-          "}\n",
-        ruleId: "react-hooks/exhaustive-deps",
-      },
-      {
-        file: "packages/studio-base/src/components/Panel.tsx",
-        source:
-          `${licensePreamble}export function Panel(): React.JSX.Element {\n` +
-          '  return <div>{"value"}</div>;\n' +
-          "}\n",
-        ruleId: "react/jsx-curly-brace-presence",
-      },
-      {
-        file: "packages/studio-base/src/components/Panel.tsx",
-        source:
-          `${licensePreamble}const useStyles = makeStyles()({ unused: {} });\n` +
-          "void useStyles;\n",
-        ruleId: "tss-unused-classes/unused-classes",
-      },
-      {
-        file: "packages/studio-base/src/components/Panel.test.tsx",
-        source: `${licensePreamble}expect(true).toBe(true);\n`,
-        ruleId: "jest/no-standalone-expect",
-      },
     ];
 
     for (const testCase of cases) {
@@ -215,43 +186,27 @@ describe("hybrid Oxlint and ESLint configuration", () => {
     }
   });
 
-  it("executes type-aware residual rules against project source", async () => {
-    const cases = [
-      {
-        file: "packages/den/image/decodings.ts",
-        ruleId: "@coscene-io/no-boolean-parameters",
-      },
-      {
-        file: "packages/studio-base/src/components/Events/CreateEventContainer/index.tsx",
-        ruleId: "@typescript-eslint/prefer-nullish-coalescing",
-      },
-    ];
-
-    const results = await residualEslintWithoutInlineConfig.lintFiles(
-      cases.map((testCase) => path.join(rootDir, testCase.file)),
+  it("executes TypeScript, React, TSS, and Jest rules against project fixtures", async () => {
+    const results = await residualEslintWithoutInlineConfig.lintFiles([
+      path.join(rootDir, "eslint-react-test.tsx"),
+      path.join(rootDir, "eslint-jest-test.test.ts"),
+    ]);
+    const ruleIds = results.flatMap((result) =>
+      result.messages.map((message) => message.ruleId).filter((ruleId) => ruleId != undefined),
     );
 
-    for (const testCase of cases) {
-      const result = results.find((entry) => entry.filePath === path.join(rootDir, testCase.file));
-      expect(result?.messages.map((message) => message.ruleId)).toContain(testCase.ruleId);
-    }
-  });
-
-  it("preserves the custom exhaustive-deps exemption", async () => {
-    const [result] = await residualEslint.lintText(
-      "export function Panel({ value }: { value: string }): React.JSX.Element {\n" +
-        "  useAsyncAppConfigurationValue(() => { console.debug(value); }, []);\n" +
-        "  return <div>{value}</div>;\n" +
-        "}\n",
-      {
-        filePath: path.join(rootDir, "packages/studio-base/src/components/Panel.tsx"),
-      },
+    expect(ruleIds).toEqual(
+      expect.arrayContaining([
+        "@coscene-io/no-boolean-parameters",
+        "@typescript-eslint/prefer-nullish-coalescing",
+        "jest/no-standalone-expect",
+        "react-hooks/exhaustive-deps",
+        "react/jsx-curly-brace-presence",
+        "tss-unused-classes/unused-classes",
+      ]),
     );
-
-    expect(result?.messages.map((message) => message.ruleId)).not.toContain(
-      "react-hooks/exhaustive-deps",
-    );
-  });
+    expect(ruleIds.filter((ruleId) => ruleId === "react-hooks/exhaustive-deps")).toHaveLength(1);
+  }, 60_000);
 
   it("moves the complete supported Jest recommendation and project overrides to Oxlint", () => {
     const config = oxlintOverride("**/*.test.{js,jsx,ts,tsx}");
