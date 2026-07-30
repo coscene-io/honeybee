@@ -33,6 +33,13 @@ const residualEslint = new ESLint({
   overrideConfigFile: true,
 });
 
+const residualEslintWithoutInlineConfig = new ESLint({
+  allowInlineConfig: false,
+  cwd: rootDir,
+  overrideConfig: residualConfig,
+  overrideConfigFile: true,
+});
+
 const baseResidualRuleNames = [
   "@coscene-io/filename-match-exported",
   "@coscene-io/license-header",
@@ -170,19 +177,6 @@ describe("hybrid Oxlint and ESLint configuration", () => {
         ruleId: "import/order",
       },
       {
-        file: "eslint-test.ts",
-        source: `${licensePreamble}export function enabled(flag: boolean): boolean { return flag; }\n`,
-        ruleId: "@coscene-io/no-boolean-parameters",
-      },
-      {
-        file: "eslint-test.ts",
-        source:
-          `${licensePreamble}export function value(input: string | undefined): string {\n` +
-          '  return input || "fallback";\n' +
-          "}\n",
-        ruleId: "@typescript-eslint/prefer-nullish-coalescing",
-      },
-      {
         file: "packages/studio-base/src/components/Panel.tsx",
         source:
           `${licensePreamble}export function Panel({ value }: { value: string }): React.JSX.Element {\n` +
@@ -217,6 +211,28 @@ describe("hybrid Oxlint and ESLint configuration", () => {
       const [result] = await residualEslint.lintText(testCase.source, {
         filePath: path.join(rootDir, testCase.file),
       });
+      expect(result?.messages.map((message) => message.ruleId)).toContain(testCase.ruleId);
+    }
+  });
+
+  it("executes type-aware residual rules against project source", async () => {
+    const cases = [
+      {
+        file: "packages/den/image/decodings.ts",
+        ruleId: "@coscene-io/no-boolean-parameters",
+      },
+      {
+        file: "packages/studio-base/src/components/Events/CreateEventContainer/index.tsx",
+        ruleId: "@typescript-eslint/prefer-nullish-coalescing",
+      },
+    ];
+
+    const results = await residualEslintWithoutInlineConfig.lintFiles(
+      cases.map((testCase) => path.join(rootDir, testCase.file)),
+    );
+
+    for (const testCase of cases) {
+      const result = results.find((entry) => entry.filePath === path.join(rootDir, testCase.file));
       expect(result?.messages.map((message) => message.ruleId)).toContain(testCase.ruleId);
     }
   });
