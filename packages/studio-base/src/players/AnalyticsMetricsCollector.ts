@@ -6,13 +6,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Log from "@foxglove/log";
-import { Time } from "@foxglove/rostime";
-import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import {
+import type { Time } from "@foxglove/rostime";
+import type { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type {
   PlayerMetricsCollectorInterface,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 const log = Log.getLogger(__filename);

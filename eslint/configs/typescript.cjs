@@ -6,10 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 const importPlugin = require("eslint-plugin-import");
+const path = require("node:path");
 const tseslint = require("typescript-eslint");
 
 const files = ["**/*.{ts,tsx}"];
 const scope = (config) => ({ ...config, files });
+const importTypescriptConfig = importPlugin.configs.typescript;
 
 module.exports = [
   ...tseslint.configs.strictTypeChecked.map(scope),
@@ -19,7 +21,19 @@ module.exports = [
       import: importPlugin,
     },
   }),
-  scope(importPlugin.configs.typescript),
+  scope(importTypescriptConfig),
+  scope({
+    settings: {
+      // The import plugin's TypeScript preset only configures its Node resolver, which does not
+      // understand the path aliases in tsconfig.eslint.json.
+      "import/resolver": {
+        ...importTypescriptConfig.settings["import/resolver"],
+        typescript: {
+          project: path.join(__dirname, "../..", "tsconfig.eslint.json"),
+        },
+      },
+    },
+  }),
   scope({
     languageOptions: {
       parserOptions: {

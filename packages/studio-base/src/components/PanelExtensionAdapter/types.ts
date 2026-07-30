@@ -5,9 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { PanelExtensionContext } from "@foxglove/studio";
-import { AcquireKeyframeSearchLockArgs } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
-import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import type { PanelExtensionContext } from "@foxglove/studio";
+import type { AcquireKeyframeSearchLockArgs } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 /**
  * An asset loaded from Studio's asset manager.

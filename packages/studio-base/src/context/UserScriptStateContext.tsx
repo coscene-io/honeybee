@@ -6,12 +6,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createContext, useState } from "react";
-import { StoreApi, createStore, useStore } from "zustand";
+import type { StoreApi } from "zustand";
+import { createStore, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { generateEmptyTypesLib } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/generateTypesLib";
 import { ros_lib_dts } from "@foxglove/studio-base/players/UserScriptPlayer/transformerWorker/typescript/ros";
-import { Diagnostic, UserScriptLog } from "@foxglove/studio-base/players/UserScriptPlayer/types";
+import type {
+  Diagnostic,
+  UserScriptLog,
+} from "@foxglove/studio-base/players/UserScriptPlayer/types";
 
 type UserScriptState = {
   rosLib: string;

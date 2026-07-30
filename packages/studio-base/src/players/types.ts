@@ -14,15 +14,14 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { MessageDefinition } from "@foxglove/message-definition";
-import { Time } from "@foxglove/rostime";
-import type { MessageEvent, ParameterValue } from "@foxglove/studio";
-import { Immutable, Metadata } from "@foxglove/studio";
-import { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
-import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
-import { Range } from "@foxglove/studio-base/util/ranges";
-import { NotificationSeverity } from "@foxglove/studio-base/util/sendNotification";
+import type { MessageDefinition } from "@foxglove/message-definition";
+import type { Time } from "@foxglove/rostime";
+import type { MessageEvent, ParameterValue, Immutable, Metadata } from "@foxglove/studio";
+import type { Asset } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import type { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
+import type { Range } from "@foxglove/studio-base/util/ranges";
+import type { NotificationSeverity } from "@foxglove/studio-base/util/sendNotification";
 
 // re-exported until other import sites are updated from players/types to @foxglove/studio
 // 重新导出，直到其他导入站点从 players/types 更新到 @foxglove/studio

@@ -6,16 +6,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as _ from "lodash-es";
-import { Opaque } from "ts-essentials";
+import type { Opaque } from "ts-essentials";
 
-import {
+import type {
   Immutable,
   MessageEvent,
   RegisterMessageConverterArgs,
   Subscription,
 } from "@foxglove/studio";
-import { Topic as PlayerTopic } from "@foxglove/studio-base/players/types";
-import { ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
+import type { Topic as PlayerTopic } from "@foxglove/studio-base/players/types";
+import type { ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
 
 // Branded string to ensure that users go through the `converterKey` function to compute a lookup key
 type ConverterKey = Opaque<string, "ConverterKey">;

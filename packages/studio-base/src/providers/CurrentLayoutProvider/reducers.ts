@@ -65,9 +65,8 @@ import {
   createAddUpdates,
   removePanelFromTabPanel,
   getPathFromNode,
+  isTabPanelConfig,
 } from "@foxglove/studio-base/util/layout";
-
-import { isTabPanelConfig } from "../../util/layout";
 
 function changePanelLayout(
   state: LayoutData,

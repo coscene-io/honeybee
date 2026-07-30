@@ -5,29 +5,27 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Draft, produce } from "immer";
+import type { Draft } from "immer";
+import { produce } from "immer";
 import * as _ from "lodash-es";
-import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { useCallback, useMemo } from "react";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
-import { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
-import { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
+import type { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
+import type { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
 import { TIMELINE_MIN_HEIGHT_PX } from "@foxglove/studio-base/components/PlaybackControls/constants";
-import {
-  IDataSourceFactory,
-  usePlayerSelection,
-} from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
+import type { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
-import {
+import type {
   LeftSidebarItemKey,
-  LeftSidebarItemKeys,
-  type MomentSubtitlePosition,
   RightSidebarItemKey,
-  RightSidebarItemKeys,
-  WorkspaceContext,
   WorkspaceContextStore,
+  MomentSubtitlePosition,
 } from "./WorkspaceContext";
+import { LeftSidebarItemKeys, RightSidebarItemKeys, WorkspaceContext } from "./WorkspaceContext";
 import { SHARE_MANIFEST_PANEL_DEFAULTS } from "./shareManifestWorkspaceDefaults";
 import { useOpenFile } from "./useOpenFile";
 

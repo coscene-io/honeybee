@@ -14,12 +14,12 @@ import {
   useShallowMemo,
 } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
-import { RenderState, VariableValue } from "@foxglove/studio";
+import type { RenderState, VariableValue } from "@foxglove/studio";
 import useShouldNotChangeOften from "@foxglove/studio-base/hooks/useShouldNotChangeOften";
 import toggleSelectedPanel from "@foxglove/studio-base/providers/CurrentLayoutProvider/toggleSelectedPanel";
-import { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
+import type { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 
-import {
+import type {
   AddPanelPayload,
   ChangePanelLayoutPayload,
   ClosePanelPayload,

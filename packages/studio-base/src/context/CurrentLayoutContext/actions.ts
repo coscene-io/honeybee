@@ -14,12 +14,12 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { MosaicNode, MosaicPath } from "react-mosaic-component";
+import type { MosaicNode, MosaicPath } from "react-mosaic-component";
 
-import { VariableValue } from "@foxglove/studio";
-import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { TabLocation } from "@foxglove/studio-base/types/layouts";
-import {
+import type { VariableValue } from "@foxglove/studio";
+import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import type { TabLocation } from "@foxglove/studio-base/types/layouts";
+import type {
   UserScripts,
   SavedProps,
   PanelConfig,

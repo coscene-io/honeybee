@@ -8,13 +8,13 @@
 import * as IDB from "idb";
 
 import Log from "@foxglove/log";
-import {
-  Layout,
-  LayoutID,
+import type { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import type {
   ILayoutStorage,
-  migrateLayout,
+  Layout,
   LayoutHistory,
-} from "@foxglove/studio-base";
+} from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import { migrateLayout } from "@foxglove/studio-base/services/migrateLayout";
 
 const log = Log.getLogger(__filename);
 

@@ -7,10 +7,10 @@
 
 import { createContext, useContext, ReactNode, useMemo } from "react";
 
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { ConsoleApi } from "@foxglove/studio-base/index";
+import type { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
-import { PanelState } from "./types";
+import type { PanelState } from "./types";
 
 export interface DataCollectionContextType {
   panelState: PanelState;

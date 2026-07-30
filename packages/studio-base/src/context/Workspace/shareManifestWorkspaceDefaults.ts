@@ -5,11 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { DeepPartial } from "ts-essentials";
+import type { DeepPartial } from "ts-essentials";
 
 import { TIMELINE_MIN_HEIGHT_PX } from "@foxglove/studio-base/components/PlaybackControls/constants";
 
-import { WorkspaceContextStore } from "./WorkspaceContext";
+import type { WorkspaceContextStore } from "./WorkspaceContext";
 
 /**
  * Persistence key for the workspace store when running in share-manifest mode.

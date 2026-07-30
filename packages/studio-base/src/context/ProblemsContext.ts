@@ -6,11 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createContext } from "react";
-import { StoreApi, useStore } from "zustand";
+import type { StoreApi } from "zustand";
+import { useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
-import { Immutable } from "@foxglove/studio";
-import { PlayerProblem } from "@foxglove/studio-base/players/types";
+import type { Immutable } from "@foxglove/studio";
+import type { PlayerProblem } from "@foxglove/studio-base/players/types";
 
 export type SessionProblem = PlayerProblem;
 
