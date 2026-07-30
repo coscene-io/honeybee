@@ -96,4 +96,15 @@ describe("<AuthlessDataSourceSyncAdapter />", () => {
       expect(isAuthlessDataSource()).toBe(true);
     });
   });
+
+  it.each(["remote-file", "mcap-remote-file", "ros1-remote-bagfile", "remote-mp4"])(
+    "treats %s as authless",
+    async (sourceId) => {
+      renderWithSource(sourceId);
+
+      await waitFor(() => {
+        expect(isAuthlessDataSource()).toBe(true);
+      });
+    },
+  );
 });

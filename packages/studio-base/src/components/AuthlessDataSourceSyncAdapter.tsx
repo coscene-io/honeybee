@@ -8,11 +8,9 @@
 import { useEffect } from "react";
 
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { isAuthlessDataSourceId } from "@foxglove/studio-base/util/authlessDataSources";
 import { setAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
-import {
-  SHARE_MANIFEST_DATA_SOURCE_ID,
-  windowShareManifestParseResult,
-} from "@foxglove/studio-base/util/shareManifest";
+import { windowShareManifestParseResult } from "@foxglove/studio-base/util/shareManifest";
 
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
@@ -24,7 +22,7 @@ function isShareManifestUrlAuthless(): boolean {
 export function AuthlessDataSourceSyncAdapter(): ReactNull {
   const dataSource = useCoreData(selectDataSource);
   const isAuthless =
-    dataSource?.id === SHARE_MANIFEST_DATA_SOURCE_ID ||
+    isAuthlessDataSourceId(dataSource?.id) ||
     (dataSource == undefined && isShareManifestUrlAuthless());
 
   useEffect(() => {

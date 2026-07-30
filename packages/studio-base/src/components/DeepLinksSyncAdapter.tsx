@@ -38,6 +38,7 @@ import { useSyncTimeFromUrl } from "@foxglove/studio-base/hooks/useSyncTimeFromU
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import type { AppURLState } from "@foxglove/studio-base/util/appURLState";
+import { isAuthlessDataSourceId } from "@foxglove/studio-base/util/authlessDataSources";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
@@ -316,7 +317,10 @@ export function DeepLinksSyncAdapter({
     }
 
     // Authless data sources bypass the login gate.
-    const authless = targetShareManifest?.status === "valid" || isAuthlessDataSource();
+    const authless =
+      targetShareManifest?.status === "valid" ||
+      isAuthlessDataSourceId(unappliedSourceArgs?.ds) ||
+      isAuthlessDataSource();
 
     // 特殊情况：用户未登录但试图访问需要登录的数据源
     if (loginStatus === "notLogin" && unappliedSourceArgs?.ds && !authless) {

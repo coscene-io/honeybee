@@ -186,3 +186,38 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
     expect(mockSetIsReadyForSyncLayout).not.toHaveBeenCalled();
   });
 });
+
+describe("<DeepLinksSyncAdapter /> authless remote files", () => {
+  beforeEach(() => {
+    mockSelectSource.mockClear();
+    mockSelectEvent.mockClear();
+    mockSetIsReadyForSyncLayout.mockClear();
+    mockSetLastExternalInitConfig.mockClear();
+    mockDataSourceClose.mockClear();
+  });
+
+  it.each([
+    ["remote-file", "recording.mcap"],
+    ["mcap-remote-file", "recording.mcap"],
+    ["ros1-remote-bagfile", "recording.bag"],
+    ["remote-mp4", "video.mp4"],
+  ])("initializes %s without login", async (sourceId, filename) => {
+    const remoteUrl = `https://storage.example.com/${filename}?signature=playback`;
+    const search = new URLSearchParams({
+      ds: sourceId,
+      "ds.url": remoteUrl,
+    });
+    const url = `${window.location.origin}/viz?${search.toString()}`;
+    window.history.replaceState(undefined, "", url);
+
+    render(<DeepLinksSyncAdapter deepLinks={[url]} />);
+
+    await waitFor(() => {
+      expect(mockSelectSource).toHaveBeenCalledWith(sourceId, {
+        type: "connection",
+        params: { url: remoteUrl },
+      });
+    });
+    expect(mockDataSourceClose).toHaveBeenCalled();
+  });
+});
