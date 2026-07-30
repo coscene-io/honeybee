@@ -5504,6 +5504,7 @@ __metadata:
     moment-timezone: 0.5.45
     monaco-editor: 0.55.1
     monaco-editor-webpack-plugin: 7.1.1
+    mp4box: 2.4.1
     natsort: 2.0.3
     nearley: 2.20.1
     nearley-loader: 2.0.0
@@ -20992,6 +20993,13 @@ __metadata:
   version: 0.5.1
   resolution: "moo@npm:0.5.1"
   checksum: 2d8c013f1f9aad8e5c7a9d4a03dbb4eecd91b9fe5e9446fbc7561fd38d4d161c742434acff385722542fe7b360fce9c586da62442379e62e4158ad49c7e1a6b7
+  languageName: node
+  linkType: hard
+
+"mp4box@npm:2.4.1":
+  version: 2.4.1
+  resolution: "mp4box@npm:2.4.1"
+  checksum: a0357d9461b8af998dab56b5ac6f934f3d37a1b8bbefb3c7488ff16df22539b126eeefff81fe55e93f8bd9804a6bdccc3c2092e09a8181cfc115a32f1c08d066
   languageName: node
   linkType: hard
 
