@@ -17,11 +17,10 @@
     "src"
   ],
   "scripts": {
-    "prepack": "tsc -b"
+    "prepack": "yarn run -T tsc -b"
   },
   "devDependencies": {
     "@coscene-io/comlink": "4.4.1",
-    "@foxglove/tsconfig": "3.2.0",
-    "typescript": "npm:@typescript/typescript6@6.0.2"
+    "@foxglove/tsconfig": "3.2.0"
   }
 }

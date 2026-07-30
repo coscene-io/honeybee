@@ -17,7 +17,7 @@
     "src"
   ],
   "scripts": {
-    "prepack": "tsc -b"
+    "prepack": "yarn run -T tsc -b"
   },
   "dependencies": {
     "typescript": "npm:@typescript/typescript6@6.0.2"

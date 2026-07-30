@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "prepack": "yarn build",
-    "build": "tsc -b tsconfig.json tsconfig.cjs.json",
+    "build": "yarn run -T tsc -b tsconfig.json tsconfig.cjs.json",
     "lint": "eslint --report-unused-disable-directives --fix .",
     "lint:ci": "eslint --report-unused-disable-directives .",
     "test": "jest"
