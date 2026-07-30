@@ -27,8 +27,8 @@
   "scripts": {
     "prepack": "yarn build",
     "build": "yarn run -T tsc -b tsconfig.json tsconfig.cjs.json",
-    "lint": "yarn run -T oxlint --config ../../.oxlintrc.json --fix . && yarn run -T eslint --config ../../eslint.config.residual.cjs --fix .",
-    "lint:ci": "yarn run -T oxlint --config ../../.oxlintrc.json . && yarn run -T eslint --config ../../eslint.config.residual.cjs .",
+    "lint": "yarn run -T oxlint --config ../../.oxlintrc.json --fix . && yarn run -T eslint --config ../../eslint.config.cjs --fix .",
+    "lint:ci": "yarn run -T oxlint --config ../../.oxlintrc.json . && yarn run -T eslint --config ../../eslint.config.cjs .",
     "test": "jest"
   },
   "devDependencies": {

@@ -32,9 +32,6 @@
   },
   "jest.jestCommandLine": "yarn test",
   "eslint.lintTask.enable": true,
-  "eslint.options": {
-    "overrideConfigFile": "eslint.config.residual.cjs"
-  },
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   }

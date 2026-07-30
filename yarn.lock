@@ -15214,17 +15214,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-config-prettier@npm:10.1.8":
-  version: 10.1.8
-  resolution: "eslint-config-prettier@npm:10.1.8"
-  peerDependencies:
-    eslint: ">=7.0.0"
-  bin:
-    eslint-config-prettier: bin/cli.js
-  checksum: 9140e19f78f0dbc888b160bb72b85f8043bada7b12a548faa56cea0ba74f8ef16653250ffd014d85d9a376a88c4941c96a3cdc9d39a07eb3def6967166635bd8
-  languageName: node
-  linkType: hard
-
 "eslint-import-context@npm:^0.1.8":
   version: 0.1.9
   resolution: "eslint-import-context@npm:0.1.9"
@@ -15331,37 +15320,6 @@ __metadata:
     jest:
       optional: true
   checksum: 90863fab5f3f2f033d98042b13769dc82504c489506872ae9926a1d2b6bcc25c5dc41105e28643f5eb81943aff1aa1cd4d44ada5c1add0a43f1c7a619adbc3d2
-  languageName: node
-  linkType: hard
-
-"eslint-plugin-oxlint@npm:1.76.0":
-  version: 1.76.0
-  resolution: "eslint-plugin-oxlint@npm:1.76.0"
-  dependencies:
-    jsonc-parser: ^3.3.1
-  peerDependencies:
-    oxlint: ~1.76.0
-  checksum: 89c71dbcaa8ad70c91d87dcbdf7bc63262cce03e9adcb6223ddfefb457b02f172431c3788d32dba488c85705156f6000ccdb89aa5e3f36bc1e40f2e8174311f0
-  languageName: node
-  linkType: hard
-
-"eslint-plugin-prettier@npm:5.5.6":
-  version: 5.5.6
-  resolution: "eslint-plugin-prettier@npm:5.5.6"
-  dependencies:
-    prettier-linter-helpers: ^1.0.1
-    synckit: ^0.11.13
-  peerDependencies:
-    "@types/eslint": ">=8.0.0"
-    eslint: ">=8.0.0"
-    eslint-config-prettier: ">= 7.0.0 <10.0.0 || >=10.1.0"
-    prettier: ">=3.0.0"
-  peerDependenciesMeta:
-    "@types/eslint":
-      optional: true
-    eslint-config-prettier:
-      optional: true
-  checksum: 9e2d94d6631af110966733d19aea15699ef684b543de23d1812423b35a02203ac87ef2d8784f236950ecc4026828e98f00e7c2b41879ee9c974a0a0563f1c754
   languageName: node
   linkType: hard
 
@@ -15807,13 +15765,6 @@ __metadata:
   version: 3.1.3
   resolution: "fast-deep-equal@npm:3.1.3"
   checksum: e21a9d8d84f53493b6aa15efc9cfd53dd5b714a1f23f67fb5dc8f574af80df889b3bce25dc081887c6d25457cce704e636395333abad896ccdec03abaf1f3f9d
-  languageName: node
-  linkType: hard
-
-"fast-diff@npm:^1.1.2":
-  version: 1.3.0
-  resolution: "fast-diff@npm:1.3.0"
-  checksum: d22d371b994fdc8cce9ff510d7b8dc4da70ac327bcba20df607dd5b9cae9f908f4d1028f5fe467650f058d1e7270235ae0b8230809a262b4df587a3b3aa216c3
   languageName: node
   linkType: hard
 
@@ -17306,7 +17257,6 @@ __metadata:
     "@babel/preset-react": 7.29.7
     "@babel/preset-typescript": 7.29.7
     "@coscene-io/eslint-plugin": "workspace:*"
-    "@eslint/js": 9.39.4
     "@foxglove/tsconfig": 3.2.0
     "@rspack/cli": 2.1.7
     "@rspack/core": 2.1.7
@@ -17325,12 +17275,9 @@ __metadata:
     electron-builder: 26.0.11
     esa-cli: 1.0.10
     eslint: 9.39.4
-    eslint-config-prettier: 10.1.8
     eslint-import-resolver-typescript: 4.4.5
     eslint-plugin-import: 2.32.0
     eslint-plugin-jest: 28.9.0
-    eslint-plugin-oxlint: 1.76.0
-    eslint-plugin-prettier: 5.5.6
     eslint-plugin-react: 7.37.2
     eslint-plugin-react-hooks: 5.1.0
     eslint-plugin-tss-unused-classes: 1.0.4
@@ -19625,13 +19572,6 @@ __metadata:
   bin:
     json5: lib/cli.js
   checksum: 2a7436a93393830bce797d4626275152e37e877b265e94ca69c99e3d20c2b9dab021279146a39cdb700e71b2dd32a4cebd1514cd57cee102b1af906ce5040349
-  languageName: node
-  linkType: hard
-
-"jsonc-parser@npm:^3.3.1":
-  version: 3.3.1
-  resolution: "jsonc-parser@npm:3.3.1"
-  checksum: 81ef19d98d9c6bd6e4a37a95e2753c51c21705cbeffd895e177f4b542cca9cda5fda12fb942a71a2e824a9132cf119dc2e642e9286386055e1365b5478f49a47
   languageName: node
   linkType: hard
 
@@ -22629,15 +22569,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier-linter-helpers@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "prettier-linter-helpers@npm:1.0.1"
-  dependencies:
-    fast-diff: ^1.1.2
-  checksum: 2dc35f5036a35f4c4f5e645887edda1436acb63687a7f12b2383e0a6f3c1f76b8a0a4709fe4d82e19157210feb5984b159bb714d43290022911ab53d606474ec
-  languageName: node
-  linkType: hard
-
 "prettier@npm:3.8.4":
   version: 3.8.4
   resolution: "prettier@npm:3.8.4"
@@ -25630,7 +25561,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"synckit@npm:^0.11.13, synckit@npm:^0.11.8":
+"synckit@npm:^0.11.8":
   version: 0.11.13
   resolution: "synckit@npm:0.11.13"
   dependencies:
