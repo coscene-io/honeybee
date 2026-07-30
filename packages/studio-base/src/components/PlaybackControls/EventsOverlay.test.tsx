@@ -356,7 +356,7 @@ describe("<EventsOverlay />", () => {
       );
 
       expect(screen.getByTestId("timeline-empty-event-hint").textContent).toBe(
-        "使用快捷键 Alt+1 创建一刻，为数据打标注",
+        "使用快捷键 Alt + 1 创建一刻，为数据打标注",
       );
       expect(screen.getByTestId("timeline-empty-event-create-icon")).toBeTruthy();
     } finally {
