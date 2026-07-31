@@ -7,7 +7,7 @@
 
 import { createContext, useContext } from "react";
 
-import IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
 import NullAnalytics from "@foxglove/studio-base/services/NullAnalytics";
 
 const AnalyticsContext = createContext<IAnalytics>(new NullAnalytics());

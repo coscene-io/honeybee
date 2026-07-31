@@ -4,7 +4,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
-import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 
 enum AppEvent {
   APP_INIT = "app_initialized",
@@ -90,6 +90,9 @@ enum AppEvent {
 
   // Cache reliability and storage-pressure events (privacy-safe aggregate fields only)
   MESSAGE_CACHE = "message_cache",
+
+  // Sampled, privacy-safe aggregate performance fields for one playback seek
+  PLAYBACK_PERFORMANCE = "playback_performance",
 }
 
 interface IAnalytics {

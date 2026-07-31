@@ -5,15 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
+import type { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { posthog } from "posthog-js";
 
 import Logger from "@foxglove/log";
 import OsContextSingleton from "@foxglove/studio-base/OsContextSingleton";
-import { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
-import { sanitizeMessageCacheMetricData } from "@foxglove/studio-base/services/messageCacheTelemetry";
+import type { User } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import type { DataSourceArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import {
+  sanitizeMessageCacheMetricData,
+  sanitizePlayerPerformanceMetricData,
+} from "@foxglove/studio-base/services/messageCacheTelemetry";
+import { sanitizePlaybackPerformanceMetricData } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 
 const log = Logger.getLogger("Analytics");
@@ -63,14 +68,20 @@ export class AmplitudeAnalytics implements IAnalytics {
       case AppEvent.PLAYER_INITIALIZING_TIME:
         posthog.capture(event, data);
         break;
-      case AppEvent.PLAYER_SEEK_LATENCY:
+      case AppEvent.PLAYER_SEEK:
         posthog.capture(event, data);
+        break;
+      case AppEvent.PLAYER_SEEK_LATENCY:
+        posthog.capture(event, sanitizePlayerPerformanceMetricData(data));
         break;
       case AppEvent.PLAYER_STALL_DURATION:
         posthog.capture(event, data);
         break;
       case AppEvent.MESSAGE_CACHE:
         posthog.capture(event, sanitizeMessageCacheMetricData(data));
+        break;
+      case AppEvent.PLAYBACK_PERFORMANCE:
+        posthog.capture(event, sanitizePlaybackPerformanceMetricData(data));
         break;
       default:
         log.info(`[EVENT] ${event}`, data);

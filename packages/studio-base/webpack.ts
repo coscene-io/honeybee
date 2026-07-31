@@ -9,9 +9,9 @@ import { rspack, type Configuration } from "@rspack/core";
 import monacoPkg from "monaco-editor/package.json";
 import MonacoWebpackPlugin from "monaco-editor-webpack-plugin";
 import path from "path";
-import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import { isRspackServe, type WebpackArgv } from "./WebpackArgv";
+import { createNativeTypeScriptChecker } from "./createNativeTypeScriptChecker";
 
 if (monacoPkg.version !== "0.55.1") {
   throw new Error(`
@@ -27,14 +27,10 @@ if (monacoPkg.version !== "0.55.1") {
 }
 
 type Options = {
-  // During hot reloading and development it is useful to comment out code while iterating.
-  // We ignore errors from unused locals to avoid having to also comment
-  // those out while iterating.
-  allowUnusedVariables?: boolean;
   /** Specify the app version. */
   version: string;
-  /** Specify the path to the tsconfig.json file for TsCheckerRspackPlugin. If unset, the plugin defaults to finding the config file in the rspack `context` directory. */
-  tsconfigPath?: string;
+  /** Specify the path to the tsconfig.json file for TsCheckerRspackPlugin. */
+  tsconfigPath: string;
 };
 
 // Create a partial rspack configuration required to build app using rspack.
@@ -47,7 +43,7 @@ export function makeConfig(
   const isDev = argv.mode === "development";
   const isServe = isRspackServe(argv);
 
-  const { allowUnusedVariables = isDev && isServe, version, tsconfigPath } = options;
+  const { version, tsconfigPath } = options;
 
   return {
     resolve: {
@@ -180,7 +176,7 @@ export function makeConfig(
           // bundle it for the renderer.
           // https://github.com/microsoft/TypeScript/issues/39436
           // Prettier's TS parser also bundles the same code: https://github.com/prettier/prettier/issues/11076
-          test: /[\\/]node_modules[\\/]typescript[\\/]lib[\\/]typescript\.js$|[\\/]node_modules[\\/]prettier[\\/]plugins[\\/]typescript\.m?js$/,
+          test: /[\\/]node_modules[\\/](?:typescript|typescript-for-user-script)[\\/]lib[\\/]typescript\.js$|[\\/]node_modules[\\/]prettier[\\/]plugins[\\/]typescript\.m?js$/,
           loader: "string-replace-loader", // foxglove-depcheck-used: string-replace-loader
           options: {
             multiple: [
@@ -245,19 +241,7 @@ export function makeConfig(
         // downstream users of the studio-base package.
         filename: "[name].worker.[contenthash].js",
       }),
-      new TsCheckerRspackPlugin({
-        typescript: {
-          configFile: tsconfigPath,
-          configOverwrite: {
-            compilerOptions: {
-              noUnusedLocals: !allowUnusedVariables,
-              noUnusedParameters: !allowUnusedVariables,
-              jsx: isDev ? "react-jsxdev" : "react-jsx",
-            },
-          },
-          memoryLimit: 8192, // 增加内存限制到 8GB
-        },
-      }),
+      createNativeTypeScriptChecker(tsconfigPath),
     ],
     node: {
       __dirname: true,

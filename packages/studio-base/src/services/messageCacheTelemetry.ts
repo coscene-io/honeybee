@@ -7,7 +7,8 @@
 
 import type { BeforeSendFn, CaptureResult, Properties } from "posthog-js";
 
-import IAnalytics, { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import type IAnalytics from "@foxglove/studio-base/services/IAnalytics";
+import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
 const SAFE_MESSAGE_CACHE_STRING_KEYS = new Set(["metric", "kind", "status", "stage", "operation"]);
 
@@ -29,9 +30,28 @@ const SAFE_MESSAGE_CACHE_NUMBER_KEYS = new Set([
 ]);
 
 const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set(["writesDisabled", "interrupted"]);
+const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set([
+  "seek_id",
+  "latency_ms",
+  "topic_count",
+  "message_count",
+]);
+const PLAYER_PERFORMANCE_EVENTS = new Set<AppEvent>([
+  AppEvent.PLAYER_SEEK,
+  AppEvent.PLAYER_SEEK_LATENCY,
+]);
 
 // PostHog needs a small number of primitive transport and environment fields for ingestion and
 // useful grouping. Objects, page data, campaign data, and SDK-added URLs are deliberately omitted.
+//
+// Scope note: "privacy-safe" means the event payload is bounded to the allowlists in this
+// file — it does not mean anonymous. The keys below are the same identity set every existing
+// analytics event already carries (user, device, session, window, and organization identity
+// plus gl_renderer), and PostHog person profiles are enabled, so every event is attributable
+// to an identified user; the events in this file add no identity surface beyond that accepted
+// baseline. This filtering also applies only to the events the before_send hooks below match;
+// identify() calls and other events (e.g. PLAYER_INIT with its data-source args) are not
+// filtered here.
 const SAFE_POSTHOG_PRIMITIVE_KEYS = new Set([
   "token",
   "distinct_id",
@@ -57,6 +77,7 @@ const SAFE_POSTHOG_PRIMITIVE_KEYS = new Set([
   "time",
   "platform",
   "environment",
+  "release",
   "os",
   "gl_vendor",
   "gl_renderer",
@@ -120,14 +141,46 @@ export function sanitizeMessageCacheMetricData(
   return sanitized;
 }
 
-function sanitizeMessageCacheCaptureProperties(properties: Properties): Properties {
+/** Restrict seek telemetry to finite aggregate measurements with bounded cardinality. */
+export function sanitizePlayerPerformanceMetricData(
+  data: Readonly<Record<string, unknown>> | undefined,
+): Record<string, number> {
+  const sanitized: Record<string, number> = {};
+  if (data == undefined) {
+    return sanitized;
+  }
+  for (const [key, value] of Object.entries(data)) {
+    if (
+      SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS.has(key) &&
+      typeof value === "number" &&
+      Number.isFinite(value)
+    ) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+export function sanitizePostHogPrimitiveProperties(properties: Properties): Properties {
   const sanitized: Properties = {};
   for (const [key, value] of Object.entries(properties)) {
     if (SAFE_POSTHOG_PRIMITIVE_KEYS.has(key) && isSafePrimitive(value)) {
       sanitized[key] = value;
     }
   }
-  return Object.assign(sanitized, sanitizeMessageCacheMetricData(properties));
+  return sanitized;
+}
+
+function sanitizedCaptureResult(result: CaptureResult, properties: Properties): CaptureResult {
+  const sanitized: CaptureResult = {
+    uuid: result.uuid,
+    event: result.event,
+    properties,
+  };
+  if (result.timestamp != undefined) {
+    sanitized.timestamp = result.timestamp;
+  }
+  return sanitized;
 }
 
 /** Fire-and-forget metrics support both synchronous and asynchronous analytics implementations. */
@@ -147,13 +200,29 @@ export const sanitizeMessageCacheCaptureResult: BeforeSendFn = (result) => {
     return result;
   }
 
-  const sanitized: CaptureResult = {
-    uuid: result.uuid,
-    event: result.event,
-    properties: sanitizeMessageCacheCaptureProperties(result.properties),
-  };
-  if (result.timestamp != undefined) {
-    sanitized.timestamp = result.timestamp;
+  return sanitizedCaptureResult(
+    result,
+    Object.assign(
+      sanitizePostHogPrimitiveProperties(result.properties),
+      sanitizeMessageCacheMetricData(result.properties),
+    ),
+  );
+};
+
+/** Strip SDK-added page data from privacy-safe aggregate telemetry after PostHog enrichment. */
+export const sanitizeAnalyticsCaptureResult: BeforeSendFn = (result) => {
+  const cacheResult = sanitizeMessageCacheCaptureResult(result);
+  if (!result || cacheResult !== result) {
+    return cacheResult;
   }
-  return sanitized;
+  if (!PLAYER_PERFORMANCE_EVENTS.has(result.event as AppEvent)) {
+    return result;
+  }
+  return sanitizedCaptureResult(
+    result,
+    Object.assign(
+      sanitizePostHogPrimitiveProperties(result.properties),
+      sanitizePlayerPerformanceMetricData(result.properties),
+    ),
+  );
 };

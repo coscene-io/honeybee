@@ -50,5 +50,40 @@ new RuleTester({
         },
       ],
     },
+    {
+      code: "class Example { private value = 1; read(other: Example) { return other.value; } }",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
+    {
+      code: 'class Example { private value = 1; read() { return this["value"]; } }',
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
+    {
+      code: "class Example { #value = 1; private _value = 2; }",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
+    {
+      code: "class Example { private value = 1; } const instance = new Example(); (instance as any).value;",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
+    {
+      code: "class Example { private static value = 1; static read() { const Example = { value: 2 }; return Example.value; } }",
+      errors: [{ messageId: "preferHash", suggestions: [] }],
+    },
+    {
+      code: "class A { private value = 1; read() { return this.value; } } class B { value = 2; read() { return this.value; } }",
+      errors: [
+        {
+          messageId: "preferHash",
+          suggestions: [
+            {
+              messageId: "rename",
+              output:
+                "class A { #value = 1; read() { return this.#value; } } class B { value = 2; read() { return this.value; } }",
+            },
+          ],
+        },
+      ],
+    },
   ],
 });

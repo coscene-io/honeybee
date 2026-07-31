@@ -19,7 +19,7 @@
 // etc). We should generally prevent users from making mistakes in the first place, but sometimes
 // its unavoidable to bail out with a generic error message (e.g. when dragging in a malformed
 // ROS bag).
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { reportError } from "@foxglove/studio-base/reportError";
 import { AppError } from "@foxglove/studio-base/util/errors";

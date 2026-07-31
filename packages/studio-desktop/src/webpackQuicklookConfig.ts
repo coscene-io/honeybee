@@ -8,9 +8,9 @@
 import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
 import { ReactRefreshRspackPlugin } from "@rspack/plugin-react-refresh";
 import path from "path";
-import { TsCheckerRspackPlugin } from "ts-checker-rspack-plugin";
 
 import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
+import { createNativeTypeScriptChecker } from "@foxglove/studio-base/createNativeTypeScriptChecker";
 
 import { WebpackConfigParams } from "./WebpackConfigParams";
 
@@ -20,20 +20,10 @@ export const webpackQuicklookConfig =
     const isDev = argv.mode === "development";
     const isServe = isRspackServe(argv);
 
-    const allowUnusedVariables = isDev && isServe;
-
     const plugins: RspackPluginInstance[] = [
-      new TsCheckerRspackPlugin({
-        typescript: {
-          configOverwrite: {
-            compilerOptions: {
-              noUnusedLocals: !allowUnusedVariables,
-              noUnusedParameters: !allowUnusedVariables,
-            },
-          },
-          memoryLimit: 4096, // 增加内存限制到 4GB
-        },
-      }),
+      createNativeTypeScriptChecker(
+        path.resolve(params.quicklookContext, isDev ? "tsconfig.rspack-dev.json" : "tsconfig.json"),
+      ),
       new rspack.HtmlRspackPlugin({
         templateContent: `
 <!doctype html>

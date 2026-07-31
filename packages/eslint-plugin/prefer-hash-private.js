@@ -19,6 +19,18 @@ function isThisBindingResetBetween(node, classNode) {
   return false;
 }
 
+function isClassNameReference(sourceCode, identifier, classNode) {
+  for (let scope = sourceCode.getScope(identifier); scope; scope = scope.upper) {
+    const variable = scope.variables.find((candidate) => candidate.name === identifier.name);
+    if (variable) {
+      return variable.defs.some(
+        (definition) => definition.type === "ClassName" && definition.node === classNode,
+      );
+    }
+  }
+  return false;
+}
+
 /** @type {import("eslint").Rule.RuleModule} */
 module.exports = {
   meta: {
@@ -34,78 +46,110 @@ module.exports = {
 
   create(context) {
     const sourceCode = context.sourceCode;
+    const classes = [];
     const classStack = [];
+    const unknownReferenceNames = new Set();
 
     function enterClass(node) {
       classStack.push({
         node,
         name: node.id?.name,
         definitions: [],
+        privateNames: new Set(),
         references: new Map(),
+        unsafeReferences: new Set(),
       });
     }
 
     function recordReference(node) {
       const currentClass = classStack.at(-1);
-      if (!currentClass || node.computed || node.property.type !== "Identifier") {
+      const propertyName = node.computed
+        ? node.property.type === "Literal" && typeof node.property.value === "string"
+          ? node.property.value
+          : undefined
+        : node.property.type === "Identifier"
+          ? node.property.name
+          : undefined;
+      if (!propertyName) {
         return;
       }
 
       const isThisReference = node.object.type === "ThisExpression";
       const isClassReference =
-        currentClass.name &&
+        currentClass &&
         node.object.type === "Identifier" &&
-        node.object.name === currentClass.name;
-      if (
-        (!isThisReference && !isClassReference) ||
-        (isThisReference && isThisBindingResetBetween(node, currentClass.node))
-      ) {
+        node.object.name === currentClass.name &&
+        isClassNameReference(sourceCode, node.object, currentClass.node);
+      const isSelfReference =
+        currentClass &&
+        (isClassReference ||
+          (isThisReference && !isThisBindingResetBetween(node, currentClass.node)));
+      if (!isSelfReference) {
+        unknownReferenceNames.add(propertyName);
+      }
+
+      if (!currentClass) {
+        return;
+      }
+      if (node.computed || !isSelfReference) {
+        currentClass.unsafeReferences.add(propertyName);
         return;
       }
 
-      const references = currentClass.references.get(node.property.name) ?? [];
+      const references = currentClass.references.get(propertyName) ?? [];
       references.push(node.property);
-      currentClass.references.set(node.property.name, references);
+      currentClass.references.set(propertyName, references);
     }
 
     function exitClass() {
       const currentClass = classStack.pop();
-      if (!currentClass) {
-        return;
+      if (currentClass) {
+        classes.push(currentClass);
       }
+    }
 
-      for (const definition of currentClass.definitions) {
-        const oldName = definition.key.name;
-        const newName = `#${oldName.replace(/^_/, "")}`;
-        const references = currentClass.references.get(oldName) ?? [];
+    function reportClasses() {
+      for (const currentClass of classes) {
+        for (const definition of currentClass.definitions) {
+          const oldName = definition.key.name;
+          const newName = `#${oldName.replace(/^_/, "")}`;
+          const references = currentClass.references.get(oldName) ?? [];
+          const suggestionIsUnsafe =
+            currentClass.unsafeReferences.has(oldName) ||
+            currentClass.privateNames.has(newName.slice(1)) ||
+            unknownReferenceNames.has(oldName);
+          const suggest = suggestionIsUnsafe
+            ? undefined
+            : [
+                {
+                  messageId: "rename",
+                  data: { oldName, newName },
+                  *fix(fixer) {
+                    const privateToken = sourceCode
+                      .getTokens(definition)
+                      .find((token) => token.type === "Keyword" && token.value === "private");
+                    if (privateToken) {
+                      const nextToken = sourceCode.getTokenAfter(privateToken);
+                      yield fixer.removeRange([
+                        privateToken.range[0],
+                        nextToken?.range[0] ?? privateToken.range[1],
+                      ]);
+                    }
+                    yield fixer.replaceText(definition.key, newName);
+                    for (const reference of references) {
+                      yield fixer.replaceText(reference, newName);
+                    }
+                  },
+                },
+              ];
 
-        context.report({
-          node: definition.key,
-          messageId: "preferHash",
-          data: { newName },
-          suggest: [
-            {
-              messageId: "rename",
-              data: { oldName, newName },
-              *fix(fixer) {
-                const privateToken = sourceCode
-                  .getTokens(definition)
-                  .find((token) => token.type === "Keyword" && token.value === "private");
-                if (privateToken) {
-                  const nextToken = sourceCode.getTokenAfter(privateToken);
-                  yield fixer.removeRange([
-                    privateToken.range[0],
-                    nextToken?.range[0] ?? privateToken.range[1],
-                  ]);
-                }
-                yield fixer.replaceText(definition.key, newName);
-                for (const reference of references) {
-                  yield fixer.replaceText(reference, newName);
-                }
-              },
-            },
-          ],
-        });
+          context.report({
+            node: definition.key,
+            messageId: "preferHash",
+            data: { newName },
+            suggest,
+          });
+        }
       }
     }
 
@@ -113,6 +157,12 @@ module.exports = {
       ClassDeclaration: enterClass,
       ClassExpression: enterClass,
       MemberExpression: recordReference,
+      "Program:exit": reportClasses,
+      ":matches(PropertyDefinition, MethodDefinition)[computed=false] > PrivateIdentifier.key": (
+        node,
+      ) => {
+        classStack.at(-1)?.privateNames.add(node.name);
+      },
       ":matches(PropertyDefinition, MethodDefinition)[accessibility='private'][computed=false]": (
         node,
       ) => {

@@ -67,6 +67,7 @@ import {
 } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
 import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
+import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { UserScripts } from "@foxglove/studio-base/types/panels";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
@@ -334,6 +335,11 @@ export default function PlayerManager(
 
       // If sourceId is undefined, clear the current source selection
       if (sourceId == undefined) {
+        // Flush any tracked sampled seek before the player goes away: this path bypasses both
+        // setProperty("player", ...) and the collector's close(), so without the flush a stale
+        // seek could later emit as settled/timeout with counters from a player that no longer
+        // exists.
+        playbackPerformanceMetrics.handlePlayerChange();
         setCurrentSourceId(undefined);
         setSelectedSource(undefined);
         setCurrentSourceArgs(undefined);

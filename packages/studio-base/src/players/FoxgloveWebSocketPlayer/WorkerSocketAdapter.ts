@@ -70,7 +70,7 @@ export default class WorkerSocketAdapter implements IWebSocket {
     }
   }
 
-  public send(data: string | ArrayBuffer | ArrayBufferView): void {
+  public send(data: string | ArrayBuffer | ArrayBufferView<ArrayBuffer>): void {
     this.#sendToWorker({ type: "data", data });
   }
 

@@ -6,18 +6,18 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createContext } from "react";
-import { StoreApi } from "zustand";
+import type { StoreApi } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
-import {
+import type {
   ExtensionPanelRegistration,
   Immutable,
   PanelSettings,
   RegisterMessageConverterArgs,
 } from "@foxglove/studio";
-import { TopicAliasFunctions } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
-import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
+import type { TopicAliasFunctions } from "@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer";
+import type { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
 
 export type RegisteredPanel = {
   extensionName: string;

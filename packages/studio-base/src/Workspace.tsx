@@ -65,7 +65,10 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { useCurrentUser, UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { SubscriptionEntitlementStore } from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
+import {
+  SubscriptionEntitlementStore,
+  useSubscriptionEntitlement,
+} from "@foxglove/studio-base/context/SubscriptionEntitlementContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -85,10 +88,13 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
+import {
+  logPlaybackPerformanceMetric,
+  playbackPerformanceMetrics,
+} from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
-import { useSubscriptionEntitlement } from "./context/SubscriptionEntitlementContext";
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
@@ -180,6 +186,12 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     // before cache databases perform idle maintenance.
     scheduleMessageCacheMaintenance((metric, data) => {
       logMessageCacheMetric(analytics, metric, data);
+    });
+  }, [analytics]);
+
+  useEffect(() => {
+    return playbackPerformanceMetrics.installSink((data) => {
+      logPlaybackPerformanceMetric(analytics, data);
     });
   }, [analytics]);
 

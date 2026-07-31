@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "prepack": "yarn build",
-    "build": "tsc -b tsconfig.json tsconfig.cjs.json",
+    "build": "yarn run -T tsc -b tsconfig.json tsconfig.cjs.json",
     "lint": "eslint --report-unused-disable-directives --fix .",
     "lint:ci": "eslint --report-unused-disable-directives .",
     "test": "jest"
@@ -41,7 +41,7 @@
     "prettier": "3.8.4",
     "ts-jest": "29.4.11",
     "ts-node": "10.9.2",
-    "typescript": "5.9.3"
+    "typescript": "npm:@typescript/typescript6@6.0.2"
   },
   "dependencies": {
     "eventemitter3": "^5.0.1"

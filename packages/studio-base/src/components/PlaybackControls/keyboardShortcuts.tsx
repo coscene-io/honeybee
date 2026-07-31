@@ -9,11 +9,20 @@ import { alpha } from "@mui/material";
 import { Fragment } from "react";
 import { makeStyles } from "tss-react/mui";
 
-export const isMac =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
+export function isMacUserAgent(userAgent: string): boolean {
+  return /Mac|iPhone|iPad/.test(userAgent);
+}
+
+const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+
+export const isMac = isMacUserAgent(userAgent);
 
 /** Platform-specific modifier symbol: ⌘ on macOS, Ctrl elsewhere. */
 export const MOD = isMac ? "⌘" : "Ctrl";
+
+export function getCreateMomentShortcut(currentUserAgent: string): "Option + 1" | "Alt + 1" {
+  return isMacUserAgent(currentUserAgent) ? "Option + 1" : "Alt + 1";
+}
 
 /**
  * Keyboard shortcut definitions, keyed by action. Each value is a list of interchangeable
@@ -35,7 +44,7 @@ export const SHORTCUTS = {
   playbackSpeed: ["−", "+"],
   selectMoment: ["↑", "↓"],
   seekToMoment: ["Enter"],
-  createMoment: ["Alt + 1"],
+  createMoment: [getCreateMomentShortcut(userAgent)],
   setInOut: ["I", "O"],
   deleteMoment: ["Delete", "Backspace"],
   zoom: [`${MOD} + =`, `${MOD} + −`],
