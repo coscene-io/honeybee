@@ -51,6 +51,9 @@ import {
   SUPPORTED_RAW_IMAGE_SCHEMAS,
   WAITING_FOR_IMAGES_EMPTY_HUD_ID,
   WAITING_FOR_IMAGES_NOTICE_ID,
+  BOTH_TOPICS_DO_NOT_EXIST_HUD_ITEM_ID,
+  IMAGE_TOPIC_DOES_NOT_EXIST_HUD_ITEM_ID,
+  CALIBRATION_TOPIC_DOES_NOT_EXIST_HUD_ITEM_ID,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
 import {
   ConfigWithDefaults,
@@ -88,11 +91,6 @@ import { downloadFiles } from "@foxglove/studio-base/util/download";
 import { ImageModeCamera } from "./ImageModeCamera";
 import { IMessageHandler, MessageHandler, MessageRenderState } from "./MessageHandler";
 import { ImageAnnotations } from "./annotations/ImageAnnotations";
-import {
-  BOTH_TOPICS_DO_NOT_EXIST_HUD_ITEM_ID,
-  IMAGE_TOPIC_DOES_NOT_EXIST_HUD_ITEM_ID,
-  CALIBRATION_TOPIC_DOES_NOT_EXIST_HUD_ITEM_ID,
-} from "./constants";
 import type {
   AnyRendererSubscription,
   IRenderer,

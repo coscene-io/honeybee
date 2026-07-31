@@ -200,7 +200,7 @@ export default React.memo(function LayoutRow({
             layoutName: layout.name,
           }),
       prompt: t("revertLayoutsPrompt"),
-      ok: t("revertLayoutsConfim"),
+      ok: t("revertLayoutsConfirm"),
       cancel: t("cancel", { ns: "general" }),
       variant: "danger",
     });

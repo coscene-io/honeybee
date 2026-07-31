@@ -22,11 +22,30 @@ new RuleTester({ languageOptions: { ecmaVersion: "latest" } }).run(
       "function run() { return Promise.resolve(value); }",
       "async function outer() { return function inner() { return Promise.resolve(value); }; }",
       "async function run() { const promise = Promise.resolve(value); return promise; }",
+      "async function run(Promise) { return Promise.resolve(value); }",
+      "async function run() { const Promise = customPromise; return Promise.reject(error); }",
+      "async function run() { return Promise.resolve(value, sideEffect()); }",
+      "async function run() { return Promise.reject(error, sideEffect()); }",
+      "async function run(args) { return Promise.resolve(...args); }",
+      "async function run(args) { return Promise.reject(...args); }",
+      "async function run() { try { return Promise.reject(error); } catch { return fallback; } }",
+      "async function outer(Promise) { async function run() { type Promise = {}; return Promise.resolve(value); } return run(); }",
     ],
     invalid: [
       {
         code: "async function run() { return Promise.resolve(value); }",
         output: "async function run() { return value; }",
+        errors: [{ messageId: "returnDirectly" }],
+      },
+      {
+        code: "async function run(value) { type Promise = {}; return Promise.resolve(value); }",
+        output: "async function run(value) { type Promise = {}; return value; }",
+        errors: [{ messageId: "returnDirectly" }],
+      },
+      {
+        code: 'import type { Foo as Promise } from "./types"; async function run(value) { return Promise.resolve(value); }',
+        output:
+          'import type { Foo as Promise } from "./types"; async function run(value) { return value; }',
         errors: [{ messageId: "returnDirectly" }],
       },
       {

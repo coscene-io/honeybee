@@ -137,7 +137,8 @@ const tempRgbaFieldReaders: RgbaFieldReaders = {
 };
 
 function numericTypeName(type: NumericType): string {
-  return NumericType[type];
+  const typeName = (NumericType as Record<number, string | undefined>)[type];
+  return typeName ?? `${type}`;
 }
 
 function getTextureColorSpace(settings: GridColorModeSettings): THREE.ColorSpace {
@@ -201,7 +202,7 @@ export class FoxgloveGridRenderable extends Renderable<FoxgloveGridUserData> {
       if (name === settings.colorField) {
         const fieldReader = getReader(field, cell_stride);
         if (!fieldReader) {
-          const typeName = NumericType[type];
+          const typeName = numericTypeName(type);
           const message = `Grid field "${name}" is invalid. type=${typeName}, offset=${offset}, stride=${cell_stride}`;
           invalidFoxgloveGridError(this.renderer, this.userData.topic, message);
           return undefined;

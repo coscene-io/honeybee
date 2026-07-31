@@ -7,14 +7,15 @@
 
 import { useTheme } from "@mui/material";
 import { produce } from "immer";
-import { CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLatest } from "react-use";
 import { v4 as uuid } from "uuid";
 
 import { useSynchronousMountedState, useValueChangedDebugLog } from "@foxglove/hooks";
 import Logger from "@foxglove/log";
 import { fromSec, toSec } from "@foxglove/rostime";
-import {
+import type {
   AppSettingValue,
   ExtensionPanelRegistration,
   PanelExtensionContext,
@@ -26,46 +27,41 @@ import {
   Time,
   VariableValue,
 } from "@foxglove/studio";
+import type { MessagePipelineContext } from "@foxglove/studio-base/components/MessagePipeline";
 import {
-  MessagePipelineContext,
   useMessagePipeline,
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import { useAppConfiguration } from "@foxglove/studio-base/context/AppConfigurationContext";
+import type { ExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import {
-  ExtensionCatalog,
   getExtensionPanelSettings,
   useExtensionCatalog,
 } from "@foxglove/studio-base/context/ExtensionCatalogContext";
-import {
-  PlaybackInteractionStateStore,
-  usePlaybackInteractionState,
-} from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import type { PlaybackInteractionStateStore } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import {
   useClearHoverValue,
   useHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
-import {
-  AdvertiseOptions,
-  PlayerCapabilities,
-  PlayerPresence,
-  SubscribePayload,
-} from "@foxglove/studio-base/players/types";
+import type { AdvertiseOptions, SubscribePayload } from "@foxglove/studio-base/players/types";
+import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
 import {
   useDefaultPanelTitle,
   usePanelSettingsTreeUpdate,
 } from "@foxglove/studio-base/providers/PanelStateContextProvider";
-import { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
+import type { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { assertNever } from "@foxglove/studio-base/util/assertNever";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 
 import { PanelConfigVersionError } from "./PanelConfigVersionError";
-import { RenderStateConfig, initRenderStateBuilder } from "./renderState";
-import { BuiltinPanelExtensionContext } from "./types";
+import type { RenderStateConfig } from "./renderState";
+import { initRenderStateBuilder } from "./renderState";
+import type { BuiltinPanelExtensionContext } from "./types";
 import { useSharedPanelState } from "./useSharedPanelState";
 
 const log = Logger.getLogger(__filename);

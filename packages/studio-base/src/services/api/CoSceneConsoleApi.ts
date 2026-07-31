@@ -5,8 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { create, fromBinary, MessageInitShape } from "@bufbuild/protobuf";
-import { Empty, FieldMask } from "@bufbuild/protobuf/wkt";
+import type { MessageInitShape } from "@bufbuild/protobuf";
+import { create, fromBinary } from "@bufbuild/protobuf";
+import type { Empty, FieldMask } from "@bufbuild/protobuf/wkt";
 import type { Label } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
 import type { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import type { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
@@ -167,9 +168,10 @@ import * as base64 from "@protobufjs/base64";
 import { t } from "i18next";
 import toast from "react-hot-toast";
 
-import { Time, toRFC3339String } from "@foxglove/rostime";
+import type { Time } from "@foxglove/rostime";
+import { toRFC3339String } from "@foxglove/rostime";
 import { CoSceneErrors } from "@foxglove/studio-base/CoSceneErrors";
-import {
+import type {
   CoordinatorConfig,
   ExternalInitConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
@@ -191,7 +193,7 @@ import {
   checkUserPermission,
 } from "@foxglove/studio-base/util/permission/endpoint";
 import { timestampToTime } from "@foxglove/studio-base/util/time";
-import { Auth } from "@foxglove/studio-desktop/src/common/types";
+import type { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 import { HttpError } from "./HttpError";
 

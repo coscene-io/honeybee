@@ -21,7 +21,7 @@ import { BaseSettings } from "@foxglove/studio-base/panels/ThreeDeeRender/settin
 import { MAX_DURATION } from "@foxglove/studio-base/panels/ThreeDeeRender/transforms";
 import { updatePose } from "@foxglove/studio-base/panels/ThreeDeeRender/updatePose";
 
-import { LaserScanMaterial } from "./LaserScans";
+import type { LaserScanMaterial } from "./LaserScans";
 import {
   colorModeSettingsFields,
   colorHasTransparency,

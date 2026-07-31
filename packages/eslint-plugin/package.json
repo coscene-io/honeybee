@@ -24,10 +24,10 @@
     "@typescript-eslint/parser": "8.63.0",
     "@typescript-eslint/rule-tester": "8.63.0",
     "eslint": "9.39.4",
-    "typescript": "6.0.3"
+    "typescript": "npm:@typescript/typescript6@6.0.2"
   },
   "peerDependencies": {
     "eslint": "^9.39.4",
-    "typescript": "6.0.3"
+    "typescript": "6.0.2"
   }
 }

@@ -7,14 +7,14 @@
 
 import { createContext, useContext } from "react";
 
-import { Time } from "@foxglove/rostime";
-import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
-import AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
-import { PersistentCacheSourceInitializeArgs } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
-import { Player } from "@foxglove/studio-base/players/types";
-import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
-import { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
+import type { Time } from "@foxglove/rostime";
+import type { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import type { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import type AnalyticsMetricsCollector from "@foxglove/studio-base/players/AnalyticsMetricsCollector";
+import type { PersistentCacheSourceInitializeArgs } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
+import type { Player } from "@foxglove/studio-base/players/types";
+import type ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import type { RegisteredIconNames } from "@foxglove/studio-base/types/Icons";
 
 export type DataSourceFactoryInitializeArgs = {
   metricsCollector: AnalyticsMetricsCollector;

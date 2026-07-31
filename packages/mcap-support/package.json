@@ -18,12 +18,11 @@
     "src"
   ],
   "scripts": {
-    "prepack": "tsc -b"
+    "prepack": "yarn run -T tsc -b"
   },
   "devDependencies": {
     "@foxglove/tsconfig": "3.2.0",
-    "@types/protobufjs": "workspace:*",
-    "typescript": "6.0.3"
+    "@types/protobufjs": "workspace:*"
   },
   "dependencies": {
     "@foxglove/message-definition": "0.5.0",

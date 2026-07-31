@@ -18,6 +18,36 @@ function nearestFunction(node) {
   return undefined;
 }
 
+function isShadowed(sourceCode, node, name) {
+  for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+    const variable = scope.variables.find((candidate) => candidate.name === name);
+    const hasRuntimeDefinition = variable?.defs.some(
+      (definition) =>
+        definition.type !== "ImportBinding" ||
+        (definition.parent?.importKind !== "type" && definition.node.importKind !== "type"),
+    );
+    if (hasRuntimeDefinition && (variable.isValueVariable ?? true)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isCaughtByTry(node, enclosingFunction) {
+  let child = node;
+  for (
+    let current = node.parent;
+    current && current !== enclosingFunction;
+    current = current.parent
+  ) {
+    if (current.type === "TryStatement" && current.handler && child === current.block) {
+      return true;
+    }
+    child = current;
+  }
+  return false;
+}
+
 /** @type {import("eslint").Rule.RuleModule} */
 module.exports = {
   meta: {
@@ -40,8 +70,11 @@ module.exports = {
           node.callee.computed ||
           node.callee.object.type !== "Identifier" ||
           node.callee.object.name !== "Promise" ||
+          isShadowed(sourceCode, node, "Promise") ||
           node.callee.property.type !== "Identifier" ||
-          (node.callee.property.name !== "resolve" && node.callee.property.name !== "reject")
+          (node.callee.property.name !== "resolve" && node.callee.property.name !== "reject") ||
+          node.arguments.length > 1 ||
+          node.arguments[0]?.type === "SpreadElement"
         ) {
           return;
         }
@@ -55,6 +88,10 @@ module.exports = {
         }
 
         const rejects = node.callee.property.name === "reject";
+        if (rejects && isReturned && isCaughtByTry(parent, enclosingFunction)) {
+          return;
+        }
+
         context.report({
           node: rejects && isReturned ? parent : node,
           messageId: rejects ? "throwDirectly" : "returnDirectly",

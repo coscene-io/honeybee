@@ -8,7 +8,7 @@
 import { set as idbSet, get as idbGet, createStore as idbCreateStore } from "idb-keyval";
 
 import Log from "@foxglove/log";
-import { IUrdfStorage } from "@foxglove/studio-base";
+import type { IUrdfStorage } from "@foxglove/studio-base/services/IUrdfStorage";
 
 const log = Log.getLogger(__filename);
 

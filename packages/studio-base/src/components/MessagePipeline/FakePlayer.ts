@@ -14,16 +14,16 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { ParameterValue } from "@foxglove/studio";
-import {
+import type { ParameterValue } from "@foxglove/studio";
+import type {
   PlayerCapabilities,
   PlayerStateActiveData,
   PlayerState,
   Player,
   SubscribePayload,
   AdvertiseOptions,
-  PlayerPresence,
 } from "@foxglove/studio-base/players/types";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 export default class FakePlayer implements Player {
   #listener?: (arg0: PlayerState) => Promise<void>;

@@ -5,9 +5,26 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-function isNullishLiteral(node) {
+function isShadowed(sourceCode, node, name) {
+  for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+    const variable = scope.variables.find((candidate) => candidate.name === name);
+    const hasRuntimeDefinition = variable?.defs.some(
+      (definition) =>
+        definition.type !== "ImportBinding" ||
+        (definition.parent?.importKind !== "type" && definition.node.importKind !== "type"),
+    );
+    if (hasRuntimeDefinition && (variable.isValueVariable ?? true)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isNullishLiteral(sourceCode, node) {
   return (
-    (node.type === "Identifier" && node.name === "undefined") ||
+    (node.type === "Identifier" &&
+      node.name === "undefined" &&
+      !isShadowed(sourceCode, node, "undefined")) ||
     (node.type === "Literal" && node.raw === "null")
   );
 }
@@ -25,13 +42,16 @@ module.exports = {
   },
 
   create(context) {
+    const sourceCode = context.sourceCode;
+
     return {
       BinaryExpression(node) {
         if (!["==", "!=", "===", "!=="].includes(node.operator)) {
           return;
         }
 
-        const comparesNullish = isNullishLiteral(node.left) || isNullishLiteral(node.right);
+        const comparesNullish =
+          isNullishLiteral(sourceCode, node.left) || isNullishLiteral(sourceCode, node.right);
         if (comparesNullish && (node.operator === "===" || node.operator === "!==")) {
           context.report({
             node,

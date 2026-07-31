@@ -8,7 +8,7 @@
 import * as _ from "lodash-es";
 
 import { fromRFC3339String, toRFC3339String, Time } from "@foxglove/rostime";
-import { LayoutID } from "@foxglove/studio-base/index";
+import type { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 
 export type AppURLState = {
   isStandalonePlayback?: boolean;

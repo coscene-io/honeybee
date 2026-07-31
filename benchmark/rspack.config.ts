@@ -48,8 +48,6 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   const isDev = argv.mode === "development";
   const isServe = isRspackServe(argv);
 
-  const allowUnusedVariables = isDev;
-
   const plugins: RspackPluginInstance[] = [];
 
   if (isServe) {
@@ -57,7 +55,11 @@ const mainConfig = (env: unknown, argv: WebpackArgv): Configuration => {
   }
 
   const appWebpackConfig = makeConfig(env, argv, {
-    allowUnusedVariables,
+    tsconfigPath: path.resolve(
+      __dirname,
+      "src",
+      isDev ? "tsconfig.rspack-dev.json" : "tsconfig.json",
+    ),
     version: "0.0.0-benchmark",
   });
 
