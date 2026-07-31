@@ -52,6 +52,7 @@ import { Range } from "./ranges";
 
 export type FileStream = {
   on<T>(event: "data", listener: (chunk: T) => void): void;
+  on(event: "end", listener: () => void): void;
   on(event: "error", listener: (err: Error) => void): void;
   destroy: () => void;
 };

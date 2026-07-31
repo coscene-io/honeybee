@@ -7,8 +7,7 @@
 
 import { createFile, ISOFile, Movie, Sample, Track, VisualSampleEntry } from "mp4box";
 
-import { RemoteFileReadable } from "@foxglove/studio-base/players/IterablePlayer/Mcap/RemoteFileReadable";
-
+import { RemoteMp4Readable } from "./RemoteMp4Readable";
 import {
   findLastSampleIndexAtOrBefore,
   lengthPrefixedSampleToAnnexB,
@@ -60,6 +59,16 @@ function videoFormatForCodec(codec: string): Mp4VideoFormat | undefined {
     return "h265";
   }
   return undefined;
+}
+
+export function validateParameterSetsForCodec(
+  codec: string,
+  parameterSets: readonly Uint8Array[],
+): void {
+  const requiresOutOfBandParameterSets = codec.startsWith("avc1") || codec.startsWith("hvc1");
+  if (requiresOutOfBandParameterSets && parameterSets.length === 0) {
+    throw new Error(`MP4 ${codec} video track contains no out-of-band codec parameter sets`);
+  }
 }
 
 function isVisualSampleEntry(entry: unknown): entry is VisualSampleEntry {
@@ -125,7 +134,7 @@ export class Mp4Demuxer {
   #nalLengthSize?: number;
   #parameterSets?: readonly Uint8Array[];
 
-  public constructor(url: string, readable: RandomAccessReadable = new RemoteFileReadable(url)) {
+  public constructor(url: string, readable: RandomAccessReadable = new RemoteMp4Readable(url)) {
     this.#readable = readable;
   }
 
@@ -186,9 +195,7 @@ export class Mp4Demuxer {
       throw new Error("MP4 video track is missing its avcC/hvcC sample description");
     }
     const { nalLengthSize, parameterSets } = extractParameterSets(sampleEntry, format);
-    if (parameterSets.length === 0) {
-      throw new Error("MP4 video track contains no codec parameter sets");
-    }
+    validateParameterSetsForCodec(track.codec, parameterSets);
 
     this.#indexSegments = indexSegments;
     this.#track = track;
