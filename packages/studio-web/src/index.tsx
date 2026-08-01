@@ -75,11 +75,22 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
   await waitForFonts();
   await initI18n();
 
-  const { WebRoot } = await import("./WebRoot");
   const params = await getParams();
-  const rootElement = params.rootElement ?? (
-    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
-  );
+  let rootElement = params.rootElement;
+  if (rootElement == undefined) {
+    const showMp4MediabunnySpike =
+      process.env.NODE_ENV === "development" &&
+      new URLSearchParams(window.location.search).get("mp4MediabunnySpike") === "1";
+    if (showMp4MediabunnySpike) {
+      const { Mp4MediabunnySpike } = await import("./Mp4MediabunnySpike");
+      rootElement = <Mp4MediabunnySpike />;
+    } else {
+      const { WebRoot } = await import("./WebRoot");
+      rootElement = (
+        <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources} />
+      );
+    }
+  }
 
   root.render(
     <StrictMode>

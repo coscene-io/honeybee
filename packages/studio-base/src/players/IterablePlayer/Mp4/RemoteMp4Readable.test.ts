@@ -58,9 +58,13 @@ class MockFileReader implements FileReader {
 describe("RemoteMp4Readable", () => {
   it("fetches only the requested range and reuses a containing cached range", async () => {
     const fileReader = new MockFileReader(100);
+    const fetchedRanges: { offset: number; length: number }[] = [];
     const readable = new RemoteMp4Readable("https://example.com/video.mp4", {
       fileReader,
       cacheSizeInBytes: 200,
+      onRangeFetch: (range) => {
+        fetchedRanges.push(range);
+      },
     });
 
     expect(await readable.read(10n, 10n)).toEqual(
@@ -68,6 +72,7 @@ describe("RemoteMp4Readable", () => {
     );
     expect(await readable.read(12n, 3n)).toEqual(Uint8Array.of(12, 13, 14));
     expect(fileReader.requests).toEqual([{ offset: 10, length: 10 }]);
+    expect(fetchedRanges).toEqual([{ offset: 10, length: 10 }]);
   });
 
   it("evicts least-recently-used ranges when the cache bound is reached", async () => {

@@ -16,6 +16,11 @@ type CacheEntry = {
   data: Uint8Array;
 };
 
+export type RemoteMp4Range = {
+  offset: number;
+  length: number;
+};
+
 /**
  * An exact-range HTTP reader with a bounded LRU cache. Unlike CachedFilelike, it never starts a
  * background read-ahead request after satisfying a read.
@@ -23,6 +28,7 @@ type CacheEntry = {
 export class RemoteMp4Readable {
   readonly #fileReader: FileReader;
   readonly #cacheSizeInBytes: number;
+  readonly #onRangeFetch?: (range: RemoteMp4Range) => void;
   readonly #pendingReads = new Map<string, Promise<Uint8Array>>();
   #fileSize?: number;
   #cacheEntries: CacheEntry[] = [];
@@ -30,10 +36,15 @@ export class RemoteMp4Readable {
 
   public constructor(
     url: string,
-    options: { fileReader?: FileReader; cacheSizeInBytes?: number } = {},
+    options: {
+      fileReader?: FileReader;
+      cacheSizeInBytes?: number;
+      onRangeFetch?: (range: RemoteMp4Range) => void;
+    } = {},
   ) {
     this.#fileReader = options.fileReader ?? new BrowserHttpReader(url);
     this.#cacheSizeInBytes = options.cacheSizeInBytes ?? DEFAULT_CACHE_SIZE_IN_BYTES;
+    this.#onRangeFetch = options.onRangeFetch;
     if (!Number.isSafeInteger(this.#cacheSizeInBytes) || this.#cacheSizeInBytes < 0) {
       throw new Error(`Invalid remote MP4 cache size: ${this.#cacheSizeInBytes}`);
     }
@@ -90,6 +101,7 @@ export class RemoteMp4Readable {
   }
 
   async #fetchRange(offset: number, size: number): Promise<Uint8Array> {
+    this.#onRangeFetch?.({ offset, length: size });
     return await new Promise((resolve, reject) => {
       const data = new Uint8Array(size);
       const stream = this.#fileReader.fetch(offset, size);
