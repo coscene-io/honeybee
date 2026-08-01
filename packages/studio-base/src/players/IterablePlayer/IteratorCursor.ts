@@ -22,7 +22,8 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   #lastIteratorResult?: IteratorResult<MessageType>;
   #abort?: AbortSignal;
   // Set once the underlying iterator has been finalized (its return() invoked). Finalization
-  // happens on end() or on the first read that observes an aborted signal, whichever comes first.
+  // happens on end(), on the abort signal firing, or on a read that observes an already-aborted
+  // signal, whichever comes first.
   #finalized?: Promise<void>;
 
   public constructor(
@@ -31,6 +32,17 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   ) {
     this.#iter = iterator;
     this.#abort = abort;
+
+    // Finalize proactively so cleanup does not depend on the caller polling next/nextBatch/
+    // readUntil again after aborting. The read-time aborted checks below remain as a fast path
+    // and to cover a signal that was already aborted before this cursor was constructed (the
+    // "abort" event only fires at the moment abort() is called, so a listener added afterward
+    // would never see it).
+    if (abort?.aborted === true) {
+      void this.#finalize();
+    } else {
+      abort?.addEventListener("abort", () => void this.#finalize(), { once: true });
+    }
   }
 
   public async next(): ReturnType<IMessageCursor<MessageType>["next"]> {

@@ -53,6 +53,51 @@ describe("IteratorCursor", () => {
     expect(finallyRan).toBe(true);
   });
 
+  it("finalizes the iterator as soon as the abort signal fires, with no further cursor calls", async () => {
+    let finallyRan = false;
+    const controller = new AbortController();
+    async function* source(): AsyncIterableIterator<IteratorResult> {
+      try {
+        for (let i = 0; ; i++) {
+          yield stamp(i);
+        }
+      } finally {
+        finallyRan = true;
+      }
+    }
+
+    const cursor = new IteratorCursor(source(), controller.signal);
+    await expect(cursor.next()).resolves.toEqual(stamp(0));
+
+    controller.abort();
+    // No further next()/nextBatch()/readUntil()/end() call — cleanup must happen from the
+    // abort event listener alone.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(finallyRan).toBe(true);
+  });
+
+  it("finalizes immediately when constructed with an already-aborted signal", async () => {
+    let finallyRan = false;
+    const controller = new AbortController();
+    async function* source(): AsyncIterableIterator<IteratorResult> {
+      try {
+        for (let i = 0; ; i++) {
+          yield stamp(i);
+        }
+      } finally {
+        finallyRan = true;
+      }
+    }
+
+    const iterator = source();
+    await iterator.next();
+    controller.abort();
+
+    new IteratorCursor(iterator, controller.signal);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(finallyRan).toBe(true);
+  });
+
   it("finalizes the iterator when nextBatch observes an abort without end() being called", async () => {
     let finallyRan = false;
     const controller = new AbortController();
