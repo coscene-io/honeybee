@@ -3,7 +3,7 @@
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
@@ -15,65 +15,84 @@ import {
   MessageIteratorArgs,
 } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
 
-import { Mp4Demuxer, Mp4VideoFrame } from "./Mp4Demuxer";
+import type { Mp4FrameIndexEntry, Mp4MediabunnyInfo } from "./Mp4MediabunnyController";
+import {
+  REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME,
+  RemoteVideoFrameProvider,
+  RemoteVideoFrameReference,
+  registerRemoteVideoFrameProvider,
+} from "./RemoteVideoFrameRegistry";
+import { WorkerMp4MediabunnyController } from "./WorkerMp4MediabunnyController";
 
 export const DEFAULT_MP4_VIDEO_TOPIC = "/camera/h264";
-export const COMPRESSED_VIDEO_SCHEMA_NAME = "foxglove.CompressedVideo";
 
-function isAborted(signal: AbortSignal | undefined): boolean {
-  return signal?.aborted === true;
-}
-
-type CompressedVideo = {
-  timestamp: ReturnType<typeof fromNanoSec>;
-  frame_id: string;
-  data: Uint8Array;
-  format: string;
+type Mp4Controller = RemoteVideoFrameProvider & {
+  initialize(): Promise<Mp4MediabunnyInfo>;
+  dispose(): Promise<void>;
 };
 
+function lowerBound(frames: readonly Mp4FrameIndexEntry[], timestampNs: bigint): number {
+  let low = 0;
+  let high = frames.length;
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    if (frames[middle]!.timestampNs < timestampNs) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
 export class Mp4IterableSource implements IDeserializedIterableSource {
-  readonly #demuxer: Mp4Demuxer;
+  readonly #controller: Mp4Controller;
+  readonly #providerId: string;
   readonly #topic: string;
-  #startTimeNs?: bigint;
-  #endTimeNs?: bigint;
+  #info?: Mp4MediabunnyInfo;
+  #unregisterProvider?: () => void;
 
   public readonly sourceType = "deserialized";
 
-  public constructor({ url, topic = DEFAULT_MP4_VIDEO_TOPIC }: { url: string; topic?: string }) {
-    this.#demuxer = new Mp4Demuxer(url);
+  public constructor({
+    url,
+    topic = DEFAULT_MP4_VIDEO_TOPIC,
+    controller,
+    providerId = globalThis.crypto.randomUUID(),
+  }: {
+    url: string;
+    topic?: string;
+    controller?: Mp4Controller;
+    providerId?: string;
+  }) {
+    this.#controller = controller ?? new WorkerMp4MediabunnyController(url);
+    this.#providerId = providerId;
     this.#topic = topic;
   }
 
   public async initialize(): Promise<Initalization> {
-    const info = await this.#demuxer.initialize();
-    this.#startTimeNs = info.startTimeNs;
-    this.#endTimeNs = info.endTimeNs;
+    const info = await this.#controller.initialize();
+    this.#info = info;
+    this.#unregisterProvider?.();
+    this.#unregisterProvider = registerRemoteVideoFrameProvider(this.#providerId, this.#controller);
 
     return {
-      start: fromNanoSec(info.startTimeNs),
+      start: fromNanoSec(0n),
       end: fromNanoSec(info.endTimeNs),
-      topics: [{ name: this.#topic, schemaName: COMPRESSED_VIDEO_SCHEMA_NAME }],
-      topicStats: new Map([[this.#topic, { numMessages: info.samples.length }]]),
+      topics: [{ name: this.#topic, schemaName: REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME }],
+      topicStats: new Map([[this.#topic, { numMessages: info.frames.length }]]),
       datatypes: new Map(),
       profile: "mp4",
       publishersByTopic: new Map(),
-      problems: info.hasBFrames
-        ? [
-            {
-              severity: "warn",
-              message:
-                "This MP4 contains B-frame reordering, which foxglove.CompressedVideo does not support. Frames are emitted in decode order and playback may be inaccurate.",
-              tip: "Use an H.264/H.265 MP4 encoded without B-frames for frame-accurate annotation.",
-            },
-          ]
-        : [],
+      problems: [],
       metadata: [
         {
           name: "MP4 video",
           metadata: {
-            codec: info.format,
+            codec: info.codec,
             resolution: `${info.width}x${info.height}`,
-            transport: "HTTP Range",
+            timing: "Mediabunny presentation order (B-frame and VFR aware)",
+            transport: "HTTP Range (200 MiB bounded cache)",
           },
         },
       ],
@@ -86,10 +105,18 @@ export class Mp4IterableSource implements IDeserializedIterableSource {
     if (!args.topics.has(this.#topic)) {
       return;
     }
-    const startTimeNs = args.start ? toNanoSec(args.start) : this.#requireStartTimeNs();
-    const endTimeNs = args.end ? toNanoSec(args.end) : this.#requireEndTimeNs();
+    const info = this.#requireInfo();
+    const startTimeNs = args.start ? toNanoSec(args.start) : 0n;
+    const endTimeNs = args.end ? toNanoSec(args.end) : info.endTimeNs;
 
-    for await (const frame of this.#demuxer.frames(startTimeNs, endTimeNs, args.abortSignal)) {
+    for (let index = lowerBound(info.frames, startTimeNs); index < info.frames.length; index++) {
+      if (args.abortSignal?.aborted === true) {
+        return;
+      }
+      const frame = info.frames[index]!;
+      if (frame.timestampNs > endTimeNs) {
+        return;
+      }
       yield { type: "message-event", msgEvent: this.#messageEvent(frame) };
     }
   }
@@ -99,44 +126,45 @@ export class Mp4IterableSource implements IDeserializedIterableSource {
     time,
     abortSignal,
   }: GetBackfillMessagesArgs): Promise<MessageEvent[]> {
-    if (!topics.has(this.#topic) || isAborted(abortSignal)) {
+    if (!topics.has(this.#topic) || abortSignal?.aborted === true) {
       return [];
     }
-    const frame = await this.#demuxer.frameAtOrBefore(toNanoSec(time));
-    if (!frame || isAborted(abortSignal)) {
+    const frames = this.#requireInfo().frames;
+    const index = lowerBound(frames, toNanoSec(time) + 1n) - 1;
+    if (index < 0) {
       return [];
     }
-    return [this.#messageEvent(frame)];
+    return [this.#messageEvent(frames[index]!)];
   }
 
-  #messageEvent(frame: Mp4VideoFrame): MessageEvent<CompressedVideo> {
+  public async terminate(): Promise<void> {
+    this.#unregisterProvider?.();
+    this.#unregisterProvider = undefined;
+    await this.#controller.dispose();
+  }
+
+  #messageEvent(frame: Mp4FrameIndexEntry): MessageEvent<RemoteVideoFrameReference> {
     const timestamp = fromNanoSec(frame.timestampNs);
     return {
       topic: this.#topic,
       receiveTime: timestamp,
       publishTime: timestamp,
-      schemaName: COMPRESSED_VIDEO_SCHEMA_NAME,
-      sizeInBytes: frame.data.byteLength,
+      schemaName: REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME,
+      sizeInBytes: 64,
       message: {
         timestamp,
+        duration: fromNanoSec(frame.durationNs),
         frame_id: "",
-        data: frame.data,
-        format: frame.format,
+        provider_id: this.#providerId,
+        rotation: this.#requireInfo().rotation,
       },
     };
   }
 
-  #requireStartTimeNs(): bigint {
-    if (this.#startTimeNs == undefined) {
+  #requireInfo(): Mp4MediabunnyInfo {
+    if (!this.#info) {
       throw new Error("MP4 source is not initialized");
     }
-    return this.#startTimeNs;
-  }
-
-  #requireEndTimeNs(): bigint {
-    if (this.#endTimeNs == undefined) {
-      throw new Error("MP4 source is not initialized");
-    }
-    return this.#endTimeNs;
+    return this.#info;
   }
 }

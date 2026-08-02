@@ -1,19 +1,25 @@
 # Remote MP4 design notes
 
-The source opens the URL through `BrowserHttpReader` and a dedicated exact-range reader. Its LRU
-cache is bounded at 200 MiB, and network requests never extend beyond the byte range requested by
-the demuxer. The source does not perform background read-ahead or create a full local copy.
+The source opens the URL through `BrowserHttpReader` and a dedicated exact-range reader. HTTP and
+Mediabunny caches are bounded at 192 MiB and 8 MiB respectively. Mediabunny background prefetch is
+disabled. Small reads share deterministic on-demand windows of at most 512 KiB, while larger reads
+are fetched at their exact requested size, so opening or seeking never creates a full local or
+in-memory copy of the MP4.
 
-Initialization feeds sparse 1 MiB ranges to mp4box. For a moov-at-end file, mp4box returns the byte
-offset after `mdat`, so initialization jumps directly to the tail metadata rather than reading media
-bytes in between. Playback and seek create independent progressive extraction sessions, call
-`seek(time, true)` to begin at a random access point, read 4 MiB media windows, and release extracted
-sample data with `releaseUsedSamples` after converting the sample from length-prefixed NAL units to
-Annex-B.
+Mediabunny reads the MP4 sample tables during initialization. Fast-start files need only prefix
+metadata; moov-at-end files add a tail range without traversing the intervening `mdat`. The player
+stores small presentation-time frame references rather than compressed or decoded media. At the
+Image/3D renderer boundary, a main-thread provider proxy asks a dedicated Mediabunny/WebCodecs
+worker to resolve those references with `VideoSampleSink`: seeks begin at the required random
+access point and sequential playback reuses the active decode session. Decoded `VideoFrame`s are
+transferred back to the renderer and closed when superseded.
+
+This separation lets the normal player timeline, VFR timestamps, annotations, and message caches
+remain serializable while Mediabunny/WebCodecs handle decode order and return B-frames in
+presentation order.
 
 The HTTP server must provide `Content-Length` and `Accept-Ranges: bytes`. Browser deployments also
-need CORS access and must expose `Accept-Ranges`. Only unfragmented H.264 (`avc1`/`avc3`) and H.265
-(`hvc1`/`hev1`) MP4 tracks are supported. Out-of-band codec parameter sets are prepended to
-keyframes; `avc3` and `hev1` tracks may instead carry them in-band. B-frame files produce a player
-warning and are emitted in decode-timestamp order because `foxglove.CompressedVideo` does not
-support presentation reordering.
+need CORS access and must expose `Accept-Ranges`. The source accepts H.264 and H.265 MP4 tracks only,
+and playback requires browser WebCodecs support for the track's exact codec/profile. MP4 rotation
+metadata is reported in frame references; applying non-zero track rotation in the renderer is not
+yet implemented.

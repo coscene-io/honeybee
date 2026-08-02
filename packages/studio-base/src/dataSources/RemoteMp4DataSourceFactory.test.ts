@@ -5,26 +5,32 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
-import { DEFAULT_MP4_VIDEO_TOPIC } from "@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource";
+import { IterablePlayer } from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  DEFAULT_MP4_VIDEO_TOPIC,
+  Mp4IterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource";
 
 import RemoteMp4DataSourceFactory from "./RemoteMp4DataSourceFactory";
 
 jest.mock("@foxglove/studio-base/players/IterablePlayer", () => ({
   IterablePlayer: jest.fn().mockImplementation((options: unknown) => ({ options })),
-  WorkerIterableSource: jest.fn().mockImplementation((options: unknown) => ({ options })),
+}));
+jest.mock("@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource", () => ({
+  DEFAULT_MP4_VIDEO_TOPIC: "/camera/h264",
+  Mp4IterableSource: jest.fn().mockImplementation((options: unknown) => ({ options })),
 }));
 
 const mockIterablePlayer = IterablePlayer as unknown as jest.Mock;
-const mockWorkerIterableSource = WorkerIterableSource as unknown as jest.Mock;
+const mockMp4IterableSource = Mp4IterableSource as unknown as jest.Mock;
 
 describe("RemoteMp4DataSourceFactory", () => {
   beforeEach(() => {
     mockIterablePlayer.mockClear();
-    mockWorkerIterableSource.mockClear();
+    mockMp4IterableSource.mockClear();
   });
 
-  it("creates a worker player with deep-link URL and default topic", () => {
+  it("creates a player with deep-link URL and default topic", () => {
     const factory = new RemoteMp4DataSourceFactory();
     factory.initialize({
       metricsCollector: undefined as never,
@@ -32,11 +38,9 @@ describe("RemoteMp4DataSourceFactory", () => {
       enablePlaybackSpillCache: true,
     });
 
-    expect(mockWorkerIterableSource.mock.calls[0]?.[0]).toMatchObject({
-      initArgs: {
-        url: "https://storage.example.com/recording.mp4",
-        params: { topic: DEFAULT_MP4_VIDEO_TOPIC },
-      },
+    expect(mockMp4IterableSource.mock.calls[0]?.[0]).toEqual({
+      url: "https://storage.example.com/recording.mp4",
+      topic: DEFAULT_MP4_VIDEO_TOPIC,
     });
     expect(mockIterablePlayer.mock.calls[0]?.[0]).toMatchObject({
       sourceId: "remote-mp4",

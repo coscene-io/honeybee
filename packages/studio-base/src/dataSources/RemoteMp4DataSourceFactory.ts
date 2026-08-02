@@ -11,8 +11,11 @@ import {
   DataSourceFactoryInitializeArgs,
   IDataSourceFactory,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
-import { DEFAULT_MP4_VIDEO_TOPIC } from "@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource";
+import { IterablePlayer } from "@foxglove/studio-base/players/IterablePlayer";
+import {
+  DEFAULT_MP4_VIDEO_TOPIC,
+  Mp4IterableSource,
+} from "@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource";
 import { Player } from "@foxglove/studio-base/players/types";
 
 class RemoteMp4DataSourceFactory implements IDataSourceFactory {
@@ -64,17 +67,10 @@ class RemoteMp4DataSourceFactory implements IDataSourceFactory {
     if (!topic.startsWith("/")) {
       throw new Error("Topic must start with /");
     }
-    const source = new WorkerIterableSource({
-      initWorker: () =>
-        new Worker(
-          // foxglove-depcheck-used: babel-plugin-transform-import-meta
-          new URL(
-            "@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSourceWorker.worker",
-            import.meta.url,
-          ),
-        ),
-      initArgs: { url, params: { topic } },
-    });
+    // This source intentionally stays on the main thread. Player messages are lightweight frame
+    // references; the registered Mediabunny provider resolves them to transferable VideoFrames at
+    // the Image/3D renderer boundary, outside the player's serializable message caches.
+    const source = new Mp4IterableSource({ url, topic });
 
     return new IterablePlayer({
       source,

@@ -27,6 +27,10 @@ import type {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/WorkerImageDecoder";
 import { WorkerImageDecoder } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/WorkerImageDecoder";
 import { projectPixel } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/projections";
+import {
+  getRemoteVideoFrame,
+  isRemoteVideoFrameReference,
+} from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import { RosValue } from "@foxglove/studio-base/players/types";
 
 import { AnyImage, CompressedVideo } from "./ImageTypes";
@@ -702,6 +706,9 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     image: AnyImage,
     resizeWidth?: number,
   ): Promise<DecodedImageResult> {
+    if (isRemoteVideoFrameReference(image)) {
+      return { image: await getRemoteVideoFrame(image), ok: true };
+    }
     if ("format" in image) {
       if (!VIDEO_FORMATS.has(image.format)) {
         return { image: await decodeCompressedImageToBitmap(image, resizeWidth), ok: true };
