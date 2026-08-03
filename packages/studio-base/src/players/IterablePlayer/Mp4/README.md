@@ -23,3 +23,24 @@ need CORS access and must expose `Accept-Ranges`. The source accepts H.264 and H
 and playback requires browser WebCodecs support for the track's exact codec/profile. MP4 rotation
 metadata is reported in frame references; applying non-zero track rotation in the renderer is not
 yet implemented.
+
+## Browser benchmark
+
+The opt-in Playwright benchmark exercises the production web bundle, HTTP Range transport,
+Mediabunny worker, WebCodecs decoder, player seeking, and Image panel rendering. Media stays outside
+the repository:
+
+```sh
+REMOTE_MP4_BENCHMARK_DIR=/absolute/path/to/mp4s yarn benchmark:remote-mp4
+```
+
+Set `REMOTE_MP4_BENCHMARK_LIMIT` to cap the number of alphabetically sorted inputs, or
+`REMOTE_MP4_BENCHMARK_FILES` to a comma-separated list of file names. Playwright's bundled Chromium
+may not include the codec support available in an installed browser; for example, set
+`REMOTE_MP4_BENCHMARK_BROWSER_CHANNEL=chrome` to exercise installed Google Chrome. The benchmark
+reports source initialization and first-frame latency, individual and rapid-seek latency, sampled
+playback frame changes, main-thread long tasks, JavaScript heap size, and HTTP request/byte coverage.
+It enforces correctness invariants but intentionally does not impose machine-dependent latency
+thresholds. For before/after comparisons, build another revision and set
+`REMOTE_MP4_BENCHMARK_APP_DIR` to its `web/.webpack` directory; use `REMOTE_MP4_BENCHMARK_LABEL` to
+identify each JSON result set.

@@ -48,6 +48,7 @@
     "test:watch": "jest --watch",
     "test:web-integration": "jest --forceExit --projects  web/integration-test",
     "test:web-integration:local": "BASE_URL=\"http://localhost:8080/\" jest --forceExit --projects  web/integration-test",
+    "benchmark:remote-mp4": "jest --forceExit --projects web/integration-test --testPathPatterns=remoteMp4Benchmark.test.ts --runInBand",
     "package:win": "yarn package --win",
     "package:darwin": "yarn package --mac",
     "package:linux": "yarn package --linux",
