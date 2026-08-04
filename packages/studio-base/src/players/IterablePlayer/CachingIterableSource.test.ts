@@ -2914,7 +2914,17 @@ describe("CachingIterableSource", () => {
       });
       document.dispatchEvent(new Event("visibilitychange"));
 
-      await waitFor(async () => (await getPlaybackSpillSessions()).length === 1);
+      await waitFor(async () => {
+        const sessions = await getPlaybackSpillSessions();
+        const loadedRanges = bufferedSource.loadedRanges();
+        return (
+          sessions.length === 1 &&
+          sessions[0]?.sessionId !== originalSession.sessionId &&
+          loadedRanges.length === 1 &&
+          loadedRanges[0]?.start === 0.2 &&
+          loadedRanges[0].end === 0.3
+        );
+      });
       const recoveredSession = (await getPlaybackSpillSessions())[0];
       expect(recoveredSession?.sessionId).not.toBe(originalSession.sessionId);
       expect(bufferedSource.loadedRanges()).toEqual([{ start: 0.2, end: 0.3 }]);
