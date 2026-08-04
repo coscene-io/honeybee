@@ -1414,6 +1414,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
       ? race([waitForClose, new Promise<void>((resolve) => setTimeout(resolve, 5000))])
       : Promise.resolve();
 
+    // Message counts change independently of the channel list, so persist one final metadata
+    // snapshot before closing the active cache. The cache tracks this write and close() waits for it.
+    persistentCache?.storeTopics(this.#topics, this.#topicsStats);
+
     const caches = [persistentCache, initializingPersistentCache].filter(
       (cache): cache is RealtimeVizHistoryCache => cache != undefined,
     );
