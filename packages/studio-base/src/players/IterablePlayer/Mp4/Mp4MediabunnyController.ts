@@ -294,19 +294,28 @@ export class Mp4MediabunnyController implements RemoteVideoFrameProvider {
 
   async #processFrameRequests(): Promise<void> {
     while (!this.#disposed && this.#pendingFrameRequests.length > 0) {
-      // Rendering can enqueue several now-obsolete playback frames while WebCodecs is busy. Decode
-      // only the newest target, then give every waiter an owned clone; ImageRenderable's sequence
-      // guard discards results belonging to superseded messages.
-      const requests = this.#pendingFrameRequests.splice(0);
-      const target = requests[requests.length - 1]!;
-      try {
-        const frame = await this.#getFrameInternal(target.timestampNs);
-        for (let index = 0; index < requests.length; index++) {
-          requests[index]!.resolve(index === requests.length - 1 ? frame : frame.clone());
+      // Requests from different renderables can be pending at the same time, and each can still be
+      // current for its own consumer. Only coalesce requests for the exact same presentation time.
+      const requestsByTimestamp = new Map<bigint, PendingFrameRequest[]>();
+      for (const request of this.#pendingFrameRequests.splice(0)) {
+        const requests = requestsByTimestamp.get(request.timestampNs);
+        if (requests) {
+          requests.push(request);
+        } else {
+          requestsByTimestamp.set(request.timestampNs, [request]);
         }
-      } catch (error) {
-        for (const request of requests) {
-          request.reject(error);
+      }
+
+      for (const [timestampNs, requests] of requestsByTimestamp) {
+        try {
+          const frame = await this.#getFrameInternal(timestampNs);
+          for (let index = 0; index < requests.length; index++) {
+            requests[index]!.resolve(index === requests.length - 1 ? frame : frame.clone());
+          }
+        } catch (error) {
+          for (const request of requests) {
+            request.reject(error);
+          }
         }
       }
     }
