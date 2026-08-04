@@ -30,9 +30,14 @@ describe("createMediabunnyMp4SourceOptions", () => {
     );
 
     expect(await options.getSize()).toBe(10_000);
-    expect(await options.read(125, 175)).toEqual(
-      Uint8Array.from({ length: 50 }, (_value, index) => 125 + index),
-    );
+    const result = await options.read(125, 175);
+    expect(result).toBeInstanceOf(Uint8Array);
+    if (!(result instanceof Uint8Array)) {
+      throw new Error("Expected an in-memory MP4 range");
+    }
+    expect(result).toEqual(Uint8Array.from({ length: 50 }, (_value, index) => 125 + index));
+    expect(result.byteOffset).toBe(0);
+    expect(result.buffer.byteLength).toBe(result.byteLength);
     expect(reads).toEqual([{ offset: 100n, size: 100n }]);
     expect(options.prefetchProfile).toBe("none");
     expect(options.maxCacheSize).toBe(MEDIABUNNY_MP4_CACHE_SIZE_IN_BYTES);
@@ -61,12 +66,13 @@ describe("createMediabunnyMp4SourceOptions", () => {
 
   it("fetches reads larger than the coalescing window at their exact requested size", async () => {
     const reads: { offset: bigint; size: bigint }[] = [];
+    const requestedData = new Uint8Array(250);
     const options = createMediabunnyMp4SourceOptions(
       {
         size: async () => 10_000n,
         read: async (offset, size) => {
           reads.push({ offset, size });
-          return new Uint8Array(Number(size));
+          return requestedData;
         },
       },
       undefined,
@@ -74,7 +80,7 @@ describe("createMediabunnyMp4SourceOptions", () => {
     );
 
     await options.getSize();
-    await expect(options.read(125, 375)).resolves.toHaveLength(250);
+    await expect(options.read(125, 375)).resolves.toBe(requestedData);
     expect(reads).toEqual([{ offset: 125n, size: 250n }]);
   });
 });

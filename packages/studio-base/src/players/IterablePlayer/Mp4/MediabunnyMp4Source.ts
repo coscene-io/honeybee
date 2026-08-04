@@ -70,7 +70,17 @@ export function createMediabunnyMp4SourceOptions(
       const range = { offset: windowStart, length: windowEnd - windowStart };
       onRead?.(range);
       const data = await readable.read(BigInt(range.offset), BigInt(range.length));
-      return data.subarray(start - range.offset, end - range.offset);
+      const sliceStart = start - range.offset;
+      const sliceEnd = end - range.offset;
+      if (
+        sliceStart === 0 &&
+        sliceEnd === data.byteLength &&
+        data.byteOffset === 0 &&
+        data.buffer.byteLength === data.byteLength
+      ) {
+        return data;
+      }
+      return data.slice(sliceStart, sliceEnd);
     },
     maxCacheSize: MEDIABUNNY_MP4_CACHE_SIZE_IN_BYTES,
     prefetchProfile: "none",
