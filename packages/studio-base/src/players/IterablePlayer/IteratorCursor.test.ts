@@ -32,6 +32,25 @@ describe("IteratorCursor", () => {
     expect(finallyRan).toBe(true);
   });
 
+  it("detaches its abort listener once the cursor ends normally, so a reused signal does not retain it", async () => {
+    const controller = new AbortController();
+    const addSpy = jest.spyOn(controller.signal, "addEventListener");
+    const removeSpy = jest.spyOn(controller.signal, "removeEventListener");
+
+    async function* source(): AsyncIterableIterator<IteratorResult> {
+      yield stamp(1);
+    }
+
+    const cursor = new IteratorCursor(source(), controller.signal);
+    expect(addSpy).toHaveBeenCalledWith("abort", expect.any(Function), { once: true });
+    const listener = addSpy.mock.calls[0]?.[1];
+
+    await cursor.next();
+    await cursor.end();
+
+    expect(removeSpy).toHaveBeenCalledWith("abort", listener);
+  });
+
   it("finalizes the iterator when next observes an abort without end() being called", async () => {
     let finallyRan = false;
     const controller = new AbortController();

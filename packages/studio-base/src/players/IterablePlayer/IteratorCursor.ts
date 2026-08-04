@@ -25,6 +25,11 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   // happens on end(), on the abort signal firing, or on a read that observes an already-aborted
   // signal, whichever comes first.
   #finalized?: Promise<void>;
+  // The abort listener registered by this cursor, kept so it can be detached once finalization
+  // happens for any reason. Without this, a cursor that ends normally (never aborts) would stay
+  // attached to a long-lived, externally-reused AbortSignal for as long as that signal lives —
+  // e.g. BlockLoader shares one controller across many sequential cursors.
+  #abortListener?: () => void;
 
   public constructor(
     iterator: AsyncIterableIterator<Readonly<IteratorResult<MessageType>>>,
@@ -40,8 +45,9 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
     // would never see it).
     if (abort?.aborted === true) {
       void this.#finalize();
-    } else {
-      abort?.addEventListener("abort", () => void this.#finalize(), { once: true });
+    } else if (abort) {
+      this.#abortListener = () => void this.#finalize();
+      abort.addEventListener("abort", this.#abortListener, { once: true });
     }
   }
 
@@ -164,6 +170,11 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   // callers awaiting the same return() invocation. Best-effort: rejections are swallowed since
   // callers finalizing an aborted or ended cursor have no use for cleanup errors.
   async #finalize(): Promise<void> {
+    if (this.#abortListener) {
+      this.#abort?.removeEventListener("abort", this.#abortListener);
+      this.#abortListener = undefined;
+    }
+
     this.#finalized ??= (async () => {
       try {
         await this.#iter.return?.();
