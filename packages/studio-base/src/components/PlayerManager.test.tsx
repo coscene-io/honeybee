@@ -7,7 +7,7 @@
 
 import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 
-import { markRealtimeCacheForCleanup } from "./PlayerManager";
+import { closePlayerForSourceSwitch, markRealtimeCacheForCleanup } from "./PlayerManager";
 
 jest.mock("@foxglove/studio-base/persistence/IndexedDbMessageStore", () => ({
   IndexedDbMessageStore: jest.fn(),
@@ -19,6 +19,17 @@ const mockDiscardAndSeal = jest.fn();
 const mockClose = jest.fn();
 const mockClear = jest.fn();
 const mockCleanupOldSessions = jest.fn();
+
+describe("closePlayerForSourceSwitch", () => {
+  it("contains teardown failures so a replacement source can be initialized", async () => {
+    const close = jest.fn().mockRejectedValue(new Error("close failed"));
+
+    await expect(closePlayerForSourceSwitch({ close })).resolves.toBeUndefined();
+
+    expect(close).toHaveBeenCalledTimes(1);
+    jest.mocked(console.warn).mockClear();
+  });
+});
 
 describe("markRealtimeCacheForCleanup", () => {
   beforeEach(() => {
