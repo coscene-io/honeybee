@@ -165,10 +165,10 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
     await this.#finalize();
   }
 
-  // Invoke the underlying iterator's return() exactly once so its cleanup (finally blocks) runs
+  // Drive the underlying iterator's return() to completion so its cleanup (finally blocks) runs
   // even when callers never call end() after an abort. Memoizing the promise keeps concurrent
-  // callers awaiting the same return() invocation. Best-effort: rejections are swallowed since
-  // callers finalizing an aborted or ended cursor have no use for cleanup errors.
+  // callers awaiting the same finalization. Best-effort: rejections are swallowed since callers
+  // finalizing an aborted or ended cursor have no use for cleanup errors.
   async #finalize(): Promise<void> {
     if (this.#abortListener) {
       this.#abort?.removeEventListener("abort", this.#abortListener);
@@ -177,7 +177,21 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
 
     this.#finalized ??= (async () => {
       try {
-        await this.#iter.return?.();
+        // If the iterator's `finally` block itself yields (e.g. to flush buffered results
+        // before releasing a stream, as in coScene-data-platform's streamMessages), a single
+        // return() call resolves with `{ done: false }` and the generator is left suspended
+        // ahead of the rest of its cleanup. Calling return() a second time at that point
+        // discards the pending closure and resolves done immediately without running the rest
+        // of the finally block, so further draining must go through next() instead — that
+        // resumes normally and lets the original return() completion surface once the
+        // generator's cleanup actually finishes.
+        let result = await this.#iter.return?.();
+        if (!result) {
+          return;
+        }
+        while (result.done !== true) {
+          result = await this.#iter.next();
+        }
       } catch {
         // ignore cleanup errors
       }

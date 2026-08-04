@@ -51,6 +51,30 @@ describe("IteratorCursor", () => {
     expect(removeSpy).toHaveBeenCalledWith("abort", listener);
   });
 
+  it("drives cleanup to completion when the iterator's finally block itself yields", async () => {
+    // Mirrors coScene-data-platform's streamMessages: on close it flushes buffered results with
+    // a yield before running the rest of its cleanup (e.g. aborting a fetch controller).
+    let cleanupCompleted = false;
+    const controller = new AbortController();
+    async function* source(): AsyncIterableIterator<IteratorResult> {
+      try {
+        for (let i = 0; ; i++) {
+          yield stamp(i);
+        }
+      } finally {
+        yield stamp(999);
+        cleanupCompleted = true;
+      }
+    }
+
+    const cursor = new IteratorCursor(source(), controller.signal);
+    await expect(cursor.next()).resolves.toEqual(stamp(0));
+
+    controller.abort();
+    await expect(cursor.next()).resolves.toBeUndefined();
+    expect(cleanupCompleted).toBe(true);
+  });
+
   it("finalizes the iterator when next observes an abort without end() being called", async () => {
     let finallyRan = false;
     const controller = new AbortController();
