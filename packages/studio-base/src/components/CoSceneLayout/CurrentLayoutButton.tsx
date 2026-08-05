@@ -157,7 +157,7 @@ export function CurrentLayoutButton({
       key: "saveChanges",
       text: t("save"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer || isRead || !canUpdate,
+      disabled: (deletedOnServer && isProject) || isRead || !canUpdate,
       visible: hasModifications,
     },
     {

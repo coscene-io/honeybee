@@ -807,6 +807,46 @@ describe("CoSceneLayoutManager", () => {
     expect(localLayout?.working).toBeUndefined();
   });
 
+  it("restores a remotely deleted personal layout when it reappears remotely", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("users/u/layouts/1");
+    const working = {
+      data: layoutData("local-draft"),
+      savedAt: ts("2024-01-01T00:00:01.000Z"),
+    };
+    await localStorage.put(
+      `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`,
+      makeLocalLayout({
+        id,
+        data: layoutData("stale-baseline"),
+        working,
+        syncStatus: "remotely-deleted",
+      }),
+    );
+    remoteStorage.layouts.set(
+      id,
+      makeRemoteLayout({
+        id,
+        data: layoutData("remote-baseline"),
+        savedAt: ts("2024-01-01T00:00:02.000Z"),
+        updatedAt: ts("2024-01-01T00:00:03.000Z"),
+      }),
+    );
+
+    await manager.syncWithRemote(new AbortController().signal);
+
+    const localLayout = await manager.getLayout({ id });
+    expect(localLayout?.baseline.data).toEqual(layoutData("remote-baseline"));
+    expect(localLayout?.working).toEqual(working);
+    expect(localLayout?.syncInfo).toEqual({
+      status: "tracked",
+      lastRemoteSavedAt: ts("2024-01-01T00:00:02.000Z"),
+      lastRemoteUpdatedAt: ts("2024-01-01T00:00:03.000Z"),
+    });
+  });
+
   it("reuploads an updated personal layout when the remote copy is missing", async () => {
     const localStorage = new MemoryLayoutStorage();
     const remoteStorage = new MemoryRemoteLayoutStorage();

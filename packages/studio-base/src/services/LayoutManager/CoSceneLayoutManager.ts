@@ -1031,6 +1031,7 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             break;
           }
 
+          case "restore-from-remote":
           case "update-baseline": {
             const { remoteLayout } = operation;
             if (
@@ -1064,7 +1065,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               },
               working: localLayout.working,
               syncInfo: {
-                status: localLayout.syncInfo.status,
+                status:
+                  operation.type === "restore-from-remote"
+                    ? "tracked"
+                    : localLayout.syncInfo.status,
                 lastRemoteSavedAt: remoteLayout.savedAt,
                 lastRemoteUpdatedAt: remoteLayout.updatedAt,
               },

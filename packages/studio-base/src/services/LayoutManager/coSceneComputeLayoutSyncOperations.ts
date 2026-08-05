@@ -15,6 +15,12 @@ export type SyncOperation =
   | { local: true; type: "add-to-cache"; remoteLayout: RemoteLayout }
   | { local: true; type: "delete-local"; localLayout: Layout }
   | { local: true; type: "mark-deleted"; localLayout: Layout }
+  | {
+      local: true;
+      type: "restore-from-remote";
+      localLayout: Layout & { syncInfo: NonNullable<Layout["syncInfo"]> };
+      remoteLayout: RemoteLayout;
+    }
   | { local: false; type: "delete-remote"; localLayout: Layout }
   | { local: false; type: "upload-new"; localLayout: Layout }
   | { local: false; type: "upload-updated"; localLayout: Layout }
@@ -77,9 +83,13 @@ export default function coSceneComputeLayoutSyncOperations(
           ops.push({ local: false, type: "delete-remote", localLayout });
           break;
         case "remotely-deleted":
-          log.warn(
-            `Remote layout is present but cache is marked as remotely deleted: ${localLayout.id}`,
-          );
+          log.debug(`Restoring remotely deleted layout from remote: ${localLayout.id}`);
+          ops.push({
+            local: true,
+            type: "restore-from-remote",
+            localLayout: { ...localLayout, syncInfo: localLayout.syncInfo },
+            remoteLayout,
+          });
           break;
       }
     } else {
