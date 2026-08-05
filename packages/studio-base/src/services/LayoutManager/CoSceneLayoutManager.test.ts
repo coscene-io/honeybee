@@ -847,6 +847,34 @@ describe("CoSceneLayoutManager", () => {
     });
   });
 
+  it("does not restore a remotely deleted layout from a remote layout without savedAt", async () => {
+    const localStorage = new MemoryLayoutStorage();
+    const remoteStorage = new MemoryRemoteLayoutStorage();
+    const manager = makeManager({ localStorage, remoteStorage });
+    const id = layoutId("users/u/layouts/1");
+    const localLayout = makeLocalLayout({
+      id,
+      data: layoutData("local-baseline"),
+      working: {
+        data: layoutData("local-draft"),
+        savedAt: ts("2024-01-01T00:00:01.000Z"),
+      },
+      syncStatus: "remotely-deleted",
+    });
+    await localStorage.put(
+      `${CoSceneLayoutManager.REMOTE_STORAGE_NAMESPACE_PREFIX}${remoteStorage.namespace}`,
+      localLayout,
+    );
+    remoteStorage.layouts.set(id, {
+      ...makeRemoteLayout({ id, data: layoutData("legacy-remote") }),
+      savedAt: undefined,
+    });
+
+    await manager.syncWithRemote(new AbortController().signal);
+
+    expect(await manager.getLayout({ id })).toEqual(localLayout);
+  });
+
   it("reuploads an updated personal layout when the remote copy is missing", async () => {
     const localStorage = new MemoryLayoutStorage();
     const remoteStorage = new MemoryRemoteLayoutStorage();

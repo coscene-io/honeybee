@@ -83,6 +83,11 @@ export default function coSceneComputeLayoutSyncOperations(
           ops.push({ local: false, type: "delete-remote", localLayout });
           break;
         case "remotely-deleted":
+          // Match the tracked-layout behavior for legacy remote layouts.
+          if (!remoteLayout.savedAt) {
+            break;
+          }
+
           log.debug(`Restoring remotely deleted layout from remote: ${localLayout.id}`);
           ops.push({
             local: true,
