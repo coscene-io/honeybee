@@ -845,6 +845,14 @@ describe("CoSceneLayoutManager", () => {
       lastRemoteSavedAt: ts("2024-01-01T00:00:02.000Z"),
       lastRemoteUpdatedAt: ts("2024-01-01T00:00:03.000Z"),
     });
+    const backupLayout = await localStorage.get(CoSceneLayoutManager.LOCAL_STORAGE_NAMESPACE, id);
+    expect(backupLayout?.baseline.data).toEqual(layoutData("remote-baseline"));
+    expect(backupLayout?.working).toBeUndefined();
+    expect(backupLayout?.syncInfo).toEqual({
+      status: "tracked",
+      lastRemoteSavedAt: ts("2024-01-01T00:00:02.000Z"),
+      lastRemoteUpdatedAt: ts("2024-01-01T00:00:03.000Z"),
+    });
   });
 
   it("does not restore a remotely deleted layout from a remote layout without savedAt", async () => {
