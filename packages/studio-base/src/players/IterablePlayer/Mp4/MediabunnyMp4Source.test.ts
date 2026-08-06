@@ -107,6 +107,10 @@ describe("createMediabunnyMp4SourceOptions", () => {
 
     await options.getSize();
     const result = await options.read(1_890, 1_930);
+    expect(result).toBeInstanceOf(Uint8Array);
+    if (!(result instanceof Uint8Array)) {
+      throw new Error("Expected an in-memory MP4 range");
+    }
     expect(result.byteLength).toBe(40);
     expect(reads).toEqual([
       { offset: 1_800n, size: 100n },
