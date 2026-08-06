@@ -8,6 +8,7 @@
 import { Time } from "@foxglove/rostime";
 import { CompressedImage, RawImage } from "@foxglove/schemas";
 import { CAMERA_CALIBRATION_DATATYPES } from "@foxglove/studio-base/panels/ThreeDeeRender/foxglove";
+import type { RemoteVideoFrameReference } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 
 import {
   Image as RosImage,
@@ -30,7 +31,13 @@ export type CompressedVideo = {
 
 export type CompressedImageTypes = RosCompressedImage | CompressedImage;
 
-export type AnyImage = RosImage | RosCompressedImage | RawImage | CompressedImage | CompressedVideo;
+export type AnyImage =
+  | RosImage
+  | RosCompressedImage
+  | RawImage
+  | CompressedImage
+  | CompressedVideo
+  | RemoteVideoFrameReference;
 
 export function getFrameIdFromImage(image: AnyImage): string {
   if ("header" in image) {

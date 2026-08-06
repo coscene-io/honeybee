@@ -19,6 +19,7 @@ import {
   SharedProviders,
   PersistentCacheDataSourceFactory,
   CoSceneShareManifestDataSourceFactory,
+  RemoteMp4DataSourceFactory,
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
@@ -59,6 +60,7 @@ export function WebRoot(props: {
       new CoSceneDataPlatformDataSourceFactory(),
       new CoSceneShareManifestDataSourceFactory(),
       new FoxgloveWebSocketDataSourceFactory(),
+      new RemoteMp4DataSourceFactory(),
       new PersistentCacheDataSourceFactory(),
     ];
 

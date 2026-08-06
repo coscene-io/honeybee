@@ -36,7 +36,10 @@ class InMemoryFileReader implements FileReader {
       );
     }
     return {
-      on: (type: "data" | "error", callback: ((_: Uint8Array) => void) & ((_: Error) => void)) => {
+      on: (
+        type: "data" | "end" | "error",
+        callback: ((_: Uint8Array) => void) & (() => void) & ((_: Error) => void),
+      ) => {
         if (type === "data") {
           setTimeout(() => {
             callback(this.#buffer.slice(offset, offset + length));
@@ -89,8 +92,8 @@ describe("CachedFilelike", () => {
       jest.spyOn(fileReader, "fetch").mockImplementation(() => {
         return {
           on: (
-            type: "data" | "error",
-            callback: ((_: Uint8Array) => void) & ((_: Error) => void),
+            type: "data" | "end" | "error",
+            callback: ((_: Uint8Array) => void) & (() => void) & ((_: Error) => void),
           ) => {
             if (type === "error") {
               interval = setInterval(() => {
@@ -118,8 +121,8 @@ describe("CachedFilelike", () => {
       const mockFetch = jest.spyOn(fileReader, "fetch").mockImplementation(() => {
         return {
           on: (
-            type: "data" | "error",
-            callback: ((_: Uint8Array) => void) & ((_: Error) => void),
+            type: "data" | "end" | "error",
+            callback: ((_: Uint8Array) => void) & (() => void) & ((_: Error) => void),
           ) => {
             if (type === "data") {
               dataCallback = callback;

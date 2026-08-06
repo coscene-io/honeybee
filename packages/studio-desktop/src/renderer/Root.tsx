@@ -20,6 +20,7 @@ import {
   McapLocalDataSourceFactory,
   OsContext,
   RemoteDataSourceFactory,
+  RemoteMp4DataSourceFactory,
   Ros1LocalBagDataSourceFactory,
   Ros1SocketDataSourceFactory,
   Ros2LocalBagDataSourceFactory,
@@ -151,6 +152,7 @@ export default function Root(props: {
       new SampleNuscenesDataSourceFactory(),
       new McapLocalDataSourceFactory(),
       new RemoteDataSourceFactory(),
+      new RemoteMp4DataSourceFactory(),
       new PersistentCacheDataSourceFactory(),
     ];
 

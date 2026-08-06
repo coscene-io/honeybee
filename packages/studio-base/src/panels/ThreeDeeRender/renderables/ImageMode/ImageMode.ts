@@ -85,6 +85,10 @@ import {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/projections";
 import { t3D } from "@foxglove/studio-base/panels/ThreeDeeRender/t3D";
 import { makePose } from "@foxglove/studio-base/panels/ThreeDeeRender/transforms";
+import {
+  REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
+  type RemoteVideoFrameReference,
+} from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadFiles } from "@foxglove/studio-base/util/download";
 
@@ -289,6 +293,15 @@ export class ImageMode
           handler: this.#handleCompressedVideo,
           shouldSubscribe: this.imageShouldSubscribe,
           filterQueue: this.#filterCompressedVideoQueue,
+        },
+      },
+      {
+        type: "schema",
+        schemaNames: REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
+        subscription: {
+          handler: this.#handleRemoteVideoFrameReference,
+          shouldSubscribe: this.imageShouldSubscribe,
+          filterQueue: this.#filterMessageQueue.bind(this),
         },
       },
     ];
@@ -748,6 +761,12 @@ export class ImageMode
       message: normalizeCompressedVideo(messageEvent.message),
     } as MessageEvent<CompressedVideo>;
     this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent);
+  };
+
+  #handleRemoteVideoFrameReference = (
+    messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
+  ): void => {
+    this.messageHandler.handleRemoteVideoFrameReference(messageEvent);
   };
 
   #filterCompressedVideoQueue = (

@@ -5496,6 +5496,7 @@ __metadata:
     leaflet-ellipse: 0.9.1
     lodash-es: 4.17.21
     mathjs: 11.11.1
+    mediabunny: 1.52.2
     memoize-weak: 1.0.2
     meshoptimizer: 0.21.0
     moize: 6.1.6
@@ -8800,6 +8801,29 @@ __metadata:
   dependencies:
     "@types/ms": "*"
   checksum: 47876a852de8240bfdaf7481357af2b88cb660d30c72e73789abf00c499d6bc7cd5e52f41c915d1b9cd8ec9fef5b05688d7b7aef17f7f272c2d04679508d1053
+  languageName: node
+  linkType: hard
+
+"@types/dom-mediacapture-transform@npm:^0.1.11":
+  version: 0.1.12
+  resolution: "@types/dom-mediacapture-transform@npm:0.1.12"
+  dependencies:
+    "@types/dom-webcodecs": "*"
+  checksum: 49125cf18a9359b14c81bf4e31db0d3e0b47caf8fe684fa12bfb44e14d7c24a4fb7896290baf2e85fddc6bfa6fa13ff4aebeedcd5f56b9d13c4ae519aaefe398
+  languageName: node
+  linkType: hard
+
+"@types/dom-webcodecs@npm:*":
+  version: 0.1.18
+  resolution: "@types/dom-webcodecs@npm:0.1.18"
+  checksum: da823cc0e6d4eeb3beb87c44d24c1f57aefab3fbcbf6f5ba82f4197928cc9fbe02812d1f938bdacaa6fba5f84a241b4ced350e1bb4f9005d481c19f960d9c42a
+  languageName: node
+  linkType: hard
+
+"@types/dom-webcodecs@npm:0.1.13":
+  version: 0.1.13
+  resolution: "@types/dom-webcodecs@npm:0.1.13"
+  checksum: 57b9912afab8cc536354fd18b86fdf440a7ed8be95ef526871075ba6810c254db3a6ce8fe78705d411993ddb6a025060ec2f2aa054fec2e7385407422791a15e
   languageName: node
   linkType: hard
 
@@ -20221,6 +20245,16 @@ __metadata:
   version: 0.3.0
   resolution: "media-typer@npm:0.3.0"
   checksum: af1b38516c28ec95d6b0826f6c8f276c58aec391f76be42aa07646b4e39d317723e869700933ca6995b056db4b09a78c92d5440dc23657e6764be5d28874bba1
+  languageName: node
+  linkType: hard
+
+"mediabunny@npm:1.52.2":
+  version: 1.52.2
+  resolution: "mediabunny@npm:1.52.2"
+  dependencies:
+    "@types/dom-mediacapture-transform": ^0.1.11
+    "@types/dom-webcodecs": 0.1.13
+  checksum: d28d885d11281d382e2685a81275a4a4305b37e1e5ba7bfb790e0f00600624a3ec4260cb099c7cc3733c19bdea6782e33b3bf6dc5f144089d2313bad5d2fe28c
   languageName: node
   linkType: hard
 
