@@ -64,6 +64,56 @@ describe("createMediabunnyMp4SourceOptions", () => {
     expect(reads.reduce((sum, read) => sum + read.size, 0n)).toBeLessThan(10_000_000n);
   });
 
+  it("resolves a window-straddling read through the covering aligned windows", async () => {
+    const reads: { offset: bigint; size: bigint }[] = [];
+    const options = createMediabunnyMp4SourceOptions(
+      {
+        size: async () => 10_000n,
+        read: async (offset, size) => {
+          reads.push({ offset, size });
+          return Uint8Array.from(
+            { length: Number(size) },
+            (_value, index) => (Number(offset) + index) % 256,
+          );
+        },
+      },
+      undefined,
+      { maxRangeWindowSize: 100 },
+    );
+
+    await options.getSize();
+    const result = await options.read(180, 220);
+    expect(result).toEqual(Uint8Array.from({ length: 40 }, (_value, index) => (180 + index) % 256));
+    // Both fetches stay window-aligned so neither range is downloaded twice.
+    expect(reads).toEqual([
+      { offset: 100n, size: 100n },
+      { offset: 200n, size: 100n },
+    ]);
+  });
+
+  it("truncates the final covering window at the end of the file", async () => {
+    const reads: { offset: bigint; size: bigint }[] = [];
+    const options = createMediabunnyMp4SourceOptions(
+      {
+        size: async () => 1_950n,
+        read: async (offset, size) => {
+          reads.push({ offset, size });
+          return new Uint8Array(Number(size));
+        },
+      },
+      undefined,
+      { maxRangeWindowSize: 100 },
+    );
+
+    await options.getSize();
+    const result = await options.read(1_890, 1_930);
+    expect(result.byteLength).toBe(40);
+    expect(reads).toEqual([
+      { offset: 1_800n, size: 100n },
+      { offset: 1_900n, size: 50n },
+    ]);
+  });
+
   it("fetches reads larger than the coalescing window at their exact requested size", async () => {
     const reads: { offset: bigint; size: bigint }[] = [];
     const requestedData = new Uint8Array(250);

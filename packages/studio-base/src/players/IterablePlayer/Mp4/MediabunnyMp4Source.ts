@@ -23,12 +23,25 @@ export type Mp4RandomAccessReadable = {
   read(offset: bigint, size: bigint): Promise<Uint8Array>;
 };
 
+function toExactBuffer(data: Uint8Array, sliceStart: number, length: number): Uint8Array {
+  if (
+    sliceStart === 0 &&
+    length === data.byteLength &&
+    data.byteOffset === 0 &&
+    data.buffer.byteLength === data.byteLength
+  ) {
+    return data;
+  }
+  return data.slice(sliceStart, sliceStart + length);
+}
+
 /**
  * Adapts the exact-range MP4 reader to Mediabunny's end-exclusive CustomSource API. Small adjacent
- * sample reads share deterministic, on-demand windows of at most 512 KiB; reads that are already
- * larger than that are fetched at exactly their requested size. Mediabunny's adaptive/background
- * prefetch stays disabled. The 8 MiB Mediabunny cache plus the 192 MiB HTTP cache remain bounded at
- * 200 MiB.
+ * sample reads share deterministic, on-demand windows of at most 512 KiB; a small read that
+ * straddles a window boundary resolves through each covering window so fetches stay aligned and
+ * cache-reusable. Reads that are already larger than a window are fetched at exactly their
+ * requested size. Mediabunny's adaptive/background prefetch stays disabled. The 8 MiB Mediabunny
+ * cache plus the 192 MiB HTTP cache remain bounded at 200 MiB.
  */
 export function createMediabunnyMp4SourceOptions(
   readable: Mp4RandomAccessReadable,
@@ -60,27 +73,42 @@ export function createMediabunnyMp4SourceOptions(
         maxRangeWindowSize,
         Math.max(1, Math.ceil(fileSize / MINIMUM_FILE_WINDOW_COUNT)),
       );
-      let windowStart = Math.floor(start / windowSize) * windowSize;
-      let windowEnd = Math.min(fileSize, windowStart + windowSize);
-      if (end > windowEnd || requestedLength >= windowSize) {
-        windowStart = start;
-        windowEnd = end;
+
+      if (requestedLength >= windowSize) {
+        const range = { offset: start, length: requestedLength };
+        onRead?.(range);
+        const data = await readable.read(BigInt(range.offset), BigInt(range.length));
+        return toExactBuffer(data, 0, requestedLength);
       }
 
-      const range = { offset: windowStart, length: windowEnd - windowStart };
-      onRead?.(range);
-      const data = await readable.read(BigInt(range.offset), BigInt(range.length));
-      const sliceStart = start - range.offset;
-      const sliceEnd = end - range.offset;
-      if (
-        sliceStart === 0 &&
-        sliceEnd === data.byteLength &&
-        data.byteOffset === 0 &&
-        data.buffer.byteLength === data.byteLength
-      ) {
-        return data;
+      // Small reads always resolve through window-aligned fetches — including reads that
+      // straddle a window boundary, which fetch each covering window. Keeping every fetch
+      // aligned means a straddling read never re-downloads bytes that the neighboring
+      // windows already provide (and will provide to subsequent sequential reads).
+      const firstWindowStart = Math.floor(start / windowSize) * windowSize;
+      const lastWindowStart = Math.floor((end - 1) / windowSize) * windowSize;
+      const windows: Mp4SourceByteRange[] = [];
+      for (let offset = firstWindowStart; offset <= lastWindowStart; offset += windowSize) {
+        const length = Math.min(fileSize, offset + windowSize) - offset;
+        windows.push({ offset, length });
+        onRead?.({ offset, length });
       }
-      return data.slice(sliceStart, sliceEnd);
+      const buffers = await Promise.all(
+        windows.map(async (range) => await readable.read(BigInt(range.offset), BigInt(range.length))),
+      );
+
+      if (windows.length === 1) {
+        return toExactBuffer(buffers[0]!, start - windows[0]!.offset, requestedLength);
+      }
+
+      const stitched = new Uint8Array(requestedLength);
+      for (let index = 0; index < windows.length; index++) {
+        const range = windows[index]!;
+        const from = Math.max(start, range.offset);
+        const to = Math.min(end, range.offset + range.length);
+        stitched.set(buffers[index]!.subarray(from - range.offset, to - range.offset), from - start);
+      }
+      return stitched;
     },
     maxCacheSize: MEDIABUNNY_MP4_CACHE_SIZE_IN_BYTES,
     prefetchProfile: "none",
