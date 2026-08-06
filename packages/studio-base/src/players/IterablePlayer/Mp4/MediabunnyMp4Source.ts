@@ -94,7 +94,9 @@ export function createMediabunnyMp4SourceOptions(
         onRead?.({ offset, length });
       }
       const buffers = await Promise.all(
-        windows.map(async (range) => await readable.read(BigInt(range.offset), BigInt(range.length))),
+        windows.map(
+          async (range) => await readable.read(BigInt(range.offset), BigInt(range.length)),
+        ),
       );
 
       if (windows.length === 1) {
@@ -106,7 +108,10 @@ export function createMediabunnyMp4SourceOptions(
         const range = windows[index]!;
         const from = Math.max(start, range.offset);
         const to = Math.min(end, range.offset + range.length);
-        stitched.set(buffers[index]!.subarray(from - range.offset, to - range.offset), from - start);
+        stitched.set(
+          buffers[index]!.subarray(from - range.offset, to - range.offset),
+          from - start,
+        );
       }
       return stitched;
     },
