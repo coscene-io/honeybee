@@ -122,4 +122,87 @@ describe("Mp4MediabunnyController", () => {
 
     await controller.dispose();
   });
+
+  it("disposes promptly while a frame request is blocked on a slow range read", async () => {
+    const sampleRequested = deferred<void>();
+    let rejectSample!: (error: Error) => void;
+    const blockedSample = new Promise<VideoSample>((_resolve, reject) => {
+      rejectSample = reject;
+    });
+    const getSample = jest.fn(async () => {
+      sampleRequested.resolve();
+      return await blockedSample;
+    });
+    const track = {
+      canDecode: jest.fn(async () => true),
+      getCodec: jest.fn(async () => "avc"),
+      getDecoderConfig: jest.fn(async () => ({ codec: "avc1.640028" })),
+      getDisplayHeight: jest.fn(async () => 1080),
+      getDisplayWidth: jest.fn(async () => 1920),
+      getDurationFromMetadata: jest.fn(async () => 10),
+      getFirstTimestamp: jest.fn(async () => 0),
+      getRotation: jest.fn(async () => 0),
+    };
+    // Mirror Mediabunny semantics: disposing the input cancels in-flight sink operations.
+    const inputDispose = jest.fn(() => {
+      rejectSample(new Error("Input disposed"));
+    });
+
+    (Input as jest.Mock).mockImplementation(() => ({
+      dispose: inputDispose,
+      getPrimaryVideoTrack: jest.fn(async () => track),
+    }));
+    (EncodedPacketSink as jest.Mock).mockImplementation(() => ({ packets }));
+    (VideoSampleSink as jest.Mock).mockImplementation(() => ({
+      getSample,
+      samples: jest.fn(() => noSamples([])),
+    }));
+
+    const controller = new Mp4MediabunnyController("https://example.com/video.mp4");
+    const blockedFrame = controller.getFrame(fromNanoSec(1_000_000_000n));
+    await sampleRequested.promise;
+
+    // Without disposing the input first, this would wait for the blocked range read to settle.
+    await controller.dispose();
+    expect(inputDispose).toHaveBeenCalled();
+    await expect(blockedFrame).rejects.toThrow("Input disposed");
+  });
+
+  it("clamps pre-roll frames to the timeline start", async () => {
+    async function* preRollPackets(): AsyncGenerator<EncodedPacket> {
+      yield { duration: 0.04, sequenceNumber: 0, timestamp: -0.02 } as EncodedPacket;
+      yield { duration: 0.04, sequenceNumber: 1, timestamp: 0.02 } as EncodedPacket;
+      // Ends exactly at the timeline start, so it is never visible.
+      yield { duration: 0.01, sequenceNumber: 2, timestamp: -0.01 } as EncodedPacket;
+    }
+    const track = {
+      canDecode: jest.fn(async () => true),
+      getCodec: jest.fn(async () => "avc"),
+      getDecoderConfig: jest.fn(async () => ({ codec: "avc1.640028" })),
+      getDisplayHeight: jest.fn(async () => 1080),
+      getDisplayWidth: jest.fn(async () => 1920),
+      getDurationFromMetadata: jest.fn(async () => 10),
+      getFirstTimestamp: jest.fn(async () => -0.02),
+      getRotation: jest.fn(async () => 0),
+    };
+
+    (Input as jest.Mock).mockImplementation(() => ({
+      dispose: jest.fn(),
+      getPrimaryVideoTrack: jest.fn(async () => track),
+    }));
+    (EncodedPacketSink as jest.Mock).mockImplementation(() => ({ packets: preRollPackets }));
+    (VideoSampleSink as jest.Mock).mockImplementation(() => ({
+      getSample: jest.fn(),
+      samples: jest.fn(() => noSamples([])),
+    }));
+
+    const controller = new Mp4MediabunnyController("https://example.com/video.mp4");
+    const info = await controller.initialize();
+    expect(info.frames).toEqual([
+      { timestampNs: 0n, durationNs: 20_000_000n },
+      { timestampNs: 20_000_000n, durationNs: 40_000_000n },
+    ]);
+
+    await controller.dispose();
+  });
 });

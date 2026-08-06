@@ -143,14 +143,21 @@ export class Mp4MediabunnyController implements RemoteVideoFrameProvider {
           durationNs: secondsToNanoseconds(packet.duration),
           sequenceNumber: packet.sequenceNumber,
         }))
-        .filter((frame) => frame.timestampNs + frame.durationNs >= 0n)
+        .filter((frame) => frame.timestampNs + frame.durationNs > 0n)
         .sort((left, right) => {
           if (left.timestampNs !== right.timestampNs) {
             return left.timestampNs < right.timestampNs ? -1 : 1;
           }
           return left.sequenceNumber - right.sequenceNumber;
         })
-        .map(({ timestampNs, durationNs }) => ({ timestampNs, durationNs }));
+        // Pre-roll samples (edit-list trims) can start before the timeline while remaining visible
+        // at the start. Clamp them to 0 so backfill never emits negative receive times, which
+        // getFrame() would reject as outside the timeline.
+        .map(({ timestampNs, durationNs }) =>
+          timestampNs < 0n
+            ? { timestampNs: 0n, durationNs: timestampNs + durationNs }
+            : { timestampNs, durationNs },
+        );
 
       const lastFrame = frames[frames.length - 1]!;
       const frameEndNs = lastFrame.timestampNs + lastFrame.durationNs;
@@ -201,14 +208,17 @@ export class Mp4MediabunnyController implements RemoteVideoFrameProvider {
     for (const request of this.#pendingFrameRequests.splice(0)) {
       request.reject(error);
     }
+    // Dispose the input before waiting on frame work: Mediabunny cancels in-flight reads and sink
+    // operations on dispose, so a frame request blocked on a slow range request cannot stall
+    // teardown until the network settles.
+    this.#input?.dispose();
+    this.#input = undefined;
     await this.#processingFrameRequests;
     await this.#stopFrameIterator();
     this.#cachedFrame?.frame.close();
     this.#cachedFrame = undefined;
     this.#sink = undefined;
     this.#info = undefined;
-    this.#input?.dispose();
-    this.#input = undefined;
   }
 
   async #getFrameInternal(timestampNs: bigint): Promise<VideoFrame> {
@@ -324,7 +334,11 @@ export class Mp4MediabunnyController implements RemoteVideoFrameProvider {
   async #stopFrameIterator(): Promise<void> {
     const iterator = this.#frameIterator;
     this.#frameIterator = undefined;
-    await iterator?.return(undefined);
+    try {
+      await iterator?.return(undefined);
+    } catch {
+      // The iterator may reject while tearing down a disposed input; stopping must not throw.
+    }
   }
 
   #requireSink(): VideoSampleSink {

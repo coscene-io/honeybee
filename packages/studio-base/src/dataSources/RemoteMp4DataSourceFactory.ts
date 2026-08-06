@@ -23,7 +23,8 @@ class RemoteMp4DataSourceFactory implements IDataSourceFactory {
   public type: IDataSourceFactory["type"] = "connection";
   public displayName = "Remote MP4";
   public iconName: IDataSourceFactory["iconName"] = "FileASPX";
-  public supportedFileTypes = [".mp4"];
+  // No supportedFileTypes: this is a connection-only source. Advertising ".mp4" would add it to
+  // the local open-file/drag-drop pickers, which can only route files to `type: "file"` sources.
   public description = "Open an H.264/H.265 MP4 over HTTP Range requests.";
 
   public formConfig = {
