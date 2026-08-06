@@ -95,6 +95,21 @@ const selectProject = (store: CoreDataStore) => store.project;
 const selectJobRun = (store: CoreDataStore) => store.jobRun;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
+/** Close the current player without letting teardown failures block a source replacement. */
+export async function closePlayerForSourceSwitch(
+  player: Pick<Player, "close"> | undefined,
+): Promise<void> {
+  if (player == undefined) {
+    return;
+  }
+
+  try {
+    await player.close();
+  } catch (error) {
+    log.warn("Failed to close current player while switching sources:", error);
+  }
+}
+
 function useBeforeConnectionSource(): (
   sourceId: string,
   params: Record<string, string | undefined>,
@@ -382,9 +397,7 @@ export default function PlayerManager(
         return;
       }
 
-      if (playerInstances) {
-        await playerInstances.player.close();
-      }
+      await closePlayerForSourceSwitch(playerInstances?.player);
 
       setCurrentSourceArgs(args);
 

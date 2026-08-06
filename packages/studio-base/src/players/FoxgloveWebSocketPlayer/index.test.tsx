@@ -14,12 +14,15 @@ type MockClient = {
   close: jest.Mock;
   clientSyncTime: jest.Mock;
   emit: (name: string, ...args: unknown[]) => void;
+  subscribe: jest.Mock<number, [number]>;
+  unsubscribe: jest.Mock;
 };
 
 type MockCache = {
   close: jest.Mock<Promise<void>, []>;
   rejectClose: (error: unknown) => void;
   resolveClose: () => void;
+  storeTopics: jest.Mock;
 };
 
 const mockClients: MockClient[] = [];
@@ -35,6 +38,8 @@ jest.mock("@foxglove/ws-protocol", () => {
     readonly #listeners = new Map<string, Set<MockListener>>();
     public close = jest.fn();
     public clientSyncTime = jest.fn();
+    public subscribe = jest.fn((_channelId: number) => 1);
+    public unsubscribe = jest.fn();
 
     public constructor() {
       if (mockClientConstructionError != undefined) {
@@ -73,7 +78,6 @@ jest.mock("@foxglove/studio-base/persistence/RealtimeVizHistoryCache", () => ({
       init: jest.Mock;
       append: jest.Mock;
       storeDatatypes: jest.Mock;
-      storeTopics: jest.Mock;
     } = {
       init: jest.fn().mockResolvedValue(undefined),
       append: jest.fn(),
@@ -294,5 +298,42 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
 
     await rejection;
     await expect(player.close()).resolves.toBeUndefined();
+  });
+
+  it("stores final topic message counts before closing the persistent cache", async () => {
+    const player = makePlayer();
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+    await flushPromises();
+
+    client.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 1n,
+    });
+
+    const closePromise = player.close();
+    const finalStoreCall = cache.storeTopics.mock.calls.at(-1)!;
+    const topicStats = finalStoreCall[1] as Map<string, { numMessages: number }>;
+
+    expect(topicStats.get("/test")).toEqual({ numMessages: 1 });
+    expect(cache.storeTopics.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      cache.close.mock.invocationCallOrder[0]!,
+    );
+
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.resolveClose();
+    await closePromise;
   });
 });

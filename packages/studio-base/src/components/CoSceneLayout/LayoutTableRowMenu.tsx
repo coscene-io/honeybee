@@ -131,7 +131,7 @@ export function LayoutTableRowMenu({
         text: t("save"),
         "data-testid": "save-changes",
         onClick: saveChanges,
-        disabled: deletedOnServer || disabled || !canUpdate,
+        disabled: (deletedOnServer && isProject) || disabled || !canUpdate,
       },
       {
         type: "item",
