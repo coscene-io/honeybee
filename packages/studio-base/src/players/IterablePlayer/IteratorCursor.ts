@@ -21,6 +21,15 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   // next readUntil call otherwise it would be lost.
   #lastIteratorResult?: IteratorResult<MessageType>;
   #abort?: AbortSignal;
+  // Set once the underlying iterator has been finalized (its return() invoked). Finalization
+  // happens on end(), on the abort signal firing, or on a read that observes an already-aborted
+  // signal, whichever comes first.
+  #finalized?: Promise<void>;
+  // The abort listener registered by this cursor, kept so it can be detached once finalization
+  // happens for any reason. Without this, a cursor that ends normally (never aborts) would stay
+  // attached to a long-lived, externally-reused AbortSignal for as long as that signal lives —
+  // e.g. BlockLoader shares one controller across many sequential cursors.
+  #abortListener?: () => void;
 
   public constructor(
     iterator: AsyncIterableIterator<Readonly<IteratorResult<MessageType>>>,
@@ -28,10 +37,23 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   ) {
     this.#iter = iterator;
     this.#abort = abort;
+
+    // Finalize proactively so cleanup does not depend on the caller polling next/nextBatch/
+    // readUntil again after aborting. The read-time aborted checks below remain as a fast path
+    // and to cover a signal that was already aborted before this cursor was constructed (the
+    // "abort" event only fires at the moment abort() is called, so a listener added afterward
+    // would never see it).
+    if (abort?.aborted === true) {
+      void this.#finalize();
+    } else if (abort) {
+      this.#abortListener = () => void this.#finalize();
+      abort.addEventListener("abort", this.#abortListener, { once: true });
+    }
   }
 
   public async next(): ReturnType<IMessageCursor<MessageType>["next"]> {
     if (this.#abort?.aborted === true) {
+      await this.#finalize();
       return undefined;
     }
 
@@ -87,6 +109,7 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
     // that this value could change after the _await_
     const isAborted = this.#abort?.aborted;
     if (isAborted === true) {
+      await this.#finalize();
       return undefined;
     }
 
@@ -115,6 +138,7 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
     for (;;) {
       const result = await this.#iter.next();
       if (this.#abort?.aborted === true) {
+        await this.#finalize();
         return undefined;
       }
 
@@ -138,7 +162,41 @@ class IteratorCursor<MessageType = unknown> implements IMessageCursor<MessageTyp
   }
 
   public async end(): ReturnType<IMessageCursor<MessageType>["end"]> {
-    await this.#iter.return?.();
+    await this.#finalize();
+  }
+
+  // Drive the underlying iterator's return() to completion so its cleanup (finally blocks) runs
+  // even when callers never call end() after an abort. Memoizing the promise keeps concurrent
+  // callers awaiting the same finalization. Best-effort: rejections are swallowed since callers
+  // finalizing an aborted or ended cursor have no use for cleanup errors.
+  async #finalize(): Promise<void> {
+    if (this.#abortListener) {
+      this.#abort?.removeEventListener("abort", this.#abortListener);
+      this.#abortListener = undefined;
+    }
+
+    this.#finalized ??= (async () => {
+      try {
+        // If the iterator's `finally` block itself yields (e.g. to flush buffered results
+        // before releasing a stream, as in coScene-data-platform's streamMessages), a single
+        // return() call resolves with `{ done: false }` and the generator is left suspended
+        // ahead of the rest of its cleanup. Calling return() a second time at that point
+        // discards the pending closure and resolves done immediately without running the rest
+        // of the finally block, so further draining must go through next() instead — that
+        // resumes normally and lets the original return() completion surface once the
+        // generator's cleanup actually finishes.
+        let result = await this.#iter.return?.();
+        if (!result) {
+          return;
+        }
+        while (result.done !== true) {
+          result = await this.#iter.next();
+        }
+      } catch {
+        // ignore cleanup errors
+      }
+    })();
+    await this.#finalized;
   }
 }
 
