@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Avatar as MuiAvatar, Tooltip } from "@mui/material";
-import { User } from "@sentry/types";
+import { User } from "@sentry/core";
 import { useAsync } from "react-use";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
