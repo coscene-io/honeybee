@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
 import { makeStyles } from "tss-react/mui";
 
-import { add, areEqual, fromSec, subtract, toDate, toSec } from "@foxglove/rostime";
+import { add, areEqual, fromSec, subtract, toSec } from "@foxglove/rostime";
 import { CreateEventContainer } from "@foxglove/studio-base/components/Events/CreateEventContainer/index";
 import {
   MessagePipelineContext,
@@ -1653,7 +1653,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       setToModifyEvent({
         name: targetEvent.event.name,
         eventName: targetEvent.event.displayName,
-        startTime: toDate(targetEvent.startTime),
+        startTime: targetEvent.startTime,
         duration: eventDurationSec,
         durationUnit: "sec",
         description: targetEvent.event.description,

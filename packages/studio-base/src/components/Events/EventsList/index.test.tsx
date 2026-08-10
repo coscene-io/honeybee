@@ -71,22 +71,24 @@ function TestDialogs(): React.JSX.Element {
 function makeEvent({
   file,
   name,
+  startNsec = 0,
   startSec,
 }: {
   file?: string;
   name: string;
+  startNsec?: number;
   startSec: number;
 }): TimelinePositionedEvent {
   return {
     event: create(EventSchema, {
       name,
       displayName: name,
-      triggerTime: create(TimestampSchema, { seconds: BigInt(startSec), nanos: 0 }),
+      triggerTime: create(TimestampSchema, { seconds: BigInt(startSec), nanos: startNsec }),
       duration: create(DurationSchema, { seconds: BigInt(1), nanos: 0 }),
       files: file == undefined ? [] : [file],
     }),
-    startTime: { sec: startSec, nsec: 0 },
-    endTime: { sec: startSec + 1, nsec: 0 },
+    startTime: { sec: startSec, nsec: startNsec },
+    endTime: { sec: startSec + 1, nsec: startNsec },
     color: "#00ADEF",
     startPosition: startSec / 10,
     endPosition: (startSec + 1) / 10,
@@ -129,6 +131,11 @@ function EventFetchCountProbe(): React.JSX.Element {
   return <div data-testid="event-fetch-count">{eventFetchCount}</div>;
 }
 
+function EventToModifyProbe(): React.JSX.Element {
+  const startTime = useEvents((store: EventsStore) => store.toModifyEvent?.startTime);
+  return <div data-testid="event-to-modify-start">{`${startTime?.sec}:${startTime?.nsec}`}</div>;
+}
+
 function Wrapper({
   consoleApi,
   events,
@@ -159,6 +166,7 @@ function Wrapper({
                     />
                     <SeedEvents events={events} />
                     <EventFetchCountProbe />
+                    <EventToModifyProbe />
                     <EventsList />
                     <TestDialogs />
                   </MockMessagePipelineProvider>
@@ -318,5 +326,21 @@ describe("<EventsList />", () => {
       expect(screen.getAllByTestId("sidebar-event")).toHaveLength(1);
     });
     expect(screen.queryByRole("button", { name: "Delete All" })).toBeNull();
+  });
+
+  it("keeps a fetched sub-millisecond trigger time exact when entering edit", async () => {
+    const event = makeEvent({
+      name: "events/precise",
+      startSec: 1,
+      startNsec: 123_456_789,
+    });
+
+    render(<Wrapper consoleApi={makeConsoleApi()} events={[event]} />);
+
+    fireEvent.click(await screen.findByTitle("Edit Moment"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("event-to-modify-start").textContent).toBe("1:123456789");
+    });
   });
 });
