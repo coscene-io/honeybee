@@ -103,12 +103,12 @@ describe("Mp4MediabunnyController", () => {
     }));
 
     const controller = new Mp4MediabunnyController("https://example.com/video.mp4");
-    const frameAtOne = controller.getFrame(fromNanoSec(1_000_000_000n));
+    const frameAtOne = controller.getFrame(fromNanoSec(1_000_000_000n), "renderable-one");
     await firstSampleRequested.promise;
 
-    const firstFrameAtFour = controller.getFrame(fromNanoSec(4_000_000_000n));
-    const frameAtEight = controller.getFrame(fromNanoSec(8_000_000_000n));
-    const secondFrameAtFour = controller.getFrame(fromNanoSec(4_000_000_000n));
+    const firstFrameAtFour = controller.getFrame(fromNanoSec(4_000_000_000n), "renderable-four-a");
+    const frameAtEight = controller.getFrame(fromNanoSec(8_000_000_000n), "renderable-eight");
+    const secondFrameAtFour = controller.getFrame(fromNanoSec(4_000_000_000n), "renderable-four-b");
     firstSample.resolve(videoSampleAt(1));
 
     const frames = await Promise.all([
@@ -119,6 +119,55 @@ describe("Mp4MediabunnyController", () => {
     ]);
     expect(frames.map(frameTimestamp)).toEqual([1, 4, 8, 4]);
     expect(getSample.mock.calls.map(([timestampSeconds]) => timestampSeconds)).toEqual([1, 4, 8]);
+
+    await controller.dispose();
+  });
+
+  it("coalesces superseded queued requests from the same renderable", async () => {
+    const firstSample = deferred<VideoSample>();
+    const firstSampleRequested = deferred<void>();
+    const getSample = jest
+      .fn<Promise<VideoSample>, [number]>()
+      .mockImplementation(async (timestampSeconds) => {
+        if (timestampSeconds === 1) {
+          firstSampleRequested.resolve();
+          return await firstSample.promise;
+        }
+        return videoSampleAt(timestampSeconds);
+      });
+    const track = {
+      canDecode: jest.fn(async () => true),
+      getCodec: jest.fn(async () => "avc"),
+      getDecoderConfig: jest.fn(async () => ({ codec: "avc1.640028" })),
+      getDisplayHeight: jest.fn(async () => 1080),
+      getDisplayWidth: jest.fn(async () => 1920),
+      getDurationFromMetadata: jest.fn(async () => 10),
+      getFirstTimestamp: jest.fn(async () => 0),
+      getRotation: jest.fn(async () => 0),
+    };
+
+    (Input as jest.Mock).mockImplementation(() => ({
+      dispose: jest.fn(),
+      getPrimaryVideoTrack: jest.fn(async () => track),
+    }));
+    (EncodedPacketSink as jest.Mock).mockImplementation(() => ({ packets }));
+    (VideoSampleSink as jest.Mock).mockImplementation(() => ({
+      getSample,
+      samples: jest.fn(() => noSamples([])),
+    }));
+
+    const controller = new Mp4MediabunnyController("https://example.com/video.mp4");
+    const initialFrame = controller.getFrame(fromNanoSec(1_000_000_000n), "renderable-a");
+    await firstSampleRequested.promise;
+
+    const staleFrame = controller.getFrame(fromNanoSec(4_000_000_000n), "renderable-a");
+    const latestFrame = controller.getFrame(fromNanoSec(8_000_000_000n), "renderable-a");
+    const otherFrame = controller.getFrame(fromNanoSec(6_000_000_000n), "renderable-b");
+    firstSample.resolve(videoSampleAt(1));
+
+    const frames = await Promise.all([initialFrame, staleFrame, latestFrame, otherFrame]);
+    expect(frames.map(frameTimestamp)).toEqual([1, 8, 8, 6]);
+    expect(getSample.mock.calls.map(([timestampSeconds]) => timestampSeconds)).toEqual([1, 8, 6]);
 
     await controller.dispose();
   });
@@ -159,7 +208,7 @@ describe("Mp4MediabunnyController", () => {
     }));
 
     const controller = new Mp4MediabunnyController("https://example.com/video.mp4");
-    const blockedFrame = controller.getFrame(fromNanoSec(1_000_000_000n));
+    const blockedFrame = controller.getFrame(fromNanoSec(1_000_000_000n), "renderable");
     await sampleRequested.promise;
 
     // Without disposing the input first, this would wait for the blocked range read to settle.

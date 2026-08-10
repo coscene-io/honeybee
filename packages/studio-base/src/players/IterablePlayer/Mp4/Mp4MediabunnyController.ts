@@ -44,6 +44,7 @@ type DecodedFrame = {
 
 type PendingFrameRequest = {
   timestampNs: bigint;
+  consumerId: string;
   resolve: (frame: VideoFrame) => void;
   reject: (error: unknown) => void;
 };
@@ -191,13 +192,13 @@ export class Mp4MediabunnyController implements RemoteVideoFrameProvider {
     }
   }
 
-  public async getFrame(timestamp: Time): Promise<VideoFrame> {
+  public async getFrame(timestamp: Time, consumerId: string): Promise<VideoFrame> {
     if (this.#disposed) {
       throw new Error("The remote MP4 decoder has been disposed");
     }
     const timestampNs = toNanoSec(timestamp);
     return await new Promise<VideoFrame>((resolve, reject) => {
-      this.#pendingFrameRequests.push({ timestampNs, resolve, reject });
+      this.#pendingFrameRequests.push({ timestampNs, consumerId, resolve, reject });
       this.#startProcessingFrameRequests();
     });
   }
@@ -304,15 +305,24 @@ export class Mp4MediabunnyController implements RemoteVideoFrameProvider {
 
   async #processFrameRequests(): Promise<void> {
     while (!this.#disposed && this.#pendingFrameRequests.length > 0) {
-      // Requests from different renderables can be pending at the same time, and each can still be
-      // current for its own consumer. Only coalesce requests for the exact same presentation time.
+      const pendingRequests = this.#pendingFrameRequests.splice(0);
+      const latestTimestampByConsumer = new Map<string, bigint>();
+      for (const request of pendingRequests) {
+        latestTimestampByConsumer.set(request.consumerId, request.timestampNs);
+      }
+
+      // A renderable only needs its newest queued timestamp. Resolve its superseded promises with
+      // that same frame so ImageRenderable can discard them through its existing sequence check.
+      // Requests from different renderables remain independent, while matching timestamps still
+      // share one decode.
       const requestsByTimestamp = new Map<bigint, PendingFrameRequest[]>();
-      for (const request of this.#pendingFrameRequests.splice(0)) {
-        const requests = requestsByTimestamp.get(request.timestampNs);
+      for (const request of pendingRequests) {
+        const timestampNs = latestTimestampByConsumer.get(request.consumerId)!;
+        const requests = requestsByTimestamp.get(timestampNs);
         if (requests) {
           requests.push(request);
         } else {
-          requestsByTimestamp.set(request.timestampNs, [request]);
+          requestsByTimestamp.set(timestampNs, [request]);
         }
       }
 

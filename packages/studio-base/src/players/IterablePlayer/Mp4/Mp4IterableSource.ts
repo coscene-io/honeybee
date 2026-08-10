@@ -17,6 +17,7 @@ import {
 
 import type { Mp4FrameIndexEntry, Mp4MediabunnyInfo } from "./Mp4MediabunnyController";
 import {
+  REMOTE_VIDEO_FRAME_REFERENCE_DATATYPE,
   REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME,
   RemoteVideoFrameProvider,
   RemoteVideoFrameReference,
@@ -81,7 +82,9 @@ export class Mp4IterableSource implements IDeserializedIterableSource {
       end: fromNanoSec(info.endTimeNs),
       topics: [{ name: this.#topic, schemaName: REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME }],
       topicStats: new Map([[this.#topic, { numMessages: info.frames.length }]]),
-      datatypes: new Map(),
+      datatypes: new Map([
+        [REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME, REMOTE_VIDEO_FRAME_REFERENCE_DATATYPE],
+      ]),
       profile: "mp4",
       publishersByTopic: new Map(),
       problems: [],

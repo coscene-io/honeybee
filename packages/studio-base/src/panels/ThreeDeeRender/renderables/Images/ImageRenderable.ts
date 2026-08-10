@@ -167,6 +167,8 @@ export type ImageUserData = BaseUserData & {
 };
 
 export class ImageRenderable extends Renderable<ImageUserData> {
+  readonly #remoteVideoFrameConsumerId = `image-renderable-${globalThis.crypto.randomUUID()}`;
+
   // Make sure that everything is build the first time we render
   // set when camera info or image changes
   #geometryNeedsUpdate = true;
@@ -707,7 +709,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     resizeWidth?: number,
   ): Promise<DecodedImageResult> {
     if (isRemoteVideoFrameReference(image)) {
-      return { image: await getRemoteVideoFrame(image), ok: true };
+      const frame = await getRemoteVideoFrame(image, this.#remoteVideoFrameConsumerId);
+      return { image: rotateVideoFrame(frame, image.rotation), ok: true };
     }
     if ("format" in image) {
       if (!VIDEO_FORMATS.has(image.format)) {
@@ -1375,6 +1378,46 @@ const videoFrameDimensionsEqual = (a?: VideoFrame, b?: VideoFrame) =>
 const isVideoFrame = (
   value: ImageBitmap | ImageData | VideoFrame | undefined,
 ): value is VideoFrame => typeof VideoFrame !== "undefined" && value instanceof VideoFrame;
+
+function rotateVideoFrame(frame: VideoFrame, rotationDegrees: number): VideoFrame | ImageBitmap {
+  if (!Number.isFinite(rotationDegrees)) {
+    return frame;
+  }
+  const rotation = ((rotationDegrees % 360) + 360) % 360;
+  if (rotation === 0) {
+    return frame;
+  }
+
+  const radians = THREE.MathUtils.degToRad(rotation);
+  const sourceWidth = frame.displayWidth;
+  const sourceHeight = frame.displayHeight;
+  const width = Math.max(
+    1,
+    Math.round(
+      Math.abs(sourceWidth * Math.cos(radians)) + Math.abs(sourceHeight * Math.sin(radians)),
+    ),
+  );
+  const height = Math.max(
+    1,
+    Math.round(
+      Math.abs(sourceWidth * Math.sin(radians)) + Math.abs(sourceHeight * Math.cos(radians)),
+    ),
+  );
+  const canvas = new OffscreenCanvas(width, height);
+
+  try {
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Failed to create a canvas context for MP4 rotation");
+    }
+    context.translate(width / 2, height / 2);
+    context.rotate(radians);
+    context.drawImage(frame, -sourceWidth / 2, -sourceHeight / 2, sourceWidth, sourceHeight);
+    return canvas.transferToImageBitmap();
+  } finally {
+    frame.close();
+  }
+}
 
 function closeDecodedImageResource(resource: unknown): void {
   if (resource == undefined) {

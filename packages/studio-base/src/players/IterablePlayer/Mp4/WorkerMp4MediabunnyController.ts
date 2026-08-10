@@ -42,8 +42,8 @@ export class WorkerMp4MediabunnyController implements RemoteVideoFrameProvider {
     return await (await this.#getRemote()).initialize();
   }
 
-  public async getFrame(timestamp: Time): Promise<VideoFrame> {
-    return await (await this.#getRemote()).getFrame(timestamp);
+  public async getFrame(timestamp: Time, consumerId: string): Promise<VideoFrame> {
+    return await (await this.#getRemote()).getFrame(timestamp, consumerId);
   }
 
   public async dispose(): Promise<void> {
