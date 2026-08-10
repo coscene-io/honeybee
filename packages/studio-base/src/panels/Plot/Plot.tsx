@@ -394,9 +394,11 @@ export function Plot(props: Props): React.JSX.Element {
       height: contentRect.height,
     });
 
-    const isCanvasTarget = (entry: Immutable<ResizeObserverEntry>) => entry.target === canvasDiv;
     const resizeObserver = new ResizeObserver((entries) => {
-      const entry = _.findLast(entries, isCanvasTarget);
+      const entry = _.findLast<ResizeObserverEntry>(
+        entries,
+        (candidate) => candidate.target === canvasDiv,
+      );
       if (entry) {
         plotCoordinator.setSize({
           width: entry.contentRect.width,
