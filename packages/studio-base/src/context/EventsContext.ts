@@ -22,7 +22,7 @@ export type KeyValue = { key: string; value: string };
 export type ToModifyEvent = {
   name: string;
   eventName: string;
-  startTime: undefined | Date;
+  startTime: undefined | Time;
   duration: undefined | number;
   durationUnit: "sec" | "nsec";
   description: undefined | string;

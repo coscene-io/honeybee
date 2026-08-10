@@ -24,7 +24,7 @@ import { UseFormReturn, Controller, useFieldArray } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { add, fromSec, fromDate } from "@foxglove/rostime";
+import { add, fromSec } from "@foxglove/rostime";
 import {
   CustomFieldValuesForm,
   FormWithCustomFieldValues,
@@ -211,10 +211,10 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
   );
 
   const formattedEventStartTime = watchedValues.startTime
-    ? formatTime(fromDate(watchedValues.startTime))
+    ? formatTime(watchedValues.startTime)
     : "-";
   const formattedEventEndTime = watchedValues.startTime
-    ? formatTime(add(fromDate(watchedValues.startTime), fromSec(watchedValues.duration ?? 0)))
+    ? formatTime(add(watchedValues.startTime, fromSec(watchedValues.duration ?? 0)))
     : "-";
 
   const invokeTabKey = () => {

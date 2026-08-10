@@ -6,11 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 
+import { Time } from "@foxglove/rostime";
 import { KeyValue } from "@foxglove/studio-base/context/EventsContext";
 
 export type CreateEventForm = {
   eventName: string;
-  startTime: undefined | Date;
+  startTime: undefined | Time;
   duration: undefined | number;
   durationUnit: "sec" | "nsec";
   description: undefined | string;
