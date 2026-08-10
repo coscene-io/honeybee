@@ -396,6 +396,13 @@ export type ApiBaseInfo = {
   recordId?: string;
 };
 
+type PermissionList = {
+  orgPermissionList: string[];
+  projectPermissionList: string[];
+  orgDenyList: string[];
+  projectDenyList: string[];
+};
+
 export type GetFileStatusResponse = { filename: string; status: MediaStatus }[];
 
 function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
@@ -450,12 +457,7 @@ class CoSceneConsoleApi {
   #problemManager = new PlayerProblemManager();
   #baseInfo: ApiBaseInfo = {};
   #type?: "realtime" | "playback" | "other";
-  #permissionList: {
-    orgPermissionList: string[];
-    projectPermissionList: string[];
-    orgDenyList: string[];
-    projectDenyList: string[];
-  } = {
+  #permissionList: PermissionList = {
     orgPermissionList: [],
     projectPermissionList: [],
     orgDenyList: [],
@@ -472,13 +474,28 @@ class CoSceneConsoleApi {
     baseInfo: ApiBaseInfo,
     options?: {
       fetchPermissionList?: boolean;
+      isCurrent?: () => boolean;
     },
   ): Promise<void> {
+    const isCurrent = options?.isCurrent;
+    if (isCurrent && !isCurrent()) {
+      return;
+    }
+    if (isCurrent && options.fetchPermissionList !== false) {
+      const permissionList = await this.#getPermissionList(baseInfo);
+      if (!isCurrent()) {
+        return;
+      }
+      this.#baseInfo = baseInfo;
+      this.#permissionList = permissionList;
+      return;
+    }
+
     this.#baseInfo = baseInfo;
     if (options?.fetchPermissionList === false) {
       return;
     }
-    await this.#getPermissionList();
+    this.#permissionList = await this.#getPermissionList(baseInfo);
   }
 
   public getApiBaseInfo(): ApiBaseInfo {
@@ -1405,20 +1422,22 @@ class CoSceneConsoleApi {
 
   public async listUserRoles({
     isProjectRole,
+    baseInfo = this.#baseInfo,
   }: {
     isProjectRole: boolean;
+    baseInfo?: ApiBaseInfo;
   }): Promise<ListUserRolesResponse> {
     const parent = isProjectRole
-      ? `warehouses/${this.#baseInfo.warehouseId}/projects/${this.#baseInfo.projectId}`
+      ? `warehouses/${baseInfo.warehouseId}/projects/${baseInfo.projectId}`
       : undefined;
 
     const req = create(ListUserRolesRequestSchema, { parent });
     return await getPromiseClient(RoleService).listUserRoles(req);
   }
 
-  async #getPermissionList(): Promise<void> {
-    const userOrgRole = await this.listUserRoles({ isProjectRole: false });
-    const userProjectRole = await this.listUserRoles({ isProjectRole: true });
+  async #getPermissionList(baseInfo: ApiBaseInfo): Promise<PermissionList> {
+    const userOrgRole = await this.listUserRoles({ isProjectRole: false, baseInfo });
+    const userProjectRole = await this.listUserRoles({ isProjectRole: true, baseInfo });
 
     const orgRole: Role | undefined = userOrgRole.userRoles[0];
     const projectRole: Role | undefined = userProjectRole.userRoles[0];
@@ -1435,7 +1454,7 @@ class CoSceneConsoleApi {
       projectDenyList = denyList;
     }
 
-    this.#permissionList = {
+    return {
       orgPermissionList,
       orgDenyList,
       projectPermissionList,

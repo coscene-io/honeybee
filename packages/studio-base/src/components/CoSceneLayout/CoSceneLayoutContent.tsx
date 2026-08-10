@@ -232,6 +232,19 @@ export function CoSceneLayoutContent({
   }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
+  const ambiguousRecommendedNames = useMemo(() => {
+    const transportsByName = new Map<string, Set<RecommendedLayoutDescriptor["transport"]>>();
+    for (const layout of recommendedLayouts) {
+      const transports = transportsByName.get(layout.name) ?? new Set();
+      transports.add(layout.transport);
+      transportsByName.set(layout.name, transports);
+    }
+    return new Set(
+      [...transportsByName.entries()]
+        .filter(([, transports]) => transports.size > 1)
+        .map(([name]) => name),
+    );
+  }, [recommendedLayouts]);
 
   // 根据当前语言获取DataGrid的locale文本
   const dataGridLocaleText = useMemo(() => {
@@ -273,6 +286,10 @@ export function CoSceneLayoutContent({
 
   // Filter layouts based on selection
   const rows: LayoutWithFolder[] = useMemo(() => {
+    const getRecommendedLayoutName = (layout: RecommendedLayoutDescriptor) =>
+      selectedFolder.category === "all" && ambiguousRecommendedNames.has(layout.name)
+        ? `${layout.name} / ${layout.transport === "h264" ? t("h264") : t("defaultLayoutFolder")}`
+        : layout.name;
     let filtered: Layout[] = layouts?.allLayouts ?? [];
     let filteredRecommended = [...recommendedLayouts];
     if (selectedFolder.category === "personal") {
@@ -293,7 +310,7 @@ export function CoSceneLayoutContent({
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter((l) => l.name.toLowerCase().includes(query));
       filteredRecommended = filteredRecommended.filter((layout) =>
-        layout.name.toLowerCase().includes(query),
+        getRecommendedLayoutName(layout).toLowerCase().includes(query),
       );
     } else {
       if (selectedFolder.category === "personal" || selectedFolder.category === "project") {
@@ -355,7 +372,7 @@ export function CoSceneLayoutContent({
         .map((recommendedLayout) => ({
           id: recommendedLayout.id,
           recommendedLayout,
-          name: recommendedLayout.name,
+          name: getRecommendedLayoutName(recommendedLayout),
           folder: recommendedLayout.transport,
           isFolder: false,
           category: "recommended" as const,
@@ -365,7 +382,15 @@ export function CoSceneLayoutContent({
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     ];
-  }, [layouts, recommendedLayouts, selectedFolder.category, selectedFolder.folder, searchQuery]);
+  }, [
+    ambiguousRecommendedNames,
+    layouts,
+    recommendedLayouts,
+    searchQuery,
+    selectedFolder.category,
+    selectedFolder.folder,
+    t,
+  ]);
 
   // Define DataGrid columns
   const columns: GridColDef<LayoutWithFolder>[] = useMemo(
@@ -456,7 +481,7 @@ export function CoSceneLayoutContent({
                 <BusinessCenterOutlinedIcon fontSize="small" />
               )}
               <Typography variant="body2" noWrap textOverflow="ellipsis">
-                {layout?.name ?? recommendedLayout?.name}
+                {name}
               </Typography>
             </Link>
           );

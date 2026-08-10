@@ -65,7 +65,7 @@ function recordState(deviceType: string): CoreDataStore["record"] {
 }
 
 describe("RecommendedLayoutProvider", () => {
-  let coreData: Pick<CoreDataStore, "externalInitConfig" | "record" | "showtUrlKey">;
+  let coreData: Pick<CoreDataStore, "dataSource" | "externalInitConfig" | "record" | "showtUrlKey">;
   let topics: jest.Mock;
   let manifest: RecommendedLayoutManifest;
   const robotALayouts = [descriptor("RobotA", "default"), descriptor("RobotA", "h264")];
@@ -73,6 +73,7 @@ describe("RecommendedLayoutProvider", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     coreData = {
+      dataSource: { id: "coscene-data-platform", type: "connection" },
       externalInitConfig: { recordId: "record-a" },
       record: recordState("RobotA"),
       showtUrlKey: "records/record-a",
@@ -96,6 +97,7 @@ describe("RecommendedLayoutProvider", () => {
 
   it("waits for the Record and showtUrlKey before loading recommendations", async () => {
     coreData = {
+      dataSource: { id: "coscene-data-platform", type: "connection" },
       externalInitConfig: { recordId: "record-a" },
       record: { loading: true },
     };
@@ -107,6 +109,7 @@ describe("RecommendedLayoutProvider", () => {
     expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
 
     coreData = {
+      dataSource: { id: "coscene-data-platform", type: "connection" },
       externalInitConfig: { recordId: "record-a" },
       record: recordState("RobotA"),
       showtUrlKey: "records/record-a",
@@ -118,6 +121,69 @@ describe("RecommendedLayoutProvider", () => {
     });
     expect(loadRecommendedLayoutManifest).toHaveBeenCalledTimes(1);
     expect(topics).toHaveBeenCalledWith("records/record-a");
+  });
+
+  it("waits for the Record playback source to finish initializing", async () => {
+    coreData = {
+      externalInitConfig: { recordId: "record-a" },
+      record: recordState("RobotA"),
+      showtUrlKey: "records/record-a",
+    };
+    const { result, rerender } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+
+    expect(result.current.status).toBe("loading");
+    expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
+
+    coreData = {
+      ...coreData,
+      dataSource: { id: "coscene-data-platform", type: "connection" },
+    };
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+    expect(loadRecommendedLayoutManifest).toHaveBeenCalledTimes(1);
+  });
+
+  it("finishes without recommendations for a cached Record context without playback", async () => {
+    coreData = {
+      externalInitConfig: { recordId: "record-a" },
+      record: recordState("RobotA"),
+    };
+    const { result } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", layouts: [] });
+    });
+    expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
+  });
+
+  it("unblocks layout startup when loading a cached Record fails", async () => {
+    coreData = {
+      externalInitConfig: { recordId: "record-a" },
+      record: { loading: true },
+    };
+    const { result, rerender } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+
+    expect(result.current.status).toBe("loading");
+
+    coreData = {
+      ...coreData,
+      record: { loading: false, error: new Error("Record unavailable") },
+    };
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", layouts: [] });
+    });
+    expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
   });
 
   it("disables recommendations without a Record playback context", async () => {
@@ -156,6 +222,7 @@ describe("RecommendedLayoutProvider", () => {
 
   it("hides recommendations without an exact robot match and skips metadata", async () => {
     coreData = {
+      dataSource: { id: "coscene-data-platform", type: "connection" },
       externalInitConfig: { recordId: "record-a" },
       record: recordState("robota"),
       showtUrlKey: "records/record-a",
@@ -185,6 +252,47 @@ describe("RecommendedLayoutProvider", () => {
     expect(result.current.layouts).toEqual([]);
   });
 
+  it("hides stale recommendations after leaving Record playback", async () => {
+    const { result, rerender } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", robot: "RobotA" });
+    });
+
+    coreData = {
+      ...coreData,
+      dataSource: { id: "foxglove-file", type: "file" },
+    };
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current).toEqual({
+        status: "ready",
+        layouts: [],
+        loadLayout: expect.any(Function),
+      });
+    });
+  });
+
+  it("hides stale recommendations after clearing Record playback", async () => {
+    const { result, rerender } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", robot: "RobotA" });
+    });
+
+    coreData = { ...coreData, dataSource: undefined };
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", layouts: [] });
+    });
+  });
+
   it("ignores stale results after switching Records", async () => {
     let resolveRecordA: ((value: { metaData: [] }) => void) | undefined;
     topics.mockImplementation(async (key: string) => {
@@ -203,6 +311,7 @@ describe("RecommendedLayoutProvider", () => {
       expect(topics).toHaveBeenCalledWith("records/record-a");
     });
     coreData = {
+      dataSource: { id: "coscene-data-platform", type: "connection" },
       externalInitConfig: { recordId: "record-b" },
       record: recordState("RobotB"),
       showtUrlKey: "records/record-b",

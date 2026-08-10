@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
@@ -24,6 +24,7 @@ import {
 const selectRecord = (state: CoreDataStore) => state.record;
 const selectShowtUrlKey = (state: CoreDataStore) => state.showtUrlKey;
 const selectRecordId = (state: CoreDataStore) => state.externalInitConfig?.recordId;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 export default function RecommendedLayoutProvider({
   children,
@@ -32,6 +33,8 @@ export default function RecommendedLayoutProvider({
   const record = useCoreData(selectRecord);
   const showtUrlKey = useCoreData(selectShowtUrlKey);
   const recordId = useCoreData(selectRecordId);
+  const dataSource = useCoreData(selectDataSource);
+  const hasSelectedDataSourceRef = useRef(dataSource != undefined);
   const [state, setState] = useState<RecommendedLayoutState>({ status: "loading", layouts: [] });
   const currentRecord = record.loading ? undefined : record.value;
   const hasCurrentRecord = currentRecord != undefined;
@@ -40,8 +43,26 @@ export default function RecommendedLayoutProvider({
     deviceTypeValue?.kind.case === "stringValue" ? deviceTypeValue.kind.value : undefined;
 
   useEffect(() => {
+    if (dataSource != undefined) {
+      hasSelectedDataSourceRef.current = true;
+    }
+    const isRecordPlayback =
+      dataSource?.type === "connection" && dataSource.id === "coscene-data-platform";
+
     if (!recordId) {
       setState({ status: "ready", layouts: [] });
+      return;
+    }
+    if (!isRecordPlayback) {
+      const isRecordPlaybackInitializing =
+        dataSource == undefined &&
+        !hasSelectedDataSourceRef.current &&
+        (record.loading || showtUrlKey != undefined);
+      setState(
+        isRecordPlaybackInitializing
+          ? { status: "loading", layouts: [] }
+          : { status: "ready", layouts: [] },
+      );
       return;
     }
     if (record.loading || !showtUrlKey) {
@@ -108,7 +129,7 @@ export default function RecommendedLayoutProvider({
     return () => {
       cancelled = true;
     };
-  }, [consoleApi, deviceType, hasCurrentRecord, record.loading, recordId, showtUrlKey]);
+  }, [consoleApi, dataSource, deviceType, hasCurrentRecord, record.loading, recordId, showtUrlKey]);
 
   const loadLayout = useCallback(loadRecommendedLayoutData, []);
   const value = useMemo(() => ({ ...state, loadLayout }), [loadLayout, state]);

@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAsync, useAsyncFn } from "react-use";
 import { AsyncState } from "react-use/lib/useAsync";
 
@@ -71,12 +71,14 @@ async function ensureProjectAndBaseUrl({
   externalInitConfig,
   setProject,
   setBaseUrl,
+  isCurrent = () => true,
 }: {
   consoleApi: ReturnType<typeof useConsoleApi>;
   project: AsyncState<Project>;
   externalInitConfig: ExternalInitConfig;
   setProject: CoreDataStore["setProject"];
   setBaseUrl: CoreDataStore["setBaseUrl"];
+  isCurrent?: () => boolean;
 }): Promise<void> {
   const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
 
@@ -85,14 +87,23 @@ async function ensureProjectAndBaseUrl({
     return;
   }
 
+  if (!isCurrent()) {
+    return;
+  }
   setProject({ loading: false, value: undefined });
 
   const targetProject = await consoleApi.getProject({ projectName });
+  if (!isCurrent()) {
+    return;
+  }
 
   setProject({ loading: false, value: targetProject });
 
   const storageClusterId = targetProject.storageCluster;
   const storageCluster = await consoleApi.getStorageCluster({ name: storageClusterId });
+  if (!isCurrent()) {
+    return;
+  }
   const honeybeeAddress = storageCluster.endpoints[0]?.honeybeeAddress;
 
   if (honeybeeAddress) {
@@ -103,6 +114,7 @@ async function ensureProjectAndBaseUrl({
 
 export function useSetExternalInitConfig(): (
   externalInitConfig: ExternalInitConfig,
+  options?: { isCurrent?: () => boolean },
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
   const project = useCoreData(selectProject);
@@ -114,51 +126,87 @@ export function useSetExternalInitConfig(): (
   const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
     AppSetting.LAST_EXTERNAL_INIT_CONFIG,
   );
+  const updateQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  return async (externalInitConfig: ExternalInitConfig) => {
-    void setLastExternalInitConfig(JSON.stringify(externalInitConfig));
+  return async (
+    externalInitConfig: ExternalInitConfig,
+    options?: { isCurrent?: () => boolean },
+  ) => {
+    const isCurrent = options?.isCurrent ?? (() => true);
+    const update = updateQueueRef.current.then(async () => {
+      if (!isCurrent()) {
+        return;
+      }
 
-    // set base info and init user permission List
-    await consoleApi.setApiBaseInfo({
-      projectId: externalInitConfig.projectId,
-      warehouseId: externalInitConfig.warehouseId,
-      recordId: externalInitConfig.recordId,
+      // set base info and init user permission List
+      await consoleApi.setApiBaseInfo(
+        {
+          projectId: externalInitConfig.projectId,
+          warehouseId: externalInitConfig.warehouseId,
+          recordId: externalInitConfig.recordId,
+        },
+        { isCurrent },
+      );
+      if (!isCurrent()) {
+        return;
+      }
+
+      void setLastExternalInitConfig(JSON.stringify(externalInitConfig));
+      setExternalInitConfig(externalInitConfig);
+
+      await ensureProjectAndBaseUrl({
+        consoleApi,
+        project,
+        externalInitConfig,
+        setProject,
+        setBaseUrl,
+        isCurrent,
+      });
+      if (!isCurrent()) {
+        return;
+      }
+
+      // 设置 isReadyForSyncLayout 标志，表示项目/用户上下文已可用于 layout manager
+      setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+
+      const taskName =
+        externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
+          ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
+          : undefined;
+
+      if (taskName) {
+        const task = await consoleApi.getTask({ taskName });
+        if (!isCurrent()) {
+          return;
+        }
+        setFocusedTask(task);
+      }
     });
 
-    setExternalInitConfig(externalInitConfig);
-
-    await ensureProjectAndBaseUrl({
-      consoleApi,
-      project,
-      externalInitConfig,
-      setProject,
-      setBaseUrl,
-    });
-
-    // 设置 isReadyForSyncLayout 标志，表示项目/用户上下文已可用于 layout manager
-    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
-
-    const taskName =
-      externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
-        ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
-        : undefined;
-
-    if (taskName) {
-      const task = await consoleApi.getTask({ taskName });
-      setFocusedTask(task);
-    }
+    updateQueueRef.current = update.catch(() => undefined);
+    await update;
   };
 }
 
-export function useSetShowtUrlKey(): (showtUrlKey: string) => Promise<void> {
+export function useSetShowtUrlKey(): (
+  showtUrlKey: string,
+  options?: { isCurrent?: () => boolean },
+) => Promise<void> {
   const consoleApi = useConsoleApi();
   const setShowtUrlKey = useCoreData(selectSetShowtUrlKey);
   const setExternalInitConfig = useSetExternalInitConfig();
 
-  return async (showtUrlKey: string) => {
+  return async (showtUrlKey: string, options?: { isCurrent?: () => boolean }) => {
+    const isCurrent = options?.isCurrent ?? (() => true);
     const externalInitConfig = await consoleApi.getExternalInitConfig(showtUrlKey);
+    if (!isCurrent()) {
+      return;
+    }
 
-    await setExternalInitConfig(externalInitConfig);
+    await setExternalInitConfig(externalInitConfig, { isCurrent });
+    if (!isCurrent()) {
+      return;
+    }
 
     setShowtUrlKey(showtUrlKey);
   };
@@ -243,17 +291,48 @@ export function CoreDataSyncAdapter(): ReactNull {
   }, [reloadProjectTrigger]);
 
   // Record
+  const recordRequestGenerationRef = useRef(0);
   const [, syncRecord] = useAsyncFn(async () => {
     if (
       externalInitConfig?.warehouseId &&
       externalInitConfig.projectId &&
       externalInitConfig.recordId
     ) {
-      setRecord({ loading: true, value: coreDataStore.getState().record.value });
-      const recordName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/records/${externalInitConfig.recordId}`;
-      const targetRecord = await consoleApi.getRecord({ recordName });
+      const { warehouseId, projectId, recordId } = externalInitConfig;
+      const requestGeneration = ++recordRequestGenerationRef.current;
+      const previousRecord = coreDataStore.getState().record.value;
+      const recordName = `warehouses/${warehouseId}/projects/${projectId}/records/${recordId}`;
+      const isCurrentRequest = () => {
+        const currentConfig = coreDataStore.getState().externalInitConfig;
+        return (
+          requestGeneration === recordRequestGenerationRef.current &&
+          currentConfig?.warehouseId === warehouseId &&
+          currentConfig.projectId === projectId &&
+          currentConfig.recordId === recordId
+        );
+      };
 
-      setRecord({ loading: false, value: targetRecord });
+      setRecord({ loading: true, value: previousRecord });
+      try {
+        const targetRecord = await consoleApi.getRecord({ recordName });
+        if (!isCurrentRequest()) {
+          return;
+        }
+        setRecord({ loading: false, value: targetRecord });
+      } catch (error) {
+        if (!isCurrentRequest()) {
+          return;
+        }
+        setRecord(
+          previousRecord?.name === recordName
+            ? { loading: false, value: previousRecord }
+            : {
+                loading: false,
+                error: error instanceof Error ? error : new Error(String(error)),
+              },
+        );
+        log.error(error);
+      }
     }
   }, [coreDataStore, externalInitConfig, setRecord, consoleApi]);
 
@@ -263,10 +342,12 @@ export function CoreDataSyncAdapter(): ReactNull {
       externalInitConfig.projectId &&
       externalInitConfig.recordId
     ) {
-      syncRecord().catch((error: unknown) => {
-        log.error(error);
-      });
+      void syncRecord();
     }
+
+    return () => {
+      recordRequestGenerationRef.current += 1;
+    };
   }, [
     syncRecord,
     reloadRecordTrigger,

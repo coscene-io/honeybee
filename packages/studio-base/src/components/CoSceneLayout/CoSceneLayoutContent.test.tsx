@@ -55,6 +55,14 @@ function recommendation(transport: "default" | "h264"): RecommendedLayoutDescrip
   };
 }
 
+function sameNameRecommendation(transport: "default" | "h264"): RecommendedLayoutDescriptor {
+  return {
+    ...recommendation(transport),
+    workflow: "review",
+    name: "review / viewer",
+  };
+}
+
 describe("CoSceneLayoutContent", () => {
   it("keeps personal and project layouts while showing Default and H.264 recommendations", () => {
     const onSelectRecommendedLayout = jest.fn();
@@ -131,5 +139,43 @@ describe("CoSceneLayoutContent", () => {
     );
 
     expect(screen.queryByText("Recommended layouts")).toBeNull();
+  });
+
+  it("disambiguates same-name transports only in the combined layout view", () => {
+    render(
+      <ThemeProvider isDark>
+        <CoSceneLayoutContent
+          supportsProjectWrite
+          layouts={{ allLayouts: [], personalFolders: [], projectFolders: [] }}
+          recommendedLayouts={[sameNameRecommendation("default"), sameNameRecommendation("h264")]}
+          onSelectLayout={jest.fn()}
+          onSelectRecommendedLayout={jest.fn()}
+          onCopyRecommendedLayout={jest.fn()}
+          onDeleteLayout={jest.fn()}
+          onRenameLayout={jest.fn()}
+          onExportLayout={jest.fn()}
+          onOverwriteLayout={jest.fn()}
+          onRevertLayout={jest.fn()}
+          onCreateLayout={jest.fn()}
+          onMoveLayout={jest.fn()}
+          onClose={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("review / viewer / Default")).toBeDefined();
+    expect(screen.getByText("review / viewer / H.264")).toBeDefined();
+
+    fireEvent.change(screen.getByPlaceholderText("Layout name"), {
+      target: { value: "H.264" },
+    });
+    expect(screen.queryByText("review / viewer / Default")).toBeNull();
+    expect(screen.getByText("review / viewer / H.264")).toBeDefined();
+    fireEvent.change(screen.getByPlaceholderText("Layout name"), { target: { value: "" } });
+
+    fireEvent.click(screen.getByText("Recommended layouts"));
+    fireEvent.click(screen.getAllByText("Default")[0]!);
+    expect(screen.getByText("review / viewer")).toBeDefined();
+    expect(screen.queryByText("review / viewer / Default")).toBeNull();
   });
 });
