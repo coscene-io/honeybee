@@ -30,6 +30,7 @@ import { ColorSchemeThemeProvider } from "./components/ColorSchemeThemeProvider"
 import CssBaseline from "./components/CssBaseline";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AppConfigurationContext from "./context/AppConfigurationContext";
+import { GrowthBookProvider } from "./providers/GrowthBookProvider";
 
 const log = Logger.getLogger(__filename);
 
@@ -121,34 +122,36 @@ export function SharedRoot(
 
   return (
     <AppConfigurationContext.Provider value={appConfiguration}>
-      <PostHogProvider client={posthog}>
-        <ColorSchemeThemeProvider>
-          {enableGlobalCss && <GlobalCss />}
-          <CssBaseline>
-            <ErrorBoundary>
-              <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={adapterLocale}>
-                <SharedRootContext.Provider
-                  value={{
-                    appBarLeftInset,
-                    AppBarComponent,
-                    appConfiguration,
-                    customWindowControlProps,
-                    dataSources,
-                    deepLinks,
-                    enableLaunchPreferenceScreen,
-                    extensionLoaders,
-                    extraProviders,
-                    onAppBarDoubleClick,
-                  }}
-                >
-                  {children}
-                </SharedRootContext.Provider>
-                {toasterPortal}
-              </LocalizationProvider>
-            </ErrorBoundary>
-          </CssBaseline>
-        </ColorSchemeThemeProvider>
-      </PostHogProvider>
+      <GrowthBookProvider>
+        <PostHogProvider client={posthog}>
+          <ColorSchemeThemeProvider>
+            {enableGlobalCss && <GlobalCss />}
+            <CssBaseline>
+              <ErrorBoundary>
+                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={adapterLocale}>
+                  <SharedRootContext.Provider
+                    value={{
+                      appBarLeftInset,
+                      AppBarComponent,
+                      appConfiguration,
+                      customWindowControlProps,
+                      dataSources,
+                      deepLinks,
+                      enableLaunchPreferenceScreen,
+                      extensionLoaders,
+                      extraProviders,
+                      onAppBarDoubleClick,
+                    }}
+                  >
+                    {children}
+                  </SharedRootContext.Provider>
+                  {toasterPortal}
+                </LocalizationProvider>
+              </ErrorBoundary>
+            </CssBaseline>
+          </ColorSchemeThemeProvider>
+        </PostHogProvider>
+      </GrowthBookProvider>
     </AppConfigurationContext.Provider>
   );
 }

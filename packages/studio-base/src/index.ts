@@ -47,6 +47,11 @@ export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
 export { default as ExtensionCatalogProvider } from "./providers/ExtensionCatalogProvider";
 export { SharedProviders } from "./providers/SharedProviders";
+export {
+  GrowthBookProvider,
+  useFeatureIsOnWithConfig,
+  useFeatureValueWithConfig,
+} from "./providers/GrowthBookProvider";
 
 // CoScene
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";
