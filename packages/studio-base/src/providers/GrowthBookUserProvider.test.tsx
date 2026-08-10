@@ -12,7 +12,9 @@ import { createStore } from "zustand";
 import { CoSceneCurrentUserContext } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import type { UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 
-import GrowthBookUserProvider from "./GrowthBookUserProvider";
+import GrowthBookUserProvider, {
+  resolveGrowthBookLocationHostname,
+} from "./GrowthBookUserProvider";
 
 const mockSetAttributes = jest.fn();
 
@@ -21,6 +23,11 @@ jest.mock("@foxglove/studio-base/providers/GrowthBookProvider", () => ({
 }));
 
 describe("GrowthBookUserProvider", () => {
+  afterEach(() => {
+    mockSetAttributes.mockClear();
+    window.cosConfigRemoteHostname = undefined;
+  });
+
   it("updates targeting attributes and clears stale identity after logout", async () => {
     const store = createStore<UserStore>(() => ({
       loginStatus: "alreadyLogin",
@@ -51,6 +58,7 @@ describe("GrowthBookUserProvider", () => {
     await waitFor(() => {
       expect(mockSetAttributes).toHaveBeenLastCalledWith({
         email: "user@example.com",
+        id: "user-1",
         locationHostName: "localhost",
         nickName: "Example User",
         phoneNumber: "1234",
@@ -69,5 +77,9 @@ describe("GrowthBookUserProvider", () => {
         platform: "honeybee",
       });
     });
+  });
+
+  it("uses the remote config hostname for desktop targeting", () => {
+    expect(resolveGrowthBookLocationHostname("", "tenant.coscene.io")).toBe("tenant.coscene.io");
   });
 });

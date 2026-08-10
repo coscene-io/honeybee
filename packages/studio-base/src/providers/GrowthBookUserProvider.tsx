@@ -16,6 +16,13 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 
+export function resolveGrowthBookLocationHostname(
+  locationHostname: string,
+  remoteConfigHostname?: string,
+): string {
+  return locationHostname !== "" ? locationHostname : (remoteConfigHostname ?? "");
+}
+
 export default function GrowthBookUserProvider({ children }: PropsWithChildren): React.JSX.Element {
   const user = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectLoginStatus);
@@ -23,11 +30,15 @@ export default function GrowthBookUserProvider({ children }: PropsWithChildren):
 
   useEffect(() => {
     void getGrowthBookClient().setAttributes({
-      locationHostName: window.location.hostname,
+      locationHostName: resolveGrowthBookLocationHostname(
+        window.location.hostname,
+        window.cosConfigRemoteHostname,
+      ),
       platform: isDesktopApp() ? "coStudio" : "honeybee",
       ...(identifiedUser
         ? {
             email: identifiedUser.email,
+            id: identifiedUser.userId,
             nickName: identifiedUser.nickName,
             phoneNumber: identifiedUser.phoneNumber,
             userId: identifiedUser.userId,
