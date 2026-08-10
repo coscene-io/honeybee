@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { create } from "@bufbuild/protobuf";
-import { FieldMaskSchema, timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { FieldMaskSchema, TimestampSchema, type Timestamp } from "@bufbuild/protobuf/wkt";
 import {
   EventSchema,
   Event,
@@ -26,6 +26,7 @@ import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { v4 as uuidv4 } from "uuid";
 
+import { areEqual, Time } from "@foxglove/rostime";
 import { convertCustomFieldValuesMapToArray } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldForm";
 import { EventForm } from "@foxglove/studio-base/components/Events/CreateEventContainer/component/EventForm";
 import { TaskForm } from "@foxglove/studio-base/components/Events/CreateEventContainer/component/TaskForm";
@@ -47,6 +48,31 @@ const selectOrganization = (store: CoreDataStore) => store.organization;
 
 export function getEventDurationSeconds(duration: number, durationUnit: "sec" | "nsec"): number {
   return Math.max(0, durationUnit === "sec" ? duration : duration / 1e9);
+}
+
+export function timestampFromTime(time: Time): Timestamp {
+  return create(TimestampSchema, {
+    seconds: BigInt(time.sec),
+    nanos: time.nsec,
+  });
+}
+
+export function getEventUpdateMaskPaths(startTime: Time, originalStartTime?: Time): string[] {
+  const paths = [
+    "displayName",
+    "duration_nanos",
+    "description",
+    "duration",
+    "customizedFields",
+    "customFieldValues",
+    "files",
+  ];
+
+  if (originalStartTime == undefined || !areEqual(startTime, originalStartTime)) {
+    paths.unshift("triggerTime");
+  }
+
+  return paths;
 }
 
 function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.ReactNode {
@@ -224,7 +250,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       const newEvent = create(EventSchema, {
         name: toModifyEvent?.name ?? "",
         displayName: event.eventName,
-        triggerTime: timestampFromDate(event.startTime),
+        triggerTime: timestampFromTime(event.startTime),
         duration: secondsToDuration(durationSeconds),
         description: event.description,
         files: imageFiles,
@@ -233,16 +259,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       });
 
       if (isEditing) {
-        const maskArray = [
-          "triggerTime",
-          "displayName",
-          "duration_nanos",
-          "description",
-          "duration",
-          "customizedFields",
-          "customFieldValues",
-          "files",
-        ];
+        const maskArray = getEventUpdateMaskPaths(event.startTime, toModifyEvent.startTime);
 
         await consoleApi.updateEvent({
           event: newEvent,

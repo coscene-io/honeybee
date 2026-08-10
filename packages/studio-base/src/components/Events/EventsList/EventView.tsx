@@ -248,9 +248,7 @@ function EventViewComponent(params: {
     onEdit({
       name: event.event.name,
       eventName: event.event.displayName,
-      startTime: timestampDate(
-        event.event.triggerTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
-      ),
+      startTime: event.startTime,
       duration: durationToSeconds(event.event.duration),
       durationUnit: "sec",
       description: event.event.description,

@@ -30,7 +30,7 @@ import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
-import { fromDate, add, fromSec } from "@foxglove/rostime";
+import { add, fromSec } from "@foxglove/rostime";
 import { positionEventMark } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
 import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
 import {
@@ -478,13 +478,13 @@ export function EventsList(): React.JSX.Element {
                           ) {
                             setEventMarks([
                               positionEventMark({
-                                currentTime: fromDate(currentEvent.startTime),
+                                currentTime: currentEvent.startTime,
                                 startTime,
                                 endTime,
                               }),
                               positionEventMark({
                                 currentTime: add(
-                                  fromDate(currentEvent.startTime),
+                                  currentEvent.startTime,
                                   fromSec(currentEvent.duration),
                                 ),
                                 startTime,
