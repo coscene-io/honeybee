@@ -30,6 +30,12 @@ import {
   LayoutManagerEventTypes,
 } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { ISO8601Timestamp } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
+
+const mockConfirm = jest.fn();
+jest.mock("@foxglove/studio-base/hooks/useConfirm", () => ({
+  useConfirm: () => mockConfirm,
+}));
 
 const TEST_LAYOUT: LayoutData = {
   layout: "ExamplePanel!1",
@@ -162,6 +168,10 @@ function renderTest({ mockLayoutManager }: { mockLayoutManager: ILayoutManager }
 }
 
 describe("CurrentLayoutProvider", () => {
+  beforeEach(() => {
+    mockConfirm.mockReset().mockResolvedValue("ok");
+  });
+
   it("loads layout via setSelectedLayoutId", async () => {
     const expectedState: LayoutData = {
       layout: "Foo!bar",
@@ -197,13 +207,14 @@ describe("CurrentLayoutProvider", () => {
     expect(mockLayoutManager.getLayout.mock.calls).toEqual([[{ id: "example" }]]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
+      { selectedLayout: { loading: true, id: "example", data: undefined, source: "stored" } },
       {
         selectedLayout: {
           loading: false,
           id: "example",
           data: expectedState,
           name: "Example layout",
+          source: "stored",
         },
       },
     ]);
@@ -245,7 +256,7 @@ describe("CurrentLayoutProvider", () => {
     expect(mockLayoutManager.getLayout.mock.calls).toEqual([[{ id: "example" }]]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
+      { selectedLayout: { loading: true, id: "example", data: undefined, source: "stored" } },
       { selectedLayout: undefined },
     ]);
     (console.warn as jest.Mock).mockClear();
@@ -289,22 +300,24 @@ describe("CurrentLayoutProvider", () => {
 
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
+      { selectedLayout: { loading: true, id: "example", data: undefined, source: "stored" } },
       {
         selectedLayout: {
           loading: false,
           id: "example",
           data: TEST_LAYOUT,
           name: "Example layout",
+          source: "stored",
         },
       },
-      { selectedLayout: { loading: true, id: "example2", data: undefined } },
+      { selectedLayout: { loading: true, id: "example2", data: undefined, source: "stored" } },
       {
         selectedLayout: {
           loading: false,
           id: "example2",
           data: newLayout,
           name: "Example layout 2",
+          source: "stored",
         },
       },
     ]);
@@ -360,8 +373,16 @@ describe("CurrentLayoutProvider", () => {
     ]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
-      { selectedLayout: { loading: false, id: "example", data: TEST_LAYOUT, name: "Test layout" } },
+      { selectedLayout: { loading: true, id: "example", data: undefined, source: "stored" } },
+      {
+        selectedLayout: {
+          loading: false,
+          id: "example",
+          data: TEST_LAYOUT,
+          name: "Test layout",
+          source: "stored",
+        },
+      },
       {
         selectedLayout: {
           loading: false,
@@ -370,6 +391,7 @@ describe("CurrentLayoutProvider", () => {
           name: "Test layout",
           edited: true,
           editRevision: expect.any(Number),
+          source: "stored",
         },
       },
     ]);
@@ -610,6 +632,7 @@ describe("CurrentLayoutProvider", () => {
       name: "Test layout",
       loading: false,
       data: baselineData,
+      source: "stored",
     });
     expect(mockLayoutManager.updateLayout).not.toHaveBeenCalled();
     jest.useRealTimers();
@@ -724,6 +747,7 @@ describe("CurrentLayoutProvider", () => {
       name: "Test layout",
       loading: false,
       data: retryData,
+      source: "stored",
     });
 
     act(() => {
@@ -753,6 +777,7 @@ describe("CurrentLayoutProvider", () => {
       name: "Test layout",
       loading: false,
       data: TEST_LAYOUT,
+      source: "stored",
     });
     (console.warn as jest.Mock).mockClear();
   });
@@ -1126,6 +1151,237 @@ describe("CurrentLayoutProvider", () => {
     });
     jest.useRealTimers();
     (console.warn as jest.Mock).mockClear();
+  });
+
+  it("keeps recommended layout edits in memory and ignores initialization changes", async () => {
+    jest.useFakeTimers();
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.updateLayout.mockResolvedValue(undefined);
+    const recommendedLayout: RecommendedLayoutDescriptor = {
+      id: "recommended:RobotA:default" as LayoutID,
+      robot: "RobotA",
+      resolution: "_default",
+      transport: "default",
+      workflow: "review",
+      role: "viewer",
+      name: "review / viewer",
+      url: "https://honeybee-public-layouts.coscene.io/RobotA/default.json",
+    };
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: recommendedLayout.id,
+        data: TEST_LAYOUT,
+        name: recommendedLayout.name,
+        source: "recommended",
+        recommendedLayout,
+      });
+      result.current.actions.savePanelConfigs(
+        { configs: [{ id: "ExamplePanel!1", config: { initialized: true } }] },
+        { source: "initialization" },
+      );
+    });
+
+    expect(result.current.layoutState.selectedLayout).toMatchObject({
+      id: recommendedLayout.id,
+      source: "recommended",
+      edited: undefined,
+      data: { configById: { "ExamplePanel!1": { initialized: true } } },
+    });
+
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { initialized: true, userEdit: true } }],
+      });
+      jest.advanceTimersByTime(1500);
+    });
+    await act(async () => {});
+
+    expect(result.current.layoutState.selectedLayout).toMatchObject({
+      source: "recommended",
+      edited: true,
+      data: {
+        configById: { "ExamplePanel!1": { initialized: true, userEdit: true } },
+      },
+    });
+    expect(mockLayoutManager.updateLayout).not.toHaveBeenCalled();
+    expect(mockLayoutManager.putHistory).not.toHaveBeenCalled();
+    jest.useRealTimers();
+    (console.warn as jest.Mock).mockClear();
+  });
+
+  it("creates and switches to a personal copy only after confirmation", async () => {
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.saveNewLayout.mockResolvedValue({
+      id: "users/u/layouts/copy" as LayoutID,
+      name: "review / viewer copy",
+    });
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: "recommended:RobotA:default" as LayoutID,
+        data: TEST_LAYOUT,
+        name: "review / viewer",
+        source: "recommended",
+      });
+    });
+
+    await act(async () => {
+      await result.current.actions.saveRecommendedLayout();
+    });
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(mockLayoutManager.saveNewLayout).toHaveBeenCalledWith({
+      folder: "",
+      name: "review / viewer copy",
+      data: TEST_LAYOUT,
+      permission: "PERSONAL_WRITE",
+    });
+    expect(mockLayoutManager.putHistory).toHaveBeenCalledWith({ id: "users/u/layouts/copy" });
+    expect(result.current.layoutState.selectedLayout).toEqual({
+      id: "users/u/layouts/copy",
+      data: TEST_LAYOUT,
+      name: "review / viewer copy",
+      source: "stored",
+    });
+  });
+
+  it("keeps the recommendation selected when copying is cancelled or fails", async () => {
+    const mockLayoutManager = makeMockLayoutManager();
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: "recommended:RobotA:default" as LayoutID,
+        data: TEST_LAYOUT,
+        name: "review / viewer",
+        source: "recommended",
+      });
+    });
+
+    mockConfirm.mockResolvedValueOnce("cancel");
+    await act(async () => {
+      await result.current.actions.saveRecommendedLayout();
+    });
+    expect(mockLayoutManager.saveNewLayout).not.toHaveBeenCalled();
+    expect(result.current.layoutState.selectedLayout?.source).toBe("recommended");
+
+    mockConfirm.mockResolvedValueOnce("ok");
+    mockLayoutManager.saveNewLayout.mockRejectedValueOnce(new Error("copy unavailable"));
+    await act(async () => {
+      await result.current.actions.saveRecommendedLayout();
+    });
+    expect(result.current.layoutState.selectedLayout?.source).toBe("recommended");
+    expect(mockLayoutManager.putHistory).not.toHaveBeenCalled();
+    (console.warn as jest.Mock).mockClear();
+  });
+
+  it("prevents duplicate copies and preserves edits made while a copy is saving", async () => {
+    let resolveSave: ((value: { id: LayoutID; name: string }) => void) | undefined;
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.saveNewLayout.mockImplementation(
+      async () =>
+        await new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: "recommended:RobotA:default" as LayoutID,
+        data: TEST_LAYOUT,
+        name: "review / viewer",
+        source: "recommended",
+      });
+    });
+
+    let firstCopy: Promise<void> | undefined;
+    await act(async () => {
+      firstCopy = result.current.actions.saveRecommendedLayout();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await result.current.actions.saveRecommendedLayout();
+    });
+    expect(mockLayoutManager.saveNewLayout).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.actions.savePanelConfigs({
+        configs: [{ id: "ExamplePanel!1", config: { editedDuringCopy: true } }],
+      });
+    });
+    await act(async () => {
+      resolveSave?.({ id: "users/u/layouts/copy" as LayoutID, name: "review / viewer copy" });
+      await firstCopy;
+    });
+
+    expect(result.current.layoutState.selectedLayout).toMatchObject({
+      id: "users/u/layouts/copy",
+      source: "stored",
+      edited: true,
+      data: { configById: { "ExamplePanel!1": { editedDuringCopy: true } } },
+    });
+    expect(mockLayoutManager.putHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a stale copy request switch away from a newer selection", async () => {
+    let resolveSave: ((value: { id: LayoutID; name: string }) => void) | undefined;
+    const mockLayoutManager = makeMockLayoutManager();
+    mockLayoutManager.saveNewLayout.mockImplementation(
+      async () =>
+        await new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const { result } = renderTest({ mockLayoutManager });
+    await act(async () => {
+      await result.current.childMounted;
+    });
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: "recommended:RobotA:default" as LayoutID,
+        data: TEST_LAYOUT,
+        name: "review / viewer",
+        source: "recommended",
+      });
+    });
+
+    let copy: Promise<void> | undefined;
+    await act(async () => {
+      copy = result.current.actions.saveRecommendedLayout();
+      await Promise.resolve();
+    });
+    act(() => {
+      result.current.actions.setCurrentLayout({
+        id: "users/u/layouts/newer" as LayoutID,
+        data: TEST_LAYOUT,
+        name: "Newer selection",
+        source: "stored",
+      });
+    });
+    await act(async () => {
+      resolveSave?.({ id: "users/u/layouts/copy" as LayoutID, name: "review / viewer copy" });
+      await copy;
+    });
+
+    expect(result.current.layoutState.selectedLayout).toMatchObject({
+      id: "users/u/layouts/newer",
+      name: "Newer selection",
+    });
+    expect(mockLayoutManager.putHistory).not.toHaveBeenCalled();
   });
 
   it("keeps identity of action functions when modifying layout", async () => {

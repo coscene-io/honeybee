@@ -91,4 +91,15 @@ export const layout: Partial<TypeOptions["resources"]["layout"]> = {
   searchLayoutName: "搜索布局名称",
   copyLayoutSuccess: "复制成功，布局已切换",
   pleaseSelectProject: "请选择项目",
+  recommendedLayout: "推荐布局",
+  systemRecommended: "系统推荐",
+  defaultLayoutFolder: "Default",
+  h264: "H.264",
+  recommendedLayoutReadOnlyTitle: "保存个人副本？",
+  recommendedLayoutReadOnlyPrompt:
+    "推荐布局不可修改。当前布局内容（包括临时调整）将保存为新建的个人布局副本。",
+  recommendedLayoutCopyFailed: "创建个人布局副本失败：{{message}}",
+  recommendedLayoutLoadFailed: "加载推荐布局失败：{{message}}",
+  discardRecommendedChangesTitle: "放弃推荐布局的临时修改？",
+  discardRecommendedChangesPrompt: "切换布局后，当前临时修改将丢失且无法恢复。",
 };

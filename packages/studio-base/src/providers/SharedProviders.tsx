@@ -20,6 +20,7 @@ import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/provid
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
+import RecommendedLayoutProvider from "@foxglove/studio-base/providers/RecommendedLayoutProvider";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
 import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
@@ -56,6 +57,7 @@ export function SharedProviders({
       <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
+      <RecommendedLayoutProvider key="RecommendedLayoutProvider" />,
     ],
     [consoleApi, loginStatusKey, layoutStorage, urdfStorage, s3FileService],
   );

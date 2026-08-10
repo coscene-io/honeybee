@@ -11,6 +11,7 @@ import { makeStyles } from "tss-react/mui";
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
 
 import { CoSceneLayoutContent } from "./CoSceneLayoutContent";
 
@@ -46,6 +47,9 @@ interface CoSceneLayoutDrawerProps extends DrawerProps {
   onOverwriteLayout: (layout: Layout) => Promise<void>;
   onRevertLayout: (layout: Layout) => Promise<void>;
   onCreateLayout: (params: CreateLayoutParams) => Promise<void>;
+  recommendedLayouts: readonly RecommendedLayoutDescriptor[];
+  onSelectRecommendedLayout: (layout: RecommendedLayoutDescriptor) => Promise<void>;
+  onCopyRecommendedLayout: (layout: RecommendedLayoutDescriptor) => Promise<void>;
   layouts?: {
     personalFolders: string[];
     projectFolders: string[];
@@ -68,6 +72,9 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
     onOverwriteLayout,
     onRevertLayout,
     onCreateLayout,
+    recommendedLayouts,
+    onSelectRecommendedLayout,
+    onCopyRecommendedLayout,
     layouts,
   } = props;
 
@@ -98,6 +105,9 @@ export function CoSceneLayoutDrawer(props: CoSceneLayoutDrawerProps): React.JSX.
             onOverwriteLayout={onOverwriteLayout}
             onRevertLayout={onRevertLayout}
             onCreateLayout={onCreateLayout}
+            recommendedLayouts={recommendedLayouts}
+            onSelectRecommendedLayout={onSelectRecommendedLayout}
+            onCopyRecommendedLayout={onCopyRecommendedLayout}
             onClose={onClose}
           />
         </Box>

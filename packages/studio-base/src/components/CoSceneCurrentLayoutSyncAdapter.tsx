@@ -85,7 +85,11 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   const isMounted = useMountedState();
 
   useEffect(() => {
-    if (selectedLayout?.edited === true && selectedLayout.transient !== true) {
+    if (
+      selectedLayout?.edited === true &&
+      selectedLayout.transient !== true &&
+      selectedLayout.source !== "recommended"
+    ) {
       setUnsavedLayouts((old) => ({
         ...old,
         [selectedLayout.id]: selectedLayout,

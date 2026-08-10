@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useSnackbar } from "notistack";
-import { useEffect, useLayoutEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import Logger from "@foxglove/log";
@@ -21,6 +21,7 @@ import {
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { useRecommendedLayouts } from "@foxglove/studio-base/context/RecommendedLayoutContext";
 import {
   useWorkspaceStore,
   WorkspaceContextStore,
@@ -31,6 +32,8 @@ import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
+import { isLayoutEqual } from "@foxglove/studio-base/services/LayoutManager/compareLayouts";
+import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
 import { downloadTextFile } from "@foxglove/studio-base/util/download";
 
 import { CoSceneLayoutDrawer } from "./CoSceneLayoutDrawer";
@@ -41,6 +44,7 @@ const log = Logger.getLogger(__filename);
 
 const layoutDrawerOpen = (store: WorkspaceContextStore) => store.layoutDrawer.open;
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
+const selectedLayoutSelector = (state: LayoutState) => state.selectedLayout;
 
 function getCurrentLayoutParams(state: LayoutState, id: LayoutID) {
   const selectedLayout = state.selectedLayout;
@@ -79,14 +83,25 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const layouts = useCurrentLayout();
   const currentLayoutId = useCurrentLayoutSelector(selectedLayoutIdSelector);
+  const selectedLayout = useCurrentLayoutSelector(selectedLayoutSelector);
+  const recommendedLayouts = useRecommendedLayouts();
+  const recommendedLayoutsRef = useRef(recommendedLayouts);
+  recommendedLayoutsRef.current = recommendedLayouts;
 
   const { enqueueSnackbar } = useSnackbar();
   const analytics = useAnalytics();
   const { t } = useTranslation("layout");
   const confirm = useConfirm();
+  const layoutSelectionGeneration = useRef(0);
 
   const layoutManager = useLayoutManager();
-  const { getCurrentLayoutState, setSelectedLayoutId } = useCurrentLayoutActions();
+  const {
+    getCurrentLayoutState,
+    saveRecommendedLayout,
+    setCurrentLayout,
+    setSelectedLayoutId,
+    withRecommendedLayoutCopyLock,
+  } = useCurrentLayoutActions();
 
   const [state, dispatch] = useLayoutBrowserReducer({
     lastSelectedId: currentLayoutId,
@@ -172,14 +187,198 @@ export function CoSceneLayoutButton(): React.JSX.Element {
     });
   }, [dispatch, enqueueSnackbar, getCurrentLayoutState, layoutManager, state.multiAction]);
 
+  const confirmDiscardRecommendedChanges = useCallback(async (): Promise<boolean> => {
+    const currentLayout = getCurrentLayoutState().selectedLayout;
+    if (currentLayout?.source !== "recommended" || currentLayout.edited !== true) {
+      return true;
+    }
+    const response = await confirm({
+      variant: "danger",
+      title: t("discardRecommendedChangesTitle"),
+      prompt: t("discardRecommendedChangesPrompt"),
+      ok: t("discardChanges"),
+      cancel: t("cancel", { ns: "general" }),
+    });
+    return response === "ok";
+  }, [confirm, getCurrentLayoutState, t]);
+
   const onSelectLayout = useCallbackWithToast(
     async (item: Layout) => {
+      const selectionGeneration = ++layoutSelectionGeneration.current;
+      if (!(await confirmDiscardRecommendedChanges())) {
+        return;
+      }
+      if (selectionGeneration !== layoutSelectionGeneration.current) {
+        return;
+      }
       void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: item.permission });
       setSelectedLayoutId(item.id);
       dispatch({ type: "select-id", id: item.id });
       layoutDrawer.close();
     },
-    [analytics, dispatch, setSelectedLayoutId, layoutDrawer],
+    [analytics, confirmDiscardRecommendedChanges, dispatch, setSelectedLayoutId, layoutDrawer],
+  );
+
+  const onSelectRecommendedLayout = useCallbackWithToast(
+    async (descriptor: RecommendedLayoutDescriptor) => {
+      const selectionGeneration = ++layoutSelectionGeneration.current;
+      if (!(await confirmDiscardRecommendedChanges())) {
+        return;
+      }
+      if (selectionGeneration !== layoutSelectionGeneration.current) {
+        return;
+      }
+      const selectedLayoutBeforeLoad = getCurrentLayoutState().selectedLayout;
+      const data = await recommendedLayouts.loadLayout(descriptor);
+      if (selectionGeneration !== layoutSelectionGeneration.current) {
+        return;
+      }
+      if (
+        !recommendedLayoutsRef.current.layouts.some(
+          (layout) => layout.id === descriptor.id && layout.url === descriptor.url,
+        )
+      ) {
+        return;
+      }
+      if (getCurrentLayoutState().selectedLayout !== selectedLayoutBeforeLoad) {
+        return;
+      }
+      setCurrentLayout({
+        id: descriptor.id,
+        name: descriptor.name,
+        data,
+        source: "recommended",
+        recommendedLayout: descriptor,
+      });
+      void analytics.logEvent(AppEvent.LAYOUT_SELECT, { permission: "RECOMMENDED" });
+      dispatch({ type: "select-id", id: descriptor.id });
+      layoutDrawer.close();
+    },
+    [
+      analytics,
+      confirmDiscardRecommendedChanges,
+      dispatch,
+      getCurrentLayoutState,
+      layoutDrawer,
+      recommendedLayouts,
+      setCurrentLayout,
+    ],
+  );
+
+  const onCopyRecommendedLayout = useCallbackWithToast(
+    async (descriptor: RecommendedLayoutDescriptor) => {
+      await withRecommendedLayoutCopyLock(async () => {
+        const selectionGeneration = ++layoutSelectionGeneration.current;
+        const currentLayoutBeforeConfirm = getCurrentLayoutState().selectedLayout;
+        const wasActiveRecommendation =
+          currentLayoutBeforeConfirm?.source === "recommended" &&
+          currentLayoutBeforeConfirm.id === descriptor.id;
+        if (!wasActiveRecommendation && !(await confirmDiscardRecommendedChanges())) {
+          return;
+        }
+        if (selectionGeneration !== layoutSelectionGeneration.current) {
+          return;
+        }
+
+        const response = await confirm({
+          title: t("recommendedLayoutReadOnlyTitle"),
+          prompt: t("recommendedLayoutReadOnlyPrompt"),
+          ok: t("saveAPersonalCopy"),
+          cancel: t("cancel", { ns: "general" }),
+        });
+        if (response !== "ok") {
+          return;
+        }
+        if (selectionGeneration !== layoutSelectionGeneration.current) {
+          return;
+        }
+
+        const selectedLayoutBeforeCopy = getCurrentLayoutState().selectedLayout;
+        const isActiveRecommendation =
+          selectedLayoutBeforeCopy?.source === "recommended" &&
+          selectedLayoutBeforeCopy.id === descriptor.id;
+        if (isActiveRecommendation !== wasActiveRecommendation) {
+          return;
+        }
+        try {
+          const data = isActiveRecommendation
+            ? selectedLayoutBeforeCopy.data
+            : await recommendedLayouts.loadLayout(descriptor);
+          if (!data || selectionGeneration !== layoutSelectionGeneration.current) {
+            return;
+          }
+          if (
+            !isActiveRecommendation &&
+            !recommendedLayoutsRef.current.layouts.some(
+              (layout) => layout.id === descriptor.id && layout.url === descriptor.url,
+            )
+          ) {
+            return;
+          }
+          if (
+            !isActiveRecommendation &&
+            getCurrentLayoutState().selectedLayout !== selectedLayoutBeforeCopy
+          ) {
+            return;
+          }
+
+          const newLayout = await layoutManager.saveNewLayout({
+            folder: "",
+            name: `${descriptor.name} copy`,
+            data,
+            permission: "PERSONAL_WRITE",
+          });
+          void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+          if (selectionGeneration !== layoutSelectionGeneration.current) {
+            return;
+          }
+
+          const latestLayout = getCurrentLayoutState().selectedLayout;
+          if (isActiveRecommendation) {
+            if (
+              latestLayout?.source !== "recommended" ||
+              latestLayout.id !== descriptor.id ||
+              latestLayout.data == undefined
+            ) {
+              return;
+            }
+            const editedSinceSave = !isLayoutEqual(data, latestLayout.data);
+            setCurrentLayout({
+              id: newLayout.id,
+              name: newLayout.name,
+              data: latestLayout.data,
+              source: "stored",
+              ...(editedSinceSave ? { edited: true, editRevision: latestLayout.editRevision } : {}),
+            });
+            void layoutManager.putHistory({ id: newLayout.id });
+          } else {
+            if (latestLayout !== selectedLayoutBeforeCopy) {
+              return;
+            }
+            setSelectedLayoutId(newLayout.id);
+          }
+          enqueueSnackbar(t("copyLayoutSuccess"), { variant: "success" });
+          layoutDrawer.close();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          enqueueSnackbar(t("recommendedLayoutCopyFailed", { message }), { variant: "error" });
+        }
+      });
+    },
+    [
+      analytics,
+      confirm,
+      confirmDiscardRecommendedChanges,
+      enqueueSnackbar,
+      getCurrentLayoutState,
+      layoutDrawer,
+      layoutManager,
+      recommendedLayouts,
+      setCurrentLayout,
+      setSelectedLayoutId,
+      t,
+      withRecommendedLayoutCopyLock,
+    ],
   );
 
   const onRenameLayout = useCallbackWithToast(
@@ -318,6 +517,14 @@ export function CoSceneLayoutButton(): React.JSX.Element {
 
   const onCreateLayout = useCallbackWithToast(
     async (params: CreateLayoutParams) => {
+      const selectionGeneration = ++layoutSelectionGeneration.current;
+      if (!(await confirmDiscardRecommendedChanges())) {
+        return;
+      }
+      if (selectionGeneration !== layoutSelectionGeneration.current) {
+        return;
+      }
+      const selectedLayoutBeforeCreate = getCurrentLayoutState().selectedLayout;
       const data = params.data ?? {
         configById: {},
         globalVariables: {},
@@ -330,11 +537,26 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         data,
         permission: params.permission,
       });
-      void onSelectLayout(newLayout);
-
       void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+      if (
+        selectionGeneration !== layoutSelectionGeneration.current ||
+        getCurrentLayoutState().selectedLayout !== selectedLayoutBeforeCreate
+      ) {
+        return;
+      }
+      setSelectedLayoutId(newLayout.id);
+      dispatch({ type: "select-id", id: newLayout.id });
+      layoutDrawer.close();
     },
-    [layoutManager, onSelectLayout, analytics],
+    [
+      analytics,
+      confirmDiscardRecommendedChanges,
+      dispatch,
+      getCurrentLayoutState,
+      layoutDrawer,
+      layoutManager,
+      setSelectedLayoutId,
+    ],
   );
 
   return (
@@ -343,6 +565,8 @@ export function CoSceneLayoutButton(): React.JSX.Element {
         currentLayoutId={currentLayoutId}
         layouts={layouts.value}
         loading={layouts.loading}
+        selectedLayout={selectedLayout}
+        onSaveRecommendedLayout={saveRecommendedLayout}
         onOverwriteLayout={onOverwriteLayout}
         onRevertLayout={onRevertLayout}
         onClick={layoutDrawer.open}
@@ -353,7 +577,10 @@ export function CoSceneLayoutButton(): React.JSX.Element {
           supportsProjectWrite={consoleApi.createProjectLayout.permission()}
           open
           layouts={layouts.value}
+          recommendedLayouts={recommendedLayouts.layouts}
           onSelectLayout={onSelectLayout}
+          onSelectRecommendedLayout={onSelectRecommendedLayout}
+          onCopyRecommendedLayout={onCopyRecommendedLayout}
           onDeleteLayout={onDeleteLayout}
           onRenameLayout={onRenameLayout}
           onMoveLayout={onMoveLayout}

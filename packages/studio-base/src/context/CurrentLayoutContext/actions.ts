@@ -69,7 +69,11 @@ export type CreateTabPanelPayload = {
   singleTab: boolean;
 };
 
-export type SAVE_PANEL_CONFIGS = { type: "SAVE_PANEL_CONFIGS"; payload: SaveConfigsPayload };
+export type SAVE_PANEL_CONFIGS = {
+  type: "SAVE_PANEL_CONFIGS";
+  payload: SaveConfigsPayload;
+  source?: "user" | "initialization";
+};
 export type SAVE_FULL_PANEL_CONFIG = {
   type: "SAVE_FULL_PANEL_CONFIG";
   payload: SaveFullConfigPayload;

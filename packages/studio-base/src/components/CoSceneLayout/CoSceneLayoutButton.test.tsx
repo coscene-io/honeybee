@@ -31,6 +31,9 @@ import { CoSceneLayoutButton } from "./CoSceneLayoutButton";
 const currentId = "mock-layout" as LayoutID;
 const secondId = "users/u/layouts/2" as LayoutID;
 const mockDispatch = jest.fn();
+const mockConfirm = jest.fn();
+const mockCurrentLayoutButtonRender = jest.fn();
+const mockLayoutDrawerRender = jest.fn();
 const mockState = {
   busy: false,
   error: undefined,
@@ -52,12 +55,30 @@ jest.mock("@foxglove/studio-base/context/CoSceneConsoleApiContext", () => ({
   }),
 }));
 
+jest.mock("@foxglove/studio-base/context/RecommendedLayoutContext", () => ({
+  useRecommendedLayouts: () => ({
+    status: "ready",
+    layouts: [],
+    loadLayout: jest.fn(),
+  }),
+}));
+
 jest.mock("./CoSceneLayoutDrawer", () => ({
-  CoSceneLayoutDrawer: () => undefined,
+  CoSceneLayoutDrawer: (props: unknown) => {
+    mockLayoutDrawerRender(props);
+    return undefined;
+  },
 }));
 
 jest.mock("./CurrentLayoutButton", () => ({
-  CurrentLayoutButton: () => undefined,
+  CurrentLayoutButton: (props: unknown) => {
+    mockCurrentLayoutButtonRender(props);
+    return undefined;
+  },
+}));
+
+jest.mock("@foxglove/studio-base/hooks/useConfirm", () => ({
+  useConfirm: () => mockConfirm,
 }));
 
 jest.mock("./hooks/useCurrentLayout", () => ({
@@ -154,6 +175,9 @@ function Wrapper({
 describe("<CoSceneLayoutButton />", () => {
   beforeEach(() => {
     mockDispatch.mockClear();
+    mockConfirm.mockReset().mockResolvedValue("ok");
+    mockCurrentLayoutButtonRender.mockClear();
+    mockLayoutDrawerRender.mockClear();
   });
 
   it("does not restart a queued multi-save when the current layout changes during the save", async () => {
@@ -206,5 +230,78 @@ describe("<CoSceneLayoutButton />", () => {
     expect(overwriteCalls.map((call) => call.id)).toEqual([currentId]);
 
     resolveOverwrite?.(currentLayout);
+  });
+
+  it("keeps edited recommended content when switching is cancelled", async () => {
+    const layoutManager = new MockCoSceneLayoutManager();
+    layoutManager.isOnline = true;
+    let currentLayoutActions: ReturnType<typeof useCurrentLayoutActions> | undefined;
+
+    render(
+      <Wrapper
+        layoutManager={layoutManager}
+        captureActions={(actions) => {
+          currentLayoutActions = actions;
+        }}
+      >
+        <CoSceneLayoutButton />
+      </Wrapper>,
+    );
+    if (!currentLayoutActions) {
+      throw new Error("Current layout actions were not captured");
+    }
+    const actions = currentLayoutActions;
+    act(() => {
+      actions.setCurrentLayout({
+        id: "recommended:RobotA:default" as LayoutID,
+        data: layoutData("temporary edit"),
+        name: "review / viewer",
+        source: "recommended",
+        edited: true,
+      });
+    });
+
+    const currentButtonProps = mockCurrentLayoutButtonRender.mock.lastCall?.[0] as
+      | { onClick: () => void }
+      | undefined;
+    if (!currentButtonProps) {
+      throw new Error("Current layout button props were not captured");
+    }
+    act(() => {
+      currentButtonProps.onClick();
+    });
+    await waitFor(() => {
+      expect(mockLayoutDrawerRender).toHaveBeenCalled();
+    });
+    const drawerProps = mockLayoutDrawerRender.mock.lastCall?.[0] as
+      | { onSelectLayout: (layout: Layout) => Promise<void> }
+      | undefined;
+    if (!drawerProps) {
+      throw new Error("Layout drawer props were not captured");
+    }
+
+    mockConfirm.mockResolvedValueOnce("cancel");
+    await act(async () => {
+      await drawerProps.onSelectLayout(
+        makeLayout({
+          id: secondId,
+          name: "Stored layout",
+          data: layoutData("stored"),
+        }),
+      );
+    });
+
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Discard changes to the recommended layout?",
+        prompt: expect.stringContaining("temporary changes"),
+      }),
+    );
+    expect(actions.getCurrentLayoutState().selectedLayout).toMatchObject({
+      id: "recommended:RobotA:default",
+      source: "recommended",
+      edited: true,
+      data: layoutData("temporary edit"),
+    });
   });
 });

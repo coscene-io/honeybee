@@ -15,6 +15,8 @@ import {
   Equalizer as EqualizerIcon,
   MoreVert as MoreVertIcon,
   Close as CloseIcon,
+  AutoAwesomeOutlined as AutoAwesomeOutlinedIcon,
+  ContentCopyOutlined as ContentCopyOutlinedIcon,
 } from "@mui/icons-material";
 import {
   Box,
@@ -50,6 +52,7 @@ import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDa
 import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
 
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
 const selectNoProject = (state: CoreDataStore) => !state.externalInitConfig?.projectId;
@@ -61,8 +64,9 @@ interface LayoutWithFolder {
   name: string;
   folder: string;
   isFolder: boolean;
-  category: "personal" | "project";
+  category: "personal" | "project" | "recommended";
   layout?: Layout;
+  recommendedLayout?: RecommendedLayoutDescriptor;
   updateTime?: number;
 }
 
@@ -192,6 +196,9 @@ export function CoSceneLayoutContent({
   onRevertLayout,
   onCreateLayout,
   onMoveLayout,
+  recommendedLayouts,
+  onSelectRecommendedLayout,
+  onCopyRecommendedLayout,
   onClose,
 }: {
   currentLayoutId?: LayoutID;
@@ -209,6 +216,9 @@ export function CoSceneLayoutContent({
   onRevertLayout: (layout: Layout) => void;
   onCreateLayout: (params: CreateLayoutParams) => void;
   onMoveLayout: (layout: Layout, newFolder: string) => void;
+  recommendedLayouts: readonly RecommendedLayoutDescriptor[];
+  onSelectRecommendedLayout: (layout: RecommendedLayoutDescriptor) => void;
+  onCopyRecommendedLayout: (layout: RecommendedLayoutDescriptor) => void;
   onClose: () => void;
 }): React.JSX.Element {
   const loginStatus = useCurrentUser(selectLoginStatus);
@@ -217,7 +227,7 @@ export function CoSceneLayoutContent({
   const { t, i18n } = useTranslation(["layout", "openDialog"]);
   const { classes } = useStyles();
   const [selectedFolder, setSelectedFolder] = useState<{
-    category: "all" | "personal" | "project";
+    category: "all" | "personal" | "project" | "recommended";
     folder: string;
   }>({ category: "all", folder: "" });
   const [searchQuery, setSearchQuery] = useState("");
@@ -263,45 +273,66 @@ export function CoSceneLayoutContent({
 
   // Filter layouts based on selection
   const rows: LayoutWithFolder[] = useMemo(() => {
-    if (!layouts) {
-      return [];
-    }
-
-    let filtered: Layout[] = layouts.allLayouts;
+    let filtered: Layout[] = layouts?.allLayouts ?? [];
+    let filteredRecommended = [...recommendedLayouts];
     if (selectedFolder.category === "personal") {
       filtered = filtered.filter((l) => l.permission === "PERSONAL_WRITE");
+      filteredRecommended = [];
     } else if (selectedFolder.category === "project") {
       filtered = filtered.filter((l) => layoutIsProject(l));
+      filteredRecommended = [];
+    } else if (selectedFolder.category === "recommended") {
+      filtered = [];
     }
 
-    let folders: string[] = [];
+    let folders: Array<{
+      category: "personal" | "project" | "recommended";
+      folder: string;
+    }> = [];
     if (searchQuery) {
-      filtered = filtered.filter((l) =>
-        l.name.toLowerCase().includes(searchQuery.toLowerCase().trim()),
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((l) => l.name.toLowerCase().includes(query));
+      filteredRecommended = filteredRecommended.filter((layout) =>
+        layout.name.toLowerCase().includes(query),
       );
     } else {
-      if (selectedFolder.category !== "all") {
+      if (selectedFolder.category === "personal" || selectedFolder.category === "project") {
         filtered = filtered.filter((l) => l.folder === selectedFolder.folder);
+      } else if (selectedFolder.category === "recommended") {
+        filteredRecommended = selectedFolder.folder
+          ? filteredRecommended.filter((layout) => layout.transport === selectedFolder.folder)
+          : [];
       }
 
       if (!selectedFolder.folder) {
         if (selectedFolder.category === "personal") {
-          folders = layouts.personalFolders;
+          folders = (layouts?.personalFolders ?? []).map((folder) => ({
+            category: "personal",
+            folder,
+          }));
         } else if (selectedFolder.category === "project") {
-          folders = layouts.projectFolders;
+          folders = (layouts?.projectFolders ?? []).map((folder) => ({
+            category: "project",
+            folder,
+          }));
+        } else if (selectedFolder.category === "recommended") {
+          folders = (["default", "h264"] as const).map((folder) => ({
+            category: "recommended",
+            folder,
+          }));
         }
       }
     }
 
     return [
       ...folders
-        .map((folder) => {
+        .map(({ category, folder }) => {
           return {
-            id: Math.random().toString(),
+            id: `folder:${category}:${folder}`,
             name: folder,
             folder,
             isFolder: true,
-            category: selectedFolder.category as "personal" | "project",
+            category,
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name)),
@@ -320,8 +351,21 @@ export function CoSceneLayoutContent({
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name)),
+      ...filteredRecommended
+        .map((recommendedLayout) => ({
+          id: recommendedLayout.id,
+          recommendedLayout,
+          name: recommendedLayout.name,
+          folder: recommendedLayout.transport,
+          isFolder: false,
+          category: "recommended" as const,
+          updateTime: recommendedLayout.generatedAt
+            ? new Date(recommendedLayout.generatedAt).getTime()
+            : 0,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
     ];
-  }, [layouts, selectedFolder.category, selectedFolder.folder, searchQuery]);
+  }, [layouts, recommendedLayouts, selectedFolder.category, selectedFolder.folder, searchQuery]);
 
   // Define DataGrid columns
   const columns: GridColDef<LayoutWithFolder>[] = useMemo(
@@ -333,11 +377,11 @@ export function CoSceneLayoutContent({
         align: "center",
         sortable: false,
         renderCell: (params) => {
-          const { layout } = params.row;
-          if (!layout) {
+          const { layout, recommendedLayout } = params.row;
+          if (!layout && !recommendedLayout) {
             return;
           }
-          const isActive = currentLayoutId === layout.id;
+          const isActive = currentLayoutId === (layout?.id ?? recommendedLayout?.id);
 
           return (
             <Box display="flex" alignItems="center" justifyContent="center">
@@ -349,7 +393,11 @@ export function CoSceneLayoutContent({
                     size="small"
                     className="play-button"
                     onClick={() => {
-                      onSelectLayout(layout);
+                      if (layout) {
+                        onSelectLayout(layout);
+                      } else if (recommendedLayout) {
+                        onSelectRecommendedLayout(recommendedLayout);
+                      }
                     }}
                   >
                     <PlayArrowIcon />
@@ -367,8 +415,14 @@ export function CoSceneLayoutContent({
         minWidth: 200,
         sortable: true,
         renderCell: (params) => {
-          const { layout, name, category } = params.row;
-          if (!layout) {
+          const { layout, recommendedLayout, name, category } = params.row;
+          if (!layout && !recommendedLayout) {
+            const displayName =
+              category === "recommended"
+                ? name === "h264"
+                  ? t("h264")
+                  : t("defaultLayoutFolder")
+                : name;
             return (
               <Link
                 className={classes.layoutNameBox}
@@ -378,7 +432,7 @@ export function CoSceneLayoutContent({
               >
                 <FolderOutlinedIcon fontSize="small" />
                 <Typography variant="body2" noWrap textOverflow="ellipsis">
-                  {name}
+                  {displayName}
                 </Typography>
               </Link>
             );
@@ -387,16 +441,22 @@ export function CoSceneLayoutContent({
             <Link
               className={classes.layoutNameBox}
               onClick={() => {
-                onSelectLayout(layout);
+                if (layout) {
+                  onSelectLayout(layout);
+                } else if (recommendedLayout) {
+                  onSelectRecommendedLayout(recommendedLayout);
+                }
               }}
             >
-              {layout.permission === "PERSONAL_WRITE" ? (
+              {recommendedLayout ? (
+                <AutoAwesomeOutlinedIcon fontSize="small" />
+              ) : layout?.permission === "PERSONAL_WRITE" ? (
                 <PersonOutlinedIcon fontSize="small" />
               ) : (
                 <BusinessCenterOutlinedIcon fontSize="small" />
               )}
               <Typography variant="body2" noWrap textOverflow="ellipsis">
-                {layout.name}
+                {layout?.name ?? recommendedLayout?.name}
               </Typography>
             </Link>
           );
@@ -411,11 +471,11 @@ export function CoSceneLayoutContent({
         align: "left",
         headerAlign: "left",
         renderCell: (params) => {
-          const { layout } = params.row;
-          if (!layout) {
+          const { layout, recommendedLayout } = params.row;
+          if (!layout && !recommendedLayout) {
             return;
           }
-          const savedAt = layout.baseline.savedAt;
+          const savedAt = layout?.baseline.savedAt ?? recommendedLayout?.generatedAt;
           return savedAt ? dayjs(savedAt).fromNow() : "-";
         },
       },
@@ -425,11 +485,15 @@ export function CoSceneLayoutContent({
         width: 150,
         sortable: false,
         renderCell: (params) => {
-          const { layout } = params.row;
-          if (!layout) {
+          const { layout, recommendedLayout } = params.row;
+          if (!layout && !recommendedLayout) {
             return;
           }
-          return <Typography variant="body2">{layout.baseline.modifierNickname}</Typography>;
+          return (
+            <Typography variant="body2">
+              {recommendedLayout ? t("systemRecommended") : layout?.baseline.modifierNickname}
+            </Typography>
+          );
         },
       },
       {
@@ -454,7 +518,20 @@ export function CoSceneLayoutContent({
         minWidth: 48,
         align: "right",
         getActions: (params) => {
-          const { layout } = params.row;
+          const { layout, recommendedLayout } = params.row;
+          if (recommendedLayout) {
+            return [
+              <GridActionsCellItem
+                key="copy"
+                icon={<ContentCopyOutlinedIcon />}
+                label={t("saveAPersonalCopy")}
+                onClick={() => {
+                  onCopyRecommendedLayout(recommendedLayout);
+                }}
+                showInMenu={false}
+              />,
+            ];
+          }
           if (!layout) {
             return [];
           }
@@ -477,6 +554,8 @@ export function CoSceneLayoutContent({
       t,
       setSelectedFolder,
       onSelectLayout,
+      onSelectRecommendedLayout,
+      onCopyRecommendedLayout,
       handleMenuOpen,
       classes.layoutNameBox,
       classes.workingIndicator,
@@ -484,7 +563,7 @@ export function CoSceneLayoutContent({
   );
 
   const items: {
-    category: "all" | "personal" | "project";
+    category: "all" | "personal" | "project" | "recommended";
     label: string;
     icon: React.ReactNode;
     folders?: string[];
@@ -506,6 +585,16 @@ export function CoSceneLayoutContent({
       icon: <BusinessCenterOutlinedIcon />,
       folders: layouts?.projectFolders ?? [],
     },
+    ...(recommendedLayouts.length > 0
+      ? [
+          {
+            category: "recommended" as const,
+            label: t("recommendedLayout"),
+            icon: <AutoAwesomeOutlinedIcon />,
+            folders: ["default", "h264"],
+          },
+        ]
+      : []),
   ];
 
   let empty: React.ReactNode | undefined;
@@ -563,7 +652,13 @@ export function CoSceneLayoutContent({
                           <FolderOutlinedIcon />
                         </ListItemIcon>
                         <ListItemText
-                          primary={folder}
+                          primary={
+                            item.category === "recommended"
+                              ? folder === "h264"
+                                ? t("h264")
+                                : t("defaultLayoutFolder")
+                              : folder
+                          }
                           slotProps={{
                             primary: {
                               noWrap: true,
@@ -598,7 +693,9 @@ export function CoSceneLayoutContent({
                       ? t("personalLayout")
                       : selectedFolder.category === "project"
                         ? t("projectLayout")
-                        : t("allLayout")}
+                        : selectedFolder.category === "recommended"
+                          ? t("recommendedLayout")
+                          : t("allLayout")}
                   </Link>
                 ) : (
                   <Typography>
@@ -606,10 +703,20 @@ export function CoSceneLayoutContent({
                       ? t("personalLayout")
                       : selectedFolder.category === "project"
                         ? t("projectLayout")
-                        : t("allLayout")}
+                        : selectedFolder.category === "recommended"
+                          ? t("recommendedLayout")
+                          : t("allLayout")}
                   </Typography>
                 )}
-                {selectedFolder.folder && <Typography>{selectedFolder.folder}</Typography>}
+                {selectedFolder.folder && (
+                  <Typography>
+                    {selectedFolder.category === "recommended"
+                      ? selectedFolder.folder === "h264"
+                        ? t("h264")
+                        : t("defaultLayoutFolder")
+                      : selectedFolder.folder}
+                  </Typography>
+                )}
               </Breadcrumbs>
               <Box className={classes.closeButton}>
                 <IconButton onClick={onClose}>
