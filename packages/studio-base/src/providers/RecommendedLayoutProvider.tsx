@@ -28,7 +28,8 @@ const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 export default function RecommendedLayoutProvider({
   children,
-}: PropsWithChildren): React.JSX.Element {
+  enabled = true,
+}: PropsWithChildren<{ enabled?: boolean }>): React.JSX.Element {
   const consoleApi = useConsoleApi();
   const record = useCoreData(selectRecord);
   const showtUrlKey = useCoreData(selectShowtUrlKey);
@@ -43,6 +44,11 @@ export default function RecommendedLayoutProvider({
     deviceTypeValue?.kind.case === "stringValue" ? deviceTypeValue.kind.value : undefined;
 
   useEffect(() => {
+    if (!enabled) {
+      setState({ status: "ready", layouts: [] });
+      return;
+    }
+
     if (dataSource != undefined) {
       hasSelectedDataSourceRef.current = true;
     }
@@ -129,7 +135,16 @@ export default function RecommendedLayoutProvider({
     return () => {
       cancelled = true;
     };
-  }, [consoleApi, dataSource, deviceType, hasCurrentRecord, record.loading, recordId, showtUrlKey]);
+  }, [
+    consoleApi,
+    dataSource,
+    deviceType,
+    enabled,
+    hasCurrentRecord,
+    record.loading,
+    recordId,
+    showtUrlKey,
+  ]);
 
   const loadLayout = useCallback(loadRecommendedLayoutData, []);
   const value = useMemo(() => ({ ...state, loadLayout }), [loadLayout, state]);

@@ -95,6 +95,35 @@ describe("RecommendedLayoutProvider", () => {
       .mockImplementation((_manifest, robot, transport) => descriptor(robot, transport));
   });
 
+  it("disables and re-enables the entire recommendation capability", async () => {
+    let enabled = false;
+    function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
+      return <RecommendedLayoutProvider enabled={enabled}>{children}</RecommendedLayoutProvider>;
+    }
+
+    const { result, rerender } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", layouts: [] });
+    });
+    expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
+    expect(topics).not.toHaveBeenCalled();
+
+    enabled = true;
+    rerender();
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", robot: "RobotA" });
+    });
+
+    enabled = false;
+    rerender();
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", layouts: [] });
+    });
+  });
+
   it("waits for the Record and showtUrlKey before loading recommendations", async () => {
     coreData = {
       dataSource: { id: "coscene-data-platform", type: "connection" },

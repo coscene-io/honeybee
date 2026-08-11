@@ -26,12 +26,17 @@ import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
 import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
 import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
+// Replace this default with the GrowthBook feature value once that integration is available.
+export const RECOMMENDED_LAYOUTS_ENABLED = true;
+
 export function SharedProviders({
   consoleApi,
   loginStatusKey,
+  recommendedLayoutsEnabled = RECOMMENDED_LAYOUTS_ENABLED,
 }: {
   consoleApi: ConsoleApi;
   loginStatusKey?: number;
+  recommendedLayoutsEnabled?: boolean;
 }): React.JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
@@ -57,9 +62,19 @@ export function SharedProviders({
       <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
-      <RecommendedLayoutProvider key="RecommendedLayoutProvider" />,
+      <RecommendedLayoutProvider
+        key="RecommendedLayoutProvider"
+        enabled={recommendedLayoutsEnabled}
+      />,
     ],
-    [consoleApi, loginStatusKey, layoutStorage, urdfStorage, s3FileService],
+    [
+      consoleApi,
+      loginStatusKey,
+      layoutStorage,
+      recommendedLayoutsEnabled,
+      urdfStorage,
+      s3FileService,
+    ],
   );
 
   return providers;
