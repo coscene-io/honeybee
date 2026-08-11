@@ -6,17 +6,35 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { Organization } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/organization_pb";
 import { act, render, waitFor } from "@testing-library/react";
+import { useLayoutEffect } from "react";
 import { createStore } from "zustand";
 
 import { CoSceneCurrentUserContext } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import type { UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 
 import GrowthBookUserProvider, {
   resolveGrowthBookLocationHostname,
 } from "./GrowthBookUserProvider";
 
 const mockSetAttributes = jest.fn();
+
+function CoreDataSeeder({ organizationSlug }: { organizationSlug?: string }): ReactNull {
+  const setOrganization = useCoreData((state) => state.setOrganization);
+
+  useLayoutEffect(() => {
+    setOrganization(
+      organizationSlug
+        ? { loading: false, value: { slug: organizationSlug } as Organization }
+        : { loading: true, value: undefined },
+    );
+  }, [organizationSlug, setOrganization]);
+
+  return ReactNull;
+}
 
 jest.mock("@foxglove/studio-base/providers/GrowthBookProvider", () => ({
   getGrowthBookClient: () => ({ setAttributes: mockSetAttributes }),
@@ -28,7 +46,7 @@ describe("GrowthBookUserProvider", () => {
     window.cosConfigRemoteHostname = undefined;
   });
 
-  it("updates targeting attributes and clears stale identity after logout", async () => {
+  it("updates targeting attributes and clears stale identity and organization data", async () => {
     const store = createStore<UserStore>(() => ({
       loginStatus: "alreadyLogin",
       role: { organizationRole: 0, projectRole: 0 },
@@ -47,13 +65,18 @@ describe("GrowthBookUserProvider", () => {
       },
     }));
 
-    render(
-      <CoSceneCurrentUserContext.Provider value={store}>
-        <GrowthBookUserProvider>
-          <div />
-        </GrowthBookUserProvider>
-      </CoSceneCurrentUserContext.Provider>,
+    const renderProviders = (organizationSlug?: string) => (
+      <CoreDataProvider>
+        <CoreDataSeeder organizationSlug={organizationSlug} />
+        <CoSceneCurrentUserContext.Provider value={store}>
+          <GrowthBookUserProvider>
+            <div />
+          </GrowthBookUserProvider>
+        </CoSceneCurrentUserContext.Provider>
+      </CoreDataProvider>
     );
+
+    const view = render(renderProviders("coscene-lark"));
 
     await waitFor(() => {
       expect(mockSetAttributes).toHaveBeenLastCalledWith({
@@ -61,10 +84,27 @@ describe("GrowthBookUserProvider", () => {
         id: "user-1",
         locationHostName: "localhost",
         nickName: "Example User",
+        organizationSlug: "coscene-lark",
         phoneNumber: "1234",
         platform: "honeybee",
         userId: "user-1",
       });
+    });
+
+    view.rerender(renderProviders("second-organization"));
+
+    await waitFor(() => {
+      expect(mockSetAttributes).toHaveBeenLastCalledWith(
+        expect.objectContaining({ organizationSlug: "second-organization" }),
+      );
+    });
+
+    view.rerender(renderProviders());
+
+    await waitFor(() => {
+      expect(mockSetAttributes).toHaveBeenLastCalledWith(
+        expect.not.objectContaining({ organizationSlug: expect.anything() }),
+      );
     });
 
     act(() => {

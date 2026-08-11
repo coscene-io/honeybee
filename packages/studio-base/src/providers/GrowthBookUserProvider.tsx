@@ -10,11 +10,14 @@ import type { PropsWithChildren } from "react";
 
 import type { UserStore } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import type { CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
+import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { getGrowthBookClient } from "@foxglove/studio-base/providers/GrowthBookProvider";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 const selectUser = (store: UserStore) => store.user;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
+const selectOrganizationSlug = (store: CoreDataStore) => store.organization.value?.slug;
 
 export function resolveGrowthBookLocationHostname(
   locationHostname: string,
@@ -26,6 +29,7 @@ export function resolveGrowthBookLocationHostname(
 export default function GrowthBookUserProvider({ children }: PropsWithChildren): React.JSX.Element {
   const user = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectLoginStatus);
+  const organizationSlug = useCoreData(selectOrganizationSlug);
   const identifiedUser = loginStatus === "alreadyLogin" ? user : undefined;
 
   useEffect(() => {
@@ -40,12 +44,13 @@ export default function GrowthBookUserProvider({ children }: PropsWithChildren):
             email: identifiedUser.email,
             id: identifiedUser.userId,
             nickName: identifiedUser.nickName,
+            ...(organizationSlug ? { organizationSlug } : {}),
             phoneNumber: identifiedUser.phoneNumber,
             userId: identifiedUser.userId,
           }
         : {}),
     });
-  }, [identifiedUser]);
+  }, [identifiedUser, organizationSlug]);
 
   return <>{children}</>;
 }
