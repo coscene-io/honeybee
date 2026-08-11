@@ -55,6 +55,8 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
+const selectBeginExternalInitConfigUpdate = (state: CoreDataStore) =>
+  state.beginExternalInitConfigUpdate;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
@@ -186,6 +188,7 @@ export function DeepLinksSyncAdapter({
   const consoleApi = useConsoleApi();
   const setExternalInitConfig = useSetExternalInitConfig();
   const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
+  const beginExternalInitConfigUpdate = useCoreData(selectBeginExternalInitConfigUpdate);
 
   /**
    * 从 lastExternalInitConfig 恢复项目配置
@@ -205,6 +208,7 @@ export function DeepLinksSyncAdapter({
       return;
     }
 
+    const update = beginExternalInitConfigUpdate();
     try {
       const parsedConfig = JSON.parse(lastExternalInitConfig) as ExternalInitConfig;
 
@@ -215,25 +219,37 @@ export function DeepLinksSyncAdapter({
       }
 
       const projectName = `warehouses/${parsedConfig.warehouseId}/projects/${parsedConfig.projectId}`;
-
       // 验证项目是否仍然存在
       const targetProject = await consoleApi.getProject({ projectName });
+      if (!update.isCurrent()) {
+        return;
+      }
 
       if (targetProject.name) {
         // 项目存在，设置配置（会自动设置 isReadyForSyncLayout）
-        await setExternalInitConfig(parsedConfig);
+        await setExternalInitConfig(parsedConfig, { update });
       } else {
         // 项目不存在，清理缓存
         await setLastExternalInitConfig(undefined);
+        if (!update.isCurrent()) {
+          return;
+        }
         setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
       }
     } catch (error) {
+      if (!update.isCurrent()) {
+        return;
+      }
       log.debug("Failed to restore from lastExternalInitConfig", error);
       await setLastExternalInitConfig(undefined);
+      if (!update.isCurrent()) {
+        return;
+      }
       setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
     }
   }, [
     consoleApi,
+    beginExternalInitConfigUpdate,
     lastExternalInitConfig,
     setExternalInitConfig,
     setLastExternalInitConfig,

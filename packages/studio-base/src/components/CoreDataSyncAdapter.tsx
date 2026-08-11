@@ -19,6 +19,7 @@ import {
   CoreDataContext,
   CoreDataStore,
   ExternalInitConfig,
+  ExternalInitConfigUpdate,
   useCoreData,
   CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
@@ -36,6 +37,8 @@ const selectOrganization = (state: CoreDataStore) => state.organization;
 const selectCoordinatorConfig = (state: CoreDataStore) => state.coordinatorConfig;
 const selectProject = (state: CoreDataStore) => state.project;
 const selectSetExternalInitConfig = (state: CoreDataStore) => state.setExternalInitConfig;
+const selectBeginExternalInitConfigUpdate = (state: CoreDataStore) =>
+  state.beginExternalInitConfigUpdate;
 const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
 const selectSetShowtUrlKey = (state: CoreDataStore) => state.setShowtUrlKey;
 const selectSetRecord = (state: CoreDataStore) => state.setRecord;
@@ -114,11 +117,12 @@ async function ensureProjectAndBaseUrl({
 
 export function useSetExternalInitConfig(): (
   externalInitConfig: ExternalInitConfig,
-  options?: { isCurrent?: () => boolean },
+  options?: { isCurrent?: () => boolean; update?: ExternalInitConfigUpdate },
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
   const project = useCoreData(selectProject);
   const setExternalInitConfig = useCoreData(selectSetExternalInitConfig);
+  const beginExternalInitConfigUpdate = useCoreData(selectBeginExternalInitConfigUpdate);
   const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
   const setProject = useCoreData(selectSetProject);
   const setBaseUrl = useCoreData(selectSetBaseUrl);
@@ -126,65 +130,60 @@ export function useSetExternalInitConfig(): (
   const [, setLastExternalInitConfig] = useAppConfigurationValue<string>(
     AppSetting.LAST_EXTERNAL_INIT_CONFIG,
   );
-  const updateQueueRef = useRef<Promise<void>>(Promise.resolve());
-
   return async (
     externalInitConfig: ExternalInitConfig,
-    options?: { isCurrent?: () => boolean },
+    options?: { isCurrent?: () => boolean; update?: ExternalInitConfigUpdate },
   ) => {
-    const isCurrent = options?.isCurrent ?? (() => true);
-    const update = updateQueueRef.current.then(async () => {
-      if (!isCurrent()) {
-        return;
-      }
+    const update = options?.update ?? beginExternalInitConfigUpdate();
+    const requestIsCurrent = options?.isCurrent ?? (() => true);
+    const isCurrent = () => update.isCurrent() && requestIsCurrent();
+    if (!isCurrent()) {
+      return;
+    }
 
-      // set base info and init user permission List
-      await consoleApi.setApiBaseInfo(
-        {
-          projectId: externalInitConfig.projectId,
-          warehouseId: externalInitConfig.warehouseId,
-          recordId: externalInitConfig.recordId,
-        },
-        { isCurrent },
-      );
-      if (!isCurrent()) {
-        return;
-      }
+    // set base info and init user permission List
+    await consoleApi.setApiBaseInfo(
+      {
+        projectId: externalInitConfig.projectId,
+        warehouseId: externalInitConfig.warehouseId,
+        recordId: externalInitConfig.recordId,
+      },
+      { isCurrent },
+    );
+    if (!isCurrent()) {
+      return;
+    }
 
-      void setLastExternalInitConfig(JSON.stringify(externalInitConfig));
-      setExternalInitConfig(externalInitConfig);
+    void setLastExternalInitConfig(JSON.stringify(externalInitConfig));
+    setExternalInitConfig(externalInitConfig);
 
-      await ensureProjectAndBaseUrl({
-        consoleApi,
-        project,
-        externalInitConfig,
-        setProject,
-        setBaseUrl,
-        isCurrent,
-      });
-      if (!isCurrent()) {
-        return;
-      }
-
-      // 设置 isReadyForSyncLayout 标志，表示项目/用户上下文已可用于 layout manager
-      setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
-
-      const taskName =
-        externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
-          ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
-          : undefined;
-
-      if (taskName) {
-        const task = await consoleApi.getTask({ taskName });
-        if (!isCurrent()) {
-          return;
-        }
-        setFocusedTask(task);
-      }
+    await ensureProjectAndBaseUrl({
+      consoleApi,
+      project,
+      externalInitConfig,
+      setProject,
+      setBaseUrl,
+      isCurrent,
     });
+    if (!isCurrent()) {
+      return;
+    }
 
-    updateQueueRef.current = update.catch(() => undefined);
-    await update;
+    // 设置 isReadyForSyncLayout 标志，表示项目/用户上下文已可用于 layout manager
+    setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+
+    const taskName =
+      externalInitConfig.warehouseId && externalInitConfig.projectId && externalInitConfig.taskId
+        ? `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}/tasks/${externalInitConfig.taskId}`
+        : undefined;
+
+    if (taskName) {
+      const task = await consoleApi.getTask({ taskName });
+      if (!isCurrent()) {
+        return;
+      }
+      setFocusedTask(task);
+    }
   };
 }
 
@@ -194,16 +193,19 @@ export function useSetShowtUrlKey(): (
 ) => Promise<void> {
   const consoleApi = useConsoleApi();
   const setShowtUrlKey = useCoreData(selectSetShowtUrlKey);
+  const beginExternalInitConfigUpdate = useCoreData(selectBeginExternalInitConfigUpdate);
   const setExternalInitConfig = useSetExternalInitConfig();
 
   return async (showtUrlKey: string, options?: { isCurrent?: () => boolean }) => {
-    const isCurrent = options?.isCurrent ?? (() => true);
+    const update = beginExternalInitConfigUpdate();
+    const requestIsCurrent = options?.isCurrent ?? (() => true);
+    const isCurrent = () => update.isCurrent() && requestIsCurrent();
     const externalInitConfig = await consoleApi.getExternalInitConfig(showtUrlKey);
     if (!isCurrent()) {
       return;
     }
 
-    await setExternalInitConfig(externalInitConfig, { isCurrent });
+    await setExternalInitConfig(externalInitConfig, { isCurrent: requestIsCurrent, update });
     if (!isCurrent()) {
       return;
     }

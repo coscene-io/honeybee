@@ -60,6 +60,7 @@ function CreateCoreDataStore() {
 
   // Keep a cached enable list so selectors get a stable reference unless values change.
   let cachedEnableList: EnableList | undefined;
+  let externalInitConfigUpdateGeneration = 0;
 
   return createStore<CoreDataStore>((set, get) => ({
     ...defaultCoreDataStore,
@@ -69,6 +70,12 @@ function CreateCoreDataStore() {
     },
     setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => {
       set({ externalInitConfig });
+    },
+    beginExternalInitConfigUpdate: () => {
+      const generation = ++externalInitConfigUpdateGeneration;
+      return {
+        isCurrent: () => generation === externalInitConfigUpdateGeneration,
+      };
     },
     setIsReadyForSyncLayout: ({ isReadyForSyncLayout }) => {
       set({ isReadyForSyncLayout });
@@ -130,6 +137,7 @@ function CreateCoreDataStore() {
     },
 
     resetCoreDataStore: () => {
+      externalInitConfigUpdateGeneration++;
       set(defaultCoreDataStore);
     },
 

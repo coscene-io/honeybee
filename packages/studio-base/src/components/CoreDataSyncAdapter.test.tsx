@@ -43,7 +43,7 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 }
 
 describe("useSetShowtUrlKey", () => {
-  it("serializes base-info commits and skips stale selection state", async () => {
+  it("coordinates updates across hook instances without blocking the newer request", async () => {
     const setExternalInitConfig = jest.fn();
     const setIsReadyForSyncLayout = jest.fn();
     const setProject = jest.fn();
@@ -51,8 +51,14 @@ describe("useSetShowtUrlKey", () => {
     const setShowtUrlKey = jest.fn();
     const setFocusedTask = jest.fn();
     const setLastExternalInitConfig = jest.fn();
+    let updateGeneration = 0;
+    const beginExternalInitConfigUpdate = jest.fn(() => {
+      const generation = ++updateGeneration;
+      return { isCurrent: () => generation === updateGeneration };
+    });
     const coreData = {
       project: { loading: false, value: undefined },
+      beginExternalInitConfigUpdate,
       setExternalInitConfig,
       setIsReadyForSyncLayout,
       setProject,
@@ -87,38 +93,38 @@ describe("useSetShowtUrlKey", () => {
     } as unknown as ConsoleApi;
     jest.mocked(useConsoleApi).mockReturnValue(consoleApi);
 
-    const { result } = renderHook(() => useSetShowtUrlKey());
-    let activeRecord = "record-a";
-    const first = result.current("record-a", {
-      isCurrent: () => activeRecord === "record-a",
-    });
+    const firstHook = renderHook(() => useSetShowtUrlKey());
+    const secondHook = renderHook(() => useSetShowtUrlKey());
+    const first = firstHook.result.current("record-a");
     await waitFor(() => {
       expect(setApiBaseInfo).toHaveBeenCalledTimes(1);
     });
 
-    activeRecord = "record-b";
-    const second = result.current("record-b", {
-      isCurrent: () => activeRecord === "record-b",
+    const second = secondHook.result.current("record-b");
+    await waitFor(() => {
+      expect(setApiBaseInfo).toHaveBeenCalledTimes(2);
     });
-    await Promise.resolve();
-    expect(setApiBaseInfo).toHaveBeenCalledTimes(1);
+    await second;
+
+    expect(setExternalInitConfig).toHaveBeenCalledTimes(1);
+    expect(setExternalInitConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ recordId: "record-b" }),
+    );
+    expect(setShowtUrlKey).toHaveBeenCalledTimes(1);
+    expect(setShowtUrlKey).toHaveBeenCalledWith("record-b");
 
     firstBaseInfo.resolve();
-    await Promise.all([first, second]);
+    await first;
 
     expect(setApiBaseInfo.mock.calls.map(([baseInfo]) => baseInfo.recordId)).toEqual([
       "record-a",
       "record-b",
     ]);
     expect(setExternalInitConfig).toHaveBeenCalledTimes(1);
-    expect(setExternalInitConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ recordId: "record-b" }),
-    );
     expect(setLastExternalInitConfig).toHaveBeenCalledTimes(1);
     expect(setLastExternalInitConfig).toHaveBeenCalledWith(
       JSON.stringify({ warehouseId: "warehouse", projectId: "project", recordId: "record-b" }),
     );
     expect(setShowtUrlKey).toHaveBeenCalledTimes(1);
-    expect(setShowtUrlKey).toHaveBeenCalledWith("record-b");
   });
 });
