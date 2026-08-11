@@ -114,6 +114,39 @@ describe("CoSceneConsoleApi", () => {
     });
   });
 
+  it("does not commit base info when a selection is cancelled during permission loading", async () => {
+    const api = new CoSceneConsoleApi(
+      "https://console.example.com",
+      "https://bff.example.com",
+      "Bearer test-token",
+    );
+    await api.setApiBaseInfo(completeBaseInfo, { fetchPermissionList: false });
+
+    let resolveRoles: ((value: { userRoles: [] }) => void) | undefined;
+    listUserRolesMock
+      .mockImplementationOnce(
+        async () =>
+          await new Promise<{ userRoles: [] }>((resolve) => {
+            resolveRoles = resolve;
+          }),
+      )
+      .mockResolvedValue({ userRoles: [] });
+    let isCurrent = true;
+    const update = api.setApiBaseInfo(
+      { warehouseId: "warehouse-id", projectId: "project-id", recordId: "record-b" },
+      { isCurrent: () => isCurrent },
+    );
+
+    await Promise.resolve();
+    expect(api.getApiBaseInfo()).toEqual(completeBaseInfo);
+
+    isCurrent = false;
+    resolveRoles?.({ userRoles: [] });
+    await update;
+
+    expect(api.getApiBaseInfo()).toEqual(completeBaseInfo);
+  });
+
   it("adds Record-Name to generic REST requests", async () => {
     const api = await createApi(completeBaseInfo);
     fetchMock.mockResolvedValue(

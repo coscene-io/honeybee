@@ -92,4 +92,16 @@ export const layout = {
   searchLayoutName: "Search layout name",
   copyLayoutSuccess: "Copy success, layout has been switched",
   pleaseSelectProject: "Please select project",
+  recommendedLayout: "Recommended layouts",
+  systemRecommended: "System recommended",
+  defaultLayoutFolder: "Default",
+  h264: "H.264",
+  recommendedLayoutReadOnlyTitle: "Save a personal copy?",
+  recommendedLayoutReadOnlyPrompt:
+    "Recommended layouts cannot be modified. Your current layout, including temporary changes, will be saved as a new personal copy.",
+  recommendedLayoutCopyFailed: "Could not create a personal layout copy: {{message}}",
+  recommendedLayoutLoadFailed: "Could not load the recommended layout: {{message}}",
+  discardRecommendedChangesTitle: "Discard changes to the recommended layout?",
+  discardRecommendedChangesPrompt:
+    "Your temporary changes will be lost when you switch layouts. This cannot be undone.",
 };

@@ -40,6 +40,10 @@ export type ExternalInitConfig = {
   organizationSlug?: string;
 };
 
+export type ExternalInitConfigUpdate = {
+  isCurrent: () => boolean;
+};
+
 export type DataSource = {
   id: string;
   type: "connection" | "persistent-cache" | "file" | "sample";
@@ -107,6 +111,7 @@ export type CoreDataStore = {
   setShowtUrlKey: (showtUrlKey: string) => void;
   // @deprecated don't use this function, use useSetExternalInitConfig in CoreDataSyncAdapter instead
   setExternalInitConfig: (externalInitConfig: ExternalInitConfig) => void;
+  beginExternalInitConfigUpdate: () => ExternalInitConfigUpdate;
 
   setIsReadyForSyncLayout: (options: { isReadyForSyncLayout: boolean }) => void;
   setDataSource: (dataSource: DataSource | undefined) => void;

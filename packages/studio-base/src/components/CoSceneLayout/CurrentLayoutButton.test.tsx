@@ -71,6 +71,7 @@ function renderButton(layout: Layout, onOverwriteLayout = jest.fn()): void {
         layouts={{ allLayouts: [layout], personalFolders: [], projectFolders: [] }}
         onClick={jest.fn()}
         onOverwriteLayout={onOverwriteLayout}
+        onSaveRecommendedLayout={jest.fn()}
         onRevertLayout={jest.fn()}
       />
     </ThemeProvider>,
@@ -99,5 +100,33 @@ describe("<CurrentLayoutButton />", () => {
     renderButton(makeRemotelyDeletedLayout("PROJECT_WRITE"));
 
     expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows a dedicated personal-copy action for a recommended layout", () => {
+    const onSaveRecommendedLayout = jest.fn();
+    render(
+      <ThemeProvider isDark>
+        <CurrentLayoutButton
+          currentLayoutId={"recommended:RobotA:default" as LayoutID}
+          selectedLayout={{
+            id: "recommended:RobotA:default" as LayoutID,
+            data: { configById: {}, globalVariables: {}, userNodes: {} },
+            name: "review / viewer",
+            source: "recommended",
+          }}
+          layouts={{ allLayouts: [], personalFolders: [], projectFolders: [] }}
+          onClick={jest.fn()}
+          onOverwriteLayout={jest.fn()}
+          onSaveRecommendedLayout={onSaveRecommendedLayout}
+          onRevertLayout={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("review / viewer")).toBeDefined();
+    const saveCopyButton = screen.getByRole("button", { name: "Save a personal copy" });
+    fireEvent.click(saveCopyButton);
+    expect(onSaveRecommendedLayout).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 });
