@@ -46,7 +46,7 @@ describe("RecommendedLayouts", () => {
     jest.useRealTimers();
   });
 
-  it("matches robot keys exactly and lists only viewer layouts across every resolution", () => {
+  it("matches robot keys exactly and lists every role across every resolution", () => {
     const manifest = parseRecommendedLayoutManifest({
       generated_at: "2026-07-31T14:10:25+00:00",
       robots: {
@@ -100,8 +100,29 @@ describe("RecommendedLayouts", () => {
         transport: "default",
         resolution: "_default",
         workflow: "review",
+        role: "annotator",
+        name: "review / annotator",
+      },
+      {
+        transport: "default",
+        resolution: "_default",
+        workflow: "review",
+        role: "qa",
+        name: "review / qa",
+      },
+      {
+        transport: "default",
+        resolution: "_default",
+        workflow: "review",
         role: "viewer",
         name: "review / viewer / _default",
+      },
+      {
+        transport: "default",
+        resolution: "1080p",
+        workflow: "inspect",
+        role: "engineer",
+        name: "inspect / engineer",
       },
       {
         transport: "default",
@@ -137,7 +158,7 @@ describe("RecommendedLayouts", () => {
           resolution: {
             _default: {
               default: {
-                first: "invalid workflow roles",
+                first: { annotator: "layouts/annotator.json" },
                 second: { viewer: "layouts/viewer.json" },
               },
               h264: {

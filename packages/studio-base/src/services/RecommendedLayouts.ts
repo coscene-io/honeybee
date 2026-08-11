@@ -23,7 +23,7 @@ const MAX_CACHED_LAYOUTS = 32;
 
 export type RecommendedLayoutTransport = "default" | "h264";
 
-type WorkflowResolution = Record<string, { viewer?: string }>;
+type WorkflowResolution = Record<string, Record<string, string>>;
 
 type RobotManifest = {
   resolution?: Record<string, Partial<Record<RecommendedLayoutTransport, WorkflowResolution>>>;
@@ -40,7 +40,7 @@ export type RecommendedLayoutDescriptor = {
   resolution: string;
   transport: RecommendedLayoutTransport;
   workflow: string;
-  role: "viewer";
+  role: string;
   name: string;
   url: string;
   generatedAt?: string;
@@ -105,10 +105,17 @@ function parseWorkflowResolution(value: unknown): WorkflowResolution | undefined
     return undefined;
   }
 
-  const result = createStringMap<{ viewer?: string }>();
+  const result = createStringMap<Record<string, string>>();
   for (const [workflow, rolesValue] of Object.entries(value)) {
-    const viewer = isRecord(rolesValue) ? rolesValue.viewer : undefined;
-    result[workflow] = typeof viewer === "string" && viewer.length > 0 ? { viewer } : {};
+    const roles = createStringMap<string>();
+    if (isRecord(rolesValue)) {
+      for (const [role, path] of Object.entries(rolesValue)) {
+        if (typeof path === "string" && path.length > 0) {
+          roles[role] = path;
+        }
+      }
+    }
+    result[workflow] = roles;
   }
   return Object.keys(result).length > 0 ? result : undefined;
 }
@@ -291,6 +298,7 @@ function descriptorForEntry(
   transport: RecommendedLayoutTransport,
   resolution: string,
   workflow: string,
+  role: string,
   path: string,
 ): RecommendedLayoutDescriptor {
   const url = new URL(path, RECOMMENDED_LAYOUT_MANIFEST_URL);
@@ -303,8 +311,8 @@ function descriptorForEntry(
     resolution,
     transport,
     workflow,
-    role: "viewer",
-    name: `${workflow} / viewer`,
+    role,
+    name: `${workflow} / ${role}`,
     url: url.toString(),
     generatedAt: manifest.generated_at,
   };
@@ -325,23 +333,22 @@ export function listRecommendedLayouts(
     const transportLayouts: RecommendedLayoutDescriptor[] = [];
     for (const [resolution, transportConfigs] of Object.entries(resolutions)) {
       for (const [workflow, roles] of Object.entries(transportConfigs[transport] ?? {})) {
-        const path = roles.viewer;
-        if (!path) {
-          continue;
+        for (const [role, path] of Object.entries(roles)) {
+          const descriptor = descriptorForEntry(
+            manifest,
+            robot,
+            transport,
+            resolution,
+            workflow,
+            role,
+            path,
+          );
+          if (seenUrls.has(descriptor.url)) {
+            continue;
+          }
+          seenUrls.add(descriptor.url);
+          transportLayouts.push(descriptor);
         }
-        const descriptor = descriptorForEntry(
-          manifest,
-          robot,
-          transport,
-          resolution,
-          workflow,
-          path,
-        );
-        if (seenUrls.has(descriptor.url)) {
-          continue;
-        }
-        seenUrls.add(descriptor.url);
-        transportLayouts.push(descriptor);
       }
     }
 
@@ -376,6 +383,7 @@ export function resolveRecommendedLayout(
     transport,
     "_default",
     workflowEntry[0],
+    "viewer",
     workflowEntry[1].viewer,
   );
 }
