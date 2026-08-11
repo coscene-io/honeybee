@@ -71,6 +71,7 @@ describe("Panel", () => {
       {
         type: "SAVE_PANEL_CONFIGS",
         payload: { configs: [{ id: childId, config: { someString: "hello world" } }] },
+        source: "initialization",
       },
     ]);
   });
@@ -138,6 +139,7 @@ describe("Panel", () => {
         payload: {
           configs: [{ id: childId, config: { someNumber: 42, someString: "hello world" } }],
         },
+        source: "initialization",
       },
     ]);
   });

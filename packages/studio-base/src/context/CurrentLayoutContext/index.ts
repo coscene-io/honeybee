@@ -17,6 +17,7 @@ import Logger from "@foxglove/log";
 import type { RenderState, VariableValue } from "@foxglove/studio";
 import useShouldNotChangeOften from "@foxglove/studio-base/hooks/useShouldNotChangeOften";
 import toggleSelectedPanel from "@foxglove/studio-base/providers/CurrentLayoutProvider/toggleSelectedPanel";
+import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
 import type { PanelConfig, UserScripts } from "@foxglove/studio-base/types/panels";
 
 import type {
@@ -38,6 +39,8 @@ type PanelType = string;
 
 export type { LayoutData };
 
+export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
+
 export type SharedPanelState = RenderState["sharedPanelState"];
 
 export type UpdatePanelState = (type: PanelType, data: SharedPanelState) => void;
@@ -47,7 +50,10 @@ export type SelectedLayout = {
   data: LayoutData | undefined;
   name?: string;
   edited?: boolean;
+  editRevision?: number;
   transient?: boolean;
+  source?: "stored" | "recommended";
+  recommendedLayout?: RecommendedLayoutDescriptor;
 };
 export type LayoutID = string & { __brand: "LayoutID" };
 
@@ -66,6 +72,8 @@ export type LayoutState = Readonly<{
         edited?: boolean;
         editRevision?: number;
         transient?: boolean;
+        source?: "stored" | "recommended";
+        recommendedLayout?: RecommendedLayoutDescriptor;
       }
     | undefined;
 }>;
@@ -104,12 +112,21 @@ export interface ICurrentLayout {
      */
     setCurrentLayout: (newLayout: SelectedLayout | undefined) => void;
 
+    /** Save the current in-memory recommended layout as a new personal layout. */
+    saveRecommendedLayout: () => Promise<void>;
+
+    /** Run a recommended-layout copy without allowing another copy operation to overlap. */
+    withRecommendedLayoutCopyLock: <T>(operation: () => Promise<T>) => Promise<T | undefined>;
+
     /**
      * Update the transient state associated with a particular panel type.
      */
     updateSharedPanelState: UpdatePanelState;
 
-    savePanelConfigs: (payload: SaveConfigsPayload) => void;
+    savePanelConfigs: (
+      payload: SaveConfigsPayload,
+      options?: { source?: "user" | "initialization" },
+    ) => void;
     updatePanelConfigs: (panelType: string, updater: (config: PanelConfig) => PanelConfig) => void;
     createTabPanel: (payload: CreateTabPanelPayload) => void;
     changePanelLayout: (payload: ChangePanelLayoutPayload) => void;

@@ -207,16 +207,22 @@ export default function Panel<
 
       if (!savedConfig || Object.keys(savedConfig).length === 0) {
         savedDefaultConfig.current = true;
-        saveConfig(defaultConfig);
+        savePanelConfigs(
+          { configs: [{ id: childId, config: defaultConfig }] },
+          { source: "initialization" },
+        );
       } else if (
         Object.entries(defaultConfig).some(
           ([key, value]) => value != undefined && !(key in savedConfig),
         )
       ) {
         savedDefaultConfig.current = true;
-        saveConfig({ ...defaultConfig, ...savedConfig });
+        savePanelConfigs(
+          { configs: [{ id: childId, config: { ...defaultConfig, ...savedConfig } }] },
+          { source: "initialization" },
+        );
       }
-    }, [configInitialization, defaultConfig, saveConfig, savedConfig]);
+    }, [childId, configInitialization, defaultConfig, savePanelConfigs, savedConfig]);
 
     const panelComponentConfig = useMemo(
       () => ({ ...defaultConfig, ...savedConfig, ...overrideConfig }),

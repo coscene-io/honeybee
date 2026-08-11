@@ -74,7 +74,10 @@ export default function MockCurrentLayoutProvider({
         data: newLayout.data,
         id: newLayout.id ?? ("mock-id" as LayoutID),
         edited: newLayout.edited,
+        editRevision: newLayout.editRevision,
         name: newLayout.name,
+        source: newLayout.source,
+        recommendedLayout: newLayout.recommendedLayout,
       };
       if (newLayout.transient === true) {
         selectedLayout.transient = true;
@@ -121,10 +124,16 @@ export default function MockCurrentLayoutProvider({
       getCurrentLayoutState: () => layoutStateRef.current,
 
       setCurrentLayout,
+      saveRecommendedLayout: async () => {},
+      withRecommendedLayoutCopyLock: async (operation) => await operation(),
       updateSharedPanelState,
 
-      savePanelConfigs: (payload) => {
-        performAction({ type: "SAVE_PANEL_CONFIGS", payload });
+      savePanelConfigs: (payload, options) => {
+        performAction({
+          type: "SAVE_PANEL_CONFIGS",
+          payload,
+          ...(options?.source != undefined ? { source: options.source } : {}),
+        });
       },
       updatePanelConfigs: (panelType, perPanelFunc) => {
         performAction({ type: "SAVE_FULL_PANEL_CONFIG", payload: { panelType, perPanelFunc } });

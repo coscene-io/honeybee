@@ -21,11 +21,18 @@ import type {
   LayoutID,
   LayoutState,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { useRecommendedLayouts } from "@foxglove/studio-base/context/RecommendedLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import type { WorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useSyncLayoutFromUrl } from "@foxglove/studio-base/hooks/useSyncLayoutFromUrl";
 import type { ILayoutManager } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import type { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
+
+const mockEnqueueSnackbar = jest.fn();
+jest.mock("notistack", () => ({
+  useSnackbar: () => ({ enqueueSnackbar: mockEnqueueSnackbar }),
+}));
 
 jest.mock("@foxglove/studio-base/context/CoSceneLayoutManagerContext", () => ({
   useLayoutManager: jest.fn(),
@@ -36,6 +43,9 @@ jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
 jest.mock("@foxglove/studio-base/context/CurrentLayoutContext", () => ({
   useCurrentLayoutActions: jest.fn(),
   useCurrentLayoutSelector: jest.fn(),
+}));
+jest.mock("@foxglove/studio-base/context/RecommendedLayoutContext", () => ({
+  useRecommendedLayouts: jest.fn(),
 }));
 jest.mock("@foxglove/studio-base/context/Workspace/useWorkspaceActions", () => ({
   useWorkspaceActions: jest.fn(),
@@ -59,11 +69,26 @@ function layout(id: string, permission: Layout["permission"] = "PERSONAL_WRITE")
   };
 }
 
+function recommendedLayout(transport: "default" | "h264"): RecommendedLayoutDescriptor {
+  return {
+    id: `recommended:RobotA:${transport}` as LayoutID,
+    robot: "RobotA",
+    resolution: "_default",
+    transport,
+    workflow: "review",
+    role: "viewer",
+    name: "review / viewer",
+    url: `https://honeybee-public-layouts.coscene.io/RobotA/${transport}.json`,
+  };
+}
+
 function makeCurrentLayoutActions(setSelectedLayoutId: jest.Mock): CurrentLayoutActions {
   return {
     getCurrentLayoutState: jest.fn(() => ({ selectedLayout: undefined })),
     setSelectedLayoutId,
     setCurrentLayout: jest.fn(),
+    saveRecommendedLayout: jest.fn(),
+    withRecommendedLayoutCopyLock: jest.fn(async (operation) => await operation()),
     updateSharedPanelState: jest.fn(),
     savePanelConfigs: jest.fn(),
     updatePanelConfigs: jest.fn(),
@@ -138,8 +163,11 @@ describe("useSyncLayoutFromUrl", () => {
   let setSelectedLayoutId: jest.Mock;
   let openLayoutDrawer: jest.Mock;
   let layoutManager: Pick<ILayoutManager, "getLayout" | "getLayouts" | "getHistory">;
+  let currentLayoutActions: CurrentLayoutActions;
+  let recommendedLayoutState: ReturnType<typeof useRecommendedLayouts>;
 
   beforeEach(() => {
+    mockEnqueueSnackbar.mockClear();
     selectedLayoutId = undefined;
     isReadyForSyncLayout = true;
     setSelectedLayoutId = jest.fn();
@@ -148,6 +176,12 @@ describe("useSyncLayoutFromUrl", () => {
       getLayout: jest.fn(),
       getLayouts: jest.fn(),
       getHistory: jest.fn(),
+    };
+    currentLayoutActions = makeCurrentLayoutActions(setSelectedLayoutId);
+    recommendedLayoutState = {
+      status: "ready",
+      layouts: [],
+      loadLayout: jest.fn(),
     };
 
     jest.mocked(useLayoutManager).mockReturnValue(layoutManager as ILayoutManager);
@@ -159,9 +193,8 @@ describe("useSyncLayoutFromUrl", () => {
         selectedLayout: selectedLayoutId ? { id: selectedLayoutId } : undefined,
       } as LayoutState),
     );
-    jest
-      .mocked(useCurrentLayoutActions)
-      .mockReturnValue(makeCurrentLayoutActions(setSelectedLayoutId));
+    jest.mocked(useCurrentLayoutActions).mockReturnValue(currentLayoutActions);
+    jest.mocked(useRecommendedLayouts).mockImplementation(() => recommendedLayoutState);
     jest.mocked(useWorkspaceActions).mockReturnValue(makeWorkspaceActions(openLayoutDrawer));
   });
 
@@ -181,6 +214,121 @@ describe("useSyncLayoutFromUrl", () => {
       expect(setSelectedLayoutId).toHaveBeenCalledWith(historyLayout.id);
     });
     expect(openLayoutDrawer).not.toHaveBeenCalled();
+  });
+
+  it("selects a valid ordinary URL layout without reading history or recommendations", async () => {
+    const urlLayout = layout("users/u/layouts/url");
+    jest.mocked(layoutManager.getLayout).mockResolvedValue(urlLayout);
+
+    renderHook(() => {
+      useSyncLayoutFromUrl({ layoutId: urlLayout.id });
+    });
+
+    await waitFor(() => {
+      expect(setSelectedLayoutId).toHaveBeenCalledWith(urlLayout.id);
+    });
+    expect(layoutManager.getHistory).not.toHaveBeenCalled();
+    expect(recommendedLayoutState.loadLayout).not.toHaveBeenCalled();
+  });
+
+  it("selects a valid recommended URL layout before history", async () => {
+    const descriptor = recommendedLayout("default");
+    const data = { layout: "Panel!1", configById: {}, globalVariables: {}, userNodes: {} };
+    recommendedLayoutState = {
+      status: "ready",
+      layouts: [descriptor],
+      automaticLayout: recommendedLayout("h264"),
+      loadLayout: jest.fn().mockResolvedValue(data),
+    };
+
+    renderHook(() => {
+      useSyncLayoutFromUrl({ layoutId: descriptor.id });
+    });
+
+    await waitFor(() => {
+      expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith({
+        id: descriptor.id,
+        name: descriptor.name,
+        data,
+        source: "recommended",
+        recommendedLayout: descriptor,
+      });
+    });
+    expect(layoutManager.getHistory).not.toHaveBeenCalled();
+  });
+
+  it("restores history before loading the automatic recommendation", async () => {
+    const historyLayout = layout("users/u/layouts/history");
+    recommendedLayoutState = {
+      status: "ready",
+      layouts: [recommendedLayout("default")],
+      automaticLayout: recommendedLayout("default"),
+      loadLayout: jest.fn(),
+    };
+    jest.mocked(layoutManager.getHistory).mockResolvedValue(historyLayout);
+
+    renderHook(() => {
+      useSyncLayoutFromUrl(undefined);
+    });
+
+    await waitFor(() => {
+      expect(setSelectedLayoutId).toHaveBeenCalledWith(historyLayout.id);
+    });
+    expect(recommendedLayoutState.loadLayout).not.toHaveBeenCalled();
+  });
+
+  it.each(["default", "h264"] as const)(
+    "loads the %s automatic recommendation after URL and history are missing",
+    async (transport) => {
+      const descriptor = recommendedLayout(transport);
+      const data = { layout: "Panel!1", configById: {}, globalVariables: {}, userNodes: {} };
+      recommendedLayoutState = {
+        status: "ready",
+        layouts: [descriptor],
+        automaticLayout: descriptor,
+        loadLayout: jest.fn().mockResolvedValue(data),
+      };
+      jest.mocked(layoutManager.getHistory).mockResolvedValue(undefined);
+
+      renderHook(() => {
+        useSyncLayoutFromUrl(undefined);
+      });
+
+      await waitFor(() => {
+        expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith({
+          id: descriptor.id,
+          name: descriptor.name,
+          data,
+          source: "recommended",
+          recommendedLayout: descriptor,
+        });
+      });
+      expect(openLayoutDrawer).not.toHaveBeenCalled();
+    },
+  );
+
+  it("opens the drawer and reports an automatic recommendation load failure", async () => {
+    const descriptor = recommendedLayout("default");
+    recommendedLayoutState = {
+      status: "ready",
+      layouts: [descriptor],
+      automaticLayout: descriptor,
+      loadLayout: jest.fn().mockRejectedValue(new Error("layout unavailable")),
+    };
+    jest.mocked(layoutManager.getHistory).mockResolvedValue(undefined);
+
+    renderHook(() => {
+      useSyncLayoutFromUrl(undefined);
+    });
+
+    await waitFor(() => {
+      expect(openLayoutDrawer).toHaveBeenCalledTimes(1);
+    });
+    expect(currentLayoutActions.setCurrentLayout).not.toHaveBeenCalled();
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.stringContaining("layout unavailable"),
+      { variant: "error" },
+    );
   });
 
   it("opens the layout drawer when the URL layout and history are missing", async () => {
