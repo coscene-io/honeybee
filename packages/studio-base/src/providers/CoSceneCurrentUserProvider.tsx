@@ -15,14 +15,39 @@ import {
   OrganizationRoleWeight,
   ProjectRoleEnum,
   ProjectRoleWeight,
+  User,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+
+type PersistedUserStore = Pick<UserStore, "role"> & {
+  user: (Omit<User, "avatarUrl"> & { avatarUrl?: string }) | undefined;
+};
+
+function mergePersistedUserStore(persistedState: unknown, currentState: UserStore): UserStore {
+  if (persistedState == undefined || typeof persistedState !== "object") {
+    return currentState;
+  }
+
+  const persistedUserStore = persistedState as Partial<PersistedUserStore>;
+  return {
+    ...currentState,
+    ...(persistedUserStore.user != undefined
+      ? {
+          user: {
+            ...persistedUserStore.user,
+            avatarUrl: persistedUserStore.user.avatarUrl ?? "",
+          },
+        }
+      : {}),
+    ...(persistedUserStore.role != undefined ? { role: persistedUserStore.role } : {}),
+  };
+}
 
 function createCurrentUserStore() {
   const authToken = localStorage.getItem("coScene_org_jwt");
 
   return createStore<UserStore>()(
-    persist(
+    persist<UserStore, [], [], PersistedUserStore>(
       (set) => ({
         user: undefined,
         role: {
@@ -53,10 +78,12 @@ function createCurrentUserStore() {
         storage: createJSONStorage(() => localStorage), // 使用 localStorage
         // 可选：只持久化特定字段
         partialize: (state) => ({
-          user: { ...state.user, avatarUrl: undefined },
+          user: state.user == undefined ? undefined : { ...state.user, avatarUrl: undefined },
           role: state.role,
-          loginStatus: state.loginStatus,
         }),
+        // loginStatus is derived from coScene_org_jwt. Ignore the legacy persisted value so a
+        // stale user-storage entry cannot override the token state during hydration.
+        merge: mergePersistedUserStore,
       },
     ),
   );
