@@ -271,10 +271,12 @@ function renderOverlayWithSeek({
   consoleApi = makeConsoleApiMock({ updateEvent: jest.fn().mockResolvedValue({}) }),
   events,
   seekPlayback = jest.fn<void, [Time]>(),
+  setCursor = jest.fn(),
 }: {
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   events: TimelinePositionedEvent[];
   seekPlayback?: jest.Mock<void, [Time]>;
+  setCursor?: jest.Mock<void, [string]>;
 }): { eventsStore: StoreApi<EventsStore>; seekPlayback: jest.Mock<void, [Time]> } {
   const eventsStore = makeEventsStore({
     events,
@@ -299,7 +301,7 @@ function renderOverlayWithSeek({
         onSeek={(playbackSeconds) => {
           seekPlayback(fromSec(playbackSeconds));
         }}
-        setCursor={jest.fn()}
+        setCursor={setCursor}
         viewport={viewport}
       />
     </Wrapper>,
@@ -326,6 +328,14 @@ async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
 describe("<EventsOverlay />", () => {
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it("keeps the default cursor away from event resize hotspots", () => {
+    const setCursor = jest.fn<void, [string]>();
+
+    renderOverlayWithSeek({ events: [], setCursor });
+
+    expect(setCursor).toHaveBeenLastCalledWith("default");
   });
 
   it("shows the shortcut hint when the timeline has no moments", async () => {

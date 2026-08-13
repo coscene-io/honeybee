@@ -1461,7 +1461,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     ) {
       setCursor("ew-resize");
     } else {
-      setCursor("pointer");
+      setCursor("default");
     }
   }, [
     canWriteEvents,
