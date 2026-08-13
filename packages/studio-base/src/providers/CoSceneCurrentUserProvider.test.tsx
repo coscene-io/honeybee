@@ -52,17 +52,18 @@ function CurrentUserObserver({
 }
 
 function seedPersistedUserStore(loginStatus: LoginStatus): void {
-  localStorage.setItem(
-    "user-storage",
-    JSON.stringify({
-      state: {
-        user: cachedUser,
-        role: cachedRole,
-        loginStatus,
-      },
-      version: 0,
-    }),
-  );
+  const persistedState = JSON.stringify({
+    state: {
+      user: cachedUser,
+      role: cachedRole,
+      loginStatus,
+    },
+    version: 0,
+  });
+  if (persistedState == undefined) {
+    throw new Error("Unable to serialize persisted user state");
+  }
+  localStorage.setItem("user-storage", persistedState);
 }
 
 describe("<CoSceneCurrentUserProvider />", () => {
