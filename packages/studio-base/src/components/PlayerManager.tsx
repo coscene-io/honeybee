@@ -21,6 +21,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useContext,
   useLayoutEffect,
@@ -95,21 +96,36 @@ const selectProject = (store: CoreDataStore) => store.project;
 const selectJobRun = (store: CoreDataStore) => store.jobRun;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
+/** Close the current player without letting teardown failures block a source replacement. */
+export async function closePlayerForSourceSwitch(
+  player: Pick<Player, "close"> | undefined,
+): Promise<void> {
+  if (player == undefined) {
+    return;
+  }
+
+  try {
+    await player.close();
+  } catch (error) {
+    log.warn("Failed to close current player while switching sources:", error);
+  }
+}
+
 function useBeforeConnectionSource(): (
   sourceId: string,
   params: Record<string, string | undefined>,
+  isCurrent?: () => boolean,
 ) => Promise<boolean> {
   const consoleApi = useConsoleApi();
   const setShowtUrlKey = useSetShowtUrlKey();
 
   const syncBaseInfo = useCallback(
-    async (baseInfoKey: string) => {
-      consoleApi.setType("playback");
-      try {
-        await setShowtUrlKey(baseInfoKey);
-      } catch (error) {
-        log.error("setShowtUrlKey failed", error);
+    async (baseInfoKey: string, isCurrent: () => boolean) => {
+      if (!isCurrent()) {
+        return;
       }
+      consoleApi.setType("playback");
+      await setShowtUrlKey(baseInfoKey, { isCurrent });
     },
     [consoleApi, setShowtUrlKey],
   );
@@ -117,22 +133,38 @@ function useBeforeConnectionSource(): (
   const beforeConnectionSource: (
     sourceId: string,
     params: Record<string, string | undefined>,
+    isCurrent?: () => boolean,
   ) => Promise<boolean> = useCallback(
-    async (sourceId: string, params: Record<string, string | undefined>) => {
+    async (
+      sourceId: string,
+      params: Record<string, string | undefined>,
+      isCurrent = () => true,
+    ) => {
+      if (!isCurrent()) {
+        return false;
+      }
       switch (sourceId) {
         case "coscene-data-platform":
-          consoleApi.setType("playback");
           if (!params.key) {
             throw new Error("coscene-data-platform params.key is required");
           }
           // sync base info from bff to state manager
-          await syncBaseInfo(params.key);
+          await syncBaseInfo(params.key, isCurrent);
+          if (!isCurrent()) {
+            return false;
+          }
           // notify honeybeeServer to sync media
           await consoleApi.syncMedia({ key: params.key });
+          if (!isCurrent()) {
+            return false;
+          }
           break;
         case "coscene-websocket":
           if (params.key) {
-            await syncBaseInfo(params.key);
+            await syncBaseInfo(params.key, isCurrent);
+          }
+          if (!isCurrent()) {
+            return false;
           }
           consoleApi.setType("realtime");
           break;
@@ -141,7 +173,7 @@ function useBeforeConnectionSource(): (
           break;
       }
 
-      return true;
+      return isCurrent();
     },
     [consoleApi, syncBaseInfo],
   );
@@ -328,9 +360,12 @@ export default function PlayerManager(
   const [currentSourceParams, setCurrentSourceParams] = useState<
     { sourceId: string; args?: DataSourceArgs } | undefined
   >();
+  const sourceSelectionGenerationRef = useRef(0);
 
   const selectSource = useCallback(
     async (sourceId: string | undefined, args?: DataSourceArgs) => {
+      const selectionGeneration = ++sourceSelectionGenerationRef.current;
+      const isCurrentSelection = () => selectionGeneration === sourceSelectionGenerationRef.current;
       log.debug(`Select Source: ${sourceId}`);
 
       // If sourceId is undefined, clear the current source selection
@@ -371,6 +406,10 @@ export default function PlayerManager(
         const newPlayer = await foundSource.initialize({
           metricsCollector,
         });
+        if (!isCurrentSelection()) {
+          await closePlayerForSourceSwitch(newPlayer);
+          return;
+        }
 
         constructPlayers(newPlayer);
         return;
@@ -382,9 +421,11 @@ export default function PlayerManager(
         return;
       }
 
-      if (playerInstances) {
-        await playerInstances.player.close();
+      await closePlayerForSourceSwitch(playerInstances?.player);
+      if (!isCurrentSelection()) {
+        return;
       }
+      setDataSource(undefined);
 
       setCurrentSourceArgs(args);
 
@@ -397,11 +438,20 @@ export default function PlayerManager(
             };
 
             const sessionId = uuidv4();
+            setDataSource({ id: sourceId, type: "connection", sessionId });
 
             setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
-            const isReady = await beforeConnectionSource(sourceId, args.params ?? {});
+            const isReady = await beforeConnectionSource(
+              sourceId,
+              args.params ?? {},
+              isCurrentSelection,
+            );
+            if (!isCurrentSelection()) {
+              return;
+            }
             if (!isReady) {
+              setDataSource(undefined);
               return;
             }
 
@@ -435,9 +485,14 @@ export default function PlayerManager(
               autoConnectToLan,
               checkOutboundTrafficEntitlement,
             });
+            if (!isCurrentSelection()) {
+              await closePlayerForSourceSwitch(newPlayer);
+              return;
+            }
 
             if (!newPlayer) {
               constructPlayers(undefined);
+              setDataSource(undefined);
               return;
             }
 
@@ -488,6 +543,10 @@ export default function PlayerManager(
               sessionId: dataSourceState.sessionId,
               retentionWindowMs,
             });
+            if (!isCurrentSelection()) {
+              await closePlayerForSourceSwitch(newPlayer);
+              return;
+            }
 
             constructPlayers(newPlayer);
             return;
@@ -520,6 +579,10 @@ export default function PlayerManager(
                 files: multiFile ? fileList : undefined,
                 metricsCollector,
               });
+              if (!isCurrentSelection()) {
+                await closePlayerForSourceSwitch(newPlayer);
+                return;
+              }
 
               constructPlayers(newPlayer);
 
@@ -527,19 +590,22 @@ export default function PlayerManager(
               return;
             } else if (handle) {
               const permission = await handle.queryPermission({ mode: "read" });
-              if (!isMounted()) {
+              if (!isMounted() || !isCurrentSelection()) {
                 return;
               }
 
               if (permission !== "granted") {
                 const newPerm = await handle.requestPermission({ mode: "read" });
+                if (!isCurrentSelection()) {
+                  return;
+                }
                 if (newPerm !== "granted") {
                   throw new Error(`Permission denied: ${handle.name}`);
                 }
               }
 
               const file = await handle.getFile();
-              if (!isMounted()) {
+              if (!isMounted() || !isCurrentSelection()) {
                 return;
               }
 
@@ -549,6 +615,10 @@ export default function PlayerManager(
                 file,
                 metricsCollector,
               });
+              if (!isCurrentSelection()) {
+                await closePlayerForSourceSwitch(newPlayer);
+                return;
+              }
 
               constructPlayers(newPlayer);
               const recentId = addRecent({
@@ -566,6 +636,10 @@ export default function PlayerManager(
 
         enqueueSnackbar("Unable to initialize player", { variant: "error" });
       } catch (error) {
+        if (!isCurrentSelection()) {
+          return;
+        }
+        setDataSource(undefined);
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }
     },

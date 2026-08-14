@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 
-import { toDate, subtract, isLessThan, isGreaterThan, toSec } from "@foxglove/rostime";
+import { subtract, isLessThan, isGreaterThan, toSec, Time } from "@foxglove/rostime";
 import { convertCustomFieldValuesToMap } from "@foxglove/studio-base/components/CustomFieldProperty/utils/convertCustomFieldForm";
 import {
   BagFileInfo,
@@ -74,7 +74,7 @@ export const useDefaultEventForm = (): CreateEventForm => {
 
   return {
     eventName: "",
-    startTime: markStartTime ? toDate(markStartTime) : undefined,
+    startTime: markStartTime,
     duration: 1,
     durationUnit: "sec",
     description: "",
@@ -87,8 +87,8 @@ export const useDefaultEventForm = (): CreateEventForm => {
   };
 };
 
-export const useTimeRange = (): { startTime: Date | undefined; duration: number } => {
-  const [startTime, setStartTime] = useState<Date | undefined>(undefined);
+export const useTimeRange = (): { startTime: Time | undefined; duration: number } => {
+  const [startTime, setStartTime] = useState<Time | undefined>(undefined);
   const [duration, setDuration] = useState<number>(0);
 
   const eventMarks = useEvents(selectEventMarks);
@@ -97,7 +97,7 @@ export const useTimeRange = (): { startTime: Date | undefined; duration: number 
   const markEndTime = eventMarks[1]?.time;
 
   useEffect(() => {
-    setStartTime(markStartTime ? toDate(markStartTime) : undefined);
+    setStartTime(markStartTime);
 
     setDuration(markEndTime && markStartTime ? toSec(subtract(markEndTime, markStartTime)) : 0);
   }, [markStartTime, markEndTime]);

@@ -39,6 +39,7 @@ import {
   normalizeRosImage,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/imageNormalizers";
 import { normalizeCameraInfo } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/projections";
+import type { RemoteVideoFrameReference } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import {
   ImageMarker as RosImageMarker,
   ImageMarkerArray as RosImageMarkerArray,
@@ -221,6 +222,11 @@ export class MessageHandler implements IMessageHandler {
   };
   public handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
     this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
+  };
+  public handleRemoteVideoFrameReference = (
+    messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
+  ): void => {
+    this.handleImage(messageEvent, messageEvent.message as RemoteVideoFrameReference);
   };
 
   public updateImageState = (
@@ -495,6 +501,9 @@ export interface IMessageHandler {
   handleRawImage: (messageEvent: PartialMessageEvent<RawImage>) => void;
   handleCompressedImage: (messageEvent: PartialMessageEvent<CompressedImage>) => void;
   handleCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
+  handleRemoteVideoFrameReference: (
+    messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
+  ) => void;
   updateImageState: (messageEvent: PartialMessageEvent<AnyImage>, image: AnyImage) => void;
   handleCameraInfo: (message: PartialMessageEvent<CameraInfo>) => void;
   handleAnnotations: (

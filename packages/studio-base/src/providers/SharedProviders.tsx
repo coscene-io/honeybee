@@ -20,6 +20,8 @@ import CoSceneUserProfileLocalStorageProvider from "@foxglove/studio-base/provid
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
+import GrowthBookUserProvider from "@foxglove/studio-base/providers/GrowthBookUserProvider";
+import { GrowthBookRecommendedLayoutProvider } from "@foxglove/studio-base/providers/RecommendedLayoutProvider";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
 import { S3FileService } from "@foxglove/studio-base/services/S3FileService";
@@ -28,9 +30,11 @@ import ConsoleApi from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 export function SharedProviders({
   consoleApi,
   loginStatusKey,
+  recommendedLayoutsEnabled,
 }: {
   consoleApi: ConsoleApi;
   loginStatusKey?: number;
+  recommendedLayoutsEnabled?: boolean;
 }): React.JSX.Element[] {
   const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
   const urdfStorage = useMemo(() => new IdbUrdfStorage(), []);
@@ -45,6 +49,7 @@ export function SharedProviders({
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneCurrentUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
       // dependent - CoSceneUserProvider
+      <GrowthBookUserProvider key="GrowthBookUserProvider" />,
       <AnalyticsProvider key="AnalyticsProvider" />,
       <CoSceneConsoleApiRemoteLayoutStorageProvider key="CoSceneConsoleApiRemoteLayoutStorageProvider" />,
       <CoSceneLayoutStorageContext.Provider
@@ -56,8 +61,19 @@ export function SharedProviders({
       <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
       <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
+      <GrowthBookRecommendedLayoutProvider
+        key="GrowthBookRecommendedLayoutProvider"
+        enabled={recommendedLayoutsEnabled}
+      />,
     ],
-    [consoleApi, loginStatusKey, layoutStorage, urdfStorage, s3FileService],
+    [
+      consoleApi,
+      loginStatusKey,
+      layoutStorage,
+      recommendedLayoutsEnabled,
+      urdfStorage,
+      s3FileService,
+    ],
   );
 
   return providers;

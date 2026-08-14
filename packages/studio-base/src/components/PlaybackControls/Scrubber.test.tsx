@@ -50,6 +50,7 @@ function dispatchMockPipelineProps(store: MockPipelineStore, mockProps: MockPipe
 let mockSliderProps:
   | {
       disabled?: boolean;
+      cursor?: string;
       onChange?: (playbackSeconds: number) => void;
       onHoverOver?: (event: HoverOverEvent) => void;
       onHoverOut?: () => void;
@@ -98,6 +99,7 @@ jest.mock("./Slider", () => ({
   __esModule: true,
   default: function MockSlider(props: {
     disabled?: boolean;
+    cursor?: string;
     onChange?: (playbackSeconds: number) => void;
     onHoverOver?: (event: HoverOverEvent) => void;
     onHoverOut?: () => void;
@@ -286,6 +288,16 @@ describe("<Scrubber />", () => {
     );
 
     expect(screen.getByTestId("scrubber-slider").dataset.disabled).toBe("true");
+  });
+
+  it("uses the default cursor for the timeline slider", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    expect(mockSliderProps?.cursor).toBe("default");
   });
 
   it("ignores timeline seek changes while keyframe search is active", () => {

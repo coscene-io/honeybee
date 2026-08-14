@@ -8,6 +8,7 @@
 import * as _ from "lodash-es";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getNodeAtPath } from "react-mosaic-component";
 import { useAsyncFn, useMountedState } from "react-use";
 import shallowequal from "shallowequal";
@@ -22,6 +23,7 @@ import CurrentLayoutContext, {
   ICurrentLayout,
   LayoutID,
   LayoutState,
+  MAX_SUPPORTED_LAYOUT_VERSION,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   AddPanelPayload,
@@ -37,6 +39,7 @@ import {
   StartDragPayload,
   SwapPanelPayload,
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
+import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { LayoutManagerEventTypes } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
@@ -48,7 +51,7 @@ import { IncompatibleLayoutVersionAlert } from "./IncompatibleLayoutVersionAlert
 
 const log = Logger.getLogger(__filename);
 
-export const MAX_SUPPORTED_LAYOUT_VERSION = 1;
+export { MAX_SUPPORTED_LAYOUT_VERSION } from "@foxglove/studio-base/context/CurrentLayoutContext";
 let nextEditRevision = 0;
 
 /**
@@ -62,6 +65,8 @@ export default function CurrentLayoutProvider({
   const layoutManager = useLayoutManager();
   const analytics = useAnalytics();
   const isMounted = useMountedState();
+  const confirm = useConfirm();
+  const { t } = useTranslation("layout");
 
   const [mosaicId] = useState(() => uuidv4());
 
@@ -77,6 +82,8 @@ export default function CurrentLayoutProvider({
     selectedLayout: undefined,
   });
   const layoutStateRef = useRef(layoutState);
+  const layoutSelectionGenerationRef = useRef(0);
+  const recommendedCopyInProgressRef = useRef(false);
   const [incompatibleLayoutVersionError, setIncompatibleLayoutVersionError] = useState(false);
   const setLayoutState = useCallback((newState: LayoutState) => {
     setLayoutStateInternal(newState);
@@ -117,20 +124,23 @@ export default function CurrentLayoutProvider({
       id: LayoutID | undefined,
       { saveToProfile = true }: { saveToProfile?: boolean } = {},
     ) => {
+      const selectionGeneration = ++layoutSelectionGenerationRef.current;
       if (id == undefined) {
         setLayoutState({ selectedLayout: undefined });
         return;
       }
       try {
-        setLayoutState({ selectedLayout: { id, loading: true, data: undefined } });
+        setLayoutState({
+          selectedLayout: { id, loading: true, data: undefined, source: "stored" },
+        });
         const layout = await layoutManager.getLayout({ id });
+        if (!isMounted() || selectionGeneration !== layoutSelectionGenerationRef.current) {
+          return;
+        }
         const layoutVersion = layout?.baseline.data.version;
         if (layoutVersion != undefined && layoutVersion > MAX_SUPPORTED_LAYOUT_VERSION) {
           setIncompatibleLayoutVersionError(true);
           setLayoutState({ selectedLayout: undefined });
-          return;
-        }
-        if (!isMounted()) {
           return;
         }
         setIncompatibleLayoutVersionError(false);
@@ -143,6 +153,7 @@ export default function CurrentLayoutProvider({
               id: layout.id,
               data: layout.working?.data ?? layout.baseline.data,
               name: layout.name,
+              source: "stored",
             },
           });
           if (saveToProfile) {
@@ -150,6 +161,9 @@ export default function CurrentLayoutProvider({
           }
         }
       } catch (error) {
+        if (!isMounted() || selectionGeneration !== layoutSelectionGenerationRef.current) {
+          return;
+        }
         console.error(error);
         const message = error instanceof Error ? error.toString() : String(error);
         enqueueSnackbar(`The layout could not be loaded. ${message}`, {
@@ -164,6 +178,7 @@ export default function CurrentLayoutProvider({
 
   const setCurrentLayout = useCallback<ICurrentLayout["actions"]["setCurrentLayout"]>(
     (newLayout) => {
+      layoutSelectionGenerationRef.current++;
       if (newLayout == undefined) {
         setLayoutState({ selectedLayout: undefined });
         return;
@@ -175,6 +190,9 @@ export default function CurrentLayoutProvider({
         data: newLayout.data,
         name: newLayout.name,
         edited: newLayout.edited,
+        editRevision: newLayout.editRevision,
+        source: newLayout.source ?? "stored",
+        recommendedLayout: newLayout.recommendedLayout,
       };
       if (newLayout.transient === true) {
         selectedLayout.transient = true;
@@ -186,15 +204,112 @@ export default function CurrentLayoutProvider({
     [setLayoutState],
   );
 
-  const performAction = useCallback(
-    (action: PanelsActions) => {
+  const withRecommendedLayoutCopyLock = useCallback<
+    ICurrentLayout["actions"]["withRecommendedLayoutCopyLock"]
+  >(async (operation) => {
+    if (recommendedCopyInProgressRef.current) {
+      return undefined;
+    }
+    recommendedCopyInProgressRef.current = true;
+    try {
+      return await operation();
+    } finally {
+      recommendedCopyInProgressRef.current = false;
+    }
+  }, []);
+
+  const saveRecommendedLayout = useCallback<
+    ICurrentLayout["actions"]["saveRecommendedLayout"]
+  >(async () => {
+    await withRecommendedLayoutCopyLock(async () => {
+      const selectedLayout = layoutStateRef.current.selectedLayout;
       if (
-        layoutStateRef.current.selectedLayout?.data == undefined ||
-        layoutStateRef.current.selectedLayout.loading === true
+        selectedLayout?.source !== "recommended" ||
+        selectedLayout.loading === true ||
+        selectedLayout.data == undefined
       ) {
         return;
       }
-      const oldData = layoutStateRef.current.selectedLayout.data;
+
+      const response = await confirm({
+        title: t("recommendedLayoutReadOnlyTitle"),
+        prompt: t("recommendedLayoutReadOnlyPrompt"),
+        ok: t("saveAPersonalCopy"),
+        cancel: t("cancel", { ns: "general" }),
+      });
+      if (response !== "ok") {
+        return;
+      }
+
+      const layoutToSave = layoutStateRef.current.selectedLayout;
+      if (
+        layoutToSave?.source !== "recommended" ||
+        layoutToSave.id !== selectedLayout.id ||
+        layoutToSave.data == undefined
+      ) {
+        return;
+      }
+      const selectionGeneration = layoutSelectionGenerationRef.current;
+
+      try {
+        const savedData = layoutToSave.data;
+        const newLayout = await layoutManager.saveNewLayout({
+          folder: "",
+          name: `${layoutToSave.name ?? t("recommendedLayout")} copy`,
+          data: savedData,
+          permission: "PERSONAL_WRITE",
+        });
+        if (!isMounted() || selectionGeneration !== layoutSelectionGenerationRef.current) {
+          return;
+        }
+
+        const latestLayout = layoutStateRef.current.selectedLayout;
+        if (
+          latestLayout?.source !== "recommended" ||
+          latestLayout.id !== layoutToSave.id ||
+          latestLayout.data == undefined
+        ) {
+          return;
+        }
+
+        const editedSinceSave = !isLayoutEqual(savedData, latestLayout.data);
+        setLayoutState({
+          selectedLayout: {
+            id: newLayout.id,
+            data: latestLayout.data,
+            name: newLayout.name,
+            source: "stored",
+            ...(editedSinceSave ? { edited: true, editRevision: ++nextEditRevision } : {}),
+          },
+        });
+        void layoutManager.putHistory({ id: newLayout.id });
+        void analytics.logEvent(AppEvent.LAYOUT_CREATE);
+      } catch (error) {
+        if (!isMounted() || selectionGeneration !== layoutSelectionGenerationRef.current) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        enqueueSnackbar(t("recommendedLayoutCopyFailed", { message }), { variant: "error" });
+      }
+    });
+  }, [
+    analytics,
+    confirm,
+    enqueueSnackbar,
+    isMounted,
+    layoutManager,
+    setLayoutState,
+    t,
+    withRecommendedLayoutCopyLock,
+  ]);
+
+  const performAction = useCallback(
+    (action: PanelsActions) => {
+      const selectedLayout = layoutStateRef.current.selectedLayout;
+      if (selectedLayout?.data == undefined || selectedLayout.loading === true) {
+        return;
+      }
+      const oldData = selectedLayout.data;
       const newData = panelsReducer(oldData, action);
 
       // The panel state did not change, so no need to perform layout state
@@ -204,15 +319,31 @@ export default function CurrentLayoutProvider({
         return;
       }
 
+      if (selectedLayout.source === "recommended") {
+        const isInitialization =
+          action.type === "SAVE_PANEL_CONFIGS" && action.source === "initialization";
+        setLayoutState({
+          selectedLayout: {
+            ...selectedLayout,
+            data: newData,
+            loading: false,
+            ...(isInitialization ? {} : { edited: true, editRevision: ++nextEditRevision }),
+            source: "recommended",
+          },
+        });
+        return;
+      }
+
       setLayoutState({
         selectedLayout: {
-          id: layoutStateRef.current.selectedLayout.id,
+          id: selectedLayout.id,
           data: newData,
           loading: false,
-          name: layoutStateRef.current.selectedLayout.name,
+          name: selectedLayout.name,
           edited: true,
           editRevision: ++nextEditRevision,
-          ...(layoutStateRef.current.selectedLayout.transient === true ? { transient: true } : {}),
+          source: "stored",
+          ...(selectedLayout.transient === true ? { transient: true } : {}),
         },
       });
     },
@@ -255,6 +386,7 @@ export default function CurrentLayoutProvider({
               loading: false,
               id: updatedLayout.id,
               name: updatedLayout.name,
+              source: "stored",
             },
           });
           return;
@@ -266,6 +398,7 @@ export default function CurrentLayoutProvider({
             id: updatedLayout.id,
             data: updatedData,
             name: updatedLayout.name,
+            source: "stored",
             ...(event.source === "revert" ? { editRevision: ++nextEditRevision } : {}),
           },
         });
@@ -302,10 +435,16 @@ export default function CurrentLayoutProvider({
       updateSharedPanelState,
       setCurrentLayout,
       setSelectedLayoutId,
+      saveRecommendedLayout,
+      withRecommendedLayoutCopyLock,
       getCurrentLayoutState: () => layoutStateRef.current,
 
-      savePanelConfigs: (payload: SaveConfigsPayload) => {
-        performAction({ type: "SAVE_PANEL_CONFIGS", payload });
+      savePanelConfigs: (payload: SaveConfigsPayload, options) => {
+        performAction({
+          type: "SAVE_PANEL_CONFIGS",
+          payload,
+          ...(options?.source != undefined ? { source: options.source } : {}),
+        });
       },
       updatePanelConfigs: (
         panelType: string,
@@ -390,10 +529,12 @@ export default function CurrentLayoutProvider({
     [
       analytics,
       performAction,
+      saveRecommendedLayout,
       setCurrentLayout,
       setSelectedLayoutId,
       setSelectedPanelIds,
       updateSharedPanelState,
+      withRecommendedLayoutCopyLock,
     ],
   );
 

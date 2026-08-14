@@ -18,6 +18,10 @@ import {
   ALL_SUPPORTED_IMAGE_SCHEMAS,
   SEEK_KEYFRAME_SEARCH_HUD_ITEM,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/constants";
+import {
+  REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
+  type RemoteVideoFrameReference,
+} from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 
 import {
   CompressedVideoController,
@@ -190,6 +194,14 @@ export class Images extends SceneExtension<ImageRenderable> {
         subscription: {
           handler: this.#handleCompressedVideo,
           filterQueue: this.#filterCompressedVideoQueue,
+        },
+      },
+      {
+        type: "schema",
+        schemaNames: REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
+        subscription: {
+          handler: this.#handleRemoteVideoFrameReference,
+          filterQueue: onlyLastByTopicMessage,
         },
       },
     ];
@@ -391,6 +403,12 @@ export class Images extends SceneExtension<ImageRenderable> {
     this.#compressedVideoControllerForTopic(normalizedEvent.topic).processMessage(normalizedEvent, {
       resizeWidth: DEFAULT_BITMAP_WIDTH,
     });
+  };
+
+  #handleRemoteVideoFrameReference = (
+    messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
+  ): void => {
+    void this.handleImage(messageEvent, messageEvent.message as RemoteVideoFrameReference);
   };
 
   protected handleImage = async (

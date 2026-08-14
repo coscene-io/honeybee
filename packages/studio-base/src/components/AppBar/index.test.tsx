@@ -16,6 +16,7 @@ import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurat
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import CoSceneLayoutManagerContext from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { RecommendedLayoutContext } from "@foxglove/studio-base/context/RecommendedLayoutContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
@@ -61,6 +62,9 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
     <TimelineInteractionStateProvider />,
     <MockMessagePipelineProvider />,
     <MockCurrentLayoutProvider />,
+    <RecommendedLayoutContext.Provider
+      value={{ status: "ready", layouts: [], loadLayout: jest.fn() }}
+    />,
     <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
     <ThemeProvider isDark />,
     /* eslint-enable react/jsx-key */

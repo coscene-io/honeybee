@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
 import { makeStyles } from "tss-react/mui";
 
-import { add, areEqual, fromSec, subtract, toDate, toSec } from "@foxglove/rostime";
+import { add, areEqual, fromSec, subtract, toSec } from "@foxglove/rostime";
 import { CreateEventContainer } from "@foxglove/studio-base/components/Events/CreateEventContainer/index";
 import {
   MessagePipelineContext,
@@ -66,6 +66,7 @@ import {
   type EventResizeEdge,
   type EventTimeRange,
 } from "./eventTimeEdit";
+import { SHORTCUTS } from "./keyboardShortcuts";
 import {
   clientXToFraction,
   clientXToTime,
@@ -1460,7 +1461,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     ) {
       setCursor("ew-resize");
     } else {
-      setCursor("pointer");
+      setCursor("default");
     }
   }, [
     canWriteEvents,
@@ -1652,7 +1653,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       setToModifyEvent({
         name: targetEvent.event.name,
         eventName: targetEvent.event.displayName,
-        startTime: toDate(targetEvent.startTime),
+        startTime: targetEvent.startTime,
         duration: eventDurationSec,
         durationUnit: "sec",
         description: targetEvent.event.description,
@@ -1713,7 +1714,9 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
             >
               <EventCreateInactiveIcon focusable="false" />
             </span>
-            <span className={classes.emptyEventHintText}>{t("emptyTimelineHint")}</span>
+            <span className={classes.emptyEventHintText}>
+              {t("emptyTimelineHint", { shortcut: SHORTCUTS.createMoment[0] })}
+            </span>
           </div>
         )}
         {renderLaneLayout.items.map((item) => {

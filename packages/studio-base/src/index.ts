@@ -37,6 +37,7 @@ export { default as RosbridgeDataSourceFactory } from "./dataSources/RosbridgeDa
 export { default as UlogLocalDataSourceFactory } from "./dataSources/UlogLocalDataSourceFactory";
 export { default as VelodyneDataSourceFactory } from "./dataSources/VelodyneDataSourceFactory";
 export { default as RemoteDataSourceFactory } from "./dataSources/RemoteDataSourceFactory";
+export { default as RemoteMp4DataSourceFactory } from "./dataSources/RemoteMp4DataSourceFactory";
 export { default as McapLocalDataSourceFactory } from "./dataSources/McapLocalDataSourceFactory";
 export { default as SampleNuscenesDataSourceFactory } from "./dataSources/SampleNuscenesDataSourceFactory";
 export { default as PersistentCacheDataSourceFactory } from "./dataSources/PersistentCacheDataSourceFactory";
@@ -46,6 +47,11 @@ export { reportError, setReportErrorHandler } from "./reportError";
 export { makeWorkspaceContextInitialState } from "./providers/WorkspaceContextProvider";
 export { default as ExtensionCatalogProvider } from "./providers/ExtensionCatalogProvider";
 export { SharedProviders } from "./providers/SharedProviders";
+export {
+  GrowthBookProvider,
+  useFeatureIsOnWithConfig,
+  useFeatureValueWithConfig,
+} from "./providers/GrowthBookProvider";
 
 // CoScene
 export { migratePanelsState, migrateLayout } from "./services/migrateLayout";

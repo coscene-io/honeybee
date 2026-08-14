@@ -8,6 +8,7 @@ import {
   PersonOutlined as PersonOutlinedIcon,
   BusinessCenterOutlined as BusinessCenterOutlinedIcon,
   SpaceDashboardOutlined as SpaceDashboardOutlinedIcon,
+  AutoAwesomeOutlined as AutoAwesomeOutlinedIcon,
 } from "@mui/icons-material";
 import { Button, ButtonBase } from "@mui/material";
 import { useCallback, useMemo } from "react";
@@ -17,7 +18,7 @@ import { makeStyles } from "tss-react/mui";
 import { APP_BAR_HEIGHT } from "@foxglove/studio-base/components/AppBar/constants";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";
+import { LayoutID, LayoutState } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import {
   Layout,
   layoutIsProject,
@@ -70,9 +71,11 @@ const useStyles = makeStyles()((theme) => ({
 
 interface CurrentLayoutButtonProps {
   currentLayoutId?: LayoutID;
+  selectedLayout?: LayoutState["selectedLayout"];
   loading?: boolean;
   onClick: () => void;
   onOverwriteLayout: (layout: Layout) => void;
+  onSaveRecommendedLayout: () => void;
   onRevertLayout: (layout: Layout) => void;
   layouts?: {
     personalFolders: string[];
@@ -83,10 +86,12 @@ interface CurrentLayoutButtonProps {
 
 export function CurrentLayoutButton({
   currentLayoutId,
+  selectedLayout,
   layouts,
   loading,
   onClick,
   onOverwriteLayout,
+  onSaveRecommendedLayout,
   onRevertLayout,
 }: CurrentLayoutButtonProps): React.JSX.Element {
   const { t } = useTranslation("layout");
@@ -97,12 +102,17 @@ export function CurrentLayoutButton({
   }, [layouts, currentLayoutId]);
 
   const deletedOnServer = currentLayout?.syncInfo?.status === "remotely-deleted";
-  const hasModifications = currentLayout?.working != undefined;
+  const isRecommended = selectedLayout?.source === "recommended";
+  const hasModifications = !isRecommended && currentLayout?.working != undefined;
   const isRead = !!currentLayout && layoutIsRead(currentLayout);
 
   const getDisplayText = (): string => {
     if (loading === true) {
       return t("loading");
+    }
+
+    if (isRecommended) {
+      return selectedLayout.name ?? t("recommendedLayout");
     }
 
     if (!currentLayout) {
@@ -113,6 +123,9 @@ export function CurrentLayoutButton({
   };
 
   const getSubIcon = () => {
+    if (isRecommended) {
+      return <AutoAwesomeOutlinedIcon fontSize="small" />;
+    }
     if (currentLayout?.permission === "PERSONAL_WRITE") {
       return <PersonOutlinedIcon fontSize="small" />;
     }
@@ -148,16 +161,31 @@ export function CurrentLayoutButton({
     [currentLayout, onRevertLayout],
   );
 
+  const handleSaveRecommended = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onSaveRecommendedLayout();
+    },
+    [onSaveRecommendedLayout],
+  );
+
   const consoleApi = useConsoleApi();
   const isProject = currentLayout ? layoutIsProject(currentLayout) : false;
   const canUpdate = isProject ? consoleApi.updateProjectLayout.permission() : true;
 
   const buttons = [
     {
+      key: "saveRecommended",
+      text: t("saveAPersonalCopy"),
+      onClick: handleSaveRecommended,
+      disabled: selectedLayout?.data == undefined,
+      visible: isRecommended,
+    },
+    {
       key: "saveChanges",
       text: t("save"),
       onClick: handleOverwrite,
-      disabled: deletedOnServer || isRead || !canUpdate,
+      disabled: (deletedOnServer && isProject) || isRead || !canUpdate,
       visible: hasModifications,
     },
     {
@@ -171,10 +199,11 @@ export function CurrentLayoutButton({
 
   return (
     <ButtonBase
+      component="div"
       className={classes.layoutButton}
       aria-haspopup="true"
       onClick={onClick}
-      disabled={loading}
+      disabled={loading === true || selectedLayout?.loading === true}
     >
       <div className={classes.leftContent}>
         <Stack direction="row" alignItems="center" gap={1}>

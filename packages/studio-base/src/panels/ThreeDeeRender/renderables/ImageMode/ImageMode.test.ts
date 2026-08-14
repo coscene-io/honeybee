@@ -69,6 +69,8 @@ class FakeMessageHandler implements IMessageHandler {
   public readonly handleRawImage: IMessageHandler["handleRawImage"] = jest.fn();
   public readonly handleCompressedImage: IMessageHandler["handleCompressedImage"] = jest.fn();
   public readonly handleCompressedVideo: IMessageHandler["handleCompressedVideo"] = jest.fn();
+  public readonly handleRemoteVideoFrameReference: IMessageHandler["handleRemoteVideoFrameReference"] =
+    jest.fn();
   public readonly updateImageState: IMessageHandler["updateImageState"] = jest.fn();
   public readonly handleCameraInfo: IMessageHandler["handleCameraInfo"] = jest.fn();
   public readonly handleAnnotations: IMessageHandler["handleAnnotations"] = jest.fn();

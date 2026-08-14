@@ -55,8 +55,14 @@ const selectUserLoginStatus = (store: UserStore) => store.loginStatus;
 const selectWorkspaceDataSourceDialog = (store: WorkspaceContextStore) => store.dialogs.dataSource;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectSetIsReadyForSyncLayout = (state: CoreDataStore) => state.setIsReadyForSyncLayout;
+const selectBeginExternalInitConfigUpdate = (state: CoreDataStore) =>
+  state.beginExternalInitConfigUpdate;
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
+
+export function getWebLoginRedirectUrl(location: Pick<Location, "pathname" | "search">): string {
+  return `/login?redirectToPath=${encodeURIComponent(location.pathname + location.search)}`;
+}
 
 function ExpiredShareManifestDialog(): React.JSX.Element {
   return (
@@ -160,19 +166,19 @@ export function DeepLinksSyncAdapter({
   // 处理状态标记
   const isSourceProcessed = useRef(false);
   const hasShownInvalidDomainToast = useRef(false);
+  const loginRedirectTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   // ========== 工具函数 ==========
   // 防抖的登录提示
   const debouncedPleaseLoginFirstToast = useMemo(() => {
     return _.debounce(() => {
       toast.error(t("pleaseLoginFirst", { ns: "openDialog" }));
-      setTimeout(() => {
+      loginRedirectTimeout.current = setTimeout(() => {
+        loginRedirectTimeout.current = undefined;
         if (isDesktopApp()) {
           window.open(`https://${domainConfig.webDomain}/studio/login`);
         } else {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          window.location.href = getWebLoginRedirectUrl(window.location);
         }
       }, 500);
     }, 1000);
@@ -186,6 +192,7 @@ export function DeepLinksSyncAdapter({
   const consoleApi = useConsoleApi();
   const setExternalInitConfig = useSetExternalInitConfig();
   const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
+  const beginExternalInitConfigUpdate = useCoreData(selectBeginExternalInitConfigUpdate);
 
   /**
    * 从 lastExternalInitConfig 恢复项目配置
@@ -205,6 +212,7 @@ export function DeepLinksSyncAdapter({
       return;
     }
 
+    const update = beginExternalInitConfigUpdate();
     try {
       const parsedConfig = JSON.parse(lastExternalInitConfig) as ExternalInitConfig;
 
@@ -215,25 +223,37 @@ export function DeepLinksSyncAdapter({
       }
 
       const projectName = `warehouses/${parsedConfig.warehouseId}/projects/${parsedConfig.projectId}`;
-
       // 验证项目是否仍然存在
       const targetProject = await consoleApi.getProject({ projectName });
+      if (!update.isCurrent()) {
+        return;
+      }
 
       if (targetProject.name) {
         // 项目存在，设置配置（会自动设置 isReadyForSyncLayout）
-        await setExternalInitConfig(parsedConfig);
+        await setExternalInitConfig(parsedConfig, { update });
       } else {
         // 项目不存在，清理缓存
         await setLastExternalInitConfig(undefined);
+        if (!update.isCurrent()) {
+          return;
+        }
         setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
       }
     } catch (error) {
+      if (!update.isCurrent()) {
+        return;
+      }
       log.debug("Failed to restore from lastExternalInitConfig", error);
       await setLastExternalInitConfig(undefined);
+      if (!update.isCurrent()) {
+        return;
+      }
       setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
     }
   }, [
     consoleApi,
+    beginExternalInitConfigUpdate,
     lastExternalInitConfig,
     setExternalInitConfig,
     setLastExternalInitConfig,
@@ -279,6 +299,26 @@ export function DeepLinksSyncAdapter({
     }
   }, [deepLinks, targetUrlState, domainConfig.webDomain, dialogActions.dataSource, t]);
 
+  useEffect(() => {
+    const authless = targetShareManifest?.status === "valid" || isAuthlessDataSource();
+    if (loginStatus === "notLogin" && unappliedSourceArgs?.ds && !authless) {
+      debouncedPleaseLoginFirstToast();
+    }
+
+    return () => {
+      debouncedPleaseLoginFirstToast.cancel();
+      if (loginRedirectTimeout.current != undefined) {
+        clearTimeout(loginRedirectTimeout.current);
+        loginRedirectTimeout.current = undefined;
+      }
+    };
+  }, [
+    debouncedPleaseLoginFirstToast,
+    loginStatus,
+    targetShareManifest?.status,
+    unappliedSourceArgs,
+  ]);
+
   // ========== 处理数据源初始化的主逻辑 ==========
   /**
    * 数据源初始化主逻辑
@@ -320,9 +360,6 @@ export function DeepLinksSyncAdapter({
 
     // 特殊情况：用户未登录但试图访问需要登录的数据源
     if (loginStatus === "notLogin" && unappliedSourceArgs?.ds && !authless) {
-      isSourceProcessed.current = true;
-      debouncedPleaseLoginFirstToast();
-      setUnappliedSourceArgs(undefined);
       return;
     }
 
@@ -381,7 +418,6 @@ export function DeepLinksSyncAdapter({
     loginStatus,
     dataSourceDialog.open,
     dialogActions.dataSource,
-    debouncedPleaseLoginFirstToast,
     loadLastExternalInitConfig,
     setIsReadyForSyncLayout,
     shareManifestExpired,

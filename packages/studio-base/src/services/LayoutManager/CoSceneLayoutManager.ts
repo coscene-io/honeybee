@@ -72,6 +72,28 @@ function expectedRemoteTimestamps(layout: Layout): {
     : {};
 }
 
+function trackedLayoutFromRemote(remoteLayout: RemoteLayout): Layout {
+  return {
+    id: remoteLayout.id,
+    folder: remoteLayout.folder,
+    name: remoteLayout.name,
+    permission: remoteLayout.permission,
+    baseline: {
+      data: remoteLayout.data,
+      savedAt: remoteLayout.savedAt,
+      modifier: remoteLayout.modifier,
+      modifierNickname: remoteLayout.modifierNickname,
+    },
+    working: undefined,
+    syncInfo: {
+      status: "tracked",
+      lastRemoteSavedAt: remoteLayout.savedAt,
+      lastRemoteUpdatedAt: remoteLayout.updatedAt,
+    },
+    parent: remoteLayout.parent,
+  };
+}
+
 function localLayoutSyncSnapshotMatches(currentLayout: Layout, operationLayout: Layout): boolean {
   return (
     currentLayout.syncInfo?.status === operationLayout.syncInfo?.status &&
@@ -1009,28 +1031,11 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               break;
             }
             log.debug(`Adding layout to cache: ${remoteLayout.id}`);
-            await local.put({
-              id: remoteLayout.id,
-              folder: remoteLayout.folder,
-              name: remoteLayout.name,
-              permission: remoteLayout.permission,
-              baseline: {
-                data: remoteLayout.data,
-                savedAt: remoteLayout.savedAt,
-                modifier: remoteLayout.modifier,
-                modifierNickname: remoteLayout.modifierNickname,
-              },
-              working: undefined,
-              syncInfo: {
-                status: "tracked",
-                lastRemoteSavedAt: remoteLayout.savedAt,
-                lastRemoteUpdatedAt: remoteLayout.updatedAt,
-              },
-              parent: remoteLayout.parent,
-            });
+            await local.put(trackedLayoutFromRemote(remoteLayout));
             break;
           }
 
+          case "restore-from-remote":
           case "update-baseline": {
             const { remoteLayout } = operation;
             if (
@@ -1041,6 +1046,14 @@ export default class CoSceneLayoutManager implements ILayoutManager {
             }
             const localLayout = await local.get(operation.localLayout.id);
             if (!localLayout?.syncInfo) {
+              if (
+                localLayout == undefined &&
+                operation.type === "restore-from-remote" &&
+                options.backupPersonalOnly === true
+              ) {
+                log.debug(`Adding restored layout to backup cache: ${remoteLayout.id}`);
+                await local.put(trackedLayoutFromRemote(remoteLayout));
+              }
               break;
             }
             if (
@@ -1064,7 +1077,10 @@ export default class CoSceneLayoutManager implements ILayoutManager {
               },
               working: localLayout.working,
               syncInfo: {
-                status: localLayout.syncInfo.status,
+                status:
+                  operation.type === "restore-from-remote"
+                    ? "tracked"
+                    : localLayout.syncInfo.status,
                 lastRemoteSavedAt: remoteLayout.savedAt,
                 lastRemoteUpdatedAt: remoteLayout.updatedAt,
               },

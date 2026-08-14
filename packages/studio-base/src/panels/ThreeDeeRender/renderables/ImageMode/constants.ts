@@ -8,6 +8,7 @@
 import type { HUDItem } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { IMAGE_DEFAULT_COLOR_MODE_SETTINGS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/decodeImage";
 import { t3D } from "@foxglove/studio-base/panels/ThreeDeeRender/t3D";
+import { REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 
 import {
   CAMERA_CALIBRATION_DATATYPES,
@@ -52,6 +53,7 @@ export const ALL_SUPPORTED_IMAGE_SCHEMAS = new Set([
   ...RAW_IMAGE_DATATYPES,
   ...COMPRESSED_IMAGE_DATATYPES,
   ...COMPRESSED_VIDEO_DATATYPES,
+  ...REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
 ]);
 
 export const SUPPORTED_RAW_IMAGE_SCHEMAS = new Set([
