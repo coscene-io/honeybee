@@ -6,6 +6,7 @@
   "recommendations": [
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
+    "oxc.oxc-vscode",
     "orta.vscode-jest",
     "bierner.comment-tagged-templates",
     "TypeScriptTeam.native-preview"

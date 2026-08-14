@@ -18,6 +18,10 @@ updates:
           - "typescript-eslint"
           - "eslint-config-*"
           - "eslint-plugin-*"
+      oxlint:
+        patterns:
+          - "oxlint"
+          - "oxlint-*"
       emotion:
         patterns:
           - "@emotion/*"

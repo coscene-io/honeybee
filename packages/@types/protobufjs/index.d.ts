@@ -13,7 +13,7 @@ declare module "protobufjs" {
       protoVersion: string,
     ): protobufjs.Message<descriptor.IFileDescriptorSet> & descriptor.IFileDescriptorSet;
   }
-  declare namespace ReflectionObject {
+  namespace ReflectionObject {
     // This method is added as a side effect of importing protobufjs/ext/descriptor
     export const fromDescriptor: (desc: protobufjs.Message) => protobufjs.Root;
   }
