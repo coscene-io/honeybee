@@ -27,11 +27,11 @@ describe("RemoteVideoFrameRegistry", () => {
     const provider = { getFrame: jest.fn(async () => frame) };
     const unregister = registerRemoteVideoFrameProvider(REFERENCE.provider_id, provider);
 
-    await expect(getRemoteVideoFrame(REFERENCE)).resolves.toBe(frame);
-    expect(provider.getFrame).toHaveBeenCalledWith(REFERENCE.timestamp);
+    await expect(getRemoteVideoFrame(REFERENCE, "test-consumer")).resolves.toBe(frame);
+    expect(provider.getFrame).toHaveBeenCalledWith(REFERENCE.timestamp, "test-consumer");
 
     unregister();
-    await expect(getRemoteVideoFrame(REFERENCE)).rejects.toThrow(
+    await expect(getRemoteVideoFrame(REFERENCE, "test-consumer")).rejects.toThrow(
       "The remote MP4 decoder is no longer available",
     );
   });

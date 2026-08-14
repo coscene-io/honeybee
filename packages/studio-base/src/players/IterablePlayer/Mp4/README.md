@@ -20,9 +20,8 @@ presentation order.
 
 The HTTP server must provide `Content-Length` and `Accept-Ranges: bytes`. Browser deployments also
 need CORS access and must expose `Accept-Ranges`. The source accepts H.264 and H.265 MP4 tracks only,
-and playback requires browser WebCodecs support for the track's exact codec/profile. MP4 rotation
-metadata is reported in frame references; applying non-zero track rotation in the renderer is not
-yet implemented.
+and playback requires browser WebCodecs support for the track's exact codec/profile. MP4 track
+rotation metadata is applied at the renderer boundary before display.
 
 ## Browser benchmark
 
