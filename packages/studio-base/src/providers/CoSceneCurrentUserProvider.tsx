@@ -17,9 +17,10 @@ import {
   ProjectRoleWeight,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { getAuthToken } from "@foxglove/studio-base/util/coscene/getAuthToken";
 
 function createCurrentUserStore() {
-  const authToken = localStorage.getItem("coScene_org_jwt");
+  const authToken = getAuthToken();
 
   return createStore<UserStore>()(
     persist(
@@ -69,7 +70,7 @@ export default function CoSceneCurrentUserProvider({
   const [store] = useState(createCurrentUserStore);
 
   useEffect(() => {
-    const authToken = localStorage.getItem("coScene_org_jwt");
+    const authToken = getAuthToken();
     if (authToken != undefined) {
       store.setState({ loginStatus: "alreadyLogin" });
     } else {
