@@ -7,8 +7,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, render, screen, waitFor } from "@testing-library/react";
+import toast from "react-hot-toast";
 
-import { DeepLinksSyncAdapter } from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
+import {
+  DeepLinksSyncAdapter,
+  getWebLoginRedirectUrl,
+} from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 const mockSelectSource = jest.fn();
@@ -19,12 +23,18 @@ const mockDataSourceClose = jest.fn();
 const mockSetExternalInitConfig = jest.fn();
 const mockBeginExternalInitConfigUpdate = jest.fn();
 const mockGetProject = jest.fn();
+const mockToastError = toast.error as jest.Mock;
 let mockCurrentUser: { userId: string } | undefined;
 let mockLoginStatus = "notLogin";
 let mockLastExternalInitConfig: string | undefined;
 
 jest.mock("@foxglove/studio-base/context/PlayerSelectionContext", () => ({
   usePlayerSelection: () => ({ selectSource: mockSelectSource }),
+}));
+
+jest.mock("react-hot-toast", () => ({
+  __esModule: true,
+  default: { error: jest.fn() },
 }));
 
 jest.mock("@foxglove/studio-base/context/CoSceneCurrentUserContext", () => ({
@@ -133,12 +143,75 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
     mockSetExternalInitConfig.mockReset();
     mockBeginExternalInitConfigUpdate.mockReset();
     mockGetProject.mockReset();
+    mockToastError.mockClear();
 
     let updateGeneration = 0;
     mockBeginExternalInitConfigUpdate.mockImplementation(() => {
       const generation = ++updateGeneration;
       return { isCurrent: () => generation === updateGeneration };
     });
+  });
+
+  it.each([
+    ["before the login toast debounce", 500, 0],
+    ["after the login toast debounce", 1000, 1],
+  ])(
+    "initializes the original data source once when login completes %s",
+    async (_description, elapsedBeforeLogin, expectedToastCount) => {
+      const url = `${window.location.origin}/viz?ds=coscene-data-platform&ds.key=record-key&layoutId=${encodeURIComponent(
+        "warehouses/warehouse-a/projects/project-a/layouts/layout-a",
+      )}`;
+      window.history.replaceState(undefined, "", url);
+      const deepLinks = [url];
+      const { rerender } = render(<DeepLinksSyncAdapter deepLinks={deepLinks} />);
+
+      act(() => {
+        jest.advanceTimersByTime(elapsedBeforeLogin);
+      });
+      expect(mockToastError).toHaveBeenCalledTimes(expectedToastCount);
+
+      mockCurrentUser = { userId: "users/current-user" };
+      mockLoginStatus = "alreadyLogin";
+      rerender(<DeepLinksSyncAdapter deepLinks={deepLinks} />);
+
+      await waitFor(() => {
+        expect(mockSelectSource).toHaveBeenCalledWith("coscene-data-platform", {
+          type: "connection",
+          params: {
+            key: "record-key",
+            userId: "users/current-user",
+          },
+        });
+      });
+      expect(mockSelectSource).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(mockSelectSource).toHaveBeenCalledTimes(1);
+      expect(mockToastError).toHaveBeenCalledTimes(expectedToastCount);
+    },
+  );
+
+  it("keeps the complete viz URL while a logged-out user is redirected", async () => {
+    const url = `${window.location.origin}/viz?ds=coscene-data-platform&ds.key=record-key&layoutId=${encodeURIComponent(
+      "warehouses/warehouse-a/projects/project-a/layouts/layout-a",
+    )}`;
+    window.history.replaceState(undefined, "", url);
+
+    render(<DeepLinksSyncAdapter deepLinks={[url]} />);
+    await act(async () => {
+      await Promise.resolve();
+      jest.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+
+    expect(mockToastError).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(1);
+    expect(getWebLoginRedirectUrl(window.location)).toBe(
+      `/login?redirectToPath=${encodeURIComponent(new URL(url).pathname + new URL(url).search)}`,
+    );
   });
 
   afterEach(() => {

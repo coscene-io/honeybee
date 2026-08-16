@@ -13,6 +13,7 @@ import {
   RecommendedLayoutContext,
   type RecommendedLayoutState,
 } from "@foxglove/studio-base/context/RecommendedLayoutContext";
+import { useFeatureIsOnWithConfig } from "@foxglove/studio-base/providers/GrowthBookProvider";
 import {
   hasCompressedVideoTopic,
   listRecommendedLayouts,
@@ -25,6 +26,7 @@ const selectRecord = (state: CoreDataStore) => state.record;
 const selectShowtUrlKey = (state: CoreDataStore) => state.showtUrlKey;
 const selectRecordId = (state: CoreDataStore) => state.externalInitConfig?.recordId;
 const selectDataSource = (state: CoreDataStore) => state.dataSource;
+const RECOMMENDED_LAYOUTS_FEATURE_FLAG = "honeybee_recommended_layouts";
 
 export default function RecommendedLayoutProvider({
   children,
@@ -150,5 +152,20 @@ export default function RecommendedLayoutProvider({
   const value = useMemo(() => ({ ...state, loadLayout }), [loadLayout, state]);
   return (
     <RecommendedLayoutContext.Provider value={value}>{children}</RecommendedLayoutContext.Provider>
+  );
+}
+
+export function GrowthBookRecommendedLayoutProvider({
+  children,
+  enabled,
+}: PropsWithChildren<{ enabled?: boolean }>): React.JSX.Element {
+  const growthBookEnabled = useFeatureIsOnWithConfig(RECOMMENDED_LAYOUTS_FEATURE_FLAG, {
+    fallback: false,
+  });
+
+  return (
+    <RecommendedLayoutProvider enabled={enabled ?? growthBookEnabled}>
+      {children}
+    </RecommendedLayoutProvider>
   );
 }

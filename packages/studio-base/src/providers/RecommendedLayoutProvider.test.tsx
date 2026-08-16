@@ -12,7 +12,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useRecommendedLayouts } from "@foxglove/studio-base/context/RecommendedLayoutContext";
-import RecommendedLayoutProvider from "@foxglove/studio-base/providers/RecommendedLayoutProvider";
+import { useFeatureIsOnWithConfig } from "@foxglove/studio-base/providers/GrowthBookProvider";
+import RecommendedLayoutProvider, {
+  GrowthBookRecommendedLayoutProvider,
+} from "@foxglove/studio-base/providers/RecommendedLayoutProvider";
 import {
   hasCompressedVideoTopic,
   listRecommendedLayouts,
@@ -29,6 +32,9 @@ jest.mock("@foxglove/studio-base/context/CoSceneConsoleApiContext", () => ({
 }));
 jest.mock("@foxglove/studio-base/context/CoreDataContext", () => ({
   useCoreData: jest.fn(),
+}));
+jest.mock("@foxglove/studio-base/providers/GrowthBookProvider", () => ({
+  useFeatureIsOnWithConfig: jest.fn(),
 }));
 jest.mock("@foxglove/studio-base/services/RecommendedLayouts", () => ({
   hasCompressedVideoTopic: jest.fn(),
@@ -90,15 +96,18 @@ describe("RecommendedLayoutProvider", () => {
         robot === "RobotA" ? robotALayouts : [descriptor(robot, "default")],
       );
     jest.mocked(hasCompressedVideoTopic).mockReturnValue(false);
+    jest.mocked(useFeatureIsOnWithConfig).mockReturnValue(false);
     jest
       .mocked(resolveRecommendedLayout)
       .mockImplementation((_manifest, robot, transport) => descriptor(robot, transport));
   });
 
-  it("disables and re-enables the entire recommendation capability", async () => {
+  it("uses the GrowthBook flag to disable and re-enable recommendations", async () => {
     let enabled = false;
+    jest.mocked(useFeatureIsOnWithConfig).mockImplementation(() => enabled);
+
     function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
-      return <RecommendedLayoutProvider enabled={enabled}>{children}</RecommendedLayoutProvider>;
+      return <GrowthBookRecommendedLayoutProvider>{children}</GrowthBookRecommendedLayoutProvider>;
     }
 
     const { result, rerender } = renderHook(() => useRecommendedLayouts(), {
@@ -110,6 +119,9 @@ describe("RecommendedLayoutProvider", () => {
     });
     expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
     expect(topics).not.toHaveBeenCalled();
+    expect(useFeatureIsOnWithConfig).toHaveBeenCalledWith("honeybee_recommended_layouts", {
+      fallback: false,
+    });
 
     enabled = true;
     rerender();
@@ -122,6 +134,42 @@ describe("RecommendedLayoutProvider", () => {
     await waitFor(() => {
       expect(result.current).toMatchObject({ status: "ready", layouts: [] });
     });
+  });
+
+  it("preserves the explicit enabled override", async () => {
+    function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
+      return (
+        <GrowthBookRecommendedLayoutProvider enabled>
+          {children}
+        </GrowthBookRecommendedLayoutProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useRecommendedLayouts(), { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", robot: "RobotA" });
+    });
+    expect(loadRecommendedLayoutManifest).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the explicit disabled override", async () => {
+    jest.mocked(useFeatureIsOnWithConfig).mockReturnValue(true);
+
+    function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
+      return (
+        <GrowthBookRecommendedLayoutProvider enabled={false}>
+          {children}
+        </GrowthBookRecommendedLayoutProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useRecommendedLayouts(), { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(result.current).toMatchObject({ status: "ready", layouts: [] });
+    });
+    expect(loadRecommendedLayoutManifest).not.toHaveBeenCalled();
   });
 
   it("waits for the Record and showtUrlKey before loading recommendations", async () => {

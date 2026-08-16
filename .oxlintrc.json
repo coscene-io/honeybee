@@ -1,0 +1,499 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["unicorn", "import"],
+  "categories": {
+    "correctness": "off"
+  },
+  "options": {
+    "respectEslintDisableDirectives": true,
+    "typeAware": true
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "**/dist",
+    "**/out",
+    "**/template",
+    "packages/**/wasm/*.js",
+    "**/.webpack/**",
+    "**/.yarn/**"
+  ],
+  "rules": {
+    "constructor-super": "error",
+    "for-direction": "error",
+    "getter-return": "error",
+    "no-async-promise-executor": "error",
+    "no-case-declarations": "error",
+    "no-class-assign": "error",
+    "no-compare-neg-zero": "error",
+    "no-cond-assign": "error",
+    "no-const-assign": "error",
+    "no-constant-binary-expression": "error",
+    "no-constant-condition": "error",
+    "no-control-regex": "error",
+    "no-debugger": "error",
+    "no-delete-var": "error",
+    "no-dupe-class-members": "error",
+    "no-dupe-else-if": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-empty": "error",
+    "no-empty-character-class": "error",
+    "no-empty-pattern": "error",
+    "no-empty-static-block": "error",
+    "no-ex-assign": "error",
+    "no-extra-boolean-cast": "error",
+    "no-fallthrough": "error",
+    "no-func-assign": "error",
+    "no-global-assign": "error",
+    "no-import-assign": "error",
+    "no-invalid-regexp": "error",
+    "no-irregular-whitespace": "error",
+    "no-loss-of-precision": "error",
+    "no-misleading-character-class": "error",
+    "no-new-native-nonconstructor": "error",
+    "no-nonoctal-decimal-escape": "error",
+    "no-obj-calls": "error",
+    "no-prototype-builtins": "error",
+    "no-redeclare": "error",
+    "no-regex-spaces": "error",
+    "no-self-assign": "error",
+    "no-setter-return": "error",
+    "no-shadow-restricted-names": "error",
+    "no-sparse-arrays": "error",
+    "no-this-before-super": "error",
+    "no-unreachable": "error",
+    "no-unsafe-finally": "error",
+    "no-unsafe-negation": "error",
+    "no-unsafe-optional-chaining": "off",
+    "no-unused-labels": "error",
+    "no-unused-private-class-members": "error",
+    "no-unused-vars": [
+      "error",
+      {
+        "vars": "all",
+        "args": "after-used",
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "no-useless-backreference": "error",
+    "no-useless-catch": "error",
+    "no-useless-escape": "error",
+    "no-with": "error",
+    "require-yield": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error",
+    "curly": "error",
+    "import/first": "error",
+    "import/newline-after-import": "error",
+    "import/no-duplicates": "error",
+    "import/no-mutable-exports": "error",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-param-reassign": "error",
+    "no-unassigned-vars": "error",
+    "no-unused-expressions": [
+      "error",
+      {
+        "enforceForJSX": true
+      }
+    ],
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allowAfterThis": true
+      }
+    ],
+    "no-useless-rename": "error",
+    "no-warning-comments": [
+      "error",
+      {
+        "location": "anywhere"
+      }
+    ],
+    "object-shorthand": "error",
+    "prefer-arrow-callback": [
+      "error",
+      {
+        "allowNamedFunctions": true
+      }
+    ],
+    "id-denylist": ["error", "useEffectOnce", "window"],
+    "import/no-self-import": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.{ts,tsx}"],
+      "rules": {
+        "constructor-super": "off",
+        "getter-return": "off",
+        "no-class-assign": "off",
+        "no-const-assign": "off",
+        "no-dupe-class-members": "off",
+        "no-dupe-keys": "off",
+        "no-func-assign": "off",
+        "no-import-assign": "off",
+        "no-new-native-nonconstructor": "off",
+        "no-obj-calls": "off",
+        "no-redeclare": "off",
+        "no-setter-return": "off",
+        "no-this-before-super": "off",
+        "no-unreachable": "off",
+        "no-unsafe-negation": "off",
+        "no-var": "error",
+        "no-with": "off",
+        "prefer-const": "error",
+        "prefer-rest-params": "error",
+        "prefer-spread": "error",
+        "no-array-constructor": "error",
+        "no-implied-eval": "off",
+        "no-unused-expressions": [
+          "error",
+          {
+            "enforceForJSX": true
+          }
+        ],
+        "no-unused-vars": [
+          "error",
+          {
+            "vars": "all",
+            "args": "after-used",
+            "varsIgnorePattern": "^_.",
+            "argsIgnorePattern": "^_."
+          }
+        ],
+        "no-useless-constructor": "error",
+        "no-throw-literal": "off",
+        "prefer-promise-reject-errors": "off",
+        "require-await": "off",
+        "typescript/await-thenable": "error",
+        "typescript/ban-ts-comment": [
+          "error",
+          {
+            "ts-expect-error": "allow-with-description"
+          }
+        ],
+        "typescript/no-array-delete": "error",
+        "typescript/no-base-to-string": "error",
+        "typescript/no-confusing-void-expression": "error",
+        "typescript/no-deprecated": "off",
+        "typescript/no-duplicate-enum-values": "off",
+        "typescript/no-duplicate-type-constituents": "error",
+        "typescript/no-dynamic-delete": "off",
+        "typescript/no-empty-object-type": "error",
+        "typescript/no-explicit-any": "error",
+        "typescript/no-extra-non-null-assertion": "error",
+        "typescript/no-extraneous-class": "error",
+        "typescript/no-floating-promises": "error",
+        "typescript/no-for-in-array": "error",
+        "typescript/no-implied-eval": "error",
+        "typescript/no-invalid-void-type": "off",
+        "typescript/no-meaningless-void-operator": [
+          "error",
+          {
+            "checkNever": true
+          }
+        ],
+        "typescript/no-misused-new": "error",
+        "typescript/no-misused-promises": "off",
+        "typescript/no-misused-spread": "error",
+        "typescript/no-mixed-enums": "error",
+        "typescript/no-namespace": "error",
+        "typescript/no-non-null-asserted-nullish-coalescing": "error",
+        "typescript/no-non-null-asserted-optional-chain": "error",
+        "typescript/no-non-null-assertion": "off",
+        "typescript/no-redundant-type-constituents": "error",
+        "typescript/no-require-imports": "error",
+        "typescript/no-this-alias": "error",
+        "typescript/no-unnecessary-boolean-literal-compare": "error",
+        "typescript/no-unnecessary-template-expression": "error",
+        "typescript/no-unnecessary-type-arguments": "error",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-unnecessary-type-constraint": "error",
+        "typescript/no-unnecessary-type-conversion": "error",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-declaration-merging": "error",
+        "typescript/no-unsafe-enum-comparison": "off",
+        "typescript/no-unsafe-function-type": "error",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/no-unsafe-unary-minus": "error",
+        "typescript/no-useless-default-assignment": "error",
+        "typescript/no-wrapper-object-types": "error",
+        "typescript/only-throw-error": "error",
+        "typescript/prefer-as-const": "error",
+        "typescript/prefer-literal-enum-member": "error",
+        "typescript/prefer-namespace-keyword": "error",
+        "typescript/prefer-promise-reject-errors": "off",
+        "typescript/prefer-reduce-type-parameter": "error",
+        "typescript/prefer-return-this-type": "error",
+        "typescript/related-getter-setter-pairs": "error",
+        "typescript/require-await": "off",
+        "typescript/restrict-plus-operands": [
+          "error",
+          {
+            "allowAny": false,
+            "allowBoolean": false,
+            "allowNullish": false,
+            "allowNumberAndString": false,
+            "allowRegExp": false
+          }
+        ],
+        "typescript/restrict-template-expressions": "off",
+        "typescript/return-await": ["error", "always"],
+        "typescript/triple-slash-reference": "error",
+        "typescript/unbound-method": [
+          "error",
+          {
+            "ignoreStatic": true
+          }
+        ],
+        "typescript/unified-signatures": "off",
+        "typescript/use-unknown-in-catch-callback-variable": "error",
+        "no-empty-function": "off",
+        "typescript/adjacent-overload-signatures": "error",
+        "typescript/array-type": "off",
+        "typescript/ban-tslint-comment": "error",
+        "typescript/class-literal-property-style": "error",
+        "typescript/consistent-generic-constructors": "error",
+        "typescript/consistent-indexed-object-style": "off",
+        "typescript/consistent-type-assertions": [
+          "error",
+          {
+            "assertionStyle": "as"
+          }
+        ],
+        "typescript/consistent-type-definitions": "off",
+        "typescript/dot-notation": "off",
+        "typescript/no-confusing-non-null-assertion": "error",
+        "typescript/no-inferrable-types": "off",
+        "typescript/non-nullable-type-assertion-style": "error",
+        "typescript/prefer-find": "error",
+        "typescript/prefer-for-of": "error",
+        "typescript/prefer-function-type": "error",
+        "typescript/prefer-includes": "error",
+        "typescript/prefer-nullish-coalescing": "off",
+        "typescript/prefer-regexp-exec": "off",
+        "typescript/prefer-string-starts-ends-with": "error",
+        "no-loop-func": "error",
+        "no-warning-comments": "off",
+        "no-shadow": "off",
+        "typescript/explicit-member-accessibility": "error",
+        "typescript/explicit-module-boundary-types": "off",
+        "typescript/promise-function-async": "error",
+        "typescript/strict-boolean-expressions": [
+          "error",
+          {
+            "allowString": true,
+            "allowNullableString": true,
+            "allowNumber": false,
+            "allowNullableNumber": false,
+            "allowNullableBoolean": false,
+            "allowNullableObject": true,
+            "allowAny": false
+          }
+        ],
+        "typescript/switch-exhaustiveness-check": "off"
+      },
+      "plugins": ["typescript"]
+    },
+    {
+      "files": ["**/*.{jsx,tsx}"],
+      "rules": {
+        "react/display-name": "error",
+        "react/jsx-key": "error",
+        "react/jsx-no-comment-textnodes": "error",
+        "react/jsx-no-duplicate-props": "error",
+        "react/jsx-no-target-blank": [
+          "error",
+          {
+            "allowReferrer": true
+          }
+        ],
+        "react/jsx-no-undef": "error",
+        "react/no-children-prop": "error",
+        "react/no-danger-with-children": "error",
+        "react/no-direct-mutation-state": "error",
+        "react/no-find-dom-node": "error",
+        "react/no-is-mounted": "error",
+        "react/no-render-return-value": "error",
+        "react/no-string-refs": "error",
+        "react/no-unescaped-entities": "error",
+        "react/no-unknown-property": "error",
+        "react/no-unsafe": "off",
+        "react/react-in-jsx-scope": "off",
+        "react/rules-of-hooks": "error",
+        "react/exhaustive-deps": "off",
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@mui/material",
+                "importNames": ["styled"],
+                "message": "@mui/styled has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@mui/styles",
+                "message": "@mui/styles has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@mui/material/styles/styled",
+                "message": "@mui/styled has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@emotion/styled",
+                "message": "@emotion/styled has performance implications. Use tss-react/mui instead."
+              }
+            ]
+          }
+        ],
+        "react/forbid-component-props": [
+          "error",
+          {
+            "forbid": [
+              {
+                "propName": "sx",
+                "message": "Use of the sx prop is not advised due to performance issues. Consider using alternative styling methods instead."
+              }
+            ]
+          }
+        ],
+        "react/jsx-curly-brace-presence": "off"
+      },
+      "plugins": ["react"]
+    },
+    {
+      "files": ["**/*.test.{js,jsx,ts,tsx}"],
+      "rules": {
+        "jest/expect-expect": [
+          "error",
+          {
+            "assertFunctionNames": ["expect*", "sendNotification.expectCalledDuringTest"]
+          }
+        ],
+        "jest/no-alias-methods": "error",
+        "jest/no-commented-out-tests": "warn",
+        "jest/no-conditional-expect": "off",
+        "jest/no-deprecated-functions": "error",
+        "jest/no-disabled-tests": "warn",
+        "jest/no-done-callback": "error",
+        "jest/no-export": "error",
+        "jest/no-focused-tests": "error",
+        "jest/no-identical-title": "error",
+        "jest/no-interpolation-in-snapshots": "error",
+        "jest/no-jasmine-globals": "error",
+        "jest/no-mocks-import": "error",
+        "jest/no-standalone-expect": "off",
+        "jest/no-test-prefixes": "error",
+        "jest/valid-describe-callback": "error",
+        "jest/valid-expect": "error",
+        "jest/valid-expect-in-promise": "error",
+        "jest/valid-title": "error",
+        "jest/consistent-test-it": [
+          "error",
+          {
+            "fn": "it"
+          }
+        ]
+      },
+      "plugins": ["jest"],
+      "env": {
+        "jest": true
+      }
+    },
+    {
+      "files": ["**/*.test.{ts,tsx}"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      },
+      "plugins": ["typescript"]
+    },
+    {
+      "files": ["packages/studio-desktop/src/main/**/*.{js,ts}"],
+      "rules": {
+        "import/default": "off",
+        "import/namespace": "off",
+        "import/no-named-as-default": "off",
+        "import/no-named-as-default-member": "off"
+      }
+    },
+    {
+      "files": ["**/*.{js,jsx,ts,tsx}"],
+      "excludeFiles": ["**/*.test.{js,jsx,ts,tsx}", "**/__tests__/**"],
+      "rules": {
+        "import/no-cycle": [
+          "error",
+          {
+            "ignoreExternal": true
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/studio-base/src/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@foxglove/studio-base",
+                "message": "Use a direct studio-base subpath import. Importing the package entry point from inside studio-base creates dependency cycles."
+              },
+              {
+                "name": "@foxglove/studio-base/index",
+                "message": "Use a direct studio-base subpath import. Importing the package entry point from inside studio-base creates dependency cycles."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/studio-base/src/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@mui/material",
+                "importNames": ["styled"],
+                "message": "@mui/styled has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@mui/styles",
+                "message": "@mui/styles has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@mui/material/styles/styled",
+                "message": "@mui/styled has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@emotion/styled",
+                "message": "@emotion/styled has performance implications. Use tss-react/mui instead."
+              },
+              {
+                "name": "@foxglove/studio-base",
+                "message": "Use a direct studio-base subpath import. Importing the package entry point from inside studio-base creates dependency cycles."
+              },
+              {
+                "name": "@foxglove/studio-base/index",
+                "message": "Use a direct studio-base subpath import. Importing the package entry point from inside studio-base creates dependency cycles."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

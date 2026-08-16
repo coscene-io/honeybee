@@ -433,7 +433,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const [hoverComponentId] = useState<string>(() => uuidv4());
 
-  const [cursor, setCursor] = useState("pointer");
+  const [cursor, setCursor] = useState("default");
   const [eventContextMenuRequest, setEventContextMenuRequest] = useState<
     EventContextMenuRequest | undefined
   >(undefined);
