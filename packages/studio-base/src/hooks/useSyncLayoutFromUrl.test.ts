@@ -25,6 +25,11 @@ import { useRecommendedLayouts } from "@foxglove/studio-base/context/Recommended
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import type { WorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useSyncLayoutFromUrl } from "@foxglove/studio-base/hooks/useSyncLayoutFromUrl";
+import {
+  defaultRemoteMp4Layout,
+  REMOTE_MP4_DEFAULT_LAYOUT_ID,
+  REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+} from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultRemoteMp4Layout";
 import type { ILayoutManager } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 import type { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 import type { RecommendedLayoutDescriptor } from "@foxglove/studio-base/services/RecommendedLayouts";
@@ -329,6 +334,33 @@ describe("useSyncLayoutFromUrl", () => {
       expect.stringContaining("layout unavailable"),
       { variant: "error" },
     );
+  });
+
+  it("always applies the built-in MP4 layout for remote-mp4", async () => {
+    const historyLayout = layout("users/u/layouts/history");
+    const urlLayout = layout("users/u/layouts/url");
+    jest.mocked(layoutManager.getHistory).mockResolvedValue(historyLayout);
+    jest.mocked(layoutManager.getLayout).mockResolvedValue(urlLayout);
+
+    renderHook(() => {
+      useSyncLayoutFromUrl({
+        ds: "remote-mp4",
+        layoutId: urlLayout.id,
+      });
+    });
+
+    await waitFor(() => {
+      expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith({
+        id: REMOTE_MP4_DEFAULT_LAYOUT_ID,
+        name: REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+        data: defaultRemoteMp4Layout,
+        transient: true,
+      });
+    });
+    expect(layoutManager.getHistory).not.toHaveBeenCalled();
+    expect(layoutManager.getLayout).not.toHaveBeenCalled();
+    expect(setSelectedLayoutId).not.toHaveBeenCalled();
+    expect(openLayoutDrawer).not.toHaveBeenCalled();
   });
 
   it("opens the layout drawer when the URL layout and history are missing", async () => {

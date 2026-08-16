@@ -115,6 +115,10 @@ export function CurrentLayoutButton({
       return selectedLayout.name ?? t("recommendedLayout");
     }
 
+    if (selectedLayout?.transient === true && selectedLayout.name) {
+      return selectedLayout.name;
+    }
+
     if (!currentLayout) {
       return t("noLayouts");
     }

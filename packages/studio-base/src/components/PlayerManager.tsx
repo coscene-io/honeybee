@@ -168,6 +168,15 @@ function useBeforeConnectionSource(): (
           }
           consoleApi.setType("realtime");
           break;
+        case "remote-mp4":
+          if (params.key) {
+            await syncBaseInfo(params.key, isCurrent);
+          }
+          if (!isCurrent()) {
+            return false;
+          }
+          consoleApi.setType(undefined);
+          break;
         default:
           consoleApi.setType(undefined);
           break;

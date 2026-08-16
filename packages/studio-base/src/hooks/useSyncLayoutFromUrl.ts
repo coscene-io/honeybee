@@ -19,6 +19,11 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useRecommendedLayouts } from "@foxglove/studio-base/context/RecommendedLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import {
+  defaultRemoteMp4Layout,
+  REMOTE_MP4_DEFAULT_LAYOUT_ID,
+  REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+} from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultRemoteMp4Layout";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
@@ -48,6 +53,23 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
   useAsync(async () => {
     // 只有在 isReadyForSyncLayout 为 true 时才处理 layout
     if (isReadyForSyncLayout !== true) {
+      return;
+    }
+
+    // remote-mp4 always uses the single Image panel on the fixed topic.
+    // Do not restore history, recommended layouts, or URL layoutId.
+    if (targetUrlState?.ds === "remote-mp4") {
+      if (currentLayoutId === REMOTE_MP4_DEFAULT_LAYOUT_ID || isLayoutIdProcessed.current) {
+        return;
+      }
+      setCurrentLayout({
+        id: REMOTE_MP4_DEFAULT_LAYOUT_ID,
+        name: REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+        data: defaultRemoteMp4Layout,
+        transient: true,
+      });
+      setUnappliedLayoutArgs({ layoutId: undefined });
+      isLayoutIdProcessed.current = true;
       return;
     }
 
@@ -206,5 +228,6 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
     recommendedLayouts,
     enqueueSnackbar,
     t,
+    targetUrlState?.ds,
   ]);
 }
