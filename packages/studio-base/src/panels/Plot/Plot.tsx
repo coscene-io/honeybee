@@ -732,6 +732,10 @@ export function Plot(props: Props): React.JSX.Element {
       timestampBuilder.setHistoryTopics(running.rangeTopics, currentOnlyTopics, generation, {
         resetAll,
       });
+      // The player-state effect runs before this history-ownership effect. Re-feed its snapshot
+      // after a reset so a quiet live source or a block-fallback topic is not left blank until the
+      // Player emits again.
+      coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
       coordinatorRef.current?.handleRangeDataUpdated();
     }
     setSubscriptions(subscriberId, running.subscriptions);
@@ -744,6 +748,7 @@ export function Plot(props: Props): React.JSX.Element {
     };
   }, [
     datasetsBuilder,
+    getMessagePipelineState,
     handleWorkerError,
     isLivePlayer,
     playerId,
