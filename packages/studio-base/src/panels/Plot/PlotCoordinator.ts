@@ -25,8 +25,10 @@ import { getContrastColor, getLineColor } from "@foxglove/studio-base/util/plotC
 import { Dataset, InteractionEvent, Scale, UpdateAction } from "./ChartRenderer";
 import { OffscreenCanvasRenderer } from "./OffscreenCanvasRenderer";
 import {
+  CsvDataChunkCallback,
   CsvDataset,
   IDatasetsBuilder,
+  MAX_CSV_DATUMS_PER_CHUNK,
   SeriesConfigKey,
   SeriesItem,
   Viewport,
@@ -332,8 +334,12 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   }
 
   /** Schedules a viewport refresh after a backpressured range batch reaches the Dataset worker. */
-  public handleRangeDataUpdated(): void {
+  public handleRangeDataUpdated(datasetRange?: Immutable<Bounds1D>): void {
     if (!this.isDestroyed()) {
+      if (datasetRange != undefined) {
+        this.#datasetRange = datasetRange;
+        this.#queueDispatchRender();
+      }
       this.#queueDispatchDatasets();
     }
   }
@@ -363,6 +369,19 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       return [];
     }
     return await this.#datasetsBuilder.getCsvData();
+  }
+
+  /** Visit bounded CSV data without retaining a full export on the main thread. */
+  public async forEachCsvDataChunk(
+    callback: CsvDataChunkCallback,
+    maxDatums = MAX_CSV_DATUMS_PER_CHUNK,
+  ): Promise<boolean> {
+    if (this.isDestroyed()) {
+      return false;
+    }
+    const guardedCallback: CsvDataChunkCallback = async (datasets) =>
+      this.isDestroyed() ? false : await callback(datasets);
+    return await this.#datasetsBuilder.forEachCsvDataChunk(guardedCallback, maxDatums);
   }
 
   /**
@@ -489,6 +508,16 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);
     if (this.isDestroyed()) {
       return;
+    }
+    if (
+      result.datasetRange != undefined &&
+      (this.#datasetRange?.min !== result.datasetRange.min ||
+        this.#datasetRange.max !== result.datasetRange.max)
+    ) {
+      this.#datasetRange = result.datasetRange;
+      // A worker may evict an old extreme while serving the final silent batch. Refresh the scale
+      // from its authoritative range without requiring another Player update.
+      this.#queueDispatchRender();
     }
     this.#latestXScale = await this.#renderer.updateDatasets(
       // Use Array.from to fill in any `undefined` entries with an empty dataset (`map` would not

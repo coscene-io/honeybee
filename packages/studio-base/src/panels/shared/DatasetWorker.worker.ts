@@ -8,6 +8,18 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { transferTypedArrays } from "@foxglove/den/worker";
+import { Immutable } from "@foxglove/studio";
+import {
+  CustomDatasetsBuilderImpl,
+  UpdateDataAction,
+} from "@foxglove/studio-base/panels/Plot/builders/CustomDatasetsBuilderImpl";
+import {
+  CsvDataChunk,
+  CsvDataCursor,
+  CsvDataset,
+  GetViewportDatasetsResult,
+  Viewport,
+} from "@foxglove/studio-base/panels/Plot/builders/IDatasetsBuilder";
 import { TimestampDatasetsBuilderImpl } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilderImpl";
 import {
   PackedStateTransitionDataset,
@@ -15,18 +27,52 @@ import {
   StateTransitionsDatasetBuilderImpl,
   StateTransitionsDatasetRequest,
 } from "@foxglove/studio-base/panels/StateTransitions/StateTransitionsDatasetBuilderImpl";
+import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
+
+export type CustomDatasetsBuilderSessionService = {
+  getCsvData(): CsvDataset[];
+  getCsvDataChunk(cursor: CsvDataCursor | undefined, maxDatums: number): CsvDataChunk;
+  getViewportDatasets(viewport: Viewport): GetViewportDatasetsResult;
+  getXRange(): Bounds1D;
+  updateData(actions: Immutable<UpdateDataAction[]>): void;
+};
 
 export type StateTransitionsDatasetSessionService = {
   applyActions(actions: StateTransitionsDatasetAction[]): void;
   getViewportDatasets(request: StateTransitionsDatasetRequest): PackedStateTransitionDataset[];
 };
 
-export type Service<TTimestampDatasetsBuilder, TStateTransitionsDatasetBuilder> = {
+export type Service<
+  TTimestampDatasetsBuilder,
+  TStateTransitionsDatasetBuilder,
+  TCustomDatasetsBuilder,
+> = {
+  createCustomDatasetsBuilder(): Promise<TCustomDatasetsBuilder>;
   createTimestampDatasetsBuilder(): Promise<TTimestampDatasetsBuilder>;
   createStateTransitionsDatasetBuilder(): Promise<TStateTransitionsDatasetBuilder>;
 };
 
 Comlink.expose({
+  async createCustomDatasetsBuilder() {
+    const builder = new CustomDatasetsBuilderImpl();
+    return Comlink.proxy({
+      getCsvData() {
+        return builder.getCsvData();
+      },
+      getCsvDataChunk(cursor, maxDatums) {
+        return builder.getCsvDataChunk(cursor, maxDatums);
+      },
+      getViewportDatasets(viewport) {
+        return transferTypedArrays(builder.getViewportDatasets(viewport));
+      },
+      getXRange() {
+        return builder.getXRange();
+      },
+      updateData(actions) {
+        builder.updateData(actions);
+      },
+    } satisfies CustomDatasetsBuilderSessionService);
+  },
   async createTimestampDatasetsBuilder() {
     return Comlink.proxy(new TimestampDatasetsBuilderImpl());
   },
@@ -43,5 +89,6 @@ Comlink.expose({
   },
 } satisfies Service<
   Comlink.LocalObject<TimestampDatasetsBuilderImpl>,
-  Comlink.LocalObject<StateTransitionsDatasetSessionService>
+  Comlink.LocalObject<StateTransitionsDatasetSessionService>,
+  Comlink.LocalObject<CustomDatasetsBuilderSessionService>
 >);

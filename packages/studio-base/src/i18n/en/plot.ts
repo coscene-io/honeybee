@@ -42,10 +42,11 @@ export const plot = {
   yAxis: "Y Axis",
   resetView: "Reset view",
   fullTimestamp: "Timestamp (full)",
+  fullHistoryXAxisHelp:
+    "Loads full history when the data source supports range queries. Live sources use a bounded sliding current window.",
   partialTimestamp: "Timestamp (current)",
-  tooManyMessages:
-    "The current number of messages on the panel is too large, already automatically switched to playback by the current timestamp",
-  switchImmediately: "Switch immediately",
+  currentTimestampXAxisHelp:
+    "Loads only the current playback window. Existing layouts keep this mode until you change it.",
   enableAllSeries: "Enable all",
   disableAllSeries: "Disable all",
   toggleAllSeries: "Toggle all",

@@ -227,6 +227,12 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
           label: t("value"),
           input: "select",
           value: config.xAxisVal,
+          help:
+            config.xAxisVal === "timestamp" || config.xAxisVal === "custom"
+              ? t("fullHistoryXAxisHelp")
+              : config.xAxisVal === "partialTimestamp"
+                ? t("currentTimestampXAxisHelp")
+                : undefined,
           options: [
             {
               label: t("fullTimestamp"),

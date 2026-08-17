@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import race from "race-as-promised";
+
 import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
@@ -20,9 +22,13 @@ import { TimestampMethod, getTimestampForMessage } from "@foxglove/studio-base/u
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
 import {
+  CsvDataChunkCallback,
+  CsvDataCursor,
   CsvDataset,
   GetViewportDatasetsResult,
   IDatasetsBuilder,
+  MAX_CSV_DATUMS_PER_CHUNK,
+  normalizeCsvChunkSize,
   SeriesItem,
   Viewport,
 } from "./IDatasetsBuilder";
@@ -35,8 +41,8 @@ const log = Logger.getLogger(__filename);
 
 type BuilderLifetime = {
   abortController: AbortController;
+  abortPromise: Promise<never>;
   destroyPromise?: Promise<void>;
-  inFlight: Set<Promise<unknown>>;
   leasePromise: Promise<TimestampDatasetWorkerLease>;
 };
 
@@ -89,9 +95,21 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   ) {
     this.#xAxisMode = xAxisMode;
     const abortController = new AbortController();
+    let rejectAbort!: (error: Error) => void;
+    const abortPromise = new Promise<never>((_resolve, reject) => {
+      rejectAbort = reject;
+    });
+    void abortPromise.catch(() => undefined);
+    abortController.signal.addEventListener(
+      "abort",
+      () => {
+        rejectAbort(makeAbortError());
+      },
+      { once: true },
+    );
     const lifetime = {
       abortController,
-      inFlight: new Set<Promise<unknown>>(),
+      abortPromise,
       leasePromise: acquireTimestampDatasetsBuilder({
         handleWorkerError: (event) => {
           log.error("[TimestampDatasetsBuilder] Worker error:", event);
@@ -134,6 +152,22 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     this.#lastSeekTime = activeData.lastSeekTime;
 
     const msgEvents = activeData.messages;
+    if (didSeek) {
+      if (this.#xAxisMode === "partialTimestamp") {
+        return;
+      }
+      // Reset disabled series too: enabling one after a seek must not reveal its pre-seek current
+      // frame. Range-owned topics keep their independently replayed storage.
+      for (const series of this.#series) {
+        if (!this.#rangeTopics.has(series.config.parsed.topicName)) {
+          this.#pendingDispatch.push({
+            type: "reset-current",
+            series: series.config.key,
+          });
+        }
+      }
+    }
+
     if (msgEvents.length > 0) {
       for (const series of this.#series) {
         if (!series.config.enabled || this.#rangeTopics.has(series.config.parsed.topicName)) {
@@ -142,16 +176,6 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         const mathFn = series.config.parsed.modifier
           ? mathFunctions[series.config.parsed.modifier]
           : undefined;
-
-        if (didSeek) {
-          if (this.#xAxisMode === "partialTimestamp") {
-            return;
-          }
-          this.#pendingDispatch.push({
-            type: "reset-current",
-            series: series.config.key,
-          });
-        }
 
         const pathItems = readMessagePathItems(
           msgEvents,
@@ -272,9 +296,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   }
 
   /**
-   * Assigns history ownership for replay ranges and live current-only topics. Every generation
-   * starts protected topics with empty storage; topics leaving either mode get fresh block cursors
-   * for legacy preload fallback.
+   * Assigns history ownership for replay ranges and live current-only topics. Source resets and
+   * ownership-mode transitions clear storage; unchanged live topics retain their bounded window,
+   * while initial/replacement range iterators reset their own topic before replay.
    */
   public setHistoryTopics(
     rangeTopics: ReadonlySet<string>,
@@ -286,16 +310,18 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       return;
     }
 
-    const previousTopics = new Set([...this.#rangeTopics, ...this.#currentOnlyTopics]);
+    const previousRangeTopics = this.#rangeTopics;
+    const previousCurrentOnlyTopics = this.#currentOnlyTopics;
     this.#rangeTopics = new Set(rangeTopics);
     this.#currentOnlyTopics = new Set(currentOnlyTopics);
     this.#rangeGeneration = generation;
 
     this.#series = this.#series.map((series) => {
       const topic = series.config.parsed.topicName;
-      const wasHistoryProtected = previousTopics.has(topic);
-      const isHistoryProtected = rangeTopics.has(topic) || currentOnlyTopics.has(topic);
-      if (options?.resetAll === true || wasHistoryProtected || isHistoryProtected) {
+      const ownershipChanged =
+        getHistoryOwnership(topic, previousRangeTopics, previousCurrentOnlyTopics) !==
+        getHistoryOwnership(topic, rangeTopics, currentOnlyTopics);
+      if (options?.resetAll === true || ownershipChanged) {
         this.#pendingDispatch.push(
           { type: "reset-full", series: series.config.key },
           { type: "reset-current", series: series.config.key },
@@ -307,6 +333,32 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       }
       return series;
     });
+  }
+
+  /** Clear one topic before an initial or replacement range iterator replays it. */
+  public async resetRangeTopic(topic: string, generation: number): Promise<boolean> {
+    if (
+      this.#destroyed ||
+      this.#xAxisMode !== "timestamp" ||
+      generation !== this.#rangeGeneration ||
+      !this.#rangeTopics.has(topic)
+    ) {
+      return false;
+    }
+    return await this.#resetTopicStorage(topic, generation, "range");
+  }
+
+  /** Release one failed range topic so its full-preload block subscription can take ownership. */
+  public async releaseRangeTopic(topic: string, generation: number): Promise<boolean> {
+    if (
+      this.#destroyed ||
+      this.#xAxisMode !== "timestamp" ||
+      generation !== this.#rangeGeneration ||
+      !this.#rangeTopics.delete(topic)
+    ) {
+      return false;
+    }
+    return await this.#resetTopicStorage(topic, generation, "released");
   }
 
   /** Extracts and applies one bounded Player range batch before accepting another batch. */
@@ -418,6 +470,63 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     return lifetime.abortController.signal.aborted ? [] : data;
   }
 
+  public async forEachCsvDataChunk(
+    callback: CsvDataChunkCallback,
+    maxDatums = MAX_CSV_DATUMS_PER_CHUNK,
+  ): Promise<boolean> {
+    if (this.#destroyed) {
+      return false;
+    }
+    const chunkSize = normalizeCsvChunkSize(maxDatums);
+    const dispatch = this.#takePendingDispatch();
+    const lifetime = this.#lifetime;
+    try {
+      return await this.#enqueueRemote(async () => {
+        const { remote } = await lifetime.leasePromise;
+        if (isLifetimeAborted(lifetime)) {
+          return false;
+        }
+        if (dispatch.length > 0) {
+          await remote.applyActions(dispatch);
+        }
+
+        let cursor: CsvDataCursor | undefined;
+        do {
+          if (isLifetimeAborted(lifetime)) {
+            return false;
+          }
+          const chunk = await remote.getCsvDataChunk(cursor, chunkSize);
+          if (isLifetimeAborted(lifetime)) {
+            return false;
+          }
+          const datumCount = chunk.datasets.reduce(
+            (total, dataset) => total + dataset.data.length,
+            0,
+          );
+          if (datumCount > chunkSize) {
+            throw new Error("Dataset worker returned an oversized CSV chunk");
+          }
+          if (datumCount === 0 && chunk.nextCursor != undefined) {
+            throw new Error("Dataset worker returned a CSV cursor without making progress");
+          }
+          if (datumCount > 0 && (await callback(chunk.datasets)) === false) {
+            return false;
+          }
+          if (isLifetimeAborted(lifetime)) {
+            return false;
+          }
+          cursor = chunk.nextCursor;
+        } while (cursor != undefined);
+        return !lifetime.abortController.signal.aborted;
+      });
+    } catch (error) {
+      if (!lifetime.abortController.signal.aborted) {
+        throw error;
+      }
+      return false;
+    }
+  }
+
   public async getXRange(): Promise<Bounds1D | undefined> {
     if (this.#destroyed) {
       return undefined;
@@ -435,6 +544,47 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     return lifetime.abortController.signal.aborted ? undefined : range;
   }
 
+  async #resetTopicStorage(
+    topic: string,
+    generation: number,
+    expectedOwnership: "range" | "released",
+  ): Promise<boolean> {
+    this.#series = this.#series.map((series) => {
+      if (series.config.parsed.topicName !== topic) {
+        return series;
+      }
+      this.#pendingDispatch.push(
+        { type: "reset-full", series: series.config.key },
+        { type: "reset-current", series: series.config.key },
+      );
+      return {
+        config: series.config,
+        blockCursor: new BlockTopicCursor(topic),
+      };
+    });
+
+    const dispatch = this.#takePendingDispatch();
+    try {
+      await this.#enqueueRemote(async () => {
+        const { remote } = await this.#lifetime.leasePromise;
+        if (dispatch.length > 0) {
+          await remote.applyActions(dispatch);
+        }
+      });
+    } catch (error) {
+      if (!this.#lifetime.abortController.signal.aborted) {
+        throw error;
+      }
+      return false;
+    }
+
+    return (
+      !this.#lifetime.abortController.signal.aborted &&
+      generation === this.#rangeGeneration &&
+      (expectedOwnership === "range" ? this.#rangeTopics.has(topic) : !this.#rangeTopics.has(topic))
+    );
+  }
+
   #takePendingDispatch(): Immutable<UpdateDataAction>[] {
     const dispatch = this.#pendingDispatch;
     this.#pendingDispatch = [];
@@ -442,12 +592,17 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   }
 
   async #enqueueRemote<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.#remoteQueue.then(operation);
+    const result = this.#remoteQueue.then(async () => {
+      if (this.#lifetime.abortController.signal.aborted) {
+        throw new Error("Timestamp Dataset worker session was destroyed");
+      }
+      return await operation();
+    });
     this.#remoteQueue = result.then(
       () => {},
       () => {},
     );
-    return await trackOperation(this.#lifetime, result);
+    return await race([result, this.#lifetime.abortPromise]);
   }
 }
 
@@ -473,19 +628,6 @@ async function getXRange(leasePromise: Promise<TimestampDatasetWorkerLease>) {
   return await remote.getXRange();
 }
 
-async function trackOperation<T>(lifetime: BuilderLifetime, operation: Promise<T>): Promise<T> {
-  lifetime.inFlight.add(operation);
-  void operation.then(
-    () => {
-      lifetime.inFlight.delete(operation);
-    },
-    () => {
-      lifetime.inFlight.delete(operation);
-    },
-  );
-  return await operation;
-}
-
 async function destroyLifetime(lifetime: BuilderLifetime): Promise<void> {
   if (lifetime.destroyPromise != undefined) {
     await lifetime.destroyPromise;
@@ -494,11 +636,20 @@ async function destroyLifetime(lifetime: BuilderLifetime): Promise<void> {
 
   lifetime.abortController.abort();
   lifetime.destroyPromise = (async () => {
-    await Promise.allSettled([...lifetime.inFlight]);
     const lease = await lifetime.leasePromise.catch(() => undefined);
     await lease?.release();
   })();
   await lifetime.destroyPromise;
+}
+
+function isLifetimeAborted(lifetime: BuilderLifetime): boolean {
+  return lifetime.abortController.signal.aborted;
+}
+
+function makeAbortError(): Error {
+  const error = new Error("The operation was aborted");
+  error.name = "AbortError";
+  return error;
 }
 
 function readMessagePathItems(
@@ -543,4 +694,12 @@ function readMessagePathItems(
   }
 
   return out;
+}
+
+function getHistoryOwnership(
+  topic: string,
+  rangeTopics: ReadonlySet<string>,
+  currentOnlyTopics: ReadonlySet<string>,
+): "current" | "none" | "range" {
+  return rangeTopics.has(topic) ? "range" : currentOnlyTopics.has(topic) ? "current" : "none";
 }

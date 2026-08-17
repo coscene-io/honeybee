@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+
 import type { BasePlotPath, PlotPath, PlotXAxisVal } from "./config";
 import { planPlotSubscriptions, startPlotRangeSubscriptions } from "./rangeSubscriptions";
 
@@ -20,6 +22,8 @@ function path(value: string, options: Partial<PlotPath> = {}): PlotPath {
 function plan(paths: PlotPath[], xAxisMode: PlotXAxisVal = "timestamp") {
   return planPlotSubscriptions({ paths, xAxisMode, globalVariables: {} });
 }
+
+type OnNewRangeIterator = Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"];
 
 describe("planPlotSubscriptions", () => {
   it("groups timestamp series by topic and unions fields in stable order", () => {
@@ -112,17 +116,21 @@ describe("planPlotSubscriptions", () => {
     });
   });
 
-  it.each<PlotXAxisVal>(["partialTimestamp", "index", "custom", "currentCustom"])(
-    "does not plan timestamp ranges in %s mode",
+  it.each<PlotXAxisVal>(["partialTimestamp", "index", "currentCustom"])(
+    "does not plan history ranges in %s mode",
     (xAxisMode) => {
       expect(plan([path("/topic.value")], xAxisMode)[0]?.rangeRequest).toBeUndefined();
     },
   );
 
-  it("keeps preload behavior and includes the custom x-axis path", () => {
+  it("groups custom x and y fields by topic and plans per-topic ranges", () => {
     expect(
       planPlotSubscriptions({
-        paths: [path("/topic.y"), path("/ignored.value", { enabled: false })],
+        paths: [
+          path("/topic.y"),
+          path("/y-only.value"),
+          path("/ignored.value", { enabled: false }),
+        ],
         xAxisMode: "custom",
         xAxisPath: { enabled: true, value: "/topic{xFilter==1}.x" },
         globalVariables: {},
@@ -132,12 +140,35 @@ describe("planPlotSubscriptions", () => {
         subscription: {
           topic: "/topic",
           fields: ["header", "y", "x", "xFilter"],
-          preloadType: "full",
+          preloadType: "partial",
         },
         fallbackSubscription: {
           topic: "/topic",
           fields: ["header", "y", "x", "xFilter"],
           preloadType: "full",
+        },
+        rangeRequest: {
+          topic: "/topic",
+          payload: { fields: ["header", "y", "x", "xFilter"] },
+          seriesIndices: [0],
+          includesXAxis: true,
+        },
+      },
+      {
+        subscription: {
+          topic: "/y-only",
+          fields: ["header", "value"],
+          preloadType: "partial",
+        },
+        fallbackSubscription: {
+          topic: "/y-only",
+          fields: ["header", "value"],
+          preloadType: "full",
+        },
+        rangeRequest: {
+          topic: "/y-only",
+          payload: { fields: ["header", "value"] },
+          seriesIndices: [1],
         },
       },
     ]);
@@ -189,12 +220,19 @@ describe("planPlotSubscriptions", () => {
 
 describe("startPlotRangeSubscriptions", () => {
   const plans = plan([path("/supported.value"), path("/fallback.value")]);
+  const onIteratorStart = async (): Promise<void> => undefined;
 
-  it("uses one grouped range per supported replay topic and falls back per topic", async () => {
-    let configured = false;
-    let configuredBeforeFirstBatch = false;
+  it("waits for ownership configuration, then resets before consuming the first batch", async () => {
+    let markConfigured!: (generation: number) => void;
+    const configured = new Promise<number>((resolve) => {
+      markConfigured = resolve;
+    });
+    const order: string[] = [];
     const onRangeBatch = jest.fn(async () => {
-      configuredBeforeFirstBatch = configured;
+      order.push("batch");
+    });
+    const resetTopic = jest.fn(async () => {
+      order.push("reset");
     });
     const unsubscribe = jest.fn();
     const subscribeMessageRange = jest.fn(({ topic, onNewRangeIterator }) => {
@@ -221,11 +259,13 @@ describe("startPlotRangeSubscriptions", () => {
       plans,
       attemptRanges: true,
       subscribeMessageRange,
-      generation: 7,
+      generation: configured,
+      onIteratorStart: resetTopic,
       onRangeBatch,
     });
-    // Plot configures the Timestamp builder immediately after this synchronous setup returns.
-    configured = true;
+    // Plot configures ownership synchronously after range setup, then releases iterator work.
+    order.push("configure");
+    markConfigured(7);
 
     expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
     expect(subscribeMessageRange.mock.calls[0]?.[0]).toEqual(
@@ -241,8 +281,9 @@ describe("startPlotRangeSubscriptions", () => {
     await new Promise<void>((resolve) => {
       setImmediate(resolve);
     });
+    expect(resetTopic).toHaveBeenCalledWith("/supported", 7);
     expect(onRangeBatch).toHaveBeenCalledWith("/supported", expect.any(Array), 7);
-    expect(configuredBeforeFirstBatch).toBe(true);
+    expect(order).toEqual(["configure", "reset", "batch"]);
 
     running.cancel();
     running.cancel();
@@ -255,13 +296,34 @@ describe("startPlotRangeSubscriptions", () => {
       plans,
       attemptRanges: false,
       subscribeMessageRange,
-      generation: 1,
+      generation: Promise.resolve(1),
+      onIteratorStart,
       onRangeBatch: async () => {},
     });
 
     expect(subscribeMessageRange).not.toHaveBeenCalled();
     expect(running.rangeTopics).toEqual(new Set());
     expect(running.subscriptions).toEqual(plans.map((item) => item.subscription));
+  });
+
+  it("falls back only the topic whose range setup throws synchronously", () => {
+    const running = startPlotRangeSubscriptions({
+      plans,
+      attemptRanges: true,
+      generation: Promise.resolve(1),
+      subscribeMessageRange: (options) => {
+        if (options.topic === "/fallback") {
+          throw new Error("unsupported topic");
+        }
+        return () => undefined;
+      },
+      onIteratorStart,
+      onRangeBatch: async () => undefined,
+    });
+
+    expect(running.rangeTopics).toEqual(new Set(["/supported"]));
+    expect(running.subscriptions).toEqual([plans[0]!.subscription, plans[1]!.fallbackSubscription]);
+    running.cancel();
   });
 
   it("stops stale iterator batches before unsubscribing", async () => {
@@ -274,7 +336,7 @@ describe("startPlotRangeSubscriptions", () => {
     const running = startPlotRangeSubscriptions({
       plans: [plans[0]!],
       attemptRanges: true,
-      generation: 9,
+      generation: Promise.resolve(9),
       subscribeMessageRange: ({ onNewRangeIterator }) => {
         void onNewRangeIterator(
           (async function* () {
@@ -285,6 +347,7 @@ describe("startPlotRangeSubscriptions", () => {
         );
         return unsubscribe;
       },
+      onIteratorStart,
       onRangeBatch,
     });
 
@@ -317,7 +380,7 @@ describe("startPlotRangeSubscriptions", () => {
     startPlotRangeSubscriptions({
       plans: [plans[0]!],
       attemptRanges: true,
-      generation: 2,
+      generation: Promise.resolve(2),
       subscribeMessageRange: ({ onNewRangeIterator }) => {
         void onNewRangeIterator(
           (async function* () {
@@ -327,6 +390,7 @@ describe("startPlotRangeSubscriptions", () => {
         );
         return () => {};
       },
+      onIteratorStart,
       onRangeBatch,
     });
 
@@ -339,6 +403,69 @@ describe("startPlotRangeSubscriptions", () => {
       setImmediate(resolve);
     });
     expect(onRangeBatch).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets every replacement iterator and consumes only the latest replay", async () => {
+    let onNewRangeIterator: OnNewRangeIterator | undefined;
+    const starts: string[] = [];
+    const batches: number[] = [];
+    let releaseOld!: () => void;
+    const oldBlocked = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    const running = startPlotRangeSubscriptions({
+      plans: [plans[0]!],
+      attemptRanges: true,
+      generation: Promise.resolve(4),
+      subscribeMessageRange: (options) => {
+        onNewRangeIterator = options.onNewRangeIterator;
+        return () => undefined;
+      },
+      onIteratorStart: async (topic) => {
+        starts.push(topic);
+      },
+      onRangeBatch: async (_topic, batch) => {
+        batches.push((batch[0]?.message as { value: number }).value);
+      },
+    });
+
+    const oldConsumption = onNewRangeIterator!(
+      (async function* () {
+        await oldBlocked;
+        yield [
+          {
+            topic: "/supported",
+            schemaName: "schema",
+            receiveTime: { sec: 1, nsec: 0 },
+            message: { value: 1 },
+            sizeInBytes: 1,
+          },
+        ];
+      })(),
+    );
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    const latestConsumption = onNewRangeIterator!(
+      (async function* () {
+        yield [
+          {
+            topic: "/supported",
+            schemaName: "schema",
+            receiveTime: { sec: 2, nsec: 0 },
+            message: { value: 2 },
+            sizeInBytes: 1,
+          },
+        ];
+      })(),
+    );
+    await latestConsumption;
+    releaseOld();
+    await oldConsumption;
+
+    expect(starts).toEqual(["/supported", "/supported"]);
+    expect(batches).toEqual([2]);
+    running.cancel();
   });
 
   it("bounds oversized Player batches before Dataset extraction", async () => {
@@ -360,7 +487,7 @@ describe("startPlotRangeSubscriptions", () => {
     startPlotRangeSubscriptions({
       plans: [plans[0]!],
       attemptRanges: true,
-      generation: 3,
+      generation: Promise.resolve(3),
       subscribeMessageRange: ({ onNewRangeIterator }) => {
         void onNewRangeIterator(
           (async function* () {
@@ -369,6 +496,7 @@ describe("startPlotRangeSubscriptions", () => {
         );
         return () => {};
       },
+      onIteratorStart,
       onRangeBatch,
     });
 
@@ -384,7 +512,7 @@ describe("startPlotRangeSubscriptions", () => {
     startPlotRangeSubscriptions({
       plans: [plans[0]!],
       attemptRanges: true,
-      generation: 1,
+      generation: Promise.resolve(1),
       subscribeMessageRange: ({ onNewRangeIterator }) => {
         void onNewRangeIterator(
           (async function* () {
@@ -393,6 +521,7 @@ describe("startPlotRangeSubscriptions", () => {
         );
         return () => {};
       },
+      onIteratorStart,
       onRangeBatch: async () => {
         throw error;
       },
@@ -403,5 +532,111 @@ describe("startPlotRangeSubscriptions", () => {
       setImmediate(resolve);
     });
     expect(onError).toHaveBeenCalledWith(error);
+  });
+
+  it("switches only an asynchronously failed topic to its full fallback", async () => {
+    const callbacks = new Map<string, OnNewRangeIterator>();
+    const unsubscribes = new Map([
+      ["/supported", jest.fn()],
+      ["/fallback", jest.fn()],
+    ]);
+    const onError = jest.fn();
+    const onTopicFallback = jest.fn(async () => true);
+    const running = startPlotRangeSubscriptions({
+      plans,
+      attemptRanges: true,
+      generation: Promise.resolve(12),
+      subscribeMessageRange: (options) => {
+        callbacks.set(options.topic, options.onNewRangeIterator);
+        return unsubscribes.get(options.topic)!;
+      },
+      onIteratorStart,
+      onRangeBatch: async () => undefined,
+      onTopicFallback,
+      onError,
+    });
+
+    await callbacks.get("/supported")!(
+      (async function* () {
+        await Promise.reject(new Error("range read failed"));
+        yield [];
+      })(),
+    );
+
+    expect(onTopicFallback).toHaveBeenCalledWith({
+      topic: "/supported",
+      generation: 12,
+      rangeTopics: new Set(["/fallback"]),
+      subscriptions: [plans[0]!.fallbackSubscription, plans[1]!.subscription],
+    });
+    // Dynamic fallback state is sent through the callback; the returned plan remains a snapshot
+    // of synchronous setup.
+    expect(running.rangeTopics).toEqual(new Set(["/supported", "/fallback"]));
+    expect(running.subscriptions).toEqual(plans.map((plan) => plan.subscription));
+    expect(unsubscribes.get("/supported")).toHaveBeenCalledTimes(1);
+    expect(unsubscribes.get("/fallback")).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    running.cancel();
+  });
+
+  it("serializes concurrent fallback commits so inverse completion cannot restore partial", async () => {
+    const callbacks = new Map<string, OnNewRangeIterator>();
+    let releaseFirstFallback!: () => void;
+    let firstFallbackStarted!: () => void;
+    const firstFallbackPending = new Promise<void>((resolve) => {
+      releaseFirstFallback = resolve;
+    });
+    const firstFallbackStartedPromise = new Promise<void>((resolve) => {
+      firstFallbackStarted = resolve;
+    });
+    const commits: { topic: string; preloadTypes: (string | undefined)[] }[] = [];
+    const running = startPlotRangeSubscriptions({
+      plans,
+      attemptRanges: true,
+      generation: Promise.resolve(21),
+      subscribeMessageRange: (options) => {
+        callbacks.set(options.topic, options.onNewRangeIterator);
+        return () => undefined;
+      },
+      onIteratorStart,
+      onRangeBatch: async () => undefined,
+      onTopicFallback: async ({ subscriptions, topic }) => {
+        if (topic === "/supported") {
+          firstFallbackStarted();
+          await firstFallbackPending;
+        }
+        commits.push({
+          topic,
+          preloadTypes: subscriptions.map((subscription) => subscription.preloadType),
+        });
+        return true;
+      },
+    });
+
+    const firstFailure = callbacks.get("/supported")!(
+      (async function* () {
+        await Promise.reject(new Error("slow fallback"));
+        yield [];
+      })(),
+    );
+    await firstFallbackStartedPromise;
+    const secondFailure = callbacks.get("/fallback")!(
+      (async function* () {
+        await Promise.reject(new Error("fast fallback"));
+        yield [];
+      })(),
+    );
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(commits).toEqual([]);
+    releaseFirstFallback();
+    await Promise.all([firstFailure, secondFailure]);
+    expect(commits).toEqual([
+      { topic: "/supported", preloadTypes: ["full", "partial"] },
+      { topic: "/fallback", preloadTypes: ["full", "full"] },
+    ]);
+    running.cancel();
   });
 });

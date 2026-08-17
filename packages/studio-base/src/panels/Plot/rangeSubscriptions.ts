@@ -18,10 +18,11 @@ export type PlotRangeRequestPlan = Readonly<{
   topic: string;
   payload: Readonly<Pick<SubscribePayload, "fields">>;
   seriesIndices: readonly number[];
+  includesXAxis?: boolean;
 }>;
 
 export type PlotTopicSubscriptionPlan = Readonly<{
-  /** Subscription used while the range iterator supplies timestamp history. */
+  /** Current-only subscription used while a range iterator supplies replay history. */
   subscription: SubscribePayload;
   /** Subscription to use when the range request is unsupported for this topic. */
   fallbackSubscription: SubscribePayload;
@@ -30,29 +31,43 @@ export type PlotTopicSubscriptionPlan = Readonly<{
 
 type RangeSubscriptionState = {
   cancelled: boolean;
+  fallbackQueue: Promise<void>;
   latestIteratorByTopic: Map<string, number>;
   rangeTopics: Set<string>;
 };
 
 export type RunningPlotRangeSubscriptions = Readonly<{
-  /** Topics whose history is owned by a range iterator instead of message-cache blocks. */
+  /** Topics whose history was initially assigned to a range iterator. */
   rangeTopics: ReadonlySet<string>;
-  /** Current-frame subscriptions, with per-topic full-history fallbacks where ranges failed. */
+  /** Initial current subscriptions, including synchronous per-topic full-history fallbacks. */
   subscriptions: readonly SubscribePayload[];
   cancel: () => void;
 }>;
 
 type StartPlotRangeSubscriptionsArgs = Readonly<{
   plans: readonly PlotTopicSubscriptionPlan[];
-  /** False for live players and modes which do not use timestamp range history. */
+  /** False for live players and x-axis modes which do not use range history. */
   attemptRanges: boolean;
   subscribeMessageRange?: SubscribeMessageRange;
-  generation: number;
+  /** Resolved after the Dataset builder has established ownership for this generation. */
+  generation: Promise<number>;
+  /** Reset a topic before every initial or replacement iterator starts replaying it. */
+  onIteratorStart: (topic: string, generation: number) => Promise<void>;
   onRangeBatch: (
     topic: string,
     batch: readonly import("@foxglove/studio").MessageEvent[],
     generation: number,
   ) => Promise<void>;
+  /**
+   * Switch one asynchronously failed range topic to its full-preload subscription. Returning true
+   * means the fallback was established; false lets the caller surface the original error.
+   */
+  onTopicFallback?: (args: {
+    topic: string;
+    generation: number;
+    rangeTopics: ReadonlySet<string>;
+    subscriptions: readonly SubscribePayload[];
+  }) => Promise<boolean>;
   onError?: (error: unknown) => void;
 }>;
 
@@ -67,13 +82,15 @@ type MutableTopicPlan = {
   topic: string;
   fields: Set<string>;
   seriesIndices: number[];
+  includesXAxis: boolean;
 };
 
 const MAX_RANGE_INGEST_BATCH_SIZE = 10_000;
 
 /**
  * Builds one subscription plan per topic, preserving the order in which topics first appear.
- * Timestamp history uses range requests; all other x-axis modes keep their existing preload mode.
+ * Timestamp and accumulated custom-x history use range requests; latest-value modes keep their
+ * existing preload behavior.
  */
 export function planPlotSubscriptions(
   args: PlanPlotSubscriptionsArgs,
@@ -81,7 +98,7 @@ export function planPlotSubscriptions(
   const { paths, globalVariables, xAxisMode, xAxisPath } = args;
   const topics = new Map<string, MutableTopicPlan>();
 
-  const addPath = (value: string, seriesIndex?: number): void => {
+  const addPath = (value: string, seriesIndex?: number, role?: "xAxis"): void => {
     const parsed = parseMessagePath(value);
     if (parsed == undefined) {
       return;
@@ -99,6 +116,7 @@ export function planPlotSubscriptions(
         topic: subscription.topic,
         fields: new Set<string>(),
         seriesIndices: [],
+        includesXAxis: false,
       };
       topics.set(subscription.topic, topicPlan);
     }
@@ -109,6 +127,7 @@ export function planPlotSubscriptions(
     if (seriesIndex != undefined) {
       topicPlan.seriesIndices.push(seriesIndex);
     }
+    topicPlan.includesXAxis ||= role === "xAxis";
   };
 
   paths.forEach((path, index) => {
@@ -123,17 +142,11 @@ export function planPlotSubscriptions(
     xAxisPath != undefined &&
     ((xAxisPath as { enabled?: boolean }).enabled ?? true)
   ) {
-    addPath(xAxisPath.value);
+    addPath(xAxisPath.value, undefined, "xAxis");
   }
 
-  const rangeEnabled = xAxisMode === "timestamp";
-  const primaryPreloadType =
-    rangeEnabled ||
-    xAxisMode === "index" ||
-    xAxisMode === "currentCustom" ||
-    xAxisMode === "partialTimestamp"
-      ? "partial"
-      : "full";
+  const rangeEnabled = xAxisMode === "timestamp" || xAxisMode === "custom";
+  const primaryPreloadType = "partial";
 
   return Array.from(topics.values(), (topicPlan): PlotTopicSubscriptionPlan => {
     const fields = Array.from(topicPlan.fields);
@@ -157,6 +170,7 @@ export function planPlotSubscriptions(
               topic: topicPlan.topic,
               payload: { fields: [...fields] },
               seriesIndices: [...topicPlan.seriesIndices],
+              ...(topicPlan.includesXAxis ? { includesXAxis: true } : {}),
             },
           }
         : {}),
@@ -177,11 +191,12 @@ export function startPlotRangeSubscriptions(
   const unsubscribes: (() => void)[] = [];
   const state: RangeSubscriptionState = {
     cancelled: false,
+    fallbackQueue: Promise.resolve(),
     latestIteratorByTopic: new Map<string, number>(),
     rangeTopics,
   };
 
-  for (const plan of args.plans) {
+  for (const [planIndex, plan] of args.plans.entries()) {
     const request = plan.rangeRequest;
     const subscribeMessageRange = args.subscribeMessageRange;
     if (!args.attemptRanges || request == undefined || subscribeMessageRange == undefined) {
@@ -191,7 +206,39 @@ export function startPlotRangeSubscriptions(
       continue;
     }
 
-    const unsubscribe = tryStartRangeSubscription(args, subscribeMessageRange, request, state);
+    const unsubscribe = tryStartRangeSubscription(
+      args,
+      subscribeMessageRange,
+      request,
+      state,
+      async (error, generation) => {
+        state.rangeTopics.delete(request.topic);
+        state.latestIteratorByTopic.delete(request.topic);
+        subscriptions[planIndex] = plan.fallbackSubscription;
+
+        // Player iterators may fail concurrently. Serialize commits so a slower earlier fallback
+        // cannot finish after a later fallback and restore that topic's stale partial subscription.
+        const fallbackOperation = state.fallbackQueue.then(async () => {
+          let fallbackEstablished = false;
+          try {
+            fallbackEstablished =
+              (await args.onTopicFallback?.({
+                topic: request.topic,
+                generation,
+                rangeTopics: new Set(state.rangeTopics),
+                subscriptions: [...subscriptions],
+              })) === true;
+          } catch (fallbackError) {
+            args.onError?.(fallbackError);
+          }
+          if (!fallbackEstablished) {
+            args.onError?.(error);
+          }
+        });
+        state.fallbackQueue = fallbackOperation.catch(() => undefined);
+        await fallbackOperation;
+      },
+    );
 
     if (unsubscribe == undefined) {
       subscriptions.push(plan.fallbackSubscription);
@@ -204,8 +251,8 @@ export function startPlotRangeSubscriptions(
   }
 
   return {
-    rangeTopics,
-    subscriptions,
+    rangeTopics: new Set(rangeTopics),
+    subscriptions: [...subscriptions],
     cancel: () => {
       if (state.cancelled) {
         return;
@@ -228,10 +275,24 @@ function tryStartRangeSubscription(
   subscribeMessageRange: SubscribeMessageRange,
   request: PlotRangeRequestPlan,
   state: RangeSubscriptionState,
+  onAsyncFailure: (error: unknown, generation: number) => Promise<void>,
 ): (() => void) | undefined {
   let iteratorGeneration = 0;
+  let unsubscribe: (() => void) | undefined;
+  let unsubscribed = false;
+  const stop = (): void => {
+    if (unsubscribed) {
+      return;
+    }
+    unsubscribed = true;
+    try {
+      unsubscribe?.();
+    } catch {
+      // A failed Player cleanup must not prevent the topic from switching to its fallback.
+    }
+  };
   try {
-    return subscribeMessageRange({
+    const subscription = subscribeMessageRange({
       topic: request.topic,
       payload: request.payload,
       receiveLiveData: false,
@@ -239,40 +300,68 @@ function tryStartRangeSubscription(
       onNewRangeIterator: async (iterator) => {
         const currentIteratorGeneration = ++iteratorGeneration;
         state.latestIteratorByTopic.set(request.topic, currentIteratorGeneration);
+        let generation: number | undefined;
         try {
+          generation = await args.generation;
+          if (!isCurrentRangeIterator(state, request.topic, currentIteratorGeneration)) {
+            return;
+          }
+          await args.onIteratorStart(request.topic, generation);
+          if (!isCurrentRangeIterator(state, request.topic, currentIteratorGeneration)) {
+            return;
+          }
+
           for await (const batch of iterator) {
-            if (
-              state.cancelled ||
-              !state.rangeTopics.has(request.topic) ||
-              state.latestIteratorByTopic.get(request.topic) !== currentIteratorGeneration
-            ) {
+            if (!isCurrentRangeIterator(state, request.topic, currentIteratorGeneration)) {
               return;
             }
             if (batch.length === 0) {
-              await args.onRangeBatch(request.topic, batch, args.generation);
+              await args.onRangeBatch(request.topic, batch, generation);
               continue;
             }
             for (let offset = 0; offset < batch.length; offset += MAX_RANGE_INGEST_BATCH_SIZE) {
-              if (state.latestIteratorByTopic.get(request.topic) !== currentIteratorGeneration) {
+              if (!isCurrentRangeIterator(state, request.topic, currentIteratorGeneration)) {
                 return;
               }
               // Awaiting each bounded slice lets the Dataset worker control stream backpressure.
               await args.onRangeBatch(
                 request.topic,
                 batch.slice(offset, offset + MAX_RANGE_INGEST_BATCH_SIZE),
-                args.generation,
+                generation,
               );
             }
           }
         } catch (error) {
-          if (!state.cancelled) {
-            args.onError?.(error);
+          if (isCurrentRangeIterator(state, request.topic, currentIteratorGeneration)) {
+            stop();
+            if (generation == undefined) {
+              args.onError?.(error);
+            } else {
+              await onAsyncFailure(error, generation);
+            }
           }
         }
       },
     });
+    if (subscription == undefined) {
+      return undefined;
+    }
+    unsubscribe = subscription;
+    return stop;
   } catch {
     // A synchronous range setup failure has the same compatibility semantics as unsupported.
     return undefined;
   }
+}
+
+function isCurrentRangeIterator(
+  state: RangeSubscriptionState,
+  topic: string,
+  iteratorGeneration: number,
+): boolean {
+  return (
+    !state.cancelled &&
+    state.rangeTopics.has(topic) &&
+    state.latestIteratorByTopic.get(topic) === iteratorGeneration
+  );
 }

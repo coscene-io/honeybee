@@ -14,17 +14,28 @@ import {
 } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 
-import { CompactValueStore, ValueItemBatch } from "./CustomValueStore";
 import {
+  CompactNumericStore,
+  CompactStoreBlockMetadata,
+  CompactValueStore,
+  CUSTOM_VALUE_STORE_BLOCK_SIZE,
+  decodeBatchTime,
+  NumericItemBatch,
+  ValueItemBatch,
+} from "./CustomValueStore";
+import {
+  CsvDataChunk,
+  CsvDataCursor,
   CsvDataset,
+  CsvDatum,
   GetViewportDatasetsResult,
+  normalizeCsvChunkSize,
   SeriesConfigKey,
   SeriesItem,
   Viewport,
 } from "./IDatasetsBuilder";
 import type { Dataset } from "../ChartRenderer";
 import { attachUnpackedDataAccessor, PackedDatasetWriter } from "../PackedDataset";
-import { Datum } from "../datum";
 
 export type { ValueItem } from "./CustomValueStore";
 
@@ -38,8 +49,8 @@ type ResetSeriesFullAction = { type: "reset-full"; series: SeriesConfigKey };
 type ResetSeriesCurrentAction = { type: "reset-current"; series: SeriesConfigKey };
 type ResetCurrentXAction = { type: "reset-current-x" };
 type ResetFullXAction = { type: "reset-full-x" };
-type UpdateCurrentXAction = { type: "append-current-x"; items: ValueItemBatch };
-type UpdateFullXAction = { type: "append-full-x"; items: ValueItemBatch };
+type UpdateCurrentXAction = { type: "append-current-x"; items: NumericItemBatch };
+type UpdateFullXAction = { type: "append-full-x"; items: NumericItemBatch };
 type UpdateSeriesCurrentAction = {
   type: "append-current";
   series: SeriesConfigKey;
@@ -64,16 +75,31 @@ export type UpdateDataAction =
   | UpdateSeriesFullAction;
 
 export type CustomDatasetStorageStats = {
-  x: { currentLength: number; currentCapacity: number; fullLength: number };
+  x: {
+    currentLength: number;
+    currentCapacity: number;
+    peakCurrentCapacity: number;
+    currentSideTableEntries: number;
+    fullLength: number;
+  };
   series: Record<
     string,
     {
       currentLength: number;
       currentCapacity: number;
+      peakCurrentCapacity: number;
       currentSideTableEntries: number;
       fullLength: number;
     }
   >;
+};
+
+export type CustomDatasetQueryStats = {
+  totalPoints: number;
+  totalBlocks: number;
+  metadataBlocksInspected: number;
+  scannedBlocks: number;
+  scannedPoints: number;
 };
 
 const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
@@ -87,20 +113,29 @@ type PairedSeriesPlan = {
 };
 
 export class CustomDatasetsBuilderImpl {
-  #xValues: { current: CompactValueStore; full: CompactValueStore } = {
-    current: new CompactValueStore(),
-    full: new CompactValueStore(),
+  #xValues: { current: CompactNumericStore; full: CompactNumericStore } = {
+    current: new CompactNumericStore(),
+    full: new CompactNumericStore(),
   };
   #seriesByKey = new Map<SeriesConfigKey, Series>();
+  #lastViewportQueryStats: CustomDatasetQueryStats = createQueryStats();
 
   public updateData(actions: Immutable<UpdateDataAction[]>): void {
+    const currentPlan = this.#buildCurrentPlan(actions);
     for (const action of actions) {
-      this.#applyAction(action);
+      this.#applyNonCurrentAction(action);
     }
-    this.#capCurrentStoresTogether();
+    this.#xValues.current = materializeNumericCurrent(currentPlan.x);
+    for (const [key, series] of this.#seriesByKey) {
+      series.current = materializeValueCurrent(
+        currentPlan.series.get(key) ?? emptyVirtualCurrent(),
+      );
+    }
   }
 
   public getViewportDatasets(viewport: Immutable<Viewport>): GetViewportDatasetsResult {
+    const queryStats = createQueryStats();
+    this.#lastViewportQueryStats = queryStats;
     const plans: PairedSeriesPlan[] = [];
     const pathsWithMismatchedDataLengths = new Set<string>();
     for (const series of this.#seriesByKey.values()) {
@@ -109,7 +144,10 @@ export class CustomDatasetsBuilderImpl {
       }
       const fullCount = Math.min(series.full.length, this.#xValues.full.length);
       const currentCount = Math.min(series.current.length, this.#xValues.current.length);
-      plans.push({ series, fullCount, currentCount, count: fullCount + currentCount });
+      const plan = { series, fullCount, currentCount, count: fullCount + currentCount };
+      plans.push(plan);
+      queryStats.totalPoints += plan.count;
+      queryStats.totalBlocks += countPlanBlocks(plan);
       if (
         series.full.length !== this.#xValues.full.length ||
         series.current.length !== this.#xValues.current.length
@@ -118,15 +156,7 @@ export class CustomDatasetsBuilderImpl {
       }
     }
 
-    const budgets = allocatePointBudgets(
-      plans.map((plan) => plan.count),
-      MAX_POINTS,
-    );
-    const datasets: Dataset[] = [];
-    for (let planIndex = 0; planIndex < plans.length; planIndex++) {
-      const plan = plans[planIndex]!;
-      const budget = budgets[planIndex]!;
-      const { series } = plan;
+    const preparedPlans = plans.map((plan) => {
       const bounds = getPlanBounds(this.#xValues, plan);
       const downsampleViewport = {
         width: Math.max(1, viewport.size.width),
@@ -136,20 +166,50 @@ export class CustomDatasetsBuilderImpl {
           y: resolveBounds(viewport.bounds.y, bounds.y),
         },
       };
+      const lineStats = plan.series.config.showLine
+        ? getViewportLineStats(this.#xValues, plan, downsampleViewport.bounds.x, queryStats)
+        : undefined;
+      return {
+        plan,
+        downsampleViewport,
+        lineStats,
+        budgetWeight: lineStats?.count ?? plan.count,
+      };
+    });
+    const budgets = allocatePointBudgets(
+      preparedPlans.map(({ budgetWeight }) => budgetWeight),
+      MAX_POINTS,
+    );
+    const datasets: Dataset[] = [];
+    for (let planIndex = 0; planIndex < preparedPlans.length; planIndex++) {
+      const { plan, downsampleViewport, lineStats, budgetWeight } = preparedPlans[planIndex]!;
+      const budget = budgets[planIndex]!;
+      const { series } = plan;
 
       let indices: number[];
-      if (plan.count === 0 || budget === 0) {
+      if (budgetWeight === 0 || budget === 0) {
         indices = [];
       } else if (series.config.showLine) {
-        // A custom x-axis is not necessarily monotonic. Downsampling only by ordinal position keeps
-        // the original connection order and never introduces a sorted-x assumption.
-        indices = selectOrderedLineIndices(plan.count, budget, (index) => {
-          const point = getPlanPoint(this.#xValues, plan, index);
-          return point.yStore.getValue(point.storeIndex);
-        });
+        indices = selectViewportLineIndices(
+          this.#xValues,
+          plan,
+          downsampleViewport.bounds.x,
+          lineStats!,
+          budget,
+          queryStats,
+        );
+      } else if (plan.count <= budget) {
+        indices = Array.from({ length: plan.count }, (_, index) => index);
       } else {
-        indices = downsampleScatter(iteratePlanPoints(this.#xValues, plan), downsampleViewport);
-        indices = limitOrderedIndices(indices, budget);
+        indices = downsampleScatter(
+          iterateViewportScatterPoints(
+            this.#xValues,
+            plan,
+            downsampleViewport.bounds.x,
+            queryStats,
+          ),
+          downsampleViewport,
+        );
       }
 
       const writer = new PackedDatasetWriter(indices.length);
@@ -179,31 +239,63 @@ export class CustomDatasetsBuilderImpl {
   }
 
   public getCsvData(): CsvDataset[] {
+    return this.#getCsvPlans().map((plan) => {
+      const data = new Array<CsvDatum>(plan.count);
+      for (let index = 0; index < plan.count; index++) {
+        data[index] = this.#getCsvDatum(plan, index);
+      }
+      return { label: plan.series.config.messagePath, data };
+    });
+  }
+
+  /** Materializes at most 10k CSV datums and returns a serializable continuation cursor. */
+  public getCsvDataChunk(cursor: CsvDataCursor | undefined, maxDatums: number): CsvDataChunk {
+    const chunkSize = normalizeCsvChunkSize(maxDatums);
+    const plans = this.#getCsvPlans();
+    let seriesIndex = cursor?.seriesIndex ?? 0;
+    let datumIndex = cursor?.datumIndex ?? 0;
+    if (
+      !Number.isSafeInteger(seriesIndex) ||
+      !Number.isSafeInteger(datumIndex) ||
+      seriesIndex < 0 ||
+      datumIndex < 0 ||
+      seriesIndex > plans.length ||
+      (seriesIndex === plans.length && datumIndex !== 0)
+    ) {
+      throw new RangeError("Invalid CSV cursor");
+    }
+
     const datasets: CsvDataset[] = [];
-    for (const series of this.#seriesByKey.values()) {
-      if (!series.config.enabled) {
+    let remaining = chunkSize;
+    while (seriesIndex < plans.length && remaining > 0) {
+      const plan = plans[seriesIndex]!;
+      if (datumIndex > plan.count) {
+        throw new RangeError("Invalid CSV cursor");
+      }
+      if (datumIndex === plan.count) {
+        seriesIndex++;
+        datumIndex = 0;
         continue;
       }
-      const plan = {
-        series,
-        fullCount: Math.min(series.full.length, this.#xValues.full.length),
-        currentCount: Math.min(series.current.length, this.#xValues.current.length),
-        count: 0,
-      } satisfies PairedSeriesPlan;
-      plan.count = plan.fullCount + plan.currentCount;
-      const data = new Array<Datum>(plan.count);
-      for (let index = 0; index < plan.count; index++) {
-        const point = getPlanPoint(this.#xValues, plan, index);
-        data[index] = {
-          x: point.xStore.getValue(point.storeIndex),
-          y: point.yStore.getValue(point.storeIndex),
-          receiveTime: point.xStore.getReceiveTime(point.storeIndex),
-          value: point.yStore.getOriginalValue(point.storeIndex),
-        };
+
+      const count = Math.min(remaining, plan.count - datumIndex);
+      const data = new Array<CsvDatum>(count);
+      for (let outputIndex = 0; outputIndex < count; outputIndex++) {
+        data[outputIndex] = this.#getCsvDatum(plan, datumIndex + outputIndex);
       }
-      datasets.push({ label: series.config.messagePath, data });
+      datasets.push({ label: plan.series.config.messagePath, data });
+      datumIndex += count;
+      remaining -= count;
+      if (datumIndex === plan.count) {
+        seriesIndex++;
+        datumIndex = 0;
+      }
     }
-    return datasets;
+
+    return {
+      datasets,
+      ...(seriesIndex < plans.length ? { nextCursor: { seriesIndex, datumIndex } } : {}),
+    };
   }
 
   public getXRange(): Bounds1D {
@@ -221,6 +313,7 @@ export class CustomDatasetsBuilderImpl {
       series[key] = {
         currentLength: value.current.length,
         currentCapacity: value.current.capacity,
+        peakCurrentCapacity: value.current.peakCapacity,
         currentSideTableEntries: value.current.sideTableEntryCount(),
         fullLength: value.full.length,
       };
@@ -229,27 +322,52 @@ export class CustomDatasetsBuilderImpl {
       x: {
         currentLength: this.#xValues.current.length,
         currentCapacity: this.#xValues.current.capacity,
+        peakCurrentCapacity: this.#xValues.current.peakCapacity,
+        currentSideTableEntries: this.#xValues.current.sideTableEntryCount(),
         fullLength: this.#xValues.full.length,
       },
       series,
     };
   }
 
-  #applyAction(action: Immutable<UpdateDataAction>): void {
+  /** Deterministic probe for how much source storage the last viewport query inspected. */
+  public getLastViewportQueryStats(): CustomDatasetQueryStats {
+    return { ...this.#lastViewportQueryStats };
+  }
+
+  #getCsvPlans(): PairedSeriesPlan[] {
+    const plans: PairedSeriesPlan[] = [];
+    for (const series of this.#seriesByKey.values()) {
+      if (!series.config.enabled) {
+        continue;
+      }
+      const fullCount = Math.min(series.full.length, this.#xValues.full.length);
+      const currentCount = Math.min(series.current.length, this.#xValues.current.length);
+      plans.push({ series, fullCount, currentCount, count: fullCount + currentCount });
+    }
+    return plans;
+  }
+
+  #getCsvDatum(plan: PairedSeriesPlan, index: number): CsvDatum {
+    const point = getPlanPoint(this.#xValues, plan, index);
+    return {
+      x: point.xStore.getValue(point.storeIndex),
+      y: point.yStore.getValue(point.storeIndex),
+      receiveTime: point.xStore.getReceiveTime(point.storeIndex),
+      value: point.yStore.getOriginalValue(point.storeIndex),
+    };
+  }
+
+  #applyNonCurrentAction(action: Immutable<UpdateDataAction>): void {
     switch (action.type) {
       case "reset-current-x":
-        this.#xValues.current = new CompactValueStore();
+      case "reset-current":
+      case "append-current-x":
+      case "append-current":
         break;
       case "reset-full-x":
-        this.#xValues.full = new CompactValueStore();
+        this.#xValues.full = new CompactNumericStore();
         break;
-      case "reset-current": {
-        const series = this.#seriesByKey.get(action.series);
-        if (series) {
-          series.current = new CompactValueStore();
-        }
-        break;
-      }
       case "reset-full": {
         const series = this.#seriesByKey.get(action.series);
         if (series) {
@@ -257,29 +375,8 @@ export class CustomDatasetsBuilderImpl {
         }
         break;
       }
-      case "append-current-x": {
-        const lastFullReceiveTime = getLastReceiveTime(this.#xValues.full);
-        this.#xValues.current.appendBatch(action.items, lastFullReceiveTime);
-        break;
-      }
       case "append-full-x": {
         this.#xValues.full.appendBatch(action.items);
-        const lastFullReceiveTime = getLastReceiveTime(this.#xValues.full);
-        if (lastFullReceiveTime) {
-          this.#xValues.current = trimThroughReceiveTime(
-            this.#xValues.current,
-            lastFullReceiveTime,
-          );
-        }
-        break;
-      }
-      case "append-current": {
-        const series = this.#seriesByKey.get(action.series);
-        if (!series) {
-          return;
-        }
-        const lastFullReceiveTime = getLastReceiveTime(series.full);
-        series.current.appendBatch(action.items, lastFullReceiveTime);
         break;
       }
       case "append-full": {
@@ -288,16 +385,121 @@ export class CustomDatasetsBuilderImpl {
           return;
         }
         series.full.appendBatch(action.items);
-        const lastFullReceiveTime = getLastReceiveTime(series.full);
-        if (lastFullReceiveTime) {
-          series.current = trimThroughReceiveTime(series.current, lastFullReceiveTime);
-        }
         break;
       }
       case "update-series-config":
         this.#updateSeriesConfigAction(action.seriesItems);
         break;
     }
+  }
+
+  #buildCurrentPlan(actions: Immutable<UpdateDataAction[]>): CurrentMaterializationPlan {
+    let x = createVirtualCurrent<CompactNumericStore, NumericItemBatch>(this.#xValues.current);
+    let xLastFullReceiveTime = getLastReceiveTime(this.#xValues.full);
+    let series = new Map<SeriesConfigKey, VirtualCurrent<CompactValueStore, ValueItemBatch>>();
+    let seriesLastFullReceiveTime = new Map<
+      SeriesConfigKey,
+      ReturnType<CompactValueStore["getReceiveTime"]> | undefined
+    >();
+    for (const [key, value] of this.#seriesByKey) {
+      series.set(key, createVirtualCurrent<CompactValueStore, ValueItemBatch>(value.current));
+      seriesLastFullReceiveTime.set(key, getLastReceiveTime(value.full));
+    }
+
+    for (const action of actions) {
+      switch (action.type) {
+        case "reset-current-x":
+          x = emptyVirtualCurrent<CompactNumericStore, NumericItemBatch>();
+          break;
+        case "reset-full-x":
+          xLastFullReceiveTime = undefined;
+          break;
+        case "append-current-x":
+          appendVirtualBatch<CompactNumericStore, NumericItemBatch>(
+            x,
+            action.items,
+            xLastFullReceiveTime,
+          );
+          break;
+        case "append-full-x": {
+          xLastFullReceiveTime = getLastBatchReceiveTime(action.items, xLastFullReceiveTime);
+          if (xLastFullReceiveTime) {
+            trimVirtualThroughReceiveTime(x, xLastFullReceiveTime);
+          }
+          break;
+        }
+        case "reset-current": {
+          if (series.has(action.series)) {
+            series.set(action.series, emptyVirtualCurrent<CompactValueStore, ValueItemBatch>());
+          }
+          break;
+        }
+        case "reset-full":
+          if (series.has(action.series)) {
+            seriesLastFullReceiveTime.set(action.series, undefined);
+          }
+          break;
+        case "append-current": {
+          const current = series.get(action.series);
+          if (current) {
+            appendVirtualBatch<CompactValueStore, ValueItemBatch>(
+              current,
+              action.items,
+              seriesLastFullReceiveTime.get(action.series),
+            );
+          }
+          break;
+        }
+        case "append-full": {
+          const current = series.get(action.series);
+          if (!current) {
+            break;
+          }
+          const lastReceiveTime = getLastBatchReceiveTime(
+            action.items,
+            seriesLastFullReceiveTime.get(action.series),
+          );
+          seriesLastFullReceiveTime.set(action.series, lastReceiveTime);
+          if (lastReceiveTime) {
+            trimVirtualThroughReceiveTime(current, lastReceiveTime);
+          }
+          break;
+        }
+        case "update-series-config": {
+          const nextSeries = new Map<
+            SeriesConfigKey,
+            VirtualCurrent<CompactValueStore, ValueItemBatch>
+          >();
+          const nextLastFullReceiveTime = new Map<
+            SeriesConfigKey,
+            ReturnType<CompactValueStore["getReceiveTime"]> | undefined
+          >();
+          for (const config of action.seriesItems) {
+            nextSeries.set(
+              config.key,
+              series.get(config.key) ?? emptyVirtualCurrent<CompactValueStore, ValueItemBatch>(),
+            );
+            nextLastFullReceiveTime.set(config.key, seriesLastFullReceiveTime.get(config.key));
+          }
+          series = nextSeries;
+          seriesLastFullReceiveTime = nextLastFullReceiveTime;
+          break;
+        }
+      }
+    }
+
+    let maximumLength = x.length;
+    for (const current of series.values()) {
+      maximumLength = Math.max(maximumLength, current.length);
+    }
+    if (maximumLength > MAX_CURRENT_DATUMS_PER_SERIES) {
+      const globalDropCount = maximumLength - RETAINED_CURRENT_DATUMS_PER_SERIES;
+      dropVirtualPrefix(x, globalDropCount);
+      for (const current of series.values()) {
+        dropVirtualPrefix(current, globalDropCount);
+      }
+    }
+    return { x, series };
   }
 
   #updateSeriesConfigAction(seriesItems: Immutable<SeriesItem[]>): void {
@@ -314,48 +516,258 @@ export class CustomDatasetsBuilderImpl {
     }
     this.#seriesByKey = newSeries;
   }
+}
 
-  #capCurrentStoresTogether(): void {
-    let maximumLength = this.#xValues.current.length;
-    for (const series of this.#seriesByKey.values()) {
-      maximumLength = Math.max(maximumLength, series.current.length);
+type CurrentStore<T> = {
+  length: number;
+  getReceiveTime(index: number): ReturnType<CompactValueStore["getReceiveTime"]>;
+  sliceFrom(start: number): T;
+};
+
+type VirtualStoreSource<S> = {
+  kind: "store";
+  store: S;
+  start: number;
+  length: number;
+};
+
+type VirtualBatchSource<B extends NumericItemBatch> = {
+  kind: "batch";
+  batch: Immutable<B>;
+  minimumReceiveTimeExclusive: ReturnType<CompactValueStore["getReceiveTime"]> | undefined;
+  /** Number of eligible batch items removed from the logical prefix. */
+  eligibleOffset: number;
+  /** Raw batch index of the first remaining eligible item. */
+  rawIndex: number;
+  length: number;
+};
+
+type VirtualCurrent<S, B extends NumericItemBatch> = {
+  sources: Array<VirtualStoreSource<S> | VirtualBatchSource<B>>;
+  length: number;
+};
+
+type CurrentMaterializationPlan = {
+  x: VirtualCurrent<CompactNumericStore, NumericItemBatch>;
+  series: Map<SeriesConfigKey, VirtualCurrent<CompactValueStore, ValueItemBatch>>;
+};
+
+function createVirtualCurrent<S extends CurrentStore<S>, B extends NumericItemBatch>(
+  store: S,
+): VirtualCurrent<S, B> {
+  return {
+    sources: store.length > 0 ? [{ kind: "store", store, start: 0, length: store.length }] : [],
+    length: store.length,
+  };
+}
+
+function emptyVirtualCurrent<S, B extends NumericItemBatch>(): VirtualCurrent<S, B> {
+  return { sources: [], length: 0 };
+}
+
+function appendVirtualBatch<S, B extends NumericItemBatch>(
+  current: VirtualCurrent<S, B>,
+  batch: Immutable<B>,
+  minimumReceiveTimeExclusive: ReturnType<CompactValueStore["getReceiveTime"]> | undefined,
+): void {
+  if (batch.receiveTimes.length !== batch.values.length) {
+    throw new Error("Custom plot numeric batch columns have mismatched lengths");
+  }
+  const rawIndex = findNextEligibleBatchIndex(batch, minimumReceiveTimeExclusive, 0);
+  if (rawIndex >= batch.values.length) {
+    return;
+  }
+  // Full/current reconciliation has always removed only the covered prefix. Preserve the entire
+  // suffix after the first newer item even when malformed input later moves backwards in receive
+  // time, so batching an action through an intermediate viewport flush cannot change its result.
+  const length = batch.values.length - rawIndex;
+  current.sources.push({
+    kind: "batch",
+    batch,
+    minimumReceiveTimeExclusive: undefined,
+    eligibleOffset: rawIndex,
+    rawIndex,
+    length,
+  });
+  current.length += length;
+}
+
+function trimVirtualThroughReceiveTime<S extends CurrentStore<S>, B extends NumericItemBatch>(
+  current: VirtualCurrent<S, B>,
+  lastFullReceiveTime: ReturnType<CompactValueStore["getReceiveTime"]>,
+): void {
+  while (current.sources.length > 0) {
+    const source = current.sources[0]!;
+    if (source.kind === "store") {
+      let dropped = 0;
+      while (
+        dropped < source.length &&
+        compare(source.store.getReceiveTime(source.start + dropped), lastFullReceiveTime) <= 0
+      ) {
+        dropped++;
+      }
+      advanceVirtualSource(current, source, dropped);
+      if (source.length > 0) {
+        return;
+      }
+      continue;
     }
-    if (maximumLength <= MAX_CURRENT_DATUMS_PER_SERIES) {
+
+    let dropped = 0;
+    let rawIndex = source.rawIndex;
+    while (
+      dropped < source.length &&
+      compare(decodeBatchTime(source.batch, rawIndex), lastFullReceiveTime) <= 0
+    ) {
+      dropped++;
+      rawIndex = findNextEligibleBatchIndex(
+        source.batch,
+        source.minimumReceiveTimeExclusive,
+        rawIndex + 1,
+      );
+    }
+    advanceVirtualSource(current, source, dropped);
+    if (source.length > 0) {
       return;
-    }
-    const dropCount = maximumLength - RETAINED_CURRENT_DATUMS_PER_SERIES;
-    this.#xValues.current = this.#xValues.current.sliceFrom(
-      Math.min(dropCount, this.#xValues.current.length),
-    );
-    for (const series of this.#seriesByKey.values()) {
-      series.current = series.current.sliceFrom(Math.min(dropCount, series.current.length));
     }
   }
 }
 
-function getLastReceiveTime(store: CompactValueStore) {
+function dropVirtualPrefix<S, B extends NumericItemBatch>(
+  current: VirtualCurrent<S, B>,
+  requestedDropCount: number,
+): void {
+  let remaining = Math.min(Math.max(0, requestedDropCount), current.length);
+  while (remaining > 0) {
+    const source = current.sources[0]!;
+    const dropped = Math.min(remaining, source.length);
+    advanceVirtualSource(current, source, dropped);
+    remaining -= dropped;
+  }
+}
+
+function advanceVirtualSource<S, B extends NumericItemBatch>(
+  current: VirtualCurrent<S, B>,
+  source: VirtualStoreSource<S> | VirtualBatchSource<B>,
+  requestedCount: number,
+): void {
+  const count = Math.min(Math.max(0, requestedCount), source.length);
+  if (count === 0) {
+    return;
+  }
+  if (source.kind === "store") {
+    source.start += count;
+  } else {
+    source.eligibleOffset += count;
+    if (count === source.length) {
+      source.rawIndex = source.batch.values.length;
+    } else if (source.minimumReceiveTimeExclusive == undefined) {
+      source.rawIndex += count;
+    } else {
+      for (let skipped = 0; skipped < count; skipped++) {
+        source.rawIndex = findNextEligibleBatchIndex(
+          source.batch,
+          source.minimumReceiveTimeExclusive,
+          source.rawIndex + 1,
+        );
+      }
+    }
+  }
+  source.length -= count;
+  current.length -= count;
+  if (source.length === 0) {
+    current.sources.shift();
+  }
+}
+
+function findNextEligibleBatchIndex(
+  batch: Immutable<NumericItemBatch>,
+  minimumReceiveTimeExclusive: ReturnType<CompactValueStore["getReceiveTime"]> | undefined,
+  start: number,
+): number {
+  if (minimumReceiveTimeExclusive == undefined) {
+    return Math.min(Math.max(0, start), batch.values.length);
+  }
+  let index = Math.min(Math.max(0, start), batch.values.length);
+  while (
+    index < batch.values.length &&
+    compare(decodeBatchTime(batch, index), minimumReceiveTimeExclusive) <= 0
+  ) {
+    index++;
+  }
+  return index;
+}
+
+function getLastBatchReceiveTime(
+  batch: Immutable<NumericItemBatch>,
+  fallback: ReturnType<CompactValueStore["getReceiveTime"]> | undefined,
+) {
+  if (batch.receiveTimes.length !== batch.values.length) {
+    throw new Error("Custom plot numeric batch columns have mismatched lengths");
+  }
+  return batch.values.length > 0 ? decodeBatchTime(batch, batch.values.length - 1) : fallback;
+}
+
+function materializeNumericCurrent(
+  current: VirtualCurrent<CompactNumericStore, NumericItemBatch>,
+): CompactNumericStore {
+  let store = new CompactNumericStore();
+  let sourceIndex = 0;
+  const first = current.sources[0];
+  if (first?.kind === "store") {
+    store = first.store.sliceFrom(first.start);
+    sourceIndex = 1;
+  }
+  for (; sourceIndex < current.sources.length; sourceIndex++) {
+    const source = current.sources[sourceIndex]!;
+    if (source.kind === "batch") {
+      store.appendBatchTail(
+        source.batch,
+        source.minimumReceiveTimeExclusive,
+        source.eligibleOffset,
+        MAX_CURRENT_DATUMS_PER_SERIES,
+      );
+    }
+  }
+  return store;
+}
+
+function materializeValueCurrent(
+  current: VirtualCurrent<CompactValueStore, ValueItemBatch>,
+): CompactValueStore {
+  let store = new CompactValueStore();
+  let sourceIndex = 0;
+  const first = current.sources[0];
+  if (first?.kind === "store") {
+    store = first.store.sliceFrom(first.start);
+    sourceIndex = 1;
+  }
+  for (; sourceIndex < current.sources.length; sourceIndex++) {
+    const source = current.sources[sourceIndex]!;
+    if (source.kind === "batch") {
+      store.appendBatchTail(
+        source.batch,
+        source.minimumReceiveTimeExclusive,
+        source.eligibleOffset,
+        MAX_CURRENT_DATUMS_PER_SERIES,
+      );
+    }
+  }
+  return store;
+}
+
+function getLastReceiveTime(store: {
+  length: number;
+  getReceiveTime(index: number): ReturnType<CompactValueStore["getReceiveTime"]>;
+}) {
   return store.length > 0 ? store.getReceiveTime(store.length - 1) : undefined;
 }
 
-function trimThroughReceiveTime(
-  store: CompactValueStore,
-  lastFullReceiveTime: ReturnType<CompactValueStore["getReceiveTime"]>,
-): CompactValueStore {
-  let firstRetained = 0;
-  while (
-    firstRetained < store.length &&
-    compare(store.getReceiveTime(firstRetained), lastFullReceiveTime) <= 0
-  ) {
-    firstRetained++;
-  }
-  return firstRetained > 0 ? store.sliceFrom(firstRetained) : store;
-}
-
 function getPlanPoint(
-  xValues: { current: CompactValueStore; full: CompactValueStore },
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
   plan: PairedSeriesPlan,
   index: number,
-): { xStore: CompactValueStore; yStore: CompactValueStore; storeIndex: number } {
+): { xStore: CompactNumericStore; yStore: CompactValueStore; storeIndex: number } {
   if (index < plan.fullCount) {
     return { xStore: xValues.full, yStore: plan.series.full, storeIndex: index };
   }
@@ -366,22 +778,97 @@ function getPlanPoint(
   };
 }
 
-function* iteratePlanPoints(
-  xValues: { current: CompactValueStore; full: CompactValueStore },
+type PlanBlock = {
+  start: number;
+  end: number;
+  storeStart: number;
+  blockIndex: number;
+  xStore: CompactNumericStore;
+  yStore: CompactValueStore;
+};
+
+function createQueryStats(): CustomDatasetQueryStats {
+  return {
+    totalPoints: 0,
+    totalBlocks: 0,
+    metadataBlocksInspected: 0,
+    scannedBlocks: 0,
+    scannedPoints: 0,
+  };
+}
+
+function countPlanBlocks(plan: PairedSeriesPlan): number {
+  return (
+    Math.ceil(plan.fullCount / CUSTOM_VALUE_STORE_BLOCK_SIZE) +
+    Math.ceil(plan.currentCount / CUSTOM_VALUE_STORE_BLOCK_SIZE)
+  );
+}
+
+function* iteratePlanBlocks(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
   plan: PairedSeriesPlan,
-): Iterable<{ index: number; x: number; y: number }> {
-  for (let index = 0; index < plan.count; index++) {
-    const point = getPlanPoint(xValues, plan, index);
+): Iterable<PlanBlock> {
+  yield* iterateStoreBlocks(xValues.full, plan.series.full, plan.fullCount, 0);
+  yield* iterateStoreBlocks(
+    xValues.current,
+    plan.series.current,
+    plan.currentCount,
+    plan.fullCount,
+  );
+}
+
+function* iterateStoreBlocks(
+  xStore: CompactNumericStore,
+  yStore: CompactValueStore,
+  count: number,
+  planOffset: number,
+): Iterable<PlanBlock> {
+  for (let storeStart = 0; storeStart < count; storeStart += CUSTOM_VALUE_STORE_BLOCK_SIZE) {
+    const blockIndex = Math.floor(storeStart / CUSTOM_VALUE_STORE_BLOCK_SIZE);
     yield {
-      index,
-      x: point.xStore.getValue(point.storeIndex),
-      y: point.yStore.getValue(point.storeIndex),
+      start: planOffset + storeStart,
+      end: planOffset + Math.min(count, storeStart + CUSTOM_VALUE_STORE_BLOCK_SIZE),
+      storeStart,
+      blockIndex,
+      xStore,
+      yStore,
     };
   }
 }
 
+function* iterateViewportScatterPoints(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  xBounds: Immutable<Bounds1D>,
+  queryStats: CustomDatasetQueryStats,
+): Iterable<{ index: number; x: number; y: number }> {
+  for (const block of iteratePlanBlocks(xValues, plan)) {
+    queryStats.metadataBlocksInspected++;
+    const metadata = block.xStore.getBlockMetadata(block.blockIndex);
+    const storeEnd = block.storeStart + (block.end - block.start);
+    if (
+      metadata != undefined &&
+      !finiteBoundsIntersect(metadata, xBounds) &&
+      !metadataHasNonFiniteInRange(metadata, block.storeStart, storeEnd)
+    ) {
+      continue;
+    }
+
+    queryStats.scannedBlocks++;
+    queryStats.scannedPoints += block.end - block.start;
+    for (let index = block.start; index < block.end; index++) {
+      const point = getPlanPoint(xValues, plan, index);
+      yield {
+        index,
+        x: point.xStore.getValue(point.storeIndex),
+        y: point.yStore.getValue(point.storeIndex),
+      };
+    }
+  }
+}
+
 function getPlanBounds(
-  xValues: { current: CompactValueStore; full: CompactValueStore },
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
   plan: PairedSeriesPlan,
 ): { x: Bounds1D; y: Bounds1D } {
   const fullX = xValues.full.getBounds(plan.fullCount);
@@ -420,72 +907,439 @@ function resolveBounds(
   return { min, max };
 }
 
-function selectOrderedLineIndices(
-  count: number,
-  budget: number,
-  getY: (index: number) => number,
-): number[] {
-  if (budget <= 0 || count <= 0) {
-    return [];
-  }
-  if (count <= budget) {
-    return Array.from({ length: count }, (_, index) => index);
-  }
-  if (budget === 1) {
-    return [0];
-  }
-  if (budget === 2) {
-    return [0, count - 1];
-  }
+type ViewportLineStats = { count: number; hasDiscontinuity: boolean };
 
-  const result = [0];
-  const interiorSlots = budget - 2;
-  const bucketCount = Math.ceil(interiorSlots / 2);
-  let slotsUsed = 0;
-  for (let bucket = 0; bucket < bucketCount; bucket++) {
-    const start = 1 + Math.floor(((count - 2) * bucket) / bucketCount);
-    const end = 1 + Math.floor(((count - 2) * (bucket + 1)) / bucketCount);
-    let minimumIndex = start;
-    let maximumIndex = start;
-    for (let index = start + 1; index < end; index++) {
-      if (getY(index) < getY(minimumIndex)) {
-        minimumIndex = index;
-      }
-      if (getY(index) > getY(maximumIndex)) {
-        maximumIndex = index;
-      }
-    }
-    const remainingBuckets = bucketCount - bucket;
-    const remainingSlots = interiorSlots - slotsUsed;
-    const slotsForBucket = Math.min(2, Math.ceil(remainingSlots / remainingBuckets));
-    if (slotsForBucket === 1 || minimumIndex === maximumIndex) {
-      result.push(
-        Math.abs(getY(minimumIndex)) >= Math.abs(getY(maximumIndex)) ? minimumIndex : maximumIndex,
-      );
-      slotsUsed++;
-    } else {
-      result.push(Math.min(minimumIndex, maximumIndex), Math.max(minimumIndex, maximumIndex));
-      slotsUsed += 2;
-    }
-  }
-  result.push(count - 1);
-  return limitOrderedIndices(result, budget);
+function getViewportLineStats(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  xBounds: Immutable<Bounds1D>,
+  queryStats: CustomDatasetQueryStats,
+): ViewportLineStats {
+  let count = 0;
+  let hasDiscontinuity = false;
+  forEachViewportLineIndex(
+    xValues,
+    plan,
+    xBounds,
+    (index) => {
+      count++;
+      hasDiscontinuity ||= isPlanDiscontinuity(xValues, plan, index);
+    },
+    queryStats,
+  );
+  return { count, hasDiscontinuity };
 }
 
-function limitOrderedIndices(indices: readonly number[], budget: number): number[] {
-  if (budget <= 0 || indices.length === 0) {
+function selectViewportLineIndices(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  xBounds: Immutable<Bounds1D>,
+  stats: ViewportLineStats,
+  budget: number,
+  queryStats: CustomDatasetQueryStats,
+): number[] {
+  const { count: visibleCount, hasDiscontinuity } = stats;
+  if (budget <= 0 || visibleCount <= 0) {
     return [];
   }
-  if (indices.length <= budget) {
-    return [...indices];
+  if (visibleCount <= budget) {
+    const indices: number[] = [];
+    forEachViewportLineIndex(xValues, plan, xBounds, (index) => indices.push(index), queryStats);
+    return preserveLineDiscontinuities(xValues, plan, indices, queryStats);
   }
-  if (budget === 1) {
-    return [indices[0]!];
+
+  // A sampled finite pair can need one NaN sentinel between it. Reserving half the budget keeps
+  // those sentinels within the same hard global limit.
+  const samplingBudget = hasDiscontinuity ? Math.floor((budget + 1) / 2) : budget;
+  const bucketCount = Math.max(1, Math.floor(samplingBudget / 6));
+  const buckets = new Array<LineSampleBucket | undefined>(bucketCount);
+  let visibleOrdinal = 0;
+  forEachViewportLineIndex(
+    xValues,
+    plan,
+    xBounds,
+    (index) => {
+      const point = getPlanPoint(xValues, plan, index);
+      const x = point.xStore.getValue(point.storeIndex);
+      const y = point.yStore.getValue(point.storeIndex);
+      const bucketIndex = Math.min(
+        bucketCount - 1,
+        Math.floor((visibleOrdinal * bucketCount) / visibleCount),
+      );
+      let bucket = buckets[bucketIndex];
+      if (!bucket) {
+        bucket = {
+          first: index,
+          last: index,
+          minX: index,
+          maxX: index,
+          minY: index,
+          maxY: index,
+          minXValue: x,
+          maxXValue: x,
+          minYValue: y,
+          maxYValue: y,
+        };
+        buckets[bucketIndex] = bucket;
+      } else {
+        bucket.last = index;
+        if (Number.isFinite(x) && (!Number.isFinite(bucket.minXValue) || x < bucket.minXValue)) {
+          bucket.minX = index;
+          bucket.minXValue = x;
+        }
+        if (Number.isFinite(x) && (!Number.isFinite(bucket.maxXValue) || x > bucket.maxXValue)) {
+          bucket.maxX = index;
+          bucket.maxXValue = x;
+        }
+        if (Number.isFinite(y) && (!Number.isFinite(bucket.minYValue) || y < bucket.minYValue)) {
+          bucket.minY = index;
+          bucket.minYValue = y;
+        }
+        if (Number.isFinite(y) && (!Number.isFinite(bucket.maxYValue) || y > bucket.maxYValue)) {
+          bucket.maxY = index;
+          bucket.maxYValue = y;
+        }
+      }
+      visibleOrdinal++;
+    },
+    queryStats,
+  );
+
+  if (samplingBudget < 6) {
+    const bucket = buckets[0];
+    const indices = bucket ? selectSmallBudgetBucketIndices(bucket, samplingBudget) : [];
+    return preserveLineDiscontinuities(xValues, plan, indices, queryStats);
   }
-  const result = new Array<number>(budget);
-  for (let outputIndex = 0; outputIndex < budget; outputIndex++) {
-    const sourceIndex = Math.round((outputIndex * (indices.length - 1)) / (budget - 1));
-    result[outputIndex] = indices[sourceIndex]!;
+
+  const result: number[] = [];
+  for (const bucket of buckets) {
+    if (!bucket) {
+      continue;
+    }
+    const bucketIndices = [
+      bucket.first,
+      bucket.last,
+      bucket.minX,
+      bucket.maxX,
+      bucket.minY,
+      bucket.maxY,
+    ];
+    bucketIndices.sort((left, right) => left - right);
+    for (const index of bucketIndices) {
+      if (result[result.length - 1] !== index) {
+        result.push(index);
+      }
+    }
+  }
+  return preserveLineDiscontinuities(xValues, plan, result, queryStats);
+}
+
+type LineSampleBucket = {
+  first: number;
+  last: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minXValue: number;
+  maxXValue: number;
+  minYValue: number;
+  maxYValue: number;
+};
+
+function selectSmallBudgetBucketIndices(bucket: LineSampleBucket, budget: number): number[] {
+  const priority = [bucket.first, bucket.last, bucket.minX, bucket.maxX, bucket.minY, bucket.maxY];
+  const selected = new Set<number>();
+  for (const index of priority) {
+    selected.add(index);
+    if (selected.size === budget) {
+      break;
+    }
+  }
+  return [...selected].sort((left, right) => left - right);
+}
+
+function forEachViewportLineIndex(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  xBounds: Immutable<Bounds1D>,
+  visit: (index: number) => void,
+  queryStats: CustomDatasetQueryStats,
+): void {
+  let emittedAny = false;
+  let lastEmittedWasDiscontinuity = false;
+  let pendingDiscontinuity: number | undefined;
+  for (const block of iteratePlanBlocks(xValues, plan)) {
+    queryStats.metadataBlocksInspected++;
+    if (!lineBlockNeedsScan(xValues, plan, block, xBounds)) {
+      if (emittedAny && !lastEmittedWasDiscontinuity && pendingDiscontinuity == undefined) {
+        pendingDiscontinuity = getBlockFirstDiscontinuity(block);
+      }
+      continue;
+    }
+
+    queryStats.scannedBlocks++;
+    queryStats.scannedPoints += block.end - block.start;
+    for (let index = block.start; index < block.end; index++) {
+      const x = getPlanX(xValues, plan, index);
+      const pointIsInside = Number.isFinite(x) && x >= xBounds.min && x <= xBounds.max;
+      const leftSegmentIntersects =
+        index > 0 && segmentIntersectsX(getPlanX(xValues, plan, index - 1), x, xBounds);
+      const rightSegmentIntersects =
+        index + 1 < plan.count &&
+        segmentIntersectsX(x, getPlanX(xValues, plan, index + 1), xBounds);
+      const isDiscontinuity = isPlanDiscontinuity(xValues, plan, index);
+      if (pointIsInside || leftSegmentIntersects || rightSegmentIntersects) {
+        if (pendingDiscontinuity != undefined && emittedAny && !lastEmittedWasDiscontinuity) {
+          visit(pendingDiscontinuity);
+        }
+        visit(index);
+        emittedAny = true;
+        lastEmittedWasDiscontinuity = isDiscontinuity;
+        pendingDiscontinuity = undefined;
+      } else if (isDiscontinuity && emittedAny && !lastEmittedWasDiscontinuity) {
+        pendingDiscontinuity ??= index;
+      }
+    }
+  }
+}
+
+function lineBlockNeedsScan(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  block: PlanBlock,
+  xBounds: Immutable<Bounds1D>,
+): boolean {
+  const metadata = block.xStore.getBlockMetadata(block.blockIndex);
+  if (metadata == undefined || finiteBoundsIntersect(metadata, xBounds)) {
+    return true;
+  }
+  return (
+    (block.start > 0 &&
+      segmentIntersectsX(
+        getPlanX(xValues, plan, block.start - 1),
+        getPlanX(xValues, plan, block.start),
+        xBounds,
+      )) ||
+    (block.end < plan.count &&
+      segmentIntersectsX(
+        getPlanX(xValues, plan, block.end - 1),
+        getPlanX(xValues, plan, block.end),
+        xBounds,
+      ))
+  );
+}
+
+function finiteBoundsIntersect(
+  metadata: Readonly<CompactStoreBlockMetadata>,
+  bounds: Immutable<Bounds1D>,
+): boolean {
+  return metadata.finiteMax >= bounds.min && metadata.finiteMin <= bounds.max;
+}
+
+function metadataHasNonFiniteInRange(
+  metadata: Readonly<CompactStoreBlockMetadata>,
+  start: number,
+  end: number,
+): boolean {
+  const index = metadata.firstNonFiniteIndex;
+  return index != undefined && index >= start && index < end;
+}
+
+function getBlockFirstDiscontinuity(block: PlanBlock): number | undefined {
+  const storeEnd = block.storeStart + (block.end - block.start);
+  const xIndex = getMetadataFirstNonFiniteInRange(
+    block.xStore.getBlockMetadata(block.blockIndex),
+    block.storeStart,
+    storeEnd,
+  );
+  const yIndex = getMetadataFirstNonFiniteInRange(
+    block.yStore.getBlockMetadata(block.blockIndex),
+    block.storeStart,
+    storeEnd,
+  );
+  const storeIndex = minDefined(xIndex, yIndex);
+  return storeIndex == undefined ? undefined : block.start + storeIndex - block.storeStart;
+}
+
+function getMetadataFirstNonFiniteInRange(
+  metadata: Readonly<CompactStoreBlockMetadata> | undefined,
+  start: number,
+  end: number,
+): number | undefined {
+  const index = metadata?.firstNonFiniteIndex;
+  return index != undefined && index >= start && index < end ? index : undefined;
+}
+
+function minDefined(left: number | undefined, right: number | undefined): number | undefined {
+  if (left == undefined) {
+    return right;
+  }
+  if (right == undefined) {
+    return left;
+  }
+  return Math.min(left, right);
+}
+
+function getPlanX(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  index: number,
+): number {
+  const point = getPlanPoint(xValues, plan, index);
+  return point.xStore.getValue(point.storeIndex);
+}
+
+function segmentIntersectsX(left: number, right: number, bounds: Immutable<Bounds1D>): boolean {
+  if (!Number.isFinite(left) || !Number.isFinite(right)) {
+    return false;
+  }
+  return Math.max(left, right) >= bounds.min && Math.min(left, right) <= bounds.max;
+}
+
+function isPlanDiscontinuity(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  index: number,
+): boolean {
+  const point = getPlanPoint(xValues, plan, index);
+  return (
+    !Number.isFinite(point.xStore.getValue(point.storeIndex)) ||
+    !Number.isFinite(point.yStore.getValue(point.storeIndex))
+  );
+}
+
+function preserveLineDiscontinuities(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  sampledIndices: readonly number[],
+  queryStats: CustomDatasetQueryStats,
+): number[] {
+  if (sampledIndices.length < 2) {
+    return [...sampledIndices];
+  }
+  const result = [sampledIndices[0]!];
+  for (let sampledIndex = 1; sampledIndex < sampledIndices.length; sampledIndex++) {
+    const previous = sampledIndices[sampledIndex - 1]!;
+    const next = sampledIndices[sampledIndex]!;
+    if (
+      !isPlanDiscontinuity(xValues, plan, previous) &&
+      !isPlanDiscontinuity(xValues, plan, next)
+    ) {
+      const discontinuity = findFirstPlanDiscontinuity(
+        xValues,
+        plan,
+        previous + 1,
+        next,
+        queryStats,
+      );
+      if (discontinuity != undefined) {
+        result.push(discontinuity);
+      }
+    }
+    result.push(next);
   }
   return result;
+}
+
+function findFirstPlanDiscontinuity(
+  xValues: { current: CompactNumericStore; full: CompactNumericStore },
+  plan: PairedSeriesPlan,
+  requestedStart: number,
+  requestedEnd: number,
+  queryStats: CustomDatasetQueryStats,
+): number | undefined {
+  const start = Math.min(Math.max(0, requestedStart), plan.count);
+  const end = Math.min(Math.max(start, requestedEnd), plan.count);
+  if (start >= end) {
+    return undefined;
+  }
+
+  if (start < plan.fullCount) {
+    const result = findFirstStoreDiscontinuity(
+      xValues.full,
+      plan.series.full,
+      start,
+      Math.min(end, plan.fullCount),
+      0,
+      queryStats,
+    );
+    if (result != undefined) {
+      return result;
+    }
+  }
+  if (end > plan.fullCount) {
+    return findFirstStoreDiscontinuity(
+      xValues.current,
+      plan.series.current,
+      Math.max(start, plan.fullCount) - plan.fullCount,
+      end - plan.fullCount,
+      plan.fullCount,
+      queryStats,
+    );
+  }
+  return undefined;
+}
+
+function findFirstStoreDiscontinuity(
+  xStore: CompactNumericStore,
+  yStore: CompactValueStore,
+  start: number,
+  end: number,
+  planOffset: number,
+  queryStats: CustomDatasetQueryStats,
+): number | undefined {
+  const firstBlock = Math.floor(start / CUSTOM_VALUE_STORE_BLOCK_SIZE);
+  const lastBlock = Math.floor((end - 1) / CUSTOM_VALUE_STORE_BLOCK_SIZE);
+  for (let blockIndex = firstBlock; blockIndex <= lastBlock; blockIndex++) {
+    const blockStart = blockIndex * CUSTOM_VALUE_STORE_BLOCK_SIZE;
+    const rangeStart = Math.max(start, blockStart);
+    const rangeEnd = Math.min(end, blockStart + CUSTOM_VALUE_STORE_BLOCK_SIZE);
+    queryStats.metadataBlocksInspected++;
+
+    const xMetadata = getMetadataRangeFirstNonFinite(
+      xStore.getBlockMetadata(blockIndex),
+      rangeStart,
+      rangeEnd,
+    );
+    const yMetadata = getMetadataRangeFirstNonFinite(
+      yStore.getBlockMetadata(blockIndex),
+      rangeStart,
+      rangeEnd,
+    );
+    if (xMetadata.known && yMetadata.known) {
+      const index = minDefined(xMetadata.index, yMetadata.index);
+      if (index != undefined) {
+        return planOffset + index;
+      }
+      continue;
+    }
+
+    queryStats.scannedBlocks++;
+    queryStats.scannedPoints += rangeEnd - rangeStart;
+    for (let index = rangeStart; index < rangeEnd; index++) {
+      if (!Number.isFinite(xStore.getValue(index)) || !Number.isFinite(yStore.getValue(index))) {
+        return planOffset + index;
+      }
+    }
+  }
+  return undefined;
+}
+
+function getMetadataRangeFirstNonFinite(
+  metadata: Readonly<CompactStoreBlockMetadata> | undefined,
+  start: number,
+  end: number,
+): { known: boolean; index: number | undefined } {
+  if (metadata == undefined || metadata.end < end) {
+    return { known: false, index: undefined };
+  }
+  const index = metadata.firstNonFiniteIndex;
+  if (index == undefined || index >= end) {
+    return { known: true, index: undefined };
+  }
+  if (index >= start) {
+    return { known: true, index };
+  }
+  return { known: false, index: undefined };
 }

@@ -16,14 +16,27 @@ export type ValueItem = {
   receiveTime: Time;
 };
 
-export type ValueItemBatch = {
+export type NumericItemBatch = {
   values: Float64Array;
   receiveTimes: BigUint64Array;
+  fallbackTimes: Time[];
+};
+
+export type ValueItemBatch = NumericItemBatch & {
   valueKinds: Uint8Array;
   valuePayloads: BigUint64Array;
   strings: string[];
   fallbackValues: OriginalValue[];
-  fallbackTimes: Time[];
+};
+
+export const CUSTOM_VALUE_STORE_BLOCK_SIZE = 512;
+
+export type CompactStoreBlockMetadata = {
+  start: number;
+  end: number;
+  finiteMin: number;
+  finiteMax: number;
+  firstNonFiniteIndex: number | undefined;
 };
 
 const MAX_UINT64 = (1n << 64n) - 1n;
@@ -190,14 +203,29 @@ export function encodeValueItems(items: Immutable<ValueItem[]>): ValueItemBatch 
   };
 }
 
+/** Encodes x-axis items without retaining unused original-value metadata. */
+export function encodeNumericItems(items: Immutable<ValueItem[]>): NumericItemBatch {
+  const values = new Float64Array(items.length);
+  const receiveTimes = new BigUint64Array(items.length);
+  const timeCodec = new StoredTimeCodec();
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index]!;
+    values[index] = item.value;
+    receiveTimes[index] = timeCodec.encode(item.receiveTime);
+  }
+  return { values, receiveTimes, fallbackTimes: timeCodec.fallbackTimes() };
+}
+
 /** Columnar worker-side storage. Point order is exactly the append order. */
 export class CompactValueStore {
   public length = 0;
   public capacity: number;
+  public peakCapacity: number;
   #values: Float64Array;
   #receiveTimes: BigUint64Array;
   #valueKinds: Uint8Array;
   #valuePayloads: BigUint64Array;
+  readonly #blocks: CompactStoreBlockMetadata[] = [];
   #minimum = Infinity;
   #maximum = -Infinity;
   readonly #valueCodec = new StoredValueCodec();
@@ -205,6 +233,7 @@ export class CompactValueStore {
 
   public constructor(initialCapacity = 0) {
     this.capacity = initialCapacity;
+    this.peakCapacity = initialCapacity;
     this.#values = new Float64Array(initialCapacity);
     this.#receiveTimes = new BigUint64Array(initialCapacity);
     this.#valueKinds = new Uint8Array(initialCapacity);
@@ -231,38 +260,64 @@ export class CompactValueStore {
     return this.#timeCodec.decode(this.#receiveTimes[index]!);
   }
 
+  public getBlockMetadata(blockIndex: number): Readonly<CompactStoreBlockMetadata> | undefined {
+    return this.#blocks[blockIndex];
+  }
+
   public getBounds(end = this.length): { min: number; max: number } {
     const last = Math.min(Math.max(0, end), this.length);
     if (last === this.length) {
       return { min: this.#minimum, max: this.#maximum };
     }
-    let min = Infinity;
-    let max = -Infinity;
-    for (let index = 0; index < last; index++) {
-      const value = this.#values[index]!;
-      if (Number.isFinite(value)) {
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-      }
-    }
-    return { min, max };
+    return getIndexedPrefixBounds(this.#blocks, this.#values, last);
   }
 
   public appendBatch(
     batch: Immutable<ValueItemBatch>,
     minimumReceiveTimeExclusive?: Immutable<Time>,
   ): void {
-    const length = batch.values.length;
-    if (
-      batch.receiveTimes.length !== length ||
-      batch.valueKinds.length !== length ||
-      batch.valuePayloads.length !== length
-    ) {
-      throw new Error("Custom plot value batch columns have mismatched lengths");
-    }
+    this.#appendBatch(batch, minimumReceiveTimeExclusive, 0);
+  }
+
+  public countBatchAfterReceiveTime(
+    batch: Immutable<ValueItemBatch>,
+    minimumReceiveTimeExclusive?: Immutable<Time>,
+  ): number {
+    validateBatchColumns(batch);
     if (minimumReceiveTimeExclusive == undefined) {
-      this.#ensureCapacity(this.length + length);
+      return batch.values.length;
     }
+    let count = 0;
+    for (let index = 0; index < batch.values.length; index++) {
+      if (compare(decodeBatchTime(batch, index), minimumReceiveTimeExclusive) > 0) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** Appends only the retained tail without ever reserving beyond `capacityLimit`. */
+  public appendBatchTail(
+    batch: Immutable<ValueItemBatch>,
+    minimumReceiveTimeExclusive: Immutable<Time> | undefined,
+    skipEligible: number,
+    capacityLimit: number,
+  ): void {
+    this.#appendBatch(batch, minimumReceiveTimeExclusive, skipEligible, capacityLimit);
+  }
+
+  #appendBatch(
+    batch: Immutable<ValueItemBatch>,
+    minimumReceiveTimeExclusive: Immutable<Time> | undefined,
+    skipEligible: number,
+    capacityLimit?: number,
+  ): void {
+    validateBatchColumns(batch);
+    let remainingSkip = Math.max(0, skipEligible);
+    const eligibleCount = this.countBatchAfterReceiveTime(batch, minimumReceiveTimeExclusive);
+    const appendCount = Math.max(0, eligibleCount - remainingSkip);
+    this.#ensureCapacity(this.length + appendCount, capacityLimit);
+    const length = batch.values.length;
     for (let index = 0; index < length; index++) {
       const value = batch.values[index]!;
       const receiveTime = decodeBatchTime(batch, index);
@@ -270,6 +325,10 @@ export class CompactValueStore {
         minimumReceiveTimeExclusive != undefined &&
         compare(receiveTime, minimumReceiveTimeExclusive) <= 0
       ) {
+        continue;
+      }
+      if (remainingSkip > 0) {
+        remainingSkip--;
         continue;
       }
       const originalValue = decodeBatchValue(batch, index, value);
@@ -290,12 +349,14 @@ export class CompactValueStore {
         this.getReceiveTime(index),
       );
     }
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
     return result;
   }
 
   #append(value: number, originalValue: OriginalValue, receiveTime: Immutable<Time>): void {
     this.#ensureCapacity(this.length + 1);
     this.#values[this.length] = value;
+    updateBlockMetadata(this.#blocks, this.length, value);
     if (Number.isFinite(value)) {
       this.#minimum = Math.min(this.#minimum, value);
       this.#maximum = Math.max(this.#maximum, value);
@@ -307,13 +368,16 @@ export class CompactValueStore {
     this.length++;
   }
 
-  #ensureCapacity(required: number): void {
+  #ensureCapacity(required: number, capacityLimit?: number): void {
     if (required <= this.capacity) {
       return;
     }
+    if (capacityLimit != undefined && required > capacityLimit) {
+      throw new RangeError("Custom plot current storage exceeded its physical capacity limit");
+    }
     let capacity = Math.max(16, this.capacity);
     while (capacity < required) {
-      capacity *= 2;
+      capacity = Math.min(capacity * 2, capacityLimit ?? Infinity);
     }
     const values = new Float64Array(capacity);
     values.set(this.#values.subarray(0, this.length));
@@ -324,10 +388,231 @@ export class CompactValueStore {
     const valuePayloads = new BigUint64Array(capacity);
     valuePayloads.set(this.#valuePayloads.subarray(0, this.length));
     this.capacity = capacity;
+    this.peakCapacity = Math.max(this.peakCapacity, capacity);
     this.#values = values;
     this.#receiveTimes = receiveTimes;
     this.#valueKinds = valueKinds;
     this.#valuePayloads = valuePayloads;
+  }
+}
+
+/** Lightweight x-axis storage. Original x values are never rendered or exported. */
+export class CompactNumericStore {
+  public length = 0;
+  public capacity: number;
+  public peakCapacity: number;
+  #values: Float64Array;
+  #receiveTimes: BigUint64Array;
+  readonly #blocks: CompactStoreBlockMetadata[] = [];
+  #minimum = Infinity;
+  #maximum = -Infinity;
+  readonly #timeCodec = new StoredTimeCodec();
+
+  public constructor(initialCapacity = 0) {
+    this.capacity = initialCapacity;
+    this.peakCapacity = initialCapacity;
+    this.#values = new Float64Array(initialCapacity);
+    this.#receiveTimes = new BigUint64Array(initialCapacity);
+  }
+
+  public sideTableEntryCount(): number {
+    return this.#timeCodec.sideTableEntryCount();
+  }
+
+  public getValue(index: number): number {
+    return this.#values[index]!;
+  }
+
+  public getReceiveTime(index: number): Time {
+    return this.#timeCodec.decode(this.#receiveTimes[index]!);
+  }
+
+  public getBlockMetadata(blockIndex: number): Readonly<CompactStoreBlockMetadata> | undefined {
+    return this.#blocks[blockIndex];
+  }
+
+  public getBounds(end = this.length): { min: number; max: number } {
+    const last = Math.min(Math.max(0, end), this.length);
+    if (last === this.length) {
+      return { min: this.#minimum, max: this.#maximum };
+    }
+    return getIndexedPrefixBounds(this.#blocks, this.#values, last);
+  }
+
+  public appendBatch(
+    batch: Immutable<NumericItemBatch>,
+    minimumReceiveTimeExclusive?: Immutable<Time>,
+  ): void {
+    this.#appendBatch(batch, minimumReceiveTimeExclusive, 0);
+  }
+
+  public countBatchAfterReceiveTime(
+    batch: Immutable<NumericItemBatch>,
+    minimumReceiveTimeExclusive?: Immutable<Time>,
+  ): number {
+    validateNumericBatchColumns(batch);
+    if (minimumReceiveTimeExclusive == undefined) {
+      return batch.values.length;
+    }
+    let count = 0;
+    for (let index = 0; index < batch.values.length; index++) {
+      if (compare(decodeBatchTime(batch, index), minimumReceiveTimeExclusive) > 0) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** Appends only the retained tail without ever reserving beyond `capacityLimit`. */
+  public appendBatchTail(
+    batch: Immutable<NumericItemBatch>,
+    minimumReceiveTimeExclusive: Immutable<Time> | undefined,
+    skipEligible: number,
+    capacityLimit: number,
+  ): void {
+    this.#appendBatch(batch, minimumReceiveTimeExclusive, skipEligible, capacityLimit);
+  }
+
+  public sliceFrom(start: number): CompactNumericStore {
+    const first = Math.min(Math.max(0, start), this.length);
+    if (first === 0) {
+      return this;
+    }
+    const result = new CompactNumericStore(this.length - first);
+    for (let index = first; index < this.length; index++) {
+      result.#append(this.getValue(index), this.getReceiveTime(index));
+    }
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
+    return result;
+  }
+
+  #appendBatch(
+    batch: Immutable<NumericItemBatch>,
+    minimumReceiveTimeExclusive: Immutable<Time> | undefined,
+    skipEligible: number,
+    capacityLimit?: number,
+  ): void {
+    validateNumericBatchColumns(batch);
+    let remainingSkip = Math.max(0, skipEligible);
+    const eligibleCount = this.countBatchAfterReceiveTime(batch, minimumReceiveTimeExclusive);
+    const appendCount = Math.max(0, eligibleCount - remainingSkip);
+    this.#ensureCapacity(this.length + appendCount, capacityLimit);
+    for (let index = 0; index < batch.values.length; index++) {
+      const receiveTime = decodeBatchTime(batch, index);
+      if (
+        minimumReceiveTimeExclusive != undefined &&
+        compare(receiveTime, minimumReceiveTimeExclusive) <= 0
+      ) {
+        continue;
+      }
+      if (remainingSkip > 0) {
+        remainingSkip--;
+        continue;
+      }
+      this.#append(batch.values[index]!, receiveTime);
+    }
+  }
+
+  #append(value: number, receiveTime: Immutable<Time>): void {
+    this.#ensureCapacity(this.length + 1);
+    this.#values[this.length] = value;
+    updateBlockMetadata(this.#blocks, this.length, value);
+    if (Number.isFinite(value)) {
+      this.#minimum = Math.min(this.#minimum, value);
+      this.#maximum = Math.max(this.#maximum, value);
+    }
+    this.#receiveTimes[this.length] = this.#timeCodec.encode(receiveTime);
+    this.length++;
+  }
+
+  #ensureCapacity(required: number, capacityLimit?: number): void {
+    if (required <= this.capacity) {
+      return;
+    }
+    if (capacityLimit != undefined && required > capacityLimit) {
+      throw new RangeError("Custom plot current storage exceeded its physical capacity limit");
+    }
+    let capacity = Math.max(16, this.capacity);
+    while (capacity < required) {
+      capacity = Math.min(capacity * 2, capacityLimit ?? Infinity);
+    }
+    const values = new Float64Array(capacity);
+    values.set(this.#values.subarray(0, this.length));
+    const receiveTimes = new BigUint64Array(capacity);
+    receiveTimes.set(this.#receiveTimes.subarray(0, this.length));
+    this.capacity = capacity;
+    this.peakCapacity = Math.max(this.peakCapacity, capacity);
+    this.#values = values;
+    this.#receiveTimes = receiveTimes;
+  }
+}
+
+function updateBlockMetadata(
+  blocks: CompactStoreBlockMetadata[],
+  index: number,
+  value: number,
+): void {
+  const blockIndex = Math.floor(index / CUSTOM_VALUE_STORE_BLOCK_SIZE);
+  let block = blocks[blockIndex];
+  if (!block) {
+    block = {
+      start: blockIndex * CUSTOM_VALUE_STORE_BLOCK_SIZE,
+      end: index + 1,
+      finiteMin: Infinity,
+      finiteMax: -Infinity,
+      firstNonFiniteIndex: undefined,
+    };
+    blocks[blockIndex] = block;
+  } else {
+    block.end = index + 1;
+  }
+  if (Number.isFinite(value)) {
+    block.finiteMin = Math.min(block.finiteMin, value);
+    block.finiteMax = Math.max(block.finiteMax, value);
+  } else {
+    block.firstNonFiniteIndex ??= index;
+  }
+}
+
+function getIndexedPrefixBounds(
+  blocks: readonly Readonly<CompactStoreBlockMetadata>[],
+  values: Float64Array,
+  end: number,
+): { min: number; max: number } {
+  let min = Infinity;
+  let max = -Infinity;
+  const completeBlockCount = Math.floor(end / CUSTOM_VALUE_STORE_BLOCK_SIZE);
+  for (let blockIndex = 0; blockIndex < completeBlockCount; blockIndex++) {
+    const block = blocks[blockIndex];
+    if (block) {
+      min = Math.min(min, block.finiteMin);
+      max = Math.max(max, block.finiteMax);
+    }
+  }
+  for (let index = completeBlockCount * CUSTOM_VALUE_STORE_BLOCK_SIZE; index < end; index++) {
+    const value = values[index]!;
+    if (Number.isFinite(value)) {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+  }
+  return { min, max };
+}
+
+function validateBatchColumns(batch: Immutable<ValueItemBatch>): void {
+  const length = batch.values.length;
+  if (
+    batch.receiveTimes.length !== length ||
+    batch.valueKinds.length !== length ||
+    batch.valuePayloads.length !== length
+  ) {
+    throw new Error("Custom plot value batch columns have mismatched lengths");
+  }
+}
+
+function validateNumericBatchColumns(batch: Immutable<NumericItemBatch>): void {
+  if (batch.receiveTimes.length !== batch.values.length) {
+    throw new Error("Custom plot numeric batch columns have mismatched lengths");
   }
 }
 
@@ -356,7 +641,7 @@ function decodeBatchValue(
   }
 }
 
-function decodeBatchTime(batch: Immutable<ValueItemBatch>, index: number): Time {
+export function decodeBatchTime(batch: Immutable<NumericItemBatch>, index: number): Time {
   const encoded = batch.receiveTimes[index]!;
   if (encoded >= TIME_FALLBACK_BASE) {
     return batch.fallbackTimes[Number(encoded - TIME_FALLBACK_BASE)] ?? { sec: 0, nsec: 0 };

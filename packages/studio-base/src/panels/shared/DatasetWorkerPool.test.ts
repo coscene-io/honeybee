@@ -8,6 +8,9 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { makeComlinkWorkerMock } from "@foxglove/den/testing";
+import { CustomDatasetsBuilder } from "@foxglove/studio-base/panels/Plot/builders/CustomDatasetsBuilder";
+import { CustomDatasetsBuilderImpl } from "@foxglove/studio-base/panels/Plot/builders/CustomDatasetsBuilderImpl";
+import { encodeValueItems } from "@foxglove/studio-base/panels/Plot/builders/CustomValueStore";
 import { TimestampDatasetsBuilderImpl } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilderImpl";
 import { StateTransitionsDatasetBuilder } from "@foxglove/studio-base/panels/StateTransitions/StateTransitionsDatasetBuilder";
 import {
@@ -42,6 +45,96 @@ async function flushPromises(): Promise<void> {
 }
 
 describe("DatasetWorkerPool", () => {
+  it("shares one host across isolated custom plot sessions", async () => {
+    const workers: Worker[] = [];
+    const createCustomDatasetsBuilder = jest.fn(async () =>
+      Comlink.proxy(new CustomDatasetsBuilderImpl()),
+    );
+    const WorkerMock = makeComlinkWorkerMock(() => ({ createCustomDatasetsBuilder }));
+    const pool = new DatasetWorkerPool({
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as Worker;
+        workers.push(worker);
+        return worker;
+      },
+      maxWorkers: 1,
+    });
+
+    const first = await pool.acquireCustomDatasetsBuilder();
+    const second = await pool.acquireCustomDatasetsBuilder();
+    await first.remote.updateData([
+      {
+        type: "append-full-x",
+        items: encodeValueItems([{ originalValue: 1, receiveTime: { sec: 0, nsec: 0 }, value: 1 }]),
+      },
+    ]);
+    await second.remote.updateData([
+      {
+        type: "append-full-x",
+        items: encodeValueItems([{ originalValue: 2, receiveTime: { sec: 0, nsec: 0 }, value: 2 }]),
+      },
+    ]);
+
+    await expect(first.remote.getXRange()).resolves.toEqual({ min: 1, max: 1 });
+    await expect(second.remote.getXRange()).resolves.toEqual({ min: 2, max: 2 });
+    expect(workers).toHaveLength(1);
+    expect(createCustomDatasetsBuilder).toHaveBeenCalledTimes(2);
+
+    await first.release();
+    await second.release();
+    await pool.dispose();
+  });
+
+  it("keeps a custom plot co-tenant usable when one application RPC rejects", async () => {
+    const workers: Worker[] = [];
+    let sessionIndex = 0;
+    const WorkerMock = makeComlinkWorkerMock(() => ({
+      async createCustomDatasetsBuilder() {
+        const index = sessionIndex++;
+        if (index === 0) {
+          return Comlink.proxy({
+            getCsvData: () => [],
+            getViewportDatasets: () => ({
+              datasetsByConfigIndex: [],
+              pathsWithMismatchedDataLengths: new Set<string>(),
+            }),
+            getXRange() {
+              throw new Error("logical custom session failed");
+            },
+            updateData() {},
+          });
+        }
+        return Comlink.proxy(new CustomDatasetsBuilderImpl());
+      },
+    }));
+    const pool = new DatasetWorkerPool({
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as Worker;
+        workers.push(worker);
+        return worker;
+      },
+      maxWorkers: 1,
+    });
+    const acquireWorker: ConstructorParameters<typeof CustomDatasetsBuilder>[0] = {
+      acquireWorker: async (options) => await pool.acquireCustomDatasetsBuilder(options),
+    };
+    const failed = new CustomDatasetsBuilder(acquireWorker);
+    const healthy = new CustomDatasetsBuilder(acquireWorker);
+
+    await expect(failed.getXRange()).rejects.toThrow("logical custom session failed");
+    expect(console.error).toHaveBeenCalled();
+    jest.mocked(console.error).mockClear();
+    await flushPromises();
+
+    await expect(healthy.getXRange()).resolves.toEqual({ min: 0, max: 1 });
+    expect(workers).toHaveLength(1);
+
+    failed.destroy();
+    healthy.destroy();
+    await flushPromises();
+    await pool.dispose();
+  });
+
   it("shares one host across isolated state transition sessions", async () => {
     const workers: Worker[] = [];
     const createStateTransitionsDatasetBuilder = jest.fn(async () =>
@@ -301,41 +394,63 @@ describe("DatasetWorkerPool", () => {
     },
   );
 
-  it("retires a host when a child session constructor rejects", async () => {
-    let workerCount = 0;
-    const WorkerMock = makeComlinkWorkerMock(() => {
-      const workerIndex = workerCount++;
-      return {
-        async createTimestampDatasetsBuilder() {
-          if (workerIndex === 0) {
-            throw new Error("session setup failed");
-          }
-          return Comlink.proxy(new TimestampDatasetsBuilderImpl());
-        },
-      };
+  it("contains a rejected child constructor to its logical session", async () => {
+    const workers: Worker[] = [];
+    let sessionIndex = 0;
+    const createTimestampDatasetsBuilder = jest.fn(async () => {
+      if (sessionIndex++ === 2) {
+        throw new Error("session setup failed");
+      }
+      return Comlink.proxy(new TimestampDatasetsBuilderImpl());
     });
+    const WorkerMock = makeComlinkWorkerMock(() => ({ createTimestampDatasetsBuilder }));
     const pool = new DatasetWorkerPool({
-      createWorker: () => new WorkerMock() as unknown as Worker,
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as Worker;
+        workers.push(worker);
+        return worker;
+      },
       maxWorkers: 1,
     });
+    const firstHandler = jest.fn();
+    const secondHandler = jest.fn();
+    const failedHandler = jest.fn();
+    const first = await pool.acquireTimestampDatasetsBuilder({
+      handleWorkerError: firstHandler,
+    });
+    const second = await pool.acquireTimestampDatasetsBuilder({
+      handleWorkerError: secondHandler,
+    });
 
-    await expect(pool.acquireTimestampDatasetsBuilder()).rejects.toThrow(
-      "Dataset worker failed while creating a session",
-    );
+    await expect(
+      pool.acquireTimestampDatasetsBuilder({ handleWorkerError: failedHandler }),
+    ).rejects.toThrow("session setup failed");
+
+    expect(workers).toHaveLength(1);
+    expect(firstHandler).not.toHaveBeenCalled();
+    expect(secondHandler).not.toHaveBeenCalled();
+    expect(failedHandler).not.toHaveBeenCalled();
+    await expect(first.remote.getXRange()).resolves.toEqual({ min: 0, max: 100 });
+    await expect(second.remote.getXRange()).resolves.toEqual({ min: 0, max: 100 });
+
     const replacement = await pool.acquireTimestampDatasetsBuilder();
-    expect(workerCount).toBe(2);
+    expect(workers).toHaveLength(1);
+    expect(createTimestampDatasetsBuilder).toHaveBeenCalledTimes(4);
 
+    await first.release();
+    await second.release();
     await replacement.release();
     await pool.dispose();
   });
 
-  it("retires a host when a state transition session constructor rejects", async () => {
+  it("keeps a host usable when a state transition child constructor rejects", async () => {
     let workerCount = 0;
+    let sessionCount = 0;
     const WorkerMock = makeComlinkWorkerMock(() => {
-      const workerIndex = workerCount++;
+      workerCount++;
       return {
         async createStateTransitionsDatasetBuilder() {
-          if (workerIndex === 0) {
+          if (sessionCount++ === 0) {
             throw new Error("session setup failed");
           }
           return Comlink.proxy(new StateTransitionsDatasetBuilderImpl());
@@ -346,16 +461,68 @@ describe("DatasetWorkerPool", () => {
       createWorker: () => new WorkerMock() as unknown as Worker,
       maxWorkers: 1,
     });
+    const handleWorkerError = jest.fn();
 
-    await expect(pool.acquireStateTransitionsDatasetBuilder()).rejects.toThrow(
-      "Dataset worker failed while creating a session",
+    await expect(pool.acquireStateTransitionsDatasetBuilder({ handleWorkerError })).rejects.toThrow(
+      "session setup failed",
     );
+    expect(handleWorkerError).not.toHaveBeenCalled();
+
     const replacement = await pool.acquireStateTransitionsDatasetBuilder();
-    expect(workerCount).toBe(2);
+    expect(workerCount).toBe(1);
 
     await replacement.release();
     await pool.dispose();
   });
+
+  it.each(["error", "messageerror"])(
+    "does not notify an aborted pending session after a later %s",
+    async (eventType) => {
+      const creationStarted = deferred<void>();
+      const workers: MockWorker[] = [];
+      let workerCount = 0;
+      const WorkerMock = makeComlinkWorkerMock(() => {
+        const workerIndex = workerCount++;
+        return {
+          async createTimestampDatasetsBuilder() {
+            if (workerIndex === 0) {
+              creationStarted.resolve(undefined);
+              return await new Promise<never>(() => undefined);
+            }
+            return Comlink.proxy(new TimestampDatasetsBuilderImpl());
+          },
+        };
+      });
+      const pool = new DatasetWorkerPool({
+        createWorker: () => {
+          const worker = new WorkerMock() as unknown as MockWorker;
+          workers.push(worker);
+          return worker;
+        },
+        maxWorkers: 1,
+      });
+      const abortController = new AbortController();
+      const handleWorkerError = jest.fn();
+      const acquisition = pool.acquireTimestampDatasetsBuilder({
+        handleWorkerError,
+        signal: abortController.signal,
+      });
+      await creationStarted.promise;
+
+      abortController.abort();
+      await expect(acquisition).rejects.toMatchObject({ name: "AbortError" });
+      workers[0]!.emit(eventType, new Event(eventType));
+
+      expect(handleWorkerError).not.toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalled();
+      jest.mocked(console.error).mockClear();
+      const replacement = await pool.acquireTimestampDatasetsBuilder();
+      expect(workers).toHaveLength(2);
+
+      await replacement.release();
+      await pool.dispose();
+    },
+  );
 
   it.each(["error", "messageerror"])(
     "rejects a pending session constructor and replaces its worker after %s",

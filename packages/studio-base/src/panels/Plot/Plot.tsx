@@ -63,7 +63,7 @@ import { IDatasetsBuilder } from "./builders/IDatasetsBuilder";
 import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
 import { PlotConfig } from "./config";
-import { downloadCSV } from "./csv";
+import { downloadCSV, guardCsvDataChunkSource } from "./csv";
 import { planPlotSubscriptions, startPlotRangeSubscriptions } from "./rangeSubscriptions";
 import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
 
@@ -241,12 +241,18 @@ export function Plot(props: Props): React.JSX.Element {
         type: "item",
         label: "Download plot data as CSV",
         onclick: async () => {
-          const data = await coordinator?.getCsvData();
-          if (!data || !isMounted()) {
+          if (coordinator == undefined || !isMounted()) {
             return;
           }
-
-          downloadCSV(customTitle ?? "plot_data", data, xAxisMode);
+          await downloadCSV(
+            customTitle ?? "plot_data",
+            xAxisMode,
+            guardCsvDataChunkSource(
+              async (callback, maxDatums) =>
+                await coordinator.forEachCsvDataChunk(callback, maxDatums),
+              isMounted,
+            ),
+          );
         },
       },
     ];
@@ -662,40 +668,92 @@ export function Plot(props: Props): React.JSX.Element {
     startNsec: number | undefined;
   }>();
 
-  // Replay timestamp plots stream finite history directly into the Dataset worker. Every topic
-  // negotiates range support independently so script output and older Players retain full preload.
+  // Replay timestamp and accumulated custom-x plots stream finite history directly into the
+  // Dataset worker. Every topic negotiates range support independently so script output and older
+  // Players retain full preload.
   useEffect(() => {
     const generation = ++rangeGenerationRef.current;
     const timestampBuilder =
       datasetsBuilder instanceof TimestampDatasetsBuilder ? datasetsBuilder : undefined;
-    const canConsumeRanges =
-      xAxisMode === "timestamp" &&
-      !isLivePlayer &&
-      timestampBuilder != undefined &&
-      rangeStartTime != undefined;
+    const customBuilder =
+      datasetsBuilder instanceof CustomDatasetsBuilder ? datasetsBuilder : undefined;
+    const rangeBuilder =
+      xAxisMode === "timestamp"
+        ? timestampBuilder
+        : xAxisMode === "custom"
+          ? customBuilder
+          : undefined;
+    const usesRangeHistory = xAxisMode === "timestamp" || xAxisMode === "custom";
+    const customXAxisTopics = new Set(
+      subscriptionPlans.flatMap((plan) =>
+        plan.rangeRequest?.includesXAxis === true ? [plan.rangeRequest.topic] : [],
+      ),
+    );
+    let markHistoryReady!: (value: number) => void;
+    const historyReady = new Promise<number>((resolve) => {
+      markHistoryReady = resolve;
+    });
 
     const running = startPlotRangeSubscriptions({
       plans: subscriptionPlans,
-      attemptRanges: canConsumeRanges,
-      subscribeMessageRange,
-      generation,
+      attemptRanges: usesRangeHistory && !isLivePlayer && rangeBuilder != undefined,
+      subscribeMessageRange: rangeStartTime == undefined ? undefined : subscribeMessageRange,
+      generation: historyReady,
+      onIteratorStart: async (topic, iteratorGeneration) => {
+        const reset = await rangeBuilder?.resetRangeTopic(topic, iteratorGeneration);
+        if (
+          reset === true &&
+          customBuilder != undefined &&
+          customXAxisTopics.has(topic) &&
+          rangeGenerationRef.current === iteratorGeneration
+        ) {
+          const xRange = await customBuilder.getXRange();
+          if (rangeGenerationRef.current === iteratorGeneration) {
+            coordinatorRef.current?.handleRangeDataUpdated(xRange);
+          }
+        }
+      },
       onRangeBatch: async (topic, batch, batchGeneration) => {
         if (
-          timestampBuilder == undefined ||
+          rangeBuilder == undefined ||
           rangeStartTime == undefined ||
           rangeGenerationRef.current !== batchGeneration
         ) {
           return;
         }
-        const appended = await timestampBuilder.appendRangeMessageBatch(
+        const appended = await rangeBuilder.appendRangeMessageBatch(
           topic,
           batch,
           rangeStartTime,
           batchGeneration,
         );
         if (appended && rangeGenerationRef.current === batchGeneration) {
-          coordinatorRef.current?.handleRangeDataUpdated();
+          const xRange =
+            customBuilder != undefined && customXAxisTopics.has(topic)
+              ? await customBuilder.getXRange()
+              : undefined;
+          if (rangeGenerationRef.current === batchGeneration) {
+            coordinatorRef.current?.handleRangeDataUpdated(xRange);
+          }
         }
+      },
+      onTopicFallback: async ({ generation: failedGeneration, subscriptions, topic }) => {
+        if (rangeBuilder == undefined || rangeGenerationRef.current !== failedGeneration) {
+          return true;
+        }
+        const released = await rangeBuilder.releaseRangeTopic(topic, failedGeneration);
+        if (rangeGenerationRef.current !== failedGeneration) {
+          return true;
+        }
+        if (!released) {
+          return false;
+        }
+        setSubscriptions(subscriberId, subscriptions);
+        // Re-feed cached blocks after releasing range ownership; otherwise a quiet fallback topic
+        // stays empty until the Player happens to emit a new state.
+        coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
+        coordinatorRef.current?.handleRangeDataUpdated();
+        return true;
       },
       onError: (error) => {
         handleWorkerError(
@@ -707,9 +765,9 @@ export function Plot(props: Props): React.JSX.Element {
       },
     });
 
-    if (timestampBuilder != undefined) {
+    if (rangeBuilder != undefined) {
       const currentOnlyTopics = new Set<string>();
-      if (xAxisMode === "timestamp" && isLivePlayer) {
+      if (usesRangeHistory && isLivePlayer) {
         for (const plan of subscriptionPlans) {
           if (plan.rangeRequest != undefined) {
             currentOnlyTopics.add(plan.rangeRequest.topic);
@@ -729,14 +787,17 @@ export function Plot(props: Props): React.JSX.Element {
         startSec: rangeStartTime?.sec,
         startNsec: rangeStartTime?.nsec,
       };
-      timestampBuilder.setHistoryTopics(running.rangeTopics, currentOnlyTopics, generation, {
+      rangeBuilder.setHistoryTopics(running.rangeTopics, currentOnlyTopics, generation, {
         resetAll,
       });
+      markHistoryReady(generation);
       // The player-state effect runs before this history-ownership effect. Re-feed its snapshot
       // after a reset so a quiet live source or a block-fallback topic is not left blank until the
       // Player emits again.
       coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
       coordinatorRef.current?.handleRangeDataUpdated();
+    } else {
+      markHistoryReady(generation);
     }
     setSubscriptions(subscriberId, running.subscriptions);
 

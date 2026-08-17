@@ -20,7 +20,16 @@ import {
 } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 
-import { CsvDataset, SeriesConfigKey, SeriesItem, Viewport } from "./IDatasetsBuilder";
+import {
+  CsvDataChunk,
+  CsvDataCursor,
+  CsvDataset,
+  CsvDatum,
+  normalizeCsvChunkSize,
+  SeriesConfigKey,
+  SeriesItem,
+  Viewport,
+} from "./IDatasetsBuilder";
 import type { Dataset } from "../ChartRenderer";
 import {
   attachUnpackedDataAccessor,
@@ -721,19 +730,62 @@ export class TimestampDatasetsBuilderImpl {
       }
       const data = new Array<Datum>(series.full.length + series.current.length);
       for (let index = 0; index < data.length; index++) {
-        const storeIndex = getStoreIndex(series, index);
-        const store = storeIndex.store;
-        data[index] = {
-          x: store.getX(storeIndex.index),
-          y: store.getY(storeIndex.index),
-          receiveTime: store.getReceiveTime(storeIndex.index),
-          headerStamp: store.getHeaderStamp(storeIndex.index),
-          value: store.getValue(storeIndex.index),
-        };
+        data[index] = this.#getCsvDatum(series, index);
       }
       datasets.push({ label: series.config.messagePath, data });
     }
     return datasets;
+  }
+
+  /** Materializes at most 10k CSV datums and returns a serializable continuation cursor. */
+  public getCsvDataChunk(cursor: CsvDataCursor | undefined, maxDatums: number): CsvDataChunk {
+    const chunkSize = normalizeCsvChunkSize(maxDatums);
+    const series = [...this.#seriesByKey.values()].filter((item) => item.config.enabled);
+    let seriesIndex = cursor?.seriesIndex ?? 0;
+    let datumIndex = cursor?.datumIndex ?? 0;
+    if (
+      !Number.isSafeInteger(seriesIndex) ||
+      !Number.isSafeInteger(datumIndex) ||
+      seriesIndex < 0 ||
+      datumIndex < 0 ||
+      seriesIndex > series.length ||
+      (seriesIndex === series.length && datumIndex !== 0)
+    ) {
+      throw new RangeError("Invalid CSV cursor");
+    }
+
+    const datasets: CsvDataset[] = [];
+    let remaining = chunkSize;
+    while (seriesIndex < series.length && remaining > 0) {
+      const currentSeries = series[seriesIndex]!;
+      const datumCount = currentSeries.full.length + currentSeries.current.length;
+      if (datumIndex > datumCount) {
+        throw new RangeError("Invalid CSV cursor");
+      }
+      if (datumIndex === datumCount) {
+        seriesIndex++;
+        datumIndex = 0;
+        continue;
+      }
+
+      const count = Math.min(remaining, datumCount - datumIndex);
+      const data = new Array<CsvDatum>(count);
+      for (let outputIndex = 0; outputIndex < count; outputIndex++) {
+        data[outputIndex] = this.#getCsvDatum(currentSeries, datumIndex + outputIndex);
+      }
+      datasets.push({ label: currentSeries.config.messagePath, data });
+      datumIndex += count;
+      remaining -= count;
+      if (datumIndex === datumCount) {
+        seriesIndex++;
+        datumIndex = 0;
+      }
+    }
+
+    return {
+      datasets,
+      ...(seriesIndex < series.length ? { nextCursor: { seriesIndex, datumIndex } } : {}),
+    };
   }
 
   public getXRange(): Bounds1D {
@@ -830,6 +882,18 @@ export class TimestampDatasetsBuilderImpl {
         this.#updateSeriesConfigAction(action.seriesItems);
         break;
     }
+  }
+
+  #getCsvDatum(series: Series, index: number): CsvDatum {
+    const storeIndex = getStoreIndex(series, index);
+    const store = storeIndex.store;
+    return {
+      x: store.getX(storeIndex.index),
+      y: store.getY(storeIndex.index),
+      receiveTime: store.getReceiveTime(storeIndex.index),
+      headerStamp: store.getHeaderStamp(storeIndex.index),
+      value: store.getValue(storeIndex.index),
+    };
   }
 
   #makeWindowPlan(series: Series, viewport: Immutable<Viewport>): WindowPlan {

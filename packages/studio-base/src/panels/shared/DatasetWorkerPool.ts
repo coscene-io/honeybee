@@ -11,7 +11,11 @@ import { WorkerSessionPool } from "@foxglove/den/worker";
 import Logger from "@foxglove/log";
 import type { TimestampDatasetsBuilderImpl } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilderImpl";
 
-import type { Service, StateTransitionsDatasetSessionService } from "./DatasetWorker.worker";
+import type {
+  CustomDatasetsBuilderSessionService,
+  Service,
+  StateTransitionsDatasetSessionService,
+} from "./DatasetWorker.worker";
 
 const log = Logger.getLogger(__filename);
 
@@ -21,6 +25,16 @@ export type TimestampDatasetsBuilderRemote = Comlink.Remote<
 
 export type TimestampDatasetWorkerLease = {
   remote: TimestampDatasetsBuilderRemote;
+  /** Release is idempotent. A broken lease also retires its physical worker. */
+  release: (options?: { broken?: boolean }) => Promise<void>;
+};
+
+export type CustomDatasetsBuilderRemote = Comlink.Remote<
+  Comlink.RemoteObject<CustomDatasetsBuilderSessionService>
+>;
+
+export type CustomDatasetWorkerLease = {
+  remote: CustomDatasetsBuilderRemote;
   /** Release is idempotent. A broken lease also retires its physical worker. */
   release: (options?: { broken?: boolean }) => Promise<void>;
 };
@@ -56,7 +70,8 @@ type DatasetWorkerHost = {
   remote: Comlink.Remote<
     Service<
       Comlink.RemoteObject<TimestampDatasetsBuilderImpl>,
-      Comlink.RemoteObject<StateTransitionsDatasetSessionService>
+      Comlink.RemoteObject<StateTransitionsDatasetSessionService>,
+      Comlink.RemoteObject<CustomDatasetsBuilderSessionService>
     >
   >;
   sessions: Set<SessionRecord>;
@@ -110,6 +125,17 @@ export class DatasetWorkerPool {
     );
   }
 
+  public async acquireCustomDatasetsBuilder(options?: {
+    handleWorkerError?: (event: Event) => void;
+    signal?: AbortSignal;
+  }): Promise<CustomDatasetWorkerLease> {
+    return await this.#acquireDatasetBuilder(
+      async (host) =>
+        (await host.remote.createCustomDatasetsBuilder()) as CustomDatasetsBuilderRemote,
+      options,
+    );
+  }
+
   public async acquireStateTransitionsDatasetBuilder(options?: {
     handleWorkerError?: (event: Event) => void;
     signal?: AbortSignal;
@@ -134,7 +160,7 @@ export class DatasetWorkerPool {
     const rawLease = await this.#pool.acquire({
       createSession: (host): SessionRecord => {
         // Return the record synchronously so the generic pool establishes the raw lease before the
-        // remote constructor settles. A rejected constructor can then retire the whole host.
+        // remote constructor settles. Setup failure can then release only this logical reservation.
         let remotePromise: Promise<ReleasableRemote>;
         try {
           remotePromise = createRemote(host);
@@ -153,8 +179,9 @@ export class DatasetWorkerPool {
           (remote) => {
             record.remote = remote;
           },
-          (error: unknown) => {
-            markHostBroken(host, makeSessionCreationErrorEvent(error));
+          () => {
+            // A rejected child constructor is a logical session setup failure. The physical Worker
+            // remains usable by existing co-tenants and future child sessions.
           },
         );
         return record;
@@ -180,7 +207,7 @@ export class DatasetWorkerPool {
       remote = await waitForRemote(record, options?.signal);
     } catch (error) {
       const aborted = isAbortError(error);
-      const releasePromise = rawLease.release({ broken: !aborted });
+      const releasePromise = rawLease.release();
       if (aborted) {
         // Remote construction cannot be cancelled. Let session cleanup finish in the background so
         // an AbortSignal remains responsive while the eventual child proxy is still released.
@@ -217,7 +244,8 @@ function createHost(worker: Worker): DatasetWorkerHost {
     Comlink.wrap<
       Service<
         Comlink.RemoteObject<TimestampDatasetsBuilderImpl>,
-        Comlink.RemoteObject<StateTransitionsDatasetSessionService>
+        Comlink.RemoteObject<StateTransitionsDatasetSessionService>,
+        Comlink.RemoteObject<CustomDatasetsBuilderSessionService>
       >
     >(worker);
   let disposed = false;
@@ -254,6 +282,10 @@ function createHost(worker: Worker): DatasetWorkerHost {
 }
 
 async function disposeSession(record: SessionRecord): Promise<void> {
+  // Stop reporting physical errors to a panel as soon as its logical lease starts releasing. Keep
+  // the record itself registered until setup settles so a later Worker failure can still retire the
+  // physical host through markBroken.
+  record.handleWorkerError = undefined;
   try {
     if (isHostBroken(record.host)) {
       // The physical endpoint is being terminated. Waiting for a pending Comlink constructor can
@@ -267,9 +299,15 @@ async function disposeSession(record: SessionRecord): Promise<void> {
       return;
     }
 
-    const remote = record.remote ?? (await record.remotePromise);
-    if (!isHostBroken(record.host)) {
-      remote[Comlink.releaseProxy]();
+    const remote = record.remote ?? (await waitForRemoteDuringDisposal(record));
+    if (remote != undefined && !isHostBroken(record.host)) {
+      try {
+        remote[Comlink.releaseProxy]();
+      } catch (error) {
+        // Releasing one logical child must not evict healthy co-tenants. Physical endpoint errors
+        // are handled exclusively by the Worker's error/messageerror listeners.
+        log.error("[DatasetWorkerPool] Failed to release Dataset worker child session", error);
+      }
     }
   } finally {
     // Keep the record registered while an asynchronous child constructor settles. If the Worker
@@ -279,6 +317,49 @@ async function disposeSession(record: SessionRecord): Promise<void> {
     record.failRemote = undefined;
     record.markBroken = undefined;
   }
+}
+
+/**
+ * Waits for an asynchronously-created child during logical cleanup.
+ *
+ * A constructor rejection means no child exists to release and is therefore successful cleanup.
+ * A physical Worker failure also stops the wait immediately; the host-level disposer will close the
+ * endpoint. `failRemote` doubles as the host-failure notification while acquisition is no longer
+ * waiting on this record.
+ */
+async function waitForRemoteDuringDisposal(
+  record: SessionRecord,
+): Promise<ReleasableRemote | undefined> {
+  if (isHostBroken(record.host)) {
+    return undefined;
+  }
+
+  return await new Promise<ReleasableRemote | undefined>((resolve) => {
+    const finish = (remote: ReleasableRemote | undefined) => {
+      if (record.failRemote === failRemote) {
+        record.failRemote = undefined;
+        resolve(remote);
+      }
+    };
+    const failRemote = () => {
+      finish(undefined);
+    };
+    record.failRemote = failRemote;
+    void record.remotePromise.then(
+      (remote) => {
+        finish(remote);
+      },
+      () => {
+        // Child construction failed before producing a proxy; there is nothing to release.
+        finish(undefined);
+      },
+    );
+
+    // Close the small window between the initial check and installing failRemote.
+    if (isHostBroken(record.host)) {
+      failRemote();
+    }
+  });
 }
 
 function markHostBroken(host: DatasetWorkerHost, event: Event): void {
@@ -298,14 +379,6 @@ function markHostBroken(host: DatasetWorkerHost, event: Event): void {
     }
     session.markBroken?.();
   }
-}
-
-function makeSessionCreationErrorEvent(error: unknown): Event {
-  const message = error instanceof Error ? error.message : "Dataset worker session creation failed";
-  if (typeof ErrorEvent !== "undefined") {
-    return new ErrorEvent("error", { error, message });
-  }
-  return new Event("error");
 }
 
 async function waitForRemote(
@@ -398,6 +471,13 @@ export async function acquireTimestampDatasetsBuilder(options?: {
   signal?: AbortSignal;
 }): Promise<TimestampDatasetWorkerLease> {
   return await sharedDatasetWorkerPool.acquireTimestampDatasetsBuilder(options);
+}
+
+export async function acquireCustomDatasetsBuilder(options?: {
+  handleWorkerError?: (event: Event) => void;
+  signal?: AbortSignal;
+}): Promise<CustomDatasetWorkerLease> {
+  return await sharedDatasetWorkerPool.acquireCustomDatasetsBuilder(options);
 }
 
 export async function acquireStateTransitionsDatasetBuilder(options?: {

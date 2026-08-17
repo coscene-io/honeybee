@@ -15,9 +15,12 @@ import { PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import {
+  CsvDataChunkCallback,
   CsvDataset,
+  forEachCsvDatasetChunk,
   GetViewportDatasetsResult,
   IDatasetsBuilder,
+  MAX_CSV_DATUMS_PER_CHUNK,
   SeriesConfigKey,
   SeriesItem,
 } from "./IDatasetsBuilder";
@@ -154,6 +157,13 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
     }
 
     return datasets;
+  }
+
+  public async forEachCsvDataChunk(
+    callback: CsvDataChunkCallback,
+    maxDatums = MAX_CSV_DATUMS_PER_CHUNK,
+  ): Promise<boolean> {
+    return await forEachCsvDatasetChunk(await this.getCsvData(), callback, maxDatums);
   }
 }
 

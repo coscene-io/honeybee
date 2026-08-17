@@ -114,22 +114,18 @@ function buildPlayerState(
 }
 
 describe("TimestampDatasetsBuilder", () => {
-  it("waits for an in-flight request before releasing its child worker session", async () => {
-    let finishRequest!: () => void;
+  it("releases its child worker session without waiting for a hung request", async () => {
     let requestStarted!: () => void;
-    const finishRequestPromise = new Promise<void>((resolve) => {
-      finishRequest = resolve;
-    });
     const requestStartedPromise = new Promise<void>((resolve) => {
       requestStarted = resolve;
     });
+    const hungRequest = new Promise<never>(() => {});
     const finalized = jest.fn();
     createTimestampDatasetsBuilderImpl = () => ({
       [Comlink.finalizer]: finalized,
       async getXRange() {
         requestStarted();
-        await finishRequestPromise;
-        return { min: 0, max: 1 };
+        return await hungRequest;
       },
     });
     const builder = createBuilder();
@@ -137,12 +133,6 @@ describe("TimestampDatasetsBuilder", () => {
     await requestStartedPromise;
 
     builder.destroy();
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
-    expect(finalized).not.toHaveBeenCalled();
-
-    finishRequest();
     await expect(rangePromise).resolves.toBeUndefined();
     await new Promise<void>((resolve) => {
       setImmediate(resolve);
@@ -151,6 +141,151 @@ describe("TimestampDatasetsBuilder", () => {
       setImmediate(resolve);
     });
     expect(finalized).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["viewport", "CSV"] as const)(
+    "settles a hung %s request when destroyed",
+    async (requestKind) => {
+      let requestStarted!: () => void;
+      const requestStartedPromise = new Promise<void>((resolve) => {
+        requestStarted = resolve;
+      });
+      const hungRequest = new Promise<never>(() => {});
+      createTimestampDatasetsBuilderImpl = () => ({
+        async getCsvDataChunk() {
+          requestStarted();
+          return await hungRequest;
+        },
+        async getViewportDatasets() {
+          requestStarted();
+          return await hungRequest;
+        },
+      });
+      const builder = createBuilder();
+      const requestPromise =
+        requestKind === "viewport"
+          ? builder.getViewportDatasets({ bounds: {}, size: { width: 100, height: 100 } })
+          : builder.forEachCsvDataChunk(async () => true);
+      await requestStartedPromise;
+
+      builder.destroy();
+
+      if (requestKind === "viewport") {
+        await expect(requestPromise).resolves.toEqual({
+          datasetsByConfigIndex: [],
+          pathsWithMismatchedDataLengths: new Set(),
+        });
+      } else {
+        await expect(requestPromise).resolves.toBe(false);
+      }
+    },
+  );
+
+  it("does not start a queued worker RPC after destruction", async () => {
+    let finishFirstRequest!: () => void;
+    let firstRequestStarted!: () => void;
+    const finishFirstRequestPromise = new Promise<void>((resolve) => {
+      finishFirstRequest = resolve;
+    });
+    const firstRequestStartedPromise = new Promise<void>((resolve) => {
+      firstRequestStarted = resolve;
+    });
+    const getXRange = jest.fn(async () => {
+      firstRequestStarted();
+      await finishFirstRequestPromise;
+      return { min: 0, max: 1 };
+    });
+    createTimestampDatasetsBuilderImpl = () => ({ getXRange });
+    const builder = createBuilder();
+    const firstRange = builder.getXRange();
+    await firstRequestStartedPromise;
+    const queuedRange = builder.getXRange();
+
+    builder.destroy();
+    finishFirstRequest();
+
+    await expect(firstRange).resolves.toBeUndefined();
+    await expect(queuedRange).resolves.toBeUndefined();
+    expect(getXRange).toHaveBeenCalledTimes(1);
+  });
+
+  it("flushes pending updates and stops the CSV cursor after callback cancellation", async () => {
+    const callOrder: string[] = [];
+    const applyActions = jest.fn(async () => {
+      callOrder.push("apply");
+    });
+    const getCsvDataChunk = jest.fn(async () => {
+      callOrder.push("chunk");
+      return {
+        datasets: [
+          {
+            label: "/foo.val",
+            data: [
+              { x: 0, y: 1, receiveTime: { sec: 0, nsec: 0 }, value: 1 },
+              { x: 1, y: 2, receiveTime: { sec: 1, nsec: 0 }, value: 2 },
+            ],
+          },
+        ],
+        nextCursor: { seriesIndex: 0, datumIndex: 2 },
+      };
+    });
+    createTimestampDatasetsBuilderImpl = () => ({ applyActions, getCsvDataChunk });
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo.val" }]));
+    const callback = jest.fn(async () => false);
+
+    await expect(builder.forEachCsvDataChunk(callback, 50_000)).resolves.toBe(false);
+
+    expect(callOrder).toEqual(["apply", "chunk"]);
+    expect(applyActions).toHaveBeenCalledTimes(1);
+    expect(getCsvDataChunk).toHaveBeenCalledTimes(1);
+    expect(getCsvDataChunk).toHaveBeenCalledWith(undefined, 10_000);
+    expect(callback).toHaveBeenCalledWith([
+      expect.objectContaining({ label: "/foo.val", data: expect.any(Array) }),
+    ]);
+  });
+
+  it("keeps worker updates from interleaving with a CSV cursor operation", async () => {
+    let finishCallback!: () => void;
+    let callbackStarted!: () => void;
+    const finishCallbackPromise = new Promise<void>((resolve) => {
+      finishCallback = resolve;
+    });
+    const callbackStartedPromise = new Promise<void>((resolve) => {
+      callbackStarted = resolve;
+    });
+    const getXRange = jest.fn(async () => ({ min: 0, max: 1 }));
+    createTimestampDatasetsBuilderImpl = () => ({
+      async getCsvDataChunk() {
+        return {
+          datasets: [
+            {
+              label: "/foo.val",
+              data: [{ x: 0, y: 1, receiveTime: { sec: 0, nsec: 0 }, value: 1 }],
+            },
+          ],
+        };
+      },
+      getXRange,
+    });
+    const builder = createBuilder();
+    const exportPromise = builder.forEachCsvDataChunk(async () => {
+      callbackStarted();
+      await finishCallbackPromise;
+      return false;
+    });
+    await callbackStartedPromise;
+
+    const rangePromise = builder.getXRange();
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    expect(getXRange).not.toHaveBeenCalled();
+
+    finishCallback();
+    await exportPromise;
+    await expect(rangePromise).resolves.toEqual({ min: 0, max: 1 });
+    expect(getXRange).toHaveBeenCalledTimes(1);
   });
 
   it("should process current messages into a dataset", async () => {
@@ -620,6 +755,62 @@ describe("TimestampDatasetsBuilder", () => {
     );
   });
 
+  it("resets replacement history and releases only the failed range topic", async () => {
+    const builder = createBuilder();
+    builder.setSeries(
+      buildSeriesItems([
+        { value: "/foo.val", timestampMethod: "receiveTime" },
+        { value: "/bar.val", timestampMethod: "receiveTime" },
+      ]),
+    );
+    builder.setHistoryTopics(new Set(["/foo", "/bar"]), new Set(), 8);
+    const message = (topic: string, sec: number, val: number): MessageEvent => ({
+      topic,
+      schemaName: "schema",
+      receiveTime: { sec, nsec: 0 },
+      sizeInBytes: 0,
+      message: { val },
+    });
+
+    await builder.appendRangeMessageBatch("/foo", [message("/foo", 1, 10)], { sec: 0, nsec: 0 }, 8);
+    await builder.appendRangeMessageBatch("/bar", [message("/bar", 2, 20)], { sec: 0, nsec: 0 }, 8);
+    await expect(builder.resetRangeTopic("/foo", 8)).resolves.toBe(true);
+    await builder.appendRangeMessageBatch("/foo", [message("/foo", 3, 30)], { sec: 0, nsec: 0 }, 8);
+
+    let result = await builder.getViewportDatasets({
+      size: { width: 1_000, height: 1_000 },
+      bounds: {},
+    });
+    expect(result.datasetsByConfigIndex[0]).toEqual(
+      expect.objectContaining({ data: [{ x: 3, y: 30, value: 30 }] }),
+    );
+    expect(result.datasetsByConfigIndex[1]).toEqual(
+      expect.objectContaining({ data: [{ x: 2, y: 20, value: 20 }] }),
+    );
+
+    await expect(builder.releaseRangeTopic("/foo", 8)).resolves.toBe(true);
+    await builder.handleBlocks(
+      { sec: 0, nsec: 0 },
+      [
+        {
+          sizeInBytes: 0,
+          messagesByTopic: groupByTopic([message("/foo", 4, 40), message("/bar", 5, 50)]),
+        },
+      ],
+      async () => false,
+    );
+    result = await builder.getViewportDatasets({
+      size: { width: 1_000, height: 1_000 },
+      bounds: {},
+    });
+    expect(result.datasetsByConfigIndex[0]).toEqual(
+      expect.objectContaining({ data: [{ x: 4, y: 40, value: 40 }] }),
+    );
+    expect(result.datasetsByConfigIndex[1]).toEqual(
+      expect.objectContaining({ data: [{ x: 2, y: 20, value: 20 }] }),
+    );
+  });
+
   it("uses only bounded current-frame storage for live timestamp topics", async () => {
     const builder = createBuilder();
     builder.setSeries(
@@ -658,6 +849,35 @@ describe("TimestampDatasetsBuilder", () => {
     expect(result.datasetsByConfigIndex[0]).toEqual(
       expect.objectContaining({ data: [{ x: 2, y: 20, value: 20 }] }),
     );
+  });
+
+  it("preserves an unchanged live topic when another current-only topic is added", async () => {
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/a.val" }]));
+    builder.setHistoryTopics(new Set(), new Set(["/a"]), 1);
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/a",
+            schemaName: "a",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 10 },
+          },
+        ],
+      }),
+    );
+    await builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} });
+
+    builder.setSeries(buildSeriesItems([{ value: "/a.val" }, { value: "/b.val" }]));
+    builder.setHistoryTopics(new Set(), new Set(["/a", "/b"]), 2);
+
+    const result = await builder.getViewportDatasets({
+      size: { width: 100, height: 100 },
+      bounds: {},
+    });
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([{ x: 1, y: 10, value: 10 }]);
   });
 
   it("clears fallback block and current history when the Player source changes", async () => {
@@ -799,6 +1019,38 @@ describe("TimestampDatasetsBuilder", () => {
           data: [{ x: 0, y: 2, value: 2 }],
         }),
       ],
+    });
+  });
+
+  it("clears disabled current data on seek before the series is re-enabled", async () => {
+    const builder = createBuilder();
+    const enabledSeries = buildSeriesItems([{ enabled: true, value: "/foo.val" }]);
+    builder.setSeries(enabledSeries);
+    builder.handlePlayerState(
+      buildPlayerState({
+        lastSeekTime: 1,
+        messages: [
+          {
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 10 },
+          },
+        ],
+      }),
+    );
+    await builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} });
+
+    builder.setSeries(buildSeriesItems([{ enabled: false, value: "/foo.val" }]));
+    builder.handlePlayerState(buildPlayerState({ lastSeekTime: 2, messages: [] }));
+    builder.setSeries(enabledSeries);
+
+    await expect(
+      builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} }),
+    ).resolves.toEqual({
+      pathsWithMismatchedDataLengths: new Set(),
+      datasetsByConfigIndex: [expect.objectContaining({ data: [] })],
     });
   });
 

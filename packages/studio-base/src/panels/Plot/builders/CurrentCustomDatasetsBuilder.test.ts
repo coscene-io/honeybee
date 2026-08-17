@@ -258,4 +258,44 @@ describe("CurrentCustomDatasetsBuilder", () => {
       ],
     });
   });
+
+  it("stops chunking the latest custom dataset when the callback cancels", async () => {
+    const builder = new CurrentCustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/x.val[:]"));
+    builder.setSeries(buildSeriesItems([{ value: "/y.val[:]" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/x",
+            schemaName: "x",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: [10, 20, 30, 40] },
+          },
+          {
+            topic: "/y",
+            schemaName: "y",
+            receiveTime: { sec: 2, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: [1, 2, 3, 4] },
+          },
+        ],
+      }),
+    );
+    const callback = jest.fn(async () => false);
+
+    await expect(builder.forEachCsvDataChunk(callback, 2)).resolves.toBe(false);
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith([
+      {
+        label: "/y.val[:]",
+        data: [
+          expect.objectContaining({ x: 10, value: 1 }),
+          expect.objectContaining({ x: 20, value: 2 }),
+        ],
+      },
+    ]);
+  });
 });

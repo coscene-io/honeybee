@@ -339,4 +339,49 @@ describe("IndexDatasetsBuilder", () => {
       ],
     });
   });
+
+  it("streams the latest index datasets in bounded chunks and series order", async () => {
+    const builder = new IndexDatasetsBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo.val[:]" }, { value: "/bar.val[:]" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: [1, 2, 3, 4] },
+          },
+          {
+            topic: "/bar",
+            schemaName: "bar",
+            receiveTime: { sec: 2, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: [5, 6, 7] },
+          },
+        ],
+      }),
+    );
+    const chunkSizes: number[] = [];
+    const rows: { label: string; value: unknown }[] = [];
+
+    await builder.forEachCsvDataChunk((datasets) => {
+      chunkSizes.push(datasets.reduce((sum, dataset) => sum + dataset.data.length, 0));
+      for (const dataset of datasets) {
+        rows.push(...dataset.data.map((datum) => ({ label: dataset.label, value: datum.value })));
+      }
+    }, 3);
+
+    expect(chunkSizes).toEqual([3, 3, 1]);
+    expect(rows).toEqual([
+      { label: "/foo.val[:]", value: 1 },
+      { label: "/foo.val[:]", value: 2 },
+      { label: "/foo.val[:]", value: 3 },
+      { label: "/foo.val[:]", value: 4 },
+      { label: "/bar.val[:]", value: 5 },
+      { label: "/bar.val[:]", value: 6 },
+      { label: "/bar.val[:]", value: 7 },
+    ]);
+  });
 });

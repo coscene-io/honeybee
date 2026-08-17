@@ -8,7 +8,12 @@
 import { parseMessagePath } from "@foxglove/message-path";
 import { MAX_POINTS } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
 
-import { SeriesConfigKey, SeriesItem, Viewport } from "./IDatasetsBuilder";
+import {
+  MAX_CSV_DATUMS_PER_CHUNK,
+  SeriesConfigKey,
+  SeriesItem,
+  Viewport,
+} from "./IDatasetsBuilder";
 import {
   DataItem,
   TimestampDatasetsBuilderImpl,
@@ -409,6 +414,81 @@ describe("TimestampDatasetsBuilderImpl", () => {
       value,
     });
     expect(impl.getViewportDatasets(viewport())[0]?.data).toEqual([{ x: 0, y: 5, value }]);
+  });
+
+  it("continues a CSV cursor across enabled series without changing value or time types", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const first = makeSeries("csv-first", 0);
+    const disabled = makeSeries("csv-disabled", 1, { enabled: false });
+    const second = makeSeries("csv-second", 2);
+    const receiveTime = { sec: 7, nsec: 8 };
+    const headerStamp = { sec: 9, nsec: 10 };
+    impl.applyActions([
+      updateSeries([first, disabled, second]),
+      append("append-full", first, [
+        { x: 0, y: 1, receiveTime, headerStamp, value: 9_999_999_999_999_001n },
+        { x: 1, y: 2, receiveTime, value: { sec: 5, nsec: 1_000_000_000 } },
+      ]),
+      append("append-full", disabled, [makeItem(99)]),
+      append("append-full", second, [makeItem(2), makeItem(3), makeItem(4)]),
+    ]);
+
+    const firstChunk = impl.getCsvDataChunk(undefined, 3);
+    expect(firstChunk.nextCursor).toEqual({ seriesIndex: 1, datumIndex: 1 });
+    expect(
+      firstChunk.datasets.map(({ label, data }) => ({
+        label,
+        values: data.map((item) => item.value),
+      })),
+    ).toEqual([
+      {
+        label: first.messagePath,
+        values: [9_999_999_999_999_001n, { sec: 5, nsec: 1_000_000_000 }],
+      },
+      { label: second.messagePath, values: [2] },
+    ]);
+    expect(firstChunk.datasets[0]?.data[0]).toMatchObject({ receiveTime, headerStamp });
+
+    const secondChunk = impl.getCsvDataChunk(firstChunk.nextCursor, 3);
+    expect(secondChunk).toEqual({
+      datasets: [
+        {
+          label: second.messagePath,
+          data: [
+            expect.objectContaining({ x: 3, value: 3 }),
+            expect.objectContaining({ x: 4, value: 4 }),
+          ],
+        },
+      ],
+    });
+  });
+
+  it("hard-caps a CSV cursor response at 10k datums", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("csv-cap", 0);
+    impl.applyActions([
+      updateSeries([series]),
+      append(
+        "append-full",
+        series,
+        Array.from({ length: MAX_CSV_DATUMS_PER_CHUNK + 1 }, (_, index) => makeItem(index)),
+      ),
+    ]);
+
+    const firstChunk = impl.getCsvDataChunk(undefined, MAX_CSV_DATUMS_PER_CHUNK * 2);
+    expect(firstChunk.datasets[0]?.data).toHaveLength(MAX_CSV_DATUMS_PER_CHUNK);
+    expect(firstChunk.nextCursor).toEqual({
+      seriesIndex: 0,
+      datumIndex: MAX_CSV_DATUMS_PER_CHUNK,
+    });
+    expect(impl.getCsvDataChunk(firstChunk.nextCursor, MAX_CSV_DATUMS_PER_CHUNK)).toEqual({
+      datasets: [
+        {
+          label: series.messagePath,
+          data: [expect.objectContaining({ x: MAX_CSV_DATUMS_PER_CHUNK })],
+        },
+      ],
+    });
   });
 
   it("returns stable defaults for empty data and a correct all-negative x range", () => {
