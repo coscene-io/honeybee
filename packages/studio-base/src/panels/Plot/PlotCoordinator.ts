@@ -331,6 +331,13 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     this.#queueDispatchRender();
   }
 
+  /** Schedules a viewport refresh after a backpressured range batch reaches the Dataset worker. */
+  public handleRangeDataUpdated(): void {
+    if (!this.isDestroyed()) {
+      this.#queueDispatchDatasets();
+    }
+  }
+
   /** Get the plot x value at the canvas pixel x location */
   public getXValueAtPixel(pixelX: number): number {
     if (!this.#latestXScale) {

@@ -62,11 +62,18 @@ type TimestampSeriesItem = {
 export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
 
+  /** Serializes action delivery so range batches cannot overtake viewport or block updates. */
+  #remoteQueue: Promise<void> = Promise.resolve();
+
   #lastSeekTime = 0;
 
   #series: Immutable<TimestampSeriesItem[]> = [];
 
   #xAxisMode: "timestamp" | "partialTimestamp";
+
+  #rangeGeneration = 0;
+  #rangeTopics = new Set<string>();
+  #currentOnlyTopics = new Set<string>();
 
   #lifetime: BuilderLifetime;
   #destroyed = false;
@@ -129,6 +136,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     const msgEvents = activeData.messages;
     if (msgEvents.length > 0) {
       for (const series of this.#series) {
+        if (!series.config.enabled || this.#rangeTopics.has(series.config.parsed.topicName)) {
+          continue;
+        }
         const mathFn = series.config.parsed.modifier
           ? mathFunctions[series.config.parsed.modifier]
           : undefined;
@@ -175,7 +185,14 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     }
 
     // identify if series need resetting because of the blocks
-    for (const series of this.#series) {
+    const seriesArr = this.#series.filter(
+      (series) =>
+        series.config.enabled &&
+        !this.#rangeTopics.has(series.config.parsed.topicName) &&
+        !this.#currentOnlyTopics.has(series.config.parsed.topicName),
+    );
+
+    for (const series of seriesArr) {
       if (series.blockCursor.nextWillReset(blocks)) {
         this.#pendingDispatch.push({
           type: "reset-full",
@@ -183,8 +200,6 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         });
       }
     }
-
-    const seriesArr = this.#series;
 
     // We loop through the series and only process one next block and keep doing this until
     // there are no more updates. This processes the series "in parallel" so that all of them appear
@@ -194,6 +209,14 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       done = 0;
 
       for (const series of seriesArr) {
+        if (
+          !series.config.enabled ||
+          this.#rangeTopics.has(series.config.parsed.topicName) ||
+          this.#currentOnlyTopics.has(series.config.parsed.topicName)
+        ) {
+          done += 1;
+          continue;
+        }
         const mathFn = series.config.parsed.modifier
           ? mathFunctions[series.config.parsed.modifier]
           : undefined;
@@ -248,6 +271,108 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     });
   }
 
+  /**
+   * Assigns history ownership for replay ranges and live current-only topics. Every generation
+   * starts protected topics with empty storage; topics leaving either mode get fresh block cursors
+   * for legacy preload fallback.
+   */
+  public setHistoryTopics(
+    rangeTopics: ReadonlySet<string>,
+    currentOnlyTopics: ReadonlySet<string>,
+    generation: number,
+    options?: { resetAll?: boolean },
+  ): void {
+    if (this.#destroyed || this.#xAxisMode !== "timestamp") {
+      return;
+    }
+
+    const previousTopics = new Set([...this.#rangeTopics, ...this.#currentOnlyTopics]);
+    this.#rangeTopics = new Set(rangeTopics);
+    this.#currentOnlyTopics = new Set(currentOnlyTopics);
+    this.#rangeGeneration = generation;
+
+    this.#series = this.#series.map((series) => {
+      const topic = series.config.parsed.topicName;
+      const wasHistoryProtected = previousTopics.has(topic);
+      const isHistoryProtected = rangeTopics.has(topic) || currentOnlyTopics.has(topic);
+      if (options?.resetAll === true || wasHistoryProtected || isHistoryProtected) {
+        this.#pendingDispatch.push(
+          { type: "reset-full", series: series.config.key },
+          { type: "reset-current", series: series.config.key },
+        );
+        return {
+          config: series.config,
+          blockCursor: new BlockTopicCursor(topic),
+        };
+      }
+      return series;
+    });
+  }
+
+  /** Extracts and applies one bounded Player range batch before accepting another batch. */
+  public async appendRangeMessageBatch(
+    topic: string,
+    events: Immutable<readonly MessageEvent[]>,
+    startTime: Immutable<Time>,
+    generation: number,
+  ): Promise<boolean> {
+    if (this.#destroyed || generation !== this.#rangeGeneration || !this.#rangeTopics.has(topic)) {
+      return false;
+    }
+
+    let appended = false;
+    for (const series of this.#series) {
+      if (
+        !series.config.enabled ||
+        series.config.parsed.topicName !== topic ||
+        !this.#rangeTopics.has(topic)
+      ) {
+        continue;
+      }
+      const mathFn = series.config.parsed.modifier
+        ? mathFunctions[series.config.parsed.modifier]
+        : undefined;
+      const items = readMessagePathItems(
+        events,
+        series.config.parsed,
+        series.config.timestampMethod,
+        startTime,
+        mathFn,
+      );
+      if (items.length === 0) {
+        continue;
+      }
+      appended = true;
+      this.#pendingDispatch.push({
+        type: "append-full",
+        series: series.config.key,
+        items,
+      });
+    }
+
+    const dispatch = this.#takePendingDispatch();
+    if (dispatch.length > 0) {
+      try {
+        await this.#enqueueRemote(async () => {
+          const { remote } = await this.#lifetime.leasePromise;
+          await remote.applyActions(dispatch);
+        });
+      } catch (error) {
+        if (!this.#lifetime.abortController.signal.aborted) {
+          throw error;
+        }
+        return false;
+      }
+    }
+
+    return (
+      appended &&
+      !this.#lifetime.abortController.signal.aborted &&
+      generation === this.#rangeGeneration &&
+      this.#rangeTopics.has(topic)
+    );
+  }
+
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
   ): Promise<GetViewportDatasetsResult> {
@@ -255,17 +380,13 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
     }
 
-    const dispatch = this.#pendingDispatch;
+    const dispatch = this.#takePendingDispatch();
     const lifetime = this.#lifetime;
-    if (dispatch.length > 0) {
-      this.#pendingDispatch = [];
-    }
 
     let datasets;
     try {
-      datasets = await trackOperation(
-        lifetime,
-        getViewportDatasets(lifetime.leasePromise, dispatch, viewport),
+      datasets = await this.#enqueueRemote(
+        async () => await getViewportDatasets(lifetime.leasePromise, dispatch, viewport),
       );
     } catch (error) {
       if (!lifetime.abortController.signal.aborted) {
@@ -287,7 +408,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     const lifetime = this.#lifetime;
     let data;
     try {
-      data = await trackOperation(lifetime, getCsvData(lifetime.leasePromise));
+      data = await this.#enqueueRemote(async () => await getCsvData(lifetime.leasePromise));
     } catch (error) {
       if (!lifetime.abortController.signal.aborted) {
         throw error;
@@ -304,7 +425,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     const lifetime = this.#lifetime;
     let range;
     try {
-      range = await trackOperation(lifetime, getXRange(lifetime.leasePromise));
+      range = await this.#enqueueRemote(async () => await getXRange(lifetime.leasePromise));
     } catch (error) {
       if (!lifetime.abortController.signal.aborted) {
         throw error;
@@ -312,6 +433,21 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       return undefined;
     }
     return lifetime.abortController.signal.aborted ? undefined : range;
+  }
+
+  #takePendingDispatch(): Immutable<UpdateDataAction>[] {
+    const dispatch = this.#pendingDispatch;
+    this.#pendingDispatch = [];
+    return dispatch;
+  }
+
+  async #enqueueRemote<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.#remoteQueue.then(operation);
+    this.#remoteQueue = result.then(
+      () => {},
+      () => {},
+    );
+    return await trackOperation(this.#lifetime, result);
   }
 }
 

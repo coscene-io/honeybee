@@ -563,6 +563,154 @@ describe("TimestampDatasetsBuilder", () => {
     }
   });
 
+  it("keeps range-backed replay history separate from blocks and current messages", async () => {
+    const builder = createBuilder();
+    builder.setSeries(
+      buildSeriesItems([
+        {
+          enabled: true,
+          timestampMethod: "receiveTime",
+          value: "/foo.val",
+        },
+      ]),
+    );
+    builder.setHistoryTopics(new Set(["/foo"]), new Set(), 4);
+
+    const blockMessage: MessageEvent = {
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: { sec: 1, nsec: 0 },
+      sizeInBytes: 0,
+      message: { val: 10 },
+    };
+    await builder.handleBlocks(
+      { sec: 0, nsec: 0 },
+      [{ sizeInBytes: 0, messagesByTopic: groupByTopic([blockMessage]) }],
+      async () => false,
+    );
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [{ ...blockMessage, receiveTime: { sec: 2, nsec: 0 }, message: { val: 20 } }],
+      }),
+    );
+
+    await expect(
+      builder.appendRangeMessageBatch(
+        "/foo",
+        [{ ...blockMessage, receiveTime: { sec: 3, nsec: 0 }, message: { val: 30 } }],
+        { sec: 0, nsec: 0 },
+        3,
+      ),
+    ).resolves.toBe(false);
+    await expect(
+      builder.appendRangeMessageBatch(
+        "/foo",
+        [{ ...blockMessage, receiveTime: { sec: 4, nsec: 0 }, message: { val: 40 } }],
+        { sec: 0, nsec: 0 },
+        4,
+      ),
+    ).resolves.toBe(true);
+
+    const result = await builder.getViewportDatasets({
+      size: { width: 1_000, height: 1_000 },
+      bounds: {},
+    });
+    expect(result.datasetsByConfigIndex[0]).toEqual(
+      expect.objectContaining({ data: [{ x: 4, y: 40, value: 40 }] }),
+    );
+  });
+
+  it("uses only bounded current-frame storage for live timestamp topics", async () => {
+    const builder = createBuilder();
+    builder.setSeries(
+      buildSeriesItems([
+        {
+          enabled: true,
+          timestampMethod: "receiveTime",
+          value: "/foo.val",
+        },
+      ]),
+    );
+    builder.setHistoryTopics(new Set(), new Set(["/foo"]), 5);
+
+    const blockMessage: MessageEvent = {
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: { sec: 1, nsec: 0 },
+      sizeInBytes: 0,
+      message: { val: 10 },
+    };
+    await builder.handleBlocks(
+      { sec: 0, nsec: 0 },
+      [{ sizeInBytes: 0, messagesByTopic: groupByTopic([blockMessage]) }],
+      async () => false,
+    );
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [{ ...blockMessage, receiveTime: { sec: 2, nsec: 0 }, message: { val: 20 } }],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets({
+      size: { width: 1_000, height: 1_000 },
+      bounds: {},
+    });
+    expect(result.datasetsByConfigIndex[0]).toEqual(
+      expect.objectContaining({ data: [{ x: 2, y: 20, value: 20 }] }),
+    );
+  });
+
+  it("clears fallback block and current history when the Player source changes", async () => {
+    const builder = createBuilder();
+    builder.setSeries(
+      buildSeriesItems([
+        {
+          enabled: true,
+          timestampMethod: "receiveTime",
+          value: "/foo.val",
+        },
+      ]),
+    );
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 10 },
+          },
+        ],
+      }),
+    );
+    await builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} });
+
+    // A new Player may reuse the same lastSeekTime, so source identity must reset storage directly.
+    builder.setHistoryTopics(new Set(), new Set(), 6, { resetAll: true });
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec: 2, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 20 },
+          },
+        ],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets({
+      size: { width: 100, height: 100 },
+      bounds: {},
+    });
+    expect(result.datasetsByConfigIndex[0]).toEqual(
+      expect.objectContaining({ data: [{ x: 2, y: 20, value: 20 }] }),
+    );
+  });
+
   it("supports toggling series enabled state", async () => {
     const builder = createBuilder();
 
