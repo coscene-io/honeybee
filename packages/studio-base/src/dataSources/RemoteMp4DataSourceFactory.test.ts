@@ -18,6 +18,8 @@ jest.mock("@foxglove/studio-base/players/IterablePlayer", () => ({
 }));
 jest.mock("@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource", () => ({
   DEFAULT_MP4_VIDEO_TOPIC: "/camera/h264",
+  resolveRemoteMp4Topic: (topic: string | undefined) =>
+    topic == undefined || topic.length === 0 ? "/camera/h264" : topic,
   Mp4IterableSource: jest.fn().mockImplementation((options: unknown) => ({ options })),
 }));
 
@@ -49,6 +51,19 @@ describe("RemoteMp4DataSourceFactory", () => {
         topic: DEFAULT_MP4_VIDEO_TOPIC,
       },
       enablePlaybackSpillCache: true,
+    });
+  });
+
+  it("publishes frames on the requested topic", () => {
+    const factory = new RemoteMp4DataSourceFactory();
+    factory.initialize({
+      metricsCollector: undefined as never,
+      params: { url: "https://storage.example.com/recording.mp4", topic: "/vehicle/front" },
+    });
+
+    expect(mockMp4IterableSource.mock.calls[0]?.[0]).toEqual({
+      url: "https://storage.example.com/recording.mp4",
+      topic: "/vehicle/front",
     });
   });
 

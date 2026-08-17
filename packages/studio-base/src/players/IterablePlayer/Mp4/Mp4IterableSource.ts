@@ -26,6 +26,11 @@ import { WorkerMp4MediabunnyController } from "./WorkerMp4MediabunnyController";
 
 export const DEFAULT_MP4_VIDEO_TOPIC = "/camera/h264";
 
+/** Use the requested topic, or the source default when it is missing/empty. */
+export function resolveRemoteMp4Topic(topic: string | undefined): string {
+  return topic == undefined || topic.length === 0 ? DEFAULT_MP4_VIDEO_TOPIC : topic;
+}
+
 type Mp4Controller = RemoteVideoFrameProvider & {
   initialize(): Promise<Mp4MediabunnyInfo>;
   dispose(): Promise<void>;
