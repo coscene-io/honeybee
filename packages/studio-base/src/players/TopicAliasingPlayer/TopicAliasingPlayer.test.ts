@@ -103,10 +103,9 @@ describe("TopicAliasingPlayer", () => {
     const receivedBatches: unknown[] = [];
     const rangeUnsubscribe = player.subscribeMessageRange({
       topic: "/renamed_topic_1",
-      timeRange: {
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 1, nsec: 0 },
-      },
+      payload: { fields: ["header", "value"] },
+      receiveLiveData: true,
+      skipUserScripts: true,
       onNewRangeIterator: async (iterator) => {
         for await (const batch of iterator) {
           receivedBatches.push(batch);
@@ -115,9 +114,15 @@ describe("TopicAliasingPlayer", () => {
     });
     await rangeDone;
 
-    expect((fakePlayer as any).subscribeMessageRange).toHaveBeenCalledWith(
-      expect.objectContaining({ topic: "/original_topic_1" }),
-    );
+    const forwardedArgs = (fakePlayer as any).subscribeMessageRange.mock.calls[0]?.[0];
+    expect(forwardedArgs).toEqual({
+      topic: "/original_topic_1",
+      payload: { fields: ["header", "value"] },
+      receiveLiveData: true,
+      skipUserScripts: true,
+      onNewRangeIterator: expect.any(Function),
+    });
+    expect(forwardedArgs).not.toHaveProperty("timeRange");
     expect(receivedBatches).toEqual([[{ ...originalMessage, topic: "/renamed_topic_1" }]]);
 
     rangeUnsubscribe?.();
