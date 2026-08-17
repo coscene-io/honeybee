@@ -462,7 +462,7 @@ describe("useSyncLayoutFromUrl", () => {
       );
     });
 
-    currentLayoutActions.setCurrentLayout.mockClear();
+    jest.mocked(currentLayoutActions.setCurrentLayout).mockClear();
     selectedLayoutId = "users/u/layouts/personal" as LayoutID;
     dataSource = { id: "coscene-data-platform", type: "connection" };
 
