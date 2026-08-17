@@ -51,6 +51,8 @@ export type DataSource = {
   sessionId?: string;
   previousRecentId?: string;
   recentId?: string;
+  /** Connection-source form/URL params (e.g. remote-mp4 `url` and `topic`). */
+  params?: { [key: string]: string | undefined };
 };
 
 export type CoordinatorConfig = {

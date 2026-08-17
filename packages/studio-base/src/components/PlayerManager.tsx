@@ -90,6 +90,7 @@ const selectUserScriptActions = (store: UserScriptStore) => store.actions;
 
 const selectSetCurrentFile = (store: UploadFilesStore) => store.setCurrentFile;
 const selectSetDataSource = (store: CoreDataStore) => store.setDataSource;
+const selectSetIsReadyForSyncLayout = (store: CoreDataStore) => store.setIsReadyForSyncLayout;
 
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectProject = (store: CoreDataStore) => store.project;
@@ -118,6 +119,7 @@ function useBeforeConnectionSource(): (
 ) => Promise<boolean> {
   const consoleApi = useConsoleApi();
   const setShowtUrlKey = useSetShowtUrlKey();
+  const setIsReadyForSyncLayout = useCoreData(selectSetIsReadyForSyncLayout);
 
   const syncBaseInfo = useCallback(
     async (baseInfoKey: string, isCurrent: () => boolean) => {
@@ -168,6 +170,19 @@ function useBeforeConnectionSource(): (
           }
           consoleApi.setType("realtime");
           break;
+        case "remote-mp4":
+          if (params.key) {
+            await syncBaseInfo(params.key, isCurrent);
+          } else {
+            // Standalone remote-mp4 only needs a URL. Without a key there is no
+            // project context to load, but layout sync still waits on this flag.
+            setIsReadyForSyncLayout({ isReadyForSyncLayout: true });
+          }
+          if (!isCurrent()) {
+            return false;
+          }
+          consoleApi.setType(undefined);
+          break;
         default:
           consoleApi.setType(undefined);
           break;
@@ -175,7 +190,7 @@ function useBeforeConnectionSource(): (
 
       return isCurrent();
     },
-    [consoleApi, syncBaseInfo],
+    [consoleApi, setIsReadyForSyncLayout, syncBaseInfo],
   );
 
   return beforeConnectionSource;
@@ -438,7 +453,7 @@ export default function PlayerManager(
             };
 
             const sessionId = uuidv4();
-            setDataSource({ id: sourceId, type: "connection", sessionId });
+            setDataSource({ id: sourceId, type: "connection", sessionId, params: args.params });
 
             setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
@@ -514,6 +529,7 @@ export default function PlayerManager(
               type: "connection",
               sessionId,
               recentId,
+              params: args.params,
             });
 
             return;

@@ -15,6 +15,7 @@ import { IterablePlayer } from "@foxglove/studio-base/players/IterablePlayer";
 import {
   DEFAULT_MP4_VIDEO_TOPIC,
   Mp4IterableSource,
+  resolveRemoteMp4Topic,
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/Mp4IterableSource";
 import { Player } from "@foxglove/studio-base/players/types";
 
@@ -60,11 +61,7 @@ class RemoteMp4DataSourceFactory implements IDataSourceFactory {
       throw urlError;
     }
 
-    const requestedTopic = args.params?.topic;
-    const topic =
-      requestedTopic == undefined || requestedTopic.length === 0
-        ? DEFAULT_MP4_VIDEO_TOPIC
-        : requestedTopic;
+    const topic = resolveRemoteMp4Topic(args.params?.topic);
     if (!topic.startsWith("/")) {
       throw new Error("Topic must start with /");
     }
