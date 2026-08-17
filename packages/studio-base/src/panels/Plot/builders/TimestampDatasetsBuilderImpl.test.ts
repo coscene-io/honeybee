@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { collectTransferableBuffers } from "@foxglove/den/worker";
 import { parseMessagePath } from "@foxglove/message-path";
 import { MAX_POINTS } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
 
@@ -19,6 +20,7 @@ import {
   TimestampDatasetsBuilderImpl,
   UpdateDataAction,
 } from "./TimestampDatasetsBuilderImpl";
+import { restoreUnpackedDataAccessor } from "../PackedDataset";
 
 function makeSeries(
   key: string,
@@ -61,7 +63,7 @@ function updateSeries(seriesItems: SeriesItem[]): UpdateDataAction {
 }
 
 function append(
-  type: "append-full" | "append-current",
+  type: "append-full" | "append-current" | "append-playback-head",
   series: SeriesItem,
   items: DataItem[],
 ): UpdateDataAction {
@@ -81,6 +83,244 @@ function xValues(impl: TimestampDatasetsBuilderImpl, view: Viewport, configIndex
 }
 
 describe("TimestampDatasetsBuilderImpl", () => {
+  it("returns the latest exact value at or before playback time across all stores", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("legend", 0);
+    const exactTime = { sec: 2, nsec: 123 };
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [
+        { ...makeItem(1, 1), value: 1n, receiveTime: { sec: 1, nsec: 0 } },
+        { ...makeItem(5, 5), value: "future", receiveTime: { sec: 5, nsec: 0 } },
+      ]),
+      append("append-playback-head", series, [
+        { ...makeItem(2, 2), value: "earlier tie", receiveTime: { sec: 2, nsec: 0 } },
+        { ...makeItem(2, 3), value: exactTime, receiveTime: { sec: 2, nsec: 0 } },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 2, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([exactTime]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 0, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([undefined]);
+  });
+
+  it("uses sorted header stamps rather than receive order for current values", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("header-legend", 0, { timestampMethod: "headerStamp" });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [
+        {
+          ...makeItem(9, 9),
+          value: "nine",
+          receiveTime: { sec: 1, nsec: 0 },
+          headerStamp: { sec: 9, nsec: 0 },
+        },
+        {
+          ...makeItem(2, 2),
+          value: "two",
+          receiveTime: { sec: 2, nsec: 0 },
+          headerStamp: { sec: 2, nsec: 0 },
+        },
+        {
+          ...makeItem(5, 5),
+          value: "five",
+          receiveTime: { sec: 3, nsec: 0 },
+          headerStamp: { sec: 5, nsec: 0 },
+        },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 4, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual(["two"]);
+  });
+
+  it("keeps the last exact current value even when drawing deduplicates the point", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("current-exact-tie", 0);
+    const receiveTime = { sec: 2, nsec: 3 };
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-current", series, [
+        { ...makeItem(2, 7), receiveTime, value: "first" },
+        { ...makeItem(2, 7), receiveTime, value: 9_007_199_254_740_993n },
+      ]),
+    ]);
+
+    expect(impl.getViewportDatasets(viewport())[0]?.data).toEqual([{ x: 2, y: 7, value: "first" }]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), receiveTime).currentValuesByConfigIndex,
+    ).toEqual([9_007_199_254_740_993n]);
+  });
+
+  it.each([
+    { expected: "full", order: ["current", "full"] as const },
+    { expected: "current", order: ["full", "current"] as const },
+  ])("uses action order for equal-time full/current ties: $order", ({ expected, order }) => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries(`action-${order.join("-")}`, 0);
+    const receiveTime = { sec: 4, nsec: 0 };
+    const actions = order.map(
+      (source): UpdateDataAction =>
+        append(source === "full" ? "append-full" : "append-current", series, [
+          {
+            ...makeItem(4, 4),
+            receiveTime,
+            value: source,
+          },
+        ]),
+    );
+    impl.applyActions([updateSeries([series]), ...actions]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), receiveTime).currentValuesByConfigIndex,
+    ).toEqual([expected]);
+  });
+
+  it("orders collided Float64 header x values by exact Time", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("header-collision", 0, { timestampMethod: "headerStamp" });
+    const earlier = { sec: 1_000_000_000, nsec: 1 };
+    const later = { sec: 1_000_000_000, nsec: 2 };
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [
+        { ...makeItem(1, 2), headerStamp: later, value: "later" },
+        { ...makeItem(1, 1), headerStamp: earlier, value: "earlier" },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), earlier).currentValuesByConfigIndex,
+    ).toEqual(["earlier"]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), later).currentValuesByConfigIndex,
+    ).toEqual(["later"]);
+  });
+
+  it("orders noncanonical header times independently of their normalized x values", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("noncanonical-header-order", 0, {
+      timestampMethod: "headerStamp",
+    });
+    const earlierByExactCompare = { sec: 1, nsec: 2_000_000_000 };
+    const laterByExactCompare = { sec: 2, nsec: 0 };
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [
+        {
+          ...makeItem(3, 3),
+          headerStamp: earlierByExactCompare,
+          value: "earlier",
+        },
+        {
+          ...makeItem(2, 2),
+          headerStamp: laterByExactCompare,
+          value: "later",
+        },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), earlierByExactCompare)
+        .currentValuesByConfigIndex,
+    ).toEqual(["earlier"]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), laterByExactCompare)
+        .currentValuesByConfigIndex,
+    ).toEqual(["later"]);
+  });
+
+  it("bounds an oversized header playback-head action before encoding", () => {
+    let encoded = 0;
+    const impl = new TimestampDatasetsBuilderImpl({
+      onStoredPointEncoded: () => encoded++,
+    });
+    const series = makeSeries("bounded-head", 0, { timestampMethod: "headerStamp" });
+    const items = Array.from({ length: 100_000 }, (_, index) => {
+      const sec = 99_999 - index;
+      return {
+        ...makeItem(sec, sec),
+        headerStamp: { sec, nsec: 0 },
+        value: sec,
+      };
+    });
+    impl.applyActions([updateSeries([series]), append("append-playback-head", series, items)]);
+
+    expect(impl.getLegendStorageStats()).toEqual({
+      "bounded-head": {
+        currentCapacity: 0,
+        currentLength: 0,
+        peakCurrentCapacity: 0,
+        playbackHeadCapacity: 50_000,
+        playbackHeadLength: 37_500,
+        peakPlaybackHeadCapacity: 50_000,
+      },
+    });
+    expect(encoded).toBe(0);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 62_500, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([62_500]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 62_499, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([undefined]);
+  });
+
+  it("looks up current values logarithmically", () => {
+    let visited = 0;
+    const impl = new TimestampDatasetsBuilderImpl({
+      onCurrentValuePointVisited: () => visited++,
+    });
+    const series = makeSeries("legend-probe", 0);
+    impl.applyActions([
+      updateSeries([series]),
+      append(
+        "append-full",
+        series,
+        Array.from({ length: 100_000 }, (_, index) => makeItem(index, index)),
+      ),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport({ min: 99_990 }), {
+        sec: 50_000,
+        nsec: 0,
+      }).currentValuesByConfigIndex,
+    ).toEqual([50_000]);
+    expect(visited).toBeLessThanOrEqual(20);
+  });
+
+  it("keeps worker storage reusable across consecutive combined transfers", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("legend-transfer", 0);
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [makeItem(1, 11), makeItem(2, 22)]),
+    ]);
+
+    for (let iteration = 0; iteration < 2; iteration++) {
+      const result = impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 2, nsec: 0 });
+      const transferables = collectTransferableBuffers(result);
+      const clone = structuredClone(result, { transfer: transferables });
+      clone.datasets.forEach(restoreUnpackedDataAccessor);
+      expect(clone.datasets[0]?.data).toEqual([
+        { x: 1, y: 11, value: 11 },
+        { x: 2, y: 22, value: 22 },
+      ]);
+      expect(clone.currentValuesByConfigIndex).toEqual([22]);
+      expect(transferables.every((buffer) => buffer.byteLength === 0)).toBe(true);
+    }
+  });
+
   it("keeps one datum on either side of the visible x range", () => {
     const impl = new TimestampDatasetsBuilderImpl();
     const series = makeSeries("viewport", 0);

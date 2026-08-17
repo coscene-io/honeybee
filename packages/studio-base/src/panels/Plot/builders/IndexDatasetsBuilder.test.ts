@@ -119,6 +119,29 @@ describe("IndexDatasetsBuilder", () => {
     });
   });
 
+  it("keeps the last non-empty path match for the current value only", async () => {
+    const builder = new IndexDatasetsBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo.val" }]));
+    const message = (sec: number, value: unknown) => ({
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: { sec, nsec: 0 },
+      sizeInBytes: 0,
+      message: value,
+    });
+
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime: { sec: 4, nsec: 0 },
+        messages: [message(1, { val: 1 }), message(2, 2), message(3, { val: 3 }), message(4, 4)],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets(undefined, { sec: 4, nsec: 0 });
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([3]);
+  });
+
   it("should return the existing dataset range when no input messages", async () => {
     const builder = new IndexDatasetsBuilder();
 
@@ -157,7 +180,7 @@ describe("IndexDatasetsBuilder", () => {
     expect(rangeAgain).toEqual(range);
   });
 
-  it("should apply a math function", async () => {
+  it("applies a math function to both the plotted and current value", async () => {
     const builder = new IndexDatasetsBuilder();
 
     builder.setSeries(
@@ -199,6 +222,13 @@ describe("IndexDatasetsBuilder", () => {
         }),
       ],
     });
+
+    const resultWithCurrentValue = await builder.getViewportDatasets(undefined, {
+      sec: 0,
+      nsec: 0,
+    });
+    expect(resultWithCurrentValue.currentValuesByConfigIndex).toEqual([3]);
+    expect(resultWithCurrentValue.datasetsByConfigIndex[0]?.data[0]?.y).toBe(3);
   });
 
   it("supports toggling series enabled state", async () => {
@@ -338,6 +368,54 @@ describe("IndexDatasetsBuilder", () => {
         }),
       ],
     });
+  });
+
+  it("returns the latest exact value and clears it on seek, inactive, and source change", async () => {
+    const builder = new IndexDatasetsBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo.val" }]));
+    const currentTime = { sec: 10, nsec: 0 };
+    const message = (value: string | bigint) => ({
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: currentTime,
+      sizeInBytes: 0,
+      message: { val: value },
+    });
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 1, messages: [message("001.50")] }),
+    );
+    await expect(builder.getViewportDatasets(undefined, currentTime)).resolves.toEqual(
+      expect.objectContaining({ currentValuesByConfigIndex: ["001.50"] }),
+    );
+
+    builder.handlePlayerState(buildPlayerState({ currentTime, lastSeekTime: 2, messages: [] }));
+    let result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime,
+        lastSeekTime: 2,
+        messages: [message(9_007_199_254_740_993n)],
+      }),
+    );
+    result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.currentValuesByConfigIndex).toEqual([9_007_199_254_740_993n]);
+
+    builder.handlePlayerState({ ...buildPlayerState(), activeData: undefined });
+    result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).not.toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 2, messages: [message("7")] }),
+    );
+    builder.handlePlayerState({ ...buildPlayerState(), activeData: undefined, playerId: "2" });
+    result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
   });
 
   it("streams the latest index datasets in bounded chunks and series order", async () => {

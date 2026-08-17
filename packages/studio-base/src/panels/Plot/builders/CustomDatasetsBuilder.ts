@@ -79,6 +79,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
   #remoteQueue: Promise<void> = Promise.resolve();
   #lastSeekTime = 0;
+  #playerId?: string;
   #series: Immutable<CustomDatasetsSeriesItem[]> = [];
   #xBoundsRevision = 0;
   #xBoundsMutations: XBoundsMutation[] = [];
@@ -188,20 +189,33 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     if (this.#destroyed) {
       return;
     }
+    const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
+    this.#playerId = state.playerId;
     const activeData = state.activeData;
     if (!activeData) {
+      if (sourceChanged) {
+        this.#resetForSourceChange();
+      }
       return;
     }
-    const didSeek = activeData.lastSeekTime !== this.#lastSeekTime;
+    const didSeek = sourceChanged || activeData.lastSeekTime !== this.#lastSeekTime;
     this.#lastSeekTime = activeData.lastSeekTime;
     if (didSeek) {
-      if (this.#xParsedPath && !this.#rangeTopics.has(this.#xParsedPath.topicName)) {
-        this.#pendingDispatch.push({ type: "reset-current-x" });
-        this.#recordXReset("current");
-      }
-      for (const series of this.#series) {
-        if (!this.#rangeTopics.has(series.config.parsed.topicName)) {
-          this.#pendingDispatch.push({ type: "reset-current", series: series.config.key });
+      if (sourceChanged) {
+        this.#resetForSourceChange();
+      } else {
+        if (this.#xParsedPath && !this.#rangeTopics.has(this.#xParsedPath.topicName)) {
+          this.#pendingDispatch.push({ type: "reset-current-x" });
+          this.#recordXReset("current");
+        }
+        for (const series of this.#series) {
+          this.#pendingDispatch.push({
+            type: "reset-playback-head",
+            series: series.config.key,
+          });
+          if (!this.#rangeTopics.has(series.config.parsed.topicName)) {
+            this.#pendingDispatch.push({ type: "reset-current", series: series.config.key });
+          }
         }
       }
     }
@@ -219,7 +233,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       }
 
       for (const series of this.#series) {
-        if (!series.config.enabled || this.#rangeTopics.has(series.config.parsed.topicName)) {
+        if (!series.config.enabled) {
           continue;
         }
         const items = readMessagePathItems(
@@ -228,7 +242,9 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
           getMathFn(series.config.parsed),
         );
         this.#pendingDispatch.push({
-          type: "append-current",
+          type: this.#rangeTopics.has(series.config.parsed.topicName)
+            ? "append-playback-head"
+            : "append-current",
           series: series.config.key,
           items: encodeValueItems(items),
         });
@@ -290,6 +306,25 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     return combineBounds(this.#xSynchronizedBounds, this.#xFullBounds, this.#xCurrentBounds);
+  }
+
+  #resetForSourceChange(): void {
+    if (this.#xParsedPath) {
+      this.#pendingDispatch.push({ type: "reset-full-x" }, { type: "reset-current-x" });
+      this.#xValuesCursor = new BlockTopicCursor(this.#xParsedPath.topicName);
+      this.#recordXReset("both");
+    }
+    this.#series = this.#series.map((series) => {
+      this.#pendingDispatch.push(
+        { type: "reset-full", series: series.config.key },
+        { type: "reset-current", series: series.config.key },
+        { type: "reset-playback-head", series: series.config.key },
+      );
+      return {
+        config: series.config,
+        blockCursor: new BlockTopicCursor(series.config.parsed.topicName),
+      };
+    });
   }
 
   public setXPath(path: Immutable<MessagePath> | undefined): void {
@@ -358,6 +393,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         this.#pendingDispatch.push(
           { type: "reset-full", series: series.config.key },
           { type: "reset-current", series: series.config.key },
+          { type: "reset-playback-head", series: series.config.key },
         );
         return { config: series.config, blockCursor: new BlockTopicCursor(topic) };
       }
@@ -426,7 +462,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         }
 
         this.#rangeTopics.delete(topic);
-        const resets = this.#getTopicResetActions(topic);
+        const resets = this.#getTopicResetActions(topic, { resetPlaybackHead: true });
         let xBoundsRevision: number | undefined;
         if (this.#xParsedPath?.topicName === topic) {
           this.#xValuesCursor = new BlockTopicCursor(topic);
@@ -536,6 +572,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
 
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
+    currentValuesAt?: Immutable<Time>,
   ): Promise<GetViewportDatasetsResult> {
     if (this.#destroyed) {
       return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
@@ -548,7 +585,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         if (dispatch.length > 0) {
           await remote.updateData(transferTypedArrays(dispatch));
         }
-        const datasets = await remote.getViewportDatasets(viewport);
+        const datasets = await remote.getViewportDatasets(viewport, currentValuesAt);
         const xRange = await remote.getXRange();
         return { datasets, xRange };
       });
@@ -701,7 +738,10 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     return dispatch;
   }
 
-  #getTopicResetActions(topic: string): Immutable<UpdateDataAction>[] {
+  #getTopicResetActions(
+    topic: string,
+    options: { resetPlaybackHead?: boolean } = {},
+  ): Immutable<UpdateDataAction>[] {
     const resets: Immutable<UpdateDataAction>[] = [];
     if (this.#xParsedPath?.topicName === topic) {
       resets.push({ type: "reset-full-x" }, { type: "reset-current-x" });
@@ -712,6 +752,9 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
           { type: "reset-full", series: series.config.key },
           { type: "reset-current", series: series.config.key },
         );
+        if (options.resetPlaybackHead === true) {
+          resets.push({ type: "reset-playback-head", series: series.config.key });
+        }
       }
     }
     return resets;

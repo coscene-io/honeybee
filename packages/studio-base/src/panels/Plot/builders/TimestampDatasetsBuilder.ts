@@ -72,6 +72,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   #remoteQueue: Promise<void> = Promise.resolve();
 
   #lastSeekTime = 0;
+  #playerId?: string;
 
   #series: Immutable<TimestampSeriesItem[]> = [];
 
@@ -143,34 +144,45 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     if (this.#destroyed) {
       return;
     }
+    const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
+    this.#playerId = state.playerId;
     const activeData = state.activeData;
     if (!activeData) {
+      if (sourceChanged) {
+        this.#resetForSourceChange();
+      }
       return;
     }
 
-    const didSeek = activeData.lastSeekTime !== this.#lastSeekTime;
+    const didSeek = sourceChanged || activeData.lastSeekTime !== this.#lastSeekTime;
     this.#lastSeekTime = activeData.lastSeekTime;
 
     const msgEvents = activeData.messages;
     if (didSeek) {
-      if (this.#xAxisMode === "partialTimestamp") {
-        return;
-      }
-      // Reset disabled series too: enabling one after a seek must not reveal its pre-seek current
-      // frame. Range-owned topics keep their independently replayed storage.
-      for (const series of this.#series) {
-        if (!this.#rangeTopics.has(series.config.parsed.topicName)) {
+      // Reset disabled series too: enabling one after a discontinuity must not reveal a stale
+      // current frame. A source switch also clears full history immediately, before the range
+      // ownership effect can issue its resetAll update.
+      if (sourceChanged) {
+        this.#resetForSourceChange();
+      } else {
+        for (const series of this.#series) {
           this.#pendingDispatch.push({
-            type: "reset-current",
+            type: "reset-playback-head",
             series: series.config.key,
           });
+          if (!this.#rangeTopics.has(series.config.parsed.topicName)) {
+            this.#pendingDispatch.push({
+              type: "reset-current",
+              series: series.config.key,
+            });
+          }
         }
       }
     }
 
     if (msgEvents.length > 0) {
       for (const series of this.#series) {
-        if (!series.config.enabled || this.#rangeTopics.has(series.config.parsed.topicName)) {
+        if (!series.config.enabled) {
           continue;
         }
         const mathFn = series.config.parsed.modifier
@@ -186,7 +198,9 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         );
 
         this.#pendingDispatch.push({
-          type: "append-current",
+          type: this.#rangeTopics.has(series.config.parsed.topicName)
+            ? "append-playback-head"
+            : "append-current",
           series: series.config.key,
           items: pathItems,
         });
@@ -194,6 +208,23 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     }
 
     return { min: 0, max: toSec(subtractTime(activeData.endTime, activeData.startTime)) };
+  }
+
+  #resetForSourceChange(): void {
+    this.#series = this.#series.map((series) => {
+      this.#pendingDispatch.push({
+        type: "reset-playback-head",
+        series: series.config.key,
+      });
+      this.#pendingDispatch.push(
+        { type: "reset-full", series: series.config.key },
+        { type: "reset-current", series: series.config.key },
+      );
+      return {
+        config: series.config,
+        blockCursor: new BlockTopicCursor(series.config.parsed.topicName),
+      };
+    });
   }
 
   public async handleBlocks(
@@ -325,6 +356,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         this.#pendingDispatch.push(
           { type: "reset-full", series: series.config.key },
           { type: "reset-current", series: series.config.key },
+          { type: "reset-playback-head", series: series.config.key },
         );
         return {
           config: series.config,
@@ -427,6 +459,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
+    currentValuesAt?: Immutable<Time>,
   ): Promise<GetViewportDatasetsResult> {
     if (this.#destroyed) {
       return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
@@ -435,10 +468,11 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     const dispatch = this.#takePendingDispatch();
     const lifetime = this.#lifetime;
 
-    let datasets;
+    let response;
     try {
-      datasets = await this.#enqueueRemote(
-        async () => await getViewportDatasets(lifetime.leasePromise, dispatch, viewport),
+      response = await this.#enqueueRemote(
+        async () =>
+          await getViewportDatasets(lifetime.leasePromise, dispatch, viewport, currentValuesAt),
       );
     } catch (error) {
       if (!lifetime.abortController.signal.aborted) {
@@ -449,8 +483,14 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     if (lifetime.abortController.signal.aborted) {
       return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
     }
-    datasets.forEach(restoreUnpackedDataAccessor);
-    return { datasetsByConfigIndex: datasets, pathsWithMismatchedDataLengths: emptyPaths };
+    response.datasets.forEach(restoreUnpackedDataAccessor);
+    return {
+      datasetsByConfigIndex: response.datasets,
+      pathsWithMismatchedDataLengths: emptyPaths,
+      ...("currentValuesByConfigIndex" in response
+        ? { currentValuesByConfigIndex: response.currentValuesByConfigIndex }
+        : {}),
+    };
   }
 
   public async getCsvData(): Promise<CsvDataset[]> {
@@ -557,6 +597,12 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         { type: "reset-full", series: series.config.key },
         { type: "reset-current", series: series.config.key },
       );
+      if (expectedOwnership === "released") {
+        this.#pendingDispatch.push({
+          type: "reset-playback-head",
+          series: series.config.key,
+        });
+      }
       return {
         config: series.config,
         blockCursor: new BlockTopicCursor(topic),
@@ -610,12 +656,16 @@ async function getViewportDatasets(
   leasePromise: Promise<TimestampDatasetWorkerLease>,
   dispatch: Immutable<UpdateDataAction>[],
   viewport: Immutable<Viewport>,
+  currentValuesAt?: Immutable<Time>,
 ) {
   const { remote } = await leasePromise;
   if (dispatch.length > 0) {
     await remote.applyActions(dispatch);
   }
-  return await remote.getViewportDatasets(viewport);
+  if (currentValuesAt == undefined) {
+    return { datasets: await remote.getViewportDatasets(viewport) };
+  }
+  return await remote.getViewportDatasetsWithCurrentValues(viewport, currentValuesAt);
 }
 
 async function getCsvData(leasePromise: Promise<TimestampDatasetWorkerLease>) {

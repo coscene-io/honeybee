@@ -10,7 +10,12 @@ import { parseMessagePath } from "@foxglove/message-path";
 import { Time } from "@foxglove/studio";
 
 import { CustomDatasetsBuilderImpl } from "./CustomDatasetsBuilderImpl";
-import { encodeNumericItems, encodeValueItems, ValueItem } from "./CustomValueStore";
+import {
+  encodeNumericItems,
+  encodeValueItems,
+  ValueItem,
+  ValueItemBatch,
+} from "./CustomValueStore";
 import {
   MAX_CSV_DATUMS_PER_CHUNK,
   SeriesConfigKey,
@@ -51,6 +56,161 @@ function items(
 }
 
 describe("CustomDatasetsBuilderImpl", () => {
+  it("returns the latest exact receive-time value without leaking future history", () => {
+    const builder = new CustomDatasetsBuilderImpl();
+    const config = seriesItem("legend");
+    const exactTime = { sec: 2, nsec: 123 };
+    builder.updateData([
+      { type: "update-series-config", seriesItems: [config] },
+      {
+        type: "append-full",
+        series: config.key,
+        items: encodeValueItems(
+          items(
+            [1, 5],
+            [1n, "future"],
+            [
+              { sec: 1, nsec: 0 },
+              { sec: 5, nsec: 0 },
+            ],
+          ),
+        ),
+      },
+      {
+        type: "append-playback-head",
+        series: config.key,
+        items: encodeValueItems(
+          items(
+            [2, 3],
+            ["earlier tie", exactTime],
+            [
+              { sec: 2, nsec: 0 },
+              { sec: 2, nsec: 0 },
+            ],
+          ),
+        ),
+      },
+    ]);
+
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 2, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([exactTime]);
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 0, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([undefined]);
+  });
+
+  it("keeps the last exact current value for an equal-time numeric tie", () => {
+    const builder = new CustomDatasetsBuilderImpl();
+    const config = seriesItem("current-exact-tie");
+    const receiveTime = { sec: 2, nsec: 3 };
+    builder.updateData([
+      { type: "update-series-config", seriesItems: [config] },
+      {
+        type: "append-current",
+        series: config.key,
+        items: encodeValueItems(
+          items([7, 7], ["first", 9_007_199_254_740_993n], [receiveTime, receiveTime]),
+        ),
+      },
+    ]);
+
+    expect(builder.getViewportDatasets(viewport, receiveTime).currentValuesByConfigIndex).toEqual([
+      9_007_199_254_740_993n,
+    ]);
+  });
+
+  it.each([
+    { expected: "full", order: ["current", "full"] as const },
+    { expected: "current", order: ["full", "current"] as const },
+  ])("uses action order for equal-time full/current ties: $order", ({ expected, order }) => {
+    const builder = new CustomDatasetsBuilderImpl();
+    const config = seriesItem(`action-${order.join("-")}`);
+    const receiveTime = { sec: 4, nsec: 0 };
+    builder.updateData([
+      { type: "update-series-config", seriesItems: [config] },
+      ...order.map(
+        (source) =>
+          ({
+            type: source === "full" ? "append-full" : "append-current",
+            series: config.key,
+            items: encodeValueItems(items([4], [source], [receiveTime])),
+          }) as const,
+      ),
+    ]);
+
+    expect(builder.getViewportDatasets(viewport, receiveTime).currentValuesByConfigIndex).toEqual([
+      expected,
+    ]);
+  });
+
+  it("bounds a one-million-value playback-head action before materialization", () => {
+    const builder = new CustomDatasetsBuilderImpl();
+    const config = seriesItem("bounded-head");
+    const length = 1_000_000;
+    const batch: ValueItemBatch = {
+      values: new Float64Array(length),
+      receiveTimes: new BigUint64Array(length),
+      valueKinds: new Uint8Array(length),
+      valuePayloads: new BigUint64Array(length),
+      strings: [],
+      fallbackValues: [],
+      fallbackTimes: [],
+    };
+    for (let index = 0; index < length; index++) {
+      batch.values[index] = index;
+      batch.receiveTimes[index] = BigInt(index) * 1_000_000_000n;
+    }
+    builder.updateData([
+      { type: "update-series-config", seriesItems: [config] },
+      { type: "append-playback-head", series: config.key, items: batch },
+    ]);
+
+    expect(builder.getLegendStorageStats()).toEqual({
+      "bounded-head": {
+        currentCapacity: 0,
+        currentLength: 0,
+        peakCurrentCapacity: 0,
+        playbackHeadCapacity: 50_000,
+        playbackHeadLength: 37_500,
+        peakPlaybackHeadCapacity: 50_000,
+      },
+    });
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 999_999, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([999_999]);
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 962_499, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([undefined]);
+  });
+
+  it("looks up current values by receive time in logarithmic work independent of custom x", () => {
+    let visited = 0;
+    const builder = new CustomDatasetsBuilderImpl({
+      onCurrentValuePointVisited: () => visited++,
+    });
+    const config = seriesItem("legend-probe");
+    builder.updateData([
+      { type: "update-series-config", seriesItems: [config] },
+      {
+        type: "append-full",
+        series: config.key,
+        items: encodeValueItems(
+          items(
+            Array.from({ length: 100_000 }, (_, index) => index),
+            undefined,
+            Array.from({ length: 100_000 }, (_, index) => ({ sec: index, nsec: 0 })),
+          ),
+        ),
+      },
+    ]);
+
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 50_000, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([50_000]);
+    expect(visited).toBeLessThanOrEqual(20);
+  });
+
   it("preserves custom order and exact original value and receive-time types", () => {
     const builder = new CustomDatasetsBuilderImpl();
     const config = seriesItem("signal");
@@ -326,6 +486,9 @@ describe("CustomDatasetsBuilderImpl", () => {
       { x: 30, y: 30, receiveTime: { sec: 3, nsec: 0 }, value: 30 },
       { x: 20, y: 20, receiveTime: { sec: 2, nsec: 0 }, value: 20 },
     ]);
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 3, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([30]);
   });
 
   it("keeps prefix-only reconciliation stable across an intermediate flush", () => {
@@ -820,10 +983,10 @@ describe("CustomDatasetsBuilderImpl", () => {
       { type: "append-full", series: first.key, items: encodeValueItems(items([3, 4])) },
       { type: "append-full", series: second.key, items: encodeValueItems(items([5, 6])) },
     ]);
-    const firstResult = builder.getViewportDatasets(viewport);
+    const firstResult = builder.getViewportDatasets(viewport, { sec: 1, nsec: 0 });
     const firstTransferables = collectTransferableBuffers(firstResult);
     const firstClone = structuredClone(firstResult, { transfer: firstTransferables });
-    const secondResult = builder.getViewportDatasets(viewport);
+    const secondResult = builder.getViewportDatasets(viewport, { sec: 1, nsec: 0 });
     const secondTransferables = collectTransferableBuffers(secondResult);
     const secondClone = structuredClone(secondResult, { transfer: secondTransferables });
 
@@ -846,6 +1009,7 @@ describe("CustomDatasetsBuilderImpl", () => {
         { x: 1, y: 5, value: 5 },
         { x: 2, y: 6, value: 6 },
       ]);
+      expect(clone.currentValuesByConfigIndex).toEqual([4, 6]);
     }
   });
 });

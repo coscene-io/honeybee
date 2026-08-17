@@ -8,7 +8,7 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { transferTypedArrays } from "@foxglove/den/worker";
-import { Immutable } from "@foxglove/studio";
+import { Immutable, Time } from "@foxglove/studio";
 import {
   CustomDatasetsBuilderImpl,
   UpdateDataAction,
@@ -32,7 +32,7 @@ import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 export type CustomDatasetsBuilderSessionService = {
   getCsvData(): CsvDataset[];
   getCsvDataChunk(cursor: CsvDataCursor | undefined, maxDatums: number): CsvDataChunk;
-  getViewportDatasets(viewport: Viewport): GetViewportDatasetsResult;
+  getViewportDatasets(viewport: Viewport, currentValuesAt?: Time): GetViewportDatasetsResult;
   getXRange(): Bounds1D;
   updateData(actions: Immutable<UpdateDataAction[]>): void;
 };
@@ -62,8 +62,8 @@ Comlink.expose({
       getCsvDataChunk(cursor, maxDatums) {
         return builder.getCsvDataChunk(cursor, maxDatums);
       },
-      getViewportDatasets(viewport) {
-        return transferTypedArrays(builder.getViewportDatasets(viewport));
+      getViewportDatasets(viewport, currentValuesAt) {
+        return transferTypedArrays(builder.getViewportDatasets(viewport, currentValuesAt));
       },
       getXRange() {
         return builder.getXRange();

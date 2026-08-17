@@ -7,7 +7,7 @@
 
 import { allocatePointBudgets } from "@foxglove/den/collection";
 import { compare } from "@foxglove/rostime";
-import { Immutable } from "@foxglove/studio";
+import { Immutable, Time } from "@foxglove/studio";
 import {
   downsampleScatter,
   MAX_POINTS,
@@ -36,6 +36,7 @@ import {
 } from "./IDatasetsBuilder";
 import type { Dataset } from "../ChartRenderer";
 import { attachUnpackedDataAccessor, PackedDatasetWriter } from "../PackedDataset";
+import { OriginalValue } from "../datum";
 
 export type { ValueItem } from "./CustomValueStore";
 
@@ -43,10 +44,15 @@ type Series = {
   config: Immutable<SeriesItem>;
   current: CompactValueStore;
   full: CompactValueStore;
+  /** Exact current-frame values, independent of draw reconciliation and deduplication. */
+  legendCurrent: CompactValueStore;
+  /** Bounded current-frame values for range-owned replay topics; never rendered. */
+  playbackHead: CompactValueStore;
 };
 
 type ResetSeriesFullAction = { type: "reset-full"; series: SeriesConfigKey };
 type ResetSeriesCurrentAction = { type: "reset-current"; series: SeriesConfigKey };
+type ResetSeriesPlaybackHeadAction = { type: "reset-playback-head"; series: SeriesConfigKey };
 type ResetCurrentXAction = { type: "reset-current-x" };
 type ResetFullXAction = { type: "reset-full-x" };
 type UpdateCurrentXAction = { type: "append-current-x"; items: NumericItemBatch };
@@ -61,18 +67,25 @@ type UpdateSeriesFullAction = {
   series: SeriesConfigKey;
   items: ValueItemBatch;
 };
+type UpdateSeriesPlaybackHeadAction = {
+  type: "append-playback-head";
+  series: SeriesConfigKey;
+  items: ValueItemBatch;
+};
 type UpdateSeriesConfigAction = { type: "update-series-config"; seriesItems: SeriesItem[] };
 
 export type UpdateDataAction =
   | UpdateSeriesConfigAction
   | ResetSeriesFullAction
   | ResetSeriesCurrentAction
+  | ResetSeriesPlaybackHeadAction
   | ResetCurrentXAction
   | ResetFullXAction
   | UpdateCurrentXAction
   | UpdateFullXAction
   | UpdateSeriesCurrentAction
-  | UpdateSeriesFullAction;
+  | UpdateSeriesFullAction
+  | UpdateSeriesPlaybackHeadAction;
 
 export type CustomDatasetStorageStats = {
   x: {
@@ -102,6 +115,18 @@ export type CustomDatasetQueryStats = {
   scannedPoints: number;
 };
 
+export type CustomLegendStorageStats = Record<
+  string,
+  {
+    currentCapacity: number;
+    currentLength: number;
+    peakCurrentCapacity: number;
+    playbackHeadCapacity: number;
+    playbackHeadLength: number;
+    peakPlaybackHeadCapacity: number;
+  }
+>;
+
 const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 const RETAINED_CURRENT_DATUMS_PER_SERIES = 37_500;
 
@@ -119,6 +144,11 @@ export class CustomDatasetsBuilderImpl {
   };
   #seriesByKey = new Map<SeriesConfigKey, Series>();
   #lastViewportQueryStats: CustomDatasetQueryStats = createQueryStats();
+  readonly #onCurrentValuePointVisited?: () => void;
+
+  public constructor(options: { onCurrentValuePointVisited?: () => void } = {}) {
+    this.#onCurrentValuePointVisited = options.onCurrentValuePointVisited;
+  }
 
   public updateData(actions: Immutable<UpdateDataAction[]>): void {
     const currentPlan = this.#buildCurrentPlan(actions);
@@ -133,7 +163,10 @@ export class CustomDatasetsBuilderImpl {
     }
   }
 
-  public getViewportDatasets(viewport: Immutable<Viewport>): GetViewportDatasetsResult {
+  public getViewportDatasets(
+    viewport: Immutable<Viewport>,
+    currentValuesAt?: Immutable<Time>,
+  ): GetViewportDatasetsResult {
     const queryStats = createQueryStats();
     this.#lastViewportQueryStats = queryStats;
     const plans: PairedSeriesPlan[] = [];
@@ -235,7 +268,13 @@ export class CustomDatasetsBuilderImpl {
       });
     }
 
-    return { datasetsByConfigIndex: datasets, pathsWithMismatchedDataLengths };
+    return {
+      datasetsByConfigIndex: datasets,
+      pathsWithMismatchedDataLengths,
+      ...(currentValuesAt != undefined
+        ? { currentValuesByConfigIndex: this.#getCurrentValues(currentValuesAt) }
+        : {}),
+    };
   }
 
   public getCsvData(): CsvDataset[] {
@@ -330,6 +369,22 @@ export class CustomDatasetsBuilderImpl {
     };
   }
 
+  /** Assertion surface for the bounded, non-rendered legend accumulators. */
+  public getLegendStorageStats(): CustomLegendStorageStats {
+    const stats: CustomLegendStorageStats = {};
+    for (const [key, value] of this.#seriesByKey) {
+      stats[key] = {
+        currentCapacity: value.legendCurrent.capacity,
+        currentLength: value.legendCurrent.length,
+        peakCurrentCapacity: value.legendCurrent.peakCapacity,
+        playbackHeadCapacity: value.playbackHead.capacity,
+        playbackHeadLength: value.playbackHead.length,
+        peakPlaybackHeadCapacity: value.playbackHead.peakCapacity,
+      };
+    }
+    return stats;
+  }
+
   /** Deterministic probe for how much source storage the last viewport query inspected. */
   public getLastViewportQueryStats(): CustomDatasetQueryStats {
     return { ...this.#lastViewportQueryStats };
@@ -361,10 +416,45 @@ export class CustomDatasetsBuilderImpl {
   #applyNonCurrentAction(action: Immutable<UpdateDataAction>): void {
     switch (action.type) {
       case "reset-current-x":
-      case "reset-current":
       case "append-current-x":
-      case "append-current":
         break;
+      case "reset-current": {
+        const series = this.#seriesByKey.get(action.series);
+        if (series) {
+          series.legendCurrent = new CompactValueStore();
+        }
+        break;
+      }
+      case "append-current": {
+        const series = this.#seriesByKey.get(action.series);
+        if (series) {
+          series.legendCurrent = series.legendCurrent.appendBatchBoundedTail(
+            action.items,
+            MAX_CURRENT_DATUMS_PER_SERIES,
+            RETAINED_CURRENT_DATUMS_PER_SERIES,
+          );
+        }
+        break;
+      }
+      case "reset-playback-head": {
+        const series = this.#seriesByKey.get(action.series);
+        if (series) {
+          series.playbackHead = new CompactValueStore();
+        }
+        break;
+      }
+      case "append-playback-head": {
+        const series = this.#seriesByKey.get(action.series);
+        if (!series) {
+          return;
+        }
+        series.playbackHead = series.playbackHead.appendBatchBoundedTail(
+          action.items,
+          MAX_CURRENT_DATUMS_PER_SERIES,
+          RETAINED_CURRENT_DATUMS_PER_SERIES,
+        );
+        break;
+      }
       case "reset-full-x":
         this.#xValues.full = new CompactNumericStore();
         break;
@@ -385,6 +475,10 @@ export class CustomDatasetsBuilderImpl {
           return;
         }
         series.full.appendBatch(action.items);
+        const latestActionTime = getLatestBatchReceiveTime(action.items);
+        if (latestActionTime != undefined) {
+          series.legendCurrent = series.legendCurrent.retainAfterReceiveTime(latestActionTime);
+        }
         break;
       }
       case "update-series-config":
@@ -450,6 +544,9 @@ export class CustomDatasetsBuilderImpl {
           }
           break;
         }
+        case "reset-playback-head":
+        case "append-playback-head":
+          break;
         case "append-full": {
           const current = series.get(action.series);
           if (!current) {
@@ -510,12 +607,87 @@ export class CustomDatasetsBuilderImpl {
         config,
         current: new CompactValueStore(),
         full: new CompactValueStore(),
+        legendCurrent: new CompactValueStore(),
+        playbackHead: new CompactValueStore(),
       };
       existingSeries.config = config;
       newSeries.set(config.key, existingSeries);
     }
     this.#seriesByKey = newSeries;
   }
+
+  #getCurrentValues(currentValuesAt: Immutable<Time>): readonly (OriginalValue | undefined)[] {
+    const values: Array<OriginalValue | undefined> = [];
+    for (const series of this.#seriesByKey.values()) {
+      if (!series.config.enabled) {
+        continue;
+      }
+      let candidate: CurrentValueCandidate | undefined;
+      candidate = chooseLaterCandidate(
+        candidate,
+        getCurrentValueCandidate(series.full, currentValuesAt, 0, this.#onCurrentValuePointVisited),
+      );
+      candidate = chooseLaterCandidate(
+        candidate,
+        getCurrentValueCandidate(
+          series.legendCurrent,
+          currentValuesAt,
+          1,
+          this.#onCurrentValuePointVisited,
+        ),
+      );
+      candidate = chooseLaterCandidate(
+        candidate,
+        getCurrentValueCandidate(
+          series.playbackHead,
+          currentValuesAt,
+          2,
+          this.#onCurrentValuePointVisited,
+        ),
+      );
+      values[series.config.configIndex] = candidate?.value;
+    }
+    return values;
+  }
+}
+
+type CurrentValueCandidate = {
+  priority: number;
+  time: Time;
+  value: OriginalValue;
+};
+
+function getCurrentValueCandidate(
+  store: CompactValueStore,
+  currentValuesAt: Immutable<Time>,
+  priority: number,
+  onVisited?: () => void,
+): CurrentValueCandidate | undefined {
+  const index = store.findLatestIndexAtOrBefore(currentValuesAt, onVisited);
+  if (index == undefined) {
+    return undefined;
+  }
+  return {
+    priority,
+    time: store.getReceiveTime(index),
+    value: store.getOriginalValue(index),
+  };
+}
+
+function chooseLaterCandidate(
+  current: CurrentValueCandidate | undefined,
+  candidate: CurrentValueCandidate | undefined,
+): CurrentValueCandidate | undefined {
+  if (candidate == undefined) {
+    return current;
+  }
+  if (current == undefined) {
+    return candidate;
+  }
+  const timeComparison = compare(candidate.time, current.time);
+  return timeComparison > 0 || (timeComparison === 0 && candidate.priority > current.priority)
+    ? candidate
+    : current;
 }
 
 type CurrentStore<T> = {
@@ -706,6 +878,19 @@ function getLastBatchReceiveTime(
     throw new Error("Custom plot numeric batch columns have mismatched lengths");
   }
   return batch.values.length > 0 ? decodeBatchTime(batch, batch.values.length - 1) : fallback;
+}
+
+function getLatestBatchReceiveTime(
+  batch: Immutable<NumericItemBatch>,
+): ReturnType<CompactValueStore["getReceiveTime"]> | undefined {
+  let latest: ReturnType<CompactValueStore["getReceiveTime"]> | undefined;
+  for (let index = 0; index < batch.values.length; index++) {
+    const receiveTime = decodeBatchTime(batch, index);
+    if (latest == undefined || compare(receiveTime, latest) > 0) {
+      latest = receiveTime;
+    }
+  }
+  return latest;
 }
 
 function materializeNumericCurrent(

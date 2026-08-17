@@ -8,7 +8,7 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { allocatePointBudgets } from "@foxglove/den/collection";
-import { fromNanoSec, isTime, toNanoSec } from "@foxglove/rostime";
+import { compare, fromNanoSec, isTime, toNanoSec } from "@foxglove/rostime";
 import { Immutable, Time } from "@foxglove/studio";
 import {
   continueDownsample,
@@ -44,6 +44,10 @@ type Series = {
   config: Immutable<SeriesItem>;
   current: CompactSeriesData;
   full: CompactSeriesData;
+  /** Exact current-frame values, independent of draw reconciliation and deduplication. */
+  legendCurrent: CompactSeriesData;
+  /** Bounded current-frame values for range-owned replay topics; never rendered. */
+  playbackHead: CompactSeriesData;
   prefixRevision: number;
   windowExtremaCache?: WindowExtremaCache;
   downsampleCache?: {
@@ -57,6 +61,7 @@ type Series = {
 
 type ResetSeriesFullAction = { type: "reset-full"; series: SeriesConfigKey };
 type ResetSeriesCurrentAction = { type: "reset-current"; series: SeriesConfigKey };
+type ResetSeriesPlaybackHeadAction = { type: "reset-playback-head"; series: SeriesConfigKey };
 type UpdateSeriesCurrentAction = {
   type: "append-current";
   series: SeriesConfigKey;
@@ -67,14 +72,21 @@ type UpdateSeriesFullAction = {
   series: SeriesConfigKey;
   items: DataItem[];
 };
+type UpdateSeriesPlaybackHeadAction = {
+  type: "append-playback-head";
+  series: SeriesConfigKey;
+  items: DataItem[];
+};
 type UpdateSeriesConfigAction = { type: "update-series-config"; seriesItems: SeriesItem[] };
 
 export type UpdateDataAction =
   | UpdateSeriesConfigAction
   | ResetSeriesFullAction
   | ResetSeriesCurrentAction
+  | ResetSeriesPlaybackHeadAction
   | UpdateSeriesCurrentAction
-  | UpdateSeriesFullAction;
+  | UpdateSeriesFullAction
+  | UpdateSeriesPlaybackHeadAction;
 
 const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 const RETAINED_CURRENT_DATUMS_PER_SERIES = 37_500;
@@ -215,10 +227,14 @@ type EncodedBatch = {
 
 class CompactSeriesData {
   public length = 0;
-  #capacity = 0;
+  public capacity = 0;
+  public peakCapacity = 0;
   #xy = new Float64Array();
   #receiveTimes = new BigUint64Array();
   #headerStamps = new BigUint64Array();
+  /** Store indexes sorted by exact configured Time, then append order. */
+  #timeOrder = new Uint32Array();
+  #timeOrdering?: "headerStamp" | "receiveTime";
   #valueKinds = new Uint8Array();
   #valuePayloads = new BigUint64Array();
   #xMin = Infinity;
@@ -229,9 +245,11 @@ class CompactSeriesData {
   readonly #receiveTimeCodec = new StoredTimeCodec();
   readonly #headerStampCodec = new StoredTimeCodec();
   readonly #onPointEncoded?: () => void;
+  readonly #capacityLimit?: number;
 
-  public constructor(onPointEncoded?: () => void) {
+  public constructor(onPointEncoded?: () => void, capacityLimit?: number) {
     this.#onPointEncoded = onPointEncoded;
+    this.#capacityLimit = capacityLimit;
   }
 
   public getX(index: number): number {
@@ -294,6 +312,40 @@ class CompactSeriesData {
     return low;
   }
 
+  /** Returns the store index of the last exact configured timestamp at or before `target`. */
+  public findLatestIndexAtOrBefore(
+    target: Immutable<Time>,
+    timestampMethod: "headerStamp" | "receiveTime",
+    onVisited?: () => void,
+  ): number | undefined {
+    const upperBound = this.#upperBoundTimeRank(target, timestampMethod, onVisited);
+    return upperBound > 0 ? this.#timeOrder[upperBound - 1] : undefined;
+  }
+
+  #upperBoundTimeRank(
+    target: Immutable<Time>,
+    timestampMethod: "headerStamp" | "receiveTime",
+    onVisited?: () => void,
+  ): number {
+    this.#ensureTimeOrder(timestampMethod);
+    let low = 0;
+    let high = this.length;
+    while (low < high) {
+      onVisited?.();
+      const mid = Math.floor((low + high) / 2);
+      const timestamp = this.#getConfiguredTime(this.#timeOrder[mid]!, timestampMethod);
+      if (timestamp != undefined && compare(timestamp, target) <= 0) {
+        low = mid + 1;
+      } else if (timestamp == undefined) {
+        // Missing header stamps sort before real values and are never returned as candidates.
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
+  }
+
   public appendItems(
     items: Immutable<DataItem[]>,
     ordering: "headerStamp" | "receiveTime",
@@ -304,13 +356,97 @@ class CompactSeriesData {
     if (batch.length === 0) {
       return true;
     }
+    const previousLength = this.length;
     const appendedAtEnd = this.length === 0 || this.getX(this.length - 1) <= batch.xy[0]!;
     if (appendedAtEnd) {
       this.#appendOrderedBatch(batch, duplicatePolicy);
+      this.#mergeTimeOrder(previousLength, ordering);
     } else {
       this.#mergeOrderedBatch(batch, duplicatePolicy);
+      this.#rebuildTimeOrder(ordering);
     }
     return appendedAtEnd;
+  }
+
+  /**
+   * Appends into a non-rendered accumulator without ever encoding more than its retained bound.
+   * Retention uses exact configured Time; equal-time values retain global append order.
+   */
+  public appendItemsBounded(
+    items: Immutable<DataItem[]>,
+    ordering: "headerStamp" | "receiveTime",
+    maximumLength: number,
+    retainedLength: number,
+  ): CompactSeriesData {
+    if (
+      !Number.isSafeInteger(maximumLength) ||
+      !Number.isSafeInteger(retainedLength) ||
+      retainedLength < 0 ||
+      maximumLength < retainedLength
+    ) {
+      throw new RangeError("Invalid timestamp legend retention limits");
+    }
+    if (this.length + items.length <= maximumLength) {
+      this.appendItems(items, ordering, "preserve");
+      return this;
+    }
+
+    this.#ensureTimeOrder(ordering);
+    const existingIndexes = Array.from(
+      this.#timeOrder.subarray(Math.max(0, this.length - retainedLength), this.length),
+    );
+    const newIndexes = Array.from({ length: items.length }, (_, index) => index).filter(
+      (index) => this.#getItemConfiguredTime(items[index]!, ordering) != undefined,
+    );
+    newIndexes.sort((left, right) => {
+      const timeComparison = compare(
+        this.#getItemConfiguredTime(items[left]!, ordering)!,
+        this.#getItemConfiguredTime(items[right]!, ordering)!,
+      );
+      return timeComparison !== 0 ? timeComparison : left - right;
+    });
+    const retainedNewIndexes = newIndexes.slice(Math.max(0, newIndexes.length - retainedLength));
+    const candidates: Array<{ appendOrder: number; item: DataItem; time: Time }> = [
+      ...existingIndexes.map((index) => ({
+        appendOrder: index,
+        item: this.#getDataItem(index),
+        time: this.#getConfiguredTime(index, ordering)!,
+      })),
+      ...retainedNewIndexes.map((index) => ({
+        appendOrder: this.length + index,
+        item: items[index]!,
+        time: this.#getItemConfiguredTime(items[index]!, ordering)!,
+      })),
+    ];
+    candidates.sort((left, right) => {
+      const timeComparison = compare(left.time, right.time);
+      return timeComparison !== 0 ? timeComparison : left.appendOrder - right.appendOrder;
+    });
+    const retained = candidates
+      .slice(Math.max(0, candidates.length - retainedLength))
+      .map(({ item }) => item);
+    const result = new CompactSeriesData(this.#onPointEncoded, maximumLength);
+    result.appendItems(retained, ordering, "preserve");
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
+    return result;
+  }
+
+  /** Removes current values covered by a later full action at the exact configured timestamp. */
+  public retainAfterConfiguredTime(
+    target: Immutable<Time>,
+    ordering: "headerStamp" | "receiveTime",
+  ): CompactSeriesData {
+    const firstRetained = this.#upperBoundTimeRank(target, ordering);
+    if (firstRetained === 0) {
+      return this;
+    }
+    const result = new CompactSeriesData(this.#onPointEncoded, this.#capacityLimit);
+    const retained = Array.from(this.#timeOrder.subarray(firstRetained, this.length), (index) =>
+      this.#getDataItem(index),
+    );
+    result.appendItems(retained, ordering, "preserve");
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
+    return result;
   }
 
   public sliceFrom(start: number): CompactSeriesData {
@@ -318,7 +454,8 @@ class CompactSeriesData {
     if (first === 0) {
       return this;
     }
-    const result = new CompactSeriesData(this.#onPointEncoded);
+    const ordering = this.#timeOrdering ?? "receiveTime";
+    const result = new CompactSeriesData(this.#onPointEncoded, this.#capacityLimit);
     const items = new Array<DataItem>(this.length - first);
     for (let index = first; index < this.length; index++) {
       items[index - first] = {
@@ -329,8 +466,160 @@ class CompactSeriesData {
         headerStamp: this.getHeaderStamp(index),
       };
     }
-    result.appendItems(items, "receiveTime", "preserve");
+    result.appendItems(items, ordering, "preserve");
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
     return result;
+  }
+
+  #getConfiguredTime(index: number, ordering: "headerStamp" | "receiveTime"): Time | undefined {
+    return ordering === "receiveTime" ? this.getReceiveTime(index) : this.getHeaderStamp(index);
+  }
+
+  #getItemConfiguredTime(
+    item: Immutable<DataItem>,
+    ordering: "headerStamp" | "receiveTime",
+  ): Time | undefined {
+    return ordering === "receiveTime" ? item.receiveTime : item.headerStamp;
+  }
+
+  #getDataItem(index: number): DataItem {
+    return {
+      x: this.getX(index),
+      y: this.getY(index),
+      value: this.getValue(index),
+      receiveTime: this.getReceiveTime(index),
+      headerStamp: this.getHeaderStamp(index),
+    };
+  }
+
+  #compareStoreIndexes(
+    left: number,
+    right: number,
+    ordering: "headerStamp" | "receiveTime",
+  ): number {
+    const leftTime = this.#getConfiguredTime(left, ordering);
+    const rightTime = this.#getConfiguredTime(right, ordering);
+    if (leftTime == undefined || rightTime == undefined) {
+      if (leftTime == undefined && rightTime == undefined) {
+        return left - right;
+      }
+      return leftTime == undefined ? -1 : 1;
+    }
+    const timeComparison = compare(leftTime, rightTime);
+    return timeComparison !== 0 ? timeComparison : left - right;
+  }
+
+  #ensureTimeOrder(ordering: "headerStamp" | "receiveTime"): void {
+    if (this.#timeOrdering !== ordering || this.#timeOrder.length < this.capacity) {
+      this.#rebuildTimeOrder(ordering);
+    }
+  }
+
+  #rebuildTimeOrder(ordering: "headerStamp" | "receiveTime"): void {
+    this.#timeOrder = new Uint32Array(this.capacity);
+    // Canonical timestamps follow the Float64 x order, while Float64 precision can collapse
+    // distinct values to one x. Sort only those collision runs in the common case.
+    let requiresGlobalSort = false;
+    let previousRunLast: number | undefined;
+    let runStart = 0;
+    while (runStart < this.length) {
+      const x = this.getX(runStart);
+      let runEnd = runStart + 1;
+      while (runEnd < this.length && this.getX(runEnd) === x) {
+        runEnd++;
+      }
+      if (runEnd - runStart === 1) {
+        this.#timeOrder[runStart] = runStart;
+      } else {
+        const currentRunStart = runStart;
+        const run = Array.from(
+          { length: runEnd - currentRunStart },
+          (_, index) => currentRunStart + index,
+        );
+        run.sort((left, right) => this.#compareStoreIndexes(left, right, ordering));
+        this.#timeOrder.set(run, currentRunStart);
+      }
+      const runFirst = this.#timeOrder[runStart]!;
+      if (
+        previousRunLast != undefined &&
+        this.#compareStoreIndexes(previousRunLast, runFirst, ordering) > 0
+      ) {
+        requiresGlobalSort = true;
+      }
+      previousRunLast = this.#timeOrder[runEnd - 1]!;
+      runStart = runEnd;
+    }
+
+    // Legacy noncanonical Time values can disagree with normalized x across distinct runs because
+    // compare() is lexicographic. Fall back to a global exact sort only for that exceptional case.
+    if (requiresGlobalSort) {
+      const indexes = Array.from({ length: this.length }, (_, index) => index);
+      indexes.sort((left, right) => this.#compareStoreIndexes(left, right, ordering));
+      this.#timeOrder.set(indexes);
+    }
+    this.#timeOrdering = ordering;
+  }
+
+  #mergeTimeOrder(firstAppendedIndex: number, ordering: "headerStamp" | "receiveTime"): void {
+    if (firstAppendedIndex >= this.length) {
+      this.#ensureTimeOrder(ordering);
+      return;
+    }
+    if (this.#timeOrdering !== ordering) {
+      this.#rebuildTimeOrder(ordering);
+      return;
+    }
+
+    let newItemsAlreadyFollowExisting = true;
+    if (firstAppendedIndex > 0) {
+      newItemsAlreadyFollowExisting =
+        this.#compareStoreIndexes(
+          this.#timeOrder[firstAppendedIndex - 1]!,
+          firstAppendedIndex,
+          ordering,
+        ) <= 0;
+    }
+    for (
+      let index = firstAppendedIndex + 1;
+      newItemsAlreadyFollowExisting && index < this.length;
+      index++
+    ) {
+      newItemsAlreadyFollowExisting = this.#compareStoreIndexes(index - 1, index, ordering) <= 0;
+    }
+    if (newItemsAlreadyFollowExisting) {
+      for (let index = firstAppendedIndex; index < this.length; index++) {
+        this.#timeOrder[index] = index;
+      }
+      return;
+    }
+
+    const newIndexes = Array.from(
+      { length: this.length - firstAppendedIndex },
+      (_, index) => firstAppendedIndex + index,
+    );
+    newIndexes.sort((left, right) => this.#compareStoreIndexes(left, right, ordering));
+    const mergedOrder = new Uint32Array(this.capacity);
+    let previousCursor = 0;
+    let newCursor = 0;
+    let outputCursor = 0;
+    while (previousCursor < firstAppendedIndex && newCursor < newIndexes.length) {
+      const previousIndex = this.#timeOrder[previousCursor]!;
+      const newIndex = newIndexes[newCursor]!;
+      if (this.#compareStoreIndexes(previousIndex, newIndex, ordering) <= 0) {
+        mergedOrder[outputCursor++] = previousIndex;
+        previousCursor++;
+      } else {
+        mergedOrder[outputCursor++] = newIndex;
+        newCursor++;
+      }
+    }
+    while (previousCursor < firstAppendedIndex) {
+      mergedOrder[outputCursor++] = this.#timeOrder[previousCursor++]!;
+    }
+    while (newCursor < newIndexes.length) {
+      mergedOrder[outputCursor++] = newIndexes[newCursor++]!;
+    }
+    this.#timeOrder = mergedOrder;
   }
 
   #encodeBatch(
@@ -426,10 +715,11 @@ class CompactSeriesData {
   }
 
   #mergeOrderedBatch(batch: EncodedBatch, duplicatePolicy: "deduplicate" | "preserve"): void {
-    const capacity = nextCapacity(this.length + batch.length);
+    const capacity = this.#nextCapacity(this.length + batch.length);
     const xy = new Float64Array(capacity * 2);
     const receiveTimes = new BigUint64Array(capacity);
     const headerStamps = new BigUint64Array(capacity);
+    const timeOrder = new Uint32Array(capacity);
     const valueKinds = new Uint8Array(capacity);
     const valuePayloads = new BigUint64Array(capacity);
     let currentIndex = 0;
@@ -495,11 +785,14 @@ class CompactSeriesData {
       appendBatch();
     }
 
-    this.#capacity = capacity;
+    this.capacity = capacity;
+    this.peakCapacity = Math.max(this.peakCapacity, capacity);
     this.length = outputIndex;
     this.#xy = xy;
     this.#receiveTimes = receiveTimes;
     this.#headerStamps = headerStamps;
+    this.#timeOrder = timeOrder;
+    this.#timeOrdering = undefined;
     this.#valueKinds = valueKinds;
     this.#valuePayloads = valuePayloads;
     this.#xMin = xMin;
@@ -535,26 +828,37 @@ class CompactSeriesData {
   }
 
   #ensureCapacity(required: number): void {
-    if (required <= this.#capacity) {
+    if (required <= this.capacity) {
       return;
     }
-    const capacity = nextCapacity(required);
+    const capacity = this.#nextCapacity(required);
     const xy = new Float64Array(capacity * 2);
     xy.set(this.#xy.subarray(0, this.length * 2));
     const receiveTimes = new BigUint64Array(capacity);
     receiveTimes.set(this.#receiveTimes.subarray(0, this.length));
     const headerStamps = new BigUint64Array(capacity);
     headerStamps.set(this.#headerStamps.subarray(0, this.length));
+    const timeOrder = new Uint32Array(capacity);
+    timeOrder.set(this.#timeOrder.subarray(0, this.length));
     const valueKinds = new Uint8Array(capacity);
     valueKinds.set(this.#valueKinds.subarray(0, this.length));
     const valuePayloads = new BigUint64Array(capacity);
     valuePayloads.set(this.#valuePayloads.subarray(0, this.length));
-    this.#capacity = capacity;
+    this.capacity = capacity;
+    this.peakCapacity = Math.max(this.peakCapacity, capacity);
     this.#xy = xy;
     this.#receiveTimes = receiveTimes;
     this.#headerStamps = headerStamps;
+    this.#timeOrder = timeOrder;
     this.#valueKinds = valueKinds;
     this.#valuePayloads = valuePayloads;
+  }
+
+  #nextCapacity(required: number): number {
+    if (this.#capacityLimit != undefined && required > this.#capacityLimit) {
+      throw new RangeError("Timestamp legend storage exceeded its physical capacity limit");
+    }
+    return Math.min(nextCapacity(required), this.#capacityLimit ?? Infinity);
   }
 }
 
@@ -611,25 +915,63 @@ type WindowExtremaCache = {
   yMax: number;
 };
 
+export type TimestampViewportDatasetsResult = {
+  datasets: Dataset[];
+  currentValuesByConfigIndex: readonly (OriginalValue | undefined)[];
+};
+
+export type TimestampLegendStorageStats = Record<
+  string,
+  {
+    currentCapacity: number;
+    currentLength: number;
+    peakCurrentCapacity: number;
+    playbackHeadCapacity: number;
+    playbackHeadLength: number;
+    peakPlaybackHeadCapacity: number;
+  }
+>;
+
 export class TimestampDatasetsBuilderImpl {
   #seriesByKey = new Map<SeriesConfigKey, Series>();
   readonly #onDownsamplePointVisited?: () => void;
   readonly #onExtremaPointVisited?: () => void;
   readonly #onStoredPointEncoded?: () => void;
+  readonly #onCurrentValuePointVisited?: () => void;
 
   public constructor(
     options: {
       onDownsamplePointVisited?: () => void;
       onExtremaPointVisited?: () => void;
       onStoredPointEncoded?: () => void;
+      onCurrentValuePointVisited?: () => void;
     } = {},
   ) {
     this.#onDownsamplePointVisited = options.onDownsamplePointVisited;
     this.#onExtremaPointVisited = options.onExtremaPointVisited;
     this.#onStoredPointEncoded = options.onStoredPointEncoded;
+    this.#onCurrentValuePointVisited = options.onCurrentValuePointVisited;
   }
 
   public getViewportDatasets(viewport: Immutable<Viewport>): Dataset[] {
+    const datasets = this.#buildViewportDatasets(viewport);
+    return Comlink.transfer(datasets, getDatasetTransferables(datasets));
+  }
+
+  /** Combines the viewport and legend lookup into one Worker round trip. */
+  public getViewportDatasetsWithCurrentValues(
+    viewport: Immutable<Viewport>,
+    currentValuesAt: Immutable<Time>,
+  ): TimestampViewportDatasetsResult {
+    const datasets = this.#buildViewportDatasets(viewport);
+    const result: TimestampViewportDatasetsResult = {
+      datasets,
+      currentValuesByConfigIndex: this.#getCurrentValues(currentValuesAt),
+    };
+    return Comlink.transfer(result, getDatasetTransferables(datasets));
+  }
+
+  #buildViewportDatasets(viewport: Immutable<Viewport>): Dataset[] {
     const plans: WindowPlan[] = [];
     for (const series of this.#seriesByKey.values()) {
       if (series.config.enabled) {
@@ -716,10 +1058,7 @@ export class TimestampDatasetsBuilderImpl {
       datasets[series.config.configIndex] = dataset;
     }
 
-    const transferables = datasets.flatMap((dataset) =>
-      dataset.packedData ? getPackedDatasetTransferables(dataset.packedData) : [],
-    );
-    return Comlink.transfer(datasets, transferables);
+    return datasets;
   }
 
   public getCsvData(): CsvDataset[] {
@@ -807,6 +1146,22 @@ export class TimestampDatasetsBuilderImpl {
     return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : { min: 0, max: 100 };
   }
 
+  /** Assertion surface for the bounded, non-rendered legend accumulators. */
+  public getLegendStorageStats(): TimestampLegendStorageStats {
+    const stats: TimestampLegendStorageStats = {};
+    for (const [key, value] of this.#seriesByKey) {
+      stats[key] = {
+        currentCapacity: value.legendCurrent.capacity,
+        currentLength: value.legendCurrent.length,
+        peakCurrentCapacity: value.legendCurrent.peakCapacity,
+        playbackHeadCapacity: value.playbackHead.capacity,
+        playbackHeadLength: value.playbackHead.length,
+        peakPlaybackHeadCapacity: value.playbackHead.peakCapacity,
+      };
+    }
+    return stats;
+  }
+
   public applyActions(actions: Immutable<UpdateDataAction[]>): void {
     for (const action of actions) {
       this.applyAction(action);
@@ -819,7 +1174,15 @@ export class TimestampDatasetsBuilderImpl {
         const series = this.#seriesByKey.get(action.series);
         if (series) {
           series.current = new CompactSeriesData(this.#onStoredPointEncoded);
+          series.legendCurrent = new CompactSeriesData(undefined, MAX_CURRENT_DATUMS_PER_SERIES);
           series.prefixRevision++;
+        }
+        break;
+      }
+      case "reset-playback-head": {
+        const series = this.#seriesByKey.get(action.series);
+        if (series) {
+          series.playbackHead = new CompactSeriesData(undefined, MAX_CURRENT_DATUMS_PER_SERIES);
         }
         break;
       }
@@ -836,6 +1199,12 @@ export class TimestampDatasetsBuilderImpl {
         if (!series) {
           return;
         }
+        series.legendCurrent = series.legendCurrent.appendItemsBounded(
+          action.items,
+          series.config.timestampMethod,
+          MAX_CURRENT_DATUMS_PER_SERIES,
+          RETAINED_CURRENT_DATUMS_PER_SERIES,
+        );
         const lastFullX =
           series.full.length > 0 ? series.full.getX(series.full.length - 1) : undefined;
         const appendedAtEnd = series.current.appendItems(
@@ -876,6 +1245,29 @@ export class TimestampDatasetsBuilderImpl {
             series.prefixRevision++;
           }
         }
+        const latestActionTime = getLatestConfiguredTime(
+          action.items,
+          series.config.timestampMethod,
+        );
+        if (latestActionTime != undefined) {
+          series.legendCurrent = series.legendCurrent.retainAfterConfiguredTime(
+            latestActionTime,
+            series.config.timestampMethod,
+          );
+        }
+        break;
+      }
+      case "append-playback-head": {
+        const series = this.#seriesByKey.get(action.series);
+        if (!series) {
+          return;
+        }
+        series.playbackHead = series.playbackHead.appendItemsBounded(
+          action.items,
+          series.config.timestampMethod,
+          MAX_CURRENT_DATUMS_PER_SERIES,
+          RETAINED_CURRENT_DATUMS_PER_SERIES,
+        );
         break;
       }
       case "update-series-config":
@@ -894,6 +1286,48 @@ export class TimestampDatasetsBuilderImpl {
       headerStamp: store.getHeaderStamp(storeIndex.index),
       value: store.getValue(storeIndex.index),
     };
+  }
+
+  #getCurrentValues(currentValuesAt: Immutable<Time>): readonly (OriginalValue | undefined)[] {
+    const values: Array<OriginalValue | undefined> = [];
+    for (const series of this.#seriesByKey.values()) {
+      if (!series.config.enabled) {
+        continue;
+      }
+      let candidate: TimestampCurrentValueCandidate | undefined;
+      candidate = chooseLaterTimestampCandidate(
+        candidate,
+        getTimestampCurrentValueCandidate(
+          series.full,
+          series.config.timestampMethod,
+          currentValuesAt,
+          0,
+          this.#onCurrentValuePointVisited,
+        ),
+      );
+      candidate = chooseLaterTimestampCandidate(
+        candidate,
+        getTimestampCurrentValueCandidate(
+          series.legendCurrent,
+          series.config.timestampMethod,
+          currentValuesAt,
+          1,
+          this.#onCurrentValuePointVisited,
+        ),
+      );
+      candidate = chooseLaterTimestampCandidate(
+        candidate,
+        getTimestampCurrentValueCandidate(
+          series.playbackHead,
+          series.config.timestampMethod,
+          currentValuesAt,
+          2,
+          this.#onCurrentValuePointVisited,
+        ),
+      );
+      values[series.config.configIndex] = candidate?.value;
+    }
+    return values;
   }
 
   #makeWindowPlan(series: Series, viewport: Immutable<Viewport>): WindowPlan {
@@ -1057,6 +1491,8 @@ export class TimestampDatasetsBuilderImpl {
         config,
         current: new CompactSeriesData(this.#onStoredPointEncoded),
         full: new CompactSeriesData(this.#onStoredPointEncoded),
+        legendCurrent: new CompactSeriesData(undefined, MAX_CURRENT_DATUMS_PER_SERIES),
+        playbackHead: new CompactSeriesData(undefined, MAX_CURRENT_DATUMS_PER_SERIES),
         prefixRevision: 0,
       };
       existingSeries.config = config;
@@ -1064,6 +1500,67 @@ export class TimestampDatasetsBuilderImpl {
     }
     this.#seriesByKey = newSeries;
   }
+}
+
+type TimestampCurrentValueCandidate = {
+  priority: number;
+  time: Time;
+  value: OriginalValue;
+};
+
+function getTimestampCurrentValueCandidate(
+  store: CompactSeriesData,
+  timestampMethod: "headerStamp" | "receiveTime",
+  currentValuesAt: Immutable<Time>,
+  priority: number,
+  onVisited?: () => void,
+): TimestampCurrentValueCandidate | undefined {
+  const index = store.findLatestIndexAtOrBefore(currentValuesAt, timestampMethod, onVisited);
+  if (index == undefined) {
+    return undefined;
+  }
+  const time =
+    timestampMethod === "receiveTime" ? store.getReceiveTime(index) : store.getHeaderStamp(index);
+  if (time == undefined) {
+    return undefined;
+  }
+  return { priority, time, value: store.getValue(index) };
+}
+
+function getLatestConfiguredTime(
+  items: Immutable<DataItem[]>,
+  timestampMethod: "headerStamp" | "receiveTime",
+): Time | undefined {
+  let latest: Time | undefined;
+  for (const item of items) {
+    const timestamp = timestampMethod === "receiveTime" ? item.receiveTime : item.headerStamp;
+    if (timestamp != undefined && (latest == undefined || compare(timestamp, latest) > 0)) {
+      latest = timestamp;
+    }
+  }
+  return latest;
+}
+
+function chooseLaterTimestampCandidate(
+  current: TimestampCurrentValueCandidate | undefined,
+  candidate: TimestampCurrentValueCandidate | undefined,
+): TimestampCurrentValueCandidate | undefined {
+  if (candidate == undefined) {
+    return current;
+  }
+  if (current == undefined) {
+    return candidate;
+  }
+  const timeComparison = compare(candidate.time, current.time);
+  return timeComparison > 0 || (timeComparison === 0 && candidate.priority > current.priority)
+    ? candidate
+    : current;
+}
+
+function getDatasetTransferables(datasets: readonly Dataset[]): Transferable[] {
+  return datasets.flatMap((dataset) =>
+    dataset.packedData ? getPackedDatasetTransferables(dataset.packedData) : [],
+  );
 }
 
 function limitIndices(indices: readonly number[], maximum: number): number[] {

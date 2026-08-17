@@ -12,7 +12,6 @@ import { filterMap } from "@foxglove/den/collection";
 import { parseMessagePath } from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, Time } from "@foxglove/studio";
-import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
@@ -72,6 +71,10 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   #interactionBounds?: Bounds;
 
   #lastSeekTime = NaN;
+  #playerId?: string;
+  #currentTime?: Immutable<Time>;
+  /** Changes only across discontinuities, not every playback frame, to avoid response starvation. */
+  #currentValuesEpoch = 0;
 
   /** Normalized series from latest config */
   #series: Immutable<SeriesItem[]> = [];
@@ -127,10 +130,22 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     }
     const activeData = state.activeData;
     if (!activeData) {
+      this.#datasetRange = this.#datasetsBuilder.handlePlayerState(state);
+      if (this.#currentTime != undefined || this.#playerId !== state.playerId) {
+        this.#currentTime = undefined;
+        this.#playerId = state.playerId;
+        this.#currentValuesEpoch++;
+        this.#currentValuesByConfigIndex = [];
+        this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
+      }
+      this.#queueDispatchRender();
       return;
     }
 
-    const { messages, lastSeekTime, currentTime, startTime } = activeData;
+    const { lastSeekTime, currentTime, startTime } = activeData;
+    const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
+    this.#playerId = state.playerId;
+    this.#currentTime = currentTime;
 
     if (this.#isTimeseriesPlot) {
       const secondsSinceStart = toSec(subtractTime(currentTime, startTime));
@@ -145,32 +160,12 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       this.#queueBlocks(activeData.startTime, blocks);
     }
 
-    if (lastSeekTime !== this.#lastSeekTime) {
+    if (sourceChanged || lastSeekTime !== this.#lastSeekTime) {
+      this.#currentValuesEpoch++;
       this.#currentValuesByConfigIndex = [];
       this.#lastSeekTime = lastSeekTime;
+      this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
     }
-
-    for (const seriesItem of this.#series) {
-      if (seriesItem.timestampMethod === "headerStamp") {
-        // We currently do not support showing current values in the legend for header.stamp mode,
-        // which would require keeping a buffer of messages to sort (currently done in
-        // TimestampDatasetsBuilderImpl)
-        continue;
-      }
-      for (let i = messages.length - 1; i >= 0; --i) {
-        const msgEvent = messages[i]!;
-        if (msgEvent.topic !== seriesItem.parsed.topicName) {
-          continue;
-        }
-        const items = simpleGetMessagePathDataItems(msgEvent, seriesItem.parsed);
-        if (items.length > 0) {
-          this.#currentValuesByConfigIndex[seriesItem.configIndex] = items[items.length - 1];
-          break;
-        }
-      }
-    }
-
-    this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
 
     this.#datasetRange = datasetsRange;
     this.#queueDispatchRender();
@@ -184,6 +179,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.isDestroyed()) {
       return;
     }
+    // A pending worker result belongs to the previous config-index mapping.
+    this.#currentValuesEpoch++;
     this.#xAxisVal = config.xAxisVal;
     this.#isTimeseriesPlot =
       config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp";
@@ -505,9 +502,19 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       this.#interactionBounds == undefined &&
       this.#globalBounds == undefined;
 
-    const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);
+    const currentValuesEpoch = this.#currentValuesEpoch;
+    const currentValuesAt = this.#currentTime;
+    const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport, currentValuesAt);
     if (this.isDestroyed()) {
       return;
+    }
+    if (
+      result.currentValuesByConfigIndex != undefined &&
+      currentValuesAt != undefined &&
+      currentValuesEpoch === this.#currentValuesEpoch
+    ) {
+      this.#currentValuesByConfigIndex = Array.from(result.currentValuesByConfigIndex);
+      this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
     }
     if (
       result.datasetRange != undefined &&

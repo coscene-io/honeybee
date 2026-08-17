@@ -75,7 +75,7 @@ function buildPlayerState(
 }
 
 describe("CurrentCustomDatasetsBuilder", () => {
-  it("should apply a math function", async () => {
+  it("applies a math function to both the plotted and current value", async () => {
     const builder = new CurrentCustomDatasetsBuilder();
 
     builder.setXPath(parseMessagePath("/foo.val.@negative"));
@@ -127,6 +127,42 @@ describe("CurrentCustomDatasetsBuilder", () => {
         }),
       ],
     });
+
+    const resultWithCurrentValue = await builder.getViewportDatasets(undefined, {
+      sec: 0,
+      nsec: 0,
+    });
+    expect(resultWithCurrentValue.currentValuesByConfigIndex).toEqual([3]);
+    expect(resultWithCurrentValue.datasetsByConfigIndex[0]?.data[0]?.y).toBe(3);
+  });
+
+  it("keeps the last non-empty y path match for the current value only", async () => {
+    const builder = new CurrentCustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/x.val"));
+    builder.setSeries(buildSeriesItems([{ value: "/y.val" }]));
+    const message = (topic: string, sec: number, value: unknown) => ({
+      topic,
+      schemaName: topic,
+      receiveTime: { sec, nsec: 0 },
+      sizeInBytes: 0,
+      message: value,
+    });
+
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime: { sec: 4, nsec: 0 },
+        messages: [
+          message("/x", 1, { val: 10 }),
+          message("/x", 2, 2),
+          message("/y", 3, { val: 30 }),
+          message("/y", 4, 4),
+        ],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets(undefined, { sec: 4, nsec: 0 });
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([30]);
   });
 
   it("supports toggling series enabled state", async () => {
@@ -257,6 +293,64 @@ describe("CurrentCustomDatasetsBuilder", () => {
         }),
       ],
     });
+  });
+
+  it("returns the latest exact y value and clears it on seek, inactive, and source change", async () => {
+    const builder = new CurrentCustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/x.val"));
+    builder.setSeries(buildSeriesItems([{ value: "/y.val" }]));
+    const currentTime = { sec: 10, nsec: 0 };
+    const messages = (value: string | bigint) => [
+      {
+        topic: "/x",
+        schemaName: "x",
+        receiveTime: currentTime,
+        sizeInBytes: 0,
+        message: { val: 1 },
+      },
+      {
+        topic: "/y",
+        schemaName: "y",
+        receiveTime: currentTime,
+        sizeInBytes: 0,
+        message: { val: value },
+      },
+    ];
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 1, messages: messages("001.50") }),
+    );
+    await expect(builder.getViewportDatasets(undefined, currentTime)).resolves.toEqual(
+      expect.objectContaining({ currentValuesByConfigIndex: ["001.50"] }),
+    );
+
+    builder.handlePlayerState(buildPlayerState({ currentTime, lastSeekTime: 2, messages: [] }));
+    let result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime,
+        lastSeekTime: 2,
+        messages: messages(9_007_199_254_740_993n),
+      }),
+    );
+    result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.currentValuesByConfigIndex).toEqual([9_007_199_254_740_993n]);
+
+    builder.handlePlayerState({ ...buildPlayerState(), activeData: undefined });
+    result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).not.toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 2, messages: messages("7") }),
+    );
+    builder.handlePlayerState({ ...buildPlayerState(), activeData: undefined, playerId: "2" });
+    result = await builder.getViewportDatasets(undefined, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
   });
 
   it("stops chunking the latest custom dataset when the callback cancels", async () => {

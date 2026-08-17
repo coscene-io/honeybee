@@ -223,6 +223,8 @@ export class CompactValueStore {
   public peakCapacity: number;
   #values: Float64Array;
   #receiveTimes: BigUint64Array;
+  /** Store indexes sorted by receive time, then append order for deterministic ties. */
+  #receiveTimeOrder: Uint32Array;
   #valueKinds: Uint8Array;
   #valuePayloads: BigUint64Array;
   readonly #blocks: CompactStoreBlockMetadata[] = [];
@@ -236,6 +238,7 @@ export class CompactValueStore {
     this.peakCapacity = initialCapacity;
     this.#values = new Float64Array(initialCapacity);
     this.#receiveTimes = new BigUint64Array(initialCapacity);
+    this.#receiveTimeOrder = new Uint32Array(initialCapacity);
     this.#valueKinds = new Uint8Array(initialCapacity);
     this.#valuePayloads = new BigUint64Array(initialCapacity);
   }
@@ -258,6 +261,26 @@ export class CompactValueStore {
 
   public getReceiveTime(index: number): Time {
     return this.#timeCodec.decode(this.#receiveTimes[index]!);
+  }
+
+  /** Returns the append-order index of the last value at or before `target`. */
+  public findLatestIndexAtOrBefore(
+    target: Immutable<Time>,
+    onVisited?: () => void,
+  ): number | undefined {
+    let low = 0;
+    let high = this.length;
+    while (low < high) {
+      onVisited?.();
+      const mid = Math.floor((low + high) / 2);
+      const storeIndex = this.#receiveTimeOrder[mid]!;
+      if (compare(this.getReceiveTime(storeIndex), target) <= 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low > 0 ? this.#receiveTimeOrder[low - 1] : undefined;
   }
 
   public getBlockMetadata(blockIndex: number): Readonly<CompactStoreBlockMetadata> | undefined {
@@ -306,6 +329,64 @@ export class CompactValueStore {
     this.#appendBatch(batch, minimumReceiveTimeExclusive, skipEligible, capacityLimit);
   }
 
+  /**
+   * Appends an action while keeping only a bounded append-order tail. The skipped prefix is never
+   * decoded into this store, so a single oversized action cannot temporarily allocate an oversized
+   * playback-head or legend accumulator.
+   */
+  public appendBatchBoundedTail(
+    batch: Immutable<ValueItemBatch>,
+    maximumLength: number,
+    retainedLength: number,
+  ): CompactValueStore {
+    validateBatchColumns(batch);
+    if (
+      !Number.isSafeInteger(maximumLength) ||
+      !Number.isSafeInteger(retainedLength) ||
+      retainedLength < 0 ||
+      maximumLength < retainedLength
+    ) {
+      throw new RangeError("Invalid compact value-store retention limits");
+    }
+    const combinedLength = this.length + batch.values.length;
+    if (combinedLength <= maximumLength) {
+      this.appendBatchTail(batch, undefined, 0, maximumLength);
+      return this;
+    }
+
+    const firstRetained = combinedLength - retainedLength;
+    const droppedFromStore = Math.min(firstRetained, this.length);
+    const skippedFromBatch = Math.max(0, firstRetained - this.length);
+    const result =
+      droppedFromStore === this.length ? new CompactValueStore() : this.sliceFrom(droppedFromStore);
+    result.appendBatchTail(batch, undefined, skippedFromBatch, maximumLength);
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
+    return result;
+  }
+
+  /** Keeps append order while removing values covered by a later full-history action. */
+  public retainAfterReceiveTime(target: Immutable<Time>): CompactValueStore {
+    let retainedCount = 0;
+    for (let index = 0; index < this.length; index++) {
+      if (compare(this.getReceiveTime(index), target) > 0) {
+        retainedCount++;
+      }
+    }
+    if (retainedCount === this.length) {
+      return this;
+    }
+    const result = new CompactValueStore(retainedCount);
+    for (let index = 0; index < this.length; index++) {
+      const receiveTime = this.getReceiveTime(index);
+      if (compare(receiveTime, target) > 0) {
+        result.#append(this.getValue(index), this.getOriginalValue(index), receiveTime);
+      }
+    }
+    result.#mergeReceiveTimeOrder(0);
+    result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
+    return result;
+  }
+
   #appendBatch(
     batch: Immutable<ValueItemBatch>,
     minimumReceiveTimeExclusive: Immutable<Time> | undefined,
@@ -317,23 +398,26 @@ export class CompactValueStore {
     const eligibleCount = this.countBatchAfterReceiveTime(batch, minimumReceiveTimeExclusive);
     const appendCount = Math.max(0, eligibleCount - remainingSkip);
     this.#ensureCapacity(this.length + appendCount, capacityLimit);
+    const firstAppendedIndex = this.length;
     const length = batch.values.length;
     for (let index = 0; index < length; index++) {
       const value = batch.values[index]!;
-      const receiveTime = decodeBatchTime(batch, index);
-      if (
-        minimumReceiveTimeExclusive != undefined &&
-        compare(receiveTime, minimumReceiveTimeExclusive) <= 0
-      ) {
-        continue;
+      let receiveTime: Time | undefined;
+      if (minimumReceiveTimeExclusive != undefined) {
+        receiveTime = decodeBatchTime(batch, index);
+        if (compare(receiveTime, minimumReceiveTimeExclusive) <= 0) {
+          continue;
+        }
       }
       if (remainingSkip > 0) {
         remainingSkip--;
         continue;
       }
+      receiveTime ??= decodeBatchTime(batch, index);
       const originalValue = decodeBatchValue(batch, index, value);
       this.#append(value, originalValue, receiveTime);
     }
+    this.#mergeReceiveTimeOrder(firstAppendedIndex);
   }
 
   public sliceFrom(start: number): CompactValueStore {
@@ -349,6 +433,7 @@ export class CompactValueStore {
         this.getReceiveTime(index),
       );
     }
+    result.#mergeReceiveTimeOrder(0);
     result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
     return result;
   }
@@ -368,6 +453,69 @@ export class CompactValueStore {
     this.length++;
   }
 
+  #mergeReceiveTimeOrder(firstAppendedIndex: number): void {
+    if (firstAppendedIndex >= this.length) {
+      return;
+    }
+
+    let newItemsAlreadyFollowExisting = true;
+    if (firstAppendedIndex > 0) {
+      const previousIndex = this.#receiveTimeOrder[firstAppendedIndex - 1]!;
+      newItemsAlreadyFollowExisting =
+        compare(this.getReceiveTime(previousIndex), this.getReceiveTime(firstAppendedIndex)) <= 0;
+    }
+    for (
+      let index = firstAppendedIndex + 1;
+      newItemsAlreadyFollowExisting && index < this.length;
+      index++
+    ) {
+      newItemsAlreadyFollowExisting =
+        compare(this.getReceiveTime(index - 1), this.getReceiveTime(index)) <= 0;
+    }
+    if (newItemsAlreadyFollowExisting) {
+      for (let index = firstAppendedIndex; index < this.length; index++) {
+        this.#receiveTimeOrder[index] = index;
+      }
+      return;
+    }
+
+    const newIndexes = Array.from(
+      { length: this.length - firstAppendedIndex },
+      (_, index) => firstAppendedIndex + index,
+    );
+    newIndexes.sort((left, right) => {
+      const timeComparison = compare(this.getReceiveTime(left), this.getReceiveTime(right));
+      return timeComparison !== 0 ? timeComparison : left - right;
+    });
+
+    const mergedOrder = new Uint32Array(this.capacity);
+    let previousCursor = 0;
+    let newCursor = 0;
+    let outputCursor = 0;
+    while (previousCursor < firstAppendedIndex && newCursor < newIndexes.length) {
+      const previousIndex = this.#receiveTimeOrder[previousCursor]!;
+      const newIndex = newIndexes[newCursor]!;
+      const timeComparison = compare(
+        this.getReceiveTime(previousIndex),
+        this.getReceiveTime(newIndex),
+      );
+      if (timeComparison < 0 || (timeComparison === 0 && previousIndex < newIndex)) {
+        mergedOrder[outputCursor++] = previousIndex;
+        previousCursor++;
+      } else {
+        mergedOrder[outputCursor++] = newIndex;
+        newCursor++;
+      }
+    }
+    while (previousCursor < firstAppendedIndex) {
+      mergedOrder[outputCursor++] = this.#receiveTimeOrder[previousCursor++]!;
+    }
+    while (newCursor < newIndexes.length) {
+      mergedOrder[outputCursor++] = newIndexes[newCursor++]!;
+    }
+    this.#receiveTimeOrder = mergedOrder;
+  }
+
   #ensureCapacity(required: number, capacityLimit?: number): void {
     if (required <= this.capacity) {
       return;
@@ -383,6 +531,8 @@ export class CompactValueStore {
     values.set(this.#values.subarray(0, this.length));
     const receiveTimes = new BigUint64Array(capacity);
     receiveTimes.set(this.#receiveTimes.subarray(0, this.length));
+    const receiveTimeOrder = new Uint32Array(capacity);
+    receiveTimeOrder.set(this.#receiveTimeOrder.subarray(0, this.length));
     const valueKinds = new Uint8Array(capacity);
     valueKinds.set(this.#valueKinds.subarray(0, this.length));
     const valuePayloads = new BigUint64Array(capacity);
@@ -391,6 +541,7 @@ export class CompactValueStore {
     this.peakCapacity = Math.max(this.peakCapacity, capacity);
     this.#values = values;
     this.#receiveTimes = receiveTimes;
+    this.#receiveTimeOrder = receiveTimeOrder;
     this.#valueKinds = valueKinds;
     this.#valuePayloads = valuePayloads;
   }

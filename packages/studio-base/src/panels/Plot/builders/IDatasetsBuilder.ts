@@ -143,6 +143,11 @@ export type GetViewportDatasetsResult = {
   pathsWithMismatchedDataLengths: ReadonlySet<string>;
   /** Authoritative x bounds after worker-side retention or compaction performed by this request. */
   datasetRange?: Bounds1D;
+  /**
+   * Values at the requested playback time, indexed by the original config path. This remains
+   * optional so callers which do not request a playback time keep their existing result shape.
+   */
+  currentValuesByConfigIndex?: readonly (OriginalValue | undefined)[];
 };
 
 /**
@@ -171,7 +176,10 @@ interface IDatasetsBuilder {
 
   setSeries(series: Immutable<SeriesItem[]>): void;
 
-  getViewportDatasets(viewport: Immutable<Viewport>): Promise<GetViewportDatasetsResult>;
+  getViewportDatasets(
+    viewport: Immutable<Viewport>,
+    currentValuesAt?: Immutable<Time>,
+  ): Promise<GetViewportDatasetsResult>;
 
   getCsvData(): Promise<CsvDataset[]>;
 

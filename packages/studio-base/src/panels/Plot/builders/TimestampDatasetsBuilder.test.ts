@@ -755,6 +755,76 @@ describe("TimestampDatasetsBuilder", () => {
     );
   });
 
+  it("keeps a quiet range playback head across iterator replacement and clears it on fallback", async () => {
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo.val", timestampMethod: "receiveTime" }]));
+    builder.setHistoryTopics(new Set(["/foo"]), new Set(), 6);
+    const viewport = { size: { width: 100, height: 100 }, bounds: {} };
+    const currentTime = { sec: 4, nsec: 0 };
+    const makeMessage = (val: number): MessageEvent => ({
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: currentTime,
+      sizeInBytes: 0,
+      message: { val },
+    });
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, messages: [makeMessage(40)], lastSeekTime: 1 }),
+    );
+    let result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([40]);
+
+    await expect(builder.resetRangeTopic("/foo", 6)).resolves.toBe(true);
+    result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.currentValuesByConfigIndex).toEqual([40]);
+
+    await expect(builder.releaseRangeTopic("/foo", 6)).resolves.toBe(true);
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, messages: [makeMessage(400)], lastSeekTime: 1 }),
+    );
+    result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.currentValuesByConfigIndex).toEqual([400]);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([{ x: 4, y: 400, value: 400 }]);
+  });
+
+  it("clears full and current legend storage when the player changes without a new seek", async () => {
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo.val", timestampMethod: "receiveTime" }]));
+    builder.setHistoryTopics(new Set(["/foo"]), new Set(), 9);
+    const viewport = { size: { width: 100, height: 100 }, bounds: {} };
+    const currentTime = { sec: 2, nsec: 0 };
+    const event: MessageEvent = {
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: currentTime,
+      sizeInBytes: 0,
+      message: { val: 20 },
+    };
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 1, messages: [event] }),
+    );
+    await builder.appendRangeMessageBatch("/foo", [event], { sec: 0, nsec: 0 }, 9);
+    await expect(builder.getViewportDatasets(viewport, currentTime)).resolves.toEqual(
+      expect.objectContaining({ currentValuesByConfigIndex: [20] }),
+    );
+
+    builder.handlePlayerState({ ...buildPlayerState(), activeData: undefined, playerId: "2" });
+    let result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+
+    builder.handlePlayerState({
+      ...buildPlayerState({ currentTime, lastSeekTime: 1, messages: [] }),
+      playerId: "2",
+    });
+    result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+  });
+
   it("resets replacement history and releases only the failed range topic", async () => {
     const builder = createBuilder();
     builder.setSeries(

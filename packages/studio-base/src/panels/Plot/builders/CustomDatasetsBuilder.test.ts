@@ -20,7 +20,7 @@ import {
 
 import { CustomDatasetsBuilder } from "./CustomDatasetsBuilder";
 import { CustomDatasetsBuilderImpl, UpdateDataAction } from "./CustomDatasetsBuilderImpl";
-import { SeriesConfigKey, SeriesItem, Viewport } from "./IDatasetsBuilder";
+import { SeriesConfigKey, SeriesItem } from "./IDatasetsBuilder";
 import { PlotPath } from "../config";
 
 const builders: CustomDatasetsBuilder[] = [];
@@ -31,7 +31,8 @@ function createLocalLease(): CustomDatasetWorkerLease {
     getCsvData: () => impl.getCsvData(),
     getCsvDataChunk: (...args: Parameters<CustomDatasetsBuilderImpl["getCsvDataChunk"]>) =>
       impl.getCsvDataChunk(...args),
-    getViewportDatasets: (viewport: Viewport) => impl.getViewportDatasets(viewport),
+    getViewportDatasets: (...args: Parameters<CustomDatasetsBuilderImpl["getViewportDatasets"]>) =>
+      impl.getViewportDatasets(...args),
     getXRange: () => impl.getXRange(),
     updateData: (actions: UpdateDataAction[]) => {
       impl.updateData(actions);
@@ -818,7 +819,9 @@ describe("CustomDatasetsBuilder", () => {
       getCsvData: () => impl.getCsvData(),
       getCsvDataChunk: (...args: Parameters<CustomDatasetsBuilderImpl["getCsvDataChunk"]>) =>
         impl.getCsvDataChunk(...args),
-      getViewportDatasets: (viewport: Viewport) => impl.getViewportDatasets(viewport),
+      getViewportDatasets: (
+        ...args: Parameters<CustomDatasetsBuilderImpl["getViewportDatasets"]>
+      ) => impl.getViewportDatasets(...args),
       getXRange: () => impl.getXRange(),
       async updateData(actions: UpdateDataAction[]) {
         if (pauseNextReset && actions.some((action) => action.type === "reset-full-x")) {
@@ -929,7 +932,9 @@ describe("CustomDatasetsBuilder", () => {
     const remote = {
       getCsvData: () => impl.getCsvData(),
       getCsvDataChunk,
-      getViewportDatasets: (viewport: Viewport) => impl.getViewportDatasets(viewport),
+      getViewportDatasets: (
+        ...args: Parameters<CustomDatasetsBuilderImpl["getViewportDatasets"]>
+      ) => impl.getViewportDatasets(...args),
       getXRange: () => {
         callOrder.push("range");
         return impl.getXRange();
@@ -985,7 +990,9 @@ describe("CustomDatasetsBuilder", () => {
       getCsvData: () => impl.getCsvData(),
       getCsvDataChunk: (...args: Parameters<CustomDatasetsBuilderImpl["getCsvDataChunk"]>) =>
         impl.getCsvDataChunk(...args),
-      getViewportDatasets: (viewport: Viewport) => impl.getViewportDatasets(viewport),
+      getViewportDatasets: (
+        ...args: Parameters<CustomDatasetsBuilderImpl["getViewportDatasets"]>
+      ) => impl.getViewportDatasets(...args),
       getXRange: () => impl.getXRange(),
       updateData: (actions: UpdateDataAction[]) => {
         impl.updateData(actions);
@@ -1097,6 +1104,81 @@ describe("CustomDatasetsBuilder", () => {
     await expect(builder.resetRangeTopic("/same", 3)).resolves.toBe(false);
   });
 
+  it("keeps a quiet range playback head across iterator replacement and clears it on fallback", async () => {
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/same.y" }]));
+    builder.setHistoryTopics(new Set(["/same"]), new Set(), 6);
+    const viewport = { size: { width: 100, height: 100 }, bounds: {} };
+    const currentTime = { sec: 4, nsec: 0 };
+    const makeMessage = (y: number): MessageEvent => ({
+      topic: "/same",
+      schemaName: "same",
+      receiveTime: currentTime,
+      sizeInBytes: 0,
+      message: { y },
+    });
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 1, messages: [makeMessage(40)] }),
+    );
+    let result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([40]);
+
+    await expect(builder.resetRangeTopic("/same", 6)).resolves.toBe(true);
+    result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.currentValuesByConfigIndex).toEqual([40]);
+
+    await expect(builder.releaseRangeTopic("/same", 6)).resolves.toBe(true);
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 1, messages: [makeMessage(400)] }),
+    );
+    result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.currentValuesByConfigIndex).toEqual([400]);
+  });
+
+  it("clears full x/y and current legend storage when the player changes without a new seek", async () => {
+    const builder = createBuilder();
+    builder.setXPath(parseMessagePath("/same.x"));
+    builder.setSeries(buildSeriesItems([{ value: "/same.y" }]));
+    builder.setHistoryTopics(new Set(["/same"]), new Set(), 9);
+    const viewport = { size: { width: 100, height: 100 }, bounds: {} };
+    const currentTime = { sec: 2, nsec: 0 };
+    const event: MessageEvent = {
+      topic: "/same",
+      schemaName: "same",
+      receiveTime: currentTime,
+      sizeInBytes: 0,
+      message: { x: 2, y: 20 },
+    };
+
+    builder.handlePlayerState(
+      buildPlayerState({ currentTime, lastSeekTime: 1, messages: [event] }),
+    );
+    await builder.appendRangeMessageBatch("/same", [event], { sec: 0, nsec: 0 }, 9);
+    await expect(builder.getViewportDatasets(viewport, currentTime)).resolves.toEqual(
+      expect.objectContaining({
+        currentValuesByConfigIndex: [20],
+        datasetRange: { min: 2, max: 2 },
+      }),
+    );
+
+    builder.handlePlayerState({ ...buildPlayerState(), activeData: undefined, playerId: "2" });
+    let result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+    expect(result.datasetRange).toEqual({ min: 0, max: 1 });
+
+    builder.handlePlayerState({
+      ...buildPlayerState({ currentTime, lastSeekTime: 1, messages: [] }),
+      playerId: "2",
+    });
+    result = await builder.getViewportDatasets(viewport, currentTime);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+    expect(result.datasetRange).toEqual({ min: 0, max: 1 });
+  });
+
   it("reports authoritative bounds after current storage culls an old extreme", async () => {
     const builder = createBuilder();
     builder.setXPath(parseMessagePath("/same.x[:]"));
@@ -1129,7 +1211,9 @@ describe("CustomDatasetsBuilder", () => {
     let pauseNextRange = true;
     const remote = {
       getCsvData: () => impl.getCsvData(),
-      getViewportDatasets: (viewport: Viewport) => impl.getViewportDatasets(viewport),
+      getViewportDatasets: (
+        ...args: Parameters<CustomDatasetsBuilderImpl["getViewportDatasets"]>
+      ) => impl.getViewportDatasets(...args),
       async getXRange() {
         if (pauseNextRange) {
           pauseNextRange = false;
