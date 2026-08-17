@@ -453,7 +453,7 @@ describe("useSyncLayoutFromUrl", () => {
       ({ urlState }: { urlState: AppURLState | undefined }) => {
         useSyncLayoutFromUrl(urlState);
       },
-      { initialProps: { urlState: { ds: "remote-mp4" } as AppURLState | undefined } },
+      { initialProps: { urlState: { ds: "remote-mp4" } } },
     );
 
     await waitFor(() => {
