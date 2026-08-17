@@ -473,6 +473,33 @@ describe("useSyncLayoutFromUrl", () => {
     expect(currentLayoutActions.setCurrentLayout).not.toHaveBeenCalled();
   });
 
+  it("does not re-apply the MP4 layout after the remote-mp4 source is cleared", async () => {
+    dataSource = { id: "remote-mp4", type: "connection" };
+
+    const { rerender } = renderHook(
+      ({ urlState }: { urlState: AppURLState | undefined }) => {
+        useSyncLayoutFromUrl(urlState);
+      },
+      { initialProps: { urlState: { ds: "remote-mp4" } } },
+    );
+
+    await waitFor(() => {
+      expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith(
+        expect.objectContaining({ id: REMOTE_MP4_DEFAULT_LAYOUT_ID }),
+      );
+    });
+
+    jest.mocked(currentLayoutActions.setCurrentLayout).mockClear();
+    selectedLayoutId = "users/u/layouts/personal" as LayoutID;
+    dataSource = undefined;
+
+    await act(async () => {
+      rerender({ urlState: { ds: "remote-mp4" } });
+    });
+
+    expect(currentLayoutActions.setCurrentLayout).not.toHaveBeenCalled();
+  });
+
   it("opens the layout drawer when the URL layout and history are missing", async () => {
     const urlLayoutId = "users/u/layouts/missing-url" as LayoutID;
     jest.mocked(layoutManager.getLayout).mockResolvedValue(undefined);

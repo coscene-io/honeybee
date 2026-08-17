@@ -50,6 +50,10 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
 
   const isLayoutIdProcessed = useRef(false);
   const appliedRemoteMp4TopicRef = useRef<string | undefined>();
+  const hasSeenDataSourceRef = useRef(false);
+  if (dataSource != undefined) {
+    hasSeenDataSourceRef.current = true;
+  }
   const [{ layoutId }, setUnappliedLayoutArgs] = useState(() => {
     return { layoutId: targetUrlState?.layoutId };
   });
@@ -65,11 +69,10 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
     // Do not restore history, recommended layouts, or URL layoutId.
     // Prefer the live source once it exists. targetUrlState is the launch deep
     // link and never updates, so it must not keep forcing this layout after the
-    // user switches to another source.
-    const isRemoteMp4 =
-      dataSource != undefined
-        ? dataSource.id === "remote-mp4"
-        : targetUrlState?.ds === "remote-mp4";
+    // user switches away — including when selectSource clears dataSource.
+    const isRemoteMp4 = hasSeenDataSourceRef.current
+      ? dataSource?.id === "remote-mp4"
+      : targetUrlState?.ds === "remote-mp4";
     if (isRemoteMp4) {
       const requestedTopic: string | undefined =
         dataSource?.params?.topic ?? targetUrlState?.dsParams?.topic;
