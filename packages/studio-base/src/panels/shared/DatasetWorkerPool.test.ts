@@ -9,6 +9,12 @@ import * as Comlink from "@coscene-io/comlink";
 
 import { makeComlinkWorkerMock } from "@foxglove/den/testing";
 import { TimestampDatasetsBuilderImpl } from "@foxglove/studio-base/panels/Plot/builders/TimestampDatasetsBuilderImpl";
+import { StateTransitionsDatasetBuilder } from "@foxglove/studio-base/panels/StateTransitions/StateTransitionsDatasetBuilder";
+import {
+  StateTransitionsDatasetBuilderImpl,
+  packStateDatums,
+  unpackStateTransitionDataset,
+} from "@foxglove/studio-base/panels/StateTransitions/StateTransitionsDatasetBuilderImpl";
 
 import { DatasetWorkerPool } from "./DatasetWorkerPool";
 
@@ -36,6 +42,141 @@ async function flushPromises(): Promise<void> {
 }
 
 describe("DatasetWorkerPool", () => {
+  it("shares one host across isolated state transition sessions", async () => {
+    const workers: Worker[] = [];
+    const createStateTransitionsDatasetBuilder = jest.fn(async () =>
+      Comlink.proxy(new StateTransitionsDatasetBuilderImpl()),
+    );
+    const WorkerMock = makeComlinkWorkerMock(() => ({
+      createStateTransitionsDatasetBuilder,
+    }));
+    const pool = new DatasetWorkerPool({
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as Worker;
+        workers.push(worker);
+        return worker;
+      },
+      maxWorkers: 1,
+    });
+
+    const first = await pool.acquireStateTransitionsDatasetBuilder();
+    const second = await pool.acquireStateTransitionsDatasetBuilder();
+    const series = {
+      configIndex: 0,
+      enabled: true,
+      key: "0:/state",
+      label: "State",
+      timestampMethod: "receiveTime" as const,
+      y: -18,
+    };
+    await first.remote.applyActions([
+      { series: [series], type: "set-series" },
+      {
+        batch: packStateDatums([{ value: "first", x: 0 }]),
+        key: series.key,
+        type: "append-full",
+      },
+    ]);
+    await second.remote.applyActions([
+      { series: [series], type: "set-series" },
+      {
+        batch: packStateDatums([{ value: "second", x: 0 }]),
+        key: series.key,
+        type: "append-full",
+      },
+    ]);
+
+    const [firstDatasets, secondDatasets] = await Promise.all([
+      first.remote.getViewportDatasets({
+        showPoints: false,
+        xBounds: { max: 1, min: 0 },
+      }),
+      second.remote.getViewportDatasets({
+        showPoints: false,
+        xBounds: { max: 1, min: 0 },
+      }),
+    ]);
+
+    expect(workers).toHaveLength(1);
+    expect(createStateTransitionsDatasetBuilder).toHaveBeenCalledTimes(2);
+    expect(unpackStateTransitionDataset(firstDatasets[0]!)[0]?.value).toBe("first");
+    expect(unpackStateTransitionDataset(secondDatasets[0]!)[0]?.value).toBe("second");
+
+    await first.release();
+    await second.release();
+    await pool.dispose();
+  });
+
+  it("keeps a co-tenant usable when one state session RPC rejects", async () => {
+    const workers: Worker[] = [];
+    let sessionIndex = 0;
+    const WorkerMock = makeComlinkWorkerMock(() => ({
+      async createStateTransitionsDatasetBuilder() {
+        const index = sessionIndex++;
+        if (index === 0) {
+          return Comlink.proxy({
+            applyActions() {},
+            getViewportDatasets() {
+              throw new Error("logical session failed");
+            },
+          });
+        }
+        return Comlink.proxy(new StateTransitionsDatasetBuilderImpl());
+      },
+    }));
+    const pool = new DatasetWorkerPool({
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as Worker;
+        workers.push(worker);
+        return worker;
+      },
+      maxWorkers: 1,
+    });
+    const acquireWorker: ConstructorParameters<typeof StateTransitionsDatasetBuilder>[0] = {
+      acquireWorker: async (options) => await pool.acquireStateTransitionsDatasetBuilder(options),
+    };
+    const failed = new StateTransitionsDatasetBuilder(acquireWorker);
+    const healthy = new StateTransitionsDatasetBuilder(acquireWorker);
+    healthy.applyActions([
+      {
+        type: "set-series",
+        series: [
+          {
+            configIndex: 0,
+            enabled: true,
+            key: "0:/state",
+            label: "State",
+            timestampMethod: "receiveTime",
+            y: -18,
+          },
+        ],
+      },
+      {
+        batch: packStateDatums([{ value: "healthy", x: 0 }]),
+        key: "0:/state",
+        type: "append-full",
+      },
+    ]);
+
+    await expect(
+      failed.getViewportDatasets({ showPoints: false, xBounds: { max: 1, min: 0 } }),
+    ).rejects.toThrow("logical session failed");
+    expect(console.error).toHaveBeenCalled();
+    jest.mocked(console.error).mockClear();
+    const datasets = await healthy.getViewportDatasets({
+      showPoints: false,
+      xBounds: { max: 1, min: 0 },
+    });
+
+    expect(workers).toHaveLength(1);
+    expect(unpackStateTransitionDataset(datasets[0]!)[0]?.value).toBe("healthy");
+
+    failed.destroy();
+    healthy.destroy();
+    await flushPromises();
+    await pool.dispose();
+  });
+
   it("shares physical workers and balances logical sessions at capacity", async () => {
     const services: { createTimestampDatasetsBuilder: jest.Mock }[] = [];
     const workers: MockWorker[] = [];
@@ -182,6 +323,34 @@ describe("DatasetWorkerPool", () => {
       "Dataset worker failed while creating a session",
     );
     const replacement = await pool.acquireTimestampDatasetsBuilder();
+    expect(workerCount).toBe(2);
+
+    await replacement.release();
+    await pool.dispose();
+  });
+
+  it("retires a host when a state transition session constructor rejects", async () => {
+    let workerCount = 0;
+    const WorkerMock = makeComlinkWorkerMock(() => {
+      const workerIndex = workerCount++;
+      return {
+        async createStateTransitionsDatasetBuilder() {
+          if (workerIndex === 0) {
+            throw new Error("session setup failed");
+          }
+          return Comlink.proxy(new StateTransitionsDatasetBuilderImpl());
+        },
+      };
+    });
+    const pool = new DatasetWorkerPool({
+      createWorker: () => new WorkerMock() as unknown as Worker,
+      maxWorkers: 1,
+    });
+
+    await expect(pool.acquireStateTransitionsDatasetBuilder()).rejects.toThrow(
+      "Dataset worker failed while creating a session",
+    );
+    const replacement = await pool.acquireStateTransitionsDatasetBuilder();
     expect(workerCount).toBe(2);
 
     await replacement.release();

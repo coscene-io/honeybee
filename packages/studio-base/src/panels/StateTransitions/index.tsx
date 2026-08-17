@@ -22,12 +22,9 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@foxglove/den/async";
-import { filterMap } from "@foxglove/den/collection";
-import { useRethrow } from "@foxglove/hooks";
-import { parseMessagePath, MessagePathPart } from "@foxglove/message-path";
+import { useDeepMemo, useRethrow } from "@foxglove/hooks";
 import { add as addTimes, fromSec } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
-import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -49,13 +46,17 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { PathLegend } from "@foxglove/studio-base/panels/StateTransitions/PathLegend";
-import { SubscribePayload } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { StateTransitionsCoordinator } from "./StateTransitionsCoordinator";
+import { StateTransitionsDatasetBuilder } from "./StateTransitionsDatasetBuilder";
 import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
 import { VerticalBars } from "./VerticalBars";
+import {
+  planStateTransitionsSubscriptions,
+  startStateTransitionsRangeSubscriptions,
+} from "./rangeSubscriptions";
 import { PathState, useStateTransitionsPanelSettings } from "./settings";
 import { DEFAULT_PATH } from "./shared";
 import { StateTransitionConfig } from "./types";
@@ -96,6 +97,14 @@ const useStyles = makeStyles()((theme) => ({
 
 const selectGlobalBounds = (store: TimelineInteractionStateStore) => store.globalBounds;
 const selectSetGlobalBounds = (store: TimelineInteractionStateStore) => store.setGlobalBounds;
+const selectSubscribeMessageRange = (context: MessagePipelineContext) =>
+  context.subscribeMessageRange;
+const selectIsLiveSource = (context: MessagePipelineContext) => context.seekPlayback == undefined;
+const selectPlayerId = (context: MessagePipelineContext) => context.playerState.playerId;
+const selectStartTimeSec = (context: MessagePipelineContext) =>
+  context.playerState.activeData?.startTime.sec;
+const selectStartTimeNsec = (context: MessagePipelineContext) =>
+  context.playerState.activeData?.startTime.nsec;
 
 type Props = {
   config: StateTransitionConfig;
@@ -142,11 +151,38 @@ function StateTransitions(props: Props) {
   );
   const subscribeMessagePipeline = useMessagePipelineSubscribe();
   const getMessagePipelineState = useMessagePipelineGetter();
+  const subscribeMessageRange = useMessagePipeline(selectSubscribeMessageRange);
+  const isLiveSource = useMessagePipeline(selectIsLiveSource);
+  const playerId = useMessagePipeline(selectPlayerId);
+  const startTimeSec = useMessagePipeline(selectStartTimeSec);
+  const startTimeNsec = useMessagePipeline(selectStartTimeNsec);
+  const rangeStartTime = useMemo(
+    () =>
+      startTimeSec != undefined && startTimeNsec != undefined
+        ? { sec: startTimeSec, nsec: startTimeNsec }
+        : undefined,
+    [startTimeNsec, startTimeSec],
+  );
+  const historySourceId = `${playerId}:${String(startTimeSec)}:${String(startTimeNsec)}`;
+
+  const rangePlanningInputs = useDeepMemo({
+    paths: paths.map(({ value, enabled, timestampMethod }) => ({
+      value,
+      enabled,
+      timestampMethod,
+    })),
+    globalVariables,
+  });
+  const topicPlans = useMemo(
+    () => planStateTransitionsSubscriptions(rangePlanningInputs),
+    [rangePlanningInputs],
+  );
+  const rangeSessionIdRef = useRef(0);
 
   // Crash the panel when a worker fails to load or encounters an error
   const handleWorkerError = useRethrow(
-    useCallback((_err: Event) => {
-      throw new Error(`Error encountered in StateTransitions worker`);
+    useCallback((error: unknown) => {
+      throw new Error(`Error encountered in StateTransitions worker`, { cause: error });
     }, []),
   );
 
@@ -216,7 +252,10 @@ function StateTransitions(props: Props) {
       return;
     }
 
-    const newCoordinator = new StateTransitionsCoordinator(renderer);
+    const datasetBuilder = new StateTransitionsDatasetBuilder({ handleWorkerError });
+    // The production Dataset builder reports session failures through handleWorkerError itself.
+    // Leaving the coordinator error hook unset avoids reporting the same rejected RPC twice.
+    const newCoordinator = new StateTransitionsCoordinator(renderer, datasetBuilder);
     setCoordinator(newCoordinator);
 
     newCoordinator.on("viewportChange", setCanReset);
@@ -229,7 +268,7 @@ function StateTransitions(props: Props) {
       newCoordinator.off("pathStateChanged", setPathState);
       newCoordinator.destroy();
     };
-  }, [renderer]);
+  }, [handleWorkerError, renderer]);
 
   // Handle config changes
   useEffect(() => {
@@ -252,39 +291,70 @@ function StateTransitions(props: Props) {
     return unsub;
   }, [coordinator, getMessagePipelineState, subscribeMessagePipeline]);
 
-  // Set up message subscriptions
+  // Replay history is streamed once per topic through the range API. Unsupported topics retain
+  // their block preload fallback; live sources use only the bounded current stream.
   useEffect(() => {
-    const subscriptions = filterMap(paths, (path): SubscribePayload | undefined => {
-      const parsed = parseMessagePath(path.value);
-      if (!parsed) {
-        return;
-      }
+    if (!coordinator) {
+      return;
+    }
 
-      // Fill in global variables before subscribing
-      const filledInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
-
-      // Get the first field name from the message path for field-level subscription
-      type NamePart = MessagePathPart & { type: "name" };
-      const firstField = filledInPath.messagePath.find(
-        (element): element is NamePart => element.type === "name",
-      );
-
-      const fields: string[] = firstField ? [firstField.name] : [];
-
-      // Include the header in case we are ordering by header stamp.
-      if (path.timestampMethod === "headerStamp") {
-        fields.push("header");
-      }
-
-      return {
-        topic: filledInPath.topicName,
-        preloadType: "full",
-        fields: fields.length > 0 ? fields : undefined,
-      };
+    const rangeSessionId = ++rangeSessionIdRef.current;
+    let rangeGeneration = -1;
+    let markReady!: (generation: number) => void;
+    const generationReady = new Promise<number>((resolve) => {
+      markReady = resolve;
+    });
+    const running = startStateTransitionsRangeSubscriptions({
+      plans: topicPlans,
+      attemptRanges: !isLiveSource,
+      subscribeMessageRange: rangeStartTime == undefined ? undefined : subscribeMessageRange,
+      generation: generationReady,
+      onIteratorStart: async (topic, generation) => {
+        await coordinator.resetRangeTopic({ topic, generation });
+      },
+      onRangeBatch: async (topic, messages, generation) => {
+        if (rangeStartTime == undefined) {
+          return;
+        }
+        await coordinator.handleRangeBatch({
+          topic,
+          messages,
+          startTime: rangeStartTime,
+          generation,
+        });
+      },
+      onError: handleWorkerError,
     });
 
-    setSubscriptions(subscriberId, subscriptions);
-  }, [paths, setSubscriptions, subscriberId, globalVariables]);
+    rangeGeneration = coordinator.configureHistorySources({
+      sourceId: historySourceId,
+      rangeTopics: running.rangeTopics,
+      isLive: isLiveSource,
+      rangeSessionId,
+    });
+    markReady(rangeGeneration);
+    setSubscriptions(subscriberId, running.subscriptions);
+
+    // The player-state effect runs first. Re-feed its snapshot after the semantic reset so live
+    // current data and block-based fallback history are not left blank until the Player emits.
+    coordinator.handlePlayerState(getMessagePipelineState().playerState);
+
+    return () => {
+      coordinator.invalidateRangeHistory(rangeGeneration);
+      running.cancel();
+    };
+  }, [
+    coordinator,
+    getMessagePipelineState,
+    handleWorkerError,
+    isLiveSource,
+    historySourceId,
+    rangeStartTime,
+    setSubscriptions,
+    subscribeMessageRange,
+    subscriberId,
+    topicPlans,
+  ]);
 
   // Unsubscribe on unmount
   useEffect(() => {
