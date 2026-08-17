@@ -58,6 +58,12 @@ export type Viewport = {
   };
   /** The pixel size of the viewport */
   size: Size;
+  /**
+   * Indicates that the x bounds are advancing as a following time window. Timestamp builders may
+   * query and downsample an aligned superset of these bounds so that small playback-head updates
+   * can reuse their previous work. The renderer still uses `bounds` as the exact chart scale.
+   */
+  following?: boolean;
 };
 
 export type CsvDataset = {

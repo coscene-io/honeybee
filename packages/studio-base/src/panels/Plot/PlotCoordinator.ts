@@ -469,6 +469,15 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     }
     this.#viewport.bounds.x = await this.#getXBounds();
     this.#viewport.bounds.y = this.#interactionBounds?.y ?? this.#configBounds.y;
+    this.#viewport.following =
+      this.#isTimeseriesPlot &&
+      this.#followRange != undefined &&
+      Number.isFinite(this.#followRange) &&
+      this.#followRange > 0 &&
+      this.#currentSeconds != undefined &&
+      Number.isFinite(this.#currentSeconds) &&
+      this.#interactionBounds == undefined &&
+      this.#globalBounds == undefined;
 
     const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);
     if (this.isDestroyed()) {

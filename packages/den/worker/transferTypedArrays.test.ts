@@ -28,4 +28,18 @@ describe("collectTransferableBuffers", () => {
     expect(collectTransferableBuffers(value)).toEqual([sharedBuffer, nestedBuffer]);
     expect(getter).not.toHaveBeenCalled();
   });
+
+  it("uses the ArrayBuffer brand across prototype realms and excludes shared buffers", () => {
+    const foreignPrototypeBuffer = new ArrayBuffer(8);
+    Object.setPrototypeOf(foreignPrototypeBuffer, {});
+    expect(foreignPrototypeBuffer).not.toBeInstanceOf(ArrayBuffer);
+
+    const values: unknown[] = [foreignPrototypeBuffer];
+    if (typeof SharedArrayBuffer !== "undefined") {
+      const sharedBuffer = new SharedArrayBuffer(8);
+      values.push(sharedBuffer, new Uint8Array(sharedBuffer));
+    }
+
+    expect(collectTransferableBuffers(values)).toEqual([foreignPrototypeBuffer]);
+  });
 });

@@ -19,6 +19,8 @@ export type WorkerSessionLease<TSession> = {
 export type WorkerSessionPoolOptions<TResource> = {
   createResource: () => MaybePromise<TResource>;
   disposeResource: (resource: TResource) => MaybePromise<void>;
+  /** Detect resources that failed independently while they were idle in the pool. */
+  isResourceBroken?: (resource: TResource) => boolean;
   maxWorkers?: number;
   /** Keep resources with no active sessions available for future acquisitions. */
   keepAlive?: boolean;
@@ -71,6 +73,7 @@ export function getDefaultWorkerSessionPoolCapacity(
 export class WorkerSessionPool<TResource> {
   readonly #createResource: () => MaybePromise<TResource>;
   readonly #disposeResource: (resource: TResource) => MaybePromise<void>;
+  readonly #isResourceBroken?: (resource: TResource) => boolean;
   readonly #keepAlive: boolean;
   readonly #maxWorkers: number;
 
@@ -87,6 +90,7 @@ export class WorkerSessionPool<TResource> {
 
     this.#createResource = options.createResource;
     this.#disposeResource = options.disposeResource;
+    this.#isResourceBroken = options.isResourceBroken;
     this.#keepAlive = options.keepAlive ?? true;
     this.#maxWorkers = maxWorkers;
   }
@@ -186,6 +190,19 @@ export class WorkerSessionPool<TResource> {
   async #reserveHost(signal: AbortSignal | undefined): Promise<ResourceHost<TResource>> {
     for (;;) {
       this.#throwIfUnavailable(signal);
+
+      for (const candidate of this.#hosts) {
+        if (
+          !candidate.broken &&
+          candidate.resourceCreated &&
+          this.#isResourceBroken?.(candidate.resource as TResource) === true
+        ) {
+          candidate.broken = true;
+          if (candidate.activeSessions === 0) {
+            void this.#retireHost(candidate).catch(() => undefined);
+          }
+        }
+      }
 
       let host: ResourceHost<TResource> | undefined;
       if (this.#hosts.length < this.#maxWorkers) {

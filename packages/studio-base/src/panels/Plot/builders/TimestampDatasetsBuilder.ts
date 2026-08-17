@@ -5,14 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as Comlink from "@coscene-io/comlink";
-
-import { ComlinkWrap } from "@foxglove/den/worker";
 import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, MessageEvent, Time } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
+import {
+  acquireTimestampDatasetsBuilder,
+  TimestampDatasetWorkerLease,
+} from "@foxglove/studio-base/panels/shared/DatasetWorkerPool";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { TimestampMethod, getTimestampForMessage } from "@foxglove/studio-base/util/time";
@@ -25,20 +26,23 @@ import {
   SeriesItem,
   Viewport,
 } from "./IDatasetsBuilder";
-import type {
-  DataItem,
-  TimestampDatasetsBuilderImpl,
-  UpdateDataAction,
-} from "./TimestampDatasetsBuilderImpl";
+import type { DataItem, UpdateDataAction } from "./TimestampDatasetsBuilderImpl";
+import { restoreUnpackedDataAccessor } from "../PackedDataset";
 import { getChartValue, isChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
 
 const log = Logger.getLogger(__filename);
 
-// If the datasets builder is garbage collected we also need to cleanup the worker
-// This registry ensures the worker is cleaned up when the builder is garbage collected
-const registry = new FinalizationRegistry<() => void>((dispose) => {
-  dispose();
+type BuilderLifetime = {
+  abortController: AbortController;
+  destroyPromise?: Promise<void>;
+  inFlight: Set<Promise<unknown>>;
+  leasePromise: Promise<TimestampDatasetWorkerLease>;
+};
+
+// The held BuilderLifetime never points back to its builder, so registration does not prevent GC.
+const registry = new FinalizationRegistry<BuilderLifetime>((lifetime) => {
+  void destroyLifetime(lifetime);
 });
 
 const emptyPaths = new Set<string>();
@@ -56,10 +60,6 @@ type TimestampSeriesItem = {
  * downsampled data.
  */
 export class TimestampDatasetsBuilder implements IDatasetsBuilder {
-  #datasetsBuilderRemote?:
-    | Comlink.Remote<Comlink.RemoteObject<TimestampDatasetsBuilderImpl>>
-    | undefined;
-
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
 
   #lastSeekTime = 0;
@@ -68,7 +68,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
   #xAxisMode: "timestamp" | "partialTimestamp";
 
-  #dispose?: () => void;
+  #lifetime: BuilderLifetime;
   #destroyed = false;
 
   public constructor(
@@ -81,27 +81,27 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     } = { xAxisMode: "timestamp" },
   ) {
     this.#xAxisMode = xAxisMode;
-    const worker = new Worker(
-      // foxglove-depcheck-used: babel-plugin-transform-import-meta
-      new URL("./TimestampDatasetsBuilderImpl.worker", import.meta.url),
-    );
-    worker.onerror = (event) => {
-      log.error("[TimestampDatasetsBuilder] Worker error:", event);
-      handleWorkerError?.(event);
-    };
-    worker.onmessageerror = (event) => {
-      log.error("[TimestampDatasetsBuilder] Worker message error:", event);
-      handleWorkerError?.(event);
-    };
-    const { remote, dispose } =
-      ComlinkWrap<Comlink.RemoteObject<TimestampDatasetsBuilderImpl>>(worker);
-    this.#datasetsBuilderRemote = remote;
+    const abortController = new AbortController();
+    const lifetime = {
+      abortController,
+      inFlight: new Set<Promise<unknown>>(),
+      leasePromise: acquireTimestampDatasetsBuilder({
+        handleWorkerError: (event) => {
+          log.error("[TimestampDatasetsBuilder] Worker error:", event);
+          handleWorkerError?.(event);
+        },
+        signal: abortController.signal,
+      }),
+    } satisfies BuilderLifetime;
+    this.#lifetime = lifetime;
 
-    // Keep dispose for explicit cleanup; also register GC fallback
-    this.#dispose = dispose;
-    registry.register(this, () => {
-      this.#dispose?.();
+    // Attach a rejection handler even when the panel is destroyed before its first remote call.
+    void lifetime.leasePromise.catch((error: unknown) => {
+      if (!lifetime.abortController.signal.aborted) {
+        log.error("[TimestampDatasetsBuilder] Failed to create Dataset worker session", error);
+      }
     });
+    registry.register(this, lifetime, lifetime);
   }
 
   public destroy(): void {
@@ -110,10 +110,8 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     }
     this.#destroyed = true;
     this.#pendingDispatch = [];
-    const dispose = this.#dispose;
-    this.#dispose = undefined;
-    this.#datasetsBuilderRemote = undefined;
-    dispose?.();
+    registry.unregister(this.#lifetime);
+    void destroyLifetime(this.#lifetime);
   }
 
   public handlePlayerState(state: Immutable<PlayerState>): Bounds1D | undefined {
@@ -225,7 +223,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         });
 
         const abort = await progress();
-        if (abort) {
+        if (abort || this.#lifetime.abortController.signal.aborted) {
           return;
         }
       }
@@ -253,50 +251,118 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
   ): Promise<GetViewportDatasetsResult> {
-    if (this.#destroyed || !this.#datasetsBuilderRemote) {
+    if (this.#destroyed) {
       return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
     }
 
-    const remote = this.#datasetsBuilderRemote;
     const dispatch = this.#pendingDispatch;
+    const lifetime = this.#lifetime;
     if (dispatch.length > 0) {
       this.#pendingDispatch = [];
-      await remote.applyActions(dispatch);
-      if (this.#datasetsBuilderRemote !== remote) {
-        return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
-      }
     }
 
-    const datasets = await remote.getViewportDatasets(viewport);
-    if (this.#datasetsBuilderRemote !== remote) {
+    let datasets;
+    try {
+      datasets = await trackOperation(
+        lifetime,
+        getViewportDatasets(lifetime.leasePromise, dispatch, viewport),
+      );
+    } catch (error) {
+      if (!lifetime.abortController.signal.aborted) {
+        throw error;
+      }
       return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
     }
+    if (lifetime.abortController.signal.aborted) {
+      return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
+    }
+    datasets.forEach(restoreUnpackedDataAccessor);
     return { datasetsByConfigIndex: datasets, pathsWithMismatchedDataLengths: emptyPaths };
   }
 
   public async getCsvData(): Promise<CsvDataset[]> {
-    if (this.#destroyed || !this.#datasetsBuilderRemote) {
+    if (this.#destroyed) {
       return [];
     }
-    const remote = this.#datasetsBuilderRemote;
-    const data = await remote.getCsvData();
-    if (this.#datasetsBuilderRemote !== remote) {
+    const lifetime = this.#lifetime;
+    let data;
+    try {
+      data = await trackOperation(lifetime, getCsvData(lifetime.leasePromise));
+    } catch (error) {
+      if (!lifetime.abortController.signal.aborted) {
+        throw error;
+      }
       return [];
     }
-    return data;
+    return lifetime.abortController.signal.aborted ? [] : data;
   }
 
   public async getXRange(): Promise<Bounds1D | undefined> {
-    if (this.#destroyed || !this.#datasetsBuilderRemote) {
+    if (this.#destroyed) {
       return undefined;
     }
-    const remote = this.#datasetsBuilderRemote;
-    const range = await remote.getXRange();
-    if (this.#datasetsBuilderRemote !== remote) {
+    const lifetime = this.#lifetime;
+    let range;
+    try {
+      range = await trackOperation(lifetime, getXRange(lifetime.leasePromise));
+    } catch (error) {
+      if (!lifetime.abortController.signal.aborted) {
+        throw error;
+      }
       return undefined;
     }
-    return range;
+    return lifetime.abortController.signal.aborted ? undefined : range;
   }
+}
+
+async function getViewportDatasets(
+  leasePromise: Promise<TimestampDatasetWorkerLease>,
+  dispatch: Immutable<UpdateDataAction>[],
+  viewport: Immutable<Viewport>,
+) {
+  const { remote } = await leasePromise;
+  if (dispatch.length > 0) {
+    await remote.applyActions(dispatch);
+  }
+  return await remote.getViewportDatasets(viewport);
+}
+
+async function getCsvData(leasePromise: Promise<TimestampDatasetWorkerLease>) {
+  const { remote } = await leasePromise;
+  return await remote.getCsvData();
+}
+
+async function getXRange(leasePromise: Promise<TimestampDatasetWorkerLease>) {
+  const { remote } = await leasePromise;
+  return await remote.getXRange();
+}
+
+async function trackOperation<T>(lifetime: BuilderLifetime, operation: Promise<T>): Promise<T> {
+  lifetime.inFlight.add(operation);
+  void operation.then(
+    () => {
+      lifetime.inFlight.delete(operation);
+    },
+    () => {
+      lifetime.inFlight.delete(operation);
+    },
+  );
+  return await operation;
+}
+
+async function destroyLifetime(lifetime: BuilderLifetime): Promise<void> {
+  if (lifetime.destroyPromise != undefined) {
+    await lifetime.destroyPromise;
+    return;
+  }
+
+  lifetime.abortController.abort();
+  lifetime.destroyPromise = (async () => {
+    await Promise.allSettled([...lifetime.inFlight]);
+    const lease = await lifetime.leasePromise.catch(() => undefined);
+    await lease?.release();
+  })();
+  await lifetime.destroyPromise;
 }
 
 function readMessagePathItems(

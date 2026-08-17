@@ -15,6 +15,7 @@ import { Bounds } from "@foxglove/studio-base/types/Bounds";
 
 import { ChartRenderer, Dataset, HoverElement, Scale, UpdateAction } from "./ChartRenderer";
 import type { Service } from "./ChartRenderer.worker";
+import { getPackedDatasetTransferables } from "./PackedDataset";
 
 const log = Logger.getLogger(__filename);
 
@@ -29,6 +30,7 @@ export class OffscreenCanvasRenderer {
   #remote: Promise<Comlink.RemoteObject<ChartRenderer>>;
   #dispose?: () => void;
   #destroyed = false;
+  readonly #registryToken = {};
 
   #theme: Theme;
 
@@ -71,9 +73,9 @@ export class OffscreenCanvasRenderer {
       ),
     );
 
-    registry.register(this, () => {
-      this.#dispose?.();
-    });
+    // The held value must not close over `this`, otherwise the registry itself keeps the renderer
+    // alive and the fallback can never run.
+    registry.register(this, dispose, this.#registryToken);
   }
 
   public async update(action: Immutable<UpdateAction>): Promise<Bounds | undefined> {
@@ -94,7 +96,10 @@ export class OffscreenCanvasRenderer {
     if (this.#destroyed) {
       return undefined;
     }
-    return await (await this.#remote).updateDatasets(datasets);
+    const transferables = datasets.flatMap((dataset) =>
+      dataset.packedData ? getPackedDatasetTransferables(dataset.packedData) : [],
+    );
+    return await (await this.#remote).updateDatasets(Comlink.transfer(datasets, transferables));
   }
 
   public destroy(): void {
@@ -103,6 +108,7 @@ export class OffscreenCanvasRenderer {
     }
 
     this.#destroyed = true;
+    registry.unregister(this.#registryToken);
 
     // Immediately dispose of the worker to prevent further operations
     this.#dispose?.();

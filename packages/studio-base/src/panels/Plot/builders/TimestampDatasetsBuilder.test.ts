@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import * as Comlink from "@coscene-io/comlink";
 import * as _ from "lodash-es";
 
 import { unwrap } from "@foxglove/den/monads";
@@ -23,9 +24,33 @@ import { TimestampDatasetsBuilder } from "./TimestampDatasetsBuilder";
 import { TimestampDatasetsBuilderImpl } from "./TimestampDatasetsBuilderImpl";
 import { PlotPath } from "../config";
 
+let createTimestampDatasetsBuilderImpl: () => object = () => new TimestampDatasetsBuilderImpl();
+
 Object.defineProperty(global, "Worker", {
   writable: true,
-  value: makeComlinkWorkerMock(() => new TimestampDatasetsBuilderImpl()),
+  value: makeComlinkWorkerMock(() => ({
+    async createTimestampDatasetsBuilder() {
+      return Comlink.proxy(createTimestampDatasetsBuilderImpl());
+    },
+  })),
+});
+
+const builders: TimestampDatasetsBuilder[] = [];
+
+function createBuilder(): TimestampDatasetsBuilder {
+  const builder = new TimestampDatasetsBuilder();
+  builders.push(builder);
+  return builder;
+}
+
+afterEach(async () => {
+  for (const builder of builders.splice(0)) {
+    builder.destroy();
+  }
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve);
+  });
+  createTimestampDatasetsBuilderImpl = () => new TimestampDatasetsBuilderImpl();
 });
 
 function groupByTopic(events: MessageEvent[]): Record<string, MessageEvent[]> {
@@ -89,8 +114,47 @@ function buildPlayerState(
 }
 
 describe("TimestampDatasetsBuilder", () => {
+  it("waits for an in-flight request before releasing its child worker session", async () => {
+    let finishRequest!: () => void;
+    let requestStarted!: () => void;
+    const finishRequestPromise = new Promise<void>((resolve) => {
+      finishRequest = resolve;
+    });
+    const requestStartedPromise = new Promise<void>((resolve) => {
+      requestStarted = resolve;
+    });
+    const finalized = jest.fn();
+    createTimestampDatasetsBuilderImpl = () => ({
+      [Comlink.finalizer]: finalized,
+      async getXRange() {
+        requestStarted();
+        await finishRequestPromise;
+        return { min: 0, max: 1 };
+      },
+    });
+    const builder = createBuilder();
+    const rangePromise = builder.getXRange();
+    await requestStartedPromise;
+
+    builder.destroy();
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    expect(finalized).not.toHaveBeenCalled();
+
+    finishRequest();
+    await expect(rangePromise).resolves.toBeUndefined();
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    expect(finalized).toHaveBeenCalledTimes(1);
+  });
+
   it("should process current messages into a dataset", async () => {
-    const builder = new TimestampDatasetsBuilder();
+    const builder = createBuilder();
 
     builder.setSeries(
       buildSeriesItems([
@@ -166,7 +230,7 @@ describe("TimestampDatasetsBuilder", () => {
   });
 
   it("should create a discontinuity between current and full", async () => {
-    const builder = new TimestampDatasetsBuilder();
+    const builder = createBuilder();
 
     builder.setSeries(
       buildSeriesItems([
@@ -257,7 +321,7 @@ describe("TimestampDatasetsBuilder", () => {
   });
 
   it("computes derivative inside and outside of viewport", async () => {
-    const builder = new TimestampDatasetsBuilder();
+    const builder = createBuilder();
 
     builder.setSeries(
       buildSeriesItems([
@@ -425,7 +489,7 @@ describe("TimestampDatasetsBuilder", () => {
   });
 
   it("should cull current messages after threshold is reached", async () => {
-    const builder = new TimestampDatasetsBuilder();
+    const builder = createBuilder();
 
     builder.setSeries(
       buildSeriesItems([
@@ -500,7 +564,7 @@ describe("TimestampDatasetsBuilder", () => {
   });
 
   it("supports toggling series enabled state", async () => {
-    const builder = new TimestampDatasetsBuilder();
+    const builder = createBuilder();
 
     builder.setSeries(
       buildSeriesItems([
@@ -591,7 +655,7 @@ describe("TimestampDatasetsBuilder", () => {
   });
 
   it("leaves gaps in datasetsByConfigIndex for missing series", async () => {
-    const builder = new TimestampDatasetsBuilder();
+    const builder = createBuilder();
 
     builder.setSeries([
       {

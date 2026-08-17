@@ -16,6 +16,7 @@ import type { ScatterPoint } from "@foxglove/studio-base/components/Chart/types"
 import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 
+import { PackedDatasetData, unpackPackedDatasetData } from "./PackedDataset";
 import { OriginalValue } from "./datum";
 
 // Define fontMonospace locally to avoid importing @foxglove/theme which includes React dependencies
@@ -56,7 +57,10 @@ export type InteractionEvent =
   | PanEndInteractionEvent;
 
 export type Datum = ScatterPoint & { value?: OriginalValue };
-export type Dataset = ChartDataset<"scatter", Datum[]>;
+export type Dataset = ChartDataset<"scatter", Datum[]> & {
+  /** Exact-sized transferable representation used by timestamp datasets. */
+  packedData?: PackedDatasetData;
+};
 
 type ChartType = Chart<"scatter", Datum[]>;
 
@@ -403,7 +407,16 @@ export class ChartRenderer {
   }
 
   public updateDatasets(datasets: Dataset[]): Scale | undefined {
-    this.#chartInstance.data.datasets = datasets;
+    this.#chartInstance.data.datasets = datasets.map((dataset) => {
+      if (!dataset.packedData) {
+        return dataset;
+      }
+      const { packedData, ...chartDataset } = dataset;
+      return {
+        ...chartDataset,
+        data: unpackPackedDatasetData(packedData),
+      };
+    });
 
     // While the chartjs API doesn't indicate update should be called after resize, in practice
     // we've found that performing a resize after an update sometimes results in a blank chart.

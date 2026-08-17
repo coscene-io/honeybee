@@ -7,6 +7,14 @@
 
 import * as Comlink from "@coscene-io/comlink";
 
+/* oxlint-disable typescript/unbound-method -- this intrinsic getter is intentionally invoked with a candidate receiver below */
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const getArrayBufferByteLength = Object.getOwnPropertyDescriptor(
+  ArrayBuffer.prototype,
+  "byteLength",
+)?.get;
+/* oxlint-enable typescript/unbound-method */
+
 /** Collects unique, transferable ArrayBuffers without invoking object getters. */
 export function collectTransferableBuffers(value: unknown): ArrayBuffer[] {
   const buffers = new Set<ArrayBuffer>();
@@ -16,12 +24,12 @@ export function collectTransferableBuffers(value: unknown): ArrayBuffer[] {
     if (candidate == undefined || typeof candidate !== "object") {
       return;
     }
-    if (candidate instanceof ArrayBuffer) {
+    if (isArrayBuffer(candidate)) {
       buffers.add(candidate);
       return;
     }
     if (ArrayBuffer.isView(candidate)) {
-      if (candidate.buffer instanceof ArrayBuffer) {
+      if (isArrayBuffer(candidate.buffer)) {
         buffers.add(candidate.buffer);
       }
       return;
@@ -54,6 +62,20 @@ export function collectTransferableBuffers(value: unknown): ArrayBuffer[] {
 
   visit(value);
   return [...buffers];
+}
+
+function isArrayBuffer(value: unknown): value is ArrayBuffer {
+  if (getArrayBufferByteLength == undefined || value == undefined || typeof value !== "object") {
+    return false;
+  }
+  try {
+    // The intrinsic getter checks the internal ArrayBuffer slot across realms without consulting
+    // user properties such as Symbol.toStringTag. It rejects SharedArrayBuffer.
+    getArrayBufferByteLength.call(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
