@@ -63,7 +63,13 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
     // remote-mp4 always uses the single Image panel. Detect the active source
     // as well as the startup URL so in-app dialog selections also get this layout.
     // Do not restore history, recommended layouts, or URL layoutId.
-    const isRemoteMp4 = dataSource?.id === "remote-mp4" || targetUrlState?.ds === "remote-mp4";
+    // Prefer the live source once it exists. targetUrlState is the launch deep
+    // link and never updates, so it must not keep forcing this layout after the
+    // user switches to another source.
+    const isRemoteMp4 =
+      dataSource != undefined
+        ? dataSource.id === "remote-mp4"
+        : targetUrlState?.ds === "remote-mp4";
     if (isRemoteMp4) {
       const requestedTopic: string | undefined =
         dataSource?.params?.topic ?? targetUrlState?.dsParams?.topic;

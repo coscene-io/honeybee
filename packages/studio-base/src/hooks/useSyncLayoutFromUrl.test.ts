@@ -7,7 +7,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
@@ -444,6 +444,33 @@ describe("useSyncLayoutFromUrl", () => {
         transient: true,
       });
     });
+  });
+
+  it("does not keep the MP4 layout after switching away from a remote-mp4 deep link", async () => {
+    dataSource = { id: "remote-mp4", type: "connection" };
+
+    const { rerender } = renderHook(
+      ({ urlState }: { urlState: AppURLState | undefined }) => {
+        useSyncLayoutFromUrl(urlState);
+      },
+      { initialProps: { urlState: { ds: "remote-mp4" } as AppURLState | undefined } },
+    );
+
+    await waitFor(() => {
+      expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith(
+        expect.objectContaining({ id: REMOTE_MP4_DEFAULT_LAYOUT_ID }),
+      );
+    });
+
+    currentLayoutActions.setCurrentLayout.mockClear();
+    selectedLayoutId = "users/u/layouts/personal" as LayoutID;
+    dataSource = { id: "coscene-data-platform", type: "connection" };
+
+    await act(async () => {
+      rerender({ urlState: { ds: "remote-mp4" } });
+    });
+
+    expect(currentLayoutActions.setCurrentLayout).not.toHaveBeenCalled();
   });
 
   it("opens the layout drawer when the URL layout and history are missing", async () => {
