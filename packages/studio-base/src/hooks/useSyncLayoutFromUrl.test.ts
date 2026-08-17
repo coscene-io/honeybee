@@ -446,6 +446,43 @@ describe("useSyncLayoutFromUrl", () => {
     });
   });
 
+  it("uses the live source default topic instead of the launch ds.topic", async () => {
+    const urlState: AppURLState = { ds: "remote-mp4", dsParams: { topic: "/vehicle/front" } };
+
+    const { rerender } = renderHook(
+      ({ state }: { state: AppURLState | undefined }) => {
+        useSyncLayoutFromUrl(state);
+      },
+      { initialProps: { state: urlState } },
+    );
+
+    await waitFor(() => {
+      expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith({
+        id: REMOTE_MP4_DEFAULT_LAYOUT_ID,
+        name: REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+        data: createDefaultRemoteMp4Layout("/vehicle/front"),
+        transient: true,
+      });
+    });
+
+    // The user picks a URL-only remote-mp4 recent: the live source has no topic
+    // and publishes on the default, so the layout must follow it.
+    jest.mocked(currentLayoutActions.setCurrentLayout).mockClear();
+    selectedLayoutId = REMOTE_MP4_DEFAULT_LAYOUT_ID;
+    dataSource = { id: "remote-mp4", type: "connection" };
+
+    rerender({ state: urlState });
+
+    await waitFor(() => {
+      expect(currentLayoutActions.setCurrentLayout).toHaveBeenCalledWith({
+        id: REMOTE_MP4_DEFAULT_LAYOUT_ID,
+        name: REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+        data: createDefaultRemoteMp4Layout(),
+        transient: true,
+      });
+    });
+  });
+
   it("does not keep the MP4 layout after switching away from a remote-mp4 deep link", async () => {
     dataSource = { id: "remote-mp4", type: "connection" };
 
