@@ -7,3 +7,4 @@
 
 export * from "./ComlinkWrap";
 export * from "./transferTypedArrays";
+export * from "./WorkerSessionPool";
