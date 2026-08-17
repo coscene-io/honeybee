@@ -7,6 +7,19 @@
 
 import * as Comlink from "@coscene-io/comlink";
 
-import { CustomDatasetsBuilderImpl } from "./CustomDatasetsBuilderImpl";
+import { transferTypedArrays } from "@foxglove/den/worker";
 
-Comlink.expose(new CustomDatasetsBuilderImpl());
+import { CustomDatasetsBuilderImpl, UpdateDataAction } from "./CustomDatasetsBuilderImpl";
+import { Viewport } from "./IDatasetsBuilder";
+
+const builder = new CustomDatasetsBuilderImpl();
+
+Comlink.expose({
+  updateData: (actions: UpdateDataAction[]) => {
+    builder.updateData(actions);
+  },
+  getViewportDatasets: (viewport: Viewport) =>
+    transferTypedArrays(builder.getViewportDatasets(viewport)),
+  getCsvData: () => builder.getCsvData(),
+  getXRange: () => builder.getXRange(),
+});

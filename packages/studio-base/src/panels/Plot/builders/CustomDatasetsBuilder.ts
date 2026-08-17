@@ -3,24 +3,21 @@
 
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import * as Comlink from "@coscene-io/comlink";
 
-import { ComlinkWrap } from "@foxglove/den/worker";
+import { ComlinkWrap, transferTypedArrays } from "@foxglove/den/worker";
 import Logger from "@foxglove/log";
 import { MessagePath } from "@foxglove/message-path";
-import { Immutable, MessageEvent } from "@foxglove/studio";
+import { Immutable, MessageEvent, Time } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D, extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
-import {
-  CustomDatasetsBuilderImpl,
-  UpdateDataAction,
-  ValueItem,
-} from "./CustomDatasetsBuilderImpl";
+import { CustomDatasetsBuilderImpl, UpdateDataAction } from "./CustomDatasetsBuilderImpl";
+import { encodeValueItems, ValueItem } from "./CustomValueStore";
 import {
   CsvDataset,
   GetViewportDatasetsResult,
@@ -28,38 +25,46 @@ import {
   SeriesItem,
   Viewport,
 } from "./IDatasetsBuilder";
+import { restoreUnpackedDataAccessor } from "../PackedDataset";
 import { getChartValue, isChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
 
+export type { ValueItem } from "./CustomValueStore";
+
 const log = Logger.getLogger(__filename);
+const emptyPaths = new Set<string>();
 
 type CustomDatasetsSeriesItem = {
   config: Immutable<SeriesItem>;
   blockCursor: BlockTopicCursor;
 };
 
-// If the datasets builder is garbage collected we also need to cleanup the worker
-// This registry ensures the worker is cleaned up when the builder is garbage collected
-const registry = new FinalizationRegistry<() => void>((dispose) => {
-  dispose();
+type BuilderLifetime = {
+  abortController: AbortController;
+  destroyPromise?: Promise<void>;
+  dispose: () => void;
+  inFlight: Set<Promise<unknown>>;
+};
+
+// The held lifetime contains only worker resources and never points back to its builder.
+const registry = new FinalizationRegistry<BuilderLifetime>((lifetime) => {
+  void destroyLifetime(lifetime);
 });
 
 export class CustomDatasetsBuilder implements IDatasetsBuilder {
   #xParsedPath?: Immutable<MessagePath>;
   #xValuesCursor?: BlockTopicCursor;
-
   #datasetsBuilderRemote: Comlink.Remote<Comlink.RemoteObject<CustomDatasetsBuilderImpl>>;
-
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
-
+  #remoteQueue: Promise<void> = Promise.resolve();
   #lastSeekTime = 0;
-
   #series: Immutable<CustomDatasetsSeriesItem[]> = [];
-
   #xCurrentBounds?: Bounds1D;
   #xFullBounds?: Bounds1D;
-
-  #dispose?: () => void;
+  #rangeGeneration = 0;
+  #rangeTopics = new Set<string>();
+  #currentOnlyTopics = new Set<string>();
+  #lifetime: BuilderLifetime;
   #destroyed = false;
 
   public constructor({ handleWorkerError }: { handleWorkerError?: (event: Event) => void } = {}) {
@@ -67,6 +72,16 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       // foxglove-depcheck-used: babel-plugin-transform-import-meta
       new URL("./CustomDatasetsBuilderImpl.worker", import.meta.url),
     );
+    const { remote, dispose } =
+      ComlinkWrap<Comlink.RemoteObject<CustomDatasetsBuilderImpl>>(worker);
+    const lifetime = {
+      abortController: new AbortController(),
+      dispose,
+      inFlight: new Set<Promise<unknown>>(),
+    } satisfies BuilderLifetime;
+    this.#lifetime = lifetime;
+    this.#datasetsBuilderRemote = remote;
+
     worker.onerror = (event) => {
       log.error("[CustomDatasetsBuilder] Worker error:", event);
       handleWorkerError?.(event);
@@ -75,14 +90,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       log.error("[CustomDatasetsBuilder] Worker message error:", event);
       handleWorkerError?.(event);
     };
-    const { remote, dispose } =
-      ComlinkWrap<Comlink.RemoteObject<CustomDatasetsBuilderImpl>>(worker);
-
-    this.#dispose = dispose;
-    this.#datasetsBuilderRemote = remote;
-    registry.register(this, () => {
-      this.#dispose?.();
-    });
+    registry.register(this, lifetime, lifetime);
   }
 
   public destroy(): void {
@@ -90,11 +98,15 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       return;
     }
     this.#destroyed = true;
-    this.#dispose?.();
-    this.#dispose = undefined;
+    this.#pendingDispatch = [];
+    registry.unregister(this.#lifetime);
+    void destroyLifetime(this.#lifetime);
   }
 
   public handlePlayerState(state: Immutable<PlayerState>): Bounds1D | undefined {
+    if (this.#destroyed) {
+      return;
+    }
     const activeData = state.activeData;
     if (!activeData) {
       return;
@@ -102,101 +114,100 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
 
     const didSeek = activeData.lastSeekTime !== this.#lastSeekTime;
     this.#lastSeekTime = activeData.lastSeekTime;
+    if (didSeek) {
+      if (this.#xParsedPath && !this.#rangeTopics.has(this.#xParsedPath.topicName)) {
+        this.#pendingDispatch.push({ type: "reset-current-x" });
+        this.#xCurrentBounds = undefined;
+      }
+      for (const series of this.#series) {
+        if (series.config.enabled && !this.#rangeTopics.has(series.config.parsed.topicName)) {
+          this.#pendingDispatch.push({ type: "reset-current", series: series.config.key });
+        }
+      }
+    }
 
     const msgEvents = activeData.messages;
     if (msgEvents.length > 0) {
-      if (didSeek) {
-        this.#pendingDispatch.push({
-          type: "reset-current-x",
-        });
-        this.#xCurrentBounds = undefined;
-      }
-
-      // Read the x-axis values
-      if (this.#xParsedPath) {
-        const mathFn = this.#xParsedPath.modifier
-          ? mathFunctions[this.#xParsedPath.modifier]
-          : undefined;
-        const pathItems = readMessagePathItems(msgEvents, this.#xParsedPath, mathFn);
-
-        this.#pendingDispatch.push({
-          type: "append-current-x",
-          items: pathItems,
-        });
-
-        if (pathItems.length > 0) {
-          this.#xCurrentBounds = computeBounds(this.#xCurrentBounds, pathItems);
+      if (this.#xParsedPath && !this.#rangeTopics.has(this.#xParsedPath.topicName)) {
+        const items = readMessagePathItems(
+          msgEvents,
+          this.#xParsedPath,
+          getMathFn(this.#xParsedPath),
+        );
+        this.#pendingDispatch.push({ type: "append-current-x", items: encodeValueItems(items) });
+        if (items.length > 0) {
+          this.#xCurrentBounds = computeBounds(this.#xCurrentBounds, items);
         }
       }
 
       for (const series of this.#series) {
-        const mathFn = series.config.parsed.modifier
-          ? mathFunctions[series.config.parsed.modifier]
-          : undefined;
-        if (didSeek) {
-          this.#pendingDispatch.push({
-            type: "reset-current",
-            series: series.config.key,
-          });
+        if (!series.config.enabled || this.#rangeTopics.has(series.config.parsed.topicName)) {
+          continue;
         }
-
-        const pathItems = readMessagePathItems(msgEvents, series.config.parsed, mathFn);
+        const items = readMessagePathItems(
+          msgEvents,
+          series.config.parsed,
+          getMathFn(series.config.parsed),
+        );
         this.#pendingDispatch.push({
           type: "append-current",
           series: series.config.key,
-          items: pathItems,
+          items: encodeValueItems(items),
         });
       }
     }
 
     const blocks = state.progress.messageCache?.blocks;
     if (blocks) {
-      if (this.#xValuesCursor && this.#xParsedPath) {
-        const mathFn = this.#xParsedPath.modifier
-          ? mathFunctions[this.#xParsedPath.modifier]
-          : undefined;
-
+      const xTopic = this.#xParsedPath?.topicName;
+      if (
+        this.#xValuesCursor &&
+        this.#xParsedPath &&
+        xTopic != undefined &&
+        !this.#rangeTopics.has(xTopic) &&
+        !this.#currentOnlyTopics.has(xTopic)
+      ) {
         if (this.#xValuesCursor.nextWillReset(blocks)) {
-          this.#pendingDispatch.push({
-            type: "reset-full-x",
-          });
+          this.#pendingDispatch.push({ type: "reset-full-x" });
+          this.#xFullBounds = undefined;
         }
-
-        let messageEvents = undefined;
+        let messageEvents;
         while ((messageEvents = this.#xValuesCursor.next(blocks)) != undefined) {
-          const pathItems = readMessagePathItems(messageEvents, this.#xParsedPath, mathFn);
-
-          this.#pendingDispatch.push({
-            type: "append-full-x",
-            items: pathItems,
-          });
-
-          if (pathItems.length > 0) {
-            this.#xFullBounds = computeBounds(this.#xFullBounds, pathItems);
+          const items = readMessagePathItems(
+            messageEvents,
+            this.#xParsedPath,
+            getMathFn(this.#xParsedPath),
+          );
+          this.#pendingDispatch.push({ type: "append-full-x", items: encodeValueItems(items) });
+          if (items.length > 0) {
+            this.#xFullBounds = computeBounds(this.#xFullBounds, items);
           }
         }
       }
 
       for (const series of this.#series) {
-        const mathFn = series.config.parsed.modifier
-          ? mathFunctions[series.config.parsed.modifier]
-          : undefined;
-
-        if (series.blockCursor.nextWillReset(blocks)) {
-          this.#pendingDispatch.push({
-            type: "reset-full",
-            series: series.config.key,
-          });
+        const topic = series.config.parsed.topicName;
+        if (
+          !series.config.enabled ||
+          this.#rangeTopics.has(topic) ||
+          this.#currentOnlyTopics.has(topic)
+        ) {
+          continue;
         }
-
-        let messageEvents = undefined;
+        if (series.blockCursor.nextWillReset(blocks)) {
+          this.#pendingDispatch.push({ type: "reset-full", series: series.config.key });
+        }
+        let messageEvents;
         while ((messageEvents = series.blockCursor.next(blocks)) != undefined) {
-          const pathItems = readMessagePathItems(messageEvents, series.config.parsed, mathFn);
-
+          const items = readMessagePathItems(
+            messageEvents,
+            series.config.parsed,
+            getMathFn(series.config.parsed),
+          );
           this.#pendingDispatch.push({
             type: "append-full",
             series: series.config.key,
-            items: pathItems,
+            items: encodeValueItems(items),
           });
         }
       }
@@ -205,78 +216,286 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     if (!this.#xCurrentBounds) {
       return this.#xFullBounds ?? { min: 0, max: 1 };
     }
-
-    if (!this.#xFullBounds) {
-      return this.#xCurrentBounds;
-    }
-
-    return unionBounds1D(this.#xCurrentBounds, this.#xFullBounds);
+    return this.#xFullBounds
+      ? unionBounds1D(this.#xCurrentBounds, this.#xFullBounds)
+      : this.#xCurrentBounds;
   }
 
   public setXPath(path: Immutable<MessagePath> | undefined): void {
-    if (JSON.stringify(path) === JSON.stringify(this.#xParsedPath)) {
+    if (this.#destroyed || JSON.stringify(path) === JSON.stringify(this.#xParsedPath)) {
       return;
     }
-
     this.#xParsedPath = path;
-    if (this.#xParsedPath) {
-      this.#xValuesCursor = new BlockTopicCursor(this.#xParsedPath.topicName);
-    } else {
-      this.#xValuesCursor = undefined;
-    }
-
-    this.#pendingDispatch.push({
-      type: "reset-current-x",
-    });
-
-    this.#pendingDispatch.push({
-      type: "reset-full-x",
-    });
+    this.#xValuesCursor = path ? new BlockTopicCursor(path.topicName) : undefined;
+    this.#xCurrentBounds = undefined;
+    this.#xFullBounds = undefined;
+    this.#pendingDispatch.push({ type: "reset-current-x" }, { type: "reset-full-x" });
   }
 
   public setSeries(series: Immutable<SeriesItem[]>): void {
+    if (this.#destroyed) {
+      return;
+    }
     this.#series = series.map((item) => {
       const existing = this.#series.find((existingItem) => existingItem.config.key === item.key);
       return {
         config: item,
-        blockCursor: existing?.blockCursor ?? new BlockTopicCursor(item.parsed.topicName),
+        blockCursor:
+          existing?.config.parsed.topicName === item.parsed.topicName
+            ? existing.blockCursor
+            : new BlockTopicCursor(item.parsed.topicName),
       };
     });
+    this.#pendingDispatch.push({ type: "update-series-config", seriesItems: series });
+  }
 
-    this.#pendingDispatch.push({
-      type: "update-series-config",
-      seriesItems: series,
+  /** Assigns replay-range and live current-only ownership for each source topic. */
+  public setHistoryTopics(
+    rangeTopics: ReadonlySet<string>,
+    currentOnlyTopics: ReadonlySet<string>,
+    generation: number,
+    options: { resetAll?: boolean } = {},
+  ): void {
+    if (this.#destroyed) {
+      return;
+    }
+    const previousTopics = new Set([...this.#rangeTopics, ...this.#currentOnlyTopics]);
+    this.#rangeTopics = new Set(rangeTopics);
+    this.#currentOnlyTopics = new Set(currentOnlyTopics);
+    this.#rangeGeneration = generation;
+    const resetAll = options.resetAll === true;
+
+    const xTopic = this.#xParsedPath?.topicName;
+    if (
+      xTopic != undefined &&
+      (resetAll ||
+        previousTopics.has(xTopic) ||
+        rangeTopics.has(xTopic) ||
+        currentOnlyTopics.has(xTopic))
+    ) {
+      this.#pendingDispatch.push({ type: "reset-full-x" }, { type: "reset-current-x" });
+      this.#xValuesCursor = new BlockTopicCursor(xTopic);
+      this.#xFullBounds = undefined;
+      this.#xCurrentBounds = undefined;
+    }
+
+    this.#series = this.#series.map((series) => {
+      const topic = series.config.parsed.topicName;
+      if (
+        resetAll ||
+        previousTopics.has(topic) ||
+        rangeTopics.has(topic) ||
+        currentOnlyTopics.has(topic)
+      ) {
+        this.#pendingDispatch.push(
+          { type: "reset-full", series: series.config.key },
+          { type: "reset-current", series: series.config.key },
+        );
+        return { config: series.config, blockCursor: new BlockTopicCursor(topic) };
+      }
+      return series;
     });
+  }
+
+  /** Extracts x and every matching y path, then waits until the worker has stored the batch. */
+  public async appendRangeMessageBatch(
+    topic: string,
+    events: Immutable<readonly MessageEvent[]>,
+    _startTime: Immutable<Time>,
+    generation: number,
+  ): Promise<boolean> {
+    if (this.#destroyed || generation !== this.#rangeGeneration || !this.#rangeTopics.has(topic)) {
+      return false;
+    }
+    const pendingDispatch = this.#takePendingDispatch();
+    const rangeDispatch: Immutable<UpdateDataAction>[] = [];
+    const topicEvents = events.filter((event) => event.topic === topic);
+    let appended = false;
+    if (this.#xParsedPath?.topicName === topic) {
+      const items = readMessagePathItems(
+        topicEvents,
+        this.#xParsedPath,
+        getMathFn(this.#xParsedPath),
+        "singleTopic",
+      );
+      if (items.length > 0) {
+        appended = true;
+        this.#xFullBounds = computeBounds(this.#xFullBounds, items);
+        rangeDispatch.push({ type: "append-full-x", items: encodeValueItems(items) });
+      }
+    }
+    for (const series of this.#series) {
+      if (!series.config.enabled || series.config.parsed.topicName !== topic) {
+        continue;
+      }
+      const items = readMessagePathItems(
+        topicEvents,
+        series.config.parsed,
+        getMathFn(series.config.parsed),
+        "singleTopic",
+      );
+      if (items.length > 0) {
+        appended = true;
+        rangeDispatch.push({
+          type: "append-full",
+          series: series.config.key,
+          items: encodeValueItems(items),
+        });
+      }
+    }
+
+    try {
+      const accepted = await this.#enqueueRemote(async () => {
+        if (pendingDispatch.length > 0) {
+          await this.#datasetsBuilderRemote.updateData(transferTypedArrays(pendingDispatch));
+        }
+        if (
+          this.#lifetime.abortController.signal.aborted ||
+          generation !== this.#rangeGeneration ||
+          !this.#rangeTopics.has(topic)
+        ) {
+          return false;
+        }
+        if (rangeDispatch.length > 0) {
+          await this.#datasetsBuilderRemote.updateData(transferTypedArrays(rangeDispatch));
+        }
+        return true;
+      });
+      return accepted && appended && generation === this.#rangeGeneration;
+    } catch (error) {
+      if (!this.#lifetime.abortController.signal.aborted) {
+        throw error;
+      }
+      return false;
+    }
   }
 
   public async getViewportDatasets(
     viewport: Immutable<Viewport>,
   ): Promise<GetViewportDatasetsResult> {
-    const dispatch = this.#pendingDispatch;
-    if (dispatch.length > 0) {
-      this.#pendingDispatch = [];
-      await this.#datasetsBuilderRemote.updateData(dispatch);
+    if (this.#destroyed) {
+      return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
     }
-
-    return await this.#datasetsBuilderRemote.getViewportDatasets(viewport);
+    const dispatch = this.#takePendingDispatch();
+    let result;
+    try {
+      result = await this.#enqueueRemote(async () => {
+        if (dispatch.length > 0) {
+          await this.#datasetsBuilderRemote.updateData(transferTypedArrays(dispatch));
+        }
+        return await this.#datasetsBuilderRemote.getViewportDatasets(viewport);
+      });
+    } catch (error) {
+      if (!this.#lifetime.abortController.signal.aborted) {
+        throw error;
+      }
+      return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
+    }
+    if (this.#lifetime.abortController.signal.aborted) {
+      return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: emptyPaths };
+    }
+    result.datasetsByConfigIndex.forEach((dataset) => {
+      if (dataset) {
+        restoreUnpackedDataAccessor(dataset);
+      }
+    });
+    return result;
   }
 
   public async getCsvData(): Promise<CsvDataset[]> {
-    return await this.#datasetsBuilderRemote.getCsvData();
+    if (this.#destroyed) {
+      return [];
+    }
+    const dispatch = this.#takePendingDispatch();
+    try {
+      const data = await this.#enqueueRemote(async () => {
+        if (dispatch.length > 0) {
+          await this.#datasetsBuilderRemote.updateData(transferTypedArrays(dispatch));
+        }
+        return await this.#datasetsBuilderRemote.getCsvData();
+      });
+      return this.#lifetime.abortController.signal.aborted ? [] : data;
+    } catch (error) {
+      if (!this.#lifetime.abortController.signal.aborted) {
+        throw error;
+      }
+      return [];
+    }
+  }
+
+  public async getXRange(): Promise<Bounds1D | undefined> {
+    if (this.#destroyed) {
+      return undefined;
+    }
+    const dispatch = this.#takePendingDispatch();
+    try {
+      return await this.#enqueueRemote(async () => {
+        if (dispatch.length > 0) {
+          await this.#datasetsBuilderRemote.updateData(transferTypedArrays(dispatch));
+        }
+        return await this.#datasetsBuilderRemote.getXRange();
+      });
+    } catch (error) {
+      if (!this.#lifetime.abortController.signal.aborted) {
+        throw error;
+      }
+      return undefined;
+    }
+  }
+
+  #takePendingDispatch(): Immutable<UpdateDataAction>[] {
+    const dispatch = this.#pendingDispatch;
+    this.#pendingDispatch = [];
+    return dispatch;
+  }
+
+  async #enqueueRemote<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.#remoteQueue.then(operation);
+    this.#remoteQueue = result.then(
+      () => {},
+      () => {},
+    );
+    return await trackOperation(this.#lifetime, result);
   }
 }
 
+async function trackOperation<T>(lifetime: BuilderLifetime, operation: Promise<T>): Promise<T> {
+  lifetime.inFlight.add(operation);
+  void operation.then(
+    () => {
+      lifetime.inFlight.delete(operation);
+    },
+    () => {
+      lifetime.inFlight.delete(operation);
+    },
+  );
+  return await operation;
+}
+
+async function destroyLifetime(lifetime: BuilderLifetime): Promise<void> {
+  if (lifetime.destroyPromise) {
+    await lifetime.destroyPromise;
+    return;
+  }
+  lifetime.abortController.abort();
+  lifetime.destroyPromise = (async () => {
+    await Promise.allSettled([...lifetime.inFlight]);
+    lifetime.dispose();
+  })();
+  await lifetime.destroyPromise;
+}
+
 function readMessagePathItems(
-  events: Immutable<MessageEvent[]>,
+  events: Immutable<readonly MessageEvent[]>,
   path: Immutable<MessagePath>,
   mathFunction?: MathFunction,
+  eventScope: "allTopics" | "singleTopic" = "allTopics",
 ): ValueItem[] {
-  const out = [];
+  const out: ValueItem[] = [];
   for (const event of events) {
-    if (event.topic !== path.topicName) {
+    if (eventScope === "allTopics" && event.topic !== path.topicName) {
       continue;
     }
-
     const items = simpleGetMessagePathDataItems(event, path);
     for (const item of items) {
       if (!isChartValue(item)) {
@@ -286,7 +505,6 @@ function readMessagePathItems(
       if (chartValue == undefined) {
         continue;
       }
-
       const mathModified = mathFunction ? mathFunction(chartValue) : chartValue;
       out.push({
         value: mathModified,
@@ -295,26 +513,25 @@ function readMessagePathItems(
       });
     }
   }
-
   return out;
 }
 
-function accumulateBounds(acc: Bounds1D, item: Immutable<ValueItem>) {
-  extendBounds1D(acc, item.value);
-  return acc;
+function getMathFn(path: Immutable<MessagePath>): MathFunction | undefined {
+  return path.modifier ? mathFunctions[path.modifier] : undefined;
 }
 
 function computeBounds(
   currentBounds: Immutable<Bounds1D> | undefined,
   items: Immutable<ValueItem[]>,
-): Bounds1D {
-  const itemBounds = items.reduce(accumulateBounds, {
-    min: Number.MAX_VALUE,
-    max: Number.MIN_VALUE,
-  });
-
-  return unionBounds1D(
-    currentBounds ?? { min: Number.MAX_VALUE, max: Number.MIN_VALUE },
-    itemBounds,
-  );
+): Bounds1D | undefined {
+  const itemBounds: Bounds1D = { min: Infinity, max: -Infinity };
+  for (const item of items) {
+    if (Number.isFinite(item.value)) {
+      extendBounds1D(itemBounds, item.value);
+    }
+  }
+  if (!Number.isFinite(itemBounds.min) || !Number.isFinite(itemBounds.max)) {
+    return currentBounds ? { ...currentBounds } : undefined;
+  }
+  return currentBounds ? unionBounds1D(currentBounds, itemBounds) : itemBounds;
 }

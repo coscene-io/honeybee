@@ -612,4 +612,180 @@ describe("CustomDatasetsBuilder", () => {
       ],
     });
   });
+
+  it("owns generation-scoped range topics and extracts a mixed x/y topic together", async () => {
+    const builder = new CustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/same.x[:]"));
+    builder.setSeries(
+      buildSeriesItems([{ value: "/same.y[:]" }, { value: "/other.y", showLine: false }]),
+    );
+    builder.setHistoryTopics(new Set(["/same", "/other"]), new Set(), 7);
+
+    await expect(
+      builder.appendRangeMessageBatch(
+        "/same",
+        [
+          {
+            topic: "/same",
+            schemaName: "same",
+            receiveTime: { sec: 3, nsec: 4 },
+            sizeInBytes: 0,
+            message: { x: [2, 1], y: ["10", false] },
+          },
+        ],
+        { sec: 0, nsec: 0 },
+        7,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      builder.appendRangeMessageBatch(
+        "/other",
+        [
+          {
+            topic: "/other",
+            schemaName: "other",
+            receiveTime: { sec: 5, nsec: 0 },
+            sizeInBytes: 0,
+            message: { y: 99n },
+          },
+        ],
+        { sec: 0, nsec: 0 },
+        6,
+      ),
+    ).resolves.toBe(false);
+
+    // Current messages for a range-owned topic must not be mixed into the replay history.
+    builder.handlePlayerState(
+      buildPlayerState({
+        lastSeekTime: 2,
+        messages: [
+          {
+            topic: "/same",
+            schemaName: "same",
+            receiveTime: { sec: 6, nsec: 0 },
+            sizeInBytes: 0,
+            message: { x: 100, y: 200 },
+          },
+        ],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets({
+      size: { width: 1_000, height: 1_000 },
+      bounds: {},
+    });
+    expect(result.pathsWithMismatchedDataLengths).toEqual(new Set(["/other.y"]));
+    expect(result.datasetsByConfigIndex[0]).toEqual(
+      expect.objectContaining({
+        data: [
+          { x: 2, y: 10, value: "10" },
+          { x: 1, y: 0, value: false },
+        ],
+        packedData: expect.objectContaining({ points: expect.any(Float64Array) }),
+      }),
+    );
+  });
+
+  it("reloads blocks from the beginning after a topic leaves range ownership", async () => {
+    const builder = new CustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/same.x"));
+    builder.setSeries(buildSeriesItems([{ value: "/same.y" }]));
+    const block = {
+      sizeInBytes: 0,
+      messagesByTopic: groupByTopic([
+        {
+          topic: "/same",
+          schemaName: "same",
+          receiveTime: { sec: 1, nsec: 0 },
+          sizeInBytes: 0,
+          message: { x: 1, y: 10 },
+        },
+      ]),
+    };
+    builder.handlePlayerState(buildPlayerState({}, [block]));
+    await builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} });
+
+    builder.setHistoryTopics(new Set(["/same"]), new Set(), 1);
+    await builder.appendRangeMessageBatch(
+      "/same",
+      [
+        {
+          topic: "/same",
+          schemaName: "same",
+          receiveTime: { sec: 9, nsec: 0 },
+          sizeInBytes: 0,
+          message: { x: 9, y: 90 },
+        },
+      ],
+      { sec: 0, nsec: 0 },
+      1,
+    );
+    builder.setHistoryTopics(new Set(), new Set(), 2);
+    builder.handlePlayerState(buildPlayerState({}, [block]));
+
+    await expect(
+      builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} }),
+    ).resolves.toEqual({
+      pathsWithMismatchedDataLengths: new Set(),
+      datasetsByConfigIndex: [expect.objectContaining({ data: [{ x: 1, y: 10, value: 10 }] })],
+    });
+  });
+
+  it("flushes pending compact batches before exporting CSV", async () => {
+    const builder = new CustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/same.x"));
+    builder.setSeries(buildSeriesItems([{ value: "/same.y" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/same",
+            schemaName: "same",
+            receiveTime: { sec: 3, nsec: 4 },
+            sizeInBytes: 0,
+            message: { x: 1, y: "2" },
+          },
+        ],
+      }),
+    );
+
+    await expect(builder.getCsvData()).resolves.toEqual([
+      {
+        label: "/same.y",
+        data: [
+          {
+            x: 1,
+            y: 2,
+            receiveTime: { sec: 3, nsec: 4 },
+            value: "2",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("makes destroy idempotent and suppresses results from queued worker operations", async () => {
+    const builder = new CustomDatasetsBuilder();
+    builder.setXPath(parseMessagePath("/same.x"));
+    builder.setSeries(buildSeriesItems([{ value: "/same.y" }]));
+    const pending = builder.getViewportDatasets({
+      size: { width: 100, height: 100 },
+      bounds: {},
+    });
+
+    builder.destroy();
+    builder.destroy();
+
+    await expect(pending).resolves.toEqual({
+      pathsWithMismatchedDataLengths: new Set(),
+      datasetsByConfigIndex: [],
+    });
+    await expect(
+      builder.getViewportDatasets({ size: { width: 100, height: 100 }, bounds: {} }),
+    ).resolves.toEqual({
+      pathsWithMismatchedDataLengths: new Set(),
+      datasetsByConfigIndex: [],
+    });
+    await expect(builder.getCsvData()).resolves.toEqual([]);
+  });
 });
