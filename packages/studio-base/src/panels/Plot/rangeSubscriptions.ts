@@ -183,14 +183,15 @@ export function startPlotRangeSubscriptions(
 
   for (const plan of args.plans) {
     const request = plan.rangeRequest;
-    if (!args.attemptRanges || request == undefined || args.subscribeMessageRange == undefined) {
+    const subscribeMessageRange = args.subscribeMessageRange;
+    if (!args.attemptRanges || request == undefined || subscribeMessageRange == undefined) {
       subscriptions.push(
         args.attemptRanges && request != undefined ? plan.fallbackSubscription : plan.subscription,
       );
       continue;
     }
 
-    const unsubscribe = tryStartRangeSubscription(args, request, state);
+    const unsubscribe = tryStartRangeSubscription(args, subscribeMessageRange, request, state);
 
     if (unsubscribe == undefined) {
       subscriptions.push(plan.fallbackSubscription);
@@ -223,13 +224,14 @@ export function startPlotRangeSubscriptions(
 }
 
 function tryStartRangeSubscription(
-  args: StartPlotRangeSubscriptionsArgs & { subscribeMessageRange: SubscribeMessageRange },
+  args: StartPlotRangeSubscriptionsArgs,
+  subscribeMessageRange: SubscribeMessageRange,
   request: PlotRangeRequestPlan,
   state: RangeSubscriptionState,
 ): (() => void) | undefined {
   let iteratorGeneration = 0;
   try {
-    return args.subscribeMessageRange({
+    return subscribeMessageRange({
       topic: request.topic,
       payload: request.payload,
       receiveLiveData: false,

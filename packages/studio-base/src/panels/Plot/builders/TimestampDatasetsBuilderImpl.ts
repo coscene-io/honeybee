@@ -889,21 +889,23 @@ export class TimestampDatasetsBuilderImpl {
   }
 
   #getWindowExtrema(series: Series, start: number, end: number): WindowExtremaCache {
-    let cache = series.windowExtremaCache;
+    const existingCache = series.windowExtremaCache;
     const cacheIsValid =
-      cache?.prefixRevision === series.prefixRevision &&
-      cache.start === start &&
-      cache.processedEnd <= end;
+      existingCache?.prefixRevision === series.prefixRevision &&
+      existingCache.start === start &&
+      existingCache.processedEnd <= end;
+    const cache: WindowExtremaCache = cacheIsValid
+      ? existingCache
+      : {
+          prefixRevision: series.prefixRevision,
+          start,
+          processedEnd: start,
+          xMin: Infinity,
+          xMax: -Infinity,
+          yMin: Infinity,
+          yMax: -Infinity,
+        };
     if (!cacheIsValid) {
-      cache = {
-        prefixRevision: series.prefixRevision,
-        start,
-        processedEnd: start,
-        xMin: Infinity,
-        xMax: -Infinity,
-        yMin: Infinity,
-        yMax: -Infinity,
-      };
       series.windowExtremaCache = cache;
     }
     for (let index = cache.processedEnd; index < end; index++) {
@@ -954,19 +956,21 @@ export class TimestampDatasetsBuilderImpl {
       bounds.y.min,
       bounds.y.max,
     ].join(":");
-    let cache = plan.series.downsampleCache;
+    const existingCache = plan.series.downsampleCache;
     const cacheIsValid =
-      cache?.key === key &&
-      cache.prefixRevision === plan.series.prefixRevision &&
-      cache.processedEnd <= plan.end;
+      existingCache?.key === key &&
+      existingCache.prefixRevision === plan.series.prefixRevision &&
+      existingCache.processedEnd <= plan.end;
+    const cache: NonNullable<Series["downsampleCache"]> = cacheIsValid
+      ? existingCache
+      : {
+          key,
+          prefixRevision: plan.series.prefixRevision,
+          processedEnd: plan.start,
+          indices: [],
+          state: initDownsample(plan.downsampleViewport, maximumDataPoints),
+        };
     if (!cacheIsValid) {
-      cache = {
-        key,
-        prefixRevision: plan.series.prefixRevision,
-        processedEnd: plan.start,
-        indices: [],
-        state: initDownsample(plan.downsampleViewport, maximumDataPoints),
-      };
       plan.series.downsampleCache = cache;
     }
     if (cache.processedEnd < plan.end) {

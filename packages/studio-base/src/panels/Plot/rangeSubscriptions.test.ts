@@ -349,7 +349,14 @@ describe("startPlotRangeSubscriptions", () => {
       message: { value: 1 },
       sizeInBytes: 1,
     };
-    const onRangeBatch = jest.fn(async () => {});
+    const batchLengths: number[] = [];
+    const onRangeBatch = async (
+      _topic: string,
+      batch: readonly unknown[],
+      _generation: number,
+    ): Promise<void> => {
+      batchLengths.push(batch.length);
+    };
     startPlotRangeSubscriptions({
       plans: [plans[0]!],
       attemptRanges: true,
@@ -368,7 +375,7 @@ describe("startPlotRangeSubscriptions", () => {
     await new Promise<void>((resolve) => {
       setImmediate(resolve);
     });
-    expect(onRangeBatch.mock.calls.map((call) => call[1].length)).toEqual([10_000, 1]);
+    expect(batchLengths).toEqual([10_000, 1]);
   });
 
   it("contains asynchronous range failures and reports them", async () => {
