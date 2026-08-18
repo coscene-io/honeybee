@@ -26,7 +26,7 @@ import {
   Viewport,
 } from "./IDatasetsBuilder";
 import { Dataset } from "../ChartRenderer";
-import { getChartValue, isChartValue, Datum } from "../datum";
+import { getChartValue, isChartValue, toOwnedChartValue, Datum } from "../datum";
 import { mathFunctions } from "../mathFunctions";
 
 type DatumWithReceiveTime = Datum & {
@@ -104,7 +104,7 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
           x: idx,
           y: chartValue == undefined ? NaN : (mathModifiedValue ?? chartValue),
           receiveTime: msgEvent.receiveTime,
-          value: mathModifiedValue ?? item,
+          value: mathModifiedValue ?? toOwnedChartValue(item),
         };
       });
 

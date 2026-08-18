@@ -117,6 +117,65 @@ describe("WorkerSessionPool", () => {
     await pool.dispose();
   });
 
+  it("keeps a healthy shared resource when one session's dispose fails", async () => {
+    const disposeResource = jest.fn();
+    let resourceCount = 0;
+    const pool = new WorkerSessionPool({
+      createResource: () => ({ id: resourceCount++ }),
+      disposeResource,
+      isResourceBroken: () => false,
+      maxWorkers: 1,
+    });
+    const survivor = await pool.acquire({
+      createSession: () => ({}),
+      disposeSession: jest.fn(),
+    });
+    const failing = await pool.acquire({
+      createSession: () => ({}),
+      disposeSession: () => {
+        throw new Error("session cleanup failed");
+      },
+    });
+
+    await expect(failing.release()).rejects.toThrow("session cleanup failed");
+    expect(disposeResource).not.toHaveBeenCalled();
+
+    // The shared resource stays selectable, so sibling sessions were not torn down with it.
+    const another = await pool.acquire({
+      createSession: (resource) => ({ resourceId: resource.id }),
+      disposeSession: jest.fn(),
+    });
+    expect(another.session.resourceId).toBe(0);
+    expect(resourceCount).toBe(1);
+
+    await survivor.release();
+    await another.release();
+    await pool.dispose();
+    expect(disposeResource).toHaveBeenCalledTimes(1);
+  });
+
+  it("still retires the resource when a failed dispose coincides with a broken resource", async () => {
+    const disposeResource = jest.fn();
+    let broken = false;
+    const pool = new WorkerSessionPool({
+      createResource: () => ({}),
+      disposeResource,
+      isResourceBroken: () => broken,
+      maxWorkers: 1,
+    });
+    const lease = await pool.acquire({
+      createSession: () => ({}),
+      disposeSession: () => {
+        broken = true;
+        throw new Error("session cleanup failed");
+      },
+    });
+
+    await expect(lease.release()).rejects.toThrow("session cleanup failed");
+    expect(disposeResource).toHaveBeenCalledTimes(1);
+    await pool.dispose();
+  });
+
   it("rejects an aborted acquisition and cleans a session that finishes later", async () => {
     const sessionCreation = deferred<{ id: number }>();
     const sessionCreationStarted = deferred<void>();

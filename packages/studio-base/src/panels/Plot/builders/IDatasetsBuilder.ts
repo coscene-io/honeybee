@@ -64,6 +64,13 @@ export type Viewport = {
    * can reuse their previous work. The renderer still uses `bounds` as the exact chart scale.
    */
   following?: boolean;
+  /**
+   * Indicates that the bounds come from user pan/zoom or panel sync and change on nearly every
+   * frame. Timestamp builders may query and downsample an aligned superset of these bounds so
+   * that drag frames inside one grid cell reuse their previous work. The renderer still uses
+   * `bounds` as the exact chart scale, so the visible clip is unchanged.
+   */
+  interactive?: boolean;
 };
 
 export type CsvDataset = {

@@ -501,6 +501,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       Number.isFinite(this.#currentSeconds) &&
       this.#interactionBounds == undefined &&
       this.#globalBounds == undefined;
+    this.#viewport.interactive =
+      this.#interactionBounds != undefined || this.#globalBounds != undefined;
 
     const currentValuesEpoch = this.#currentValuesEpoch;
     const currentValuesAt = this.#currentTime;
