@@ -234,12 +234,7 @@ export class DatasetWorkerPool {
         if (releaseOptions?.broken === true) {
           // Fail sibling sessions loudly before their physical worker is retired. Terminating the
           // shared worker silently would leave other panels waiting on a dead Comlink endpoint.
-          markHostBroken(
-            record.host,
-            makeSessionCreationErrorEvent(
-              new Error("Dataset worker lease was released as broken"),
-            ),
-          );
+          markHostBroken(record.host, makeBrokenLeaseErrorEvent());
         }
         await rawLease.release(releaseOptions);
       },
@@ -456,6 +451,14 @@ async function waitForRemote(
       },
     );
   });
+}
+
+function makeBrokenLeaseErrorEvent(): Event {
+  const message = "Dataset worker lease was released as broken";
+  if (typeof ErrorEvent !== "undefined") {
+    return new ErrorEvent("error", { error: new Error(message), message });
+  }
+  return new Event("error");
 }
 
 function makeAbortError(): Error {
