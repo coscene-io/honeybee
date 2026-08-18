@@ -74,8 +74,13 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
       ? dataSource?.id === "remote-mp4"
       : targetUrlState?.ds === "remote-mp4";
     if (isRemoteMp4) {
-      const requestedTopic: string | undefined =
-        dataSource?.params?.topic ?? targetUrlState?.dsParams?.topic;
+      // The topic must come from whichever source decided `isRemoteMp4`. Once a
+      // live source exists it owns the topic: a URL-only recent has no `topic`
+      // and publishes on the default, so falling back to the stale launch
+      // `ds.topic` would subscribe the Image panel to a topic nobody publishes.
+      const requestedTopic: string | undefined = hasSeenDataSourceRef.current
+        ? dataSource?.params?.topic
+        : targetUrlState?.dsParams?.topic;
       const remoteMp4Topic = resolveRemoteMp4Topic(requestedTopic);
       if (appliedRemoteMp4TopicRef.current === remoteMp4Topic) {
         // Skip when this topic is already applied, or setCurrentLayout has not
