@@ -66,9 +66,14 @@ function append(
 function viewport(
   x: { min?: number; max?: number } = {},
   size: { width: number; height: number } = { width: 1_000, height: 1_000 },
-  options: { following?: boolean } = {},
+  options: { following?: boolean; interactive?: boolean; y?: { min?: number; max?: number } } = {},
 ): Viewport {
-  return { bounds: { x }, size, following: options.following };
+  return {
+    bounds: { x, y: options.y },
+    size,
+    following: options.following,
+    interactive: options.interactive,
+  };
 }
 
 function xValues(impl: TimestampDatasetsBuilderImpl, view: Viewport, configIndex = 0): number[] {
@@ -628,6 +633,65 @@ describe("TimestampDatasetsBuilderImpl", () => {
     );
     expect(downsampleVisited).toBe(0);
     expect(extremaVisited).toBe(0);
+  });
+
+  it("reuses the downsample window while interactive pan/zoom stays within one grid cell", () => {
+    let downsampleVisited = 0;
+    let extremaVisited = 0;
+    const impl = new TimestampDatasetsBuilderImpl({
+      onDownsamplePointVisited: () => downsampleVisited++,
+      onExtremaPointVisited: () => extremaVisited++,
+    });
+    const series = makeSeries("interactive", 0);
+    impl.applyActions([
+      updateSeries([series]),
+      append(
+        "append-full",
+        series,
+        Array.from({ length: 30_000 }, (_, x) => makeItem(x, Math.sin(x))),
+      ),
+    ]);
+
+    impl.getViewportDatasets(
+      viewport(
+        { min: 20_000, max: 21_000 },
+        { width: 100, height: 100 },
+        { interactive: true, y: { min: -1, max: 1 } },
+      ),
+    );
+    expect(downsampleVisited).toBeGreaterThan(0);
+    expect(extremaVisited).toBeGreaterThan(0);
+
+    // A small drag moves both axes but stays inside the aligned grid cell.
+    downsampleVisited = 0;
+    extremaVisited = 0;
+    impl.getViewportDatasets(
+      viewport(
+        { min: 20_010.5, max: 21_010.5 },
+        { width: 100, height: 100 },
+        { interactive: true, y: { min: -0.99, max: 1.01 } },
+      ),
+    );
+    expect(downsampleVisited).toBe(0);
+    expect(extremaVisited).toBe(0);
+  });
+
+  it("keeps exact windows for scatter series during interactive pan/zoom", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("scatter-interactive", 0, { showLine: false });
+    impl.applyActions([
+      updateSeries([series]),
+      append(
+        "append-full",
+        series,
+        Array.from({ length: 6 }, (_, x) => makeItem(x)),
+      ),
+    ]);
+
+    // Exact-bounds windowing: one datum on either side of the visible range, nothing more.
+    expect(
+      xValues(impl, viewport({ min: 1.5, max: 3.5 }, undefined, { interactive: true })),
+    ).toEqual([1, 2, 3, 4]);
   });
 
   it("scans only an appended derivative tail when auto-ranging", () => {
