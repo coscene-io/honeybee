@@ -28,7 +28,7 @@ import {
   SeriesItem,
   Viewport,
 } from "./IDatasetsBuilder";
-import { getChartValue, isChartValue } from "../datum";
+import { getChartValue, isChartValue, toOwnedChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
 
 const log = Logger.getLogger(__filename);
@@ -290,7 +290,7 @@ function readMessagePathItems(
       const mathModified = mathFunction ? mathFunction(chartValue) : chartValue;
       out.push({
         value: mathModified,
-        originalValue: mathFunction ? mathModified : item,
+        originalValue: mathFunction ? mathModified : toOwnedChartValue(item),
         receiveTime: event.receiveTime,
       });
     }
