@@ -21,9 +21,9 @@ export type StateTransitionsTopicPlan = Readonly<{
 }>;
 
 export type RunningStateTransitionsRangeSubscriptions = Readonly<{
-  /** Topics whose replay history is owned by a range iterator. */
+  /** Topics whose replay history was initially assigned to a range iterator. */
   rangeTopics: ReadonlySet<string>;
-  /** Current-only subscriptions for range topics and full-history fallbacks for the rest. */
+  /** Initial current subscriptions, including synchronous per-topic full-history fallbacks. */
   subscriptions: readonly SubscribePayload[];
   cancel: () => void;
 }>;
@@ -40,11 +40,22 @@ type StartStateTransitionsRangeSubscriptionsArgs = Readonly<{
     batch: readonly import("@foxglove/studio").MessageEvent[],
     generation: number,
   ) => Promise<void>;
+  /**
+   * Switch one asynchronously failed range topic to its full-preload subscription. Returning true
+   * means the fallback was established; false lets the caller surface the original error.
+   */
+  onTopicFallback?: (args: {
+    topic: string;
+    generation: number;
+    rangeTopics: ReadonlySet<string>;
+    subscriptions: readonly SubscribePayload[];
+  }) => Promise<boolean>;
   onError?: (error: unknown) => void;
 }>;
 
 type RangeSubscriptionState = {
   cancelled: boolean;
+  fallbackQueue: Promise<void>;
   latestIteratorByTopic: Map<string, number>;
   rangeTopics: Set<string>;
 };
@@ -143,6 +154,7 @@ export function planStateTransitionsSubscriptions(args: {
  * Starts per-topic range subscriptions synchronously so unsupported Players can fall back without
  * failing the whole panel. Iterator consumption is latest-wins and backpressured through bounded
  * batches. Every replacement iterator resets only its topic before replaying from the beginning.
+ * An asynchronously failed iterator releases only its topic through `onTopicFallback`.
  */
 export function startStateTransitionsRangeSubscriptions(
   args: StartStateTransitionsRangeSubscriptionsArgs,
@@ -152,18 +164,51 @@ export function startStateTransitionsRangeSubscriptions(
   const unsubscribes: (() => void)[] = [];
   const state: RangeSubscriptionState = {
     cancelled: false,
+    fallbackQueue: Promise.resolve(),
     latestIteratorByTopic: new Map<string, number>(),
     rangeTopics,
   };
 
-  for (const plan of args.plans) {
+  for (const [planIndex, plan] of args.plans.entries()) {
     const subscribeMessageRange = args.subscribeMessageRange;
     if (!args.attemptRanges || subscribeMessageRange == undefined) {
       subscriptions.push(args.attemptRanges ? plan.fallbackSubscription : plan.currentSubscription);
       continue;
     }
 
-    const unsubscribe = tryStartRangeSubscription(args, subscribeMessageRange, plan, state);
+    const unsubscribe = tryStartRangeSubscription(
+      args,
+      subscribeMessageRange,
+      plan,
+      state,
+      async (error, generation) => {
+        state.rangeTopics.delete(plan.topic);
+        state.latestIteratorByTopic.delete(plan.topic);
+        subscriptions[planIndex] = plan.fallbackSubscription;
+
+        // Player iterators may fail concurrently. Serialize commits so a slower earlier fallback
+        // cannot finish after a later fallback and restore that topic's stale partial subscription.
+        const fallbackOperation = state.fallbackQueue.then(async () => {
+          let fallbackEstablished = false;
+          try {
+            fallbackEstablished =
+              (await args.onTopicFallback?.({
+                topic: plan.topic,
+                generation,
+                rangeTopics: new Set(state.rangeTopics),
+                subscriptions: [...subscriptions],
+              })) === true;
+          } catch (fallbackError) {
+            args.onError?.(fallbackError);
+          }
+          if (!fallbackEstablished) {
+            args.onError?.(error);
+          }
+        });
+        state.fallbackQueue = fallbackOperation.catch(() => undefined);
+        await fallbackOperation;
+      },
+    );
 
     if (unsubscribe == undefined) {
       subscriptions.push(plan.fallbackSubscription);
@@ -175,8 +220,8 @@ export function startStateTransitionsRangeSubscriptions(
   }
 
   return {
-    rangeTopics,
-    subscriptions,
+    rangeTopics: new Set(rangeTopics),
+    subscriptions: [...subscriptions],
     cancel: () => {
       if (state.cancelled) {
         return;
@@ -199,10 +244,24 @@ function tryStartRangeSubscription(
   subscribeMessageRange: SubscribeMessageRange,
   plan: StateTransitionsTopicPlan,
   state: RangeSubscriptionState,
+  onAsyncFailure: (error: unknown, generation: number) => Promise<void>,
 ): (() => void) | undefined {
   let iteratorId = 0;
+  let unsubscribe: (() => void) | undefined;
+  let unsubscribed = false;
+  const stop = (): void => {
+    if (unsubscribed) {
+      return;
+    }
+    unsubscribed = true;
+    try {
+      unsubscribe?.();
+    } catch {
+      // A failed Player cleanup must not prevent the topic from switching to its fallback.
+    }
+  };
   try {
-    return subscribeMessageRange({
+    const subscription = subscribeMessageRange({
       topic: plan.topic,
       payload: plan.rangePayload,
       receiveLiveData: false,
@@ -210,8 +269,9 @@ function tryStartRangeSubscription(
       onNewRangeIterator: async (iterator) => {
         const currentIteratorId = ++iteratorId;
         state.latestIteratorByTopic.set(plan.topic, currentIteratorId);
+        let generation: number | undefined;
         try {
-          const generation = await args.generation;
+          generation = await args.generation;
           if (!isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
             return;
           }
@@ -238,11 +298,21 @@ function tryStartRangeSubscription(
           }
         } catch (error) {
           if (isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
-            args.onError?.(error);
+            stop();
+            if (generation == undefined) {
+              args.onError?.(error);
+            } else {
+              await onAsyncFailure(error, generation);
+            }
           }
         }
       },
     });
+    if (subscription == undefined) {
+      return undefined;
+    }
+    unsubscribe = subscription;
+    return stop;
   } catch {
     // Synchronous setup failures mean this Player/topic does not support range subscriptions.
     return undefined;
