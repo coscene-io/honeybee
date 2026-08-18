@@ -130,9 +130,7 @@ class StoredValueCodec {
         }
         // Store an owned copy so the exceptional table cannot retain a view into a decoded
         // message for the life of the series.
-        return this.#encodeFallback(
-          isTime(value) ? { sec: value.sec, nsec: value.nsec } : value,
-        );
+        return this.#encodeFallback(isTime(value) ? { sec: value.sec, nsec: value.nsec } : value);
       }
     }
   }

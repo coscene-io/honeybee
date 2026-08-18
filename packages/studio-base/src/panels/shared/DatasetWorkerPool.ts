@@ -164,9 +164,7 @@ export class DatasetWorkerPool {
           // shared worker silently would leave other panels waiting on a dead Comlink endpoint.
           markHostBroken(
             record.host,
-            makeSessionCreationErrorEvent(
-              new Error("Dataset worker lease was released as broken"),
-            ),
+            makeSessionCreationErrorEvent(new Error("Dataset worker lease was released as broken")),
           );
         }
         await rawLease.release(releaseOptions);
