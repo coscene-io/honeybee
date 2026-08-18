@@ -652,10 +652,7 @@ describe("startPlotRangeSubscriptions", () => {
 });
 
 describe("plan history signatures", () => {
-  const signatureOf = (
-    plans: ReturnType<typeof plan>,
-    topic: string,
-  ): string | undefined =>
+  const signatureOf = (plans: ReturnType<typeof plan>, topic: string): string | undefined =>
     plans.find((item) => item.subscription.topic === topic)?.rangeRequest?.signature;
 
   it("changes only for topics whose extracted history changes", () => {
@@ -681,7 +678,9 @@ describe("plan history signatures", () => {
 describe("PlotRangeSubscriptionManager", () => {
   const noop = async (): Promise<void> => undefined;
 
-  function makeManager(overrides: Partial<ConstructorParameters<typeof PlotRangeSubscriptionManager>[0]> = {}) {
+  function makeManager(
+    overrides: Partial<ConstructorParameters<typeof PlotRangeSubscriptionManager>[0]> = {},
+  ) {
     const unsubscribesByTopic = new Map<string, jest.Mock[]>();
     const iteratorCallbacks = new Map<string, OnNewRangeIterator>();
     const subscribeMessageRange = jest.fn(
