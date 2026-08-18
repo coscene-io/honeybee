@@ -141,6 +141,11 @@ export type RendererConfig = {
       /** Enable transform preloading */
       enablePreloading?: boolean;
     };
+    /**
+     * Briefly show an axis marker at the camera's orbit target while dragging, so the pan/rotate
+     * pivot is visible. Defaults to enabled.
+     */
+    showOrbitTarget?: boolean;
     /** Sync camera with other 3d panels */
     syncCamera?: boolean;
     /** Toggles visibility of all topics */

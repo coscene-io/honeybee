@@ -12,6 +12,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { SettingsTreeAction } from "@foxglove/studio";
 import { ICameraHandler } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ICameraHandler";
+import { OrbitTargetIndicator } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/OrbitTargetIndicator";
 import {
   AnyFrameId,
   CoordinateFrame,
@@ -40,6 +41,11 @@ const tempVec3 = new THREE.Vector3();
 const tempSpherical = new THREE.Spherical();
 const tempEuler = new THREE.Euler();
 const FOLLOW_TF_PATH = ["general", "followTf"];
+
+/** Pointer travel in CSS pixels before a press counts as a drag rather than a click */
+const DRAG_THRESHOLD_PX = 2;
+/** Keys bound to camera panning, see `#controls.keys` below */
+const PAN_KEY_CODES = new Set(["KeyA", "KeyD", "KeyW", "KeyS"]);
 export class CameraStateSettings extends SceneExtension implements ICameraHandler {
   // The frameId's of the fixed and render frames used to create the current unfollowPoseSnapshot
   #unfollowSnapshotFrameIds:
@@ -65,6 +71,15 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
   #orthographicCamera: THREE.OrthographicCamera;
   #aspect: number;
 
+  /** Transient marker showing where the camera is orbiting/panning around */
+  #targetIndicator: OrbitTargetIndicator;
+  /** Pointer id of the press currently being tracked, if any */
+  #dragPointerId?: number;
+  #dragStartX = 0;
+  #dragStartY = 0;
+  /** True once the tracked press has moved far enough to count as a drag */
+  #dragMoved = false;
+
   public constructor(renderer: IRenderer, canvas: HTMLCanvasElement, aspect: number) {
     super("foxglove.CameraStateSettings", renderer);
 
@@ -86,6 +101,12 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
     this.#cameraGroup.add(this.#orthographicCamera);
     this.add(this.#cameraGroup);
 
+    // The orbit target lives in the same space as `#perspectiveCamera.position`, which OrbitControls
+    // treats as world space, so the indicator has to be parented to the camera group to pick up the
+    // same frame-follow transform.
+    this.#targetIndicator = new OrbitTargetIndicator();
+    this.#cameraGroup.add(this.#targetIndicator);
+
     this.#controls = new OrbitControls(this.#perspectiveCamera, this.#canvas);
     this.#controls.screenSpacePanning = false; // only allow panning in the XY plane
     this.#controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
@@ -103,6 +124,10 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
     this.#aspect = aspect;
     this.#controls.keys = { LEFT: "KeyA", RIGHT: "KeyD", UP: "KeyW", BOTTOM: "KeyS" };
     this.#controls.listenToKeyEvents(canvas);
+
+    canvas.addEventListener("pointerdown", this.#onPointerDown);
+    canvas.addEventListener("keydown", this.#onPanKeyDown);
+    canvas.addEventListener("keyup", this.#onPanKeyUp);
   }
 
   public override dispose(): void {
@@ -116,7 +141,113 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
 
+    this.#canvas.removeEventListener("pointerdown", this.#onPointerDown);
+    this.#canvas.removeEventListener("keydown", this.#onPanKeyDown);
+    this.#canvas.removeEventListener("keyup", this.#onPanKeyUp);
+    this.#stopTrackingDrag();
+    this.#targetIndicator.dispose();
+
     super.dispose();
+  }
+
+  #onPointerDown = (event: PointerEvent): void => {
+    if (this.#dragPointerId != undefined) {
+      return;
+    }
+    this.#dragPointerId = event.pointerId;
+    this.#dragStartX = event.clientX;
+    this.#dragStartY = event.clientY;
+    this.#dragMoved = false;
+    // Tracked on the window so a drag that leaves the canvas still ends correctly
+    window.addEventListener("pointermove", this.#onPointerMove);
+    window.addEventListener("pointerup", this.#onPointerUp);
+    window.addEventListener("pointercancel", this.#onPointerUp);
+  };
+
+  #onPointerMove = (event: PointerEvent): void => {
+    if (event.pointerId !== this.#dragPointerId || this.#dragMoved) {
+      return;
+    }
+    const distance = Math.hypot(event.clientX - this.#dragStartX, event.clientY - this.#dragStartY);
+    if (distance <= DRAG_THRESHOLD_PX) {
+      return;
+    }
+    // Only reveal the indicator once this is a real drag, so plain clicks (which select objects)
+    // don't flash it
+    this.#dragMoved = true;
+    this.#showTargetIndicator();
+  };
+
+  #onPointerUp = (event: PointerEvent): void => {
+    if (event.pointerId !== this.#dragPointerId) {
+      return;
+    }
+    const wasDrag = this.#dragMoved;
+    this.#stopTrackingDrag();
+    if (wasDrag) {
+      this.#targetIndicator.release(performance.now());
+      this.renderer.queueAnimationFrame();
+    }
+  };
+
+  #stopTrackingDrag(): void {
+    this.#dragPointerId = undefined;
+    this.#dragMoved = false;
+    window.removeEventListener("pointermove", this.#onPointerMove);
+    window.removeEventListener("pointerup", this.#onPointerUp);
+    window.removeEventListener("pointercancel", this.#onPointerUp);
+  }
+
+  #onPanKeyDown = (event: KeyboardEvent): void => {
+    if (PAN_KEY_CODES.has(event.code)) {
+      this.#showTargetIndicator();
+    }
+  };
+
+  #onPanKeyUp = (event: KeyboardEvent): void => {
+    if (PAN_KEY_CODES.has(event.code)) {
+      this.#targetIndicator.release(performance.now());
+      this.renderer.queueAnimationFrame();
+    }
+  };
+
+  #showTargetIndicator(): void {
+    if (this.renderer.config.scene.showOrbitTarget === false) {
+      return;
+    }
+    this.#targetIndicator.hold();
+    this.renderer.queueAnimationFrame();
+  }
+
+  /** Keep the indicator on the orbit target, at a constant on-screen size, and advance its fade */
+  #updateTargetIndicator(): void {
+    const indicator = this.#targetIndicator;
+    if (this.renderer.config.scene.showOrbitTarget === false) {
+      indicator.hide();
+      return;
+    }
+    if (!indicator.visible) {
+      return;
+    }
+    indicator.position.copy(this.#controls.target);
+    if (indicator.update(this.#worldUnitsPerPixel(), performance.now())) {
+      this.renderer.queueAnimationFrame();
+    }
+  }
+
+  /** Size of one CSS pixel in world units at the orbit target's depth */
+  #worldUnitsPerPixel(): number {
+    const canvasHeight = this.renderer.input.canvasSize.height;
+    if (canvasHeight <= 0) {
+      return 0;
+    }
+    const cameraState = this.renderer.config.cameraState;
+    if (!cameraState.perspective) {
+      // The orthographic frustum spans `distance` world units vertically, see #updateCameras
+      return cameraState.distance / canvasHeight;
+    }
+    const fovY = THREE.MathUtils.degToRad(cameraState.fovy);
+    return (2 * this.#controls.getDistance() * Math.tan(fovY / 2)) / canvasHeight;
   }
 
   public override settingsNodes(): SettingsTreeEntry[] {
@@ -326,6 +457,15 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
 
   // this extension has  NO RENDERABLES so the parent startFrame would do nothing
   public override startFrame(
+    currentTime: bigint,
+    renderFrameId: AnyFrameId,
+    fixedFrameId: AnyFrameId,
+  ): void {
+    this.#updateCameraGroup(currentTime, renderFrameId, fixedFrameId);
+    this.#updateTargetIndicator();
+  }
+
+  #updateCameraGroup(
     currentTime: bigint,
     renderFrameId: AnyFrameId,
     fixedFrameId: AnyFrameId,
