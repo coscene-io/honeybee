@@ -15,7 +15,7 @@ import type { PlotViewport } from "./types";
 export const MAX_POINTS = 5_000;
 
 // Each interval can produce up to this many points
-const POINTS_PER_INTERVAL = 4;
+export const POINTS_PER_INTERVAL = 4;
 
 // Points that appear within this threshold are visually indistinguishable
 export const MINIMUM_PIXEL_DISTANCE = 3;
