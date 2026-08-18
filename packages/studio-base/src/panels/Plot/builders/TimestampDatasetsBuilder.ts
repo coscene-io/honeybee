@@ -28,7 +28,7 @@ import {
 } from "./IDatasetsBuilder";
 import type { DataItem, UpdateDataAction } from "./TimestampDatasetsBuilderImpl";
 import { restoreUnpackedDataAccessor } from "../PackedDataset";
-import { getChartValue, isChartValue } from "../datum";
+import { getChartValue, isChartValue, toOwnedChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
 
 const log = Logger.getLogger(__filename);
@@ -537,7 +537,7 @@ function readMessagePathItems(
         y: mathModified,
         receiveTime: event.receiveTime,
         headerStamp,
-        value: mathFunction ? mathModified : item,
+        value: mathFunction ? mathModified : toOwnedChartValue(item),
       });
     }
   }

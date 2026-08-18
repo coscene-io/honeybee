@@ -301,6 +301,41 @@ describe("DatasetWorkerPool", () => {
     },
   );
 
+  it("notifies sibling sessions before an externally broken release retires the worker", async () => {
+    const workers: MockWorker[] = [];
+    const WorkerMock = makeComlinkWorkerMock(() => ({
+      async createTimestampDatasetsBuilder() {
+        return Comlink.proxy(new TimestampDatasetsBuilderImpl());
+      },
+    }));
+    const pool = new DatasetWorkerPool({
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as MockWorker;
+        workers.push(worker);
+        return worker;
+      },
+      maxWorkers: 1,
+    });
+    const siblingHandler = jest.fn();
+    const sibling = await pool.acquireTimestampDatasetsBuilder({
+      handleWorkerError: siblingHandler,
+    });
+    const broken = await pool.acquireTimestampDatasetsBuilder();
+
+    await broken.release({ broken: true });
+    await flushPromises();
+
+    // The sibling's panel hears about the retirement instead of hanging on a dead endpoint,
+    // and the next acquisition gets a fresh physical worker.
+    expect(siblingHandler).toHaveBeenCalled();
+    const replacement = await pool.acquireTimestampDatasetsBuilder();
+    expect(workers).toHaveLength(2);
+
+    await sibling.release();
+    await replacement.release();
+    await pool.dispose();
+  });
+
   it("retires a host when a child session constructor rejects", async () => {
     let workerCount = 0;
     const WorkerMock = makeComlinkWorkerMock(() => {

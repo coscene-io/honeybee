@@ -203,7 +203,19 @@ export class DatasetWorkerPool {
 
     return {
       remote: remote as TRemote,
-      release: rawLease.release,
+      release: async (releaseOptions) => {
+        if (releaseOptions?.broken === true) {
+          // Fail sibling sessions loudly before their physical worker is retired. Terminating the
+          // shared worker silently would leave other panels waiting on a dead Comlink endpoint.
+          markHostBroken(
+            record.host,
+            makeSessionCreationErrorEvent(
+              new Error("Dataset worker lease was released as broken"),
+            ),
+          );
+        }
+        await rawLease.release(releaseOptions);
+      },
     };
   }
 
