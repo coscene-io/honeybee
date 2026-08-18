@@ -8,7 +8,11 @@
 import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import type { BasePlotPath, PlotPath, PlotXAxisVal } from "./config";
-import { planPlotSubscriptions, startPlotRangeSubscriptions } from "./rangeSubscriptions";
+import {
+  planPlotSubscriptions,
+  PlotRangeSubscriptionManager,
+  startPlotRangeSubscriptions,
+} from "./rangeSubscriptions";
 
 function path(value: string, options: Partial<PlotPath> = {}): PlotPath {
   return {
@@ -50,6 +54,7 @@ describe("planPlotSubscriptions", () => {
           topic: "/beta",
           payload: { fields: ["header", "value", "temperature", "source"] },
           seriesIndices: [0, 2],
+          signature: expect.any(String),
         },
       },
       {
@@ -67,6 +72,7 @@ describe("planPlotSubscriptions", () => {
           topic: "/alpha",
           payload: { fields: ["header", "speed", "vehicle", "position"] },
           seriesIndices: [1, 3],
+          signature: expect.any(String),
         },
       },
     ]);
@@ -97,6 +103,7 @@ describe("planPlotSubscriptions", () => {
           topic: "/valid",
           payload: { fields: ["header", "value"] },
           seriesIndices: [4],
+          signature: expect.any(String),
         },
       },
     ]);
@@ -113,6 +120,7 @@ describe("planPlotSubscriptions", () => {
       topic: "/vehicles",
       payload: { fields: ["header", "speed", "id"] },
       seriesIndices: [0],
+      signature: expect.any(String),
     });
   });
 
@@ -152,6 +160,7 @@ describe("planPlotSubscriptions", () => {
           payload: { fields: ["header", "y", "x", "xFilter"] },
           seriesIndices: [0],
           includesXAxis: true,
+          signature: expect.any(String),
         },
       },
       {
@@ -169,6 +178,7 @@ describe("planPlotSubscriptions", () => {
           topic: "/y-only",
           payload: { fields: ["header", "value"] },
           seriesIndices: [1],
+          signature: expect.any(String),
         },
       },
     ]);
@@ -638,5 +648,154 @@ describe("startPlotRangeSubscriptions", () => {
       { topic: "/fallback", preloadTypes: ["full", "full"] },
     ]);
     running.cancel();
+  });
+});
+
+describe("plan history signatures", () => {
+  const signatureOf = (
+    plans: ReturnType<typeof plan>,
+    topic: string,
+  ): string | undefined =>
+    plans.find((item) => item.subscription.topic === topic)?.rangeRequest?.signature;
+
+  it("changes only for topics whose extracted history changes", () => {
+    const before = plan([path("/a.value"), path("/b.value")]);
+    const after = plan([path("/a.value"), path("/b.value"), path("/b.other")]);
+    expect(signatureOf(after, "/a")).toBe(signatureOf(before, "/a"));
+    expect(signatureOf(after, "/b")).not.toBe(signatureOf(before, "/b"));
+  });
+
+  it("is stable across series index shifts", () => {
+    const before = plan([path("/a.value")]);
+    const after = plan([path("/new.value"), path("/a.value")]);
+    expect(signatureOf(after, "/a")).toBe(signatureOf(before, "/a"));
+  });
+
+  it("changes when a series timestamp method changes", () => {
+    const before = plan([path("/a.value")]);
+    const after = plan([path("/a.value", { timestampMethod: "headerStamp" })]);
+    expect(signatureOf(after, "/a")).not.toBe(signatureOf(before, "/a"));
+  });
+});
+
+describe("PlotRangeSubscriptionManager", () => {
+  const noop = async (): Promise<void> => undefined;
+
+  function makeManager(overrides: Partial<ConstructorParameters<typeof PlotRangeSubscriptionManager>[0]> = {}) {
+    const unsubscribesByTopic = new Map<string, jest.Mock[]>();
+    const iteratorCallbacks = new Map<string, OnNewRangeIterator>();
+    const subscribeMessageRange = jest.fn(
+      ({ topic, onNewRangeIterator }: Parameters<SubscribeMessageRange>[0]) => {
+        const unsubscribe = jest.fn();
+        const existing = unsubscribesByTopic.get(topic) ?? [];
+        unsubscribesByTopic.set(topic, [...existing, unsubscribe]);
+        iteratorCallbacks.set(topic, onNewRangeIterator);
+        return unsubscribe;
+      },
+    );
+    const manager = new PlotRangeSubscriptionManager({
+      attemptRanges: true,
+      subscribeMessageRange,
+      onIteratorStart: noop,
+      onRangeBatch: noop,
+      ...overrides,
+    });
+    return { manager, subscribeMessageRange, unsubscribesByTopic, iteratorCallbacks };
+  }
+
+  it("keeps unchanged topic iterators when a plan adds a topic", () => {
+    const { manager, subscribeMessageRange, unsubscribesByTopic } = makeManager();
+
+    manager.update(plan([path("/a.value")]), Promise.resolve(1));
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+
+    const plans = plan([path("/a.value"), path("/b.value")]);
+    const updated = manager.update(plans, Promise.resolve(1));
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    expect(subscribeMessageRange.mock.calls[1]?.[0]?.topic).toBe("/b");
+    expect(unsubscribesByTopic.get("/a")![0]).not.toHaveBeenCalled();
+    expect(updated.rangeTopics).toEqual(new Set(["/a", "/b"]));
+    expect(updated.subscriptions).toEqual(plans.map((item) => item.subscription));
+
+    manager.cancel();
+    expect(unsubscribesByTopic.get("/a")![0]).toHaveBeenCalledTimes(1);
+    expect(unsubscribesByTopic.get("/b")![0]).toHaveBeenCalledTimes(1);
+  });
+
+  it("restarts only topics whose signature changed and stops removed topics", () => {
+    const { manager, subscribeMessageRange, unsubscribesByTopic } = makeManager();
+
+    manager.update(plan([path("/a.value"), path("/b.value")]), Promise.resolve(1));
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+
+    manager.update(plan([path("/a.value"), path("/b.other")]), Promise.resolve(1));
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(3);
+    expect(subscribeMessageRange.mock.calls[2]?.[0]?.topic).toBe("/b");
+    expect(unsubscribesByTopic.get("/a")).toHaveLength(1);
+    expect(unsubscribesByTopic.get("/a")![0]).not.toHaveBeenCalled();
+    expect(unsubscribesByTopic.get("/b")![0]).toHaveBeenCalledTimes(1);
+
+    const removed = manager.update(plan([path("/a.value")]), Promise.resolve(1));
+    expect(unsubscribesByTopic.get("/b")![1]).toHaveBeenCalledTimes(1);
+    expect(removed.rangeTopics).toEqual(new Set(["/a"]));
+
+    manager.cancel();
+  });
+
+  it("keeps an async fallback decision across unrelated plan updates", async () => {
+    const { manager, subscribeMessageRange, iteratorCallbacks } = makeManager({
+      onTopicFallback: async () => true,
+    });
+
+    const initialPlans = plan([path("/a.value"), path("/b.value")]);
+    manager.update(initialPlans, Promise.resolve(1));
+    await iteratorCallbacks.get("/b")!(
+      (async function* () {
+        await Promise.reject(new Error("range failed"));
+        yield [];
+      })(),
+    );
+
+    const plans = plan([path("/a.value"), path("/b.value"), path("/c.value")]);
+    const updated = manager.update(plans, Promise.resolve(1));
+
+    // /b keeps its fallback; only /c starts a new range.
+    expect(subscribeMessageRange.mock.calls.map((call) => call[0].topic)).toEqual([
+      "/a",
+      "/b",
+      "/c",
+    ]);
+    expect(updated.rangeTopics).toEqual(new Set(["/a", "/c"]));
+    expect(updated.subscriptions).toEqual([
+      plans[0]!.subscription,
+      plans[1]!.fallbackSubscription,
+      plans[2]!.subscription,
+    ]);
+
+    manager.cancel();
+  });
+
+  it("retries the range when a fallback topic's signature changes", async () => {
+    const { manager, subscribeMessageRange, iteratorCallbacks } = makeManager({
+      onTopicFallback: async () => true,
+    });
+
+    manager.update(plan([path("/b.value")]), Promise.resolve(1));
+    await iteratorCallbacks.get("/b")!(
+      (async function* () {
+        await Promise.reject(new Error("range failed"));
+        yield [];
+      })(),
+    );
+
+    const plans = plan([path("/b.other")]);
+    const updated = manager.update(plans, Promise.resolve(1));
+
+    expect(subscribeMessageRange.mock.calls.map((call) => call[0].topic)).toEqual(["/b", "/b"]);
+    expect(updated.rangeTopics).toEqual(new Set(["/b"]));
+    expect(updated.subscriptions).toEqual([plans[0]!.subscription]);
+
+    manager.cancel();
   });
 });
