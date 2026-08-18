@@ -145,7 +145,10 @@ export function createMessagePipelineStore({
           sortedTopics: [],
           datatypes: new Map(),
           startPlayback: undefined,
-          subscribeMessageRange: undefined,
+          // subscribeMessageRange is intentionally preserved: it is a closure over the store's
+          // current player (not a bound player method like the playback controls below), and the
+          // capabilities reducer never rebinds it. Clearing it here would permanently disable
+          // range subscriptions after a player switch.
           playUntil: undefined,
           pausePlayback: undefined,
           setPlaybackSpeed: undefined,
