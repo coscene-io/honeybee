@@ -364,6 +364,47 @@ describe("TimestampDatasetsBuilderImpl", () => {
     );
   });
 
+  it("does not let scatter series shrink the line-series point budget", () => {
+    const items = Array.from({ length: 20_000 }, (_, x) => makeItem(x, Math.sin(x)));
+    const line = makeSeries("line-beside-scatter", 1);
+
+    const withScatter = new TimestampDatasetsBuilderImpl();
+    const scatter = makeSeries("scatter-beside-line", 0, { showLine: false });
+    withScatter.applyActions([
+      updateSeries([scatter, line]),
+      append("append-full", scatter, items),
+      append("append-full", line, items),
+    ]);
+
+    const lineOnly = new TimestampDatasetsBuilderImpl();
+    lineOnly.applyActions([updateSeries([line]), append("append-full", line, items)]);
+
+    const view = viewport({ min: 0, max: 20_000 }, { width: 10_000, height: 1_000 });
+    expect(withScatter.getViewportDatasets(view)[1]?.data).toEqual(
+      lineOnly.getViewportDatasets(view)[1]?.data,
+    );
+  });
+
+  it("keeps bucket-downsampled extrema instead of re-thinning them to the exact budget", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("bucket-extrema", 0);
+    // Every four-point pixel interval holds distinct first/max/min/last values, so the bucket
+    // pass keeps all of them and its output exceeds the budget by the two edge-interval points.
+    const cycle = [0, 3, -3, 1];
+    const items = Array.from({ length: 5_010 }, (_, x) => makeItem(x, cycle[x % 4]));
+    impl.applyActions([updateSeries([series]), append("append-full", series, items)]);
+
+    const view: Viewport = {
+      bounds: { x: { min: 0, max: 5_000 }, y: { min: -3, max: 3 } },
+      size: { width: 10_000, height: 1_000 },
+    };
+    const data = impl.getViewportDatasets(view)[0]?.data ?? [];
+
+    expect(data).toHaveLength(5_002);
+    expect(data.filter((datum) => datum.y === -3)).toHaveLength(1_250);
+    expect(data.filter((datum) => datum.y === 3)).toHaveLength(1_251);
+  });
+
   it("sorts header-stamp batches and preserves compact original values for CSV", () => {
     const impl = new TimestampDatasetsBuilderImpl();
     const series = makeSeries("original-values", 0, {

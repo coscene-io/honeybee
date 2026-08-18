@@ -48,6 +48,38 @@ describe("MessagePipeline store", () => {
     expect(receivedArgs).not.toHaveProperty("timeRange");
   });
 
+  it("keeps range subscriptions working after a player-switch reset", () => {
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn(() => unsubscribe);
+    const player = {
+      subscribeMessageRange,
+    } as unknown as Player;
+
+    const store = createMessagePipelineStore({
+      promisesToWaitForRef: { current: [] },
+      initialPlayer: player,
+      urdfStorage: {} as IUrdfStorage,
+      s3FileService: {} as S3FileService,
+    });
+
+    // reset() runs when the playerId changes (e.g. opening another recording). Unlike the
+    // playback controls, which the reducer rebinds from capabilities on the next player state,
+    // subscribeMessageRange is a closure over the current player and must survive the reset.
+    store.getState().reset();
+
+    const rangeArgs: SubscribeMessageRangeArgs = {
+      topic: "/camera",
+      payload: { fields: ["header"] },
+      receiveLiveData: false,
+      skipUserScripts: true,
+      onNewRangeIterator: jest.fn(),
+    };
+    const result = store.getState().public.subscribeMessageRange?.(rangeArgs);
+
+    expect(result).toBe(unsubscribe);
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for close before reopening and coalesces reopen requests", async () => {
     let resolveClose: (() => void) | undefined;
     const close = jest.fn(async () => {
