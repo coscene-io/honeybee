@@ -323,6 +323,23 @@ function StateTransitions(props: Props) {
           generation,
         });
       },
+      onTopicFallback: async ({ topic, generation, subscriptions }) => {
+        if (rangeSessionIdRef.current !== rangeSessionId) {
+          return true;
+        }
+        const released = await coordinator.releaseRangeTopic({ topic, generation });
+        if (rangeSessionIdRef.current !== rangeSessionId) {
+          return true;
+        }
+        if (!released) {
+          return false;
+        }
+        setSubscriptions(subscriberId, subscriptions);
+        // Re-feed cached blocks after releasing range ownership; otherwise a quiet fallback topic
+        // stays empty until the Player happens to emit a new state.
+        coordinator.handlePlayerState(getMessagePipelineState().playerState);
+        return true;
+      },
       onError: handleWorkerError,
     });
 
@@ -340,6 +357,10 @@ function StateTransitions(props: Props) {
     coordinator.handlePlayerState(getMessagePipelineState().playerState);
 
     return () => {
+      // Make in-flight fallbacks stale so a topic failing during teardown cannot surface an error.
+      if (rangeSessionIdRef.current === rangeSessionId) {
+        rangeSessionIdRef.current += 1;
+      }
       coordinator.invalidateRangeHistory(rangeGeneration);
       running.cancel();
     };
