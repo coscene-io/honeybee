@@ -34,7 +34,7 @@ import {
   Viewport,
 } from "./IDatasetsBuilder";
 import { restoreUnpackedDataAccessor } from "../PackedDataset";
-import { getChartValue, isChartValue } from "../datum";
+import { getChartValue, isChartValue, toOwnedChartValue } from "../datum";
 import { MathFunction, mathFunctions } from "../mathFunctions";
 
 export type { ValueItem } from "./CustomValueStore";
@@ -907,7 +907,7 @@ function readMessagePathItems(
       const mathModified = mathFunction ? mathFunction(chartValue) : chartValue;
       out.push({
         value: mathModified,
-        originalValue: mathFunction ? mathModified : item,
+        originalValue: mathFunction ? mathModified : toOwnedChartValue(item),
         receiveTime: event.receiveTime,
       });
     }

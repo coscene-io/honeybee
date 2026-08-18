@@ -270,7 +270,15 @@ export class WorkerSessionPool<TResource> {
       await disposeSession(session);
     } catch (error) {
       sessionError = normalizeError(error, "Failed to dispose the worker session");
-      host.broken = true;
+      // One session's failed cleanup must not tear a shared resource out from under its sibling
+      // sessions. Retire the resource only when it cannot prove it is still healthy.
+      if (
+        this.#isResourceBroken == undefined ||
+        !host.resourceCreated ||
+        this.#isResourceBroken(host.resource as TResource)
+      ) {
+        host.broken = true;
+      }
     } finally {
       this.#finishSession(host);
     }

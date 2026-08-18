@@ -137,7 +137,11 @@ class StoredValueCodec {
             // Preserve malformed legacy Time objects in the exceptional value table.
           }
         }
-        return this.#encodeFallback(value);
+        // Store an owned copy so the exceptional table cannot retain a view into a decoded
+        // message for the life of the series.
+        return this.#encodeFallback(
+          isTime(value) ? { sec: value.sec, nsec: value.nsec } : value,
+        );
       }
     }
   }
@@ -922,8 +926,20 @@ export class TimestampDatasetsBuilderImpl {
     const derivative = isDerivative(series);
     let start = 0;
     let end = length;
-    const queryXBounds =
-      viewport.following === true ? alignFollowingXBounds(viewport.bounds.x) : viewport.bounds.x;
+    // Interactive (pan/zoom/sync) bounds move on nearly every frame; exact bounds would change
+    // the downsample cache key each time and redo the whole window. Align them like the following
+    // window so drag frames inside one grid cell reuse the incremental caches. Scatter series
+    // have no incremental cache — a larger window only adds scan cost — so they keep exact
+    // bounds. The chart still clips to the exact interactive bounds at draw time.
+    const alignForCacheReuse =
+      viewport.following === true || (viewport.interactive === true && series.config.showLine);
+    const queryXBounds = alignForCacheReuse
+      ? alignQueryBounds(viewport.bounds.x)
+      : viewport.bounds.x;
+    const queryYBounds =
+      viewport.interactive === true && series.config.showLine
+        ? alignQueryBounds(viewport.bounds.y)
+        : viewport.bounds.y;
     const minimumX = queryXBounds?.min;
     const maximumX = queryXBounds?.max;
     if (minimumX != undefined && Number.isFinite(minimumX)) {
@@ -965,7 +981,7 @@ export class TimestampDatasetsBuilderImpl {
         height: Math.max(1, viewport.size.height),
         bounds: {
           x: resolveBounds(queryXBounds, extrema.xMin, extrema.xMax),
-          y: resolveBounds(viewport.bounds.y, extrema.yMin, extrema.yMax),
+          y: resolveBounds(queryYBounds, extrema.yMin, extrema.yMax),
         },
       },
       reserveDiscontinuity:
@@ -1103,7 +1119,7 @@ function limitIndices(indices: readonly number[], maximum: number): number[] {
   });
 }
 
-function alignFollowingXBounds(
+function alignQueryBounds(
   configured: Immutable<Partial<Bounds1D>> | undefined,
 ): Immutable<Partial<Bounds1D>> | undefined {
   const min = configured?.min;
@@ -1123,8 +1139,8 @@ function alignFollowingXBounds(
     return configured;
   }
 
-  // A fixed two-cell query window covers the exact following range even while its right edge is
-  // between grid lines. It advances only once per power-of-two cell instead of once per frame.
+  // A fixed two-cell query window covers the exact requested range even while its edges sit
+  // between grid lines. It moves only once per power-of-two cell instead of once per frame.
   const alignedMax = Math.ceil(max / gridSize) * gridSize;
   const alignedMin = alignedMax - gridSize * 2;
   if (!Number.isFinite(alignedMin) || !Number.isFinite(alignedMax)) {
