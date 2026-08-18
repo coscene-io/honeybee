@@ -679,6 +679,7 @@ describe("StateTransitionsCoordinator range history", () => {
   function playerState(args: {
     messages?: ReturnType<typeof message>[];
     messagesByTopic?: Record<string, ReturnType<typeof message>[]>;
+    lastSeekTime?: number;
   }) {
     const topics = ["/range", "/fallback", "/disabled"].map((name) => ({
       name,
@@ -706,7 +707,7 @@ describe("StateTransitionsCoordinator range history", () => {
         endTime: { sec: 10, nsec: 0 },
         isPlaying: false,
         speed: 1,
-        lastSeekTime: 1,
+        lastSeekTime: args.lastSeekTime ?? 1,
         topics,
         topicStats: new Map(),
         datatypes,
@@ -755,13 +756,111 @@ describe("StateTransitionsCoordinator range history", () => {
     await settleCoordinator();
 
     const datasets = datasetSnapshots.at(-1);
+    // Range history supplies [2, 4]; the current-frame sample at 6 stays visible as the playhead
+    // tail; the block sample at 0 must not be double-ingested for a range-owned topic.
     expect(datasets?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
       [2, 1],
       [4, 2],
+      [6, 99],
     ]);
     expect(datasets?.[1]?.data.map((datum) => [datum.x, datum.value])).toEqual([
       [1, 3],
       [3, 4],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("shows the playhead tail before any range history has arrived", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [6, 99],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("replaces the playhead tail once the range scan covers it", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(playerState({}));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 1), message("/range", 4, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 6, 1), message("/range", 8, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    // Exactly one sample at x=6, owned by range history — the playhead duplicate is trimmed.
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [2, 1],
+      [4, 2],
+      [6, 1],
+      [8, 2],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("clears the playhead tail on seek while keeping range history", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(playerState({}));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 1), message("/range", 4, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    coordinator.handlePlayerState(playerState({ lastSeekTime: 2 }));
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [2, 1],
+      [4, 2],
     ]);
     coordinator.destroy();
   });
