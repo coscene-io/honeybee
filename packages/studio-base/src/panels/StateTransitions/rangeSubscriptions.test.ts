@@ -92,9 +92,9 @@ describe("planStateTransitionsSubscriptions", () => {
 
 type OnNewRangeIterator = Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"];
 
-function message(id: number): MessageEvent {
+function message(id: number, topic = "/state"): MessageEvent {
   return {
-    topic: "/state",
+    topic,
     schemaName: "test",
     receiveTime: { sec: id, nsec: 0 },
     message: { id },
@@ -107,6 +107,13 @@ function statePlan() {
     paths: [path("/state.value")],
     globalVariables: {},
   })[0]!;
+}
+
+function twoTopicPlans() {
+  return planStateTransitionsSubscriptions({
+    paths: [path("/state.value"), path("/other.value")],
+    globalVariables: {},
+  });
 }
 
 async function flushMicrotasks(): Promise<void> {
@@ -220,6 +227,149 @@ describe("startStateTransitionsRangeSubscriptions", () => {
 
     expect(starts).toEqual([5, 5]);
     expect(batches).toEqual([2]);
+    running.cancel();
+  });
+
+  it("switches only the asynchronously failed topic to its full fallback", async () => {
+    const plans = twoTopicPlans();
+    const callbacks = new Map<string, OnNewRangeIterator>();
+    const unsubscribes = new Map([
+      ["/state", jest.fn()],
+      ["/other", jest.fn()],
+    ]);
+    const batches: string[] = [];
+    const onError = jest.fn();
+    const onTopicFallback = jest.fn(async () => true);
+    const running = startStateTransitionsRangeSubscriptions({
+      plans,
+      attemptRanges: true,
+      subscribeMessageRange: (options) => {
+        callbacks.set(options.topic, options.onNewRangeIterator);
+        return unsubscribes.get(options.topic)!;
+      },
+      generation: Promise.resolve(12),
+      onIteratorStart: async () => undefined,
+      onRangeBatch: async (topic) => {
+        batches.push(topic);
+      },
+      onTopicFallback,
+      onError,
+    });
+
+    await callbacks.get("/state")!(
+      (async function* () {
+        await Promise.reject(new Error("range read failed"));
+        yield [];
+      })(),
+    );
+    // The surviving topic keeps streaming after the other topic's fallback committed.
+    await callbacks.get("/other")!(
+      (async function* () {
+        yield [message(1, "/other")];
+      })(),
+    );
+
+    expect(onTopicFallback).toHaveBeenCalledWith({
+      topic: "/state",
+      generation: 12,
+      rangeTopics: new Set(["/other"]),
+      subscriptions: [plans[0]!.fallbackSubscription, plans[1]!.currentSubscription],
+    });
+    expect(batches).toEqual(["/other"]);
+    // Dynamic fallback state is sent through the callback; the returned plan remains a snapshot
+    // of synchronous setup.
+    expect(running.rangeTopics).toEqual(new Set(["/state", "/other"]));
+    expect(running.subscriptions).toEqual(plans.map((plan) => plan.currentSubscription));
+    expect(unsubscribes.get("/state")).toHaveBeenCalledTimes(1);
+    expect(unsubscribes.get("/other")).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    running.cancel();
+  });
+
+  it("serializes concurrent fallback commits so inverse completion cannot restore partial", async () => {
+    const plans = twoTopicPlans();
+    const callbacks = new Map<string, OnNewRangeIterator>();
+    let releaseFirstFallback!: () => void;
+    let firstFallbackStarted!: () => void;
+    const firstFallbackPending = new Promise<void>((resolve) => {
+      releaseFirstFallback = resolve;
+    });
+    const firstFallbackStartedPromise = new Promise<void>((resolve) => {
+      firstFallbackStarted = resolve;
+    });
+    const commits: { topic: string; preloadTypes: (string | undefined)[] }[] = [];
+    const running = startStateTransitionsRangeSubscriptions({
+      plans,
+      attemptRanges: true,
+      subscribeMessageRange: (options) => {
+        callbacks.set(options.topic, options.onNewRangeIterator);
+        return () => undefined;
+      },
+      generation: Promise.resolve(21),
+      onIteratorStart: async () => undefined,
+      onRangeBatch: async () => undefined,
+      onTopicFallback: async ({ subscriptions, topic }) => {
+        if (topic === "/state") {
+          firstFallbackStarted();
+          await firstFallbackPending;
+        }
+        commits.push({
+          topic,
+          preloadTypes: subscriptions.map((subscription) => subscription.preloadType),
+        });
+        return true;
+      },
+    });
+
+    const firstFailure = callbacks.get("/state")!(
+      (async function* () {
+        await Promise.reject(new Error("slow fallback"));
+        yield [];
+      })(),
+    );
+    await firstFallbackStartedPromise;
+    const secondFailure = callbacks.get("/other")!(
+      (async function* () {
+        await Promise.reject(new Error("fast fallback"));
+        yield [];
+      })(),
+    );
+    await flushMicrotasks();
+
+    expect(commits).toEqual([]);
+    releaseFirstFallback();
+    await Promise.all([firstFailure, secondFailure]);
+    expect(commits).toEqual([
+      { topic: "/state", preloadTypes: ["full", "partial"] },
+      { topic: "/other", preloadTypes: ["full", "full"] },
+    ]);
+    running.cancel();
+  });
+
+  it("surfaces the original error when the fallback cannot be established", async () => {
+    const error = new Error("range read failed");
+    const onError = jest.fn();
+    const running = startStateTransitionsRangeSubscriptions({
+      plans: [statePlan()],
+      attemptRanges: true,
+      subscribeMessageRange: ({ onNewRangeIterator }) => {
+        void onNewRangeIterator(
+          (async function* () {
+            await Promise.reject(error);
+            yield [];
+          })(),
+        );
+        return () => undefined;
+      },
+      generation: Promise.resolve(1),
+      onIteratorStart: async () => undefined,
+      onRangeBatch: async () => undefined,
+      onTopicFallback: async () => false,
+      onError,
+    });
+
+    await flushMicrotasks();
+    expect(onError).toHaveBeenCalledWith(error);
     running.cancel();
   });
 });

@@ -16,6 +16,7 @@ import {
   finishDownsample,
   initDownsample,
   MAX_POINTS,
+  POINTS_PER_INTERVAL,
   downsampleScatter,
 } from "@foxglove/studio-base/components/TimeBasedChart/downsample";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
@@ -978,10 +979,27 @@ export class TimestampDatasetsBuilderImpl {
         plans.push(this.#makeWindowPlan(series, viewport));
       }
     }
-    const budgets = allocatePointBudgets(
-      plans.map((plan) => plan.count + (plan.reserveDiscontinuity ? 1 : 0)),
-      MAX_POINTS,
-    );
+    // Scatter output is capped by pixel occupancy rather than by its allocation; a scatter share
+    // is only a raw pass-through threshold. Water-fill each group separately so long scatter
+    // series cannot starve the line series, which do treat their shares as hard caps.
+    const budgets = new Array<number>(plans.length).fill(0);
+    for (const wantLine of [true, false]) {
+      const groupIndices: number[] = [];
+      for (let index = 0; index < plans.length; index++) {
+        if (plans[index]!.series.config.showLine === wantLine) {
+          groupIndices.push(index);
+        }
+      }
+      const groupBudgets = allocatePointBudgets(
+        groupIndices.map(
+          (index) => plans[index]!.count + (plans[index]!.reserveDiscontinuity ? 1 : 0),
+        ),
+        MAX_POINTS,
+      );
+      groupIndices.forEach((planIndex, groupIndex) => {
+        budgets[planIndex] = groupBudgets[groupIndex]!;
+      });
+    }
     const datasets: Dataset[] = [];
 
     for (let planIndex = 0; planIndex < plans.length; planIndex++) {
@@ -1000,13 +1018,16 @@ export class TimestampDatasetsBuilderImpl {
       ) {
         relativeIndices = Array.from({ length: plan.count }, (_, index) => index);
       } else if (series.config.showLine) {
+        const downsampledIndices =
+          maximumDataPoints === 0 ? [] : this.#getLineDownsampleIndices(plan, maximumDataPoints);
+        // The bucket pass already sizes its intervals from the budget; re-thinning its output
+        // would drop the min/max extrema it deliberately kept. Only below one interval's worth of
+        // points can it exceed the budget (a lone interval emits up to four points), so only then
+        // thin the result.
         relativeIndices =
-          maximumDataPoints === 0
-            ? []
-            : limitIndices(
-                this.#getLineDownsampleIndices(plan, maximumDataPoints),
-                maximumDataPoints,
-              );
+          maximumDataPoints < POINTS_PER_INTERVAL
+            ? limitIndices(downsampledIndices, maximumDataPoints)
+            : downsampledIndices;
       } else {
         // Scatter plots use budget only as the threshold. Pixel occupancy may legitimately return
         // more than the nominal global point budget.

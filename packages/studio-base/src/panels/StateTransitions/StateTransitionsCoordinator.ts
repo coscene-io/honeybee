@@ -445,6 +445,46 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     this.#queueDispatchRender();
   }
 
+  /**
+   * Release one failed range topic back to block/current ingestion. Clears any partially replayed
+   * range data and re-arms the topic's block cursors so the full-preload fallback repopulates it.
+   * Returns false when the release no longer applies to the current range generation.
+   */
+  public async releaseRangeTopic(args: { topic: string; generation: number }): Promise<boolean> {
+    if (
+      this.#destroyed ||
+      args.generation !== this.#rangeHistoryGeneration ||
+      !this.#rangeTopics.delete(args.topic)
+    ) {
+      return false;
+    }
+
+    const seriesForTopic = this.#series.filter((series) => series.parsed.topicName === args.topic);
+    for (const series of seriesForTopic) {
+      const cursorKey = this.#cursorKey(series);
+      this.#blockCursors.delete(cursorKey);
+      this.#firstBlockRefs.delete(cursorKey);
+      this.#lastBlockRefs.delete(cursorKey);
+    }
+    // Force block reprocessing on the next player state so the released lane repopulates even if
+    // the cached blocks reference has not changed.
+    this.#latestBlocks = undefined;
+    this.#invalidateViewportDatasets();
+    const actions = seriesForTopic.map((series) => ({
+      type: "reset-series" as const,
+      key: this.#cursorKey(series),
+    }));
+    if (actions.length > 0) {
+      await this.#datasetBuilder.applyActionsAndFlush(actions);
+    }
+    if (this.isDestroyed() || args.generation !== this.#rangeHistoryGeneration) {
+      return false;
+    }
+    this.#buildAndUpdateDatasets();
+    this.#queueDispatchRender();
+    return true;
+  }
+
   /** Decode one range batch and wait until the Dataset Worker owns it before requesting more. */
   public async handleRangeBatch(args: {
     topic: string;

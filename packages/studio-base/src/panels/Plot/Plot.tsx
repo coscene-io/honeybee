@@ -64,7 +64,11 @@ import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
 import { PlotConfig } from "./config";
 import { downloadCSV, guardCsvDataChunkSource } from "./csv";
-import { planPlotSubscriptions, startPlotRangeSubscriptions } from "./rangeSubscriptions";
+import {
+  planPlotSubscriptions,
+  PlotRangeSubscriptionManager,
+  PlotTopicSubscriptionPlan,
+} from "./rangeSubscriptions";
 import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
 
 export const defaultSidebarDimension = 240;
@@ -667,10 +671,13 @@ export function Plot(props: Props): React.JSX.Element {
     startSec: number | undefined;
     startNsec: number | undefined;
   }>();
+  const subscriptionPlansRef = useRef(subscriptionPlans);
+  const rangeManagerRef = useRef<{ apply: () => void }>();
 
   // Replay timestamp and accumulated custom-x plots stream finite history directly into the
   // Dataset worker. Every topic negotiates range support independently so script output and older
-  // Players retain full preload.
+  // Players retain full preload. The manager lives for one history source (player, start time,
+  // builder); plan changes reconcile against it below instead of restarting every iterator.
   useEffect(() => {
     const generation = ++rangeGenerationRef.current;
     const timestampBuilder =
@@ -684,21 +691,12 @@ export function Plot(props: Props): React.JSX.Element {
           ? customBuilder
           : undefined;
     const usesRangeHistory = xAxisMode === "timestamp" || xAxisMode === "custom";
-    const customXAxisTopics = new Set(
-      subscriptionPlans.flatMap((plan) =>
-        plan.rangeRequest?.includesXAxis === true ? [plan.rangeRequest.topic] : [],
-      ),
-    );
-    let markHistoryReady!: (value: number) => void;
-    const historyReady = new Promise<number>((resolve) => {
-      markHistoryReady = resolve;
-    });
+    // Reassigned on every applied plan so long-lived iterator callbacks see the current set.
+    let customXAxisTopics = new Set<string>();
 
-    const running = startPlotRangeSubscriptions({
-      plans: subscriptionPlans,
+    const manager = new PlotRangeSubscriptionManager({
       attemptRanges: usesRangeHistory && !isLivePlayer && rangeBuilder != undefined,
       subscribeMessageRange: rangeStartTime == undefined ? undefined : subscribeMessageRange,
-      generation: historyReady,
       onIteratorStart: async (topic, iteratorGeneration) => {
         const reset = await rangeBuilder?.resetRangeTopic(topic, iteratorGeneration);
         if (
@@ -765,47 +763,72 @@ export function Plot(props: Props): React.JSX.Element {
       },
     });
 
-    if (rangeBuilder != undefined) {
-      const currentOnlyTopics = new Set<string>();
-      if (usesRangeHistory && isLivePlayer) {
-        for (const plan of subscriptionPlans) {
-          if (plan.rangeRequest != undefined) {
-            currentOnlyTopics.add(plan.rangeRequest.topic);
+    let appliedPlans: readonly PlotTopicSubscriptionPlan[] | undefined;
+    const apply = () => {
+      const plans = subscriptionPlansRef.current;
+      if (rangeGenerationRef.current !== generation || plans === appliedPlans) {
+        return;
+      }
+      appliedPlans = plans;
+      customXAxisTopics = new Set(
+        plans.flatMap((plan) =>
+          plan.rangeRequest?.includesXAxis === true ? [plan.rangeRequest.topic] : [],
+        ),
+      );
+      let markHistoryReady!: (value: number) => void;
+      const historyReady = new Promise<number>((resolve) => {
+        markHistoryReady = resolve;
+      });
+      const running = manager.update(plans, historyReady);
+
+      if (rangeBuilder != undefined) {
+        const currentOnlyTopics = new Set<string>();
+        if (usesRangeHistory && isLivePlayer) {
+          for (const plan of plans) {
+            if (plan.rangeRequest != undefined) {
+              currentOnlyTopics.add(plan.rangeRequest.topic);
+            }
           }
         }
+        const previousSource = historySourceRef.current;
+        let resetAll = true;
+        if (previousSource != undefined) {
+          resetAll =
+            previousSource.playerId !== playerId ||
+            previousSource.startSec !== rangeStartTime?.sec ||
+            previousSource.startNsec !== rangeStartTime?.nsec;
+        }
+        historySourceRef.current = {
+          playerId,
+          startSec: rangeStartTime?.sec,
+          startNsec: rangeStartTime?.nsec,
+        };
+        rangeBuilder.setHistoryTopics(running.rangeTopics, currentOnlyTopics, generation, {
+          resetAll,
+        });
+        markHistoryReady(generation);
+        // The player-state effect runs before this history-ownership effect. Re-feed its snapshot
+        // after a reset so a quiet live source or a block-fallback topic is not left blank until
+        // the Player emits again.
+        coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
+        coordinatorRef.current?.handleRangeDataUpdated();
+      } else {
+        markHistoryReady(generation);
       }
-      const previousSource = historySourceRef.current;
-      let resetAll = true;
-      if (previousSource != undefined) {
-        resetAll =
-          previousSource.playerId !== playerId ||
-          previousSource.startSec !== rangeStartTime?.sec ||
-          previousSource.startNsec !== rangeStartTime?.nsec;
-      }
-      historySourceRef.current = {
-        playerId,
-        startSec: rangeStartTime?.sec,
-        startNsec: rangeStartTime?.nsec,
-      };
-      rangeBuilder.setHistoryTopics(running.rangeTopics, currentOnlyTopics, generation, {
-        resetAll,
-      });
-      markHistoryReady(generation);
-      // The player-state effect runs before this history-ownership effect. Re-feed its snapshot
-      // after a reset so a quiet live source or a block-fallback topic is not left blank until the
-      // Player emits again.
-      coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
-      coordinatorRef.current?.handleRangeDataUpdated();
-    } else {
-      markHistoryReady(generation);
-    }
-    setSubscriptions(subscriberId, running.subscriptions);
+      setSubscriptions(subscriberId, running.subscriptions);
+    };
+
+    rangeManagerRef.current = { apply };
+    apply();
 
     return () => {
+      if (rangeManagerRef.current?.apply === apply) {
+        rangeManagerRef.current = undefined;
+      }
       if (rangeGenerationRef.current === generation) {
         rangeGenerationRef.current += 1;
       }
-      running.cancel();
+      manager.cancel();
     };
   }, [
     datasetsBuilder,
@@ -817,9 +840,16 @@ export function Plot(props: Props): React.JSX.Element {
     setSubscriptions,
     subscribeMessageRange,
     subscriberId,
-    subscriptionPlans,
     xAxisMode,
   ]);
+
+  // Series edits, path changes, and global-variable updates reconcile against the running manager:
+  // only topics whose extracted history changed restart their range scan; sibling topics keep
+  // their loaded history and live iterators.
+  useEffect(() => {
+    subscriptionPlansRef.current = subscriptionPlans;
+    rangeManagerRef.current?.apply();
+  }, [subscriptionPlans]);
 
   // Only unsubscribe on unmount so that when the above subscriber effect dependencies change we
   // don't transition to unsubscribing all to then re-subscribe.
