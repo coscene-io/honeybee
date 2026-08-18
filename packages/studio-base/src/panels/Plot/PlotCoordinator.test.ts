@@ -234,6 +234,35 @@ describe("PlotCoordinator", () => {
     coordinator.destroy();
   });
 
+  it("aborts in-flight block processing when the source changes without new blocks", async () => {
+    const builder = makeBuilder(jest.fn(async () => emptyViewportResult()));
+    let checkAbort: (() => Promise<boolean>) | undefined;
+    builder.handleBlocks = jest.fn(
+      async (...args: Parameters<NonNullable<IDatasetsBuilder["handleBlocks"]>>) => {
+        checkAbort = args[2];
+      },
+    );
+    const coordinator = new PlotCoordinator(makeRenderer(), builder);
+
+    const blocks = [{ messagesByTopic: {}, sizeInBytes: 0 }];
+    const firstState = makePlayerState({ playerId: "player-1" });
+    coordinator.handlePlayerState({
+      ...firstState,
+      progress: {
+        ...firstState.progress,
+        messageCache: { blocks, startTime: { sec: 0, nsec: 0 } },
+      },
+    });
+    await waitForCondition(() => checkAbort != undefined);
+    expect(await checkAbort!()).toBe(false);
+
+    // The next source emits before its own blocks exist. The stale loop must stop so it cannot
+    // append the previous source's history after the new source's resets.
+    coordinator.handlePlayerState(makePlayerState({ playerId: "player-2" }));
+    expect(await checkAbort!()).toBe(true);
+    coordinator.destroy();
+  });
+
   it("forwards an inactive source switch to the builder and keeps the legend cleared", async () => {
     const getViewportDatasets = jest.fn(
       async (_viewport, currentValuesAt): Promise<GetViewportDatasetsResult> => ({

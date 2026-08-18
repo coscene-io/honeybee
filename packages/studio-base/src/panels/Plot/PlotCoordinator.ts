@@ -132,6 +132,11 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (!activeData) {
       this.#datasetRange = this.#datasetsBuilder.handlePlayerState(state);
       if (this.#currentTime != undefined || this.#playerId !== state.playerId) {
+        if (this.#playerId !== state.playerId) {
+          // Stop in-flight block processing for the previous source; its abort predicate
+          // compares against #latestBlocks.
+          this.#latestBlocks = undefined;
+        }
         this.#currentTime = undefined;
         this.#playerId = state.playerId;
         this.#currentValuesEpoch++;
@@ -155,6 +160,12 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     const datasetsRange = this.#datasetsBuilder.handlePlayerState(state);
 
     const blocks = state.progress.messageCache?.blocks;
+    if (sourceChanged) {
+      // The in-flight #dispatchBlocks loop aborts by comparing against #latestBlocks. When the
+      // new source has not produced message-cache blocks yet, the stale reference would keep
+      // that predicate false and let old-source appends land after the new source's resets.
+      this.#latestBlocks = undefined;
+    }
     if (blocks && this.#datasetsBuilder.handleBlocks) {
       this.#latestBlocks = blocks;
       this.#queueBlocks(activeData.startTime, blocks);
