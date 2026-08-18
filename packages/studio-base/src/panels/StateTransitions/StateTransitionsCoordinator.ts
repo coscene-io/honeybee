@@ -615,14 +615,18 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     return firstBlockRef !== storedFirstBlockRef || lastBlockRef !== storedLastBlockRef;
   }
 
-  /** Decode current-frame samples, then immediately move their compact columns to the worker. */
+  /**
+   * Decode current-frame samples, then immediately move their compact columns to the worker.
+   *
+   * Range-owned recorded topics are ingested too: their current frames form the playhead tail
+   * that keeps the lane populated while the range scan is still behind the playhead. The worker's
+   * current store keeps only samples ahead of loaded range history, trims them as the scan
+   * advances, and clears them on seek — so they never duplicate or enter the full-history store.
+   */
   #processMessages(startTime: Time, messages: Immutable<MessageEvent[]>): void {
     const actions: StateTransitionsDatasetAction[] = [];
     for (const series of this.#series) {
       const topicName = series.parsed.topicName;
-      if (!this.#isLiveSource && this.#rangeTopics.has(topicName)) {
-        continue;
-      }
       const datums: StateDatum[] = [];
 
       for (const msgEvent of messages) {
