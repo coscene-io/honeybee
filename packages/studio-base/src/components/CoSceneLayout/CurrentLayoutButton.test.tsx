@@ -129,4 +129,28 @@ describe("<CurrentLayoutButton />", () => {
     expect(onSaveRecommendedLayout).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
+
+  it("shows the name of a transient layout that is not in storage", () => {
+    render(
+      <ThemeProvider isDark>
+        <CurrentLayoutButton
+          currentLayoutId={"remote-mp4-default" as LayoutID}
+          selectedLayout={{
+            id: "remote-mp4-default" as LayoutID,
+            data: { configById: {}, globalVariables: {}, userNodes: {} },
+            name: "MP4",
+            transient: true,
+          }}
+          layouts={{ allLayouts: [], personalFolders: [], projectFolders: [] }}
+          onClick={jest.fn()}
+          onOverwriteLayout={jest.fn()}
+          onSaveRecommendedLayout={jest.fn()}
+          onRevertLayout={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("MP4")).toBeDefined();
+    expect(screen.queryByText("No layout")).toBeNull();
+  });
 });

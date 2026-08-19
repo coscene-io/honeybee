@@ -19,10 +19,17 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useRecommendedLayouts } from "@foxglove/studio-base/context/RecommendedLayoutContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import {
+  createDefaultRemoteMp4Layout,
+  REMOTE_MP4_DEFAULT_LAYOUT_ID,
+  REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+  resolveRemoteMp4Topic,
+} from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultRemoteMp4Layout";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 const selectIsReadyForSyncLayout = (state: CoreDataStore) => state.isReadyForSyncLayout;
+const selectDataSource = (state: CoreDataStore) => state.dataSource;
 
 /**
  * Synchronizes the layout from URL state after isReadyForSyncLayout is true
@@ -34,6 +41,7 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
   const { layoutDrawer } = useWorkspaceActions();
   const layoutManager = useLayoutManager();
   const isReadyForSyncLayout = useCoreData(selectIsReadyForSyncLayout);
+  const dataSource = useCoreData(selectDataSource);
   const recommendedLayouts = useRecommendedLayouts();
   const recommendedLayoutsRef = useRef(recommendedLayouts);
   recommendedLayoutsRef.current = recommendedLayouts;
@@ -41,6 +49,11 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
   const { t } = useTranslation("layout");
 
   const isLayoutIdProcessed = useRef(false);
+  const appliedRemoteMp4TopicRef = useRef<string | undefined>();
+  const hasSeenDataSourceRef = useRef(false);
+  if (dataSource != undefined) {
+    hasSeenDataSourceRef.current = true;
+  }
   const [{ layoutId }, setUnappliedLayoutArgs] = useState(() => {
     return { layoutId: targetUrlState?.layoutId };
   });
@@ -48,6 +61,44 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
   useAsync(async () => {
     // 只有在 isReadyForSyncLayout 为 true 时才处理 layout
     if (isReadyForSyncLayout !== true) {
+      return;
+    }
+
+    // remote-mp4 always uses the single Image panel. Detect the active source
+    // as well as the startup URL so in-app dialog selections also get this layout.
+    // Do not restore history, recommended layouts, or URL layoutId.
+    // Prefer the live source once it exists. targetUrlState is the launch deep
+    // link and never updates, so it must not keep forcing this layout after the
+    // user switches away — including when selectSource clears dataSource.
+    const isRemoteMp4 = hasSeenDataSourceRef.current
+      ? dataSource?.id === "remote-mp4"
+      : targetUrlState?.ds === "remote-mp4";
+    if (isRemoteMp4) {
+      // The topic must come from whichever source decided `isRemoteMp4`. Once a
+      // live source exists it owns the topic: a URL-only recent has no `topic`
+      // and publishes on the default, so falling back to the stale launch
+      // `ds.topic` would subscribe the Image panel to a topic nobody publishes.
+      const requestedTopic: string | undefined = hasSeenDataSourceRef.current
+        ? dataSource?.params?.topic
+        : targetUrlState?.dsParams?.topic;
+      const remoteMp4Topic = resolveRemoteMp4Topic(requestedTopic);
+      if (appliedRemoteMp4TopicRef.current === remoteMp4Topic) {
+        // Skip when this topic is already applied, or setCurrentLayout has not
+        // flushed yet. Re-apply if the user switched away to another layout.
+        if (currentLayoutId === REMOTE_MP4_DEFAULT_LAYOUT_ID || currentLayoutId == undefined) {
+          isLayoutIdProcessed.current = true;
+          return;
+        }
+      }
+      setCurrentLayout({
+        id: REMOTE_MP4_DEFAULT_LAYOUT_ID,
+        name: REMOTE_MP4_DEFAULT_LAYOUT_NAME,
+        data: createDefaultRemoteMp4Layout(remoteMp4Topic),
+        transient: true,
+      });
+      appliedRemoteMp4TopicRef.current = remoteMp4Topic;
+      setUnappliedLayoutArgs({ layoutId: undefined });
+      isLayoutIdProcessed.current = true;
       return;
     }
 
@@ -206,5 +257,9 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
     recommendedLayouts,
     enqueueSnackbar,
     t,
+    targetUrlState?.ds,
+    targetUrlState?.dsParams?.topic,
+    dataSource?.id,
+    dataSource?.params?.topic,
   ]);
 }
