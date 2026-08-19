@@ -373,6 +373,11 @@ export class PlotRangeSubscriptionManager {
         receiveLiveData: false,
         skipUserScripts: true,
         onNewRangeIterator: async (iterator) => {
+          if (this.#cancelled || this.#runs.get(request.topic) !== run) {
+            // A late callback from an already-replaced run must not claim the latest-iterator
+            // slot, or the replacement run would fail its identity checks and silently stop.
+            return;
+          }
           const iteratorId = this.#nextIteratorId++;
           this.#latestIteratorByTopic.set(request.topic, iteratorId);
           let generation: number | undefined;
