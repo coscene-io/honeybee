@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as Comlink from "@coscene-io/comlink";
+import race from "race-as-promised";
 
 import { WorkerSessionPool } from "@foxglove/den/worker";
 import Logger from "@foxglove/log";
@@ -232,7 +233,7 @@ async function disposeSession(record: SessionRecord): Promise<void> {
     // remaining cleanup for an endpoint that cannot answer.
     const remote =
       record.remote ??
-      (await Promise.race([
+      (await race([
         record.remotePromise.catch(() => undefined),
         new Promise<undefined>((resolve) => {
           record.failRemote = () => {
