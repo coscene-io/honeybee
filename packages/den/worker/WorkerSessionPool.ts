@@ -123,19 +123,26 @@ export class WorkerSessionPool<TResource> {
     }
 
     if (result.type === "aborted") {
-      // Session creation cannot always be cancelled. If it finishes later, clean it up without
-      // allowing the abandoned reservation to keep the host busy forever.
+      // Session creation cannot always be cancelled — and may never settle at all. Release the
+      // reservation immediately so an unfinished createSession cannot keep the host counted as
+      // busy forever; a session that appears later is disposed without touching the count again.
+      this.#finishSession(host);
       void setupPromise
-        .then(
-          async (session) => {
-            await this.#releaseSession(host, session, options.disposeSession);
-          },
-          () => {
-            this.#finishSession(host);
-          },
-        )
+        .then(async (session) => {
+          await options.disposeSession(session);
+        })
         .catch(() => undefined);
       throw result.error;
+    }
+
+    if (host.broken) {
+      // The reserved host was retired while session setup was pending (for example a co-tenant
+      // released it as broken). Its worker may already be terminated; do not hand out a lease
+      // backed by it.
+      void this.#releaseSession(host, result.session, options.disposeSession).catch(
+        () => undefined,
+      );
+      throw new Error("Worker resource was retired during session setup");
     }
 
     let releasePromise: Promise<void> | undefined;
@@ -160,12 +167,20 @@ export class WorkerSessionPool<TResource> {
               .catch(() => undefined);
           }
         }
-        releasePromise ??= this.#releaseSession(
-          host,
-          result.session,
-          options.disposeSession,
-          releaseOptions,
-        );
+        if (releasePromise == undefined) {
+          // Assign before starting cleanup: a disposeSession that synchronously calls release()
+          // again must observe the same promise instead of starting a second cleanup.
+          let resolveRelease!: () => void;
+          let rejectRelease!: (error: unknown) => void;
+          releasePromise = new Promise<void>((resolve, reject) => {
+            resolveRelease = resolve;
+            rejectRelease = reject;
+          });
+          this.#releaseSession(host, result.session, options.disposeSession, releaseOptions).then(
+            resolveRelease,
+            rejectRelease,
+          );
+        }
         return releasePromise;
       },
     };
