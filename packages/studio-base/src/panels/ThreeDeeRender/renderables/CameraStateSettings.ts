@@ -73,12 +73,14 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
 
   /** Transient marker showing where the camera is orbiting/panning around */
   #targetIndicator: OrbitTargetIndicator;
-  /** Pointer id of the press currently being tracked, if any */
-  #dragPointerId?: number;
-  #dragStartX = 0;
-  #dragStartY = 0;
-  /** True once the tracked press has moved far enough to count as a drag */
-  #dragMoved = false;
+  /** Press positions of pointers that have not yet moved far enough to count as a drag */
+  #pendingPointers = new Map<number, { x: number; y: number }>();
+  /** Pointers that are actively dragging the camera. Multi-touch gestures use more than one. */
+  #draggingPointers = new Set<number>();
+  /** Pan keys currently held down */
+  #heldPanKeys = new Set<string>();
+  /** Whether the indicator is currently pinned visible by an ongoing interaction */
+  #indicatorHeld = false;
 
   public constructor(renderer: IRenderer, canvas: HTMLCanvasElement, aspect: number) {
     super("foxglove.CameraStateSettings", renderer);
@@ -127,7 +129,10 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
 
     canvas.addEventListener("pointerdown", this.#onPointerDown);
     canvas.addEventListener("keydown", this.#onPanKeyDown);
-    canvas.addEventListener("keyup", this.#onPanKeyUp);
+    canvas.addEventListener("blur", this.#onCanvasBlur);
+    // Keyup is tracked on the window: if focus moves while a pan key is held, the keyup is
+    // delivered elsewhere and a canvas-only listener would leave the key stuck down
+    window.addEventListener("keyup", this.#onPanKeyUp);
   }
 
   public override dispose(): void {
@@ -143,56 +148,51 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
 
     this.#canvas.removeEventListener("pointerdown", this.#onPointerDown);
     this.#canvas.removeEventListener("keydown", this.#onPanKeyDown);
-    this.#canvas.removeEventListener("keyup", this.#onPanKeyUp);
-    this.#stopTrackingDrag();
+    this.#canvas.removeEventListener("blur", this.#onCanvasBlur);
+    window.removeEventListener("keyup", this.#onPanKeyUp);
+    this.#stopTrackingPointers();
     this.#targetIndicator.dispose();
 
     super.dispose();
   }
 
   #onPointerDown = (event: PointerEvent): void => {
-    if (this.#dragPointerId != undefined) {
-      return;
+    if (this.#pendingPointers.size === 0 && this.#draggingPointers.size === 0) {
+      // Tracked on the window so a drag that leaves the canvas still ends correctly
+      window.addEventListener("pointermove", this.#onPointerMove);
+      window.addEventListener("pointerup", this.#onPointerUp);
+      window.addEventListener("pointercancel", this.#onPointerUp);
     }
-    this.#dragPointerId = event.pointerId;
-    this.#dragStartX = event.clientX;
-    this.#dragStartY = event.clientY;
-    this.#dragMoved = false;
-    // Tracked on the window so a drag that leaves the canvas still ends correctly
-    window.addEventListener("pointermove", this.#onPointerMove);
-    window.addEventListener("pointerup", this.#onPointerUp);
-    window.addEventListener("pointercancel", this.#onPointerUp);
+    this.#pendingPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   };
 
   #onPointerMove = (event: PointerEvent): void => {
-    if (event.pointerId !== this.#dragPointerId || this.#dragMoved) {
+    const start = this.#pendingPointers.get(event.pointerId);
+    if (!start) {
       return;
     }
-    const distance = Math.hypot(event.clientX - this.#dragStartX, event.clientY - this.#dragStartY);
-    if (distance <= DRAG_THRESHOLD_PX) {
+    // Only count as a drag once the pointer has actually moved, so plain clicks (which select
+    // objects) don't flash the indicator
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) <= DRAG_THRESHOLD_PX) {
       return;
     }
-    // Only reveal the indicator once this is a real drag, so plain clicks (which select objects)
-    // don't flash it
-    this.#dragMoved = true;
-    this.#showTargetIndicator();
+    this.#pendingPointers.delete(event.pointerId);
+    this.#draggingPointers.add(event.pointerId);
+    this.#syncIndicatorHold();
   };
 
   #onPointerUp = (event: PointerEvent): void => {
-    if (event.pointerId !== this.#dragPointerId) {
-      return;
+    this.#pendingPointers.delete(event.pointerId);
+    this.#draggingPointers.delete(event.pointerId);
+    if (this.#pendingPointers.size === 0 && this.#draggingPointers.size === 0) {
+      this.#stopTrackingPointers();
     }
-    const wasDrag = this.#dragMoved;
-    this.#stopTrackingDrag();
-    if (wasDrag) {
-      this.#targetIndicator.release(performance.now());
-      this.renderer.queueAnimationFrame();
-    }
+    this.#syncIndicatorHold();
   };
 
-  #stopTrackingDrag(): void {
-    this.#dragPointerId = undefined;
-    this.#dragMoved = false;
+  #stopTrackingPointers(): void {
+    this.#pendingPointers.clear();
+    this.#draggingPointers.clear();
     window.removeEventListener("pointermove", this.#onPointerMove);
     window.removeEventListener("pointerup", this.#onPointerUp);
     window.removeEventListener("pointercancel", this.#onPointerUp);
@@ -200,22 +200,38 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
 
   #onPanKeyDown = (event: KeyboardEvent): void => {
     if (PAN_KEY_CODES.has(event.code)) {
-      this.#showTargetIndicator();
+      this.#heldPanKeys.add(event.code);
+      this.#syncIndicatorHold();
     }
   };
 
   #onPanKeyUp = (event: KeyboardEvent): void => {
-    if (PAN_KEY_CODES.has(event.code)) {
-      this.#targetIndicator.release(performance.now());
-      this.renderer.queueAnimationFrame();
+    if (this.#heldPanKeys.delete(event.code)) {
+      this.#syncIndicatorHold();
     }
   };
 
-  #showTargetIndicator(): void {
-    if (this.renderer.config.scene.showOrbitTarget === false) {
+  #onCanvasBlur = (): void => {
+    // OrbitControls stops panning on blur and no keyup will arrive for keys still held down
+    if (this.#heldPanKeys.size > 0) {
+      this.#heldPanKeys.clear();
+      this.#syncIndicatorHold();
+    }
+  };
+
+  /** Pin the indicator visible while any drag or pan key is active, and release it once none are */
+  #syncIndicatorHold(): void {
+    const enabled = this.renderer.config.scene.showOrbitTarget !== false;
+    const active = enabled && (this.#draggingPointers.size > 0 || this.#heldPanKeys.size > 0);
+    if (active === this.#indicatorHeld) {
       return;
     }
-    this.#targetIndicator.hold();
+    this.#indicatorHeld = active;
+    if (active) {
+      this.#targetIndicator.hold();
+    } else {
+      this.#targetIndicator.release(performance.now());
+    }
     this.renderer.queueAnimationFrame();
   }
 

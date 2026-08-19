@@ -7,6 +7,8 @@
 
 import * as THREE from "three";
 
+import { LAYER_SELECTED } from "../IRenderer";
+
 /** Length of each axis bar in CSS pixels, measured tip to tip through the center */
 const AXIS_LENGTH_PX = 40;
 /** Thickness of each axis bar in CSS pixels */
@@ -69,6 +71,10 @@ export class OrbitTargetIndicator extends THREE.Object3D {
       bar.renderOrder = RENDER_ORDER;
       bar.frustumCulled = false;
       bar.userData.picking = false;
+      // While a renderable is selected the scene is drawn again on LAYER_SELECTED, after a dimming
+      // backdrop and a depth clear. Draw in that pass too, otherwise the pivot is dimmed by the
+      // backdrop and can be painted over by the selected model.
+      bar.layers.enable(LAYER_SELECTED);
       this.#materials.push(material);
       this.add(bar);
     }
