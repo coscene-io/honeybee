@@ -43,6 +43,10 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import {
+  useWorkspaceStore,
+  type WorkspaceContextStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
@@ -169,6 +173,8 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
+const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.rollingEditEnabled;
 
 function LoopedEventPlaybackSync(): ReactNull {
   const currentTime = useMessagePipeline(selectCurrentTime);
@@ -213,6 +219,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
   const pause = useMessagePipeline(selectPause);
   const seek = useMessagePipeline(selectSeek);
+  const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
   const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
@@ -402,8 +409,10 @@ export function EventsSyncAdapter(): React.JSX.Element {
       }
 
       const mark = positionEventMark({ currentTime: current, startTime: start, endTime: end });
-      const snappedMark = getSnappedEventMark({ mark, events: events.value ?? [] });
-      const nextMarks = [...marks, snappedMark].sort((a, b) => a.position - b.position);
+      const nextMark = rollingEditEnabled
+        ? getSnappedEventMark({ mark, events: events.value ?? [] })
+        : mark;
+      const nextMarks = [...marks, nextMark].sort((a, b) => a.position - b.position);
 
       setEventMarks(nextMarks);
     },
@@ -413,6 +422,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       events.value,
       getMessagePipeline,
       pauseRef,
+      rollingEditEnabled,
       setEventMarks,
       startTimeRef,
     ],

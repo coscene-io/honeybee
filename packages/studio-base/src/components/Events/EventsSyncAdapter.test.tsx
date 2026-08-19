@@ -34,6 +34,7 @@ import {
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 
 import { EventsSyncAdapter } from "./EventsSyncAdapter";
 
@@ -203,40 +204,47 @@ function Wrapper({
   currentTime,
   eventEnabled = false,
   eventsStore,
+  rollingEditEnabled = true,
   timelineInteractionStore,
 }: React.PropsWithChildren<{
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   currentTime: { sec: number; nsec: number };
   eventEnabled?: boolean;
   eventsStore: StoreApi<EventsStore>;
+  rollingEditEnabled?: boolean;
   timelineInteractionStore: StoreApi<TimelineInteractionStateStore>;
 }>): React.JSX.Element {
   return (
     <CoSceneConsoleApiContext.Provider value={consoleApi}>
       <CoreDataProvider>
-        <CoScenePlaylistProvider>
-          <MockMessagePipelineProvider
-            startTime={{ sec: 0, nsec: 0 }}
-            endTime={{ sec: 10, nsec: 0 }}
-            currentTime={currentTime}
-          >
-            <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
-              <EventsContext.Provider value={eventsStore}>
-                <DialogsProvider>
-                  <SeedEventFeature enabled={eventEnabled} />
-                  {children}
-                </DialogsProvider>
-              </EventsContext.Provider>
-            </TimelineInteractionStateContext.Provider>
-          </MockMessagePipelineProvider>
-        </CoScenePlaylistProvider>
+        <WorkspaceContextProvider
+          disablePersistence
+          initialState={{ playbackControls: { rollingEditEnabled } }}
+        >
+          <CoScenePlaylistProvider>
+            <MockMessagePipelineProvider
+              startTime={{ sec: 0, nsec: 0 }}
+              endTime={{ sec: 10, nsec: 0 }}
+              currentTime={currentTime}
+            >
+              <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
+                <EventsContext.Provider value={eventsStore}>
+                  <DialogsProvider>
+                    <SeedEventFeature enabled={eventEnabled} />
+                    {children}
+                  </DialogsProvider>
+                </EventsContext.Provider>
+              </TimelineInteractionStateContext.Provider>
+            </MockMessagePipelineProvider>
+          </CoScenePlaylistProvider>
+        </WorkspaceContextProvider>
       </CoreDataProvider>
     </CoSceneConsoleApiContext.Provider>
   );
 }
 
 describe("<EventsSyncAdapter />", () => {
-  it("snaps shortcut-created marks to nearby event boundaries", async () => {
+  it("snaps shortcut-created marks to nearby event boundaries when linked adjustment is enabled", async () => {
     const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
     const eventsStore = makeEventsStore({
       events: [makeEvent("events/first", 1, 1)],
@@ -272,6 +280,46 @@ describe("<EventsSyncAdapter />", () => {
       expect.objectContaining({
         position: 0.2,
         time: { sec: 2, nsec: 0 },
+      }),
+    ]);
+  });
+
+  it("does not snap shortcut-created marks when linked adjustment is disabled", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 1, 1)],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        currentTime={{ sec: 1, nsec: 990_000_000 }}
+        eventsStore={eventsStore}
+        rollingEditEnabled={false}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "1",
+          code: "Digit1",
+          altKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(setEventMarks).toHaveBeenCalledTimes(1);
+    });
+    expect(setEventMarks).toHaveBeenCalledWith([
+      expect.objectContaining({
+        time: { sec: 1, nsec: 990_000_000 },
       }),
     ]);
   });
