@@ -267,9 +267,6 @@ describe("findAdjacentMessagePathMatch", () => {
       if (timeRange == undefined) {
         throw new Error("Expected a bounded range request");
       }
-      if (timeRange == undefined) {
-        throw new Error("Expected a bounded range request");
-      }
       ranges.push(timeRange);
       const batch = isInRange(target.receiveTime, timeRange.start, timeRange.end) ? [target] : [];
       void onNewRangeIterator(
