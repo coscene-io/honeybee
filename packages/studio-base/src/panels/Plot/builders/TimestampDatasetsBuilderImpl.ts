@@ -1172,14 +1172,16 @@ function resolveBounds(
   if (!hasConfiguredMin || !hasConfiguredMax) {
     const span = Math.max(max - min, Number.EPSILON);
     const interval = 2 ** Math.ceil(Math.log2(span));
-    if (!hasConfiguredMin) {
-      min = Math.floor(min / interval) * interval;
-    }
-    if (!hasConfiguredMax) {
-      max = Math.ceil(max / interval) * interval;
-    }
-    if (min === max) {
-      max = min + interval;
+    const alignedMin = hasConfiguredMin ? min : Math.floor(min / interval) * interval;
+    const alignedMax = hasConfiguredMax ? max : Math.ceil(max / interval) * interval;
+    // Alignment overflows to non-finite values for astronomically wide spans; exact finite
+    // bounds beat a NaN downsampling transform that would drop every point.
+    if (Number.isFinite(interval) && Number.isFinite(alignedMin) && Number.isFinite(alignedMax)) {
+      min = alignedMin;
+      max = alignedMax;
+      if (min === max) {
+        max = min + interval;
+      }
     }
   }
   return { min, max };
