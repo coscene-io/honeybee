@@ -699,17 +699,20 @@ export function Plot(props: Props): React.JSX.Element {
       subscribeMessageRange: rangeStartTime == undefined ? undefined : subscribeMessageRange,
       onIteratorStart: async (topic, iteratorGeneration) => {
         const reset = await rangeBuilder?.resetRangeTopic(topic, iteratorGeneration);
-        if (
-          reset === true &&
-          customBuilder != undefined &&
-          customXAxisTopics.has(topic) &&
-          rangeGenerationRef.current === iteratorGeneration
-        ) {
-          const xRange = await customBuilder.getXRange();
-          if (rangeGenerationRef.current === iteratorGeneration) {
-            coordinatorRef.current?.handleRangeDataUpdated(xRange);
+        if (reset !== true || rangeGenerationRef.current !== iteratorGeneration) {
+          return;
+        }
+        // Every successful reset cleared worker storage, so the canvas must refresh even when
+        // the replacement iterator later yields nothing; otherwise the previous iterator's
+        // points would stay on screen. The x range only applies to custom x-axis topics.
+        let xRange;
+        if (customBuilder != undefined && customXAxisTopics.has(topic)) {
+          xRange = await customBuilder.getXRange();
+          if (rangeGenerationRef.current !== iteratorGeneration) {
+            return;
           }
         }
+        coordinatorRef.current?.handleRangeDataUpdated(xRange);
       },
       onRangeBatch: async (topic, batch, batchGeneration) => {
         if (
