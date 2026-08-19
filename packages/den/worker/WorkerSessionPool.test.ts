@@ -89,6 +89,83 @@ describe("WorkerSessionPool", () => {
     await pool.dispose();
   });
 
+  it("rejects a lease when its reserved host is retired during session setup", async () => {
+    const disposeResource = jest.fn();
+    const sessionGate = deferred<void>();
+    const pool = new WorkerSessionPool({
+      createResource: () => ({}),
+      disposeResource,
+      maxWorkers: 1,
+    });
+    const first = await pool.acquire({
+      createSession: () => ({}),
+      disposeSession: jest.fn(),
+    });
+    const disposePendingSession = jest.fn();
+    const pendingAcquire = pool.acquire({
+      createSession: async () => {
+        await sessionGate.promise;
+        return {};
+      },
+      disposeSession: disposePendingSession,
+    });
+
+    await first.release({ broken: true });
+    sessionGate.resolve(undefined);
+
+    await expect(pendingAcquire).rejects.toThrow(
+      "Worker resource was retired during session setup",
+    );
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    expect(disposePendingSession).toHaveBeenCalledTimes(1);
+    await pool.dispose();
+  });
+
+  it("frees an aborted reservation whose session setup never settles", async () => {
+    const disposeResource = jest.fn();
+    const pool = new WorkerSessionPool({
+      createResource: () => ({}),
+      disposeResource,
+      maxWorkers: 1,
+    });
+    const controller = new AbortController();
+    const acquisition = pool.acquire({
+      createSession: async () => await new Promise<never>(() => {}),
+      disposeSession: jest.fn(),
+      signal: controller.signal,
+    });
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+
+    controller.abort();
+    await expect(acquisition).rejects.toMatchObject({ name: "AbortError" });
+
+    // The reservation was returned, so disposal treats the host as idle and can retire it.
+    await pool.dispose();
+    expect(disposeResource).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps release idempotent when disposeSession synchronously releases again", async () => {
+    const pool = new WorkerSessionPool({
+      createResource: () => ({}),
+      disposeResource: jest.fn(),
+      maxWorkers: 1,
+    });
+    let release: (() => Promise<void>) | undefined;
+    const disposeSession = jest.fn(() => {
+      void release?.();
+    });
+    const lease = await pool.acquire({ createSession: () => ({}), disposeSession });
+    release = lease.release;
+
+    await lease.release();
+    expect(disposeSession).toHaveBeenCalledTimes(1);
+    await pool.dispose();
+  });
+
   it("retires a resource marked broken after its session was already released", async () => {
     let nextResourceId = 1;
     const disposeResource = jest.fn();
