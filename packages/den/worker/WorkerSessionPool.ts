@@ -148,7 +148,12 @@ export class WorkerSessionPool<TResource> {
           host.broken = true;
           if (releasePromise != undefined && !retirementFollowupAttached) {
             retirementFollowupAttached = true;
+            // The earlier release may have finished — or failed — without retiring the host
+            // (for example a rejected disposeSession on a then-healthy resource). Retire on
+            // settlement regardless of outcome, or the broken host would occupy its capacity
+            // slot forever.
             void releasePromise
+              .catch(() => undefined)
               .then(async () => {
                 await this.#retireHost(host);
               })

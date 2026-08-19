@@ -277,8 +277,21 @@ async function disposeSession(record: SessionRecord): Promise<void> {
       return;
     }
 
-    const remote = record.remote ?? (await record.remotePromise);
-    if (!isHostBroken(record.host)) {
+    // A pending child constructor may never settle once the physical Worker fails. Let the
+    // host-failure notification unblock this disposal through failRemote so the release can
+    // finish and retire the broken worker's capacity slot; physical termination is the
+    // remaining cleanup for an endpoint that cannot answer.
+    const remote =
+      record.remote ??
+      (await Promise.race([
+        record.remotePromise.catch(() => undefined),
+        new Promise<undefined>((resolve) => {
+          record.failRemote = () => {
+            resolve(undefined);
+          };
+        }),
+      ]));
+    if (remote != undefined && !isHostBroken(record.host)) {
       remote[Comlink.releaseProxy]();
     }
   } finally {
