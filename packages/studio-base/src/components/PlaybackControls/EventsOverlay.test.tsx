@@ -524,6 +524,96 @@ describe("<EventsOverlay />", () => {
     ]);
   });
 
+  it("snaps a dragged create mark to a nearby event when linked adjustment is enabled", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 1, 1)],
+      eventMarks: [
+        { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          rollingEditEnabled
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    act(() => {
+      timelineInteractionStore.getState().setHoverValue({
+        componentId: "test-component",
+        type: "PLAYBACK_SECONDS",
+        value: 1.99,
+      });
+    });
+
+    await waitFor(() => {
+      expect(setEventMarks).toHaveBeenCalledWith([
+        { key: "start", position: 0.2, time: { sec: 2, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ]);
+    });
+  });
+
+  it("does not snap a dragged create mark when linked adjustment is disabled", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 1, 1)],
+      eventMarks: [
+        { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          rollingEditEnabled={false}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    act(() => {
+      timelineInteractionStore.getState().setHoverValue({
+        componentId: "test-component",
+        type: "PLAYBACK_SECONDS",
+        value: 1.99,
+      });
+    });
+
+    await waitFor(() => {
+      expect(setEventMarks).toHaveBeenCalledWith([
+        {
+          key: "start",
+          position: 0.199,
+          time: add({ sec: 0, nsec: 0 }, fromSec(1.99)),
+        },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ]);
+    });
+  });
+
   it("seeks to the pointer time while dragging a moment body", async () => {
     const { seekPlayback } = renderOverlayWithSeek({
       events: [makeEvent("events/body", 1, 2)],

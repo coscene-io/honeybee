@@ -1299,14 +1299,16 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           currentLaneLayout.items.find(
             (item) => item.event.event.name === currentDrag.event.event.name,
           )?.lane ?? currentDrag.lane;
-        const snappedRange = snapRangeToLaneBoundaries({
-          activeEventName: currentDrag.event.event.name,
-          edge: currentDrag.kind === "edge" ? currentDrag.edge : undefined,
-          lane: activeLane,
-          layoutItems: currentLaneLayout.items,
-          range: nextRange,
-          viewport,
-        });
+        const snappedRange = rollingEditEnabled
+          ? snapRangeToLaneBoundaries({
+              activeEventName: currentDrag.event.event.name,
+              edge: currentDrag.kind === "edge" ? currentDrag.edge : undefined,
+              lane: activeLane,
+              layoutItems: currentLaneLayout.items,
+              range: nextRange,
+              viewport,
+            })
+          : nextRange;
         const updatedDrag = {
           ...currentDrag,
           lane: activeLane,
@@ -1366,7 +1368,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       eventDragRef.current = nextDrag;
       setEventDrag(nextDrag);
     },
-    [commitEventTimeEdit, onSeek, setLoopedEvent, viewport],
+    [commitEventTimeEdit, onSeek, rollingEditEnabled, setLoopedEvent, viewport],
   );
 
   const startEventBodyDrag = useCallback(
@@ -1558,12 +1560,14 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
                   .map((item) => item.event.event.name),
               )
             : undefined;
-        const nextMark = getSnappedEventMark({
-          excludedEventName: toModifyEventName,
-          eligibleEventNames,
-          mark: hoveredMark,
-          events: events.value ?? [],
-        });
+        const nextMark = rollingEditEnabled
+          ? getSnappedEventMark({
+              excludedEventName: toModifyEventName,
+              eligibleEventNames,
+              mark: hoveredMark,
+              events: events.value ?? [],
+            })
+          : hoveredMark;
         const markOrder = new Map(eventMarks.map((mark, index) => [mark.key, index]));
 
         const nextEventMarks = eventMarks
@@ -1591,6 +1595,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     eventMarks,
     events.value,
     renderLaneLayout.items,
+    rollingEditEnabled,
     setEventMarks,
     startTime,
     toModifyEventName,
