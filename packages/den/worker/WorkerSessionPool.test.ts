@@ -154,6 +154,38 @@ describe("WorkerSessionPool", () => {
     expect(disposeResource).toHaveBeenCalledTimes(1);
   });
 
+  it("retires the resource when a failed release is later marked broken", async () => {
+    const disposeResource = jest.fn();
+    let resourceCount = 0;
+    const pool = new WorkerSessionPool({
+      createResource: () => ({ id: resourceCount++ }),
+      disposeResource,
+      isResourceBroken: () => false,
+      maxWorkers: 1,
+    });
+    const lease = await pool.acquire({
+      createSession: () => ({}),
+      disposeSession: () => {
+        throw new Error("session cleanup failed");
+      },
+    });
+    await expect(lease.release()).rejects.toThrow("session cleanup failed");
+    expect(disposeResource).not.toHaveBeenCalled();
+
+    // The lease contract allows a later idempotent release to mark the lease broken. The host
+    // must then actually retire, or its capacity slot would be occupied forever.
+    await expect(lease.release({ broken: true })).rejects.toThrow("session cleanup failed");
+    const replacement = await pool.acquire({
+      createSession: (resource) => ({ resourceId: resource.id }),
+      disposeSession: jest.fn(),
+    });
+    expect(disposeResource).toHaveBeenCalledTimes(1);
+    expect(replacement.session.resourceId).toBe(1);
+
+    await replacement.release();
+    await pool.dispose();
+  });
+
   it("still retires the resource when a failed dispose coincides with a broken resource", async () => {
     const disposeResource = jest.fn();
     let broken = false;
