@@ -54,7 +54,9 @@ export function collectTransferableBuffers(value: unknown): ArrayBuffer[] {
     }
 
     for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(candidate))) {
-      if ("value" in descriptor) {
+      // Structured clone serializes only enumerable own data properties. Collecting a buffer from
+      // a non-enumerable property would detach state the receiver never gets.
+      if (descriptor.enumerable === true && "value" in descriptor) {
         visit(descriptor.value);
       }
     }
