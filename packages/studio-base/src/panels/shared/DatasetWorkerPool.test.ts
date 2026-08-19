@@ -600,6 +600,51 @@ describe("DatasetWorkerPool", () => {
     },
   );
 
+  it("frees the capacity slot when the worker dies while an aborted session's constructor is pending", async () => {
+    const creationStarted = deferred<void>();
+    const workers: MockWorker[] = [];
+    let workerCount = 0;
+    const WorkerMock = makeComlinkWorkerMock(() => {
+      const workerIndex = workerCount++;
+      return {
+        async createTimestampDatasetsBuilder() {
+          if (workerIndex === 0) {
+            creationStarted.resolve(undefined);
+            // Never settles: the physical Worker will die before answering.
+            return await new Promise<never>(() => {});
+          }
+          return Comlink.proxy(new TimestampDatasetsBuilderImpl());
+        },
+      };
+    });
+    const pool = new DatasetWorkerPool({
+      createWorker: () => {
+        const worker = new WorkerMock() as unknown as MockWorker;
+        workers.push(worker);
+        return worker;
+      },
+      maxWorkers: 1,
+    });
+    const abortController = new AbortController();
+    const acquisition = pool.acquireTimestampDatasetsBuilder({
+      signal: abortController.signal,
+    });
+    await creationStarted.promise;
+
+    abortController.abort();
+    await expect(acquisition).rejects.toMatchObject({ name: "AbortError" });
+
+    // The aborted session's cleanup is waiting on the constructor. Worker failure must unblock
+    // it and retire the host, or the only capacity slot would be leaked and this acquire hangs.
+    workers[0]!.emit("error", new Event("error"));
+    jest.mocked(console.error).mockClear();
+    const replacement = await pool.acquireTimestampDatasetsBuilder();
+    expect(workers).toHaveLength(2);
+
+    await replacement.release();
+    await pool.dispose();
+  });
+
   it("aborts promptly and releases a child session that finishes creating later", async () => {
     const allowCreation = deferred<void>();
     const creationStarted = deferred<void>();
