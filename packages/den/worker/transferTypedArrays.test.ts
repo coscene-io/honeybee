@@ -28,4 +28,19 @@ describe("collectTransferableBuffers", () => {
     expect(collectTransferableBuffers(value)).toEqual([sharedBuffer, nestedBuffer]);
     expect(getter).not.toHaveBeenCalled();
   });
+
+  it("skips non-enumerable properties that structured clone would not serialize", () => {
+    const visibleBuffer = new ArrayBuffer(4);
+    const hiddenBuffer = new ArrayBuffer(4);
+    const value: { visible: Uint8Array; hidden?: Uint8Array } = {
+      visible: new Uint8Array(visibleBuffer),
+    };
+    Object.defineProperty(value, "hidden", {
+      enumerable: false,
+      value: new Uint8Array(hiddenBuffer),
+    });
+
+    // Detaching the hidden buffer would destroy state the receiver never gets.
+    expect(collectTransferableBuffers(value)).toEqual([visibleBuffer]);
+  });
 });
