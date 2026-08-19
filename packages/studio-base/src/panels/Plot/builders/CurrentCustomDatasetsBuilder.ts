@@ -313,7 +313,7 @@ function lastChartValue(
 
     const chartValue = getChartValue(item);
     const mathModifiedValue = mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
-    return mathModifiedValue ?? item;
+    return mathModifiedValue ?? toOwnedChartValue(item);
   }
 
   return undefined;
