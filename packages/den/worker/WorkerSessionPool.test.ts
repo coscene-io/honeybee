@@ -154,12 +154,12 @@ describe("WorkerSessionPool", () => {
       disposeResource: jest.fn(),
       maxWorkers: 1,
     });
-    let release: (() => Promise<void>) | undefined;
+    const releaseRef: { current?: () => Promise<void> } = {};
     const disposeSession = jest.fn(() => {
-      void release?.();
+      void releaseRef.current?.();
     });
     const lease = await pool.acquire({ createSession: () => ({}), disposeSession });
-    release = lease.release;
+    releaseRef.current = lease.release;
 
     await lease.release();
     expect(disposeSession).toHaveBeenCalledTimes(1);
