@@ -17,6 +17,7 @@ import {
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, Time, MessageEvent } from "@foxglove/studio";
 import { messagePathStructures } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathsForDatatype";
+import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import {
   fillInGlobalVariablesInPath,
   getMessagePathDataItems,
@@ -63,6 +64,7 @@ type EventTypes = {
 };
 
 type SeriesItem = {
+  key: string;
   configIndex: number;
   path: StateTransitionPath;
   parsed: MessagePath;
@@ -213,6 +215,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
     // Parse and store series
     const newSeries: SeriesItem[] = [];
+    const keyOccurrences = new Map<string, number>();
     for (let i = 0; i < config.paths.length; i++) {
       const path = config.paths[i]!;
       if (path.enabled === false) {
@@ -224,50 +227,57 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
       }
 
       const filledParsed = fillInGlobalVariablesInPath(parsed, globalVariables);
+      const keyBase = `${path.timestampMethod}:${stringifyMessagePath(filledParsed)}`;
+      const occurrence = keyOccurrences.get(keyBase) ?? 0;
+      keyOccurrences.set(keyBase, occurrence + 1);
       newSeries.push({
+        key: `${keyBase}:${occurrence}`,
         configIndex: i,
         path,
         parsed: filledParsed,
       });
     }
 
-    // Check if series changed (need to reset all data)
+    // Stable series keys let the Dataset worker retain unaffected lanes across edits.
     const seriesChanged =
       this.#series.length !== newSeries.length ||
       this.#series.some((s, i) => {
         const nextSeries = newSeries[i];
-        return (
-          s.path.value !== nextSeries?.path.value ||
-          s.path.timestampMethod !== nextSeries.path.timestampMethod ||
-          !_.isEqual(s.parsed, nextSeries.parsed)
-        );
+        return s.key !== nextSeries?.key || s.configIndex !== nextSeries.configIndex;
       });
 
     if (seriesChanged) {
       this.#invalidateViewportDatasets();
-      this.#blockCursors.clear();
-      this.#seriesIsArray.clear();
-      this.#firstBlockRefs.clear();
-      this.#lastBlockRefs.clear();
+      const nextKeys = new Set(newSeries.map((series) => series.key));
+      for (const tracking of [
+        this.#blockCursors,
+        this.#seriesIsArray,
+        this.#firstBlockRefs,
+        this.#lastBlockRefs,
+      ]) {
+        for (const key of tracking.keys()) {
+          if (!nextKeys.has(key)) {
+            tracking.delete(key);
+          }
+        }
+      }
       this.#latestBlocks = undefined; // Force reprocessing of blocks
     }
 
     this.#series = newSeries;
-    const datasetActions: StateTransitionsDatasetAction[] = [];
-    if (seriesChanged) {
-      datasetActions.push({ type: "reset" });
-    }
-    datasetActions.push({
-      type: "set-series",
-      series: newSeries.map((series) => ({
-        key: this.#cursorKey(series),
-        configIndex: series.configIndex,
-        enabled: series.path.enabled !== false,
-        label: series.path.label ?? series.path.value,
-        timestampMethod: series.path.timestampMethod,
-        y: this.#getYForSeries(series.configIndex),
-      })),
-    });
+    const datasetActions: StateTransitionsDatasetAction[] = [
+      {
+        type: "set-series",
+        series: newSeries.map((series) => ({
+          key: this.#cursorKey(series),
+          configIndex: series.configIndex,
+          enabled: series.path.enabled !== false,
+          label: series.path.label ?? series.path.value,
+          timestampMethod: series.path.timestampMethod,
+          y: this.#getYForSeries(series.configIndex),
+        })),
+      },
+    ];
     this.#datasetBuilder.applyActions(datasetActions);
 
     // Update config bounds
@@ -303,7 +313,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     // This ensures settings panel reflects all paths immediately
     const pathState: PathState[] = config.paths.map((path, index) => {
       const series = newSeries.find((s) => s.configIndex === index);
-      const cursorKey = series ? `${series.configIndex}:${series.parsed.topicName}` : "";
+      const cursorKey = series ? this.#cursorKey(series) : "";
       return {
         path,
         isArray: this.#seriesIsArray.get(cursorKey) ?? false,
@@ -379,32 +389,56 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     rangeSessionId?: number;
   }): number {
     const nextRangeTopics = new Set(args.rangeTopics);
-    const unchanged =
-      this.#historySourceId === args.sourceId &&
-      this.#isLiveSource === args.isLive &&
-      this.#rangeSessionId === args.rangeSessionId &&
-      setsEqual(this.#rangeTopics, nextRangeTopics);
-    if (unchanged) {
+    const sourceChanged =
+      this.#historySourceId !== args.sourceId ||
+      this.#isLiveSource !== args.isLive ||
+      this.#rangeSessionId !== args.rangeSessionId;
+    if (!sourceChanged && setsEqual(this.#rangeTopics, nextRangeTopics)) {
       return this.#rangeHistoryGeneration;
     }
 
+    const previousRangeTopics = this.#rangeTopics;
     this.#historySourceId = args.sourceId;
     this.#rangeSessionId = args.rangeSessionId;
     this.#isLiveSource = args.isLive;
     this.#rangeTopics = nextRangeTopics;
-    this.#rangeHistoryGeneration++;
     this.#invalidateViewportDatasets();
 
-    this.#blockCursors.clear();
-    this.#firstBlockRefs.clear();
-    this.#lastBlockRefs.clear();
-    this.#latestBlocks = undefined;
-    this.#datasetBuilder.applyActions(
-      this.#series.map((series) => ({
-        type: "reset-series" as const,
-        key: this.#cursorKey(series),
-      })),
-    );
+    if (sourceChanged) {
+      this.#rangeHistoryGeneration++;
+      this.#blockCursors.clear();
+      this.#firstBlockRefs.clear();
+      this.#lastBlockRefs.clear();
+      this.#latestBlocks = undefined;
+      this.#datasetBuilder.applyActions(
+        this.#series.map((series) => ({
+          type: "reset-series" as const,
+          key: this.#cursorKey(series),
+        })),
+      );
+    } else {
+      const changedTopics = new Set(
+        [...previousRangeTopics, ...nextRangeTopics].filter(
+          (topic) => previousRangeTopics.has(topic) !== nextRangeTopics.has(topic),
+        ),
+      );
+      const changedSeries = this.#series.filter((series) =>
+        changedTopics.has(series.parsed.topicName),
+      );
+      for (const series of changedSeries) {
+        const key = this.#cursorKey(series);
+        this.#blockCursors.delete(key);
+        this.#firstBlockRefs.delete(key);
+        this.#lastBlockRefs.delete(key);
+      }
+      this.#latestBlocks = undefined;
+      this.#datasetBuilder.applyActions(
+        changedSeries.map((series) => ({
+          type: "reset-full" as const,
+          key: this.#cursorKey(series),
+        })),
+      );
+    }
     this.#buildAndUpdateDatasets();
     return this.#rangeHistoryGeneration;
   }
@@ -431,7 +465,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     const actions = this.#series
       .filter((series) => series.parsed.topicName === args.topic)
       .map((series) => ({
-        type: "reset-series" as const,
+        type: "reset-full" as const,
         key: this.#cursorKey(series),
       }));
     this.#invalidateViewportDatasets();
@@ -451,12 +485,13 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
    * Returns false when the release no longer applies to the current range generation.
    */
   public async releaseRangeTopic(args: { topic: string; generation: number }): Promise<boolean> {
-    if (
-      this.#destroyed ||
-      args.generation !== this.#rangeHistoryGeneration ||
-      !this.#rangeTopics.delete(args.topic)
-    ) {
+    if (this.#destroyed || args.generation !== this.#rangeHistoryGeneration) {
       return false;
+    }
+    // Plan reconciliation may have already released this topic while its fallback was queued
+    // behind another worker reset. In that case the requested ownership state is established.
+    if (!this.#rangeTopics.delete(args.topic)) {
+      return true;
     }
 
     const seriesForTopic = this.#series.filter((series) => series.parsed.topicName === args.topic);
@@ -471,7 +506,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     this.#latestBlocks = undefined;
     this.#invalidateViewportDatasets();
     const actions = seriesForTopic.map((series) => ({
-      type: "reset-series" as const,
+      type: "reset-full" as const,
       key: this.#cursorKey(series),
     }));
     if (actions.length > 0) {
@@ -684,8 +719,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
 
     // Track if this series has array input
     if (isArray) {
-      const cursorKey = `${series.configIndex}:${series.parsed.topicName}`;
-      this.#seriesIsArray.set(cursorKey, true);
+      this.#seriesIsArray.set(this.#cursorKey(series), true);
     }
 
     if (value == undefined) {
@@ -829,7 +863,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
     // This ensures settings panel reflects all paths with updated isArray status
     const pathState: PathState[] = this.#config.paths.map((path, index) => {
       const series = this.#series.find((s) => s.configIndex === index);
-      const cursorKey = series ? `${series.configIndex}:${series.parsed.topicName}` : "";
+      const cursorKey = series ? this.#cursorKey(series) : "";
       return {
         path,
         isArray: this.#seriesIsArray.get(cursorKey) ?? false,
@@ -868,7 +902,7 @@ export class StateTransitionsCoordinator extends EventEmitter<EventTypes> {
   }
 
   #cursorKey(series: SeriesItem): string {
-    return `${series.configIndex}:${series.parsed.topicName}`;
+    return series.key;
   }
 
   /**

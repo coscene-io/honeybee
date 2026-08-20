@@ -68,6 +68,11 @@ type UpdateSeriesCurrentAction = {
   series: SeriesConfigKey;
   items: DataItem[];
 };
+type UpdateSeriesLegendAction = {
+  type: "append-legend";
+  series: SeriesConfigKey;
+  items: DataItem[];
+};
 type UpdateSeriesFullAction = {
   type: "append-full";
   series: SeriesConfigKey;
@@ -86,6 +91,7 @@ export type UpdateDataAction =
   | ResetSeriesCurrentAction
   | ResetSeriesPlaybackHeadAction
   | UpdateSeriesCurrentAction
+  | UpdateSeriesLegendAction
   | UpdateSeriesFullAction
   | UpdateSeriesPlaybackHeadAction;
 
@@ -434,20 +440,24 @@ class CompactSeriesData {
     return result;
   }
 
-  /** Removes current values covered by a later full action at the exact configured timestamp. */
-  public retainAfterConfiguredTime(
+  /** Removes values covered by a later full action without changing the store's x-axis method. */
+  public retainAfterTime(
     target: Immutable<Time>,
-    ordering: "headerStamp" | "receiveTime",
+    comparisonMethod: "headerStamp" | "receiveTime",
+    timestampMethod: "headerStamp" | "receiveTime",
   ): CompactSeriesData {
-    const firstRetained = this.#upperBoundTimeRank(target, ordering);
-    if (firstRetained === 0) {
+    const retained: DataItem[] = [];
+    for (let index = 0; index < this.length; index++) {
+      const time = this.#getConfiguredTime(index, comparisonMethod);
+      if (time != undefined && compare(time, target) > 0) {
+        retained.push(this.#getDataItem(index));
+      }
+    }
+    if (retained.length === this.length) {
       return this;
     }
     const result = new CompactSeriesData(this.#onPointEncoded, this.#capacityLimit);
-    const retained = Array.from(this.#timeOrder.subarray(firstRetained, this.length), (index) =>
-      this.#getDataItem(index),
-    );
-    result.appendItems(retained, ordering, "preserve");
+    result.appendItems(retained, timestampMethod, "preserve");
     result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
     return result;
   }
@@ -1247,6 +1257,19 @@ export class TimestampDatasetsBuilderImpl {
         }
         break;
       }
+      case "append-legend": {
+        const series = this.#seriesByKey.get(action.series);
+        if (!series) {
+          return;
+        }
+        series.legendCurrent = series.legendCurrent.appendItemsBounded(
+          action.items,
+          series.config.timestampMethod,
+          MAX_CURRENT_DATUMS_PER_SERIES,
+          RETAINED_CURRENT_DATUMS_PER_SERIES,
+        );
+        break;
+      }
       case "append-full": {
         const series = this.#seriesByKey.get(action.series);
         if (!series) {
@@ -1268,13 +1291,11 @@ export class TimestampDatasetsBuilderImpl {
             series.prefixRevision++;
           }
         }
-        const latestActionTime = getLatestConfiguredTime(
-          action.items,
-          series.config.timestampMethod,
-        );
+        const latestActionTime = getLatestReceiveTime(action.items);
         if (latestActionTime != undefined) {
-          series.legendCurrent = series.legendCurrent.retainAfterConfiguredTime(
+          series.legendCurrent = series.legendCurrent.retainAfterTime(
             latestActionTime,
+            "receiveTime",
             series.config.timestampMethod,
           );
         }
@@ -1321,6 +1342,7 @@ export class TimestampDatasetsBuilderImpl {
       candidate = chooseLaterTimestampCandidate(
         candidate,
         getTimestampCurrentValueCandidate(
+          series,
           series.full,
           series.config.timestampMethod,
           currentValuesAt,
@@ -1331,6 +1353,7 @@ export class TimestampDatasetsBuilderImpl {
       candidate = chooseLaterTimestampCandidate(
         candidate,
         getTimestampCurrentValueCandidate(
+          series,
           series.legendCurrent,
           series.config.timestampMethod,
           currentValuesAt,
@@ -1341,6 +1364,7 @@ export class TimestampDatasetsBuilderImpl {
       candidate = chooseLaterTimestampCandidate(
         candidate,
         getTimestampCurrentValueCandidate(
+          series,
           series.playbackHead,
           series.config.timestampMethod,
           currentValuesAt,
@@ -1544,6 +1568,7 @@ type TimestampCurrentValueCandidate = {
 };
 
 function getTimestampCurrentValueCandidate(
+  series: Series,
   store: CompactSeriesData,
   timestampMethod: "headerStamp" | "receiveTime",
   currentValuesAt: Immutable<Time>,
@@ -1559,17 +1584,18 @@ function getTimestampCurrentValueCandidate(
   if (time == undefined) {
     return undefined;
   }
-  return { priority, time, value: store.getValue(index) };
+  return {
+    priority,
+    time,
+    value: isDerivative(series) ? getDerivativeValue(series, store, index) : store.getValue(index),
+  };
 }
 
-function getLatestConfiguredTime(
-  items: Immutable<DataItem[]>,
-  timestampMethod: "headerStamp" | "receiveTime",
-): Time | undefined {
+function getLatestReceiveTime(items: Immutable<DataItem[]>): Time | undefined {
   let latest: Time | undefined;
   for (const item of items) {
-    const timestamp = timestampMethod === "receiveTime" ? item.receiveTime : item.headerStamp;
-    if (timestamp != undefined && (latest == undefined || compare(timestamp, latest) > 0)) {
+    const timestamp = item.receiveTime;
+    if (latest == undefined || compare(timestamp, latest) > 0) {
       latest = timestamp;
     }
   }
@@ -1713,6 +1739,37 @@ function getSeriesY(series: Series, index: number): number {
   const previousY = previousStoreIndex.store.getY(previousStoreIndex.index);
   const dx = storeIndex.store.getX(storeIndex.index) - previousX;
   return dx === 0 ? NaN : (y - previousY) / dx;
+}
+
+function getDerivativeValue(series: Series, store: CompactSeriesData, index: number): number {
+  const x = store.getX(index);
+  const y = store.getY(index);
+  let previousStore: CompactSeriesData | undefined = index > 0 ? store : undefined;
+  let previousIndex = index - 1;
+  for (const candidateStore of [
+    series.full,
+    series.current,
+    series.legendCurrent,
+    series.playbackHead,
+  ]) {
+    if (candidateStore === store) {
+      continue;
+    }
+    const candidateIndex = candidateStore.lowerBound(x) - 1;
+    if (
+      candidateIndex >= 0 &&
+      (previousStore == undefined ||
+        candidateStore.getX(candidateIndex) > previousStore.getX(previousIndex))
+    ) {
+      previousStore = candidateStore;
+      previousIndex = candidateIndex;
+    }
+  }
+  if (previousStore == undefined) {
+    return NaN;
+  }
+  const dx = x - previousStore.getX(previousIndex);
+  return dx === 0 ? NaN : (y - previousStore.getY(previousIndex)) / dx;
 }
 
 function getSeriesValue(series: Series, index: number): OriginalValue {

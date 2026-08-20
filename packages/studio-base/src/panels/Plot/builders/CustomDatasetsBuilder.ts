@@ -213,7 +213,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
             type: "reset-playback-head",
             series: series.config.key,
           });
-          if (!this.#rangeTopics.has(series.config.parsed.topicName)) {
+          if (!series.config.enabled || !this.#rangeTopics.has(series.config.parsed.topicName)) {
             this.#pendingDispatch.push({ type: "reset-current", series: series.config.key });
           }
         }
@@ -233,18 +233,17 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       }
 
       for (const series of this.#series) {
-        if (!series.config.enabled) {
-          continue;
-        }
         const items = readMessagePathItems(
           msgEvents,
           series.config.parsed,
           getMathFn(series.config.parsed),
         );
         this.#pendingDispatch.push({
-          type: this.#rangeTopics.has(series.config.parsed.topicName)
-            ? "append-playback-head"
-            : "append-current",
+          type: !series.config.enabled
+            ? "append-legend"
+            : this.#rangeTopics.has(series.config.parsed.topicName)
+              ? "append-playback-head"
+              : "append-current",
           series: series.config.key,
           items: encodeValueItems(items),
         });

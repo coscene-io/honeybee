@@ -1075,6 +1075,70 @@ describe("CustomDatasetsBuilder", () => {
     expect(result.datasetsByConfigIndex[0]?.data).toEqual([{ x: 2, y: 20, value: 20 }]);
   });
 
+  it("clears a disabled range-series legend on seek", async () => {
+    const builder = createBuilder();
+    const enabledSeries = buildSeriesItems([{ enabled: true, value: "/same.y" }]);
+    builder.setSeries(buildSeriesItems([{ enabled: false, value: "/same.y" }]));
+    builder.setHistoryTopics(new Set(["/same"]), new Set(), 1);
+    builder.handlePlayerState(
+      buildPlayerState({
+        lastSeekTime: 1,
+        messages: [
+          {
+            topic: "/same",
+            schemaName: "same",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { y: 10 },
+          },
+        ],
+      }),
+    );
+    await builder.getViewportDatasets(
+      { size: { width: 100, height: 100 }, bounds: {} },
+      { sec: 1, nsec: 0 },
+    );
+
+    builder.handlePlayerState(buildPlayerState({ lastSeekTime: 2, messages: [] }));
+    builder.setSeries(enabledSeries);
+
+    const result = await builder.getViewportDatasets(
+      { size: { width: 100, height: 100 }, bounds: {} },
+      { sec: 2, nsec: 0 },
+    );
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+  });
+
+  it("keeps disabled-series legend values current without appending rendered y data", async () => {
+    const builder = createBuilder();
+    builder.setXPath(parseMessagePath("/same.x"));
+    const enabledSeries = buildSeriesItems([{ enabled: true, value: "/same.y" }]);
+    builder.setSeries(enabledSeries);
+    builder.setSeries(buildSeriesItems([{ enabled: false, value: "/same.y" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime: { sec: 2, nsec: 0 },
+        messages: [
+          {
+            topic: "/same",
+            schemaName: "same",
+            receiveTime: { sec: 2, nsec: 0 },
+            sizeInBytes: 0,
+            message: { x: 2, y: 20 },
+          },
+        ],
+      }),
+    );
+    builder.setSeries(enabledSeries);
+
+    const result = await builder.getViewportDatasets(
+      { size: { width: 100, height: 100 }, bounds: {} },
+      { sec: 2, nsec: 0 },
+    );
+    expect(result.currentValuesByConfigIndex).toEqual([20]);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+  });
+
   it("clears one range topic before consuming a replacement iterator", async () => {
     const builder = createBuilder();
     builder.setXPath(parseMessagePath("/same.x"));

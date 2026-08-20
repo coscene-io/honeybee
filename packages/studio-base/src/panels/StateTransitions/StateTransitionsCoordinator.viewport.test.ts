@@ -651,6 +651,49 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
     expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([1]);
     coordinator.destroy();
   });
+
+  it("reports array-valued paths after stable series keys are assigned", async () => {
+    const { renderer } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    const pathStates: Array<Array<{ isArray: boolean }>> = [];
+    coordinator.on("pathStateChanged", (state) => {
+      pathStates.push(state);
+    });
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/t.data[:]", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    const state = playerState({}) as {
+      activeData: {
+        datatypes: Map<string, unknown>;
+        messages: unknown[];
+      };
+    };
+    state.activeData.datatypes = new Map([
+      [
+        "std_msgs/Float64",
+        {
+          name: "std_msgs/Float64",
+          definitions: [{ name: "data", type: "float64", isComplex: false, isArray: true }],
+        },
+      ],
+    ]);
+    state.activeData.messages = [
+      {
+        ...makeMsg(1, 0),
+        message: { data: [1, 2] },
+      },
+    ];
+
+    coordinator.handlePlayerState(state as never);
+    await settleCoordinator();
+
+    expect(pathStates.at(-1)?.[0]?.isArray).toBe(true);
+    coordinator.destroy();
+  });
 });
 
 describe("StateTransitionsCoordinator range history", () => {
@@ -784,6 +827,30 @@ describe("StateTransitionsCoordinator range history", () => {
     });
 
     coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [6, 99],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("preserves the playhead tail while a replacement iterator restarts", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+
+    await coordinator.resetRangeTopic({ topic: "/range", generation });
     coordinator.setGlobalBounds({ min: 0, max: 10 });
     await settleCoordinator();
 
@@ -950,6 +1017,88 @@ describe("StateTransitionsCoordinator range history", () => {
     coordinator.destroy();
   });
 
+  it("retains sibling range history when a lane is added", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    const paths = [
+      { value: "/range.data", timestampMethod: "receiveTime" as const },
+      { value: "/fallback.data", timestampMethod: "receiveTime" as const },
+    ];
+    coordinator.handleConfig({ isSynced: false, paths }, {});
+    const generation = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range", "/fallback"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    coordinator.handlePlayerState(playerState({}));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 1, 10)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    await coordinator.handleRangeBatch({
+      topic: "/fallback",
+      messages: [message("/fallback", 2, 20)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([10]);
+    expect(datasetSnapshots.at(-1)?.[1]?.data.map((datum) => datum.value)).toEqual([20]);
+
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [...paths, { value: "/disabled.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    const reconciledGeneration = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range", "/fallback", "/disabled"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    expect(reconciledGeneration).toBe(generation);
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([10]);
+    expect(datasetSnapshots.at(-1)?.[1]?.data.map((datum) => datum.value)).toEqual([20]);
+    coordinator.destroy();
+  });
+
+  it("accepts a queued fallback after plan reconciliation already released its topic", async () => {
+    const { renderer } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    expect(
+      coordinator.configureHistorySources({
+        sourceId: "same-source",
+        rangeTopics: new Set(),
+        isLive: false,
+        rangeSessionId: 1,
+      }),
+    ).toBe(generation);
+
+    await expect(coordinator.releaseRangeTopic({ topic: "/range", generation })).resolves.toBe(
+      true,
+    );
+    coordinator.destroy();
+  });
+
   it("invalidates range callbacks as soon as their subscription cleans up", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
     const coordinator = makeCoordinator(renderer);
@@ -1047,7 +1196,9 @@ describe("StateTransitionsCoordinator range history", () => {
     );
 
     const seriesAction = actions.find((action) => action.type === "set-series");
-    expect(seriesAction?.series.map((series) => series.key)).toEqual(["1:/fallback"]);
+    expect(seriesAction?.series.map((series) => series.key)).toEqual([
+      "receiveTime:/fallback.data:0",
+    ]);
     expect(
       actions.some(
         (action) =>

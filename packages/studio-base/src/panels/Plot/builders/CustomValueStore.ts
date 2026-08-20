@@ -330,9 +330,9 @@ export class CompactValueStore {
   }
 
   /**
-   * Appends an action while keeping only a bounded append-order tail. The skipped prefix is never
-   * decoded into this store, so a single oversized action cannot temporarily allocate an oversized
-   * playback-head or legend accumulator.
+   * Appends an action while keeping the newest receive-time values. Append order breaks equal-time
+   * ties. The common ordered path skips the prefix directly; the out-of-order path uses a bounded
+   * heap, so a single oversized action cannot allocate an oversized accumulator.
    */
   public appendBatchBoundedTail(
     batch: Immutable<ValueItemBatch>,
@@ -354,14 +354,81 @@ export class CompactValueStore {
       return this;
     }
 
-    const firstRetained = combinedLength - retainedLength;
-    const droppedFromStore = Math.min(firstRetained, this.length);
-    const skippedFromBatch = Math.max(0, firstRetained - this.length);
-    const result =
-      droppedFromStore === this.length ? new CompactValueStore() : this.sliceFrom(droppedFromStore);
-    result.appendBatchTail(batch, undefined, skippedFromBatch, maximumLength);
+    if (this.#isNondecreasingThroughBatch(batch)) {
+      const firstRetained = combinedLength - retainedLength;
+      const droppedFromStore = Math.min(firstRetained, this.length);
+      const skippedFromBatch = Math.max(0, firstRetained - this.length);
+      const result =
+        droppedFromStore === this.length
+          ? new CompactValueStore()
+          : this.sliceFrom(droppedFromStore);
+      result.appendBatchTail(batch, undefined, skippedFromBatch, maximumLength);
+      result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
+      return result;
+    }
+
+    const compareAppendIndexes = (left: number, right: number): number => {
+      const leftTime =
+        left < this.length ? this.getReceiveTime(left) : decodeBatchTime(batch, left - this.length);
+      const rightTime =
+        right < this.length
+          ? this.getReceiveTime(right)
+          : decodeBatchTime(batch, right - this.length);
+      const timeComparison = compare(leftTime, rightTime);
+      return timeComparison !== 0 ? timeComparison : left - right;
+    };
+    const retained: number[] = [];
+    for (let appendIndex = 0; appendIndex < combinedLength; appendIndex++) {
+      if (retained.length < retainedLength) {
+        retained.push(appendIndex);
+        pushMinHeap(retained, compareAppendIndexes);
+      } else if (retainedLength > 0 && compareAppendIndexes(appendIndex, retained[0]!) > 0) {
+        retained[0] = appendIndex;
+        restoreMinHeap(retained, compareAppendIndexes);
+      }
+    }
+
+    retained.sort((left, right) => left - right);
+    const result = new CompactValueStore(maximumLength);
+    for (const appendIndex of retained) {
+      if (appendIndex < this.length) {
+        result.#append(
+          this.getValue(appendIndex),
+          this.getOriginalValue(appendIndex),
+          this.getReceiveTime(appendIndex),
+        );
+      } else {
+        const batchIndex = appendIndex - this.length;
+        const value = batch.values[batchIndex]!;
+        result.#append(
+          value,
+          decodeBatchValue(batch, batchIndex, value),
+          decodeBatchTime(batch, batchIndex),
+        );
+      }
+    }
+    result.#mergeReceiveTimeOrder(0);
     result.peakCapacity = Math.max(this.peakCapacity, result.peakCapacity);
     return result;
+  }
+
+  #isNondecreasingThroughBatch(batch: Immutable<ValueItemBatch>): boolean {
+    let previous: Time | undefined;
+    for (let index = 0; index < this.length; index++) {
+      const current = this.getReceiveTime(index);
+      if (previous != undefined && compare(previous, current) > 0) {
+        return false;
+      }
+      previous = current;
+    }
+    for (let index = 0; index < batch.values.length; index++) {
+      const current = decodeBatchTime(batch, index);
+      if (previous != undefined && compare(previous, current) > 0) {
+        return false;
+      }
+      previous = current;
+    }
+    return true;
   }
 
   /** Keeps append order while removing values covered by a later full-history action. */
@@ -722,6 +789,36 @@ function updateBlockMetadata(
     block.finiteMax = Math.max(block.finiteMax, value);
   } else {
     block.firstNonFiniteIndex ??= index;
+  }
+}
+
+function pushMinHeap(heap: number[], compareValues: (left: number, right: number) => number): void {
+  let index = heap.length - 1;
+  while (index > 0) {
+    const parent = Math.floor((index - 1) / 2);
+    if (compareValues(heap[parent]!, heap[index]!) <= 0) {
+      break;
+    }
+    [heap[parent], heap[index]] = [heap[index]!, heap[parent]!];
+    index = parent;
+  }
+}
+
+function restoreMinHeap(
+  heap: number[],
+  compareValues: (left: number, right: number) => number,
+): void {
+  let index = 0;
+  while (index * 2 + 1 < heap.length) {
+    const left = index * 2 + 1;
+    const right = left + 1;
+    const child =
+      right < heap.length && compareValues(heap[right]!, heap[left]!) < 0 ? right : left;
+    if (compareValues(heap[index]!, heap[child]!) <= 0) {
+      break;
+    }
+    [heap[index], heap[child]] = [heap[child]!, heap[index]!];
+    index = child;
   }
 }
 

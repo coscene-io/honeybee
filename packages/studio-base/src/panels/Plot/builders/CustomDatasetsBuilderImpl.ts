@@ -62,6 +62,11 @@ type UpdateSeriesCurrentAction = {
   series: SeriesConfigKey;
   items: ValueItemBatch;
 };
+type UpdateSeriesLegendAction = {
+  type: "append-legend";
+  series: SeriesConfigKey;
+  items: ValueItemBatch;
+};
 type UpdateSeriesFullAction = {
   type: "append-full";
   series: SeriesConfigKey;
@@ -84,6 +89,7 @@ export type UpdateDataAction =
   | UpdateCurrentXAction
   | UpdateFullXAction
   | UpdateSeriesCurrentAction
+  | UpdateSeriesLegendAction
   | UpdateSeriesFullAction
   | UpdateSeriesPlaybackHeadAction;
 
@@ -436,6 +442,17 @@ export class CustomDatasetsBuilderImpl {
         }
         break;
       }
+      case "append-legend": {
+        const series = this.#seriesByKey.get(action.series);
+        if (series) {
+          series.legendCurrent = series.legendCurrent.appendBatchBoundedTail(
+            action.items,
+            MAX_CURRENT_DATUMS_PER_SERIES,
+            RETAINED_CURRENT_DATUMS_PER_SERIES,
+          );
+        }
+        break;
+      }
       case "reset-playback-head": {
         const series = this.#seriesByKey.get(action.series);
         if (series) {
@@ -545,6 +562,7 @@ export class CustomDatasetsBuilderImpl {
           break;
         }
         case "reset-playback-head":
+        case "append-legend":
         case "append-playback-head":
           break;
         case "append-full": {

@@ -55,7 +55,7 @@ import { StateTransitionsRenderer } from "./StateTransitionsRenderer";
 import { VerticalBars } from "./VerticalBars";
 import {
   planStateTransitionsSubscriptions,
-  startStateTransitionsRangeSubscriptions,
+  StateTransitionsRangeSubscriptionManager,
 } from "./rangeSubscriptions";
 import { PathState, useStateTransitionsPanelSettings } from "./settings";
 import { DEFAULT_PATH } from "./shared";
@@ -178,6 +178,8 @@ function StateTransitions(props: Props) {
     [rangePlanningInputs],
   );
   const rangeSessionIdRef = useRef(0);
+  const topicPlansRef = useRef(topicPlans);
+  const rangeManagerRef = useRef<{ apply: () => void }>();
 
   // Crash the panel when a worker fails to load or encounters an error
   const handleWorkerError = useRethrow(
@@ -300,15 +302,9 @@ function StateTransitions(props: Props) {
 
     const rangeSessionId = ++rangeSessionIdRef.current;
     let rangeGeneration = -1;
-    let markReady!: (generation: number) => void;
-    const generationReady = new Promise<number>((resolve) => {
-      markReady = resolve;
-    });
-    const running = startStateTransitionsRangeSubscriptions({
-      plans: topicPlans,
+    const manager = new StateTransitionsRangeSubscriptionManager({
       attemptRanges: !isLiveSource,
       subscribeMessageRange: rangeStartTime == undefined ? undefined : subscribeMessageRange,
-      generation: generationReady,
       onIteratorStart: async (topic, generation) => {
         await coordinator.resetRangeTopic({ topic, generation });
       },
@@ -323,7 +319,7 @@ function StateTransitions(props: Props) {
           generation,
         });
       },
-      onTopicFallback: async ({ topic, generation, subscriptions }) => {
+      onTopicFallback: async ({ topic, generation }) => {
         if (rangeSessionIdRef.current !== rangeSessionId) {
           return true;
         }
@@ -334,7 +330,9 @@ function StateTransitions(props: Props) {
         if (!released) {
           return false;
         }
-        setSubscriptions(subscriberId, subscriptions);
+        // Plans may have changed while the worker reset was in flight. Commit the manager's
+        // current subscription set so a stale fallback cannot overwrite a newer reconciliation.
+        setSubscriptions(subscriberId, manager.getSubscriptions());
         // Re-feed cached blocks after releasing range ownership; otherwise a quiet fallback topic
         // stays empty until the Player happens to emit a new state.
         coordinator.handlePlayerState(getMessagePipelineState().playerState);
@@ -343,26 +341,45 @@ function StateTransitions(props: Props) {
       onError: handleWorkerError,
     });
 
-    rangeGeneration = coordinator.configureHistorySources({
-      sourceId: historySourceId,
-      rangeTopics: running.rangeTopics,
-      isLive: isLiveSource,
-      rangeSessionId,
-    });
-    markReady(rangeGeneration);
-    setSubscriptions(subscriberId, running.subscriptions);
+    let appliedPlans: typeof topicPlans | undefined;
+    const apply = () => {
+      const plans = topicPlansRef.current;
+      if (rangeSessionIdRef.current !== rangeSessionId || plans === appliedPlans) {
+        return;
+      }
+      appliedPlans = plans;
+      let markReady!: (generation: number) => void;
+      const generationReady = new Promise<number>((resolve) => {
+        markReady = resolve;
+      });
+      const running = manager.update(plans, generationReady);
+      rangeGeneration = coordinator.configureHistorySources({
+        sourceId: historySourceId,
+        rangeTopics: running.rangeTopics,
+        isLive: isLiveSource,
+        rangeSessionId,
+      });
+      markReady(rangeGeneration);
+      setSubscriptions(subscriberId, running.subscriptions);
 
-    // The player-state effect runs first. Re-feed its snapshot after the semantic reset so live
-    // current data and block-based fallback history are not left blank until the Player emits.
-    coordinator.handlePlayerState(getMessagePipelineState().playerState);
+      // Re-feed cached current data and fallback blocks after ownership changes.
+      coordinator.handlePlayerState(getMessagePipelineState().playerState);
+    };
+
+    rangeManagerRef.current = { apply };
+    apply();
 
     return () => {
-      // Make in-flight fallbacks stale so a topic failing during teardown cannot surface an error.
+      if (rangeManagerRef.current?.apply === apply) {
+        rangeManagerRef.current = undefined;
+      }
       if (rangeSessionIdRef.current === rangeSessionId) {
         rangeSessionIdRef.current += 1;
       }
-      coordinator.invalidateRangeHistory(rangeGeneration);
-      running.cancel();
+      if (rangeGeneration >= 0) {
+        coordinator.invalidateRangeHistory(rangeGeneration);
+      }
+      manager.cancel();
     };
   }, [
     coordinator,
@@ -374,8 +391,12 @@ function StateTransitions(props: Props) {
     setSubscriptions,
     subscribeMessageRange,
     subscriberId,
-    topicPlans,
   ]);
+
+  useEffect(() => {
+    topicPlansRef.current = topicPlans;
+    rangeManagerRef.current?.apply();
+  }, [topicPlans]);
 
   // Unsubscribe on unmount
   useEffect(() => {

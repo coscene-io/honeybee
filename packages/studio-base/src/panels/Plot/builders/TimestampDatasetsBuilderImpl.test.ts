@@ -63,7 +63,7 @@ function updateSeries(seriesItems: SeriesItem[]): UpdateDataAction {
 }
 
 function append(
-  type: "append-full" | "append-current" | "append-playback-head",
+  type: "append-full" | "append-current" | "append-legend" | "append-playback-head",
   series: SeriesItem,
   items: DataItem[],
 ): UpdateDataAction {
@@ -145,6 +145,146 @@ describe("TimestampDatasetsBuilderImpl", () => {
       impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 4, nsec: 0 })
         .currentValuesByConfigIndex,
     ).toEqual(["two"]);
+  });
+
+  it("returns the plotted derivative value in the legend", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("derivative-legend", 0, {
+      path: "/topic.value.@derivative",
+      timestampMethod: "headerStamp",
+    });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [
+        { ...makeItem(0, 0), headerStamp: { sec: 0, nsec: 0 } },
+        { ...makeItem(2, 20), headerStamp: { sec: 2, nsec: 0 } },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 2, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([10]);
+  });
+
+  it("uses the latest preceding value across legend accumulators for a derivative", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("derivative-accumulators", 0, {
+      path: "/topic.value.@derivative",
+    });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [makeItem(0, 0)]),
+      append("append-playback-head", series, [makeItem(1, 10)]),
+      append("append-legend", series, [makeItem(2, 30)]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 2, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([20]);
+  });
+
+  it("keeps header-stamp current legends until full history covers their receive time", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("header-current", 0, { timestampMethod: "headerStamp" });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-current", series, [
+        {
+          ...makeItem(5, 50),
+          headerStamp: { sec: 5, nsec: 0 },
+          receiveTime: { sec: 10, nsec: 0 },
+        },
+      ]),
+      append("append-full", series, [
+        {
+          ...makeItem(100, 100),
+          headerStamp: { sec: 100, nsec: 0 },
+          receiveTime: { sec: 1, nsec: 0 },
+        },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 5, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([50]);
+  });
+
+  it("preserves header-stamp ordering when receive-time coverage retains a derivative legend", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("header-derivative-current", 0, {
+      path: "/topic.value.@derivative",
+      timestampMethod: "headerStamp",
+    });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-current", series, [
+        {
+          ...makeItem(5, 50),
+          headerStamp: { sec: 5, nsec: 0 },
+          receiveTime: { sec: 10, nsec: 0 },
+        },
+      ]),
+      append("append-full", series, [
+        {
+          ...makeItem(0, 0),
+          headerStamp: { sec: 0, nsec: 0 },
+          receiveTime: { sec: 0, nsec: 0 },
+        },
+        {
+          ...makeItem(100, 100),
+          headerStamp: { sec: 100, nsec: 0 },
+          receiveTime: { sec: 1, nsec: 0 },
+        },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 5, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([10]);
+  });
+
+  it("preserves append-order ties when receive-time coverage retains header-stamp legends", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("header-current-ties", 0, { timestampMethod: "headerStamp" });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-current", series, [
+        {
+          ...makeItem(0, 0),
+          headerStamp: { sec: 0, nsec: 0 },
+          receiveTime: { sec: 0, nsec: 0 },
+          value: "covered",
+        },
+        {
+          ...makeItem(5, 1),
+          headerStamp: { sec: 5, nsec: 0 },
+          receiveTime: { sec: 10, nsec: 0 },
+          value: "first",
+        },
+        {
+          ...makeItem(5, 2),
+          headerStamp: { sec: 5, nsec: 0 },
+          receiveTime: { sec: 5, nsec: 0 },
+          value: "second",
+        },
+      ]),
+      append("append-full", series, [
+        {
+          ...makeItem(0, 0),
+          headerStamp: { sec: 0, nsec: 0 },
+          receiveTime: { sec: 0, nsec: 0 },
+        },
+      ]),
+    ]);
+
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 5, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual(["second"]);
   });
 
   it("keeps the last exact current value even when drawing deduplicates the point", () => {

@@ -11,6 +11,7 @@ import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types"
 import {
   planStateTransitionsSubscriptions,
   startStateTransitionsRangeSubscriptions,
+  StateTransitionsRangeSubscriptionManager,
 } from "./rangeSubscriptions";
 import type { StateTransitionPath } from "./types";
 
@@ -48,6 +49,8 @@ describe("planStateTransitionsSubscriptions", () => {
           preloadType: "full",
         },
         rangePayload: { fields: ["mode", "source", "header", "status"] },
+        signature:
+          "header,mode,source,status;headerStamp:/vehicle.status|receiveTime:/vehicle{source==1}.mode",
       },
       {
         topic: "/other",
@@ -62,6 +65,7 @@ describe("planStateTransitionsSubscriptions", () => {
           preloadType: "full",
         },
         rangePayload: { fields: ["state"] },
+        signature: "state;receiveTime:/other.state",
       },
     ]);
   });
@@ -371,5 +375,85 @@ describe("startStateTransitionsRangeSubscriptions", () => {
     await flushMicrotasks();
     expect(onError).toHaveBeenCalledWith(error);
     running.cancel();
+  });
+});
+
+describe("StateTransitionsRangeSubscriptionManager", () => {
+  it("keeps unchanged topic iterators while adding a sibling topic", () => {
+    const plans = twoTopicPlans();
+    const unsubscribes = new Map([
+      ["/state", jest.fn()],
+      ["/other", jest.fn()],
+    ]);
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((options) => unsubscribes.get(options.topic)!);
+    const manager = new StateTransitionsRangeSubscriptionManager({
+      attemptRanges: true,
+      subscribeMessageRange,
+      onIteratorStart: async () => undefined,
+      onRangeBatch: async () => undefined,
+    });
+
+    manager.update([plans[0]!], Promise.resolve(1));
+    const updated = manager.update(plans, Promise.resolve(1));
+
+    expect(subscribeMessageRange.mock.calls.map(([options]) => options.topic)).toEqual([
+      "/state",
+      "/other",
+    ]);
+    expect(unsubscribes.get("/state")).not.toHaveBeenCalled();
+    expect(updated.rangeTopics).toEqual(new Set(["/state", "/other"]));
+    manager.cancel();
+  });
+
+  it("exposes reconciled subscriptions to a fallback that finishes after plans change", async () => {
+    const plans = twoTopicPlans();
+    let onNewRangeIterator: OnNewRangeIterator | undefined;
+    let fallbackStarted!: () => void;
+    let releaseFallback!: () => void;
+    const started = new Promise<void>((resolve) => {
+      fallbackStarted = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      releaseFallback = resolve;
+    });
+    let committedSubscriptions: readonly { topic: string; preloadType?: string }[] = [];
+    const manager = new StateTransitionsRangeSubscriptionManager({
+      attemptRanges: true,
+      subscribeMessageRange: (options) => {
+        if (options.topic === "/state") {
+          onNewRangeIterator = options.onNewRangeIterator;
+        }
+        return () => undefined;
+      },
+      onIteratorStart: async () => undefined,
+      onRangeBatch: async () => undefined,
+      onTopicFallback: async () => {
+        fallbackStarted();
+        await blocked;
+        committedSubscriptions = manager.getSubscriptions();
+        return true;
+      },
+    });
+
+    manager.update([plans[0]!], Promise.resolve(1));
+    const failure = onNewRangeIterator!(
+      (async function* () {
+        await Promise.reject(new Error("range read failed"));
+        yield [];
+      })(),
+    );
+    await started;
+    manager.update(plans, Promise.resolve(1));
+    releaseFallback();
+    await failure;
+
+    expect(committedSubscriptions).toEqual([
+      plans[0]!.fallbackSubscription,
+      plans[1]!.currentSubscription,
+    ]);
+    manager.cancel();
   });
 });

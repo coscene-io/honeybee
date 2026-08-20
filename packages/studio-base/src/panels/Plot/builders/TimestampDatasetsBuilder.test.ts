@@ -1124,6 +1124,69 @@ describe("TimestampDatasetsBuilder", () => {
     });
   });
 
+  it("clears a disabled range-series legend on seek", async () => {
+    const builder = createBuilder();
+    const enabledSeries = buildSeriesItems([{ enabled: true, value: "/foo.val" }]);
+    builder.setSeries(buildSeriesItems([{ enabled: false, value: "/foo.val" }]));
+    builder.setHistoryTopics(new Set(["/foo"]), new Set(), 1);
+    builder.handlePlayerState(
+      buildPlayerState({
+        lastSeekTime: 1,
+        messages: [
+          {
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec: 1, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 10 },
+          },
+        ],
+      }),
+    );
+    await builder.getViewportDatasets(
+      { size: { width: 100, height: 100 }, bounds: {} },
+      { sec: 1, nsec: 0 },
+    );
+
+    builder.handlePlayerState(buildPlayerState({ lastSeekTime: 2, messages: [] }));
+    builder.setSeries(enabledSeries);
+
+    const result = await builder.getViewportDatasets(
+      { size: { width: 100, height: 100 }, bounds: {} },
+      { sec: 2, nsec: 0 },
+    );
+    expect(result.currentValuesByConfigIndex).toEqual([undefined]);
+  });
+
+  it("keeps disabled-series legend values current without appending rendered data", async () => {
+    const builder = createBuilder();
+    const enabledSeries = buildSeriesItems([{ enabled: true, value: "/foo.val" }]);
+    builder.setSeries(enabledSeries);
+    builder.setSeries(buildSeriesItems([{ enabled: false, value: "/foo.val" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime: { sec: 2, nsec: 0 },
+        messages: [
+          {
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec: 2, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 20 },
+          },
+        ],
+      }),
+    );
+    builder.setSeries(enabledSeries);
+
+    const result = await builder.getViewportDatasets(
+      { size: { width: 100, height: 100 }, bounds: {} },
+      { sec: 2, nsec: 0 },
+    );
+    expect(result.currentValuesByConfigIndex).toEqual([20]);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+  });
+
   it("leaves gaps in datasetsByConfigIndex for missing series", async () => {
     const builder = createBuilder();
 

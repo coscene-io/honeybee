@@ -165,6 +165,29 @@ describe("CurrentCustomDatasetsBuilder", () => {
     expect(result.currentValuesByConfigIndex).toEqual([30]);
   });
 
+  it("updates current values while the custom x path is unavailable", async () => {
+    const builder = new CurrentCustomDatasetsBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/y.val" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        currentTime: { sec: 2, nsec: 0 },
+        messages: [
+          {
+            topic: "/y",
+            schemaName: "y",
+            receiveTime: { sec: 2, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: 20 },
+          },
+        ],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets(undefined, { sec: 2, nsec: 0 });
+    expect(result.currentValuesByConfigIndex).toEqual([20]);
+    expect(result.datasetsByConfigIndex[0]?.data).toEqual([]);
+  });
+
   it("supports toggling series enabled state", async () => {
     const builder = new CurrentCustomDatasetsBuilder();
 

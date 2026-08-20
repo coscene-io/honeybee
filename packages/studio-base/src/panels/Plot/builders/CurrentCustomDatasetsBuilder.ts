@@ -79,12 +79,20 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     if (sourceChanged || activeData.lastSeekTime !== this.#lastSeekTime) {
       this.#lastSeekTime = activeData.lastSeekTime;
     }
-    if (!this.#xParsedPath) {
+    const msgEvents = activeData.messages;
+    if (msgEvents.length === 0) {
       return;
     }
 
-    const msgEvents = activeData.messages;
-    if (msgEvents.length === 0) {
+    for (const series of this.#seriesByKey.values()) {
+      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
+      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
+      if (legendMatch) {
+        series.legendValue = lastChartValue(legendMatch, mathFn);
+      }
+    }
+
+    if (!this.#xParsedPath) {
       return;
     }
 
@@ -115,11 +123,6 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
 
     for (const series of this.#seriesByKey.values()) {
       const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
-
-      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
-      if (legendMatch) {
-        series.legendValue = lastChartValue(legendMatch, mathFn);
-      }
 
       const msgEvent = lastMatchingTopic(msgEvents, series.parsed.topicName);
       if (!msgEvent) {

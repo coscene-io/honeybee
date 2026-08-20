@@ -184,6 +184,35 @@ describe("CustomDatasetsBuilderImpl", () => {
     ).toEqual([undefined]);
   });
 
+  it("retains the newest receive-time legend values from an out-of-order action", () => {
+    const builder = new CustomDatasetsBuilderImpl();
+    const config = seriesItem("out-of-order-head");
+    const length = 50_001;
+    const batch: ValueItemBatch = {
+      values: new Float64Array(length),
+      receiveTimes: new BigUint64Array(length),
+      valueKinds: new Uint8Array(length),
+      valuePayloads: new BigUint64Array(length),
+      strings: [],
+      fallbackValues: [],
+      fallbackTimes: [],
+    };
+    batch.values[0] = 100_000;
+    batch.receiveTimes[0] = 100_000n * 1_000_000_000n;
+    for (let index = 1; index < length; index++) {
+      batch.values[index] = index;
+      batch.receiveTimes[index] = BigInt(index) * 1_000_000_000n;
+    }
+    builder.updateData([
+      { type: "update-series-config", seriesItems: [config] },
+      { type: "append-playback-head", series: config.key, items: batch },
+    ]);
+
+    expect(
+      builder.getViewportDatasets(viewport, { sec: 100_000, nsec: 0 }).currentValuesByConfigIndex,
+    ).toEqual([100_000]);
+  });
+
   it("looks up current values by receive time in logarithmic work independent of custom x", () => {
     let visited = 0;
     const builder = new CustomDatasetsBuilderImpl({

@@ -7,6 +7,7 @@
 
 import { MessagePath, MessagePathPart, parseMessagePath } from "@foxglove/message-path";
 import { Immutable } from "@foxglove/studio";
+import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import type { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import type { SubscribeMessageRange, SubscribePayload } from "@foxglove/studio-base/players/types";
@@ -18,6 +19,8 @@ export type StateTransitionsTopicPlan = Readonly<{
   currentSubscription: SubscribePayload;
   fallbackSubscription: SubscribePayload;
   rangePayload: Readonly<Pick<SubscribePayload, "fields">>;
+  /** Fields and decoded series identities whose history is stored for this topic. */
+  signature: string;
 }>;
 
 export type RunningStateTransitionsRangeSubscriptions = Readonly<{
@@ -28,22 +31,18 @@ export type RunningStateTransitionsRangeSubscriptions = Readonly<{
   cancel: () => void;
 }>;
 
-type StartStateTransitionsRangeSubscriptionsArgs = Readonly<{
-  plans: readonly StateTransitionsTopicPlan[];
-  attemptRanges: boolean;
-  subscribeMessageRange?: SubscribeMessageRange;
-  /** Resolved after the coordinator has reset storage and established the range generation. */
-  generation: Promise<number>;
+export type StateTransitionsRangeSubscriptionUpdate = Readonly<{
+  rangeTopics: ReadonlySet<string>;
+  subscriptions: readonly SubscribePayload[];
+}>;
+
+type StateTransitionsRangeSubscriptionCallbacks = Readonly<{
   onIteratorStart: (topic: string, generation: number) => Promise<void>;
   onRangeBatch: (
     topic: string,
     batch: readonly import("@foxglove/studio").MessageEvent[],
     generation: number,
   ) => Promise<void>;
-  /**
-   * Switch one asynchronously failed range topic to its full-preload subscription. Returning true
-   * means the fallback was established; false lets the caller surface the original error.
-   */
   onTopicFallback?: (args: {
     topic: string;
     generation: number;
@@ -53,16 +52,33 @@ type StartStateTransitionsRangeSubscriptionsArgs = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
-type RangeSubscriptionState = {
-  cancelled: boolean;
-  fallbackQueue: Promise<void>;
-  latestIteratorByTopic: Map<string, number>;
-  rangeTopics: Set<string>;
-};
+export type CreateStateTransitionsRangeSubscriptionManagerArgs = Readonly<
+  {
+    attemptRanges: boolean;
+    subscribeMessageRange?: SubscribeMessageRange;
+  } & StateTransitionsRangeSubscriptionCallbacks
+>;
+
+type StartStateTransitionsRangeSubscriptionsArgs = Readonly<
+  {
+    plans: readonly StateTransitionsTopicPlan[];
+    attemptRanges: boolean;
+    subscribeMessageRange?: SubscribeMessageRange;
+    /** Resolved after the coordinator has reset storage and established the range generation. */
+    generation: Promise<number>;
+  } & StateTransitionsRangeSubscriptionCallbacks
+>;
 
 type MutableTopicPlan = {
   topic: string;
   fields: Set<string>;
+  seriesKeys: string[];
+};
+
+type TopicRun = {
+  signature: string;
+  mode: "range" | "fallback";
+  stop?: () => void;
 };
 
 type NamePart = Immutable<Extract<MessagePathPart, { type: "name" }>>;
@@ -123,12 +139,13 @@ export function planStateTransitionsSubscriptions(args: {
 
     let topicPlan = topics.get(resolved.topicName);
     if (topicPlan == undefined) {
-      topicPlan = { topic: resolved.topicName, fields: new Set<string>() };
+      topicPlan = { topic: resolved.topicName, fields: new Set<string>(), seriesKeys: [] };
       topics.set(resolved.topicName, topicPlan);
     }
     for (const field of fields) {
       topicPlan.fields.add(field);
     }
+    topicPlan.seriesKeys.push(`${path.timestampMethod}:${stringifyMessagePath(resolved)}`);
   }
 
   return [...topics.values()].map((topicPlan) => {
@@ -146,187 +163,256 @@ export function planStateTransitionsSubscriptions(args: {
         preloadType: "full",
       },
       rangePayload: { fields: [...fields] },
+      signature: [[...fields].sort().join(","), [...topicPlan.seriesKeys].sort().join("|")].join(
+        ";",
+      ),
     };
   });
 }
 
-/**
- * Starts per-topic range subscriptions synchronously so unsupported Players can fall back without
- * failing the whole panel. Iterator consumption is latest-wins and backpressured through bounded
- * batches. Every replacement iterator resets only its topic before replaying from the beginning.
- * An asynchronously failed iterator releases only its topic through `onTopicFallback`.
- */
+/** Reconciles per-topic range iterators while retaining unchanged topic history. */
+export class StateTransitionsRangeSubscriptionManager {
+  #args: CreateStateTransitionsRangeSubscriptionManagerArgs;
+  #plans: readonly StateTransitionsTopicPlan[] = [];
+  #runs = new Map<string, TopicRun>();
+  #cancelled = false;
+  #fallbackQueue: Promise<void> = Promise.resolve();
+  #latestIteratorByTopic = new Map<string, number>();
+  #nextIteratorId = 1;
+  #rangeTopics = new Set<string>();
+
+  public constructor(args: CreateStateTransitionsRangeSubscriptionManagerArgs) {
+    this.#args = args;
+  }
+
+  public update(
+    plans: readonly StateTransitionsTopicPlan[],
+    generation: Promise<number>,
+  ): StateTransitionsRangeSubscriptionUpdate {
+    if (this.#cancelled) {
+      return { rangeTopics: new Set(), subscriptions: [] };
+    }
+    this.#plans = plans;
+    const plansByTopic = new Map<string, StateTransitionsTopicPlan>();
+    if (this.#args.attemptRanges && this.#args.subscribeMessageRange != undefined) {
+      for (const plan of plans) {
+        plansByTopic.set(plan.topic, plan);
+      }
+    }
+
+    for (const [topic, run] of [...this.#runs]) {
+      if (plansByTopic.get(topic)?.signature === run.signature) {
+        continue;
+      }
+      this.#runs.delete(topic);
+      this.#rangeTopics.delete(topic);
+      this.#latestIteratorByTopic.delete(topic);
+      try {
+        run.stop?.();
+      } catch {
+        // Continue reconciling the remaining topics.
+      }
+    }
+
+    const subscribeMessageRange = this.#args.subscribeMessageRange;
+    if (subscribeMessageRange != undefined) {
+      for (const plan of plansByTopic.values()) {
+        if (this.#runs.has(plan.topic)) {
+          continue;
+        }
+        const run: TopicRun = { signature: plan.signature, mode: "fallback" };
+        this.#runs.set(plan.topic, run);
+        const stop = this.#tryStartRangeSubscription(subscribeMessageRange, plan, generation, run);
+        if (stop != undefined) {
+          run.mode = "range";
+          run.stop = stop;
+          this.#rangeTopics.add(plan.topic);
+        }
+      }
+    }
+
+    return {
+      rangeTopics: new Set(this.#rangeTopics),
+      subscriptions: this.#currentSubscriptions(),
+    };
+  }
+
+  public cancel(): void {
+    if (this.#cancelled) {
+      return;
+    }
+    this.#cancelled = true;
+    this.#latestIteratorByTopic.clear();
+    this.#rangeTopics.clear();
+    const runs = [...this.#runs.values()];
+    this.#runs.clear();
+    for (const run of runs) {
+      try {
+        run.stop?.();
+      } catch {
+        // Continue cancelling other topic ranges during cleanup.
+      }
+    }
+  }
+
+  public getSubscriptions(): readonly SubscribePayload[] {
+    return this.#currentSubscriptions();
+  }
+
+  #currentSubscriptions(): SubscribePayload[] {
+    return this.#plans.map((plan) => {
+      if (!this.#args.attemptRanges) {
+        return plan.currentSubscription;
+      }
+      return this.#runs.get(plan.topic)?.mode === "range"
+        ? plan.currentSubscription
+        : plan.fallbackSubscription;
+    });
+  }
+
+  #isCurrentIterator(topic: string, run: TopicRun, iteratorId: number): boolean {
+    return (
+      !this.#cancelled &&
+      this.#runs.get(topic) === run &&
+      this.#rangeTopics.has(topic) &&
+      this.#latestIteratorByTopic.get(topic) === iteratorId
+    );
+  }
+
+  #tryStartRangeSubscription(
+    subscribeMessageRange: SubscribeMessageRange,
+    plan: StateTransitionsTopicPlan,
+    generationPromise: Promise<number>,
+    run: TopicRun,
+  ): (() => void) | undefined {
+    let unsubscribe: (() => void) | undefined;
+    let unsubscribed = false;
+    const stop = (): void => {
+      if (unsubscribed) {
+        return;
+      }
+      unsubscribed = true;
+      try {
+        unsubscribe?.();
+      } catch {
+        // A failed Player cleanup must not prevent fallback.
+      }
+    };
+    try {
+      const subscription = subscribeMessageRange({
+        topic: plan.topic,
+        payload: plan.rangePayload,
+        receiveLiveData: false,
+        skipUserScripts: true,
+        onNewRangeIterator: async (iterator) => {
+          if (this.#cancelled || this.#runs.get(plan.topic) !== run) {
+            return;
+          }
+          const iteratorId = this.#nextIteratorId++;
+          this.#latestIteratorByTopic.set(plan.topic, iteratorId);
+          let generation: number | undefined;
+          try {
+            generation = await generationPromise;
+            if (!this.#isCurrentIterator(plan.topic, run, iteratorId)) {
+              return;
+            }
+            await this.#args.onIteratorStart(plan.topic, generation);
+            if (!this.#isCurrentIterator(plan.topic, run, iteratorId)) {
+              return;
+            }
+            for await (const batch of iterator) {
+              if (!this.#isCurrentIterator(plan.topic, run, iteratorId)) {
+                return;
+              }
+              if (batch.length === 0) {
+                await this.#args.onRangeBatch(plan.topic, batch, generation);
+                continue;
+              }
+              for (let offset = 0; offset < batch.length; offset += MAX_RANGE_INGEST_BATCH_SIZE) {
+                if (!this.#isCurrentIterator(plan.topic, run, iteratorId)) {
+                  return;
+                }
+                await this.#args.onRangeBatch(
+                  plan.topic,
+                  batch.slice(offset, offset + MAX_RANGE_INGEST_BATCH_SIZE),
+                  generation,
+                );
+              }
+            }
+          } catch (error) {
+            if (this.#isCurrentIterator(plan.topic, run, iteratorId)) {
+              stop();
+              if (generation == undefined) {
+                this.#args.onError?.(error);
+              } else {
+                await this.#handleAsyncFailure(plan.topic, run, error, generation);
+              }
+            }
+          }
+        },
+      });
+      if (subscription == undefined) {
+        return undefined;
+      }
+      unsubscribe = subscription;
+      return stop;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async #handleAsyncFailure(
+    topic: string,
+    run: TopicRun,
+    error: unknown,
+    generation: number,
+  ): Promise<void> {
+    run.mode = "fallback";
+    this.#rangeTopics.delete(topic);
+    this.#latestIteratorByTopic.delete(topic);
+    const fallbackOperation = this.#fallbackQueue.then(async () => {
+      if (this.#cancelled || this.#runs.get(topic) !== run) {
+        return;
+      }
+      let fallbackEstablished = false;
+      try {
+        fallbackEstablished =
+          (await this.#args.onTopicFallback?.({
+            topic,
+            generation,
+            rangeTopics: new Set(this.#rangeTopics),
+            subscriptions: this.#currentSubscriptions(),
+          })) === true;
+      } catch (fallbackError) {
+        this.#args.onError?.(fallbackError);
+      }
+      if (!fallbackEstablished) {
+        this.#args.onError?.(error);
+      }
+    });
+    this.#fallbackQueue = fallbackOperation.catch(() => undefined);
+    await fallbackOperation;
+  }
+}
+
+/** One-shot convenience for callers whose plans do not change. */
 export function startStateTransitionsRangeSubscriptions(
   args: StartStateTransitionsRangeSubscriptionsArgs,
 ): RunningStateTransitionsRangeSubscriptions {
-  const rangeTopics = new Set<string>();
-  const subscriptions: SubscribePayload[] = [];
-  const unsubscribes: (() => void)[] = [];
-  const state: RangeSubscriptionState = {
-    cancelled: false,
-    fallbackQueue: Promise.resolve(),
-    latestIteratorByTopic: new Map<string, number>(),
-    rangeTopics,
-  };
-
-  for (const [planIndex, plan] of args.plans.entries()) {
-    const subscribeMessageRange = args.subscribeMessageRange;
-    if (!args.attemptRanges || subscribeMessageRange == undefined) {
-      subscriptions.push(args.attemptRanges ? plan.fallbackSubscription : plan.currentSubscription);
-      continue;
-    }
-
-    const unsubscribe = tryStartRangeSubscription(
-      args,
-      subscribeMessageRange,
-      plan,
-      state,
-      async (error, generation) => {
-        state.rangeTopics.delete(plan.topic);
-        state.latestIteratorByTopic.delete(plan.topic);
-        subscriptions[planIndex] = plan.fallbackSubscription;
-
-        // Player iterators may fail concurrently. Serialize commits so a slower earlier fallback
-        // cannot finish after a later fallback and restore that topic's stale partial subscription.
-        const fallbackOperation = state.fallbackQueue.then(async () => {
-          let fallbackEstablished = false;
-          try {
-            fallbackEstablished =
-              (await args.onTopicFallback?.({
-                topic: plan.topic,
-                generation,
-                rangeTopics: new Set(state.rangeTopics),
-                subscriptions: [...subscriptions],
-              })) === true;
-          } catch (fallbackError) {
-            args.onError?.(fallbackError);
-          }
-          if (!fallbackEstablished) {
-            args.onError?.(error);
-          }
-        });
-        state.fallbackQueue = fallbackOperation.catch(() => undefined);
-        await fallbackOperation;
-      },
-    );
-
-    if (unsubscribe == undefined) {
-      subscriptions.push(plan.fallbackSubscription);
-      continue;
-    }
-    rangeTopics.add(plan.topic);
-    subscriptions.push(plan.currentSubscription);
-    unsubscribes.push(unsubscribe);
-  }
-
+  const manager = new StateTransitionsRangeSubscriptionManager({
+    attemptRanges: args.attemptRanges,
+    subscribeMessageRange: args.subscribeMessageRange,
+    onIteratorStart: args.onIteratorStart,
+    onRangeBatch: args.onRangeBatch,
+    onTopicFallback: args.onTopicFallback,
+    onError: args.onError,
+  });
+  const { rangeTopics, subscriptions } = manager.update(args.plans, args.generation);
   return {
-    rangeTopics: new Set(rangeTopics),
-    subscriptions: [...subscriptions],
+    rangeTopics,
+    subscriptions,
     cancel: () => {
-      if (state.cancelled) {
-        return;
-      }
-      state.cancelled = true;
-      state.latestIteratorByTopic.clear();
-      for (const unsubscribe of unsubscribes) {
-        try {
-          unsubscribe();
-        } catch {
-          // Continue cancelling other topic ranges when one Player cleanup fails.
-        }
-      }
+      manager.cancel();
     },
   };
-}
-
-function tryStartRangeSubscription(
-  args: StartStateTransitionsRangeSubscriptionsArgs,
-  subscribeMessageRange: SubscribeMessageRange,
-  plan: StateTransitionsTopicPlan,
-  state: RangeSubscriptionState,
-  onAsyncFailure: (error: unknown, generation: number) => Promise<void>,
-): (() => void) | undefined {
-  let iteratorId = 0;
-  let unsubscribe: (() => void) | undefined;
-  let unsubscribed = false;
-  const stop = (): void => {
-    if (unsubscribed) {
-      return;
-    }
-    unsubscribed = true;
-    try {
-      unsubscribe?.();
-    } catch {
-      // A failed Player cleanup must not prevent the topic from switching to its fallback.
-    }
-  };
-  try {
-    const subscription = subscribeMessageRange({
-      topic: plan.topic,
-      payload: plan.rangePayload,
-      receiveLiveData: false,
-      skipUserScripts: true,
-      onNewRangeIterator: async (iterator) => {
-        const currentIteratorId = ++iteratorId;
-        state.latestIteratorByTopic.set(plan.topic, currentIteratorId);
-        let generation: number | undefined;
-        try {
-          generation = await args.generation;
-          if (!isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
-            return;
-          }
-
-          await args.onIteratorStart(plan.topic, generation);
-          if (!isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
-            return;
-          }
-
-          for await (const batch of iterator) {
-            if (!isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
-              return;
-            }
-            for (let offset = 0; offset < batch.length; offset += MAX_RANGE_INGEST_BATCH_SIZE) {
-              if (!isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
-                return;
-              }
-              await args.onRangeBatch(
-                plan.topic,
-                batch.slice(offset, offset + MAX_RANGE_INGEST_BATCH_SIZE),
-                generation,
-              );
-            }
-          }
-        } catch (error) {
-          if (isCurrentRangeIterator(state, plan.topic, currentIteratorId)) {
-            stop();
-            if (generation == undefined) {
-              args.onError?.(error);
-            } else {
-              await onAsyncFailure(error, generation);
-            }
-          }
-        }
-      },
-    });
-    if (subscription == undefined) {
-      return undefined;
-    }
-    unsubscribe = subscription;
-    return stop;
-  } catch {
-    // Synchronous setup failures mean this Player/topic does not support range subscriptions.
-    return undefined;
-  }
-}
-
-function isCurrentRangeIterator(
-  state: RangeSubscriptionState,
-  topic: string,
-  iteratorId: number,
-): boolean {
-  return (
-    !state.cancelled &&
-    state.rangeTopics.has(topic) &&
-    state.latestIteratorByTopic.get(topic) === iteratorId
-  );
 }

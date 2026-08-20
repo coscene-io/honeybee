@@ -56,6 +56,7 @@ export type StateTransitionsDatasetAction =
   | { type: "reset" }
   | { type: "set-series"; series: StateTransitionSeriesConfig[] }
   | { type: "reset-series"; key: string }
+  | { type: "reset-full"; key: string }
   | { type: "reset-current" }
   | { type: "append-full"; key: string; batch: PackedStateDatumBatch }
   | { type: "append-current"; key: string; batch: PackedStateDatumBatch };
@@ -608,6 +609,14 @@ export class StateTransitionsDatasetBuilderImpl {
           if (series) {
             series.metadata = [];
             series.metadataByValue.clear();
+          }
+          break;
+        }
+        case "reset-full": {
+          const series = this.#seriesByKey.get(action.key);
+          series?.full.clear();
+          if (series) {
+            compactSeriesMetadata(series);
           }
           break;
         }
