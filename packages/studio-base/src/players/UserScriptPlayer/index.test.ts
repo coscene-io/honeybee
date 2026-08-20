@@ -581,7 +581,7 @@ describe("UserScriptPlayer", () => {
         expect.objectContaining({
           topic: "/np_input",
           timeRange: { start: { sec: 0, nsec: 0 }, end: { sec: 1, nsec: 0 } },
-          receiveLiveData: true,
+          receiveLiveData: false,
         }),
       );
       expect(outputMessages).toEqual([

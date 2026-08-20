@@ -1414,7 +1414,8 @@ export default class UserScriptPlayer implements Player {
     return this.#player.subscribeMessageRange?.({
       topic: inputTopic,
       timeRange: args.timeRange,
-      receiveLiveData: args.receiveLiveData,
+      // Script inputs are aggregated before the output iterator is emitted, so they must finish.
+      receiveLiveData: false,
       onNewRangeIterator: async (iterator) => {
         const inputMessages: MessageEvent[] = [];
         try {
