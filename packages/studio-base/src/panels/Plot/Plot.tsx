@@ -62,7 +62,7 @@ import { CustomDatasetsBuilder } from "./builders/CustomDatasetsBuilder";
 import { IDatasetsBuilder } from "./builders/IDatasetsBuilder";
 import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
-import { PlotConfig } from "./config";
+import { normalizePlotXAxisVal, PlotConfig } from "./config";
 import { downloadCSV, guardCsvDataChunkSource } from "./csv";
 import {
   planPlotSubscriptions,
@@ -118,16 +118,33 @@ const selectGlobalBounds = (store: TimelineInteractionStateStore) => store.globa
 const selectSetGlobalBounds = (store: TimelineInteractionStateStore) => store.setGlobalBounds;
 
 export function Plot(props: Props): React.JSX.Element {
-  const { saveConfig, config } = props;
+  const { saveConfig, config: layoutConfig } = props;
+  const xAxisMode = normalizePlotXAxisVal(layoutConfig.xAxisVal);
+  const config = useMemo(
+    () =>
+      layoutConfig.xAxisVal === xAxisMode ? layoutConfig : { ...layoutConfig, xAxisVal: xAxisMode },
+    [layoutConfig, xAxisMode],
+  );
   const {
     paths: series,
     showLegend,
-    xAxisVal: xAxisMode,
     xAxisPath,
     legendDisplay,
     sidebarDimension,
     [PANEL_TITLE_CONFIG_KEY]: customTitle,
   } = config;
+
+  useEffect(() => {
+    if (layoutConfig.xAxisVal !== "partialTimestamp") {
+      return;
+    }
+    saveConfig((prevConfig) => {
+      const normalizedXAxisVal = normalizePlotXAxisVal(prevConfig.xAxisVal);
+      return normalizedXAxisVal === prevConfig.xAxisVal
+        ? prevConfig
+        : { ...prevConfig, xAxisVal: normalizedXAxisVal };
+    });
+  }, [layoutConfig.xAxisVal, saveConfig]);
 
   const { playerId, startTime } = useDataSourceInfo();
   const rangeStartTime = useDeepMemo(startTime);
@@ -214,7 +231,7 @@ export function Plot(props: Props): React.JSX.Element {
       }
 
       // Only timestamp plots support click-to-seek
-      if ((xAxisMode !== "timestamp" && xAxisMode !== "partialTimestamp") || !coordinator) {
+      if (xAxisMode !== "timestamp" || !coordinator) {
         return;
       }
 
@@ -318,7 +335,6 @@ export function Plot(props: Props): React.JSX.Element {
     let builder: IDatasetsBuilder;
     switch (xAxisMode) {
       case "timestamp":
-      case "partialTimestamp":
         builder = new TimestampDatasetsBuilder({ handleWorkerError, xAxisMode });
         break;
       case "index":
@@ -473,7 +489,7 @@ export function Plot(props: Props): React.JSX.Element {
 
       // Get absolute time for timestamp-based charts
       let absoluteTimeString: string | undefined = undefined;
-      if ((xAxisMode === "timestamp" || xAxisMode === "partialTimestamp") && coordinator) {
+      if (xAxisMode === "timestamp" && coordinator) {
         const {
           playerState: { activeData: { startTime: start } = {} },
         } = getMessagePipelineState();
@@ -537,10 +553,7 @@ export function Plot(props: Props): React.JSX.Element {
       setHoverValue({
         componentId: subscriberId,
         value: seconds,
-        type:
-          xAxisMode === "timestamp" || xAxisMode === "partialTimestamp"
-            ? "PLAYBACK_SECONDS"
-            : "OTHER",
+        type: xAxisMode === "timestamp" ? "PLAYBACK_SECONDS" : "OTHER",
       });
     },
     [buildTooltip, coordinator, setHoverValue, subscriberId, xAxisMode],
@@ -865,8 +878,7 @@ export function Plot(props: Props): React.JSX.Element {
   const globalBounds = useTimelineInteractionState(selectGlobalBounds);
   const setGlobalBounds = useTimelineInteractionState(selectSetGlobalBounds);
 
-  const shouldSync =
-    (config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp") && config.isSynced;
+  const shouldSync = xAxisMode === "timestamp" && config.isSynced;
 
   useEffect(() => {
     if (globalBounds?.sourceId === subscriberId || !shouldSync) {
@@ -1005,7 +1017,7 @@ export function Plot(props: Props): React.JSX.Element {
             <VerticalBars
               coordinator={coordinator}
               hoverComponentId={subscriberId}
-              xAxisIsPlaybackTime={xAxisMode === "timestamp" || xAxisMode === "partialTimestamp"}
+              xAxisIsPlaybackTime={xAxisMode === "timestamp"}
             />
           </div>
         </Tooltip>

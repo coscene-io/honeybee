@@ -230,15 +230,12 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
           help:
             config.xAxisVal === "timestamp" || config.xAxisVal === "custom"
               ? t("fullHistoryXAxisHelp")
-              : config.xAxisVal === "partialTimestamp"
-                ? t("currentTimestampXAxisHelp")
-                : undefined,
+              : undefined,
           options: [
             {
-              label: t("fullTimestamp"),
+              label: t("timestamp"),
               value: "timestamp",
             },
-            { label: t("partialTimestamp"), value: "partialTimestamp" },
             { label: t("index"), value: "index" },
             { label: t("currentPath"), value: "currentCustom" },
             { label: t("accumulatedPath"), value: "custom" },
