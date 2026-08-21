@@ -41,10 +41,15 @@ export type TopicSelection = Map<string, SubscribePayload>;
 
 export type SubscribeMessageRangeArgs = {
   topic: string;
-  timeRange: {
+  timeRange?: {
     start: Time;
     end: Time;
   };
+  payload?: Readonly<Pick<SubscribePayload, "fields">>;
+  /** Continue with newly arriving messages when the Player supports live range subscriptions. */
+  receiveLiveData?: boolean;
+  /** Skip ranges produced by UserScriptPlayer while still allowing source-topic ranges. */
+  skipUserScripts?: boolean;
   onNewRangeIterator: (iterator: AsyncIterable<readonly MessageEvent[]>) => void | Promise<void>;
 };
 

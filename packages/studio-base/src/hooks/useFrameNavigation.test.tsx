@@ -109,6 +109,9 @@ function makeSubscribeMessageRange(
 ): jest.Mock<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>> {
   return jest.fn<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>>(
     ({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       const rangeMessages = messages.filter((rangeMessage) =>
         inRange(rangeMessage, timeRange.start, timeRange.end),
       );
@@ -459,6 +462,9 @@ describe("useFrameNavigation", () => {
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       if (requestCount++ > 0) {
         void onNewRangeIterator(
           (async function* () {
@@ -634,6 +640,9 @@ describe("useFrameNavigation", () => {
       ReturnType<SubscribeMessageRange>,
       Parameters<SubscribeMessageRange>
     >(({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       requestedRanges.push(timeRange);
       const batch = rangeMessages.filter((event) => inRange(event, timeRange.start, timeRange.end));
       void onNewRangeIterator(

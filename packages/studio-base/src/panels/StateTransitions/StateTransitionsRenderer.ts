@@ -8,7 +8,7 @@
 import * as Comlink from "@coscene-io/comlink";
 import type { Theme } from "@mui/material";
 
-import { ComlinkWrap } from "@foxglove/den/worker";
+import { ComlinkWrap, transferTypedArrays } from "@foxglove/den/worker";
 import Logger from "@foxglove/log";
 import { Immutable } from "@foxglove/studio";
 import { Bounds } from "@foxglove/studio-base/types/Bounds";
@@ -21,6 +21,7 @@ import {
   StateTransitionsChartRenderer,
   UpdateAction,
 } from "./StateTransitionsChartRenderer";
+import { PackedStateTransitionDataset } from "./StateTransitionsDatasetBuilderImpl";
 import { Viewport } from "./downsampleStates";
 import { Datum } from "./types";
 
@@ -37,6 +38,8 @@ export class StateTransitionsRenderer {
   #remote: Promise<Comlink.RemoteObject<StateTransitionsChartRenderer>>;
   #dispose?: () => void;
   #destroyed = false;
+  #handleWorkerError?: (event: Event) => void;
+  #workerErrorReported = false;
 
   #theme: Theme;
 
@@ -47,18 +50,17 @@ export class StateTransitionsRenderer {
   ) {
     this.#theme = theme;
     this.#canvas = canvas;
+    this.#handleWorkerError = handleWorkerError;
 
     const worker = new Worker(
       // foxglove-depcheck-used: babel-plugin-transform-import-meta
       new URL("./StateTransitionsChart.worker", import.meta.url),
     );
     worker.onerror = (event) => {
-      log.error("[StateTransitionsRenderer] Worker error:", event);
-      handleWorkerError?.(event);
+      this.#reportWorkerError(event);
     };
     worker.onmessageerror = (event) => {
-      log.error("[StateTransitionsRenderer] Worker message error:", event);
-      handleWorkerError?.(event);
+      this.#reportWorkerError(event);
     };
 
     const { remote, dispose } =
@@ -81,40 +83,48 @@ export class StateTransitionsRenderer {
       ),
     );
 
-    registry.register(this, () => {
-      this.#dispose?.();
-    });
+    registry.register(this, dispose, this);
   }
 
   public async update(action: Immutable<UpdateAction>): Promise<Bounds | undefined> {
     if (this.#destroyed) {
       return undefined;
     }
-    return await (await this.#remote).update(action);
+    return await this.#runRemote(async () => await (await this.#remote).update(action), undefined);
   }
 
   public async getElementsAtPixel(pixel: { x: number; y: number }): Promise<HoverElement[]> {
     if (this.#destroyed) {
       return [];
     }
-    return await (await this.#remote).getElementsAtPixel(pixel);
+    return await this.#runRemote(
+      async () => await (await this.#remote).getElementsAtPixel(pixel),
+      [],
+    );
   }
 
   public async updateDatasets(
-    datasets: Dataset[],
+    datasets: Dataset[] | PackedStateTransitionDataset[],
     viewport?: Viewport,
   ): Promise<Scale | undefined> {
     if (this.#destroyed) {
       return undefined;
     }
-    return await (await this.#remote).updateDatasets(datasets, viewport);
+    return await this.#runRemote(
+      async () =>
+        await (await this.#remote).updateDatasets(transferTypedArrays(datasets), viewport),
+      undefined,
+    );
   }
 
   public async getDatalabelAtEvent(pixel: { x: number; y: number }): Promise<Datum | undefined> {
     if (this.#destroyed) {
       return undefined;
     }
-    return await (await this.#remote).getDatalabelAtEvent(pixel);
+    return await this.#runRemote(
+      async () => await (await this.#remote).getDatalabelAtEvent(pixel),
+      undefined,
+    );
   }
 
   public destroy(): void {
@@ -123,6 +133,7 @@ export class StateTransitionsRenderer {
     }
 
     this.#destroyed = true;
+    registry.unregister(this);
 
     // Immediately dispose of the worker to prevent further operations
     this.#dispose?.();
@@ -131,5 +142,36 @@ export class StateTransitionsRenderer {
 
   public isDestroyed(): boolean {
     return this.#destroyed;
+  }
+
+  async #runRemote<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      this.#reportWorkerError(error);
+      return fallback;
+    }
+  }
+
+  #reportWorkerError(error: unknown): void {
+    if (this.#destroyed || this.#workerErrorReported) {
+      return;
+    }
+    this.#workerErrorReported = true;
+    log.error("[StateTransitionsRenderer] Worker error:", error);
+    const event =
+      error instanceof Event
+        ? error
+        : typeof ErrorEvent !== "undefined"
+          ? new ErrorEvent("error", {
+              error,
+              message: error instanceof Error ? error.message : String(error),
+            })
+          : new Event("error");
+    try {
+      this.#handleWorkerError?.(event);
+    } catch (handlerError) {
+      log.error("[StateTransitionsRenderer] Worker error handler failed", handlerError);
+    }
   }
 }

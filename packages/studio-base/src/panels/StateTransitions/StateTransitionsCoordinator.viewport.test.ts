@@ -11,8 +11,19 @@
  * only re-dispatch stale pending datasets.
  */
 
+import type { Immutable } from "@foxglove/studio";
+
 import type { Dataset, UpdateAction } from "./StateTransitionsChartRenderer";
 import { StateTransitionsCoordinator } from "./StateTransitionsCoordinator";
+import {
+  IStateTransitionsDatasetBuilder,
+  LocalStateTransitionsDatasetBuilder,
+} from "./StateTransitionsDatasetBuilder";
+import {
+  PackedStateTransitionDataset,
+  StateTransitionsDatasetAction,
+  unpackStateTransitionDataset,
+} from "./StateTransitionsDatasetBuilderImpl";
 import type { StateTransitionsRenderer } from "./StateTransitionsRenderer";
 
 function makeMockRenderer() {
@@ -27,8 +38,12 @@ function makeMockRenderer() {
       }
       return { x: { min: 0, max: 30 }, y: { min: -20, max: 0 } };
     }),
-    updateDatasets: jest.fn(async (datasets: Dataset[]) => {
-      datasetSnapshots.push(datasets);
+    updateDatasets: jest.fn(async (datasets: Array<Dataset | PackedStateTransitionDataset>) => {
+      datasetSnapshots.push(
+        datasets.map((dataset) =>
+          "x" in dataset ? { data: unpackStateTransitionDataset(dataset) } : dataset,
+        ),
+      );
       return { min: 0, max: 1, left: 0, right: 100 };
     }),
     getElementsAtPixel: jest.fn(async () => []),
@@ -40,6 +55,10 @@ function makeMockRenderer() {
     datasetSnapshots,
     raw: renderer,
   };
+}
+
+function makeCoordinator(renderer: StateTransitionsRenderer): StateTransitionsCoordinator {
+  return new StateTransitionsCoordinator(renderer, new LocalStateTransitionsDatasetBuilder());
 }
 
 async function flushMicrotasks(): Promise<void> {
@@ -64,7 +83,7 @@ describe("StateTransitionsCoordinator viewport rebuild", () => {
 
   it("rebuilds datasets after setGlobalBounds so slice tracks synced view", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
 
     coordinator.handleConfig(
       {
@@ -157,7 +176,7 @@ describe("StateTransitionsCoordinator viewport rebuild", () => {
 
   it("rebuilds datasets after pan interaction bounds update", async () => {
     const { renderer, datasetSnapshots, raw } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
 
     coordinator.handleConfig(
       {
@@ -249,7 +268,7 @@ describe("StateTransitionsCoordinator block gap tolerance", () => {
 
   it("does not skip past an unloaded block and lose its history when it arrives late", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
 
     coordinator.handleConfig(
       { isSynced: false, paths: [{ value: "/t.data", timestampMethod: "receiveTime" }] },
@@ -402,7 +421,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("preserves every sample when Show Points is enabled after data has loaded", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     const blockMessages = [makeMsg(0, 1), makeMsg(1, 1), makeMsg(2, 1)];
     const config = {
       isSynced: false,
@@ -424,7 +443,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("restores raw streaming history when Show Points is enabled, without a player re-emit", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     const config = {
       isSynced: false,
       paths: [{ value: "/t.data", timestampMethod: "receiveTime" as const }],
@@ -449,7 +468,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("sorts header-stamped block data before viewport slicing", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     const headerStampedMessages = [
       { receiveSec: 0, stampSec: 0, value: 0 },
       { receiveSec: 1, stampSec: 100, value: 2 },
@@ -476,7 +495,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("rebuilds sliced datasets when axis config bounds change without a player emit", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     const blockMessages = Array.from({ length: 10 }, (_, sec) => makeMsg(sec, sec));
 
     coordinator.handleConfig(
@@ -513,7 +532,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("keeps a live header-stamped sample whose stamp falls between block stamps", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     // Blocks receive-ordered with non-monotonic header stamps: [0, 100, 50].
     const headerStampedBlocks = [
       { receiveSec: 0, stampSec: 0, value: 0 },
@@ -550,7 +569,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("slices at least the renderer's half-range pan buffer around the viewport", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     const blockMessages = Array.from({ length: 100 }, (_, sec) => makeMsg(sec, sec));
 
     coordinator.handleConfig(
@@ -575,7 +594,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("keeps header-stamped history sorted across incremental block loads", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     const stamped = (receiveSec: number, stampSec: number, value: number) => ({
       ...makeMsg(receiveSec, value),
       message: { data: value, header: { stamp: { sec: stampSec, nsec: 0 } } },
@@ -617,7 +636,7 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
 
   it("keeps the first streaming value when duplicate timestamps arrive", async () => {
     const { renderer, datasetSnapshots } = makeMockRenderer();
-    const coordinator = new StateTransitionsCoordinator(renderer);
+    const coordinator = makeCoordinator(renderer);
     coordinator.handleConfig(
       {
         isSynced: false,
@@ -630,6 +649,616 @@ describe("StateTransitionsCoordinator ingestion correctness", () => {
     await settleCoordinator();
 
     expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([1]);
+    coordinator.destroy();
+  });
+
+  it("reports array-valued paths after stable series keys are assigned", async () => {
+    const { renderer } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    const pathStates: Array<Array<{ isArray: boolean }>> = [];
+    coordinator.on("pathStateChanged", (state) => {
+      pathStates.push(state);
+    });
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/t.data[:]", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    const state = playerState({}) as {
+      activeData: {
+        datatypes: Map<string, unknown>;
+        messages: unknown[];
+      };
+    };
+    state.activeData.datatypes = new Map([
+      [
+        "std_msgs/Float64",
+        {
+          name: "std_msgs/Float64",
+          definitions: [{ name: "data", type: "float64", isComplex: false, isArray: true }],
+        },
+      ],
+    ]);
+    state.activeData.messages = [
+      {
+        ...makeMsg(1, 0),
+        message: { data: [1, 2] },
+      },
+    ];
+
+    coordinator.handlePlayerState(state as never);
+    await settleCoordinator();
+
+    expect(pathStates.at(-1)?.[0]?.isArray).toBe(true);
+    coordinator.destroy();
+  });
+});
+
+describe("StateTransitionsCoordinator range history", () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+  });
+
+  const datatypes = new Map([
+    [
+      "std_msgs/Float64",
+      {
+        name: "std_msgs/Float64",
+        definitions: [{ name: "data", type: "float64", isComplex: false, isArray: false }],
+      },
+    ],
+  ]);
+
+  const message = (topic: string, sec: number, value: number) => ({
+    topic,
+    schemaName: "std_msgs/Float64",
+    receiveTime: { sec, nsec: 0 },
+    message: { data: value },
+    sizeInBytes: 8,
+  });
+
+  function playerState(args: {
+    messages?: ReturnType<typeof message>[];
+    messagesByTopic?: Record<string, ReturnType<typeof message>[]>;
+    lastSeekTime?: number;
+  }) {
+    const topics = ["/range", "/fallback", "/disabled"].map((name) => ({
+      name,
+      schemaName: "std_msgs/Float64",
+    }));
+    return {
+      presence: 3,
+      playerId: "range-source",
+      progress:
+        args.messagesByTopic == undefined
+          ? {}
+          : {
+              messageCache: {
+                blocks: [{ messagesByTopic: args.messagesByTopic, sizeInBytes: 24 }],
+                startTime: { sec: 0, nsec: 0 },
+              },
+            },
+      capabilities: [],
+      profile: undefined,
+      activeData: {
+        messages: args.messages ?? [],
+        totalBytesReceived: 0,
+        currentTime: { sec: 5, nsec: 0 },
+        startTime: { sec: 0, nsec: 0 },
+        endTime: { sec: 10, nsec: 0 },
+        isPlaying: false,
+        speed: 1,
+        lastSeekTime: args.lastSeekTime ?? 1,
+        topics,
+        topicStats: new Map(),
+        datatypes,
+        publishedTopics: new Map(),
+        subscribedTopics: new Map(),
+        services: new Map(),
+      },
+    } as never;
+  }
+
+  it("uses range data for supported topics and blocks only for per-topic fallbacks", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [
+          { value: "/range.data", timestampMethod: "receiveTime" },
+          { value: "/fallback.data", timestampMethod: "receiveTime" },
+        ],
+      },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(
+      playerState({
+        messages: [message("/range", 6, 99)],
+        messagesByTopic: {
+          "/range": [message("/range", 0, 99)],
+          "/fallback": [message("/fallback", 1, 3), message("/fallback", 3, 4)],
+        },
+      }),
+    );
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 1), message("/range", 4, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    const datasets = datasetSnapshots.at(-1);
+    // Range history supplies [2, 4]; the current-frame sample at 6 stays visible as the playhead
+    // tail; the block sample at 0 must not be double-ingested for a range-owned topic.
+    expect(datasets?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [2, 1],
+      [4, 2],
+      [6, 99],
+    ]);
+    expect(datasets?.[1]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [1, 3],
+      [3, 4],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("shows the playhead tail before any range history has arrived", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [6, 99],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("preserves the playhead tail while a replacement iterator restarts", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+
+    await coordinator.resetRangeTopic({ topic: "/range", generation });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [6, 99],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("replaces the playhead tail once the range scan covers it", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(playerState({}));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 1), message("/range", 4, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 6, 1), message("/range", 8, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    // Exactly one sample at x=6, owned by range history — the playhead duplicate is trimmed.
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [2, 1],
+      [4, 2],
+      [6, 1],
+      [8, 2],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("clears the playhead tail on seek while keeping range history", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    coordinator.handlePlayerState(playerState({}));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 1), message("/range", 4, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.handlePlayerState(playerState({ messages: [message("/range", 6, 99)] }));
+    coordinator.handlePlayerState(playerState({ lastSeekTime: 2 }));
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => [datum.x, datum.value])).toEqual([
+      [2, 1],
+      [4, 2],
+    ]);
+    coordinator.destroy();
+  });
+
+  it("rejects stale range generations after a data-source change", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/range.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({}));
+    const staleGeneration = coordinator.configureHistorySources({
+      sourceId: "old-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+    const currentGeneration = coordinator.configureHistorySources({
+      sourceId: "new-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+    });
+
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 1, 99)],
+      startTime: { sec: 0, nsec: 0 },
+      generation: staleGeneration,
+    });
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation: currentGeneration,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([2]);
+    coordinator.destroy();
+  });
+
+  it("resets replay history for a fresh range session on the same source", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/range.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({}));
+    const firstGeneration = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 1, 1)],
+      startTime: { sec: 0, nsec: 0 },
+      generation: firstGeneration,
+    });
+
+    const secondGeneration = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+      rangeSessionId: 2,
+    });
+    await coordinator.resetRangeTopic({ topic: "/range", generation: secondGeneration });
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 2, 2)],
+      startTime: { sec: 0, nsec: 0 },
+      generation: secondGeneration,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([2]);
+    coordinator.destroy();
+  });
+
+  it("retains sibling range history when a lane is added", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    const paths = [
+      { value: "/range.data", timestampMethod: "receiveTime" as const },
+      { value: "/fallback.data", timestampMethod: "receiveTime" as const },
+    ];
+    coordinator.handleConfig({ isSynced: false, paths }, {});
+    const generation = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range", "/fallback"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    coordinator.handlePlayerState(playerState({}));
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 1, 10)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    await coordinator.handleRangeBatch({
+      topic: "/fallback",
+      messages: [message("/fallback", 2, 20)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([10]);
+    expect(datasetSnapshots.at(-1)?.[1]?.data.map((datum) => datum.value)).toEqual([20]);
+
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [...paths, { value: "/disabled.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    const reconciledGeneration = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range", "/fallback", "/disabled"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    expect(reconciledGeneration).toBe(generation);
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([10]);
+    expect(datasetSnapshots.at(-1)?.[1]?.data.map((datum) => datum.value)).toEqual([20]);
+    coordinator.destroy();
+  });
+
+  it("accepts a queued fallback after plan reconciliation already released its topic", async () => {
+    const { renderer } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      { isSynced: false, paths: [{ value: "/range.data", timestampMethod: "receiveTime" }] },
+      {},
+    );
+    const generation = coordinator.configureHistorySources({
+      sourceId: "same-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    expect(
+      coordinator.configureHistorySources({
+        sourceId: "same-source",
+        rangeTopics: new Set(),
+        isLive: false,
+        rangeSessionId: 1,
+      }),
+    ).toBe(generation);
+
+    await expect(coordinator.releaseRangeTopic({ topic: "/range", generation })).resolves.toBe(
+      true,
+    );
+    coordinator.destroy();
+  });
+
+  it("invalidates range callbacks as soon as their subscription cleans up", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/range.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(playerState({}));
+    const generation = coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(["/range"]),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    coordinator.invalidateRangeHistory(generation);
+    await coordinator.handleRangeBatch({
+      topic: "/range",
+      messages: [message("/range", 1, 99)],
+      startTime: { sec: 0, nsec: 0 },
+      generation,
+    });
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data).toEqual([]);
+    coordinator.destroy();
+  });
+
+  it("restores fallback data after history configuration resets an already-fed state", async () => {
+    const { renderer, datasetSnapshots } = makeMockRenderer();
+    const coordinator = makeCoordinator(renderer);
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/fallback.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    const state = playerState({
+      messagesByTopic: {
+        "/fallback": [message("/fallback", 1, 3), message("/fallback", 3, 4)],
+      },
+    });
+
+    // Matches the component effect order: player state first, subscription negotiation second.
+    coordinator.handlePlayerState(state);
+    coordinator.configureHistorySources({
+      sourceId: "range-source",
+      rangeTopics: new Set(),
+      isLive: false,
+      rangeSessionId: 1,
+    });
+    coordinator.handlePlayerState(state);
+    coordinator.setGlobalBounds({ min: 0, max: 10 });
+    await settleCoordinator();
+
+    expect(datasetSnapshots.at(-1)?.[0]?.data.map((datum) => datum.value)).toEqual([3, 4]);
+    coordinator.destroy();
+  });
+
+  it("does not subscribe, decode, or retain disabled paths", () => {
+    const actions: Immutable<StateTransitionsDatasetAction>[] = [];
+    const builder: IStateTransitionsDatasetBuilder = {
+      applyActions(nextActions) {
+        actions.push(...nextActions);
+      },
+      async applyActionsAndFlush(nextActions) {
+        actions.push(...nextActions);
+      },
+      async getViewportDatasets() {
+        return [];
+      },
+      destroy() {},
+    };
+    const { renderer } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer, builder);
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [
+          { value: "/disabled.data", timestampMethod: "receiveTime", enabled: false },
+          { value: "/fallback.data", timestampMethod: "receiveTime" },
+        ],
+      },
+      {},
+    );
+    coordinator.handlePlayerState(
+      playerState({
+        messages: [message("/disabled", 1, 1)],
+        messagesByTopic: { "/disabled": [message("/disabled", 1, 1)] },
+      }),
+    );
+
+    const seriesAction = actions.find((action) => action.type === "set-series");
+    expect(seriesAction?.series.map((series) => series.key)).toEqual([
+      "receiveTime:/fallback.data:0",
+    ]);
+    expect(
+      actions.some(
+        (action) =>
+          (action.type === "append-full" || action.type === "append-current") &&
+          action.key.includes("/disabled"),
+      ),
+    ).toBe(false);
+    coordinator.destroy();
+  });
+
+  it("reports rejected viewport work instead of creating an unhandled rejection", async () => {
+    const failure = new Error("worker stopped");
+    const handleDatasetError = jest.fn();
+    const builder: IStateTransitionsDatasetBuilder = {
+      applyActions() {},
+      async applyActionsAndFlush() {},
+      async getViewportDatasets() {
+        throw failure;
+      },
+      destroy() {},
+    };
+    const { renderer } = makeMockRenderer();
+    const coordinator = new StateTransitionsCoordinator(renderer, builder, { handleDatasetError });
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/range.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.setSize({ width: 100, height: 100 });
+    await settleCoordinator();
+
+    expect(handleDatasetError).toHaveBeenCalledWith(failure);
+    coordinator.destroy();
+  });
+
+  it("routes repeated renderer rejections through the panel error handler only once", async () => {
+    const failure = new Error("chart worker stopped");
+    const handleDatasetError = jest.fn();
+    const { renderer, raw } = makeMockRenderer();
+    raw.update.mockRejectedValue(failure);
+    raw.updateDatasets.mockRejectedValue(failure);
+    const coordinator = new StateTransitionsCoordinator(
+      renderer,
+      new LocalStateTransitionsDatasetBuilder(),
+      { handleDatasetError },
+    );
+    coordinator.handleConfig(
+      {
+        isSynced: false,
+        paths: [{ value: "/range.data", timestampMethod: "receiveTime" }],
+      },
+      {},
+    );
+    coordinator.updateDatasets([]);
+    await settleCoordinator();
+
+    expect(handleDatasetError).toHaveBeenCalledTimes(1);
+    expect(handleDatasetError).toHaveBeenCalledWith(failure);
     coordinator.destroy();
   });
 });

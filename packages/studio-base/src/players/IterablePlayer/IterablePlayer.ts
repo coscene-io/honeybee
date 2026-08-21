@@ -120,6 +120,10 @@ type IterablePlayerState =
   | "play"
   | "reset-playback-iterator";
 
+type ActiveMessageRange = {
+  cancel: () => Promise<void>;
+};
+
 /**
  * IterablePlayer implements the Player interface for IIterableSource instances.
  *
@@ -184,8 +188,9 @@ export class IterablePlayer implements Player {
   // Buffered source used for playback.
   #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
 
-  // Independent deserialized source used only for bounded panel-owned message range reads.
+  // Independent deserialized source used only for panel-owned message range reads.
   #messageRangeSource?: IDeserializedIterableSource;
+  #activeMessageRanges = new Set<ActiveMessageRange>();
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -443,27 +448,79 @@ export class IterablePlayer implements Player {
 
   public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
     const source = this.#messageRangeSource;
-    if (source == undefined) {
+    if (source == undefined || this.#closePromise != undefined) {
       return undefined;
     }
 
     const abortController = new AbortController();
     let iterator: AsyncIterableIterator<Readonly<IteratorResult>> | undefined;
+    let iteratorReturnPromise: Promise<void> | undefined;
+    let cancelPromise: Promise<void> | undefined;
+
+    const returnIterator = async (): Promise<void> => {
+      if (iteratorReturnPromise != undefined) {
+        await iteratorReturnPromise;
+        return;
+      }
+
+      const currentIterator = iterator;
+      if (currentIterator?.return == undefined) {
+        return;
+      }
+
+      iteratorReturnPromise = Promise.resolve()
+        .then(async () => {
+          await currentIterator.return?.();
+        })
+        .catch((err: unknown) => {
+          log.warn(`Failed to close message range iterator: ${String(err)}`);
+        });
+      await iteratorReturnPromise;
+    };
+
+    const releaseRange = async (): Promise<void> => {
+      try {
+        await returnIterator();
+      } finally {
+        this.#activeMessageRanges.delete(activeRange);
+      }
+    };
+    const activeRange: ActiveMessageRange = {
+      cancel: async () => {
+        abortController.abort();
+        cancelPromise ??= releaseRange();
+        await cancelPromise;
+      },
+    };
+    this.#activeMessageRanges.add(activeRange);
+    const isAborted = () => abortController.signal.aborted;
 
     const rangeIterator = (async function* (): AsyncIterableIterator<readonly MessageEvent[]> {
-      let messages: MessageEvent[] = [];
-      iterator = source.messageIterator({
-        topics: new Map([[args.topic, { topic: args.topic }]]),
-        start: args.timeRange.start,
-        end: args.timeRange.end,
-        consumptionType: "full",
-        abortSignal: abortController.signal,
-      });
+      if (isAborted()) {
+        return;
+      }
 
+      let messages: MessageEvent[] = [];
+      const subscription: SubscribePayload =
+        args.payload?.fields == undefined
+          ? { topic: args.topic }
+          : { topic: args.topic, fields: args.payload.fields };
       try {
-        for await (const result of iterator) {
-          if (abortController.signal.aborted) {
-            return;
+        iterator = source.messageIterator({
+          topics: new Map([[args.topic, subscription]]),
+          start: args.timeRange?.start,
+          end: args.timeRange?.end,
+          consumptionType: "full",
+          abortSignal: abortController.signal,
+        });
+        for (;;) {
+          const next = await iterator.next();
+          if (next.done === true) {
+            break;
+          }
+          const result = next.value;
+          if (isAborted()) {
+            continue;
           }
           if (result.type === "message-event" && result.msgEvent.topic === args.topic) {
             messages.push(result.msgEvent);
@@ -473,22 +530,27 @@ export class IterablePlayer implements Player {
             }
           }
         }
-      } finally {
-        await iterator.return?.();
-      }
 
-      if (!abortController.signal.aborted && messages.length > 0) {
-        yield messages;
+        if (!isAborted() && messages.length > 0) {
+          yield messages;
+        }
+      } finally {
+        await releaseRange();
       }
     })();
 
-    Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch((err: unknown) => {
+    const handleCallbackError = (err: unknown) => {
       log.warn(`Message range subscription failed: ${String(err)}`);
-    });
+      void activeRange.cancel();
+    };
+    try {
+      void Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch(handleCallbackError);
+    } catch (err) {
+      handleCallbackError(err);
+    }
 
     return () => {
-      abortController.abort();
-      void iterator?.return?.();
+      void activeRange.cancel();
     };
   }
 
@@ -1302,6 +1364,13 @@ export class IterablePlayer implements Player {
 
     // The block loader and playback iterator may still be reading the source. Stop them in order
     // before clearing the cache and terminating the underlying source.
+    await attempt(async () => {
+      await Promise.all(
+        Array.from(this.#activeMessageRanges, async (range) => {
+          await range.cancel();
+        }),
+      );
+    });
     await attempt(async () => {
       await this.#blockLoader?.stopLoading();
     });

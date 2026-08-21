@@ -12,7 +12,6 @@ import { filterMap } from "@foxglove/den/collection";
 import { parseMessagePath } from "@foxglove/message-path";
 import { toSec, subtract as subtractTime } from "@foxglove/rostime";
 import { Immutable, Time } from "@foxglove/studio";
-import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { stringifyMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/stringifyRosPath";
 import { fillInGlobalVariablesInPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
@@ -25,8 +24,10 @@ import { getContrastColor, getLineColor } from "@foxglove/studio-base/util/plotC
 import { Dataset, InteractionEvent, Scale, UpdateAction } from "./ChartRenderer";
 import { OffscreenCanvasRenderer } from "./OffscreenCanvasRenderer";
 import {
+  CsvDataChunkCallback,
   CsvDataset,
   IDatasetsBuilder,
+  MAX_CSV_DATUMS_PER_CHUNK,
   SeriesConfigKey,
   SeriesItem,
   Viewport,
@@ -70,6 +71,10 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
   #interactionBounds?: Bounds;
 
   #lastSeekTime = NaN;
+  #playerId?: string;
+  #currentTime?: Immutable<Time>;
+  /** Changes only across discontinuities, not every playback frame, to avoid response starvation. */
+  #currentValuesEpoch = 0;
 
   /** Normalized series from latest config */
   #series: Immutable<SeriesItem[]> = [];
@@ -125,10 +130,27 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     }
     const activeData = state.activeData;
     if (!activeData) {
+      this.#datasetRange = this.#datasetsBuilder.handlePlayerState(state);
+      if (this.#currentTime != undefined || this.#playerId !== state.playerId) {
+        if (this.#playerId !== state.playerId) {
+          // Stop in-flight block processing for the previous source; its abort predicate
+          // compares against #latestBlocks.
+          this.#latestBlocks = undefined;
+        }
+        this.#currentTime = undefined;
+        this.#playerId = state.playerId;
+        this.#currentValuesEpoch++;
+        this.#currentValuesByConfigIndex = [];
+        this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
+      }
+      this.#queueDispatchRender();
       return;
     }
 
-    const { messages, lastSeekTime, currentTime, startTime } = activeData;
+    const { lastSeekTime, currentTime, startTime } = activeData;
+    const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
+    this.#playerId = state.playerId;
+    this.#currentTime = currentTime;
 
     if (this.#isTimeseriesPlot) {
       const secondsSinceStart = toSec(subtractTime(currentTime, startTime));
@@ -138,37 +160,23 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     const datasetsRange = this.#datasetsBuilder.handlePlayerState(state);
 
     const blocks = state.progress.messageCache?.blocks;
+    if (sourceChanged) {
+      // The in-flight #dispatchBlocks loop aborts by comparing against #latestBlocks. When the
+      // new source has not produced message-cache blocks yet, the stale reference would keep
+      // that predicate false and let old-source appends land after the new source's resets.
+      this.#latestBlocks = undefined;
+    }
     if (blocks && this.#datasetsBuilder.handleBlocks) {
       this.#latestBlocks = blocks;
       this.#queueBlocks(activeData.startTime, blocks);
     }
 
-    if (lastSeekTime !== this.#lastSeekTime) {
+    if (sourceChanged || lastSeekTime !== this.#lastSeekTime) {
+      this.#currentValuesEpoch++;
       this.#currentValuesByConfigIndex = [];
       this.#lastSeekTime = lastSeekTime;
+      this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
     }
-
-    for (const seriesItem of this.#series) {
-      if (seriesItem.timestampMethod === "headerStamp") {
-        // We currently do not support showing current values in the legend for header.stamp mode,
-        // which would require keeping a buffer of messages to sort (currently done in
-        // TimestampDatasetsBuilderImpl)
-        continue;
-      }
-      for (let i = messages.length - 1; i >= 0; --i) {
-        const msgEvent = messages[i]!;
-        if (msgEvent.topic !== seriesItem.parsed.topicName) {
-          continue;
-        }
-        const items = simpleGetMessagePathDataItems(msgEvent, seriesItem.parsed);
-        if (items.length > 0) {
-          this.#currentValuesByConfigIndex[seriesItem.configIndex] = items[items.length - 1];
-          break;
-        }
-      }
-    }
-
-    this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
 
     this.#datasetRange = datasetsRange;
     this.#queueDispatchRender();
@@ -182,6 +190,8 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     if (this.isDestroyed()) {
       return;
     }
+    // A pending worker result belongs to the previous config-index mapping.
+    this.#currentValuesEpoch++;
     this.#xAxisVal = config.xAxisVal;
     this.#isTimeseriesPlot =
       config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp";
@@ -331,6 +341,17 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     this.#queueDispatchRender();
   }
 
+  /** Schedules a viewport refresh after a backpressured range batch reaches the Dataset worker. */
+  public handleRangeDataUpdated(datasetRange?: Immutable<Bounds1D>): void {
+    if (!this.isDestroyed()) {
+      if (datasetRange != undefined) {
+        this.#datasetRange = datasetRange;
+        this.#queueDispatchRender();
+      }
+      this.#queueDispatchDatasets();
+    }
+  }
+
   /** Get the plot x value at the canvas pixel x location */
   public getXValueAtPixel(pixelX: number): number {
     if (!this.#latestXScale) {
@@ -356,6 +377,19 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
       return [];
     }
     return await this.#datasetsBuilder.getCsvData();
+  }
+
+  /** Visit bounded CSV data without retaining a full export on the main thread. */
+  public async forEachCsvDataChunk(
+    callback: CsvDataChunkCallback,
+    maxDatums = MAX_CSV_DATUMS_PER_CHUNK,
+  ): Promise<boolean> {
+    if (this.isDestroyed()) {
+      return false;
+    }
+    const guardedCallback: CsvDataChunkCallback = async (datasets) =>
+      this.isDestroyed() ? false : await callback(datasets);
+    return await this.#datasetsBuilder.forEachCsvDataChunk(guardedCallback, maxDatums);
   }
 
   /**
@@ -469,10 +503,41 @@ export class PlotCoordinator extends EventEmitter<EventTypes> {
     }
     this.#viewport.bounds.x = await this.#getXBounds();
     this.#viewport.bounds.y = this.#interactionBounds?.y ?? this.#configBounds.y;
+    this.#viewport.following =
+      this.#isTimeseriesPlot &&
+      this.#followRange != undefined &&
+      Number.isFinite(this.#followRange) &&
+      this.#followRange > 0 &&
+      this.#currentSeconds != undefined &&
+      Number.isFinite(this.#currentSeconds) &&
+      this.#interactionBounds == undefined &&
+      this.#globalBounds == undefined;
+    this.#viewport.interactive =
+      this.#interactionBounds != undefined || this.#globalBounds != undefined;
 
-    const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport);
+    const currentValuesEpoch = this.#currentValuesEpoch;
+    const currentValuesAt = this.#currentTime;
+    const result = await this.#datasetsBuilder.getViewportDatasets(this.#viewport, currentValuesAt);
     if (this.isDestroyed()) {
       return;
+    }
+    if (
+      result.currentValuesByConfigIndex != undefined &&
+      currentValuesAt != undefined &&
+      currentValuesEpoch === this.#currentValuesEpoch
+    ) {
+      this.#currentValuesByConfigIndex = Array.from(result.currentValuesByConfigIndex);
+      this.emit("currentValuesChanged", this.#currentValuesByConfigIndex);
+    }
+    if (
+      result.datasetRange != undefined &&
+      (this.#datasetRange?.min !== result.datasetRange.min ||
+        this.#datasetRange.max !== result.datasetRange.max)
+    ) {
+      this.#datasetRange = result.datasetRange;
+      // A worker may evict an old extreme while serving the final silent batch. Refresh the scale
+      // from its authoritative range without requiring another Player update.
+      this.#queueDispatchRender();
     }
     this.#latestXScale = await this.#renderer.updateDatasets(
       // Use Array.from to fill in any `undefined` entries with an empty dataset (`map` would not

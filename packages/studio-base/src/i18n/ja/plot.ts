@@ -42,6 +42,8 @@ export const plot: Partial<TypeOptions["resources"]["plot"]> = {
   xAxis: "X軸",
   yAxis: "Y軸",
   resetView: undefined,
+  fullHistoryXAxisHelp:
+    "データソースが範囲クエリに対応している場合は履歴全体を読み込みます。ライブソースでは上限付きのスライド式現在ウィンドウを使用します。",
   enableAllSeries: "すべて有効にする",
   disableAllSeries: "すべて無効にする",
   toggleAllSeries: "すべて切り替え",

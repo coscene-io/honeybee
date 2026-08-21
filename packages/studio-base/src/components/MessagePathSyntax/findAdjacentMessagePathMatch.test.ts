@@ -67,6 +67,9 @@ function makeSubscribeMessageRange(messages: readonly MessageEvent[]): {
 } {
   const unsubscribeMocks: jest.Mock[] = [];
   const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+    if (timeRange == undefined) {
+      throw new Error("Expected a bounded range request");
+    }
     const unsubscribe = jest.fn();
     unsubscribeMocks.push(unsubscribe);
     const batch = messages.filter((msg) =>
@@ -261,6 +264,9 @@ describe("findAdjacentMessagePathMatch", () => {
     const target = message(7, 1);
     const ranges: { readonly start: Time; readonly end: Time }[] = [];
     const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       ranges.push(timeRange);
       const batch = isInRange(target.receiveTime, timeRange.start, timeRange.end) ? [target] : [];
       void onNewRangeIterator(
@@ -299,6 +305,9 @@ describe("findAdjacentMessagePathMatch", () => {
   ])("uses adaptive previous windows capped at %s seconds", async (maxSeconds, expected) => {
     const ranges: { readonly start: Time; readonly end: Time }[] = [];
     const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       ranges.push(timeRange);
       void onNewRangeIterator(
         (async function* emptyIterator() {
@@ -474,6 +483,9 @@ describe("findAdjacentMessagePathMatch", () => {
   it("scans a long empty next range with one subscription", async () => {
     const ranges: { readonly start: Time; readonly end: Time }[] = [];
     const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       ranges.push(timeRange);
       void onNewRangeIterator(
         (async function* emptyIterator() {
@@ -501,6 +513,9 @@ describe("findAdjacentMessagePathMatch", () => {
   it("expands previous ranges to reach a distant empty boundary in bounded subscriptions", async () => {
     const ranges: { readonly start: Time; readonly end: Time }[] = [];
     const subscribeMessageRange: SubscribeMessageRange = ({ timeRange, onNewRangeIterator }) => {
+      if (timeRange == undefined) {
+        throw new Error("Expected a bounded range request");
+      }
       ranges.push(timeRange);
       void onNewRangeIterator(
         (async function* emptyIterator() {

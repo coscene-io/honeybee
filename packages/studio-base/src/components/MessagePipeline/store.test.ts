@@ -15,9 +15,11 @@ describe("MessagePipeline store", () => {
   it("preserves the player binding when subscribing message ranges", () => {
     const unsubscribe = jest.fn();
     let called = false;
+    let receivedArgs: SubscribeMessageRangeArgs | undefined;
     const player = {
       subscribeMessageRange(this: Player, args: SubscribeMessageRangeArgs) {
         called = true;
+        receivedArgs = args;
         expect(this).toBe(player);
         expect(args.topic).toBe("/camera");
         return unsubscribe;
@@ -31,14 +33,51 @@ describe("MessagePipeline store", () => {
       s3FileService: {} as S3FileService,
     });
 
-    const result = store.getState().public.subscribeMessageRange?.({
+    const rangeArgs: SubscribeMessageRangeArgs = {
       topic: "/camera",
-      timeRange: { start: { sec: 0, nsec: 0 }, end: { sec: 1, nsec: 0 } },
+      payload: { fields: ["header", "data"] },
+      receiveLiveData: true,
+      skipUserScripts: true,
       onNewRangeIterator: jest.fn(),
-    });
+    };
+    const result = store.getState().public.subscribeMessageRange?.(rangeArgs);
 
     expect(result).toBe(unsubscribe);
     expect(called).toBe(true);
+    expect(receivedArgs).toBe(rangeArgs);
+    expect(receivedArgs).not.toHaveProperty("timeRange");
+  });
+
+  it("keeps range subscriptions working after a player-switch reset", () => {
+    const unsubscribe = jest.fn();
+    const subscribeMessageRange = jest.fn(() => unsubscribe);
+    const player = {
+      subscribeMessageRange,
+    } as unknown as Player;
+
+    const store = createMessagePipelineStore({
+      promisesToWaitForRef: { current: [] },
+      initialPlayer: player,
+      urdfStorage: {} as IUrdfStorage,
+      s3FileService: {} as S3FileService,
+    });
+
+    // reset() runs when the playerId changes (e.g. opening another recording). Unlike the
+    // playback controls, which the reducer rebinds from capabilities on the next player state,
+    // subscribeMessageRange is a closure over the current player and must survive the reset.
+    store.getState().reset();
+
+    const rangeArgs: SubscribeMessageRangeArgs = {
+      topic: "/camera",
+      payload: { fields: ["header"] },
+      receiveLiveData: false,
+      skipUserScripts: true,
+      onNewRangeIterator: jest.fn(),
+    };
+    const result = store.getState().public.subscribeMessageRange?.(rangeArgs);
+
+    expect(result).toBe(unsubscribe);
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
   });
 
   it("waits for close before reopening and coalesces reopen requests", async () => {

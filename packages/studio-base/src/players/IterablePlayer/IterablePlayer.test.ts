@@ -1233,19 +1233,19 @@ describe("IterablePlayer", () => {
     await player.isClosed;
   });
 
-  it("subscribes a message range without emitting player state", async () => {
+  it("subscribes the full message range with sliced fields without emitting player state", async () => {
     const rangeMessages: MessageEvent[] = [
       {
         topic: "video",
         receiveTime: { sec: 0, nsec: 100 },
-        message: { value: 1 },
+        message: { value: 1, ignored: "first" },
         sizeInBytes: 1,
         schemaName: "video",
       },
       {
         topic: "video",
         receiveTime: { sec: 0, nsec: 200 },
-        message: { value: 2 },
+        message: { value: 2, ignored: "second" },
         sizeInBytes: 1,
         schemaName: "video",
       },
@@ -1279,10 +1279,7 @@ describe("IterablePlayer", () => {
     const receivedBatches: MessageEvent[][] = [];
     const unsubscribe = player.subscribeMessageRange({
       topic: "video",
-      timeRange: {
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 0, nsec: 500 },
-      },
+      payload: { fields: ["value"] },
       onNewRangeIterator: async (iterator) => {
         for await (const batch of iterator) {
           receivedBatches.push([...batch]);
@@ -1293,14 +1290,15 @@ describe("IterablePlayer", () => {
     await waitFor(() => receivedBatches.length === 1);
 
     expect(unsubscribe).toEqual(expect.any(Function));
-    expect(source.calls).toEqual([
+    expect(source.calls).toHaveLength(1);
+    expect(source.calls[0]).toEqual(
       expect.objectContaining({
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 0, nsec: 500 },
-        topics: mockTopicSelection("video"),
+        start: undefined,
+        end: undefined,
+        topics: new Map([["video", { topic: "video", fields: ["value"] }]]),
         consumptionType: "full",
       }),
-    ]);
+    );
     expect(
       receivedBatches[0]?.map(({ topic, receiveTime, message }) => ({
         topic,
@@ -1311,8 +1309,28 @@ describe("IterablePlayer", () => {
       rangeMessages.map(({ topic, receiveTime, message }) => ({
         topic,
         receiveTime,
-        message,
+        message: { value: (message as { value: number }).value },
       })),
+    );
+
+    const boundedDone = signal();
+    const boundedRange = {
+      start: { sec: 0, nsec: 50 },
+      end: { sec: 0, nsec: 250 },
+    };
+    player.subscribeMessageRange({
+      topic: "video",
+      timeRange: boundedRange,
+      onNewRangeIterator: async (iterator) => {
+        for await (const batch of iterator) {
+          void batch;
+        }
+        boundedDone.resolve();
+      },
+    });
+    await boundedDone;
+    expect(source.calls[1]).toEqual(
+      expect.objectContaining({ start: boundedRange.start, end: boundedRange.end }),
     );
 
     void player.close();
@@ -1331,6 +1349,7 @@ describe("IterablePlayer", () => {
 
     class StreamingRangeSource extends TestSource {
       public abortSignals: AbortSignal[] = [];
+      public rangeIteratorReturns = 0;
 
       public override async *messageIterator(
         args: MessageIteratorArgs,
@@ -1338,26 +1357,30 @@ describe("IterablePlayer", () => {
         if (args.abortSignal) {
           this.abortSignals.push(args.abortSignal);
         }
-        for (let i = 0; i < 512; i++) {
-          yield { type: "message-event", msgEvent: rangeMessages[i]! };
-        }
+        try {
+          for (let i = 0; i < 512; i++) {
+            yield { type: "message-event", msgEvent: rangeMessages[i]! };
+          }
 
-        await race([
-          releaseTail,
-          new Promise<void>((resolve) => {
-            args.abortSignal?.addEventListener(
-              "abort",
-              () => {
-                resolve();
-              },
-              { once: true },
-            );
-          }),
-        ]);
-        if (args.abortSignal?.aborted === true) {
-          return;
+          await race([
+            releaseTail,
+            new Promise<void>((resolve) => {
+              args.abortSignal?.addEventListener(
+                "abort",
+                () => {
+                  resolve();
+                },
+                { once: true },
+              );
+            }),
+          ]);
+          if (args.abortSignal?.aborted === true) {
+            return;
+          }
+          yield { type: "message-event", msgEvent: rangeMessages[512]! };
+        } finally {
+          this.rangeIteratorReturns++;
         }
-        yield { type: "message-event", msgEvent: rangeMessages[512]! };
       }
     }
 
@@ -1391,13 +1414,138 @@ describe("IterablePlayer", () => {
     expect(receivedBatches[0]).toHaveLength(512);
 
     unsubscribe?.();
+    unsubscribe?.();
     await waitFor(() => source.abortSignals[0]?.aborted === true);
     releaseTail.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => source.rangeIteratorReturns === 1);
 
     expect(receivedBatches).toHaveLength(1);
+    expect(source.rangeIteratorReturns).toBe(1);
 
     void player.close();
     await player.isClosed;
+  });
+
+  it("cancels active message ranges before terminating the source", async () => {
+    const rangeStarted = signal();
+    let rangeIteratorReturned = false;
+    let rangeAbortSignal: AbortSignal | undefined;
+
+    class ClosingRangeSource extends TestSource {
+      public terminate = jest.fn(async () => {
+        expect(rangeAbortSignal?.aborted).toBe(true);
+        expect(rangeIteratorReturned).toBe(true);
+      });
+
+      public override async *messageIterator(
+        args: MessageIteratorArgs,
+      ): AsyncIterableIterator<Readonly<IteratorResult>> {
+        if (!args.topics.has("video")) {
+          return;
+        }
+        rangeAbortSignal = args.abortSignal;
+        rangeStarted.resolve();
+        try {
+          await new Promise<void>((resolve) => {
+            args.abortSignal?.addEventListener(
+              "abort",
+              () => {
+                resolve();
+              },
+              { once: true },
+            );
+          });
+          if (args.abortSignal?.aborted !== true) {
+            yield {
+              type: "problem",
+              connectionId: 0,
+              problem: { severity: "warn", message: "Range unexpectedly resumed" },
+            };
+          }
+        } finally {
+          rangeIteratorReturned = true;
+        }
+      }
+    }
+
+    const source = new ClosingRangeSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+    const store = new PlayerStateStore(4);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+    await store.done;
+
+    player.subscribeMessageRange({
+      topic: "video",
+      onNewRangeIterator: async (iterator) => {
+        for await (const batch of iterator) {
+          // Consume until the player closes the range.
+          void batch;
+        }
+      },
+    });
+    await rangeStarted;
+
+    await player.close();
+
+    expect(source.terminate).toHaveBeenCalledTimes(1);
+    expect(rangeAbortSignal?.aborted).toBe(true);
+    expect(rangeIteratorReturned).toBe(true);
+  });
+
+  it("captures synchronous range callback errors", async () => {
+    const source = new TestSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+    const store = new PlayerStateStore(4);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+    await store.done;
+
+    expect(() =>
+      player.subscribeMessageRange({
+        topic: "video",
+        onNewRangeIterator: () => {
+          throw new Error("callback failed");
+        },
+      }),
+    ).not.toThrow();
+    await waitFor(() => jest.mocked(console.warn).mock.calls.length > 0);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("Message range subscription failed: Error: callback failed"),
+    );
+    jest.mocked(console.warn).mockClear();
+
+    await player.close();
+  });
+
+  it("does not start message ranges after close begins", async () => {
+    const source = new TestSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+    });
+    const store = new PlayerStateStore(4);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+    await store.done;
+
+    const closePromise = player.close();
+    const onNewRangeIterator = jest.fn();
+    expect(player.subscribeMessageRange({ topic: "video", onNewRangeIterator })).toBeUndefined();
+    expect(onNewRangeIterator).not.toHaveBeenCalled();
+
+    await closePromise;
   });
 });

@@ -16,7 +16,7 @@ import { TimestampMethod } from "@foxglove/studio-base/util/time";
 import type { Dataset } from "../ChartRenderer";
 import { OriginalValue } from "../datum";
 
-type CsvDatum = {
+export type CsvDatum = {
   x: number;
   y: number;
   receiveTime: Time;
@@ -58,12 +58,88 @@ export type Viewport = {
   };
   /** The pixel size of the viewport */
   size: Size;
+  /**
+   * Indicates that the x bounds are advancing as a following time window. Timestamp builders may
+   * query and downsample an aligned superset of these bounds so that small playback-head updates
+   * can reuse their previous work. The renderer still uses `bounds` as the exact chart scale.
+   */
+  following?: boolean;
+  /**
+   * Indicates that the bounds come from user pan/zoom or panel sync and change on nearly every
+   * frame. Timestamp builders may query and downsample an aligned superset of these bounds so
+   * that drag frames inside one grid cell reuse their previous work. The renderer still uses
+   * `bounds` as the exact chart scale, so the visible clip is unchanged.
+   */
+  interactive?: boolean;
 };
 
 export type CsvDataset = {
   label: string;
   data: CsvDatum[];
 };
+
+export type CsvDataCursor = {
+  /** Index within the enabled series snapshot used by one export operation. */
+  seriesIndex: number;
+  /** Datum offset within that series. */
+  datumIndex: number;
+};
+
+export type CsvDataChunk = {
+  datasets: CsvDataset[];
+  nextCursor?: CsvDataCursor;
+};
+
+export type CsvDataChunkCallback = (
+  datasets: Immutable<CsvDataset[]>,
+) => void | boolean | Promise<void | boolean>;
+
+export const MAX_CSV_DATUMS_PER_CHUNK = 10_000;
+
+export function normalizeCsvChunkSize(maxDatums = MAX_CSV_DATUMS_PER_CHUNK): number {
+  if (!Number.isSafeInteger(maxDatums) || maxDatums <= 0) {
+    throw new RangeError("CSV chunk size must be a positive safe integer");
+  }
+  return Math.min(maxDatums, MAX_CSV_DATUMS_PER_CHUNK);
+}
+
+/** Streams already-materialized local datasets without exposing more than one bounded chunk. */
+export async function forEachCsvDatasetChunk(
+  datasets: Immutable<CsvDataset[]>,
+  callback: CsvDataChunkCallback,
+  maxDatums = MAX_CSV_DATUMS_PER_CHUNK,
+): Promise<boolean> {
+  const chunkSize = normalizeCsvChunkSize(maxDatums);
+  let chunk: CsvDataset[] = [];
+  let chunkDatums = 0;
+
+  const flush = async (): Promise<boolean> => {
+    if (chunkDatums === 0) {
+      return true;
+    }
+    const current = chunk;
+    chunk = [];
+    chunkDatums = 0;
+    return (await callback(current)) !== false;
+  };
+
+  for (const dataset of datasets) {
+    for (let offset = 0; offset < dataset.data.length; ) {
+      const count = Math.min(chunkSize - chunkDatums, dataset.data.length - offset);
+      chunk.push({
+        label: dataset.label,
+        data: dataset.data.slice(offset, offset + count),
+      });
+      chunkDatums += count;
+      offset += count;
+      if (chunkDatums === chunkSize && !(await flush())) {
+        return false;
+      }
+    }
+  }
+
+  return await flush();
+}
 
 export type GetViewportDatasetsResult = {
   /**
@@ -72,6 +148,13 @@ export type GetViewportDatasetsResult = {
    */
   datasetsByConfigIndex: readonly (Dataset | undefined)[];
   pathsWithMismatchedDataLengths: ReadonlySet<string>;
+  /** Authoritative x bounds after worker-side retention or compaction performed by this request. */
+  datasetRange?: Bounds1D;
+  /**
+   * Values at the requested playback time, indexed by the original config path. This remains
+   * optional so callers which do not request a playback time keep their existing result shape.
+   */
+  currentValuesByConfigIndex?: readonly (OriginalValue | undefined)[];
 };
 
 /**
@@ -100,9 +183,15 @@ interface IDatasetsBuilder {
 
   setSeries(series: Immutable<SeriesItem[]>): void;
 
-  getViewportDatasets(viewport: Immutable<Viewport>): Promise<GetViewportDatasetsResult>;
+  getViewportDatasets(
+    viewport: Immutable<Viewport>,
+    currentValuesAt?: Immutable<Time>,
+  ): Promise<GetViewportDatasetsResult>;
 
   getCsvData(): Promise<CsvDataset[]>;
+
+  /** Visit bounded CSV chunks in series order without materializing the complete export. */
+  forEachCsvDataChunk(callback: CsvDataChunkCallback, maxDatums?: number): Promise<boolean>;
 
   /**
    * Optional explicit destroy hook for releasing resources (e.g., workers) immediately

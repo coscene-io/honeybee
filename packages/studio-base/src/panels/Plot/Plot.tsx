@@ -15,8 +15,7 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@foxglove/den/async";
-import { filterMap } from "@foxglove/den/collection";
-import { useRethrow } from "@foxglove/hooks";
+import { useDeepMemo, useRethrow } from "@foxglove/hooks";
 import { parseMessagePath } from "@foxglove/message-path";
 import { add as addTimes, fromSec, isTime, toSec } from "@foxglove/rostime";
 import { Immutable } from "@foxglove/studio";
@@ -50,7 +49,6 @@ import {
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { VerticalBars } from "@foxglove/studio-base/panels/Plot/VerticalBars";
-import { SubscribePayload } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { PANEL_TITLE_CONFIG_KEY } from "@foxglove/studio-base/util/layout";
@@ -64,13 +62,16 @@ import { CustomDatasetsBuilder } from "./builders/CustomDatasetsBuilder";
 import { IDatasetsBuilder } from "./builders/IDatasetsBuilder";
 import { IndexDatasetsBuilder } from "./builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "./builders/TimestampDatasetsBuilder";
-import { isReferenceLinePlotPathType, PlotConfig } from "./config";
-import { downloadCSV } from "./csv";
+import { normalizePlotXAxisVal, PlotConfig } from "./config";
+import { downloadCSV, guardCsvDataChunkSource } from "./csv";
+import {
+  planPlotSubscriptions,
+  PlotRangeSubscriptionManager,
+  PlotTopicSubscriptionPlan,
+} from "./rangeSubscriptions";
 import { DEFAULT_PATH, usePlotPanelSettings } from "./settings";
-import { pathToSubscribePayload } from "./subscription";
 
 export const defaultSidebarDimension = 240;
-const MAX_CURRENT_DATUMS_PER_SERIES = 50_000;
 
 const useStyles = makeStyles()((theme) => ({
   tooltip: {
@@ -117,18 +118,36 @@ const selectGlobalBounds = (store: TimelineInteractionStateStore) => store.globa
 const selectSetGlobalBounds = (store: TimelineInteractionStateStore) => store.setGlobalBounds;
 
 export function Plot(props: Props): React.JSX.Element {
-  const { saveConfig, config } = props;
+  const { saveConfig, config: layoutConfig } = props;
+  const xAxisMode = normalizePlotXAxisVal(layoutConfig.xAxisVal);
+  const config = useMemo(
+    () =>
+      layoutConfig.xAxisVal === xAxisMode ? layoutConfig : { ...layoutConfig, xAxisVal: xAxisMode },
+    [layoutConfig, xAxisMode],
+  );
   const {
     paths: series,
     showLegend,
-    xAxisVal: xAxisMode,
     xAxisPath,
     legendDisplay,
     sidebarDimension,
     [PANEL_TITLE_CONFIG_KEY]: customTitle,
   } = config;
 
-  const { topics } = useDataSourceInfo();
+  useEffect(() => {
+    if (layoutConfig.xAxisVal !== "partialTimestamp") {
+      return;
+    }
+    saveConfig((prevConfig) => {
+      const normalizedXAxisVal = normalizePlotXAxisVal(prevConfig.xAxisVal);
+      return normalizedXAxisVal === prevConfig.xAxisVal
+        ? prevConfig
+        : { ...prevConfig, xAxisVal: normalizedXAxisVal };
+    });
+  }, [layoutConfig.xAxisVal, saveConfig]);
+
+  const { playerId, startTime } = useDataSourceInfo();
+  const rangeStartTime = useDeepMemo(startTime);
 
   const { classes } = useStyles();
   const theme = useTheme();
@@ -136,8 +155,6 @@ export function Plot(props: Props): React.JSX.Element {
 
   const { setMessagePathDropConfig } = usePanelContext();
   const draggingRef = useRef(false);
-
-  const [isDisabledFullTimestamp, setIsDisabledFullTimestamp] = useState(false);
 
   useEffect(() => {
     setMessagePathDropConfig({
@@ -169,6 +186,8 @@ export function Plot(props: Props): React.JSX.Element {
   const [canvasDiv, setCanvasDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
   const [renderer, setRenderer] = useState<OffscreenCanvasRenderer | undefined>(undefined);
   const [coordinator, setCoordinator] = useState<PlotCoordinator | undefined>(undefined);
+  const coordinatorRef = useRef<PlotCoordinator | undefined>(undefined);
+  coordinatorRef.current = coordinator;
   const { formatTime } = useAppTimeFormat();
 
   // When true the user can reset the plot back to the original view
@@ -180,12 +199,7 @@ export function Plot(props: Props): React.JSX.Element {
     data: TimeBasedChartTooltipData[];
   }>();
 
-  usePlotPanelSettings(
-    config,
-    saveConfig,
-    focusedPath,
-    isDisabledFullTimestamp ? "disabled" : "enabled",
-  );
+  usePlotPanelSettings(config, saveConfig, focusedPath);
 
   useEffect(() => {
     if (config.paths.length === 0) {
@@ -217,7 +231,7 @@ export function Plot(props: Props): React.JSX.Element {
       }
 
       // Only timestamp plots support click-to-seek
-      if ((xAxisMode !== "timestamp" && xAxisMode !== "partialTimestamp") || !coordinator) {
+      if (xAxisMode !== "timestamp" || !coordinator) {
         return;
       }
 
@@ -248,12 +262,18 @@ export function Plot(props: Props): React.JSX.Element {
         type: "item",
         label: "Download plot data as CSV",
         onclick: async () => {
-          const data = await coordinator?.getCsvData();
-          if (!data || !isMounted()) {
+          if (coordinator == undefined || !isMounted()) {
             return;
           }
-
-          downloadCSV(customTitle ?? "plot_data", data, xAxisMode);
+          await downloadCSV(
+            customTitle ?? "plot_data",
+            xAxisMode,
+            guardCsvDataChunkSource(
+              async (callback, maxDatums) =>
+                await coordinator.forEachCsvDataChunk(callback, maxDatums),
+              isMounted,
+            ),
+          );
         },
       },
     ];
@@ -266,6 +286,16 @@ export function Plot(props: Props): React.JSX.Element {
         pipelineSetSubscriptions,
       [],
     ),
+  );
+  const subscribeMessageRange = useMessagePipeline(
+    useCallback(
+      ({ subscribeMessageRange: pipelineSubscribeMessageRange }: MessagePipelineContext) =>
+        pipelineSubscribeMessageRange,
+      [],
+    ),
+  );
+  const isLivePlayer = useMessagePipeline(
+    useCallback(({ seekPlayback }: MessagePipelineContext) => seekPlayback == undefined, []),
   );
   const subscribeMessagePipeline = useMessagePipelineSubscribe();
 
@@ -305,7 +335,6 @@ export function Plot(props: Props): React.JSX.Element {
     let builder: IDatasetsBuilder;
     switch (xAxisMode) {
       case "timestamp":
-      case "partialTimestamp":
         builder = new TimestampDatasetsBuilder({ handleWorkerError, xAxisMode });
         break;
       case "index":
@@ -460,7 +489,7 @@ export function Plot(props: Props): React.JSX.Element {
 
       // Get absolute time for timestamp-based charts
       let absoluteTimeString: string | undefined = undefined;
-      if ((xAxisMode === "timestamp" || xAxisMode === "partialTimestamp") && coordinator) {
+      if (xAxisMode === "timestamp" && coordinator) {
         const {
           playerState: { activeData: { startTime: start } = {} },
         } = getMessagePipelineState();
@@ -524,10 +553,7 @@ export function Plot(props: Props): React.JSX.Element {
       setHoverValue({
         componentId: subscriberId,
         value: seconds,
-        type:
-          xAxisMode === "timestamp" || xAxisMode === "partialTimestamp"
-            ? "PLAYBACK_SECONDS"
-            : "OTHER",
+        type: xAxisMode === "timestamp" ? "PLAYBACK_SECONDS" : "OTHER",
       });
     },
     [buildTooltip, coordinator, setHoverValue, subscriberId, xAxisMode],
@@ -626,93 +652,220 @@ export function Plot(props: Props): React.JSX.Element {
     };
   }, [canvasDiv, coordinator]);
 
-  // We could subscribe in the chart renderer, but doing it with react effects is easier for
-  // managing the lifecycle of the subscriptions. The renderer will correlate input message data to
-  // the correct series.
-  useEffect(() => {
-    // The index and currentCustom modes only need the latest message on each topic so we use
-    // partial subscribe mode for those to avoid preloading data that we don't need
-    const preloadType =
-      xAxisMode === "index" || xAxisMode === "currentCustom" || xAxisMode === "partialTimestamp"
-        ? "partial"
-        : "full";
-
-    let maxMessageCount = 0;
-
-    for (const item of series) {
-      if (isReferenceLinePlotPathType(item)) {
-        continue;
-      }
-
-      const parsed = parseMessagePath(item.value);
-      if (!parsed) {
-        continue;
-      }
-
-      const variablesInPath = fillInGlobalVariablesInPath(parsed, globalVariables);
-
-      const targetTopic = topics.find((topic) => topic.name === variablesInPath.topicName);
-      if (!targetTopic) {
-        continue;
-      }
-
-      maxMessageCount += targetTopic.messageCount ?? 0;
-    }
-
-    // 消息数量超过阈值，先切换 x 轴模式再返回，避免发送全量订阅请求
-    if (maxMessageCount > MAX_CURRENT_DATUMS_PER_SERIES) {
-      setIsDisabledFullTimestamp(true);
-      if (xAxisMode === "timestamp") {
-        saveConfig((prevConfig) => ({
-          ...prevConfig,
-          xAxisVal: "partialTimestamp",
-        }));
-        return;
-      }
-    } else {
-      setIsDisabledFullTimestamp(false);
-    }
-
-    const subscriptions = filterMap(series, (item): SubscribePayload | undefined => {
-      if (isReferenceLinePlotPathType(item)) {
-        return;
-      }
-
-      const parsed = parseMessagePath(item.value);
-      if (!parsed) {
-        return;
-      }
-
-      return pathToSubscribePayload(
-        fillInGlobalVariablesInPath(parsed, globalVariables),
-        preloadType,
-      );
-    });
-
-    if ((xAxisMode === "custom" || xAxisMode === "currentCustom") && xAxisPath) {
-      const parsed = parseMessagePath(xAxisPath.value);
-      if (parsed) {
-        const sub = pathToSubscribePayload(
-          fillInGlobalVariablesInPath(parsed, globalVariables),
-          preloadType,
-        );
-        if (sub) {
-          subscriptions.push(sub);
-        }
-      }
-    }
-
-    setSubscriptions(subscriberId, subscriptions);
-  }, [
-    series,
-    setSubscriptions,
-    subscriberId,
+  const rangePlanningInputs = useDeepMemo({
+    paths: series.map(({ enabled, timestampMethod, value }) => ({
+      enabled,
+      timestampMethod,
+      value,
+    })),
     globalVariables,
     xAxisMode,
-    xAxisPath,
-    topics,
-    saveConfig,
+    xAxisPath:
+      xAxisPath == undefined
+        ? undefined
+        : {
+            enabled: (xAxisPath as { enabled?: boolean }).enabled ?? true,
+            value: xAxisPath.value,
+          },
+  });
+  const subscriptionPlans = useMemo(
+    () =>
+      planPlotSubscriptions({
+        paths: rangePlanningInputs.paths,
+        globalVariables: rangePlanningInputs.globalVariables,
+        xAxisMode: rangePlanningInputs.xAxisMode,
+        xAxisPath: rangePlanningInputs.xAxisPath,
+      }),
+    [rangePlanningInputs],
+  );
+  const rangeGenerationRef = useRef(0);
+  const historySourceRef = useRef<{
+    playerId: string | undefined;
+    startSec: number | undefined;
+    startNsec: number | undefined;
+  }>();
+  const subscriptionPlansRef = useRef(subscriptionPlans);
+  const rangeManagerRef = useRef<{ apply: () => void }>();
+
+  // Replay timestamp and accumulated custom-x plots stream finite history directly into the
+  // Dataset worker. Every topic negotiates range support independently so script output and older
+  // Players retain full preload. The manager lives for one history source (player, start time,
+  // builder); plan changes reconcile against it below instead of restarting every iterator.
+  useEffect(() => {
+    const generation = ++rangeGenerationRef.current;
+    const timestampBuilder =
+      datasetsBuilder instanceof TimestampDatasetsBuilder ? datasetsBuilder : undefined;
+    const customBuilder =
+      datasetsBuilder instanceof CustomDatasetsBuilder ? datasetsBuilder : undefined;
+    const rangeBuilder =
+      xAxisMode === "timestamp"
+        ? timestampBuilder
+        : xAxisMode === "custom"
+          ? customBuilder
+          : undefined;
+    const usesRangeHistory = xAxisMode === "timestamp" || xAxisMode === "custom";
+    // Reassigned on every applied plan so long-lived iterator callbacks see the current set.
+    let customXAxisTopics = new Set<string>();
+
+    const manager = new PlotRangeSubscriptionManager({
+      attemptRanges: usesRangeHistory && !isLivePlayer && rangeBuilder != undefined,
+      subscribeMessageRange: rangeStartTime == undefined ? undefined : subscribeMessageRange,
+      onIteratorStart: async (topic, iteratorGeneration) => {
+        const reset = await rangeBuilder?.resetRangeTopic(topic, iteratorGeneration);
+        if (reset !== true || rangeGenerationRef.current !== iteratorGeneration) {
+          return;
+        }
+        // Every successful reset cleared worker storage, so the canvas must refresh even when
+        // the replacement iterator later yields nothing; otherwise the previous iterator's
+        // points would stay on screen. The x range only applies to custom x-axis topics.
+        let xRange;
+        if (customBuilder != undefined && customXAxisTopics.has(topic)) {
+          xRange = await customBuilder.getXRange();
+          if (rangeGenerationRef.current !== iteratorGeneration) {
+            return;
+          }
+        }
+        coordinatorRef.current?.handleRangeDataUpdated(xRange);
+      },
+      onRangeBatch: async (topic, batch, batchGeneration) => {
+        if (
+          rangeBuilder == undefined ||
+          rangeStartTime == undefined ||
+          rangeGenerationRef.current !== batchGeneration
+        ) {
+          return;
+        }
+        const appended = await rangeBuilder.appendRangeMessageBatch(
+          topic,
+          batch,
+          rangeStartTime,
+          batchGeneration,
+        );
+        if (appended && rangeGenerationRef.current === batchGeneration) {
+          const xRange =
+            customBuilder != undefined && customXAxisTopics.has(topic)
+              ? await customBuilder.getXRange()
+              : undefined;
+          if (rangeGenerationRef.current === batchGeneration) {
+            coordinatorRef.current?.handleRangeDataUpdated(xRange);
+          }
+        }
+      },
+      onTopicFallback: async ({ generation: failedGeneration, subscriptions, topic }) => {
+        if (rangeBuilder == undefined || rangeGenerationRef.current !== failedGeneration) {
+          return true;
+        }
+        const released = await rangeBuilder.releaseRangeTopic(topic, failedGeneration);
+        if (rangeGenerationRef.current !== failedGeneration) {
+          return true;
+        }
+        if (!released) {
+          return false;
+        }
+        setSubscriptions(subscriberId, subscriptions);
+        // Re-feed cached blocks after releasing range ownership; otherwise a quiet fallback topic
+        // stays empty until the Player happens to emit a new state.
+        coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
+        coordinatorRef.current?.handleRangeDataUpdated();
+        return true;
+      },
+      onError: (error) => {
+        handleWorkerError(
+          new ErrorEvent("error", {
+            error,
+            message: `Failed to load plot range history: ${String(error)}`,
+          }),
+        );
+      },
+    });
+
+    let appliedPlans: readonly PlotTopicSubscriptionPlan[] | undefined;
+    const apply = () => {
+      const plans = subscriptionPlansRef.current;
+      if (rangeGenerationRef.current !== generation || plans === appliedPlans) {
+        return;
+      }
+      appliedPlans = plans;
+      customXAxisTopics = new Set(
+        plans.flatMap((plan) =>
+          plan.rangeRequest?.includesXAxis === true ? [plan.rangeRequest.topic] : [],
+        ),
+      );
+      let markHistoryReady!: (value: number) => void;
+      const historyReady = new Promise<number>((resolve) => {
+        markHistoryReady = resolve;
+      });
+      const running = manager.update(plans, historyReady);
+
+      if (rangeBuilder != undefined) {
+        const currentOnlyTopics = new Set<string>();
+        if (usesRangeHistory && isLivePlayer) {
+          for (const plan of plans) {
+            if (plan.rangeRequest != undefined) {
+              currentOnlyTopics.add(plan.rangeRequest.topic);
+            }
+          }
+        }
+        const previousSource = historySourceRef.current;
+        let resetAll = true;
+        if (previousSource != undefined) {
+          resetAll =
+            previousSource.playerId !== playerId ||
+            previousSource.startSec !== rangeStartTime?.sec ||
+            previousSource.startNsec !== rangeStartTime?.nsec;
+        }
+        historySourceRef.current = {
+          playerId,
+          startSec: rangeStartTime?.sec,
+          startNsec: rangeStartTime?.nsec,
+        };
+        rangeBuilder.setHistoryTopics(running.rangeTopics, currentOnlyTopics, generation, {
+          resetAll,
+        });
+        markHistoryReady(generation);
+        // The player-state effect runs before this history-ownership effect. Re-feed its snapshot
+        // after a reset so a quiet live source or a block-fallback topic is not left blank until
+        // the Player emits again.
+        coordinatorRef.current?.handlePlayerState(getMessagePipelineState().playerState);
+        coordinatorRef.current?.handleRangeDataUpdated();
+      } else {
+        markHistoryReady(generation);
+      }
+      setSubscriptions(subscriberId, running.subscriptions);
+    };
+
+    rangeManagerRef.current = { apply };
+    apply();
+
+    return () => {
+      if (rangeManagerRef.current?.apply === apply) {
+        rangeManagerRef.current = undefined;
+      }
+      if (rangeGenerationRef.current === generation) {
+        rangeGenerationRef.current += 1;
+      }
+      manager.cancel();
+    };
+  }, [
+    datasetsBuilder,
+    getMessagePipelineState,
+    handleWorkerError,
+    isLivePlayer,
+    playerId,
+    rangeStartTime,
+    setSubscriptions,
+    subscribeMessageRange,
+    subscriberId,
+    xAxisMode,
   ]);
+
+  // Series edits, path changes, and global-variable updates reconcile against the running manager:
+  // only topics whose extracted history changed restart their range scan; sibling topics keep
+  // their loaded history and live iterators.
+  useEffect(() => {
+    subscriptionPlansRef.current = subscriptionPlans;
+    rangeManagerRef.current?.apply();
+  }, [subscriptionPlans]);
 
   // Only unsubscribe on unmount so that when the above subscriber effect dependencies change we
   // don't transition to unsubscribing all to then re-subscribe.
@@ -725,8 +878,7 @@ export function Plot(props: Props): React.JSX.Element {
   const globalBounds = useTimelineInteractionState(selectGlobalBounds);
   const setGlobalBounds = useTimelineInteractionState(selectSetGlobalBounds);
 
-  const shouldSync =
-    (config.xAxisVal === "timestamp" || config.xAxisVal === "partialTimestamp") && config.isSynced;
+  const shouldSync = xAxisMode === "timestamp" && config.isSynced;
 
   useEffect(() => {
     if (globalBounds?.sourceId === subscriberId || !shouldSync) {
@@ -865,7 +1017,7 @@ export function Plot(props: Props): React.JSX.Element {
             <VerticalBars
               coordinator={coordinator}
               hoverComponentId={subscriberId}
-              xAxisIsPlaybackTime={xAxisMode === "timestamp" || xAxisMode === "partialTimestamp"}
+              xAxisIsPlaybackTime={xAxisMode === "timestamp"}
             />
           </div>
         </Tooltip>
