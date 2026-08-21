@@ -49,6 +49,13 @@ import { BaseSettings, CustomLayerSettings, SelectEntry } from "./settings";
 import { TransformTree } from "./transforms";
 import { InterfaceMode } from "./types";
 
+// Rendering layers for the multipass rendering used for the selection effect. When a renderable is
+// selected the scene is drawn once on LAYER_DEFAULT, then a dimming backdrop is drawn over it, then
+// the depth buffer is cleared and LAYER_SELECTED is drawn on top. Objects that must stay visible in
+// both passes need to enable both layers.
+export const LAYER_DEFAULT = 0;
+export const LAYER_SELECTED = 1;
+
 export type RendererEvents = {
   startFrame: (currentTime: bigint, renderer: IRenderer) => void;
   endFrame: (currentTime: bigint, renderer: IRenderer) => void;
@@ -141,6 +148,11 @@ export type RendererConfig = {
       /** Enable transform preloading */
       enablePreloading?: boolean;
     };
+    /**
+     * Briefly show an axis marker at the camera's orbit target while dragging, so the pan/rotate
+     * pivot is visible. Defaults to enabled.
+     */
+    showOrbitTarget?: boolean;
     /** Sync camera with other 3d panels */
     syncCamera?: boolean;
     /** Toggles visibility of all topics */
