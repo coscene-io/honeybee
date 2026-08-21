@@ -71,7 +71,7 @@ import {
   EVENT_LANE_LAYER_TOP_PX,
   getTimelineContentHeight,
   SCRUBBER_TOOLBAR_HEIGHT_PX,
-  TIMELINE_RULER_HEIGHT_PX,
+  TIMELINE_BAG_OVERLAY_TOP_PX,
 } from "./constants";
 import { layoutEventLanes } from "./eventLanes";
 import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
@@ -1087,7 +1087,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               position="absolute"
               flex="auto"
               fullWidth
-              style={{ height: TIMELINE_RULER_HEIGHT_PX, top: 0 }}
+              style={{ height: TIMELINE_BAG_OVERLAY_TOP_PX, top: 0 }}
             >
               <ProgressPlot loading={loading} viewport={resolvedViewport} />
             </Stack>
@@ -1109,7 +1109,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
             <Stack
               position="absolute"
               fullWidth
-              style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
+              style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_BAG_OVERLAY_TOP_PX }}
             >
               <BagsOverlay viewport={resolvedViewport} />
             </Stack>

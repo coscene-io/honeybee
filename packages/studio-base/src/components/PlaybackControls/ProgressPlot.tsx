@@ -20,6 +20,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 
+import { TIMELINE_PROGRESS_HEIGHT_PX, TIMELINE_RULER_HEIGHT_PX } from "./constants";
 import {
   getVisibleDuration,
   timelinePointToPercent,
@@ -54,23 +55,30 @@ const animatedBackground = keyframes`
 const useStyles = makeStyles()((theme) => ({
   root: {
     label: "ProgressPlot-root",
-    backgroundColor:
-      theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.02)",
-    borderBottom: `1px solid ${theme.palette.divider}`,
+    display: "flex",
+    flexDirection: "column",
     height: "100%",
     overflow: "hidden",
     pointerEvents: "none",
     position: "relative",
     width: "100%",
   },
+  ruler: {
+    label: "ProgressPlot-ruler",
+    backgroundColor:
+      theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.02)",
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    flex: `0 0 ${TIMELINE_RULER_HEIGHT_PX}px`,
+    overflow: "hidden",
+    position: "relative",
+    width: "100%",
+  },
   progressBand: {
     label: "ProgressPlot-progressBand",
-    bottom: 0,
-    height: 4,
-    left: 0,
+    flex: `0 0 ${TIMELINE_PROGRESS_HEIGHT_PX}px`,
     overflow: "hidden",
-    position: "absolute",
-    right: 0,
+    position: "relative",
+    width: "100%",
     zIndex: 0,
   },
   loadingIndicator: {
@@ -277,59 +285,61 @@ function UnmemoizedProgressPlot(props: ProgressProps): React.JSX.Element {
 
   return (
     <div ref={ref} className={classes.root} data-testid="timeline-progress-ruler">
-      <div className={classes.progressBand}>
+      <div className={classes.ruler} data-testid="timeline-ruler">
+        {minorTicks.map((tick) => {
+          const left = timelinePointToPercent(tick.timeSec, viewport);
+          if (left == undefined) {
+            return ReactNull;
+          }
+
+          return (
+            <div
+              className={classes.minorTick}
+              data-testid="timeline-ruler-minor-tick"
+              key={tick.key}
+              style={{ left }}
+            />
+          );
+        })}
+        {majorTicks.map((tick) => {
+          const left = timelinePointToPercent(tick.timeSec, viewport);
+          if (left == undefined) {
+            return ReactNull;
+          }
+
+          return (
+            <div
+              className={classes.majorTick}
+              data-testid="timeline-ruler-major-tick"
+              key={tick.key}
+              style={{ left }}
+            />
+          );
+        })}
+        {majorTicks.map((tick) => {
+          const left = timelinePointToPercent(tick.timeSec, viewport);
+          if (left == undefined) {
+            return ReactNull;
+          }
+
+          return (
+            <div
+              className={classes.tickLabel}
+              data-testid="timeline-ruler-label"
+              key={tick.key}
+              style={{ left }}
+            >
+              {formatTickTime(tick.timeSec, majorStepSec)}
+            </div>
+          );
+        })}
+      </div>
+      <div className={classes.progressBand} data-testid="timeline-progress-band">
         {loading && (
           <div className={classes.loadingIndicator} data-testid="timeline-progress-loading" />
         )}
         {ranges}
       </div>
-      {minorTicks.map((tick) => {
-        const left = timelinePointToPercent(tick.timeSec, viewport);
-        if (left == undefined) {
-          return ReactNull;
-        }
-
-        return (
-          <div
-            className={classes.minorTick}
-            data-testid="timeline-ruler-minor-tick"
-            key={tick.key}
-            style={{ left }}
-          />
-        );
-      })}
-      {majorTicks.map((tick) => {
-        const left = timelinePointToPercent(tick.timeSec, viewport);
-        if (left == undefined) {
-          return ReactNull;
-        }
-
-        return (
-          <div
-            className={classes.majorTick}
-            data-testid="timeline-ruler-major-tick"
-            key={tick.key}
-            style={{ left }}
-          />
-        );
-      })}
-      {majorTicks.map((tick) => {
-        const left = timelinePointToPercent(tick.timeSec, viewport);
-        if (left == undefined) {
-          return ReactNull;
-        }
-
-        return (
-          <div
-            className={classes.tickLabel}
-            data-testid="timeline-ruler-label"
-            key={tick.key}
-            style={{ left }}
-          >
-            {formatTickTime(tick.timeSec, majorStepSec)}
-          </div>
-        );
-      })}
     </div>
   );
 }
