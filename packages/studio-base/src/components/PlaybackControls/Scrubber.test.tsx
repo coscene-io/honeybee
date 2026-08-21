@@ -252,7 +252,7 @@ describe("<Scrubber />", () => {
     );
 
     const timelineContent = screen.getByTestId("timeline-content");
-    expect(timelineContent.style.minHeight).toBe("26px");
+    expect(timelineContent.style.minHeight).toBe("30px");
     expect(getComputedStyle(timelineContent.parentElement!).overflowY).toBe("auto");
   });
 
@@ -264,7 +264,7 @@ describe("<Scrubber />", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("58px");
+      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("62px");
     });
   });
 
