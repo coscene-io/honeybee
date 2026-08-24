@@ -52,10 +52,7 @@ export class StateTransitionsRenderer {
     this.#canvas = canvas;
     this.#handleWorkerError = handleWorkerError;
 
-    const worker = new Worker(
-      // foxglove-depcheck-used: babel-plugin-transform-import-meta
-      new URL("./StateTransitionsChart.worker", import.meta.url),
-    );
+    const worker = new Worker(new URL("./StateTransitionsChart.worker", import.meta.url));
     worker.onerror = (event) => {
       this.#reportWorkerError(event);
     };

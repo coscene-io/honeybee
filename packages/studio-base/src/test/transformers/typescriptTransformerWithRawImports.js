@@ -5,9 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-const babelJest = require("babel-jest").default;
 const fs = require("fs");
 const path = require("path");
+
+const swcJestTransformer = require("../../../../../jest.swc-transformer");
 
 // look for `?raw` import statements
 // re-write these into `const variable = "string source";`;
@@ -22,13 +23,12 @@ function rewriteSource(source, sourcePath) {
 
 module.exports = {
   createTransformer() {
-    const babelJestTransformer = babelJest.createTransformer({ rootMode: "upward" });
     return {
       process(sourceText, sourcePath, opt) {
-        return babelJestTransformer.process(rewriteSource(sourceText, sourcePath), sourcePath, opt);
+        return swcJestTransformer.process(rewriteSource(sourceText, sourcePath), sourcePath, opt);
       },
       getCacheKey(sourceText, sourcePath, opt) {
-        return babelJestTransformer.getCacheKey(
+        return swcJestTransformer.getCacheKey(
           rewriteSource(sourceText, sourcePath),
           sourcePath,
           opt,

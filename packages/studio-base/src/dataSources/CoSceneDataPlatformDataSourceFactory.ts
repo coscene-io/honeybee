@@ -211,7 +211,6 @@ class CoSceneDataPlatformDataSourceFactory implements IDataSourceFactory {
 
     const source = new WorkerIterableSource({
       initWorker: () => {
-        // foxglove-depcheck-used: babel-plugin-transform-import-meta
         return new Worker(
           new URL(
             "@foxglove/studio-base/players/IterablePlayer/coScene-data-platform/DataPlatformIterableSource.worker",

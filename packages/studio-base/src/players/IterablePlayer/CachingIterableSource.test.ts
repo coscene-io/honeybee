@@ -28,6 +28,17 @@ import {
   MessageIteratorArgs,
 } from "./IIterableSource";
 
+jest.mock("@foxglove/studio-base/players/messageMemoryEstimation", () => {
+  const actual = jest.requireActual<typeof MessageMemoryEstimation>(
+    "@foxglove/studio-base/players/messageMemoryEstimation",
+  );
+  return {
+    __esModule: true,
+    ...actual,
+    estimateObjectSize: jest.fn(actual.estimateObjectSize),
+  };
+});
+
 class TestSource implements IIterableSource {
   public messageIteratorCalls = 0;
   public getBackfillMessagesCalls = 0;
@@ -238,7 +249,8 @@ describe("CachingIterableSource", () => {
       }
     };
 
-    const estimateSpy = jest.spyOn(MessageMemoryEstimation, "estimateObjectSize");
+    const estimateSpy = jest.mocked(MessageMemoryEstimation.estimateObjectSize);
+    estimateSpy.mockClear();
     const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
     try {
       for await (const result of bufferedSource.messageIterator({
@@ -252,7 +264,7 @@ describe("CachingIterableSource", () => {
       expect(appendSpy).toHaveBeenCalledTimes(1);
       expect(appendSpy.mock.calls[0]?.[1]?.estimatedSizeBytes).toHaveLength(3);
     } finally {
-      estimateSpy.mockRestore();
+      estimateSpy.mockClear();
       appendSpy.mockRestore();
       await bufferedSource.terminate();
     }
