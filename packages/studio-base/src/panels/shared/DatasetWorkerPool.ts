@@ -96,11 +96,7 @@ export class DatasetWorkerPool {
   public constructor(options: DatasetWorkerPoolOptions = {}) {
     const createWorker =
       options.createWorker ??
-      (() =>
-        new Worker(
-          // foxglove-depcheck-used: babel-plugin-transform-import-meta
-          new URL("./DatasetWorker.worker", import.meta.url),
-        ));
+      (() => new Worker(new URL("./DatasetWorker.worker", import.meta.url)));
 
     this.#pool = new WorkerSessionPool({
       createResource: () => createHost(createWorker()),

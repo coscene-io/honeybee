@@ -1,6 +1,6 @@
 {
   "transform": {
-    "\\.[jt]sx?$": ["babel-jest", { "rootMode": "upward" }]
+    "\\.[jt]sx?$": "<rootDir>/../jest.swc-transformer.js"
   },
   "testPathIgnorePatterns": ["integration-test"],
   "//": "Native find is slow because it does not exclude files: https://github.com/facebook/jest/pull/11264#issuecomment-825377579",

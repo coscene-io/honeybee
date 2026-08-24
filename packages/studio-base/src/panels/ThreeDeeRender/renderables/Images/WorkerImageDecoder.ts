@@ -75,10 +75,7 @@ export class WorkerImageDecoder {
 
   public constructor() {
     const { remote, dispose } = ComlinkWrap<WorkerService>(
-      new Worker(
-        // foxglove-depcheck-used: babel-plugin-transform-import-meta
-        new URL("./WorkerImageDecoder.worker", import.meta.url),
-      ),
+      new Worker(new URL("./WorkerImageDecoder.worker", import.meta.url)),
     );
     this.#remote = remote;
     this.#dispose = dispose;

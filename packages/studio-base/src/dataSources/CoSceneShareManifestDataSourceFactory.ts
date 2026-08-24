@@ -67,7 +67,6 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
     const source = new WorkerSerializedIterableSource({
       initWorker: () => {
         return new Worker(
-          // foxglove-depcheck-used: babel-plugin-transform-import-meta
           new URL(
             "@foxglove/studio-base/players/IterablePlayer/Mcap/McapIterableSourceWorker.worker",
             import.meta.url,
