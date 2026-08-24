@@ -101,7 +101,7 @@
     "babel-plugin-transform-import-meta": "2.3.3",
     "cross-env": "7.0.3",
     "depcheck": "1.4.7",
-    "electron-builder": "26.0.11",
+    "electron-builder": "26.15.3",
     "esa-cli": "1.0.10",
     "eslint": "9.39.4",
     "eslint-import-resolver-typescript": "4.4.5",
