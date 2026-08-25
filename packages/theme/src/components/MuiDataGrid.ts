@@ -10,15 +10,8 @@ import { OverrideComponentReturn } from "../types";
 export const MuiDataGrid: OverrideComponentReturn<"MuiDataGrid"> = {
   defaultProps: {
     slotProps: {
-      panel: {
-        popperOptions: {
-          placement: "bottom-end",
-        },
-      },
       baseTextField: {
-        variant: "outlined",
         size: "small",
-        label: undefined,
       },
     },
   },
