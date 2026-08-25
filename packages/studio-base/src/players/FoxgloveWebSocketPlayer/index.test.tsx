@@ -420,6 +420,53 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     await closePromise;
   });
 
+  it("reports a backward seek when the first clock trails the provisional message time", async () => {
+    const listener = jest.fn(async (_state: PlayerState) => {});
+    const player = makePlayer();
+    player.setListener(listener);
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+
+    client.emit("serverInfo", {
+      name: "test-server",
+      capabilities: ["time"],
+      supportedEncodings: ["json"],
+    });
+    client.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 2_000_000_123n,
+    });
+    await flushPromises(10);
+
+    client.emit("time", { timestamp: 1_000_000_000n });
+    await flushPromises(10);
+
+    expect(listener.mock.calls.at(-1)?.[0].activeData).toMatchObject({
+      currentTime: { sec: 1, nsec: 0 },
+      endTime: { sec: 2, nsec: 123 },
+      lastSeekTime: 1,
+      messages: [],
+      startTime: { sec: 1, nsec: 0 },
+    });
+
+    const closePromise = player.close();
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.resolveClose();
+    await closePromise;
+  });
+
   it("does not reuse a previous connection's message time after reconnecting", async () => {
     const listener = jest.fn(async (_state: PlayerState) => {});
     const player = makePlayer();

@@ -996,15 +996,18 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       const time = fromNanoSec(timestamp);
-      if (this.#clockTime != undefined && isLessThan(time, this.#clockTime)) {
+      // Before the first dedicated clock event, message timestamps are the provisional timeline.
+      // Compare against that timeline so a backward first clock update still reports a seek.
+      const previousTime = this.#clockTime ?? this.#serverTime;
+      if (previousTime != undefined && isLessThan(time, previousTime)) {
         this.#numTimeSeeks++;
         this.#parsedMessages = [];
         this.#parsedMessagesBytes = 0;
       }
 
       // Override any previous start/end time when we set a clockTime for the first time which means
-      // we've received the first "time" event and know the server controlled time.
-      if (!this.#clockTime) {
+      // we've received the first server-controlled time and had no provisional message timeline.
+      if (previousTime == undefined) {
         this.#startTime = time;
         this.#endTime = time;
       }
