@@ -37,7 +37,7 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
     ],
   };
 
-  public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
+  public async initialize(args: DataSourceFactoryInitializeArgs): Promise<Player | undefined> {
     try {
       // Extract parameters
       const sessionId = args.params?.sessionId ?? args.sessionId;
@@ -65,17 +65,33 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
         },
       });
 
-      // Return a wrapper that handles initialization
-      return new IterablePlayer({
-        metricsCollector: args.metricsCollector,
-        source,
-        sourceId: this.id,
-        urlParams: { sessionId },
-        enablePlaybackSpillCache: false,
-      });
+      // IterablePlayer normally initializes after MessagePipeline installs its listener. Run the
+      // real worker initialization now and reuse it so PlayerManager can recover before switching.
+      await source.preinitialize();
+
+      try {
+        // Return a wrapper that handles initialization
+        return new IterablePlayer({
+          metricsCollector: args.metricsCollector,
+          source,
+          sourceId: this.id,
+          urlParams: { sessionId },
+          enablePlaybackSpillCache: false,
+        });
+      } catch (error) {
+        try {
+          await source.terminate();
+        } catch (terminationError) {
+          console.warn(
+            "Failed to terminate initialized persistent cache source:",
+            terminationError,
+          );
+        }
+        throw error;
+      }
     } catch (error) {
       console.error("Failed to initialize PersistentCacheDataSourceFactory:", error);
-      return undefined;
+      throw error;
     }
   }
 }

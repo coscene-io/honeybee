@@ -67,7 +67,8 @@ const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
 const DEFAULT_MAINTENANCE_TIMEOUT_MS = 30_000;
 const MAX_SHUTDOWN_STATUS_RESERVE_MS = 500;
 const DEFAULT_APPEND_BATCH_MAX_BYTES = 64 * MEBIBYTE;
-const DEFAULT_APPEND_QUEUE_MAX_BYTES = 128 * MEBIBYTE;
+export const DEFAULT_APPEND_QUEUE_MAX_MESSAGES = 50_000;
+export const DEFAULT_APPEND_QUEUE_MAX_BYTES = 128 * MEBIBYTE;
 const CLEANUP_BATCH_MAX_MESSAGES = 10_000;
 const CLEANUP_BATCH_MAX_BYTES = 64 * MEBIBYTE;
 const MESSAGE_READ_PAGE_MAX_SCANNED_RECORDS = 10_000;
@@ -605,7 +606,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       kind = "realtime-viz",
       sourceId,
       topicFingerprint,
-      maxQueuedMessages = 50_000,
+      maxQueuedMessages = DEFAULT_APPEND_QUEUE_MAX_MESSAGES,
       appendBatchMaxSize = 1000,
       appendBatchMaxBytes = DEFAULT_APPEND_BATCH_MAX_BYTES,
       maxQueuedBytes = DEFAULT_APPEND_QUEUE_MAX_BYTES,

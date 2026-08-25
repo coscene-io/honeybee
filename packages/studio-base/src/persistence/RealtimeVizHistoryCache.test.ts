@@ -5,7 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import { clearIndexedDbMessageStoreDatabase, IndexedDbMessageStore } from "./IndexedDbMessageStore";
+import {
+  clearIndexedDbMessageStoreDatabase,
+  DEFAULT_APPEND_QUEUE_MAX_MESSAGES,
+  IndexedDbMessageStore,
+} from "./IndexedDbMessageStore";
 import { RealtimeVizHistoryCache } from "./RealtimeVizHistoryCache";
 
 describe("RealtimeVizHistoryCache", () => {
@@ -120,6 +124,47 @@ describe("RealtimeVizHistoryCache", () => {
     jest.mocked(console.warn).mockClear();
   });
 
+  it("bounds the initialization buffer by the store message limit", async () => {
+    let resolveInit = () => {};
+    const initGate = new Promise<void>((resolve) => {
+      resolveInit = resolve;
+    });
+    const initSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "init")
+      .mockImplementation(async function (this: IndexedDbMessageStore) {
+        await initGate;
+        initSpy.mockRestore();
+        await this.init();
+      });
+    const onStatusChange = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "realtime-init-count-limit",
+      retentionWindowMs: 30_000,
+      onStatusChange,
+    });
+    const event = {
+      topic: "/example",
+      receiveTime: { sec: 1, nsec: 0 },
+      message: {},
+      sizeInBytes: 1,
+      schemaName: "example/Message",
+    };
+
+    try {
+      const initPromise = cache.init();
+      cache.append(Array(DEFAULT_APPEND_QUEUE_MAX_MESSAGES + 1).fill(event));
+      expect(onStatusChange).toHaveBeenCalledWith("unavailable");
+
+      resolveInit();
+      await initPromise;
+      await expect(cache.close()).rejects.toThrow("initialization queue exceeded");
+    } finally {
+      resolveInit();
+      initSpy.mockRestore();
+      jest.mocked(console.warn).mockClear();
+    }
+  });
+
   it("waits for queued metadata writes before close resolves", async () => {
     let resolveMetadata = () => {};
     const metadataWrite = new Promise<void>((resolve) => {
@@ -149,6 +194,33 @@ describe("RealtimeVizHistoryCache", () => {
       expect(storeTopicsSpy).toHaveBeenCalledTimes(1);
     } finally {
       resolveMetadata();
+      storeTopicsSpy.mockRestore();
+    }
+  });
+
+  it("rejects close when a metadata write fails after shutdown starts", async () => {
+    const metadataError = new Error("metadata failed during close");
+    let rejectMetadata = (_error: Error) => {};
+    const metadataWrite = new Promise<void>((_resolve, reject) => {
+      rejectMetadata = reject;
+    });
+    const storeTopicsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "storeTopics")
+      .mockReturnValueOnce(metadataWrite);
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "failed-closing-metadata",
+      retentionWindowMs: 30_000,
+    });
+
+    try {
+      await cache.init();
+      cache.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }], new Map());
+      const closePromise = cache.close();
+      rejectMetadata(metadataError);
+
+      await expect(closePromise).rejects.toBe(metadataError);
+      jest.mocked(console.warn).mockClear();
+    } finally {
       storeTopicsSpy.mockRestore();
     }
   });

@@ -67,7 +67,7 @@ export class PersistentCacheIterableSource implements IIterableSource {
         });
       }, READER_LEASE_HEARTBEAT_MS);
 
-      if (stats.count === 0 || !stats.earliest || !stats.latest) {
+      if (stats.count === 0 || stats.earliest == undefined || stats.latest == undefined) {
         throw new Error("No cached realtime data is available for this session.");
       }
 

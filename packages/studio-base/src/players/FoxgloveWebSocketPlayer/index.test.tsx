@@ -6,6 +6,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import type { PlayerState } from "@foxglove/studio-base/players/types";
+
 import FoxgloveWebSocketPlayer from ".";
 
 type MockListener = (...args: unknown[]) => void;
@@ -316,6 +318,33 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     await expect(player.close()).resolves.toBeUndefined();
   });
 
+  it("can reopen live data after a cache close failure", async () => {
+    const player = makePlayer();
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+    const closeError = new Error("cache close failed");
+
+    const closePromise = player.close();
+    // Register the rejection before completing the close sequence below.
+    // eslint-disable-next-line jest/valid-expect
+    const rejection = expect(closePromise).rejects.toBe(closeError);
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.rejectClose(closeError);
+    await rejection;
+
+    player.reOpen();
+    await flushPromises(10);
+    expect(mockClients).toHaveLength(2);
+
+    const reopenedClient = mockClients[1]!;
+    const reopenedCache = mockCaches[1]!;
+    const finalClosePromise = player.close();
+    reopenedClient.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    reopenedCache.resolveClose();
+    await finalClosePromise;
+    jest.mocked(console.warn).mockClear();
+  });
+
   it("stores final topic message counts before closing the persistent cache", async () => {
     const player = makePlayer();
     const client = mockClients[0]!;
@@ -389,6 +418,65 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
     cache.resolveClose();
     await closePromise;
+  });
+
+  it("does not reuse a previous connection's message time after reconnecting", async () => {
+    const listener = jest.fn(async (_state: PlayerState) => {});
+    const player = makePlayer();
+    player.setListener(listener);
+    const oldClient = mockClients[0]!;
+    const oldCache = mockCaches[0]!;
+
+    oldClient.emit("open");
+    oldClient.emit("serverInfo", {
+      name: "old-server",
+      sessionId: "old-session",
+      capabilities: ["time"],
+      supportedEncodings: ["json"],
+    });
+    oldClient.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    oldClient.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 9_000_000_123n,
+    });
+    await flushPromises(10);
+
+    const closePromise = player.close();
+    player.reOpen();
+    oldClient.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    oldCache.resolveClose();
+    await closePromise;
+    await flushPromises(10);
+
+    const newClient = mockClients[1]!;
+    const newCache = mockCaches[1]!;
+    newClient.emit("open");
+    newClient.emit("serverInfo", {
+      name: "new-server",
+      sessionId: "new-session",
+      capabilities: ["time"],
+      supportedEncodings: ["json"],
+    });
+    await flushPromises(10);
+
+    const latestState = listener.mock.calls.at(-1)?.[0];
+    expect(latestState?.activeData?.currentTime).toEqual({ sec: 0, nsec: 0 });
+
+    const finalClosePromise = player.close();
+    newClient.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    newCache.resolveClose();
+    await finalClosePromise;
   });
 
   it("forwards messages while persistent cache initialization is pending", async () => {

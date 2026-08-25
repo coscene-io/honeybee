@@ -11,11 +11,15 @@ import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePla
 import type { RealtimeHistoryStatus, TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { IndexedDbMessageStore, type MessageCacheMetricSink } from "./IndexedDbMessageStore";
+import {
+  DEFAULT_APPEND_QUEUE_MAX_BYTES,
+  DEFAULT_APPEND_QUEUE_MAX_MESSAGES,
+  IndexedDbMessageStore,
+  type MessageCacheMetricSink,
+} from "./IndexedDbMessageStore";
 
 const log = Log.getLogger(__filename);
 const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
-const PENDING_INIT_MAX_BYTES = 128 * 1024 * 1024;
 
 type ActiveRealtimeHistoryStatus = Exclude<RealtimeHistoryStatus, "disabled">;
 
@@ -104,11 +108,12 @@ export class RealtimeVizHistoryCache {
       );
       if (
         !Number.isFinite(addedEstimatedBytes) ||
-        this.#pendingInitEstimatedBytes + addedEstimatedBytes > PENDING_INIT_MAX_BYTES
+        this.#pendingInitEvents.length + events.length > DEFAULT_APPEND_QUEUE_MAX_MESSAGES ||
+        this.#pendingInitEstimatedBytes + addedEstimatedBytes > DEFAULT_APPEND_QUEUE_MAX_BYTES
       ) {
         this.#disable(
           new Error(
-            `Realtime history initialization queue exceeded its ${PENDING_INIT_MAX_BYTES}-byte limit`,
+            `Realtime history initialization queue exceeded its ${DEFAULT_APPEND_QUEUE_MAX_MESSAGES}-message or ${DEFAULT_APPEND_QUEUE_MAX_BYTES}-byte limit`,
           ),
           "Disabling realtime viz history cache before initialization completed:",
         );
@@ -191,13 +196,15 @@ export class RealtimeVizHistoryCache {
 
   #trackMetadataWrite(write: Promise<void>, failureMessage: string): void {
     const trackedWrite = write.catch((error: unknown) => {
-      this.#disable(error, failureMessage);
+      const failure = this.#disable(error, failureMessage);
       this.#discardAfterFailure();
+      throw failure;
     });
     this.#metadataWrites.add(trackedWrite);
-    void trackedWrite.finally(() => {
+    const removeTrackedWrite = () => {
       this.#metadataWrites.delete(trackedWrite);
-    });
+    };
+    void trackedWrite.then(removeTrackedWrite, removeTrackedWrite);
   }
 
   // Returning the stored promise directly preserves identity across concurrent callers.
@@ -247,17 +254,16 @@ export class RealtimeVizHistoryCache {
     return this.#disabled;
   }
 
-  #disable(error: unknown, failureMessage: string): void {
-    if (this.#disabled) {
-      return;
-    }
-    this.#disabled = true;
-    this.#failure =
+  #disable(error: unknown, failureMessage: string): Error {
+    const failure =
       error instanceof Error ? error : new Error("Realtime visualization history cache failed");
+    this.#failure ??= failure;
+    this.#disabled = true;
     this.#pendingInitEvents = [];
     this.#pendingInitEstimatedBytes = 0;
     this.#setStatus("unavailable");
     log.warn(failureMessage, error);
+    return this.#failure;
   }
 
   #discardAfterFailure(): void {

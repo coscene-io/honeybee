@@ -525,7 +525,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
   const { t } = useTranslation("websocket");
   const { dialogActions } = useWorkspaceActions();
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
-  const { selectSource } = usePlayerSelection();
+  const { selectSource, reloadCurrentSource } = usePlayerSelection();
   const realtimeHistory = useMessagePipeline(selectRealtimeHistory);
   const cacheReady = realtimeHistory?.status === "ready";
 
@@ -582,11 +582,41 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                   }}
                 />
               ) : realtimeHistory?.status === "disabled" ? (
-                t("cacheRequiresReconnectPrompt")
+                <Trans
+                  i18nKey="cacheRequiresReconnectPrompt"
+                  ns="websocket"
+                  components={{
+                    Reconnect: (
+                      <Link
+                        href="#"
+                        target="_self"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void reloadCurrentSource();
+                        }}
+                      />
+                    ),
+                  }}
+                />
               ) : realtimeHistory?.status === "initializing" ? (
                 t("cachePreparingPrompt")
               ) : realtimeHistory?.status !== "ready" ? (
-                t("cacheUnavailablePrompt")
+                <Trans
+                  i18nKey="cacheUnavailablePrompt"
+                  ns="websocket"
+                  components={{
+                    Reconnect: (
+                      <Link
+                        href="#"
+                        target="_self"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void reloadCurrentSource();
+                        }}
+                      />
+                    ),
+                  }}
+                />
               ) : (
                 <Trans
                   i18nKey="switchToPlaybackDesc"

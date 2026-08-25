@@ -1498,6 +1498,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     const closePromise = this.#closePromise ?? this.#beginClose();
     const reopenPromise = closePromise
+      .catch((error: unknown) => {
+        // closeCurrentGeneration releases the client and detaches failed caches in a finally block.
+        // Reopening still restores live data even when the abandoned cache cannot be reused.
+        log.warn("Reopening WebSocket player after teardown failed:", error);
+      })
       .then(() => {
         if (!this.#shouldReopen || this.#reopenPromise !== reopenPromise) {
           return;
@@ -1955,6 +1960,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#startTime = undefined;
     this.#endTime = undefined;
     this.#clockTime = undefined;
+    this.#serverTime = undefined;
     this.#topicsStats = new Map();
     this.#parsedMessages = [];
     this.#receivedBytes = 0;
