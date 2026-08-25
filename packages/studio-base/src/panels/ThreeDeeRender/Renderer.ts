@@ -49,8 +49,6 @@ import { LabelMaterial, LabelPool } from "@foxglove/three-text";
 import {
   IRenderer,
   InstancedLineMaterial,
-  LAYER_DEFAULT,
-  LAYER_SELECTED,
   RendererConfig,
   RendererEvents,
   RendererSubscription,
@@ -68,6 +66,7 @@ import { SharedGeometry } from "./SharedGeometry";
 import { CameraState } from "./camera";
 import { DARK_OUTLINE, LIGHT_OUTLINE, stringToRgb } from "./color";
 import { FRAME_TRANSFORMS_DATATYPES, FRAME_TRANSFORM_DATATYPES } from "./foxglove";
+import { LAYER_DEFAULT, LAYER_SELECTED } from "./layers";
 import { DetailLevel, msaaSamples } from "./lod";
 import {
   normalizeFrameTransform,

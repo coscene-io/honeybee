@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 
-import { LAYER_SELECTED } from "../IRenderer";
+import { LAYER_SELECTED } from "../layers";
 
 /** Length of each axis bar in CSS pixels, measured tip to tip through the center */
 const AXIS_LENGTH_PX = 40;
