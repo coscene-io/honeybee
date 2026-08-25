@@ -24,6 +24,7 @@ type MockCache = {
   append: jest.Mock;
   close: jest.Mock<Promise<void>, []>;
   rejectClose: (error: unknown) => void;
+  reset: jest.Mock<Promise<void>, []>;
   resolveInit: () => void;
   resolveClose: () => void;
   storeTopics: jest.Mock;
@@ -95,6 +96,7 @@ jest.mock("@foxglove/studio-base/persistence/RealtimeVizHistoryCache", () => ({
         append: jest.fn(() => {
           args.onStatusChange?.("ready");
         }),
+        reset: jest.fn(async () => {}),
         storeDatatypes: jest.fn(),
         storeTopics: jest.fn(),
         close: jest.fn(async () => {
@@ -455,11 +457,17 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
 
     expect(listener.mock.calls.at(-1)?.[0].activeData).toMatchObject({
       currentTime: { sec: 1, nsec: 0 },
-      endTime: { sec: 2, nsec: 123 },
+      endTime: { sec: 1, nsec: 0 },
       lastSeekTime: 1,
       messages: [],
       startTime: { sec: 1, nsec: 0 },
     });
+    expect(cache.reset).toHaveBeenCalledTimes(1);
+    const resetTopicStats = cache.storeTopics.mock.calls.at(-1)?.[1] as Map<
+      string,
+      { numMessages: number }
+    >;
+    expect(resetTopicStats).toEqual(new Map());
 
     const closePromise = player.close();
     client.emit("close", { type: "close", data: { code: 1000, reason: "" } });

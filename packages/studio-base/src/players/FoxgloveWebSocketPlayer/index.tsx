@@ -999,10 +999,19 @@ export default class FoxgloveWebSocketPlayer implements Player {
       // Before the first dedicated clock event, message timestamps are the provisional timeline.
       // Compare against that timeline so a backward first clock update still reports a seek.
       const previousTime = this.#clockTime ?? this.#serverTime;
+      const firstClockReplacesProvisionalTime =
+        this.#clockTime == undefined && this.#serverTime != undefined;
+      let resetPersistentTimeline = false;
       if (previousTime != undefined && isLessThan(time, previousTime)) {
         this.#numTimeSeeks++;
         this.#parsedMessages = [];
         this.#parsedMessagesBytes = 0;
+        if (firstClockReplacesProvisionalTime) {
+          this.#startTime = time;
+          this.#endTime = time;
+          this.#topicsStats = new Map();
+          resetPersistentTimeline = true;
+        }
       }
 
       // Override any previous start/end time when we set a clockTime for the first time which means
@@ -1013,6 +1022,15 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       this.#clockTime = time;
+      if (resetPersistentTimeline) {
+        const cache = this.#persistentCache ?? this.#initializingPersistentCache;
+        if (cache != undefined) {
+          void cache.reset().catch((error: unknown) => {
+            log.warn("Failed to reset persistent cache after server time discontinuity:", error);
+          });
+          cache.storeTopics(this.#topics, this.#topicsStats);
+        }
+      }
       this.#emitState();
     });
 

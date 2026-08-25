@@ -69,6 +69,66 @@ describe("RealtimeVizHistoryCache", () => {
     }
   });
 
+  it("drops provisional messages while preserving messages appended during reset", async () => {
+    const sessionId = "realtime-clock-reset";
+    const onStatusChange = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId,
+      retentionWindowMs: 30_000,
+      onStatusChange,
+    });
+    const provisionalEvent = {
+      topic: "/example",
+      receiveTime: { sec: 2, nsec: 0 },
+      message: { timeline: "provisional" },
+      sizeInBytes: 10,
+      schemaName: "example/Message",
+    };
+    const replacementEvent = {
+      ...provisionalEvent,
+      receiveTime: { sec: 1, nsec: 0 },
+      message: { timeline: "replacement" },
+    };
+    const topics = [{ name: "/example", schemaName: "example/Message" }];
+    const datatypes = new Map([["example/Message", { definitions: [] }]]);
+
+    await cache.init();
+    cache.storeTopics(topics, new Map([["/example", { numMessages: 5 }]]));
+    cache.storeDatatypes(datatypes);
+    cache.append([provisionalEvent]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const resetPromise = cache.reset();
+    cache.storeTopics(topics, new Map([["/example", { numMessages: 1 }]]));
+    cache.append([replacementEvent]);
+    await resetPromise;
+    await cache.close();
+
+    const reader = new IndexedDbMessageStore({
+      sessionId,
+      kind: "realtime-viz",
+      accessMode: "reader",
+    });
+    try {
+      await reader.init();
+      const messages = await reader.getMessages({
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 3, nsec: 0 },
+      });
+      expect(messages).toEqual([replacementEvent]);
+      expect(await reader.getTopics()).toEqual([{ ...topics[0], topicStats: { numMessages: 1 } }]);
+      expect(await reader.getDatatypes()).toEqual(datatypes);
+      expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
+        "ready",
+        "initializing",
+        "ready",
+      ]);
+    } finally {
+      await reader.close();
+    }
+  });
+
   it("abandons the cache when store shutdown fails", async () => {
     const closeError = new Error("store shutdown failed");
     const closeAfterSpy = jest
@@ -157,7 +217,7 @@ describe("RealtimeVizHistoryCache", () => {
 
       resolveInit();
       await initPromise;
-      await expect(cache.close()).rejects.toThrow("initialization queue exceeded");
+      await expect(cache.close()).rejects.toThrow("pending queue exceeded");
     } finally {
       resolveInit();
       initSpy.mockRestore();
