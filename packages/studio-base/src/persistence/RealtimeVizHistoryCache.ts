@@ -60,6 +60,10 @@ export class RealtimeVizHistoryCache {
       retentionWindowMs,
       maxCacheSize,
       metricSink,
+      onWriteFailure: (error) => {
+        this.#disable(error, "Disabling realtime viz history cache after persistence failure:");
+        this.#discardAfterFailure();
+      },
     });
   }
 

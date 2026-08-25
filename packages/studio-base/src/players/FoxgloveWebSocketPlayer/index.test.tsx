@@ -422,7 +422,7 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     await closePromise;
   });
 
-  it("reports a backward seek when the first clock trails the provisional message time", async () => {
+  it("compares the first clock with the maximum provisional message time", async () => {
     const listener = jest.fn(async (_state: PlayerState) => {});
     const player = makePlayer();
     player.setListener(listener);
@@ -448,19 +448,24 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     client.emit("message", {
       subscriptionId: 1,
       data: new TextEncoder().encode('{"value":1}'),
-      timestamp: 2_000_000_123n,
+      timestamp: 10_000_000_000n,
+    });
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":2}'),
+      timestamp: 5_000_000_000n,
     });
     await flushPromises(10);
 
-    client.emit("time", { timestamp: 1_000_000_000n });
+    client.emit("time", { timestamp: 7_000_000_000n });
     await flushPromises(10);
 
     expect(listener.mock.calls.at(-1)?.[0].activeData).toMatchObject({
-      currentTime: { sec: 1, nsec: 0 },
-      endTime: { sec: 1, nsec: 0 },
+      currentTime: { sec: 7, nsec: 0 },
+      endTime: { sec: 7, nsec: 0 },
       lastSeekTime: 1,
       messages: [],
-      startTime: { sec: 1, nsec: 0 },
+      startTime: { sec: 7, nsec: 0 },
     });
     expect(cache.reset).toHaveBeenCalledTimes(1);
     const resetTopicStats = cache.storeTopics.mock.calls.at(-1)?.[1] as Map<

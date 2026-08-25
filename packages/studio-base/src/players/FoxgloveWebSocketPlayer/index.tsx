@@ -221,6 +221,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #retentionWindowMs?: number;
   #sessionId?: string;
   #serverTime?: Time;
+  #provisionalEndTime?: Time;
   #realtimeHistory: RealtimeHistoryState = {
     status: "disabled",
     retentionWindowMs: 0,
@@ -911,7 +912,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         return;
       }
 
-      this.#serverTime = fromNanoSec(timestamp);
+      const messageTime = fromNanoSec(timestamp);
+      this.#serverTime = messageTime;
 
       try {
         this.#receivedBytes += data.byteLength;
@@ -939,6 +941,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         // Persist message to cache asynchronously (non-blocking)
         (this.#persistentCache ?? this.#initializingPersistentCache)?.append([messageEvent]);
+        if (
+          this.#serverPublishesTime &&
+          this.#clockTime == undefined &&
+          (this.#provisionalEndTime == undefined ||
+            isGreaterThan(messageTime, this.#provisionalEndTime))
+        ) {
+          this.#provisionalEndTime = messageTime;
+        }
         this.#parsedMessagesBytes += sizeInBytes;
         if (this.#parsedMessagesBytes > CURRENT_FRAME_MAXIMUM_SIZE_BYTES) {
           this.#problems.addProblem(`webSocketPlayer:parsedMessageCacheFull`, {
@@ -998,9 +1008,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
       const time = fromNanoSec(timestamp);
       // Before the first dedicated clock event, message timestamps are the provisional timeline.
       // Compare against that timeline so a backward first clock update still reports a seek.
-      const previousTime = this.#clockTime ?? this.#serverTime;
+      const provisionalEndTime = this.#provisionalEndTime ?? this.#serverTime;
+      const previousTime = this.#clockTime ?? provisionalEndTime;
       const firstClockReplacesProvisionalTime =
-        this.#clockTime == undefined && this.#serverTime != undefined;
+        this.#clockTime == undefined && provisionalEndTime != undefined;
       let resetPersistentTimeline = false;
       if (previousTime != undefined && isLessThan(time, previousTime)) {
         this.#numTimeSeeks++;
@@ -1022,6 +1033,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       this.#clockTime = time;
+      this.#provisionalEndTime = undefined;
       if (resetPersistentTimeline) {
         const cache = this.#persistentCache ?? this.#initializingPersistentCache;
         if (cache != undefined) {
@@ -1982,6 +1994,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#endTime = undefined;
     this.#clockTime = undefined;
     this.#serverTime = undefined;
+    this.#provisionalEndTime = undefined;
     this.#topicsStats = new Map();
     this.#parsedMessages = [];
     this.#receivedBytes = 0;

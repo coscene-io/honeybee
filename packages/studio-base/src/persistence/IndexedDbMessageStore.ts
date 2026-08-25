@@ -488,6 +488,8 @@ interface IndexedDbMessageStoreOptions {
   accessMode?: CacheAccessMode;
   /** Optional privacy-safe telemetry sink supplied by the owning player. */
   metricSink?: MessageCacheMetricSink;
+  /** Reports the first persistence failure, including failures from scheduled background flushes. */
+  onWriteFailure?: (error: Error) => void;
 }
 
 function createMessageStores(db: IDB.IDBPDatabase<MessagesDB>): void {
@@ -555,6 +557,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #topicFingerprint?: string;
   #accessMode: CacheAccessMode;
   #metricSink: MessageCacheMetricSink | undefined;
+  #onWriteFailure: ((error: Error) => void) | undefined;
   #initializationDeadlineAt: number;
   #currentSessionId: string;
   #ownerId = createConnectionOwnerId();
@@ -615,6 +618,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       maintenanceTimeoutMs = DEFAULT_MAINTENANCE_TIMEOUT_MS,
       accessMode = "writer",
       metricSink,
+      onWriteFailure,
     } = options;
 
     this.#retentionWindowMs = retentionWindowMs;
@@ -632,6 +636,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#topicFingerprint = topicFingerprint;
     this.#accessMode = accessMode;
     this.#metricSink = metricSink;
+    this.#onWriteFailure = onWriteFailure;
     this.#currentSessionId = sessionId;
     if (!Number.isSafeInteger(maxQueuedMessages) || maxQueuedMessages <= 0) {
       throw new Error("maxQueuedMessages must be a positive safe integer");
@@ -1909,6 +1914,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         error: failure,
       });
       this.#reportMetric("write", { status: "failed", operation });
+      try {
+        this.#onWriteFailure?.(failure);
+      } catch (callbackError) {
+        log.debug("IndexedDbMessageStore write-failure callback failed", callbackError);
+      }
     }
     if (this.#appendFlushTimer != undefined) {
       clearTimeout(this.#appendFlushTimer);

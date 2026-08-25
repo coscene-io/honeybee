@@ -184,6 +184,43 @@ describe("RealtimeVizHistoryCache", () => {
     jest.mocked(console.warn).mockClear();
   });
 
+  it("reports the cache as unavailable after a scheduled flush failure", async () => {
+    jest.useFakeTimers();
+    const onStatusChange = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "failed-realtime-background-flush",
+      retentionWindowMs: 30_000,
+      onStatusChange,
+    });
+
+    try {
+      await cache.init();
+      cache.append([
+        {
+          topic: "/example",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: { unsupported: () => undefined },
+          sizeInBytes: 1,
+          schemaName: "example/Message",
+        },
+      ]);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(onStatusChange).toHaveBeenCalledWith("ready");
+
+      await jest.advanceTimersByTimeAsync(250);
+      for (let attempt = 0; attempt < 10 && onStatusChange.mock.calls.length === 1; attempt++) {
+        await jest.advanceTimersByTimeAsync(0);
+        await Promise.resolve();
+      }
+      expect(onStatusChange).toHaveBeenCalledWith("unavailable");
+      await expect(cache.close()).rejects.toBeDefined();
+    } finally {
+      jest.mocked(console.warn).mockClear();
+      jest.useRealTimers();
+    }
+  });
+
   it("bounds the initialization buffer by the store message limit", async () => {
     let resolveInit = () => {};
     const initGate = new Promise<void>((resolve) => {
