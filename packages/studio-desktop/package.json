@@ -28,7 +28,7 @@
     "async-mutex": "0.4.0",
     "builder-util": "26.15.3",
     "dmg-builder": "26.15.3",
-    "electron": "35.0.3",
+    "electron": "43.4.1",
     "electron-builder": "26.15.3",
     "electron-builder-squirrel-windows": "26.15.3",
     "electron-devtools-installer": "4.0.0",
