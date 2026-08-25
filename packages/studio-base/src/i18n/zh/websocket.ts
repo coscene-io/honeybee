@@ -38,4 +38,7 @@ export const websocket: Partial<TypeOptions["resources"]["websocket"]> = {
   realTimeVizPlayback: "实时可视化回放",
   switchToRealTimeFromPlayback: "退出回放，查看实时视图",
   noCacheSetPrompt: "目前暂未设置缓存时长，<ToSettings>前往设置</ToSettings>",
+  cacheRequiresReconnectPrompt: "请重新连接，使新的缓存设置生效后再回放。",
+  cachePreparingPrompt: "正在准备回放缓存，缓存到首条消息后即可回放。",
+  cacheUnavailablePrompt: "回放缓存不可用，请重新连接后重试。",
 };

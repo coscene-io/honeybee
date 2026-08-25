@@ -121,6 +121,7 @@ const selectPlaybackSpeed = (store: WorkspaceContextStore) => store.playbackCont
 const selectTimelineHeight = (store: WorkspaceContextStore) =>
   store.playbackControls.timelineHeight;
 const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState;
+const selectRealtimeHistory = (ctx: MessagePipelineContext) => ctx.playerState.realtimeHistory;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
 function clampTimelineHeight(height: number): number {
@@ -525,6 +526,8 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
   const { dialogActions } = useWorkspaceActions();
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);
   const { selectSource } = usePlayerSelection();
+  const realtimeHistory = useMessagePipeline(selectRealtimeHistory);
+  const cacheReady = realtimeHistory?.status === "ready";
 
   const getDurationText = useCallback(
     (ms: number) => {
@@ -562,7 +565,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
 
           <Tooltip
             title={
-              retentionWindowMs === 0 ? (
+              realtimeHistory?.status === "disabled" && retentionWindowMs === 0 ? (
                 <Trans
                   i18nKey="noCacheSetPrompt"
                   ns="websocket"
@@ -578,11 +581,17 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                     ),
                   }}
                 />
+              ) : realtimeHistory?.status === "disabled" ? (
+                t("cacheRequiresReconnectPrompt")
+              ) : realtimeHistory?.status === "initializing" ? (
+                t("cachePreparingPrompt")
+              ) : realtimeHistory?.status !== "ready" ? (
+                t("cacheUnavailablePrompt")
               ) : (
                 <Trans
                   i18nKey="switchToPlaybackDesc"
                   ns="websocket"
-                  values={{ duration: getDurationText(retentionWindowMs ?? 30 * 1000) }}
+                  values={{ duration: getDurationText(realtimeHistory.retentionWindowMs) }}
                   components={{
                     ToSettings: (
                       <Link
@@ -603,11 +612,14 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                 component="button"
                 size="small"
                 onClick={() => {
+                  if (!cacheReady) {
+                    return;
+                  }
                   selectSource("persistent-cache", {
                     type: "persistent-cache",
                   });
                 }}
-                disabled={retentionWindowMs === 0}
+                disabled={!cacheReady}
               >
                 <Typography variant="body2" marginLeft="4px">
                   {t("switchToPlayback")}

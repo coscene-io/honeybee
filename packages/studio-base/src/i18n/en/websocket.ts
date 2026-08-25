@@ -40,4 +40,7 @@ export const websocket = {
   realTimeVizPlayback: "Real-time visualization playback",
   switchToRealTimeFromPlayback: "Exit playback, view real-time view",
   noCacheSetPrompt: "No cache duration set, <ToSettings>Go to Settings</ToSettings>",
+  cacheRequiresReconnectPrompt: "Reconnect to enable playback with the new cache setting.",
+  cachePreparingPrompt: "Playback will be available after the first message is cached.",
+  cacheUnavailablePrompt: "Playback cache is unavailable. Reconnect and try again.",
 };

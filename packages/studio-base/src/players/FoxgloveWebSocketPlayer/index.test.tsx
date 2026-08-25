@@ -19,8 +19,10 @@ type MockClient = {
 };
 
 type MockCache = {
+  append: jest.Mock;
   close: jest.Mock<Promise<void>, []>;
   rejectClose: (error: unknown) => void;
+  resolveInit: () => void;
   resolveClose: () => void;
   storeTopics: jest.Mock;
 };
@@ -28,6 +30,7 @@ type MockCache = {
 const mockClients: MockClient[] = [];
 const mockCaches: MockCache[] = [];
 let mockClientConstructionError: Error | undefined;
+let deferNextCacheInit = false;
 
 jest.mock("@foxglove/ws-protocol", () => {
   const actual = jest.requireActual("@foxglove/ws-protocol");
@@ -71,34 +74,46 @@ jest.mock("@foxglove/ws-protocol", () => {
 });
 
 jest.mock("@foxglove/studio-base/persistence/RealtimeVizHistoryCache", () => ({
-  RealtimeVizHistoryCache: jest.fn().mockImplementation(() => {
-    let resolveClose = () => {};
-    let rejectClose = (_error: unknown) => {};
-    const cache: MockCache & {
-      init: jest.Mock;
-      append: jest.Mock;
-      storeDatatypes: jest.Mock;
-    } = {
-      init: jest.fn().mockResolvedValue(undefined),
-      append: jest.fn(),
-      storeDatatypes: jest.fn(),
-      storeTopics: jest.fn(),
-      close: jest.fn(async () => {
-        await new Promise<void>((resolve, reject) => {
-          resolveClose = resolve;
-          rejectClose = reject;
-        });
-      }),
-      rejectClose: (error) => {
-        rejectClose(error);
-      },
-      resolveClose: () => {
-        resolveClose();
-      },
-    };
-    mockCaches.push(cache);
-    return cache;
-  }),
+  RealtimeVizHistoryCache: jest
+    .fn()
+    .mockImplementation((args: { onStatusChange?: (status: "ready") => void }) => {
+      let resolveClose = () => {};
+      let rejectClose = (_error: unknown) => {};
+      let resolveInit = () => {};
+      const initPromise = deferNextCacheInit
+        ? new Promise<void>((resolve) => {
+            resolveInit = resolve;
+          })
+        : Promise.resolve();
+      deferNextCacheInit = false;
+      const cache: MockCache & { init: jest.Mock; storeDatatypes: jest.Mock } = {
+        init: jest.fn(async () => {
+          await initPromise;
+        }),
+        append: jest.fn(() => {
+          args.onStatusChange?.("ready");
+        }),
+        storeDatatypes: jest.fn(),
+        storeTopics: jest.fn(),
+        close: jest.fn(async () => {
+          await new Promise<void>((resolve, reject) => {
+            resolveClose = resolve;
+            rejectClose = reject;
+          });
+        }),
+        rejectClose: (error) => {
+          rejectClose(error);
+        },
+        resolveInit: () => {
+          resolveInit();
+        },
+        resolveClose: () => {
+          resolveClose();
+        },
+      };
+      mockCaches.push(cache);
+      return cache;
+    }),
 }));
 
 function makePlayer(confirm: jest.Mock = jest.fn()): FoxgloveWebSocketPlayer {
@@ -132,6 +147,7 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     mockClients.length = 0;
     mockCaches.length = 0;
     mockClientConstructionError = undefined;
+    deferNextCacheInit = false;
   });
 
   it("serializes close/reopen and ignores events from an old client generation", async () => {
@@ -332,6 +348,77 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
       cache.close.mock.invocationCallOrder[0]!,
     );
 
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.resolveClose();
+    await closePromise;
+  });
+
+  it("uses message timestamps until a server publishes its first clock update", async () => {
+    const player = makePlayer();
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+    await flushPromises();
+
+    client.emit("serverInfo", {
+      name: "test-server",
+      capabilities: ["time"],
+      supportedEncodings: ["json"],
+    });
+    client.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 2_000_000_123n,
+    });
+
+    expect(cache.append).toHaveBeenCalledWith([
+      expect.objectContaining({ receiveTime: { sec: 2, nsec: 123 } }),
+    ]);
+
+    const closePromise = player.close();
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.resolveClose();
+    await closePromise;
+  });
+
+  it("forwards messages while persistent cache initialization is pending", async () => {
+    deferNextCacheInit = true;
+    const player = makePlayer();
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+
+    client.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 1n,
+    });
+
+    expect(cache.append).toHaveBeenCalledTimes(1);
+
+    cache.resolveInit();
+    await flushPromises();
+    const closePromise = player.close();
     client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
     cache.resolveClose();
     await closePromise;

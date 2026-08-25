@@ -17,7 +17,7 @@ describe("RealtimeVizHistoryCache", () => {
     await clearIndexedDbMessageStoreDatabase();
   });
 
-  it("drops messages before initialization and reuses their declared size afterward", async () => {
+  it("buffers messages during initialization and reuses their declared size", async () => {
     let resolveInit = () => {};
     const initGate = new Promise<void>((resolve) => {
       resolveInit = resolve;
@@ -30,9 +30,11 @@ describe("RealtimeVizHistoryCache", () => {
         await this.init();
       });
     const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    const onStatusChange = jest.fn();
     const cache = new RealtimeVizHistoryCache({
       sessionId: "realtime-init-gate",
       retentionWindowMs: 30_000,
+      onStatusChange,
     });
     const event = {
       topic: "/example",
@@ -49,11 +51,13 @@ describe("RealtimeVizHistoryCache", () => {
 
       resolveInit();
       await initPromise;
-      cache.append([event]);
-
       expect(appendSpy).toHaveBeenCalledWith([event], {
         estimatedSizeBytes: [1_256],
       });
+      expect(onStatusChange).toHaveBeenCalledWith("ready");
+
+      cache.append([event]);
+      expect(appendSpy).toHaveBeenCalledTimes(2);
       await cache.close();
     } finally {
       appendSpy.mockRestore();
@@ -83,6 +87,37 @@ describe("RealtimeVizHistoryCache", () => {
       closeAfterSpy.mockRestore();
       discardSpy.mockRestore();
     }
+  });
+
+  it("reports the cache as unavailable after an append failure", async () => {
+    const appendError = new Error("append failed");
+    const appendSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "append")
+      .mockRejectedValueOnce(appendError);
+    const onStatusChange = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "failed-realtime-append",
+      retentionWindowMs: 30_000,
+      onStatusChange,
+    });
+
+    await cache.init();
+    cache.append([
+      {
+        topic: "/example",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+        schemaName: "example/Message",
+      },
+    ]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onStatusChange).toHaveBeenCalledWith("unavailable");
+    await expect(cache.close()).rejects.toBe(appendError);
+    appendSpy.mockRestore();
+    jest.mocked(console.warn).mockClear();
   });
 
   it("waits for queued metadata writes before close resolves", async () => {

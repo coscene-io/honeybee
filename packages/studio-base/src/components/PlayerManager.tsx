@@ -97,9 +97,10 @@ const selectProject = (store: CoreDataStore) => store.project;
 const selectJobRun = (store: CoreDataStore) => store.jobRun;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
-/** Close the current player without letting teardown failures block a source replacement. */
+/** Close the current player, optionally requiring teardown to complete before source replacement. */
 export async function closePlayerForSourceSwitch(
   player: Pick<Player, "close"> | undefined,
+  { propagateError = false }: { propagateError?: boolean } = {},
 ): Promise<void> {
   if (player == undefined) {
     return;
@@ -109,6 +110,9 @@ export async function closePlayerForSourceSwitch(
     await player.close();
   } catch (error) {
     log.warn("Failed to close current player while switching sources:", error);
+    if (propagateError) {
+      throw error;
+    }
   }
 }
 
@@ -436,7 +440,22 @@ export default function PlayerManager(
         return;
       }
 
-      await closePlayerForSourceSwitch(playerInstances?.player);
+      try {
+        await closePlayerForSourceSwitch(playerInstances?.player, {
+          // Realtime replay must never open a session whose final cache flush failed. Other source
+          // switches retain the existing best-effort teardown behavior for compatibility.
+          propagateError: args.type === "persistent-cache",
+        });
+      } catch (error) {
+        if (!isCurrentSelection()) {
+          return;
+        }
+        playerInstances?.player.reOpen();
+        enqueueSnackbar(`Unable to switch to playback: ${(error as Error).message}`, {
+          variant: "error",
+        });
+        return;
+      }
       if (!isCurrentSelection()) {
         return;
       }
