@@ -33,6 +33,7 @@ import type {
   AdvertiseOptions,
   MessageEvent,
   PlayerProblem,
+  RealtimeHistoryState,
   PlayerState,
   PlayerStateActiveData,
   PlayerURLState,
@@ -89,6 +90,7 @@ export type MockMessagePipelineProps = {
   urlState?: PlayerURLState;
   close?: () => void;
   reOpen?: () => void;
+  realtimeHistory?: RealtimeHistoryState;
 };
 type MockMessagePipelineState = MessagePipelineInternalState & {
   mockProps: MockMessagePipelineProps;
@@ -129,6 +131,7 @@ function getPublicState(
       profile: props.profile,
       problems: props.problems,
       urlState: props.urlState,
+      realtimeHistory: props.realtimeHistory,
       activeData:
         props.noActiveData === true
           ? undefined

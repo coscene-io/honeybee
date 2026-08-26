@@ -46,6 +46,7 @@ import {
   PlayerProblem,
   PlayerState,
   PublishPayload,
+  RealtimeHistoryState,
   SubscribePayload,
   Topic,
   TopicStats,
@@ -220,6 +221,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #retentionWindowMs?: number;
   #sessionId?: string;
   #serverTime?: Time;
+  #provisionalEndTime?: Time;
+  #realtimeHistory: RealtimeHistoryState = {
+    status: "disabled",
+    retentionWindowMs: 0,
+  };
 
   #autoConnectToLan: boolean;
 
@@ -270,6 +276,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#retentionWindowMs = retentionWindowMs;
     this.#sessionId = sessionId;
     this.#autoConnectToLan = autoConnectToLan;
+    this.#realtimeHistory = {
+      status:
+        this.#enablePersistentCache && retentionWindowMs != undefined && retentionWindowMs > 0
+          ? "initializing"
+          : "disabled",
+      retentionWindowMs: retentionWindowMs ?? 0,
+    };
 
     this.#open();
     this.#initializePersistentCache();
@@ -281,14 +294,25 @@ export default class FoxgloveWebSocketPlayer implements Player {
       this.#retentionWindowMs == undefined ||
       this.#retentionWindowMs <= 0
     ) {
+      this.#setRealtimeHistoryStatus("disabled");
       return;
     }
+
+    this.#setRealtimeHistoryStatus("initializing");
 
     try {
       const cache = new RealtimeVizHistoryCache({
         retentionWindowMs: this.#retentionWindowMs,
         sessionId: this.#sessionId ?? `websocket-${this.#id}`,
         metricSink: (event, data) => this.#metricsCollector.recordMessageCacheMetric?.(event, data),
+        onStatusChange: (status) => {
+          if (
+            !this.#closed &&
+            (this.#initializingPersistentCache === cache || this.#persistentCache === cache)
+          ) {
+            this.#setRealtimeHistoryStatus(status);
+          }
+        },
       });
       this.#initializingPersistentCache = cache;
       void cache
@@ -307,12 +331,25 @@ export default class FoxgloveWebSocketPlayer implements Player {
           // A close/reopen may have installed a replacement while this open was timing out.
           if (this.#initializingPersistentCache === cache) {
             this.#initializingPersistentCache = undefined;
+            this.#setRealtimeHistoryStatus("unavailable");
           }
         });
     } catch (error) {
       log.warn("Failed to create persistent cache:", error);
       this.#initializingPersistentCache = undefined;
+      this.#setRealtimeHistoryStatus("unavailable");
     }
+  }
+
+  #setRealtimeHistoryStatus(status: RealtimeHistoryState["status"]): void {
+    if (this.#realtimeHistory.status === status) {
+      return;
+    }
+    this.#realtimeHistory = {
+      status,
+      retentionWindowMs: this.#retentionWindowMs ?? 0,
+    };
+    this.#emitState();
   }
 
   #isCurrentClient(client: FoxgloveClient, generation: number): boolean {
@@ -875,7 +912,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
         return;
       }
 
-      this.#serverTime = fromNanoSec(timestamp);
+      const messageTime = fromNanoSec(timestamp);
+      this.#serverTime = messageTime;
 
       try {
         this.#receivedBytes += data.byteLength;
@@ -902,8 +940,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
         this.#parsedMessages.push(messageEvent);
 
         // Persist message to cache asynchronously (non-blocking)
-        if (this.#persistentCache) {
-          this.#persistentCache.append([messageEvent]);
+        (this.#persistentCache ?? this.#initializingPersistentCache)?.append([messageEvent]);
+        if (
+          this.#serverPublishesTime &&
+          this.#clockTime == undefined &&
+          (this.#provisionalEndTime == undefined ||
+            isGreaterThan(messageTime, this.#provisionalEndTime))
+        ) {
+          this.#provisionalEndTime = messageTime;
         }
         this.#parsedMessagesBytes += sizeInBytes;
         if (this.#parsedMessagesBytes > CURRENT_FRAME_MAXIMUM_SIZE_BYTES) {
@@ -962,20 +1006,43 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
 
       const time = fromNanoSec(timestamp);
-      if (this.#clockTime != undefined && isLessThan(time, this.#clockTime)) {
+      // Before the first dedicated clock event, message timestamps are the provisional timeline.
+      // Compare against that timeline so a backward first clock update still reports a seek.
+      const provisionalEndTime = this.#provisionalEndTime ?? this.#serverTime;
+      const previousTime = this.#clockTime ?? provisionalEndTime;
+      const firstClockReplacesProvisionalTime =
+        this.#clockTime == undefined && provisionalEndTime != undefined;
+      let resetPersistentTimeline = false;
+      if (previousTime != undefined && isLessThan(time, previousTime)) {
         this.#numTimeSeeks++;
         this.#parsedMessages = [];
         this.#parsedMessagesBytes = 0;
+        if (firstClockReplacesProvisionalTime) {
+          this.#startTime = time;
+          this.#endTime = time;
+          this.#topicsStats = new Map();
+          resetPersistentTimeline = true;
+        }
       }
 
       // Override any previous start/end time when we set a clockTime for the first time which means
-      // we've received the first "time" event and know the server controlled time.
-      if (!this.#clockTime) {
+      // we've received the first server-controlled time and had no provisional message timeline.
+      if (previousTime == undefined) {
         this.#startTime = time;
         this.#endTime = time;
       }
 
       this.#clockTime = time;
+      this.#provisionalEndTime = undefined;
+      if (resetPersistentTimeline) {
+        const cache = this.#persistentCache ?? this.#initializingPersistentCache;
+        if (cache != undefined) {
+          void cache.reset().catch((error: unknown) => {
+            log.warn("Failed to reset persistent cache after server time discontinuity:", error);
+          });
+          cache.storeTopics(this.#topics, this.#topicsStats);
+        }
+      }
       this.#emitState();
     });
 
@@ -1271,6 +1338,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
         capabilities: this.#playerCapabilities,
         profile: undefined,
         playerId: this.#id,
+        realtimeHistory: this.#realtimeHistory,
         activeData: undefined,
         problems: this.#problems.problems(),
         urlState: this.#urlState,
@@ -1296,6 +1364,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
       capabilities: this.#playerCapabilities,
       profile: this.#profile,
       playerId: this.#id,
+      realtimeHistory: this.#realtimeHistory,
       problems: this.#problems.problems(),
       urlState: this.#urlState,
 
@@ -1462,6 +1531,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
     const closePromise = this.#closePromise ?? this.#beginClose();
     const reopenPromise = closePromise
+      .catch((error: unknown) => {
+        // closeCurrentGeneration releases the client and detaches failed caches in a finally block.
+        // Reopening still restores live data even when the abandoned cache cannot be reused.
+        log.warn("Reopening WebSocket player after teardown failed:", error);
+      })
       .then(() => {
         if (!this.#shouldReopen || this.#reopenPromise !== reopenPromise) {
           return;
@@ -1807,6 +1881,10 @@ export default class FoxgloveWebSocketPlayer implements Player {
       if (this.#presence === PlayerPresence.PRESENT) {
         this.#clockTime = this.#serverTime ?? fromMillis(Date.now());
       }
+    } else if (this.#clockTime == undefined && this.#serverTime != undefined) {
+      // A server may advertise clock support before publishing its first clock event. Topic
+      // messages already carry a server timestamp, so use it until the dedicated clock arrives.
+      return this.#serverTime;
     }
 
     return this.#clockTime ?? ZERO_TIME;
@@ -1915,6 +1993,8 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#startTime = undefined;
     this.#endTime = undefined;
     this.#clockTime = undefined;
+    this.#serverTime = undefined;
+    this.#provisionalEndTime = undefined;
     this.#topicsStats = new Map();
     this.#parsedMessages = [];
     this.#receivedBytes = 0;

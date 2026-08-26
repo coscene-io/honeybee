@@ -37,6 +37,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   #sourceWorkerRemote?: Comlink.Remote<WorkerIterableSourceWorker>;
   #disposeRemote?: () => void;
   #lifecycleGeneration = 0;
+  #preinitialized?: Promise<Initalization>;
 
   public readonly sourceType = "deserialized";
 
@@ -45,6 +46,16 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
   }
 
   public async initialize(): Promise<Initalization> {
+    return await (this.#preinitialized ?? this.#initialize());
+  }
+
+  /** Initialize the worker now and reuse that exact source when its player installs a listener. */
+  public async preinitialize(): Promise<Initalization> {
+    this.#preinitialized ??= this.#initialize();
+    return await this.#preinitialized;
+  }
+
+  async #initialize(): Promise<Initalization> {
     const lifecycleGeneration = ++this.#lifecycleGeneration;
     this.#disposeRemote?.();
     this.#disposeRemote = undefined;
@@ -167,6 +178,7 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
 
   public async terminate(): Promise<void> {
     this.#lifecycleGeneration++;
+    this.#preinitialized = undefined;
     const sourceWorkerRemote = this.#sourceWorkerRemote;
     const disposeRemote = this.#disposeRemote;
 

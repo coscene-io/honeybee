@@ -141,6 +141,13 @@ export type PlayerURLState = Immutable<{
   parameters?: Record<string, string>;
 }>;
 
+export type RealtimeHistoryStatus = "disabled" | "initializing" | "ready" | "unavailable";
+
+export type RealtimeHistoryState = Readonly<{
+  status: RealtimeHistoryStatus;
+  retentionWindowMs: number;
+}>;
+
 export type PlayerState = {
   // Information about the player's presence or connection status, for the UI to show a loading indicator.
   // 关于播放器存在或连接状态的信息，供 UI 显示加载指示器。
@@ -172,6 +179,10 @@ export type PlayerState = {
   // out any data when switching to a new player.
   // 此播放器的唯一 ID（通常是在构造时生成的 UUID）。用于在切换到新播放器时清除任何数据。
   playerId: string;
+
+  // The effective cache state for the current realtime player generation. This intentionally
+  // reflects the player that is already connected rather than the latest application setting.
+  realtimeHistory?: RealtimeHistoryState;
 
   // String name for the player
   // The player could set this value to represent the current connection, name, ports, etc.

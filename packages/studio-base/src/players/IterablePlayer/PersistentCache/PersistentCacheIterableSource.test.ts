@@ -180,7 +180,9 @@ describe("PersistentCacheIterableSource", () => {
     const sessionId = "missing-readonly-session";
     const source = new PersistentCacheIterableSource({ sessionId });
 
-    await expect(source.initialize()).resolves.toMatchObject({ topics: [] });
+    await expect(source.initialize()).rejects.toThrow(
+      "No cached realtime data is available for this session.",
+    );
     expect(await readSessionMetadata(sessionId)).toBeUndefined();
 
     await source.terminate();

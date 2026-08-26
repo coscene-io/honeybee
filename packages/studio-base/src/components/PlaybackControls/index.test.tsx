@@ -15,13 +15,14 @@ import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurat
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import type { RealtimeHistoryState } from "@foxglove/studio-base/players/types";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
-import PlaybackControls from ".";
+import PlaybackControls, { RealtimeVizPlaybackControls } from ".";
 
 jest.mock("./PlaybackTimeDisplay", () => ({
   __esModule: true,
@@ -87,7 +88,10 @@ function KeyframeSearchLock({ active = true }: { active?: boolean }): ReactNull 
   return ReactNull;
 }
 
-function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
+function Wrapper({
+  children,
+  realtimeHistory,
+}: React.PropsWithChildren<{ realtimeHistory?: RealtimeHistoryState }>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
       <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
@@ -106,7 +110,7 @@ function Wrapper({ children }: React.PropsWithChildren): React.JSX.Element {
               initialState={{ playbackControls: { repeat: false, speed: 1 } }}
             >
               <PlaybackInteractionStateProvider>
-                <MockMessagePipelineProvider>
+                <MockMessagePipelineProvider realtimeHistory={realtimeHistory}>
                   {children}
                   <SpeedObserver />
                   <TimelineHeightObserver />
@@ -399,5 +403,31 @@ describe("<PlaybackControls />", () => {
 
     expect(screen.getByTestId("playback-controls").style.height).toBe("250px");
     expect(screen.getByTestId("timeline-height").textContent).toBe("250");
+  });
+});
+
+describe("<RealtimeVizPlaybackControls />", () => {
+  it("disables replay when the current player did not create a cache", () => {
+    render(
+      <Wrapper realtimeHistory={{ status: "disabled", retentionWindowMs: 0 }}>
+        <RealtimeVizPlaybackControls />
+      </Wrapper>,
+    );
+
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Switch to playback mode" }).disabled,
+    ).toBe(true);
+  });
+
+  it("enables replay only after the current player has cached data", () => {
+    render(
+      <Wrapper realtimeHistory={{ status: "ready", retentionWindowMs: 30_000 }}>
+        <RealtimeVizPlaybackControls />
+      </Wrapper>,
+    );
+
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Switch to playback mode" }).disabled,
+    ).toBe(false);
   });
 });

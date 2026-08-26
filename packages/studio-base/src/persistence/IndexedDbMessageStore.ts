@@ -67,7 +67,8 @@ const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
 const DEFAULT_MAINTENANCE_TIMEOUT_MS = 30_000;
 const MAX_SHUTDOWN_STATUS_RESERVE_MS = 500;
 const DEFAULT_APPEND_BATCH_MAX_BYTES = 64 * MEBIBYTE;
-const DEFAULT_APPEND_QUEUE_MAX_BYTES = 128 * MEBIBYTE;
+export const DEFAULT_APPEND_QUEUE_MAX_MESSAGES = 50_000;
+export const DEFAULT_APPEND_QUEUE_MAX_BYTES = 128 * MEBIBYTE;
 const CLEANUP_BATCH_MAX_MESSAGES = 10_000;
 const CLEANUP_BATCH_MAX_BYTES = 64 * MEBIBYTE;
 const MESSAGE_READ_PAGE_MAX_SCANNED_RECORDS = 10_000;
@@ -487,6 +488,8 @@ interface IndexedDbMessageStoreOptions {
   accessMode?: CacheAccessMode;
   /** Optional privacy-safe telemetry sink supplied by the owning player. */
   metricSink?: MessageCacheMetricSink;
+  /** Reports the first persistence failure, including failures from scheduled background flushes. */
+  onWriteFailure?: (error: Error) => void;
 }
 
 function createMessageStores(db: IDB.IDBPDatabase<MessagesDB>): void {
@@ -554,6 +557,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #topicFingerprint?: string;
   #accessMode: CacheAccessMode;
   #metricSink: MessageCacheMetricSink | undefined;
+  #onWriteFailure: ((error: Error) => void) | undefined;
   #initializationDeadlineAt: number;
   #currentSessionId: string;
   #ownerId = createConnectionOwnerId();
@@ -605,7 +609,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       kind = "realtime-viz",
       sourceId,
       topicFingerprint,
-      maxQueuedMessages = 50_000,
+      maxQueuedMessages = DEFAULT_APPEND_QUEUE_MAX_MESSAGES,
       appendBatchMaxSize = 1000,
       appendBatchMaxBytes = DEFAULT_APPEND_BATCH_MAX_BYTES,
       maxQueuedBytes = DEFAULT_APPEND_QUEUE_MAX_BYTES,
@@ -614,6 +618,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       maintenanceTimeoutMs = DEFAULT_MAINTENANCE_TIMEOUT_MS,
       accessMode = "writer",
       metricSink,
+      onWriteFailure,
     } = options;
 
     this.#retentionWindowMs = retentionWindowMs;
@@ -631,6 +636,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#topicFingerprint = topicFingerprint;
     this.#accessMode = accessMode;
     this.#metricSink = metricSink;
+    this.#onWriteFailure = onWriteFailure;
     this.#currentSessionId = sessionId;
     if (!Number.isSafeInteger(maxQueuedMessages) || maxQueuedMessages <= 0) {
       throw new Error("maxQueuedMessages must be a positive safe integer");
@@ -1908,6 +1914,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         error: failure,
       });
       this.#reportMetric("write", { status: "failed", operation });
+      try {
+        this.#onWriteFailure?.(failure);
+      } catch (callbackError) {
+        log.debug("IndexedDbMessageStore write-failure callback failed", callbackError);
+      }
     }
     if (this.#appendFlushTimer != undefined) {
       clearTimeout(this.#appendFlushTimer);

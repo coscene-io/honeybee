@@ -8,13 +8,20 @@
 import Log from "@foxglove/log";
 import type { MessageEvent } from "@foxglove/studio";
 import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
-import type { TopicStats } from "@foxglove/studio-base/players/types";
+import type { RealtimeHistoryStatus, TopicStats } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
-import { IndexedDbMessageStore, type MessageCacheMetricSink } from "./IndexedDbMessageStore";
+import {
+  DEFAULT_APPEND_QUEUE_MAX_BYTES,
+  DEFAULT_APPEND_QUEUE_MAX_MESSAGES,
+  IndexedDbMessageStore,
+  type MessageCacheMetricSink,
+} from "./IndexedDbMessageStore";
 
 const log = Log.getLogger(__filename);
 const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
+
+type ActiveRealtimeHistoryStatus = Exclude<RealtimeHistoryStatus, "disabled">;
 
 export class RealtimeVizHistoryCache {
   #store: IndexedDbMessageStore;
@@ -25,28 +32,43 @@ export class RealtimeVizHistoryCache {
   #latestDatatypes: RosDatatypes | undefined;
   #metadataWrites = new Set<Promise<void>>();
   #closePromise: Promise<void> | undefined;
+  #pendingEvents: MessageEvent[] = [];
+  #pendingEstimatedBytes = 0;
+  #resetGeneration = 0;
+  #resetPromise: Promise<void> | undefined;
+  #status: ActiveRealtimeHistoryStatus = "initializing";
+  #onStatusChange?: (status: ActiveRealtimeHistoryStatus) => void;
+  #failure?: Error;
 
   public constructor({
     sessionId,
     retentionWindowMs,
     maxCacheSize,
     metricSink,
+    onStatusChange,
   }: {
     sessionId: string;
     retentionWindowMs: number;
     maxCacheSize?: number;
     metricSink?: MessageCacheMetricSink;
+    onStatusChange?: (status: ActiveRealtimeHistoryStatus) => void;
   }) {
+    this.#onStatusChange = onStatusChange;
     this.#store = new IndexedDbMessageStore({
       kind: "realtime-viz",
       sessionId,
       retentionWindowMs,
       maxCacheSize,
       metricSink,
+      onWriteFailure: (error) => {
+        this.#disable(error, "Disabling realtime viz history cache after persistence failure:");
+        this.#discardAfterFailure();
+      },
     });
   }
 
   public async init(): Promise<void> {
+    const resetGeneration = this.#resetGeneration;
     try {
       await this.#store.init();
       // A concurrent close owns teardown. Treat it as a normal lifecycle race rather than
@@ -57,38 +79,163 @@ export class RealtimeVizHistoryCache {
       if (!this.#store.isWritable()) {
         throw new Error("Realtime history cache is unavailable for writes");
       }
+      if (this.#hasResetStarted(resetGeneration)) {
+        return;
+      }
+
+      let initializedWithData = false;
+      while (this.#pendingEvents.length > 0) {
+        const pendingEvents = this.#pendingEvents;
+        this.#pendingEvents = [];
+        this.#pendingEstimatedBytes = 0;
+        await this.#appendToStore(pendingEvents, { markReady: false });
+        if (this.#isDisabled()) {
+          return;
+        }
+        if (this.#hasResetStarted(resetGeneration)) {
+          return;
+        }
+        initializedWithData = true;
+      }
       this.#initialized = true;
       this.#persistLatestMetadata();
+      if (initializedWithData) {
+        this.#setStatus("ready");
+      }
     } catch (error) {
-      this.#disabled = true;
+      this.#disable(error, "Failed to initialize realtime viz history cache:");
       await this.#store.discardAndSeal("abandoned");
-      log.warn("Failed to initialize realtime viz history cache:", error);
       throw error;
     }
   }
 
   public append(events: readonly MessageEvent[]): void {
-    // Realtime history is best-effort. Do not retain messages in one Promise per event while the
-    // database open is pending; the store's bounded append queue only applies after initialization.
-    if (this.#disabled || !this.#initialized) {
+    if (this.#disabled || events.length === 0) {
       return;
     }
-    void this.#store
-      .append(events, {
-        // The WebSocket player already normalizes sizeInBytes against its decoded-size estimate.
-        // Reuse it instead of recursively walking the same message again on this hot path.
-        estimatedSizeBytes: events.map(
-          (event) => event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
-        ),
-      })
+
+    if (!this.#initialized) {
+      const addedEstimatedBytes = events.reduce(
+        (total, event) => total + event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
+        0,
+      );
+      if (
+        !Number.isFinite(addedEstimatedBytes) ||
+        this.#pendingEvents.length + events.length > DEFAULT_APPEND_QUEUE_MAX_MESSAGES ||
+        this.#pendingEstimatedBytes + addedEstimatedBytes > DEFAULT_APPEND_QUEUE_MAX_BYTES
+      ) {
+        this.#disable(
+          new Error(
+            `Realtime history pending queue exceeded its ${DEFAULT_APPEND_QUEUE_MAX_MESSAGES}-message or ${DEFAULT_APPEND_QUEUE_MAX_BYTES}-byte limit`,
+          ),
+          "Disabling realtime viz history cache while persistence was pending:",
+        );
+        this.#discardAfterFailure();
+        return;
+      }
+      this.#pendingEvents.push(...events);
+      this.#pendingEstimatedBytes += addedEstimatedBytes;
+      return;
+    }
+
+    void this.#appendToStore(events).catch((error: unknown) => {
+      this.#disable(error, "Disabling realtime viz history cache after append failure:");
+      this.#discardAfterFailure();
+    });
+  }
+
+  // Drop a provisional timeline while buffering events from the replacement timeline. Flushing
+  // before clear prevents an already queued append from repopulating the store after deletion.
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  public reset(): Promise<void> {
+    if (this.#disabled) {
+      return Promise.resolve();
+    }
+
+    this.#resetGeneration++;
+    this.#initialized = false;
+    this.#pendingEvents = [];
+    this.#pendingEstimatedBytes = 0;
+    this.#setStatus("initializing");
+
+    if (this.#resetPromise != undefined) {
+      return this.#resetPromise;
+    }
+
+    const resetPromise = this.#resetImpl()
       .catch((error: unknown) => {
-        if (this.#disabled) {
+        const failure = this.#disable(error, "Failed to reset realtime viz history cache:");
+        this.#discardAfterFailure();
+        throw failure;
+      })
+      .finally(() => {
+        if (this.#resetPromise === resetPromise) {
+          this.#resetPromise = undefined;
+        }
+      });
+    this.#resetPromise = resetPromise;
+    void resetPromise.catch(() => undefined);
+    return resetPromise;
+  }
+
+  async #resetImpl(): Promise<void> {
+    while (!this.#disabled) {
+      const resetGeneration = this.#resetGeneration;
+      await Promise.all(Array.from(this.#metadataWrites));
+      await this.#store.flush();
+      if (this.#isDisabled()) {
+        return;
+      }
+      await this.#store.clear();
+      if (this.#isDisabled()) {
+        return;
+      }
+      if (resetGeneration !== this.#resetGeneration) {
+        continue;
+      }
+
+      let resetWithData = false;
+      while (this.#pendingEvents.length > 0) {
+        const pendingEvents = this.#pendingEvents;
+        this.#pendingEvents = [];
+        this.#pendingEstimatedBytes = 0;
+        await this.#appendToStore(pendingEvents, { markReady: false });
+        if (this.#isDisabled()) {
           return;
         }
-        this.#disabled = true;
-        log.warn("Disabling realtime viz history cache after append failure:", error);
-        void this.#store.discardAndSeal("abandoned");
-      });
+        resetWithData = true;
+        if (resetGeneration !== this.#resetGeneration) {
+          break;
+        }
+      }
+      if (resetGeneration !== this.#resetGeneration) {
+        continue;
+      }
+
+      this.#initialized = true;
+      this.#persistLatestMetadata();
+      if (resetWithData) {
+        this.#setStatus("ready");
+      }
+      return;
+    }
+  }
+
+  async #appendToStore(
+    events: readonly MessageEvent[],
+    { markReady = true }: { markReady?: boolean } = {},
+  ): Promise<void> {
+    const resetGeneration = this.#resetGeneration;
+    await this.#store.append(events, {
+      // The WebSocket player already normalizes sizeInBytes against its decoded-size estimate.
+      // Reuse it instead of recursively walking the same message again on this hot path.
+      estimatedSizeBytes: events.map(
+        (event) => event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
+      ),
+    });
+    if (markReady && this.#initialized && resetGeneration === this.#resetGeneration) {
+      this.#setStatus("ready");
+    }
   }
 
   public storeTopics(
@@ -140,12 +287,15 @@ export class RealtimeVizHistoryCache {
 
   #trackMetadataWrite(write: Promise<void>, failureMessage: string): void {
     const trackedWrite = write.catch((error: unknown) => {
-      log.debug(failureMessage, error);
+      const failure = this.#disable(error, failureMessage);
+      this.#discardAfterFailure();
+      throw failure;
     });
     this.#metadataWrites.add(trackedWrite);
-    void trackedWrite.finally(() => {
+    const removeTrackedWrite = () => {
       this.#metadataWrites.delete(trackedWrite);
-    });
+    };
+    void trackedWrite.then(removeTrackedWrite, removeTrackedWrite);
   }
 
   // Returning the stored promise directly preserves identity across concurrent callers.
@@ -156,14 +306,38 @@ export class RealtimeVizHistoryCache {
   }
 
   async #closeImpl(): Promise<void> {
+    const resetPromise = this.#resetPromise;
+    if (resetPromise != undefined) {
+      this.#disabled = true;
+      this.#pendingEvents = [];
+      this.#pendingEstimatedBytes = 0;
+      try {
+        await resetPromise;
+      } catch {
+        // The recorded reset failure is reported after the store has been abandoned.
+      }
+      await this.#store.discardAndSeal("abandoned");
+      if (this.#failure != undefined) {
+        throw this.#failure;
+      }
+      return;
+    }
     if (this.#disabled || !this.#initialized) {
       this.#disabled = true;
+      this.#pendingEvents = [];
+      this.#pendingEstimatedBytes = 0;
       await this.#store.discardAndSeal("abandoned");
+      if (this.#failure != undefined) {
+        throw this.#failure;
+      }
       return;
     }
     this.#disabled = true;
     try {
       await this.#store.closeAfter(Array.from(this.#metadataWrites));
+      if (this.#failure != undefined) {
+        throw this.#failure;
+      }
     } catch (error) {
       try {
         await this.#store.discardAndSeal("abandoned");
@@ -172,5 +346,41 @@ export class RealtimeVizHistoryCache {
       }
       throw error;
     }
+  }
+
+  #setStatus(status: ActiveRealtimeHistoryStatus): void {
+    if (this.#status === status) {
+      return;
+    }
+    this.#status = status;
+    this.#onStatusChange?.(status);
+  }
+
+  #isDisabled(): boolean {
+    // Async initialization can race close() even though synchronous control-flow analysis cannot.
+    return this.#disabled;
+  }
+
+  #hasResetStarted(generation: number): boolean {
+    // Async initialization can also race a first-clock reset between awaited operations.
+    return this.#resetPromise != undefined || generation !== this.#resetGeneration;
+  }
+
+  #disable(error: unknown, failureMessage: string): Error {
+    const failure =
+      error instanceof Error ? error : new Error("Realtime visualization history cache failed");
+    this.#failure ??= failure;
+    this.#disabled = true;
+    this.#pendingEvents = [];
+    this.#pendingEstimatedBytes = 0;
+    this.#setStatus("unavailable");
+    log.warn(failureMessage, error);
+    return this.#failure;
+  }
+
+  #discardAfterFailure(): void {
+    void this.#store.discardAndSeal("abandoned").catch((error: unknown) => {
+      log.debug("Failed to abandon realtime cache after a persistence failure", error);
+    });
   }
 }

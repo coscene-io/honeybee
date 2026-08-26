@@ -156,6 +156,24 @@ describe("WorkerIterableSource", () => {
     expect(sourceWorkerRemote.terminate).toHaveBeenCalledTimes(1);
   });
 
+  it("reuses an explicitly preinitialized worker when the player initializes", async () => {
+    const { dispose, sourceWorkerRemote } = setupWorkerRemote();
+    const source = new WorkerIterableSource({
+      initWorker: () => ({}) as Worker,
+      initArgs: {},
+    });
+
+    await expect(source.preinitialize()).resolves.toBe(initResult);
+    await expect(source.initialize()).resolves.toBe(initResult);
+
+    expect(ComlinkWrap).toHaveBeenCalledTimes(1);
+    expect(sourceWorkerRemote.initialize).toHaveBeenCalledTimes(1);
+
+    await source.terminate();
+    expect(sourceWorkerRemote.terminate).toHaveBeenCalledTimes(1);
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("does not publish a worker remote that arrives after termination", async () => {
     const { dispose, sourceWorkerRemote } = setupWorkerRemote();
     const remote = deferred<typeof sourceWorkerRemote>();

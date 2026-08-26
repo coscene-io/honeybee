@@ -97,9 +97,10 @@ const selectProject = (store: CoreDataStore) => store.project;
 const selectJobRun = (store: CoreDataStore) => store.jobRun;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
-/** Close the current player without letting teardown failures block a source replacement. */
+/** Close the current player, optionally requiring teardown to complete before source replacement. */
 export async function closePlayerForSourceSwitch(
   player: Pick<Player, "close"> | undefined,
+  { propagateError = false }: { propagateError?: boolean } = {},
 ): Promise<void> {
   if (player == undefined) {
     return;
@@ -109,6 +110,9 @@ export async function closePlayerForSourceSwitch(
     await player.close();
   } catch (error) {
     log.warn("Failed to close current player while switching sources:", error);
+    if (propagateError) {
+      throw error;
+    }
   }
 }
 
@@ -382,6 +386,7 @@ export default function PlayerManager(
       const selectionGeneration = ++sourceSelectionGenerationRef.current;
       const isCurrentSelection = () => selectionGeneration === sourceSelectionGenerationRef.current;
       log.debug(`Select Source: ${sourceId}`);
+      const deferSourceStateUpdate = args?.type === "persistent-cache";
 
       // If sourceId is undefined, clear the current source selection
       if (sourceId == undefined) {
@@ -399,7 +404,9 @@ export default function PlayerManager(
         return;
       }
 
-      setCurrentSourceId(sourceId);
+      if (!deferSourceStateUpdate) {
+        setCurrentSourceId(sourceId);
+      }
 
       const foundSource = playerSources.find(
         (source) => source.id === sourceId || (source.legacyIds?.includes(sourceId) ?? false),
@@ -410,8 +417,10 @@ export default function PlayerManager(
         return;
       }
 
-      metricsCollector.setProperty("player", sourceId, args);
-      setSelectedSource(foundSource);
+      if (!deferSourceStateUpdate) {
+        metricsCollector.setProperty("player", sourceId, args);
+        setSelectedSource(foundSource);
+      }
 
       // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
@@ -436,13 +445,38 @@ export default function PlayerManager(
         return;
       }
 
-      await closePlayerForSourceSwitch(playerInstances?.player);
+      const replaySessionId = dataSourceState?.sessionId;
+      const replayRecentId = dataSourceState?.recentId;
+      if (args.type === "persistent-cache" && replaySessionId == undefined) {
+        enqueueSnackbar("sessionId is required for persistent cache source", {
+          variant: "error",
+        });
+        return;
+      }
+
+      try {
+        await closePlayerForSourceSwitch(playerInstances?.player, {
+          // Realtime replay must never open a session whose final cache flush failed. Other source
+          // switches retain the existing best-effort teardown behavior for compatibility.
+          propagateError: args.type === "persistent-cache",
+        });
+      } catch (error) {
+        if (!isCurrentSelection()) {
+          return;
+        }
+        playerInstances?.player.reOpen();
+        enqueueSnackbar(`Unable to switch to playback: ${(error as Error).message}`, {
+          variant: "error",
+        });
+        return;
+      }
       if (!isCurrentSelection()) {
         return;
       }
-      setDataSource(undefined);
-
-      setCurrentSourceArgs(args);
+      if (!deferSourceStateUpdate) {
+        setDataSource(undefined);
+        setCurrentSourceArgs(args);
+      }
 
       try {
         switch (args.type) {
@@ -536,19 +570,6 @@ export default function PlayerManager(
           }
 
           case "persistent-cache": {
-            if (!dataSourceState?.sessionId) {
-              enqueueSnackbar("sessionId is required for persistent cache source", {
-                variant: "error",
-              });
-              return;
-            }
-
-            setDataSource({
-              id: sourceId,
-              type: "persistent-cache",
-              sessionId: dataSourceState.sessionId,
-              previousRecentId: dataSourceState.recentId,
-            });
             const newPlayer = await foundSource.initialize({
               metricsCollector,
               confirm,
@@ -556,14 +577,27 @@ export default function PlayerManager(
                 ...args.params,
               },
               consoleApi,
-              sessionId: dataSourceState.sessionId,
+              sessionId: replaySessionId,
               retentionWindowMs,
             });
             if (!isCurrentSelection()) {
               await closePlayerForSourceSwitch(newPlayer);
               return;
             }
+            if (!newPlayer) {
+              throw new Error("Unable to initialize persistent cache player");
+            }
 
+            setCurrentSourceId(sourceId);
+            metricsCollector.setProperty("player", sourceId, args);
+            setSelectedSource(foundSource);
+            setCurrentSourceArgs(args);
+            setDataSource({
+              id: sourceId,
+              type: "persistent-cache",
+              sessionId: replaySessionId,
+              previousRecentId: replayRecentId,
+            });
             constructPlayers(newPlayer);
             return;
           }
@@ -655,7 +689,11 @@ export default function PlayerManager(
         if (!isCurrentSelection()) {
           return;
         }
-        setDataSource(undefined);
+        if (deferSourceStateUpdate) {
+          playerInstances?.player.reOpen();
+        } else {
+          setDataSource(undefined);
+        }
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }
     },
