@@ -129,6 +129,86 @@ describe("RealtimeVizHistoryCache", () => {
     }
   });
 
+  it("waits for an in-flight reset before closing the corrected timeline", async () => {
+    const sessionId = "realtime-close-during-reset";
+    let resolveClear = () => {};
+    let markClearStarted = () => {};
+    const clearGate = new Promise<void>((resolve) => {
+      resolveClear = resolve;
+    });
+    const clearStarted = new Promise<void>((resolve) => {
+      markClearStarted = resolve;
+    });
+    const clearSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "clear")
+      .mockImplementationOnce(async function (this: IndexedDbMessageStore) {
+        markClearStarted();
+        await clearGate;
+        clearSpy.mockRestore();
+        await this.clear();
+      });
+    const discardSpy = jest.spyOn(IndexedDbMessageStore.prototype, "discardAndSeal");
+    const cache = new RealtimeVizHistoryCache({
+      sessionId,
+      retentionWindowMs: 30_000,
+    });
+    const provisionalEvent = {
+      topic: "/example",
+      receiveTime: { sec: 2, nsec: 0 },
+      message: { timeline: "provisional" },
+      sizeInBytes: 10,
+      schemaName: "example/Message",
+    };
+    const replacementEvent = {
+      ...provisionalEvent,
+      receiveTime: { sec: 1, nsec: 0 },
+      message: { timeline: "replacement" },
+    };
+
+    try {
+      await cache.init();
+      cache.append([provisionalEvent]);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const resetPromise = cache.reset();
+      await clearStarted;
+      cache.append([replacementEvent]);
+      const closePromise = cache.close();
+
+      let closeResolved = false;
+      void closePromise.then(() => {
+        closeResolved = true;
+      });
+      await Promise.resolve();
+      expect(closeResolved).toBe(false);
+
+      resolveClear();
+      await Promise.all([resetPromise, closePromise]);
+      expect(discardSpy).not.toHaveBeenCalled();
+
+      const reader = new IndexedDbMessageStore({
+        sessionId,
+        kind: "realtime-viz",
+        accessMode: "reader",
+      });
+      try {
+        await reader.init();
+        const messages = await reader.getMessages({
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 3, nsec: 0 },
+        });
+        expect(messages).toEqual([replacementEvent]);
+      } finally {
+        await reader.close();
+      }
+    } finally {
+      resolveClear();
+      clearSpy.mockRestore();
+      discardSpy.mockRestore();
+    }
+  });
+
   it("abandons the cache when store shutdown fails", async () => {
     const closeError = new Error("store shutdown failed");
     const closeAfterSpy = jest

@@ -598,9 +598,9 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                     ),
                   }}
                 />
-              ) : realtimeHistory?.status === "initializing" ? (
+              ) : realtimeHistory == undefined || realtimeHistory.status === "initializing" ? (
                 t("cachePreparingPrompt")
-              ) : realtimeHistory?.status !== "ready" ? (
+              ) : realtimeHistory.status === "unavailable" ? (
                 <Trans
                   i18nKey="cacheUnavailablePrompt"
                   ns="websocket"
