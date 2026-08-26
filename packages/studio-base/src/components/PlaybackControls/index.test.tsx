@@ -407,6 +407,23 @@ describe("<PlaybackControls />", () => {
 });
 
 describe("<RealtimeVizPlaybackControls />", () => {
+  it("shows the preparing prompt before the current player reports cache state", async () => {
+    render(
+      <Wrapper>
+        <RealtimeVizPlaybackControls />
+      </Wrapper>,
+    );
+
+    const button = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Switch to playback mode",
+    });
+    fireEvent.mouseOver(button.parentElement!);
+
+    expect(
+      await screen.findByText("Playback will be available after the first message is cached."),
+    ).toBeTruthy();
+  });
+
   it("disables replay when the current player did not create a cache", () => {
     render(
       <Wrapper realtimeHistory={{ status: "disabled", retentionWindowMs: 0 }}>

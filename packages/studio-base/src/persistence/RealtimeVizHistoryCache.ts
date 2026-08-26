@@ -32,6 +32,7 @@ export class RealtimeVizHistoryCache {
   #latestDatatypes: RosDatatypes | undefined;
   #metadataWrites = new Set<Promise<void>>();
   #closePromise: Promise<void> | undefined;
+  #closing = false;
   #pendingEvents: MessageEvent[] = [];
   #pendingEstimatedBytes = 0;
   #resetGeneration = 0;
@@ -110,7 +111,7 @@ export class RealtimeVizHistoryCache {
   }
 
   public append(events: readonly MessageEvent[]): void {
-    if (this.#disabled || events.length === 0) {
+    if (this.#disabled || this.#closing || events.length === 0) {
       return;
     }
 
@@ -148,7 +149,7 @@ export class RealtimeVizHistoryCache {
   // before clear prevents an already queued append from repopulating the store after deletion.
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   public reset(): Promise<void> {
-    if (this.#disabled) {
+    if (this.#disabled || this.#closing) {
       return Promise.resolve();
     }
 
@@ -242,7 +243,7 @@ export class RealtimeVizHistoryCache {
     topics: readonly TopicWithDecodingInfo[] | undefined,
     topicStats: Map<string, TopicStats>,
   ): void {
-    if (this.#disabled || topics == undefined) {
+    if (this.#disabled || this.#closing || topics == undefined) {
       return;
     }
     this.#latestTopics = topics;
@@ -257,7 +258,7 @@ export class RealtimeVizHistoryCache {
   }
 
   public storeDatatypes(datatypes: RosDatatypes): void {
-    if (this.#disabled) {
+    if (this.#disabled || this.#closing) {
       return;
     }
     this.#latestDatatypes = datatypes;
@@ -306,21 +307,14 @@ export class RealtimeVizHistoryCache {
   }
 
   async #closeImpl(): Promise<void> {
+    this.#closing = true;
     const resetPromise = this.#resetPromise;
     if (resetPromise != undefined) {
-      this.#disabled = true;
-      this.#pendingEvents = [];
-      this.#pendingEstimatedBytes = 0;
       try {
         await resetPromise;
       } catch {
-        // The recorded reset failure is reported after the store has been abandoned.
+        // Reset records the failure and starts abandonment; the disabled path below finishes it.
       }
-      await this.#store.discardAndSeal("abandoned");
-      if (this.#failure != undefined) {
-        throw this.#failure;
-      }
-      return;
     }
     if (this.#disabled || !this.#initialized) {
       this.#disabled = true;
