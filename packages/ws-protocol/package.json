@@ -38,7 +38,7 @@
     "@types/node": "^24.13.1",
     "eslint": "9.39.4",
     "jest": "30.4.2",
-    "prettier": "3.8.4",
+    "prettier": "3.9.6",
     "ts-jest": "29.4.11",
     "ts-node": "10.9.2",
     "typescript": "npm:@typescript/typescript6@6.0.2"
