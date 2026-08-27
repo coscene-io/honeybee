@@ -55,6 +55,25 @@ function makeVideoMessage(timestamp: bigint, type: "key" | "delta"): MessageEven
   };
 }
 
+function makeRawImageMessage(timestamp: bigint): MessageEvent<AnyImage> {
+  const time = timeFromNanoseconds(timestamp);
+  return {
+    topic: "/camera",
+    schemaName: "foxglove.RawImage",
+    receiveTime: time,
+    message: {
+      timestamp: time,
+      frame_id: "camera",
+      width: 1,
+      height: 1,
+      encoding: "mono8",
+      step: 1,
+      data: new Uint8Array([0]),
+    },
+    sizeInBytes: 1,
+  };
+}
+
 function timestampFromImage(image: AnyImage): Time {
   return "header" in image ? image.header.stamp : image.timestamp;
 }
@@ -266,16 +285,26 @@ function makeRenderer(
   }) as unknown as IRenderer;
 }
 
-function compressedVideoSubscription(imageMode: ImageMode) {
+function schemaSubscription(imageMode: ImageMode, schemaName: string) {
   const subscription = imageMode
     .getSubscriptions()
-    .find(
-      (entry) => entry.type === "schema" && entry.schemaNames.has("foxglove.CompressedVideo"),
-    )?.subscription;
+    .find((entry) => entry.type === "schema" && entry.schemaNames.has(schemaName))?.subscription;
   if (subscription == undefined) {
-    throw new Error("Missing compressed video subscription");
+    throw new Error(`Missing ${schemaName} subscription`);
   }
   return subscription;
+}
+
+function compressedVideoSubscription(imageMode: ImageMode) {
+  return schemaSubscription(imageMode, "foxglove.CompressedVideo");
+}
+
+function synchronizeSettingsField(imageMode: ImageMode) {
+  const field = imageMode.settingsNodes()[0]?.node.fields?.synchronize;
+  if (field?.input !== "boolean") {
+    throw new Error("Missing synchronize settings field");
+  }
+  return field;
 }
 
 describe("ImageMode compressed video seek replay", () => {
@@ -290,6 +319,46 @@ describe("ImageMode compressed video seek replay", () => {
   afterEach(() => {
     nextMessageHandler = undefined;
     jest.restoreAllMocks();
+  });
+
+  it("disables sync annotations for compressed video topics", () => {
+    const imageMode = new TestImageMode(makeRenderer({ synchronize: true }));
+
+    expect(synchronizeSettingsField(imageMode)).toMatchObject({
+      value: false,
+      disabled: true,
+    });
+  });
+
+  it("keeps sync annotations available for non-video image topics", () => {
+    const renderer = makeRenderer({
+      topics: [{ name: "/camera", schemaName: "foxglove.RawImage" }],
+      synchronize: true,
+    });
+    const imageMode = new TestImageMode(renderer);
+    const subscription = schemaSubscription(imageMode, "foxglove.RawImage");
+    const first = makeRawImageMessage(0n);
+    const second = makeRawImageMessage(10_000_000n);
+
+    expect(synchronizeSettingsField(imageMode)).toMatchObject({
+      value: true,
+      disabled: false,
+    });
+    expect(subscription.filterQueue?.([first, second])).toEqual([first, second]);
+  });
+
+  it("preserves compressed video GOP frames while sync annotations are disabled", () => {
+    const imageMode = new TestImageMode(makeRenderer({ synchronize: true }));
+    const subscription = compressedVideoSubscription(imageMode);
+    const keyframe = makeVideoMessage(0n, "key");
+    const middle = makeVideoMessage(10_000_000n, "delta");
+    const target = makeVideoMessage(20_000_000n, "delta");
+
+    expect(subscription.filterQueue?.([keyframe, middle, target])).toEqual([
+      keyframe,
+      middle,
+      target,
+    ]);
   });
 
   it("renders seek GOP frames directly when the message handler does not emit an image", async () => {
@@ -398,7 +467,7 @@ describe("ImageMode compressed video seek replay", () => {
     ]);
   });
 
-  it("replays cached GOP frames when synchronized mode emits a compressed video delta", async () => {
+  it("ignores legacy synchronize=true during compressed video playback", async () => {
     const messageHandler = new SynchronizingCompressedVideoMessageHandler();
     nextMessageHandler = messageHandler;
     const renderer = makeRenderer({ synchronize: true });
@@ -419,13 +488,18 @@ describe("ImageMode compressed video seek replay", () => {
       imageMode.createdRenderables[0]!.setCompressedVideoFrameBatches.map((batch) =>
         batch.map(timestampFromImage),
       ),
-    ).toEqual([[keyframe.message.timestamp, middle.message.timestamp, delta.message.timestamp]]);
+    ).toEqual([
+      [keyframe.message.timestamp],
+      [middle.message.timestamp],
+      [delta.message.timestamp],
+    ]);
     expect(
       imageMode.createdRenderables[0]!.setCompressedVideoFrameOptions.map(
         (options) => options?.allowIntermediateVideoFrame,
       ),
-    ).toEqual([false]);
-    expect(messageHandler.updateImageState).not.toHaveBeenCalled();
+    ).toEqual([true, true, true]);
+    expect(messageHandler.handleCompressedVideo).not.toHaveBeenCalled();
+    expect(messageHandler.updateImageState).toHaveBeenCalledTimes(3);
   });
 
   it("clears the waiting-for-image HUD after direct seek replay", async () => {
