@@ -60,6 +60,9 @@ export const threeDee = {
   ignoreColladaUpAxis: "Ignore COLLADA <up_axis>",
   ignoreColladaUpAxisHelp:
     "Match the behavior of rviz by ignoring the <up_axis> tag in COLLADA files",
+  showOrbitTarget: "Show orbit target",
+  showOrbitTargetHelp:
+    "Briefly show an axis marker at the point the camera pans and rotates around while dragging",
   labelScale: "Label scale",
   labelScaleHelp: "Scale factor to apply to all labels",
   meshUpAxis: "Mesh up axis",

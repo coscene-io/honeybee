@@ -66,6 +66,7 @@ import { SharedGeometry } from "./SharedGeometry";
 import { CameraState } from "./camera";
 import { DARK_OUTLINE, LIGHT_OUTLINE, stringToRgb } from "./color";
 import { FRAME_TRANSFORMS_DATATYPES, FRAME_TRANSFORM_DATATYPES } from "./foxglove";
+import { LAYER_DEFAULT, LAYER_SELECTED } from "./layers";
 import { DetailLevel, msaaSamples } from "./lod";
 import {
   normalizeFrameTransform,
@@ -114,10 +115,6 @@ const MAX_SELECTIONS = 10;
 // affected by gamma correction
 const LIGHT_BACKDROP = new THREE.Color(palette.light.background?.default);
 const DARK_BACKDROP = new THREE.Color(palette.dark.background?.default);
-
-// Define rendering layers for multipass rendering used for the selection effect
-const LAYER_DEFAULT = 0;
-const LAYER_SELECTED = 1;
 
 const FOLLOW_TF_PATH = ["general", "followTf"];
 const NO_FRAME_SELECTED = "NO_FRAME_SELECTED";

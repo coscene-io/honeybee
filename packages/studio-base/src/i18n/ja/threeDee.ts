@@ -55,6 +55,9 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   ignoreColladaUpAxis: "COLLADA <up_axis> を無視",
   ignoreColladaUpAxisHelp:
     "COLLADA ファイル内の <up_axis> タグを無視することで、rviz の動作に合わせます。",
+  showOrbitTarget: "回転中心を表示",
+  showOrbitTargetHelp:
+    "ドラッグ中に、カメラのパンと回転の中心となる点に座標軸マーカーを一時的に表示します",
   labelScale: "ラベルのスケール",
   labelScaleHelp: "すべてのラベルに適用するスケールファクター",
   meshUpAxis: "メッシュの上軸",

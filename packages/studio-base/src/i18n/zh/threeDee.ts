@@ -59,6 +59,8 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   debugPicking: "调试拾取",
   ignoreColladaUpAxis: "忽略 COLLADA 的 <up_axis>",
   ignoreColladaUpAxisHelp: "通过忽略 COLLADA 文件中的 <up_axis> 标记，匹配 rviz 的行为",
+  showOrbitTarget: "显示旋转中心",
+  showOrbitTargetHelp: "拖拽时在相机平移和旋转所围绕的中心点短暂显示坐标轴标记",
   labelScale: "标签比例",
   labelScaleHelp: "应用于所有标签的比例因子",
   meshUpAxis: "mesh 模型的上轴",
