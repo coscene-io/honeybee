@@ -709,20 +709,6 @@ describe("IndexedDbMessageStore", () => {
     expect(
       () =>
         new IndexedDbMessageStore({
-          sessionId: "invalid-initialization-timeout",
-          initializationStageTimeoutMs: 0,
-        }),
-    ).toThrow("initializationStageTimeoutMs must be a finite, positive number");
-    expect(
-      () =>
-        new IndexedDbMessageStore({
-          sessionId: "invalid-storage-estimate-timeout",
-          initialStorageEstimateTimeoutMs: Number.POSITIVE_INFINITY,
-        }),
-    ).toThrow("initialStorageEstimateTimeoutMs must be a finite, positive number");
-    expect(
-      () =>
-        new IndexedDbMessageStore({
           sessionId: "invalid-maintenance",
           maintenanceTimeoutMs: Number.POSITIVE_INFINITY,
         }),
@@ -1061,13 +1047,12 @@ describe("IndexedDbMessageStore", () => {
     });
     const store = new IndexedDbMessageStore({
       sessionId: "stalled-initial-storage-estimate",
-      initialStorageEstimateTimeoutMs: 25,
-      initializationStageTimeoutMs: 100,
+      openTimeoutMs: 2_000,
       metricSink,
     });
 
     try {
-      await expect(withTimeout(store.init(), 250)).resolves.toBeUndefined();
+      await expect(withTimeout(store.init(), 3_000)).resolves.toBeUndefined();
       expect(store.isWritable()).toBe(true);
       expect(store.getMaxCacheSize()).toBe(512 * 1024 ** 2);
       expect(metricSink).toHaveBeenCalledWith(
@@ -1075,7 +1060,6 @@ describe("IndexedDbMessageStore", () => {
         expect.objectContaining({
           kind: "realtime-viz",
           status: "timeout",
-          durationMs: expect.any(Number),
         }),
       );
     } finally {
@@ -2385,7 +2369,45 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
-  it("retries a timed-out session creation transaction", async () => {
+  it("starts the post-open deadline after the database connection opens", async () => {
+    const originalOpenDB = IDB.openDB;
+    const originalStorage = Object.getOwnPropertyDescriptor(navigator, "storage");
+    const estimate = jest.fn(async () => {
+      await wait(180);
+      return { quota: 10 * 1024 ** 3, usage: 0 };
+    });
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: { estimate },
+    });
+    const openDBSpy = jest
+      .spyOn(indexedDbMessageCacheApi, "openDB")
+      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
+        const db = await originalOpenDB(...args);
+        await wait(200);
+        return db;
+      });
+    const store = new IndexedDbMessageStore({
+      sessionId: "fresh-post-open-deadline",
+      openTimeoutMs: 300,
+    });
+
+    try {
+      await expect(withTimeout(store.init(), 1_000)).resolves.toBeUndefined();
+      expect(estimate).toHaveBeenCalledTimes(1);
+      expect(store.isWritable()).toBe(true);
+    } finally {
+      openDBSpy.mockRestore();
+      await store.close();
+      if (originalStorage == undefined) {
+        Reflect.deleteProperty(navigator, "storage");
+      } else {
+        Object.defineProperty(navigator, "storage", originalStorage);
+      }
+    }
+  });
+
+  it("fails closed when session creation exceeds the post-open deadline", async () => {
     const originalOpenDB = IDB.openDB;
     let injectedHang = false;
     let rejectTransaction: ((error: Error) => void) | undefined;
@@ -2434,95 +2456,25 @@ describe("IndexedDbMessageStore", () => {
     const metricSink = jest.fn();
     const store = new IndexedDbMessageStore({
       sessionId: "post-open-timeout",
-      initializationStageTimeoutMs: 25,
+      openTimeoutMs: 25,
       metricSink,
     });
 
     try {
-      await expect(withTimeout(store.init(), 750)).resolves.toBeUndefined();
+      await expect(withTimeout(store.init(), 500)).rejects.toThrow(
+        "Timed out initializing IndexedDbMessageStore during session creation",
+      );
       expect(injectedHang).toBe(true);
       expect(abort).toHaveBeenCalledTimes(1);
-      expect(store.isWritable()).toBe(true);
+      expect(store.isWritable()).toBe(false);
       expect(metricSink).toHaveBeenCalledWith(
         "open",
         expect.objectContaining({
           kind: "realtime-viz",
-          status: "retrying",
+          status: "timeout",
           stage: "session creation",
-          attempt: 1,
         }),
       );
-    } finally {
-      openDBSpy.mockRestore();
-      await store.close();
-    }
-  });
-
-  it("fails closed after both session creation attempts time out", async () => {
-    const originalOpenDB = IDB.openDB;
-    let rejectTransaction: ((error: Error) => void) | undefined;
-    const abort = jest.fn(() => {
-      rejectTransaction?.(new Error("aborted stalled initialization transaction"));
-    });
-    const openDBSpy = jest
-      .spyOn(indexedDbMessageCacheApi, "openDB")
-      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
-        const db = await originalOpenDB(...args);
-        return new Proxy(db, {
-          get(target, prop, receiver) {
-            if (prop !== "transaction") {
-              const value = Reflect.get(target, prop, receiver) as unknown;
-              return typeof value === "function" ? value.bind(target) : value;
-            }
-            return (storeNames: unknown, mode?: unknown, options?: unknown) => {
-              const tx = target.transaction(
-                storeNames as Parameters<typeof target.transaction>[0],
-                mode as Parameters<typeof target.transaction>[1],
-                options as Parameters<typeof target.transaction>[2],
-              );
-              if (storeNames !== "sessions" || mode !== "readwrite") {
-                return tx;
-              }
-              const stalledDone = new Promise<void>((_resolve, reject) => {
-                rejectTransaction = reject;
-              });
-              return new Proxy(tx, {
-                get(txTarget, txProp, txReceiver) {
-                  if (txProp === "done") {
-                    return stalledDone;
-                  }
-                  if (txProp === "abort") {
-                    return abort;
-                  }
-                  const value = Reflect.get(txTarget, txProp, txReceiver) as unknown;
-                  return typeof value === "function" ? value.bind(txTarget) : value;
-                },
-              });
-            };
-          },
-        });
-      });
-    const metricSink = jest.fn();
-    const store = new IndexedDbMessageStore({
-      sessionId: "repeated-post-open-timeout",
-      initializationStageTimeoutMs: 25,
-      metricSink,
-    });
-
-    try {
-      await expect(withTimeout(store.init(), 1_000)).rejects.toThrow(
-        "Timed out initializing IndexedDbMessageStore during session creation",
-      );
-      expect(abort).toHaveBeenCalledTimes(2);
-      expect(store.isWritable()).toBe(false);
-      expect(
-        metricSink.mock.calls.filter(
-          ([metric, data]) =>
-            metric === "open" &&
-            (data as { status?: string; stage?: string }).status === "timeout" &&
-            (data as { status?: string; stage?: string }).stage === "session creation",
-        ),
-      ).toHaveLength(2);
       jest.mocked(console.error).mockClear();
     } finally {
       openDBSpy.mockRestore();

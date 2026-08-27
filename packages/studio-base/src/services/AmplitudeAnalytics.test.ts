@@ -181,10 +181,8 @@ describe("AmplitudeAnalytics", () => {
         stage: "/private/topic",
         operation: "background maintenance",
         usage: 100,
-        attempt: 2,
         quota: Number.POSITIVE_INFINITY,
         writesDisabled: false,
-        maintenanceActive: true,
         interrupted: { value: true },
       }),
     ).toEqual({
@@ -192,9 +190,7 @@ describe("AmplitudeAnalytics", () => {
       kind: "playback-spill",
       operation: "background maintenance",
       usage: 100,
-      attempt: 2,
       writesDisabled: false,
-      maintenanceActive: true,
     });
   });
 

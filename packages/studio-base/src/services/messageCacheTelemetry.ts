@@ -27,14 +27,9 @@ const SAFE_MESSAGE_CACHE_NUMBER_KEYS = new Set([
   "failedCount",
   "sessionCount",
   "totalBytes",
-  "attempt",
 ]);
 
-const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set([
-  "writesDisabled",
-  "interrupted",
-  "maintenanceActive",
-]);
+const SAFE_MESSAGE_CACHE_BOOLEAN_KEYS = new Set(["writesDisabled", "interrupted"]);
 const SAFE_PLAYER_PERFORMANCE_NUMBER_KEYS = new Set([
   "seek_id",
   "latency_ms",
