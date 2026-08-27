@@ -15,8 +15,9 @@ import { v4 as uuidv4 } from "uuid";
 
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
-import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
+
+import { getAuthToken } from "./getAuthToken";
 
 export * from "./cosel";
 
@@ -56,7 +57,7 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const jwt = localStorage.getItem(ACCESS_TOKEN_NAME);
+  const jwt = getAuthToken();
   if (jwt) {
     req.header.set("Authorization", jwt);
     req.header.set("x-cos-request-id", uuidv4());
