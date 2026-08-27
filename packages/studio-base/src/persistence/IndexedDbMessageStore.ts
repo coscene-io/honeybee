@@ -62,15 +62,17 @@ const STORAGE_PRESSURE_LATCH_KEY = "studio-message-cache-storage-pressure-v1";
 const GLOBAL_BUDGET_LOW_WATERMARK = 0.8;
 const GLOBAL_BUDGET_CHECK_INTERVAL_MS = 30 * 1000;
 const GLOBAL_BUDGET_CHECK_BYTES = 64 * MEBIBYTE;
-const PERIODIC_STORAGE_ESTIMATE_TIMEOUT_MS = 1_000;
+const STORAGE_ESTIMATE_TIMEOUT_MS = 1_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
 const DEFAULT_MAINTENANCE_TIMEOUT_MS = 30_000;
 const MAX_SHUTDOWN_STATUS_RESERVE_MS = 500;
 const DEFAULT_APPEND_BATCH_MAX_BYTES = 64 * MEBIBYTE;
 export const DEFAULT_APPEND_QUEUE_MAX_MESSAGES = 50_000;
 export const DEFAULT_APPEND_QUEUE_MAX_BYTES = 128 * MEBIBYTE;
-const CLEANUP_BATCH_MAX_MESSAGES = 10_000;
-const CLEANUP_BATCH_MAX_BYTES = 64 * MEBIBYTE;
+const CLEANUP_BATCH_MAX_MESSAGES = 1000;
+const CLEANUP_BATCH_MAX_BYTES = 8 * MEBIBYTE;
+// Preserve the previous 64 MiB foreground cleanup capacity while yielding every 8 MiB.
+const FOREGROUND_PRUNE_MAX_BATCHES = 8;
 const MESSAGE_READ_PAGE_MAX_SCANNED_RECORDS = 10_000;
 
 class StorageEstimateTimeoutError extends Error {}
@@ -478,7 +480,7 @@ interface IndexedDbMessageStoreOptions {
   appendBatchMaxBytes?: number;
   /** Maximum estimated bytes waiting for an IndexedDB transaction. */
   maxQueuedBytes?: number;
-  /** Timeout for blocked IndexedDB opens so realtime viz can degrade instead of hanging. */
+  /** Separate timeout for IndexedDB open and post-open initialization. */
   openTimeoutMs?: number;
   /** Deadline for sealing in-flight work before a cache connection is force-closed. */
   shutdownTimeoutMs?: number;
@@ -558,7 +560,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #accessMode: CacheAccessMode;
   #metricSink: MessageCacheMetricSink | undefined;
   #onWriteFailure: ((error: Error) => void) | undefined;
-  #initializationDeadlineAt: number;
+  #postOpenInitializationTimeoutMs: number;
   #currentSessionId: string;
   #ownerId = createConnectionOwnerId();
   #initPromise: Promise<void>;
@@ -665,11 +667,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#appendBatchMaxSize = appendBatchMaxSize;
     this.#appendBatchMaxBytes = appendBatchMaxBytes;
     this.#maxQueuedBytes = maxQueuedBytes;
+    this.#postOpenInitializationTimeoutMs = openTimeoutMs;
     this.#shutdownTimeoutMs = shutdownTimeoutMs;
     this.#maintenanceTimeoutMs = maintenanceTimeoutMs;
 
     const openStartedAt = performance.now();
-    this.#initializationDeadlineAt = openStartedAt + openTimeoutMs;
     let openStage: "opening" | "blocked" | "upgrading" = "opening";
     const rawDbPromise = indexedDbMessageCacheApi.openDB<MessagesDB>(this.#dbName, DB_VERSION, {
       upgrade: (db, oldVersion, _newVersion, transaction) => {
@@ -835,36 +837,62 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         log.debug("Skipping IndexedDbMessageStore initialization because store is already closed");
         return;
       }
+      const initializationDeadlineAt = performance.now() + this.#postOpenInitializationTimeoutMs;
 
       if (this.#accessMode === "reader") {
         this.#readerLeaseCreated = await this.#awaitInitializationStage(
-          this.#registerReaderLease(),
+          async () => await this.#registerReaderLease(),
           "reader lease",
+          initializationDeadlineAt,
         );
         await this.#awaitInitializationStage(
-          this.#loadExistingMessageStats(),
+          async () => {
+            await this.#loadExistingMessageStats();
+          },
           "message statistics",
+          initializationDeadlineAt,
         );
         return;
       }
 
       await this.#awaitInitializationStage(
-        this.#configureStorageBudget({ allowPressureRecovery: this.#accessMode === "writer" }),
+        async () => {
+          await this.#configureStorageBudget({
+            allowPressureRecovery: this.#accessMode === "writer",
+            estimateTimeoutMs: STORAGE_ESTIMATE_TIMEOUT_MS,
+          });
+        },
         "storage estimate",
+        initializationDeadlineAt,
       );
       this.#lastGlobalBudgetCheck = Date.now();
       if (this.#shouldStopInitialization() || this.#accessMode === "maintenance") {
         return;
       }
-      await this.#awaitInitializationStage(this.#recordSessionCreation(), "session creation");
+      await this.#awaitInitializationStage(
+        async () => {
+          await this.#recordSessionCreation();
+        },
+        "session creation",
+        initializationDeadlineAt,
+      );
       this.#sessionCreated = true;
       if (this.#shouldStopInitialization()) {
         return;
       }
-      await this.#awaitInitializationStage(this.#loadExistingMessageStats(), "message statistics");
       await this.#awaitInitializationStage(
-        this.#checkLogicalBudgetAtInitialization(),
+        async () => {
+          await this.#loadExistingMessageStats();
+        },
+        "message statistics",
+        initializationDeadlineAt,
+      );
+      await this.#awaitInitializationStage(
+        async () => {
+          await this.#checkLogicalBudgetAtInitialization();
+        },
         "logical cache budget check",
+        initializationDeadlineAt,
       );
       log.info("IndexedDbMessageStore initialized", {
         dbName: this.#dbName,
@@ -924,16 +952,27 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     return this.#closing || this.#closed || this.#unavailable;
   }
 
-  async #awaitInitializationStage<T>(promise: Promise<T>, stage: string): Promise<T> {
-    const remainingMs = this.#initializationDeadlineAt - performance.now();
+  async #awaitInitializationStage<T>(
+    operation: () => Promise<T>,
+    stage: string,
+    deadlineAt: number,
+  ): Promise<T> {
+    const startedAt = performance.now();
+    const remainingMs = deadlineAt - startedAt;
     if (remainingMs <= 0) {
+      this.#reportMetric("open", { status: "timeout", stage, durationMs: 0 });
       throw new Error(`Timed out initializing IndexedDbMessageStore during ${stage}`);
     }
-
+    const promise = operation();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => {
-        this.#reportMetric("open", { status: "timeout", stage });
+        const durationMs = performance.now() - startedAt;
+        this.#reportMetric("open", {
+          status: "timeout",
+          stage,
+          durationMs,
+        });
         reject(new Error(`Timed out initializing IndexedDbMessageStore during ${stage}`));
       }, remainingMs);
     });
@@ -1273,7 +1312,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
                 timeout = setTimeout(() => {
                   reject(
                     new StorageEstimateTimeoutError(
-                      "Timed out estimating browser storage for cache maintenance",
+                      "Timed out estimating browser storage for the message cache",
                     ),
                   );
                 }, estimateTimeoutMs);
@@ -1443,51 +1482,46 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   async #recordSessionCreation(): Promise<void> {
-    try {
-      if (this.#closed) {
-        return;
-      }
-      const db = await this.#dbPromise;
-      const tx = this.#trackTransaction(db.transaction(SESSIONS_STORE, "readwrite"));
-      const store = tx.objectStore(SESSIONS_STORE);
-
-      const now = Date.now();
-      const existing = await store.get(this.#currentSessionId);
-      if (existing?.status === "pending-delete" || existing?.status === "abandoned") {
-        await tx.done;
-        throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be reopened");
-      }
-      const metadata: CacheSessionMetadata = {
-        sessionId: this.#currentSessionId,
-        kind: existing?.kind ?? this.#kind,
-        createdAt: existing?.createdAt ?? now,
-        lastActiveAt: now,
-        sourceId: this.#sourceId ?? existing?.sourceId,
-        topicFingerprint: this.#topicFingerprint ?? existing?.topicFingerprint,
-        retentionWindowMs: this.#retentionWindowMs,
-        maxBytes: this.#maxCacheSize,
-        status: "active",
-        owners: Array.from(new Set([...(existing?.owners ?? []), this.#ownerId])),
-        readers: existing?.readers,
-        contentRevision: normalizedContentRevision(
-          existing?.contentRevision ?? this.#contentRevision,
-        ),
-        nextSeq: Math.max(existing?.nextSeq ?? 0, 0),
-        approximateSizeBytes: normalizedStoredSize(existing?.approximateSizeBytes),
-        messageCount: existing?.messageCount,
-      };
-
-      this.#approximateSizeBytes = metadata.approximateSizeBytes;
-      this.#messageCount = metadata.messageCount ?? 0;
-      this.#contentRevision = metadata.contentRevision ?? 0;
-
-      await store.put(metadata);
-      await tx.done;
-      log.debug(`Recorded session metadata: ${this.#currentSessionId}`);
-    } catch (error) {
-      log.error("Failed to record session metadata:", error);
-      throw error;
+    if (this.#closed) {
+      return;
     }
+    const db = await this.#dbPromise;
+    const tx = this.#trackTransaction(db.transaction(SESSIONS_STORE, "readwrite"));
+    const store = tx.objectStore(SESSIONS_STORE);
+
+    const now = Date.now();
+    const existing = await store.get(this.#currentSessionId);
+    if (existing?.status === "pending-delete" || existing?.status === "abandoned") {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be reopened");
+    }
+    const metadata: CacheSessionMetadata = {
+      sessionId: this.#currentSessionId,
+      kind: existing?.kind ?? this.#kind,
+      createdAt: existing?.createdAt ?? now,
+      lastActiveAt: now,
+      sourceId: this.#sourceId ?? existing?.sourceId,
+      topicFingerprint: this.#topicFingerprint ?? existing?.topicFingerprint,
+      retentionWindowMs: this.#retentionWindowMs,
+      maxBytes: this.#maxCacheSize,
+      status: "active",
+      owners: Array.from(new Set([...(existing?.owners ?? []), this.#ownerId])),
+      readers: existing?.readers,
+      contentRevision: normalizedContentRevision(
+        existing?.contentRevision ?? this.#contentRevision,
+      ),
+      nextSeq: Math.max(existing?.nextSeq ?? 0, 0),
+      approximateSizeBytes: normalizedStoredSize(existing?.approximateSizeBytes),
+      messageCount: existing?.messageCount,
+    };
+
+    this.#approximateSizeBytes = metadata.approximateSizeBytes;
+    this.#messageCount = metadata.messageCount ?? 0;
+    this.#contentRevision = metadata.contentRevision ?? 0;
+
+    await store.put(metadata);
+    await tx.done;
+    log.debug(`Recorded session metadata: ${this.#currentSessionId}`);
   }
 
   async #registerReaderLease(): Promise<boolean> {
@@ -2286,7 +2320,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const retentionWindowMsTime = fromMillis(this.#retentionWindowMs);
       const cutoff = subtract(latestTime, retentionWindowMsTime);
       const timePruneResult = await this.#pruneBeforeTime(this.#currentSessionId, cutoff, {
-        maxBatches: 1,
+        maxBatches: FOREGROUND_PRUNE_MAX_BATCHES,
       });
       totalPrunedCount += timePruneResult.count;
 
@@ -2295,12 +2329,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         const sizePruneResult = await this.#pruneOldestUntilSize(
           this.#currentSessionId,
           this.#sessionPruneTargetSize(),
-          { maxBatches: 1 },
+          { maxBatches: FOREGROUND_PRUNE_MAX_BATCHES },
         );
         totalPrunedCount += sizePruneResult.count;
       }
 
-      this.#lastPruneTime = now;
+      const needsMorePruning =
+        timePruneResult.hasMore || this.#approximateSizeBytes > this.#maxCacheSize;
+      this.#lastPruneTime = needsMorePruning ? undefined : now;
 
       if (totalPrunedCount > 0) {
         await this.#deleteLoadedRangesAfterPrune();
@@ -2310,7 +2346,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           )}MB (limit: ${Math.round(this.#maxCacheSize / 1024 / 1024)}MB)`,
         );
       }
-      if (this.#approximateSizeBytes > this.#maxCacheSize || timePruneResult.hasMore) {
+      if (needsMorePruning) {
         scheduleMessageCacheJanitor(this.#kind, this.#metricSink);
       }
     } catch (error) {
@@ -2372,7 +2408,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#lastGlobalBudgetCheck = now;
     this.#bytesSinceGlobalBudgetCheck = 0;
     await this.#configureStorageBudget({
-      estimateTimeoutMs: PERIODIC_STORAGE_ESTIMATE_TIMEOUT_MS,
+      estimateTimeoutMs: STORAGE_ESTIMATE_TIMEOUT_MS,
     });
     if (this.#shouldAbortMaintenance()) {
       return;

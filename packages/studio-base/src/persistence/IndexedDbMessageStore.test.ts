@@ -404,6 +404,39 @@ describe("IndexedDbMessageStore", () => {
     await store.close();
   });
 
+  it("continues retention pruning across reduced transaction batches", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "multi-batch-retention-window",
+      retentionWindowMs: 1_000,
+    });
+    await store.init();
+
+    try {
+      const expired = Array.from({ length: 9 }, (_, index) =>
+        messageEvent(index, "/topic", { sec: index + 1, nsec: 0 }),
+      );
+      const current = messageEvent(1000, "/topic", { sec: 100, nsec: 0 });
+      await store.append([...expired, current], {
+        estimatedSizeBytes: [...expired.map(() => 5 * 1024 ** 2), 10],
+      });
+      await store.flush();
+
+      // Eight yielded cleanup transactions leave one bounded batch. A subsequent append should
+      // continue immediately instead of waiting for the normal one-second prune interval.
+      const next = messageEvent(1001, "/topic", { sec: 100, nsec: 1 });
+      await store.append([next]);
+      await store.flush();
+
+      const messages = await store.getMessages({
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 101, nsec: 0 },
+      });
+      expect(messages.map((message) => message.message)).toEqual([{ seq: 1000 }, { seq: 1001 }]);
+    } finally {
+      await store.close();
+    }
+  });
+
   it("closes the database connection even when close fails to flush pending messages", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "close-flush-error" });
     await store.init();
@@ -1026,6 +1059,42 @@ describe("IndexedDbMessageStore", () => {
       await appendPromise;
       await store.flush();
       expect((await store.stats()).count).toBe(1);
+    } finally {
+      await store.close();
+      if (originalStorage == undefined) {
+        Reflect.deleteProperty(navigator, "storage");
+      } else {
+        Object.defineProperty(navigator, "storage", originalStorage);
+      }
+    }
+  });
+
+  it("uses the fallback budget when the initial storage estimate stalls", async () => {
+    const originalStorage = Object.getOwnPropertyDescriptor(navigator, "storage");
+    const metricSink = jest.fn();
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: {
+        estimate: async () => await new Promise<StorageEstimate>(() => undefined),
+      },
+    });
+    const store = new IndexedDbMessageStore({
+      sessionId: "stalled-initial-storage-estimate",
+      openTimeoutMs: 2_000,
+      metricSink,
+    });
+
+    try {
+      await expect(withTimeout(store.init(), 3_000)).resolves.toBeUndefined();
+      expect(store.isWritable()).toBe(true);
+      expect(store.getMaxCacheSize()).toBe(512 * 1024 ** 2);
+      expect(metricSink).toHaveBeenCalledWith(
+        "storage",
+        expect.objectContaining({
+          kind: "realtime-viz",
+          status: "timeout",
+        }),
+      );
     } finally {
       await store.close();
       if (originalStorage == undefined) {
@@ -2333,7 +2402,45 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
-  it("applies the initialization deadline to a post-open transaction", async () => {
+  it("starts the post-open deadline after the database connection opens", async () => {
+    const originalOpenDB = IDB.openDB;
+    const originalStorage = Object.getOwnPropertyDescriptor(navigator, "storage");
+    const estimate = jest.fn(async () => {
+      await wait(180);
+      return { quota: 10 * 1024 ** 3, usage: 0 };
+    });
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: { estimate },
+    });
+    const openDBSpy = jest
+      .spyOn(indexedDbMessageCacheApi, "openDB")
+      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
+        const db = await originalOpenDB(...args);
+        await wait(200);
+        return db;
+      });
+    const store = new IndexedDbMessageStore({
+      sessionId: "fresh-post-open-deadline",
+      openTimeoutMs: 300,
+    });
+
+    try {
+      await expect(withTimeout(store.init(), 1_000)).resolves.toBeUndefined();
+      expect(estimate).toHaveBeenCalledTimes(1);
+      expect(store.isWritable()).toBe(true);
+    } finally {
+      openDBSpy.mockRestore();
+      await store.close();
+      if (originalStorage == undefined) {
+        Reflect.deleteProperty(navigator, "storage");
+      } else {
+        Object.defineProperty(navigator, "storage", originalStorage);
+      }
+    }
+  });
+
+  it("fails closed when session creation exceeds the post-open deadline", async () => {
     const originalOpenDB = IDB.openDB;
     let injectedHang = false;
     let rejectTransaction: ((error: Error) => void) | undefined;
@@ -2379,18 +2486,28 @@ describe("IndexedDbMessageStore", () => {
           },
         });
       });
+    const metricSink = jest.fn();
     const store = new IndexedDbMessageStore({
       sessionId: "post-open-timeout",
       openTimeoutMs: 25,
+      metricSink,
     });
 
     try {
-      await expect(withTimeout(store.init(), 250)).rejects.toThrow(
+      await expect(withTimeout(store.init(), 500)).rejects.toThrow(
         "Timed out initializing IndexedDbMessageStore during session creation",
       );
       expect(injectedHang).toBe(true);
       expect(abort).toHaveBeenCalledTimes(1);
       expect(store.isWritable()).toBe(false);
+      expect(metricSink).toHaveBeenCalledWith(
+        "open",
+        expect.objectContaining({
+          kind: "realtime-viz",
+          status: "timeout",
+          stage: "session creation",
+        }),
+      );
       jest.mocked(console.error).mockClear();
     } finally {
       openDBSpy.mockRestore();
