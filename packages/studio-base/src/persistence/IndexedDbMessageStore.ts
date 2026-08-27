@@ -71,6 +71,8 @@ export const DEFAULT_APPEND_QUEUE_MAX_MESSAGES = 50_000;
 export const DEFAULT_APPEND_QUEUE_MAX_BYTES = 128 * MEBIBYTE;
 const CLEANUP_BATCH_MAX_MESSAGES = 1000;
 const CLEANUP_BATCH_MAX_BYTES = 8 * MEBIBYTE;
+// Preserve the previous 64 MiB foreground cleanup capacity while yielding every 8 MiB.
+const FOREGROUND_PRUNE_MAX_BATCHES = 8;
 const MESSAGE_READ_PAGE_MAX_SCANNED_RECORDS = 10_000;
 
 class StorageEstimateTimeoutError extends Error {}
@@ -2318,7 +2320,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const retentionWindowMsTime = fromMillis(this.#retentionWindowMs);
       const cutoff = subtract(latestTime, retentionWindowMsTime);
       const timePruneResult = await this.#pruneBeforeTime(this.#currentSessionId, cutoff, {
-        maxBatches: 1,
+        maxBatches: FOREGROUND_PRUNE_MAX_BATCHES,
       });
       totalPrunedCount += timePruneResult.count;
 
@@ -2327,12 +2329,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         const sizePruneResult = await this.#pruneOldestUntilSize(
           this.#currentSessionId,
           this.#sessionPruneTargetSize(),
-          { maxBatches: 1 },
+          { maxBatches: FOREGROUND_PRUNE_MAX_BATCHES },
         );
         totalPrunedCount += sizePruneResult.count;
       }
 
-      this.#lastPruneTime = now;
+      const needsMorePruning =
+        timePruneResult.hasMore || this.#approximateSizeBytes > this.#maxCacheSize;
+      this.#lastPruneTime = needsMorePruning ? undefined : now;
 
       if (totalPrunedCount > 0) {
         await this.#deleteLoadedRangesAfterPrune();
@@ -2342,7 +2346,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           )}MB (limit: ${Math.round(this.#maxCacheSize / 1024 / 1024)}MB)`,
         );
       }
-      if (this.#approximateSizeBytes > this.#maxCacheSize || timePruneResult.hasMore) {
+      if (needsMorePruning) {
         scheduleMessageCacheJanitor(this.#kind, this.#metricSink);
       }
     } catch (error) {

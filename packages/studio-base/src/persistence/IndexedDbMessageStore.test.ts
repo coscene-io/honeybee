@@ -404,6 +404,39 @@ describe("IndexedDbMessageStore", () => {
     await store.close();
   });
 
+  it("continues retention pruning across reduced transaction batches", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "multi-batch-retention-window",
+      retentionWindowMs: 1_000,
+    });
+    await store.init();
+
+    try {
+      const expired = Array.from({ length: 9 }, (_, index) =>
+        messageEvent(index, "/topic", { sec: index + 1, nsec: 0 }),
+      );
+      const current = messageEvent(1000, "/topic", { sec: 100, nsec: 0 });
+      await store.append([...expired, current], {
+        estimatedSizeBytes: [...expired.map(() => 5 * 1024 ** 2), 10],
+      });
+      await store.flush();
+
+      // Eight yielded cleanup transactions leave one bounded batch. A subsequent append should
+      // continue immediately instead of waiting for the normal one-second prune interval.
+      const next = messageEvent(1001, "/topic", { sec: 100, nsec: 1 });
+      await store.append([next]);
+      await store.flush();
+
+      const messages = await store.getMessages({
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 101, nsec: 0 },
+      });
+      expect(messages.map((message) => message.message)).toEqual([{ seq: 1000 }, { seq: 1001 }]);
+    } finally {
+      await store.close();
+    }
+  });
+
   it("closes the database connection even when close fails to flush pending messages", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "close-flush-error" });
     await store.init();
