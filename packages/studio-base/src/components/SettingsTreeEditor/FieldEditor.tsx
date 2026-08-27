@@ -12,6 +12,7 @@ import {
   MenuItem,
   MenuList,
   Select,
+  Slider,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -180,6 +181,23 @@ function FieldInput({
           }}
         />
       );
+    case "slider":
+      return (
+        <Slider
+          aria-label={field.label}
+          value={field.value ?? field.min ?? 0}
+          min={field.min}
+          max={field.max}
+          step={field.step}
+          disabled={field.disabled === true || field.readonly === true}
+          size="small"
+          onChange={(_event, value) => {
+            if (typeof value === "number" && field.readonly !== true) {
+              actionHandler({ action: "update", payload: { path, input: "slider", value } });
+            }
+          }}
+        />
+      );
     case "toggle":
       return (
         <ToggleButtonGroup
@@ -244,7 +262,7 @@ function FieldInput({
           <ToggleButtonGroup
             className={classes.styledToggleButtonGroup}
             fullWidth
-            value={field.disabled === true ? UNDEFINED_SENTINEL_VALUE : field.value}
+            value={field.value ?? UNDEFINED_SENTINEL_VALUE}
             exclusive
             disabled={field.disabled}
             size="small"
@@ -257,12 +275,8 @@ function FieldInput({
               }
             }}
           >
-            <ToggleButton value={field.disabled === true ? UNDEFINED_SENTINEL_VALUE : false}>
-              {t("off")}
-            </ToggleButton>
-            <ToggleButton value={field.disabled === true ? UNDEFINED_SENTINEL_VALUE : true}>
-              {t("on")}
-            </ToggleButton>
+            <ToggleButton value={false}>{t("off")}</ToggleButton>
+            <ToggleButton value={true}>{t("on")}</ToggleButton>
           </ToggleButtonGroup>
         </Tooltip>
       );
