@@ -9,7 +9,7 @@ on:
 jobs:
   lint:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: cos-m
     timeout-minutes: 30
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
@@ -45,7 +45,7 @@ jobs:
 
   unit-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: cos-m
     timeout-minutes: 30
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
