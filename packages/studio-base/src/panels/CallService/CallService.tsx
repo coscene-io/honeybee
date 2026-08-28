@@ -6,7 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Palette, TextField, Tooltip, Typography, inputBaseClasses } from "@mui/material";
+import { t } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Log from "@foxglove/log";
@@ -73,16 +75,16 @@ function parseInput(value: string): { error?: string; parsedObject?: unknown } {
   try {
     const parsedAny: unknown = JSON.parse(value);
     if (Array.isArray(parsedAny)) {
-      error = "Request content must be an object, not an array";
+      error = t("callService:requestMustBeObjectNotArray");
     } else if (parsedAny == undefined) {
-      error = "Request content must be an object, not null";
+      error = t("callService:requestMustBeObjectNotNull");
     } else if (typeof parsedAny !== "object") {
-      error = `Request content must be an object, not ‘${typeof parsedAny}’`;
+      error = t("callService:requestMustBeObjectNotType", { type: typeof parsedAny });
     } else {
       parsedObject = parsedAny;
     }
   } catch (e) {
-    error = value.length !== 0 ? e.message : "Enter valid request content as JSON";
+    error = value.length !== 0 ? e.message : t("callService:enterValidJsonRequest");
   }
   return { error, parsedObject };
 }
@@ -102,6 +104,7 @@ function CallServiceContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
   const { context, setColorScheme } = props;
+  const { t } = useTranslation("callService");
 
   // panel extensions must notify when they've completed rendering
   // onRender will setRenderDone to a done callback which we can invoke after we've rendered
@@ -155,13 +158,13 @@ function CallServiceContent(
 
   const statusMessage = useMemo(() => {
     if (context.callService == undefined) {
-      return "Connect to a data source that supports calling services";
+      return t("connectToServiceSource");
     }
     if (!config.serviceName) {
-      return "Configure a service in the panel settings";
+      return t("configureService");
     }
     return undefined;
-  }, [context, config.serviceName]);
+  }, [context, config.serviceName, t]);
 
   const canCallService = Boolean(
     context.callService != undefined &&
@@ -173,12 +176,15 @@ function CallServiceContent(
 
   const callServiceClicked = useCallback(async () => {
     if (!context.callService) {
-      setState({ status: "error", value: "The data source does not allow calling services" });
+      setState({ status: "error", value: t("dataSourceDoesNotAllowCallingServices") });
       return;
     }
 
     try {
-      setState({ status: "requesting", value: `Calling ${config.serviceName}...` });
+      setState({
+        status: "requesting",
+        value: t("callingService", { serviceName: config.serviceName }),
+      });
       const response = await context.callService(
         config.serviceName!,
         JSON.parse(config.requestPayload!),
@@ -197,7 +203,7 @@ function CallServiceContent(
       setState({ status: "error", value: (err as Error).message });
       log.error(err);
     }
-  }, [context, config.serviceName, config.requestPayload]);
+  }, [context, config.serviceName, config.requestPayload, t]);
 
   // Indicate render is complete - the effect runs after the dom is updated
   useEffect(() => {
@@ -209,14 +215,14 @@ function CallServiceContent(
       <Stack gap={1} flexGrow="1" direction={config.layout === "horizontal" ? "row" : "column"}>
         <Stack flexGrow="1">
           <Typography variant="caption" noWrap>
-            Request
+            {t("request")}
           </Typography>
           <TextField
             variant="outlined"
             className={classes.textarea}
             multiline
             size="small"
-            placeholder="Enter service request as JSON"
+            placeholder={t("enterServiceRequestPlaceholder")}
             value={config.requestPayload}
             onChange={(event) => {
               setConfig({ ...config, requestPayload: event.target.value });
@@ -231,7 +237,7 @@ function CallServiceContent(
         </Stack>
         <Stack flexGrow="1">
           <Typography variant="caption" noWrap>
-            Response
+            {t("response")}
           </Typography>
           <TextField
             variant="outlined"

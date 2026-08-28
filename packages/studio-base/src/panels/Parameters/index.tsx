@@ -29,6 +29,7 @@ import {
 } from "@mui/material";
 import * as _ from "lodash-es";
 import { ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -174,6 +175,7 @@ function SubmittableJsonInput(props: {
 
 function Parameters(): ReactElement {
   const { classes } = useStyles();
+  const { t } = useTranslation("parameters");
 
   const capabilities = useMessagePipeline(selectCapabilities);
   const setParameterUnbounced = useMessagePipeline(selectSetParameter);
@@ -234,7 +236,7 @@ function Parameters(): ReactElement {
     return (
       <Stack fullHeight>
         <PanelToolbar />
-        <EmptyState>Connect to a ROS source to view parameters</EmptyState>
+        <EmptyState>{t("connectToRosSource")}</EmptyState>
       </Stack>
     );
   }
@@ -246,8 +248,8 @@ function Parameters(): ReactElement {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Parameter</TableCell>
-              <TableCell>Value</TableCell>
+              <TableCell>{t("parameter")}</TableCell>
+              <TableCell>{t("value")}</TableCell>
               <TableCell>&nbsp;</TableCell>
             </TableRow>
           </TableHead>

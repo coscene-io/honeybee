@@ -14,4 +14,5 @@ export const dataSourceInfo: Partial<TypeOptions["resources"]["dataSourceInfo"]>
   endTime: "结束时间",
   startTime: "开始时间",
   waitingForConnection: "等待连接……",
+  waitingForData: "正在等待数据…",
 };

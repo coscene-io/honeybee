@@ -7,16 +7,16 @@
 
 import { TypeOptions } from "i18next";
 
-export const variable: Partial<TypeOptions["resources"]["variable"]> = {
-  addVariable: "添加变量",
-  deleteVariable: "删除变量",
-  variableNamePlaceholder: "变量名",
-  duplicateNameError: "已存在同名变量。请选择一个唯一的变量名以保存更改。",
-  copied: "已复制",
-  copy: "复制",
+export const teleop: Partial<TypeOptions["resources"]["teleop"]> = {
   general: "通用",
-  min: "最小值",
-  max: "最大值",
-  step: "步长",
-  variableName: "变量名",
+  publishRate: "发布频率",
+  topic: "话题",
+  upButton: "上按钮",
+  downButton: "下按钮",
+  leftButton: "左按钮",
+  rightButton: "右按钮",
+  field: "字段",
+  value: "值",
+  connectToPublishableSource: "请连接到支持发布的数据源",
+  selectPublishTopic: "请在面板设置中选择要发布的话题",
 };

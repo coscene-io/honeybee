@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { ReactElement, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { useSessionStorageValue } from "@foxglove/hooks";
@@ -45,6 +46,7 @@ const useStyles = makeStyles()((theme) => ({
 
 export function LaunchPreferenceScreen(): ReactElement {
   const { classes } = useStyles();
+  const { t } = useTranslation("openDialog");
   const [globalPreference, setGlobalPreference] = useAppConfigurationValue<string | undefined>(
     AppSetting.LAUNCH_PREFERENCE,
   );
@@ -68,21 +70,21 @@ export function LaunchPreferenceScreen(): ReactElement {
   const actions = [
     {
       key: LaunchPreferenceValue.WEB,
-      primary: "Web",
-      secondary: "Requires Chrome v76+",
+      primary: t("web"),
+      secondary: t("requiresChrome"),
       onClick: () => void launchInWeb(),
     },
     {
       key: LaunchPreferenceValue.DESKTOP,
-      primary: "Desktop App",
-      secondary: "For Linux, Windows, and macOS",
+      primary: t("desktopApp"),
+      secondary: t("forLinuxWindowsMacos"),
       onClick: () => void launchInDesktop(),
     },
   ];
 
   return (
     <Dialog open classes={{ paper: classes.paper }}>
-      <DialogTitle className={classes.dialogTitle}>Launch coScene Studio</DialogTitle>
+      <DialogTitle className={classes.dialogTitle}>{t("launchCoSceneStudio")}</DialogTitle>
       <DialogContent>
         <Grid container spacing={1}>
           {actions.map((action) => (
@@ -107,7 +109,7 @@ export function LaunchPreferenceScreen(): ReactElement {
           ))}
           <Grid size={{ xs: 12 }}>
             <FormControlLabel
-              label="Remember my preference"
+              label={t("rememberMyPreference")}
               control={
                 <Checkbox
                   color="primary"

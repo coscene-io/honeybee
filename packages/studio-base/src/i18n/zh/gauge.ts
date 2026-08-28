@@ -7,16 +7,15 @@
 
 import { TypeOptions } from "i18next";
 
-export const variable: Partial<TypeOptions["resources"]["variable"]> = {
-  addVariable: "添加变量",
-  deleteVariable: "删除变量",
-  variableNamePlaceholder: "变量名",
-  duplicateNameError: "已存在同名变量。请选择一个唯一的变量名以保存更改。",
-  copied: "已复制",
-  copy: "复制",
-  general: "通用",
+export const gauge: Partial<TypeOptions["resources"]["gauge"]> = {
+  messagePath: "消息路径",
   min: "最小值",
   max: "最大值",
-  step: "步长",
-  variableName: "变量名",
+  colorMode: "颜色模式",
+  colorMap: "色图",
+  gradient: "渐变",
+  reverse: "反转",
+  redToGreen: "红到绿",
+  rainbow: "彩虹",
+  turbo: "Turbo",
 };

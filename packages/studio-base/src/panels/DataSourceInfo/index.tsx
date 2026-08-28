@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Divider, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
@@ -121,6 +122,7 @@ const MemoTopicRow = React.memo(TopicRow);
 
 function SourceInfo(): React.JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("dataSourceInfo");
 
   const topics = useMessagePipeline(selectSortedTopics);
   const startTime = useMessagePipeline(selectStartTime);
@@ -130,7 +132,7 @@ function SourceInfo(): React.JSX.Element {
     return (
       <>
         <PanelToolbar />
-        <EmptyState>Waiting for data…</EmptyState>
+        <EmptyState>{t("waitingForData")}</EmptyState>
       </>
     );
   }

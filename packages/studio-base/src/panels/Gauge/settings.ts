@@ -8,6 +8,7 @@
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
@@ -49,63 +50,64 @@ export function useSettingsTree(
   pathParseError: string | undefined,
   error: string | undefined,
 ): SettingsTreeNodes {
+  const { t } = useTranslation("gauge");
   const generalSettings = useMemo(
     (): SettingsTreeNode => ({
       error,
       fields: {
         path: {
-          label: "Message path",
+          label: t("messagePath"),
           input: "messagepath",
           value: config.path,
           error: pathParseError,
           validTypes: supportedDataTypes,
         },
         minValue: {
-          label: "Min",
+          label: t("min"),
           input: "number",
           value: config.minValue,
         },
         maxValue: {
-          label: "Max",
+          label: t("max"),
           input: "number",
           value: config.maxValue,
         },
         colorMode: {
-          label: "colorMode",
+          label: t("colorMode"),
           input: "select",
           value: config.colorMode,
           options: [
-            { label: "Color map", value: "colormap" },
-            { label: "gradient", value: "gradient" },
+            { label: t("colorMap"), value: "colormap" },
+            { label: t("gradient"), value: "gradient" },
           ],
         },
         ...(config.colorMode === "colormap" && {
           colorMap: {
-            label: "colorMap",
+            label: t("colorMap"),
             input: "select",
             value: config.colorMap,
             options: [
-              { label: "Red to green", value: "red-yellow-green" },
-              { label: "Rainbow", value: "rainbow" },
-              { label: "Turbo", value: "turbo" },
+              { label: t("redToGreen"), value: "red-yellow-green" },
+              { label: t("rainbow"), value: "rainbow" },
+              { label: t("turbo"), value: "turbo" },
             ],
           },
         }),
         ...(config.colorMode === "gradient" && {
           gradient: {
-            label: "gradient",
+            label: t("gradient"),
             input: "gradient",
             value: config.gradient,
           },
         }),
         reverse: {
-          label: "reverse",
+          label: t("reverse"),
           input: "boolean",
           value: config.reverse,
         },
       },
     }),
-    [error, config, pathParseError],
+    [error, config, pathParseError, t],
   );
   return useShallowMemo({
     general: generalSettings,

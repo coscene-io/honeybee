@@ -14,6 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { t } from "i18next";
 import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
@@ -171,7 +172,7 @@ export default class RosbridgePlayer implements Player {
       if (err) {
         this.#problems.addProblem("rosbridge:error", {
           severity: "warn",
-          message: "Rosbridge error",
+          message: t("error:rosbridgeError"),
           error: err,
         });
         this.#emitState();
@@ -193,7 +194,7 @@ export default class RosbridgePlayer implements Player {
 
       this.#problems.addProblem("rosbridge:connection-failed", {
         severity: "error",
-        message: "Connection failed",
+        message: t("error:connectionFailed"),
         tip: `Check that the rosbridge WebSocket server at ${this.#url} is reachable.`,
       });
 
@@ -230,7 +231,7 @@ export default class RosbridgePlayer implements Player {
     const topicsStallWarningTimeout = setTimeout(() => {
       this.#problems.addProblem("topicsAndRawTypesTimeout", {
         severity: "warn",
-        message: "Taking too long to get topics and raw types.",
+        message: t("error:takingTooLongToGetTopics"),
       });
 
       this.#emitState();
@@ -265,7 +266,7 @@ export default class RosbridgePlayer implements Player {
         this.#rosVersion = 1;
         this.#problems.addProblem("unknownRosVersion", {
           severity: "warn",
-          message: "Unable to detect ROS version, assuming ROS 1",
+          message: t("error:unableToDetectRosVersion"),
         });
       }
 
@@ -337,7 +338,7 @@ export default class RosbridgePlayer implements Player {
 
       this.#problems.addProblem("requestTopics:error", {
         severity: "error",
-        message: "Failed to fetch topics from rosbridge",
+        message: t("error:failedToFetchTopicsFromRosbridge"),
         error,
       });
     } finally {

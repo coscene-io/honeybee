@@ -16,4 +16,5 @@ export const table: Partial<TypeOptions["resources"]["table"]> = {
   searchingNextMatchingFrame: "正在查找下一条匹配帧…",
   noTopicSelected: "未选择话题",
   waitingForNextMessage: "等待下一条消息…",
+  cannotRenderPrimitiveValues: "无法在表格中渲染原始值。请改用原始消息面板。",
 };

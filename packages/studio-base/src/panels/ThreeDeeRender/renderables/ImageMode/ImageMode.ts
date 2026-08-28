@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
 import * as _ from "lodash-es";
 import * as THREE from "three";
 import { Writable } from "ts-essentials";
@@ -518,7 +519,7 @@ export class ImageMode
     }
 
     // add unselected camera calibration option
-    calibrationTopics.unshift({ label: "None", value: undefined });
+    calibrationTopics.unshift({ label: t3D("none"), value: undefined });
 
     const imageTopicExists =
       !imageTopicName || imageTopics.some((topic) => topic.value === imageTopicName);
@@ -526,7 +527,7 @@ export class ImageMode
       imageTopicExists,
       IMAGE_TOPIC_PATH,
       IMAGE_TOPIC_UNAVAILABLE,
-      `${imageTopicName} is not available`,
+      t("threeDee:topicNotAvailable", { topic: imageTopicName }),
     );
 
     const calibrationTopicExists = !(
@@ -537,7 +538,7 @@ export class ImageMode
       calibrationTopicExists,
       CALIBRATION_TOPIC_PATH,
       CALIBRATION_TOPIC_UNAVAILABLE,
-      `${calibrationTopic} is not available`,
+      t("threeDee:topicNotAvailable", { topic: calibrationTopic }),
     );
 
     const bothTopicsDoNotExist = !imageTopicExists && !calibrationTopicExists;
@@ -575,7 +576,7 @@ export class ImageMode
       error: imageTopicError,
     };
     fields.calibrationTopic = {
-      label: "Calibration",
+      label: t3D("calibration"),
       input: "select",
       value: calibrationTopic,
       options: calibrationTopics,
@@ -583,23 +584,23 @@ export class ImageMode
     };
     fields.synchronize = {
       input: "boolean",
-      label: "Sync annotations",
+      label: t3D("syncAnnotations"),
       value: supportsSyncAnnotations ? synchronize : false,
       disabled: !supportsSyncAnnotations,
     };
     fields.flipHorizontal = {
       input: "boolean",
-      label: "Flip horizontal",
+      label: t3D("flipHorizontal"),
       value: flipHorizontal,
     };
     fields.flipVertical = {
       input: "boolean",
-      label: "Flip vertical",
+      label: t3D("flipVertical"),
       value: flipVertical,
     };
     fields.rotation = {
       input: "toggle",
-      label: "Rotation",
+      label: t3D("rotation"),
       value: rotation,
       options: [
         { label: "0°", value: 0 },
@@ -610,7 +611,7 @@ export class ImageMode
     };
     fields.brightness = {
       input: "slider",
-      label: "Brightness",
+      label: t3D("brightness"),
       min: MIN_BRIGHTNESS,
       max: MAX_BRIGHTNESS,
       value: brightness,
@@ -618,7 +619,7 @@ export class ImageMode
     };
     fields.contrast = {
       input: "slider",
-      label: "Contrast",
+      label: t3D("contrast"),
       min: MIN_CONTRAST,
       max: MAX_CONTRAST,
       value: contrast,
@@ -654,7 +655,7 @@ export class ImageMode
       {
         path: ["imageMode"],
         node: {
-          label: "General",
+          label: t("settingsEditor:general"),
           defaultExpansionState: "expanded",
           handler,
           fields,
@@ -1298,7 +1299,7 @@ export class ImageMode
     return [
       {
         type: "item",
-        label: "Download image",
+        label: t3D("downloadImage"),
         onclick: this.#getDownloadImageCallback(),
         disabled: this.imageRenderable?.getDecodedImage() == undefined,
       },

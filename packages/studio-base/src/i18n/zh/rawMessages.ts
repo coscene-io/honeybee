@@ -20,4 +20,8 @@ export const rawMessages: Partial<TypeOptions["resources"]["rawMessages"]> = {
   diffMethod: "对比方式",
   previousMessage: "上一条消息",
   custom: "自定义",
+  noTopicSelected: "未选择话题",
+  waitingForNextMessage: "等待下一条消息…",
+  waitingToDiff: '正在等待对比 "{{topicPath}}" 和 "{{diffTopicPath}}" 的下一条消息',
+  noDifferenceFound: "未发现差异",
 };

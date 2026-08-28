@@ -5,10 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { TFunction } from "i18next";
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import memoizeWeak from "memoize-weak";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
 import {
@@ -89,47 +91,47 @@ export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAc
 }
 
 const memoizedCreateRuleNode = memoizeWeak(
-  (rule: Rule, i: number, rules: readonly Rule[]): SettingsTreeNode => {
+  (rule: Rule, i: number, rules: readonly Rule[], t: TFunction<"indicator">): SettingsTreeNode => {
     const actions: (SettingsTreeNodeAction | false)[] = [
-      { type: "action", id: "delete-rule", label: "Delete rule", icon: "Delete" },
-      i > 0 && { type: "action", id: "move-up", label: "Move up", icon: "MoveUp" },
+      { type: "action", id: "delete-rule", label: t("deleteRule"), icon: "Delete" },
+      i > 0 && { type: "action", id: "move-up", label: t("moveUp"), icon: "MoveUp" },
       i < rules.length - 1 && {
         type: "action",
         id: "move-down",
-        label: "Move down",
+        label: t("moveDown"),
         icon: "MoveDown",
       },
-      { type: "action", id: "add-rule-above", label: "Add rule above", icon: "Add" },
-      { type: "action", id: "add-rule-below", label: "Add rule below", icon: "Add" },
+      { type: "action", id: "add-rule-above", label: t("addRuleAbove"), icon: "Add" },
+      { type: "action", id: "add-rule-below", label: t("addRuleBelow"), icon: "Add" },
     ];
     return {
       label: ruleToString(rule),
       actions: actions.filter((action): action is SettingsTreeNodeAction => action !== false),
       fields: {
         operator: {
-          label: "comparison",
+          label: t("comparison"),
           input: "select",
           value: rule.operator,
           options: [
-            { label: "Equal to", value: "=" },
-            { label: "Less than", value: "<" },
-            { label: "Less than or equal to", value: "<=" },
-            { label: "Greater than", value: ">" },
-            { label: "Greater than or equal to", value: ">=" },
+            { label: t("equalTo"), value: "=" },
+            { label: t("lessThan"), value: "<" },
+            { label: t("lessThanOrEqualTo"), value: "<=" },
+            { label: t("greaterThan"), value: ">" },
+            { label: t("greaterThanOrEqualTo"), value: ">=" },
           ],
         },
         rawValue: {
-          label: "comparisonWith",
+          label: t("comparisonWith"),
           input: "string",
           value: rule.rawValue,
         },
         color: {
-          label: "color",
+          label: t("color"),
           input: "rgb",
           value: rule.color,
         },
         label: {
-          label: "label",
+          label: t("label"),
           input: "string",
           value: rule.label,
         },
@@ -143,67 +145,68 @@ export function useSettingsTree(
   pathParseError: string | undefined,
   error: string | undefined,
 ): SettingsTreeNodes {
+  const { t } = useTranslation("indicator");
   const { path, style, rules } = config;
   const generalSettings: SettingsTreeNode = useMemo(
     () => ({
       error,
       fields: {
         path: {
-          label: "Message path",
+          label: t("messagePath"),
           input: "messagepath",
           value: path,
           error: pathParseError,
         },
         style: {
-          label: "style",
+          label: t("style"),
           input: "select",
           value: style,
           options: [
-            { label: "Bulb", value: "bulb" },
-            { label: "Background", value: "background" },
+            { label: t("bulb"), value: "bulb" },
+            { label: t("background"), value: "background" },
           ],
         },
       },
     }),
-    [error, path, pathParseError, style],
+    [error, path, pathParseError, style, t],
   );
 
   const { fallbackColor, fallbackLabel } = config;
   const ruleSettings: SettingsTreeNode = useMemo(
     () => ({
-      label: "rules",
-      actions: [{ type: "action", id: "add-rule", label: "Add rule", icon: "Add" }],
+      label: t("rules"),
+      actions: [{ type: "action", id: "add-rule", label: t("addRule"), icon: "Add" }],
       children: Object.fromEntries(
         rules
-          .map((rule, i) => [i.toString(), memoizedCreateRuleNode(rule, i, rules)])
+          .map((rule, i) => [i.toString(), memoizedCreateRuleNode(rule, i, rules, t)])
           .concat([
             [
               "default",
               {
-                label: "otherwise",
+                label: t("otherwise"),
                 fields: {
                   fallbackColor: {
-                    label: "color",
+                    label: t("color"),
                     input: "rgb",
                     value: fallbackColor,
-                    help: "Color to use when no other rules match",
+                    help: t("fallbackColorHelp"),
                   },
                   fallbackLabel: {
-                    label: "label",
+                    label: t("label"),
                     input: "string",
                     value: fallbackLabel,
-                    help: "Label to use when no other rules match",
+                    help: t("fallbackLabelHelp"),
                   },
                 },
                 actions: [
-                  { type: "action", id: "add-rule-above", label: "Add rule above", icon: "Add" },
+                  { type: "action", id: "add-rule-above", label: t("addRuleAbove"), icon: "Add" },
                 ],
               },
             ],
           ]),
       ),
     }),
-    [fallbackColor, fallbackLabel, rules],
+    [fallbackColor, fallbackLabel, rules, t],
   );
 
   return useShallowMemo({

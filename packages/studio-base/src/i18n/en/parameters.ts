@@ -5,12 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const dataSourceInfo = {
-  currentSource: "Current source",
-  dataSource: "Data source",
-  duration: "Duration",
-  endTime: "End time",
-  startTime: "Start time",
-  waitingForConnection: "Waiting for connection…",
-  waitingForData: "Waiting for data…",
+export const parameters = {
+  connectToRosSource: "Connect to a ROS source to view parameters",
+  parameter: "Parameter",
+  value: "Value",
 };

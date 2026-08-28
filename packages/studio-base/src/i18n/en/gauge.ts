@@ -5,12 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const dataSourceInfo = {
-  currentSource: "Current source",
-  dataSource: "Data source",
-  duration: "Duration",
-  endTime: "End time",
-  startTime: "Start time",
-  waitingForConnection: "Waiting for connection…",
-  waitingForData: "Waiting for data…",
+export const gauge = {
+  messagePath: "Message path",
+  min: "Min",
+  max: "Max",
+  colorMode: "Color mode",
+  colorMap: "Color map",
+  gradient: "Gradient",
+  reverse: "Reverse",
+  redToGreen: "Red to green",
+  rainbow: "Rainbow",
+  turbo: "Turbo",
 };

@@ -8,6 +8,7 @@
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Immutable, SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
 import buildSampleMessage from "@foxglove/studio-base/panels/Publish/buildSampleMessage";
@@ -25,19 +26,23 @@ export const defaultConfig: PublishConfig = {
   value: "{}",
 };
 
-function datatypeError(schemaNames: string[], datatype?: string) {
+function datatypeError(
+  schemaNames: string[],
+  t: (key: "messageSchemaCannotBeEmpty" | "schemaNameNotFound") => string,
+  datatype?: string,
+) {
   if (!datatype) {
-    return "Message schema cannot be empty";
+    return t("messageSchemaCannotBeEmpty");
   }
   if (!schemaNames.includes(datatype)) {
-    return "Schema name not found";
+    return t("schemaNameNotFound");
   }
   return undefined;
 }
 
-function topicError(topicName?: string) {
+function topicError(t: (key: "topicCannotBeEmpty") => string, topicName?: string) {
   if (!topicName) {
-    return "Topic cannot be empty";
+    return t("topicCannotBeEmpty");
   }
   return undefined;
 }
@@ -46,36 +51,37 @@ const buildSettingsTree = (
   config: PublishConfig,
   schemaNames: string[],
   topics: readonly Topic[],
+  t: ReturnType<typeof useTranslation<"publish">>["t"],
 ): SettingsTreeNodes => ({
   general: {
     fields: {
       topicName: {
-        label: "Topic",
+        label: t("topic"),
         input: "autocomplete",
-        error: topicError(config.topicName),
+        error: topicError(t, config.topicName),
         value: config.topicName ?? "",
-        items: topics.map((t) => t.name),
+        items: topics.map((topic) => topic.name),
       },
       datatype: {
-        label: "Message schema",
+        label: t("messageSchema"),
         input: "autocomplete",
-        error: datatypeError(schemaNames, config.datatype),
+        error: datatypeError(schemaNames, t, config.datatype),
         items: schemaNames,
         value: config.datatype ?? "",
       },
       advancedView: {
-        label: "Editing mode",
+        label: t("editingMode"),
         input: "boolean",
         value: config.advancedView,
       },
     },
   },
   button: {
-    label: "Button",
+    label: t("button"),
     fields: {
-      buttonText: { label: "Title", input: "string", value: config.buttonText },
-      buttonTooltip: { label: "Tooltip", input: "string", value: config.buttonTooltip },
-      buttonColor: { label: "Color", input: "rgb", value: config.buttonColor },
+      buttonText: { label: t("title"), input: "string", value: config.buttonText },
+      buttonTooltip: { label: t("tooltip"), input: "string", value: config.buttonTooltip },
+      buttonColor: { label: t("color"), input: "rgb", value: config.buttonColor },
     },
   },
 });
@@ -98,6 +104,7 @@ export function usePublishPanelSettings(
   datatypes: Immutable<RosDatatypes>,
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
+  const { t } = useTranslation("publish");
   const schemaNames = useMemo(() => Array.from(datatypes.keys()).sort(), [datatypes]);
 
   const actionHandler = useCallback(
@@ -143,7 +150,7 @@ export function usePublishPanelSettings(
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSettingsTree(config, schemaNames, topics),
+      nodes: buildSettingsTree(config, schemaNames, topics, t),
     });
-  }, [actionHandler, config, schemaNames, topics, updatePanelSettingsTree]);
+  }, [actionHandler, config, schemaNames, t, topics, updatePanelSettingsTree]);
 }
