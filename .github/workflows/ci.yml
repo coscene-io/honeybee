@@ -30,7 +30,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .eslintcache
-          key: ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}
           restore-keys: |
             ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-
 
