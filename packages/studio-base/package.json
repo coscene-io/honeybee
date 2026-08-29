@@ -183,7 +183,7 @@
     "ts-checker-rspack-plugin": "1.6.0",
     "ts-essentials": "10.0.4",
     "ts-key-enum": "3.0.13",
-    "tss-react": "4.9.3",
+    "tss-react": "4.9.21",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-for-user-script": "npm:typescript@5.9.3",
     "use-debounce": "10.1.1",

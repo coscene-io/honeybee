@@ -4494,7 +4494,7 @@ __metadata:
     ts-checker-rspack-plugin: 1.6.0
     ts-essentials: 10.0.4
     ts-key-enum: 3.0.13
-    tss-react: 4.9.3
+    tss-react: 4.9.21
     typescript: "npm:@typescript/typescript6@6.0.2"
     typescript-for-user-script: "npm:typescript@5.9.3"
     use-debounce: 10.1.1
@@ -4550,7 +4550,7 @@ __metadata:
     react-dom: 18.3.1
     react-refresh: 0.18.0
     tinycolor2: 1.6.0
-    tss-react: 4.9.2
+    tss-react: 4.9.21
     utif: 3.1.0
     webpack-dev-server: 5.2.0
   languageName: unknown
@@ -4575,7 +4575,7 @@ __metadata:
     react-dom: 18.3.1
     react-i18next: 14.0.5
     react-refresh: 0.18.0
-    tss-react: 4.9.3
+    tss-react: 4.9.21
     webpack: 5.97.1
     webpack-dev-server: 5.2.0
   languageName: unknown
@@ -25129,9 +25129,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tss-react@npm:4.9.2":
-  version: 4.9.2
-  resolution: "tss-react@npm:4.9.2"
+"tss-react@npm:4.9.21":
+  version: 4.9.21
+  resolution: "tss-react@npm:4.9.21"
   dependencies:
     "@emotion/cache": "*"
     "@emotion/serialize": "*"
@@ -25139,35 +25139,15 @@ __metadata:
   peerDependencies:
     "@emotion/react": ^11.4.1
     "@emotion/server": ^11.4.0
-    "@mui/material": ^5.0.0
-    react: ^16.8.0 || ^17.0.2 || ^18.0.0
+    "@mui/material": ^5.0.0 || ^6.0.0 || ^7.0.0 || ^9.0.0
+    "@types/react": ^16.8.0 || ^17.0.2 || ^18.0.0 || ^19.0.0
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
   peerDependenciesMeta:
     "@emotion/server":
       optional: true
     "@mui/material":
       optional: true
-  checksum: e998ba9e458601dc540e91c4cae424f2533b6edc013831a6ade8b35281cf7798e1ad1d9358a094fd57904f858f01fb80313437acc5377c914701c6ce75f3abac
-  languageName: node
-  linkType: hard
-
-"tss-react@npm:4.9.3":
-  version: 4.9.3
-  resolution: "tss-react@npm:4.9.3"
-  dependencies:
-    "@emotion/cache": "*"
-    "@emotion/serialize": "*"
-    "@emotion/utils": "*"
-  peerDependencies:
-    "@emotion/react": ^11.4.1
-    "@emotion/server": ^11.4.0
-    "@mui/material": ^5.0.0
-    react: ^16.8.0 || ^17.0.2 || ^18.0.0
-  peerDependenciesMeta:
-    "@emotion/server":
-      optional: true
-    "@mui/material":
-      optional: true
-  checksum: 40445f156d4d74bae18bf697dbe4e9e7a46c7056976c6312e95dc3949d637eb5e1b1dd1a4ca244c53114d9bf525a756767b33b7d59b210730c52c0e5a8524f31
+  checksum: 8fa87718ea85b649375b2426fc8bd8e9a8b86ab8e80f8158db027e30bd93b6d6994676419381ed94a0dcdd4283829105196018656f237596c2a0a53a39777eb0
   languageName: node
   linkType: hard
 
