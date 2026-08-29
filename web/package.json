@@ -9,7 +9,7 @@
     "@rspack/cli": "2.1.10",
     "@rspack/core": "2.1.10",
     "@types/serve-handler": "^6",
-    "electron": "35.0.3",
+    "electron": "43.4.1",
     "playwright": "1.60.0",
     "serve-handler": "6.1.5"
   }
