@@ -22,8 +22,8 @@ export class Mp4MediabunnyControllerWorker {
     return await this.#controller.initialize();
   }
 
-  public async getFrame(timestamp: Time): Promise<VideoFrame> {
-    const frame = await this.#controller.getFrame(timestamp);
+  public async getFrame(timestamp: Time, consumerId: string): Promise<VideoFrame> {
+    const frame = await this.#controller.getFrame(timestamp, consumerId);
     return Comlink.transfer(frame, [frame]);
   }
 

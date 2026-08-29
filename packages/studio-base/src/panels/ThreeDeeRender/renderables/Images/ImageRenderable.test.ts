@@ -11,6 +11,10 @@ import * as THREE from "three";
 
 import { PinholeCameraModel } from "@foxglove/den/image";
 import { IRenderer } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import {
+  type RemoteVideoFrameReference,
+  registerRemoteVideoFrameProvider,
+} from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 
 import {
   type CompressedVideoFrameEvent,
@@ -176,6 +180,16 @@ class TestVideoBatchRenderable extends ImageRenderable {
   }
 }
 
+class TestRemoteFrameRenderable extends ImageRenderable {
+  public constructor() {
+    super(mockUserData.topic, mockRenderer, makeUserData());
+  }
+
+  public async decodeRemoteFrame(image: RemoteVideoFrameReference): Promise<TestDecodedImage> {
+    return await this.decodeImage(image);
+  }
+}
+
 async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
@@ -247,6 +261,74 @@ describe("ImageRenderable", () => {
     // @ts-expect-error decodeImage is protected, but ok to use on tests
     await renderable.decodeImage(renderable.userData.image!, 100);
     expect(renderable.getDecodedImage()).toBeInstanceOf(ImageBitmap);
+  });
+
+  it("applies MP4 rotation metadata before rendering a remote frame", async () => {
+    const originalOffscreenCanvas = globalThis.OffscreenCanvas;
+    const frame = new MockVideoFrame(1920, 1080) as unknown as VideoFrame;
+    const bitmap = { width: 1080, height: 1920, close: jest.fn() } as unknown as ImageBitmap;
+    const context = {
+      drawImage: jest.fn(),
+      rotate: jest.fn(),
+      translate: jest.fn(),
+    };
+    const transferToImageBitmap = jest.fn(() => bitmap);
+    const canvases: Array<{ width: number; height: number }> = [];
+
+    class MockOffscreenCanvas {
+      public constructor(
+        public readonly width: number,
+        public readonly height: number,
+      ) {
+        canvases.push(this);
+      }
+
+      public getContext() {
+        return context;
+      }
+
+      public transferToImageBitmap() {
+        return transferToImageBitmap();
+      }
+    }
+
+    Object.defineProperty(globalThis, "OffscreenCanvas", {
+      configurable: true,
+      value: MockOffscreenCanvas,
+      writable: true,
+    });
+
+    const reference: RemoteVideoFrameReference = {
+      timestamp: { sec: 1, nsec: 0 },
+      duration: { sec: 0, nsec: 100_000_000 },
+      frame_id: "",
+      provider_id: "rotation-provider",
+      rotation: 90,
+    };
+    const provider = { getFrame: jest.fn(async () => frame) };
+    const unregister = registerRemoteVideoFrameProvider(reference.provider_id, provider);
+
+    try {
+      const renderable = new TestRemoteFrameRenderable();
+      await expect(renderable.decodeRemoteFrame(reference)).resolves.toBe(bitmap);
+      expect(provider.getFrame).toHaveBeenCalledWith(
+        reference.timestamp,
+        expect.stringMatching(/^image-renderable-/),
+      );
+      expect(canvases).toEqual([{ width: 1080, height: 1920 }]);
+      expect(context.translate).toHaveBeenCalledWith(540, 960);
+      expect(context.rotate).toHaveBeenCalledWith(Math.PI / 2);
+      expect(context.drawImage).toHaveBeenCalledWith(frame, -960, -540, 1920, 1080);
+      expect(transferToImageBitmap).toHaveBeenCalledTimes(1);
+      expect((frame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
+    } finally {
+      unregister();
+      Object.defineProperty(globalThis, "OffscreenCanvas", {
+        configurable: true,
+        value: originalOffscreenCanvas,
+        writable: true,
+      });
+    }
   });
 
   it("should dispose resources", () => {

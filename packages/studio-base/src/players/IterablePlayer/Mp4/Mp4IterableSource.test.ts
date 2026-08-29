@@ -8,6 +8,10 @@
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 
 import { Mp4IterableSource } from "./Mp4IterableSource";
+import {
+  REMOTE_VIDEO_FRAME_REFERENCE_DATATYPE,
+  REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME,
+} from "./RemoteVideoFrameRegistry";
 
 describe("Mp4IterableSource", () => {
   it("emits presentation-ordered VFR references and seeks with backfill", async () => {
@@ -39,6 +43,9 @@ describe("Mp4IterableSource", () => {
     const initialization = await source.initialize();
     expect(initialization.end).toEqual(fromNanoSec(1_000_000_000n));
     expect(initialization.problems).toEqual([]);
+    expect(initialization.datatypes).toEqual(
+      new Map([[REMOTE_VIDEO_FRAME_REFERENCE_SCHEMA_NAME, REMOTE_VIDEO_FRAME_REFERENCE_DATATYPE]]),
+    );
 
     const results = [];
     for await (const result of source.messageIterator({
