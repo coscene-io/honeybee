@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Palette, TextField, Tooltip, Typography, inputBaseClasses } from "@mui/material";
-import { t } from "i18next";
+import { TFunction } from "i18next";
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -69,22 +69,25 @@ const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }
   };
 });
 
-function parseInput(value: string): { error?: string; parsedObject?: unknown } {
+function parseInput(
+  value: string,
+  t: TFunction<"callService">,
+): { error?: string; parsedObject?: unknown } {
   let parsedObject;
   let error = undefined;
   try {
     const parsedAny: unknown = JSON.parse(value);
     if (Array.isArray(parsedAny)) {
-      error = t("callService:requestMustBeObjectNotArray");
+      error = t("requestMustBeObjectNotArray");
     } else if (parsedAny == undefined) {
-      error = t("callService:requestMustBeObjectNotNull");
+      error = t("requestMustBeObjectNotNull");
     } else if (typeof parsedAny !== "object") {
-      error = t("callService:requestMustBeObjectNotType", { type: typeof parsedAny });
+      error = t("requestMustBeObjectNotType", { type: typeof parsedAny });
     } else {
       parsedObject = parsedAny;
     }
   } catch (e) {
-    error = value.length !== 0 ? e.message : t("callService:enterValidJsonRequest");
+    error = value.length !== 0 ? e.message : t("enterValidJsonRequest");
   }
   return { error, parsedObject };
 }
@@ -137,8 +140,8 @@ function CallServiceContent(
   }, [context, setColorScheme]);
 
   const { error: requestParseError, parsedObject } = useMemo(
-    () => parseInput(config.requestPayload ?? ""),
-    [config.requestPayload],
+    () => parseInput(config.requestPayload ?? "", t),
+    [config.requestPayload, t],
   );
 
   const settingsActionHandler = useCallback(

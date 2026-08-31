@@ -15,7 +15,7 @@
 //   You may not use this file except in compliance with the License.
 
 import { Button, inputBaseClasses, TextField, Tooltip, Typography } from "@mui/material";
-import { t } from "i18next";
+import { TFunction } from "i18next";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -85,22 +85,25 @@ const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }
   };
 });
 
-function parseInput(value: string): { error?: string; parsedObject?: unknown } {
+function parseInput(
+  value: string,
+  t: TFunction<"publish">,
+): { error?: string; parsedObject?: unknown } {
   let parsedObject;
   let error = undefined;
   try {
     const parsedAny: unknown = JSON.parse(value);
     if (Array.isArray(parsedAny)) {
-      error = t("publish:messageMustBeObjectNotArray");
+      error = t("messageMustBeObjectNotArray");
     } else if (parsedAny == null /* eslint-disable-line no-restricted-syntax */) {
-      error = t("publish:messageMustBeObjectNotNull");
+      error = t("messageMustBeObjectNotNull");
     } else if (typeof parsedAny !== "object") {
-      error = t("publish:messageMustBeObjectNotType", { type: typeof parsedAny });
+      error = t("messageMustBeObjectNotType", { type: typeof parsedAny });
     } else {
       parsedObject = parsedAny;
     }
   } catch (e) {
-    error = value.length !== 0 ? e.message : t("publish:enterValidJsonMessage");
+    error = value.length !== 0 ? e.message : t("enterValidJsonMessage");
   }
   return { error, parsedObject };
 }
@@ -142,7 +145,10 @@ function Publish(props: Props) {
     datatypes,
   });
 
-  const { error, parsedObject } = useMemo(() => parseInput(config.value ?? ""), [config.value]);
+  const { error, parsedObject } = useMemo(
+    () => parseInput(config.value ?? "", t),
+    [config.value, t],
+  );
 
   usePublishPanelSettings(config, saveConfig, topics, datatypes);
 
