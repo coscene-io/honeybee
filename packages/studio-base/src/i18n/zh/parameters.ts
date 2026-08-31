@@ -5,13 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const log = {
-  hideAll: "Hide all",
-  minLogLevel: "Log level",
-  nameFilter: "Namespaces",
-  showAll: "Show all",
-  topic: "Topic",
-  topicError: "Topic {{topic}} is not available",
-  display: "Display",
-  reverseOrder: "Reverse order",
+import { TypeOptions } from "i18next";
+
+export const parameters: Partial<TypeOptions["resources"]["parameters"]> = {
+  connectToRosSource: "请连接到 ROS 数据源以查看参数",
+  parameter: "参数",
+  value: "值",
+  submitChange: "提交更改",
+  reset: "重置",
 };

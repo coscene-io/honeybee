@@ -412,16 +412,14 @@ function RawMessages(props: Props) {
     };
 
     if (topicPath.length === 0) {
-      return <EmptyState>No topic selected</EmptyState>;
+      return <EmptyState>{t("noTopicSelected")}</EmptyState>;
     }
     if (diffEnabled && diffMethod === Constants.CUSTOM_METHOD && (!baseItem || !diffItem)) {
-      return (
-        <EmptyState>{`Waiting to diff next messages from "${topicPath}" and "${diffTopicPath}"`}</EmptyState>
-      );
+      return <EmptyState>{t("waitingToDiff", { topicPath, diffTopicPath })}</EmptyState>;
     }
 
     if (!baseItem) {
-      return <EmptyState>Waiting for next message…</EmptyState>;
+      return <EmptyState>{t("waitingForNextMessage")}</EmptyState>;
     }
 
     const data = dataWithoutWrappingArray(baseItem.queriedData.map(({ value }) => value));
@@ -470,7 +468,7 @@ function RawMessages(props: Props) {
             <MaybeCollapsedValue itemLabel={String(singleVal)} />
           </Typography>
         ) : diffEnabled && _.isEqual({}, diff) ? (
-          <EmptyState>No difference found</EmptyState>
+          <EmptyState>{t("noDifferenceFound")}</EmptyState>
         ) : (
           <>
             {diffEnabled && (
@@ -669,6 +667,7 @@ function RawMessages(props: Props) {
     saveConfig,
     showFullMessageForDiff,
     themePreference,
+    t,
     topic,
     topicPath,
     valueRenderer,
@@ -695,13 +694,13 @@ function RawMessages(props: Props) {
       actionHandler,
       nodes: {
         general: {
-          label: "General",
+          label: t("general"),
           fields: {
             fontSize: {
-              label: "Font size",
+              label: t("fontSize"),
               input: "select",
               options: [
-                { label: "auto", value: undefined },
+                { label: t("auto"), value: undefined },
                 ...Constants.FONT_SIZE_OPTIONS.map((value) => ({
                   label: `${value} px`,
                   value,
@@ -713,7 +712,7 @@ function RawMessages(props: Props) {
         },
       },
     });
-  }, [actionHandler, fontSize, updatePanelSettingsTree]);
+  }, [actionHandler, fontSize, t, updatePanelSettingsTree]);
 
   return (
     <div

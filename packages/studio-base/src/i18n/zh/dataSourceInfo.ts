@@ -13,5 +13,10 @@ export const dataSourceInfo: Partial<TypeOptions["resources"]["dataSourceInfo"]>
   duration: "持续时间",
   endTime: "结束时间",
   startTime: "开始时间",
-  waitingForConnection: "等待连接……",
+  waitingForConnection: "等待连接…",
+  waitingForData: "正在等待数据…",
+  topicName: "话题名称",
+  datatype: "数据类型",
+  messageCount: "消息数量",
+  frequency: "频率",
 };

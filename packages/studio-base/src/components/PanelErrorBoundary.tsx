@@ -6,7 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Link } from "@mui/material";
+import { t } from "i18next";
 import { Component, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Trans } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { reportError } from "@foxglove/studio-base/reportError";
@@ -39,23 +41,27 @@ export default class PanelErrorBoundary extends Component<PropsWithChildren<Prop
     if (this.state.currentError) {
       return (
         <ErrorDisplay
-          title="This panel encountered an unexpected error"
+          title={t("error:panelUnexpectedError")}
           error={this.state.currentError.error}
           errorInfo={this.state.currentError.errorInfo}
           showErrorDetails={this.props.showErrorDetails}
           hideErrorSourceLocations={this.props.hideErrorSourceLocations}
           content={
             <p>
-              Something went wrong in this panel.{" "}
-              <Link
-                color="inherit"
-                onClick={() => {
-                  this.setState({ currentError: undefined });
+              <Trans
+                i18nKey="somethingWentWrongPanel"
+                ns="error"
+                components={{
+                  dismissLink: (
+                    <Link
+                      color="inherit"
+                      onClick={() => {
+                        this.setState({ currentError: undefined });
+                      }}
+                    />
+                  ),
                 }}
-              >
-                Dismiss this error
-              </Link>{" "}
-              to continue using this panel. If the issue persists, try resetting the panel.
+              />
             </p>
           }
           actions={
@@ -68,26 +74,26 @@ export default class PanelErrorBoundary extends Component<PropsWithChildren<Prop
                     this.setState({ currentError: undefined });
                   }}
                 >
-                  Dismiss
+                  {t("general:dismiss")}
                 </Button>
                 <Button
                   variant="outlined"
-                  title="Reset panel settings to default values"
+                  title={t("error:resetPanelSettingsToDefault")}
                   color="error"
                   onClick={() => {
                     this.setState({ currentError: undefined });
                     this.props.onResetPanel();
                   }}
                 >
-                  Reset Panel
+                  {t("error:resetPanel")}
                 </Button>
                 <Button
                   variant="text"
-                  title="Remove this panel from the layout"
+                  title={t("error:removePanelFromLayout")}
                   color="error"
                   onClick={this.props.onRemovePanel}
                 >
-                  Remove Panel
+                  {t("error:removePanel")}
                 </Button>
               </Stack>
             </>

@@ -29,6 +29,7 @@ import {
 } from "@mui/material";
 import * as _ from "lodash-es";
 import { ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -133,6 +134,7 @@ function SubmittableJsonInput(props: {
   value: unknown;
   onSubmit: (newVal: unknown) => void;
 }): ReactElement {
+  const { t } = useTranslation("parameters");
   const [value, setValue] = useState<unknown>(editableValue(props.value));
 
   return (
@@ -144,7 +146,7 @@ function SubmittableJsonInput(props: {
         }}
       />
       {!_.isEqual(editableValue(value), editableValue(props.value)) && [
-        <Tooltip key="submit" title="Submit change">
+        <Tooltip key="submit" title={t("submitChange")}>
           <IconButton
             onClick={() => {
               if (props.value instanceof Uint8Array) {
@@ -157,7 +159,7 @@ function SubmittableJsonInput(props: {
             <CheckIcon />
           </IconButton>
         </Tooltip>,
-        <Tooltip key="reset" title="Reset">
+        <Tooltip key="reset" title={t("reset")}>
           <IconButton
             key="reset"
             onClick={() => {
@@ -174,6 +176,7 @@ function SubmittableJsonInput(props: {
 
 function Parameters(): ReactElement {
   const { classes } = useStyles();
+  const { t } = useTranslation("parameters");
 
   const capabilities = useMessagePipeline(selectCapabilities);
   const setParameterUnbounced = useMessagePipeline(selectSetParameter);
@@ -234,7 +237,7 @@ function Parameters(): ReactElement {
     return (
       <Stack fullHeight>
         <PanelToolbar />
-        <EmptyState>Connect to a ROS source to view parameters</EmptyState>
+        <EmptyState>{t("connectToRosSource")}</EmptyState>
       </Stack>
     );
   }
@@ -246,8 +249,8 @@ function Parameters(): ReactElement {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Parameter</TableCell>
-              <TableCell>Value</TableCell>
+              <TableCell>{t("parameter")}</TableCell>
+              <TableCell>{t("value")}</TableCell>
               <TableCell>&nbsp;</TableCell>
             </TableRow>
           </TableHead>

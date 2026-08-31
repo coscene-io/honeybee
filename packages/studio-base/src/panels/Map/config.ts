@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
 import * as _ from "lodash-es";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -27,7 +28,7 @@ export function validateCustomUrl(url: string): Error | undefined {
   const validPlaceholders = ["{x}", "{y}", "{z}"];
   for (const placeholder of placeholders) {
     if (!validPlaceholders.includes(placeholder)) {
-      return new Error(`Invalid placeholder ${placeholder}`);
+      return new Error(t("map:invalidPlaceholder", { placeholder }));
     }
   }
 
@@ -58,22 +59,22 @@ export function buildSettingsTree(
         label: topic.name,
         fields: {
           enabled: {
-            label: "Enabled",
+            label: t("map:enabled"),
             input: "boolean",
             value: !config.disabledTopics.includes(topic.name),
           },
           coloring: {
-            label: "Coloring",
+            label: t("map:coloring"),
             input: "select",
             value: coloring ? "Custom" : "Automatic",
             options: [
-              { label: "Automatic", value: "Automatic" },
-              { label: "Custom", value: "Custom" },
+              { label: t("map:automatic"), value: "Automatic" },
+              { label: t("map:custom"), value: "Custom" },
             ],
           },
           color: coloring
             ? {
-                label: "Color",
+                label: t("map:color"),
                 input: "rgb",
                 value: coloring,
               }
@@ -89,16 +90,16 @@ export function buildSettingsTree(
       ? undefined
       : { label: topic.name, value: topic.name },
   );
-  const followTopicOptions = [{ label: "Off", value: "" }, ...eligibleFollowTopicOptions];
+  const followTopicOptions = [{ label: t("map:off"), value: "" }, ...eligibleFollowTopicOptions];
   const generalSettings: SettingsTreeFields = {
     layer: {
-      label: "Tile layer",
+      label: t("map:tileLayer"),
       input: "select",
       value: config.layer,
       options: [
-        { label: "Map", value: "map" },
-        { label: "Satellite", value: "satellite" },
-        { label: "Custom", value: "custom" },
+        { label: t("map:layerMap"), value: "map" },
+        { label: t("map:satellite"), value: "satellite" },
+        { label: t("map:custom"), value: "custom" },
       ],
     },
   };
@@ -111,25 +112,25 @@ export function buildSettingsTree(
     }
 
     generalSettings.customTileUrl = {
-      label: "Custom map tile URL",
+      label: t("map:customMapTileUrl"),
       input: "string",
       value: config.customTileUrl,
       error,
     };
 
     generalSettings.maxNativeZoom = {
-      label: "Max tile level",
+      label: t("map:maxTileLevel"),
       input: "select",
       value: config.maxNativeZoom,
       options: [18, 19, 20, 21, 22, 23, 24].map((num) => {
         return { label: String(num), value: num };
       }),
-      help: "Highest zoom supported by the custom map source. See https://leafletjs.com/examples/zoom-levels/ for more information.",
+      help: t("map:maxTileLevelHelp"),
     };
   }
 
   generalSettings.followTopic = {
-    label: "Follow topic",
+    label: t("map:followTopic"),
     input: "select",
     value: config.followTopic,
     options: followTopicOptions,
@@ -137,11 +138,11 @@ export function buildSettingsTree(
 
   const settings: SettingsTreeNodes = {
     general: {
-      label: "General",
+      label: t("map:general"),
       fields: generalSettings,
     },
     topics: {
-      label: "Topics",
+      label: t("map:topics"),
       children: topics,
     },
   };

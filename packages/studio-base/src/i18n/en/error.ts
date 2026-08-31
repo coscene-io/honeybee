@@ -45,4 +45,27 @@ export const error = {
   GET_RESPONSE_FROM_BFF: "Failed to get information from bff",
   USE_FOR_ALWAYS_FAIL: "This error code is only triggered by the alwaysFail interface",
   UNKNOWN_ERROR: "Other errors",
+
+  panelUnexpectedError: "This panel encountered an unexpected error",
+  appUnexpectedError: "The app encountered an unexpected error",
+  somethingWentWrongPanel:
+    "Something went wrong in this panel. <dismissLink>Dismiss this error</dismissLink> to continue using this panel. If the issue persists, try resetting the panel.",
+  somethingWentWrongApp:
+    "Something went wrong. <dismissLink>Dismiss this error</dismissLink> to continue using the app. If the issue persists, try restarting the app.",
+  resetPanel: "Reset Panel",
+  removePanel: "Remove Panel",
+  resetPanelSettingsToDefault: "Reset panel settings to default values",
+  removePanelFromLayout: "Remove this panel from the layout",
+  errorStack: "Error stack:",
+  componentStack: "Component stack:",
+  showDetails: "Show details",
+  hideDetails: "Hide details",
+  missingShareManifestArgument: "Missing share manifest argument",
+  shareManifestHasExpired: "Share manifest has expired",
+  fileContainsNoMessages: "This file contains no messages.",
+  rosbridgeError: "Rosbridge error",
+  takingTooLongToGetTopics: "Taking too long to get topics and raw types.",
+  unableToDetectRosVersion: "Unable to detect ROS version, assuming ROS 1",
+  failedToFetchTopicsFromRosbridge: "Failed to fetch topics from rosbridge",
+  rosConnectionFailed: "ROS connection failed",
 };

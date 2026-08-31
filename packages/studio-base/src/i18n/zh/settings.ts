@@ -22,6 +22,7 @@ export const settings: Partial<TypeOptions["resources"]["settings"]> = {
   selectProjectSources: "选择项目资源",
   domain: "域名",
   domainDescription: "配置或切换域名",
+  restartNow: "立即重启",
   example: "示例",
   invalidDomain: "无效的 URL。必须以 https:// 开头，且以 coscene.io 或 coscene.cn 结尾",
 };

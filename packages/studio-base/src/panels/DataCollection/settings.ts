@@ -46,9 +46,9 @@ export const defaultConfig: Config = {
   displayCollectionLog: true,
 };
 
-function serviceError(serviceName?: string) {
+function serviceError(message: string, serviceName?: string) {
   if (!serviceName) {
-    return "Service cannot be empty";
+    return message;
   }
   return undefined;
 }
@@ -92,7 +92,10 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
               serviceName: {
                 label: t("serviceName"),
                 input: "string",
-                error: serviceError(config.buttons.startCollection.serviceName),
+                error: serviceError(
+                  t("serviceCannotBeEmpty"),
+                  config.buttons.startCollection.serviceName,
+                ),
                 value: config.buttons.startCollection.serviceName ?? "",
               },
             },
@@ -113,7 +116,10 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
               serviceName: {
                 label: t("serviceName"),
                 input: "string",
-                error: serviceError(config.buttons.endCollection.serviceName),
+                error: serviceError(
+                  t("serviceCannotBeEmpty"),
+                  config.buttons.endCollection.serviceName,
+                ),
                 value: config.buttons.endCollection.serviceName ?? "",
               },
             },
@@ -134,7 +140,10 @@ export function useSettingsTree(config: Config): SettingsTreeNodes {
               serviceName: {
                 label: t("serviceName"),
                 input: "string",
-                error: serviceError(config.buttons.cancelCollection.serviceName),
+                error: serviceError(
+                  t("serviceCannotBeEmpty"),
+                  config.buttons.cancelCollection.serviceName,
+                ),
                 value: config.buttons.cancelCollection.serviceName ?? "",
               },
             },

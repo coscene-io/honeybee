@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
 import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
@@ -271,7 +272,7 @@ export default class Ros1Player implements Player {
         Problem.Connection,
         {
           severity: "error",
-          message: "ROS connection failed",
+          message: t("error:rosConnectionFailed"),
           tip: `Ensure that roscore is running and accessible at: ${this.#url}`,
           error,
         },

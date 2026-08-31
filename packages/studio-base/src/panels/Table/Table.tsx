@@ -34,6 +34,7 @@ import {
   CellContext,
 } from "@tanstack/react-table";
 import memoizeWeak from "memoize-weak";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
@@ -224,6 +225,7 @@ export default function Table({
 }): React.JSX.Element {
   const isNested = accessorPath.length > 0;
   const { classes, cx } = useStyles();
+  const { t } = useTranslation("table");
 
   const columns = React.useMemo(() => {
     if (
@@ -285,11 +287,7 @@ export default function Table({
     value == null ||
     (!isNested && Array.isArray(value) && typeof value[0] !== "object")
   ) {
-    return (
-      <EmptyState>
-        Cannot render primitive values in a table. Try using the Raw Messages panel instead.
-      </EmptyState>
-    );
+    return <EmptyState>{t("cannotRenderPrimitiveValues")}</EmptyState>;
   }
 
   return (

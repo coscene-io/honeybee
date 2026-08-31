@@ -20,6 +20,7 @@ import {
 import * as _ from "lodash-es";
 import memoizeWeak from "memoize-weak";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -61,6 +62,7 @@ const memoizedFilterMessages = memoizeWeak((msgs: readonly MessageEvent[]) =>
 
 function MapPanel(props: MapPanelProps): React.JSX.Element {
   const { context } = props;
+  const { t } = useTranslation("map");
   const [colorScheme, setColorScheme] = useState<"dark" | "light">("light");
 
   const mapContainerRef = useRef<HTMLDivElement>(ReactNull);
@@ -310,7 +312,7 @@ function MapPanel(props: MapPanelProps): React.JSX.Element {
     return () => {
       context.unsubscribeAll();
     };
-  }, [config, context, eligibleTopics, settingsActionHandler]);
+  }, [config, context, eligibleTopics, settingsActionHandler, t]);
 
   type TopicGroups = {
     baseColor: string;
@@ -717,7 +719,7 @@ function MapPanel(props: MapPanelProps): React.JSX.Element {
   return (
     <ThemeProvider isDark={colorScheme === "dark"}>
       <Stack ref={sizeRef} fullHeight fullWidth position="relative">
-        {!center && <EmptyState>Waiting for first GPS point...</EmptyState>}
+        {!center && <EmptyState>{t("waitingForFirstGpsPoint")}</EmptyState>}
         <Stack
           position="absolute"
           ref={mapContainerRef}

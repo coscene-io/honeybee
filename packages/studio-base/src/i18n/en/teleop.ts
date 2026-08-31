@@ -5,17 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export const variable = {
-  addVariable: "Add variable",
-  deleteVariable: "Delete variable",
-  variableNamePlaceholder: "variable_name",
-  duplicateNameError:
-    "A variable with this name already exists. Please select a unique variable name to save changes.",
-  copied: "Copied",
-  copy: "Copy",
+export const teleop = {
   general: "General",
-  min: "Min",
-  max: "Max",
-  step: "Step",
-  variableName: "Variable name",
+  publishRate: "Publish rate",
+  topic: "Topic",
+  upButton: "Up button",
+  downButton: "Down button",
+  leftButton: "Left button",
+  rightButton: "Right button",
+  field: "Field",
+  value: "Value",
+  connectToPublishableSource: "Connect to a data source that supports publishing",
+  selectPublishTopic: "Select a publish topic in the panel settings",
 };
