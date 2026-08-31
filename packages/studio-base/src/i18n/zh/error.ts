@@ -44,7 +44,7 @@ export const error: Partial<TypeOptions["resources"]["error"]> = {
   shareManifestHasExpired: "分享清单已过期",
   fileContainsNoMessages: "此文件不包含消息。",
   rosbridgeError: "Rosbridge 错误",
-  takingTooLongToGetTopics: "获取话题和原始类型耗时过长。",
+  takingTooLongToGetTopics: "获取话题和消息类型定义耗时过长。",
   unableToDetectRosVersion: "无法检测 ROS 版本，假定为 ROS 1",
   failedToFetchTopicsFromRosbridge: "从 rosbridge 获取话题失败",
   rosConnectionFailed: "ROS 连接失败",

@@ -694,13 +694,13 @@ function RawMessages(props: Props) {
       actionHandler,
       nodes: {
         general: {
-          label: "General",
+          label: t("general"),
           fields: {
             fontSize: {
-              label: "Font size",
+              label: t("fontSize"),
               input: "select",
               options: [
-                { label: "auto", value: undefined },
+                { label: t("auto"), value: undefined },
                 ...Constants.FONT_SIZE_OPTIONS.map((value) => ({
                   label: `${value} px`,
                   value,
@@ -712,7 +712,7 @@ function RawMessages(props: Props) {
         },
       },
     });
-  }, [actionHandler, fontSize, updatePanelSettingsTree]);
+  }, [actionHandler, fontSize, t, updatePanelSettingsTree]);
 
   return (
     <div

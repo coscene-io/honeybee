@@ -11,4 +11,6 @@ export const parameters: Partial<TypeOptions["resources"]["parameters"]> = {
   connectToRosSource: "请连接到 ROS 数据源以查看参数",
   parameter: "参数",
   value: "值",
+  submitChange: "提交更改",
+  reset: "重置",
 };

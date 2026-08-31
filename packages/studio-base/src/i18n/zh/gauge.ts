@@ -12,7 +12,7 @@ export const gauge: Partial<TypeOptions["resources"]["gauge"]> = {
   min: "最小值",
   max: "最大值",
   colorMode: "颜色模式",
-  colorMap: "色图",
+  colorMap: "颜色映射",
   gradient: "渐变",
   reverse: "反转",
   redToGreen: "红到绿",

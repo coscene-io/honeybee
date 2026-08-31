@@ -134,6 +134,7 @@ function SubmittableJsonInput(props: {
   value: unknown;
   onSubmit: (newVal: unknown) => void;
 }): ReactElement {
+  const { t } = useTranslation("parameters");
   const [value, setValue] = useState<unknown>(editableValue(props.value));
 
   return (
@@ -145,7 +146,7 @@ function SubmittableJsonInput(props: {
         }}
       />
       {!_.isEqual(editableValue(value), editableValue(props.value)) && [
-        <Tooltip key="submit" title="Submit change">
+        <Tooltip key="submit" title={t("submitChange")}>
           <IconButton
             onClick={() => {
               if (props.value instanceof Uint8Array) {
@@ -158,7 +159,7 @@ function SubmittableJsonInput(props: {
             <CheckIcon />
           </IconButton>
         </Tooltip>,
-        <Tooltip key="reset" title="Reset">
+        <Tooltip key="reset" title={t("reset")}>
           <IconButton
             key="reset"
             onClick={() => {

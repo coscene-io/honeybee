@@ -24,9 +24,9 @@ export const callService: Partial<TypeOptions["resources"]["callService"]> = {
   requestMustBeObjectNotNull: "请求内容必须是对象，不能为 null",
   requestMustBeObjectNotType: "请求内容必须是对象，不能是「{{type}}」",
   enterValidJsonRequest: "请输入有效的 JSON 请求内容",
-  enterServiceRequestPlaceholder: "以 JSON 输入服务请求",
+  enterServiceRequestPlaceholder: "以 JSON 格式输入服务请求",
   dataSourceDoesNotAllowCallingServices: "当前数据源不允许调用服务",
   request: "请求",
   response: "响应",
-  callingService: "正在调用 {{serviceName}}...",
+  callingService: "正在调用 {{serviceName}}…",
 };

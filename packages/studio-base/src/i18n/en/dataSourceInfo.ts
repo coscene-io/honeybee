@@ -13,4 +13,8 @@ export const dataSourceInfo = {
   startTime: "Start time",
   waitingForConnection: "Waiting for connection…",
   waitingForData: "Waiting for data…",
+  topicName: "Topic Name",
+  datatype: "Datatype",
+  messageCount: "Message count",
+  frequency: "Frequency",
 };

@@ -145,10 +145,10 @@ function SourceInfo(): React.JSX.Element {
         <table className={classes.table}>
           <thead>
             <tr>
-              <th>Topic Name</th>
-              <th>Datatype</th>
-              <th>Message count</th>
-              <th>Frequency</th>
+              <th>{t("topicName")}</th>
+              <th>{t("datatype")}</th>
+              <th>{t("messageCount")}</th>
+              <th>{t("frequency")}</th>
             </tr>
           </thead>
           <tbody>

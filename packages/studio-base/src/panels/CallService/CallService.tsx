@@ -244,7 +244,7 @@ function CallServiceContent(
             className={classes.textarea}
             multiline
             size="small"
-            placeholder="Response"
+            placeholder={t("response")}
             value={state?.value}
             error={state?.status === "error"}
           />

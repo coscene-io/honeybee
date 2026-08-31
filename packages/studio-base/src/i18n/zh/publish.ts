@@ -24,5 +24,5 @@ export const publish: Partial<TypeOptions["resources"]["publish"]> = {
   messageMustBeObjectNotNull: "消息内容必须是对象，不能为 null",
   messageMustBeObjectNotType: "消息内容必须是对象，不能是「{{type}}」",
   enterValidJsonMessage: "请输入有效的 JSON 消息内容",
-  enterMessageJsonPlaceholder: "以 JSON 输入消息内容",
+  enterMessageJsonPlaceholder: "以 JSON 格式输入消息内容",
 };

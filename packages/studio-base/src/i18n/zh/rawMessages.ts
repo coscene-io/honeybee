@@ -22,6 +22,9 @@ export const rawMessages: Partial<TypeOptions["resources"]["rawMessages"]> = {
   custom: "自定义",
   noTopicSelected: "未选择话题",
   waitingForNextMessage: "等待下一条消息…",
-  waitingToDiff: '正在等待对比 "{{topicPath}}" 和 "{{diffTopicPath}}" 的下一条消息',
+  waitingToDiff: "正在等待对比「{{topicPath}}」和「{{diffTopicPath}}」的下一条消息",
   noDifferenceFound: "未发现差异",
+  general: "通用",
+  fontSize: "字体大小",
+  auto: "自动",
 };

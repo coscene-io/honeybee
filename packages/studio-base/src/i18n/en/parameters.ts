@@ -9,4 +9,6 @@ export const parameters = {
   connectToRosSource: "Connect to a ROS source to view parameters",
   parameter: "Parameter",
   value: "Value",
+  submitChange: "Submit change",
+  reset: "Reset",
 };

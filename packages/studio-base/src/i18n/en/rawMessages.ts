@@ -22,4 +22,7 @@ export const rawMessages = {
   waitingForNextMessage: "Waiting for next message…",
   waitingToDiff: 'Waiting to diff next messages from "{{topicPath}}" and "{{diffTopicPath}}"',
   noDifferenceFound: "No difference found",
+  general: "General",
+  fontSize: "Font size",
+  auto: "auto",
 };
