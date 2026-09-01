@@ -17,6 +17,25 @@ export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<Compressed
 
 export type RecordCompressedVideoKeyframe = (topic: string, receiveTime: Time) => void;
 
+export function videoDelayBucket(delayNs: bigint): string | undefined {
+  if (delayNs <= 0n) {
+    return undefined;
+  }
+  if (delayNs < 100_000_000n) {
+    return "<0.1s";
+  }
+  if (delayNs < 500_000_000n) {
+    return "<0.5s";
+  }
+  if (delayNs < 1_000_000_000n) {
+    return "<1s";
+  }
+  if (delayNs < 5_000_000_000n) {
+    return "<5s";
+  }
+  return "≥5s";
+}
+
 /**
  * Compressed video frames depend on previous frames. Keep the newest decodable GOP instead of
  * keeping only the last message. If a newer keyframe arrives, older frames on the same topic can be

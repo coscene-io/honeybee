@@ -20,6 +20,7 @@ import { MessageEvent } from "@foxglove/studio";
 import { HUDItemManager } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import {
   MessageHandler,
+  type MessageRenderState,
   WAITING_FOR_BOTH_HUD_ITEM,
   WAITING_FOR_CALIBRATION_HUD_ITEM,
   WAITING_FOR_IMAGE_EMPTY_HUD_ITEM,
@@ -29,6 +30,7 @@ import {
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/ImageMode/MessageHandler";
 
 import { PartialMessageEvent } from "../../SceneExtension";
+import { CompressedVideo } from "../Images/ImageTypes";
 
 function wrapInMessageEvent<T>(
   topic: string,
@@ -308,6 +310,357 @@ describe("MessageHandler: synchronized = true", () => {
     expect(state.image).not.toBeUndefined();
   });
 
+  it("starts a new synchronized image epoch when publish timestamps move backwards", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler({ synchronize: true }, hud);
+    const high = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 100n, {
+      timestamp: fromNanoSec(100n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([1]),
+    });
+    const low = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 101n, {
+      timestamp: fromNanoSec(1n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([2]),
+    });
+
+    messageHandler.recordCompressedVideo(high);
+    expect(messageHandler.consumeTimestampRegression()).toBe(false);
+    messageHandler.recordCompressedVideo(low);
+
+    expect(messageHandler.consumeTimestampRegression()).toBe(true);
+    expect(messageHandler.consumeTimestampRegression()).toBe(false);
+    expect(messageHandler.getRenderStateAndUpdateHUD().image?.message).toMatchObject({
+      timestamp: fromNanoSec(1n),
+    });
+  });
+
+  it("emits a waiting state when an annotation participant is enabled while paused", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      { synchronize: true, annotations: { annotations: { visible: false } } },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    messageHandler.handleRawImage(
+      wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 0n, {
+        timestamp: fromNanoSec(0n),
+      }),
+    );
+    const listener = jest.fn();
+    messageHandler.addListener(listener);
+
+    messageHandler.setConfig({
+      synchronize: true,
+      annotations: { annotations: { visible: true } },
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.lastCall?.[0].missingAnnotationTopics).toEqual(["annotations"]);
+  });
+
+  it("preserves a displayed video target identity but replaces a new source at the same timestamp", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler({ synchronize: true }, hud);
+    const timestamp = fromNanoSec(10n);
+    const data = new Uint8Array([1]);
+    const first = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 10n, {
+      timestamp,
+      frame_id: "camera",
+      format: "h264",
+      data,
+    });
+
+    messageHandler.recordCompressedVideo(first);
+    const firstTarget = messageHandler.getRenderStateAndUpdateHUD().image;
+    expect(firstTarget).toBeDefined();
+
+    messageHandler.updateImageState(first, first.message as CompressedVideo);
+    expect(messageHandler.getRenderStateAndUpdateHUD().image).toBe(firstTarget);
+
+    const replacement = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      20n,
+      { timestamp, frame_id: "camera", format: "h264", data: new Uint8Array([2]) },
+    );
+    messageHandler.recordCompressedVideo(replacement);
+    const replacementTarget = messageHandler.getRenderStateAndUpdateHUD().image;
+
+    expect(replacementTarget).not.toBe(firstTarget);
+    expect(replacementTarget?.receiveTime).toEqual(fromNanoSec(20n));
+  });
+
+  it("does not replace a staged video target when an intermediate with the same timestamp is displayed", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler({ synchronize: true }, hud);
+    const timestamp = fromNanoSec(10n);
+    const target = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 20n, {
+      timestamp,
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([2]),
+    });
+    const intermediate = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      10n,
+      {
+        timestamp,
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([1]),
+      },
+    );
+    const listener = jest.fn();
+    messageHandler.addListener(listener);
+
+    messageHandler.recordCompressedVideo(target);
+    const stagedTarget = messageHandler.getRenderStateAndUpdateHUD().image;
+    messageHandler.updateImageState(intermediate, intermediate.message as CompressedVideo);
+
+    expect(messageHandler.getRenderStateAndUpdateHUD().image).toBe(stagedTarget);
+    expect(listener.mock.lastCall?.[0].image?.receiveTime).toEqual(fromNanoSec(10n));
+
+    messageHandler.updateImageState(target, target.message as CompressedVideo);
+    expect(listener.mock.lastCall?.[0].image?.receiveTime).toEqual(fromNanoSec(20n));
+  });
+
+  it("keeps an evicted displayed video timestamp committed for late annotation updates", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    const displayed = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 0n, {
+      timestamp: fromNanoSec(0n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([0]),
+    });
+    messageHandler.recordCompressedVideo(displayed);
+    for (let timestamp = 1n; timestamp <= 250n; timestamp++) {
+      messageHandler.recordCompressedVideo(
+        wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", timestamp, {
+          timestamp: fromNanoSec(timestamp),
+          frame_id: "camera",
+          format: "h264",
+          data: new Uint8Array([Number(timestamp % 256n)]),
+        }),
+      );
+    }
+    const listener = jest.fn();
+    messageHandler.addListener(listener);
+
+    messageHandler.updateImageState(displayed, displayed.message as CompressedVideo);
+    expect(listener.mock.lastCall?.[0].image?.receiveTime).toEqual(fromNanoSec(0n));
+    expect(listener.mock.lastCall?.[0].missingAnnotationTopics).toBeUndefined();
+
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    expect(listener.mock.lastCall?.[0].image?.receiveTime).toEqual(fromNanoSec(0n));
+    expect(listener.mock.lastCall?.[0].missingAnnotationTopics).toEqual(["annotations"]);
+
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        0n,
+        createCircleAnnotations([0n]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    expect(listener.mock.lastCall?.[0].image?.receiveTime).toEqual(fromNanoSec(0n));
+    expect(
+      listener.mock.lastCall?.[0].annotationsByTopic?.get("annotations")?.annotations[0]?.stamp,
+    ).toEqual(fromNanoSec(0n));
+    expect(listener.mock.lastCall?.[0].missingAnnotationTopics).toBeUndefined();
+  });
+
+  it("emits annotations for the video frame that was actually displayed", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    const intermediateTime = 10n;
+    const targetTime = 20n;
+    const intermediate = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      intermediateTime,
+      {
+        timestamp: fromNanoSec(intermediateTime),
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([1]),
+      },
+    );
+    const target = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      targetTime,
+      {
+        timestamp: fromNanoSec(targetTime),
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([2]),
+      },
+    );
+    messageHandler.recordCompressedVideo(intermediate);
+    messageHandler.recordCompressedVideo(target);
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        targetTime,
+        createCircleAnnotations([intermediateTime, targetTime]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    const listener = jest.fn();
+    messageHandler.addListener(listener);
+
+    messageHandler.updateImageState(intermediate, intermediate.message as CompressedVideo);
+    const intermediateState = listener.mock.calls[0]![0] as MessageRenderState;
+    expect(intermediateState.image?.message).toMatchObject({
+      timestamp: fromNanoSec(intermediateTime),
+    });
+    expect(intermediateState.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp).toEqual(
+      fromNanoSec(intermediateTime),
+    );
+
+    messageHandler.updateImageState(target, target.message as CompressedVideo);
+    const targetState = listener.mock.calls[1]![0] as MessageRenderState;
+    expect(targetState.image?.message).toMatchObject({ timestamp: fromNanoSec(targetTime) });
+    expect(targetState.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp).toEqual(
+      fromNanoSec(targetTime),
+    );
+  });
+
+  it("keeps committed video annotations until a staged target is displayed", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    const firstTime = 10n;
+    const targetTime = 20n;
+    const first = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      firstTime,
+      {
+        timestamp: fromNanoSec(firstTime),
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([1]),
+      },
+    );
+    const target = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      targetTime,
+      {
+        timestamp: fromNanoSec(targetTime),
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([2]),
+      },
+    );
+    messageHandler.recordCompressedVideo(first);
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        firstTime,
+        createCircleAnnotations([firstTime]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    messageHandler.updateImageState(first, first.message as CompressedVideo);
+    const listener = jest.fn();
+    messageHandler.addListener(listener);
+
+    messageHandler.recordCompressedVideo(target);
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        targetTime,
+        createCircleAnnotations([targetTime]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+
+    const stagedState = listener.mock.calls[0]![0] as MessageRenderState;
+    expect(stagedState.image?.message).toMatchObject({ timestamp: fromNanoSec(firstTime) });
+    expect(stagedState.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp).toEqual(
+      fromNanoSec(firstTime),
+    );
+
+    messageHandler.updateImageState(target, target.message as CompressedVideo);
+    const committedTargetState = listener.mock.calls[1]![0] as MessageRenderState;
+    expect(committedTargetState.image?.message).toMatchObject({
+      timestamp: fromNanoSec(targetTime),
+    });
+    expect(
+      committedTargetState.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp,
+    ).toEqual(fromNanoSec(targetTime));
+  });
+
+  it("adds a matching annotation that arrives after an intermediate video frame was displayed", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    const timestamp = 10n;
+    const intermediate = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      timestamp,
+      {
+        timestamp: fromNanoSec(timestamp),
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([1]),
+      },
+    );
+    messageHandler.recordCompressedVideo(intermediate);
+    messageHandler.updateImageState(intermediate, intermediate.message as CompressedVideo);
+    const listener = jest.fn();
+    messageHandler.addListener(listener);
+
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        timestamp,
+        createCircleAnnotations([timestamp]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+
+    const state = listener.mock.calls[0]![0] as MessageRenderState;
+    expect(state.image?.message).toMatchObject({ timestamp: fromNanoSec(timestamp) });
+    expect(state.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp).toEqual(
+      fromNanoSec(timestamp),
+    );
+    expect(state.missingAnnotationTopics).toBeUndefined();
+  });
+
   it("does not show state with annotations if only handled annotations", () => {
     const hud = new HUDItemManager(() => {});
     const messageHandler = new MessageHandler(
@@ -580,6 +933,108 @@ describe("MessageHandler: synchronized = true", () => {
 
     const state = messageHandler.getRenderStateAndUpdateHUD();
 
+    expect(state.image).toBeUndefined();
+    expect(state.annotationsByTopic).toBeUndefined();
+  });
+
+  it("bounds incomplete synchronization buckets to the newest 250 timestamps", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+
+    for (let timestamp = 0n; timestamp <= 250n; timestamp++) {
+      messageHandler.handleRawImage(
+        wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", timestamp, {
+          timestamp: fromNanoSec(timestamp),
+        }),
+      );
+    }
+    const oldAnnotation = wrapInMessageEvent(
+      "annotations",
+      "foxglove.ImageAnnotations",
+      0n,
+      createCircleAnnotations([0n]),
+    );
+    messageHandler.handleAnnotations(oldAnnotation as MessageEvent<ImageAnnotations>);
+
+    const state = messageHandler.getRenderStateAndUpdateHUD();
+    expect(state.image).toBeUndefined();
+    expect(state.missingAnnotationTopics).toEqual(["annotations"]);
+  });
+
+  it("retains the last complete ordinary image set while newer timestamps are incomplete", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    messageHandler.handleRawImage(
+      wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 0n, {
+        timestamp: fromNanoSec(0n),
+      }),
+    );
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        0n,
+        createCircleAnnotations([0n]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    expect(messageHandler.getRenderStateAndUpdateHUD().image?.message).toMatchObject({
+      timestamp: fromNanoSec(0n),
+    });
+
+    for (let timestamp = 1n; timestamp <= 251n; timestamp++) {
+      messageHandler.handleRawImage(
+        wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", timestamp, {
+          timestamp: fromNanoSec(timestamp),
+        }),
+      );
+    }
+
+    const state = messageHandler.getRenderStateAndUpdateHUD();
+    expect(state.image?.message).toMatchObject({ timestamp: fromNanoSec(0n) });
+    expect(state.annotationsByTopic?.has("annotations")).toBe(true);
+  });
+
+  it("bounds timestamp groups from one annotations message while it is inserted", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+
+    const timestamps = Array.from({ length: 251 }, (_, index) => BigInt(index));
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        0n,
+        createCircleAnnotations(timestamps),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    messageHandler.handleRawImage(
+      wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 0n, {
+        timestamp: fromNanoSec(0n),
+      }),
+    );
+
+    const state = messageHandler.getRenderStateAndUpdateHUD();
     expect(state.image).toBeUndefined();
     expect(state.annotationsByTopic).toBeUndefined();
   });

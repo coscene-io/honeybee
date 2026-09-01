@@ -27,6 +27,7 @@ type CachedVideoFrame = {
   publishTimeNs: bigint;
   isKeyframe: boolean;
   byteLength: number;
+  insertionOrder: number;
 };
 
 function recordCacheLookup(frames: MessageEvent[] | undefined): MessageEvent[] | undefined {
@@ -99,6 +100,7 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
 export class VideoGopCache {
   readonly #rangesByTopic = new Map<string, CachedVideoRange[]>();
   readonly #activeRangeByTopic = new Map<string, CachedVideoRange>();
+  readonly #topicsAwaitingPostSeekFrame = new Set<string>();
   // Sorted keyframe receive times per topic. Kept independent of the frame LRU so it survives
   // #pruneToBudget eviction: even after a region's frame data is evicted we still know where the
   // keyframes are, so a later seek can read exactly [keyframe, target] instead of guessing windows.
@@ -106,6 +108,7 @@ export class VideoGopCache {
   readonly #maxBytes: number;
   readonly #maxKeyframeIndexEntriesPerTopic: number;
   #byteSize = 0;
+  #nextFrameInsertionOrder = 0;
   #targetReceiveTimeNs = 0n;
 
   public constructor(
@@ -117,17 +120,24 @@ export class VideoGopCache {
   }
 
   public addFrame(msg: MessageEvent): boolean {
-    const cachedFrame = cachedVideoFrame(msg);
+    const cachedFrame = cachedVideoFrame(msg, this.#nextFrameInsertionOrder);
     if (cachedFrame == undefined) {
       return false;
     }
+    this.#nextFrameInsertionOrder++;
 
     this.#targetReceiveTimeNs = cachedFrame.receiveTimeNs;
     this.#recordKeyframe(cachedFrame);
 
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
-    let range = ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
-    range ??= this.#activeRangeByTopic.get(msg.topic);
+    let range = this.#activeRangeByTopic.get(msg.topic);
+    range ??= ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
+    if (this.#topicsAwaitingPostSeekFrame.delete(msg.topic) && range != undefined) {
+      // If the first post-seek frame lands inside an already-cached GOP, discard that range's
+      // later frames before appending it. Otherwise a backward seek could produce
+      // key...future...target in one physical decode batch.
+      this.#byteSize -= range.truncateAfterPublishTime(cachedFrame.publishTimeNs);
+    }
     if (range == undefined || !ranges.includes(range)) {
       range = new CachedVideoRange();
       ranges.push(range);
@@ -147,6 +157,10 @@ export class VideoGopCache {
 
   public handleSeek(targetTime: Time): void {
     this.#targetReceiveTimeNs = toNanoSec(targetTime);
+    this.#topicsAwaitingPostSeekFrame.clear();
+    for (const topic of this.#rangesByTopic.keys()) {
+      this.#topicsAwaitingPostSeekFrame.add(topic);
+    }
     this.#activeRangeByTopic.clear();
   }
 
@@ -157,10 +171,11 @@ export class VideoGopCache {
 
     const framesByTopic = new Map<string, CachedVideoFrame[]>();
     for (const msg of messages) {
-      const frame = cachedVideoFrame(msg);
+      const frame = cachedVideoFrame(msg, this.#nextFrameInsertionOrder);
       if (frame == undefined) {
         continue;
       }
+      this.#nextFrameInsertionOrder++;
       this.#recordKeyframe(frame);
       const frames = framesByTopic.get(msg.topic) ?? [];
       frames.push(frame);
@@ -178,6 +193,7 @@ export class VideoGopCache {
       }
 
       const range = new CachedVideoRange();
+      this.#topicsAwaitingPostSeekFrame.delete(topic);
       for (const frame of frames) {
         this.#byteSize += range.addFrame(frame);
       }
@@ -295,12 +311,15 @@ export class VideoGopCache {
   public clear(): void {
     this.#rangesByTopic.clear();
     this.#activeRangeByTopic.clear();
+    this.#topicsAwaitingPostSeekFrame.clear();
     this.#keyframeReceiveTimesByTopic.clear();
     this.#byteSize = 0;
+    this.#nextFrameInsertionOrder = 0;
   }
 
   public clearTopic(topic: string): void {
     this.#keyframeReceiveTimesByTopic.delete(topic);
+    this.#topicsAwaitingPostSeekFrame.delete(topic);
     const ranges = this.#rangesByTopic.get(topic);
     if (ranges == undefined) {
       return;
@@ -432,50 +451,33 @@ export class VideoGopCache {
 class CachedVideoRange {
   public readonly frames: CachedVideoFrame[] = [];
   public size = 0;
+  #minPublishTimeNs: bigint | undefined;
+  #maxPublishTimeNs: bigint | undefined;
+  #minReceiveTimeNs: bigint | undefined;
+  #maxReceiveTimeNs: bigint | undefined;
 
   public addFrame(frame: CachedVideoFrame): number {
-    const lastFrame = this.frames[this.frames.length - 1];
-    let byteDelta = frame.byteLength;
-    if (lastFrame == undefined || lastFrame.publishTimeNs < frame.publishTimeNs) {
-      this.frames.push(frame);
-      this.size += byteDelta;
-      return byteDelta;
-    }
-
-    if (lastFrame.publishTimeNs === frame.publishTimeNs) {
-      byteDelta -= lastFrame.byteLength;
-      this.frames.splice(this.frames.length - 1, 1, frame);
-      this.size += byteDelta;
-      return byteDelta;
-    }
-
-    let lo = 0;
-    let hi = this.frames.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >>> 1;
-      if (this.frames[mid]!.publishTimeNs < frame.publishTimeNs) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-
-    const existingFrame = this.frames[lo];
-    if (existingFrame?.publishTimeNs === frame.publishTimeNs) {
-      byteDelta -= existingFrame.byteLength;
-      this.frames.splice(lo, 1, frame);
-    } else {
-      this.frames.splice(lo, 0, frame);
-    }
-
-    this.size += byteDelta;
-    return byteDelta;
+    this.frames.push(frame);
+    this.size += frame.byteLength;
+    this.#includeInBounds(frame);
+    return frame.byteLength;
   }
 
   public merge(other: CachedVideoRange): void {
-    for (const frame of other.frames) {
-      this.addFrame(frame);
+    const merged = [...this.frames, ...other.frames].sort(compareFramesByInsertionOrder);
+    const lastOccurrenceByMessage = new Map<MessageEvent, number>();
+    for (let i = 0; i < merged.length; i++) {
+      lastOccurrenceByMessage.set(merged[i]!.messageEvent, i);
     }
+
+    this.frames.length = 0;
+    for (let i = 0; i < merged.length; i++) {
+      const frame = merged[i]!;
+      if (lastOccurrenceByMessage.get(frame.messageEvent) === i) {
+        this.frames.push(frame);
+      }
+    }
+    this.#recomputeSizeAndBounds();
   }
 
   public framesForReceiveTime(targetNs: bigint): MessageEvent[] {
@@ -500,6 +502,24 @@ class CachedVideoRange {
 
   public framesForPublishTime(targetNs: bigint, afterNs?: bigint): MessageEvent[] {
     return framesForPublishTime(this.frames, targetNs, afterNs);
+  }
+
+  public truncateAfterPublishTime(targetNs: bigint): number {
+    let targetIndex = -1;
+    for (let i = 0; i < this.frames.length; i++) {
+      if (this.frames[i]!.publishTimeNs <= targetNs) {
+        targetIndex = i;
+      }
+    }
+    if (targetIndex < 0 || targetIndex === this.frames.length - 1) {
+      return 0;
+    }
+
+    const removed = this.frames.splice(targetIndex + 1);
+    const removedBytes = sumByteLength(removed);
+    this.size -= removedBytes;
+    this.#recomputeBounds();
+    return removedBytes;
   }
 
   public trimFurthestFromReceiveTime(targetNs: bigint): number {
@@ -529,6 +549,7 @@ class CachedVideoRange {
 
     const removedBytes = sumByteLength(removed);
     this.size -= removedBytes;
+    this.#recomputeBounds();
     return removedBytes;
   }
 
@@ -572,20 +593,52 @@ class CachedVideoRange {
   }
 
   public firstPublishTime(): bigint {
-    return this.frames[0]?.publishTimeNs ?? 0n;
+    return this.#minPublishTimeNs ?? 0n;
   }
 
   public lastPublishTime(): bigint {
-    return this.frames[this.frames.length - 1]?.publishTimeNs ?? 0n;
+    return this.#maxPublishTimeNs ?? 0n;
   }
 
   public firstReceiveTime(): bigint {
-    return minBigInt(this.frames.map((frame) => frame.receiveTimeNs));
+    return this.#minReceiveTimeNs ?? 0n;
   }
 
   public lastReceiveTime(): bigint {
-    return maxBigInt(this.frames.map((frame) => frame.receiveTimeNs));
+    return this.#maxReceiveTimeNs ?? 0n;
   }
+
+  #includeInBounds(frame: CachedVideoFrame): void {
+    this.#minPublishTimeNs = minDefinedBigInt(this.#minPublishTimeNs, frame.publishTimeNs);
+    this.#maxPublishTimeNs = maxDefinedBigInt(this.#maxPublishTimeNs, frame.publishTimeNs);
+    this.#minReceiveTimeNs = minDefinedBigInt(this.#minReceiveTimeNs, frame.receiveTimeNs);
+    this.#maxReceiveTimeNs = maxDefinedBigInt(this.#maxReceiveTimeNs, frame.receiveTimeNs);
+  }
+
+  #recomputeSizeAndBounds(): void {
+    this.size = sumByteLength(this.frames);
+    this.#recomputeBounds();
+  }
+
+  #recomputeBounds(): void {
+    this.#minPublishTimeNs = undefined;
+    this.#maxPublishTimeNs = undefined;
+    this.#minReceiveTimeNs = undefined;
+    this.#maxReceiveTimeNs = undefined;
+    for (const frame of this.frames) {
+      this.#includeInBounds(frame);
+    }
+  }
+}
+
+function compareFramesByInsertionOrder(a: CachedVideoFrame, b: CachedVideoFrame): number {
+  if (a.insertionOrder < b.insertionOrder) {
+    return -1;
+  }
+  if (a.insertionOrder > b.insertionOrder) {
+    return 1;
+  }
+  return 0;
 }
 
 function compareRangesByPublishTime(a: CachedVideoRange, b: CachedVideoRange): number {
@@ -652,7 +705,7 @@ function sumByteLength(frames: readonly CachedVideoFrame[]): number {
   return frames.reduce((sum, frame) => sum + frame.byteLength, 0);
 }
 
-function cachedVideoFrame(msg: MessageEvent): CachedVideoFrame | undefined {
+function cachedVideoFrame(msg: MessageEvent, insertionOrder: number): CachedVideoFrame | undefined {
   const frameInfo = parseVideoFrameInfo(msg);
   if (frameInfo == undefined) {
     return undefined;
@@ -663,6 +716,7 @@ function cachedVideoFrame(msg: MessageEvent): CachedVideoFrame | undefined {
     publishTimeNs: toNanoSec(frameInfo.frame.timestamp),
     isKeyframe: frameInfo.isKeyframe,
     byteLength: frameInfo.byteLength,
+    insertionOrder,
   };
 }
 
@@ -676,8 +730,6 @@ function framesForPublishTime(
     const frame = frames[i]!;
     if (frame.publishTimeNs <= targetNs) {
       targetIndex = i;
-    } else {
-      break;
     }
   }
   if (targetIndex < 0) {
@@ -711,22 +763,10 @@ function framesForPublishTime(
   return frames.slice(keyframeIndex, targetIndex + 1).map((frame) => frame.messageEvent);
 }
 
-function minBigInt(values: readonly bigint[]): bigint {
-  let result = values[0] ?? 0n;
-  for (const value of values) {
-    if (value < result) {
-      result = value;
-    }
-  }
-  return result;
+function minDefinedBigInt(current: bigint | undefined, value: bigint): bigint {
+  return current == undefined || value < current ? value : current;
 }
 
-function maxBigInt(values: readonly bigint[]): bigint {
-  let result = values[0] ?? 0n;
-  for (const value of values) {
-    if (value > result) {
-      result = value;
-    }
-  }
-  return result;
+function maxDefinedBigInt(current: bigint | undefined, value: bigint): bigint {
+  return current == undefined || value > current ? value : current;
 }

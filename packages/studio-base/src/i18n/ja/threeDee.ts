@@ -33,6 +33,12 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   followMode: "フォローモード",
   followModeHelp:
     "再生中のカメラの動作を変更し、表示フレームをフォローするかどうかを選択できます。",
+  synchronize: "ビデオトピックを同期",
+  synchronizeHelp: "選択したビデオトピックを一致するメッセージ時刻で表示します。",
+  synchronizeWarning: "同期する表示中のビデオトピックを2つ以上選択してください。",
+  syncByTimestamp: "タイムスタンプで同期",
+  videoFrameDelay: "{{topic}} の動画遅延: {{delay}}",
+  waitingForSynchronizedVideo: "{{topic}} の同期ビデオフレームを待機中…",
   frameNotFound: "フレーム {{frameId}} が見つかりません",
   hideAll: "すべて非表示",
   historySize: "履歴サイズ",

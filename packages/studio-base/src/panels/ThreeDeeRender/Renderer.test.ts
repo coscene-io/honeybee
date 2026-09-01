@@ -18,7 +18,7 @@ import { CameraStateSettings } from "@foxglove/studio-base/panels/ThreeDeeRender
 import { DEFAULT_PUBLISH_SETTINGS } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/PublishSettings";
 import { TFMessage } from "@foxglove/studio-base/panels/ThreeDeeRender/ros";
 
-import { RendererConfig } from "./IRenderer";
+import { RendererConfig, RendererSubscription } from "./IRenderer";
 
 // Jest doesn't support ES module imports fully yet, so we need to mock the wasm file
 jest.mock("three/examples/jsm/libs/draco/draco_decoder.wasm", () => "");
@@ -129,6 +129,17 @@ const defaultRendererProps = {
   sceneExtensionConfig: DEFAULT_SCENE_EXTENSION_CONFIG,
   testOptions: {},
 };
+
+async function processQueuedMessagesAndDraw(renderer: Renderer): Promise<void> {
+  await renderer.processMessageEvents({
+    currentTime: fromNanoSec(renderer.currentTime),
+    didSeek: false,
+    allFrames: undefined,
+    currentFrame: undefined,
+  });
+  renderer.animationFrame();
+}
+
 describe("3D Renderer", () => {
   let canvas = document.createElement("canvas");
   let parent = document.createElement("div");
@@ -146,7 +157,33 @@ describe("3D Renderer", () => {
   it("constructs a renderer without error", () => {
     expect(() => new Renderer({ ...defaultRendererProps, canvas })).not.toThrow();
   });
-  it("does not set a unfollow pose snapshot  when in follow-pose mode", () => {
+
+  it("cancels and ignores a queued animation frame after disposal", () => {
+    const requestAnimationFrame = jest
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation(() => 42);
+    const cancelAnimationFrame = jest.spyOn(window, "cancelAnimationFrame");
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const gl = renderer.gl as unknown as { clear: jest.Mock };
+
+    requestAnimationFrame.mock.calls.at(-1)?.[0](0);
+    requestAnimationFrame.mockClear();
+    cancelAnimationFrame.mockClear();
+
+    renderer.queueAnimationFrame();
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+    const staleFrame = requestAnimationFrame.mock.calls[0]![0];
+    renderer.dispose();
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(42);
+
+    gl.clear.mockClear();
+    staleFrame(0);
+    renderer.queueAnimationFrame();
+    expect(gl.clear).not.toHaveBeenCalled();
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not set a unfollow pose snapshot  when in follow-pose mode", async () => {
     const renderer = new Renderer({
       ...defaultRendererProps,
       canvas,
@@ -165,16 +202,16 @@ describe("3D Renderer", () => {
 
     const tfWithDisplayParent = createTFMessageEvent("display", "childOfDisplay", 1n, [1n]);
     renderer.addMessageEvent(tfWithDisplayParent);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     // record to make sure it changes when there's a new fixed frame
     const tfWithDisplayChild = createTFMessageEvent("parentOfDisplay", "display", 1n, [1n]);
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(cameraState.unfollowPoseSnapshot).toBeUndefined();
   });
-  it("records pose snapshot after changing from follow-pose mode to follow-none", () => {
+  it("records pose snapshot after changing from follow-pose mode to follow-none", async () => {
     const config = {
       ...defaultRendererConfig,
       followMode: "follow-pose" as const,
@@ -190,13 +227,13 @@ describe("3D Renderer", () => {
 
     const tfWithDisplayParent = createTFMessageEvent("display", "childOfDisplay", 1n, [1n]);
     renderer.addMessageEvent(tfWithDisplayParent);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     // record to make sure it changes when there's a new fixed frame
     const tfWithDisplayChild = createTFMessageEvent("parentOfDisplay", "display", 1n, [1n]);
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(cameraState.unfollowPoseSnapshot).toBeUndefined();
     renderer.config = { ...config, followMode: "follow-none" };
     renderer.animationFrame();
@@ -207,7 +244,7 @@ describe("3D Renderer", () => {
       z: 0,
     });
   });
-  it("sets pose snapshot to undefined after changing from follow-none mode to follow-pose", () => {
+  it("sets pose snapshot to undefined after changing from follow-none mode to follow-pose", async () => {
     const config = {
       ...defaultRendererConfig,
       followMode: "follow-none" as const,
@@ -223,13 +260,13 @@ describe("3D Renderer", () => {
 
     const tfWithDisplayParent = createTFMessageEvent("display", "childOfDisplay", 1n, [1n]);
     renderer.addMessageEvent(tfWithDisplayParent);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     // record to make sure it changes when there's a new fixed frame
     const tfWithDisplayChild = createTFMessageEvent("parentOfDisplay", "display", 1n, [1n]);
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
@@ -239,7 +276,7 @@ describe("3D Renderer", () => {
     renderer.animationFrame();
     expect(cameraState.unfollowPoseSnapshot).toBeUndefined();
   });
-  it("keeps same unfollowPoseSnapshot when switching from follow-none to follow-position", () => {
+  it("keeps same unfollowPoseSnapshot when switching from follow-none to follow-position", async () => {
     const config = {
       ...defaultRendererConfig,
       followMode: "follow-none" as const,
@@ -255,13 +292,13 @@ describe("3D Renderer", () => {
 
     const tfWithDisplayParent = createTFMessageEvent("display", "childOfDisplay", 1n, [1n]);
     renderer.addMessageEvent(tfWithDisplayParent);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     // record to make sure it changes when there's a new fixed frame
     const tfWithDisplayChild = createTFMessageEvent("parentOfDisplay", "display", 1n, [1n]);
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
       y: 0,
@@ -275,7 +312,7 @@ describe("3D Renderer", () => {
       z: 0,
     });
   });
-  it("in fixed follow mode: ensures that the unfollowPoseSnapshot updates when there is a new fixedFrame", () => {
+  it("in fixed follow mode: ensures that the unfollowPoseSnapshot updates when there is a new fixedFrame", async () => {
     const renderer = new Renderer({
       ...defaultRendererProps,
       canvas,
@@ -294,13 +331,13 @@ describe("3D Renderer", () => {
 
     const tfWithDisplayParent = createTFMessageEvent("display", "childOfDisplay", 1n, [1n]);
     renderer.addMessageEvent(tfWithDisplayParent);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     // record to make sure it changes when there's a new fixed frame
     const tfWithDisplayChild = createTFMessageEvent("parentOfDisplay", "display", 1n, [1n]);
     tfWithDisplayChild.message.transforms[0]!.transform.translation.x = 1;
     renderer.addMessageEvent(tfWithDisplayChild);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(renderer.fixedFrameId).toEqual("parentOfDisplay");
     expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
       x: 1,
@@ -311,7 +348,7 @@ describe("3D Renderer", () => {
     const tfWithFinalRoot = createTFMessageEvent("root", "parentOfDisplay", 1n, [1n]);
     tfWithFinalRoot.message.transforms[0]!.transform.translation.y = 1;
     renderer.addMessageEvent(tfWithFinalRoot);
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(renderer.fixedFrameId).toEqual("root");
     // combines the two translations
     expect(cameraState.unfollowPoseSnapshot?.position).toEqual({
@@ -320,7 +357,140 @@ describe("3D Renderer", () => {
       z: 0,
     });
   });
-  it("tfPreloading off:  when seeking to before currentTime, clears transform tree", () => {
+
+  it("draws synchronized topics at their publish timestamp without changing player time", async () => {
+    const renderer = new Renderer({
+      ...defaultRendererProps,
+      canvas,
+      config: {
+        ...defaultRendererConfig,
+        synchronize: true,
+        syncedTopics: { "/left": true, "/right": true },
+        topics: { "/left": { visible: true }, "/right": { visible: true } },
+      },
+    });
+    const contexts: unknown[] = [];
+    renderer.schemaSubscriptions.set("foxglove.CompressedVideo", [
+      {
+        shouldSync: true,
+        processQueue: (_queue, context) => {
+          contexts.push(context);
+        },
+      },
+    ]);
+    renderer.setTopics([
+      {
+        name: "/left",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+      {
+        name: "/right",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+    ]);
+
+    const frameTimes: bigint[] = [];
+    renderer.on("startFrame", (time) => frameTimes.push(time));
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(10n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [
+        {
+          topic: "/left",
+          receiveTime: fromNanoSec(8n),
+          schemaName: "foxglove.CompressedVideo",
+          message: { timestamp: fromNanoSec(5n) },
+          sizeInBytes: 0,
+        },
+        {
+          topic: "/right",
+          receiveTime: fromNanoSec(9n),
+          schemaName: "foxglove.CompressedVideo",
+          message: { timestamp: fromNanoSec(5n) },
+          sizeInBytes: 0,
+        },
+      ],
+    });
+    renderer.animationFrame();
+
+    expect(contexts).toEqual([
+      expect.objectContaining({
+        syncResult: expect.objectContaining({ found: true, timestamp: fromNanoSec(5n) }),
+        syncTimestampChanged: true,
+      }),
+    ]);
+    expect(frameTimes).toEqual([5n]);
+    expect(renderer.currentTime).toBe(10n);
+  });
+
+  it("clears the synchronized frame immediately when a visible participant is removed", async () => {
+    const renderer = new Renderer({
+      ...defaultRendererProps,
+      canvas,
+      config: {
+        ...defaultRendererConfig,
+        synchronize: true,
+        syncedTopics: { "/left": true, "/right": true },
+        topics: { "/left": { visible: true }, "/right": { visible: true } },
+      },
+    });
+    renderer.schemaSubscriptions.set("foxglove.CompressedVideo", [
+      { shouldSync: true, processQueue: () => {} },
+    ]);
+    renderer.setTopics([
+      {
+        name: "/left",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+      {
+        name: "/right",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+    ]);
+
+    const frameTimes: bigint[] = [];
+    renderer.on("startFrame", (time) => frameTimes.push(time));
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(10n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [
+        {
+          topic: "/left",
+          receiveTime: fromNanoSec(8n),
+          schemaName: "foxglove.CompressedVideo",
+          message: { timestamp: fromNanoSec(5n) },
+          sizeInBytes: 0,
+        },
+        {
+          topic: "/right",
+          receiveTime: fromNanoSec(9n),
+          schemaName: "foxglove.CompressedVideo",
+          message: { timestamp: fromNanoSec(5n) },
+          sizeInBytes: 0,
+        },
+      ],
+    });
+    renderer.animationFrame();
+
+    renderer.updateConfig((draft) => {
+      draft.topics["/right"] = { visible: false };
+    });
+    renderer.animationFrame();
+
+    expect(frameTimes).toEqual([5n, 10n]);
+  });
+
+  it("tfPreloading off:  when seeking to before currentTime, clears transform tree", async () => {
     // This test is meant accurately represent the flow of seek through the react component
 
     const renderer = new Renderer({
@@ -364,8 +534,7 @@ describe("3D Renderer", () => {
     currentFrame.forEach((msg) => {
       renderer.addMessageEvent(msg);
     });
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     expect(renderer.transformTree.frame("before")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).not.toBeUndefined();
@@ -386,12 +555,11 @@ describe("3D Renderer", () => {
     currentFrame.forEach((msg) => {
       renderer.addMessageEvent(msg);
     });
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     expect(renderer.transformTree.frame("before")).not.toBeUndefined();
   });
-  it("tfPreloading off: when seeking to time after currentTime, does not clear transform tree", () => {
+  it("tfPreloading off: when seeking to time after currentTime, does not clear transform tree", async () => {
     // This test is meant accurately represent the flow of seek through the react component
 
     const renderer = new Renderer({
@@ -435,8 +603,7 @@ describe("3D Renderer", () => {
     currentFrame.forEach((msg) => {
       renderer.addMessageEvent(msg);
     });
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     expect(renderer.transformTree.frame("before")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).not.toBeUndefined();
@@ -458,15 +625,14 @@ describe("3D Renderer", () => {
     currentFrame.forEach((msg) => {
       renderer.addMessageEvent(msg);
     });
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
 
     expect(renderer.transformTree.frame("before")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).not.toBeUndefined();
     expect(renderer.transformTree.frame("after")).not.toBeUndefined();
     expect(renderer.transformTree.frame("seekOn")).not.toBeUndefined();
   });
-  it("tfPreloading on:  when seeking to before currentTime, clears transform tree and repopulates it up to receiveTime from allFrames", () => {
+  it("tfPreloading on:  when seeking to before currentTime, clears transform tree and repopulates it up to receiveTime from allFrames", async () => {
     const renderer = new Renderer({
       ...defaultRendererProps,
       canvas,
@@ -487,8 +653,7 @@ describe("3D Renderer", () => {
     let currentTime = 8n;
     renderer.setCurrentTime(currentTime);
     renderer.handleAllFramesMessages(allFrames);
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(renderer.transformTree.frame("before4")).not.toBeUndefined();
     expect(renderer.transformTree.frame("before2")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).not.toBeUndefined();
@@ -510,15 +675,14 @@ describe("3D Renderer", () => {
 
     // repopulate up to current receiveTime from allFrames
     renderer.handleAllFramesMessages(allFrames);
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(renderer.transformTree.frame("before4")).not.toBeUndefined();
     expect(renderer.transformTree.frame("before2")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).toBeUndefined();
     expect(renderer.transformTree.frame("after2")).toBeUndefined();
     expect(renderer.transformTree.frame("after4")).toBeUndefined();
   });
-  it("tfPreloading on: does not clear transform tree when seeking to after", () => {
+  it("tfPreloading on: does not clear transform tree when seeking to after", async () => {
     const renderer = new Renderer({
       ...defaultRendererProps,
       canvas,
@@ -539,8 +703,7 @@ describe("3D Renderer", () => {
     let currentTime = 7n;
     renderer.setCurrentTime(currentTime);
     renderer.handleAllFramesMessages(allFrames);
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(renderer.transformTree.frame("before4")).not.toBeUndefined();
     expect(renderer.transformTree.frame("before2")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).not.toBeUndefined();
@@ -562,8 +725,7 @@ describe("3D Renderer", () => {
 
     // repopulate up to current receiveTime from allFrames
     renderer.handleAllFramesMessages(allFrames);
-    // messages processed by renderer on animation frame
-    renderer.animationFrame();
+    await processQueuedMessagesAndDraw(renderer);
     expect(renderer.transformTree.frame("before4")).not.toBeUndefined();
     expect(renderer.transformTree.frame("before2")).not.toBeUndefined();
     expect(renderer.transformTree.frame("on")).not.toBeUndefined();
@@ -791,4 +953,285 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
       expect(addMessageEventMock).toHaveBeenCalledTimes(numMessagesBeforeTime - 1);
     },
   );
+
+  it("invalidates the synchronization epoch when registered publish timestamps regress", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const contexts: Parameters<
+      Extract<RendererSubscription, { processQueue: unknown }>["processQueue"]
+    >[1][] = [];
+    renderer.schemaSubscriptions.set("foxglove.CompressedVideo", [
+      {
+        shouldSync: true,
+        processQueue: (_queue, context) => {
+          contexts.push(context);
+        },
+      },
+    ]);
+    renderer.config = {
+      ...renderer.config,
+      synchronize: true,
+      syncedTopics: { "/left": true, "/right": true },
+      topics: { "/left": { visible: true }, "/right": { visible: true } },
+    };
+    renderer.setTopics([
+      {
+        name: "/left",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+      {
+        name: "/right",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+    ]);
+    const videoMessage = (topic: string, timestamp: bigint): MessageEvent => ({
+      topic,
+      receiveTime: fromNanoSec(timestamp),
+      schemaName: "foxglove.CompressedVideo",
+      message: { timestamp: fromNanoSec(timestamp) },
+      sizeInBytes: 0,
+    });
+
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(100n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [videoMessage("/left", 100n), videoMessage("/right", 100n)],
+    });
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(101n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [videoMessage("/left", 1n), videoMessage("/right", 1n)],
+    });
+
+    expect(contexts).toHaveLength(2);
+    expect(contexts[1]).toMatchObject({
+      syncTimestampRegressed: true,
+      syncResult: { found: true, timestamp: fromNanoSec(1n) },
+    });
+  });
+
+  it("drains handlers before awaiting batch subscriptions and drawing", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const requestAnimationFrameSpy = jest.spyOn(window, "requestAnimationFrame");
+    requestAnimationFrameSpy.mockClear();
+    const order: string[] = [];
+    let settleBatch: (() => void) | undefined;
+    const batchSettled = new Promise<void>((resolve) => {
+      settleBatch = resolve;
+    });
+
+    const handlerSubscription: RendererSubscription = {
+      handler: () => order.push("handler"),
+    };
+    const batchSubscription: RendererSubscription = {
+      processQueue: async () => {
+        order.push("batch-start");
+        await batchSettled;
+        order.push("batch-end");
+      },
+    };
+    renderer.topicSubscriptions.set("/state", [handlerSubscription]);
+    renderer.topicSubscriptions.set("/video", [batchSubscription]);
+    renderer.on("startFrame", () => order.push("draw"));
+
+    const processing = renderer.processMessageEvents({
+      currentTime: fromNanoSec(1n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [
+        { ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/state" },
+        { ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/video" },
+      ],
+    });
+    await Promise.resolve();
+
+    expect(order).toEqual(["handler", "batch-start"]);
+    renderer.queueAnimationFrame();
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    renderer.animationFrame();
+    expect(order).toEqual(["handler", "batch-start"]);
+
+    settleBatch!();
+    await processing;
+    renderer.animationFrame();
+    expect(order).toEqual(["handler", "batch-start", "batch-end", "draw"]);
+  });
+
+  it("does not let an older completed tick draw while a newer tick is decoding", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const frames: bigint[] = [];
+    renderer.on("startFrame", (time) => frames.push(time));
+
+    let releaseOld: (() => void) | undefined;
+    const oldDecode = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    let releaseNew: (() => void) | undefined;
+    const newDecode = new Promise<void>((resolve) => {
+      releaseNew = resolve;
+    });
+    const started: bigint[] = [];
+    renderer.topicSubscriptions.set("/video", [
+      {
+        processQueue: async (queue) => {
+          const receiveTime = toNanoSec(queue[0]!.receiveTime);
+          started.push(receiveTime);
+          await (receiveTime === 1n ? oldDecode : newDecode);
+        },
+      },
+    ]);
+
+    const oldTick = renderer.processMessageEvents({
+      currentTime: fromNanoSec(1n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [{ ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/video" }],
+    });
+    const newTick = renderer.processMessageEvents({
+      currentTime: fromNanoSec(2n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [{ ...createTFMessageEvent("a", "b", 2n, [2n]), topic: "/video" }],
+    });
+    await Promise.resolve();
+
+    expect(started).toEqual([1n, 2n]);
+    releaseOld!();
+    await oldTick;
+    renderer.animationFrame();
+    expect(frames).toEqual([]);
+
+    releaseNew!();
+    await newTick;
+    renderer.animationFrame();
+    expect(frames).toEqual([2n]);
+  });
+
+  it("keeps a newer tick barrier pending when its decode finishes before an older tick", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const frames: bigint[] = [];
+    renderer.on("startFrame", (time) => frames.push(time));
+
+    let releaseOld: (() => void) | undefined;
+    const oldDecode = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    let releaseNew: (() => void) | undefined;
+    const newDecode = new Promise<void>((resolve) => {
+      releaseNew = resolve;
+    });
+    renderer.topicSubscriptions.set("/video", [
+      {
+        processQueue: async (queue) => {
+          await (toNanoSec(queue[0]!.receiveTime) === 1n ? oldDecode : newDecode);
+        },
+      },
+    ]);
+
+    const oldTick = renderer.processMessageEvents({
+      currentTime: fromNanoSec(1n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [{ ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/video" }],
+    });
+    const newTick = renderer.processMessageEvents({
+      currentTime: fromNanoSec(2n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [{ ...createTFMessageEvent("a", "b", 2n, [2n]), topic: "/video" }],
+    });
+    let newBarrierSettled = false;
+    void newTick.then(() => {
+      newBarrierSettled = true;
+    });
+    await Promise.resolve();
+
+    releaseNew!();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(newBarrierSettled).toBe(false);
+    renderer.animationFrame();
+    expect(frames).toEqual([]);
+
+    releaseOld!();
+    await Promise.all([oldTick, newTick]);
+    expect(newBarrierSettled).toBe(true);
+    renderer.animationFrame();
+    expect(frames).toEqual([2n]);
+  });
+
+  it("settles all batch subscriptions when one rejects", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const completed = jest.fn();
+    const consoleError = console.error as jest.Mock;
+    renderer.topicSubscriptions.set("/failed", [
+      {
+        processQueue: async () => {
+          throw new Error("decode failed");
+        },
+      },
+    ]);
+    renderer.topicSubscriptions.set("/completed", [
+      {
+        processQueue: async () => {
+          completed();
+        },
+      },
+    ]);
+
+    await expect(
+      renderer.processMessageEvents({
+        currentTime: fromNanoSec(1n),
+        didSeek: false,
+        allFrames: undefined,
+        currentFrame: [
+          { ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/failed" },
+          { ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/completed" },
+        ],
+      }),
+    ).resolves.toBeUndefined();
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "decode failed" }),
+    );
+    consoleError.mockClear();
+  });
+
+  it("defers messages enqueued by a handler until the next tick", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const deferredMessage = {
+      ...createTFMessageEvent("a", "b", 2n, [2n]),
+      topic: "/deferred",
+    };
+    const deferredHandler = jest.fn();
+    renderer.topicSubscriptions.set("/source", [
+      {
+        handler: () => {
+          renderer.addMessageEvent(deferredMessage);
+        },
+      },
+    ]);
+    renderer.topicSubscriptions.set("/deferred", [{ handler: deferredHandler }]);
+
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(1n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [{ ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/source" }],
+    });
+    expect(deferredHandler).not.toHaveBeenCalled();
+
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(2n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: undefined,
+    });
+    expect(deferredHandler).toHaveBeenCalledTimes(1);
+  });
 });

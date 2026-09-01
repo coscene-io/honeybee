@@ -26,6 +26,7 @@ import {
   HUDItemManager,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/HUDItemManager";
 import { ImageModeConfig } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import { COMPRESSED_VIDEO_DATATYPES } from "@foxglove/studio-base/panels/ThreeDeeRender/foxglove";
 import {
   AnyImage,
   CompressedVideo,
@@ -94,6 +95,13 @@ type RenderStateListener = (
   oldState: MessageRenderState | undefined,
 ) => void;
 
+const MAX_SYNC_TIMESTAMP_BUCKETS = 250;
+
+type CommittedSynchronizedVideoState = {
+  timestamp: Time;
+  image: Readonly<MessageEvent<AnyImage>>;
+};
+
 // Have constants for the HUD items so that they don't need to be recreated and GCed every message
 export const WAITING_FOR_BOTH_HUD_ITEM: HUDItem = {
   id: WAITING_FOR_BOTH_MESSAGES_HUD_ID,
@@ -151,6 +159,12 @@ export class MessageHandler implements IMessageHandler {
 
   /** last state passed to listeners */
   #oldRenderState: MessageRenderState | undefined;
+
+  /** Last synchronized video state that was actually displayed by the decoder. */
+  #committedSynchronizedVideoState: CommittedSynchronizedVideoState | undefined;
+  #lastCompleteSynchronizationTimestamp: Time | undefined;
+  #lastRecordedImageTimestamp: Time | undefined;
+  #timestampRegressionPending = false;
 
   /** internal state of last received messages */
   #lastReceivedMessages: MessageHandlerState;
@@ -223,6 +237,14 @@ export class MessageHandler implements IMessageHandler {
   public handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
     this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
   };
+  public recordCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
+    this.#recordImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
+  };
+  public consumeTimestampRegression = (): boolean => {
+    const pending = this.#timestampRegressionPending;
+    this.#timestampRegressionPending = false;
+    return pending;
+  };
   public handleRemoteVideoFrameReference = (
     messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
   ): void => {
@@ -233,6 +255,30 @@ export class MessageHandler implements IMessageHandler {
     messageEvent: PartialMessageEvent<AnyImage>,
     image: AnyImage,
   ): void => {
+    const displayedImageEvent: MessageEvent<AnyImage> = {
+      ...messageEvent,
+      message: image,
+    };
+    if (
+      this.#config.synchronize === true &&
+      COMPRESSED_VIDEO_DATATYPES.has(displayedImageEvent.schemaName)
+    ) {
+      const timestamp = getTimestampFromImage(image);
+      this.#lastReceivedMessages.image = displayedImageEvent;
+      if (this.#tree.get(timestamp) == undefined) {
+        this.#tree.set(timestamp, { image: undefined, annotationsByTopic: new Map() });
+      }
+      this.#pruneSynchronizationTree(timestamp);
+
+      const state = this.#getSynchronizedRenderStateAt(timestamp, displayedImageEvent);
+      this.#committedSynchronizedVideoState = {
+        timestamp,
+        image: displayedImageEvent,
+      };
+      this.#emitState(state);
+      return;
+    }
+
     this.#recordImage(messageEvent, image);
     this.#emitState();
   };
@@ -242,7 +288,7 @@ export class MessageHandler implements IMessageHandler {
     this.#emitState();
   }
 
-  #recordImage(message: PartialMessageEvent<AnyImage>, image: AnyImage): void {
+  #recordImage(message: PartialMessageEvent<AnyImage>, image: AnyImage): MessageEvent<AnyImage> {
     const normalizedImageMessage: MessageEvent<AnyImage> = {
       ...message,
       message: image,
@@ -250,13 +296,39 @@ export class MessageHandler implements IMessageHandler {
 
     this.#lastReceivedMessages.image = normalizedImageMessage;
     if (this.#config.synchronize !== true) {
-      return;
+      return normalizedImageMessage;
     }
+    this.#recordImageTimestamp(normalizedImageMessage);
     // Update the image at the stamp time
     this.#addImageToTree(normalizedImageMessage);
+    return normalizedImageMessage;
   }
 
-  #addImageToTree(normalizedImageMessage: MessageEvent<AnyImage>) {
+  #recordImageTimestamp(imageEvent: MessageEvent<AnyImage>): void {
+    const timestamp = getTimestampFromImage(imageEvent.message);
+    if (
+      this.#lastRecordedImageTimestamp != undefined &&
+      isLessThan(timestamp, this.#lastRecordedImageTimestamp)
+    ) {
+      // An annotation for the first timestamp of the new epoch may already have arrived in this
+      // tick. Preserve that exact bucket, but remove every image candidate from the old epoch.
+      const retainedItem = this.#tree.get(timestamp);
+      if (retainedItem != undefined) {
+        retainedItem.image = undefined;
+      }
+      this.#tree.clear();
+      if (retainedItem != undefined) {
+        this.#tree.set(timestamp, retainedItem);
+      }
+      this.#committedSynchronizedVideoState = undefined;
+      this.#lastCompleteSynchronizationTimestamp = undefined;
+      this.#oldRenderState = undefined;
+      this.#timestampRegressionPending = true;
+    }
+    this.#lastRecordedImageTimestamp = timestamp;
+  }
+
+  #addImageToTree(normalizedImageMessage: MessageEvent<AnyImage>): void {
     const image = normalizedImageMessage.message;
     const item = this.#tree.get(getTimestampFromImage(image));
     if (item) {
@@ -267,6 +339,7 @@ export class MessageHandler implements IMessageHandler {
         annotationsByTopic: new Map(),
       });
     }
+    this.#pruneSynchronizationTree();
   }
 
   public handleCameraInfo = (message: PartialMessageEvent<CameraInfo>): void => {
@@ -315,18 +388,48 @@ export class MessageHandler implements IMessageHandler {
         originalMessage: messageEvent,
         annotations: group,
       });
+      this.#pruneSynchronizationTree();
     }
 
     this.#emitState();
   };
+
+  #pruneSynchronizationTree(retainTimestamp?: Time): void {
+    if (this.#tree.size <= MAX_SYNC_TIMESTAMP_BUCKETS) {
+      return;
+    }
+    const retainedTimestamp =
+      retainTimestamp ??
+      this.#committedSynchronizedVideoState?.timestamp ??
+      this.#lastCompleteSynchronizationTimestamp;
+    const retainedItem =
+      retainedTimestamp != undefined ? this.#tree.get(retainedTimestamp) : undefined;
+    if (retainedTimestamp != undefined && retainedItem != undefined) {
+      this.#tree.delete(retainedTimestamp);
+    }
+    const unretainedLimit = MAX_SYNC_TIMESTAMP_BUCKETS - (retainedItem != undefined ? 1 : 0);
+    while (this.#tree.size > unretainedLimit) {
+      this.#tree.shift();
+    }
+    if (retainedTimestamp != undefined && retainedItem != undefined) {
+      this.#tree.set(retainedTimestamp, retainedItem);
+    }
+  }
 
   public setConfig(newConfig: Immutable<ImageModeConfig>): void {
     let changed = false;
 
     if (newConfig.synchronize != undefined && newConfig.synchronize !== this.#config.synchronize) {
       this.#oldRenderState = undefined;
+      this.#committedSynchronizedVideoState = undefined;
+      this.#lastCompleteSynchronizationTimestamp = undefined;
+      this.#lastRecordedImageTimestamp = undefined;
+      this.#timestampRegressionPending = false;
       this.#tree.clear();
       if (newConfig.synchronize && this.#lastReceivedMessages.image != undefined) {
+        this.#lastRecordedImageTimestamp = getTimestampFromImage(
+          this.#lastReceivedMessages.image.message,
+        );
         this.#addImageToTree(this.#lastReceivedMessages.image);
       }
 
@@ -334,9 +437,11 @@ export class MessageHandler implements IMessageHandler {
     }
 
     if ("imageTopic" in newConfig && this.#config.imageTopic !== newConfig.imageTopic) {
-      for (const item of this.#tree.values()) {
-        item.image = undefined;
-      }
+      this.#committedSynchronizedVideoState = undefined;
+      this.#lastCompleteSynchronizationTimestamp = undefined;
+      this.#lastRecordedImageTimestamp = undefined;
+      this.#timestampRegressionPending = false;
+      this.#tree.clear();
       this.#lastReceivedMessages.image = undefined;
       changed = true;
     }
@@ -346,18 +451,9 @@ export class MessageHandler implements IMessageHandler {
       changed = true;
     }
 
-    if (
-      newConfig.annotations != undefined &&
-      this.#config.annotations &&
-      this.#config.annotations !== newConfig.annotations
-    ) {
-      const newVisibleTopics = new Set<string>();
-
-      for (const [topic, settings] of Object.entries(newConfig.annotations)) {
-        if (settings?.visible === true) {
-          newVisibleTopics.add(topic);
-        }
-      }
+    if (newConfig.annotations !== this.#config.annotations) {
+      const previousVisibleTopics = configuredVisibleAnnotationTopics(this.#config);
+      const newVisibleTopics = configuredVisibleAnnotationTopics(newConfig);
 
       for (const topic of this.#lastReceivedMessages.annotationsByTopic.keys()) {
         if (!newVisibleTopics.has(topic)) {
@@ -372,6 +468,10 @@ export class MessageHandler implements IMessageHandler {
             changed = true;
           }
         }
+      }
+      if (!setsEqual(previousVisibleTopics, newVisibleTopics)) {
+        this.#lastCompleteSynchronizationTimestamp = undefined;
+        changed = true;
       }
     }
 
@@ -393,16 +493,82 @@ export class MessageHandler implements IMessageHandler {
     };
     this.#tree.clear();
     this.#oldRenderState = undefined;
+    this.#committedSynchronizedVideoState = undefined;
+    this.#lastCompleteSynchronizationTimestamp = undefined;
+    this.#lastRecordedImageTimestamp = undefined;
+    this.#timestampRegressionPending = false;
     this.#emitState();
   }
 
-  #emitState() {
-    const state = this.getRenderStateAndUpdateHUD();
+  #emitState(state = this.#getRenderStateForEmission()): void {
+    this.#updateHUDFromState(state);
 
     this.#listeners.forEach((fn) => {
       fn(state, this.#oldRenderState);
     });
     this.#oldRenderState = state;
+  }
+
+  #getRenderStateForEmission(): MessageRenderState {
+    if (!this.#isSynchronizedCompressedVideo()) {
+      return this.#getRenderState();
+    }
+    const committed = this.#committedSynchronizedVideoState;
+    if (committed != undefined) {
+      return this.#getSynchronizedRenderStateAt(committed.timestamp, committed.image);
+    }
+    const missingAnnotationTopics = Array.from(this.#visibleAnnotations());
+    return {
+      cameraInfo: this.#lastReceivedMessages.cameraInfo,
+      presentAnnotationTopics: [],
+      missingAnnotationTopics:
+        missingAnnotationTopics.length > 0 ? missingAnnotationTopics : undefined,
+    };
+  }
+
+  #isSynchronizedCompressedVideo(): boolean {
+    const image = this.#lastReceivedMessages.image;
+    return (
+      this.#config.synchronize === true &&
+      image != undefined &&
+      COMPRESSED_VIDEO_DATATYPES.has(image.schemaName)
+    );
+  }
+
+  #getSynchronizedRenderStateAt(
+    timestamp: Time,
+    committedImage?: Readonly<MessageEvent<AnyImage>>,
+  ): MessageRenderState {
+    const item = this.#tree.get(timestamp);
+    const visibleAnnotations = this.#visibleAnnotations();
+    const image = committedImage ?? item?.image;
+    if (image == undefined) {
+      return {
+        cameraInfo: this.#lastReceivedMessages.cameraInfo,
+        missingAnnotationTopics:
+          visibleAnnotations.size > 0 ? Array.from(visibleAnnotations) : undefined,
+      };
+    }
+
+    const annotationsByTopic = item?.annotationsByTopic ?? new Map<string, NormalizedAnnotations>();
+
+    const [presentAnnotationTopics, missingAnnotationTopics] = _.partition(
+      Array.from(visibleAnnotations),
+      (topic) => annotationsByTopic.has(topic),
+    );
+    if (missingAnnotationTopics.length === 0) {
+      return {
+        cameraInfo: this.#lastReceivedMessages.cameraInfo,
+        image,
+        annotationsByTopic,
+      };
+    }
+    return {
+      cameraInfo: this.#lastReceivedMessages.cameraInfo,
+      image,
+      presentAnnotationTopics,
+      missingAnnotationTopics,
+    };
   }
 
   /** Do not use. only public for testing */
@@ -467,8 +633,9 @@ export class MessageHandler implements IMessageHandler {
 
   #getRenderState(): Readonly<Partial<MessageHandlerState>> {
     if (this.#config.synchronize === true) {
-      const result = findSynchronizedSetAndRemoveOlderItems(this.#tree, this.#visibleAnnotations());
+      const result = findSynchronizedSet(this.#tree, this.#visibleAnnotations());
       if (result.found) {
+        this.#lastCompleteSynchronizationTimestamp = result.timestamp;
         return {
           cameraInfo: this.#lastReceivedMessages.cameraInfo,
           image: result.messages.image,
@@ -501,6 +668,10 @@ export interface IMessageHandler {
   handleRawImage: (messageEvent: PartialMessageEvent<RawImage>) => void;
   handleCompressedImage: (messageEvent: PartialMessageEvent<CompressedImage>) => void;
   handleCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
+  /** Record video metadata for timestamp matching without starting a generic image decode. */
+  recordCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
+  /** Consume a physical publish-timestamp rollback observed while recording image metadata. */
+  consumeTimestampRegression: () => boolean;
   handleRemoteVideoFrameReference: (
     messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
   ) => void;
@@ -532,6 +703,7 @@ export interface IMessageHandler {
 type SynchronizationResult =
   | {
       found: true;
+      timestamp: Time;
       /** Synchronized set of messages found with matching timestamps */
       messages: SynchronizationItem;
     }
@@ -549,12 +721,14 @@ type SynchronizationResult =
     };
 
 /**
- * Find the newest entry where we have everything synchronized and remove all older entries from tree.
+ * Find the newest entry where we have everything synchronized.
+ * Older entries remain available for an intermediate video frame that is decoded after a newer
+ * target was selected. The tree is bounded at insertion time.
  * @param tree - AVL tree that stores a [image?, annotations?] in sorted order by timestamp.
  * @param visibleAnnotations - visible annotation topics
  * @returns - the newest synchronized item with all active annotations and image, or set of missing annotations if synchronization failed
  */
-function findSynchronizedSetAndRemoveOlderItems(
+function findSynchronizedSet(
   tree: AVLTree<Time, SynchronizationItem>,
   visibleAnnotations: Set<string>,
 ): SynchronizationResult {
@@ -578,14 +752,30 @@ function findSynchronizedSetAndRemoveOlderItems(
   }
 
   if (validEntry) {
-    // We've got a set of synchronized messages, remove any older items from the tree
-    let minKey = tree.minKey();
-    while (minKey && isLessThan(minKey, validEntry[0])) {
-      tree.shift();
-      minKey = tree.minKey();
-    }
-    return { found: true, messages: validEntry[1] };
+    return { found: true, timestamp: validEntry[0], messages: validEntry[1] };
   }
 
   return { found: false, missingAnnotationTopics, presentAnnotationTopics };
+}
+
+function configuredVisibleAnnotationTopics(config: Immutable<Config>): Set<string> {
+  const topics = new Set<string>();
+  for (const [topic, settings] of Object.entries(config.annotations ?? {})) {
+    if (settings?.visible === true) {
+      topics.add(topic);
+    }
+  }
+  return topics;
+}
+
+function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const value of left) {
+    if (!right.has(value)) {
+      return false;
+    }
+  }
+  return true;
 }

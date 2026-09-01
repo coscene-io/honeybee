@@ -8,6 +8,7 @@
 import EventEmitter from "eventemitter3";
 import * as THREE from "three";
 
+import { Time } from "@foxglove/rostime";
 import {
   Immutable,
   MessageEvent,
@@ -169,11 +170,42 @@ export type RendererConfig = {
   /** instanceId -> settings */
   layers: Record<string, Partial<CustomLayerSettings> | undefined>;
 
+  /** Synchronize selected 3D video topics by their publish timestamp. */
+  synchronize?: boolean;
+  /** topicName -> whether the topic participates in 3D timestamp synchronization */
+  syncedTopics?: Record<string, boolean | undefined>;
+
   /** Settings pertaining to Image mode */
   imageMode: ImageModeConfig;
 };
 
-export type RendererSubscription<T = unknown> = {
+export type MessageSyncResult =
+  | {
+      found: true;
+      timestamp: Time;
+      messages: ReadonlyMap<string, MessageEvent>;
+      /** A newer exact timestamp is still missing one or more registered topics. */
+      waiting?: {
+        timestamp: Time;
+        presentTopics: readonly string[];
+        missingTopics: readonly string[];
+      };
+    }
+  | {
+      found: false;
+      presentTopics?: readonly string[];
+      missingTopics?: readonly string[];
+    };
+
+export type RendererSubscriptionContext = {
+  didSeek: boolean;
+  syncResult: MessageSyncResult | undefined;
+  syncTimestampChanged: boolean;
+  /** A registered topic's physical message order moved to a lower publish timestamp. */
+  syncTimestampRegressed?: boolean;
+};
+
+type RendererSubscriptionCommon<T> = {
   /** Preload the full history of topic messages as a best effort */
   preload?: boolean;
   /**
@@ -184,12 +216,36 @@ export type RendererSubscription<T = unknown> = {
    * settings are changed.
    */
   shouldSubscribe?: (topic: string) => boolean;
-  /** Callback that will be fired for each matching incoming message */
-  handler: (messageEvent: MessageEvent<T>) => void;
   /** Queue of messages to be handled since last frame. Will be reassigned to new empty array each frame. */
   queue?: MessageEvent<T>[] | undefined;
   /** Optional callback to be called on `queue` to filter. Returns new queue. */
   filterQueue?: (queue: MessageEvent<T>[]) => MessageEvent<T>[];
+  /** Whether matching 3D topics can participate in exact publish-time synchronization. */
+  shouldSync?: boolean;
+};
+
+export type RendererSubscription<T = unknown> = RendererSubscriptionCommon<T> &
+  (
+    | {
+        /** Callback fired for each matching incoming message. */
+        handler: (messageEvent: MessageEvent<T>) => void;
+        processQueue?: never;
+      }
+    | {
+        handler?: never;
+        /** Callback fired once for all matching messages in a player tick. */
+        processQueue: (
+          queue: readonly MessageEvent<T>[],
+          context: RendererSubscriptionContext,
+        ) => void | Promise<void>;
+      }
+  );
+
+export type RendererMessageEvents = {
+  currentTime: Time | undefined;
+  didSeek: boolean;
+  allFrames: readonly MessageEvent[] | undefined;
+  currentFrame: readonly MessageEvent[] | undefined;
 };
 
 export type ReleaseSeekKeyframeSearchPlaybackPause = () => void;
@@ -361,6 +417,9 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   setSelectedRenderable(selection: PickedRenderable | undefined): void;
 
   addMessageEvent(messageEvent: Readonly<MessageEvent>): void;
+
+  /** Process and await all messages for one player tick before drawing that tick. */
+  processMessageEvents(events: RendererMessageEvents): Promise<void>;
 
   /**  Set desired render/display frame, will render using fallback if id is undefined or frame does not exist */
   setFollowFrameId(frameId: string | undefined): void;

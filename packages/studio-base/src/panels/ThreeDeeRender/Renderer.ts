@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { ObjectPool } from "@foxglove/den/collection";
 import Logger from "@foxglove/log";
-import { Time, fromNanoSec, isLessThan, toNanoSec } from "@foxglove/rostime";
+import { Time, fromNanoSec, isLessThan, isTime, toNanoSec } from "@foxglove/rostime";
 import type { FrameTransform, FrameTransforms, SceneUpdate } from "@foxglove/schemas";
 import {
   Immutable,
@@ -51,10 +51,13 @@ import {
   InstancedLineMaterial,
   RendererConfig,
   RendererEvents,
+  RendererMessageEvents,
   RendererSubscription,
+  RendererSubscriptionContext,
   TestOptions,
 } from "./IRenderer";
 import { Input } from "./Input";
+import { MessageSyncCoordinator } from "./MessageSyncCoordinator";
 import { DEFAULT_MESH_UP_AXIS, ModelCache } from "./ModelCache";
 import { PickedRenderable, Picker } from "./Picker";
 import type { Renderable } from "./Renderable";
@@ -250,7 +253,11 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   #prevResolution = new THREE.Vector2();
   #pickingEnabled = false;
   #rendering = false;
+  #disposed = false;
   #animationFrame?: number;
+  #activeMessageEventTasks = new Set<Promise<void>>();
+  #syncFrameTime: bigint | undefined;
+  readonly #messageSyncCoordinator = new MessageSyncCoordinator();
   #cameraSyncError: undefined | string;
   #devicePixelRatioMediaQuery?: MediaQueryList;
   #fetchAsset: BuiltinPanelExtensionContext["unstable_fetchAsset"];
@@ -435,6 +442,15 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   public dispose(): void {
+    if (this.#disposed) {
+      return;
+    }
+    this.#disposed = true;
+    if (this.#animationFrame != undefined) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = undefined;
+    }
+
     log.warn(`Disposing renderer`);
     this.#devicePixelRatioMediaQuery?.removeEventListener("change", this.#onDevicePixelRatioChange);
     this.removeAllListeners();
@@ -484,6 +500,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
    * @param oldTime used to determine if seeked backwards
    */
   public handleSeek(oldTimeNs: bigint): void {
+    this.#resetMessageSynchronization();
     const movedBack = this.currentTime < oldTimeNs;
     // want to clear transforms and reset the cursor if we seek backwards
     this.clear({ clearTransforms: movedBack, resetAllFramesCursor: movedBack, reason: "seek" });
@@ -654,7 +671,22 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   public updateConfig(updateHandler: (draft: RendererConfig) => void): void {
+    const oldConfig = this.config;
     this.config = produce(this.config, updateHandler);
+    if (
+      oldConfig.synchronize !== this.config.synchronize ||
+      oldConfig.syncedTopics !== this.config.syncedTopics ||
+      oldConfig.topics !== this.config.topics
+    ) {
+      this.#updateSyncRegistrations();
+    }
+    if (
+      this.interfaceMode === "3d" &&
+      (oldConfig.syncedTopics !== this.config.syncedTopics ||
+        oldConfig.topics !== this.config.topics)
+    ) {
+      this.sceneExtensions.get("foxglove.CameraStateSettings")?.updateSettingsTree();
+    }
     this.emit("configChange", this);
   }
 
@@ -917,6 +949,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
     // Rebuild topicsByName
     this.topicsByName = topics ? new Map(topics.map((topic) => [topic.name, topic])) : undefined;
+    this.#updateSyncRegistrations();
 
     this.emit("topicsChanged", this);
 
@@ -1025,6 +1058,73 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
     queueMessage(messageEvent, this.topicSubscriptions.get(messageEvent.topic));
     queueMessage(messageEvent, this.schemaSubscriptions.get(messageEvent.schemaName));
+
+    if (this.#messageSyncCoordinator.isRegistered(messageEvent.topic)) {
+      const timestamp = (messageEvent.message as { timestamp?: unknown }).timestamp;
+      if (isTime(timestamp)) {
+        this.#messageSyncCoordinator.push(timestamp, messageEvent);
+      }
+    }
+  }
+
+  public async processMessageEvents(events: RendererMessageEvents): Promise<void> {
+    if (this.#animationFrame != undefined) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = undefined;
+    }
+
+    // A panel render can be re-entered after the system watchdog fires. Start the newer tick
+    // immediately so video controllers can invalidate stale decode work, but keep its barrier
+    // pending until every older invocation has exited. This avoids both replaying a stale backlog
+    // serially and drawing while an overlapping tick is still changing renderer state.
+    const olderTasks = Array.from(this.#activeMessageEventTasks);
+    const task = this.#processMessageEvents(events);
+    this.#activeMessageEventTasks.add(task);
+    void task.then(
+      () => this.#activeMessageEventTasks.delete(task),
+      () => this.#activeMessageEventTasks.delete(task),
+    );
+
+    const results = await Promise.allSettled([...olderTasks, task]);
+    const taskResult = results.at(-1);
+    if (taskResult?.status === "rejected") {
+      throw taskResult.reason;
+    }
+  }
+
+  async #processMessageEvents(events: RendererMessageEvents): Promise<void> {
+    this.#updateSyncRegistrations();
+    const syncRegressionCount = this.#messageSyncCoordinator.regressionCount();
+
+    if (events.currentTime != undefined) {
+      const oldTimeNs = this.currentTime;
+      this.setCurrentTime(toNanoSec(events.currentTime));
+      if (events.didSeek) {
+        this.handleSeek(oldTimeNs);
+      }
+
+      this.handleAllFramesMessages(events.allFrames);
+    }
+
+    for (const messageEvent of events.currentFrame ?? []) {
+      this.addMessageEvent(messageEvent);
+    }
+
+    const syncResult = this.#messageSyncCoordinator.resolve();
+    let syncTimestampChanged = false;
+    if (syncResult?.found === true) {
+      const syncFrameTime = toNanoSec(syncResult.timestamp);
+      syncTimestampChanged = syncFrameTime !== this.#syncFrameTime;
+      this.#syncFrameTime = syncFrameTime;
+    }
+
+    await this.#handleSubscriptionQueues({
+      didSeek: events.didSeek,
+      syncResult,
+      syncTimestampChanged,
+      syncTimestampRegressed:
+        this.#messageSyncCoordinator.regressionCount() !== syncRegressionCount,
+    });
   }
 
   /** Match the behavior of `tf::Transformer` by stripping leading slashes from
@@ -1153,13 +1253,19 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
   public animationFrame = (): void => {
     this.#animationFrame = undefined;
+    if (this.#disposed || this.#activeMessageEventTasks.size > 0) {
+      return;
+    }
     if (!this.#rendering) {
-      this.#frameHandler(this.currentTime);
+      this.#frameHandler(this.#syncFrameTime ?? this.currentTime);
       this.#rendering = false;
     }
   };
 
   public queueAnimationFrame(): void {
+    if (this.#disposed || this.#activeMessageEventTasks.size > 0) {
+      return;
+    }
     if (this.#animationFrame == undefined) {
       this.#animationFrame = requestAnimationFrame(this.animationFrame);
     }
@@ -1181,8 +1287,6 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
 
   #frameHandler = (currentTime: bigint): void => {
     this.#rendering = true;
-    this.currentTime = currentTime;
-    this.#handleSubscriptionQueues();
     this.#updateFrameErrors();
     this.#updateFixedFrameId();
     this.#updateResolution();
@@ -1218,34 +1322,107 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.gl.info.reset();
   };
 
-  /** iterates through all subscription message queues, processes them, and calls their handler for each message in the frame */
-  #handleSubscriptionQueues(): void {
-    for (const subscriptions of this.topicSubscriptions.values()) {
-      for (const subscription of subscriptions) {
-        if (!subscription.queue) {
-          continue;
-        }
-        const { queue, filterQueue } = subscription;
-        const processedQueue = filterQueue ? filterQueue(queue) : queue;
-        subscription.queue = undefined;
-        for (const messageEvent of processedQueue) {
-          subscription.handler(messageEvent);
+  /** Drain every subscription queue once and await the batch handlers before the frame is drawn. */
+  async #handleSubscriptionQueues(context: RendererSubscriptionContext): Promise<void> {
+    const subscriptions = new Set<RendererSubscription>();
+    for (const entries of this.topicSubscriptions.values()) {
+      for (const subscription of entries) {
+        subscriptions.add(subscription);
+      }
+    }
+    for (const entries of this.schemaSubscriptions.values()) {
+      for (const subscription of entries) {
+        subscriptions.add(subscription);
+      }
+    }
+
+    const drainedSubscriptions = Array.from(subscriptions, (subscription) => {
+      const queue = subscription.queue;
+      subscription.queue = undefined;
+      return { subscription, queue };
+    });
+
+    const tasks: Promise<void>[] = [];
+    for (const { subscription, queue } of drainedSubscriptions) {
+      if (queue == undefined && subscription.processQueue == undefined) {
+        continue;
+      }
+
+      let processedQueue: MessageEvent[];
+      try {
+        processedQueue = subscription.filterQueue
+          ? subscription.filterQueue(queue ?? [])
+          : (queue ?? []);
+      } catch (error) {
+        log.error(error);
+        continue;
+      }
+
+      const processQueue = subscription.processQueue;
+      if (processQueue != undefined) {
+        tasks.push(
+          Promise.resolve().then(async () => {
+            await processQueue(processedQueue, context);
+          }),
+        );
+      } else {
+        try {
+          for (const messageEvent of processedQueue) {
+            subscription.handler(messageEvent);
+          }
+        } catch (error) {
+          log.error(error);
         }
       }
     }
-    for (const subscriptions of this.schemaSubscriptions.values()) {
-      for (const subscription of subscriptions) {
-        if (!subscription.queue) {
-          continue;
-        }
-        const { queue, filterQueue } = subscription;
-        const processedQueue = filterQueue ? filterQueue(queue) : queue;
-        subscription.queue = undefined;
-        for (const messageEvent of processedQueue) {
-          subscription.handler(messageEvent);
+
+    for (const result of await Promise.allSettled(tasks)) {
+      if (result.status === "rejected") {
+        log.error(result.reason);
+      }
+    }
+  }
+
+  #updateSyncRegistrations(): void {
+    const registrations = new Set<string>();
+    if (this.interfaceMode === "3d" && this.config.synchronize === true) {
+      for (const topic of this.topics ?? []) {
+        if (
+          this.config.syncedTopics?.[topic.name] === true &&
+          this.config.topics[topic.name]?.visible === true &&
+          this.#topicSupportsSynchronization(topic)
+        ) {
+          registrations.add(topic.name);
         }
       }
     }
+
+    if (this.#messageSyncCoordinator.setRegistrations(registrations)) {
+      this.#syncFrameTime = undefined;
+    }
+  }
+
+  #topicSupportsSynchronization(topic: Topic): boolean {
+    for (const subscription of this.topicSubscriptions.get(topic.name) ?? []) {
+      if (subscription.shouldSync === true) {
+        return true;
+      }
+    }
+
+    const schemaNames = [topic.schemaName, ...(topic.convertibleTo ?? [])];
+    for (const schemaName of schemaNames) {
+      for (const subscription of this.schemaSubscriptions.get(schemaName) ?? []) {
+        if (subscription.shouldSync === true) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  #resetMessageSynchronization(): void {
+    this.#messageSyncCoordinator.clear();
+    this.#syncFrameTime = undefined;
   }
 
   #updateFixedFrameId(): void {

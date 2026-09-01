@@ -24,6 +24,7 @@ import type { FollowMode, IRenderer } from "../IRenderer";
 import { SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 import { CameraState, DEFAULT_CAMERA_STATE } from "../camera";
+import { COMPRESSED_VIDEO_DATATYPES } from "../foxglove";
 import { PRECISION_DEGREES, PRECISION_DISTANCE } from "../settings";
 
 const DISPLAY_FRAME_NOT_FOUND = "DISPLAY_FRAME_NOT_FOUND";
@@ -231,6 +232,15 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
       { label: t("threeDee:fixed"), value: "follow-none" },
     ];
     const followModeValue = this.renderer.config.followMode;
+    const synchronizedTopicCount =
+      this.renderer.topics?.filter(
+        (topic) =>
+          config.syncedTopics?.[topic.name] === true &&
+          config.topics[topic.name]?.visible === true &&
+          [topic.schemaName, ...(topic.convertibleTo ?? [])].some((schemaName) =>
+            COMPRESSED_VIDEO_DATATYPES.has(schemaName),
+          ),
+      ).length ?? 0;
 
     return {
       path: ["general"],
@@ -251,6 +261,16 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
             input: "select",
             options: followModeOptions,
             value: followModeValue,
+          },
+          synchronize: {
+            label: t("threeDee:synchronize"),
+            help: t("threeDee:synchronizeHelp"),
+            input: "boolean",
+            value: config.synchronize ?? false,
+            error:
+              config.synchronize === true && synchronizedTopicCount < 2
+                ? t("threeDee:synchronizeWarning")
+                : undefined,
           },
         },
         defaultExpansionState: "expanded",
@@ -317,6 +337,10 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
             draft.cameraState.thetaOffset = DEFAULT_CAMERA_STATE.thetaOffset;
           }
           draft.followMode = followMode;
+        });
+      } else if (path[1] === "synchronize") {
+        this.renderer.updateConfig((draft) => {
+          draft.synchronize = value as boolean;
         });
       }
 

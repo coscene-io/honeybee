@@ -19,16 +19,10 @@ export type DecodeVideoFrameInput = {
   receiveTime: bigint;
 };
 
-export type DecodedVideoFrame = {
-  frame: VideoFrame;
-  originalTimestamp: bigint;
-  receiveTime: bigint;
-};
-
 export type DecodeVideoFramesArgs = {
-  frames: DecodeVideoFrameInput[];
+  frames: readonly DecodeVideoFrameInput[];
   requestId: number;
-  targetFrameTimeoutMs?: number;
+  targetFrameTimeoutMs: number;
   anyFrameTimeoutMs?: number;
 };
 
@@ -39,6 +33,7 @@ export type DecodeVideoFramesResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      batchIndex?: number;
     }
   | {
       type: "Timeout" | "Aborted" | "FrameOutOfOrder";
@@ -56,6 +51,7 @@ export type AwaitTargetFrameResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      batchIndex?: number;
     }
   | { type: "Aborted"; requestId: number };
 
@@ -92,13 +88,6 @@ export class WorkerImageDecoder {
     const result = new ImageData(image.width, image.height);
     decodeRawImage(image, options, result.data);
     return result;
-  }
-
-  public async decodeVideoFrame(
-    frame: CompressedVideo,
-    receiveTime: bigint,
-  ): Promise<DecodedVideoFrame | undefined> {
-    return await this.#remote.decodeVideoFrame({ frame, receiveTime });
   }
 
   public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {

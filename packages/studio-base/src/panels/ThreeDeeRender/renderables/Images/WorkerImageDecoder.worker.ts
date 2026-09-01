@@ -14,10 +14,6 @@ import { isLessThan, Time, toMicroSec, toNanoSec } from "@foxglove/rostime";
 import type { CompressedVideo } from "./ImageTypes";
 
 const log = Logger.getLogger(__filename);
-const TARGET_FRAME_TIMEOUT_MS = 1000;
-const ANY_FRAME_TIMEOUT_MS = 2000;
-// Playback decoders can output reordered frames only after later packets arrive.
-const PLAYBACK_FRAME_TIMEOUT_MS = 5000;
 
 let videoPlayer: VideoPlayer | undefined;
 let initPromise: Promise<void> | undefined;
@@ -34,9 +30,9 @@ export type DecodeVideoFrameInput = {
 };
 
 export type DecodeVideoFramesArgs = {
-  frames: DecodeVideoFrameInput[];
+  frames: readonly DecodeVideoFrameInput[];
   requestId: number;
-  targetFrameTimeoutMs?: number;
+  targetFrameTimeoutMs: number;
   anyFrameTimeoutMs?: number;
 };
 
@@ -47,6 +43,7 @@ export type DecodeVideoFramesResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      batchIndex?: number;
     }
   | {
       type: "Timeout" | "Aborted" | "FrameOutOfOrder";
@@ -64,6 +61,7 @@ export type AwaitTargetFrameResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      batchIndex?: number;
     }
   | { type: "Aborted"; requestId: number };
 
@@ -71,6 +69,7 @@ type DecodedVideoFrameResult = {
   frame: VideoFrame;
   originalTimestamp: bigint;
   receiveTime: bigint;
+  batchIndex: number;
 };
 
 type PendingTargetFrame = {
@@ -79,6 +78,7 @@ type PendingTargetFrame = {
   receiveTime: bigint;
   retainedFrame?: DecodedVideoFrameResult;
   resolve?: (result: AwaitTargetFrameResult) => void;
+  cleanup?: () => void;
 };
 
 type DecodeBatchState = {
@@ -102,7 +102,6 @@ function resetVideoPlayerForDisorder(): void {
   initPromise = undefined;
   lastDecodeTime = { sec: 0, nsec: 0 };
   streamBaseTimestampMicros = undefined;
-  lastQueuedTimestampMicros = undefined;
 }
 
 function closeDecodedVideoFrameResult(result: DecodedVideoFrameResult | undefined): void {
@@ -115,16 +114,29 @@ function abortPendingTargetFrame(): void {
     return;
   }
   pendingTargetFrame = undefined;
+  pending.cleanup?.();
   closeDecodedVideoFrameResult(pending.retainedFrame);
   pending.resolve?.({ type: "Aborted", requestId: pending.requestId });
+}
+
+function completePendingTargetFrame(requestId: number): void {
+  const pending = pendingTargetFrame;
+  if (pending?.requestId !== requestId) {
+    return;
+  }
+  pendingTargetFrame = undefined;
+  pending.cleanup?.();
+  closeDecodedVideoFrameResult(pending.retainedFrame);
 }
 
 function retainOrResolveTargetFrame(
   requestId: number,
   decodedFrame: DecodedVideoFrameResult,
+  options: { isTarget: boolean },
 ): boolean {
   const pending = pendingTargetFrame;
   if (
+    !options.isTarget ||
     pending?.requestId !== requestId ||
     pending.originalTimestamp !== decodedFrame.originalTimestamp ||
     pending.receiveTime !== decodedFrame.receiveTime
@@ -134,6 +146,7 @@ function retainOrResolveTargetFrame(
 
   if (pending.resolve != undefined) {
     pendingTargetFrame = undefined;
+    pending.cleanup?.();
     pending.resolve(
       Comlink.transfer({ type: "TargetFrame", requestId, ...decodedFrame }, [decodedFrame.frame]),
     );
@@ -170,78 +183,18 @@ async function ensureInitialized(
   return player.isInitialized();
 }
 
-async function decodeVideoFrame(
-  entry: DecodeVideoFrameInput,
-): Promise<DecodedVideoFrameResult | undefined> {
-  abortPendingTargetFrame();
-
-  const frame = entry.frame;
-  if (isLessThan(frame.timestamp, lastDecodeTime)) {
-    resetVideoPlayerForDisorder();
-  }
-  lastDecodeTime = frame.timestamp;
-
-  const player = getVideoPlayer();
-  const frameInfo = getVideoFrameInfo(frame);
-  if (frameInfo == undefined) {
-    return undefined;
-  }
-
-  if (!(await ensureInitialized(player, frame, frameInfo.type))) {
-    return undefined;
-  }
-
-  streamBaseTimestampMicros ??= toMicroSec(frame.timestamp);
-  let timestampMicros = toMicroSec(frame.timestamp) - streamBaseTimestampMicros;
-  if (timestampMicros < 0) {
-    resetVideoPlayerForDisorder();
-    return undefined;
-  }
-
-  if (lastQueuedTimestampMicros != undefined && timestampMicros <= lastQueuedTimestampMicros) {
-    timestampMicros = lastQueuedTimestampMicros + 1;
-  }
-  lastQueuedTimestampMicros = timestampMicros;
-
-  const frameData =
-    frame.format === "h264" && frameInfo.mayNeedRewrite
-      ? (H264.RewriteForLowLatencyDecoding(frame.data) ?? frame.data)
-      : frame.data;
-
-  const decodedFrame = await player.decodeAndWaitForFrame(
-    frameData,
-    timestampMicros,
-    frameInfo.type,
-    PLAYBACK_FRAME_TIMEOUT_MS,
-  );
-  if (decodedFrame == undefined) {
-    return undefined;
-  }
-
-  const result = {
-    frame: decodedFrame,
-    originalTimestamp: toNanoSec(frame.timestamp),
-    receiveTime: entry.receiveTime,
-  };
-  return Comlink.transfer(result, [decodedFrame]);
-}
-
-function getLatestVideoFrame(): DecodedVideoFrameResult | undefined {
-  return undefined;
-}
-
 async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
-  abortPendingTargetFrame();
-
-  const {
-    frames,
-    requestId,
-    targetFrameTimeoutMs = TARGET_FRAME_TIMEOUT_MS,
-    anyFrameTimeoutMs = ANY_FRAME_TIMEOUT_MS,
-  } = args;
-  if (frames.length === 0) {
-    return { type: "Timeout", requestId };
+  const { frames, requestId, targetFrameTimeoutMs, anyFrameTimeoutMs } = args;
+  if (activeBatchAbort != undefined) {
+    throw new Error("Cannot decode a new video batch while another batch is in progress");
   }
+  if (frames.length === 0) {
+    throw new Error("Cannot decode an empty video batch");
+  }
+  if (anyFrameTimeoutMs != undefined && anyFrameTimeoutMs < targetFrameTimeoutMs) {
+    throw new Error("anyFrameTimeoutMs must be greater than or equal to targetFrameTimeoutMs");
+  }
+  abortPendingTargetFrame();
 
   const batchState: DecodeBatchState = { aborted: false, finished: false };
   let finishBatch: ((result: DecodeVideoFramesResult) => void) | undefined;
@@ -249,7 +202,6 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     batchState.aborted = true;
     videoPlayer?.resetForSeek();
     streamBaseTimestampMicros = undefined;
-    lastQueuedTimestampMicros = undefined;
     abortPendingTargetFrame();
     finishBatch?.({ type: "Aborted", requestId });
   };
@@ -257,12 +209,19 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
 
   try {
     const player = getVideoPlayer();
+    player.discardQueuedFramesExcept();
     const queuedFrames: Array<
-      QueuedVideoFrame<{ originalTimestamp: bigint; receiveTime: bigint }>
+      QueuedVideoFrame<{
+        originalTimestamp: bigint;
+        receiveTime: bigint;
+        batchIndex: number;
+        isTarget: boolean;
+      }>
     > = [];
     let previousBatchFrameTime: Time | undefined;
 
-    for (const entry of frames) {
+    for (let batchIndex = 0; batchIndex < frames.length; batchIndex++) {
+      const entry = frames[batchIndex]!;
       if (isBatchAborted(batchState)) {
         return { type: "Aborted", requestId };
       }
@@ -280,6 +239,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       // Detect out-of-order frames (e.g., from seek backwards or GOP replay).
       if (isLessThan(frame.timestamp, lastDecodeTime)) {
         resetVideoPlayerForDisorder();
+        return { type: "FrameOutOfOrder", requestId };
       }
       lastDecodeTime = frame.timestamp;
 
@@ -288,12 +248,17 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
         continue;
       }
 
-      if (!(await ensureInitialized(player, frame, frameInfo.type))) {
+      const initialized = await ensureInitialized(player, frame, frameInfo.type);
+      if (isBatchAborted(batchState)) {
+        return { type: "Aborted", requestId };
+      }
+      if (!initialized) {
         continue;
       }
 
-      streamBaseTimestampMicros ??= toMicroSec(frame.timestamp);
-      let timestampMicros = toMicroSec(frame.timestamp) - streamBaseTimestampMicros;
+      const frameTimestampMicros = toMicroSec(frame.timestamp);
+      streamBaseTimestampMicros ??= frameTimestampMicros - (lastQueuedTimestampMicros ?? -1) - 1;
+      let timestampMicros = Math.trunc(frameTimestampMicros - streamBaseTimestampMicros);
       if (timestampMicros < 0) {
         resetVideoPlayerForDisorder();
         return { type: "FrameOutOfOrder", requestId };
@@ -316,14 +281,19 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
         metadata: {
           originalTimestamp: toNanoSec(frame.timestamp),
           receiveTime: entry.receiveTime,
+          batchIndex,
+          isTarget: false,
         },
       });
     }
 
     if (queuedFrames.length === 0) {
-      return { type: "Timeout", requestId };
+      // No target was submitted, so there cannot be a late frame to await. Report a terminal
+      // abort instead of a timeout so callers may retry this target after decoder recovery.
+      return { type: "Aborted", requestId };
     }
 
+    queuedFrames[queuedFrames.length - 1]!.metadata.isTarget = true;
     const targetOriginalTimestamp =
       queuedFrames[queuedFrames.length - 1]!.metadata.originalTimestamp;
     const targetReceiveTime = queuedFrames[queuedFrames.length - 1]!.metadata.receiveTime;
@@ -337,8 +307,11 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
           frame: VideoFrame;
           originalTimestamp: bigint;
           receiveTime: bigint;
+          batchIndex: number;
         }
       | undefined;
+    let queueDrained = false;
+    let targetDecoded = false;
     let targetTimedOut = false;
     let targetTimer: ReturnType<typeof setTimeout> | undefined;
     let anyFrameTimer: ReturnType<typeof setTimeout> | undefined;
@@ -359,8 +332,9 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
       }
     };
 
-    const result = await new Promise<DecodeVideoFramesResult>((resolve) => {
-      const finish = (resultToResolve: DecodeVideoFramesResult) => {
+    let finish!: (result: DecodeVideoFramesResult) => void;
+    const resultPromise = new Promise<DecodeVideoFramesResult>((resolve) => {
+      finish = (resultToResolve) => {
         if (batchState.finished) {
           closeDecodeResultFrame(resultToResolve);
           return;
@@ -378,79 +352,133 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
         }
         resolve(resultToResolve);
       };
+    });
+    finishBatch = (result) => {
+      finish(result);
+    };
 
-      finishBatch = finish;
-      const handleDecodedFrame = (decodedFrame: {
-        frame: VideoFrame;
-        metadata: { originalTimestamp: bigint; receiveTime: bigint };
-      }) => {
-        if (batchState.finished || batchState.aborted) {
-          if (
-            !retainOrResolveTargetFrame(requestId, {
+    const handleDecodedFrame = (decodedFrame: {
+      frame: VideoFrame;
+      metadata: {
+        originalTimestamp: bigint;
+        receiveTime: bigint;
+        batchIndex: number;
+        isTarget: boolean;
+      };
+    }) => {
+      if (batchState.finished || batchState.aborted) {
+        if (
+          !retainOrResolveTargetFrame(
+            requestId,
+            {
               frame: decodedFrame.frame,
               ...decodedFrame.metadata,
-            })
-          ) {
-            decodedFrame.frame.close();
-          }
-          return;
-        }
-
-        closeLatestFrame();
-        latestFrame = { frame: decodedFrame.frame, ...decodedFrame.metadata };
-
-        if (
-          decodedFrame.metadata.originalTimestamp === targetOriginalTimestamp &&
-          decodedFrame.metadata.receiveTime === targetReceiveTime
+            },
+            { isTarget: decodedFrame.metadata.isTarget },
+          )
         ) {
-          pendingTargetFrame = undefined;
-          finish({ type: "TargetFrame", requestId, ...latestFrame });
-          return;
+          decodedFrame.frame.close();
         }
-
-        if (targetTimedOut) {
-          finish({
-            type: "IntermediateFrame",
-            requestId,
-            ...latestFrame,
-          });
-        }
-      };
-
-      try {
-        player.queueFrames(queuedFrames, handleDecodedFrame);
-      } catch (err: unknown) {
-        log.error(err);
-        finish({ type: "Timeout", requestId });
+        return;
       }
 
+      const isTarget = decodedFrame.metadata.isTarget;
+      if (targetDecoded && !isTarget) {
+        decodedFrame.frame.close();
+        return;
+      }
+
+      closeLatestFrame();
+      latestFrame = { frame: decodedFrame.frame, ...decodedFrame.metadata };
+      targetDecoded = isTarget;
+
+      if (isTarget) {
+        // An exact target must never be downgraded to an intermediate merely because its output
+        // races the target timeout. If the queue has not drained yet, the post-drain branch below
+        // will settle it as TargetFrame.
+        if (queueDrained) {
+          completePendingTargetFrame(requestId);
+          finish({ type: "TargetFrame", requestId, ...latestFrame });
+        }
+      } else if (targetTimedOut) {
+        finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+      }
+    };
+
+    const handleDecoderError = (error: Error): void => {
+      if (pendingTargetFrame?.requestId !== requestId) {
+        return;
+      }
+
+      log.error(error);
+      batchState.aborted = true;
+      // queueFrames() can settle before WebCodecs reports its terminal error. Reset the local
+      // continuity state as well as aborting the one possible late-target waiter. This is also
+      // safe while queueFrames() is unwinding; VideoPlayer's reset is idempotent for the batch.
+      player.resetForSeek();
+      initPromise = undefined;
+      lastDecodeTime = { sec: 0, nsec: 0 };
+      streamBaseTimestampMicros = undefined;
+      abortPendingTargetFrame();
+      if (!batchState.finished) {
+        finish({ type: "Aborted", requestId });
+      }
+    };
+    player.on("error", handleDecoderError);
+    pendingTargetFrame.cleanup = () => {
+      player.off("error", handleDecoderError);
+    };
+
+    try {
+      await player.queueFrames(queuedFrames, handleDecodedFrame);
+    } catch (err: unknown) {
+      if (!batchState.aborted) {
+        log.error(err);
+        abortPendingTargetFrame();
+        // The target was not retained after a decoder failure. A Timeout would incorrectly
+        // advertise an awaitable late target and cause synchronized callers to consume it.
+        finish({ type: "Aborted", requestId });
+      }
+    }
+
+    queueDrained = true;
+    if (batchState.aborted) {
+      finish({ type: "Aborted", requestId });
+    } else if (
+      !isBatchFinished(batchState) &&
+      isTargetDecoded({ targetDecoded }) &&
+      latestFrame != undefined
+    ) {
+      completePendingTargetFrame(requestId);
+      finish({ type: "TargetFrame", requestId, ...latestFrame });
+    } else if (!isBatchFinished(batchState)) {
       targetTimer = setTimeout(() => {
         targetTimer = undefined;
         targetTimedOut = true;
         if (latestFrame != undefined) {
-          finish({
-            type: "IntermediateFrame",
-            requestId,
-            ...latestFrame,
-          });
+          finish({ type: "IntermediateFrame", requestId, ...latestFrame });
         } else if (anyFrameTimer == undefined) {
           finish({ type: "Timeout", requestId });
         }
       }, targetFrameTimeoutMs);
 
-      anyFrameTimer = setTimeout(() => {
-        anyFrameTimer = undefined;
-        if (latestFrame != undefined) {
-          finish({
-            type: "IntermediateFrame",
-            requestId,
-            ...latestFrame,
-          });
-        } else {
-          finish({ type: "Timeout", requestId });
-        }
-      }, anyFrameTimeoutMs);
-    });
+      if (anyFrameTimeoutMs != undefined) {
+        anyFrameTimer = setTimeout(() => {
+          anyFrameTimer = undefined;
+          if (latestFrame != undefined) {
+            finish({ type: "IntermediateFrame", requestId, ...latestFrame });
+          } else {
+            finish({ type: "Timeout", requestId });
+          }
+        }, anyFrameTimeoutMs);
+      }
+    }
+
+    const result = await resultPromise;
+    const retainLateTarget = result.type === "IntermediateFrame" || result.type === "Timeout";
+    player.discardQueuedFramesExcept(
+      retainLateTarget ? queuedFrames[queuedFrames.length - 1]!.timestampMicros : undefined,
+    );
 
     if (result.type === "TargetFrame" || result.type === "IntermediateFrame") {
       return Comlink.transfer(result, [result.frame]);
@@ -467,6 +495,14 @@ function isBatchAborted(batchState: { aborted: boolean }): boolean {
   return batchState.aborted;
 }
 
+function isBatchFinished(batchState: { finished: boolean }): boolean {
+  return batchState.finished;
+}
+
+function isTargetDecoded(state: { targetDecoded: boolean }): boolean {
+  return state.targetDecoded;
+}
+
 async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTargetFrameResult> {
   const pending = pendingTargetFrame;
   if (pending?.requestId !== args.requestId) {
@@ -476,6 +512,7 @@ async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTarget
   const retainedFrame = pending.retainedFrame;
   if (retainedFrame != undefined) {
     pendingTargetFrame = undefined;
+    pending.cleanup?.();
     return Comlink.transfer({ type: "TargetFrame", requestId: args.requestId, ...retainedFrame }, [
       retainedFrame.frame,
     ]);
@@ -516,14 +553,17 @@ function getDecoderConfig(frame: CompressedVideo): VideoDecoderConfig | undefine
 }
 
 function resetVideoDecoder(): void {
-  activeBatchAbort?.();
+  const abortActiveBatch = activeBatchAbort;
   activeBatchAbort = undefined;
-  abortPendingTargetFrame();
-  videoPlayer?.resetForSeek();
+  if (abortActiveBatch != undefined) {
+    abortActiveBatch();
+  } else {
+    abortPendingTargetFrame();
+    videoPlayer?.resetForSeek();
+  }
   initPromise = undefined;
   lastDecodeTime = { sec: 0, nsec: 0 };
   streamBaseTimestampMicros = undefined;
-  lastQueuedTimestampMicros = undefined;
 }
 
 function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
@@ -533,8 +573,6 @@ function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
 }
 
 export const service = {
-  decodeVideoFrame,
-  getLatestVideoFrame,
   decodeVideoFrames,
   awaitTargetFrame,
   resetVideoDecoder,
