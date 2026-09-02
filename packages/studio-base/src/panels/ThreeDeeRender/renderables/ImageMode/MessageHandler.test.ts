@@ -1349,6 +1349,26 @@ describe("MessageHandler: hud item display", () => {
     messageHandler.refreshHUD();
     expect(_.sortBy(hud.getHUDItems(), "id")).toEqual([WAITING_FOR_IMAGE_EMPTY_HUD_ITEM]);
   });
+  it("waiting for synchronized annotations is a notice while an image is still displayed", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+      () => true,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    const image = wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 0n, {
+      timestamp: fromNanoSec(2n),
+    });
+    messageHandler.handleRawImage(image);
+
+    messageHandler.getRenderStateAndUpdateHUD();
+
+    expect(_.sortBy(hud.getHUDItems(), "id")).toEqual([WAITING_FOR_SYNC_NOTICE_HUD_ITEM]);
+  });
   it("init: waiting for both if calibration topic specified", () => {
     const hud = new HUDItemManager(() => {});
     const messageHandler = new MessageHandler(

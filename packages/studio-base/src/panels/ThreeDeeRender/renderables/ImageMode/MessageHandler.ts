@@ -692,13 +692,12 @@ export class MessageHandler implements IMessageHandler {
     const waitingForSync =
       !!state.missingAnnotationTopics && state.missingAnnotationTopics.length > 0;
     this.#hud.displayIfTrue(
-      waitingForSync && calibrationRequired,
+      waitingForSync && (calibrationRequired || imageDisplayed),
       WAITING_FOR_SYNC_NOTICE_HUD_ITEM,
     );
 
-    // it is an empty state if calibration not required
     this.#hud.displayIfTrue(
-      waitingForSync && !calibrationRequired,
+      waitingForSync && !calibrationRequired && !imageDisplayed,
       WAITING_FOR_SYNC_EMPTY_HUD_ITEM,
     );
   }

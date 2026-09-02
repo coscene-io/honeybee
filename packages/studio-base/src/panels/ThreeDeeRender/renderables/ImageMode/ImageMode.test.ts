@@ -401,6 +401,36 @@ describe("ImageMode compressed video seek replay", () => {
     expect(displayedRenderable?.disposed).toBe(false);
   });
 
+  it("switches compressed video state when the configured topic changes externally", async () => {
+    const renderer = makeRenderer({
+      topics: [
+        { name: "/camera", schemaName: "foxglove.CompressedVideo" },
+        { name: "/camera2", schemaName: "foxglove.CompressedVideo" },
+      ],
+    });
+    const imageMode = new TestImageMode(renderer);
+    const subscription = compressedVideoSubscription(imageMode);
+    const firstFrame = makeVideoMessage(0n, "key");
+    await subscription.processQueue?.([firstFrame], PLAYBACK_CONTEXT);
+    const previousRenderable = imageMode.currentImageRenderable();
+
+    renderer.config = {
+      ...renderer.config,
+      imageMode: { ...renderer.config.imageMode, imageTopic: "/camera2" },
+    };
+    renderer.emit("configChange", renderer);
+
+    expect(previousRenderable?.disposed).toBe(true);
+    expect(imageMode.currentImageRenderable()).toBeUndefined();
+
+    const nextFrame = { ...makeVideoMessage(10_000_000n, "key"), topic: "/camera2" };
+    await subscription.processQueue?.([nextFrame], PLAYBACK_CONTEXT);
+    expect(imageMode.currentImageRenderable()).not.toBe(previousRenderable);
+    expect(imageMode.createdRenderables.at(-1)?.setCompressedVideoFrameBatches).toEqual([
+      [nextFrame.message],
+    ]);
+  });
+
   it("keeps sync annotations available for non-video image topics", () => {
     const renderer = makeRenderer({
       topics: [{ name: "/camera", schemaName: "foxglove.RawImage" }],

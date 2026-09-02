@@ -406,6 +406,10 @@ export class ImageMode
 
   #handleConfigChange = () => {
     const config = this.#getRuntimeImageModeSettings();
+    if (this.#compressedVideoTopicFor(config.imageTopic) !== this.#compressedVideoTopic) {
+      this.#removeImageRenderable();
+      this.#setCompressedVideoTopic(config.imageTopic);
+    }
     this.#applySynchronizationSetting(config);
     this.messageHandler.setConfig(config);
   };
