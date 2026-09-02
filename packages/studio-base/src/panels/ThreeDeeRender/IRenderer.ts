@@ -383,6 +383,7 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   handleAllFramesMessages(allFrames?: readonly MessageEvent[]): boolean;
 
   updateConfig(updateHandler: (draft: RendererConfig) => void): void;
+  setConfig(config: Immutable<RendererConfig>): void;
 
   addCustomLayerAction(options: {
     layerId: string;

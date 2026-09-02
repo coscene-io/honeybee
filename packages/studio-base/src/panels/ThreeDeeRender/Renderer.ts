@@ -671,8 +671,15 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   public updateConfig(updateHandler: (draft: RendererConfig) => void): void {
+    this.setConfig(produce(this.config, updateHandler));
+  }
+
+  public setConfig(config: Immutable<RendererConfig>): void {
     const oldConfig = this.config;
-    this.config = produce(this.config, updateHandler);
+    if (oldConfig === config) {
+      return;
+    }
+    this.config = config;
     if (
       oldConfig.synchronize !== this.config.synchronize ||
       oldConfig.syncedTopics !== this.config.syncedTopics ||

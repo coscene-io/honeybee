@@ -527,7 +527,7 @@ export function ThreeDeeRender(props: {
   // automatically update the settings tree.
   useEffect(() => {
     if (renderer) {
-      renderer.config = config;
+      renderer.setConfig(config);
       renderer.queueAnimationFrame();
     }
   }, [config, renderer]);

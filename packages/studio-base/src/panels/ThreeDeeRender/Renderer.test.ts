@@ -533,8 +533,9 @@ describe("3D Renderer", () => {
     });
     renderer.animationFrame();
 
-    renderer.updateConfig((draft) => {
-      draft.topics["/right"] = { visible: false };
+    renderer.setConfig({
+      ...renderer.config,
+      topics: { ...renderer.config.topics, "/right": { visible: false } },
     });
     renderer.animationFrame();
 
