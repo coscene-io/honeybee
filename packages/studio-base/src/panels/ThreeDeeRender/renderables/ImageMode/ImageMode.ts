@@ -791,9 +791,7 @@ export class ImageMode
       return;
     }
 
-    for (const frame of frames) {
-      this.messageHandler.recordCompressedVideo(frame);
-    }
+    this.messageHandler.recordCompressedVideoFrames(frames);
     if (this.messageHandler.consumeTimestampRegression()) {
       this.#lastSynchronizedVideoTarget = undefined;
       this.#clearVideoDelayHUD();

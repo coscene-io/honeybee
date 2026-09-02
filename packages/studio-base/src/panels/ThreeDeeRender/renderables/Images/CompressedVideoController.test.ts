@@ -703,6 +703,40 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("does not start a second lookback when the same seek generation re-enters", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(20_000_000n, "delta");
+    let onNewRangeIterator: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"] | undefined;
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >((args) => {
+      onNewRangeIterator = args.onNewRangeIterator;
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek(undefined, { deferReplay: true });
+    const firstTick = controller.processVideoFrames([target], { didSeek: true });
+    await expect(controller.processVideoFrames([], { didSeek: true })).resolves.toEqual({
+      ok: false,
+      reason: "stale",
+    });
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+
+    await onNewRangeIterator?.(
+      (async function* () {
+        yield [keyframe, target];
+      })(),
+    );
+    await expect(firstTick).resolves.toEqual({ ok: true });
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 20_000_000n],
+    ]);
+  });
+
   it("clears previous publish-time replay progress after seek", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const middle = makeVideoMessage(10_000_000n, "delta");

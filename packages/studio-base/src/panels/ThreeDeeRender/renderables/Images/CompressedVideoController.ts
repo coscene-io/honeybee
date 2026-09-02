@@ -449,6 +449,12 @@ export class CompressedVideoController {
     options?: SetCompressedVideoFramesOptions,
   ): Promise<ImageSetImageResult> {
     const generation = this.#generation;
+    if (
+      this.#state.replayGeneration === generation ||
+      this.#state.lookbackGeneration === generation
+    ) {
+      return { ok: false, reason: "stale" };
+    }
     const targetFrame =
       synchronizedTarget != undefined
         ? normalizeVideoMessageEvent(synchronizedTarget)

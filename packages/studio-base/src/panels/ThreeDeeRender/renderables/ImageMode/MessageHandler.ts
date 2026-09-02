@@ -240,6 +240,35 @@ export class MessageHandler implements IMessageHandler {
   public recordCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
     this.#recordImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
   };
+  public recordCompressedVideoFrames = (
+    messageEvents: readonly PartialMessageEvent<CompressedVideo>[],
+  ): void => {
+    let normalizedFrames = messageEvents.map((messageEvent) => ({
+      ...messageEvent,
+      message: normalizeCompressedVideo(messageEvent.message),
+    }));
+    let previousTimestamp = this.#lastRecordedImageTimestamp;
+    let epochStartIndex = 0;
+    let timestampRegressed = false;
+    for (let index = 0; index < normalizedFrames.length; index++) {
+      const timestamp = getTimestampFromImage(normalizedFrames[index]!.message);
+      if (previousTimestamp != undefined && isLessThan(timestamp, previousTimestamp)) {
+        epochStartIndex = index;
+        timestampRegressed = true;
+      }
+      previousTimestamp = timestamp;
+    }
+    if (timestampRegressed) {
+      normalizedFrames = normalizedFrames.slice(epochStartIndex);
+      this.#startNewImageTimestampEpoch(
+        normalizedFrames.map((frame) => getTimestampFromImage(frame.message)),
+      );
+      this.#lastRecordedImageTimestamp = undefined;
+    }
+    for (const frame of normalizedFrames) {
+      this.#recordImage(frame, frame.message);
+    }
+  };
   public consumeTimestampRegression = (): boolean => {
     const pending = this.#timestampRegressionPending;
     this.#timestampRegressionPending = false;
@@ -312,22 +341,34 @@ export class MessageHandler implements IMessageHandler {
       this.#lastRecordedImageTimestamp != undefined &&
       isLessThan(timestamp, this.#lastRecordedImageTimestamp)
     ) {
-      // An annotation for the first timestamp of the new epoch may already have arrived in this
-      // tick. Preserve that exact bucket, but remove every image candidate from the old epoch.
-      const retainedItem = this.#tree.get(timestamp);
-      if (retainedItem != undefined) {
-        retainedItem.image = undefined;
-      }
-      this.#tree.clear();
-      if (retainedItem != undefined) {
-        this.#tree.set(timestamp, retainedItem);
-      }
-      this.#committedSynchronizedVideoState = undefined;
-      this.#lastCompleteSynchronizationTimestamp = undefined;
-      this.#oldRenderState = undefined;
-      this.#timestampRegressionPending = true;
+      this.#startNewImageTimestampEpoch([timestamp]);
     }
     this.#lastRecordedImageTimestamp = timestamp;
+  }
+
+  #startNewImageTimestampEpoch(timestamps: readonly Time[]): void {
+    const retainedItems: Array<[Time, SynchronizationItem]> = [];
+    const retainedTimestamps = new Set<bigint>();
+    for (const timestamp of timestamps) {
+      const timestampNs = toNanoSec(timestamp);
+      if (retainedTimestamps.has(timestampNs)) {
+        continue;
+      }
+      retainedTimestamps.add(timestampNs);
+      const item = this.#tree.get(timestamp);
+      if (item != undefined) {
+        item.image = undefined;
+        retainedItems.push([timestamp, item]);
+      }
+    }
+    this.#tree.clear();
+    for (const [timestamp, item] of retainedItems) {
+      this.#tree.set(timestamp, item);
+    }
+    this.#committedSynchronizedVideoState = undefined;
+    this.#lastCompleteSynchronizationTimestamp = undefined;
+    this.#oldRenderState = undefined;
+    this.#timestampRegressionPending = true;
   }
 
   #addImageToTree(normalizedImageMessage: MessageEvent<AnyImage>): void {
@@ -674,6 +715,10 @@ export interface IMessageHandler {
   handleCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
   /** Record video metadata for timestamp matching without starting a generic image decode. */
   recordCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
+  /** Record one player tick of video metadata while preserving matching annotation buckets. */
+  recordCompressedVideoFrames: (
+    messageEvents: readonly PartialMessageEvent<CompressedVideo>[],
+  ) => void;
   /** Consume a physical publish-timestamp rollback observed while recording image metadata. */
   consumeTimestampRegression: () => boolean;
   handleRemoteVideoFrameReference: (

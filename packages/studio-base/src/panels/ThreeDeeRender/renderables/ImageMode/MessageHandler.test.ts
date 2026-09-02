@@ -337,6 +337,54 @@ describe("MessageHandler: synchronized = true", () => {
     });
   });
 
+  it("preserves new-epoch annotation buckets recorded before a video batch", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    const high = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 100n, {
+      timestamp: fromNanoSec(100n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([1]),
+    });
+    const low1 = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 101n, {
+      timestamp: fromNanoSec(1n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([2]),
+    });
+    const low2 = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 102n, {
+      timestamp: fromNanoSec(2n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([3]),
+    });
+
+    messageHandler.recordCompressedVideo(high);
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        102n,
+        createCircleAnnotations([1n, 2n]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    messageHandler.recordCompressedVideoFrames([low1, low2]);
+
+    const state = messageHandler.getRenderStateAndUpdateHUD();
+    expect(messageHandler.consumeTimestampRegression()).toBe(true);
+    expect(state.image?.message).toMatchObject({ timestamp: fromNanoSec(2n) });
+    expect(state.annotationsByTopic?.get("annotations")?.annotations[0]?.stamp).toEqual(
+      fromNanoSec(2n),
+    );
+  });
+
   it("emits a waiting state when an annotation participant is enabled while paused", () => {
     const hud = new HUDItemManager(() => {});
     const messageHandler = new MessageHandler(

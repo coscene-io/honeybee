@@ -103,6 +103,12 @@ class FakeMessageHandler implements IMessageHandler {
   public readonly handleCompressedImage: IMessageHandler["handleCompressedImage"] = jest.fn();
   public readonly handleCompressedVideo: IMessageHandler["handleCompressedVideo"] = jest.fn();
   public readonly recordCompressedVideo: IMessageHandler["recordCompressedVideo"] = jest.fn();
+  public readonly recordCompressedVideoFrames: IMessageHandler["recordCompressedVideoFrames"] =
+    jest.fn((messageEvents) => {
+      for (const messageEvent of messageEvents) {
+        this.recordCompressedVideo(messageEvent);
+      }
+    });
   public readonly consumeTimestampRegression: IMessageHandler["consumeTimestampRegression"] =
     jest.fn(() => false);
   public readonly handleRemoteVideoFrameReference: IMessageHandler["handleRemoteVideoFrameReference"] =
