@@ -19,6 +19,8 @@ export class MessageSyncCoordinator {
   #topics = new Set<string>();
   readonly #lastTimestampByTopic = new Map<string, Time>();
   readonly #topicsAwaitingEpochTransition = new Set<string>();
+  readonly #topicsInCurrentEpoch = new Set<string>();
+  #epochTransitionActive = false;
   #regressionCount = 0;
 
   public setRegistrations(topics: ReadonlySet<string>): boolean {
@@ -45,15 +47,14 @@ export class MessageSyncCoordinator {
         return;
       }
       this.#topicsAwaitingEpochTransition.delete(messageEvent.topic);
+      this.#topicsInCurrentEpoch.add(messageEvent.topic);
     } else if (previousTimestamp != undefined && isLessThan(timestamp, previousTimestamp)) {
-      this.#tree.clear();
-      this.#topicsAwaitingEpochTransition.clear();
-      for (const topic of this.#topics) {
-        if (topic !== messageEvent.topic && this.#lastTimestampByTopic.has(topic)) {
-          this.#topicsAwaitingEpochTransition.add(topic);
-        }
+      if (this.#epochTransitionActive && !this.#topicsInCurrentEpoch.has(messageEvent.topic)) {
+        this.#removeTopicMessages(messageEvent.topic);
+        this.#topicsInCurrentEpoch.add(messageEvent.topic);
+      } else {
+        this.#startEpochTransition(messageEvent.topic);
       }
-      this.#regressionCount++;
     }
     this.#lastTimestampByTopic.set(messageEvent.topic, timestamp);
 
@@ -84,6 +85,10 @@ export class MessageSyncCoordinator {
     }
 
     if (latestCompleteEntry != undefined) {
+      this.#epochTransitionActive = false;
+      this.#topicsAwaitingEpochTransition.clear();
+      this.#topicsInCurrentEpoch.clear();
+
       let minKey = this.#tree.minKey();
       while (minKey != undefined && isLessThan(minKey, latestCompleteEntry[0])) {
         this.#tree.shift();
@@ -121,10 +126,39 @@ export class MessageSyncCoordinator {
     this.#tree.clear();
     this.#lastTimestampByTopic.clear();
     this.#topicsAwaitingEpochTransition.clear();
+    this.#topicsInCurrentEpoch.clear();
+    this.#epochTransitionActive = false;
   }
 
   public regressionCount(): number {
     return this.#regressionCount;
+  }
+
+  #startEpochTransition(topic: string): void {
+    this.#tree.clear();
+    this.#topicsAwaitingEpochTransition.clear();
+    this.#topicsInCurrentEpoch.clear();
+    this.#topicsInCurrentEpoch.add(topic);
+    this.#epochTransitionActive = true;
+    for (const registeredTopic of this.#topics) {
+      if (registeredTopic !== topic && this.#lastTimestampByTopic.has(registeredTopic)) {
+        this.#topicsAwaitingEpochTransition.add(registeredTopic);
+      }
+    }
+    this.#regressionCount++;
+  }
+
+  #removeTopicMessages(topic: string): void {
+    const emptyTimestamps: Time[] = [];
+    for (const [timestamp, messages] of this.#tree.entries()) {
+      messages.delete(topic);
+      if (messages.size === 0) {
+        emptyTimestamps.push(timestamp);
+      }
+    }
+    for (const timestamp of emptyTimestamps) {
+      this.#tree.delete(timestamp);
+    }
   }
 }
 
