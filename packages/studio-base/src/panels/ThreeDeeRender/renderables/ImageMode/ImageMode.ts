@@ -141,6 +141,7 @@ export class ImageMode
   #compressedVideoController: CompressedVideoController | undefined;
   #lastSynchronizedVideoTarget: MessageEvent<CompressedVideo> | undefined;
   #videoDelayBucket: string | undefined;
+  #synchronize: boolean;
   #directlyDisplayedSeekImages = new WeakSet<AnyImage>();
 
   protected readonly supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
@@ -156,6 +157,7 @@ export class ImageMode
     const canvasSize = renderer.input.canvasSize;
 
     const config = this.#getRuntimeImageModeSettings();
+    this.#synchronize = config.synchronize;
 
     this.#camera.setCanvasSize(canvasSize.width, canvasSize.height);
     this.#camera.setRotation(config.rotation);
@@ -224,6 +226,7 @@ export class ImageMode
     });
 
     this.renderer.on("topicsChanged", this.#handleTopicsChanged);
+    this.renderer.on("configChange", this.#handleConfigChange);
     this.#handleTopicsChanged();
   }
 
@@ -322,6 +325,7 @@ export class ImageMode
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
+    this.renderer.off("configChange", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
     this.hud.removeHUDItem(this.#videoDelayHUDId());
     this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
@@ -399,6 +403,26 @@ export class ImageMode
     }
     this.messageHandler.setConfig(this.#getRuntimeImageModeSettings());
   };
+
+  #handleConfigChange = () => {
+    const config = this.#getRuntimeImageModeSettings();
+    this.#applySynchronizationSetting(config.synchronize);
+    this.messageHandler.setConfig(config);
+  };
+
+  #applySynchronizationSetting(synchronize: boolean): void {
+    if (synchronize === this.#synchronize) {
+      return;
+    }
+    this.#synchronize = synchronize;
+    this.#lastSynchronizedVideoTarget = undefined;
+    this.#compressedVideoController?.resetPlaybackState();
+    this.#clearVideoDelayHUD();
+    this.hud.removeGroup(IMAGE_MODE_HUD_GROUP_ID);
+    if (synchronize) {
+      this.#annotations.removeAllRenderables();
+    }
+  }
 
   #setCompressedVideoTopic(topic: string | undefined): void {
     const compressedVideoTopic = this.#compressedVideoTopicFor(topic);
@@ -716,16 +740,7 @@ export class ImageMode
       brightness: config.brightness,
       contrast: config.contrast,
     });
-    if (config.synchronize !== prevImageModeConfig.synchronize) {
-      this.#lastSynchronizedVideoTarget = undefined;
-      this.#compressedVideoController?.resetPlaybackState();
-      this.#clearVideoDelayHUD();
-      this.hud.removeGroup(IMAGE_MODE_HUD_GROUP_ID);
-      this.#removeImageRenderable();
-      if (config.synchronize) {
-        this.#annotations.removeAllRenderables();
-      }
-    }
+    this.#applySynchronizationSetting(config.synchronize);
     this.messageHandler.setConfig(config);
 
     this.#updateViewAndRenderables();

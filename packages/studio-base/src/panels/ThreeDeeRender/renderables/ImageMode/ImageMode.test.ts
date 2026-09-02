@@ -366,6 +366,41 @@ describe("ImageMode compressed video seek replay", () => {
     });
   });
 
+  it("applies externally supplied synchronization config to the message handler", () => {
+    const messageHandler = new FakeMessageHandler();
+    nextMessageHandler = messageHandler;
+    const renderer = makeRenderer();
+    new TestImageMode(renderer);
+
+    renderer.config = {
+      ...renderer.config,
+      imageMode: { ...renderer.config.imageMode, synchronize: true },
+    };
+    renderer.emit("configChange", renderer);
+
+    expect(messageHandler.setConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ synchronize: true }),
+    );
+  });
+
+  it("retains the displayed video when synchronization changes while paused", async () => {
+    const renderer = makeRenderer();
+    const imageMode = new TestImageMode(renderer);
+    const subscription = compressedVideoSubscription(imageMode);
+    const keyframe = makeVideoMessage(0n, "key");
+    await subscription.processQueue?.([keyframe], PLAYBACK_CONTEXT);
+    const displayedRenderable = imageMode.currentImageRenderable();
+
+    renderer.config = {
+      ...renderer.config,
+      imageMode: { ...renderer.config.imageMode, synchronize: true },
+    };
+    renderer.emit("configChange", renderer);
+
+    expect(imageMode.currentImageRenderable()).toBe(displayedRenderable);
+    expect(displayedRenderable?.disposed).toBe(false);
+  });
+
   it("keeps sync annotations available for non-video image topics", () => {
     const renderer = makeRenderer({
       topics: [{ name: "/camera", schemaName: "foxglove.RawImage" }],
