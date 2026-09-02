@@ -480,12 +480,15 @@ export class CompressedVideoController {
 
     const replayFrames = this.#framesForReplayTarget(replayTarget);
     if (replayFrames != undefined) {
-      const result = await this.#displayReplayFramesResult(
-        replayFrames,
-        generation,
-        "seek",
-        options,
-      );
+      this.#state.replayGeneration = generation;
+      let result: ImageSetImageResult;
+      try {
+        result = await this.#displayReplayFramesResult(replayFrames, generation, "seek", options);
+      } finally {
+        if (this.#state.replayGeneration === generation) {
+          this.#state.replayGeneration = undefined;
+        }
+      }
       if (this.#isCurrentGeneration(generation) && (result.ok || result.reason === "timeout")) {
         this.#markSeekReplayComplete(generation, { queueAnimationFrame: false });
       }

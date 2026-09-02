@@ -739,6 +739,38 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("stages a newer tick while a cached seek replay is decoding", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(20_000_000n, "delta");
+    const newerTarget = makeVideoMessage(30_000_000n, "delta");
+    let resolveSeek!: (result: ImageSetImageResult) => void;
+    const seekResult = new Promise<ImageSetImageResult>((resolve) => {
+      resolveSeek = resolve;
+    });
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (_frames, mode) => (mode === "seek" ? await seekResult : { ok: true }));
+    const renderer = makeRenderer({ currentTime: 20_000_000n });
+    const controller = makeController({ renderer, displayFrames });
+
+    await controller.processVideoFrames([keyframe, target]);
+    controller.handleSeek(undefined, { deferReplay: true });
+    const seekTick = controller.processVideoFrames([], { didSeek: true });
+    await expect(controller.processVideoFrames([newerTarget], { didSeek: true })).resolves.toEqual({
+      ok: false,
+      reason: "stale",
+    });
+
+    resolveSeek({ ok: true });
+    await expect(seekTick).resolves.toEqual({ ok: true });
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 20_000_000n],
+      [0n, 20_000_000n],
+      [30_000_000n],
+    ]);
+  });
+
   it("clears previous publish-time replay progress after seek", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const middle = makeVideoMessage(10_000_000n, "delta");
