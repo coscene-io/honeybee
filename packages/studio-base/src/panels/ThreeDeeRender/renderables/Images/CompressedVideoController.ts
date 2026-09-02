@@ -253,7 +253,7 @@ export class CompressedVideoController {
     let normalizedFrames = frames
       .map(normalizeVideoMessageEvent)
       .filter((frame) => frame.topic === this.#topic);
-    let previousPublishTimeNs = options.didSeek ? undefined : this.#lastInputPublishTimeNs;
+    let previousPublishTimeNs = options.didSeek === true ? undefined : this.#lastInputPublishTimeNs;
     let epochStartIndex = 0;
     let timestampRegressed = false;
     for (let index = 0; index < normalizedFrames.length; index++) {
