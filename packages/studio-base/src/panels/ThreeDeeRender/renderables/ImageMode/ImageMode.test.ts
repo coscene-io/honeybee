@@ -518,8 +518,8 @@ describe("ImageMode compressed video seek replay", () => {
     nextMessageHandler = messageHandler;
     const imageMode = new TestImageMode(makeRenderer({ synchronize: true }));
     const subscription = compressedVideoSubscription(imageMode);
-    const first = makeVideoMessage(10_000_000n, "key");
-    const next = makeVideoMessage(20_000_000n, "key");
+    const first = makeVideoMessage(20_000_000n, "key");
+    const next = makeVideoMessage(10_000_000n, "key");
     messageHandler.target = first;
     await subscription.processQueue?.([first], PLAYBACK_CONTEXT);
 

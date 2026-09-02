@@ -129,6 +129,7 @@ export class CompressedVideoController {
   #releaseSeekKeyframeSearchPlaybackPause: (() => void) | undefined;
   #seekReplayPlaybackPauseGeneration: number | undefined;
   #releaseSeekReplayPlaybackPause: (() => void) | undefined;
+  #lastInputPublishTimeNs: bigint | undefined;
 
   public constructor(args: {
     topic: string;
@@ -249,9 +250,25 @@ export class CompressedVideoController {
     frames: readonly PartialMessageEvent<CompressedVideo>[],
     options: ProcessCompressedVideoFramesOptions = {},
   ): Promise<ImageSetImageResult> {
-    const normalizedFrames = frames
+    let normalizedFrames = frames
       .map(normalizeVideoMessageEvent)
       .filter((frame) => frame.topic === this.#topic);
+    let previousPublishTimeNs = options.didSeek ? undefined : this.#lastInputPublishTimeNs;
+    let epochStartIndex = 0;
+    let timestampRegressed = false;
+    for (let index = 0; index < normalizedFrames.length; index++) {
+      const publishTimeNs = toNanoSec(normalizedFrames[index]!.message.timestamp);
+      if (previousPublishTimeNs != undefined && publishTimeNs < previousPublishTimeNs) {
+        epochStartIndex = index;
+        timestampRegressed = true;
+      }
+      previousPublishTimeNs = publishTimeNs;
+    }
+    if (timestampRegressed) {
+      this.handleTimestampRegression();
+      normalizedFrames = normalizedFrames.slice(epochStartIndex);
+    }
+    this.#lastInputPublishTimeNs = previousPublishTimeNs;
     this.#cache.addFrames(normalizedFrames);
 
     const { synchronize = false, targetFrame, didSeek = false, ...displayOptions } = options;
@@ -502,6 +519,7 @@ export class CompressedVideoController {
     this.#state.pendingPlaybackAfterReplay = undefined;
     this.#state.playbackDecoderResetGeneration = undefined;
     this.#state.playbackCacheReplayGeneration = undefined;
+    this.#lastInputPublishTimeNs = undefined;
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cache.handleSeek(fromNanoSec(this.#renderer.currentTime));
 
@@ -534,6 +552,7 @@ export class CompressedVideoController {
   public handleTimestampRegression(): void {
     this.resetPlaybackState();
     this.#cache.clearTopic(this.#topic);
+    this.#lastInputPublishTimeNs = undefined;
   }
 
   public clear(): void {
@@ -545,6 +564,7 @@ export class CompressedVideoController {
     this.#state.playbackCacheReplayGeneration = undefined;
     this.#state.playbackDecoderHasContinuousGop = false;
     this.#state.decoderHasQueuedVideoFrames = false;
+    this.#lastInputPublishTimeNs = undefined;
     this.#cache.clearTopic(this.#topic);
     this.#endSeekKeyframeSearch();
   }

@@ -796,7 +796,6 @@ export class ImageMode
     }
     if (this.messageHandler.consumeTimestampRegression()) {
       this.#lastSynchronizedVideoTarget = undefined;
-      controller.handleTimestampRegression();
       this.#clearVideoDelayHUD();
     }
     const state = this.messageHandler.getRenderStateAndUpdateHUD();

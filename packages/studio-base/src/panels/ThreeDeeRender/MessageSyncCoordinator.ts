@@ -18,6 +18,7 @@ export class MessageSyncCoordinator {
   readonly #tree = new AVLTree<Time, Map<string, MessageEvent>>(compare);
   #topics = new Set<string>();
   readonly #lastTimestampByTopic = new Map<string, Time>();
+  readonly #topicsAwaitingEpochTransition = new Set<string>();
   #regressionCount = 0;
 
   public setRegistrations(topics: ReadonlySet<string>): boolean {
@@ -39,9 +40,19 @@ export class MessageSyncCoordinator {
     }
 
     const previousTimestamp = this.#lastTimestampByTopic.get(messageEvent.topic);
-    if (previousTimestamp != undefined && isLessThan(timestamp, previousTimestamp)) {
+    if (this.#topicsAwaitingEpochTransition.has(messageEvent.topic)) {
+      if (previousTimestamp != undefined && !isLessThan(timestamp, previousTimestamp)) {
+        return;
+      }
+      this.#topicsAwaitingEpochTransition.delete(messageEvent.topic);
+    } else if (previousTimestamp != undefined && isLessThan(timestamp, previousTimestamp)) {
       this.#tree.clear();
-      this.#lastTimestampByTopic.clear();
+      this.#topicsAwaitingEpochTransition.clear();
+      for (const topic of this.#topics) {
+        if (topic !== messageEvent.topic && this.#lastTimestampByTopic.has(topic)) {
+          this.#topicsAwaitingEpochTransition.add(topic);
+        }
+      }
       this.#regressionCount++;
     }
     this.#lastTimestampByTopic.set(messageEvent.topic, timestamp);
@@ -109,6 +120,7 @@ export class MessageSyncCoordinator {
   public clear(): void {
     this.#tree.clear();
     this.#lastTimestampByTopic.clear();
+    this.#topicsAwaitingEpochTransition.clear();
   }
 
   public regressionCount(): number {

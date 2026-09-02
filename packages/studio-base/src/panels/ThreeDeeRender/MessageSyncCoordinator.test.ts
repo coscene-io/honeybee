@@ -108,6 +108,21 @@ describe("MessageSyncCoordinator", () => {
     expect(coordinator.resolve()).toMatchObject({ found: true, timestamp: fromNanoSec(1n) });
   });
 
+  it("preserves new-epoch messages while the remaining topics cross the boundary", () => {
+    const coordinator = new MessageSyncCoordinator();
+    coordinator.setRegistrations(new Set(["/left", "/right"]));
+    coordinator.push(fromNanoSec(100n), message("/left", 100n));
+    coordinator.push(fromNanoSec(100n), message("/right", 100n));
+    const previousRegressionCount = coordinator.regressionCount();
+
+    coordinator.push(fromNanoSec(1n), message("/left", 1n));
+    coordinator.push(fromNanoSec(100n), message("/right", 100n));
+    coordinator.push(fromNanoSec(1n), message("/right", 1n));
+
+    expect(coordinator.regressionCount()).toBe(previousRegressionCount + 1);
+    expect(coordinator.resolve()).toMatchObject({ found: true, timestamp: fromNanoSec(1n) });
+  });
+
   it("retains at most 250 timestamp buckets", () => {
     const coordinator = new MessageSyncCoordinator();
     coordinator.setRegistrations(new Set(["/left", "/right"]));

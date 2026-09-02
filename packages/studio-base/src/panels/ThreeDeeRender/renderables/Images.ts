@@ -449,7 +449,6 @@ export class Images extends SceneExtension<ImageRenderable> {
     this.#invalidateControllersForSyncChanges();
     if (context.syncTimestampRegressed === true) {
       for (const topic of this.#timestampSyncParticipants) {
-        this.#compressedVideoControllers.get(topic)?.handleTimestampRegression();
         this.#lastSynchronizedVideoTargetByTopic.delete(topic);
       }
     }

@@ -830,6 +830,33 @@ describe("CompressedVideoController", () => {
     expect(resetDecoder).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps only the latest timestamp epoch from a mixed playback batch", async () => {
+    const oldKeyframe = makeVideoMessage(100n, "key");
+    const oldDelta = makeVideoMessage(110n, "delta");
+    const oldTail = makeVideoMessage(120n, "delta");
+    const newKeyframe = makeVideoMessage(1n, "key");
+    const newTarget = makeVideoMessage(2n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const resetDecoder = jest.fn();
+    const controller = makeController({ displayFrames, resetDecoder });
+
+    await controller.processVideoFrames([oldKeyframe, oldDelta], {
+      synchronize: true,
+      targetFrame: oldDelta,
+    });
+    displayFrames.mockClear();
+
+    await controller.processVideoFrames([oldTail, newKeyframe, newTarget], {
+      synchronize: true,
+      targetFrame: newTarget,
+    });
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frames)).toEqual([
+      [newKeyframe, newTarget],
+    ]);
+    expect(resetDecoder).toHaveBeenCalledTimes(1);
+  });
+
   it("drops delta-only playback after a terminal decoder failure until a new keyframe", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const failedDelta = makeVideoMessage(10_000_000n, "delta");
