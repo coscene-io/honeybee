@@ -1734,6 +1734,8 @@ describe("CompressedVideoController", () => {
   });
 
   it("releases the playback pause lock when a lookback range read fails", async () => {
+    jest.useFakeTimers();
+
     const displayFrames = makeSuccessfulDisplayFrames();
     const releasePlaybackPause = jest.fn();
     const acquireSeekKeyframeSearchPlaybackPause = jest.fn(() => releasePlaybackPause);
@@ -1760,10 +1762,49 @@ describe("CompressedVideoController", () => {
     const controller = makeController({ renderer, displayFrames });
 
     controller.handleSeek();
-    await flushAsyncWork();
+    await jest.advanceTimersByTimeAsync(1_300);
 
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(4);
     expect(acquireSeekKeyframeSearchPlaybackPause).toHaveBeenCalledTimes(1);
     expect(releasePlaybackPause).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a transient lookback iterator failure without skipping the range", async () => {
+    jest.useFakeTimers();
+
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      if (subscribeMessageRange.mock.calls.length === 1) {
+        void onNewRangeIterator(
+          // eslint-disable-next-line require-yield
+          (async function* (): AsyncGenerator<MessageEvent<CompressedVideo>[]> {
+            throw new Error("transient range read failure");
+          })(),
+        );
+      } else {
+        void onNewRangeIterator(
+          (async function* () {
+            yield [keyframe, delta];
+          })(),
+        );
+      }
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ currentTime: 20_000_000n, subscribeMessageRange });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek();
+    await jest.advanceTimersByTimeAsync(50);
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+    ]);
   });
 
   it("releases the playback pause lock when a lookback range read never resolves", async () => {
@@ -2279,6 +2320,8 @@ describe("CompressedVideoController", () => {
   });
 
   it("classifies cancelled and failed lookback range reads distinctly in playback telemetry", async () => {
+    jest.useFakeTimers();
+
     // Force sampling on the process-wide metrics singleton the controller reports to.
     playbackPerformanceMetrics.overrideRandomForTests(() => 0);
     const emitted: Array<Record<string, string | number>> = [];
@@ -2308,7 +2351,7 @@ describe("CompressedVideoController", () => {
       controller.handleSeek();
       renderer.currentTime = 30_000_000n;
       controller.handleSeek();
-      await flushAsyncWork();
+      await jest.advanceTimersByTimeAsync(1_300);
 
       playbackPerformanceMetrics.finishCurrent("closed");
       expect(emitted).toHaveLength(1);
@@ -2316,9 +2359,9 @@ describe("CompressedVideoController", () => {
       expect(emitted[0]).toEqual(
         expect.objectContaining({
           status: "closed",
-          range_read_count: 2,
+          range_read_count: 5,
           range_read_cancel_count: 1,
-          range_read_failure_count: 1,
+          range_read_failure_count: 4,
           lookback_count: 2,
           lookback_cancel_count: 1,
           lookback_failure_count: 1,

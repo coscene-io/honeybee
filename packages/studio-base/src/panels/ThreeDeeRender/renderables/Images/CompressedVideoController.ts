@@ -1080,8 +1080,7 @@ export class CompressedVideoController {
     endTime: Time,
     metricsSeekId: number,
   ): Promise<MessageEvent[] | undefined> {
-    // The returned frames alone cannot distinguish outcomes: cancellation and iterator exceptions
-    // both resolve `[]` (so the retry loop stops), which must not be counted as successful reads.
+    // The outcome distinguishes successful empty ranges from failures that should be retried.
     const outcomeRef: { outcome: RangeReadResolution } = { outcome: "timeout" };
     const frames = await this.#readRange(generation, startTime, endTime, outcomeRef);
     playbackPerformanceMetrics.recordVideoRangeRead(
@@ -1149,7 +1148,7 @@ export class CompressedVideoController {
             }
           } catch {
             if (this.#isCurrentLookback(generation)) {
-              finish([], "exception");
+              finish(undefined, "exception");
             }
           }
         },
