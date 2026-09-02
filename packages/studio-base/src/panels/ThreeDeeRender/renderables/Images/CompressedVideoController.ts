@@ -337,7 +337,9 @@ export class CompressedVideoController {
       // A current-generation stale result means the renderable could not accept this physical
       // batch (for example, the system watchdog re-entered while an older batch was active).
       // Do not claim delta continuity across frames that never reached the decoder.
-      this.#state.playbackDecoderHasContinuousGop = false;
+      this.#invalidatePlaybackContinuity();
+      this.#state.playbackCacheReplayGeneration = this.#generation;
+      this.#resetDecoderForReplay();
       return result;
     }
     if (
@@ -1462,30 +1464,77 @@ function gopEndingAt(
   return currentGop;
 }
 
-/**
- * Merge two frame lists into a single receive-time-ascending list, dropping duplicates by receive
- * time (the slice boundary frame is read by both adjacent windows).
- */
+/** Merge receive-time-ascending ranges, removing only an identical overlapping boundary suffix. */
 function mergeFramesByReceiveTime(
   a: readonly MessageEvent[],
   b: readonly MessageEvent[],
 ): MessageEvent[] {
-  const seen = new Set<bigint>();
-  const merged: MessageEvent[] = [];
-  for (const frame of [...a, ...b]) {
-    const key = toNanoSec(frame.receiveTime);
-    if (seen.has(key)) {
-      continue;
+  let overlap = 0;
+  const boundaryTime = a.at(-1)?.receiveTime;
+  const nextBoundaryTime = b[0]?.receiveTime;
+  if (
+    boundaryTime != undefined &&
+    nextBoundaryTime != undefined &&
+    compare(boundaryTime, nextBoundaryTime) === 0
+  ) {
+    let aBoundaryStart = a.length - 1;
+    while (aBoundaryStart > 0 && compare(a[aBoundaryStart - 1]!.receiveTime, boundaryTime) === 0) {
+      aBoundaryStart--;
     }
-    seen.add(key);
-    merged.push(frame);
+    let bBoundaryEnd = 0;
+    while (bBoundaryEnd < b.length && compare(b[bBoundaryEnd]!.receiveTime, boundaryTime) === 0) {
+      bBoundaryEnd++;
+    }
+    const maxOverlap = Math.min(a.length - aBoundaryStart, bBoundaryEnd);
+    for (let candidate = maxOverlap; candidate > 0; candidate--) {
+      const aStart = a.length - candidate;
+      let matches = true;
+      for (let index = 0; index < candidate; index++) {
+        if (!sameLookbackFrame(a[aStart + index]!, b[index]!)) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        overlap = candidate;
+        break;
+      }
+    }
   }
+
+  const merged = [...a, ...b.slice(overlap)];
   merged.sort((left, right) => {
     const leftNs = toNanoSec(left.receiveTime);
     const rightNs = toNanoSec(right.receiveTime);
     return leftNs < rightNs ? -1 : leftNs > rightNs ? 1 : 0;
   });
   return merged;
+}
+
+function sameLookbackFrame(left: MessageEvent, right: MessageEvent): boolean {
+  if (
+    left.topic !== right.topic ||
+    left.schemaName !== right.schemaName ||
+    compare(left.receiveTime, right.receiveTime) !== 0
+  ) {
+    return false;
+  }
+  const leftMessage = left.message as CompressedVideo;
+  const rightMessage = right.message as CompressedVideo;
+  if (
+    compare(leftMessage.timestamp, rightMessage.timestamp) !== 0 ||
+    leftMessage.frame_id !== rightMessage.frame_id ||
+    leftMessage.format !== rightMessage.format ||
+    leftMessage.data.length !== rightMessage.data.length
+  ) {
+    return false;
+  }
+  for (let index = 0; index < leftMessage.data.length; index++) {
+    if (leftMessage.data[index] !== rightMessage.data[index]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function framesForLookbackReplayTarget(
