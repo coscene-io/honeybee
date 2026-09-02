@@ -746,7 +746,9 @@ describe("Images compressed video seek lookback", () => {
     await subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
     expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("VIDEO_DELAY:/video");
 
-    renderer.config.topics["/video"] = { visible: false };
+    renderer.updateConfig((draft) => {
+      draft.topics["/video"] = { visible: false };
+    });
     renderer.emit("configChange", renderer);
 
     expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("VIDEO_DELAY:/video");
