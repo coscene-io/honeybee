@@ -165,6 +165,7 @@ export class MessageHandler implements IMessageHandler {
   #lastCompleteSynchronizationTimestamp: Time | undefined;
   #lastRecordedImageTimestamp: Time | undefined;
   #timestampRegressionPending = false;
+  readonly #annotationTopicsSinceLastVideoBatch = new Map<bigint, Set<string>>();
 
   /** internal state of last received messages */
   #lastReceivedMessages: MessageHandlerState;
@@ -236,9 +237,11 @@ export class MessageHandler implements IMessageHandler {
   };
   public handleCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
     this.handleImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
+    this.#annotationTopicsSinceLastVideoBatch.clear();
   };
   public recordCompressedVideo = (messageEvent: PartialMessageEvent<CompressedVideo>): void => {
     this.#recordImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
+    this.#annotationTopicsSinceLastVideoBatch.clear();
   };
   public recordCompressedVideoFrames = (
     messageEvents: readonly PartialMessageEvent<CompressedVideo>[],
@@ -267,6 +270,9 @@ export class MessageHandler implements IMessageHandler {
     }
     for (const frame of normalizedFrames) {
       this.#recordImage(frame, frame.message);
+    }
+    if (normalizedFrames.length > 0) {
+      this.#annotationTopicsSinceLastVideoBatch.clear();
     }
   };
   public consumeTimestampRegression = (): boolean => {
@@ -356,9 +362,18 @@ export class MessageHandler implements IMessageHandler {
       }
       retainedTimestamps.add(timestampNs);
       const item = this.#tree.get(timestamp);
-      if (item != undefined) {
-        item.image = undefined;
-        retainedItems.push([timestamp, item]);
+      const currentAnnotationTopics = this.#annotationTopicsSinceLastVideoBatch.get(timestampNs);
+      if (item != undefined && currentAnnotationTopics != undefined) {
+        const annotationsByTopic = new Map<string, NormalizedAnnotations>();
+        for (const topic of currentAnnotationTopics) {
+          const annotations = item.annotationsByTopic.get(topic);
+          if (annotations != undefined) {
+            annotationsByTopic.set(topic, annotations);
+          }
+        }
+        if (annotationsByTopic.size > 0) {
+          retainedItems.push([timestamp, { image: undefined, annotationsByTopic }]);
+        }
       }
     }
     this.#tree.clear();
@@ -431,6 +446,12 @@ export class MessageHandler implements IMessageHandler {
         originalMessage: messageEvent,
         annotations: group,
       });
+      let recentTopics = this.#annotationTopicsSinceLastVideoBatch.get(stampNsec);
+      if (recentTopics == undefined) {
+        recentTopics = new Set();
+        this.#annotationTopicsSinceLastVideoBatch.set(stampNsec, recentTopics);
+      }
+      recentTopics.add(topic);
       this.#pruneSynchronizationTree();
     }
 
@@ -468,6 +489,7 @@ export class MessageHandler implements IMessageHandler {
       this.#lastCompleteSynchronizationTimestamp = undefined;
       this.#lastRecordedImageTimestamp = undefined;
       this.#timestampRegressionPending = false;
+      this.#annotationTopicsSinceLastVideoBatch.clear();
       this.#tree.clear();
       if (newConfig.synchronize && this.#lastReceivedMessages.image != undefined) {
         if (COMPRESSED_VIDEO_DATATYPES.has(this.#lastReceivedMessages.image.schemaName)) {
@@ -486,6 +508,7 @@ export class MessageHandler implements IMessageHandler {
       this.#lastCompleteSynchronizationTimestamp = undefined;
       this.#lastRecordedImageTimestamp = undefined;
       this.#timestampRegressionPending = false;
+      this.#annotationTopicsSinceLastVideoBatch.clear();
       this.#tree.clear();
       this.#lastReceivedMessages.image = undefined;
       changed = true;
@@ -542,6 +565,7 @@ export class MessageHandler implements IMessageHandler {
     this.#lastCompleteSynchronizationTimestamp = undefined;
     this.#lastRecordedImageTimestamp = undefined;
     this.#timestampRegressionPending = false;
+    this.#annotationTopicsSinceLastVideoBatch.clear();
     this.#emitState();
   }
 

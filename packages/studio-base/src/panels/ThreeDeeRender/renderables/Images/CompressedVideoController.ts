@@ -84,6 +84,11 @@ type ControllerState = {
     generation: number;
     entries: PendingPlaybackAfterReplayEntry[];
   };
+  pendingSeekAfterReplay?: {
+    generation: number;
+    frames: MessageEvent<CompressedVideo>[];
+    options: ProcessCompressedVideoFramesOptions;
+  };
   successfulWindowSeconds?: number;
   completedSeekGeneration?: number;
   decoderResetGeneration?: number;
@@ -281,6 +286,13 @@ export class CompressedVideoController {
       if (synchronize && targetFrame == undefined) {
         return { ok: false, reason: "failed" };
       }
+      if (
+        this.#state.replayGeneration === this.#generation ||
+        this.#state.lookbackGeneration === this.#generation
+      ) {
+        this.#stagePendingSeekFrames(normalizedFrames, options);
+        return { ok: false, reason: "stale" };
+      }
       return await this.#processSeekFrames(normalizedFrames, targetFrame, displayOptions);
     }
     if (synchronize && targetFrame == undefined) {
@@ -449,12 +461,6 @@ export class CompressedVideoController {
     options?: SetCompressedVideoFramesOptions,
   ): Promise<ImageSetImageResult> {
     const generation = this.#generation;
-    if (
-      this.#state.replayGeneration === generation ||
-      this.#state.lookbackGeneration === generation
-    ) {
-      return { ok: false, reason: "stale" };
-    }
     const targetFrame =
       synchronizedTarget != undefined
         ? normalizeVideoMessageEvent(synchronizedTarget)
@@ -486,6 +492,7 @@ export class CompressedVideoController {
       if (result.ok && this.#isCurrentGeneration(generation)) {
         this.#recordDisplayedPublishTime(result, replayFrames);
       }
+      await this.#flushPendingSeekFrames(generation);
       return result;
     }
 
@@ -494,9 +501,11 @@ export class CompressedVideoController {
       return { ok: false, reason: "failed" };
     }
     this.#state.lookbackGeneration = generation;
-    return await this.#runLookback(generation, replayTarget, seekTargetNs, options, {
+    const result = await this.#runLookback(generation, replayTarget, seekTargetNs, options, {
       queueAnimationFrameOnComplete: false,
     });
+    await this.#flushPendingSeekFrames(generation);
+    return result;
   }
 
   public recordKnownKeyframeReceiveTime(topic: string, receiveTime: Time): void {
@@ -523,6 +532,7 @@ export class CompressedVideoController {
   ): void {
     this.#generation++;
     this.#state.pendingPlaybackAfterReplay = undefined;
+    this.#state.pendingSeekAfterReplay = undefined;
     this.#state.playbackDecoderResetGeneration = undefined;
     this.#state.playbackCacheReplayGeneration = undefined;
     this.#lastInputPublishTimeNs = undefined;
@@ -546,6 +556,7 @@ export class CompressedVideoController {
     this.#cancelLookback();
     this.#endSeekReplayPlaybackPause();
     this.#state.pendingPlaybackAfterReplay = undefined;
+    this.#state.pendingSeekAfterReplay = undefined;
     this.#state.replayGeneration = undefined;
     this.#state.completedSeekGeneration = undefined;
     this.#state.playbackDecoderResetGeneration = this.#generation;
@@ -566,6 +577,7 @@ export class CompressedVideoController {
     this.#cancelLookback();
     this.#endSeekReplayPlaybackPause();
     this.#state.pendingPlaybackAfterReplay = undefined;
+    this.#state.pendingSeekAfterReplay = undefined;
     this.#state.playbackDecoderResetGeneration = undefined;
     this.#state.playbackCacheReplayGeneration = undefined;
     this.#state.playbackDecoderHasContinuousGop = false;
@@ -609,6 +621,7 @@ export class CompressedVideoController {
     this.#cache.handleSeek(fromNanoSec(this.#seekTargetNs));
     this.#cancelLookback();
     this.#state.pendingPlaybackAfterReplay = undefined;
+    this.#state.pendingSeekAfterReplay = undefined;
     this.#state.playbackDecoderResetGeneration = undefined;
     this.#state.playbackCacheReplayGeneration = undefined;
     this.#state.lastDisplayedPublishTimeNs = undefined;
@@ -618,6 +631,7 @@ export class CompressedVideoController {
     const generation = ++this.#generation;
     this.#cancelLookback();
     this.#state.pendingPlaybackAfterReplay = undefined;
+    this.#state.pendingSeekAfterReplay = undefined;
     this.#state.playbackDecoderResetGeneration = undefined;
     this.#state.playbackCacheReplayGeneration = undefined;
     this.#state.replayGeneration = undefined;
@@ -1042,6 +1056,41 @@ export class CompressedVideoController {
     );
   }
 
+  #stagePendingSeekFrames(
+    frames: readonly MessageEvent<CompressedVideo>[],
+    options: ProcessCompressedVideoFramesOptions,
+  ): void {
+    const pending = this.#state.pendingSeekAfterReplay;
+    if (pending?.generation === this.#generation) {
+      pending.frames.push(...frames);
+      pending.options = options;
+      return;
+    }
+    this.#state.pendingSeekAfterReplay = {
+      generation: this.#generation,
+      frames: [...frames],
+      options,
+    };
+  }
+
+  async #flushPendingSeekFrames(generation: number): Promise<void> {
+    const pending = this.#state.pendingSeekAfterReplay;
+    if (
+      pending?.generation !== generation ||
+      !this.#isCurrentGeneration(generation) ||
+      this.#state.replayGeneration === generation ||
+      this.#state.lookbackGeneration === generation
+    ) {
+      return;
+    }
+
+    this.#state.pendingSeekAfterReplay = undefined;
+    await this.processVideoFrames(pending.frames, {
+      ...pending.options,
+      didSeek: this.#state.completedSeekGeneration !== generation,
+    });
+  }
+
   /** Smallest configured lookback window (seconds) that covers `spanNs`. */
   #windowSecondsForSpan(spanNs: bigint): number {
     const spanSec = Number(spanNs / 1_000_000_000n);
@@ -1363,6 +1412,7 @@ export class CompressedVideoController {
     this.#generation++;
     this.#cancelLookback();
     this.#state.pendingPlaybackAfterReplay = undefined;
+    this.#state.pendingSeekAfterReplay = undefined;
     this.#state.replayGeneration = undefined;
     this.#state.completedSeekGeneration = undefined;
     this.#state.lastDisplayedPublishTimeNs = undefined;

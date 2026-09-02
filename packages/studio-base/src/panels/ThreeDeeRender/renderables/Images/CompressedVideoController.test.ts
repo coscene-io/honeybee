@@ -703,9 +703,10 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
-  it("does not start a second lookback when the same seek generation re-enters", async () => {
+  it("stages a newer tick when the same seek generation re-enters", async () => {
     const keyframe = makeVideoMessage(0n, "key");
     const target = makeVideoMessage(20_000_000n, "delta");
+    const newerTarget = makeVideoMessage(30_000_000n, "delta");
     let onNewRangeIterator: Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"] | undefined;
     const subscribeMessageRange = jest.fn<
       ReturnType<SubscribeMessageRange>,
@@ -720,7 +721,7 @@ describe("CompressedVideoController", () => {
 
     controller.handleSeek(undefined, { deferReplay: true });
     const firstTick = controller.processVideoFrames([target], { didSeek: true });
-    await expect(controller.processVideoFrames([], { didSeek: true })).resolves.toEqual({
+    await expect(controller.processVideoFrames([newerTarget], { didSeek: true })).resolves.toEqual({
       ok: false,
       reason: "stale",
     });
@@ -734,6 +735,7 @@ describe("CompressedVideoController", () => {
     await expect(firstTick).resolves.toEqual({ ok: true });
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 20_000_000n],
+      [30_000_000n],
     ]);
   });
 

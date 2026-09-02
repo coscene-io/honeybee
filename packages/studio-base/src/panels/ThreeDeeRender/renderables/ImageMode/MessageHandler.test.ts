@@ -385,6 +385,58 @@ describe("MessageHandler: synchronized = true", () => {
     );
   });
 
+  it("does not reuse annotations from an earlier epoch when timestamps repeat", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    const low = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 1n, {
+      timestamp: fromNanoSec(1n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([1]),
+    });
+    const high = wrapInMessageEvent<CompressedVideo>("video", "foxglove.CompressedVideo", 100n, {
+      timestamp: fromNanoSec(100n),
+      frame_id: "camera",
+      format: "h264",
+      data: new Uint8Array([2]),
+    });
+    const repeatedLow = wrapInMessageEvent<CompressedVideo>(
+      "video",
+      "foxglove.CompressedVideo",
+      101n,
+      {
+        timestamp: fromNanoSec(1n),
+        frame_id: "camera",
+        format: "h264",
+        data: new Uint8Array([3]),
+      },
+    );
+
+    messageHandler.recordCompressedVideoFrames([low]);
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        1n,
+        createCircleAnnotations([1n]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+    messageHandler.recordCompressedVideoFrames([high]);
+    messageHandler.recordCompressedVideoFrames([repeatedLow]);
+
+    const state = messageHandler.getRenderStateAndUpdateHUD();
+    expect(state.image).toBeUndefined();
+    expect(state.presentAnnotationTopics).toEqual([]);
+    expect(state.missingAnnotationTopics).toEqual(["annotations"]);
+  });
+
   it("emits a waiting state when an annotation participant is enabled while paused", () => {
     const hud = new HUDItemManager(() => {});
     const messageHandler = new MessageHandler(

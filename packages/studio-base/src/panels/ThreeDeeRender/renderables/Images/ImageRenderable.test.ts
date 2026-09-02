@@ -1081,11 +1081,13 @@ describe("ImageRenderable", () => {
       } as unknown as WorkerImageDecoder;
       const renderable = new TestVideoBatchRenderable(decoder);
       const keyframe = videoFrameEvent(10n, 1, "key");
-      const target = videoFrameEvent(20n, 2, "delta");
+      const target = videoFrameEvent(10n, 2, "delta");
+      const updateImageState = jest.fn();
 
       const replayResult = renderable.setCompressedVideoFrames([keyframe, target], {
         decodeMode: "exact",
         allowIntermediateVideoFrame: false,
+        updateImageState,
       });
       await flushPromises();
 
@@ -1104,13 +1106,15 @@ describe("ImageRenderable", () => {
         requestId: 1,
         frame: targetFrame,
         originalTimestamp: 2n,
-        receiveTime: 20n,
+        receiveTime: 10n,
+        batchIndex: 1,
       });
       await flushPromises();
 
       expect(renderable.getDecodedImage()).toBe(targetFrame);
       expect(renderable.userData.image).toBe(target.message);
-      expect(renderable.userData.receiveTime).toBe(20n);
+      expect(renderable.userData.receiveTime).toBe(10n);
+      expect(updateImageState).toHaveBeenLastCalledWith(target);
       expect((intermediateFrame as unknown as MockVideoFrame).close).toHaveBeenCalledTimes(1);
       expect((targetFrame as unknown as MockVideoFrame).close).not.toHaveBeenCalled();
       expect(awaitTargetFrame).toHaveBeenCalledTimes(1);

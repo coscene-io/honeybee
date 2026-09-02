@@ -973,7 +973,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       return;
     }
 
-    const decodedFrame = this.#compressedVideoFrameEventForDecodedFrame(result);
+    const cachedDecodedFrame = this.#compressedVideoFrameEventForDecodedFrame(result);
+    const decodedFrame = targetEntry.messageEvent ?? cachedDecodedFrame;
 
     this.#handleDecodedImage(
       targetEntry.seq,
