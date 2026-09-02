@@ -554,18 +554,29 @@ export class Images extends SceneExtension<ImageRenderable> {
   }
 
   #topicUsesTimestampSync(topic: string): boolean {
-    return (
-      this.renderer.config.synchronize === true &&
-      this.renderer.config.syncedTopics?.[topic] === true
-    );
+    return this.#timestampSyncParticipants.has(topic);
   }
 
   #invalidateControllersForSyncChanges(): void {
+    const visibleTopics = this.#visibleCompressedVideoTopics();
+    for (const topic of this.#videoDelayBuckets.keys()) {
+      if (!visibleTopics.has(topic)) {
+        this.#videoDelayBuckets.delete(topic);
+        this.hud.removeHUDItem(`VIDEO_DELAY:${topic}`);
+      }
+    }
+
     const nextParticipants = new Set<string>();
-    for (const topic of this.#visibleCompressedVideoTopics()) {
-      if (this.#topicUsesTimestampSync(topic)) {
+    for (const topic of visibleTopics) {
+      if (
+        this.renderer.config.synchronize === true &&
+        this.renderer.config.syncedTopics?.[topic] === true
+      ) {
         nextParticipants.add(topic);
       }
+    }
+    if (nextParticipants.size < 2) {
+      nextParticipants.clear();
     }
     if (setsEqual(nextParticipants, this.#timestampSyncParticipants)) {
       return;

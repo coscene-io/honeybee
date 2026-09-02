@@ -422,6 +422,24 @@ describe("Images compressed video seek lookback", () => {
     ]);
   });
 
+  it("uses show-latest playback when fewer than two synchronization topics are eligible", async () => {
+    const images = new TestImages(
+      makeRenderer({
+        synchronize: true,
+        syncedTopics: { "/video": true },
+      }),
+    );
+    const subscription = compressedVideoSubscription(images);
+    const keyframe = makeVideoMessage(0n, "key");
+    const delta = makeVideoMessage(10n, "delta");
+
+    await subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+
+    expect(images.createdRenderables[0]!.setCompressedVideoFrameBatches).toEqual([
+      [keyframe.message, delta.message],
+    ]);
+  });
+
   it("does not submit delta-only video before a decoder has a continuous GOP", async () => {
     const images = new TestImages(makeRenderer());
     const subscription = compressedVideoSubscription(images);
@@ -596,8 +614,12 @@ describe("Images compressed video seek lookback", () => {
 
   it("decodes a replacement target with the same synchronized publish timestamp", async () => {
     const renderer = makeRenderer({
+      topics: [
+        { name: "/video", schemaName: "foxglove.CompressedVideo" },
+        { name: "/right", schemaName: "foxglove.CompressedVideo" },
+      ],
       synchronize: true,
-      syncedTopics: { "/video": true },
+      syncedTopics: { "/video": true, "/right": true },
     });
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
@@ -678,8 +700,12 @@ describe("Images compressed video seek lookback", () => {
 
   it("retries a synchronized target after a terminal decoder failure", async () => {
     const renderer = makeRenderer({
+      topics: [
+        { name: "/video", schemaName: "foxglove.CompressedVideo" },
+        { name: "/right", schemaName: "foxglove.CompressedVideo" },
+      ],
       synchronize: true,
-      syncedTopics: { "/video": true },
+      syncedTopics: { "/video": true, "/right": true },
     });
     const images = new TestImages(renderer);
     images.displayResults.push({ ok: false, reason: "failed" }, { ok: true });
@@ -701,5 +727,28 @@ describe("Images compressed video seek lookback", () => {
       [target.message],
       [target.message],
     ]);
+  });
+
+  it("clears a video delay notice when its topic is hidden", async () => {
+    const renderer = makeRenderer();
+    const images = new TestImages(renderer);
+    const subscription = compressedVideoSubscription(images);
+    const first = makeVideoMessage(0n, "key");
+    const delayed = makeVideoMessage(1_000_000_000n, "delta");
+
+    await subscription.processQueue?.([first], PLAYBACK_CONTEXT);
+    const renderable = images.createdRenderables[0]!;
+    renderable.userData.displayedFrameState = {
+      image: first.message,
+      receiveTime: 0n,
+    };
+    images.displayResults.push({ ok: false, reason: "timeout" });
+    await subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("VIDEO_DELAY:/video");
+
+    renderer.config.topics["/video"] = { visible: false };
+    renderer.emit("configChange", renderer);
+
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("VIDEO_DELAY:/video");
   });
 });

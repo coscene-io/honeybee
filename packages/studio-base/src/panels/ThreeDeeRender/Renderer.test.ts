@@ -428,6 +428,57 @@ describe("3D Renderer", () => {
     expect(renderer.currentTime).toBe(10n);
   });
 
+  it("keeps player time when fewer than two synchronization topics are eligible", async () => {
+    const renderer = new Renderer({
+      ...defaultRendererProps,
+      canvas,
+      config: {
+        ...defaultRendererConfig,
+        synchronize: true,
+        syncedTopics: { "/video": true },
+        topics: { "/video": { visible: true } },
+      },
+    });
+    const contexts: unknown[] = [];
+    renderer.schemaSubscriptions.set("foxglove.CompressedVideo", [
+      {
+        shouldSync: true,
+        processQueue: (_queue, context) => {
+          contexts.push(context);
+        },
+      },
+    ]);
+    renderer.setTopics([
+      {
+        name: "/video",
+        schemaName: "foxglove.CompressedVideo",
+        messageCount: 0,
+        messageFrequency: 0,
+      },
+    ]);
+
+    const frameTimes: bigint[] = [];
+    renderer.on("startFrame", (time) => frameTimes.push(time));
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(10n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: [
+        {
+          topic: "/video",
+          receiveTime: fromNanoSec(8n),
+          schemaName: "foxglove.CompressedVideo",
+          message: { timestamp: fromNanoSec(5n) },
+          sizeInBytes: 0,
+        },
+      ],
+    });
+    renderer.animationFrame();
+
+    expect(contexts).toEqual([expect.objectContaining({ syncResult: undefined })]);
+    expect(frameTimes).toEqual([10n]);
+  });
+
   it("clears the synchronized frame immediately when a visible participant is removed", async () => {
     const renderer = new Renderer({
       ...defaultRendererProps,

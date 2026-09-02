@@ -1396,6 +1396,9 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         }
       }
     }
+    if (registrations.size < 2) {
+      registrations.clear();
+    }
 
     if (this.#messageSyncCoordinator.setRegistrations(registrations)) {
       this.#syncFrameTime = undefined;
