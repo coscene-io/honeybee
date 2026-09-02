@@ -406,11 +406,11 @@ export class ImageMode
 
   #handleConfigChange = () => {
     const config = this.#getRuntimeImageModeSettings();
-    this.#applySynchronizationSetting(config.synchronize);
+    this.#applySynchronizationSetting(config);
     this.messageHandler.setConfig(config);
   };
 
-  #applySynchronizationSetting(synchronize: boolean): void {
+  #applySynchronizationSetting({ synchronize }: { synchronize: boolean }): void {
     if (synchronize === this.#synchronize) {
       return;
     }
@@ -740,7 +740,7 @@ export class ImageMode
       brightness: config.brightness,
       contrast: config.contrast,
     });
-    this.#applySynchronizationSetting(config.synchronize);
+    this.#applySynchronizationSetting(config);
     this.messageHandler.setConfig(config);
 
     this.#updateViewAndRenderables();
