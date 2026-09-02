@@ -258,6 +258,19 @@ export class CompressedVideoController {
     let normalizedFrames = frames
       .map(normalizeVideoMessageEvent)
       .filter((frame) => frame.topic === this.#topic);
+    const { synchronize = false, targetFrame, didSeek = false, ...displayOptions } = options;
+    const seekPending =
+      this.#seekTargetNs != undefined && this.#state.completedSeekGeneration !== this.#generation;
+    if (
+      (didSeek || seekPending) &&
+      (!synchronize || targetFrame != undefined) &&
+      (this.#state.replayGeneration === this.#generation ||
+        this.#state.lookbackGeneration === this.#generation)
+    ) {
+      this.#stagePendingSeekFrames(normalizedFrames, options);
+      return { ok: false, reason: "stale" };
+    }
+
     let previousPublishTimeNs = options.didSeek === true ? undefined : this.#lastInputPublishTimeNs;
     let epochStartIndex = 0;
     let timestampRegressed = false;
@@ -276,22 +289,12 @@ export class CompressedVideoController {
     this.#lastInputPublishTimeNs = previousPublishTimeNs;
     this.#cache.addFrames(normalizedFrames);
 
-    const { synchronize = false, targetFrame, didSeek = false, ...displayOptions } = options;
-    const seekPending =
-      this.#seekTargetNs != undefined && this.#state.completedSeekGeneration !== this.#generation;
     if (didSeek || seekPending) {
       // A synchronized seek cannot display an image candidate before its exact annotation/topic
       // set is complete. Keep the seek generation pending; the later target will still take the
       // range-lookback path even though its Player tick no longer carries didSeek.
       if (synchronize && targetFrame == undefined) {
         return { ok: false, reason: "failed" };
-      }
-      if (
-        this.#state.replayGeneration === this.#generation ||
-        this.#state.lookbackGeneration === this.#generation
-      ) {
-        this.#stagePendingSeekFrames(normalizedFrames, options);
-        return { ok: false, reason: "stale" };
       }
       return await this.#processSeekFrames(normalizedFrames, targetFrame, displayOptions);
     }

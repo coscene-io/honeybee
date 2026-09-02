@@ -473,7 +473,10 @@ export class MessageHandler implements IMessageHandler {
     }
     const unretainedLimit = MAX_SYNC_TIMESTAMP_BUCKETS - (retainedItem != undefined ? 1 : 0);
     while (this.#tree.size > unretainedLimit) {
-      this.#tree.shift();
+      const removed = this.#tree.shift();
+      if (removed != undefined) {
+        this.#annotationTopicsSinceLastVideoBatch.delete(toNanoSec(removed[0]));
+      }
     }
     if (retainedTimestamp != undefined && retainedItem != undefined) {
       this.#tree.set(retainedTimestamp, retainedItem);

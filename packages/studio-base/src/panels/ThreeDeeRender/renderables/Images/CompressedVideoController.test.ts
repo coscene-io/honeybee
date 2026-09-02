@@ -743,6 +743,7 @@ describe("CompressedVideoController", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const target = makeVideoMessage(20_000_000n, "delta");
     const newerTarget = makeVideoMessage(30_000_000n, "delta");
+    const newestTarget = makeVideoMessage(40_000_000n, "delta");
     let resolveSeek!: (result: ImageSetImageResult) => void;
     const seekResult = new Promise<ImageSetImageResult>((resolve) => {
       resolveSeek = resolve;
@@ -761,13 +762,19 @@ describe("CompressedVideoController", () => {
       ok: false,
       reason: "stale",
     });
+    await expect(controller.processVideoFrames([newestTarget], { didSeek: true })).resolves.toEqual(
+      {
+        ok: false,
+        reason: "stale",
+      },
+    );
 
     resolveSeek({ ok: true });
     await expect(seekTick).resolves.toEqual({ ok: true });
     expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
       [0n, 20_000_000n],
       [0n, 20_000_000n],
-      [30_000_000n],
+      [30_000_000n, 40_000_000n],
     ]);
   });
 
