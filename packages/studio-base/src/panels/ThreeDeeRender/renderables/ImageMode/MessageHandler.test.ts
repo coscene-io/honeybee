@@ -1008,6 +1008,42 @@ describe("MessageHandler: synchronized = true", () => {
     expect(state.annotationsByTopic?.has("annotations")).toBe(true);
   });
 
+  it("retains the last complete ordinary image set when image timestamps arrive out of order", () => {
+    const hud = new HUDItemManager(() => {});
+    const messageHandler = new MessageHandler(
+      {
+        synchronize: true,
+        annotations: { annotations: { visible: true } },
+      },
+      hud,
+    );
+    messageHandler.setAvailableAnnotationTopics(["annotations"]);
+    messageHandler.handleRawImage(
+      wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 100n, {
+        timestamp: fromNanoSec(100n),
+      }),
+    );
+    messageHandler.handleAnnotations(
+      wrapInMessageEvent(
+        "annotations",
+        "foxglove.ImageAnnotations",
+        100n,
+        createCircleAnnotations([100n]),
+      ) as MessageEvent<ImageAnnotations>,
+    );
+
+    messageHandler.handleRawImage(
+      wrapInMessageEvent<RawImage>("image", "foxglove.RawImage", 101n, {
+        timestamp: fromNanoSec(1n),
+      }),
+    );
+
+    const state = messageHandler.getRenderStateAndUpdateHUD();
+    expect(state.image?.message).toMatchObject({ timestamp: fromNanoSec(100n) });
+    expect(state.annotationsByTopic?.has("annotations")).toBe(true);
+    expect(messageHandler.consumeTimestampRegression()).toBe(false);
+  });
+
   it("bounds timestamp groups from one annotations message while it is inserted", () => {
     const hud = new HUDItemManager(() => {});
     const messageHandler = new MessageHandler(

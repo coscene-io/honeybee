@@ -751,6 +751,53 @@ describe("CompressedVideoController", () => {
     ]);
   });
 
+  it("replays the cached GOP for a batched delta after playback state is reset", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const firstDelta = makeVideoMessage(10_000_000n, "delta");
+    const nextDelta = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = makeSuccessfulDisplayFrames();
+    const controller = makeController({ displayFrames });
+
+    await controller.processVideoFrames([keyframe, firstDelta]);
+    controller.resetPlaybackState();
+    displayFrames.mockClear();
+
+    await controller.processVideoFrames([nextDelta]);
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n, 20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames)[0]?.[2]).toMatchObject({
+      allowIntermediateVideoFrame: false,
+      decodeMode: "exact",
+    });
+  });
+
+  it("finishes a cached seek batch after timeout before processing the next tick", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(10_000_000n, "delta");
+    const nextDelta = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (_frames, mode) => (mode === "seek" ? { ok: false, reason: "timeout" } : { ok: true }));
+    const renderer = makeRenderer({ currentTime: 10_000_000n });
+    const controller = makeController({ renderer, displayFrames });
+
+    await controller.processVideoFrames([keyframe, target]);
+    controller.handleSeek(undefined, { deferReplay: true });
+    displayFrames.mockClear();
+
+    await controller.processVideoFrames([], { didSeek: true });
+    await controller.processVideoFrames([nextDelta]);
+
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "playback"]);
+  });
+
   it("does not reuse a cached keyframe across a publish timestamp regression", async () => {
     const oldKeyframe = makeVideoMessage(0n, "key");
     const oldTarget = makeVideoMessage(100n, "delta");
@@ -1807,6 +1854,40 @@ describe("CompressedVideoController", () => {
       expect(renderer.queueAnimationFrame).not.toHaveBeenCalled();
     },
   );
+
+  it("finishes a lookback seek after timeout before processing the next tick", async () => {
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(10_000_000n, "delta");
+    const nextDelta = makeVideoMessage(20_000_000n, "delta");
+    const displayFrames = jest.fn<
+      Promise<ImageSetImageResult>,
+      Parameters<CompressedVideoDisplayFrames>
+    >(async (_frames, mode) => (mode === "seek" ? { ok: false, reason: "timeout" } : { ok: true }));
+    const subscribeMessageRange = jest.fn<
+      ReturnType<SubscribeMessageRange>,
+      Parameters<SubscribeMessageRange>
+    >(({ onNewRangeIterator }) => {
+      void onNewRangeIterator(
+        (async function* () {
+          yield [keyframe, target];
+        })(),
+      );
+      return jest.fn();
+    });
+    const renderer = makeRenderer({ currentTime: 10_000_000n, subscribeMessageRange });
+    const controller = makeController({ renderer, displayFrames });
+
+    controller.handleSeek(undefined, { deferReplay: true });
+    await controller.processVideoFrames([], { didSeek: true });
+    await controller.processVideoFrames([nextDelta]);
+
+    expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(nonResetCalls(displayFrames).map(([frames]) => frameReceiveTimes(frames))).toEqual([
+      [0n, 10_000_000n],
+      [20_000_000n],
+    ]);
+    expect(nonResetCalls(displayFrames).map((call) => call[1])).toEqual(["seek", "playback"]);
+  });
 
   it("reads a single [keyframe, target] range on seek using the persisted keyframe index", async () => {
     // Keyframe observed during playback, then a seek 30s ahead to a delta in the same GOP. A cold

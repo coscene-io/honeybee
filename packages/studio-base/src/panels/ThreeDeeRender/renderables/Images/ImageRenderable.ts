@@ -918,8 +918,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           toNanoSec(entry.frame.timestamp) === result.originalTimestamp &&
           entry.receiveTime === result.receiveTime,
       );
-    const decodedFrame =
-      resultEntry?.messageEvent ?? this.#compressedVideoFrameEventForDecodedFrame(result);
+    const cachedDecodedFrame = this.#compressedVideoFrameEventForDecodedFrame(result);
+    const decodedFrame = resultEntry?.messageEvent ?? cachedDecodedFrame;
 
     for (const entry of entries) {
       if (entry === targetEntry) {

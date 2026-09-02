@@ -298,7 +298,9 @@ export class MessageHandler implements IMessageHandler {
     if (this.#config.synchronize !== true) {
       return normalizedImageMessage;
     }
-    this.#recordImageTimestamp(normalizedImageMessage);
+    if (COMPRESSED_VIDEO_DATATYPES.has(normalizedImageMessage.schemaName)) {
+      this.#recordImageTimestamp(normalizedImageMessage);
+    }
     // Update the image at the stamp time
     this.#addImageToTree(normalizedImageMessage);
     return normalizedImageMessage;
@@ -427,9 +429,11 @@ export class MessageHandler implements IMessageHandler {
       this.#timestampRegressionPending = false;
       this.#tree.clear();
       if (newConfig.synchronize && this.#lastReceivedMessages.image != undefined) {
-        this.#lastRecordedImageTimestamp = getTimestampFromImage(
-          this.#lastReceivedMessages.image.message,
-        );
+        if (COMPRESSED_VIDEO_DATATYPES.has(this.#lastReceivedMessages.image.schemaName)) {
+          this.#lastRecordedImageTimestamp = getTimestampFromImage(
+            this.#lastReceivedMessages.image.message,
+          );
+        }
         this.#addImageToTree(this.#lastReceivedMessages.image);
       }
 
