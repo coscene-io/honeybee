@@ -161,12 +161,7 @@ export class Images extends SceneExtension<ImageRenderable> {
     this.#videoDelayBuckets.clear();
     this.hud.removeGroup(VIDEO_DELAY_HUD_GROUP);
     for (const topic of this.#visibleCompressedVideoTopics()) {
-      this.#compressedVideoControllerForTopic(topic).handleSeek(
-        {
-          resizeWidth: DEFAULT_BITMAP_WIDTH,
-        },
-        { deferReplay: true },
-      );
+      this.#compressedVideoControllerForTopic(topic).handleSeek();
     }
   }
 

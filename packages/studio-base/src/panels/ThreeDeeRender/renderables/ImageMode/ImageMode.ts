@@ -156,7 +156,7 @@ export class ImageMode
     this.#camera = new ImageModeCamera();
     const canvasSize = renderer.input.canvasSize;
 
-    const config = this.#getRuntimeImageModeSettings();
+    const config = this.getImageModeSettings();
     this.#synchronize = config.synchronize;
 
     this.#camera.setCanvasSize(canvasSize.width, canvasSize.height);
@@ -176,7 +176,7 @@ export class ImageMode
       initialCanvasHeight: canvasSize.height,
       initialPixelRatio: renderer.getPixelRatio(),
       topics: () => renderer.topics ?? [],
-      config: () => this.#getRuntimeImageModeSettings(),
+      config: () => this.getImageModeSettings(),
       updateConfig: (updateHandler) => {
         renderer.updateConfig((draft) => {
           updateHandler(draft.imageMode);
@@ -314,7 +314,7 @@ export class ImageMode
 
   #filterMessageQueue<T>(msgs: MessageEvent<T>[]): MessageEvent<T>[] {
     // only take multiple images in if synchronization is enabled
-    if (!this.#getRuntimeImageModeSettings().synchronize) {
+    if (!this.getImageModeSettings().synchronize) {
       return msgs.slice(msgs.length - 1);
     }
     return msgs;
@@ -341,7 +341,7 @@ export class ImageMode
     if (topic == undefined) {
       return;
     }
-    this.#compressedVideoControllerForTopic(topic).handleSeek(undefined, { deferReplay: true });
+    this.#compressedVideoControllerForTopic(topic).handleSeek();
   }
 
   public override removeAllRenderables(): void {
@@ -386,7 +386,7 @@ export class ImageMode
     const configuredImageTopic = this.getImageModeSettings().imageTopic;
     if (configuredImageTopic != undefined) {
       this.#setCompressedVideoTopic(configuredImageTopic);
-      this.messageHandler.setConfig(this.#getRuntimeImageModeSettings());
+      this.messageHandler.setConfig(this.getImageModeSettings());
       return;
     }
 
@@ -401,11 +401,11 @@ export class ImageMode
     } else {
       this.#setCompressedVideoTopic(undefined);
     }
-    this.messageHandler.setConfig(this.#getRuntimeImageModeSettings());
+    this.messageHandler.setConfig(this.getImageModeSettings());
   };
 
   #handleConfigChange = () => {
-    const config = this.#getRuntimeImageModeSettings();
+    const config = this.getImageModeSettings();
     if (this.#compressedVideoTopicFor(config.imageTopic) !== this.#compressedVideoTopic) {
       this.#removeImageRenderable();
       this.#setCompressedVideoTopic(config.imageTopic);
@@ -455,10 +455,6 @@ export class ImageMode
       return undefined;
     }
     return topicName;
-  }
-
-  #getRuntimeImageModeSettings(): Immutable<ConfigWithDefaults> {
-    return this.getImageModeSettings();
   }
 
   /** Sets specified image topic on the config and updates calibration topic if a match is found.
@@ -694,9 +690,9 @@ export class ImageMode
       return;
     }
 
-    const prevImageModeConfig = this.#getRuntimeImageModeSettings();
+    const prevImageModeConfig = this.getImageModeSettings();
     this.saveSetting(path, value);
-    const config = this.#getRuntimeImageModeSettings();
+    const config = this.getImageModeSettings();
 
     const calibrationTopicChanged =
       config.calibrationTopic !== prevImageModeConfig.calibrationTopic;
@@ -805,7 +801,7 @@ export class ImageMode
         message: normalizeCompressedVideo(messageEvent.message),
       }));
     const controller = this.#compressedVideoControllerForTopic(topic);
-    if (!this.#getRuntimeImageModeSettings().synchronize) {
+    if (!this.getImageModeSettings().synchronize) {
       await controller.processVideoFrames(frames, { didSeek: _context.didSeek });
       return;
     }
