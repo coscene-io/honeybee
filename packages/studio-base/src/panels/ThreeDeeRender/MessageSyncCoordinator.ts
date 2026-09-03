@@ -49,7 +49,10 @@ export class MessageSyncCoordinator {
       this.#topicsAwaitingEpochTransition.delete(messageEvent.topic);
       this.#topicsInCurrentEpoch.add(messageEvent.topic);
     } else if (previousTimestamp != undefined && isLessThan(timestamp, previousTimestamp)) {
-      if (this.#epochTransitionActive && !this.#topicsInCurrentEpoch.has(messageEvent.topic)) {
+      if (this.#epochTransitionActive) {
+        // A topic can emit more than one decreasing old-epoch packet before it reaches the new
+        // epoch. Replace that topic's provisional transition data without discarding topics that
+        // have already crossed the boundary.
         this.#removeTopicMessages(messageEvent.topic);
         this.#topicsInCurrentEpoch.add(messageEvent.topic);
       } else {

@@ -488,6 +488,9 @@ export class Images extends SceneExtension<ImageRenderable> {
         this.#lastSynchronizedVideoTargetByTopic.get(topic) !== synchronizedTarget;
       const targetFrame =
         targetChanged && context.syncResult?.found === true ? synchronizedTarget : undefined;
+      if (targetFrame != undefined) {
+        this.#lastSynchronizedVideoTargetByTopic.set(topic, targetFrame);
+      }
       tasks.push(
         this.#compressedVideoControllerForTopic(topic)
           .processVideoFrames(framesByTopic.get(topic) ?? [], {
@@ -495,12 +498,31 @@ export class Images extends SceneExtension<ImageRenderable> {
             synchronize,
             targetFrame,
             didSeek: context.didSeek,
+            onLateTargetFrameSettled: (result) => {
+              if (
+                !result.ok &&
+                this.#lastSynchronizedVideoTargetByTopic.get(topic) === targetFrame
+              ) {
+                this.#lastSynchronizedVideoTargetByTopic.delete(topic);
+              }
+            },
           })
           .then((result) => {
-            if (targetFrame != undefined && (result.ok || result.reason === "timeout")) {
-              this.#lastSynchronizedVideoTargetByTopic.set(topic, targetFrame);
+            if (
+              targetFrame != undefined &&
+              !result.ok &&
+              result.reason !== "timeout" &&
+              this.#lastSynchronizedVideoTargetByTopic.get(topic) === targetFrame
+            ) {
+              this.#lastSynchronizedVideoTargetByTopic.delete(topic);
             }
             return result;
+          })
+          .catch((error: unknown) => {
+            if (this.#lastSynchronizedVideoTargetByTopic.get(topic) === targetFrame) {
+              this.#lastSynchronizedVideoTargetByTopic.delete(topic);
+            }
+            throw error;
           }),
       );
     }

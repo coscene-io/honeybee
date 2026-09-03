@@ -123,6 +123,21 @@ describe("MessageSyncCoordinator", () => {
     expect(coordinator.resolve()).toMatchObject({ found: true, timestamp: fromNanoSec(1n) });
   });
 
+  it("coalesces multiple regressions from a topic during an epoch transition", () => {
+    const coordinator = new MessageSyncCoordinator();
+    coordinator.setRegistrations(new Set(["/left", "/right"]));
+    coordinator.push(fromNanoSec(100n), message("/left", 100n));
+    coordinator.push(fromNanoSec(100n), message("/right", 100n));
+    const previousRegressionCount = coordinator.regressionCount();
+
+    coordinator.push(fromNanoSec(1n), message("/left", 1n));
+    coordinator.push(fromNanoSec(99n), message("/right", 99n));
+    coordinator.push(fromNanoSec(1n), message("/right", 1n));
+
+    expect(coordinator.regressionCount()).toBe(previousRegressionCount + 1);
+    expect(coordinator.resolve()).toMatchObject({ found: true, timestamp: fromNanoSec(1n) });
+  });
+
   it("does not restart an epoch transition for a topic without an earlier baseline", () => {
     const coordinator = new MessageSyncCoordinator();
     coordinator.setRegistrations(new Set(["/left", "/right"]));

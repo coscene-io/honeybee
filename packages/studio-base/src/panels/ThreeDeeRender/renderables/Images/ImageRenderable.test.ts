@@ -20,6 +20,7 @@ import {
 } from "./ImageRenderable";
 import type { AnyImage, CompressedVideo } from "./ImageTypes";
 import {
+  AwaitTargetFrameArgs,
   AwaitTargetFrameResult,
   DecodeVideoFramesArgs,
   DecodeVideoFramesResult,
@@ -1121,6 +1122,31 @@ describe("ImageRenderable", () => {
     } finally {
       time.restore();
     }
+  });
+
+  it("reports when the single late target correction aborts", async () => {
+    const decoder = {
+      decodeVideoFrames: jest.fn<Promise<DecodeVideoFramesResult>, [DecodeVideoFramesArgs]>(
+        async ({ requestId }) => ({ type: "Timeout", requestId }),
+      ),
+      awaitTargetFrame: jest.fn(async ({ requestId }: AwaitTargetFrameArgs) => ({
+        type: "Aborted" as const,
+        requestId,
+      })),
+      resetVideoDecoder: jest.fn(),
+      terminate: jest.fn(),
+    } as unknown as WorkerImageDecoder;
+    const renderable = new TestVideoBatchRenderable(decoder);
+    const target = videoFrameEvent(10n, 1, "key");
+    const onLateTargetFrameSettled = jest.fn();
+
+    await expect(
+      renderable.setCompressedVideoFrames([target], { onLateTargetFrameSettled }),
+    ).resolves.toEqual<ImageSetImageResult>({ ok: false, reason: "timeout" });
+    await flushPromises();
+
+    expect(onLateTargetFrameSettled).toHaveBeenCalledTimes(1);
+    expect(onLateTargetFrameSettled).toHaveBeenCalledWith({ ok: false, reason: "failed" });
   });
 
   it("closes stale exact replay target frames without updating texture", async () => {

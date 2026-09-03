@@ -195,6 +195,15 @@ class TestImageRenderable extends ImageRenderable {
   public resetForSeekCalls = 0;
   public disposed = false;
 
+  public constructor(
+    topicName: string,
+    renderer: IRenderer,
+    userData: ImageUserData,
+    private readonly nextDisplayResult?: () => ImageSetImageResult | undefined,
+  ) {
+    super(topicName, renderer, userData);
+  }
+
   public override async setImage(
     image: AnyImage,
     _resizeWidth?: number,
@@ -217,6 +226,10 @@ class TestImageRenderable extends ImageRenderable {
     this.userData.image = targetFrame.message;
     this.setCompressedVideoFrameBatches.push(frames.map((frame) => frame.message));
     this.setCompressedVideoFrameOptions.push(options);
+    const configuredResult = this.nextDisplayResult?.();
+    if (configuredResult != undefined) {
+      return configuredResult;
+    }
     options?.onDecoded?.();
     options?.updateImageState?.(targetFrame);
     return { ok: true };
@@ -236,6 +249,7 @@ let nextMessageHandler: IMessageHandler | undefined;
 
 class TestImageMode extends ImageMode {
   public readonly createdRenderables: TestImageRenderable[] = [];
+  public readonly displayResults: ImageSetImageResult[] = [];
 
   protected override initMessageHandler(config: Immutable<ConfigWithDefaults>): IMessageHandler {
     if (nextMessageHandler != undefined) {
@@ -245,7 +259,9 @@ class TestImageMode extends ImageMode {
   }
 
   protected override initRenderable(topicName: string, userData: ImageUserData): ImageRenderable {
-    const renderable = new TestImageRenderable(topicName, this.renderer, userData);
+    const renderable = new TestImageRenderable(topicName, this.renderer, userData, () =>
+      this.displayResults.shift(),
+    );
     this.createdRenderables.push(renderable);
     return renderable;
   }
@@ -663,6 +679,29 @@ describe("ImageMode compressed video seek replay", () => {
       [first.message],
       [first.message, replacement.message],
     ]);
+  });
+
+  it("retries a timed-out synchronized target after its late decode aborts", async () => {
+    const messageHandler = new SynchronizingCompressedVideoMessageHandler();
+    nextMessageHandler = messageHandler;
+    const imageMode = new TestImageMode(makeRenderer({ synchronize: true }));
+    imageMode.displayResults.push({ ok: false, reason: "timeout" }, { ok: true });
+    const subscription = compressedVideoSubscription(imageMode);
+    const target = makeVideoMessage(10_000_000n, "key");
+    messageHandler.target = target;
+
+    await subscription.processQueue?.([target], PLAYBACK_CONTEXT);
+    await subscription.processQueue?.([], PLAYBACK_CONTEXT);
+    const renderable = imageMode.createdRenderables[0]!;
+    expect(renderable.setCompressedVideoFrameBatches).toEqual([[target.message]]);
+
+    renderable.setCompressedVideoFrameOptions[0]?.onLateTargetFrameSettled?.({
+      ok: false,
+      reason: "failed",
+    });
+    await subscription.processQueue?.([], PLAYBACK_CONTEXT);
+
+    expect(renderable.setCompressedVideoFrameBatches).toEqual([[target.message], [target.message]]);
   });
 
   it("clears the waiting-for-image HUD after direct seek replay", async () => {

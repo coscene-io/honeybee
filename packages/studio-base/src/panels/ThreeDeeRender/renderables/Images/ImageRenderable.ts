@@ -116,6 +116,7 @@ export type SetCompressedVideoFramesOptions = {
   onDecoded?: () => void;
   updateLatestMessageState?: (event: CompressedVideoFrameEvent) => void;
   updateImageState?: (event: CompressedVideoFrameEvent) => void;
+  onLateTargetFrameSettled?: (result: ImageSetImageResult) => void;
   targetFrameTimeoutMs?: number;
   anyFrameTimeoutMs?: number;
   allowIntermediateVideoFrame?: boolean;
@@ -155,6 +156,7 @@ type VideoDecodeBatchOptions = Pick<
   | "allowIntermediateVideoFrame"
   | "isVideoFrameRequestCurrent"
   | "minDisplayIntervalMs"
+  | "onLateTargetFrameSettled"
 >;
 
 type VideoDecodeBatch = {
@@ -905,6 +907,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         void this.#awaitTargetVideoFrame(decoder, requestId, entries[entries.length - 1]!, {
           isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
           minDisplayIntervalMs: options.minDisplayIntervalMs,
+          onLateTargetFrameSettled: options.onLateTargetFrameSettled,
         });
       }
       return;
@@ -936,6 +939,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       void this.#awaitTargetVideoFrame(decoder, requestId, targetEntry, {
         isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
         minDisplayIntervalMs: options.minDisplayIntervalMs,
+        onLateTargetFrameSettled: options.onLateTargetFrameSettled,
       });
     }
   }
@@ -946,16 +950,18 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     targetEntry: PendingVideoDecode,
     options: Pick<
       SetCompressedVideoFramesOptions,
-      "isVideoFrameRequestCurrent" | "minDisplayIntervalMs"
+      "isVideoFrameRequestCurrent" | "minDisplayIntervalMs" | "onLateTargetFrameSettled"
     > = {},
   ): Promise<void> {
     let result: Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>>;
     try {
       result = await decoder.awaitTargetFrame({ requestId });
     } catch {
+      options.onLateTargetFrameSettled?.({ ok: false, reason: "failed" });
       return;
     }
     if (result.type !== "TargetFrame") {
+      options.onLateTargetFrameSettled?.({ ok: false, reason: "failed" });
       return;
     }
     if (
@@ -964,12 +970,14 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       targetEntry.seq !== this.#receivedImageSequenceNumber
     ) {
       result.frame.close();
+      options.onLateTargetFrameSettled?.({ ok: false, reason: "stale" });
       return;
     }
 
     const staleResult = this.#staleVideoFrameResultIfRequestIsNotCurrent(options);
     if (staleResult != undefined) {
       result.frame.close();
+      options.onLateTargetFrameSettled?.(imageSetResult(staleResult));
       return;
     }
 
@@ -984,6 +992,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         if (displayResult.ok && displayResult.decodedFrame != undefined) {
           targetEntry.updateImageState?.(displayResult.decodedFrame);
         }
+        options.onLateTargetFrameSettled?.(displayResult);
       },
       options.isVideoFrameRequestCurrent,
       options.minDisplayIntervalMs,

@@ -74,6 +74,8 @@ const SEEK_CONTEXT: RendererSubscriptionContext = {
 class TestImageRenderable extends ImageRenderable {
   public readonly setImageCalls: AnyImage[] = [];
   public readonly setCompressedVideoFrameBatches: AnyImage[][] = [];
+  public readonly setCompressedVideoFrameOptions: (SetCompressedVideoFramesOptions | undefined)[] =
+    [];
   public resetForSeekCalls = 0;
   public disposed = false;
 
@@ -108,6 +110,7 @@ class TestImageRenderable extends ImageRenderable {
     }
     this.userData.image = targetFrame.message;
     this.setCompressedVideoFrameBatches.push(frames.map((frame) => frame.message));
+    this.setCompressedVideoFrameOptions.push(options);
     const configuredResult = this.nextDisplayResult?.();
     if (configuredResult != undefined) {
       return configuredResult;
@@ -727,6 +730,42 @@ describe("Images compressed video seek lookback", () => {
       [target.message],
       [target.message],
     ]);
+  });
+
+  it("retries a timed-out synchronized target only after its late decode aborts", async () => {
+    const renderer = makeRenderer({
+      topics: [
+        { name: "/video", schemaName: "foxglove.CompressedVideo" },
+        { name: "/right", schemaName: "foxglove.CompressedVideo" },
+      ],
+      synchronize: true,
+      syncedTopics: { "/video": true, "/right": true },
+    });
+    const images = new TestImages(renderer);
+    images.displayResults.push({ ok: false, reason: "timeout" }, { ok: true });
+    const subscription = compressedVideoSubscription(images);
+    const target = makeVideoMessage(10n, "key");
+    const context: RendererSubscriptionContext = {
+      ...PLAYBACK_CONTEXT,
+      syncResult: {
+        found: true,
+        timestamp: target.message.timestamp,
+        messages: new Map([[target.topic, target]]),
+      },
+    };
+
+    await subscription.processQueue?.([target], context);
+    await subscription.processQueue?.([], context);
+    const renderable = images.createdRenderables[0]!;
+    expect(renderable.setCompressedVideoFrameBatches).toEqual([[target.message]]);
+
+    renderable.setCompressedVideoFrameOptions[0]?.onLateTargetFrameSettled?.({
+      ok: false,
+      reason: "failed",
+    });
+    await subscription.processQueue?.([], context);
+
+    expect(renderable.setCompressedVideoFrameBatches).toEqual([[target.message], [target.message]]);
   });
 
   it("clears a video delay notice when its topic is hidden", async () => {

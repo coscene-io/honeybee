@@ -816,13 +816,34 @@ export class ImageMode
       state.image?.topic === topic ? (state.image as MessageEvent<CompressedVideo>) : undefined;
     const targetChanged =
       targetFrame != undefined && targetFrame !== this.#lastSynchronizedVideoTarget;
-    const result = await controller.processVideoFrames(frames, {
-      synchronize: true,
-      targetFrame: targetChanged ? targetFrame : undefined,
-      didSeek: _context.didSeek,
-    });
-    if (targetChanged && (result.ok || result.reason === "timeout")) {
+    if (targetChanged) {
       this.#lastSynchronizedVideoTarget = targetFrame;
+    }
+    let result: ImageSetImageResult;
+    try {
+      result = await controller.processVideoFrames(frames, {
+        synchronize: true,
+        targetFrame: targetChanged ? targetFrame : undefined,
+        didSeek: _context.didSeek,
+        onLateTargetFrameSettled: (lateResult) => {
+          if (!lateResult.ok && this.#lastSynchronizedVideoTarget === targetFrame) {
+            this.#lastSynchronizedVideoTarget = undefined;
+          }
+        },
+      });
+    } catch (error) {
+      if (this.#lastSynchronizedVideoTarget === targetFrame) {
+        this.#lastSynchronizedVideoTarget = undefined;
+      }
+      throw error;
+    }
+    if (
+      targetChanged &&
+      !result.ok &&
+      result.reason !== "timeout" &&
+      this.#lastSynchronizedVideoTarget === targetFrame
+    ) {
+      this.#lastSynchronizedVideoTarget = undefined;
     }
   };
 
