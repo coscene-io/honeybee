@@ -41,6 +41,7 @@ export const threeDee = {
   synchronizeWarning: "Select at least two visible video topics to synchronize.",
   syncByTimestamp: "Sync by timestamp",
   videoFrameDelay: "Video delay on {{topic}}: {{delay}}",
+  videoContainsBFrames: "{{topic}} contains B-frames, which may cause stuttering during playback.",
   waitingForSynchronizedVideo: "Waiting for synchronized video on {{topic}}…",
   frameNotFound: "Frame {{frameId}} not found",
   hideAll: "Hide all",

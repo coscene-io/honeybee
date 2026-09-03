@@ -52,6 +52,7 @@ export type DecodeVideoFramesResult =
 
 export type AwaitTargetFrameArgs = {
   requestId: number;
+  timeoutMs: number;
 };
 
 export type AwaitTargetFrameResult =
@@ -519,6 +520,14 @@ async function awaitTargetFrame(args: AwaitTargetFrameArgs): Promise<AwaitTarget
   }
 
   return await new Promise<AwaitTargetFrameResult>((resolve) => {
+    const previousCleanup = pending.cleanup;
+    const timeout = setTimeout(() => {
+      abortPendingTargetFrame();
+    }, args.timeoutMs);
+    pending.cleanup = () => {
+      clearTimeout(timeout);
+      previousCleanup?.();
+    };
     pending.resolve = resolve;
   });
 }

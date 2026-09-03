@@ -85,6 +85,7 @@ const DEFAULT_BITMAP_WIDTH = 512;
 const NO_CAMERA_INFO_ERR = "NoCameraInfo";
 const CAMERA_MODEL = "CameraModel";
 const VIDEO_DELAY_HUD_GROUP = "VIDEO_DELAY_GROUP";
+const VIDEO_B_FRAMES_HUD_GROUP = "VIDEO_B_FRAMES_GROUP";
 const VIDEO_SYNC_HUD_GROUP = "VIDEO_SYNC_GROUP";
 const VIDEO_SYNC_WAITING_ERR = "WaitingForSynchronizedVideo";
 
@@ -107,6 +108,7 @@ export class Images extends SceneExtension<ImageRenderable> {
    */
   #cameraInfoByTopic = new Map<string, CameraInfo>();
   #compressedVideoControllers = new Map<string, CompressedVideoController>();
+  #bFrameTopics = new Set<string>();
   #videoDelayBuckets = new Map<string, string>();
   #syncWaitingTopics = new Set<string>();
   #timestampSyncParticipants = new Set<string>();
@@ -128,7 +130,9 @@ export class Images extends SceneExtension<ImageRenderable> {
       controller.dispose();
     }
     this.#compressedVideoControllers.clear();
+    this.#bFrameTopics.clear();
     this.hud.removeGroup(VIDEO_DELAY_HUD_GROUP);
+    this.hud.removeGroup(VIDEO_B_FRAMES_HUD_GROUP);
     this.hud.removeGroup(VIDEO_SYNC_HUD_GROUP);
     for (const topic of this.#syncWaitingTopics) {
       this.renderer.settings.errors.removeFromTopic(topic, VIDEO_SYNC_WAITING_ERR);
@@ -244,9 +248,11 @@ export class Images extends SceneExtension<ImageRenderable> {
       if (!compressedVideoTopics.has(topic)) {
         controller.dispose();
         this.#compressedVideoControllers.delete(topic);
+        this.#bFrameTopics.delete(topic);
         this.#videoDelayBuckets.delete(topic);
         this.#lastSynchronizedVideoTargetByTopic.delete(topic);
         this.hud.removeHUDItem(`VIDEO_DELAY:${topic}`);
+        this.hud.removeHUDItem(`VIDEO_B_FRAMES:${topic}`);
         this.hud.removeHUDItem(`VIDEO_SYNC_WAITING:${topic}`);
         this.renderer.settings.errors.removeFromTopic(topic, VIDEO_SYNC_WAITING_ERR);
         this.#syncWaitingTopics.delete(topic);
@@ -575,6 +581,9 @@ export class Images extends SceneExtension<ImageRenderable> {
 
   #invalidateControllersForSyncChanges(): void {
     const visibleTopics = this.#visibleCompressedVideoTopics();
+    for (const topic of this.#bFrameTopics) {
+      this.#setBFramesWarningVisible(topic, { visible: visibleTopics.has(topic) });
+    }
     for (const topic of this.#videoDelayBuckets.keys()) {
       if (!visibleTopics.has(topic)) {
         this.#videoDelayBuckets.delete(topic);
@@ -706,6 +715,9 @@ export class Images extends SceneExtension<ImageRenderable> {
           this.renderables.get(topic)?.resetForSeek();
         },
         onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
+        onBFramesDetected: () => {
+          this.#showBFramesWarning(topic);
+        },
       });
       this.#compressedVideoControllers.set(topic, controller);
     } else {
@@ -715,6 +727,9 @@ export class Images extends SceneExtension<ImageRenderable> {
           this.renderables.get(topic)?.resetForSeek();
         },
         onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
+        onBFramesDetected: () => {
+          this.#showBFramesWarning(topic);
+        },
       });
     }
     return controller;
@@ -723,6 +738,27 @@ export class Images extends SceneExtension<ImageRenderable> {
   #handleSeekKeyframeSearchChange = ({ active }: SeekKeyframeSearchState): void => {
     this.hud.displayIfTrue(active, SEEK_KEYFRAME_SEARCH_HUD_ITEM);
   };
+
+  #showBFramesWarning(topic: string): void {
+    this.#bFrameTopics.add(topic);
+    this.#setBFramesWarningVisible(topic, {
+      visible: this.#visibleCompressedVideoTopics().has(topic),
+    });
+  }
+
+  #setBFramesWarningVisible(topic: string, { visible }: { visible: boolean }): void {
+    const id = `VIDEO_B_FRAMES:${topic}`;
+    if (!visible) {
+      this.hud.removeHUDItem(id);
+      return;
+    }
+    this.hud.addHUDItem({
+      id,
+      group: VIDEO_B_FRAMES_HUD_GROUP,
+      displayType: "notice",
+      getMessage: () => t("threeDee:videoContainsBFrames", { topic }),
+    });
+  }
 
   #prepareImageRenderable(
     messageEvent: PartialMessageEvent<AnyImage>,

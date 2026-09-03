@@ -132,6 +132,14 @@ export class H265 implements H26xCodec {
     return config;
   }
 
+  public static HasBFrames(data: Uint8Array): boolean | undefined {
+    const spsData = H265.GetFirstNALUOfType(data, H265NaluType.SPS);
+    if (spsData == undefined) {
+      return undefined;
+    }
+    return new SPSSNALU(spsData).max_num_reorder_pics > 0;
+  }
+
   public static FindNextStartCode(data: Uint8Array, start: number): number {
     return findNextStartCode(data, start);
   }

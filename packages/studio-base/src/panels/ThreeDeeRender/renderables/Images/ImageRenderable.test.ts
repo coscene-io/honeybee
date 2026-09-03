@@ -1445,6 +1445,7 @@ describe("ImageRenderable", () => {
 
     expect(renderable.getDecodedImage()).toBe(intermediateFrame);
     expect(awaitTargetFrame).toHaveBeenCalledTimes(1);
+    expect(awaitTargetFrame).toHaveBeenCalledWith({ requestId: 1, timeoutMs: 25 });
     expect(resetVideoDecoder).not.toHaveBeenCalled();
   });
 

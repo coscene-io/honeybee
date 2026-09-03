@@ -417,6 +417,21 @@ describe("ImageMode compressed video seek replay", () => {
     expect(displayedRenderable?.disposed).toBe(false);
   });
 
+  it("shows a warning when the selected video stream declares B-frames", async () => {
+    jest.spyOn(H264, "HasBFrames").mockReturnValue(true);
+    const renderer = makeRenderer();
+    const imageMode = new TestImageMode(renderer);
+
+    await compressedVideoSubscription(imageMode).processQueue?.(
+      [makeVideoMessage(0n, "key")],
+      PLAYBACK_CONTEXT,
+    );
+
+    expect(renderer.hud.getHUDItems()).toEqual([
+      expect.objectContaining({ id: "VIDEO_B_FRAMES:/camera", displayType: "notice" }),
+    ]);
+  });
+
   it("switches compressed video state when the configured topic changes externally", async () => {
     const renderer = makeRenderer({
       topics: [

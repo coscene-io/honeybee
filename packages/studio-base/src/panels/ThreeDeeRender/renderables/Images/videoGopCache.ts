@@ -42,6 +42,32 @@ export type VideoFrameInfo = {
   byteLength: number;
 };
 
+export function detectBFrames(msg: MessageEvent): boolean | undefined {
+  const message = msg.message as Partial<CompressedVideoLike> | undefined;
+  if (
+    message == undefined ||
+    typeof message.format !== "string" ||
+    !VIDEO_FORMATS.has(message.format) ||
+    !(message.data instanceof Uint8Array) ||
+    message.data.byteLength === 0
+  ) {
+    return undefined;
+  }
+
+  try {
+    switch (message.format) {
+      case "h264":
+        return H264.HasBFrames(message.data);
+      case "h265":
+        return H265.HasBFrames(message.data);
+      default:
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
 function isTime(value: unknown): value is Time {
   return (
     typeof value === "object" &&

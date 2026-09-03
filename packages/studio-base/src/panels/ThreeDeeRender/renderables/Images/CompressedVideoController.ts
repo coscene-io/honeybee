@@ -28,7 +28,7 @@ import type {
 } from "./ImageRenderable";
 import { CompressedVideo } from "./ImageTypes";
 import { normalizeCompressedVideo } from "./imageNormalizers";
-import { VideoGopCache, parseVideoFrameInfo } from "./videoGopCache";
+import { VideoGopCache, detectBFrames, parseVideoFrameInfo } from "./videoGopCache";
 import { filterCompressedVideoQueue } from "./videoMessageQueue";
 import { IRenderer } from "../../IRenderer";
 import { PartialMessageEvent } from "../../SceneExtension";
@@ -109,12 +109,14 @@ export class CompressedVideoController {
   #displayFrames: CompressedVideoDisplayFrames;
   #resetDecoder?: () => void;
   #onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
+  #onBFramesDetected?: () => void;
   #generation = 0;
   #seekTargetNs: bigint | undefined;
   #seekKeyframeSearchActive = false;
   #seekKeyframeSearchGeneration: number | undefined;
   #releaseSeekKeyframeSearchPlaybackPause: (() => void) | undefined;
   #lastInputPublishTimeNs: bigint | undefined;
+  #reportedBFrames = false;
 
   public constructor(args: {
     topic: string;
@@ -122,18 +124,21 @@ export class CompressedVideoController {
     displayFrames: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
+    onBFramesDetected?: () => void;
   }) {
     this.#topic = args.topic;
     this.#renderer = args.renderer;
     this.#displayFrames = args.displayFrames;
     this.#resetDecoder = args.resetDecoder;
     this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
+    this.#onBFramesDetected = args.onBFramesDetected;
   }
 
   public updateOptions(args: {
     displayFrames?: CompressedVideoDisplayFrames;
     resetDecoder?: () => void;
     onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
+    onBFramesDetected?: () => void;
   }): void {
     if (args.displayFrames != undefined) {
       this.#displayFrames = args.displayFrames;
@@ -143,6 +148,9 @@ export class CompressedVideoController {
     }
     if ("onSeekKeyframeSearchChange" in args) {
       this.#onSeekKeyframeSearchChange = args.onSeekKeyframeSearchChange;
+    }
+    if ("onBFramesDetected" in args) {
+      this.#onBFramesDetected = args.onBFramesDetected;
     }
   }
 
@@ -158,6 +166,22 @@ export class CompressedVideoController {
     let normalizedFrames = frames
       .map(normalizeVideoMessageEvent)
       .filter((frame) => frame.topic === this.#topic);
+    if (!this.#reportedBFrames) {
+      for (const frame of normalizedFrames) {
+        if (parseVideoFrameInfo(frame)?.isKeyframe !== true) {
+          continue;
+        }
+        const hasBFrames = detectBFrames(frame);
+        if (hasBFrames == undefined) {
+          continue;
+        }
+        if (hasBFrames) {
+          this.#reportedBFrames = true;
+          this.#onBFramesDetected?.();
+          break;
+        }
+      }
+    }
     const { synchronize = false, targetFrame, didSeek = false, ...displayOptions } = options;
     const seekPending =
       this.#seekTargetNs != undefined && this.#state.completedSeekGeneration !== this.#generation;

@@ -142,6 +142,15 @@ export class H264 implements H26xCodec {
     return config;
   }
 
+  public static HasBFrames(data: Uint8Array): boolean | undefined {
+    const spsData = H264.GetFirstNALUOfType(data, H264NaluType.SPS);
+    if (spsData == undefined) {
+      return undefined;
+    }
+    const maxNumReorderFrames = new SPSNALU(spsData).max_num_reorder_frames;
+    return maxNumReorderFrames == undefined ? undefined : maxNumReorderFrames > 0;
+  }
+
   public static RewriteForLowLatencyDecoding(data: Uint8Array): Uint8Array | undefined {
     const spsData = H264.GetFirstNALUOfType(data, H264NaluType.SPS);
     if (spsData == undefined) {

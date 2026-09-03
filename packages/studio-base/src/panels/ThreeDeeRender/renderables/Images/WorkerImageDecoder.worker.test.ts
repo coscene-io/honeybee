@@ -414,7 +414,7 @@ describe("WorkerImageDecoder worker video batches", () => {
       originalTimestamp: 1_000_000_000n,
       receiveTime: 1n,
     });
-    await expect(service.awaitTargetFrame({ requestId: 1 })).resolves.toEqual({
+    await expect(service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 })).resolves.toEqual({
       type: "Aborted",
       requestId: 1,
     });
@@ -432,7 +432,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     player.emitError(new DOMException("decoder failed", "EncodingError"));
 
     await expect(resultPromise).resolves.toEqual({ type: "Aborted", requestId: 1 });
-    await expect(service.awaitTargetFrame({ requestId: 1 })).resolves.toEqual({
+    await expect(service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 })).resolves.toEqual({
       type: "Aborted",
       requestId: 1,
     });
@@ -452,7 +452,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     await jest.advanceTimersByTimeAsync(30);
     await expect(resultPromise).resolves.toEqual({ type: "Timeout", requestId: 1 });
 
-    const awaitTargetPromise = service.awaitTargetFrame({ requestId: 1 });
+    const awaitTargetPromise = service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 });
     const player = mockVideoPlayers[0]!;
     player.emitError(new DOMException("decoder failed", "EncodingError"));
 
@@ -460,6 +460,24 @@ describe("WorkerImageDecoder worker video batches", () => {
     expect(player.resetForSeek).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalled();
     jest.mocked(console.error).mockClear();
+  });
+
+  it("aborts a late-target waiter when its timeout expires", async () => {
+    jest.useFakeTimers();
+    const resultPromise = service.decodeVideoFrames({
+      requestId: 1,
+      targetFrameTimeoutMs: 30,
+      frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
+    });
+    await flushPromises();
+    await jest.advanceTimersByTimeAsync(30);
+    await expect(resultPromise).resolves.toEqual({ type: "Timeout", requestId: 1 });
+
+    const awaitTargetPromise = service.awaitTargetFrame({ requestId: 1, timeoutMs: 100 });
+    await jest.advanceTimersByTimeAsync(100);
+
+    await expect(awaitTargetPromise).resolves.toEqual({ type: "Aborted", requestId: 1 });
+    expect(mockVideoPlayers[0]!.resetForSeek).not.toHaveBeenCalled();
   });
 
   it("does not return a decoded target until the decoder queue drains", async () => {
@@ -534,7 +552,7 @@ describe("WorkerImageDecoder worker video batches", () => {
         frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
       }),
     ).resolves.toEqual({ type: "Aborted", requestId: 1 });
-    await expect(service.awaitTargetFrame({ requestId: 1 })).resolves.toEqual({
+    await expect(service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 })).resolves.toEqual({
       type: "Aborted",
       requestId: 1,
     });
@@ -550,7 +568,7 @@ describe("WorkerImageDecoder worker video batches", () => {
         frames: [{ frame: h264Frame(1, "key", 0xff), receiveTime: 1n }],
       }),
     ).resolves.toEqual({ type: "Aborted", requestId: 1 });
-    await expect(service.awaitTargetFrame({ requestId: 1 })).resolves.toEqual({
+    await expect(service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 })).resolves.toEqual({
       type: "Aborted",
       requestId: 1,
     });
@@ -619,7 +637,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     expect(player.discardQueuedFramesExcept).toHaveBeenLastCalledWith(1_000_000);
     expect((intermediateFrame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
 
-    const awaitPromise = service.awaitTargetFrame({ requestId: 1 });
+    const awaitPromise = service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 });
     const targetFrame = emitQueuedFrame(player, 1);
     await expect(awaitPromise).resolves.toMatchObject({
       type: "TargetFrame",
@@ -689,7 +707,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     emitQueuedFrame(mockVideoPlayers[0]!, 0);
     await expect(resultPromise).resolves.toMatchObject({ type: "IntermediateFrame" });
 
-    const awaitPromise = service.awaitTargetFrame({ requestId: 1 });
+    const awaitPromise = service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 });
     service.resetVideoDecoder();
     await expect(awaitPromise).resolves.toEqual({ type: "Aborted", requestId: 1 });
   });
@@ -710,7 +728,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     const player = mockVideoPlayers[0]!;
     emitQueuedFrame(player, 0);
     await expect(firstResultPromise).resolves.toMatchObject({ type: "IntermediateFrame" });
-    const awaitFirstTarget = service.awaitTargetFrame({ requestId: 1 });
+    const awaitFirstTarget = service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 });
 
     const secondResultPromise = service.decodeVideoFrames({
       requestId: 2,

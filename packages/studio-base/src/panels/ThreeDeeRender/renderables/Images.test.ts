@@ -425,6 +425,19 @@ describe("Images compressed video seek lookback", () => {
     ]);
   });
 
+  it("shows a warning when a compressed video stream declares B-frames", async () => {
+    jest.spyOn(H264, "HasBFrames").mockReturnValue(true);
+    const renderer = makeRenderer();
+    const images = new TestImages(renderer);
+    const subscription = compressedVideoSubscription(images);
+
+    await subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
+
+    expect(renderer.hud.getHUDItems()).toEqual([
+      expect.objectContaining({ id: "VIDEO_B_FRAMES:/video", displayType: "notice" }),
+    ]);
+  });
+
   it("uses show-latest playback when fewer than two synchronization topics are eligible", async () => {
     const images = new TestImages(
       makeRenderer({

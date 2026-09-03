@@ -39,6 +39,7 @@ export class SPS {
   public bit_depth_luma_minus8: number;
   public bit_depth_chroma_minus8: number;
   public log2_max_pic_order_cnt_lsb_minus4: number;
+  public max_num_reorder_pics: number;
 
   public picWidth: number;
   public picHeight: number;
@@ -99,6 +100,17 @@ export class SPS {
     this.bit_depth_luma_minus8 = bitstream.ue_v();
     this.bit_depth_chroma_minus8 = bitstream.ue_v();
     this.log2_max_pic_order_cnt_lsb_minus4 = bitstream.ue_v();
+
+    const sps_sub_layer_ordering_info_present_flag = bitstream.u_1();
+    const firstSubLayer =
+      sps_sub_layer_ordering_info_present_flag === 1 ? 0 : this.sps_max_sub_layers_minus1;
+    let maxNumReorderPics = 0;
+    for (let i = firstSubLayer; i <= this.sps_max_sub_layers_minus1; i++) {
+      bitstream.ue_v(); // sps_max_dec_pic_buffering_minus1
+      maxNumReorderPics = Math.max(maxNumReorderPics, bitstream.ue_v());
+      bitstream.ue_v(); // sps_max_latency_increase_plus1
+    }
+    this.max_num_reorder_pics = maxNumReorderPics;
 
     const { cropWidth, cropHeight } = calculateConformanceCrop(
       this.chroma_format_idc,

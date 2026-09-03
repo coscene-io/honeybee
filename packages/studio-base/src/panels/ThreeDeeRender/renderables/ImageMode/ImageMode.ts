@@ -117,6 +117,7 @@ import { videoDelayBucket } from "../Images/videoMessageQueue";
 import { colorModeSettingsFields } from "../colorMode";
 
 const log = Logger.getLogger(__filename);
+const VIDEO_B_FRAMES_HUD_GROUP = "VIDEO_B_FRAMES_GROUP";
 
 export class ImageMode
   extends SceneExtension<ImageRenderable, ImageModeEventMap>
@@ -328,6 +329,7 @@ export class ImageMode
     this.renderer.off("configChange", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
     this.hud.removeHUDItem(this.#videoDelayHUDId());
+    this.hud.removeHUDItem(this.#bFramesHUDId());
     this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
     this.#annotations.dispose();
     this.imageRenderable?.dispose();
@@ -436,6 +438,7 @@ export class ImageMode
     }
 
     this.hud.removeHUDItem(this.#videoDelayHUDId());
+    this.hud.removeHUDItem(this.#bFramesHUDId());
     this.#compressedVideoController?.dispose();
     this.#compressedVideoController = undefined;
     this.#compressedVideoTopic = compressedVideoTopic;
@@ -893,6 +896,7 @@ export class ImageMode
           this.imageRenderable?.resetForSeek();
         },
         onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
+        onBFramesDetected: this.#showBFramesWarning,
       });
     } else {
       this.#compressedVideoController.updateOptions({
@@ -901,6 +905,7 @@ export class ImageMode
           this.imageRenderable?.resetForSeek();
         },
         onSeekKeyframeSearchChange: this.#handleSeekKeyframeSearchChange,
+        onBFramesDetected: this.#showBFramesWarning,
       });
     }
     return this.#compressedVideoController;
@@ -923,6 +928,23 @@ export class ImageMode
   #videoDelayHUDId(): string {
     return `VIDEO_DELAY:${this.#compressedVideoTopic ?? "image-mode"}`;
   }
+
+  #bFramesHUDId(): string {
+    return `VIDEO_B_FRAMES:${this.#compressedVideoTopic ?? "image-mode"}`;
+  }
+
+  #showBFramesWarning = (): void => {
+    const topic = this.#compressedVideoTopic;
+    if (topic == undefined) {
+      return;
+    }
+    this.hud.addHUDItem({
+      id: this.#bFramesHUDId(),
+      group: VIDEO_B_FRAMES_HUD_GROUP,
+      displayType: "notice",
+      getMessage: () => t("threeDee:videoContainsBFrames", { topic }),
+    });
+  };
 
   #clearVideoDelayHUD(): void {
     this.#videoDelayBucket = undefined;

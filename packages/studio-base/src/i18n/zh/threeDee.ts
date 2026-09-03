@@ -41,6 +41,7 @@ export const threeDee: Partial<TypeOptions["resources"]["threeDee"]> = {
   synchronizeWarning: "请至少选择两个可见的视频话题进行同步。",
   syncByTimestamp: "按时间戳同步",
   videoFrameDelay: "{{topic}} 视频延迟：{{delay}}",
+  videoContainsBFrames: "{{topic}} 的视频数据包含 B 帧，可能导致画面卡顿。",
   waitingForSynchronizedVideo: "正在等待 {{topic}} 的同步视频帧…",
   frameNotFound: "未找到参考系 {{frameId}}",
   hideAll: "隐藏全部",

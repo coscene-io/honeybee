@@ -908,6 +908,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
           minDisplayIntervalMs: options.minDisplayIntervalMs,
           onLateTargetFrameSettled: options.onLateTargetFrameSettled,
+          targetFrameTimeoutMs: options.targetFrameTimeoutMs,
+          anyFrameTimeoutMs: options.anyFrameTimeoutMs,
         });
       }
       return;
@@ -940,6 +942,8 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         isVideoFrameRequestCurrent: options.isVideoFrameRequestCurrent,
         minDisplayIntervalMs: options.minDisplayIntervalMs,
         onLateTargetFrameSettled: options.onLateTargetFrameSettled,
+        targetFrameTimeoutMs: options.targetFrameTimeoutMs,
+        anyFrameTimeoutMs: options.anyFrameTimeoutMs,
       });
     }
   }
@@ -950,12 +954,22 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     targetEntry: PendingVideoDecode,
     options: Pick<
       SetCompressedVideoFramesOptions,
-      "isVideoFrameRequestCurrent" | "minDisplayIntervalMs" | "onLateTargetFrameSettled"
+      | "isVideoFrameRequestCurrent"
+      | "minDisplayIntervalMs"
+      | "onLateTargetFrameSettled"
+      | "targetFrameTimeoutMs"
+      | "anyFrameTimeoutMs"
     > = {},
   ): Promise<void> {
     let result: Awaited<ReturnType<WorkerImageDecoder["awaitTargetFrame"]>>;
     try {
-      result = await decoder.awaitTargetFrame({ requestId });
+      result = await decoder.awaitTargetFrame({
+        requestId,
+        timeoutMs:
+          options.anyFrameTimeoutMs ??
+          options.targetFrameTimeoutMs ??
+          DEFAULT_VIDEO_ANY_FRAME_TIMEOUT_MS,
+      });
     } catch {
       options.onLateTargetFrameSettled?.({ ok: false, reason: "failed" });
       return;

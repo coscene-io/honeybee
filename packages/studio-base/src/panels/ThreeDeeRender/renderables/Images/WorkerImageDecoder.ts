@@ -42,6 +42,7 @@ export type DecodeVideoFramesResult =
 
 export type AwaitTargetFrameArgs = {
   requestId: number;
+  timeoutMs: number;
 };
 
 export type AwaitTargetFrameResult =
