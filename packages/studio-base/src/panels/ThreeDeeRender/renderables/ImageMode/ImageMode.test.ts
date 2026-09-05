@@ -503,6 +503,44 @@ describe("ImageMode compressed video seek replay", () => {
     ]);
   });
 
+  it.each(["missing", "prefix-only"])(
+    "preserves tick decoding and later delta continuity with %s annotation matches",
+    async (match) => {
+      const messageHandler = new SynchronizingCompressedVideoMessageHandler();
+      nextMessageHandler = messageHandler;
+      const imageMode = new TestImageMode(makeRenderer({ synchronize: true }));
+      const subscription = compressedVideoSubscription(imageMode);
+      const keyframe = makeVideoMessage(0n, "key");
+      const middle = makeVideoMessage(10_000_000n, "delta");
+      const tail = makeVideoMessage(20_000_000n, "delta");
+      if (match === "prefix-only") {
+        messageHandler.completeTarget(middle);
+      }
+
+      subscription.processQueue?.([keyframe, middle, tail], PLAYBACK_CONTEXT);
+      expect(imageMode.createdRenderables).toHaveLength(0);
+      await flushAsyncWork();
+      const renderable = imageMode.createdRenderables[0];
+      expect(renderable?.setCompressedVideoFrameBatches).toEqual([
+        [keyframe.message, middle.message, tail.message],
+      ]);
+      const canDisplay = renderable!.setCompressedVideoFrameOptions[0]!.canDisplayFrame!;
+      expect(canDisplay(tail)).toBe(false);
+      expect(canDisplay(middle)).toBe(match === "prefix-only");
+
+      const next = makeVideoMessage(30_000_000n, "delta");
+      messageHandler.completeTarget(next);
+      subscription.processQueue?.([next], PLAYBACK_CONTEXT);
+      await flushAsyncWork();
+      expect(renderable?.setCompressedVideoFrameBatches).toEqual([
+        [keyframe.message, middle.message, tail.message],
+        [next.message],
+      ]);
+      expect(renderable?.resetForSeekCalls).toBe(0);
+      expect(renderable!.setCompressedVideoFrameOptions[1]!.canDisplayFrame!(next)).toBe(true);
+    },
+  );
+
   it("renders seek GOP frames directly when the message handler does not emit an image", async () => {
     const messageHandler = new FakeMessageHandler();
     nextMessageHandler = messageHandler;

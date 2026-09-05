@@ -639,6 +639,47 @@ describe("WorkerImageDecoder worker video batches", () => {
     },
   );
 
+  it("returns an available delta intermediate at the target timeout even with Any disabled", async () => {
+    jest.useFakeTimers();
+    const initialized = service.decodeVideoFrames({
+      requestId: 1,
+      targetFrameTimeoutMs: 30,
+      frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
+    });
+    await flushPromises();
+    const player = mockVideoPlayers[0]!;
+    const keyframe = emitLastQueuedFrame(player);
+    await expect(initialized).resolves.toMatchObject({ type: "TargetFrame" });
+    keyframe.close();
+
+    const result = service.decodeVideoFrames({
+      requestId: 2,
+      targetFrameTimeoutMs: 30,
+      anyFrameTimeoutMs: undefined,
+      retainLateTarget: false,
+      frames: [
+        { frame: h264Frame(2, "delta"), receiveTime: 2n },
+        { frame: h264Frame(3, "delta"), receiveTime: 3n },
+      ],
+    });
+    const settled = jest.fn();
+    void result.then(settled);
+    await flushPromises();
+    const intermediate = emitQueuedFrame(player, 0);
+    await jest.advanceTimersByTimeAsync(29);
+    expect(settled).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toMatchObject({
+      type: "IntermediateFrame",
+      frame: intermediate,
+      receiveTime: 2n,
+      batchIndex: 0,
+    });
+    expect((intermediate as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
+    const late = emitLastQueuedFrame(player);
+    expect((late as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+  });
+
   it("resolves awaitTargetFrame when the target frame arrives after an intermediate frame", async () => {
     const resultPromise = service.decodeVideoFrames({
       retainLateTarget: true,

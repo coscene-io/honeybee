@@ -49,18 +49,13 @@ export type CompressedVideoDisplayFrames = (
 ) => ImageSetImageResult | Promise<ImageSetImageResult>;
 export type SeekKeyframeSearchState = { active: boolean };
 export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
-export type ProcessCompressedVideoFramesOptions = SetCompressedVideoFramesOptions & {
-  /** Undefined uses the last frame; "unmatched" means this nonempty tick has no annotation match. */
-  targetFrame?: PartialMessageEvent<CompressedVideo> | "unmatched";
-};
 type VideoInputEvent = MessageEvent<VideoFrameInfo["frame"]>;
 type PendingTick = {
   frames: readonly VideoInputEvent[];
   target: VideoInputEvent;
-  options: ProcessCompressedVideoFramesOptions;
+  options: SetCompressedVideoFramesOptions;
   keyframe: boolean;
   gap: boolean;
-  omittedTail: boolean;
 };
 type ControllerRenderer = Pick<
   IRenderer,
@@ -126,7 +121,7 @@ export class CompressedVideoController {
   /** Only this tick's inputs may become a playback batch. No cache read occurs here or in drain. */
   public enqueueVideoFrames(
     input: readonly PartialMessageEvent<CompressedVideo>[],
-    options: ProcessCompressedVideoFramesOptions = {},
+    options: SetCompressedVideoFramesOptions = {},
   ): void {
     if (input.length === 0) {
       return;
@@ -181,25 +176,14 @@ export class CompressedVideoController {
         }
       }
     }
-    const requestedTarget = options.targetFrame;
-    const index =
-      requestedTarget === "unmatched"
-        ? -1
-        : requestedTarget == undefined
-          ? frames.length - 1
-          : frames.findIndex((frame) => sameFrame(frame, requestedTarget));
-    this.#desiredTarget = index >= 0 ? frames[index] : frames.at(-1);
+    const target = frames[frames.length - 1]!;
+    this.#desiredTarget = target;
     // Seeking consumes cached inputs through its independent recovery request.
     if (this.#seekTargetNs != undefined) {
       return;
     }
-    if (index < 0) {
-      this.#pending = undefined;
-      this.#gap = true;
-      return;
-    }
-    const target = frames[index]!;
-    const selected = filterCompressedVideoQueue(frames.slice(0, index + 1)) as VideoInputEvent[];
+    // Annotation matching gates presentation, never the encoded dependency chain.
+    const selected = filterCompressedVideoQueue(frames) as VideoInputEvent[];
     const keyframe = parseVideoFrameInfo(selected[0]!)?.isKeyframe === true;
     const gap = !keyframe && (this.#gap || this.#pending != undefined);
     this.#gap = false;
@@ -214,7 +198,6 @@ export class CompressedVideoController {
       options,
       keyframe,
       gap,
-      omittedTail: index < frames.length - 1,
     };
     this.#schedule();
   }
@@ -340,7 +323,7 @@ export class CompressedVideoController {
       );
       if (generation === this.#generation) {
         const drained = result.ok || result.reason === "timeout";
-        this.#continuous = drained && !tick.omittedTail;
+        this.#continuous = drained;
         this.#decoderFrontier = drained ? tick.target : undefined;
         // A stopped/superseded display request is not a decoder error.
         if (!result.ok && result.reason !== "timeout" && result.reason !== "stale") {
@@ -555,16 +538,6 @@ export class CompressedVideoController {
       }, LOOKBACK_RANGE_READ_TIMEOUT_MS);
     });
   }
-}
-
-function sameFrame(a: VideoInputEvent, b: PartialMessageEvent<CompressedVideo>): boolean {
-  return (
-    a.topic === b.topic &&
-    a.message.data === b.message.data &&
-    compare(a.receiveTime, b.receiveTime) === 0 &&
-    a.message.timestamp.sec === b.message.timestamp?.sec &&
-    a.message.timestamp.nsec === b.message.timestamp.nsec
-  );
 }
 
 /** Collect every video frame on `topic` with a receive time within `[startTime, endTime]`. */

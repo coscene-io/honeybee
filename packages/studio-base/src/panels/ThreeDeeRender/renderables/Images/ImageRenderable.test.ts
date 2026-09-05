@@ -381,13 +381,17 @@ describe("ImageRenderable candidate scheduling", () => {
       terminate: jest.fn(),
     } as unknown as WorkerImageDecoder);
     const update = jest.fn();
+    const canDisplayFrame = jest.fn((event) => event === first);
     await renderable.setCompressedVideoFrames([first, last], {
       updateImageState: update,
       retainLateTarget: false,
+      canDisplayFrame,
     });
     expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
     expect(update).not.toHaveBeenCalled();
+    expect(canDisplayFrame).not.toHaveBeenCalled();
     commit();
+    expect(canDisplayFrame).toHaveBeenCalledWith(first);
     expect(update).toHaveBeenCalledWith(first);
     expect(renderable.userData.receiveTime).toBe(1n);
     expect(awaitTargetFrame).not.toHaveBeenCalled();
@@ -436,6 +440,44 @@ describe("ImageRenderable candidate scheduling", () => {
     commit();
     expect(renderable.getDecodedImage()).toBeUndefined();
     expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+    renderable.dispose();
+  });
+
+  it("holds the last matched image and resumes on a delta when annotations catch up before rAF", async () => {
+    const first = new MockVideoFrame() as unknown as VideoFrame;
+    const unmatched = new MockVideoFrame() as unknown as VideoFrame;
+    const next = new MockVideoFrame() as unknown as VideoFrame;
+    const decodeVideoFrames = makeDecodeVideoFramesMock([first, unmatched, next]);
+    const renderable = new TestVideoBatchRenderable({
+      decodeVideoFrames,
+      terminate: jest.fn(),
+    } as unknown as WorkerImageDecoder);
+    await renderable.setCompressedVideoFrames([videoFrameEvent(1n, 1, "key")]);
+    commit();
+    const updateImageState = jest.fn();
+    await expect(
+      renderable.setCompressedVideoFrames([videoFrameEvent(2n, 2, "delta")], {
+        canDisplayFrame: () => false,
+        updateImageState,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    commit();
+    expect(renderable.getDecodedImage()).toBe(first);
+    expect(renderable.userData.receiveTime).toBe(1n);
+    expect(updateImageState).not.toHaveBeenCalled();
+    expect((unmatched as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+
+    const canDisplayFrame = jest.fn(() => false);
+    const target = videoFrameEvent(3n, 3, "delta");
+    await renderable.setCompressedVideoFrames([target], { canDisplayFrame, updateImageState });
+    expect(canDisplayFrame).not.toHaveBeenCalled();
+    canDisplayFrame.mockReturnValue(true);
+    commit();
+    expect(decodeVideoFrames).toHaveBeenCalledTimes(3);
+    expect(renderable.getDecodedImage()).toBe(next);
+    expect(renderable.userData.receiveTime).toBe(3n);
+    expect(updateImageState).toHaveBeenCalledTimes(1);
+    expect(updateImageState).toHaveBeenCalledWith(target);
     renderable.dispose();
   });
 

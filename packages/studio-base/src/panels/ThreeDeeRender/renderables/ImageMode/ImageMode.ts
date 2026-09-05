@@ -800,20 +800,8 @@ export class ImageMode
     if (this.messageHandler.consumeTimestampRegression()) {
       this.#clearVideoDelayHUD();
     }
-    const targetFrame = this.getImageModeSettings().synchronize
-      ? [...frames]
-          .reverse()
-          .find(
-            (frame) =>
-              toNanoSec(frame.receiveTime) <= this.renderer.currentTime &&
-              this.messageHandler.canDisplayImage(frame as MessageEvent<AnyImage>),
-          )
-      : undefined;
-    controller.enqueueVideoFrames(frames, {
-      targetFrame: this.getImageModeSettings().synchronize
-        ? (targetFrame ?? "unmatched")
-        : undefined,
-    });
+    // Keep feeding the decoder while annotations catch up. canDisplayFrame is evaluated at rAF.
+    controller.enqueueVideoFrames(frames);
   };
 
   #handleRemoteVideoFrameReference = (

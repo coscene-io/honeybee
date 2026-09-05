@@ -187,23 +187,18 @@ describe("tick incremental video scheduling", () => {
     }
   });
 
-  it.each(["no match", "omitted tail"])(
-    "treats %s as missing encoded input, not an empty tick",
-    async (kind) => {
-      const { controller, display } = setup();
-      controller.enqueueVideoFrames([frame(1, "key")]);
-      await flush();
-      const tick = [frame(2), frame(3)];
-      controller.enqueueVideoFrames(tick, {
-        targetFrame: kind === "no match" ? "unmatched" : tick[0],
-      });
-      await flush();
-      const calls = display.mock.calls.length;
-      controller.enqueueVideoFrames([frame(4)]);
-      await flush();
-      expect(display).toHaveBeenCalledTimes(calls);
-    },
-  );
+  it("keeps decoding consecutive ticks when presentation rejects a candidate", async () => {
+    const { controller, display } = setup();
+    const canDisplayFrame = jest.fn(() => false);
+    const first = [frame(1, "key"), frame(2), frame(3)];
+    controller.enqueueVideoFrames(first, { canDisplayFrame });
+    await flush();
+    controller.enqueueVideoFrames([frame(4)], { canDisplayFrame });
+    await flush();
+    expect(display.mock.calls.map(([frames]) => frames)).toEqual([first, [frame(4)]]);
+    expect(display.mock.calls[0]![2]!.canDisplayFrame).toBe(canDisplayFrame);
+    expect(canDisplayFrame).not.toHaveBeenCalled();
+  });
 
   it("does not look back on playback cache misses or after a decoder reset", async () => {
     const { controller, display, renderer } = setup();
@@ -380,4 +375,40 @@ describe("tick incremental video scheduling", () => {
     await flush();
     expect(display.mock.calls[0]![0]).toEqual([frame(3, "key")]);
   });
+
+  it.each(["h264", "h265"])(
+    "recognizes legacy %s keyframes with the real parser before deferred payload conversion",
+    async (format) => {
+      jest.restoreAllMocks();
+      const { controller, display } = setup();
+      const tick = ["delta", "key", "delta", "key", "delta"].map((kind, index) => ({
+        ...frame(index),
+        message: {
+          ...frame(index).message,
+          format,
+          data:
+            format === "h264"
+              ? [0, 0, 0, 1, kind === "key" ? 0x65 : 0x41]
+              : [0, 0, 0, 1, kind === "key" ? 0x26 : 0x02, 1],
+        },
+      }));
+      const add = jest.spyOn(VideoGopCache.prototype, "addFrames");
+      controller.enqueueVideoFrames(tick as unknown as MessageEvent<CompressedVideo>[]);
+      expect(display).not.toHaveBeenCalled();
+      for (let i = 0; i < tick.length; i++) {
+        expect((add.mock.calls[0]![0][i]!.message as { data: unknown }).data).toBe(
+          tick[i]!.message.data,
+        );
+      }
+      await flush();
+      expect(display).toHaveBeenCalledTimes(1);
+      expect(display.mock.calls[0]![0]).toEqual(
+        tick.slice(3).map((event) => ({
+          ...event,
+          message: { ...event.message, data: new Uint8Array(event.message.data) },
+        })),
+      );
+      expect(tick.every((event) => Array.isArray(event.message.data))).toBe(true);
+    },
+  );
 });
