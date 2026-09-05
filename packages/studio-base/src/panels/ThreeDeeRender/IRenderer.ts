@@ -170,40 +170,16 @@ export type RendererConfig = {
   /** instanceId -> settings */
   layers: Record<string, Partial<CustomLayerSettings> | undefined>;
 
-  /** Synchronize selected 3D video topics by their publish timestamp. */
+  /** Retained for layout round-tripping only. */
   synchronize?: boolean;
-  /** topicName -> whether the topic participates in 3D timestamp synchronization */
+  /** Retained for layout round-tripping only. */
   syncedTopics?: Record<string, boolean | undefined>;
 
   /** Settings pertaining to Image mode */
   imageMode: ImageModeConfig;
 };
 
-export type MessageSyncResult =
-  | {
-      found: true;
-      timestamp: Time;
-      messages: ReadonlyMap<string, MessageEvent>;
-      /** A newer exact timestamp is still missing one or more registered topics. */
-      waiting?: {
-        timestamp: Time;
-        presentTopics: readonly string[];
-        missingTopics: readonly string[];
-      };
-    }
-  | {
-      found: false;
-      presentTopics?: readonly string[];
-      missingTopics?: readonly string[];
-    };
-
-export type RendererSubscriptionContext = {
-  didSeek: boolean;
-  syncResult: MessageSyncResult | undefined;
-  syncTimestampChanged: boolean;
-  /** A registered topic's physical message order moved to a lower publish timestamp. */
-  syncTimestampRegressed?: boolean;
-};
+export type RendererSubscriptionContext = { didSeek: boolean };
 
 type RendererSubscriptionCommon<T> = {
   /** Preload the full history of topic messages as a best effort */
@@ -220,8 +196,6 @@ type RendererSubscriptionCommon<T> = {
   queue?: MessageEvent<T>[] | undefined;
   /** Optional callback to be called on `queue` to filter. Returns new queue. */
   filterQueue?: (queue: MessageEvent<T>[]) => MessageEvent<T>[];
-  /** Whether matching 3D topics can participate in exact publish-time synchronization. */
-  shouldSync?: boolean;
 };
 
 export type RendererSubscription<T = unknown> = RendererSubscriptionCommon<T> &
@@ -237,7 +211,7 @@ export type RendererSubscription<T = unknown> = RendererSubscriptionCommon<T> &
         processQueue: (
           queue: readonly MessageEvent<T>[],
           context: RendererSubscriptionContext,
-        ) => void | Promise<void>;
+        ) => void;
       }
   );
 
@@ -247,9 +221,6 @@ export type RendererMessageEvents = {
   allFrames: readonly MessageEvent[] | undefined;
   currentFrame: readonly MessageEvent[] | undefined;
 };
-
-export type ReleaseSeekKeyframeSearchPlaybackPause = () => void;
-export type AcquireSeekKeyframeSearchPlaybackPause = () => ReleaseSeekKeyframeSearchPlaybackPause;
 
 export type AnyRendererSubscription = Immutable<
   | {
@@ -321,7 +292,10 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   currentTime: bigint;
   startTime: bigint | undefined;
   subscribeMessageRange: SubscribeMessageRange | undefined;
-  acquireSeekKeyframeSearchPlaybackPause?: AcquireSeekKeyframeSearchPlaybackPause;
+  /** Live playback state; EOF is checked against endTime separately. */
+  getPlaybackIsPlaying?: () => boolean;
+  endTime?: bigint;
+  isPlaybackStopped(): boolean;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */
   fixedFrameId: string | undefined;
   /**
@@ -419,8 +393,8 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
 
   addMessageEvent(messageEvent: Readonly<MessageEvent>): void;
 
-  /** Process and await all messages for one player tick before drawing that tick. */
-  processMessageEvents(events: RendererMessageEvents): Promise<void>;
+  /** Synchronously ingest one player tick; decoding and drawing are scheduled separately. */
+  processMessageEvents(events: RendererMessageEvents): void;
 
   /**  Set desired render/display frame, will render using fallback if id is undefined or frame does not exist */
   setFollowFrameId(frameId: string | undefined): void;

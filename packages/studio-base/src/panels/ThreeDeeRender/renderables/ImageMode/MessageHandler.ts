@@ -243,12 +243,23 @@ export class MessageHandler implements IMessageHandler {
     this.#recordImage(messageEvent, normalizeCompressedVideo(messageEvent.message));
     this.#annotationTopicsSinceLastVideoBatch.clear();
   };
+  public canDisplayImage = (event: MessageEvent<AnyImage>): boolean => {
+    return (
+      this.#config.synchronize !== true ||
+      this.#getSynchronizedRenderStateAt(getTimestampFromImage(event.message), event)
+        .missingAnnotationTopics == undefined
+    );
+  };
+
   public recordCompressedVideoFrames = (
     messageEvents: readonly PartialMessageEvent<CompressedVideo>[],
   ): void => {
     let normalizedFrames = messageEvents.map((messageEvent) => ({
       ...messageEvent,
-      message: normalizeCompressedVideo(messageEvent.message),
+      message: {
+        ...messageEvent.message,
+        timestamp: messageEvent.message.timestamp ?? { sec: 0, nsec: 0 },
+      } as CompressedVideo,
     }));
     let previousTimestamp = this.#lastRecordedImageTimestamp;
     let epochStartIndex = 0;
@@ -742,6 +753,7 @@ export interface IMessageHandler {
   /** Record video metadata for timestamp matching without starting a generic image decode. */
   recordCompressedVideo: (messageEvent: PartialMessageEvent<CompressedVideo>) => void;
   /** Record one player tick of video metadata while preserving matching annotation buckets. */
+  canDisplayImage: (event: MessageEvent<AnyImage>) => boolean;
   recordCompressedVideoFrames: (
     messageEvents: readonly PartialMessageEvent<CompressedVideo>[],
   ) => void;

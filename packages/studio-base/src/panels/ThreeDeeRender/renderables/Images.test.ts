@@ -62,8 +62,6 @@ function timestampFromImage(image: AnyImage): Time {
 
 const PLAYBACK_CONTEXT: RendererSubscriptionContext = {
   didSeek: false,
-  syncResult: undefined,
-  syncTimestampChanged: false,
 };
 
 const SEEK_CONTEXT: RendererSubscriptionContext = {
@@ -183,6 +181,8 @@ function makeRenderer(
     topics,
     topicsByName: new Map(topics.map((topic) => [topic.name, topic])),
     currentTime: 10_000_000n,
+    isPlaybackStopped: () => false,
+    getPlaybackIsPlaying: () => true,
     startTime: 0n,
     subscribeMessageRange: options.subscribeMessageRange,
     settings: {
@@ -211,9 +211,15 @@ function makeRenderer(
   }) as unknown as IRenderer;
 }
 
+async function flushAsyncWork(): Promise<void> {
+  for (let i = 0; i < 16; i++) {
+    await Promise.resolve();
+  }
+}
 describe("Images compressed video seek lookback", () => {
   beforeEach(() => {
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
+    jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);
     jest.spyOn(H264, "GetFrameInfo").mockImplementation((data) => ({
       isKeyFrame: data[0] === 0x65,
       mayNeedRewrite: false,
@@ -233,6 +239,8 @@ describe("Images compressed video seek lookback", () => {
     if (subscription == undefined) {
       throw new Error("Missing compressed video subscription");
     }
+    expect(subscription.filterQueue).toBeUndefined();
+    expect(subscription.preload).toBe(false);
     return subscription;
   }
 
@@ -246,7 +254,7 @@ describe("Images compressed video seek lookback", () => {
     const subscription = compressedVideoSubscription(images);
 
     images.handleSeek();
-    void subscription.processQueue?.([], SEEK_CONTEXT);
+    subscription.processQueue?.([], SEEK_CONTEXT);
     await Promise.resolve();
 
     expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
@@ -277,7 +285,8 @@ describe("Images compressed video seek lookback", () => {
     const subscription = compressedVideoSubscription(images);
 
     images.handleSeek();
-    await subscription.processQueue?.([], SEEK_CONTEXT);
+    subscription.processQueue?.([], SEEK_CONTEXT);
+    await flushAsyncWork();
 
     expect(subscribeMessageRange).not.toHaveBeenCalled();
   });
@@ -309,7 +318,7 @@ describe("Images compressed video seek lookback", () => {
     };
     images.handleSettingsAction(action);
     images.handleSeek();
-    void subscription.processQueue?.([], SEEK_CONTEXT);
+    subscription.processQueue?.([], SEEK_CONTEXT);
     await Promise.resolve();
 
     expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
@@ -327,11 +336,13 @@ describe("Images compressed video seek lookback", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
 
-    await subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     images.removeAllRenderables();
     images.handleSeek();
-    await subscription.processQueue?.([], SEEK_CONTEXT);
+    subscription.processQueue?.([], SEEK_CONTEXT);
+    await flushAsyncWork();
 
     const displayedBatches = images.createdRenderables.flatMap((renderable) =>
       renderable.setCompressedVideoFrameBatches.map((batch) => batch.map(timestampFromImage)),
@@ -359,7 +370,8 @@ describe("Images compressed video seek lookback", () => {
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
 
-    await subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     const previousRenderable = images.renderables.get("/video") as TestImageRenderable | undefined;
     expect(previousRenderable).toBeDefined();
@@ -371,7 +383,8 @@ describe("Images compressed video seek lookback", () => {
     ).removeAllRenderables({ reason: "seek" });
     renderer.currentTime = 20_000_000n;
     images.handleSeek();
-    const seekWork = subscription.processQueue?.([], SEEK_CONTEXT);
+    subscription.processQueue?.([], SEEK_CONTEXT);
+    await flushAsyncWork();
 
     expect(images.renderables.get("/video")).toBe(previousRenderable);
     expect(previousRenderable?.disposed).toBe(false);
@@ -382,7 +395,7 @@ describe("Images compressed video seek lookback", () => {
         yield [keyframe, delta, targetDelta];
       })(),
     );
-    await seekWork;
+    await flushAsyncWork();
 
     expect(
       previousRenderable?.setCompressedVideoFrameBatches.map((batch) =>
@@ -417,7 +430,8 @@ describe("Images compressed video seek lookback", () => {
     const newestKey = makeVideoMessage(20n, "key");
     const newestDelta = makeVideoMessage(30n, "delta");
 
-    await subscription.processQueue?.([oldKey, oldDelta, newestKey, newestDelta], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([oldKey, oldDelta, newestKey, newestDelta], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     expect(images.createdRenderables).toHaveLength(1);
     expect(images.createdRenderables[0]!.setCompressedVideoFrameBatches).toEqual([
@@ -431,7 +445,8 @@ describe("Images compressed video seek lookback", () => {
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
 
-    await subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     expect(renderer.hud.getHUDItems()).toEqual([
       expect.objectContaining({ id: "VIDEO_B_FRAMES:/video", displayType: "notice" }),
@@ -449,7 +464,8 @@ describe("Images compressed video seek lookback", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10n, "delta");
 
-    await subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     expect(images.createdRenderables[0]!.setCompressedVideoFrameBatches).toEqual([
       [keyframe.message, delta.message],
@@ -460,7 +476,8 @@ describe("Images compressed video seek lookback", () => {
     const images = new TestImages(makeRenderer());
     const subscription = compressedVideoSubscription(images);
 
-    await subscription.processQueue?.([makeVideoMessage(10n, "delta")], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([makeVideoMessage(10n, "delta")], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     expect(images.createdRenderables).toHaveLength(0);
   });
@@ -489,7 +506,8 @@ describe("Images compressed video seek lookback", () => {
       makeVideoMessage(BigInt(index * 10 + 1), "delta", name),
     ]);
 
-    await subscription.processQueue?.(queue, PLAYBACK_CONTEXT);
+    subscription.processQueue?.(queue, PLAYBACK_CONTEXT);
+    await flushAsyncWork();
 
     expect(started).toEqual(new Set(topics.map((topic) => topic.name)));
     expect(images.createdRenderables).toHaveLength(5);
@@ -499,288 +517,6 @@ describe("Images compressed video seek lookback", () => {
     }
   });
 
-  it("finishes pending multi-topic seeks when the exact set completes on a later tick", async () => {
-    const topics = [
-      { name: "/left", schemaName: "foxglove.CompressedVideo" },
-      { name: "/right", schemaName: "foxglove.CompressedVideo" },
-    ];
-    const leftKey = makeVideoMessage(0n, "key", "/left");
-    const leftTarget = makeVideoMessage(20_000_000n, "delta", "/left");
-    const rightKey = makeVideoMessage(0n, "key", "/right");
-    const rightTarget = makeVideoMessage(20_000_000n, "delta", "/right");
-    const subscribeMessageRange = jest.fn<
-      ReturnType<SubscribeMessageRange>,
-      Parameters<SubscribeMessageRange>
-    >(({ topic, onNewRangeIterator }) => {
-      const frames = topic === "/left" ? [leftKey, leftTarget] : [rightKey, rightTarget];
-      void onNewRangeIterator(
-        (async function* () {
-          yield frames;
-        })(),
-      );
-      return jest.fn();
-    });
-    const renderer = makeRenderer({
-      topics,
-      synchronize: true,
-      syncedTopics: { "/left": true, "/right": true },
-      subscribeMessageRange,
-    });
-    renderer.currentTime = 20_000_000n;
-    const images = new TestImages(renderer);
-    const subscription = compressedVideoSubscription(images);
-
-    images.handleSeek();
-    await subscription.processQueue?.([leftTarget], {
-      ...SEEK_CONTEXT,
-      syncResult: {
-        found: false,
-        presentTopics: ["/left"],
-        missingTopics: ["/right"],
-      },
-    });
-    expect(subscribeMessageRange).not.toHaveBeenCalled();
-    expect(images.createdRenderables).toHaveLength(0);
-
-    await subscription.processQueue?.([], {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: leftTarget.message.timestamp,
-        messages: new Map([
-          ["/left", leftTarget],
-          ["/right", rightTarget],
-        ]),
-      },
-      syncTimestampChanged: true,
-    });
-
-    expect(subscribeMessageRange).toHaveBeenCalledTimes(2);
-    expect(
-      images.createdRenderables
-        .map((renderable) => ({
-          topic: renderable.userData.topic,
-          batches: renderable.setCompressedVideoFrameBatches.map((batch) =>
-            batch.map(timestampFromImage),
-          ),
-        }))
-        .sort((left, right) => left.topic.localeCompare(right.topic)),
-    ).toEqual([
-      {
-        topic: "/left",
-        batches: [[leftKey.message.timestamp, leftTarget.message.timestamp]],
-      },
-      {
-        topic: "/right",
-        batches: [[rightKey.message.timestamp, rightTarget.message.timestamp]],
-      },
-    ]);
-  });
-
-  it("shows the latest complete synchronized set while a newer timestamp is incomplete", async () => {
-    const topics = [
-      { name: "/left", schemaName: "foxglove.CompressedVideo" },
-      { name: "/right", schemaName: "foxglove.CompressedVideo" },
-    ];
-    const renderer = makeRenderer({
-      topics,
-      synchronize: true,
-      syncedTopics: { "/left": true, "/right": true },
-    });
-    const images = new TestImages(renderer);
-    const subscription = compressedVideoSubscription(images);
-    const left = makeVideoMessage(10n, "key", "/left");
-    const right = makeVideoMessage(10n, "key", "/right");
-
-    await subscription.processQueue?.([left, right], {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: left.message.timestamp,
-        messages: new Map([
-          [left.topic, left],
-          [right.topic, right],
-        ]),
-        waiting: {
-          timestamp: timeFromNanoseconds(20n),
-          presentTopics: ["/left"],
-          missingTopics: ["/right"],
-        },
-      },
-      syncTimestampChanged: true,
-    });
-
-    expect(
-      images.createdRenderables
-        .map((renderable) => ({
-          topic: renderable.userData.topic,
-          batches: renderable.setCompressedVideoFrameBatches.map((batch) =>
-            batch.map(timestampFromImage),
-          ),
-        }))
-        .sort((leftEntry, rightEntry) => leftEntry.topic.localeCompare(rightEntry.topic)),
-    ).toEqual([
-      { topic: "/left", batches: [[timeFromNanoseconds(10n)]] },
-      { topic: "/right", batches: [[timeFromNanoseconds(10n)]] },
-    ]);
-    expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain(
-      "VIDEO_SYNC_WAITING:/right",
-    );
-  });
-
-  it("decodes a replacement target with the same synchronized publish timestamp", async () => {
-    const renderer = makeRenderer({
-      topics: [
-        { name: "/video", schemaName: "foxglove.CompressedVideo" },
-        { name: "/right", schemaName: "foxglove.CompressedVideo" },
-      ],
-      synchronize: true,
-      syncedTopics: { "/video": true, "/right": true },
-    });
-    const images = new TestImages(renderer);
-    const subscription = compressedVideoSubscription(images);
-    const first = makeVideoMessage(10n, "key");
-    const replacement = {
-      ...makeVideoMessage(10n, "delta"),
-      receiveTime: timeFromNanoseconds(20n),
-    };
-
-    await subscription.processQueue?.([first], {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: first.message.timestamp,
-        messages: new Map([[first.topic, first]]),
-      },
-    });
-    await subscription.processQueue?.([replacement], {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: replacement.message.timestamp,
-        messages: new Map([[replacement.topic, replacement]]),
-      },
-    });
-
-    expect(images.createdRenderables[0]!.setCompressedVideoFrameBatches).toEqual([
-      [first.message],
-      [first.message, replacement.message],
-    ]);
-  });
-
-  it("invalidates synchronized topic decoders after a publish timestamp regression", async () => {
-    const topics = [
-      { name: "/left", schemaName: "foxglove.CompressedVideo" },
-      { name: "/right", schemaName: "foxglove.CompressedVideo" },
-    ];
-    const renderer = makeRenderer({
-      topics,
-      synchronize: true,
-      syncedTopics: { "/left": true, "/right": true },
-    });
-    const images = new TestImages(renderer);
-    const subscription = compressedVideoSubscription(images);
-    const highLeft = makeVideoMessage(100n, "key", "/left");
-    const highRight = makeVideoMessage(100n, "key", "/right");
-    await subscription.processQueue?.([highLeft, highRight], {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: highLeft.message.timestamp,
-        messages: new Map([
-          [highLeft.topic, highLeft],
-          [highRight.topic, highRight],
-        ]),
-      },
-    });
-
-    const lowLeft = makeVideoMessage(1n, "key", "/left");
-    const lowRight = makeVideoMessage(1n, "key", "/right");
-    await subscription.processQueue?.([lowLeft, lowRight], {
-      ...PLAYBACK_CONTEXT,
-      syncTimestampRegressed: true,
-      syncResult: {
-        found: true,
-        timestamp: lowLeft.message.timestamp,
-        messages: new Map([
-          [lowLeft.topic, lowLeft],
-          [lowRight.topic, lowRight],
-        ]),
-      },
-    });
-
-    expect(images.createdRenderables.map((renderable) => renderable.resetForSeekCalls)).toEqual([
-      1, 1,
-    ]);
-  });
-
-  it("retries a synchronized target after a terminal decoder failure", async () => {
-    const renderer = makeRenderer({
-      topics: [
-        { name: "/video", schemaName: "foxglove.CompressedVideo" },
-        { name: "/right", schemaName: "foxglove.CompressedVideo" },
-      ],
-      synchronize: true,
-      syncedTopics: { "/video": true, "/right": true },
-    });
-    const images = new TestImages(renderer);
-    images.displayResults.push({ ok: false, reason: "failed" }, { ok: true });
-    const subscription = compressedVideoSubscription(images);
-    const target = makeVideoMessage(10n, "key");
-    const context: RendererSubscriptionContext = {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: target.message.timestamp,
-        messages: new Map([[target.topic, target]]),
-      },
-    };
-
-    await subscription.processQueue?.([target], context);
-    await subscription.processQueue?.([], context);
-
-    expect(images.createdRenderables[0]!.setCompressedVideoFrameBatches).toEqual([
-      [target.message],
-      [target.message],
-    ]);
-  });
-
-  it("retries a timed-out synchronized target only after its late decode aborts", async () => {
-    const renderer = makeRenderer({
-      topics: [
-        { name: "/video", schemaName: "foxglove.CompressedVideo" },
-        { name: "/right", schemaName: "foxglove.CompressedVideo" },
-      ],
-      synchronize: true,
-      syncedTopics: { "/video": true, "/right": true },
-    });
-    const images = new TestImages(renderer);
-    images.displayResults.push({ ok: false, reason: "timeout" }, { ok: true });
-    const subscription = compressedVideoSubscription(images);
-    const target = makeVideoMessage(10n, "key");
-    const context: RendererSubscriptionContext = {
-      ...PLAYBACK_CONTEXT,
-      syncResult: {
-        found: true,
-        timestamp: target.message.timestamp,
-        messages: new Map([[target.topic, target]]),
-      },
-    };
-
-    await subscription.processQueue?.([target], context);
-    await subscription.processQueue?.([], context);
-    const renderable = images.createdRenderables[0]!;
-    expect(renderable.setCompressedVideoFrameBatches).toEqual([[target.message]]);
-
-    renderable.setCompressedVideoFrameOptions[0]?.onLateTargetFrameSettled?.({
-      ok: false,
-      reason: "failed",
-    });
-    await subscription.processQueue?.([], context);
-
-    expect(renderable.setCompressedVideoFrameBatches).toEqual([[target.message], [target.message]]);
-  });
-
   it("clears a video delay notice when its topic is hidden", async () => {
     const renderer = makeRenderer();
     const images = new TestImages(renderer);
@@ -788,14 +524,16 @@ describe("Images compressed video seek lookback", () => {
     const first = makeVideoMessage(0n, "key");
     const delayed = makeVideoMessage(1_000_000_000n, "delta");
 
-    await subscription.processQueue?.([first], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([first], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
     const renderable = images.createdRenderables[0]!;
     renderable.userData.displayedFrameState = {
       image: first.message,
       receiveTime: 0n,
     };
     images.displayResults.push({ ok: false, reason: "timeout" });
-    await subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
+    subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
+    await flushAsyncWork();
     expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("VIDEO_DELAY:/video");
 
     renderer.updateConfig((draft) => {

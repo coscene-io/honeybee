@@ -173,6 +173,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("keeps a stable stream timestamp base across forward batches", async () => {
     const firstResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [
@@ -192,6 +193,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     await expect(firstResultPromise).resolves.toMatchObject({ type: "TargetFrame" });
 
     const secondResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 2,
       targetFrameTimeoutMs: 1000,
       frames: [
@@ -212,6 +214,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("rejects a second batch while the previous batch is pending", async () => {
     const firstResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
@@ -222,6 +225,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     expect(player.queueFrames).toHaveBeenCalledTimes(1);
 
     const secondResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 2,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(2, "delta"), receiveTime: 2n }],
@@ -238,6 +242,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("rebases after reset without reusing a decoder timestamp", async () => {
     const firstResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(5, "key"), receiveTime: 5n }],
@@ -250,6 +255,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     service.resetVideoDecoder();
 
     const secondResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 2,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(5, "key"), receiveTime: 10n }],
@@ -267,6 +273,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("uses unique decode timestamps for duplicate original timestamps", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [
@@ -302,6 +309,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("identifies the target by batch position when publish and receive timestamps repeat", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [
@@ -331,6 +339,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("rewrites H264 frames marked mayNeedRewrite before queueing", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(1, "key", 0xfe), receiveTime: 1n }],
@@ -350,10 +359,16 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("rejects empty batches and invalid timeout ranges", async () => {
     await expect(
-      service.decodeVideoFrames({ requestId: 1, targetFrameTimeoutMs: 30, frames: [] }),
+      service.decodeVideoFrames({
+        retainLateTarget: true,
+        requestId: 1,
+        targetFrameTimeoutMs: 30,
+        frames: [],
+      }),
     ).rejects.toThrow("Cannot decode an empty video batch");
     await expect(
       service.decodeVideoFrames({
+        retainLateTarget: true,
         requestId: 2,
         targetFrameTimeoutMs: 100,
         anyFrameTimeoutMs: 30,
@@ -398,6 +413,7 @@ describe("WorkerImageDecoder worker video batches", () => {
   it("returns an exact target that is the first output after the target timeout", async () => {
     jest.useFakeTimers();
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 30,
       anyFrameTimeoutMs: 100,
@@ -422,6 +438,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("aborts the active batch when the decoder fails after its queue drains", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
@@ -444,6 +461,7 @@ describe("WorkerImageDecoder worker video batches", () => {
   it("aborts the only late-target waiter on a post-drain decoder error", async () => {
     jest.useFakeTimers();
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 30,
       frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
@@ -465,6 +483,7 @@ describe("WorkerImageDecoder worker video batches", () => {
   it("aborts a late-target waiter when its timeout expires", async () => {
     jest.useFakeTimers();
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 30,
       frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
@@ -518,6 +537,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     };
 
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 30,
       frames: [
@@ -547,6 +567,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
     await expect(
       service.decodeVideoFrames({
+        retainLateTarget: true,
         requestId: 1,
         targetFrameTimeoutMs: 30,
         frames: [{ frame: h264Frame(1, "key"), receiveTime: 1n }],
@@ -563,6 +584,7 @@ describe("WorkerImageDecoder worker video batches", () => {
   it("does not report a timeout when no frame can be submitted", async () => {
     await expect(
       service.decodeVideoFrames({
+        retainLateTarget: true,
         requestId: 1,
         targetFrameTimeoutMs: 30,
         frames: [{ frame: h264Frame(1, "key", 0xff), receiveTime: 1n }],
@@ -577,6 +599,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("returns FrameOutOfOrder when a replay batch contains decreasing original timestamps", async () => {
     const result = await service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [
@@ -593,6 +616,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     "returns FrameOutOfOrder when a new %s batch starts before the previous batch",
     async (kind) => {
       const firstResultPromise = service.decodeVideoFrames({
+        retainLateTarget: true,
         requestId: 1,
         targetFrameTimeoutMs: 1000,
         frames: [{ frame: h264Frame(2, "key"), receiveTime: 20n }],
@@ -604,6 +628,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
       await expect(
         service.decodeVideoFrames({
+          retainLateTarget: true,
           requestId: 2,
           targetFrameTimeoutMs: 1000,
           frames: [{ frame: h264Frame(1, kind), receiveTime: 10n }],
@@ -616,6 +641,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("resolves awaitTargetFrame when the target frame arrives after an intermediate frame", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 0,
       anyFrameTimeoutMs: 1000,
@@ -649,6 +675,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("aborts an active exact replay batch and closes its late outputs on reset", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       anyFrameTimeoutMs: 1000,
@@ -677,6 +704,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     };
 
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(1, "key"), receiveTime: 10n }],
@@ -693,6 +721,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("aborts pending awaitTargetFrame on decoder reset", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 0,
       anyFrameTimeoutMs: 1000,
@@ -714,6 +743,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("aborts the previous awaitTargetFrame when a new batch starts", async () => {
     const firstResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 0,
       anyFrameTimeoutMs: 1000,
@@ -731,6 +761,7 @@ describe("WorkerImageDecoder worker video batches", () => {
     const awaitFirstTarget = service.awaitTargetFrame({ requestId: 1, timeoutMs: 10_000 });
 
     const secondResultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 2,
       targetFrameTimeoutMs: 1000,
       frames: [{ frame: h264Frame(3, "key"), receiveTime: 30n }],
@@ -744,6 +775,7 @@ describe("WorkerImageDecoder worker video batches", () => {
 
   it("closes late non-target frames after returning an intermediate frame", async () => {
     const resultPromise = service.decodeVideoFrames({
+      retainLateTarget: true,
       requestId: 1,
       targetFrameTimeoutMs: 0,
       anyFrameTimeoutMs: 1000,
@@ -763,4 +795,35 @@ describe("WorkerImageDecoder worker video batches", () => {
     const lateNonTarget = emitQueuedFrame(player, 1);
     expect((lateNonTarget as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
   });
+  it.each(["intermediate", "timeout"])(
+    "playback %s closes late outputs without retaining a target",
+    async (resultKind) => {
+      jest.useFakeTimers();
+      const promise = service.decodeVideoFrames({
+        retainLateTarget: false,
+        requestId: 1,
+        targetFrameTimeoutMs: 30,
+        anyFrameTimeoutMs: 100,
+        frames: [
+          { frame: h264Frame(1, "key"), receiveTime: 1n },
+          { frame: h264Frame(2, "delta"), receiveTime: 2n },
+        ],
+      });
+      await flushPromises();
+      const player = mockVideoPlayers[0]!;
+      if (resultKind === "intermediate") {
+        emitQueuedFrame(player, 0);
+      }
+      await jest.advanceTimersByTimeAsync(100);
+      await expect(promise).resolves.toMatchObject({
+        type: resultKind === "intermediate" ? "IntermediateFrame" : "Timeout",
+      });
+      const late = emitLastQueuedFrame(player);
+      expect((late as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+      expect(player.discardQueuedFramesExcept).toHaveBeenLastCalledWith(undefined);
+      await expect(
+        service.awaitTargetFrame({ requestId: 1, timeoutMs: 100 }),
+      ).resolves.toMatchObject({ type: "Aborted" });
+    },
+  );
 });

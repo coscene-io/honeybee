@@ -31,7 +31,6 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
-import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import type {
@@ -105,30 +104,6 @@ function getSelectedTopicMessageFrequency({
   return frequency != undefined && frequency > 0 ? frequency : undefined;
 }
 
-/** Collapse render states received before the canvas renderer is ready into one consumable tick. */
-export function mergeRenderStatesForRenderer(
-  previous: Immutable<RenderState> | undefined,
-  next: Immutable<RenderState>,
-): Immutable<RenderState> {
-  if (previous == undefined || next.didSeek === true) {
-    return next;
-  }
-
-  return {
-    ...next,
-    allFrames: next.allFrames ?? previous.allFrames,
-    currentFrame: [...(previous.currentFrame ?? []), ...(next.currentFrame ?? [])],
-    didSeek: previous.didSeek === true,
-  };
-}
-
-/** A newly-created renderer has no decoder continuity, even when the player did not seek. */
-export function renderStateForNewRenderer(
-  renderState: Immutable<RenderState>,
-): Immutable<RenderState> {
-  return renderState.didSeek === true ? renderState : { ...renderState, didSeek: true };
-}
-
 /** Detach a panel tick from PanelExtensionAdapter's mutable top-level RenderState builder object. */
 export function snapshotRenderState(renderState: Immutable<RenderState>): Immutable<RenderState> {
   return { ...renderState };
@@ -142,19 +117,8 @@ export function currentFrameForRenderTick(
   return currentFrame === previousCurrentFrame ? undefined : currentFrame;
 }
 
-export function configureRendererPlaybackHooks(
-  renderer: IRenderer,
-  subscribeMessageRange: IRenderer["subscribeMessageRange"],
-  acquireSeekKeyframeSearchPlaybackPause: IRenderer["acquireSeekKeyframeSearchPlaybackPause"],
-): void {
-  renderer.subscribeMessageRange = subscribeMessageRange;
-  renderer.acquireSeekKeyframeSearchPlaybackPause = acquireSeekKeyframeSearchPlaybackPause;
-}
-
-async function processRenderState(
-  renderer: IRenderer,
-  renderState: Immutable<RenderState>,
-): Promise<void> {
+function processRenderState(renderer: IRenderer, renderState: Immutable<RenderState>): void {
+  renderer.endTime = renderState.endTime ? toNanoSec(renderState.endTime) : undefined;
   renderer.startTime = renderState.startTime ? toNanoSec(renderState.startTime) : undefined;
   renderer.setTopics(renderState.topics);
   renderer.setParameters(renderState.parameters);
@@ -164,37 +128,12 @@ async function processRenderState(
     renderer.setColorScheme(renderState.colorScheme, renderer.config.scene.backgroundColor);
   }
 
-  await renderer.processMessageEvents({
+  renderer.processMessageEvents({
     currentTime: renderState.currentTime,
     didSeek: renderState.didSeek === true,
     allFrames: renderState.allFrames,
     currentFrame: renderState.currentFrame,
   });
-}
-
-/** Finish a Player render tick only after its renderer work has settled. */
-export async function completeRenderTick({
-  work,
-  isCurrent,
-  animationFrame,
-  done,
-}: {
-  work: Promise<void>;
-  isCurrent: () => boolean;
-  animationFrame: () => void;
-  done: () => void;
-}): Promise<void> {
-  try {
-    await work;
-  } finally {
-    if (isCurrent()) {
-      try {
-        animationFrame();
-      } finally {
-        done();
-      }
-    }
-  }
 }
 
 /**
@@ -256,47 +195,13 @@ export function ThreeDeeRender(props: {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | ReactNull>(ReactNull);
   const [renderer, setRenderer] = useState<IRenderer | undefined>(undefined);
   const rendererRef = useRef<IRenderer | undefined>(undefined);
-  const rendererTickGenerationRef = useRef(0);
-  const pendingRenderStateRef = useRef<Immutable<RenderState> | undefined>(undefined);
   const initialCurrentFrameIdentityRef = useRef(Symbol("initial-current-frame"));
   const lastCurrentFrameIdentityRef = useRef<Immutable<RenderState>["currentFrame"] | symbol>(
     initialCurrentFrameIdentityRef.current,
   );
-  const renderDoneCallbacksRef = useRef<Array<() => void>>([]);
   const latestRenderStateRef = useRef<Immutable<RenderState> | undefined>(undefined);
-  const rendererReplayRef = useRef<{ renderer: IRenderer; promise: Promise<void> } | undefined>(
-    undefined,
-  );
-
-  const acquireSeekKeyframeSearchPlaybackPause = useCallback(() => {
-    const finishVisualTask = playbackPerformanceMetrics.beginVisualTask();
-    const releasePlaybackPause =
-      context.unstable_acquireKeyframeSearchLock?.({
-        isPlaying: context.unstable_getPlaybackIsPlaying?.() ?? false,
-        pausePlayback: context.unstable_pausePlayback,
-        startPlayback: context.unstable_startPlayback,
-      }) ?? (() => {});
-    if (finishVisualTask == undefined) {
-      return releasePlaybackPause;
-    }
-    return () => {
-      try {
-        releasePlaybackPause();
-      } finally {
-        finishVisualTask();
-      }
-    };
-  }, [context]);
   const subscribeMessageRangeRef = useLatest(subscribeMessageRange);
-  const acquireSeekKeyframeSearchPlaybackPauseRef = useLatest(
-    acquireSeekKeyframeSearchPlaybackPause,
-  );
-  const finishPendingRenderTicks = useCallback(() => {
-    const doneCallbacks = renderDoneCallbacksRef.current.splice(0);
-    for (const done of doneCallbacks) {
-      done();
-    }
-  }, []);
+  const playbackIsPlayingRef = useLatest(context.unstable_getPlaybackIsPlaying);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -323,60 +228,30 @@ export function ThreeDeeRender(props: {
           testOptions,
         })
       : undefined;
-    if (newRenderer != undefined) {
-      configureRendererPlaybackHooks(
-        newRenderer,
-        subscribeMessageRangeRef.current,
-        acquireSeekKeyframeSearchPlaybackPauseRef.current,
-      );
-    }
     setRenderer(newRenderer);
     rendererRef.current = newRenderer;
-
-    const rendererGeneration = ++rendererTickGenerationRef.current;
-    const replayRenderState = pendingRenderStateRef.current ?? latestRenderStateRef.current;
-    if (newRenderer != undefined && replayRenderState != undefined) {
-      pendingRenderStateRef.current = undefined;
-      // Treat the cold renderer as a seek so a delta-only latest tick can recover its GOP from the
-      // message range instead of waiting for the next keyframe. Retain the replay Promise so a
-      // re-entrant render waits for this initial batch before processing its own messages.
-      const replayPromise = Promise.resolve()
-        .then(async () => {
-          if (rendererRef.current !== newRenderer) {
-            return;
-          }
-          await processRenderState(newRenderer, renderStateForNewRenderer(replayRenderState));
-        })
-        .catch((error: unknown) => {
-          log.error(error);
-        });
-      rendererReplayRef.current = { renderer: newRenderer, promise: replayPromise };
-      void replayPromise.finally(() => {
-        if (rendererReplayRef.current?.promise === replayPromise) {
-          rendererReplayRef.current = undefined;
-        }
-        const replayIsCurrent =
-          rendererRef.current === newRenderer &&
-          rendererTickGenerationRef.current === rendererGeneration;
+    if (newRenderer != undefined) {
+      newRenderer.subscribeMessageRange = subscribeMessageRangeRef.current;
+      newRenderer.getPlaybackIsPlaying = () => playbackIsPlayingRef.current?.() ?? false;
+      const latest = latestRenderStateRef.current;
+      if (latest != undefined) {
         try {
-          if (replayIsCurrent) {
-            newRenderer.animationFrame();
-          }
+          processRenderState(newRenderer, {
+            ...latest,
+            didSeek: latest.didSeek === true || !newRenderer.getPlaybackIsPlaying(),
+          });
+        } catch (error) {
+          log.error(error);
         } finally {
-          if (replayIsCurrent) {
-            finishPendingRenderTicks();
-          }
+          newRenderer.queueAnimationFrame();
         }
-      });
+      }
     }
 
     return () => {
       newRenderer?.dispose();
       if (rendererRef.current === newRenderer) {
         rendererRef.current = undefined;
-      }
-      if (rendererReplayRef.current?.renderer === newRenderer) {
-        rendererReplayRef.current = undefined;
       }
     };
   }, [
@@ -389,8 +264,7 @@ export function ThreeDeeRender(props: {
     testOptions,
     displayTemporaryError,
     subscribeMessageRangeRef,
-    acquireSeekKeyframeSearchPlaybackPauseRef,
-    finishPendingRenderTicks,
+    playbackIsPlayingRef,
   ]);
 
   // Combined effect for renderer setup operations
@@ -560,72 +434,52 @@ export function ThreeDeeRender(props: {
   // Establish a connection to the message pipeline with context.watch and context.onRender
   useLayoutEffect(() => {
     context.onRender = (renderState: Immutable<RenderState>, done) => {
-      const rawRenderStateSnapshot = snapshotRenderState(renderState);
-      const currentFrame = currentFrameForRenderTick(
-        renderState.currentFrame,
-        lastCurrentFrameIdentityRef.current,
-      );
-      lastCurrentFrameIdentityRef.current = renderState.currentFrame;
-      const renderStateSnapshot =
-        currentFrame === renderState.currentFrame
-          ? rawRenderStateSnapshot
-          : { ...rawRenderStateSnapshot, currentFrame };
-      const rendererGeneration = ++rendererTickGenerationRef.current;
       const currentRenderer = rendererRef.current;
-      // A renderer rebuild needs the adapter's latest retained batch for cold GOP recovery, while
-      // the current renderer must consume each currentFrame array identity only once.
-      latestRenderStateRef.current = rawRenderStateSnapshot;
-      renderDoneCallbacksRef.current.push(done);
-
-      ReactDOM.unstable_batchedUpdates(() => {
-        setColorScheme(renderStateSnapshot.colorScheme);
-        if (renderStateSnapshot.appSettings) {
-          const tz = renderStateSnapshot.appSettings.get(AppSetting.TIMEZONE);
-          setTimezone(typeof tz === "string" ? tz : undefined);
-        }
-        setTopics(renderStateSnapshot.topics);
-        setSharedPanelState(renderStateSnapshot.sharedPanelState as Shared3DPanelState);
-        setExtensionData(renderStateSnapshot.extensionData);
-      });
-
-      if (currentRenderer == undefined) {
-        pendingRenderStateRef.current = mergeRenderStatesForRenderer(
-          pendingRenderStateRef.current,
-          renderStateSnapshot,
+      try {
+        const rawRenderStateSnapshot = snapshotRenderState(renderState);
+        const currentFrame = currentFrameForRenderTick(
+          renderState.currentFrame,
+          lastCurrentFrameIdentityRef.current,
         );
-        return;
-      }
+        lastCurrentFrameIdentityRef.current = renderState.currentFrame;
+        const renderStateSnapshot =
+          currentFrame === renderState.currentFrame
+            ? rawRenderStateSnapshot
+            : { ...rawRenderStateSnapshot, currentFrame };
+        // A renderer rebuild needs the adapter's latest retained batch for cold GOP recovery, while
+        // the current renderer must consume each currentFrame array identity only once.
+        latestRenderStateRef.current = rawRenderStateSnapshot;
 
-      const rendererReplay = rendererReplayRef.current;
-      const work = Promise.resolve()
-        .then(async () => {
-          if (rendererReplay?.renderer === currentRenderer) {
-            await rendererReplay.promise;
+        ReactDOM.unstable_batchedUpdates(() => {
+          setColorScheme(renderStateSnapshot.colorScheme);
+          if (renderStateSnapshot.appSettings) {
+            const tz = renderStateSnapshot.appSettings.get(AppSetting.TIMEZONE);
+            setTimezone(typeof tz === "string" ? tz : undefined);
           }
-          if (rendererRef.current !== currentRenderer) {
-            return;
-          }
-          await processRenderState(currentRenderer, renderStateSnapshot);
-        })
-        .catch((error: unknown) => {
-          log.error(error);
+          setTopics(renderStateSnapshot.topics);
+          setSharedPanelState(renderStateSnapshot.sharedPanelState as Shared3DPanelState);
+          setExtensionData(renderStateSnapshot.extensionData);
         });
-      void completeRenderTick({
-        work,
-        isCurrent: () =>
-          rendererRef.current === currentRenderer &&
-          rendererTickGenerationRef.current === rendererGeneration,
-        animationFrame: () => {
-          currentRenderer.animationFrame();
-        },
-        done: finishPendingRenderTicks,
-      });
+
+        if (currentRenderer != undefined) {
+          processRenderState(currentRenderer, renderStateSnapshot);
+        }
+      } catch (error) {
+        log.error(error);
+      } finally {
+        try {
+          currentRenderer?.queueAnimationFrame();
+        } finally {
+          done();
+        }
+      }
     };
 
     context.watch("allFrames");
     context.watch("colorScheme");
     context.watch("currentFrame");
     context.watch("startTime");
+    context.watch("endTime");
     context.watch("currentTime");
     context.watch("didSeek");
     context.watch("parameters");
@@ -637,9 +491,8 @@ export function ThreeDeeRender(props: {
 
     return () => {
       context.onRender = undefined;
-      finishPendingRenderTicks();
     };
-  }, [context, finishPendingRenderTicks]);
+  }, [context]);
 
   // Build a list of topics to subscribe to
   const [topicsToSubscribe, setTopicsToSubscribe] = useState<Subscription[] | undefined>(undefined);
@@ -721,21 +574,6 @@ export function ThreeDeeRender(props: {
       renderer.subscribeMessageRange = subscribeMessageRange;
     }
   }, [renderer, subscribeMessageRange]);
-
-  useEffect(() => {
-    if (!renderer) {
-      return;
-    }
-
-    renderer.acquireSeekKeyframeSearchPlaybackPause = acquireSeekKeyframeSearchPlaybackPause;
-    return () => {
-      if (
-        renderer.acquireSeekKeyframeSearchPlaybackPause === acquireSeekKeyframeSearchPlaybackPause
-      ) {
-        renderer.acquireSeekKeyframeSearchPlaybackPause = undefined;
-      }
-    };
-  }, [acquireSeekKeyframeSearchPlaybackPause, renderer]);
 
   // Keep the renderer color scheme up to date. onRender normally applies this before drawing;
   // this effect also covers renderer creation between player ticks.

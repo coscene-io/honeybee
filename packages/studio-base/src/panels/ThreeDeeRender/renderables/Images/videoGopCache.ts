@@ -18,7 +18,7 @@ type CompressedVideoLike = {
   timestamp: Time;
   frame_id: string;
   format: string;
-  data: Uint8Array;
+  data: Uint8Array | readonly number[];
 };
 
 type CachedVideoFrame = {
@@ -85,8 +85,8 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
     typeof message.frame_id !== "string" ||
     typeof message.format !== "string" ||
     !VIDEO_FORMATS.has(message.format) ||
-    !(message.data instanceof Uint8Array) ||
-    message.data.byteLength === 0
+    (!(message.data instanceof Uint8Array) && !Array.isArray(message.data)) ||
+    message.data.length === 0
   ) {
     return undefined;
   }
@@ -102,7 +102,7 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
           frame: message as CompressedVideoLike,
           isKeyframe: h264Info.isKeyFrame,
           mayNeedRewrite: h264Info.mayNeedRewrite,
-          byteLength: message.data.byteLength,
+          byteLength: message.data.length,
         };
       }
       case "h265":
@@ -113,7 +113,7 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
           frame: message as CompressedVideoLike,
           isKeyframe: H265.IsKeyframe(message.data),
           mayNeedRewrite: false,
-          byteLength: message.data.byteLength,
+          byteLength: message.data.length,
         };
       default:
         return undefined;

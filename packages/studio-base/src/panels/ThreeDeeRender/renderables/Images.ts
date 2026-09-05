@@ -10,10 +10,9 @@ import { assert } from "ts-essentials";
 
 import { MultiMap, filterMap } from "@foxglove/den/collection";
 import { PinholeCameraModel } from "@foxglove/den/image";
-import Logger from "@foxglove/log";
 import { toNanoSec } from "@foxglove/rostime";
 import { CameraCalibration, CompressedImage, RawImage } from "@foxglove/schemas";
-import { MessageEvent, SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
+import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
 import {
   ALL_SUPPORTED_IMAGE_SCHEMAS,
   SEEK_KEYFRAME_SEARCH_HUD_ITEM,
@@ -31,7 +30,6 @@ import {
 import { ALL_CAMERA_INFO_SCHEMAS, AnyImage, CompressedVideo } from "./Images/ImageTypes";
 import {
   normalizeCompressedImage,
-  normalizeCompressedVideo,
   normalizeRawImage,
   normalizeRosCompressedImage,
   normalizeRosImage,
@@ -39,7 +37,7 @@ import {
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "./Images/topicPrefixMatching";
 import { videoDelayBucket } from "./Images/videoMessageQueue";
 import { cameraInfosEqual, normalizeCameraInfo } from "./projections";
-import type { AnyRendererSubscription, IRenderer, RendererSubscriptionContext } from "../IRenderer";
+import type { AnyRendererSubscription, IRenderer } from "../IRenderer";
 import {
   PartialMessageEvent,
   SceneExtension,
@@ -72,8 +70,6 @@ import {
   ImageUserData,
 } from "./Images/ImageRenderable";
 
-const log = Logger.getLogger(__filename);
-
 export type LayerSettingsImage = BaseSettings & {
   cameraInfoTopic: string | undefined;
   distance: number;
@@ -86,8 +82,6 @@ const NO_CAMERA_INFO_ERR = "NoCameraInfo";
 const CAMERA_MODEL = "CameraModel";
 const VIDEO_DELAY_HUD_GROUP = "VIDEO_DELAY_GROUP";
 const VIDEO_B_FRAMES_HUD_GROUP = "VIDEO_B_FRAMES_GROUP";
-const VIDEO_SYNC_HUD_GROUP = "VIDEO_SYNC_GROUP";
-const VIDEO_SYNC_WAITING_ERR = "WaitingForSynchronizedVideo";
 
 export class Images extends SceneExtension<ImageRenderable> {
   public static extensionId = "foxglove.Images";
@@ -110,9 +104,6 @@ export class Images extends SceneExtension<ImageRenderable> {
   #compressedVideoControllers = new Map<string, CompressedVideoController>();
   #bFrameTopics = new Set<string>();
   #videoDelayBuckets = new Map<string, string>();
-  #syncWaitingTopics = new Set<string>();
-  #timestampSyncParticipants = new Set<string>();
-  #lastSynchronizedVideoTargetByTopic = new Map<string, MessageEvent<CompressedVideo>>();
 
   protected supportedImageSchemas = ALL_SUPPORTED_IMAGE_SCHEMAS;
 
@@ -133,11 +124,6 @@ export class Images extends SceneExtension<ImageRenderable> {
     this.#bFrameTopics.clear();
     this.hud.removeGroup(VIDEO_DELAY_HUD_GROUP);
     this.hud.removeGroup(VIDEO_B_FRAMES_HUD_GROUP);
-    this.hud.removeGroup(VIDEO_SYNC_HUD_GROUP);
-    for (const topic of this.#syncWaitingTopics) {
-      this.renderer.settings.errors.removeFromTopic(topic, VIDEO_SYNC_WAITING_ERR);
-    }
-    this.#syncWaitingTopics.clear();
     this.hud.removeHUDItem(SEEK_KEYFRAME_SEARCH_HUD_ITEM.id);
     super.dispose();
   }
@@ -161,7 +147,6 @@ export class Images extends SceneExtension<ImageRenderable> {
   }
 
   public override handleSeek(): void {
-    this.#lastSynchronizedVideoTargetByTopic.clear();
     this.#videoDelayBuckets.clear();
     this.hud.removeGroup(VIDEO_DELAY_HUD_GROUP);
     for (const topic of this.#visibleCompressedVideoTopics()) {
@@ -213,7 +198,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         schemaNames: COMPRESSED_VIDEO_DATATYPES,
         subscription: {
           processQueue: this.#processCompressedVideoQueue,
-          shouldSync: true,
+          preload: false,
         },
       },
       {
@@ -250,19 +235,15 @@ export class Images extends SceneExtension<ImageRenderable> {
         this.#compressedVideoControllers.delete(topic);
         this.#bFrameTopics.delete(topic);
         this.#videoDelayBuckets.delete(topic);
-        this.#lastSynchronizedVideoTargetByTopic.delete(topic);
         this.hud.removeHUDItem(`VIDEO_DELAY:${topic}`);
         this.hud.removeHUDItem(`VIDEO_B_FRAMES:${topic}`);
-        this.hud.removeHUDItem(`VIDEO_SYNC_WAITING:${topic}`);
-        this.renderer.settings.errors.removeFromTopic(topic, VIDEO_SYNC_WAITING_ERR);
-        this.#syncWaitingTopics.delete(topic);
       }
     }
-    this.#invalidateControllersForSyncChanges();
+    this.#updateVisibleVideoHUD();
   };
 
   #handleConfigChange = (): void => {
-    this.#invalidateControllersForSyncChanges();
+    this.#updateVisibleVideoHUD();
   };
 
   #visibleCompressedVideoTopics(): Set<string> {
@@ -326,13 +307,6 @@ export class Images extends SceneExtension<ImageRenderable> {
         },
         color: { label: t("threeDee:color"), input: "rgba", value: config.color },
       };
-      if (topicIsConvertibleToSchema(topic, COMPRESSED_VIDEO_DATATYPES)) {
-        fields.synchronize = {
-          label: t("threeDee:synchronize"),
-          input: "boolean",
-          value: this.renderer.config.syncedTopics?.[imageTopic] === true,
-        };
-      }
 
       entries.push({
         path: ["topics", imageTopic],
@@ -355,14 +329,6 @@ export class Images extends SceneExtension<ImageRenderable> {
     }
 
     const imageTopic = path[1]!;
-    if (path[2] === "synchronize") {
-      this.renderer.updateConfig((draft) => {
-        draft.syncedTopics ??= {};
-        draft.syncedTopics[imageTopic] = action.payload.value === true;
-      });
-      this.updateSettingsTree();
-      return;
-    }
     const prevSettings: Partial<LayerSettingsImage> | undefined =
       this.renderer.config.topics[imageTopic];
     const prevCameraInfoTopic = prevSettings?.cameraInfoTopic;
@@ -443,143 +409,27 @@ export class Images extends SceneExtension<ImageRenderable> {
     void this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
   };
 
-  #processCompressedVideoQueue = async (
-    queue: readonly PartialMessageEvent<CompressedVideo>[],
-    context: RendererSubscriptionContext,
-  ): Promise<void> => {
-    this.#invalidateControllersForSyncChanges();
-    if (context.syncTimestampRegressed === true) {
-      for (const topic of this.#timestampSyncParticipants) {
-        this.#lastSynchronizedVideoTargetByTopic.delete(topic);
-      }
-    }
-    this.#updateTimestampSyncWaitingState(context);
-    const framesByTopic = new Map<string, MessageEvent<CompressedVideo>[]>();
-    for (const messageEvent of queue) {
-      const normalizedEvent = {
-        ...messageEvent,
-        message: normalizeCompressedVideo(messageEvent.message),
-      } as MessageEvent<CompressedVideo>;
-      const frames = framesByTopic.get(normalizedEvent.topic);
-      if (frames != undefined) {
-        frames.push(normalizedEvent);
+  #processCompressedVideoQueue = (queue: readonly PartialMessageEvent<CompressedVideo>[]): void => {
+    const framesByTopic = new Map<string, PartialMessageEvent<CompressedVideo>[]>();
+    for (const event of queue) {
+      const frames = framesByTopic.get(event.topic);
+      if (frames) {
+        frames.push(event);
       } else {
-        framesByTopic.set(normalizedEvent.topic, [normalizedEvent]);
+        framesByTopic.set(event.topic, [event]);
       }
     }
-
-    const topics = new Set(framesByTopic.keys());
-    if (context.didSeek) {
-      for (const topic of this.#visibleCompressedVideoTopics()) {
-        topics.add(topic);
-      }
+    for (const controller of this.#compressedVideoControllers.values()) {
+      controller.updatePlaybackState();
     }
-    if (context.syncResult?.found === true) {
-      for (const topic of context.syncResult.messages.keys()) {
-        if (this.#topicUsesTimestampSync(topic)) {
-          topics.add(topic);
-        }
-      }
-    }
-
-    const tasks: Promise<ImageSetImageResult>[] = [];
-    for (const topic of topics) {
-      const synchronize = this.#topicUsesTimestampSync(topic);
-      const synchronizedTarget =
-        synchronize && context.syncResult?.found === true
-          ? (context.syncResult.messages.get(topic) as MessageEvent<CompressedVideo> | undefined)
-          : undefined;
-      const targetChanged =
-        synchronizedTarget != undefined &&
-        this.#lastSynchronizedVideoTargetByTopic.get(topic) !== synchronizedTarget;
-      const targetFrame =
-        targetChanged && context.syncResult?.found === true ? synchronizedTarget : undefined;
-      if (targetFrame != undefined) {
-        this.#lastSynchronizedVideoTargetByTopic.set(topic, targetFrame);
-      }
-      tasks.push(
-        this.#compressedVideoControllerForTopic(topic)
-          .processVideoFrames(framesByTopic.get(topic) ?? [], {
-            resizeWidth: DEFAULT_BITMAP_WIDTH,
-            synchronize,
-            targetFrame,
-            didSeek: context.didSeek,
-            onLateTargetFrameSettled: (result) => {
-              if (
-                !result.ok &&
-                this.#lastSynchronizedVideoTargetByTopic.get(topic) === targetFrame
-              ) {
-                this.#lastSynchronizedVideoTargetByTopic.delete(topic);
-              }
-            },
-          })
-          .then((result) => {
-            if (
-              targetFrame != undefined &&
-              !result.ok &&
-              result.reason !== "timeout" &&
-              this.#lastSynchronizedVideoTargetByTopic.get(topic) === targetFrame
-            ) {
-              this.#lastSynchronizedVideoTargetByTopic.delete(topic);
-            }
-            return result;
-          })
-          .catch((error: unknown) => {
-            if (this.#lastSynchronizedVideoTargetByTopic.get(topic) === targetFrame) {
-              this.#lastSynchronizedVideoTargetByTopic.delete(topic);
-            }
-            throw error;
-          }),
-      );
-    }
-    for (const result of await Promise.allSettled(tasks)) {
-      if (result.status === "rejected") {
-        log.error(result.reason);
-      }
+    for (const [topic, frames] of framesByTopic) {
+      this.#compressedVideoControllerForTopic(topic).enqueueVideoFrames(frames, {
+        resizeWidth: DEFAULT_BITMAP_WIDTH,
+      });
     }
   };
 
-  #updateTimestampSyncWaitingState(context: RendererSubscriptionContext): void {
-    const syncResult = context.syncResult;
-    const missingSynchronizedTopics =
-      syncResult?.found === true ? syncResult.waiting?.missingTopics : syncResult?.missingTopics;
-    const missingTopics =
-      this.renderer.config.synchronize === true
-        ? new Set(missingSynchronizedTopics ?? [])
-        : new Set<string>();
-    const nextWaitingTopics = new Set<string>();
-    for (const topic of missingTopics) {
-      if (!this.#topicUsesTimestampSync(topic)) {
-        continue;
-      }
-      nextWaitingTopics.add(topic);
-      this.renderer.settings.errors.addToTopic(
-        topic,
-        VIDEO_SYNC_WAITING_ERR,
-        t("threeDee:waitingForSynchronizedVideo", { topic }),
-      );
-      this.hud.displayIfTrue(true, {
-        id: `VIDEO_SYNC_WAITING:${topic}`,
-        group: VIDEO_SYNC_HUD_GROUP,
-        displayType: "notice",
-        getMessage: () => t("threeDee:waitingForSynchronizedVideo", { topic }),
-      });
-    }
-    for (const topic of this.#syncWaitingTopics) {
-      if (nextWaitingTopics.has(topic)) {
-        continue;
-      }
-      this.renderer.settings.errors.removeFromTopic(topic, VIDEO_SYNC_WAITING_ERR);
-      this.hud.removeHUDItem(`VIDEO_SYNC_WAITING:${topic}`);
-    }
-    this.#syncWaitingTopics = nextWaitingTopics;
-  }
-
-  #topicUsesTimestampSync(topic: string): boolean {
-    return this.#timestampSyncParticipants.has(topic);
-  }
-
-  #invalidateControllersForSyncChanges(): void {
+  #updateVisibleVideoHUD(): void {
     const visibleTopics = this.#visibleCompressedVideoTopics();
     for (const topic of this.#bFrameTopics) {
       this.#setBFramesWarningVisible(topic, { visible: visibleTopics.has(topic) });
@@ -590,37 +440,13 @@ export class Images extends SceneExtension<ImageRenderable> {
         this.hud.removeHUDItem(`VIDEO_DELAY:${topic}`);
       }
     }
-
-    const nextParticipants = new Set<string>();
-    for (const topic of visibleTopics) {
-      if (
-        this.renderer.config.synchronize === true &&
-        this.renderer.config.syncedTopics?.[topic] === true
-      ) {
-        nextParticipants.add(topic);
+    for (const [topic, controller] of this.#compressedVideoControllers) {
+      if (!visibleTopics.has(topic)) {
+        controller.dispose();
+        this.#compressedVideoControllers.delete(topic);
+        this.renderables.get(topic)?.resetForSeek();
       }
     }
-    if (nextParticipants.size < 2) {
-      nextParticipants.clear();
-    }
-    if (setsEqual(nextParticipants, this.#timestampSyncParticipants)) {
-      return;
-    }
-
-    const affectedTopics = new Set([...this.#timestampSyncParticipants, ...nextParticipants]);
-    for (const topic of affectedTopics) {
-      this.#compressedVideoControllers.get(topic)?.resetPlaybackState();
-      this.#lastSynchronizedVideoTargetByTopic.delete(topic);
-    }
-    for (const topic of this.#timestampSyncParticipants) {
-      if (nextParticipants.has(topic)) {
-        continue;
-      }
-      this.renderer.settings.errors.removeFromTopic(topic, VIDEO_SYNC_WAITING_ERR);
-      this.hud.removeHUDItem(`VIDEO_SYNC_WAITING:${topic}`);
-      this.#syncWaitingTopics.delete(topic);
-    }
-    this.#timestampSyncParticipants = nextParticipants;
   }
 
   #handleRemoteVideoFrameReference = (
@@ -633,8 +459,8 @@ export class Images extends SceneExtension<ImageRenderable> {
     messageEvent: PartialMessageEvent<AnyImage>,
     image: AnyImage,
   ): Promise<ImageSetImageResult> => {
-    const renderable = this.#prepareImageRenderable(messageEvent, image);
-    return await renderable.setImage(image, DEFAULT_BITMAP_WIDTH);
+    const renderable = this.#prepareImageRenderable(messageEvent, image, { deferImageState: true });
+    return await renderable.setImage(image, DEFAULT_BITMAP_WIDTH, undefined, messageEvent);
   };
 
   #displayCompressedVideoFrames: CompressedVideoDisplayFrames = async (frames, _mode, options) => {
@@ -711,6 +537,7 @@ export class Images extends SceneExtension<ImageRenderable> {
         topic,
         renderer: this.renderer,
         displayFrames: this.#displayCompressedVideoFrames,
+        cancelLateTarget: () => this.renderables.get(topic)?.cancelLateTargetFrame(),
         resetDecoder: () => {
           this.renderables.get(topic)?.resetForSeek();
         },
@@ -720,9 +547,13 @@ export class Images extends SceneExtension<ImageRenderable> {
         },
       });
       this.#compressedVideoControllers.set(topic, controller);
+      if (this.renderer.getPlaybackIsPlaying?.() === false) {
+        controller.handleSeek();
+      }
     } else {
       controller.updateOptions({
         displayFrames: this.#displayCompressedVideoFrames,
+        cancelLateTarget: () => this.renderables.get(topic)?.cancelLateTargetFrame(),
         resetDecoder: () => {
           this.renderables.get(topic)?.resetForSeek();
         },
@@ -936,16 +767,4 @@ export class Images extends SceneExtension<ImageRenderable> {
   protected initRenderable(topicName: string, userData: ImageUserData): ImageRenderable {
     return new ImageRenderable(topicName, this.renderer, userData);
   }
-}
-
-function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
-  if (left.size !== right.size) {
-    return false;
-  }
-  for (const value of left) {
-    if (!right.has(value)) {
-      return false;
-    }
-  }
-  return true;
 }

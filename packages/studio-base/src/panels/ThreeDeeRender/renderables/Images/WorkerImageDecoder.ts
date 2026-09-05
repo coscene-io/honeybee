@@ -24,6 +24,7 @@ export type DecodeVideoFramesArgs = {
   requestId: number;
   targetFrameTimeoutMs: number;
   anyFrameTimeoutMs?: number;
+  retainLateTarget?: boolean;
 };
 
 export type DecodeVideoFramesResult =
@@ -101,6 +102,10 @@ export class WorkerImageDecoder {
 
   public async resetVideoDecoder(): Promise<void> {
     await this.#remote.resetVideoDecoder();
+  }
+
+  public async cancelTargetFrame(requestId: number): Promise<void> {
+    await this.#remote.cancelTargetFrame(requestId);
   }
 
   public terminate(): void {

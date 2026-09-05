@@ -34,6 +34,7 @@ export type DecodeVideoFramesArgs = {
   requestId: number;
   targetFrameTimeoutMs: number;
   anyFrameTimeoutMs?: number;
+  retainLateTarget?: boolean;
 };
 
 export type DecodeVideoFramesResult =
@@ -369,6 +370,7 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     }) => {
       if (batchState.finished || batchState.aborted) {
         if (
+          args.retainLateTarget !== true ||
           !retainOrResolveTargetFrame(
             requestId,
             {
@@ -476,7 +478,12 @@ async function decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVid
     }
 
     const result = await resultPromise;
-    const retainLateTarget = result.type === "IntermediateFrame" || result.type === "Timeout";
+    const retainLateTarget =
+      args.retainLateTarget === true &&
+      (result.type === "IntermediateFrame" || result.type === "Timeout");
+    if (!retainLateTarget) {
+      abortPendingTargetFrame();
+    }
     player.discardQueuedFramesExcept(
       retainLateTarget ? queuedFrames[queuedFrames.length - 1]!.timestampMicros : undefined,
     );
@@ -584,6 +591,11 @@ function closeDecodeResultFrame(result: DecodeVideoFramesResult): void {
 export const service = {
   decodeVideoFrames,
   awaitTargetFrame,
+  cancelTargetFrame: (requestId: number): void => {
+    if (pendingTargetFrame?.requestId === requestId) {
+      abortPendingTargetFrame();
+    }
+  },
   resetVideoDecoder,
 };
 Comlink.expose(service);
