@@ -273,6 +273,20 @@ describe("H264", () => {
     });
   });
 
+  it("HasBFrames reads the SPS frame reordering declaration", () => {
+    const spsData = H264.GetFirstNALUOfType(SAMPLE_SPS_FRAME, H264NaluType.SPS)!;
+    const sps = new SPS(spsData);
+    sps.max_num_reorder_frames = 1;
+    const buffer = new Uint8Array(256);
+    const writer = new BitstreamWriter(buffer);
+    sps.writeToBitstream(writer);
+    writer.finish();
+    const frame = new Uint8Array([0x00, 0x00, 0x01, ...buffer.subarray(0, writer.bytesWritten())]);
+
+    expect(H264.HasBFrames(frame)).toBe(true);
+    expect(H264.HasBFrames(new Uint8Array([0x00, 0x00, 0x01, 0x65, 0x88]))).toBeUndefined();
+  });
+
   it("BitstreamWriter inserts emulation prevention bytes for dangerous byte sequences", () => {
     expect(writeBytesWithBitstreamWriter([0x00, 0x00, 0x00])).toEqual(
       new Uint8Array([0x00, 0x00, 0x03, 0x00]),

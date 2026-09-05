@@ -19,17 +19,12 @@ export type DecodeVideoFrameInput = {
   receiveTime: bigint;
 };
 
-export type DecodedVideoFrame = {
-  frame: VideoFrame;
-  originalTimestamp: bigint;
-  receiveTime: bigint;
-};
-
 export type DecodeVideoFramesArgs = {
-  frames: DecodeVideoFrameInput[];
+  frames: readonly DecodeVideoFrameInput[];
   requestId: number;
-  targetFrameTimeoutMs?: number;
+  targetFrameTimeoutMs: number;
   anyFrameTimeoutMs?: number;
+  retainLateTarget?: boolean;
 };
 
 export type DecodeVideoFramesResult =
@@ -39,6 +34,7 @@ export type DecodeVideoFramesResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      batchIndex?: number;
     }
   | {
       type: "Timeout" | "Aborted" | "FrameOutOfOrder";
@@ -47,6 +43,7 @@ export type DecodeVideoFramesResult =
 
 export type AwaitTargetFrameArgs = {
   requestId: number;
+  timeoutMs: number;
 };
 
 export type AwaitTargetFrameResult =
@@ -56,6 +53,7 @@ export type AwaitTargetFrameResult =
       frame: VideoFrame;
       originalTimestamp: bigint;
       receiveTime: bigint;
+      batchIndex?: number;
     }
   | { type: "Aborted"; requestId: number };
 
@@ -94,13 +92,6 @@ export class WorkerImageDecoder {
     return result;
   }
 
-  public async decodeVideoFrame(
-    frame: CompressedVideo,
-    receiveTime: bigint,
-  ): Promise<DecodedVideoFrame | undefined> {
-    return await this.#remote.decodeVideoFrame({ frame, receiveTime });
-  }
-
   public async decodeVideoFrames(args: DecodeVideoFramesArgs): Promise<DecodeVideoFramesResult> {
     return await this.#remote.decodeVideoFrames(args);
   }
@@ -111,6 +102,10 @@ export class WorkerImageDecoder {
 
   public async resetVideoDecoder(): Promise<void> {
     await this.#remote.resetVideoDecoder();
+  }
+
+  public async cancelTargetFrame(requestId: number): Promise<void> {
+    await this.#remote.cancelTargetFrame(requestId);
   }
 
   public terminate(): void {
