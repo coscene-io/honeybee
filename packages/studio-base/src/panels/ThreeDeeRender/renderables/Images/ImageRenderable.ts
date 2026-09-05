@@ -546,23 +546,28 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     if (candidate == undefined) {
       return;
     }
-    this.#pendingDecodedImage = undefined;
     const receiveTime =
       candidate.event != undefined ? toNanoSec(candidate.event.receiveTime) : undefined;
     if (
       !this.#canUpdateTexture() ||
       candidate.generation !== this.#imageGeneration ||
       candidate.isRequestCurrent?.() === false ||
-      candidate.canDisplay?.() === false ||
       candidate.seq < this.#displayedImageSequenceNumber ||
       (receiveTime != undefined &&
         (receiveTime > this.renderer.currentTime ||
           (this.userData.displayedFrameState != undefined &&
             receiveTime < this.userData.displayedFrameState.receiveTime)))
     ) {
+      this.#pendingDecodedImage = undefined;
       this.#closeDecodedImageIfUnused(candidate.result);
       return;
     }
+    // Annotations can arrive in a later tick, even while paused. Keep the one decoded candidate
+    // until it matches, is superseded, or becomes invalid; never decode its GOP again.
+    if (candidate.canDisplay?.() === false) {
+      return;
+    }
+    this.#pendingDecodedImage = undefined;
     this.#displayedImageSequenceNumber = candidate.seq;
     this.#decodedImage = candidate.result;
     this.#textureNeedsUpdate = true;

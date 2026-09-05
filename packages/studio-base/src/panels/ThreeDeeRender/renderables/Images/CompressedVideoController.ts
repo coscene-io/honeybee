@@ -353,37 +353,7 @@ export class CompressedVideoController {
     try {
       let frames = this.#cache.framesForReceiveTime(this.#topic, targetTime);
       if (frames == undefined && this.#renderer.subscribeMessageRange != undefined) {
-        this.#state.lookbackGeneration = generation;
-        this.#onSeekKeyframeSearchChange?.({ active: true });
-        const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
-        let collected: MessageEvent[] = [];
-        let coveredStart = targetTime;
-        for (const seconds of LOOKBACK_WINDOWS_SEC) {
-          if (!this.#isCurrentLookback(generation)) {
-            return;
-          }
-          const start = clampTime(subtract(targetTime, fromSec(seconds)), startTime, targetTime);
-          const slice = await this.#readRangeWithRetries(
-            generation,
-            start,
-            coveredStart,
-            playbackPerformanceMetrics.captureActiveSeek(),
-          );
-          if (!this.#isCurrentLookback(generation) || slice == undefined) {
-            return;
-          }
-          collected = mergeFramesByReceiveTime(slice, collected);
-          coveredStart = start;
-          const gop = gopEndingAt(collected, this.#topic, targetTime);
-          if (gop.length > 0) {
-            this.#cache.addFrameRange(collected);
-            frames = gop;
-            break;
-          }
-          if (compare(start, startTime) === 0) {
-            break;
-          }
-        }
+        frames = await this.#lookbackFrames(generation, targetTime);
       }
       if (
         generation !== this.#generation ||
@@ -412,6 +382,71 @@ export class CompressedVideoController {
         this.#state.lookbackGeneration = undefined;
         this.#onSeekKeyframeSearchChange?.({ active: false });
       }
+    }
+  }
+
+  async #lookbackFrames(generation: number, targetTime: Time): Promise<MessageEvent[] | undefined> {
+    this.#state.lookbackGeneration = generation;
+    const metricsSeekId = playbackPerformanceMetrics.captureActiveSeek();
+    // This only keeps telemetry open; it never blocks the Player or panel tick.
+    const finishMetricsTask = playbackPerformanceMetrics.beginVisualTask();
+    let found = false;
+    try {
+      this.#onSeekKeyframeSearchChange?.({ active: true });
+      const startTime = fromNanoSec(this.#renderer.startTime ?? 0n);
+      const knownKeyframe = this.#cache.nearestKeyframeReceiveTimeAtOrBefore(
+        this.#topic,
+        targetTime,
+      );
+      const starts = [
+        ...(knownKeyframe != undefined ? [knownKeyframe] : []),
+        ...LOOKBACK_WINDOWS_SEC.map((seconds) => subtract(targetTime, fromSec(seconds))),
+      ];
+      let collected: MessageEvent[] = [];
+      let coveredStart: Time | undefined;
+      for (const requestedStart of starts) {
+        if (!this.#isCurrentLookback(generation)) {
+          return undefined;
+        }
+        const start = clampTime(requestedStart, startTime, targetTime);
+        if (coveredStart != undefined && compare(start, coveredStart) >= 0) {
+          continue;
+        }
+        const slice = await this.#readRangeWithRetries(
+          generation,
+          start,
+          coveredStart ?? targetTime,
+          metricsSeekId,
+        );
+        if (!this.#isCurrentLookback(generation)) {
+          return undefined;
+        }
+        if (slice == undefined) {
+          // The index may be sparse. A failed wide read must not prevent the short-window search.
+          if (requestedStart === knownKeyframe) {
+            continue;
+          }
+          return undefined;
+        }
+        collected = mergeFramesByReceiveTime(slice, collected);
+        coveredStart = start;
+        const gop = gopEndingAt(collected, this.#topic, targetTime);
+        if (gop.length > 0) {
+          this.#cache.addFrameRange(collected);
+          found = true;
+          return gop;
+        }
+        if (compare(start, startTime) === 0) {
+          break;
+        }
+      }
+      return undefined;
+    } finally {
+      playbackPerformanceMetrics.recordVideoLookback(
+        metricsSeekId,
+        !this.#isCurrentLookback(generation) ? "cancelled" : found ? "success" : "failure",
+      );
+      finishMetricsTask?.();
     }
   }
 

@@ -425,7 +425,7 @@ describe("ImageRenderable candidate scheduling", () => {
     renderable.dispose();
   });
 
-  it("a missing annotation match drops only the candidate, not decoder continuity", async () => {
+  it("a missing annotation match retains one candidate without blocking decoder completion", async () => {
     const frame = new MockVideoFrame() as unknown as VideoFrame;
     const decodeVideoFrames = makeDecodeVideoFramesMock([frame]);
     const renderable = new TestVideoBatchRenderable({
@@ -439,8 +439,9 @@ describe("ImageRenderable candidate scheduling", () => {
     ).resolves.toMatchObject({ ok: true });
     commit();
     expect(renderable.getDecodedImage()).toBeUndefined();
-    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+    expect((frame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
     renderable.dispose();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
   });
 
   it("holds the last matched image and resumes on a delta when annotations catch up before rAF", async () => {
@@ -465,11 +466,12 @@ describe("ImageRenderable candidate scheduling", () => {
     expect(renderable.getDecodedImage()).toBe(first);
     expect(renderable.userData.receiveTime).toBe(1n);
     expect(updateImageState).not.toHaveBeenCalled();
-    expect((unmatched as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+    expect((unmatched as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
 
     const canDisplayFrame = jest.fn(() => false);
     const target = videoFrameEvent(3n, 3, "delta");
     await renderable.setCompressedVideoFrames([target], { canDisplayFrame, updateImageState });
+    expect((unmatched as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
     expect(canDisplayFrame).not.toHaveBeenCalled();
     canDisplayFrame.mockReturnValue(true);
     commit();
@@ -478,6 +480,52 @@ describe("ImageRenderable candidate scheduling", () => {
     expect(renderable.userData.receiveTime).toBe(3n);
     expect(updateImageState).toHaveBeenCalledTimes(1);
     expect(updateImageState).toHaveBeenCalledWith(target);
+    renderable.dispose();
+  });
+
+  it("commits a retained candidate after an annotation-only tick while stopped without decoding again", async () => {
+    const frame = new MockVideoFrame() as unknown as VideoFrame;
+    const decodeVideoFrames = makeDecodeVideoFramesMock([frame]);
+    const renderable = new TestVideoBatchRenderable({
+      decodeVideoFrames,
+      terminate: jest.fn(),
+    } as unknown as WorkerImageDecoder);
+    const canDisplayFrame = jest.fn(() => false);
+    const updateImageState = jest.fn();
+    const event = videoFrameEvent(1n, 1, "key");
+    await renderable.setCompressedVideoFrames([event], { canDisplayFrame, updateImageState });
+    const queued = (mockRenderer.queueAnimationFrame as jest.Mock).mock.calls.length;
+    commit();
+    expect(renderable.getDecodedImage()).toBeUndefined();
+    expect((frame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
+    expect(mockRenderer.queueAnimationFrame).toHaveBeenCalledTimes(queued);
+    mockRenderer.isPlaybackStopped = jest.fn(() => true);
+    canDisplayFrame.mockReturnValue(true);
+    commit();
+    commit();
+    expect(renderable.getDecodedImage()).toBe(frame);
+    expect(updateImageState).toHaveBeenCalledTimes(1);
+    expect(updateImageState).toHaveBeenCalledWith(event);
+    expect(decodeVideoFrames).toHaveBeenCalledTimes(1);
+    renderable.dispose();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes an annotation-blocked candidate when a seek invalidates it", async () => {
+    const frame = new MockVideoFrame() as unknown as VideoFrame;
+    const renderable = new TestVideoBatchRenderable({
+      decodeVideoFrames: makeDecodeVideoFramesMock([frame]),
+      resetVideoDecoder: jest.fn(async () => {}),
+      terminate: jest.fn(),
+    } as unknown as WorkerImageDecoder);
+    const canDisplayFrame = jest.fn(() => false);
+    await renderable.setCompressedVideoFrames([videoFrameEvent(1n, 1, "key")], { canDisplayFrame });
+    commit();
+    renderable.resetForSeek();
+    canDisplayFrame.mockReturnValue(true);
+    commit();
+    expect(renderable.getDecodedImage()).toBeUndefined();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
     renderable.dispose();
   });
 

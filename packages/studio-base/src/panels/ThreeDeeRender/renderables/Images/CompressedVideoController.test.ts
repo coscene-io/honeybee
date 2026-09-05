@@ -11,6 +11,10 @@ import { H264 } from "@foxglove/den/video";
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import {
+  PlaybackPerformanceMetrics,
+  playbackPerformanceMetrics,
+} from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
 import {
   CompressedVideoController,
@@ -349,6 +353,220 @@ describe("tick incremental video scheduling", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(display).not.toHaveBeenCalled();
     controller.dispose();
+  });
+
+  it("uses the preserved keyframe index for an evicted GOP more than 60 seconds before seek", async () => {
+    const { controller, renderer, display } = setup();
+    renderer.stopped = true;
+    const keyframe = frame(1_000_000_000, "key");
+    controller.enqueueVideoFrames([keyframe]);
+    await flush();
+    // Simulate payload eviction while retaining the real cache's independently stored keyframe index.
+    jest.spyOn(VideoGopCache.prototype, "framesForReceiveTime").mockReturnValue(undefined);
+    renderer.currentTime = 120_000_000_000n;
+    const target = frame(Number(renderer.currentTime));
+    const request = jest.fn<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>>(
+      (args) => {
+        void args.onNewRangeIterator(
+          (async function* () {
+            yield [keyframe, target];
+          })(),
+        );
+        return jest.fn();
+      },
+    );
+    renderer.subscribeMessageRange = request;
+    controller.handleSeek();
+    await flush();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]![0].timeRange).toEqual({
+      start: keyframe.receiveTime,
+      end: target.receiveTime,
+    });
+    expect(display.mock.calls[0]![0]).toEqual([keyframe, target]);
+    controller.dispose();
+  });
+
+  it("falls back to older windows without reversing ranges when a known keyframe read is empty", async () => {
+    const { controller, renderer, display } = setup();
+    renderer.currentTime = 10_000_000_000n;
+    jest
+      .spyOn(VideoGopCache.prototype, "nearestKeyframeReceiveTimeAtOrBefore")
+      .mockReturnValue(fromNanoSec(8_000_000_000n));
+    const keyframe = frame(5_000_000_000, "key");
+    const target = frame(10_000_000_000);
+    const request = jest.fn<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>>(
+      (args) => {
+        const frames = request.mock.calls.length === 1 ? [] : [keyframe, target];
+        void args.onNewRangeIterator(
+          (async function* () {
+            yield frames;
+          })(),
+        );
+        return jest.fn();
+      },
+    );
+    renderer.subscribeMessageRange = request;
+    controller.handleSeek();
+    await flush();
+    await flush();
+    expect(request.mock.calls.map(([args]) => args.timeRange)).toEqual([
+      { start: fromNanoSec(8_000_000_000n), end: target.receiveTime },
+      { start: keyframe.receiveTime, end: fromNanoSec(8_000_000_000n) },
+    ]);
+    expect(display.mock.calls[0]![0]).toEqual([keyframe]);
+    controller.dispose();
+  });
+
+  it.each(["timeout", "exception"])(
+    "falls back to a short window after a sparse-index wide range %s exhausts retries",
+    async (failure) => {
+      jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+      const { controller, renderer, display } = setup();
+      try {
+        renderer.stopped = true;
+        controller.enqueueVideoFrames([frame(1_000_000_000, "key")]);
+        await flush();
+        renderer.currentTime = 600_000_000_000n;
+        const frames = [frame(599_000_000_000, "key"), frame(600_000_000_000)];
+        const request = jest.fn<
+          ReturnType<SubscribeMessageRange>,
+          Parameters<SubscribeMessageRange>
+        >((args) => {
+          const wide = toNanoSec(args.timeRange!.start) === 1_000_000_000n;
+          if (!wide || failure === "exception") {
+            void args.onNewRangeIterator(
+              (async function* () {
+                if (wide) {
+                  throw new Error("Range unavailable");
+                }
+                yield frames;
+              })(),
+            );
+          }
+          return jest.fn();
+        });
+        renderer.subscribeMessageRange = request;
+        controller.handleSeek();
+        await flush();
+        await jest.advanceTimersByTimeAsync(21_301);
+        expect(request.mock.calls.map(([args]) => args.timeRange)).toEqual([
+          ...Array.from({ length: 4 }, () => ({
+            start: fromNanoSec(1_000_000_000n),
+            end: fromNanoSec(renderer.currentTime),
+          })),
+          { start: frames[0]!.receiveTime, end: frames[1]!.receiveTime },
+        ]);
+        expect(display).toHaveBeenCalledTimes(1);
+        expect(display.mock.calls[0]![0]).toEqual(frames);
+      } finally {
+        controller.dispose();
+        jest.useRealTimers();
+      }
+    },
+  );
+
+  it.each(["success", "failure", "cancelled"] as const)(
+    "records one complete lookback %s under the captured seek and releases its telemetry task",
+    async (outcome) => {
+      const { controller, renderer } = setup();
+      const capture = jest
+        .spyOn(playbackPerformanceMetrics, "captureActiveSeek")
+        .mockReturnValue(7);
+      const finish = jest.fn();
+      const begin = jest
+        .spyOn(playbackPerformanceMetrics, "beginVisualTask")
+        .mockReturnValue(finish);
+      const record = jest.spyOn(playbackPerformanceMetrics, "recordVideoLookback");
+      const range = jest.spyOn(playbackPerformanceMetrics, "recordVideoRangeRead");
+      let request: Parameters<SubscribeMessageRange>[0] | undefined;
+      renderer.subscribeMessageRange = (args) => {
+        request = args;
+        return jest.fn();
+      };
+      controller.handleSeek();
+      expect(begin).not.toHaveBeenCalled();
+      await flush();
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(finish).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+      // Any newer sampled seek must not receive this recovery's measurements.
+      capture.mockReturnValue(8);
+      if (outcome === "cancelled") {
+        renderer.currentTime++;
+        controller.updatePlaybackState();
+      } else {
+        await request!.onNewRangeIterator(
+          (async function* () {
+            yield outcome === "success" ? [frame(900, "key"), frame(1000)] : [];
+          })(),
+        );
+      }
+      await flush();
+      expect(capture).toHaveBeenCalledTimes(1);
+      expect(record).toHaveBeenCalledTimes(1);
+      expect(record).toHaveBeenCalledWith(7, outcome);
+      expect(range).toHaveBeenCalledWith(7, outcome === "cancelled" ? "cancelled" : "success");
+      expect(finish).toHaveBeenCalledTimes(1);
+      expect(record.mock.invocationCallOrder[0]).toBeLessThan(finish.mock.invocationCallOrder[0]!);
+      controller.dispose();
+    },
+  );
+
+  it("keeps seek telemetry open until a slow range lookback finishes", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask"] });
+    const metrics = new PlaybackPerformanceMetrics({ sampleRate: 1, random: () => 0 });
+    const sink = jest.fn();
+    const uninstall = metrics.installSink(sink);
+    const { controller, renderer } = setup();
+    try {
+      jest
+        .spyOn(playbackPerformanceMetrics, "captureActiveSeek")
+        .mockImplementation(() => metrics.captureActiveSeek());
+      jest
+        .spyOn(playbackPerformanceMetrics, "beginVisualTask")
+        .mockImplementation(() => metrics.beginVisualTask());
+      jest
+        .spyOn(playbackPerformanceMetrics, "recordVideoLookback")
+        .mockImplementation((id, outcome) => {
+          metrics.recordVideoLookback(id, outcome);
+        });
+      jest
+        .spyOn(playbackPerformanceMetrics, "recordVideoRangeRead")
+        .mockImplementation((id, outcome) => {
+          metrics.recordVideoRangeRead(id, outcome);
+        });
+      let request: Parameters<SubscribeMessageRange>[0] | undefined;
+      renderer.subscribeMessageRange = (args) => {
+        request = args;
+        return jest.fn();
+      };
+      metrics.beginSeek();
+      controller.handleSeek();
+      metrics.markPlayerReady(0);
+      await flush();
+      await jest.advanceTimersByTimeAsync(300);
+      expect(sink).not.toHaveBeenCalled();
+      await request!.onNewRangeIterator(
+        (async function* () {
+          yield [frame(900, "key")];
+        })(),
+      );
+      await flush();
+      await jest.advanceTimersByTimeAsync(250);
+      expect(sink).toHaveBeenCalledTimes(1);
+      expect(sink).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "settled",
+          lookback_count: 1,
+          range_read_count: 1,
+        }),
+      );
+    } finally {
+      controller.dispose();
+      uninstall();
+      jest.useRealTimers();
+    }
   });
   it("retains legacy array payloads during ingest and converts them only after done", async () => {
     const { controller, display } = setup();
