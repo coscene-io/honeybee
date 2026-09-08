@@ -154,6 +154,21 @@ describe("3D Renderer", () => {
     (console.warn as jest.Mock).mockClear();
   });
 
+  it("applies React configuration internally without echoing configChange", () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas: document.createElement("canvas") });
+    const applied = jest.fn();
+    const changed = jest.fn();
+    renderer.on("configApplied", applied);
+    renderer.on("configChange", changed);
+    renderer.setConfig({ ...renderer.config, imageMode: { imageTopic: "/image" } }, { emitChange: false });
+    expect(applied).toHaveBeenCalledTimes(1);
+    expect(changed).not.toHaveBeenCalled();
+    renderer.updateConfig((draft) => { draft.imageMode.imageTopic = "/other"; });
+    expect(applied).toHaveBeenCalledTimes(2);
+    expect(changed).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+  });
+
   it("constructs a renderer without error", () => {
     expect(() => new Renderer({ ...defaultRendererProps, canvas })).not.toThrow();
   });

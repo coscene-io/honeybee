@@ -688,13 +688,16 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.setConfig(produce(this.config, updateHandler));
   }
 
-  public setConfig(config: Immutable<RendererConfig>): void {
+  public setConfig(config: Immutable<RendererConfig>, options: { emitChange?: boolean } = {}): void {
     const oldConfig = this.config;
     if (oldConfig === config) {
       return;
     }
     this.config = config;
-    this.emit("configChange", this);
+    this.emit("configApplied", this);
+    if (options.emitChange !== false) {
+      this.emit("configChange", this);
+    }
   }
 
   #addTransformSubscriptions(): void {

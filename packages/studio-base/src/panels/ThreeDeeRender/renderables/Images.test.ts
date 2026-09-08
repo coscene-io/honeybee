@@ -539,7 +539,7 @@ describe("Images compressed video seek lookback", () => {
     renderer.updateConfig((draft) => {
       draft.topics["/video"] = { visible: false };
     });
-    renderer.emit("configChange", renderer);
+    renderer.emit("configApplied", renderer);
 
     expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("VIDEO_DELAY:/video");
   });

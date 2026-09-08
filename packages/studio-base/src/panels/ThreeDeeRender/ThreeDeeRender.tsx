@@ -228,8 +228,13 @@ export function ThreeDeeRender(props: {
           testOptions,
         })
       : undefined;
-    setRenderer(newRenderer);
     rendererRef.current = newRenderer;
+    const propagateConfig = () => {
+      if (newRenderer != undefined && rendererRef.current === newRenderer) {
+        setConfig(newRenderer.config);
+      }
+    };
+    newRenderer?.on("configChange", propagateConfig);
     if (newRenderer != undefined) {
       newRenderer.subscribeMessageRange = subscribeMessageRangeRef.current;
       newRenderer.getPlaybackIsPlaying = () => playbackIsPlayingRef.current?.() ?? false;
@@ -248,7 +253,11 @@ export function ThreeDeeRender(props: {
       }
     }
 
+    propagateConfig();
+    setRenderer(newRenderer);
+
     return () => {
+      newRenderer?.off("configChange", propagateConfig);
       newRenderer?.dispose();
       if (rendererRef.current === newRenderer) {
         rendererRef.current = undefined;
@@ -361,12 +370,6 @@ export function ThreeDeeRender(props: {
   }, []);
   useRendererEvent("settingsTreeChange", updateSettingsTree, renderer);
 
-  // Save the panel configuration when it changes
-  const updateConfig = useCallback((curRenderer: IRenderer) => {
-    setConfig(curRenderer.config);
-  }, []);
-  useRendererEvent("configChange", updateConfig, renderer);
-
   // Write to a global variable when the current selection changes
   const updateSelectedRenderable = useCallback(
     (selection: PickedRenderable | undefined) => {
@@ -401,7 +404,7 @@ export function ThreeDeeRender(props: {
   // automatically update the settings tree.
   useEffect(() => {
     if (renderer) {
-      renderer.setConfig(config);
+      renderer.setConfig(config, { emitChange: false });
       renderer.queueAnimationFrame();
     }
   }, [config, renderer]);

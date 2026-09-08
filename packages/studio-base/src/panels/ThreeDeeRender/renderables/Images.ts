@@ -110,13 +110,13 @@ export class Images extends SceneExtension<ImageRenderable> {
   public constructor(renderer: IRenderer, name: string = Images.extensionId) {
     super(name, renderer);
     this.renderer.on("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.on("configChange", this.#handleConfigChange);
+    this.renderer.on("configApplied", this.#handleConfigChange);
     this.#handleTopicsChanged();
   }
 
   public override dispose(): void {
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.off("configChange", this.#handleConfigChange);
+    this.renderer.off("configApplied", this.#handleConfigChange);
     for (const controller of this.#compressedVideoControllers.values()) {
       controller.dispose();
     }

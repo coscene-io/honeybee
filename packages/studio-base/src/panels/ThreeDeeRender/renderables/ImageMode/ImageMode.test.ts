@@ -399,7 +399,7 @@ describe("ImageMode compressed video seek replay", () => {
       ...renderer.config,
       imageMode: { ...renderer.config.imageMode, synchronize: true },
     };
-    renderer.emit("configChange", renderer);
+    renderer.emit("configApplied", renderer);
 
     expect(messageHandler.setConfig).toHaveBeenLastCalledWith(
       expect.objectContaining({ synchronize: true }),
@@ -419,7 +419,7 @@ describe("ImageMode compressed video seek replay", () => {
       ...renderer.config,
       imageMode: { ...renderer.config.imageMode, synchronize: true },
     };
-    renderer.emit("configChange", renderer);
+    renderer.emit("configApplied", renderer);
 
     expect(imageMode.currentImageRenderable()).toBe(displayedRenderable);
     expect(displayedRenderable?.disposed).toBe(false);
@@ -458,7 +458,7 @@ describe("ImageMode compressed video seek replay", () => {
       ...renderer.config,
       imageMode: { ...renderer.config.imageMode, imageTopic: "/camera2" },
     };
-    renderer.emit("configChange", renderer);
+    renderer.emit("configApplied", renderer);
 
     expect(previousRenderable?.disposed).toBe(true);
     expect(imageMode.currentImageRenderable()).toBeUndefined();

@@ -224,7 +224,7 @@ export class ImageMode
     });
 
     this.renderer.on("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.on("configChange", this.#handleConfigChange);
+    this.renderer.on("configApplied", this.#handleConfigChange);
     this.#handleTopicsChanged();
   }
 
@@ -324,7 +324,7 @@ export class ImageMode
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.off("configChange", this.#handleConfigChange);
+    this.renderer.off("configApplied", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
     this.hud.removeHUDItem(this.#videoDelayHUDId());
     this.hud.removeHUDItem(this.#bFramesHUDId());

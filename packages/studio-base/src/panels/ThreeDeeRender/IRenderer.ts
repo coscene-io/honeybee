@@ -67,6 +67,7 @@ export type RendererEvents = {
   /** Fired when the structure of the transform tree changes ie: new frame added/removed or frame assigned new parent */
   transformTreeUpdated: (renderer: IRenderer) => void;
   settingsTreeChange: (renderer: IRenderer) => void;
+  configApplied: (renderer: IRenderer) => void;
   configChange: (renderer: IRenderer) => void;
   schemaSubscriptionsChanged: (renderer: IRenderer) => void;
   topicSubscriptionsChanged: (renderer: IRenderer) => void;
@@ -357,7 +358,7 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   handleAllFramesMessages(allFrames?: readonly MessageEvent[]): boolean;
 
   updateConfig(updateHandler: (draft: RendererConfig) => void): void;
-  setConfig(config: Immutable<RendererConfig>): void;
+  setConfig(config: Immutable<RendererConfig>, options?: { emitChange?: boolean }): void;
 
   addCustomLayerAction(options: {
     layerId: string;
