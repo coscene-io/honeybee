@@ -329,7 +329,14 @@ describe("onRender awaited presentation", () => {
   });
 
   it("publishes settings populated during retained-state replay and renderer replacement", async () => {
-    const topics = [{ name: "/image", schemaName: "foxglove.CompressedImage" }];
+    const topics: RenderState["topics"] = [
+      {
+        name: "/image",
+        schemaName: "foxglove.CompressedImage",
+        messageCount: 1,
+        messageFrequency: 1,
+      },
+    ];
     const { context, view } = mountPanel((panel) => {
       panel.onRender!({ topics }, jest.fn());
     });
