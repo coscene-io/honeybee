@@ -131,7 +131,7 @@ const defaultRendererProps = {
 };
 
 async function processQueuedMessagesAndDraw(renderer: Renderer): Promise<void> {
-  void renderer.processMessageEvents({
+  await renderer.processMessageEvents({
     currentTime: fromNanoSec(renderer.currentTime),
     didSeek: false,
     allFrames: undefined,
@@ -201,6 +201,47 @@ describe("3D Renderer", () => {
     renderer.queueAnimationFrame();
     expect(gl.clear).not.toHaveBeenCalled();
     expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("consumes a queued frame when drawing immediately and preserves reentrant requests", () => {
+    const request = jest.spyOn(window, "requestAnimationFrame").mockImplementation(() => 42);
+    const cancel = jest.spyOn(window, "cancelAnimationFrame");
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    renderer.animationFrame();
+    request.mockClear();
+    cancel.mockClear();
+    const start = jest.fn();
+    renderer.on("startFrame", start);
+    renderer.queueAnimationFrame();
+    renderer.animationFrame();
+    expect(cancel).toHaveBeenCalledWith(42);
+    expect(start).toHaveBeenCalledTimes(1);
+    renderer.once("startFrame", () => {
+      renderer.queueAnimationFrame();
+    });
+    renderer.animationFrame();
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mock.calls.at(-1)![0](0);
+    expect(start).toHaveBeenCalledTimes(3);
+    renderer.dispose();
+    request.mockRestore();
+    cancel.mockRestore();
+  });
+
+  it("requests presentation on visibility restoration and removes the listener on disposal", () => {
+    const visibility = jest.spyOn(document, "visibilityState", "get");
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const queue = jest.spyOn(renderer, "queueAnimationFrame");
+    visibility.mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(queue).not.toHaveBeenCalled();
+    visibility.mockReturnValue("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(queue).toHaveBeenCalledTimes(1);
+    renderer.dispose();
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(queue).toHaveBeenCalledTimes(1);
+    visibility.mockRestore();
   });
 
   it("does not set a unfollow pose snapshot  when in follow-pose mode", async () => {
@@ -874,6 +915,29 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     });
     expect(deferredHandler).toHaveBeenCalledTimes(1);
   });
+  it("does not allocate wait entries for a synchronous message backlog", async () => {
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
+    const handler = jest.fn();
+    renderer.topicSubscriptions.clear();
+    renderer.schemaSubscriptions.clear();
+    renderer.topicSubscriptions.set("/sync", [{ handler }]);
+    const settle = jest.spyOn(Promise, "allSettled");
+    const events = Array.from({ length: 1000 }, (_, index) => ({
+      ...createTFMessageEvent("a", "b", BigInt(index), [BigInt(index)]),
+      topic: "/sync",
+    }));
+    await renderer.processMessageEvents({
+      currentTime: fromNanoSec(1000n),
+      didSeek: false,
+      allFrames: undefined,
+      currentFrame: events,
+    });
+    expect(handler).toHaveBeenCalledTimes(1000);
+    expect(settle).toHaveBeenCalledWith([]);
+    settle.mockRestore();
+    renderer.dispose();
+  });
+
   it("ingests synchronously and waits for all decode handlers before completing", async () => {
     const renderer = new Renderer({ ...defaultRendererProps, canvas });
     let release!: () => void;
@@ -933,7 +997,7 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     renderer.dispose();
   });
 
-  it("excludes direct and converted video from allFrames but retains TF preloading", () => {
+  it("excludes video events while retaining other conversions and original events on the same topic", () => {
     const renderer = new Renderer({ ...defaultRendererProps, canvas });
     renderer.setTopics([
       {
@@ -947,13 +1011,16 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     const add = jest.spyOn(renderer, "addMessageEvent");
     const tf = createTFMessageEvent("a", "b", 1n, [1n]);
     renderer.currentTime = 100n;
+    const original = { ...tf, topic: "/converted", schemaName: "custom.Video" };
+    const otherConversion = { ...tf, topic: "/converted" };
     renderer.handleAllFramesMessages([
       { ...tf, topic: "/video", schemaName: "foxglove.CompressedVideo" },
-      { ...tf, topic: "/converted", schemaName: "custom.Video" },
+      { ...tf, topic: "/converted", schemaName: "foxglove.CompressedVideo" },
+      original,
+      otherConversion,
       tf,
     ]);
-    expect(add).toHaveBeenCalledTimes(1);
-    expect(add).toHaveBeenCalledWith(tf);
+    expect(add.mock.calls.map(([event]) => event)).toEqual([original, otherConversion, tf]);
     renderer.dispose();
   });
 

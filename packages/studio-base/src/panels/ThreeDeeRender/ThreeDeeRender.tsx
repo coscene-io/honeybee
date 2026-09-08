@@ -384,6 +384,9 @@ export function ThreeDeeRender(props: {
     setSettingsTree(curRenderer.settings.tree());
   }, []);
   useRendererEvent("settingsTreeChange", updateSettingsTree, renderer);
+  useEffect(() => {
+    setSettingsTree(renderer?.settings.tree());
+  }, [renderer]);
 
   // Write to a global variable when the current selection changes
   const updateSelectedRenderable = useCallback(

@@ -85,6 +85,7 @@ const mockEnqueue = jest.fn();
 const mockQueueRAF = jest.fn();
 const mockDraw = jest.fn();
 let mockAutoSelect = false;
+let mockSettingsTree = {};
 const mockDispose = jest.fn();
 const mockSnackbar = { enqueueSnackbar: jest.fn() };
 let mockBeforeRenderer: (() => void) | undefined;
@@ -104,7 +105,7 @@ jest.mock("./Renderer", () => ({
       config,
       schemaSubscriptions: new Map(),
       topicSubscriptions: new Map(),
-      settings: { tree: () => ({}), handleAction: jest.fn() },
+      settings: { tree: () => mockSettingsTree, handleAction: jest.fn() },
       measurementTool: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
       publishClickTool: {
         publishClickType: "point",
@@ -121,6 +122,8 @@ jest.mock("./Renderer", () => ({
         }
       }),
       setTopics: jest.fn((topics: RenderState["topics"]) => {
+        mockSettingsTree = { topics: { label: topics?.[0]?.name ?? "Topics" } };
+        instance.emit("settingsTreeChange", instance);
         if (
           mockAutoSelect &&
           topics != undefined &&
@@ -177,6 +180,7 @@ describe("onRender awaited presentation", () => {
     jest.clearAllMocks();
     mockBeforeRenderer = undefined;
     mockAutoSelect = false;
+    mockSettingsTree = {};
     mockQueueRAF.mockReset();
     mockDraw.mockReset();
     mockEnqueue.mockReset();
@@ -321,6 +325,27 @@ describe("onRender awaited presentation", () => {
     await flushRender();
     expect(mockDraw).toHaveBeenCalledTimes(draws);
     expect(done).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
+  it("publishes settings populated during retained-state replay and renderer replacement", async () => {
+    const topics = [{ name: "/image", schemaName: "foxglove.CompressedImage" }];
+    const { context, view } = mountPanel((panel) => {
+      panel.onRender!({ topics }, jest.fn());
+    });
+    const updateSettings = jest.spyOn(context, "updatePanelSettingsEditor");
+    await flushRender();
+    expect(updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({ nodes: { topics: { label: "/image" } } }),
+    );
+    mockSettingsTree = {};
+    view.rerender(
+      <ThreeDeeRender context={context} interfaceMode="3d" testOptions={{ debugPicking: true }} />,
+    );
+    await flushRender();
+    expect(updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({ nodes: { topics: { label: "/image" } } }),
+    );
     view.unmount();
   });
 

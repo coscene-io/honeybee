@@ -284,6 +284,23 @@ describe("ImageRenderable candidate scheduling", () => {
     expect((second as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
   });
 
+  it("retains a hidden candidate for presentation after visibility returns", async () => {
+    const visibility = jest.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    const frame = new MockVideoFrame() as unknown as VideoFrame;
+    const renderable = new TestImageRenderable([frame]);
+    await renderable.setImage(sampleImage);
+    commit();
+    expect(renderable.getDecodedImage()).toBeUndefined();
+    expect((frame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
+    visibility.mockReturnValue("visible");
+    commit();
+    expect(renderable.getDecodedImage()).toBe(frame);
+    renderable.dispose();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+    visibility.mockRestore();
+  });
+
   it("closes future candidates instead of displaying ahead of the head", async () => {
     const frame = new MockVideoFrame() as unknown as VideoFrame;
     const renderable = new TestImageRenderable([frame]);

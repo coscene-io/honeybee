@@ -560,7 +560,10 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     }
     // Annotations can arrive in a later tick, even while paused. Keep the one decoded candidate
     // until it matches, is superseded, or becomes invalid; never decode its GOP again.
-    if (candidate.canDisplay?.() === false) {
+    if (
+      (typeof document !== "undefined" && document.visibilityState === "hidden") ||
+      candidate.canDisplay?.() === false
+    ) {
       return;
     }
     this.#pendingDecodedImage = undefined;
@@ -633,11 +636,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   }
 
   #canUpdateTexture(): boolean {
-    return (
-      !this.isDisposed() &&
-      this.visible &&
-      (typeof document === "undefined" || document.visibilityState !== "hidden")
-    );
+    return !this.isDisposed() && this.visible;
   }
 
   #closeDecodedImageIfUnused(result: DecodedImageResource): void {

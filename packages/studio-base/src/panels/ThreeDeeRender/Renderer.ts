@@ -424,6 +424,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     }
 
     this.#watchDevicePixelRatio();
+    document.addEventListener("visibilitychange", this.#onVisibilityChange);
 
     this.setCameraState(config.cameraState);
     this.animationFrame();
@@ -432,6 +433,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   #onHUDItemsChange = () => {
     this.hudItems = this.hud.getHUDItems();
     this.emit("hudItemsChanged", this);
+  };
+
+  #onVisibilityChange = () => {
+    if (document.visibilityState !== "hidden") {
+      this.queueAnimationFrame();
+    }
   };
 
   #onDevicePixelRatioChange = () => {
@@ -459,6 +466,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       this.#animationFrame = undefined;
     }
 
+    document.removeEventListener("visibilitychange", this.#onVisibilityChange);
     log.warn(`Disposing renderer`);
     this.#devicePixelRatioMediaQuery?.removeEventListener("change", this.#onDevicePixelRatioChange);
     this.removeAllListeners();
@@ -653,12 +661,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         hasAddedMessageEvents = true;
       }
 
-      if (
-        !COMPRESSED_VIDEO_DATATYPES.has(message.schemaName) &&
-        this.topicsByName
-          ?.get(message.topic)
-          ?.convertibleTo?.some((schema) => COMPRESSED_VIDEO_DATATYPES.has(schema)) !== true
-      ) {
+      if (!COMPRESSED_VIDEO_DATATYPES.has(message.schemaName)) {
         this.addMessageEvent(message);
       }
       lastReadMessage = message;
@@ -1215,6 +1218,10 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     if (this.#disposed) {
       return;
     }
+    if (this.#animationFrame != undefined) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = undefined;
+    }
     if (this.#rendering) {
       this.queueAnimationFrame();
     } else {
@@ -1321,10 +1328,16 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
           ? subscription.filterQueue(queue ?? [])
           : (queue ?? []);
         if (subscription.processQueue != undefined) {
-          work.push(Promise.resolve(subscription.processQueue(messages, context)));
+          const result = subscription.processQueue(messages, context);
+          if (result != undefined) {
+            work.push(result);
+          }
         } else {
           for (const message of messages) {
-            work.push(Promise.resolve(subscription.handler(message)));
+            const result = subscription.handler(message);
+            if (result != undefined) {
+              work.push(result);
+            }
           }
         }
       } catch (error) {
