@@ -12,6 +12,7 @@ import React from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
 import { Immutable, MessageEvent, RenderState } from "@foxglove/studio";
+import { pauseFrameForPromises } from "@foxglove/studio-base/components/MessagePipeline/pauseFrameForPromise";
 import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 
 import type { RendererConfig } from "./IRenderer";
@@ -82,7 +83,8 @@ describe("render tick snapshots", () => {
 
 const mockEnqueue = jest.fn();
 const mockQueueRAF = jest.fn();
-const mockDecode = jest.fn();
+const mockDraw = jest.fn();
+let mockAutoSelect = false;
 const mockDispose = jest.fn();
 const mockSnackbar = { enqueueSnackbar: jest.fn() };
 let mockBeforeRenderer: (() => void) | undefined;
@@ -98,7 +100,7 @@ jest.mock("notistack", () => ({ useSnackbar: () => mockSnackbar }));
 jest.mock("./Renderer", () => ({
   Renderer: jest.fn(({ config }: { config: RendererConfig }) => {
     mockBeforeRenderer?.();
-    return Object.assign(new EventEmitter(), {
+    const instance = Object.assign(new EventEmitter(), {
       config,
       schemaSubscriptions: new Map(),
       topicSubscriptions: new Map(),
@@ -111,20 +113,38 @@ jest.mock("./Renderer", () => ({
         removeEventListener: jest.fn(),
       },
       setAnalytics: jest.fn(),
-      setConfig: jest.fn(),
-      setTopics: jest.fn(),
+      setConfig: jest.fn((next: RendererConfig, options?: { emitChange?: boolean }) => {
+        instance.config = next;
+        instance.emit("configApplied", instance);
+        if (options?.emitChange !== false) {
+          instance.emit("configChange", instance);
+        }
+      }),
+      setTopics: jest.fn((topics: RenderState["topics"]) => {
+        if (
+          mockAutoSelect &&
+          topics != undefined &&
+          topics.length > 0 &&
+          instance.config.imageMode.imageTopic == undefined
+        ) {
+          instance.config = { ...instance.config, imageMode: { imageTopic: topics[0]!.name } };
+          instance.emit("configChange", instance);
+        }
+      }),
       setParameters: jest.fn(),
       setCameraSyncError: jest.fn(),
       setColorScheme: jest.fn(),
       getCameraState: () => config.cameraState,
       queueAnimationFrame: mockQueueRAF,
+      animationFrame: mockDraw,
       processMessageEvents: mockEnqueue,
       dispose: mockDispose,
     });
+    return instance;
   }),
 }));
 
-function mountPanel() {
+function mountPanel(beforeRenderer?: (context: BuiltinPanelExtensionContext) => void) {
   const context = {
     initialState: {},
     saveState: jest.fn(),
@@ -136,88 +156,180 @@ function mountPanel() {
     unstable_getPlaybackIsPlaying: () => true,
     layout: { addPanel: jest.fn() },
   } as unknown as BuiltinPanelExtensionContext;
+  mockBeforeRenderer = beforeRenderer
+    ? () => {
+        beforeRenderer(context);
+      }
+    : undefined;
   const view = render(<ThreeDeeRender context={context} interfaceMode="3d" testOptions={{}} />);
   return { context, view };
 }
-describe("onRender synchronous acknowledgement", () => {
+async function flushRender() {
+  await act(async () => {
+    for (let i = 0; i < 24; i++) {
+      await Promise.resolve();
+    }
+  });
+}
+
+describe("onRender awaited presentation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBeforeRenderer = undefined;
+    mockAutoSelect = false;
     mockQueueRAF.mockReset();
+    mockDraw.mockReset();
     mockEnqueue.mockReset();
   });
 
-  it("calls done before a per-renderable decode microtask", async () => {
+  it("waits for decode, draws, and only then acknowledges the tick", async () => {
     const { context, view } = mountPanel();
+    let release!: () => void;
+    const decode = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const order: string[] = [];
-    mockEnqueue.mockImplementation(() => {
-      order.push("enqueue");
-      queueMicrotask(() => {
-        mockDecode();
-        order.push("decode");
+    mockEnqueue.mockImplementation(async () => {
+      await decode.then(() => {
+        order.push("pixels and metadata");
       });
     });
-    mockQueueRAF.mockImplementation(() => order.push("raf"));
-    const done = jest.fn(() => order.push("done"));
+    mockDraw.mockImplementation(() => {
+      order.push("draw");
+    });
+    const done = jest.fn(() => {
+      order.push("done");
+    });
     act(() => {
       context.onRender!({ currentTime: fromNanoSec(1n) }, done);
     });
-    expect(order).toEqual(["enqueue", "raf", "done"]);
+    await flushRender();
+    expect(done).not.toHaveBeenCalled();
+    expect(mockDraw).not.toHaveBeenCalled();
+    release();
+    await flushRender();
+    expect(order).toEqual(["pixels and metadata", "draw", "done"]);
     expect(done).toHaveBeenCalledTimes(1);
-    await Promise.resolve();
-    expect(order).toEqual(["enqueue", "raf", "done", "decode"]);
     view.unmount();
   });
 
-  it.each(["ingest", "rAF"])("still calls done once if %s throws synchronously", (stage) => {
-    const { context, view } = mountPanel();
-    const done = jest.fn();
-    const error = new Error(stage);
-    if (stage === "ingest") {
-      mockEnqueue.mockImplementation(() => {
-        throw error;
-      });
-    } else {
-      mockQueueRAF.mockImplementation(() => {
-        throw error;
-      });
-    }
-    act(() => {
-      if (stage === "rAF") {
-        expect(() => {
-          context.onRender!({}, done);
-        }).toThrow(error);
-      } else {
-        context.onRender!({}, done);
-      }
+  it("keeps the global frame waiting for the slower of two panels", async () => {
+    const fast = mountPanel();
+    const slow = mountPanel();
+    let releaseSlow!: () => void;
+    mockEnqueue.mockResolvedValueOnce(undefined).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        releaseSlow = resolve;
+      }),
+    );
+    let fastDone!: () => void;
+    let slowDone!: () => void;
+    const fastFrame = new Promise<void>((resolve) => {
+      fastDone = resolve;
     });
+    const slowFrame = new Promise<void>((resolve) => {
+      slowDone = resolve;
+    });
+    let frameComplete = false;
+    const globalFrame = pauseFrameForPromises([
+      { name: "fast", promise: fastFrame },
+      { name: "slow", promise: slowFrame },
+    ]).then(() => {
+      frameComplete = true;
+    });
+    act(() => {
+      fast.context.onRender!({}, fastDone);
+      slow.context.onRender!({}, slowDone);
+    });
+    await flushRender();
+    expect(mockDraw).toHaveBeenCalledTimes(1);
+    expect(frameComplete).toBe(false);
+    releaseSlow();
+    await flushRender();
+    await globalFrame;
+    expect(mockDraw).toHaveBeenCalledTimes(2);
+    expect(frameComplete).toBe(true);
+    fast.view.unmount();
+    slow.view.unmount();
+  });
+
+  it.each(["ingest", "draw"])("releases done once when %s fails", async (stage) => {
+    const { context, view } = mountPanel();
+    const fail = () => {
+      throw new Error(stage);
+    };
+    if (stage === "ingest") {
+      mockEnqueue.mockImplementation(fail);
+    } else {
+      mockDraw.mockImplementation(fail);
+    }
+    const done = jest.fn();
+    act(() => {
+      context.onRender!({}, done);
+    });
+    await flushRender();
     expect(done).toHaveBeenCalledTimes(1);
     jest.mocked(console.error).mockClear();
-    mockQueueRAF.mockReset();
     view.unmount();
   });
 
-  it("acknowledges a tick before a renderer is available and retains only its latest snapshot", () => {
-    const context = {
-      initialState: {},
-      saveState: jest.fn(),
-      watch: jest.fn(),
-      subscribe: jest.fn(),
-      subscribeAppSettings: jest.fn(),
-      updatePanelSettingsEditor: jest.fn(),
-      unstable_setMessagePathDropConfig: jest.fn(),
-      unstable_getPlaybackIsPlaying: () => true,
-      layout: { addPanel: jest.fn() },
-    } as unknown as BuiltinPanelExtensionContext;
-    const first = jest.fn();
-    const last = jest.fn();
-    mockBeforeRenderer = () => {
-      context.onRender!({ currentFrame: [message("/old", 1n)] }, first);
-      context.onRender!({ currentFrame: [message("/latest", 2n)] }, last);
-    };
-    const view = render(<ThreeDeeRender context={context} interfaceMode="3d" testOptions={{}} />);
-    expect(first).toHaveBeenCalledTimes(1);
-    expect(last).toHaveBeenCalledTimes(1);
+  it("releases an unmounted tick and never draws its late result", async () => {
+    const { context, view } = mountPanel();
+    let release!: () => void;
+    mockEnqueue.mockReturnValue(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const done = jest.fn();
+    act(() => {
+      context.onRender!({}, done);
+    });
+    await flushRender();
+    view.unmount();
+    expect(done).toHaveBeenCalledTimes(1);
+    release();
+    await flushRender();
+    expect(mockDraw).not.toHaveBeenCalled();
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains initialization topic selection without echoing the old React config", async () => {
+    mockAutoSelect = true;
+    const { context, view } = mountPanel((panel) => {
+      panel.onRender!(
+        {
+          topics: [
+            {
+              name: "/image",
+              schemaName: "foxglove.RawImage",
+              messageCount: 1,
+              messageFrequency: 1,
+            },
+          ],
+        },
+        jest.fn(),
+      );
+    });
+    await flushRender();
+    // Inspect the real component's saved React configuration after the replay and config effects.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1050));
+    });
+    expect(context.saveState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ imageMode: { imageTopic: "/image" } }),
+    );
+    view.unmount();
+  });
+
+  it("replays only the latest snapshot received before renderer creation", async () => {
+    const done = jest.fn();
+    const { view } = mountPanel((context) => {
+      context.onRender!({ currentFrame: [message("/old", 1n)] }, done);
+      context.onRender!({ currentFrame: [message("/latest", 2n)] }, done);
+    });
+    await flushRender();
+    expect(done).toHaveBeenCalledTimes(2);
     expect(mockEnqueue).toHaveBeenCalledWith(
       expect.objectContaining({ currentFrame: [message("/latest", 2n)], didSeek: false }),
     );

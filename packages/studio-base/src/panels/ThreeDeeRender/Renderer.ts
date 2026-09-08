@@ -688,7 +688,10 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.setConfig(produce(this.config, updateHandler));
   }
 
-  public setConfig(config: Immutable<RendererConfig>, options: { emitChange?: boolean } = {}): void {
+  public setConfig(
+    config: Immutable<RendererConfig>,
+    options: { emitChange?: boolean } = {},
+  ): void {
     const oldConfig = this.config;
     if (oldConfig === config) {
       return;
@@ -1069,7 +1072,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     queueMessage(messageEvent, this.schemaSubscriptions.get(messageEvent.schemaName));
   }
 
-  public processMessageEvents(events: RendererMessageEvents): void {
+  public async processMessageEvents(events: RendererMessageEvents): Promise<void> {
     if (events.currentTime != undefined) {
       const oldTime = this.currentTime;
       this.setCurrentTime(toNanoSec(events.currentTime));
@@ -1081,7 +1084,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     for (const event of events.currentFrame ?? []) {
       this.addMessageEvent(event);
     }
-    this.#handleSubscriptionQueues({ didSeek: events.didSeek });
+    await this.#handleSubscriptionQueues({ didSeek: events.didSeek });
   }
 
   /** Match the behavior of `tf::Transformer` by stripping leading slashes from
@@ -1287,7 +1290,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   };
 
   /** Deliver ordinary messages before batch handlers select their targets. */
-  #handleSubscriptionQueues(context: RendererSubscriptionContext): void {
+  async #handleSubscriptionQueues(context: RendererSubscriptionContext): Promise<void> {
     const subscriptions = new Set<RendererSubscription>();
     for (const entries of this.topicSubscriptions.values()) {
       for (const subscription of entries) {
@@ -1311,22 +1314,30 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       ...drainedSubscriptions.filter(({ subscription }) => subscription.processQueue == undefined),
       ...drainedSubscriptions.filter(({ subscription }) => subscription.processQueue != undefined),
     ];
+    const work: Promise<void>[] = [];
     for (const { subscription, queue } of ordered) {
       try {
         const messages = subscription.filterQueue
           ? subscription.filterQueue(queue ?? [])
           : (queue ?? []);
         if (subscription.processQueue != undefined) {
-          subscription.processQueue(messages, context);
+          work.push(Promise.resolve(subscription.processQueue(messages, context)));
         } else {
           for (const message of messages) {
-            subscription.handler(message);
+            work.push(Promise.resolve(subscription.handler(message)));
           }
         }
       } catch (error) {
         log.error(error);
       }
     }
+    await Promise.allSettled(work).then((results) => {
+      for (const result of results) {
+        if (result.status === "rejected") {
+          log.error(result.reason);
+        }
+      }
+    });
   }
 
   #updateFixedFrameId(): void {

@@ -548,38 +548,44 @@ describe("ImageRenderable candidate scheduling", () => {
     renderable.dispose();
   });
 
-  it("seek keeps at most one late correction without holding the current batch", async () => {
-    let resolve!: (result: AwaitTargetFrameResult) => void;
-    const late = new MockVideoFrame() as unknown as VideoFrame;
-    const target = videoFrameEvent(1n, 1, "key");
-    const awaitTargetFrame = jest.fn(
-      async () =>
-        await new Promise<AwaitTargetFrameResult>((done) => {
-          resolve = done;
+  it.each([100, 2000])(
+    "keeps one late correction with a %i ms deadline without holding the current batch",
+    async (anyFrameTimeoutMs) => {
+      let resolve!: (result: AwaitTargetFrameResult) => void;
+      const late = new MockVideoFrame() as unknown as VideoFrame;
+      const target = videoFrameEvent(1n, 1, "key");
+      const awaitTargetFrame = jest.fn(
+        async () =>
+          await new Promise<AwaitTargetFrameResult>((done) => {
+            resolve = done;
+          }),
+      );
+      const renderable = new TestVideoBatchRenderable({
+        decodeVideoFrames: makeDecodeVideoFramesMock([undefined]),
+        awaitTargetFrame,
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder);
+      await expect(
+        renderable.setCompressedVideoFrames([target], {
+          retainLateTarget: true,
+          anyFrameTimeoutMs,
         }),
-    );
-    const renderable = new TestVideoBatchRenderable({
-      decodeVideoFrames: makeDecodeVideoFramesMock([undefined]),
-      awaitTargetFrame,
-      terminate: jest.fn(),
-    } as unknown as WorkerImageDecoder);
-    await expect(
-      renderable.setCompressedVideoFrames([target], { retainLateTarget: true }),
-    ).resolves.toMatchObject({ reason: "timeout" });
-    expect(awaitTargetFrame).toHaveBeenCalledTimes(1);
-    resolve({
-      type: "TargetFrame",
-      requestId: 1,
-      frame: late,
-      receiveTime: 1n,
-      originalTimestamp: 1n,
-    });
-    await flushPromises();
-    expect(renderable.getDecodedImage()).toBeUndefined();
-    commit();
-    expect(renderable.getDecodedImage()).toBe(late);
-    renderable.dispose();
-  });
+      ).resolves.toMatchObject({ reason: "timeout" });
+      expect(awaitTargetFrame).toHaveBeenCalledWith({ requestId: 1, timeoutMs: anyFrameTimeoutMs });
+      resolve({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: late,
+        receiveTime: 1n,
+        originalTimestamp: 1n,
+      });
+      await flushPromises();
+      expect(renderable.getDecodedImage()).toBeUndefined();
+      commit();
+      expect(renderable.getDecodedImage()).toBe(late);
+      renderable.dispose();
+    },
+  );
 
   it("closes a seek late correction after generation invalidation", async () => {
     let resolve!: (result: AwaitTargetFrameResult) => void;

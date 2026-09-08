@@ -131,7 +131,7 @@ const defaultRendererProps = {
 };
 
 async function processQueuedMessagesAndDraw(renderer: Renderer): Promise<void> {
-  renderer.processMessageEvents({
+  void renderer.processMessageEvents({
     currentTime: fromNanoSec(renderer.currentTime),
     didSeek: false,
     allFrames: undefined,
@@ -155,15 +155,20 @@ describe("3D Renderer", () => {
   });
 
   it("applies React configuration internally without echoing configChange", () => {
-    const renderer = new Renderer({ ...defaultRendererProps, canvas: document.createElement("canvas") });
+    const renderer = new Renderer({ ...defaultRendererProps, canvas });
     const applied = jest.fn();
     const changed = jest.fn();
     renderer.on("configApplied", applied);
     renderer.on("configChange", changed);
-    renderer.setConfig({ ...renderer.config, imageMode: { imageTopic: "/image" } }, { emitChange: false });
+    renderer.setConfig(
+      { ...renderer.config, imageMode: { imageTopic: "/image" } },
+      { emitChange: false },
+    );
     expect(applied).toHaveBeenCalledTimes(1);
     expect(changed).not.toHaveBeenCalled();
-    renderer.updateConfig((draft) => { draft.imageMode.imageTopic = "/other"; });
+    renderer.updateConfig((draft) => {
+      draft.imageMode.imageTopic = "/other";
+    });
     expect(applied).toHaveBeenCalledTimes(2);
     expect(changed).toHaveBeenCalledTimes(1);
     renderer.dispose();
@@ -853,7 +858,7 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     ]);
     renderer.topicSubscriptions.set("/deferred", [{ handler: deferredHandler }]);
 
-    renderer.processMessageEvents({
+    void renderer.processMessageEvents({
       currentTime: fromNanoSec(1n),
       didSeek: false,
       allFrames: undefined,
@@ -861,7 +866,7 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     });
     expect(deferredHandler).not.toHaveBeenCalled();
 
-    renderer.processMessageEvents({
+    void renderer.processMessageEvents({
       currentTime: fromNanoSec(2n),
       didSeek: false,
       allFrames: undefined,
@@ -869,51 +874,39 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     });
     expect(deferredHandler).toHaveBeenCalledTimes(1);
   });
-  it("ingests synchronously, leaves a queued rAF intact, and draws while decode is active", async () => {
+  it("ingests synchronously and waits for all decode handlers before completing", async () => {
     const renderer = new Renderer({ ...defaultRendererProps, canvas });
-    const order: string[] = [];
-    let resolve!: () => void;
-    const decode = new Promise<void>((done) => {
-      resolve = done;
+    let release!: () => void;
+    const decode = new Promise<void>((resolve) => {
+      release = resolve;
     });
-    renderer.topicSubscriptions.set("/state", [{ handler: () => order.push("handler") }]);
+    const order: string[] = [];
     renderer.topicSubscriptions.set("/video", [
       {
-        processQueue: () => {
-          order.push("enqueue");
-          queueMicrotask(() => {
-            order.push("decode");
-            void decode.then(() => order.push("settled"));
-          });
+        processQueue: async () => {
+          order.push("ingest");
+          await decode;
         },
       },
     ]);
-    renderer.on("startFrame", () => order.push("draw"));
-    const cancel = jest.spyOn(window, "cancelAnimationFrame");
-    renderer.queueAnimationFrame();
-    // oxlint-disable-next-line typescript/no-confusing-void-expression -- Assert the void ingestion contract.
-    const result = renderer.processMessageEvents({
-      currentTime: fromNanoSec(1n),
-      didSeek: false,
-      allFrames: undefined,
-      currentFrame: [
-        { ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/video" },
-        { ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/state" },
-      ],
-    });
-    order.push("done");
-    expect(result).toBeUndefined();
-    expect(order).toEqual(["handler", "enqueue", "done"]);
-    expect(cancel).not.toHaveBeenCalled();
+    let completed = false;
+    const completion = renderer
+      .processMessageEvents({
+        currentTime: fromNanoSec(1n),
+        didSeek: false,
+        allFrames: undefined,
+        currentFrame: [{ ...createTFMessageEvent("a", "b", 1n, [1n]), topic: "/video" }],
+      })
+      .then(() => {
+        completed = true;
+      });
+    expect(order).toEqual(["ingest"]);
     await Promise.resolve();
-    renderer.animationFrame();
-    expect(order).toEqual(["handler", "enqueue", "done", "decode", "draw"]);
-    resolve();
-    await Promise.resolve();
-    renderer.animationFrame();
-    expect(order.filter((event) => event === "enqueue")).toHaveLength(1);
+    expect(completed).toBe(false);
+    release();
+    await completion;
+    expect(completed).toBe(true);
     renderer.dispose();
-    cancel.mockRestore();
   });
 
   it("keeps Player time even with deprecated synchronization configuration", () => {
@@ -928,7 +921,7 @@ describe("Renderer.handleAllFramesMessages behavior", () => {
     });
     const start = jest.fn();
     renderer.on("startFrame", start);
-    renderer.processMessageEvents({
+    void renderer.processMessageEvents({
       currentTime: fromNanoSec(123n),
       didSeek: false,
       allFrames: undefined,

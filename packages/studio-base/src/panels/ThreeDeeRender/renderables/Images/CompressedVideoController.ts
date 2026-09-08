@@ -39,7 +39,6 @@ const log = Logger.getLogger(__filename);
 const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
-export const MAX_PLAYBACK_TICK_VIDEO_FRAMES = 12;
 type RangeReadResolution = "success" | "cancelled" | "exception" | "timeout" | "unavailable";
 export type VideoDisplayMode = "playback" | "seek";
 export type CompressedVideoDisplayFrames = (
@@ -50,13 +49,6 @@ export type CompressedVideoDisplayFrames = (
 export type SeekKeyframeSearchState = { active: boolean };
 export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
 type VideoInputEvent = MessageEvent<VideoFrameInfo["frame"]>;
-type PendingTick = {
-  frames: readonly VideoInputEvent[];
-  target: VideoInputEvent;
-  options: SetCompressedVideoFramesOptions;
-  keyframe: boolean;
-  gap: boolean;
-};
 type ControllerRenderer = Pick<
   IRenderer,
   "currentTime" | "startTime" | "subscribeMessageRange" | "isPlaybackStopped"
@@ -69,21 +61,17 @@ export class CompressedVideoController {
   #displayFrames: CompressedVideoDisplayFrames;
   #resetDecoder?: () => void;
   #cancelLateTarget?: () => void;
-  #needsCancelLateTarget = false;
   #onSeekKeyframeSearchChange?: SeekKeyframeSearchChange;
   #onBFramesDetected?: () => void;
   #generation = 0;
-  #active = false;
-  #scheduled = false;
-  #pending: PendingTick | undefined;
+  #work: Promise<void> = Promise.resolve();
+  #disposed = false;
   #desiredTarget: VideoInputEvent | undefined;
   #decoderFrontier: VideoInputEvent | undefined;
   #continuous = false;
-  #gap = false;
   #seekTargetNs: bigint | undefined;
   #lastInputPublishTimeNs: bigint | undefined;
   #reportedBFrames = false;
-  #needsReset = false;
   readonly #state: { lookbackCancel?: () => void; lookbackGeneration?: number } = {};
 
   public constructor(args: {
@@ -118,12 +106,14 @@ export class CompressedVideoController {
     this.#onBFramesDetected = args.onBFramesDetected ?? this.#onBFramesDetected;
   }
 
-  /** Only this tick's inputs may become a playback batch. No cache read occurs here or in drain. */
-  public enqueueVideoFrames(
+  /** Process one complete tick, serialized after the preceding decode. Playback never reads the cache. */
+  public async enqueueVideoFrames(
     input: readonly PartialMessageEvent<CompressedVideo>[],
     options: SetCompressedVideoFramesOptions = {},
-  ): void {
+    playbackBoundary: "normal" | "end" = "normal",
+  ): Promise<void> {
     if (input.length === 0) {
+      await this.#work;
       return;
     }
     let frames = input
@@ -145,7 +135,8 @@ export class CompressedVideoController {
           },
         }),
       );
-    if (frames.length === 0) {
+    if (frames.length === 0 || this.#disposed) {
+      await this.#work;
       return;
     }
     let epochStart = 0;
@@ -164,8 +155,6 @@ export class CompressedVideoController {
       this.#lastInputPublishTimeNs = timestamp;
       frames = frames.slice(epochStart);
     }
-    this.#needsCancelLateTarget = true;
-    this.#schedule();
     this.#cache.addFrames(frames);
     if (!this.#reportedBFrames) {
       for (const frame of frames) {
@@ -178,38 +167,56 @@ export class CompressedVideoController {
     }
     const target = frames[frames.length - 1]!;
     this.#desiredTarget = target;
-    // Seeking consumes cached inputs through its independent recovery request.
     if (this.#seekTargetNs != undefined) {
+      await this.#work;
       return;
     }
-    // Annotation matching gates presentation, never the encoded dependency chain.
     const selected = filterCompressedVideoQueue(frames) as VideoInputEvent[];
     const keyframe = parseVideoFrameInfo(selected[0]!)?.isKeyframe === true;
-    const gap = !keyframe && (this.#gap || this.#pending != undefined);
-    this.#gap = false;
-    if (selected.length > MAX_PLAYBACK_TICK_VIDEO_FRAMES || this.#renderer.isPlaybackStopped()) {
-      this.#pending = undefined;
-      this.#gap = true;
-      return;
-    }
-    this.#pending = {
-      frames: selected,
-      target,
-      options,
-      keyframe,
-      gap,
-    };
-    this.#schedule();
+    await this.#serialize(async (generation) => {
+      if (this.#renderer.isPlaybackStopped() && playbackBoundary !== "end") {
+        this.#continuous = false;
+        this.#decoderFrontier = undefined;
+        return;
+      }
+      if (!keyframe && (!this.#continuous || this.#decoderFrontier == undefined)) {
+        return;
+      }
+      this.#cancelLateTarget?.();
+      try {
+        const result = await this.#displayFrames(
+          selected.map(normalizeVideoMessageEvent),
+          "playback",
+          {
+            ...options,
+            retainLateTarget: true,
+            targetFrameTimeoutMs: 30,
+            anyFrameTimeoutMs: keyframe ? 100 : undefined,
+            isVideoFrameRequestCurrent: () =>
+              generation === this.#generation &&
+              (!this.#renderer.isPlaybackStopped() || this.#desiredTarget === target) &&
+              options.isVideoFrameRequestCurrent?.() !== false,
+          },
+        );
+        if (generation === this.#generation) {
+          this.#continuous = result.ok || result.reason === "timeout";
+          this.#decoderFrontier = this.#continuous ? target : undefined;
+          if (!result.ok && result.reason !== "timeout" && result.reason !== "stale") {
+            this.resetPlaybackState();
+          }
+        }
+      } catch (error) {
+        if (generation === this.#generation) {
+          this.resetPlaybackState();
+        }
+        throw error;
+      }
+    });
   }
 
-  /** State-only ticks must still cancel obsolete seek work and discard stopped playback inputs. */
   public updatePlaybackState(): void {
     if (this.#seekTargetNs != undefined && this.#renderer.currentTime > this.#seekTargetNs) {
       this.resetPlaybackState();
-    }
-    if (this.#renderer.isPlaybackStopped() && this.#pending != undefined) {
-      this.#pending = undefined;
-      this.#gap = true;
     }
   }
 
@@ -217,7 +224,10 @@ export class CompressedVideoController {
     this.resetPlaybackState();
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cache.handleSeek(fromNanoSec(this.#renderer.currentTime));
-    this.#schedule();
+    const target = this.#seekTargetNs;
+    void this.#serialize(async (generation) => {
+      await this.#recoverSeek(generation, target);
+    });
   }
 
   public resetPlaybackState(): void {
@@ -227,125 +237,41 @@ export class CompressedVideoController {
     this.#state.lookbackGeneration = undefined;
     this.#onSeekKeyframeSearchChange?.({ active: false });
     this.#seekTargetNs = undefined;
-    this.#pending = undefined;
     this.#desiredTarget = undefined;
     this.#decoderFrontier = undefined;
     this.#continuous = false;
-    this.#gap = false;
     this.#lastInputPublishTimeNs = undefined;
-    this.#needsReset = true;
-    // Reset RPC is started by drain, after the panel has called done().
-    this.#schedule();
+    this.#cancelLateTarget?.();
+    this.#resetDecoder?.();
   }
+
   public handleTimestampRegression(): void {
     this.resetPlaybackState();
     this.#cache.clearTopic(this.#topic);
   }
+
   public clear(): void {
     this.resetPlaybackState();
     this.#cache.clearTopic(this.#topic);
   }
+
   public dispose(): void {
     this.clear();
-    this.#scheduled = false;
-    this.#needsReset = false;
-    this.#needsCancelLateTarget = false;
-    this.#generation++;
+    this.#disposed = true;
   }
 
-  #schedule(): void {
-    if (this.#scheduled) {
-      return;
-    }
-    this.#scheduled = true;
-    queueMicrotask(() => {
-      this.#scheduled = false;
-      if (this.#needsCancelLateTarget) {
-        this.#needsCancelLateTarget = false;
-        this.#cancelLateTarget?.();
-      }
-      if (this.#needsReset) {
-        this.#needsReset = false;
-        this.#resetDecoder?.();
-      }
-      if (!this.#active) {
-        void this.#drain().catch((error: unknown) => {
-          log.error(error);
-        });
+  async #serialize(operation: (generation: number) => Promise<void>): Promise<void> {
+    const generation = this.#generation;
+    const work = this.#work.then(async () => {
+      if (!this.#disposed && generation === this.#generation) {
+        await operation(generation);
       }
     });
-  }
-
-  async #drain(): Promise<void> {
-    const generation = this.#generation;
-    if (this.#seekTargetNs != undefined) {
-      this.#active = true;
-      try {
-        await this.#recoverSeek(generation, this.#seekTargetNs);
-      } finally {
-        this.#active = false;
-        // Updated by enqueue/seek while recovery was awaited.
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (this.#seekTargetNs != undefined || this.#pending != undefined) {
-          this.#schedule();
-        }
-      }
-      return;
-    }
-    const tick = this.#pending;
-    this.#pending = undefined;
-    if (tick == undefined) {
-      return;
-    }
-    if (this.#renderer.isPlaybackStopped()) {
-      this.#gap = true;
-      return;
-    }
-    if (!tick.keyframe && (!this.#continuous || tick.gap || this.#decoderFrontier == undefined)) {
-      this.#continuous = false;
-      return;
-    }
-    this.#active = true;
-    try {
-      const result = await this.#displayFrames(
-        tick.frames.map(normalizeVideoMessageEvent),
-        "playback",
-        {
-          ...tick.options,
-          retainLateTarget: false,
-          targetFrameTimeoutMs: 30,
-          anyFrameTimeoutMs: tick.keyframe ? 100 : undefined,
-          isVideoFrameRequestCurrent: () =>
-            generation === this.#generation &&
-            (!this.#renderer.isPlaybackStopped() || this.#desiredTarget === tick.target) &&
-            tick.options.isVideoFrameRequestCurrent?.() !== false,
-        },
-      );
-      if (generation === this.#generation) {
-        const drained = result.ok || result.reason === "timeout";
-        this.#continuous = drained;
-        this.#decoderFrontier = drained ? tick.target : undefined;
-        // A stopped/superseded display request is not a decoder error.
-        if (!result.ok && result.reason !== "timeout" && result.reason !== "stale") {
-          this.#generation++;
-          this.#needsReset = true;
-        }
-      }
-    } catch (error) {
-      if (generation === this.#generation) {
-        this.#generation++;
-        this.#continuous = false;
-        this.#needsReset = true;
-      }
-      throw error;
-    } finally {
-      this.#active = false;
-      // Updated by enqueue/seek while the decoder was awaited.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (this.#pending != undefined || this.#seekTargetNs != undefined || this.#needsReset) {
-        this.#schedule();
-      }
-    }
+    // Observe errors even when a lifecycle hook initiates recovery without a caller.
+    this.#work = work.catch((error: unknown) => {
+      log.error(error);
+    });
+    await this.#work;
   }
 
   async #recoverSeek(generation: number, targetNs: bigint): Promise<void> {
@@ -388,7 +314,7 @@ export class CompressedVideoController {
   async #lookbackFrames(generation: number, targetTime: Time): Promise<MessageEvent[] | undefined> {
     this.#state.lookbackGeneration = generation;
     const metricsSeekId = playbackPerformanceMetrics.captureActiveSeek();
-    // This only keeps telemetry open; it never blocks the Player or panel tick.
+    // Track the recovery that this panel tick is awaiting.
     const finishMetricsTask = playbackPerformanceMetrics.beginVisualTask();
     let found = false;
     try {

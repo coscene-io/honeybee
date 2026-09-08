@@ -132,6 +132,7 @@ export class ImageMode
 
   readonly #annotations: ImageAnnotations;
 
+  #imageWork: Promise<ImageSetImageResult> | undefined;
   protected imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -785,23 +786,31 @@ export class ImageMode
     return this.getImageModeSettings().imageTopic === topic;
   };
 
-  #processCompressedVideoQueue = (queue: readonly PartialMessageEvent<CompressedVideo>[]): void => {
+  #processCompressedVideoQueue = async (
+    queue: readonly PartialMessageEvent<CompressedVideo>[],
+  ): Promise<void> => {
+    const imageWork = this.#imageWork;
+    this.#imageWork = undefined;
     const topic = this.#compressedVideoTopic;
     if (topic == undefined) {
+      await imageWork;
       return;
     }
     const controller = this.#compressedVideoControllerForTopic(topic);
     controller.updatePlaybackState();
     const frames = queue.filter((event) => event.topic === topic);
-    if (frames.length === 0) {
-      return;
+    if (frames.length > 0) {
+      this.messageHandler.recordCompressedVideoFrames(frames);
+      if (this.messageHandler.consumeTimestampRegression()) {
+        this.#clearVideoDelayHUD();
+      }
     }
-    this.messageHandler.recordCompressedVideoFrames(frames);
-    if (this.messageHandler.consumeTimestampRegression()) {
-      this.#clearVideoDelayHUD();
-    }
-    // Keep feeding the decoder while annotations catch up. canDisplayFrame is evaluated at rAF.
-    controller.enqueueVideoFrames(frames);
+    const atEnd =
+      this.renderer.endTime != undefined && this.renderer.currentTime >= this.renderer.endTime;
+    await Promise.all([
+      imageWork,
+      controller.enqueueVideoFrames(frames, {}, atEnd ? "end" : "normal"),
+    ]);
   };
 
   #handleRemoteVideoFrameReference = (
@@ -1049,7 +1058,7 @@ export class ImageMode
     image: AnyImage,
     state: MessageRenderState,
   ): void => {
-    void this.#setImageOnRenderable(messageEvent, image, state);
+    this.#imageWork = this.#setImageOnRenderable(messageEvent, image, state);
   };
 
   async #setImageOnRenderable(

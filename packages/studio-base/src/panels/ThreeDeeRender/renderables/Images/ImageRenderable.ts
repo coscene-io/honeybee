@@ -394,10 +394,6 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       if (pending == undefined || this.#disposed) {
         return;
       }
-      if (this.renderer.isPlaybackStopped() && !this.#allowStoppedImage) {
-        pending.resolve({ ok: false, reason: "stale" });
-        return;
-      }
       this.#allowStoppedImage = false;
       this.#activeImage = true;
       const generation = this.#imageGeneration;

@@ -117,7 +117,10 @@ export function currentFrameForRenderTick(
   return currentFrame === previousCurrentFrame ? undefined : currentFrame;
 }
 
-function processRenderState(renderer: IRenderer, renderState: Immutable<RenderState>): void {
+async function processRenderState(
+  renderer: IRenderer,
+  renderState: Immutable<RenderState>,
+): Promise<void> {
   renderer.endTime = renderState.endTime ? toNanoSec(renderState.endTime) : undefined;
   renderer.startTime = renderState.startTime ? toNanoSec(renderState.startTime) : undefined;
   renderer.setTopics(renderState.topics);
@@ -128,7 +131,7 @@ function processRenderState(renderer: IRenderer, renderState: Immutable<RenderSt
     renderer.setColorScheme(renderState.colorScheme, renderer.config.scene.backgroundColor);
   }
 
-  renderer.processMessageEvents({
+  await renderer.processMessageEvents({
     currentTime: renderState.currentTime,
     didSeek: renderState.didSeek === true,
     allFrames: renderState.allFrames,
@@ -195,6 +198,8 @@ export function ThreeDeeRender(props: {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | ReactNull>(ReactNull);
   const [renderer, setRenderer] = useState<IRenderer | undefined>(undefined);
   const rendererRef = useRef<IRenderer | undefined>(undefined);
+  const rendererWorkRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingRendersRef = useRef(new Map<() => void, IRenderer | undefined>());
   const initialCurrentFrameIdentityRef = useRef(Symbol("initial-current-frame"));
   const lastCurrentFrameIdentityRef = useRef<Immutable<RenderState>["currentFrame"] | symbol>(
     initialCurrentFrameIdentityRef.current,
@@ -213,6 +218,7 @@ export function ThreeDeeRender(props: {
   );
 
   useEffect(() => {
+    const pendingRenders = pendingRendersRef.current;
     const newRenderer = canvas
       ? new Renderer({
           canvas,
@@ -240,16 +246,20 @@ export function ThreeDeeRender(props: {
       newRenderer.getPlaybackIsPlaying = () => playbackIsPlayingRef.current?.() ?? false;
       const latest = latestRenderStateRef.current;
       if (latest != undefined) {
-        try {
-          processRenderState(newRenderer, {
-            ...latest,
-            didSeek: latest.didSeek === true || !newRenderer.getPlaybackIsPlaying(),
+        rendererWorkRef.current = processRenderState(newRenderer, {
+          ...latest,
+          didSeek: latest.didSeek === true || !newRenderer.getPlaybackIsPlaying(),
+        })
+          .then(() => {
+            if (rendererRef.current === newRenderer) {
+              newRenderer.animationFrame();
+            }
+          })
+          .catch((error: unknown) => {
+            log.error(error);
           });
-        } catch (error) {
-          log.error(error);
-        } finally {
-          newRenderer.queueAnimationFrame();
-        }
+      } else {
+        rendererWorkRef.current = Promise.resolve();
       }
     }
 
@@ -257,6 +267,11 @@ export function ThreeDeeRender(props: {
     setRenderer(newRenderer);
 
     return () => {
+      for (const [finish, owner] of pendingRenders) {
+        if (owner === newRenderer) {
+          finish();
+        }
+      }
       newRenderer?.off("configChange", propagateConfig);
       newRenderer?.dispose();
       if (rendererRef.current === newRenderer) {
@@ -436,8 +451,19 @@ export function ThreeDeeRender(props: {
 
   // Establish a connection to the message pipeline with context.watch and context.onRender
   useLayoutEffect(() => {
+    const pendingRenders = pendingRendersRef.current;
     context.onRender = (renderState: Immutable<RenderState>, done) => {
       const currentRenderer = rendererRef.current;
+      let finished = false;
+      const finish = () => {
+        if (!finished) {
+          finished = true;
+          pendingRendersRef.current.delete(finish);
+          done();
+        }
+      };
+      pendingRendersRef.current.set(finish, currentRenderer);
+      const isCurrent = () => !finished && rendererRef.current === currentRenderer;
       try {
         const rawRenderStateSnapshot = snapshotRenderState(renderState);
         const currentFrame = currentFrameForRenderTick(
@@ -464,17 +490,27 @@ export function ThreeDeeRender(props: {
           setExtensionData(renderStateSnapshot.extensionData);
         });
 
-        if (currentRenderer != undefined) {
-          processRenderState(currentRenderer, renderStateSnapshot);
+        if (currentRenderer == undefined) {
+          finish();
+          return;
         }
+        rendererWorkRef.current = rendererWorkRef.current
+          .then(async () => {
+            if (!isCurrent()) {
+              return;
+            }
+            await processRenderState(currentRenderer, renderStateSnapshot);
+            if (isCurrent()) {
+              currentRenderer.animationFrame();
+            }
+          })
+          .catch((error: unknown) => {
+            log.error(error);
+          })
+          .finally(finish);
       } catch (error) {
         log.error(error);
-      } finally {
-        try {
-          currentRenderer?.queueAnimationFrame();
-        } finally {
-          done();
-        }
+        finish();
       }
     };
 
@@ -494,6 +530,9 @@ export function ThreeDeeRender(props: {
 
     return () => {
       context.onRender = undefined;
+      for (const finish of pendingRenders.keys()) {
+        finish();
+      }
     };
   }, [context]);
 

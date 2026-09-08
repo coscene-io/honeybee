@@ -254,7 +254,7 @@ describe("Images compressed video seek lookback", () => {
     const subscription = compressedVideoSubscription(images);
 
     images.handleSeek();
-    subscription.processQueue?.([], SEEK_CONTEXT);
+    void subscription.processQueue?.([], SEEK_CONTEXT);
     await Promise.resolve();
 
     expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
@@ -285,7 +285,7 @@ describe("Images compressed video seek lookback", () => {
     const subscription = compressedVideoSubscription(images);
 
     images.handleSeek();
-    subscription.processQueue?.([], SEEK_CONTEXT);
+    void subscription.processQueue?.([], SEEK_CONTEXT);
     await flushAsyncWork();
 
     expect(subscribeMessageRange).not.toHaveBeenCalled();
@@ -318,7 +318,7 @@ describe("Images compressed video seek lookback", () => {
     };
     images.handleSettingsAction(action);
     images.handleSeek();
-    subscription.processQueue?.([], SEEK_CONTEXT);
+    void subscription.processQueue?.([], SEEK_CONTEXT);
     await Promise.resolve();
 
     expect(subscribeMessageRange).toHaveBeenCalledTimes(1);
@@ -336,12 +336,12 @@ describe("Images compressed video seek lookback", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10_000_000n, "delta");
 
-    subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     images.removeAllRenderables();
     images.handleSeek();
-    subscription.processQueue?.([], SEEK_CONTEXT);
+    void subscription.processQueue?.([], SEEK_CONTEXT);
     await flushAsyncWork();
 
     const displayedBatches = images.createdRenderables.flatMap((renderable) =>
@@ -370,7 +370,7 @@ describe("Images compressed video seek lookback", () => {
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
 
-    subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     const previousRenderable = images.renderables.get("/video") as TestImageRenderable | undefined;
@@ -383,7 +383,7 @@ describe("Images compressed video seek lookback", () => {
     ).removeAllRenderables({ reason: "seek" });
     renderer.currentTime = 20_000_000n;
     images.handleSeek();
-    subscription.processQueue?.([], SEEK_CONTEXT);
+    void subscription.processQueue?.([], SEEK_CONTEXT);
     await flushAsyncWork();
 
     expect(images.renderables.get("/video")).toBe(previousRenderable);
@@ -430,7 +430,7 @@ describe("Images compressed video seek lookback", () => {
     const newestKey = makeVideoMessage(20n, "key");
     const newestDelta = makeVideoMessage(30n, "delta");
 
-    subscription.processQueue?.([oldKey, oldDelta, newestKey, newestDelta], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([oldKey, oldDelta, newestKey, newestDelta], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     expect(images.createdRenderables).toHaveLength(1);
@@ -445,7 +445,7 @@ describe("Images compressed video seek lookback", () => {
     const images = new TestImages(renderer);
     const subscription = compressedVideoSubscription(images);
 
-    subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([makeVideoMessage(0n, "key")], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     expect(renderer.hud.getHUDItems()).toEqual([
@@ -464,7 +464,7 @@ describe("Images compressed video seek lookback", () => {
     const keyframe = makeVideoMessage(0n, "key");
     const delta = makeVideoMessage(10n, "delta");
 
-    subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([keyframe, delta], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     expect(images.createdRenderables[0]!.setCompressedVideoFrameBatches).toEqual([
@@ -476,7 +476,7 @@ describe("Images compressed video seek lookback", () => {
     const images = new TestImages(makeRenderer());
     const subscription = compressedVideoSubscription(images);
 
-    subscription.processQueue?.([makeVideoMessage(10n, "delta")], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([makeVideoMessage(10n, "delta")], PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     expect(images.createdRenderables).toHaveLength(0);
@@ -506,7 +506,7 @@ describe("Images compressed video seek lookback", () => {
       makeVideoMessage(BigInt(index * 10 + 1), "delta", name),
     ]);
 
-    subscription.processQueue?.(queue, PLAYBACK_CONTEXT);
+    void subscription.processQueue?.(queue, PLAYBACK_CONTEXT);
     await flushAsyncWork();
 
     expect(started).toEqual(new Set(topics.map((topic) => topic.name)));
@@ -524,7 +524,7 @@ describe("Images compressed video seek lookback", () => {
     const first = makeVideoMessage(0n, "key");
     const delayed = makeVideoMessage(1_000_000_000n, "delta");
 
-    subscription.processQueue?.([first], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([first], PLAYBACK_CONTEXT);
     await flushAsyncWork();
     const renderable = images.createdRenderables[0]!;
     renderable.userData.displayedFrameState = {
@@ -532,7 +532,7 @@ describe("Images compressed video seek lookback", () => {
       receiveTime: 0n,
     };
     images.displayResults.push({ ok: false, reason: "timeout" });
-    subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
+    void subscription.processQueue?.([delayed], PLAYBACK_CONTEXT);
     await flushAsyncWork();
     expect(renderer.hud.getHUDItems().map((item) => item.id)).toContain("VIDEO_DELAY:/video");
 
