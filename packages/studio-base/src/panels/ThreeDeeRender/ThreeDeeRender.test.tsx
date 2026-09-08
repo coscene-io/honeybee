@@ -294,6 +294,36 @@ describe("onRender awaited presentation", () => {
     expect(done).toHaveBeenCalledTimes(1);
   });
 
+  it("releases a replaced renderer and ignores its late decode", async () => {
+    const { context, view } = mountPanel();
+    let releaseOld!: () => void;
+    mockEnqueue
+      .mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          releaseOld = resolve;
+        }),
+      )
+      .mockResolvedValue(undefined);
+    const done = jest.fn();
+    act(() => {
+      context.onRender!({ currentTime: fromNanoSec(1n) }, done);
+    });
+    await flushRender();
+    expect(done).not.toHaveBeenCalled();
+    view.rerender(
+      <ThreeDeeRender context={context} interfaceMode="3d" testOptions={{ debugPicking: true }} />,
+    );
+    await flushRender();
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(mockDispose).toHaveBeenCalledTimes(1);
+    const draws = mockDraw.mock.calls.length;
+    releaseOld();
+    await flushRender();
+    expect(mockDraw).toHaveBeenCalledTimes(draws);
+    expect(done).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
+
   it("retains initialization topic selection without echoing the old React config", async () => {
     mockAutoSelect = true;
     const { context, view } = mountPanel((panel) => {
