@@ -8,6 +8,7 @@
 import EventEmitter from "eventemitter3";
 import * as THREE from "three";
 
+import { Time } from "@foxglove/rostime";
 import {
   Immutable,
   MessageEvent,
@@ -169,11 +170,18 @@ export type RendererConfig = {
   /** instanceId -> settings */
   layers: Record<string, Partial<CustomLayerSettings> | undefined>;
 
+  /** Retained for layout round-tripping only. */
+  synchronize?: boolean;
+  /** Retained for layout round-tripping only. */
+  syncedTopics?: Record<string, boolean | undefined>;
+
   /** Settings pertaining to Image mode */
   imageMode: ImageModeConfig;
 };
 
-export type RendererSubscription<T = unknown> = {
+export type RendererSubscriptionContext = { didSeek: boolean };
+
+type RendererSubscriptionCommon<T> = {
   /** Preload the full history of topic messages as a best effort */
   preload?: boolean;
   /**
@@ -184,16 +192,35 @@ export type RendererSubscription<T = unknown> = {
    * settings are changed.
    */
   shouldSubscribe?: (topic: string) => boolean;
-  /** Callback that will be fired for each matching incoming message */
-  handler: (messageEvent: MessageEvent<T>) => void;
   /** Queue of messages to be handled since last frame. Will be reassigned to new empty array each frame. */
   queue?: MessageEvent<T>[] | undefined;
   /** Optional callback to be called on `queue` to filter. Returns new queue. */
   filterQueue?: (queue: MessageEvent<T>[]) => MessageEvent<T>[];
 };
 
-export type ReleaseSeekKeyframeSearchPlaybackPause = () => void;
-export type AcquireSeekKeyframeSearchPlaybackPause = () => ReleaseSeekKeyframeSearchPlaybackPause;
+export type RendererSubscription<T = unknown> = RendererSubscriptionCommon<T> &
+  (
+    | {
+        /** Callback fired for each matching incoming message. */
+        handler: (messageEvent: MessageEvent<T>) => void;
+        processQueue?: never;
+      }
+    | {
+        handler?: never;
+        /** Callback fired once for all matching messages in a player tick. */
+        processQueue: (
+          queue: readonly MessageEvent<T>[],
+          context: RendererSubscriptionContext,
+        ) => void;
+      }
+  );
+
+export type RendererMessageEvents = {
+  currentTime: Time | undefined;
+  didSeek: boolean;
+  allFrames: readonly MessageEvent[] | undefined;
+  currentFrame: readonly MessageEvent[] | undefined;
+};
 
 export type AnyRendererSubscription = Immutable<
   | {
@@ -265,7 +292,10 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   currentTime: bigint;
   startTime: bigint | undefined;
   subscribeMessageRange: SubscribeMessageRange | undefined;
-  acquireSeekKeyframeSearchPlaybackPause?: AcquireSeekKeyframeSearchPlaybackPause;
+  /** Live playback state; EOF is checked against endTime separately. */
+  getPlaybackIsPlaying?: () => boolean;
+  endTime?: bigint;
+  isPlaybackStopped(): boolean;
   /** Coordinate frame that transforms are applied through to the follow frame. Should be unchanging. */
   fixedFrameId: string | undefined;
   /**
@@ -327,6 +357,7 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   handleAllFramesMessages(allFrames?: readonly MessageEvent[]): boolean;
 
   updateConfig(updateHandler: (draft: RendererConfig) => void): void;
+  setConfig(config: Immutable<RendererConfig>): void;
 
   addCustomLayerAction(options: {
     layerId: string;
@@ -361,6 +392,9 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   setSelectedRenderable(selection: PickedRenderable | undefined): void;
 
   addMessageEvent(messageEvent: Readonly<MessageEvent>): void;
+
+  /** Synchronously ingest one player tick; decoding and drawing are scheduled separately. */
+  processMessageEvents(events: RendererMessageEvents): void;
 
   /**  Set desired render/display frame, will render using fallback if id is undefined or frame does not exist */
   setFollowFrameId(frameId: string | undefined): void;

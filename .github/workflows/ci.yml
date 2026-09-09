@@ -9,7 +9,7 @@ on:
 jobs:
   lint:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: cos-m
     timeout-minutes: 30
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
@@ -17,7 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: corepack enable yarn
+      - run: |
+          mkdir -p "$RUNNER_TEMP/corepack-bin"
+          corepack enable yarn --install-directory "$RUNNER_TEMP/corepack-bin"
+          echo "$RUNNER_TEMP/corepack-bin" >> "$GITHUB_PATH"
 
       - uses: actions/setup-node@v7
         with:
@@ -30,7 +33,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .eslintcache
-          key: ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}
           restore-keys: |
             ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-
 
@@ -45,7 +48,7 @@ jobs:
 
   unit-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: cos-m
     timeout-minutes: 30
     env:
       GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
@@ -53,7 +56,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: corepack enable yarn
+      - run: |
+          mkdir -p "$RUNNER_TEMP/corepack-bin"
+          corepack enable yarn --install-directory "$RUNNER_TEMP/corepack-bin"
+          echo "$RUNNER_TEMP/corepack-bin" >> "$GITHUB_PATH"
 
       - uses: actions/setup-node@v7
         with:

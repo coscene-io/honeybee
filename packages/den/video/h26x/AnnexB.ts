@@ -5,11 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export function isAnnexB(data: Uint8Array): boolean {
+export function isAnnexB(data: ArrayLike<number>): boolean {
   return annexBBoxSize(data) != undefined;
 }
 
-export function annexBBoxSize(data: Uint8Array): number | undefined {
+export function annexBBoxSize(data: ArrayLike<number>): number | undefined {
   // Annex B is a byte stream format where each NALU is prefixed with a start code, typically
   // 0x000001 or 0x00000001.
   if (data.length < 4) {
@@ -55,7 +55,7 @@ export function getFirstNaluOfType(
  * Find the index of the next start code (0x000001 or 0x00000001) in the
  * given buffer, starting at the given offset.
  */
-export function findNextStartCode(data: Uint8Array, start: number): number {
+export function findNextStartCode(data: ArrayLike<number>, start: number): number {
   let i = start;
   while (i < data.length - 3) {
     const isStartCode3Bytes = data[i + 0] === 0 && data[i + 1] === 0 && data[i + 2] === 1;
@@ -80,7 +80,7 @@ export function findNextStartCode(data: Uint8Array, start: number): number {
  * Find the index of the end of the next start code (0x000001 or 0x00000001) in the
  * given buffer, starting at the given offset.
  */
-export function findNextStartCodeEnd(data: Uint8Array, start: number): number {
+export function findNextStartCodeEnd(data: ArrayLike<number>, start: number): number {
   let i = start;
   while (i < data.length - 3) {
     const isStartCode3Bytes = data[i + 0] === 0 && data[i + 1] === 0 && data[i + 2] === 1;
