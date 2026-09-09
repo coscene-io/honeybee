@@ -300,6 +300,25 @@ describe("awaited video tick scheduling", () => {
     });
   });
 
+  it("extends the cached GOP after seeking and resumes without a range subscription", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(1, "key");
+    const first = frame(2);
+    const next = frame(3);
+    await controller.enqueueVideoFrames([key, first]);
+    renderer.currentTime = 2n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([]);
+    renderer.currentTime = 3n;
+    await controller.enqueueVideoFrames([next]);
+    display.mockClear();
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([]);
+    expect(display).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([key, first, next]);
+    expect(display.mock.calls[0]![1]).toBe("seek");
+  });
+
   it("does not reset the decoder merely because a stopped active result is stale", async () => {
     const { controller, renderer, display, reset } = setup();
     const active = deferred();

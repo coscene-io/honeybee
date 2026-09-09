@@ -61,7 +61,7 @@ const mockRenderer: IRenderer = Object.assign(emitter, {
 
 const mockUserData: ImageUserData = {
   topic: "/test/image",
-  settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+  settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS, visible: true },
   firstMessageTime: BigInt(0),
   cameraInfo: undefined,
   cameraModel: undefined,
@@ -134,7 +134,7 @@ type TestDecodedImage = ImageBitmap | ImageData | VideoFrame;
 function makeUserData(): ImageUserData {
   return {
     ...mockUserData,
-    settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+    settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS, visible: true },
     texture: undefined,
     material: undefined,
     geometry: undefined,
@@ -282,6 +282,18 @@ describe("ImageRenderable candidate scheduling", () => {
     expect(renderable.getDecodedImage()).toBe(second);
     renderable.dispose();
     expect((second as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+  });
+
+  it("commits a backfilled frame when layer settings are enabled before Object3D visibility updates", async () => {
+    const frame = new MockVideoFrame() as unknown as VideoFrame;
+    const renderable = new TestImageRenderable([frame]);
+    renderable.visible = false;
+    renderable.userData.settings.visible = true;
+    await renderable.setImage(sampleImage);
+    commit();
+    expect(renderable.getDecodedImage()).toBe(frame);
+    renderable.dispose();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
   });
 
   it("retains a hidden candidate for presentation after visibility returns", async () => {

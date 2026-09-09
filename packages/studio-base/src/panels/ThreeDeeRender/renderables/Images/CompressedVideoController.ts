@@ -277,7 +277,7 @@ export class CompressedVideoController {
   async #recoverSeek(generation: number, targetNs: bigint): Promise<void> {
     const targetTime = fromNanoSec(targetNs);
     try {
-      let frames = this.#cache.framesForReceiveTime(this.#topic, targetTime);
+      let frames = this.#cache.seekAndReturnFramesForReceiveTime(this.#topic, targetTime);
       if (frames == undefined && this.#renderer.subscribeMessageRange != undefined) {
         frames = await this.#lookbackFrames(generation, targetTime);
       }

@@ -407,10 +407,13 @@ export class ImageMode
 
   #handleConfigChange = () => {
     const config = this.getImageModeSettings();
-    if (this.#compressedVideoTopicFor(config.imageTopic) !== this.#compressedVideoTopic) {
+    if (
+      this.imageRenderable?.userData.topic !== config.imageTopic ||
+      this.#compressedVideoTopicFor(config.imageTopic) !== this.#compressedVideoTopic
+    ) {
       this.#removeImageRenderable();
-      this.#setCompressedVideoTopic(config.imageTopic);
     }
+    this.#setCompressedVideoTopic(config.imageTopic);
     this.#applySynchronizationSetting(config);
     this.messageHandler.setConfig(config);
   };
@@ -1144,6 +1147,7 @@ export class ImageMode
 
     const userSettings: ImageRenderableSettings = {
       ...IMAGE_RENDERABLE_DEFAULT_SETTINGS,
+      visible: true,
       colorMode: config.colorMode,
       gradient: config.gradient as [string, string],
       colorMap: config.colorMap,

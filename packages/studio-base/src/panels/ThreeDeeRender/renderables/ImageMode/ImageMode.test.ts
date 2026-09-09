@@ -499,6 +499,32 @@ describe("ImageMode compressed video seek replay", () => {
     ]);
   });
 
+  it("disposes the old raw image on applied topic changes without waiting for backfill", async () => {
+    const renderer = makeRenderer({
+      topics: [
+        { name: "/camera", schemaName: "foxglove.RawImage" },
+        { name: "/camera2", schemaName: "foxglove.RawImage" },
+      ],
+    });
+    const imageMode = new TestImageMode(renderer);
+    const subscription = schemaSubscription(imageMode, "foxglove.RawImage");
+    await subscription.handler?.(makeRawImageMessage(0n));
+    await flushAsyncWork();
+    const previous = imageMode.currentImageRenderable();
+    expect(previous).toBeDefined();
+    expect(previous?.userData.settings.visible).toBe(true);
+    renderer.config = {
+      ...renderer.config,
+      imageMode: { ...renderer.config.imageMode, imageTopic: "/camera2" },
+    };
+    renderer.emit("configApplied", renderer);
+    expect(previous?.disposed).toBe(true);
+    expect(imageMode.currentImageRenderable()).toBeUndefined();
+    await subscription.handler?.({ ...makeRawImageMessage(10_000_000n), topic: "/camera2" });
+    await flushAsyncWork();
+    expect(imageMode.currentImageRenderable()?.userData.topic).toBe("/camera2");
+  });
+
   it("keeps sync annotations available for non-video image topics", () => {
     const renderer = makeRenderer({
       topics: [{ name: "/camera", schemaName: "foxglove.RawImage" }],

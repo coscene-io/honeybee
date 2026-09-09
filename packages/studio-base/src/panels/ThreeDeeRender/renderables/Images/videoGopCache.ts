@@ -490,7 +490,31 @@ class CachedVideoRange {
   }
 
   public merge(other: CachedVideoRange): void {
-    const merged = [...this.frames, ...other.frames].sort(compareFramesByInsertionOrder);
+    // Ranges can be fetched in reverse chronological order after a cold seek. Merge by
+    // receive time while retaining the physical order within each independently read range.
+    const merged: CachedVideoFrame[] = [];
+    let left = 0;
+    let right = 0;
+    while (left < this.frames.length && right < other.frames.length) {
+      const a = this.frames[left]!;
+      const b = other.frames[right]!;
+      if (
+        a.receiveTimeNs < b.receiveTimeNs ||
+        (a.receiveTimeNs === b.receiveTimeNs && a.insertionOrder < b.insertionOrder)
+      ) {
+        merged.push(a);
+        left++;
+      } else {
+        merged.push(b);
+        right++;
+      }
+    }
+    while (left < this.frames.length) {
+      merged.push(this.frames[left++]!);
+    }
+    while (right < other.frames.length) {
+      merged.push(other.frames[right++]!);
+    }
     const lastOccurrenceByMessage = new Map<MessageEvent, number>();
     for (let i = 0; i < merged.length; i++) {
       lastOccurrenceByMessage.set(merged[i]!.messageEvent, i);
@@ -655,16 +679,6 @@ class CachedVideoRange {
       this.#includeInBounds(frame);
     }
   }
-}
-
-function compareFramesByInsertionOrder(a: CachedVideoFrame, b: CachedVideoFrame): number {
-  if (a.insertionOrder < b.insertionOrder) {
-    return -1;
-  }
-  if (a.insertionOrder > b.insertionOrder) {
-    return 1;
-  }
-  return 0;
 }
 
 function compareRangesByPublishTime(a: CachedVideoRange, b: CachedVideoRange): number {

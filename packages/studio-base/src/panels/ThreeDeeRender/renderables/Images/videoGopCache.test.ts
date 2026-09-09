@@ -219,6 +219,29 @@ describe("VideoGopCache", () => {
     expect(cache.framesForPublishTime(TOPIC, t(100), t(50))).toBeUndefined();
   });
 
+  it("retains distinct frames with equal receive times when merging ranges", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const first = h264Frame(11, 101, "delta");
+    const second = h264Frame(11, 101, "delta", 16);
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, first]);
+    cache.addFrameRange([second, end]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, first, second, end]);
+  });
+
+  it("merges a historical range fetched later in stream chronology", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const middle = h264Frame(11, 101, "delta");
+    const target = h264Frame(12, 102, "delta");
+    cache.addFrameRange([middle, target]);
+    cache.handleSeek(t(10));
+    cache.addFrameRange([key, middle]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, middle, target]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
   it("merges overlapping cached ranges and replays from the nearest keyframe", () => {
     const cache = new VideoGopCache();
     const oldKey = h264Frame(10, 100, "key");

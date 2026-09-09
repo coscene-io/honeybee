@@ -636,7 +636,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
   }
 
   #canUpdateTexture(): boolean {
-    return !this.isDisposed() && this.visible;
+    return !this.isDisposed() && this.userData.settings.visible;
   }
 
   #closeDecodedImageIfUnused(result: DecodedImageResource): void {
