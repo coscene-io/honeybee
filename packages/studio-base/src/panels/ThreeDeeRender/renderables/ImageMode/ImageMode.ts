@@ -132,6 +132,7 @@ export class ImageMode
 
   readonly #annotations: ImageAnnotations;
 
+  #imageWork: Promise<ImageSetImageResult> | undefined;
   protected imageRenderable: ImageRenderable | undefined;
   #removeImageTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -224,7 +225,7 @@ export class ImageMode
     });
 
     this.renderer.on("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.on("configChange", this.#handleConfigChange);
+    this.renderer.on("configApplied", this.#handleConfigChange);
     this.#handleTopicsChanged();
   }
 
@@ -324,7 +325,7 @@ export class ImageMode
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.off("configChange", this.#handleConfigChange);
+    this.renderer.off("configApplied", this.#handleConfigChange);
     this.#compressedVideoController?.dispose();
     this.hud.removeHUDItem(this.#videoDelayHUDId());
     this.hud.removeHUDItem(this.#bFramesHUDId());
@@ -406,10 +407,13 @@ export class ImageMode
 
   #handleConfigChange = () => {
     const config = this.getImageModeSettings();
-    if (this.#compressedVideoTopicFor(config.imageTopic) !== this.#compressedVideoTopic) {
+    if (
+      this.imageRenderable?.userData.topic !== config.imageTopic ||
+      this.#compressedVideoTopicFor(config.imageTopic) !== this.#compressedVideoTopic
+    ) {
       this.#removeImageRenderable();
-      this.#setCompressedVideoTopic(config.imageTopic);
     }
+    this.#setCompressedVideoTopic(config.imageTopic);
     this.#applySynchronizationSetting(config);
     this.messageHandler.setConfig(config);
   };
@@ -785,23 +789,31 @@ export class ImageMode
     return this.getImageModeSettings().imageTopic === topic;
   };
 
-  #processCompressedVideoQueue = (queue: readonly PartialMessageEvent<CompressedVideo>[]): void => {
+  #processCompressedVideoQueue = async (
+    queue: readonly PartialMessageEvent<CompressedVideo>[],
+  ): Promise<void> => {
+    const imageWork = this.#imageWork;
+    this.#imageWork = undefined;
     const topic = this.#compressedVideoTopic;
     if (topic == undefined) {
+      await imageWork;
       return;
     }
     const controller = this.#compressedVideoControllerForTopic(topic);
     controller.updatePlaybackState();
     const frames = queue.filter((event) => event.topic === topic);
-    if (frames.length === 0) {
-      return;
+    if (frames.length > 0) {
+      this.messageHandler.recordCompressedVideoFrames(frames);
+      if (this.messageHandler.consumeTimestampRegression()) {
+        this.#clearVideoDelayHUD();
+      }
     }
-    this.messageHandler.recordCompressedVideoFrames(frames);
-    if (this.messageHandler.consumeTimestampRegression()) {
-      this.#clearVideoDelayHUD();
-    }
-    // Keep feeding the decoder while annotations catch up. canDisplayFrame is evaluated at rAF.
-    controller.enqueueVideoFrames(frames);
+    const atEnd =
+      this.renderer.endTime != undefined && this.renderer.currentTime >= this.renderer.endTime;
+    await Promise.all([
+      imageWork,
+      controller.enqueueVideoFrames(frames, {}, atEnd ? "end" : "normal"),
+    ]);
   };
 
   #handleRemoteVideoFrameReference = (
@@ -1049,7 +1061,7 @@ export class ImageMode
     image: AnyImage,
     state: MessageRenderState,
   ): void => {
-    void this.#setImageOnRenderable(messageEvent, image, state);
+    this.#imageWork = this.#setImageOnRenderable(messageEvent, image, state);
   };
 
   async #setImageOnRenderable(
@@ -1135,6 +1147,7 @@ export class ImageMode
 
     const userSettings: ImageRenderableSettings = {
       ...IMAGE_RENDERABLE_DEFAULT_SETTINGS,
+      visible: true,
       colorMode: config.colorMode,
       gradient: config.gradient as [string, string],
       colorMap: config.colorMap,

@@ -67,6 +67,7 @@ export type RendererEvents = {
   /** Fired when the structure of the transform tree changes ie: new frame added/removed or frame assigned new parent */
   transformTreeUpdated: (renderer: IRenderer) => void;
   settingsTreeChange: (renderer: IRenderer) => void;
+  configApplied: (renderer: IRenderer) => void;
   configChange: (renderer: IRenderer) => void;
   schemaSubscriptionsChanged: (renderer: IRenderer) => void;
   topicSubscriptionsChanged: (renderer: IRenderer) => void;
@@ -202,7 +203,7 @@ export type RendererSubscription<T = unknown> = RendererSubscriptionCommon<T> &
   (
     | {
         /** Callback fired for each matching incoming message. */
-        handler: (messageEvent: MessageEvent<T>) => void;
+        handler: (messageEvent: MessageEvent<T>) => void | Promise<void>;
         processQueue?: never;
       }
     | {
@@ -211,7 +212,7 @@ export type RendererSubscription<T = unknown> = RendererSubscriptionCommon<T> &
         processQueue: (
           queue: readonly MessageEvent<T>[],
           context: RendererSubscriptionContext,
-        ) => void;
+        ) => void | Promise<void>;
       }
   );
 
@@ -357,7 +358,7 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   handleAllFramesMessages(allFrames?: readonly MessageEvent[]): boolean;
 
   updateConfig(updateHandler: (draft: RendererConfig) => void): void;
-  setConfig(config: Immutable<RendererConfig>): void;
+  setConfig(config: Immutable<RendererConfig>, options?: { emitChange?: boolean }): void;
 
   addCustomLayerAction(options: {
     layerId: string;
@@ -393,8 +394,8 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
 
   addMessageEvent(messageEvent: Readonly<MessageEvent>): void;
 
-  /** Synchronously ingest one player tick; decoding and drawing are scheduled separately. */
-  processMessageEvents(events: RendererMessageEvents): void;
+  /** Ingest one player tick and await image decoding; the caller draws before acknowledging it. */
+  processMessageEvents(events: RendererMessageEvents): Promise<void>;
 
   /**  Set desired render/display frame, will render using fallback if id is undefined or frame does not exist */
   setFollowFrameId(frameId: string | undefined): void;

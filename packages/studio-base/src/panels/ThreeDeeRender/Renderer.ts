@@ -424,6 +424,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     }
 
     this.#watchDevicePixelRatio();
+    document.addEventListener("visibilitychange", this.#onVisibilityChange);
 
     this.setCameraState(config.cameraState);
     this.animationFrame();
@@ -432,6 +433,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   #onHUDItemsChange = () => {
     this.hudItems = this.hud.getHUDItems();
     this.emit("hudItemsChanged", this);
+  };
+
+  #onVisibilityChange = () => {
+    if (document.visibilityState !== "hidden") {
+      this.queueAnimationFrame();
+    }
   };
 
   #onDevicePixelRatioChange = () => {
@@ -459,6 +466,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       this.#animationFrame = undefined;
     }
 
+    document.removeEventListener("visibilitychange", this.#onVisibilityChange);
     log.warn(`Disposing renderer`);
     this.#devicePixelRatioMediaQuery?.removeEventListener("change", this.#onDevicePixelRatioChange);
     this.removeAllListeners();
@@ -653,12 +661,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
         hasAddedMessageEvents = true;
       }
 
-      if (
-        !COMPRESSED_VIDEO_DATATYPES.has(message.schemaName) &&
-        this.topicsByName
-          ?.get(message.topic)
-          ?.convertibleTo?.some((schema) => COMPRESSED_VIDEO_DATATYPES.has(schema)) !== true
-      ) {
+      if (!COMPRESSED_VIDEO_DATATYPES.has(message.schemaName)) {
         this.addMessageEvent(message);
       }
       lastReadMessage = message;
@@ -688,13 +691,19 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     this.setConfig(produce(this.config, updateHandler));
   }
 
-  public setConfig(config: Immutable<RendererConfig>): void {
+  public setConfig(
+    config: Immutable<RendererConfig>,
+    options: { emitChange?: boolean } = {},
+  ): void {
     const oldConfig = this.config;
     if (oldConfig === config) {
       return;
     }
     this.config = config;
-    this.emit("configChange", this);
+    this.emit("configApplied", this);
+    if (options.emitChange !== false) {
+      this.emit("configChange", this);
+    }
   }
 
   #addTransformSubscriptions(): void {
@@ -1066,7 +1075,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     queueMessage(messageEvent, this.schemaSubscriptions.get(messageEvent.schemaName));
   }
 
-  public processMessageEvents(events: RendererMessageEvents): void {
+  public async processMessageEvents(events: RendererMessageEvents): Promise<void> {
     if (events.currentTime != undefined) {
       const oldTime = this.currentTime;
       this.setCurrentTime(toNanoSec(events.currentTime));
@@ -1078,7 +1087,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     for (const event of events.currentFrame ?? []) {
       this.addMessageEvent(event);
     }
-    this.#handleSubscriptionQueues({ didSeek: events.didSeek });
+    await this.#handleSubscriptionQueues({ didSeek: events.didSeek });
   }
 
   /** Match the behavior of `tf::Transformer` by stripping leading slashes from
@@ -1209,6 +1218,10 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     if (this.#disposed) {
       return;
     }
+    if (this.#animationFrame != undefined) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = undefined;
+    }
     if (this.#rendering) {
       this.queueAnimationFrame();
     } else {
@@ -1284,7 +1297,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   };
 
   /** Deliver ordinary messages before batch handlers select their targets. */
-  #handleSubscriptionQueues(context: RendererSubscriptionContext): void {
+  async #handleSubscriptionQueues(context: RendererSubscriptionContext): Promise<void> {
     const subscriptions = new Set<RendererSubscription>();
     for (const entries of this.topicSubscriptions.values()) {
       for (const subscription of entries) {
@@ -1308,22 +1321,36 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       ...drainedSubscriptions.filter(({ subscription }) => subscription.processQueue == undefined),
       ...drainedSubscriptions.filter(({ subscription }) => subscription.processQueue != undefined),
     ];
+    const work: Promise<void>[] = [];
     for (const { subscription, queue } of ordered) {
       try {
         const messages = subscription.filterQueue
           ? subscription.filterQueue(queue ?? [])
           : (queue ?? []);
         if (subscription.processQueue != undefined) {
-          subscription.processQueue(messages, context);
+          const result = subscription.processQueue(messages, context);
+          if (result != undefined) {
+            work.push(result);
+          }
         } else {
           for (const message of messages) {
-            subscription.handler(message);
+            const result = subscription.handler(message);
+            if (result != undefined) {
+              work.push(result);
+            }
           }
         }
       } catch (error) {
         log.error(error);
       }
     }
+    await Promise.allSettled(work).then((results) => {
+      for (const result of results) {
+        if (result.status === "rejected") {
+          log.error(result.reason);
+        }
+      }
+    });
   }
 
   #updateFixedFrameId(): void {

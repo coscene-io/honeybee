@@ -110,13 +110,13 @@ export class Images extends SceneExtension<ImageRenderable> {
   public constructor(renderer: IRenderer, name: string = Images.extensionId) {
     super(name, renderer);
     this.renderer.on("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.on("configChange", this.#handleConfigChange);
+    this.renderer.on("configApplied", this.#handleConfigChange);
     this.#handleTopicsChanged();
   }
 
   public override dispose(): void {
     this.renderer.off("topicsChanged", this.#handleTopicsChanged);
-    this.renderer.off("configChange", this.#handleConfigChange);
+    this.renderer.off("configApplied", this.#handleConfigChange);
     for (const controller of this.#compressedVideoControllers.values()) {
       controller.dispose();
     }
@@ -393,23 +393,29 @@ export class Images extends SceneExtension<ImageRenderable> {
     return false;
   };
 
-  #handleRosRawImage = (messageEvent: PartialMessageEvent<RosImage>): void => {
-    void this.handleImage(messageEvent, normalizeRosImage(messageEvent.message));
+  #handleRosRawImage = async (messageEvent: PartialMessageEvent<RosImage>): Promise<void> => {
+    await this.handleImage(messageEvent, normalizeRosImage(messageEvent.message));
   };
 
-  #handleRosCompressedImage = (messageEvent: PartialMessageEvent<RosCompressedImage>): void => {
-    void this.handleImage(messageEvent, normalizeRosCompressedImage(messageEvent.message));
+  #handleRosCompressedImage = async (
+    messageEvent: PartialMessageEvent<RosCompressedImage>,
+  ): Promise<void> => {
+    await this.handleImage(messageEvent, normalizeRosCompressedImage(messageEvent.message));
   };
 
-  #handleRawImage = (messageEvent: PartialMessageEvent<RawImage>): void => {
-    void this.handleImage(messageEvent, normalizeRawImage(messageEvent.message));
+  #handleRawImage = async (messageEvent: PartialMessageEvent<RawImage>): Promise<void> => {
+    await this.handleImage(messageEvent, normalizeRawImage(messageEvent.message));
   };
 
-  #handleCompressedImage = (messageEvent: PartialMessageEvent<CompressedImage>): void => {
-    void this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
+  #handleCompressedImage = async (
+    messageEvent: PartialMessageEvent<CompressedImage>,
+  ): Promise<void> => {
+    await this.handleImage(messageEvent, normalizeCompressedImage(messageEvent.message));
   };
 
-  #processCompressedVideoQueue = (queue: readonly PartialMessageEvent<CompressedVideo>[]): void => {
+  #processCompressedVideoQueue = async (
+    queue: readonly PartialMessageEvent<CompressedVideo>[],
+  ): Promise<void> => {
     const framesByTopic = new Map<string, PartialMessageEvent<CompressedVideo>[]>();
     for (const event of queue) {
       const frames = framesByTopic.get(event.topic);
@@ -419,14 +425,21 @@ export class Images extends SceneExtension<ImageRenderable> {
         framesByTopic.set(event.topic, [event]);
       }
     }
-    for (const controller of this.#compressedVideoControllers.values()) {
-      controller.updatePlaybackState();
+    for (const topic of framesByTopic.keys()) {
+      this.#compressedVideoControllerForTopic(topic);
     }
-    for (const [topic, frames] of framesByTopic) {
-      this.#compressedVideoControllerForTopic(topic).enqueueVideoFrames(frames, {
-        resizeWidth: DEFAULT_BITMAP_WIDTH,
-      });
-    }
+    const atEnd =
+      this.renderer.endTime != undefined && this.renderer.currentTime >= this.renderer.endTime;
+    await Promise.all(
+      Array.from(this.#compressedVideoControllers, async ([topic, controller]) => {
+        controller.updatePlaybackState();
+        await controller.enqueueVideoFrames(
+          framesByTopic.get(topic) ?? [],
+          { resizeWidth: DEFAULT_BITMAP_WIDTH },
+          atEnd ? "end" : "normal",
+        );
+      }),
+    );
   };
 
   #updateVisibleVideoHUD(): void {
@@ -449,10 +462,10 @@ export class Images extends SceneExtension<ImageRenderable> {
     }
   }
 
-  #handleRemoteVideoFrameReference = (
+  #handleRemoteVideoFrameReference = async (
     messageEvent: PartialMessageEvent<RemoteVideoFrameReference>,
-  ): void => {
-    void this.handleImage(messageEvent, messageEvent.message as RemoteVideoFrameReference);
+  ): Promise<void> => {
+    await this.handleImage(messageEvent, messageEvent.message as RemoteVideoFrameReference);
   };
 
   protected handleImage = async (

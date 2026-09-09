@@ -71,7 +71,7 @@ function deferred() {
   });
   return { promise, resolve };
 }
-describe("tick incremental video scheduling", () => {
+describe("awaited video tick scheduling", () => {
   beforeEach(() => {
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
     jest.spyOn(H264, "IsKeyframe").mockImplementation((data) => data[0] === 0x65);
@@ -84,18 +84,18 @@ describe("tick incremental video scheduling", () => {
     jest.restoreAllMocks();
   });
 
-  it("returns void before decode and clips only the last keyframe suffix", async () => {
+  it("returns a decode promise and clips only the last keyframe suffix", async () => {
     const { controller, display } = setup();
     const tick = [frame(1), frame(2, "key"), frame(3), frame(4, "key"), frame(5), frame(6)];
-    // oxlint-disable-next-line typescript/no-confusing-void-expression -- Assert the void ingestion contract.
-    expect(controller.enqueueVideoFrames(tick)).toBeUndefined();
+    const completion = controller.enqueueVideoFrames(tick);
+    expect(completion).toBeInstanceOf(Promise);
     expect(display).not.toHaveBeenCalled();
     await flush();
     expect(display).toHaveBeenCalledTimes(1);
     expect(display.mock.calls[0]![0]).toEqual(tick.slice(3));
     expect(display.mock.calls[0]![0][0]!.message.data).toBe(tick[3]!.message.data);
     expect(display.mock.calls[0]![2]).toMatchObject({
-      retainLateTarget: false,
+      retainLateTarget: true,
       targetFrameTimeoutMs: 30,
       anyFrameTimeoutMs: 100,
     });
@@ -107,9 +107,9 @@ describe("tick incremental video scheduling", () => {
     const { controller, display } = setup();
     const first = [frame(1, "key"), frame(2)];
     const second = [frame(3), frame(4)];
-    controller.enqueueVideoFrames(first);
+    void controller.enqueueVideoFrames(first);
     await flush();
-    controller.enqueueVideoFrames(second);
+    void controller.enqueueVideoFrames(second);
     await flush();
     expect(display.mock.calls.map(([frames]) => frames)).toEqual([first, second]);
     expect(display.mock.calls[1]![2]).toMatchObject({
@@ -124,11 +124,11 @@ describe("tick incremental video scheduling", () => {
     const { controller, display } = setup();
     const active = deferred();
     display.mockReturnValueOnce(active.promise);
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    void controller.enqueueVideoFrames([frame(1, "key")]);
     await flush();
     const next = [frame(2), frame(3)];
-    controller.enqueueVideoFrames(next);
-    controller.enqueueVideoFrames([]);
+    void controller.enqueueVideoFrames(next);
+    void controller.enqueueVideoFrames([]);
     await flush();
     expect(display).toHaveBeenCalledTimes(1);
     active.resolve({ ok: true });
@@ -138,66 +138,62 @@ describe("tick incremental video scheduling", () => {
     ).toEqual([[1n], [2n, 3n]]);
   });
 
-  it("drops overwritten deltas without invalidating the active result, then recovers at a new IDR", async () => {
+  it("serializes every tick including a queued keyframe and its dependent deltas", async () => {
     const { controller, display } = setup();
     const active = deferred();
     display.mockReturnValueOnce(active.promise);
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    const first = controller.enqueueVideoFrames([frame(1, "key")]);
     await flush();
-    const guard = display.mock.calls[0]![2]!.isVideoFrameRequestCurrent!;
-    controller.enqueueVideoFrames([frame(2)]);
-    controller.enqueueVideoFrames([frame(3)]);
-    expect(guard()).toBe(true);
+    const key = controller.enqueueVideoFrames([frame(2, "key")]);
+    const p1 = controller.enqueueVideoFrames([frame(3)]);
+    const p2 = controller.enqueueVideoFrames([frame(4)]);
+    await flush();
+    expect(display).toHaveBeenCalledTimes(1);
     active.resolve({ ok: true });
-    await flush();
+    await Promise.all([first, key, p1, p2]);
+    expect(
+      display.mock.calls.map(([frames]) => frames.map((event) => toNanoSec(event.receiveTime))),
+    ).toEqual([[1n], [2n], [3n], [4n]]);
+  });
+
+  it.each([12, 13, 120])("submits the full %i-frame suffix in one batch", async (count) => {
+    const { controller, display } = setup();
+    const frames = Array.from({ length: count }, (_, index) =>
+      frame(index, index === 0 ? "key" : "delta"),
+    );
+    await controller.enqueueVideoFrames(frames);
     expect(display).toHaveBeenCalledTimes(1);
-    controller.enqueueVideoFrames([frame(4)]);
-    await flush();
+    expect(display.mock.calls[0]![0]).toEqual(frames);
+  });
+
+  it("does not resume deltas across an input discarded while stopped", async () => {
+    const { controller, renderer, display } = setup();
+    await controller.enqueueVideoFrames([frame(1, "key")]);
+    renderer.stopped = true;
+    await controller.enqueueVideoFrames([frame(2)]);
+    renderer.stopped = false;
+    await controller.enqueueVideoFrames([frame(3)]);
     expect(display).toHaveBeenCalledTimes(1);
-    controller.enqueueVideoFrames([frame(5, "key"), frame(6)]);
-    await flush();
+    await controller.enqueueVideoFrames([frame(4, "key")]);
     expect(display).toHaveBeenCalledTimes(2);
   });
 
-  it("replaces pending with a new keyframe tick without aborting the active batch", async () => {
-    const { controller, display, reset } = setup();
-    const active = deferred();
-    display.mockReturnValueOnce(active.promise);
-    controller.enqueueVideoFrames([frame(1, "key")]);
-    await flush();
-    controller.enqueueVideoFrames([frame(2)]);
-    const latest = [frame(3, "key"), frame(4)];
-    controller.enqueueVideoFrames(latest);
-    active.resolve({ ok: true });
-    await flush();
-    expect(display.mock.calls[1]![0]).toEqual(latest);
-    expect(reset).not.toHaveBeenCalled();
-  });
-
-  it.each([12, 13])("uses the %i-frame limit only on a single clipped tick", async (count) => {
-    const { controller, display } = setup();
-    controller.enqueueVideoFrames(
-      Array.from({ length: count }, (_, index) => frame(index, index === 0 ? "key" : "delta")),
-    );
-    await flush();
-    expect(display).toHaveBeenCalledTimes(count === 12 ? 1 : 0);
-    if (count === 13) {
-      controller.enqueueVideoFrames([frame(14)]);
-      await flush();
-      expect(display).not.toHaveBeenCalled();
-      controller.enqueueVideoFrames([frame(15, "key")]);
-      await flush();
-      expect(display.mock.calls[0]![0]).toEqual([frame(15, "key")]);
-    }
+  it("awaits the final EOF batch once and leaves empty stopped ticks idle", async () => {
+    const { controller, renderer, display } = setup();
+    renderer.stopped = true;
+    await controller.enqueueVideoFrames([frame(1, "key"), frame(2)], {}, "end");
+    await controller.enqueueVideoFrames([]);
+    expect(display).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![2]!.isVideoFrameRequestCurrent!()).toBe(true);
   });
 
   it("keeps decoding consecutive ticks when presentation rejects a candidate", async () => {
     const { controller, display } = setup();
     const canDisplayFrame = jest.fn(() => false);
     const first = [frame(1, "key"), frame(2), frame(3)];
-    controller.enqueueVideoFrames(first, { canDisplayFrame });
+    void controller.enqueueVideoFrames(first, { canDisplayFrame });
     await flush();
-    controller.enqueueVideoFrames([frame(4)], { canDisplayFrame });
+    void controller.enqueueVideoFrames([frame(4)], { canDisplayFrame });
     await flush();
     expect(display.mock.calls.map(([frames]) => frames)).toEqual([first, [frame(4)]]);
     expect(display.mock.calls[0]![2]!.canDisplayFrame).toBe(canDisplayFrame);
@@ -207,13 +203,13 @@ describe("tick incremental video scheduling", () => {
   it("does not look back on playback cache misses or after a decoder reset", async () => {
     const { controller, display, renderer } = setup();
     renderer.subscribeMessageRange = jest.fn();
-    controller.enqueueVideoFrames([frame(1)]);
+    void controller.enqueueVideoFrames([frame(1)]);
     await flush();
-    controller.enqueueVideoFrames([frame(2, "key")]);
+    void controller.enqueueVideoFrames([frame(2, "key")]);
     await flush();
     controller.resetPlaybackState();
     await flush();
-    controller.enqueueVideoFrames([frame(3)]);
+    void controller.enqueueVideoFrames([frame(3)]);
     await flush();
     expect(display).toHaveBeenCalledTimes(1);
     expect(renderer.subscribeMessageRange).not.toHaveBeenCalled();
@@ -221,7 +217,7 @@ describe("tick incremental video scheduling", () => {
 
   it("cache eviction alone does not break live decoder continuity", async () => {
     const { controller, display, reset } = setup();
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    void controller.enqueueVideoFrames([frame(1, "key")]);
     await flush();
     // Evict cached references without touching the decoder.
     jest.spyOn(VideoGopCache.prototype, "addFrames").mockImplementation(function (
@@ -229,7 +225,7 @@ describe("tick incremental video scheduling", () => {
     ) {
       this.clearTopic("/camera");
     });
-    controller.enqueueVideoFrames([frame(2)]);
+    void controller.enqueueVideoFrames([frame(2)]);
     await flush();
     expect(display).toHaveBeenCalledTimes(2);
     expect(reset).not.toHaveBeenCalled();
@@ -240,9 +236,9 @@ describe("tick incremental video scheduling", () => {
     async (reason) => {
       const { controller, display } = setup();
       display.mockResolvedValueOnce({ ok: false, reason });
-      controller.enqueueVideoFrames([frame(1, "key")]);
+      void controller.enqueueVideoFrames([frame(1, "key")]);
       await flush();
-      controller.enqueueVideoFrames([frame(2)]);
+      void controller.enqueueVideoFrames([frame(2)]);
       await flush();
       expect(display).toHaveBeenCalledTimes(reason === "timeout" ? 2 : 1);
     },
@@ -252,12 +248,12 @@ describe("tick incremental video scheduling", () => {
     const { controller, display } = setup();
     const active = deferred();
     display.mockReturnValueOnce(active.promise);
-    controller.enqueueVideoFrames([frame(10, "key")]);
+    void controller.enqueueVideoFrames([frame(10, "key")]);
     await flush();
     const guard = display.mock.calls[0]![2]!.isVideoFrameRequestCurrent!;
-    controller.enqueueVideoFrames([frame(10)]);
+    void controller.enqueueVideoFrames([frame(10)]);
     expect(guard()).toBe(true);
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    void controller.enqueueVideoFrames([frame(1, "key")]);
     expect(guard()).toBe(false);
     active.resolve({ ok: true });
     await flush();
@@ -268,32 +264,32 @@ describe("tick incremental video scheduling", () => {
     const { controller, display, renderer } = setup();
     const active = deferred();
     display.mockReturnValueOnce(active.promise);
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    void controller.enqueueVideoFrames([frame(1, "key")]);
     await flush();
-    controller.enqueueVideoFrames([frame(2)]);
+    void controller.enqueueVideoFrames([frame(2)]);
     renderer.stopped = true;
     controller.updatePlaybackState();
-    controller.enqueueVideoFrames([]);
+    void controller.enqueueVideoFrames([]);
     expect(display.mock.calls[0]![2]!.isVideoFrameRequestCurrent!()).toBe(false);
     active.resolve({ ok: true });
     await flush();
-    controller.enqueueVideoFrames([frame(3, "key")]);
+    void controller.enqueueVideoFrames([frame(3, "key")]);
     await flush();
     expect(display).toHaveBeenCalledTimes(1);
   });
 
-  it("an explicit stopped seek may submit a full cached GOP larger than the playback limit", async () => {
+  it("an explicit stopped seek awaits a full cached GOP", async () => {
     const { controller, display, renderer } = setup();
     const frames = Array.from({ length: 20 }, (_, index) =>
       frame(index, index === 0 ? "key" : "delta"),
     );
-    controller.enqueueVideoFrames(frames);
+    void controller.enqueueVideoFrames(frames);
     await flush();
     renderer.currentTime = 19n;
     renderer.stopped = true;
+    display.mockClear();
     controller.handleSeek();
-    expect(display).not.toHaveBeenCalled();
-    await flush();
+    await controller.enqueueVideoFrames([]);
     expect(display).toHaveBeenCalledTimes(1);
     expect(display.mock.calls[0]![0]).toEqual(frames);
     expect(display.mock.calls[0]![1]).toBe("seek");
@@ -304,20 +300,39 @@ describe("tick incremental video scheduling", () => {
     });
   });
 
+  it("extends the cached GOP after seeking and resumes without a range subscription", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(1, "key");
+    const first = frame(2);
+    const next = frame(3);
+    await controller.enqueueVideoFrames([key, first]);
+    renderer.currentTime = 2n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([]);
+    renderer.currentTime = 3n;
+    await controller.enqueueVideoFrames([next]);
+    display.mockClear();
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([]);
+    expect(display).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([key, first, next]);
+    expect(display.mock.calls[0]![1]).toBe("seek");
+  });
+
   it("does not reset the decoder merely because a stopped active result is stale", async () => {
     const { controller, renderer, display, reset } = setup();
     const active = deferred();
     display.mockReturnValueOnce(active.promise);
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    void controller.enqueueVideoFrames([frame(1, "key")]);
     await flush();
-    controller.enqueueVideoFrames([frame(2)]);
+    void controller.enqueueVideoFrames([frame(2)]);
     renderer.stopped = true;
     controller.updatePlaybackState();
     active.resolve({ ok: false, reason: "stale" });
     await flush();
     expect(reset).not.toHaveBeenCalled();
     renderer.stopped = false;
-    controller.enqueueVideoFrames([frame(3)]);
+    void controller.enqueueVideoFrames([frame(3)]);
     await flush();
     expect(display).toHaveBeenCalledTimes(1);
   });
@@ -326,14 +341,14 @@ describe("tick incremental video scheduling", () => {
     const { controller } = setup();
     const cancelLateTarget = jest.fn();
     controller.updateOptions({ cancelLateTarget });
-    controller.enqueueVideoFrames([frame(1, "key")]);
+    void controller.enqueueVideoFrames([frame(1, "key")]);
     expect(cancelLateTarget).not.toHaveBeenCalled();
     await flush();
     expect(cancelLateTarget).toHaveBeenCalledTimes(1);
-    controller.enqueueVideoFrames([]);
+    void controller.enqueueVideoFrames([]);
     await flush();
     expect(cancelLateTarget).toHaveBeenCalledTimes(1);
-    controller.enqueueVideoFrames([frame(2)]);
+    void controller.enqueueVideoFrames([frame(2)]);
     expect(cancelLateTarget).toHaveBeenCalledTimes(1);
     await flush();
     expect(cancelLateTarget).toHaveBeenCalledTimes(2);
@@ -359,7 +374,7 @@ describe("tick incremental video scheduling", () => {
     const { controller, renderer, display } = setup();
     renderer.stopped = true;
     const keyframe = frame(1_000_000_000, "key");
-    controller.enqueueVideoFrames([keyframe]);
+    void controller.enqueueVideoFrames([keyframe]);
     await flush();
     // Simulate payload eviction while retaining the real cache's independently stored keyframe index.
     jest.spyOn(VideoGopCache.prototype, "framesForReceiveTime").mockReturnValue(undefined);
@@ -425,7 +440,7 @@ describe("tick incremental video scheduling", () => {
       const { controller, renderer, display } = setup();
       try {
         renderer.stopped = true;
-        controller.enqueueVideoFrames([frame(1_000_000_000, "key")]);
+        void controller.enqueueVideoFrames([frame(1_000_000_000, "key")]);
         await flush();
         renderer.currentTime = 600_000_000_000n;
         const frames = [frame(599_000_000_000, "key"), frame(600_000_000_000)];
@@ -573,7 +588,7 @@ describe("tick incremental video scheduling", () => {
     const bytes = [0x65];
     const legacy = { ...frame(1, "key"), message: { ...frame(1, "key").message, data: bytes } };
     const add = jest.spyOn(VideoGopCache.prototype, "addFrames");
-    controller.enqueueVideoFrames([legacy as unknown as MessageEvent<CompressedVideo>]);
+    void controller.enqueueVideoFrames([legacy as unknown as MessageEvent<CompressedVideo>]);
     expect(add.mock.calls[0]![0][0]!.message).toMatchObject({ data: bytes });
     expect((add.mock.calls[0]![0][0]!.message as { data: unknown }).data).toBe(bytes);
     expect(display).not.toHaveBeenCalled();
@@ -582,16 +597,16 @@ describe("tick incremental video scheduling", () => {
     expect(legacy.message.data).toBe(bytes);
   });
 
-  it("does not decode an old legacy tick after a newer tick supersedes its pending input", async () => {
+  it("decodes legacy ticks serially without superseding their input", async () => {
     const { controller, display } = setup();
     const legacy = { ...frame(1, "key"), message: { ...frame(1, "key").message, data: [0x65] } };
-    controller.enqueueVideoFrames([legacy as unknown as MessageEvent<CompressedVideo>]);
-    controller.enqueueVideoFrames([frame(2)]);
+    void controller.enqueueVideoFrames([legacy as unknown as MessageEvent<CompressedVideo>]);
+    void controller.enqueueVideoFrames([frame(2)]);
     await flush();
-    expect(display).not.toHaveBeenCalled();
-    controller.enqueueVideoFrames([frame(3, "key")]);
+    expect(display.mock.calls.map(([frames]) => frames)).toEqual([[frame(1, "key")], [frame(2)]]);
+    void controller.enqueueVideoFrames([frame(3, "key")]);
     await flush();
-    expect(display.mock.calls[0]![0]).toEqual([frame(3, "key")]);
+    expect(display.mock.calls[2]![0]).toEqual([frame(3, "key")]);
   });
 
   it.each(["h264", "h265"])(
@@ -611,7 +626,7 @@ describe("tick incremental video scheduling", () => {
         },
       }));
       const add = jest.spyOn(VideoGopCache.prototype, "addFrames");
-      controller.enqueueVideoFrames(tick as unknown as MessageEvent<CompressedVideo>[]);
+      void controller.enqueueVideoFrames(tick as unknown as MessageEvent<CompressedVideo>[]);
       expect(display).not.toHaveBeenCalled();
       for (let i = 0; i < tick.length; i++) {
         expect((add.mock.calls[0]![0][i]!.message as { data: unknown }).data).toBe(

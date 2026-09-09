@@ -61,7 +61,7 @@ const mockRenderer: IRenderer = Object.assign(emitter, {
 
 const mockUserData: ImageUserData = {
   topic: "/test/image",
-  settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+  settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS, visible: true },
   firstMessageTime: BigInt(0),
   cameraInfo: undefined,
   cameraModel: undefined,
@@ -134,7 +134,7 @@ type TestDecodedImage = ImageBitmap | ImageData | VideoFrame;
 function makeUserData(): ImageUserData {
   return {
     ...mockUserData,
-    settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS },
+    settings: { ...IMAGE_RENDERABLE_DEFAULT_SETTINGS, visible: true },
     texture: undefined,
     material: undefined,
     geometry: undefined,
@@ -282,6 +282,35 @@ describe("ImageRenderable candidate scheduling", () => {
     expect(renderable.getDecodedImage()).toBe(second);
     renderable.dispose();
     expect((second as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+  });
+
+  it("commits a backfilled frame when layer settings are enabled before Object3D visibility updates", async () => {
+    const frame = new MockVideoFrame() as unknown as VideoFrame;
+    const renderable = new TestImageRenderable([frame]);
+    renderable.visible = false;
+    renderable.userData.settings.visible = true;
+    await renderable.setImage(sampleImage);
+    commit();
+    expect(renderable.getDecodedImage()).toBe(frame);
+    renderable.dispose();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains a hidden candidate for presentation after visibility returns", async () => {
+    const visibility = jest.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    const frame = new MockVideoFrame() as unknown as VideoFrame;
+    const renderable = new TestImageRenderable([frame]);
+    await renderable.setImage(sampleImage);
+    commit();
+    expect(renderable.getDecodedImage()).toBeUndefined();
+    expect((frame as unknown as { close: jest.Mock }).close).not.toHaveBeenCalled();
+    visibility.mockReturnValue("visible");
+    commit();
+    expect(renderable.getDecodedImage()).toBe(frame);
+    renderable.dispose();
+    expect((frame as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+    visibility.mockRestore();
   });
 
   it("closes future candidates instead of displaying ahead of the head", async () => {
@@ -548,38 +577,44 @@ describe("ImageRenderable candidate scheduling", () => {
     renderable.dispose();
   });
 
-  it("seek keeps at most one late correction without holding the current batch", async () => {
-    let resolve!: (result: AwaitTargetFrameResult) => void;
-    const late = new MockVideoFrame() as unknown as VideoFrame;
-    const target = videoFrameEvent(1n, 1, "key");
-    const awaitTargetFrame = jest.fn(
-      async () =>
-        await new Promise<AwaitTargetFrameResult>((done) => {
-          resolve = done;
+  it.each([100, 2000])(
+    "keeps one late correction with a %i ms deadline without holding the current batch",
+    async (anyFrameTimeoutMs) => {
+      let resolve!: (result: AwaitTargetFrameResult) => void;
+      const late = new MockVideoFrame() as unknown as VideoFrame;
+      const target = videoFrameEvent(1n, 1, "key");
+      const awaitTargetFrame = jest.fn(
+        async () =>
+          await new Promise<AwaitTargetFrameResult>((done) => {
+            resolve = done;
+          }),
+      );
+      const renderable = new TestVideoBatchRenderable({
+        decodeVideoFrames: makeDecodeVideoFramesMock([undefined]),
+        awaitTargetFrame,
+        terminate: jest.fn(),
+      } as unknown as WorkerImageDecoder);
+      await expect(
+        renderable.setCompressedVideoFrames([target], {
+          retainLateTarget: true,
+          anyFrameTimeoutMs,
         }),
-    );
-    const renderable = new TestVideoBatchRenderable({
-      decodeVideoFrames: makeDecodeVideoFramesMock([undefined]),
-      awaitTargetFrame,
-      terminate: jest.fn(),
-    } as unknown as WorkerImageDecoder);
-    await expect(
-      renderable.setCompressedVideoFrames([target], { retainLateTarget: true }),
-    ).resolves.toMatchObject({ reason: "timeout" });
-    expect(awaitTargetFrame).toHaveBeenCalledTimes(1);
-    resolve({
-      type: "TargetFrame",
-      requestId: 1,
-      frame: late,
-      receiveTime: 1n,
-      originalTimestamp: 1n,
-    });
-    await flushPromises();
-    expect(renderable.getDecodedImage()).toBeUndefined();
-    commit();
-    expect(renderable.getDecodedImage()).toBe(late);
-    renderable.dispose();
-  });
+      ).resolves.toMatchObject({ reason: "timeout" });
+      expect(awaitTargetFrame).toHaveBeenCalledWith({ requestId: 1, timeoutMs: anyFrameTimeoutMs });
+      resolve({
+        type: "TargetFrame",
+        requestId: 1,
+        frame: late,
+        receiveTime: 1n,
+        originalTimestamp: 1n,
+      });
+      await flushPromises();
+      expect(renderable.getDecodedImage()).toBeUndefined();
+      commit();
+      expect(renderable.getDecodedImage()).toBe(late);
+      renderable.dispose();
+    },
+  );
 
   it("closes a seek late correction after generation invalidation", async () => {
     let resolve!: (result: AwaitTargetFrameResult) => void;
