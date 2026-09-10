@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Link } from "@mui/material";
-import { Component, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Component, ComponentType, ErrorInfo, PropsWithChildren, ReactNode } from "react";
 import { Trans, withTranslation, WithTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -26,7 +26,7 @@ type State = {
   currentError: { error: Error; errorInfo: ErrorInfo } | undefined;
 };
 
-class PanelErrorBoundary extends Component<PropsWithChildren<Props & WithTranslation>, State> {
+class PanelErrorBoundaryInner extends Component<PropsWithChildren<Props & WithTranslation>, State> {
   public override state: State = {
     currentError: undefined,
   };
@@ -37,12 +37,14 @@ class PanelErrorBoundary extends Component<PropsWithChildren<Props & WithTransla
   }
 
   public override render(): ReactNode {
-    const { t } = this.props;
+    // Resolve labels through the i18n instance (same type as the global t, which
+    // accepts namespace-prefixed keys); withTranslation re-renders on language change.
+    const { i18n } = this.props;
 
     if (this.state.currentError) {
       return (
         <ErrorDisplay
-          title={t("error:panelUnexpectedError")}
+          title={i18n.t("error:panelUnexpectedError")}
           error={this.state.currentError.error}
           errorInfo={this.state.currentError.errorInfo}
           showErrorDetails={this.props.showErrorDetails}
@@ -75,26 +77,26 @@ class PanelErrorBoundary extends Component<PropsWithChildren<Props & WithTransla
                     this.setState({ currentError: undefined });
                   }}
                 >
-                  {t("general:dismiss")}
+                  {i18n.t("general:dismiss")}
                 </Button>
                 <Button
                   variant="outlined"
-                  title={t("error:resetPanelSettingsToDefault")}
+                  title={i18n.t("error:resetPanelSettingsToDefault")}
                   color="error"
                   onClick={() => {
                     this.setState({ currentError: undefined });
                     this.props.onResetPanel();
                   }}
                 >
-                  {t("error:resetPanel")}
+                  {i18n.t("error:resetPanel")}
                 </Button>
                 <Button
                   variant="text"
-                  title={t("error:removePanelFromLayout")}
+                  title={i18n.t("error:removePanelFromLayout")}
                   color="error"
                   onClick={this.props.onRemovePanel}
                 >
-                  {t("error:removePanel")}
+                  {i18n.t("error:removePanel")}
                 </Button>
               </Stack>
             </>
@@ -106,4 +108,7 @@ class PanelErrorBoundary extends Component<PropsWithChildren<Props & WithTransla
   }
 }
 
-export default withTranslation()(PanelErrorBoundary);
+const PanelErrorBoundary: ComponentType<PropsWithChildren<Props>> =
+  withTranslation()(PanelErrorBoundaryInner);
+
+export default PanelErrorBoundary;

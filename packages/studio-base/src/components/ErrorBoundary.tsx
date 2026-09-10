@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Link, Button, Typography } from "@mui/material";
-import { Component, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Component, ComponentType, ErrorInfo, PropsWithChildren, ReactNode } from "react";
 import { Trans, withTranslation, WithTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -25,7 +25,7 @@ type State = {
   currentError: { error: Error; errorInfo: ErrorInfo } | undefined;
 };
 
-class ErrorBoundary extends Component<PropsWithChildren<Props & WithTranslation>, State> {
+class ErrorBoundaryInner extends Component<PropsWithChildren<Props & WithTranslation>, State> {
   public override state: State = {
     currentError: undefined,
   };
@@ -36,7 +36,9 @@ class ErrorBoundary extends Component<PropsWithChildren<Props & WithTranslation>
   }
 
   public override render(): ReactNode {
-    const { t } = this.props;
+    // Resolve labels through the i18n instance (same type as the global t, which
+    // accepts namespace-prefixed keys); withTranslation re-renders on language change.
+    const { i18n } = this.props;
 
     if (this.state.currentError) {
       const actions = this.props.actions ?? (
@@ -54,7 +56,7 @@ class ErrorBoundary extends Component<PropsWithChildren<Props & WithTranslation>
               this.setState({ currentError: undefined });
             }}
           >
-            {t("general:dismiss")}
+            {i18n.t("general:dismiss")}
           </Button>
         </Stack>
       );
@@ -90,4 +92,7 @@ class ErrorBoundary extends Component<PropsWithChildren<Props & WithTranslation>
   }
 }
 
-export default withTranslation()(ErrorBoundary);
+const ErrorBoundary: ComponentType<PropsWithChildren<Props>> =
+  withTranslation()(ErrorBoundaryInner);
+
+export default ErrorBoundary;
