@@ -20,7 +20,7 @@ jobs:
     with:
       project: honeybee
       lfs: false
-      runner: ubuntu-latest
+      runner: cos-m
     secrets: inherit
 
   upgrade-server:
@@ -29,5 +29,5 @@ jobs:
     uses: coscene-io/cicd-templates/.github/workflows/sub-chart-upgrade.yml@main
     with:
       deployment-name: coscene-honeybee
-      runner: ubuntu-latest
+      runner: cos-m
     secrets: inherit
