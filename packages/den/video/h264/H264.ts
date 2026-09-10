@@ -31,19 +31,19 @@ export type H264FrameInfo = {
 };
 
 export class H264 implements H26xCodec {
-  public IsAnnexB(data: Uint8Array): boolean {
+  public IsAnnexB(data: ArrayLike<number>): boolean {
     return H264.IsAnnexB(data);
   }
 
-  public AnnexBBoxSize(data: Uint8Array): number | undefined {
+  public AnnexBBoxSize(data: ArrayLike<number>): number | undefined {
     return H264.AnnexBBoxSize(data);
   }
 
-  public IsKeyframe(data: Uint8Array): boolean {
+  public IsKeyframe(data: ArrayLike<number>): boolean {
     return H264.IsKeyframe(data);
   }
 
-  public GetFrameInfo(data: Uint8Array): H264FrameInfo {
+  public GetFrameInfo(data: ArrayLike<number>): H264FrameInfo {
     return H264.GetFrameInfo(data);
   }
 
@@ -59,19 +59,19 @@ export class H264 implements H26xCodec {
     return H264.GetNaluTypeFromHeader(headerByte);
   }
 
-  public static IsAnnexB(data: Uint8Array): boolean {
+  public static IsAnnexB(data: ArrayLike<number>): boolean {
     return isAnnexB(data);
   }
 
-  public static AnnexBBoxSize(data: Uint8Array): number | undefined {
+  public static AnnexBBoxSize(data: ArrayLike<number>): number | undefined {
     return annexBBoxSize(data);
   }
 
-  public static IsKeyframe(data: Uint8Array): boolean {
+  public static IsKeyframe(data: ArrayLike<number>): boolean {
     return H264.GetFrameInfo(data).isKeyFrame;
   }
 
-  public static GetFrameInfo(data: Uint8Array): H264FrameInfo {
+  public static GetFrameInfo(data: ArrayLike<number>): H264FrameInfo {
     // Determine what type of encoding is used
     const boxSize = H264.AnnexBBoxSize(data);
     if (boxSize == undefined) {
@@ -140,6 +140,15 @@ export class H264 implements H26xCodec {
     }
 
     return config;
+  }
+
+  public static HasBFrames(data: Uint8Array): boolean | undefined {
+    const spsData = H264.GetFirstNALUOfType(data, H264NaluType.SPS);
+    if (spsData == undefined) {
+      return undefined;
+    }
+    const maxNumReorderFrames = new SPSNALU(spsData).max_num_reorder_frames;
+    return maxNumReorderFrames == undefined ? undefined : maxNumReorderFrames > 0;
   }
 
   public static RewriteForLowLatencyDecoding(data: Uint8Array): Uint8Array | undefined {
@@ -226,7 +235,7 @@ export class H264 implements H26xCodec {
    * Find the index of the end of the next start code (0x000001 or 0x00000001) in the
    * given buffer, starting at the given offset.
    */
-  public static FindNextStartCodeEnd(data: Uint8Array, start: number): number {
+  public static FindNextStartCodeEnd(data: ArrayLike<number>, start: number): number {
     return findNextStartCodeEnd(data, start);
   }
 
