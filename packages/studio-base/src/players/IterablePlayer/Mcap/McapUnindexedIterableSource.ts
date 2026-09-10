@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { McapStreamReader, McapTypes } from "@mcap/core";
-import { t } from "i18next";
 import * as _ from "lodash-es";
 
 import { loadDecompressHandlers, parseChannel, ParsedChannel } from "@foxglove/mcap-support";
@@ -238,7 +237,8 @@ export class McapUnindexedIterableSource implements ISerializedIterableSource {
 
     if (messageCount === 0) {
       problems.push({
-        message: t("error:fileContainsNoMessages"),
+        message: "This file contains no messages.",
+        messageKey: "fileContainsNoMessages",
         severity: "warn",
       });
     } else {

@@ -8,6 +8,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import EventEmitter from "eventemitter3";
+import i18n from "i18next";
 
 import { H264 } from "@foxglove/den/video";
 import { Time, toNanoSec } from "@foxglove/rostime";
@@ -365,6 +366,19 @@ function synchronizeSettingsField(imageMode: ImageMode) {
   }
   return field;
 }
+
+describe("ImageMode settings language", () => {
+  it("refreshes settings on language changes and unsubscribes on disposal", () => {
+    const imageMode = new TestImageMode(makeRenderer({ synchronize: true }));
+    const update = jest.spyOn(imageMode, "updateSettingsTree");
+    i18n.emit("languageChanged", "zh");
+    expect(update).toHaveBeenCalledTimes(1);
+    imageMode.dispose();
+    update.mockClear();
+    i18n.emit("languageChanged", "en");
+    expect(update).not.toHaveBeenCalled();
+  });
+});
 
 describe("ImageMode compressed video seek replay", () => {
   beforeEach(() => {

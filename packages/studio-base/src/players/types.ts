@@ -132,8 +132,12 @@ export enum PlayerPresence {
 export type PlayerProblem = {
   severity: NotificationSeverity;
   message: string;
+  // Serializable translation metadata is resolved by the UI, including for worker problems.
+  messageKey?: keyof typeof import("@foxglove/studio-base/i18n/en/error").error;
   error?: Error;
   tip?: React.ReactNode;
+  tipKey?: keyof typeof import("@foxglove/studio-base/i18n/en/error").error;
+  tipParams?: Record<string, string>;
 };
 
 export type PlayerURLState = Immutable<{

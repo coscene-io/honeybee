@@ -14,7 +14,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { t } from "i18next";
 import * as _ from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
@@ -172,7 +171,8 @@ export default class RosbridgePlayer implements Player {
       if (err) {
         this.#problems.addProblem("rosbridge:error", {
           severity: "warn",
-          message: t("error:rosbridgeError"),
+          message: "Rosbridge error",
+          messageKey: "rosbridgeError",
           error: err,
         });
         this.#emitState();
@@ -194,8 +194,11 @@ export default class RosbridgePlayer implements Player {
 
       this.#problems.addProblem("rosbridge:connection-failed", {
         severity: "error",
-        message: t("error:connectionFailed"),
-        tip: t("error:rosbridgeUnreachableTip", { url: this.#url }),
+        message: "Connection failed",
+        messageKey: "connectionFailed",
+        tip: `Check that the rosbridge WebSocket server at ${this.#url} is reachable.`,
+        tipKey: "rosbridgeUnreachableTip",
+        tipParams: { url: this.#url },
       });
 
       this.#emitState();
@@ -231,7 +234,8 @@ export default class RosbridgePlayer implements Player {
     const topicsStallWarningTimeout = setTimeout(() => {
       this.#problems.addProblem("topicsAndRawTypesTimeout", {
         severity: "warn",
-        message: t("error:takingTooLongToGetTopics"),
+        message: "Taking too long to get topics and raw types.",
+        messageKey: "takingTooLongToGetTopics",
       });
 
       this.#emitState();
@@ -266,7 +270,8 @@ export default class RosbridgePlayer implements Player {
         this.#rosVersion = 1;
         this.#problems.addProblem("unknownRosVersion", {
           severity: "warn",
-          message: t("error:unableToDetectRosVersion"),
+          message: "Unable to detect ROS version, assuming ROS 1",
+          messageKey: "unableToDetectRosVersion",
         });
       }
 
@@ -338,7 +343,8 @@ export default class RosbridgePlayer implements Player {
 
       this.#problems.addProblem("requestTopics:error", {
         severity: "error",
-        message: t("error:failedToFetchTopicsFromRosbridge"),
+        message: "Failed to fetch topics from rosbridge",
+        messageKey: "failedToFetchTopicsFromRosbridge",
         error,
       });
     } finally {

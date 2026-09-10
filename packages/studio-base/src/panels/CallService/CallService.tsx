@@ -25,10 +25,10 @@ type Props = {
   context: PanelExtensionContext;
 };
 
-type State = {
-  status: "requesting" | "error" | "success";
-  value: string;
-};
+type State =
+  | { status: "requesting"; serviceName: string }
+  | { status: "unavailable" }
+  | { status: "error" | "success"; value: string };
 
 const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }) => {
   const augmentedButtonColor = buttonColor
@@ -179,14 +179,14 @@ function CallServiceContent(
 
   const callServiceClicked = useCallback(async () => {
     if (!context.callService) {
-      setState({ status: "error", value: t("dataSourceDoesNotAllowCallingServices") });
+      setState({ status: "unavailable" });
       return;
     }
 
     try {
       setState({
         status: "requesting",
-        value: t("callingService", { serviceName: config.serviceName }),
+        serviceName: config.serviceName!,
       });
       const response = await context.callService(
         config.serviceName!,
@@ -206,7 +206,7 @@ function CallServiceContent(
       setState({ status: "error", value: (err as Error).message });
       log.error(err);
     }
-  }, [context, config.serviceName, config.requestPayload, t]);
+  }, [context, config.serviceName, config.requestPayload]);
 
   // Indicate render is complete - the effect runs after the dom is updated
   useEffect(() => {
@@ -248,8 +248,14 @@ function CallServiceContent(
             multiline
             size="small"
             placeholder={t("response")}
-            value={state?.value}
-            error={state?.status === "error"}
+            value={
+              state?.status === "requesting"
+                ? t("callingService", { serviceName: state.serviceName })
+                : state?.status === "unavailable"
+                  ? t("dataSourceDoesNotAllowCallingServices")
+                  : (state?.value ?? "")
+            }
+            error={state?.status === "error" || state?.status === "unavailable"}
           />
         </Stack>
       </Stack>

@@ -303,15 +303,17 @@ function MapPanel(props: MapPanelProps): React.JSX.Element {
 
     context.subscribe(subscriptions);
 
+    return () => {
+      context.unsubscribeAll();
+    };
+  }, [config.disabledTopics, context, eligibleTopics]);
+
+  useEffect(() => {
     const tree = buildSettingsTree(config, eligibleTopics);
     context.updatePanelSettingsEditor({
       actionHandler: settingsActionHandler,
       nodes: tree,
     });
-
-    return () => {
-      context.unsubscribeAll();
-    };
   }, [config, context, eligibleTopics, settingsActionHandler, t]);
 
   type TopicGroups = {

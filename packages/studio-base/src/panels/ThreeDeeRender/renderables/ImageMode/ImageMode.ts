@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { t } from "i18next";
+import i18n, { t } from "i18next";
 import * as _ from "lodash-es";
 import * as THREE from "three";
 import { Writable } from "ts-essentials";
@@ -149,6 +149,10 @@ export class ImageMode
   #dragStartMouseCoords = new THREE.Vector2();
   #hasModifiedView = false;
 
+  #handleLanguageChanged = () => {
+    this.updateSettingsTree();
+  };
+
   public constructor(renderer: IRenderer, name: string = ImageMode.extensionId) {
     super(name, renderer);
 
@@ -166,6 +170,7 @@ export class ImageMode
     this.messageHandler = this.initMessageHandler(config);
     this.messageHandler.addListener(this.#updateFromMessageState);
 
+    i18n.on("languageChanged", this.#handleLanguageChanged);
     renderer.settings.errors.on("update", this.#handleErrorChange);
     renderer.settings.errors.on("clear", this.#handleErrorChange);
     renderer.settings.errors.on("remove", this.#handleErrorChange);
@@ -321,6 +326,7 @@ export class ImageMode
   }
 
   public override dispose(): void {
+    i18n.off("languageChanged", this.#handleLanguageChanged);
     this.renderer.settings.errors.off("update", this.#handleErrorChange);
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
     this.renderer.settings.errors.off("remove", this.#handleErrorChange);
