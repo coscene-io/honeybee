@@ -68,4 +68,6 @@ export const error = {
   unableToDetectRosVersion: "Unable to detect ROS version, assuming ROS 1",
   failedToFetchTopicsFromRosbridge: "Failed to fetch topics from rosbridge",
   rosConnectionFailed: "ROS connection failed",
+  rosbridgeUnreachableTip: "Check that the rosbridge WebSocket server at {{url}} is reachable.",
+  roscoreUnreachableTip: "Ensure that roscore is running and accessible at: {{url}}",
 };

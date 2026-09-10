@@ -6,9 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Link, Button, Typography } from "@mui/material";
-import { t } from "i18next";
 import { Component, ErrorInfo, PropsWithChildren, ReactNode } from "react";
-import { Trans } from "react-i18next";
+import { Trans, withTranslation, WithTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { reportError } from "@foxglove/studio-base/reportError";
@@ -26,7 +25,7 @@ type State = {
   currentError: { error: Error; errorInfo: ErrorInfo } | undefined;
 };
 
-export default class ErrorBoundary extends Component<PropsWithChildren<Props>, State> {
+class ErrorBoundary extends Component<PropsWithChildren<Props & WithTranslation>, State> {
   public override state: State = {
     currentError: undefined,
   };
@@ -37,6 +36,8 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
   }
 
   public override render(): ReactNode {
+    const { t } = this.props;
+
     if (this.state.currentError) {
       const actions = this.props.actions ?? (
         <Stack
@@ -88,3 +89,5 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
     return this.props.children;
   }
 }
+
+export default withTranslation()(ErrorBoundary);

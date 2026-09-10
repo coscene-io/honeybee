@@ -48,6 +48,8 @@ export const error: Partial<TypeOptions["resources"]["error"]> = {
   unableToDetectRosVersion: "无法检测 ROS 版本，假定为 ROS 1",
   failedToFetchTopicsFromRosbridge: "从 rosbridge 获取话题失败",
   rosConnectionFailed: "ROS 连接失败",
+  rosbridgeUnreachableTip: "请检查 {{url}} 处的 rosbridge WebSocket 服务器是否可达。",
+  roscoreUnreachableTip: "请确保 roscore 正在运行，且可通过 {{url}} 访问。",
 
   SEMANTIC_LIB_ERROR: "semantic-lib 内部错误",
   GET_JOBRUN_FROM_DPS: "从data platform 获取 jobrun 失败",

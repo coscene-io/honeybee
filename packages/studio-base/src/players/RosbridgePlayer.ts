@@ -195,7 +195,7 @@ export default class RosbridgePlayer implements Player {
       this.#problems.addProblem("rosbridge:connection-failed", {
         severity: "error",
         message: t("error:connectionFailed"),
-        tip: `Check that the rosbridge WebSocket server at ${this.#url} is reachable.`,
+        tip: t("error:rosbridgeUnreachableTip", { url: this.#url }),
       });
 
       this.#emitState();
