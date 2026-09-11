@@ -4673,7 +4673,7 @@ __metadata:
     eslint: 9.39.4
     eventemitter3: ^5.0.1
     jest: 30.4.2
-    prettier: 3.8.4
+    prettier: 3.9.6
     ts-jest: 29.4.11
     ts-node: 10.9.2
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -16332,7 +16332,7 @@ __metadata:
     license-checker: 25.0.1
     oxlint: 1.79.0
     oxlint-tsgolint: 7.0.2001
-    prettier: 3.8.4
+    prettier: 3.9.6
     rimraf: 6.1.3
     semver: 7.8.5
     ts-node: 10.9.2
@@ -21571,12 +21571,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:3.8.4":
-  version: 3.8.4
-  resolution: "prettier@npm:3.8.4"
+"prettier@npm:3.9.6":
+  version: 3.9.6
+  resolution: "prettier@npm:3.9.6"
   bin:
     prettier: bin/prettier.cjs
-  checksum: ef9e00109d9eac7b4a34b2772fffd6a98d9bfeadb8496014a8bd228530052829690d2d74e9d73e135397fecdca5858a65f6acbdced3dcba2990322b44385aabf
+  checksum: 3fb6a3b6462b05afb825697a3fdcdd9bd1480c11d10d655b7ddbcaf2560beb695caffbe155b5020466005aa06bff74a61ba9c16e602bff849331b62f5db26cdf
   languageName: node
   linkType: hard
 
