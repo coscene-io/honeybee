@@ -4492,7 +4492,7 @@ __metadata:
     three: "patch:three@0.166.1#../../patches/three.patch"
     tinycolor2: 1.6.0
     ts-checker-rspack-plugin: 1.6.0
-    ts-essentials: 10.0.4
+    ts-essentials: 10.2.1
     ts-key-enum: 3.0.13
     tss-react: 4.9.21
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -25198,15 +25198,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-essentials@npm:10.0.4":
-  version: 10.0.4
-  resolution: "ts-essentials@npm:10.0.4"
+"ts-essentials@npm:10.2.1":
+  version: 10.2.1
+  resolution: "ts-essentials@npm:10.2.1"
   peerDependencies:
     typescript: ">=4.5.0"
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 623bed6950d07b2ca2366e12bc6c0542431a398f052da7b5c78d626267c752312c7fc1c2bc969bd66f157dd68dcb8d9864e7fd59bccd0132c6a29a3a22e9327e
+  checksum: 7cb9a335a13141842aa6d887d8c4c28ad9f42807abe712abe8b73bdc99c5882f572f747c6713dd4e823e38c373448a7da6ed4457a97c83ca5a63cbefdde005e5
   languageName: node
   linkType: hard
 
