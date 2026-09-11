@@ -1,0 +1,109 @@
+name: one-shot-testing-library-react-lock
+
+on:
+  push:
+    branches:
+      - cursor/testing-library-react-ab3d
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-testing-library-react-lock
+  cancel-in-progress: true
+
+jobs:
+  patch-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/testing-library-react-ab3d
+          fetch-depth: 0
+
+      - name: Patch yarn.lock and remove this workflow
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          lock = Path("yarn.lock")
+          text = lock.read_text()
+          old_ptr = '    "@testing-library/react": 16.3.2\n'
+          new_ptr = '    "@testing-library/react": 16.3.3\n'
+          if old_ptr in text:
+              if text.count(old_ptr) != 2:
+                  raise SystemExit(f"expected two 16.3.2 pointers, got {text.count(old_ptr)}")
+              text = text.replace(old_ptr, new_ptr)
+          old_block = (
+              '"@testing-library/react@npm:16.3.2":\n'
+              "  version: 16.3.2\n"
+              '  resolution: "@testing-library/react@npm:16.3.2"\n'
+              "  dependencies:\n"
+              '    "@babel/runtime": ^7.12.5\n'
+              "  peerDependencies:\n"
+              '    "@testing-library/dom": ^10.0.0\n'
+              '    "@types/react": ^18.0.0 || ^19.0.0\n'
+              '    "@types/react-dom": ^18.0.0 || ^19.0.0\n'
+              "    react: ^18.0.0 || ^19.0.0\n"
+              "    react-dom: ^18.0.0 || ^19.0.0\n"
+              "  peerDependenciesMeta:\n"
+              '    "@types/react":\n'
+              "      optional: true\n"
+              '    "@types/react-dom":\n'
+              "      optional: true\n"
+              "  checksum: 1f6f4d8374aab54214229eecdd429d5e878e902c6136a48e187a24d4917014bf91ab9aa7fab18c17f6bf05f226fac228ba9a5c1803657129173dd8a062139c17\n"
+              "  languageName: node\n"
+              "  linkType: hard\n"
+          )
+          new_block = (
+              '"@testing-library/react@npm:16.3.3":\n'
+              "  version: 16.3.3\n"
+              '  resolution: "@testing-library/react@npm:16.3.3"\n'
+              "  dependencies:\n"
+              '    "@babel/runtime": ^7.12.5\n'
+              "  peerDependencies:\n"
+              '    "@testing-library/dom": ^10.0.0\n'
+              '    "@types/react": ^18.0.0 || ^19.0.0\n'
+              '    "@types/react-dom": ^18.0.0 || ^19.0.0\n'
+              "    react: ^18.0.0 || ^19.0.0\n"
+              "    react-dom: ^18.0.0 || ^19.0.0\n"
+              "  peerDependenciesMeta:\n"
+              '    "@types/react":\n'
+              "      optional: true\n"
+              '    "@types/react-dom":\n'
+              "      optional: true\n"
+              "  checksum: f717b9edd888fbba33dabe4f02109492563b98392c6d1796417406b4af236b313ad8f75fd2b68624525241120f9b9f5d47ea291d58da6d4af7501c1f02385ff7\n"
+              "  languageName: node\n"
+              "  linkType: hard\n"
+          )
+          if old_block in text:
+              text = text.replace(old_block, new_block, 1)
+          if '"@testing-library/react@npm:16.3.2"' in text or old_ptr in text:
+              raise SystemExit("stale @testing-library/react 16.3.2 remains")
+          if '"@testing-library/react@npm:16.3.3"' not in text or text.count(new_ptr) != 2:
+              raise SystemExit("@testing-library/react 16.3.3 pointers incomplete")
+          if '"@testing-library/dom@npm:10.4.1"' not in text:
+              raise SystemExit("lost @testing-library/dom 10.4.1")
+          if '    "@testing-library/dom": 10.4.1\n' not in text:
+              raise SystemExit("lost workspace @testing-library/dom 10.4.1 pins")
+          if '"react@npm:18.3.1, react@npm:^18.2.0, react@npm:^18.3.1"' not in text:
+              raise SystemExit("lost react 18.3.1 resolution")
+          if '"react-dom@npm:18.3.1, react-dom@npm:^18.2.0, react-dom@npm:^18.3.1"' not in text:
+              raise SystemExit("lost react-dom 18.3.1 resolution")
+          lock.write_text(text)
+
+          wf = Path(".github/workflows/one-shot-testing-library-react-lock.yml")
+          if wf.exists():
+              wf.unlink()
+          print("patched")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock .github/workflows/one-shot-testing-library-react-lock.yml
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(deps-dev): refresh yarn.lock for @testing-library/react 16.3.3"
+          git push origin HEAD:cursor/testing-library-react-ab3d
