@@ -110,6 +110,11 @@ export const threeDee = {
 
   // Images
   cameraInfo: "Camera info",
+  none: "None",
+  brightness: "Brightness",
+  contrast: "Contrast",
+  downloadImage: "Download image",
+  topicNotAvailable: "{{topic}} is not available",
 
   // Occupancy Grids
   colorModeCustom: "Custom",

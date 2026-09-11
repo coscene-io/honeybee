@@ -72,4 +72,7 @@ export const general = {
   shortcutZoomFit: "Zoom to fit",
   shortcutZoomCursor: "Zoom at cursor",
   mouseWheel: "scroll",
+  dropFileHere: "Drop a file here",
+  dismiss: "Dismiss",
+  unknownPanelType: "Unknown panel type: {{type}}.",
 };

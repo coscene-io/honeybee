@@ -238,6 +238,7 @@ export class McapUnindexedIterableSource implements ISerializedIterableSource {
     if (messageCount === 0) {
       problems.push({
         message: "This file contains no messages.",
+        messageKey: "fileContainsNoMessages",
         severity: "warn",
       });
     } else {

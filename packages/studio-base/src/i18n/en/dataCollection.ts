@@ -42,6 +42,7 @@ export const dataCollection = {
   showRequest: "Show request",
   color: "Color",
   serviceName: "Service name",
+  serviceCannotBeEmpty: "Service cannot be empty",
   taskStatePending: "Task is pending",
   pendingUploadFiles: "Pending upload files",
   uploadFileFail: "Upload file fail",

@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { useTranslation } from "react-i18next";
+
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import withPanel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
@@ -22,11 +24,12 @@ type Props = {
 
 function UnconnectedUnknownPanel(props: Props) {
   const { config, saveConfig: _saveConfig } = props;
+  const { t } = useTranslation("general");
 
   return (
     <Stack flex="auto" alignItems="center" justifyContent="center" data-testid={config.id}>
       <PanelToolbar isUnknownPanel />
-      <EmptyState>Unknown panel type: {config.type}.</EmptyState>
+      <EmptyState>{t("unknownPanelType", { type: config.type })}</EmptyState>
     </Stack>
   );
 }

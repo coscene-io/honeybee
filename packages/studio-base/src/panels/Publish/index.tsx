@@ -15,7 +15,9 @@
 //   You may not use this file except in compliance with the License.
 
 import { Button, inputBaseClasses, TextField, Tooltip, Typography } from "@mui/material";
+import { TFunction } from "i18next";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 import { useDebounce } from "use-debounce";
 
@@ -83,22 +85,25 @@ const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }
   };
 });
 
-function parseInput(value: string): { error?: string; parsedObject?: unknown } {
+function parseInput(
+  value: string,
+  t: TFunction<"publish">,
+): { error?: string; parsedObject?: unknown } {
   let parsedObject;
   let error = undefined;
   try {
     const parsedAny: unknown = JSON.parse(value);
     if (Array.isArray(parsedAny)) {
-      error = "Message content must be an object, not an array";
+      error = t("messageMustBeObjectNotArray");
     } else if (parsedAny == null /* eslint-disable-line no-restricted-syntax */) {
-      error = "Message content must be an object, not null";
+      error = t("messageMustBeObjectNotNull");
     } else if (typeof parsedAny !== "object") {
-      error = `Message content must be an object, not ‘${typeof parsedAny}’`;
+      error = t("messageMustBeObjectNotType", { type: typeof parsedAny });
     } else {
       parsedObject = parsedAny;
     }
   } catch (e) {
-    error = value.length !== 0 ? e.message : "Enter valid message content as JSON";
+    error = value.length !== 0 ? e.message : t("enterValidJsonMessage");
   }
   return { error, parsedObject };
 }
@@ -109,6 +114,7 @@ function selectDataSourceProfile(ctx: MessagePipelineContext) {
 
 function Publish(props: Props) {
   const { saveConfig, config } = props;
+  const { t } = useTranslation("publish");
   const { topics, datatypes: dataSourceDatatypes, capabilities } = useDataSourceInfo();
   const { classes } = useStyles({ buttonColor: config.buttonColor });
   const [debouncedTopicName] = useDebounce(config.topicName ?? "", 500);
@@ -139,7 +145,10 @@ function Publish(props: Props) {
     datatypes,
   });
 
-  const { error, parsedObject } = useMemo(() => parseInput(config.value ?? ""), [config.value]);
+  const { error, parsedObject } = useMemo(
+    () => parseInput(config.value ?? "", t),
+    [config.value, t],
+  );
 
   usePublishPanelSettings(config, saveConfig, topics, datatypes);
 
@@ -171,13 +180,13 @@ function Publish(props: Props) {
 
   const statusMessage = useMemo(() => {
     if (!capabilities.includes(PlayerCapabilities.advertise)) {
-      return "Connect to a data source that supports publishing";
+      return t("connectToPublishableSource");
     }
     if (!config.topicName || !config.datatype) {
-      return "Configure a topic and message schema in the panel settings";
+      return t("configureTopicAndSchema");
     }
     return undefined;
-  }, [capabilities, config.datatype, config.topicName]);
+  }, [capabilities, config.datatype, config.topicName, t]);
 
   return (
     <Stack fullHeight>
@@ -190,7 +199,7 @@ function Publish(props: Props) {
               className={classes.textarea}
               multiline
               size="small"
-              placeholder="Enter message content as JSON"
+              placeholder={t("enterMessageJsonPlaceholder")}
               value={config.value}
               onChange={(event) => {
                 saveConfig({ value: event.target.value });

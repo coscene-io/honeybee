@@ -32,6 +32,7 @@ import {
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AutoSizer } from "react-virtualized";
 import { FixedSizeList as List } from "react-window";
 import { makeStyles } from "tss-react/mui";
@@ -174,6 +175,7 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
     secondsUntilStale = DEFAULT_SECONDS_UNTIL_STALE,
   } = config;
   const { openSiblingPanel } = usePanelContext();
+  const { t } = useTranslation("diagnostics");
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const staleTime = useStaleTime(secondsUntilStale);
 
@@ -243,11 +245,7 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
 
   const summary = useMemo(() => {
     if (diagnosticsWithOldMarkedAsStales.size === 0) {
-      return (
-        <EmptyState>
-          Waiting for <code>{topicToRender}</code> messages
-        </EmptyState>
-      );
+      return <EmptyState>{t("waitingForMessages", { topic: topicToRender })}</EmptyState>;
     }
     const pinnedNodes = filterMap(pinnedIds, (id) => {
       const [, trimmedHardwareId, name] = id.split("|");
@@ -302,6 +300,7 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
     renderRow,
     sortByLevel,
     minLevel,
+    t,
     topicToRender,
   ]);
 
@@ -320,9 +319,9 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSummarySettingsTree(config, topicToRender, availableTopics),
+      nodes: buildSummarySettingsTree(config, topicToRender, availableTopics, t),
     });
-  }, [actionHandler, availableTopics, config, topicToRender, updatePanelSettingsTree]);
+  }, [actionHandler, availableTopics, config, t, topicToRender, updatePanelSettingsTree]);
 
   return (
     <Stack flex="auto">

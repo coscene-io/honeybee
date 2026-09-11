@@ -12,4 +12,6 @@ export const log = {
   showAll: "Show all",
   topic: "Topic",
   topicError: "Topic {{topic}} is not available",
+  display: "Display",
+  reverseOrder: "Reverse order",
 };

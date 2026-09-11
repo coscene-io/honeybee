@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { t } from "i18next";
+
 import {
   DataSourceFactoryInitializeArgs,
   IDataSourceFactory,
@@ -34,10 +36,10 @@ class CoSceneShareManifestDataSourceFactory implements IDataSourceFactory {
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
     const result = parseShareManifestParams(args.params);
     if (result.status === "missing") {
-      throw new Error("Missing share manifest argument");
+      throw new Error(t("error:missingShareManifestArgument"));
     }
     if (result.status === "expired") {
-      throw new Error("Share manifest has expired");
+      throw new Error(t("error:shareManifestHasExpired"));
     }
     if (result.status === "invalid") {
       throw result.error;

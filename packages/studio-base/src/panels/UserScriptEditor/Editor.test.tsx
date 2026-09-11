@@ -69,6 +69,8 @@ jest.mock("@mui/material", () => ({
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
+  withTranslation: () => (component: unknown) => component,
+  Trans: ({ i18nKey }: { i18nKey?: string }) => i18nKey,
 }));
 
 jest.mock("react-resize-detector", () => ({

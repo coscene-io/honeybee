@@ -72,4 +72,9 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   shortcutZoomFit: "缩放以适应",
   shortcutZoomCursor: "在光标处缩放",
   mouseWheel: "鼠标滚轮",
+  noMatchingItemsFound: "未找到匹配项",
+  searchKeyword: "搜索关键字",
+  dropFileHere: "将文件拖放到此处",
+  dismiss: "关闭",
+  unknownPanelType: "未知面板类型：{{type}}。",
 };

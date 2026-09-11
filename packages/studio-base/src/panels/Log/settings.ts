@@ -65,11 +65,11 @@ export function buildSettingsTree(
       },
     },
     display: {
-      label: "Display",
+      label: t("display"),
       defaultExpansionState: "collapsed",
       fields: {
         reverseOrder: {
-          label: "Reverse order",
+          label: t("reverseOrder"),
           input: "boolean",
           value: reverseOrder,
         },
