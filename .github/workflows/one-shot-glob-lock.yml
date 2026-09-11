@@ -1,0 +1,60 @@
+name: one-shot-glob-lock
+
+on:
+  push:
+    branches:
+      - cursor/glob-13-0-6-f7d1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-glob-lock
+  cancel-in-progress: true
+
+jobs:
+  rewrite-lock:
+    if: github.event.head_commit.committer.email != '41898282+github-actions[bot]@users.noreply.github.com'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/glob-13-0-6-f7d1
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: corepack enable yarn
+      - name: Rewrite yarn.lock with yarn, then remove this workflow
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_PACKAGES_ORG_TOKEN:-}" ]; then
+            echo "GH_PACKAGES_ORG_TOKEN is empty"
+            exit 1
+          fi
+          git fetch origin main
+          git checkout origin/main -- yarn.lock
+          grep -F '"glob": "13.0.6"' package.json
+          yarn install --mode=update-lockfile
+          grep -F 'glob: 13.0.6' yarn.lock
+          grep -F 'resolution: "glob@npm:13.0.6"' yarn.lock
+          if grep -q 'glob: 13.0.0' yarn.lock; then
+            echo "stale glob 13.0.0 pointer remains"
+            exit 1
+          fi
+          if grep -q '"glob@npm:13.0.0"' yarn.lock; then
+            echo "stale glob@npm:13.0.0 descriptor remains"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock
+          git rm -f .github/workflows/one-shot-glob-lock.yml
+          git status --short
+          git commit -m "chore(deps-dev): refresh yarn.lock for glob 13.0.6"
+          git push
