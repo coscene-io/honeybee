@@ -22,7 +22,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@actions/exec@npm:1.1.1, @actions/exec@npm:^1.0.0":
+"@actions/exec@npm:3.0.0":
+  version: 3.0.0
+  resolution: "@actions/exec@npm:3.0.0"
+  dependencies:
+    "@actions/io": ^3.0.2
+  checksum: 8a8c2d28088b0daf019c24abd2127e6694f7427f6f8b866cf7e9d1709dcdc3e15156f2f061977a814113c6f2f2368886f2a9cdf21631d2b9bf7ff22fc80e55e2
+  languageName: node
+  linkType: hard
+
+"@actions/exec@npm:^1.0.0":
   version: 1.1.1
   resolution: "@actions/exec@npm:1.1.1"
   dependencies:
@@ -44,6 +53,13 @@ __metadata:
   version: 1.1.2
   resolution: "@actions/io@npm:1.1.2"
   checksum: 3c6583c4557abf6c95e9cfc9b6377045e65ba2c5dd4863f4feedd6be9daf4f6b60e588ab0151d5626b5f8320a37f05b8d44ab5c329b8c19f65be31b0616e1464
+  languageName: node
+  linkType: hard
+
+"@actions/io@npm:^3.0.2":
+  version: 3.0.2
+  resolution: "@actions/io@npm:3.0.2"
+  checksum: 69c1d58f2b37f4a2248e6d727be900af21e69051c614e161132c6aa459a09654ef84b13b7007f7cc87c7bbaf74e2c37a1add97c76791db64eb810d6a3f4ad96e
   languageName: node
   linkType: hard
 
@@ -4510,7 +4526,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@foxglove/studio-desktop@workspace:packages/studio-desktop"
   dependencies:
-    "@actions/exec": 1.1.1
+    "@actions/exec": 3.0.0
     "@actions/tool-cache": 2.0.1
     "@foxglove/den": "workspace:*"
     "@foxglove/electron-socket": 2.1.1
@@ -16299,7 +16315,7 @@ __metadata:
   resolution: "honeybee@workspace:."
   dependencies:
     "@actions/core": 1.10.1
-    "@actions/exec": 1.1.1
+    "@actions/exec": 3.0.0
     "@actions/tool-cache": 2.0.1
     "@coscene-io/eslint-plugin": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
