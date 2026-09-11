@@ -1,0 +1,117 @@
+name: one-shot-css-loader-lock
+
+on:
+  push:
+    branches:
+      - cursor/css-loader-715-3360
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-css-loader-lock
+  cancel-in-progress: true
+
+jobs:
+  patch-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/css-loader-715-3360
+          fetch-depth: 0
+
+      - name: Patch yarn.lock and remove this workflow
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          lock = Path("yarn.lock")
+          text = lock.read_text()
+          old_ptr = "    css-loader: 7.1.4\n"
+          new_ptr = "    css-loader: 7.1.5\n"
+          old_block = (
+              '"css-loader@npm:7.1.4":\n'
+              "  version: 7.1.4\n"
+              '  resolution: "css-loader@npm:7.1.4"\n'
+              "  dependencies:\n"
+              "    icss-utils: ^5.1.0\n"
+              "    postcss: ^8.4.40\n"
+              "    postcss-modules-extract-imports: ^3.1.0\n"
+              "    postcss-modules-local-by-default: ^4.0.5\n"
+              "    postcss-modules-scope: ^3.2.0\n"
+              "    postcss-modules-values: ^4.0.0\n"
+              "    postcss-value-parser: ^4.2.0\n"
+              "    semver: ^7.6.3\n"
+              "  peerDependencies:\n"
+              '    "@rspack/core": 0.x || ^1.0.0 || ^2.0.0-0\n'
+              "    webpack: ^5.27.0\n"
+              "  peerDependenciesMeta:\n"
+              '    "@rspack/core":\n'
+              "      optional: true\n"
+              "    webpack:\n"
+              "      optional: true\n"
+              "  checksum: 92a486a6fb224540d6fd57a7dc6877cd5fc5296414dece1da0857224492147aa71887aea0d9ff04c5a76cbd12bd4d65ed5b02f58510dc3fc7e7a426c04259162\n"
+              "  languageName: node\n"
+              "  linkType: hard\n"
+          )
+          new_block = (
+              '"css-loader@npm:7.1.5":\n'
+              "  version: 7.1.5\n"
+              '  resolution: "css-loader@npm:7.1.5"\n'
+              "  dependencies:\n"
+              "    icss-utils: ^5.1.0\n"
+              "    postcss: ^8.4.40\n"
+              "    postcss-modules-extract-imports: ^3.1.0\n"
+              "    postcss-modules-local-by-default: ^4.0.5\n"
+              "    postcss-modules-scope: ^3.2.0\n"
+              "    postcss-modules-values: ^4.0.0\n"
+              "    postcss-value-parser: ^4.2.0\n"
+              "    semver: ^7.6.3\n"
+              "  peerDependencies:\n"
+              '    "@rspack/core": 0.x || ^1.0.0 || ^2.0.0-0\n'
+              "    webpack: ^5.27.0\n"
+              "  peerDependenciesMeta:\n"
+              '    "@rspack/core":\n'
+              "      optional: true\n"
+              "    webpack:\n"
+              "      optional: true\n"
+              "  checksum: b3a47a5f20469a0e2940f113d939978b7888d513c2b558cabed07e06c0846002fbc45d0426d13d99f9af0a5d77bfa695a465a25b53f98543cd8a861cf345954b\n"
+              "  languageName: node\n"
+              "  linkType: hard\n"
+          )
+          if text.count(old_ptr) != 1:
+              raise SystemExit(f"expected one 7.1.4 pointer, got {text.count(old_ptr)}")
+          if old_block not in text:
+              raise SystemExit("missing expected css-loader 7.1.4 lock block")
+          if text.count(old_block) != 1:
+              raise SystemExit(f"expected one 7.1.4 block, got {text.count(old_block)}")
+          text = text.replace(old_ptr, new_ptr, 1)
+          text = text.replace(old_block, new_block, 1)
+          if "css-loader@npm:7.1.4" in text or old_ptr in text or "css-loader: 7.1.4" in text:
+              raise SystemExit("stale css-loader 7.1.4 remains")
+          if '"css-loader@npm:7.1.5"' not in text or text.count(new_ptr) != 1:
+              raise SystemExit("css-loader 7.1.5 pointers incomplete")
+          if "    style-loader: 4.0.0\n" not in text or '"style-loader@npm:4.0.0"' not in text:
+              raise SystemExit("style-loader 4.0.0 drifted")
+          if '"@rspack/core@npm:2.1.10"' not in text or '"@rspack/core": 2.1.10' not in text:
+              raise SystemExit("@rspack/core 2.1.10 drifted")
+          if '"postcss@npm:^8.4.40":\n  version: 8.5.15\n' not in text:
+              raise SystemExit("postcss resolution drifted")
+          lock.write_text(text)
+
+          wf = Path(".github/workflows/one-shot-css-loader-lock.yml")
+          if wf.exists():
+              wf.unlink()
+          print("patched")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock .github/workflows/one-shot-css-loader-lock.yml
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(deps): refresh yarn.lock for css-loader 7.1.5"
+          git push origin HEAD:cursor/css-loader-715-3360
