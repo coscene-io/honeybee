@@ -27,7 +27,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 <<'PY'
-          import re
           from pathlib import Path
 
           lock = Path("yarn.lock")
@@ -42,14 +41,26 @@ jobs:
           if old_checksum not in text:
               raise SystemExit("missing @swc/core 1.16.1 checksum")
           if text.count(old_checksum) != 1:
-              raise SystemExit(f"expected one 1.16.1 checksum, got {text.count(old_checksum)}")
-          text = re.sub(r"(@swc/core(?:-[A-Za-z0-9-]+)?)(@npm:)1\\.16\\.1", r"\\g<1>\\g<2>1.16.2", text)
-          text = re.sub(r'(    "@swc/core(?:-[A-Za-z0-9-]+)?": )1\\.16\\.1', r"\\g<1>1.16.2", text)
-          text = re.sub(
-              r'("@swc/core(?:-[A-Za-z0-9-]+)?@npm:1\\.16\\.2":\\n  version: )1\\.16\\.1',
-              r"\\g<1>1.16.2",
-              text,
-          )
+              raise SystemExit("expected one 1.16.1 checksum, got %s" % text.count(old_checksum))
+          names = [
+              "@swc/core",
+              "@swc/core-darwin-arm64",
+              "@swc/core-darwin-x64",
+              "@swc/core-linux-arm-gnueabihf",
+              "@swc/core-linux-arm64-gnu",
+              "@swc/core-linux-arm64-musl",
+              "@swc/core-linux-ppc64-gnu",
+              "@swc/core-linux-s390x-gnu",
+              "@swc/core-linux-x64-gnu",
+              "@swc/core-linux-x64-musl",
+              "@swc/core-win32-arm64-msvc",
+              "@swc/core-win32-ia32-msvc",
+              "@swc/core-win32-x64-msvc",
+          ]
+          for name in names:
+              text = text.replace(name + "@npm:1.16.1", name + "@npm:1.16.2")
+              text = text.replace('    "' + name + '": 1.16.1\n', '    "' + name + '": 1.16.2\n')
+          text = text.replace('  version: 1.16.1\n  resolution: "@swc/core', '  version: 1.16.2\n  resolution: "@swc/core')
           text = text.replace(old_checksum, new_checksum)
           if '"@swc/core@npm:1.16.1"' in text or "@swc/core-linux-x64-gnu@npm:1.16.1" in text:
               raise SystemExit("stale @swc/core 1.16.1 remains")
