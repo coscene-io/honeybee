@@ -1,0 +1,52 @@
+name: tmp-honeybee-moize-617-lock
+
+on:
+  push:
+    branches: [cursor/honeybee-moize-617-495e]
+
+jobs:
+  rewrite-lock:
+    if: github.event.head_commit.committer.email != '41898282+github-actions[bot]@users.noreply.github.com'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 20
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/honeybee-moize-617-495e
+          fetch-depth: 0
+      - run: |
+          mkdir -p "$RUNNER_TEMP/corepack-bin"
+          corepack enable yarn --install-directory "$RUNNER_TEMP/corepack-bin"
+          echo "$RUNNER_TEMP/corepack-bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Rewrite yarn.lock from main with yarn, then remove this workflow
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_PACKAGES_ORG_TOKEN:-}" ]; then
+            echo "GH_PACKAGES_ORG_TOKEN is empty"
+            exit 1
+          fi
+          git fetch origin main
+          git checkout origin/main -- yarn.lock
+          grep -F '"moize": "6.1.7"' packages/studio-base/package.json
+          yarn install --mode=update-lockfile
+          grep -F 'moize@npm:6.1.7' yarn.lock
+          if grep -F 'moize@npm:6.1.6' yarn.lock; then
+            echo "stale moize 6.1.6 remains"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock
+          git rm -f .github/workflows/tmp-honeybee-moize-617-lock.yml
+          git status --short
+          git commit -m "chore(deps): refresh yarn.lock for studio-base moize 6.1.7"
+          git push
