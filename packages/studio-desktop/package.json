@@ -25,7 +25,7 @@
     "@types/utif": "^3.0.2",
     "@xmldom/xmldom": "0.8.10",
     "app-builder-lib": "26.15.3",
-    "async-mutex": "0.4.0",
+    "async-mutex": "0.4.1",
     "builder-util": "26.15.3",
     "dmg-builder": "26.15.3",
     "electron": "35.0.3",
