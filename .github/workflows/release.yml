@@ -88,7 +88,13 @@ jobs:
           - os: darwin
             runs-on: macos-latest
           - os: linux
-            runs-on: cos-m
+            # Hosted, not cos-m: this leg pushes ~600 MB to OSS Hangzhou
+            # (Upload to OSS + Update APT Source). From the cos-m hypervisor
+            # that uplink measures ~1 MB/s and tvrcgo/oss-action caps each
+            # file at 60 s (ali-oss default; its timeout input only reaches
+            # directory rules), so a 98 MB .deb cannot land — run 34583418691.
+            # ubuntu-latest does the same uploads in 14 s + 49 s.
+            runs-on: ubuntu-latest
       fail-fast: false
 
     steps:
