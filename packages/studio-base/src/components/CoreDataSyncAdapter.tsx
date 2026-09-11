@@ -31,6 +31,7 @@ import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext"
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { getAuthToken } from "@foxglove/studio-base/util/coscene/getAuthToken";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectOrganization = (state: CoreDataStore) => state.organization;
@@ -505,7 +506,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   // ColinkApi
   useAsync(async () => {
-    const orgJwt = localStorage.getItem("coScene_org_jwt");
+    const orgJwt = getAuthToken();
     if (
       coordinatorConfig == undefined ||
       !coordinatorConfig.enabled ||

@@ -23,6 +23,7 @@ import {
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { getAuthToken } from "@foxglove/studio-base/util/coscene/getAuthToken";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -36,7 +37,7 @@ export function WebRoot(props: {
 }): React.JSX.Element {
   const appConfig = getAppConfig();
   const baseUrl = appConfig.CS_HONEYBEE_BASE_URL ?? "";
-  const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
+  const jwt = getAuthToken() ?? "";
 
   useCoSceneInit();
 
