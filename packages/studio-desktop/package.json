@@ -35,7 +35,7 @@
     "electron-squirrel-startup": "1.0.1",
     "electron-updater": "6.3.9",
     "eventemitter3": "5.0.1",
-    "jszip": "3.10.1",
+    "jszip": "3.10.2",
     "path-browserify": "1.0.1",
     "plist": "5.0.0",
     "pngjs": "7.0.0",
