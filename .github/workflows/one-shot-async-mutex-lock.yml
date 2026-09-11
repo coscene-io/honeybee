@@ -1,0 +1,71 @@
+name: one-shot-async-mutex-lock
+
+on:
+  push:
+    branches:
+      - cursor/async-mutex-041-3a65
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-async-mutex-lock
+  cancel-in-progress: true
+
+jobs:
+  patch-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/async-mutex-041-3a65
+          fetch-depth: 0
+
+      - name: Patch yarn.lock and remove this workflow
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          lock = Path("yarn.lock")
+          text = lock.read_text()
+          old_ptr = "    async-mutex: 0.4.0\n"
+          new_ptr = "    async-mutex: 0.4.1\n"
+          old_block = (
+              '"async-mutex@npm:0.4.0":\n'
+              "  version: 0.4.0\n"
+              '  resolution: "async-mutex@npm:0.4.0"\n'
+              "  dependencies:\n"
+              "    tslib: ^2.4.0\n"
+              "  checksum: 813a71728b35a4fbfd64dba719f04726d9133c67b577fcd951b7028c4a675a13ee34e69beb82d621f87bf81f5d4f135c4c44be0448550c7db728547244ef71fc\n"
+              "  languageName: node\n"
+              "  linkType: hard\n\n"
+          )
+          if old_ptr in text:
+              if text.count(old_ptr) != 1:
+                  raise SystemExit(f"expected one 0.4.0 pointer, got {text.count(old_ptr)}")
+              text = text.replace(old_ptr, new_ptr, 1)
+          if old_block in text:
+              text = text.replace(old_block, "", 1)
+          if '"async-mutex@npm:0.4.0"' in text or old_ptr in text:
+              raise SystemExit("stale async-mutex 0.4.0 remains")
+          if '"async-mutex@npm:0.4.1"' not in text or text.count(new_ptr) < 2:
+              raise SystemExit("async-mutex 0.4.1 pointers incomplete")
+          if '"@types/utif@npm:^3.0.6"' not in text:
+              raise SystemExit("lost @types/utif 3.0.6 from #1494")
+          lock.write_text(text)
+
+          wf = Path(".github/workflows/one-shot-async-mutex-lock.yml")
+          if wf.exists():
+              wf.unlink()
+          print("patched")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock .github/workflows/one-shot-async-mutex-lock.yml
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(deps): refresh yarn.lock for studio-desktop async-mutex 0.4.1"
+          git push origin HEAD:cursor/async-mutex-041-3a65
