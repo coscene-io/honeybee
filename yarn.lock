@@ -4531,7 +4531,7 @@ __metadata:
     "@types/utif": ^3.0.6
     "@xmldom/xmldom": 0.8.10
     app-builder-lib: 26.15.3
-    async-mutex: 0.4.0
+    async-mutex: 0.4.1
     builder-util: 26.15.3
     dmg-builder: 26.15.3
     electron: 35.0.3
@@ -10990,15 +10990,6 @@ __metadata:
   version: 1.0.0
   resolution: "async-generator-function@npm:1.0.0"
   checksum: 74a71a4a2dd7afd06ebb612f6d612c7f4766a351bedffde466023bf6dae629e46b0d2cd38786239e0fbf245de0c7df76035465e16d1213774a0efb22fec0d713
-  languageName: node
-  linkType: hard
-
-"async-mutex@npm:0.4.0":
-  version: 0.4.0
-  resolution: "async-mutex@npm:0.4.0"
-  dependencies:
-    tslib: ^2.4.0
-  checksum: 813a71728b35a4fbfd64dba719f04726d9133c67b577fcd951b7028c4a675a13ee34e69beb82d621f87bf81f5d4f135c4c44be0448550c7db728547244ef71fc
   languageName: node
   linkType: hard
 
