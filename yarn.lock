@@ -8704,15 +8704,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-dom@npm:18.2.7":
-  version: 18.2.7
-  resolution: "@types/react-dom@npm:18.2.7"
-  dependencies:
-    "@types/react": "*"
-  checksum: e02ea908289a7ad26053308248d2b87f6aeafd73d0e2de2a3d435947bcea0422599016ffd1c3e38ff36c42f5e1c87c7417f05b0a157e48649e4a02f21727d54f
-  languageName: node
-  linkType: hard
-
 "@types/react-dom@npm:18.3.7":
   version: 18.3.7
   resolution: "@types/react-dom@npm:18.3.7"
@@ -11061,7 +11052,7 @@ __metadata:
     "@rspack/core": 2.1.10
     "@rspack/plugin-react-refresh": 2.0.2
     "@types/react": 18.3.27
-    "@types/react-dom": 18.2.7
+    "@types/react-dom": 18.3.7
     mathjs: 11.11.1
     react: 18.3.1
     react-dom: 18.3.1
