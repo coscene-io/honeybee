@@ -1,0 +1,91 @@
+name: one-shot-jszip-lock
+
+on:
+  push:
+    branches:
+      - cursor/jszip-3102-0156
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-jszip-lock
+  cancel-in-progress: true
+
+jobs:
+  patch-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/jszip-3102-0156
+          fetch-depth: 0
+
+      - name: Patch yarn.lock and remove this workflow
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          lock = Path("yarn.lock")
+          text = lock.read_text()
+          old_ptr = "    jszip: 3.10.1\n"
+          new_ptr = "    jszip: 3.10.2\n"
+          old_block = (
+              '"jszip@npm:3.10.1, jszip@npm:^3.1.0":\n'
+              "  version: 3.10.1\n"
+              '  resolution: "jszip@npm:3.10.1"\n'
+              "  dependencies:\n"
+              "    lie: ~3.3.0\n"
+              "    pako: ~1.0.2\n"
+              "    readable-stream: ~2.3.6\n"
+              "    setimmediate: ^1.0.5\n"
+              "  checksum: abc77bfbe33e691d4d1ac9c74c8851b5761fba6a6986630864f98d876f3fcc2d36817dfc183779f32c00157b5d53a016796677298272a714ae096dfe6b1c8b60\n"
+              "  languageName: node\n"
+              "  linkType: hard\n"
+          )
+          new_block = (
+              '"jszip@npm:3.10.2, jszip@npm:^3.1.0":\n'
+              "  version: 3.10.2\n"
+              '  resolution: "jszip@npm:3.10.2"\n'
+              "  dependencies:\n"
+              "    lie: ~3.3.0\n"
+              "    pako: ~1.0.2\n"
+              "    readable-stream: ~2.3.6\n"
+              "    setimmediate: ^1.0.5\n"
+              "  checksum: e5f076c1cbc9eed2a5218b23d05a5cddf6088ba7814a8868d8f0db37d782c473deed776d65d4cf91a6c9ec8f0f466a1624b945084309718732340148fa3a827e\n"
+              "  languageName: node\n"
+              "  linkType: hard\n"
+          )
+          if text.count(old_ptr) != 2:
+              raise SystemExit(f"expected two 3.10.1 workspace pointers, got {text.count(old_ptr)}")
+          if old_block not in text:
+              raise SystemExit("expected unified jszip 3.10.1 / ^3.1.0 lock block missing")
+          text = text.replace(old_ptr, new_ptr)
+          text = text.replace(old_block, new_block, 1)
+          if "jszip@npm:3.10.1" in text or old_ptr in text:
+              raise SystemExit("stale jszip 3.10.1 remains")
+          if text.count(new_ptr) != 2:
+              raise SystemExit(f"expected two 3.10.2 workspace pointers, got {text.count(new_ptr)}")
+          if '"jszip@npm:3.10.2, jszip@npm:^3.1.0":' not in text:
+              raise SystemExit("unified 3.10.2 / ^3.1.0 descriptor missing")
+          if '"@types/utif@npm:^3.0.6"' not in text:
+              raise SystemExit("lost @types/utif 3.0.6 from #1494")
+          if '"async-mutex@npm:0.4.1"' not in text:
+              raise SystemExit("lost async-mutex 0.4.1 from #1497")
+          lock.write_text(text)
+
+          wf = Path(".github/workflows/one-shot-jszip-lock.yml")
+          if wf.exists():
+              wf.unlink()
+          print("patched")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock .github/workflows/one-shot-jszip-lock.yml
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(deps): refresh yarn.lock for jszip 3.10.2"
+          git push origin HEAD:cursor/jszip-3102-0156
