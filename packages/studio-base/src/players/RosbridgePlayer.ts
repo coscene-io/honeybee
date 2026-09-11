@@ -172,6 +172,7 @@ export default class RosbridgePlayer implements Player {
         this.#problems.addProblem("rosbridge:error", {
           severity: "warn",
           message: "Rosbridge error",
+          messageKey: "rosbridgeError",
           error: err,
         });
         this.#emitState();
@@ -194,7 +195,10 @@ export default class RosbridgePlayer implements Player {
       this.#problems.addProblem("rosbridge:connection-failed", {
         severity: "error",
         message: "Connection failed",
+        messageKey: "connectionFailed",
         tip: `Check that the rosbridge WebSocket server at ${this.#url} is reachable.`,
+        tipKey: "rosbridgeUnreachableTip",
+        tipParams: { url: this.#url },
       });
 
       this.#emitState();
@@ -231,6 +235,7 @@ export default class RosbridgePlayer implements Player {
       this.#problems.addProblem("topicsAndRawTypesTimeout", {
         severity: "warn",
         message: "Taking too long to get topics and raw types.",
+        messageKey: "takingTooLongToGetTopics",
       });
 
       this.#emitState();
@@ -266,6 +271,7 @@ export default class RosbridgePlayer implements Player {
         this.#problems.addProblem("unknownRosVersion", {
           severity: "warn",
           message: "Unable to detect ROS version, assuming ROS 1",
+          messageKey: "unableToDetectRosVersion",
         });
       }
 
@@ -338,6 +344,7 @@ export default class RosbridgePlayer implements Player {
       this.#problems.addProblem("requestTopics:error", {
         severity: "error",
         message: "Failed to fetch topics from rosbridge",
+        messageKey: "failedToFetchTopicsFromRosbridge",
         error,
       });
     } finally {

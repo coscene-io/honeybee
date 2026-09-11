@@ -30,6 +30,7 @@ import {
 } from "@mui/material";
 import Cytoscape from "cytoscape";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import textMetrics from "text-metrics";
 import { makeStyles } from "tss-react/mui";
 
@@ -168,6 +169,7 @@ function unionInto<T>(dest: Set<T>, ...iterables: ReadonlySet<T>[]): void {
 }
 
 function TopicGraph() {
+  const { t } = useTranslation("dataSourceInfo");
   const { classes } = useStyles();
   const [selectedTab, setSelectedTab] = useState<"Topics" | undefined>(undefined);
 
@@ -367,7 +369,7 @@ function TopicGraph() {
     return (
       <>
         <PanelToolbar />
-        <EmptyState>Waiting for data…</EmptyState>
+        <EmptyState>{t("waitingForData")}</EmptyState>
       </>
     );
   }
