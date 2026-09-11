@@ -88,13 +88,7 @@ jobs:
           - os: darwin
             runs-on: macos-latest
           - os: linux
-            # Hosted, not cos-m: this leg pushes ~600 MB to OSS Hangzhou
-            # (Upload to OSS + Update APT Source). From the cos-m hypervisor
-            # that uplink measures ~1 MB/s and tvrcgo/oss-action caps each
-            # file at 60 s (ali-oss default; its timeout input only reaches
-            # directory rules), so a 98 MB .deb cannot land — run 34583418691.
-            # ubuntu-latest does the same uploads in 14 s + 49 s.
-            runs-on: ubuntu-latest
+            runs-on: cos-m
       fail-fast: false
 
     steps:
@@ -187,20 +181,41 @@ jobs:
             ${{ !contains(github.event.inputs.version, 'rc') && format('dist/coStudio_{0}-win_arm64.exe:/coStudio{1}packages/latest/coStudio_latest-win_arm64.exe', github.event.inputs.version, env.ENV_PREFIX) || '' }}
             ${{ !contains(github.event.inputs.version, 'rc') && format('dist/coStudio_{0}-win_x64.exe:/coStudio{1}packages/latest/coStudio_latest-win_x64.exe', github.event.inputs.version, env.ENV_PREFIX) || '' }}
 
+      # cos-m guests export CI_IMAGE_PROXY, the CN-exit lane for bulk Aliyun
+      # traffic: their direct line to OSS Hangzhou is ~1 MB/s, so a 98 MB
+      # .deb never lands in tvrcgo/oss-action's fixed 60 s per-file window
+      # (run 34583418691). Hosted runners have no CI_IMAGE_PROXY and go direct.
+      - name: Surface CN egress proxy for Aliyun uploads
+        if: matrix.os == 'linux'
+        run: echo "OSS_PROXY=${CI_IMAGE_PROXY:-}" >> "$GITHUB_ENV"
+
       - name: Upload to OSS (Linux)
         if: matrix.os == 'linux' && github.event.inputs.environment != 'portal'
-        uses: tvrcgo/oss-action@master
-        with:
-          key-id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
-          key-secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
-          endpoint: ${{ env.OSS_ARTIFACTS_ENDPOINT }}
-          bucket: ${{ env.OSS_ARTIFACTS_BUCKET }}
-          assets: |
-            dist/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_amd64.deb
-            dist/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb:/coStudio${{ env.ENV_PREFIX }}packages/coStudio_${{ github.event.inputs.version }}-linux_arm64.deb
-            dist/latest-linux.yml:/coStudio${{ env.ENV_PREFIX }}packages/latest-linux.yml
-            ${{ !contains(github.event.inputs.version, 'rc') && format('dist/coStudio_{0}-linux_amd64.deb:/coStudio{1}packages/latest/coStudio_latest-linux_amd64.deb', github.event.inputs.version, env.ENV_PREFIX) || '' }}
-            ${{ !contains(github.event.inputs.version, 'rc') && format('dist/coStudio_{0}-linux_arm64.deb:/coStudio{1}packages/latest/coStudio_latest-linux_arm64.deb', github.event.inputs.version, env.ENV_PREFIX) || '' }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          PUBLISH_LATEST: ${{ !contains(github.event.inputs.version, 'rc') }}
+        # ossutil, not tvrcgo/oss-action: ali-oss ignores HTTP(S)_PROXY and
+        # hard-caps every single-file upload at 60 s. ossutil takes the proxy,
+        # uploads in parallel parts, and retries (default 10).
+        run: |
+          curl -fsSL -o ossutil.zip https://gosspublic.alicdn.com/ossutil/1.7.19/ossutil-v1.7.19-linux-amd64.zip
+          echo "dcc512e4a893e16bbee63bc769339d8e56b21744fd83c8212a9d8baf28767343  ossutil.zip" | sha256sum -c
+          unzip -q ossutil.zip
+          OSSUTIL=./ossutil-v1.7.19-linux-amd64/ossutil64
+          chmod +x "$OSSUTIL"
+          put() {
+            "$OSSUTIL" cp -f --bigfile-threshold=20971520 \
+              -e "$OSS_ARTIFACTS_ENDPOINT" -i "$OSS_ARTIFACTS_ACCESS_KEY" -k "$OSS_ARTIFACTS_ACCESS_SECRET" \
+              ${OSS_PROXY:+--proxy-host "$OSS_PROXY"} \
+              "$1" "oss://${OSS_ARTIFACTS_BUCKET}/coStudio${ENV_PREFIX}packages/$2"
+          }
+          put "dist/coStudio_${VERSION}-linux_amd64.deb" "coStudio_${VERSION}-linux_amd64.deb"
+          put "dist/coStudio_${VERSION}-linux_arm64.deb" "coStudio_${VERSION}-linux_arm64.deb"
+          put dist/latest-linux.yml latest-linux.yml
+          if [ "$PUBLISH_LATEST" = true ]; then
+            put "dist/coStudio_${VERSION}-linux_amd64.deb" "latest/coStudio_latest-linux_amd64.deb"
+            put "dist/coStudio_${VERSION}-linux_arm64.deb" "latest/coStudio_latest-linux_arm64.deb"
+          fi
 
       - name: Prepare files for upload
         if: github.event.inputs.environment == 'portal'
@@ -264,6 +279,7 @@ jobs:
           access_key_id: ${{ env.OSS_ARTIFACTS_ACCESS_KEY }}
           access_key_secret: ${{ env.OSS_ARTIFACTS_ACCESS_SECRET }}
           gpg_private_key: ${{ env.APT_GPG_PRIVATE_KEY }}
+          proxy_host: ${{ env.OSS_PROXY }}
 
   tag-release:
     needs:
