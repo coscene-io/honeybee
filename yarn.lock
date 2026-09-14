@@ -3995,7 +3995,7 @@ __metadata:
     "@foxglove/log": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
     "@testing-library/dom": 10.4.1
-    "@testing-library/react": 16.3.2
+    "@testing-library/react": 16.3.3
     "@types/foxglove__web": "workspace:*"
     "@types/lodash-es": ^4
     lodash-es: 4.17.21
@@ -4028,7 +4028,7 @@ __metadata:
   dependencies:
     "@foxglove/message-definition": 0.5.0
     "@foxglove/omgidl-parser": 1.2.2
-    "@foxglove/omgidl-serialization": 1.2.4
+    "@foxglove/omgidl-serialization": 1.2.5
     "@foxglove/ros2idl-parser": 0.3.6
     "@foxglove/rosmsg": 5.0.5
     "@foxglove/rosmsg-serialization": 2.1.1
@@ -4094,13 +4094,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/omgidl-serialization@npm:1.2.4":
-  version: 1.2.4
-  resolution: "@foxglove/omgidl-serialization@npm:1.2.4"
+"@foxglove/omgidl-serialization@npm:1.2.5":
+  version: 1.2.5
+  resolution: "@foxglove/omgidl-serialization@npm:1.2.5"
   dependencies:
     "@foxglove/cdr": 3.5.0
     "@foxglove/message-definition": ^0.5.0
-  checksum: f9a31d0453b991460e62d1f71d2b1402d6401ccd3d1d75f3257c1dbf25ea2c23962cecd1ed99d6000ff222e7f45654793eed957d0d5bcb97c637cbaf005b77b4
+  checksum: 721d0009ecf6f10b64bde3b6c2b7557c7f8b541f0c26a3ae0ba7aa7858f8d49bd81967c9c78f932bcfb8082b8f5f19fab2b1bb558a8822dcda6877022bd5bf9d
   languageName: node
   linkType: hard
 
@@ -4380,14 +4380,14 @@ __metadata:
     "@svgr/webpack": 8.1.0
     "@tanstack/react-table": 8.21.3
     "@testing-library/dom": 10.4.1
-    "@testing-library/react": 16.3.2
+    "@testing-library/react": 16.3.3
     "@types/base16": ^1.0.5
     "@types/cytoscape": ^3.21.9
     "@types/foxglove__roslibjs": "workspace:*"
     "@types/geojson": 7946.0.14
     "@types/gl-matrix": 3.2.0
     "@types/hammerjs": 2.0.45
-    "@types/leaflet": 1.9.16
+    "@types/leaflet": 1.9.22
     "@types/memoize-weak": "workspace:*"
     "@types/moment-duration-format": 2.2.6
     "@types/nearley": 2.11.5
@@ -4417,7 +4417,7 @@ __metadata:
     chartjs-plugin-annotation: 3.1.0
     chartjs-plugin-datalabels: 2.2.0
     crypto-browserify: 3.12.0
-    css-loader: 7.1.4
+    css-loader: 7.1.5
     cytoscape: 3.31.0
     cytoscape-dagre: 4.0.0
     dayjs: ^1.11.21
@@ -4435,7 +4435,7 @@ __metadata:
     immer: 10.0.3
     intervals-fn: 3.0.3
     jest-canvas-mock: 2.5.8
-    jszip: 3.10.1
+    jszip: 3.10.2
     just-diff: 6.0.2
     leaflet: 1.9.4
     leaflet-ellipse: 0.9.1
@@ -4444,7 +4444,7 @@ __metadata:
     mediabunny: 1.52.2
     memoize-weak: 1.0.2
     meshoptimizer: 0.21.0
-    moize: 6.1.6
+    moize: 6.1.7
     moment: 2.30.1
     moment-duration-format: 2.3.2
     moment-timezone: 0.5.45
@@ -4541,7 +4541,7 @@ __metadata:
     electron-squirrel-startup: 1.0.1
     electron-updater: 6.3.9
     eventemitter3: 5.0.1
-    jszip: 3.10.1
+    jszip: 3.10.2
     path-browserify: 1.0.1
     plist: 5.0.0
     pngjs: 7.0.0
@@ -4808,22 +4808,6 @@ __metadata:
   version: 1.0.15
   resolution: "@inquirer/figures@npm:1.0.15"
   checksum: bd87a578ab667236cb72bdbb900cb144017dbc306d60e9dc7e665cd7d6b3097e9464cb4d8fe215315083a7820530caf86d7af59e7c41a35a555fb22a881913ad
-  languageName: node
-  linkType: hard
-
-"@isaacs/balanced-match@npm:^4.0.1":
-  version: 4.0.1
-  resolution: "@isaacs/balanced-match@npm:4.0.1"
-  checksum: 102fbc6d2c0d5edf8f6dbf2b3feb21695a21bc850f11bc47c4f06aa83bd8884fde3fe9d6d797d619901d96865fdcb4569ac2a54c937992c48885c5e3d9967fe8
-  languageName: node
-  linkType: hard
-
-"@isaacs/brace-expansion@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "@isaacs/brace-expansion@npm:5.0.0"
-  dependencies:
-    "@isaacs/balanced-match": ^4.0.1
-  checksum: d7a3b8b0ddbf0ccd8eeb1300e29dd0a0c02147e823d8138f248375a365682360620895c66d113e05ee02389318c654379b0e538b996345b83c914941786705b1
   languageName: node
   linkType: hard
 
@@ -8134,9 +8118,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@testing-library/react@npm:16.3.2":
-  version: 16.3.2
-  resolution: "@testing-library/react@npm:16.3.2"
+"@testing-library/react@npm:16.3.3":
+  version: 16.3.3
+  resolution: "@testing-library/react@npm:16.3.3"
   dependencies:
     "@babel/runtime": ^7.12.5
   peerDependencies:
@@ -8150,7 +8134,7 @@ __metadata:
       optional: true
     "@types/react-dom":
       optional: true
-  checksum: 1f6f4d8374aab54214229eecdd429d5e878e902c6136a48e187a24d4917014bf91ab9aa7fab18c17f6bf05f226fac228ba9a5c1803657129173dd8a062139c17
+  checksum: f717b9edd888fbba33dabe4f02109492563b98392c6d1796417406b4af236b313ad8f75fd2b68624525241120f9b9f5d47ea291d58da6d4af7501c1f02385ff7
   languageName: node
   linkType: hard
 
@@ -8690,12 +8674,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/leaflet@npm:1.9.16":
-  version: 1.9.16
-  resolution: "@types/leaflet@npm:1.9.16"
+"@types/leaflet@npm:1.9.22":
+  version: 1.9.22
+  resolution: "@types/leaflet@npm:1.9.22"
   dependencies:
     "@types/geojson": "*"
-  checksum: f9eba777c90492a4dea50fdc3f48d074a5ac13b2fa3e58b1d18d07889252e823623c64ead4b6b8c15e5dd4ba2bded296048b8e6d1164ad18584018211c23eb51
+  checksum: fb3b54f7c8ea2e3ca84d41c6ad06e418ec87a15c30c820f33e60cf91eadb3950392a794c870e5a01daa66dccda05a0d97067ba303299b1e479f579329e652d6a
   languageName: node
   linkType: hard
 
@@ -12713,9 +12697,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"css-loader@npm:7.1.4":
-  version: 7.1.4
-  resolution: "css-loader@npm:7.1.4"
+"css-loader@npm:7.1.5":
+  version: 7.1.5
+  resolution: "css-loader@npm:7.1.5"
   dependencies:
     icss-utils: ^5.1.0
     postcss: ^8.4.40
@@ -12733,7 +12717,7 @@ __metadata:
       optional: true
     webpack:
       optional: true
-  checksum: 92a486a6fb224540d6fd57a7dc6877cd5fc5296414dece1da0857224492147aa71887aea0d9ff04c5a76cbd12bd4d65ed5b02f58510dc3fc7e7a426c04259162
+  checksum: b3a47a5f20469a0e2940f113d939978b7888d513c2b558cabed07e06c0846002fbc45d0426d13d99f9af0a5d77bfa695a465a25b53f98543cd8a861cf345954b
   languageName: node
   linkType: hard
 
@@ -15860,14 +15844,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:13.0.0":
-  version: 13.0.0
-  resolution: "glob@npm:13.0.0"
+"glob@npm:13.0.6, glob@npm:^13.0.3, glob@npm:^13.0.6":
+  version: 13.0.6
+  resolution: "glob@npm:13.0.6"
   dependencies:
-    minimatch: ^10.1.1
-    minipass: ^7.1.2
-    path-scurry: ^2.0.0
-  checksum: 963730222b0acc85a0d2616c08ba3a5d5b5f33fbf69182791967b8a02245db505577a6fc19836d5d58e1cbbfb414ad4f62f605a0372ab05cd9e6998efe944369
+    minimatch: ^10.2.2
+    minipass: ^7.1.3
+    path-scurry: ^2.0.2
+  checksum: 1eb421c696c66af3c26e4845dbdd222d3b982ede17448456b49272722d872e9a91741b50e4e827370c57d17a39a69790061f45033523f085c076d8fcc0f69d2b
   languageName: node
   linkType: hard
 
@@ -15884,17 +15868,6 @@ __metadata:
   bin:
     glob: dist/esm/bin.mjs
   checksum: cda96c074878abca9657bd984d2396945cf0d64283f6feeb40d738fe2da642be0010ad5210a1646244a5fc3511b0cab5a374569b3de5a12b8a63d392f18c6043
-  languageName: node
-  linkType: hard
-
-"glob@npm:^13.0.3, glob@npm:^13.0.6":
-  version: 13.0.6
-  resolution: "glob@npm:13.0.6"
-  dependencies:
-    minimatch: ^10.2.2
-    minipass: ^7.1.3
-    path-scurry: ^2.0.2
-  checksum: 1eb421c696c66af3c26e4845dbdd222d3b982ede17448456b49272722d872e9a91741b50e4e827370c57d17a39a69790061f45033523f085c076d8fcc0f69d2b
   languageName: node
   linkType: hard
 
@@ -16522,7 +16495,7 @@ __metadata:
     eslint-plugin-react: 7.37.2
     eslint-plugin-react-hooks: 5.1.0
     eslint-plugin-tss-unused-classes: 1.0.4
-    glob: 13.0.0
+    glob: 13.0.6
     globals: 17.6.0
     jest: 30.5.1
     jest-environment-jsdom: 30.5.1
@@ -18884,15 +18857,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jszip@npm:3.10.1, jszip@npm:^3.1.0":
-  version: 3.10.1
-  resolution: "jszip@npm:3.10.1"
+"jszip@npm:3.10.2, jszip@npm:^3.1.0":
+  version: 3.10.2
+  resolution: "jszip@npm:3.10.2"
   dependencies:
     lie: ~3.3.0
     pako: ~1.0.2
     readable-stream: ~2.3.6
     setimmediate: ^1.0.5
-  checksum: abc77bfbe33e691d4d1ac9c74c8851b5761fba6a6986630864f98d876f3fcc2d36817dfc183779f32c00157b5d53a016796677298272a714ae096dfe6b1c8b60
+  checksum: e5f076c1cbc9eed2a5218b23d05a5cddf6088ba7814a8868d8f0db37d782c473deed776d65d4cf91a6c9ec8f0f466a1624b945084309718732340148fa3a827e
   languageName: node
   linkType: hard
 
@@ -20062,15 +20035,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^10.1.1":
-  version: 10.1.1
-  resolution: "minimatch@npm:10.1.1"
-  dependencies:
-    "@isaacs/brace-expansion": ^5.0.0
-  checksum: 8820c0be92994f57281f0a7a2cc4268dcc4b610f9a1ab666685716b4efe4b5898b43c835a8f22298875b31c7a278a5e3b7e253eee7c886546bb0b61fb94bca6b
-  languageName: node
-  linkType: hard
-
 "minimatch@npm:^10.2.2":
   version: 10.2.5
   resolution: "minimatch@npm:10.2.5"
@@ -20273,13 +20237,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moize@npm:6.1.6":
-  version: 6.1.6
-  resolution: "moize@npm:6.1.6"
+"moize@npm:6.1.7":
+  version: 6.1.7
+  resolution: "moize@npm:6.1.7"
   dependencies:
     fast-equals: ^3.0.1
     micro-memoize: ^4.1.2
-  checksum: a81c56e8d3d30ad0c324369ab636e48b9799abb7f5e0955250f99744dbea456848107d293436face8e12acf7bc820e759048118083cc37644a4c95a37c66e566
+  checksum: ef70dd8e42acfb0ccc829fe12f969df95385ae1a47f1b8199d95ff1fd2b5cb4fa755e1b243991daec835563732ef727dba72ab53e6bc48805d61e539afdd3690
   languageName: node
   linkType: hard
 
@@ -21488,16 +21452,6 @@ __metadata:
     lru-cache: ^10.2.0
     minipass: ^5.0.0 || ^6.0.2 || ^7.0.0
   checksum: 890d5abcd593a7912dcce7cf7c6bf7a0b5648e3dee6caf0712c126ca0a65c7f3d7b9d769072a4d1baf370f61ce493ab5b038d59988688e0c5f3f646ee3c69023
-  languageName: node
-  linkType: hard
-
-"path-scurry@npm:^2.0.0":
-  version: 2.0.1
-  resolution: "path-scurry@npm:2.0.1"
-  dependencies:
-    lru-cache: ^11.0.0
-    minipass: ^7.1.2
-  checksum: a022c6c38fed836079d03f96540eafd4cd989acf287b99613c82300107f366e889513ad8b671a2039a9d251122621f9c6fa649f0bd4d50acf95a6943a6692dbf
   languageName: node
   linkType: hard
 
