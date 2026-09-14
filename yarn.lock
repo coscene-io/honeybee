@@ -4028,7 +4028,7 @@ __metadata:
   dependencies:
     "@foxglove/message-definition": 0.5.0
     "@foxglove/omgidl-parser": 1.2.2
-    "@foxglove/omgidl-serialization": 1.2.4
+    "@foxglove/omgidl-serialization": 1.2.5
     "@foxglove/ros2idl-parser": 0.3.6
     "@foxglove/rosmsg": 5.0.5
     "@foxglove/rosmsg-serialization": 2.1.1
@@ -4094,13 +4094,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/omgidl-serialization@npm:1.2.4":
-  version: 1.2.4
-  resolution: "@foxglove/omgidl-serialization@npm:1.2.4"
+"@foxglove/omgidl-serialization@npm:1.2.5":
+  version: 1.2.5
+  resolution: "@foxglove/omgidl-serialization@npm:1.2.5"
   dependencies:
     "@foxglove/cdr": 3.5.0
     "@foxglove/message-definition": ^0.5.0
-  checksum: f9a31d0453b991460e62d1f71d2b1402d6401ccd3d1d75f3257c1dbf25ea2c23962cecd1ed99d6000ff222e7f45654793eed957d0d5bcb97c637cbaf005b77b4
+  checksum: 721d0009ecf6f10b64bde3b6c2b7557c7f8b541f0c26a3ae0ba7aa7858f8d49bd81967c9c78f932bcfb8082b8f5f19fab2b1bb558a8822dcda6877022bd5bf9d
   languageName: node
   linkType: hard
 
