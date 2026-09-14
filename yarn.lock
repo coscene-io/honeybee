@@ -4387,7 +4387,7 @@ __metadata:
     "@types/geojson": 7946.0.14
     "@types/gl-matrix": 3.2.0
     "@types/hammerjs": 2.0.45
-    "@types/leaflet": 1.9.16
+    "@types/leaflet": 1.9.22
     "@types/memoize-weak": "workspace:*"
     "@types/moment-duration-format": 2.2.6
     "@types/nearley": 2.11.5
@@ -8690,12 +8690,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/leaflet@npm:1.9.16":
-  version: 1.9.16
-  resolution: "@types/leaflet@npm:1.9.16"
+"@types/leaflet@npm:1.9.22":
+  version: 1.9.22
+  resolution: "@types/leaflet@npm:1.9.22"
   dependencies:
     "@types/geojson": "*"
-  checksum: f9eba777c90492a4dea50fdc3f48d074a5ac13b2fa3e58b1d18d07889252e823623c64ead4b6b8c15e5dd4ba2bded296048b8e6d1164ad18584018211c23eb51
+  checksum: fb3b54f7c8ea2e3ca84d41c6ad06e418ec87a15c30c820f33e60cf91eadb3950392a794c870e5a01daa66dccda05a0d97067ba303299b1e479f579329e652d6a
   languageName: node
   linkType: hard
 
