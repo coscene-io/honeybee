@@ -213,4 +213,33 @@ describe("<CurrentLayoutButton />", () => {
 
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("treats Enter as a click on the layout opener", () => {
+    const onClick = jest.fn();
+    const layout = makeStoredLayout();
+    render(
+      <ThemeProvider isDark>
+        <CurrentLayoutButton
+          currentLayoutId={layout.id}
+          layouts={{ allLayouts: [layout], personalFolders: [], projectFolders: [] }}
+          onClick={onClick}
+          onOverwriteLayout={jest.fn()}
+          onSaveRecommendedLayout={jest.fn()}
+          onRevertLayout={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    const opener = screen.getByRole("button");
+    opener.focus();
+    fireEvent.keyDown(opener, { key: "Enter", code: "Enter" });
+
+    // ButtonBase's Enter keydown path can emit an act(...) warning; clear before afterEach.
+    for (const [message] of jest.mocked(console.error).mock.calls) {
+      expect(String(message)).toMatch(/act\(|validateDOMNesting/);
+    }
+    jest.mocked(console.error).mockClear();
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });
