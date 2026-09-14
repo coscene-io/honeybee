@@ -208,7 +208,7 @@ export function CurrentLayoutButton({
       aria-haspopup="true"
       onClick={onClick}
       onKeyUp={(event) => {
-        if (event.key === " ") {
+        if (event.key === " " && event.target === event.currentTarget) {
           event.preventDefault();
         }
       }}

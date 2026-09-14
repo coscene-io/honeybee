@@ -214,6 +214,22 @@ describe("<CurrentLayoutButton />", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("does not preventDefault Space keyup on nested Save", () => {
+    const layout = makeRemotelyDeletedLayout("PERSONAL_WRITE");
+    renderButton(layout);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    const event = new KeyboardEvent("keyup", {
+      key: " ",
+      code: "Space",
+      bubbles: true,
+      cancelable: true,
+    });
+    saveButton.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it("treats Enter as a click on the layout opener", () => {
     const onClick = jest.fn();
     const layout = makeStoredLayout();
