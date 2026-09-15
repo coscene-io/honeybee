@@ -207,6 +207,11 @@ export function CurrentLayoutButton({
       className={classes.layoutButton}
       aria-haspopup="true"
       onClick={onClick}
+      onKeyUp={(event) => {
+        if (event.key === " " && event.target === event.currentTarget) {
+          event.preventDefault();
+        }
+      }}
       disabled={loading === true || selectedLayout?.loading === true}
     >
       <div className={classes.leftContent}>
