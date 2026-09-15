@@ -61,6 +61,11 @@ export class RealtimeVizHistoryCache {
       retentionWindowMs,
       maxCacheSize,
       metricSink,
+      onReplayableRangeChange: ({ hasRange }) => {
+        if (this.#initialized && !this.#disabled && !this.#closing) {
+          this.#setStatus(hasRange ? "ready" : "initializing");
+        }
+      },
       onWriteFailure: (error) => {
         this.#disable(error, "Disabling realtime viz history cache after persistence failure:");
         this.#discardAfterFailure();
@@ -84,25 +89,20 @@ export class RealtimeVizHistoryCache {
         return;
       }
 
-      let initializedWithData = false;
       while (this.#pendingEvents.length > 0) {
         const pendingEvents = this.#pendingEvents;
         this.#pendingEvents = [];
         this.#pendingEstimatedBytes = 0;
-        await this.#appendToStore(pendingEvents, { markReady: false });
+        await this.#appendToStore(pendingEvents);
         if (this.#isDisabled()) {
           return;
         }
         if (this.#hasResetStarted(resetGeneration)) {
           return;
         }
-        initializedWithData = true;
       }
       this.#initialized = true;
       this.#persistLatestMetadata();
-      if (initializedWithData) {
-        this.#setStatus("ready");
-      }
     } catch (error) {
       this.#disable(error, "Failed to initialize realtime viz history cache:");
       await this.#store.discardAndSeal("abandoned");
@@ -195,16 +195,14 @@ export class RealtimeVizHistoryCache {
         continue;
       }
 
-      let resetWithData = false;
       while (this.#pendingEvents.length > 0) {
         const pendingEvents = this.#pendingEvents;
         this.#pendingEvents = [];
         this.#pendingEstimatedBytes = 0;
-        await this.#appendToStore(pendingEvents, { markReady: false });
+        await this.#appendToStore(pendingEvents);
         if (this.#isDisabled()) {
           return;
         }
-        resetWithData = true;
         if (resetGeneration !== this.#resetGeneration) {
           break;
         }
@@ -215,18 +213,11 @@ export class RealtimeVizHistoryCache {
 
       this.#initialized = true;
       this.#persistLatestMetadata();
-      if (resetWithData) {
-        this.#setStatus("ready");
-      }
       return;
     }
   }
 
-  async #appendToStore(
-    events: readonly MessageEvent[],
-    { markReady = true }: { markReady?: boolean } = {},
-  ): Promise<void> {
-    const resetGeneration = this.#resetGeneration;
+  async #appendToStore(events: readonly MessageEvent[]): Promise<void> {
     await this.#store.append(events, {
       // The WebSocket player already normalizes sizeInBytes against its decoded-size estimate.
       // Reuse it instead of recursively walking the same message again on this hot path.
@@ -234,9 +225,6 @@ export class RealtimeVizHistoryCache {
         (event) => event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
       ),
     });
-    if (markReady && this.#initialized && resetGeneration === this.#resetGeneration) {
-      this.#setStatus("ready");
-    }
   }
 
   public storeTopics(

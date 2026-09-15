@@ -492,6 +492,8 @@ interface IndexedDbMessageStoreOptions {
   metricSink?: MessageCacheMetricSink;
   /** Reports the first persistence failure, including failures from scheduled background flushes. */
   onWriteFailure?: (error: Error) => void;
+  /** Reports the persisted time range after each append batch and its retention/size pruning. */
+  onReplayableRangeChange?: (range: { hasRange: boolean }) => void;
 }
 
 function createMessageStores(db: IDB.IDBPDatabase<MessagesDB>): void {
@@ -560,6 +562,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #accessMode: CacheAccessMode;
   #metricSink: MessageCacheMetricSink | undefined;
   #onWriteFailure: ((error: Error) => void) | undefined;
+  #onReplayableRangeChange: ((range: { hasRange: boolean }) => void) | undefined;
   #postOpenInitializationTimeoutMs: number;
   #currentSessionId: string;
   #ownerId = createConnectionOwnerId();
@@ -621,6 +624,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       accessMode = "writer",
       metricSink,
       onWriteFailure,
+      onReplayableRangeChange,
     } = options;
 
     this.#retentionWindowMs = retentionWindowMs;
@@ -639,6 +643,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#accessMode = accessMode;
     this.#metricSink = metricSink;
     this.#onWriteFailure = onWriteFailure;
+    this.#onReplayableRangeChange = onReplayableRangeChange;
     this.#currentSessionId = sessionId;
     if (!Number.isSafeInteger(maxQueuedMessages) || maxQueuedMessages <= 0) {
       throw new Error("maxQueuedMessages must be a positive safe integer");
@@ -1495,6 +1500,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be reopened");
     }
+    if (existing?.cleanupToken != undefined) {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is being cleared");
+    }
     const metadata: CacheSessionMetadata = {
       sessionId: this.#currentSessionId,
       kind: existing?.kind ?? this.#kind,
@@ -1657,6 +1666,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       if (
         options.keepSession === true &&
         (sessionMetadata.status !== "active" ||
+          sessionMetadata.cleanupToken != undefined ||
           !(sessionMetadata.owners ?? []).includes(this.#ownerId))
       ) {
         await sealTx.done;
@@ -2292,6 +2302,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         await tx.done;
         throw new Error("IndexedDbMessageStore session is no longer active");
       }
+      if (sessionData.cleanupToken != undefined) {
+        await tx.done;
+        throw new Error("IndexedDbMessageStore session is being cleared");
+      }
       // The session row is the allocation authority. Readwrite transactions are serialized across
       // tabs so two writers reopening the same session cannot overwrite equal-timestamp keys.
       seq =
@@ -2340,6 +2354,18 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (!this.#closing) {
       await this.#maybePrune(latestTime);
       await this.#enforceGlobalBudget();
+    }
+    if (this.#onReplayableRangeChange != undefined && !this.#closing) {
+      // Two index cursors per persisted batch, only for callers that need replay readiness.
+      // Measure after pruning so a single retained timestamp never enables playback.
+      const stats = await this.stats();
+      this.#onReplayableRangeChange({
+        hasRange:
+          stats.count > 0 &&
+          stats.earliest != undefined &&
+          stats.latest != undefined &&
+          isGreaterThan(stats.latest, stats.earliest),
+      });
     }
   }
 
@@ -3564,6 +3590,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is no longer active");
     }
+    if (session.cleanupToken != undefined) {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is being cleared");
+    }
     const store = tx.objectStore(DATATYPES_STORE);
 
     const datatypesObj: Record<string, OptionalMessageDefinition> = {};
@@ -3618,6 +3648,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (session?.status !== "active") {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is no longer active");
+    }
+    if (session.cleanupToken != undefined) {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is being cleared");
     }
     const now = Date.now();
     const topicNames = new Set(topics.map((topic) => topic.name));
@@ -3694,7 +3728,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const store = tx.objectStore(LOADED_RANGES_STORE);
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const existingSession = await sessionsStore.get(this.#currentSessionId);
-    if (existingSession?.status !== "active") {
+    if (existingSession?.status !== "active" || existingSession.cleanupToken != undefined) {
       await tx.done;
       return false;
     }

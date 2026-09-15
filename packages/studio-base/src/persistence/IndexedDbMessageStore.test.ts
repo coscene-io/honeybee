@@ -181,6 +181,79 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
+  it.each(["append", "topics", "datatypes", "new writer"])(
+    "blocks a concurrent %s after reset has removed messages",
+    async (operation) => {
+      const sessionId = `reset-concurrent-${operation}`;
+      const store = new IndexedDbMessageStore({ sessionId });
+      const other = new IndexedDbMessageStore({ sessionId });
+      let newWriter: IndexedDbMessageStore | undefined;
+      await Promise.all([store.init(), other.init()]);
+      await store.append([messageEvent(1)]);
+      await store.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+      await store.flush();
+      const originalSetTimeout = globalThis.setTimeout;
+      let yields = 0;
+      let concurrentWrite: Promise<void> | undefined;
+      let writeError: unknown;
+      const timeoutSpy = jest
+        .spyOn(globalThis, "setTimeout")
+        .mockImplementation((handler, timeout, ...args) => {
+          if (timeout !== 0 || ++yields !== 2) {
+            return originalSetTimeout(handler, timeout, ...args);
+          }
+          // The message loop is now empty and topic deletion has yielded. A surviving append at
+          // this point used to disagree with the final zeroed session counters.
+          timeoutSpy.mockRestore();
+          concurrentWrite = (async () => {
+            try {
+              switch (operation) {
+                case "append":
+                  await other.append([messageEvent(2)]);
+                  await other.flush();
+                  break;
+                case "topics":
+                  await other.storeTopics([{ name: "/late", schemaName: "pkg/Msg" }]);
+                  break;
+                case "datatypes":
+                  await other.storeDatatypes(new Map([["pkg/Msg", { definitions: [] }]]));
+                  break;
+                case "new writer":
+                  newWriter = new IndexedDbMessageStore({ sessionId });
+                  await newWriter.init();
+                  break;
+              }
+            } catch (error) {
+              writeError = error;
+            }
+          })();
+          void concurrentWrite.finally(() => {
+            handler(...args);
+          });
+          return originalSetTimeout(() => {}, 0);
+        });
+      try {
+        await store.clear();
+        await concurrentWrite;
+        expect(writeError).toEqual(new Error("IndexedDbMessageStore session is being cleared"));
+        expect((await store.stats()).count).toBe(0);
+        expect(
+          await store.getMessages({ start: { sec: 0, nsec: 0 }, end: { sec: 20, nsec: 0 } }),
+        ).toEqual([]);
+        expect(await store.getTopics()).toEqual([]);
+        expect(await store.getDatatypes()).toBeUndefined();
+        await store.append([messageEvent(3)]);
+        await store.flush();
+        expect((await store.stats()).count).toBe(1);
+      } finally {
+        timeoutSpy.mockRestore();
+        await Promise.allSettled([store.close(), other.close(), newWriter?.close()]);
+        jest.mocked(console.warn).mockClear();
+        jest.mocked(console.error).mockClear();
+      }
+    },
+  );
+
   it("flushes queued appends on close", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "close-flush" });
     await store.init();
