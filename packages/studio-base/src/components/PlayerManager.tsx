@@ -385,9 +385,9 @@ export default function PlayerManager(
     async (sourceId: string | undefined, args?: DataSourceArgs) => {
       log.debug(`Select Source: ${sourceId}`);
 
-      // If sourceId is undefined, clear the current source selection
-      const deferSourceStateUpdate = args?.type === "persistent-cache";
+      const isPersistentCacheSource = args?.type === "persistent-cache";
 
+      // If sourceId is undefined, clear the current source selection
       if (sourceId == undefined) {
         // A real teardown must invalidate in-flight source switches.
         sourceSelectionGenerationRef.current += 1;
@@ -416,6 +416,32 @@ export default function PlayerManager(
 
       if (foundSource.type !== "sample" && args == undefined) {
         enqueueSnackbar("Unable to initialize player: no args", { variant: "error" });
+        return;
+      }
+
+      if (foundSource.type !== "sample" && args != undefined && args.type !== foundSource.type) {
+        enqueueSnackbar(`Unable to initialize player: ${foundSource.type} arguments are required`, {
+          variant: "error",
+        });
+        return;
+      }
+      if (
+        foundSource.type === "file" &&
+        args?.type === "file" &&
+        args.handle == undefined &&
+        (args.files?.length ?? 0) === 0
+      ) {
+        enqueueSnackbar("Unable to initialize player: a file or file handle is required", {
+          variant: "error",
+        });
+        return;
+      }
+      if (
+        foundSource.id === "coscene-data-platform" &&
+        args?.type === "connection" &&
+        !args.params?.key
+      ) {
+        enqueueSnackbar("coscene-data-platform params.key is required", { variant: "error" });
         return;
       }
 
@@ -486,7 +512,7 @@ export default function PlayerManager(
       if (!isCurrentSelection()) {
         return;
       }
-      if (!deferSourceStateUpdate) {
+      if (!isPersistentCacheSource) {
         setDataSource(undefined);
       }
 
@@ -616,7 +642,7 @@ export default function PlayerManager(
             // files we can try loading immediately
             // We do not add these to recents entries because putting File in indexedb results in
             // the entire file being stored in the database.
-            if (files) {
+            if (files != undefined && files.length > 0) {
               let file = files[0];
               const fileList: File[] = [];
 
@@ -695,7 +721,7 @@ export default function PlayerManager(
         if (!isCurrentSelection()) {
           return;
         }
-        if (deferSourceStateUpdate) {
+        if (isPersistentCacheSource) {
           playerInstances?.player.reOpen();
         } else {
           setDataSource(undefined);

@@ -276,22 +276,70 @@ describe("PlayerManager source selection", () => {
     },
   );
 
+  it("uses a valid file handle when the file list is empty", async () => {
+    const file = new File([], "example.mcap");
+    const player = makePlayer();
+    const initialize = jest.fn(() => player as unknown as Player);
+    const getFile = jest.fn(async () => file);
+    const handle = {
+      name: file.name,
+      queryPermission: jest.fn(async () => "granted"),
+      getFile,
+    } as unknown as FileSystemFileHandle;
+    let selection: AsyncSelection | undefined;
+    function CaptureSelection() {
+      selection = useContext(PlayerSelectionContext) as AsyncSelection;
+      return ReactNull;
+    }
+    const sources: IDataSourceFactory[] = [
+      { id: "file", type: "file", displayName: "File", initialize },
+    ];
+    const view = render(
+      <PlayerManager playerSources={sources}>
+        <CaptureSelection />
+      </PlayerManager>,
+    );
+    try {
+      await act(async () => {
+        await selection!.selectSource("file", { type: "file", files: [], handle });
+      });
+      expect(getFile).toHaveBeenCalledTimes(1);
+      expect(initialize).toHaveBeenCalledWith(expect.objectContaining({ file }));
+      expect(selection?.selectedSource?.id).toBe("file");
+      expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+    }
+  });
+
   it.each<[string, string, DataSourceArgs | undefined]>([
     ["unknown source", "unknown", undefined],
     ["missing arguments", "replay", undefined],
+    ["missing platform key", "coscene-data-platform", { type: "connection", params: {} }],
+    ["missing file", "file", { type: "file" }],
+    ["empty file list", "file", { type: "file", files: [] }],
+    ["mismatched arguments", "replay", { type: "connection", params: {} }],
   ])(
     "does not cancel a pending replay for an invalid request: %s",
     async (_label, sourceId, args) => {
       const live = makePlayer();
       const replay = makePlayer();
       let resolveClose = () => {};
+      const closeGate = new Promise<void>((resolve) => {
+        resolveClose = resolve;
+      });
       live.close.mockImplementation(async () => {
-        await new Promise<void>((resolve) => {
-          resolveClose = resolve;
-        });
+        await closeGate;
       });
       const initializeReplay = jest.fn(() => replay as unknown as Player);
       const sources: IDataSourceFactory[] = [
+        {
+          id: "coscene-data-platform",
+          type: "connection",
+          displayName: "Platform",
+          initialize: jest.fn(),
+        },
+        { id: "file", type: "file", displayName: "File", initialize: jest.fn() },
         {
           id: "live",
           type: "sample",
@@ -315,17 +363,18 @@ describe("PlayerManager source selection", () => {
           <CaptureSelection />
         </PlayerManager>,
       );
+      let pending: Promise<void> | undefined;
+      let invalidRequest: Promise<void> | undefined;
       try {
         await act(async () => {
           await selection!.selectSource("live");
         });
-        let pending: Promise<void> | undefined;
         await act(async () => {
           pending = selection!.selectSource("replay", { type: "persistent-cache" });
         });
         expect(live.close).toHaveBeenCalledTimes(1);
         await act(async () => {
-          await selection!.selectSource(sourceId, args);
+          invalidRequest = selection!.selectSource(sourceId, args);
         });
         expect(mockEnqueueSnackbar).toHaveBeenCalledTimes(1);
         expect(selection?.selectedSource?.id).toBe("live");
@@ -339,7 +388,10 @@ describe("PlayerManager source selection", () => {
           expect.objectContaining({ type: "persistent-cache", sessionId: "live-session" }),
         );
       } finally {
-        resolveClose();
+        await act(async () => {
+          resolveClose();
+          await Promise.allSettled([pending, invalidRequest]);
+        });
         view.unmount();
       }
     },
