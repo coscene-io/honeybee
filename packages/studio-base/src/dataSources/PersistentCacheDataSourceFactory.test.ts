@@ -51,6 +51,30 @@ describe("PersistentCacheDataSourceFactory", () => {
     expect(player).toBe(mockIterablePlayer.mock.results[0]?.value);
   });
 
+  it.each([
+    { fieldSession: "explicit-session", expectedSession: "explicit-session" },
+    { fieldSession: "", expectedSession: "current-session" },
+  ])(
+    "resolves the session field '$fieldSession' to $expectedSession",
+    async ({ fieldSession, expectedSession }) => {
+      await new PersistentCacheDataSourceFactory().initialize({
+        metricsCollector: undefined as never,
+        sessionId: "current-session",
+        params: { sessionId: fieldSession },
+      });
+      expect(mockWorkerIterableSource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          initArgs: expect.objectContaining({ sessionId: expectedSession }),
+        }),
+      );
+      expect(mockIterablePlayer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          urlParams: { sessionId: expectedSession },
+        }),
+      );
+    },
+  );
+
   it("propagates worker initialization failure without constructing a replay player", async () => {
     const initializationError = new Error("worker metadata read failed");
     mockPreinitialize.mockRejectedValueOnce(initializationError);

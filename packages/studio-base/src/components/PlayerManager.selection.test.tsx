@@ -9,6 +9,7 @@
 import { act, render } from "@testing-library/react";
 import { PropsWithChildren, useContext } from "react";
 
+import type { CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
 import PlayerSelectionContext, {
   DataSourceArgs,
   IDataSourceFactory,
@@ -24,7 +25,11 @@ const mockStore = {
   record: {},
   project: {},
   jobRun: {},
-  dataSource: { id: "live", type: "connection", sessionId: "live-session" },
+  dataSource: {
+    id: "live",
+    type: "connection",
+    sessionId: "live-session",
+  } as CoreDataStore["dataSource"],
   setDataSource: mockSetDataSource,
 };
 const mockConsoleApi = { setType: jest.fn() };
@@ -106,7 +111,66 @@ function makePlayer() {
 describe("PlayerManager source selection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStore.dataSource = { id: "live", type: "connection", sessionId: "live-session" };
   });
+
+  it.each([
+    {
+      activeSession: undefined,
+      explicitSession: "dialog-session",
+      expectedSession: "dialog-session",
+    },
+    {
+      activeSession: "live-session",
+      explicitSession: "dialog-session",
+      expectedSession: "dialog-session",
+    },
+    { activeSession: "live-session", explicitSession: "", expectedSession: "live-session" },
+  ])(
+    "opens replay session $expectedSession with active session $activeSession and field '$explicitSession'",
+    async ({ activeSession, explicitSession, expectedSession }) => {
+      mockStore.dataSource =
+        activeSession == undefined
+          ? undefined
+          : { id: "live", type: "connection", sessionId: activeSession };
+      const replay = makePlayer();
+      const initialize = jest.fn(() => replay as unknown as Player);
+      const sources: IDataSourceFactory[] = [
+        { id: "replay", type: "persistent-cache", displayName: "Replay", initialize },
+      ];
+      let selection: AsyncSelection | undefined;
+      function CaptureSelection() {
+        selection = useContext(PlayerSelectionContext) as AsyncSelection;
+        return ReactNull;
+      }
+      const view = render(
+        <PlayerManager playerSources={sources}>
+          <CaptureSelection />
+        </PlayerManager>,
+      );
+      try {
+        await act(async () => {
+          await selection!.selectSource("replay", {
+            type: "persistent-cache",
+            params: { sessionId: explicitSession },
+          });
+        });
+        expect(initialize).toHaveBeenCalledWith(
+          expect.objectContaining({ sessionId: expectedSession }),
+        );
+        expect(mockSetDataSource).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "replay",
+            type: "persistent-cache",
+            sessionId: expectedSession,
+          }),
+        );
+        expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+      } finally {
+        view.unmount();
+      }
+    },
+  );
 
   it.each(["teardown", "sample initialization"])(
     "keeps the live selection when replay fails after superseding %s",

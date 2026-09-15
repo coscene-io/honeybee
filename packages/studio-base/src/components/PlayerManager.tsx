@@ -445,7 +445,12 @@ export default function PlayerManager(
         return;
       }
 
-      const replaySessionId = dataSourceState?.sessionId;
+      const requestedReplaySessionId =
+        args?.type === "persistent-cache" ? args.params?.sessionId : undefined;
+      const replaySessionId =
+        requestedReplaySessionId != undefined && requestedReplaySessionId !== ""
+          ? requestedReplaySessionId
+          : dataSourceState?.sessionId;
       const replayRecentId = dataSourceState?.recentId;
       if (args?.type === "persistent-cache" && replaySessionId == undefined) {
         enqueueSnackbar("sessionId is required for persistent cache source", {

@@ -817,6 +817,53 @@ describe("RealtimeVizHistoryCache", () => {
     }
   });
 
+  it("bounds close while a reset operation never settles", async () => {
+    jest.useFakeTimers();
+    let releaseClear = () => {};
+    let markClearStarted = () => {};
+    const clearGate = new Promise<void>((resolve) => {
+      releaseClear = resolve;
+    });
+    const clearStarted = new Promise<void>((resolve) => {
+      markClearStarted = resolve;
+    });
+    const clearSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "clear")
+      .mockImplementationOnce(async () => {
+        markClearStarted();
+        await clearGate;
+      });
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "stalled-reset-close",
+      retentionWindowMs: 30_000,
+    });
+    let resetting: Promise<void> | undefined;
+    let closing: Promise<void> | undefined;
+    let closeError: unknown;
+    try {
+      await cache.init();
+      resetting = cache.reset();
+      await clearStarted;
+      closing = cache.close().catch((error: unknown) => {
+        closeError = error;
+      });
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(closeError).toEqual(
+        expect.objectContaining({ message: expect.stringContaining("pending close operations") }),
+      );
+      expect(console.warn).toHaveBeenCalledWith(
+        "IndexedDbMessageStore shutdown deadline exceeded",
+        expect.objectContaining({ operation: "pending close operations" }),
+      );
+      jest.mocked(console.warn).mockClear();
+    } finally {
+      releaseClear();
+      await Promise.allSettled([resetting, closing]);
+      clearSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it("bounds close when a metadata write never settles", async () => {
     jest.useFakeTimers();
     const storeTopicsSpy = jest

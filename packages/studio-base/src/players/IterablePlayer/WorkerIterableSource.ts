@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import * as Comlink from "@coscene-io/comlink";
+import race from "race-as-promised";
 
 import { abortSignalTransferHandler } from "@foxglove/comlink-transfer-handlers";
 import { ComlinkWrap } from "@foxglove/den/worker";
@@ -25,6 +26,8 @@ import type { WorkerIterableSourceWorker } from "./WorkerIterableSourceWorker";
 import { WORKER_CURSOR_BATCH_DURATION_MS } from "./workerCursorBatchDuration";
 
 Comlink.transferHandlers.set("abortsignal", abortSignalTransferHandler);
+
+const PREINITIALIZE_TIMEOUT_MS = 15_000;
 
 type ConstructorArgs = {
   initWorker: () => Worker;
@@ -51,11 +54,11 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
 
   /** Initialize the worker now and reuse that exact source when its player installs a listener. */
   public async preinitialize(): Promise<Initalization> {
-    this.#preinitialized ??= this.#initialize();
+    this.#preinitialized ??= this.#initialize(PREINITIALIZE_TIMEOUT_MS);
     return await this.#preinitialized;
   }
 
-  async #initialize(): Promise<Initalization> {
+  async #initialize(timeoutMs?: number): Promise<Initalization> {
     const lifecycleGeneration = ++this.#lifecycleGeneration;
     this.#disposeRemote?.();
     this.#disposeRemote = undefined;
@@ -70,25 +73,42 @@ export class WorkerIterableSource implements IDeserializedIterableSource {
       >(worker);
 
     this.#disposeRemote = dispose;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const sourceWorkerRemote = await initializeWorker(this.#args.initArgs);
-      if (lifecycleGeneration !== this.#lifecycleGeneration || this.#disposeRemote !== dispose) {
-        throw new Error("WorkerIterableSource initialization was cancelled");
-      }
+      const initializing = (async () => {
+        const sourceWorkerRemote = await initializeWorker(this.#args.initArgs);
+        if (lifecycleGeneration !== this.#lifecycleGeneration || this.#disposeRemote !== dispose) {
+          throw new Error("WorkerIterableSource initialization was cancelled");
+        }
 
-      this.#sourceWorkerRemote = sourceWorkerRemote;
-      const result = await sourceWorkerRemote.initialize();
-      if (lifecycleGeneration !== this.#lifecycleGeneration) {
-        throw new Error("WorkerIterableSource initialization was cancelled");
+        this.#sourceWorkerRemote = sourceWorkerRemote;
+        const result = await sourceWorkerRemote.initialize();
+        if (lifecycleGeneration !== this.#lifecycleGeneration || this.#disposeRemote !== dispose) {
+          throw new Error("WorkerIterableSource initialization was cancelled");
+        }
+        return result;
+      })();
+      if (timeoutMs == undefined) {
+        return await initializing;
       }
-      return result;
+      return await race([
+        initializing,
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            reject(new Error("Timed out preinitializing worker source"));
+          }, timeoutMs);
+        }),
+      ]);
     } catch (error) {
       if (lifecycleGeneration === this.#lifecycleGeneration && this.#disposeRemote === dispose) {
         this.#disposeRemote = undefined;
         this.#sourceWorkerRemote = undefined;
+        // A stalled worker may also ignore remote terminate(), so dispose it directly.
         dispose();
       }
       throw error;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

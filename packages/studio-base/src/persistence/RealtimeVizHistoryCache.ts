@@ -413,14 +413,7 @@ export class RealtimeVizHistoryCache {
     this.#closing = true;
     this.#cancelRangeRefresh();
     const resetPromise = this.#resetPromise;
-    if (resetPromise != undefined) {
-      try {
-        await resetPromise;
-      } catch {
-        // Reset records the failure and starts abandonment; the disabled path below finishes it.
-      }
-    }
-    if (this.#disabled || !this.#initialized) {
+    if (this.#disabled || (!this.#initialized && resetPromise == undefined)) {
       this.#disabled = true;
       this.#pendingEvents = [];
       this.#pendingEstimatedBytes = 0;
@@ -430,9 +423,17 @@ export class RealtimeVizHistoryCache {
       }
       return;
     }
-    this.#disabled = true;
+    if (resetPromise == undefined) {
+      this.#disabled = true;
+    }
+    // Start the store shutdown deadline before waiting for reset. A healthy reset must still
+    // drain buffered messages and persist their metadata before the store seals the session.
+    const pendingOperations =
+      resetPromise == undefined
+        ? Array.from(this.#metadataWrites)
+        : [resetPromise.then(async () => await Promise.all(Array.from(this.#metadataWrites)))];
     try {
-      await this.#store.closeAfter(Array.from(this.#metadataWrites));
+      await this.#store.closeAfter(pendingOperations);
       if (this.#failure != undefined) {
         throw this.#failure;
       }
@@ -443,6 +444,10 @@ export class RealtimeVizHistoryCache {
         log.debug("Failed to abandon realtime cache after flush failure", closeError);
       }
       throw error;
+    } finally {
+      this.#disabled = true;
+      this.#pendingEvents = [];
+      this.#pendingEstimatedBytes = 0;
     }
   }
 

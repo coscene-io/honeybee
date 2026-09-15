@@ -40,7 +40,9 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
   public async initialize(args: DataSourceFactoryInitializeArgs): Promise<Player | undefined> {
     try {
       // Extract parameters
-      const sessionId = args.params?.sessionId ?? args.sessionId;
+      const fieldSessionId = args.params?.sessionId;
+      const sessionId =
+        fieldSessionId != undefined && fieldSessionId !== "" ? fieldSessionId : args.sessionId;
       const retentionWindowMs = args.retentionWindowMs;
       const maxCacheSize = args.maxCacheSize;
 
