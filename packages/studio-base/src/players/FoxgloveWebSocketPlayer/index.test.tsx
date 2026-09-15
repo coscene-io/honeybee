@@ -422,6 +422,117 @@ describe("FoxgloveWebSocketPlayer lifecycle", () => {
     await closePromise;
   });
 
+  it("keeps provisional playback time monotonic when message timestamps arrive out of order", async () => {
+    const listener = jest.fn(async (_state: PlayerState) => {});
+    const player = makePlayer();
+    player.setListener(listener);
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+    await flushPromises();
+
+    client.emit("serverInfo", {
+      name: "test-server",
+      capabilities: ["time"],
+      supportedEncodings: ["json"],
+    });
+    client.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 10_000_000_000n,
+    });
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":2}'),
+      timestamp: 5_000_000_000n,
+    });
+    await flushPromises(10);
+
+    expect(cache.append.mock.calls.map((call) => call[0]?.[0]?.receiveTime)).toEqual([
+      { sec: 10, nsec: 0 },
+      { sec: 10, nsec: 0 },
+    ]);
+    expect(listener.mock.calls.at(-1)?.[0].activeData).toMatchObject({
+      currentTime: { sec: 10, nsec: 0 },
+      endTime: { sec: 10, nsec: 0 },
+      lastSeekTime: 0,
+      startTime: { sec: 10, nsec: 0 },
+    });
+
+    const closePromise = player.close();
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.resolveClose();
+    await closePromise;
+  });
+
+  it("does not let a failed later timestamp rewind later valid messages", async () => {
+    const listener = jest.fn(async (_state: PlayerState) => {});
+    const player = makePlayer();
+    player.setListener(listener);
+    const client = mockClients[0]!;
+    const cache = mockCaches[0]!;
+    await flushPromises();
+
+    client.emit("serverInfo", {
+      name: "test-server",
+      capabilities: ["time"],
+      supportedEncodings: ["json"],
+    });
+    client.emit("advertise", [
+      {
+        id: 7,
+        topic: "/test",
+        encoding: "json",
+        schemaName: "test_msgs/Test",
+        schema: '{"type":"object","properties":{"value":{"type":"number"}}}',
+        schemaEncoding: "jsonschema",
+      },
+    ]);
+    player.setSubscriptions([{ topic: "/test" }]);
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":1}'),
+      timestamp: 10_000_000_000n,
+    });
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode("not-json"),
+      timestamp: 20_000_000_000n,
+    });
+    jest.mocked(console.error).mockClear();
+    client.emit("message", {
+      subscriptionId: 1,
+      data: new TextEncoder().encode('{"value":2}'),
+      timestamp: 15_000_000_000n,
+    });
+    await flushPromises(10);
+
+    expect(cache.append.mock.calls.map((call) => call[0]?.[0]?.receiveTime)).toEqual([
+      { sec: 10, nsec: 0 },
+      { sec: 20, nsec: 0 },
+    ]);
+    expect(listener.mock.calls.at(-1)?.[0].activeData).toMatchObject({
+      currentTime: { sec: 20, nsec: 0 },
+      endTime: { sec: 20, nsec: 0 },
+      lastSeekTime: 0,
+    });
+
+    const closePromise = player.close();
+    client.emit("close", { type: "close", data: { code: 1000, reason: "" } });
+    cache.resolveClose();
+    await closePromise;
+  });
+
   it("compares the first clock with the maximum provisional message time", async () => {
     const listener = jest.fn(async (_state: PlayerState) => {});
     const player = makePlayer();

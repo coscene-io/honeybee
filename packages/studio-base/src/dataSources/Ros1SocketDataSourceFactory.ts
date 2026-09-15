@@ -25,6 +25,8 @@ class Ros1SocketDataSourceFactory implements IDataSourceFactory {
   public description = t("openDialog:ros1SocketDataSourceDesc");
   public docsLinks = [{ url: "https://foxglove.dev/docs/studio/connection/native" }];
 
+  public requiredParams = ["url"];
+
   public formConfig = {
     fields: [
       {
