@@ -12,6 +12,7 @@ import { MessageEvent } from "@foxglove/studio";
 import {
   type CacheSessionKind,
   type CacheSessionMetadata,
+  type MessageCacheMetricData,
   clearIndexedDbMessageStoreDatabase,
   indexedDbMessageCacheApi,
   IndexedDbMessageStore,
@@ -181,12 +182,21 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
-  it.each(["append", "topics", "datatypes", "new writer"])(
-    "blocks a concurrent %s after reset has removed messages",
+  it.each(["append", "topics", "datatypes", "new writer", "clear"])(
+    "retries a concurrent %s after reset has removed messages",
     async (operation) => {
       const sessionId = `reset-concurrent-${operation}`;
       const store = new IndexedDbMessageStore({ sessionId });
-      const other = new IndexedDbMessageStore({ sessionId });
+      let markWaiting = () => {};
+      const waiting = new Promise<void>((resolve) => {
+        markWaiting = resolve;
+      });
+      const metricSink = jest.fn((_event: string, data: MessageCacheMetricData) => {
+        if (data.status === "waiting-for-reset") {
+          markWaiting();
+        }
+      });
+      const other = new IndexedDbMessageStore({ sessionId, metricSink });
       let newWriter: IndexedDbMessageStore | undefined;
       await Promise.all([store.init(), other.init()]);
       await store.append([messageEvent(1)]);
@@ -219,15 +229,18 @@ describe("IndexedDbMessageStore", () => {
                   await other.storeDatatypes(new Map([["pkg/Msg", { definitions: [] }]]));
                   break;
                 case "new writer":
-                  newWriter = new IndexedDbMessageStore({ sessionId });
+                  newWriter = new IndexedDbMessageStore({ sessionId, metricSink });
                   await newWriter.init();
+                  break;
+                case "clear":
+                  await other.clear();
                   break;
               }
             } catch (error) {
               writeError = error;
             }
           })();
-          void concurrentWrite.finally(() => {
+          void race([waiting, concurrentWrite]).then(() => {
             handler(...args);
           });
           return originalSetTimeout(() => {}, 0);
@@ -235,16 +248,28 @@ describe("IndexedDbMessageStore", () => {
       try {
         await store.clear();
         await concurrentWrite;
-        expect(writeError).toEqual(new Error("IndexedDbMessageStore session is being cleared"));
-        expect((await store.stats()).count).toBe(0);
+        expect(writeError).toBeUndefined();
+        expect(metricSink).toHaveBeenCalledWith(
+          "write",
+          expect.objectContaining({ status: "waiting-for-reset" }),
+        );
+        expect((await store.getSessionMetadata())?.messageCount).toBe(
+          operation === "append" ? 1 : 0,
+        );
         expect(
           await store.getMessages({ start: { sec: 0, nsec: 0 }, end: { sec: 20, nsec: 0 } }),
-        ).toEqual([]);
-        expect(await store.getTopics()).toEqual([]);
-        expect(await store.getDatatypes()).toBeUndefined();
+        ).toEqual(operation === "append" ? [messageEvent(2)] : []);
+        if (operation === "topics") {
+          expect(await store.getTopics()).toEqual([expect.objectContaining({ name: "/late" })]);
+        } else {
+          expect(await store.getTopics()).toEqual([]);
+        }
+        expect(await store.getDatatypes()).toEqual(
+          operation === "datatypes" ? new Map([["pkg/Msg", { definitions: [] }]]) : undefined,
+        );
         await store.append([messageEvent(3)]);
         await store.flush();
-        expect((await store.stats()).count).toBe(1);
+        expect((await store.stats()).count).toBe(operation === "append" ? 2 : 1);
       } finally {
         timeoutSpy.mockRestore();
         await Promise.allSettled([store.close(), other.close(), newWriter?.close()]);
