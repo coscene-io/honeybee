@@ -56,6 +56,15 @@ describe("PersistentCacheIterableSource", () => {
         sizeInBytes: 1,
       },
     ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+      },
+    ]);
     await store.flush();
     await store.close();
 
@@ -88,6 +97,15 @@ describe("PersistentCacheIterableSource", () => {
         sizeInBytes: 1,
       },
     ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+      },
+    ]);
     await store.flush();
     await store.close();
 
@@ -117,6 +135,15 @@ describe("PersistentCacheIterableSource", () => {
         sizeInBytes: 1,
       },
     ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+      },
+    ]);
     await store.flush();
     await store.close();
 
@@ -126,7 +153,7 @@ describe("PersistentCacheIterableSource", () => {
 
     const reader = new IndexedDbMessageStore({ sessionId: "readonly-terminate" });
     await reader.init();
-    expect((await reader.stats()).count).toBe(1);
+    expect((await reader.stats()).count).toBe(2);
     await reader.close();
   });
 
@@ -144,6 +171,15 @@ describe("PersistentCacheIterableSource", () => {
         schemaName: "pkg/Msg",
         receiveTime: { sec: 1, nsec: 0 },
         message: { value: 1 },
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
         sizeInBytes: 1,
       },
     ]);
@@ -174,6 +210,60 @@ describe("PersistentCacheIterableSource", () => {
       owners: [],
       readers: [],
     });
+  });
+
+  it.each([1, 3])(
+    "rejects %i messages with a single timestamp and releases the reader lease",
+    async (count) => {
+      const sessionId = `zero-duration-${count}`;
+      const store = new IndexedDbMessageStore({ sessionId });
+      await store.init();
+      await store.append(
+        Array.from({ length: count }, () => ({
+          topic: "/topic",
+          schemaName: "pkg/Msg",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: {},
+          sizeInBytes: 1,
+        })),
+      );
+      await store.close();
+      const source = new PersistentCacheIterableSource({ sessionId });
+      await expect(source.initialize()).rejects.toThrow("does not yet span a playable time range");
+      expect(await readSessionMetadata(sessionId)).toMatchObject({
+        status: "closed",
+        messageCount: count,
+        readers: [],
+      });
+      await source.terminate();
+    },
+  );
+
+  it("accepts a range as small as one nanosecond", async () => {
+    const sessionId = "nanosecond-range";
+    const store = new IndexedDbMessageStore({ sessionId });
+    await store.init();
+    await store.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+    await store.append(
+      [0, 1].map((nsec) => ({
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 1, nsec },
+        message: {},
+        sizeInBytes: 1,
+      })),
+    );
+    await store.close();
+    const source = new PersistentCacheIterableSource({ sessionId });
+    try {
+      await expect(source.initialize()).resolves.toMatchObject({
+        start: { sec: 1, nsec: 0 },
+        end: { sec: 1, nsec: 1 },
+        problems: [],
+      });
+    } finally {
+      await source.terminate();
+    }
   });
 
   it("does not create metadata when a replay session does not exist", async () => {

@@ -1642,7 +1642,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #cleanupSessionData(
     sessionId: string,
     staleGuard?: { kind: CacheSessionKind; cutoffTime: number },
-    options: { abortWhenClosing?: boolean } = {},
+    options: { abortWhenClosing?: boolean; keepSession?: boolean } = {},
   ): Promise<boolean> {
     try {
       const db = await this.#dbPromise;
@@ -1651,6 +1651,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const sessionsStore = sealTx.objectStore(SESSIONS_STORE);
       const sessionMetadata = await sessionsStore.get(sessionId);
       if (sessionMetadata == undefined) {
+        await sealTx.done;
+        return false;
+      }
+      if (
+        options.keepSession === true &&
+        (sessionMetadata.status !== "active" ||
+          !(sessionMetadata.owners ?? []).includes(this.#ownerId))
+      ) {
         await sealTx.done;
         return false;
       }
@@ -1668,15 +1676,23 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           return false;
         }
       }
+      // A live timeline reset must not advertise a terminal session to another tab's janitor.
+      // Keep the owner lease active while still using bounded transactions and cleanup tokens.
+      const cleanupStatus = options.keepSession === true ? "active" : "pending-delete";
       await sessionsStore.put({
         ...sessionMetadata,
-        status: "pending-delete",
+        status: cleanupStatus,
+        lastActiveAt: options.keepSession === true ? Date.now() : sessionMetadata.lastActiveAt,
         cleanupToken,
       });
       await sealTx.done;
 
       while (options.abortWhenClosing !== true || !this.#closing) {
-        const batchResult = await this.#deleteSessionMessageBatch(sessionId, cleanupToken);
+        const batchResult = await this.#deleteSessionMessageBatch(
+          sessionId,
+          cleanupToken,
+          cleanupStatus,
+        );
         if (!batchResult.stillOwner) {
           return false;
         }
@@ -1689,7 +1705,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       }
 
       while (options.abortWhenClosing !== true || !this.#closing) {
-        const batchResult = await this.#deleteSessionTopicBatch(sessionId, cleanupToken);
+        const batchResult = await this.#deleteSessionTopicBatch(
+          sessionId,
+          cleanupToken,
+          cleanupStatus,
+        );
         if (!batchResult.stillOwner) {
           return false;
         }
@@ -1702,7 +1722,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       }
 
       while (options.abortWhenClosing !== true || !this.#closing) {
-        const batchResult = await this.#deleteSessionLoadedRangeBatch(sessionId, cleanupToken);
+        const batchResult = await this.#deleteSessionLoadedRangeBatch(
+          sessionId,
+          cleanupToken,
+          cleanupStatus,
+        );
         if (!batchResult.stillOwner) {
           return false;
         }
@@ -1723,15 +1747,29 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       );
       const finalSessionMetadata = await metadataTx.objectStore(SESSIONS_STORE).get(sessionId);
       if (
-        finalSessionMetadata?.status !== "pending-delete" ||
+        finalSessionMetadata?.status !== cleanupStatus ||
         finalSessionMetadata.cleanupToken !== cleanupToken
       ) {
         await metadataTx.done;
         return false;
       }
       await metadataTx.objectStore(DATATYPES_STORE).delete(sessionId);
-      await metadataTx.objectStore(SESSIONS_STORE).delete(sessionId);
-      await metadataTx.done;
+      if (options.keepSession === true) {
+        const contentRevision = normalizedContentRevision(finalSessionMetadata.contentRevision) + 1;
+        await metadataTx.objectStore(SESSIONS_STORE).put({
+          ...finalSessionMetadata,
+          cleanupToken: undefined,
+          lastActiveAt: Date.now(),
+          messageCount: 0,
+          approximateSizeBytes: 0,
+          contentRevision,
+        });
+        await metadataTx.done;
+        this.#contentRevision = Math.max(this.#contentRevision, contentRevision);
+      } else {
+        await metadataTx.objectStore(SESSIONS_STORE).delete(sessionId);
+        await metadataTx.done;
+      }
       if (sessionId === this.#currentSessionId) {
         this.#messageCount = 0;
         this.#approximateSizeBytes = 0;
@@ -1747,13 +1785,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #deleteSessionMessageBatch(
     sessionId: string,
     cleanupToken: string,
+    cleanupStatus: "active" | "pending-delete",
   ): Promise<CleanupBatchResult> {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readwrite"));
     const messageStore = tx.objectStore(STORE);
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const metadata = await sessionsStore.get(sessionId);
-    if (metadata?.status !== "pending-delete" || metadata.cleanupToken !== cleanupToken) {
+    if (metadata?.status !== cleanupStatus || metadata.cleanupToken !== cleanupToken) {
       await tx.done;
       return { deletedAny: false, stillOwner: false };
     }
@@ -1800,12 +1839,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #deleteSessionTopicBatch(
     sessionId: string,
     cleanupToken: string,
+    cleanupStatus: "active" | "pending-delete",
   ): Promise<CleanupBatchResult> {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(db.transaction([TOPICS_STORE, SESSIONS_STORE], "readwrite"));
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const metadata = await sessionsStore.get(sessionId);
-    if (metadata?.status !== "pending-delete" || metadata.cleanupToken !== cleanupToken) {
+    if (metadata?.status !== cleanupStatus || metadata.cleanupToken !== cleanupToken) {
       await tx.done;
       return { deletedAny: false, stillOwner: false };
     }
@@ -1846,6 +1886,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #deleteSessionLoadedRangeBatch(
     sessionId: string,
     cleanupToken: string,
+    cleanupStatus: "active" | "pending-delete",
   ): Promise<CleanupBatchResult> {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(
@@ -1853,7 +1894,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     );
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const metadata = await sessionsStore.get(sessionId);
-    if (metadata?.status !== "pending-delete" || metadata.cleanupToken !== cleanupToken) {
+    if (metadata?.status !== cleanupStatus || metadata.cleanupToken !== cleanupToken) {
       await tx.done;
       return { deletedAny: false, stillOwner: false };
     }
@@ -3037,10 +3078,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       return;
     }
 
-    const deletedMessageCount = this.#messageCount;
-    await this.#cleanupSessionData(this.#currentSessionId);
-    this.#markContentRemoved(deletedMessageCount);
-    await this.#recordSessionCreation();
+    await this.#initPromise;
+    this.#assertWritable("clear the session");
+    const cleared = await this.#cleanupSessionData(this.#currentSessionId, undefined, {
+      keepSession: true,
+    });
+    if (!cleared) {
+      throw new Error("IndexedDbMessageStore session changed while clearing its messages");
+    }
     this.#clearAppendQueue();
     this.#messageCount = 0;
     this.#approximateSizeBytes = 0;

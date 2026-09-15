@@ -383,13 +383,14 @@ export default function PlayerManager(
 
   const selectSource = useCallback(
     async (sourceId: string | undefined, args?: DataSourceArgs) => {
-      const selectionGeneration = ++sourceSelectionGenerationRef.current;
-      const isCurrentSelection = () => selectionGeneration === sourceSelectionGenerationRef.current;
       log.debug(`Select Source: ${sourceId}`);
-      const deferSourceStateUpdate = args?.type === "persistent-cache";
 
       // If sourceId is undefined, clear the current source selection
+      const deferSourceStateUpdate = args?.type === "persistent-cache";
+
       if (sourceId == undefined) {
+        // A real teardown must invalidate in-flight source switches.
+        sourceSelectionGenerationRef.current += 1;
         // Flush any tracked sampled seek before the player goes away: this path bypasses both
         // setProperty("player", ...) and the collector's close(), so without the flush a stale
         // seek could later emit as settled/timeout with counters from a player that no longer
@@ -404,10 +405,6 @@ export default function PlayerManager(
         return;
       }
 
-      if (!deferSourceStateUpdate) {
-        setCurrentSourceId(sourceId);
-      }
-
       const foundSource = playerSources.find(
         (source) => source.id === sourceId || (source.legacyIds?.includes(sourceId) ?? false),
       );
@@ -417,12 +414,30 @@ export default function PlayerManager(
         return;
       }
 
+      if (foundSource.type !== "sample" && args == undefined) {
+        enqueueSnackbar("Unable to initialize player: no args", { variant: "error" });
+        return;
+      }
+
+      const replaySessionId = dataSourceState?.sessionId;
+      const replayRecentId = dataSourceState?.recentId;
+      if (args?.type === "persistent-cache" && replaySessionId == undefined) {
+        enqueueSnackbar("sessionId is required for persistent cache source", {
+          variant: "error",
+        });
+        return;
+      }
+
+      // Only a request that will close or replace the player should invalidate in-flight work.
+      const selectionGeneration = ++sourceSelectionGenerationRef.current;
+      const isCurrentSelection = () => selectionGeneration === sourceSelectionGenerationRef.current;
+
       if (!deferSourceStateUpdate) {
+        setCurrentSourceId(sourceId);
         metricsCollector.setProperty("player", sourceId, args);
         setSelectedSource(foundSource);
       }
 
-      // Sample sources don't need args or prompts to initialize
       if (foundSource.type === "sample") {
         setDataSource({ id: sourceId, type: "sample" });
         setCurrentSourceParams({ sourceId, args });
@@ -439,18 +454,7 @@ export default function PlayerManager(
         return;
       }
 
-      if (!args) {
-        enqueueSnackbar("Unable to initialize player: no args", { variant: "error" });
-        setSelectedSource(undefined);
-        return;
-      }
-
-      const replaySessionId = dataSourceState?.sessionId;
-      const replayRecentId = dataSourceState?.recentId;
-      if (args.type === "persistent-cache" && replaySessionId == undefined) {
-        enqueueSnackbar("sessionId is required for persistent cache source", {
-          variant: "error",
-        });
+      if (args == undefined) {
         return;
       }
 

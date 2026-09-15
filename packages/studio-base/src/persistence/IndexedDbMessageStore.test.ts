@@ -117,6 +117,70 @@ describe("IndexedDbMessageStore", () => {
     await clearIndexedDbMessageStoreDatabase();
   });
 
+  it("keeps a resetting session active while another connection runs cleanup", async () => {
+    const sessionId = "reset-during-cleanup";
+    const store = new IndexedDbMessageStore({ sessionId });
+    const janitor = new IndexedDbMessageStore({ accessMode: "maintenance" });
+    await Promise.all([store.init(), janitor.init()]);
+    await store.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+    await store.storeDatatypes(new Map([["pkg/Msg", { definitions: [] }]]));
+    await store.append(
+      [1, 2, 3].map((seq) => ({
+        ...messageEvent(seq),
+        sizeInBytes: 5 * 1024 * 1024,
+      })),
+    );
+    await store.flush();
+    const metadataBefore = await store.getSessionMetadata();
+    let metadataDuringReset: CacheSessionMetadata | undefined;
+    let cleanup: Promise<void> | undefined;
+    const originalSetTimeout = globalThis.setTimeout;
+    const timeoutSpy = jest
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((handler, timeout, ...args) => {
+        if (timeout !== 0) {
+          return originalSetTimeout(handler, timeout, ...args);
+        }
+        // Pause the reset between its bounded deletion transactions. The other connection gets
+        // a complete cleanup pass before the reset resumes, including without Web Locks.
+        timeoutSpy.mockRestore();
+        cleanup = (async () => {
+          metadataDuringReset = await store.getSessionMetadata();
+          await janitor.cleanupOldSessions();
+        })();
+        void cleanup.finally(() => {
+          handler(...args);
+        });
+        return originalSetTimeout(() => {}, 0);
+      });
+    try {
+      await store.clear();
+      await cleanup;
+      expect(metadataDuringReset).toMatchObject({
+        status: "active",
+        owners: metadataBefore?.owners,
+      });
+      expect(await store.getSessionMetadata()).toMatchObject({
+        status: "active",
+        messageCount: 0,
+        approximateSizeBytes: 0,
+        owners: metadataBefore?.owners,
+        cleanupToken: undefined,
+      });
+      expect((await store.getSessionMetadata())?.contentRevision).toBeGreaterThan(
+        metadataBefore?.contentRevision ?? 0,
+      );
+      expect(await store.getTopics()).toEqual([]);
+      expect(await store.getDatatypes()).toBeUndefined();
+      await store.append([messageEvent(4)]);
+      await store.flush();
+      expect((await store.stats()).count).toBe(1);
+    } finally {
+      timeoutSpy.mockRestore();
+      await Promise.all([store.close(), janitor.close()]);
+    }
+  });
+
   it("flushes queued appends on close", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "close-flush" });
     await store.init();
