@@ -37,6 +37,82 @@ describe("PersistentCacheIterableSource", () => {
     await clearIndexedDbMessageStoreDatabase();
   });
 
+  it.each(["open", "iterate", "backfill", "after reset"])(
+    "rejects replay against a resetting or replaced snapshot: %s",
+    async (operation) => {
+      const sessionId = `reset-reader-${operation}`;
+      const writer = new IndexedDbMessageStore({ sessionId });
+      await writer.init();
+      await writer.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+      await writer.append(
+        [1, 2, 3].map((sec) => ({
+          topic: "/topic",
+          schemaName: "pkg/Msg",
+          receiveTime: { sec, nsec: 0 },
+          message: { sec },
+          sizeInBytes: 5 * 1024 * 1024,
+        })),
+      );
+      await writer.flush();
+      const source = new PersistentCacheIterableSource({ sessionId });
+      if (operation !== "open") {
+        await source.initialize();
+      }
+      let resumeClear = () => {};
+      let markPaused = () => {};
+      const paused = new Promise<void>((resolve) => {
+        markPaused = resolve;
+      });
+      const originalSetTimeout = globalThis.setTimeout;
+      const timeoutSpy = jest
+        .spyOn(globalThis, "setTimeout")
+        .mockImplementation((handler, timeout, ...args) => {
+          if (timeout !== 0) {
+            return originalSetTimeout(handler, timeout, ...args);
+          }
+          timeoutSpy.mockRestore();
+          resumeClear = () => {
+            handler(...args);
+          };
+          markPaused();
+          return originalSetTimeout(() => {}, 0);
+        });
+      const clearing = writer.clear();
+      try {
+        await paused;
+        const topics = new Map([["/topic", { topic: "/topic" }]]);
+        if (operation === "open") {
+          await expect(source.initialize()).rejects.toThrow("being reset");
+          expect((await readSessionMetadata(sessionId))?.readers ?? []).toEqual([]);
+          expect(console.error).toHaveBeenCalledWith(
+            "Failed to initialize IndexedDbMessageStore:",
+            expect.objectContaining({ message: expect.stringContaining("being reset") }),
+          );
+          jest.mocked(console.error).mockClear();
+        } else if (operation === "backfill") {
+          await expect(
+            source.getBackfillMessages({ topics, time: { sec: 3, nsec: 0 } }),
+          ).rejects.toThrow("changed or is being reset");
+        } else {
+          if (operation === "after reset") {
+            resumeClear();
+            await clearing;
+          }
+          await expect(source.messageIterator({ topics }).next()).rejects.toThrow(
+            "changed or is being reset",
+          );
+        }
+        expect((await readSessionMetadata(sessionId))?.status).toBe("active");
+      } finally {
+        resumeClear();
+        timeoutSpy.mockRestore();
+        await clearing;
+        await source.terminate();
+        await writer.close();
+      }
+    },
+  );
+
   it("initializes topics and datatypes from metadata", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "source-metadata" });
     await store.init();

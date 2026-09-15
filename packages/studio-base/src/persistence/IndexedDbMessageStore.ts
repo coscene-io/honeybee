@@ -608,6 +608,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #shutdownDeadlineAt: number | undefined;
   #sessionCreated = false;
   #readerLeaseCreated = false;
+  #readerSessionRevision?: number;
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
@@ -1420,6 +1421,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
       const messageIndex = tx.objectStore(STORE).index("bySession");
       const sessionMetadata = await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId);
+      await this.#assertReplaySnapshot(sessionMetadata, tx.done);
       const count =
         sessionMetadata?.messageCount ?? (await messageIndex.count(this.#currentSessionId));
       const approximateSizeBytes = normalizedStoredSize(sessionMetadata?.approximateSizeBytes);
@@ -1583,13 +1585,43 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be replayed");
     }
+    if (this.#kind === "realtime-viz" && existing.cleanupToken != undefined) {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is being reset and cannot be replayed");
+    }
     await store.put({
       ...existing,
       readers: Array.from(new Set([...(existing.readers ?? []), this.#ownerId])),
       lastActiveAt: Date.now(),
     });
     await tx.done;
+    this.#readerSessionRevision = normalizedContentRevision(existing.contentRevision);
     return true;
+  }
+
+  async #assertReplaySnapshot(
+    session: CacheSessionMetadata | undefined,
+    transactionDone: Promise<unknown>,
+  ): Promise<void> {
+    // Spill readers retain cache-miss semantics; realtime replay requires a stable snapshot.
+    if (
+      this.#kind !== "realtime-viz" ||
+      this.#accessMode !== "reader" ||
+      (session == undefined && this.#readerSessionRevision == undefined)
+    ) {
+      return;
+    }
+    if (
+      session == undefined ||
+      this.#readerSessionRevision == undefined ||
+      session.cleanupToken != undefined ||
+      session.status === "pending-delete" ||
+      session.status === "abandoned" ||
+      normalizedContentRevision(session.contentRevision) !== this.#readerSessionRevision
+    ) {
+      await transactionDone;
+      throw new Error("Cached realtime session changed or is being reset; reopen replay.");
+    }
   }
 
   #hasFreshReaderLease(session: CacheSessionMetadata, cutoffTime: number): boolean {
@@ -2929,6 +2961,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
     const session = await tx.objectStore(SESSIONS_STORE).get(sessionId);
+    await this.#assertReplaySnapshot(session, tx.done);
     if (session?.status !== "active") {
       await tx.done;
       return undefined;
@@ -3009,9 +3042,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const db = await this.#dbPromise;
 
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
-    if (options.requireActiveSession === true) {
+    if (options.requireActiveSession === true || this.#accessMode === "reader") {
       const session = await tx.objectStore(SESSIONS_STORE).get(sessionId);
-      if (session?.status !== "active") {
+      await this.#assertReplaySnapshot(session, tx.done);
+      if (options.requireActiveSession === true && session?.status !== "active") {
         await tx.done;
         return undefined;
       }
@@ -3123,8 +3157,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
 
-    const tx = this.#trackTransaction(db.transaction(STORE, "readonly"));
-    const index = tx.store.index("bySessionTopicTime");
+    const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
+    if (this.#accessMode === "reader") {
+      await this.#assertReplaySnapshot(
+        await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId),
+        tx.done,
+      );
+    }
+    const index = tx.objectStore(STORE).index("bySessionTopicTime");
 
     const results: MessageEvent[] = [];
     for (const topic of topics) {
@@ -3490,8 +3530,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
 
-    const tx = this.#trackTransaction(db.transaction(STORE, "readonly"));
-    const index = tx.store.index("bySessionTime");
+    const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
+    if (this.#accessMode === "reader") {
+      await this.#assertReplaySnapshot(
+        await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId),
+        tx.done,
+      );
+    }
+    const index = tx.objectStore(STORE).index("bySessionTime");
     const range = IDBKeyRange.bound(
       [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
       [sessionId, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
@@ -3680,8 +3726,16 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
 
     const db = await this.#dbPromise;
-    const tx = this.#trackTransaction(db.transaction(DATATYPES_STORE, "readonly"));
-    const result = await tx.store.get(this.#currentSessionId);
+    const tx = this.#trackTransaction(
+      db.transaction([DATATYPES_STORE, SESSIONS_STORE], "readonly"),
+    );
+    if (this.#accessMode === "reader") {
+      await this.#assertReplaySnapshot(
+        await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId),
+        tx.done,
+      );
+    }
+    const result = await tx.objectStore(DATATYPES_STORE).get(this.#currentSessionId);
     await tx.done;
 
     if (!result) {
@@ -3757,9 +3811,18 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
 
     const db = await this.#dbPromise;
-    const tx = this.#trackTransaction(db.transaction(TOPICS_STORE, "readonly"));
+    const tx = this.#trackTransaction(db.transaction([TOPICS_STORE, SESSIONS_STORE], "readonly"));
+    if (this.#accessMode === "reader") {
+      await this.#assertReplaySnapshot(
+        await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId),
+        tx.done,
+      );
+    }
     const out: TopicMetadata[] = [];
-    for await (const cursor of tx.store.index("bySession").iterate(this.#currentSessionId)) {
+    for await (const cursor of tx
+      .objectStore(TOPICS_STORE)
+      .index("bySession")
+      .iterate(this.#currentSessionId)) {
       const value = cursor.value;
       out.push({
         name: value.name,

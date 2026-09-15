@@ -105,7 +105,9 @@ export class RealtimeVizHistoryCache {
         return;
       }
 
+      let hadBufferedEvents = false;
       while (this.#pendingEvents.length > 0) {
+        hadBufferedEvents = true;
         const pendingEvents = this.#pendingEvents;
         this.#pendingEvents = [];
         this.#pendingEstimatedBytes = 0;
@@ -119,7 +121,9 @@ export class RealtimeVizHistoryCache {
       }
       this.#initialized = true;
       this.#persistLatestMetadata();
-      this.#setStatus(hasInitialRange ? "ready" : "initializing");
+      // Buffered events may replace the old range during pruning. Let their normal flush
+      // callback establish readiness from the committed range instead of publishing this snapshot.
+      this.#setStatus(!hadBufferedEvents && hasInitialRange ? "ready" : "initializing");
       this.#scheduleRangeRefresh();
     } catch (error) {
       if (this.#closing || this.#hasResetStarted(resetGeneration)) {

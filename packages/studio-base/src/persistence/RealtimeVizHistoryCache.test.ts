@@ -319,6 +319,52 @@ describe("RealtimeVizHistoryCache", () => {
     }
   });
 
+  it.each(["retention", "size"])(
+    "waits for buffered initialization messages to survive %s pruning",
+    async (limit) => {
+      const sessionId = `buffered-pruning-${limit}`;
+      const previous = new RealtimeVizHistoryCache({
+        sessionId,
+        retentionWindowMs: 30_000,
+        maxCacheSize: 1_000,
+      });
+      const event = {
+        topic: "/example",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+        schemaName: "example/Message",
+      };
+      await previous.init();
+      previous.append([event, { ...event, receiveTime: { sec: 1, nsec: 1 } }]);
+      await previous.close();
+      const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+      const onStatusChange = jest.fn();
+      const reopened = new RealtimeVizHistoryCache({
+        sessionId,
+        retentionWindowMs: 30_000,
+        maxCacheSize: 1_000,
+        onStatusChange,
+      });
+      reopened.append([
+        {
+          ...event,
+          receiveTime: { sec: limit === "retention" ? 60 : 2, nsec: 0 },
+          sizeInBytes: limit === "size" ? 600 : 1,
+        },
+      ]);
+      try {
+        await reopened.init();
+        await appendSpy.mock.contexts[0]!.flush();
+        expect(onStatusChange).not.toHaveBeenCalledWith("ready");
+        expect((await appendSpy.mock.contexts[0]!.stats()).count).toBe(1);
+      } finally {
+        await reopened.close();
+        appendSpy.mockRestore();
+      }
+    },
+  );
+
   it("buffers messages during initialization and reuses their declared size", async () => {
     let resolveInit = () => {};
     const initGate = new Promise<void>((resolve) => {
