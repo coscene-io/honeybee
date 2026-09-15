@@ -279,6 +279,48 @@ describe("IndexedDbMessageStore", () => {
     },
   );
 
+  it("lets a new writer wait for reset beyond the normal initialization deadline", async () => {
+    const sessionId = "reset-delayed-new-writer";
+    const original = new IndexedDbMessageStore({ sessionId });
+    await original.init();
+    const db = await IDB.openDB(REALTIME_MESSAGE_CACHE_DB_NAME);
+    const metadata = (await db.get("sessions", sessionId)) as CacheSessionMetadata;
+    await db.put("sessions", { ...metadata, cleanupToken: "held-reset" });
+    let markWaiting = () => {};
+    const waiting = new Promise<void>((resolve) => {
+      markWaiting = resolve;
+    });
+    const other = new IndexedDbMessageStore({
+      sessionId,
+      openTimeoutMs: 500,
+      metricSink: (_event, data) => {
+        if (data.status === "waiting-for-reset") {
+          markWaiting();
+        }
+      },
+    });
+    let initializationError: unknown;
+    const initializing = other.init().catch((error: unknown) => {
+      initializationError = error;
+    });
+    try {
+      await waiting;
+      await wait(650);
+      expect(initializationError).toBeUndefined();
+      await db.put("sessions", { ...metadata, cleanupToken: undefined });
+      await initializing;
+      expect(initializationError).toBeUndefined();
+      expect(other.isWritable()).toBe(true);
+      expect((await other.getSessionMetadata())?.owners).toHaveLength(2);
+    } finally {
+      const current = (await db.get("sessions", sessionId)) as CacheSessionMetadata;
+      await db.put("sessions", { ...current, cleanupToken: undefined });
+      await initializing;
+      await Promise.allSettled([other.close(), original.close()]);
+      db.close();
+    }
+  });
+
   it("flushes queued appends on close", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "close-flush" });
     await store.init();
