@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Log from "@foxglove/log";
+import { isGreaterThan } from "@foxglove/rostime";
 import type { MessageEvent } from "@foxglove/studio";
 import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
 import type { RealtimeHistoryStatus, TopicStats } from "@foxglove/studio-base/players/types";
@@ -89,6 +90,13 @@ export class RealtimeVizHistoryCache {
         return;
       }
 
+      // Reopening a session can reuse a playable range even while its live source is idle.
+      // Read before draining the buffer so its append callbacks cannot overtake this snapshot.
+      const initialStats = await this.#store.stats();
+      if (this.#isDisabled() || this.#hasResetStarted(resetGeneration)) {
+        return;
+      }
+
       while (this.#pendingEvents.length > 0) {
         const pendingEvents = this.#pendingEvents;
         this.#pendingEvents = [];
@@ -103,7 +111,18 @@ export class RealtimeVizHistoryCache {
       }
       this.#initialized = true;
       this.#persistLatestMetadata();
+      this.#setStatus(
+        initialStats.count > 0 &&
+          initialStats.earliest != undefined &&
+          initialStats.latest != undefined &&
+          isGreaterThan(initialStats.latest, initialStats.earliest)
+          ? "ready"
+          : "initializing",
+      );
     } catch (error) {
+      if (this.#closing) {
+        return;
+      }
       this.#disable(error, "Failed to initialize realtime viz history cache:");
       await this.#store.discardAndSeal("abandoned");
       throw error;

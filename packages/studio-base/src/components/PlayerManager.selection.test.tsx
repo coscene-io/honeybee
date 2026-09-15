@@ -81,6 +81,11 @@ jest.mock("@foxglove/studio-base/context/UploadFilesContext", () => ({
   useUploadFiles: () => jest.fn(),
 }));
 
+// PlayerSelection exposes a fire-and-forget API; PlayerManager's implementation is async.
+type AsyncSelection = Omit<PlayerSelection, "selectSource"> & {
+  selectSource: (sourceId: string, args?: DataSourceArgs) => Promise<void>;
+};
+
 function makePlayer() {
   return {
     close: jest.fn(async () => {}),
@@ -95,6 +100,73 @@ describe("PlayerManager source selection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  it.each(["resolve", "reject"])(
+    "discards a pending replay after unmount when initialization will %s",
+    async (outcome) => {
+      const live = makePlayer();
+      const replay = makePlayer();
+      let resolvePlayer: (player: Player) => void = () => {};
+      let rejectPlayer: (error: Error) => void = () => {};
+      const playerGate = new Promise<Player>((resolve, reject) => {
+        resolvePlayer = resolve;
+        rejectPlayer = reject;
+      });
+      const initializeReplay = jest.fn(async () => await playerGate);
+      const sources: IDataSourceFactory[] = [
+        {
+          id: "live",
+          type: "sample",
+          displayName: "Live",
+          initialize: () => live as unknown as Player,
+        },
+        {
+          id: "replay",
+          type: "persistent-cache",
+          displayName: "Replay",
+          initialize: initializeReplay,
+        },
+      ];
+      let selection: AsyncSelection | undefined;
+      function CaptureSelection() {
+        selection = useContext(PlayerSelectionContext) as AsyncSelection;
+        return ReactNull;
+      }
+      const view = render(
+        <PlayerManager playerSources={sources}>
+          <CaptureSelection />
+        </PlayerManager>,
+      );
+      try {
+        await act(async () => {
+          await selection!.selectSource("live");
+        });
+        let pending: Promise<void> | undefined;
+        await act(async () => {
+          pending = selection!.selectSource("replay", { type: "persistent-cache" });
+        });
+        expect(initializeReplay).toHaveBeenCalledTimes(1);
+        view.unmount();
+        mockSetDataSource.mockClear();
+        await act(async () => {
+          if (outcome === "resolve") {
+            resolvePlayer(replay as unknown as Player);
+          } else {
+            rejectPlayer(new Error("replay initialization failed after unmount"));
+          }
+          await pending;
+        });
+        expect(replay.close).toHaveBeenCalledTimes(outcome === "resolve" ? 1 : 0);
+        expect(replay.setGlobalVariables).not.toHaveBeenCalled();
+        expect(mockSetDataSource).not.toHaveBeenCalled();
+        expect(live.reOpen).not.toHaveBeenCalled();
+        expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+      } finally {
+        resolvePlayer(replay as unknown as Player);
+        view.unmount();
+      }
+    },
+  );
 
   it.each<[string, string, DataSourceArgs | undefined]>([
     ["unknown source", "unknown", undefined],
@@ -125,10 +197,6 @@ describe("PlayerManager source selection", () => {
           initialize: initializeReplay,
         },
       ];
-      // PlayerSelection exposes a fire-and-forget API; PlayerManager's implementation is async.
-      type AsyncSelection = Omit<PlayerSelection, "selectSource"> & {
-        selectSource: (sourceId: string, args?: DataSourceArgs) => Promise<void>;
-      };
       let selection: AsyncSelection | undefined;
       function CaptureSelection() {
         selection = useContext(PlayerSelectionContext) as AsyncSelection;

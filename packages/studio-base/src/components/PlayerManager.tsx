@@ -430,7 +430,8 @@ export default function PlayerManager(
 
       // Only a request that will close or replace the player should invalidate in-flight work.
       const selectionGeneration = ++sourceSelectionGenerationRef.current;
-      const isCurrentSelection = () => selectionGeneration === sourceSelectionGenerationRef.current;
+      const isCurrentSelection = () =>
+        isMounted() && selectionGeneration === sourceSelectionGenerationRef.current;
 
       if (!deferSourceStateUpdate) {
         setCurrentSourceId(sourceId);
