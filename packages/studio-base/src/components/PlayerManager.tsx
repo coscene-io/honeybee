@@ -480,17 +480,29 @@ export default function PlayerManager(
       };
 
       if (foundSource.type === "sample") {
-        const newPlayer = await foundSource.initialize({
-          metricsCollector,
-        });
-        if (!isCurrentSelection()) {
-          await closePlayerForSourceSwitch(newPlayer);
-          return;
-        }
+        try {
+          const newPlayer = await foundSource.initialize({
+            metricsCollector,
+          });
+          if (!isCurrentSelection()) {
+            await closePlayerForSourceSwitch(newPlayer);
+            return;
+          }
+          if (newPlayer == undefined) {
+            throw new Error("Unable to initialize sample player");
+          }
 
-        commitSourceState();
-        constructPlayers(newPlayer);
-        setDataSource({ id: sourceId, type: "sample" });
+          commitSourceState();
+          constructPlayers(newPlayer);
+          setDataSource({ id: sourceId, type: "sample" });
+        } catch (error) {
+          if (isCurrentSelection()) {
+            enqueueSnackbar(
+              error instanceof Error ? error.message : "Unable to initialize sample player",
+              { variant: "error" },
+            );
+          }
+        }
         return;
       }
 

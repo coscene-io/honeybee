@@ -114,6 +114,90 @@ describe("PlayerManager source selection", () => {
     mockStore.dataSource = { id: "live", type: "connection", sessionId: "live-session" };
   });
 
+  it.each(["synchronous error", "asynchronous error", "missing player", "superseded error"])(
+    "handles sample initialization failure: %s",
+    async (failure) => {
+      const live = makePlayer();
+      const replacement = makePlayer();
+      let rejectSample = (_error: Error) => {};
+      const sampleGate = new Promise<Player>((_resolve, reject) => {
+        rejectSample = reject;
+      });
+      const sources: IDataSourceFactory[] = [
+        {
+          id: "live",
+          type: "connection",
+          displayName: "Live",
+          initialize: () => live as unknown as Player,
+        },
+        {
+          id: "replacement",
+          type: "connection",
+          displayName: "Replacement",
+          initialize: () => replacement as unknown as Player,
+        },
+        {
+          id: "sample",
+          type: "sample",
+          displayName: "Sample",
+          initialize: (): ReturnType<IDataSourceFactory["initialize"]> => {
+            if (failure === "synchronous error") {
+              throw new Error("sample load failed");
+            }
+            if (failure === "missing player") {
+              return undefined;
+            }
+            return sampleGate;
+          },
+        },
+      ];
+      let selection: AsyncSelection | undefined;
+      function CaptureSelection() {
+        selection = useContext(PlayerSelectionContext) as AsyncSelection;
+        return ReactNull;
+      }
+      const view = render(
+        <PlayerManager playerSources={sources}>
+          <CaptureSelection />
+        </PlayerManager>,
+      );
+      try {
+        await act(async () => {
+          await selection!.selectSource("live", { type: "connection" });
+        });
+        let selectingSample: Promise<void> | undefined;
+        await act(async () => {
+          selectingSample = selection!.selectSource("sample");
+          if (failure === "superseded error") {
+            await selection!.selectSource("replacement", { type: "connection" });
+          }
+          if (failure === "asynchronous error" || failure === "superseded error") {
+            rejectSample(new Error("sample load failed"));
+          }
+          await selectingSample;
+        });
+        if (failure === "superseded error") {
+          expect(selection?.selectedSource?.id).toBe("replacement");
+          expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+        } else {
+          expect(selection?.selectedSource?.id).toBe("live");
+          expect(live.close).not.toHaveBeenCalled();
+          expect(mockSetDataSource).toHaveBeenLastCalledWith(
+            expect.objectContaining({ id: "live" }),
+          );
+          expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+            failure === "missing player"
+              ? "Unable to initialize sample player"
+              : "sample load failed",
+            { variant: "error" },
+          );
+        }
+      } finally {
+        view.unmount();
+      }
+    },
+  );
+
   it.each([
     {
       activeSession: undefined,
