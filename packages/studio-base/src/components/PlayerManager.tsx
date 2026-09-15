@@ -380,6 +380,7 @@ export default function PlayerManager(
     { sourceId: string; args?: DataSourceArgs } | undefined
   >();
   const sourceSelectionGenerationRef = useRef(0);
+  const sourceRequestGenerationRef = useRef(0);
 
   const selectSource = useCallback(
     async (sourceId: string | undefined, args?: DataSourceArgs) => {
@@ -391,6 +392,7 @@ export default function PlayerManager(
       if (sourceId == undefined) {
         // A real teardown must invalidate in-flight source switches.
         sourceSelectionGenerationRef.current += 1;
+        sourceRequestGenerationRef.current += 1;
         // Flush any tracked sampled seek before the player goes away: this path bypasses both
         // setProperty("player", ...) and the collector's close(), so without the flush a stale
         // seek could later emit as settled/timeout with counters from a player that no longer
@@ -445,6 +447,18 @@ export default function PlayerManager(
         return;
       }
 
+      if (foundSource.type === "connection" && args?.type === "connection") {
+        const missingParam = foundSource.requiredParams?.find(
+          (param) => (args.params?.[param]?.trim().length ?? 0) === 0,
+        );
+        if (missingParam != undefined) {
+          enqueueSnackbar(`Unable to initialize player: ${missingParam} is required`, {
+            variant: "error",
+          });
+          return;
+        }
+      }
+
       const requestedReplaySessionId =
         args?.type === "persistent-cache" ? args.params?.sessionId : undefined;
       const replaySessionId =
@@ -459,10 +473,18 @@ export default function PlayerManager(
         return;
       }
 
-      // Only a request that will close or replace the player should invalidate in-flight work.
-      const selectionGeneration = ++sourceSelectionGenerationRef.current;
+      const requestGeneration = ++sourceRequestGenerationRef.current;
+      // Preparing a sample does not close the active player. Keep any pending switch viable
+      // until the sample is ready; if loading fails, that earlier switch can still finish.
+      const selectionGeneration =
+        foundSource.type === "sample"
+          ? sourceSelectionGenerationRef.current
+          : ++sourceSelectionGenerationRef.current;
       const isCurrentSelection = () =>
-        isMounted() && selectionGeneration === sourceSelectionGenerationRef.current;
+        isMounted() &&
+        (foundSource.type === "sample"
+          ? requestGeneration === sourceRequestGenerationRef.current
+          : selectionGeneration === sourceSelectionGenerationRef.current);
 
       // Publish the source identity only after the winning request finishes initialization.
       // A superseded request must not change the selection or reload target of the live player.
@@ -479,6 +501,12 @@ export default function PlayerManager(
         }
       };
 
+      const commitFailedSource = () => {
+        commitSourceState();
+        constructPlayers(undefined);
+        setDataSource(undefined);
+      };
+
       if (foundSource.type === "sample") {
         try {
           const newPlayer = await foundSource.initialize({
@@ -492,6 +520,7 @@ export default function PlayerManager(
             throw new Error("Unable to initialize sample player");
           }
 
+          sourceSelectionGenerationRef.current += 1;
           commitSourceState();
           constructPlayers(newPlayer);
           setDataSource({ id: sourceId, type: "sample" });
@@ -549,7 +578,7 @@ export default function PlayerManager(
               return;
             }
             if (!isReady) {
-              setDataSource(undefined);
+              commitFailedSource();
               return;
             }
 
@@ -588,11 +617,8 @@ export default function PlayerManager(
               return;
             }
 
-            if (!newPlayer) {
-              commitSourceState();
-              constructPlayers(undefined);
-              setDataSource(undefined);
-              return;
+            if (newPlayer == undefined) {
+              throw new Error("Unable to initialize connection player");
             }
 
             commitSourceState();
@@ -681,6 +707,10 @@ export default function PlayerManager(
                 return;
               }
 
+              if (newPlayer == undefined) {
+                throw new Error("Unable to initialize file player");
+              }
+
               commitSourceState();
               constructPlayers(newPlayer);
 
@@ -718,6 +748,10 @@ export default function PlayerManager(
                 return;
               }
 
+              if (newPlayer == undefined) {
+                throw new Error("Unable to initialize file player");
+              }
+
               commitSourceState();
               constructPlayers(newPlayer);
               const recentId = addRecent({
@@ -741,7 +775,7 @@ export default function PlayerManager(
         if (isPersistentCacheSource) {
           playerInstances?.player.reOpen();
         } else {
-          setDataSource(undefined);
+          commitFailedSource();
         }
         enqueueSnackbar((error as Error).message, { variant: "error" });
       }

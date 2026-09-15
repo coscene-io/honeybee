@@ -15,6 +15,7 @@ import PlayerSelectionContext, {
   IDataSourceFactory,
   PlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import FoxgloveWebSocketDataSourceFactory from "@foxglove/studio-base/dataSources/FoxgloveWebSocketDataSourceFactory";
 import type { Player } from "@foxglove/studio-base/players/types";
 
 import PlayerManager from "./PlayerManager";
@@ -112,6 +113,184 @@ describe("PlayerManager source selection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStore.dataSource = { id: "live", type: "connection", sessionId: "live-session" };
+  });
+
+  it.each([
+    "connection rejection",
+    "connection missing player",
+    "file read rejection",
+    "file missing player",
+  ])("commits a consistent failed source after %s and can retry it", async (failure) => {
+    const live = makePlayer();
+    const replacement = makePlayer();
+    const isFile = failure.startsWith("file");
+    const initialize = jest.fn<ReturnType<IDataSourceFactory["initialize"]>, []>(
+      () => replacement as unknown as Player,
+    );
+    if (failure.endsWith("missing player")) {
+      initialize.mockReturnValueOnce(undefined);
+    } else if (failure === "connection rejection") {
+      initialize.mockRejectedValueOnce(new Error("replacement failed"));
+    }
+    const file = new File([], "example.mcap");
+    const getFile = jest.fn(async () => file);
+    if (failure === "file read rejection") {
+      getFile.mockRejectedValueOnce(new Error("replacement failed"));
+    }
+    const handle = {
+      name: file.name,
+      queryPermission: jest.fn(async () => "granted"),
+      getFile,
+    } as unknown as FileSystemFileHandle;
+    const args: DataSourceArgs = isFile
+      ? { type: "file", handle }
+      : { type: "connection", params: { url: "replacement-url" } };
+    const sources: IDataSourceFactory[] = [
+      {
+        id: "live",
+        type: "sample",
+        displayName: "Live",
+        initialize: () => live as unknown as Player,
+      },
+      {
+        id: "replacement",
+        type: isFile ? "file" : "connection",
+        displayName: "Replacement",
+        initialize,
+      },
+    ];
+    let selection: AsyncSelection | undefined;
+    function CaptureSelection() {
+      selection = useContext(PlayerSelectionContext) as AsyncSelection;
+      return ReactNull;
+    }
+    const view = render(
+      <PlayerManager playerSources={sources}>
+        <CaptureSelection />
+      </PlayerManager>,
+    );
+    try {
+      await act(async () => {
+        await selection!.selectSource("live");
+      });
+      await act(async () => {
+        await selection!.selectSource("replacement", args);
+      });
+      expect(selection?.selectedSource?.id).toBe("replacement");
+      expect(mockSetDataSource).toHaveBeenLastCalledWith(undefined);
+      expect(mockSetPlayerProperty).toHaveBeenLastCalledWith("player", "replacement", args);
+      expect(mockEnqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(live.close).toHaveBeenCalled();
+      expect(live.reOpen).not.toHaveBeenCalled();
+      mockEnqueueSnackbar.mockClear();
+      await act(async () => {
+        await selection!.reloadCurrentSource();
+      });
+      expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+      expect(mockSetDataSource).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: "replacement", type: args.type }),
+      );
+      expect(replacement.setGlobalVariables).toHaveBeenCalled();
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it.each([
+    ["reject", "before"],
+    ["reject", "after"],
+    ["missing player", "before"],
+    ["missing player", "after"],
+    ["success", "before"],
+    ["success", "after"],
+  ])("settles a sample with %s %s the pending teardown finishes", async (failure, order) => {
+    const live = makePlayer();
+    const other = makePlayer();
+    const sample = makePlayer();
+    let releaseClose = () => {};
+    const closeGate = new Promise<void>((resolve) => {
+      releaseClose = resolve;
+    });
+    live.close.mockImplementation(async () => {
+      await closeGate;
+    });
+    let resolveSample = (_player: Player | undefined) => {};
+    let rejectSample = (_error: Error) => {};
+    const sampleGate = new Promise<Player | undefined>((resolve, reject) => {
+      resolveSample = resolve;
+      rejectSample = reject;
+    });
+    const initializeOther = jest.fn(() => other as unknown as Player);
+    const sources: IDataSourceFactory[] = [
+      {
+        id: "live",
+        type: "sample",
+        displayName: "Live",
+        initialize: () => live as unknown as Player,
+      },
+      { id: "other", type: "connection", displayName: "Other", initialize: initializeOther },
+      {
+        id: "sample",
+        type: "sample",
+        displayName: "Sample",
+        initialize: async () => await sampleGate,
+      },
+    ];
+    let selection: AsyncSelection | undefined;
+    function CaptureSelection() {
+      selection = useContext(PlayerSelectionContext) as AsyncSelection;
+      return ReactNull;
+    }
+    const view = render(
+      <PlayerManager playerSources={sources}>
+        <CaptureSelection />
+      </PlayerManager>,
+    );
+    let switching: Promise<void> | undefined;
+    let sampling: Promise<void> | undefined;
+    try {
+      await act(async () => {
+        await selection!.selectSource("live");
+      });
+      await act(async () => {
+        switching = selection!.selectSource("other", { type: "connection" });
+      });
+      await act(async () => {
+        sampling = selection!.selectSource("sample");
+      });
+      if (order === "after") {
+        await act(async () => {
+          releaseClose();
+          await switching;
+        });
+      }
+      await act(async () => {
+        if (failure === "reject") {
+          rejectSample(new Error("sample failed"));
+        } else {
+          resolveSample(failure === "success" ? (sample as unknown as Player) : undefined);
+        }
+        await sampling;
+      });
+      await act(async () => {
+        releaseClose();
+        await switching;
+      });
+      const sampleWins = failure === "success";
+      const expectedSource = sampleWins ? "sample" : "other";
+      expect(initializeOther).toHaveBeenCalledTimes(sampleWins && order === "before" ? 0 : 1);
+      expect(selection?.selectedSource?.id).toBe(expectedSource);
+      expect(mockSetDataSource).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: expectedSource }),
+      );
+      expect((sampleWins ? sample : other).setGlobalVariables).toHaveBeenCalled();
+      expect(mockEnqueueSnackbar).toHaveBeenCalledTimes(sampleWins ? 0 : 1);
+    } finally {
+      releaseClose();
+      resolveSample(undefined);
+      await Promise.allSettled([switching, sampling]);
+      view.unmount();
+    }
   });
 
   it.each(["synchronous error", "asynchronous error", "missing player", "superseded error"])(
@@ -467,6 +646,8 @@ describe("PlayerManager source selection", () => {
     ["missing file", "file", { type: "file" }],
     ["empty file list", "file", { type: "file", files: [] }],
     ["mismatched arguments", "replay", { type: "connection", params: {} }],
+    ["missing websocket URL", "coscene-websocket", { type: "connection", params: {} }],
+    ["empty websocket URL", "coscene-websocket", { type: "connection", params: { url: "" } }],
   ])(
     "does not cancel a pending replay for an invalid request: %s",
     async (_label, sourceId, args) => {
@@ -480,7 +661,12 @@ describe("PlayerManager source selection", () => {
         await closeGate;
       });
       const initializeReplay = jest.fn(() => replay as unknown as Player);
+      const websocketFactory = new FoxgloveWebSocketDataSourceFactory();
+      const initializeWebsocket = jest
+        .spyOn(websocketFactory, "initialize")
+        .mockReturnValue(undefined);
       const sources: IDataSourceFactory[] = [
+        websocketFactory,
         {
           id: "coscene-data-platform",
           type: "connection",
@@ -525,6 +711,8 @@ describe("PlayerManager source selection", () => {
           invalidRequest = selection!.selectSource(sourceId, args);
         });
         expect(mockEnqueueSnackbar).toHaveBeenCalledTimes(1);
+        expect(initializeWebsocket).not.toHaveBeenCalled();
+        expect(live.close).toHaveBeenCalledTimes(1);
         expect(selection?.selectedSource?.id).toBe("live");
         await act(async () => {
           resolveClose();
