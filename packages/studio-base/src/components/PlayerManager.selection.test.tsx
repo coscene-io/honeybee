@@ -19,6 +19,7 @@ import type { Player } from "@foxglove/studio-base/players/types";
 import PlayerManager from "./PlayerManager";
 
 const mockSetDataSource = jest.fn();
+const mockSetPlayerProperty = jest.fn();
 const mockStore = {
   record: {},
   project: {},
@@ -31,6 +32,12 @@ const mockEmpty = {};
 const mockRecents = { recents: [], addRecent: jest.fn() };
 const mockEnqueueSnackbar = jest.fn();
 
+jest.mock("@foxglove/studio-base/persistence/IndexedDbMessageStore", () => ({
+  IndexedDbMessageStore: jest.fn(() => ({
+    discardAndSeal: jest.fn(async () => {}),
+    close: jest.fn(async () => {}),
+  })),
+}));
 jest.mock("notistack", () => ({ useSnackbar: () => ({ enqueueSnackbar: mockEnqueueSnackbar }) }));
 jest.mock("@foxglove/studio-base/context/AnalyticsContext", () => ({
   useAnalytics: () => mockEmpty,
@@ -58,7 +65,7 @@ jest.mock("@foxglove/studio-base/hooks/useIndexedDbRecents", () => ({
 }));
 jest.mock("@foxglove/studio-base/players/AnalyticsMetricsCollector", () => ({
   __esModule: true,
-  default: jest.fn(() => ({ setProperty: jest.fn() })),
+  default: jest.fn(() => ({ setProperty: mockSetPlayerProperty })),
 }));
 jest.mock("@foxglove/studio-base/players/TopicAliasingPlayer/TopicAliasingPlayer", () => ({
   TopicAliasingPlayer: jest.fn((player: Player) => player),
@@ -100,6 +107,107 @@ describe("PlayerManager source selection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  it.each(["teardown", "sample initialization"])(
+    "keeps the live selection when replay fails after superseding %s",
+    async (phase) => {
+      const live = makePlayer();
+      const superseded = makePlayer();
+      let releasePending = () => {};
+      const pendingGate = new Promise<void>((resolve) => {
+        releasePending = resolve;
+      });
+      const initializeLive = jest.fn(() => live as unknown as Player);
+      const initializeOther = jest.fn(async () => {
+        await pendingGate;
+        return superseded as unknown as Player;
+      });
+      const sources: IDataSourceFactory[] = [
+        { id: "live", type: "connection", displayName: "Live", initialize: initializeLive },
+        {
+          id: "other",
+          type: phase === "teardown" ? "connection" : "sample",
+          displayName: "Other",
+          initialize: initializeOther,
+        },
+        {
+          id: "replay",
+          type: "persistent-cache",
+          displayName: "Replay",
+          initialize: () => {
+            throw new Error("replay initialization failed");
+          },
+        },
+      ];
+      let selection: AsyncSelection | undefined;
+      function CaptureSelection() {
+        selection = useContext(PlayerSelectionContext) as AsyncSelection;
+        return ReactNull;
+      }
+      const view = render(
+        <PlayerManager playerSources={sources}>
+          <CaptureSelection />
+        </PlayerManager>,
+      );
+      let pendingOther: Promise<void> | undefined;
+      try {
+        await act(async () => {
+          await selection!.selectSource("live", {
+            type: "connection",
+            params: { url: "live-url" },
+          });
+        });
+        if (phase === "teardown") {
+          live.close.mockImplementation(async () => {
+            await pendingGate;
+          });
+        }
+        await act(async () => {
+          pendingOther = selection!.selectSource("other", {
+            type: "connection",
+            params: { url: "other-url" },
+          });
+        });
+        let pendingReplay: Promise<void> | undefined;
+        await act(async () => {
+          pendingReplay = selection!.selectSource("replay", { type: "persistent-cache" });
+          if (phase === "teardown") {
+            releasePending();
+          }
+          await pendingReplay;
+        });
+        expect(live.reOpen).toHaveBeenCalledTimes(1);
+        expect(selection?.selectedSource?.id).toBe("live");
+        expect(mockSetDataSource).toHaveBeenLastCalledWith(
+          expect.objectContaining({ id: "live", type: "connection" }),
+        );
+        expect(mockSetPlayerProperty).toHaveBeenLastCalledWith("player", "live", {
+          type: "connection",
+          params: { url: "live-url" },
+        });
+        expect(mockEnqueueSnackbar).toHaveBeenLastCalledWith("replay initialization failed", {
+          variant: "error",
+        });
+        await act(async () => {
+          releasePending();
+          await pendingOther;
+        });
+        expect(selection?.selectedSource?.id).toBe("live");
+        expect(superseded.close).toHaveBeenCalledTimes(phase === "teardown" ? 0 : 1);
+        await act(async () => {
+          await selection!.reloadCurrentSource();
+        });
+        expect(initializeLive).toHaveBeenCalledTimes(2);
+        expect(initializeLive).toHaveBeenLastCalledWith(
+          expect.objectContaining({ params: { url: "live-url" } }),
+        );
+      } finally {
+        releasePending();
+        await pendingOther;
+        view.unmount();
+      }
+    },
+  );
 
   it.each(["resolve", "reject"])(
     "discards a pending replay after unmount when initialization will %s",

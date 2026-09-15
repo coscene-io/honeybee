@@ -433,16 +433,22 @@ export default function PlayerManager(
       const isCurrentSelection = () =>
         isMounted() && selectionGeneration === sourceSelectionGenerationRef.current;
 
-      if (!deferSourceStateUpdate) {
+      // Publish the source identity only after the winning request finishes initialization.
+      // A superseded request must not change the selection or reload target of the live player.
+      const commitSourceState = () => {
         setCurrentSourceId(sourceId);
         metricsCollector.setProperty("player", sourceId, args);
         setSelectedSource(foundSource);
-      }
+        setCurrentSourceArgs(args);
+        if (args?.type !== "persistent-cache") {
+          setCurrentSourceParams({
+            sourceId,
+            args: args?.type === "connection" ? { ...args, params: { ...args.params } } : args,
+          });
+        }
+      };
 
       if (foundSource.type === "sample") {
-        setDataSource({ id: sourceId, type: "sample" });
-        setCurrentSourceParams({ sourceId, args });
-
         const newPlayer = await foundSource.initialize({
           metricsCollector,
         });
@@ -451,7 +457,9 @@ export default function PlayerManager(
           return;
         }
 
+        commitSourceState();
         constructPlayers(newPlayer);
+        setDataSource({ id: sourceId, type: "sample" });
         return;
       }
 
@@ -480,21 +488,14 @@ export default function PlayerManager(
       }
       if (!deferSourceStateUpdate) {
         setDataSource(undefined);
-        setCurrentSourceArgs(args);
       }
 
       try {
         switch (args.type) {
           case "connection": {
             void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
-            const params: Record<string, string | undefined> = {
-              ...args.params,
-            };
-
             const sessionId = uuidv4();
             setDataSource({ id: sourceId, type: "connection", sessionId, params: args.params });
-
-            setCurrentSourceParams({ sourceId, args: { type: "connection", params } });
 
             const isReady = await beforeConnectionSource(
               sourceId,
@@ -545,11 +546,13 @@ export default function PlayerManager(
             }
 
             if (!newPlayer) {
+              commitSourceState();
               constructPlayers(undefined);
               setDataSource(undefined);
               return;
             }
 
+            commitSourceState();
             constructPlayers(newPlayer);
 
             const recentId =
@@ -593,23 +596,19 @@ export default function PlayerManager(
               throw new Error("Unable to initialize persistent cache player");
             }
 
-            setCurrentSourceId(sourceId);
-            metricsCollector.setProperty("player", sourceId, args);
-            setSelectedSource(foundSource);
-            setCurrentSourceArgs(args);
             setDataSource({
               id: sourceId,
               type: "persistent-cache",
               sessionId: replaySessionId,
               previousRecentId: replayRecentId,
             });
+            commitSourceState();
             constructPlayers(newPlayer);
             return;
           }
 
           case "file": {
             void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
-            setCurrentSourceParams({ sourceId, args });
 
             const handle = args.handle;
             const files = args.files;
@@ -639,6 +638,7 @@ export default function PlayerManager(
                 return;
               }
 
+              commitSourceState();
               constructPlayers(newPlayer);
 
               setDataSource({ id: sourceId, type: "file" });
@@ -675,6 +675,7 @@ export default function PlayerManager(
                 return;
               }
 
+              commitSourceState();
               constructPlayers(newPlayer);
               const recentId = addRecent({
                 type: "file",
