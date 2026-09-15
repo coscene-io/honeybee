@@ -63,6 +63,36 @@ function makeRemotelyDeletedLayout(permission: LayoutPermission): Layout {
   };
 }
 
+function makeStoredLayout(): Layout {
+  const id = "users/u/layouts/1";
+  const data = {
+    layout: "Panel!1",
+    configById: {},
+    globalVariables: {},
+    userNodes: {},
+  };
+
+  return {
+    id: id as LayoutID,
+    parent: "users/u",
+    folder: "",
+    name: "Layout",
+    permission: "PERSONAL_WRITE",
+    baseline: {
+      data,
+      savedAt: ts("2024-01-01T00:00:00.000Z"),
+      modifier: undefined,
+      modifierNickname: undefined,
+    },
+    working: undefined,
+    syncInfo: {
+      status: "tracked",
+      lastRemoteSavedAt: ts("2024-01-01T00:00:00.000Z"),
+      lastRemoteUpdatedAt: ts("2024-01-01T00:00:00.000Z"),
+    },
+  };
+}
+
 function renderButton(layout: Layout, onOverwriteLayout = jest.fn()): void {
   render(
     <ThemeProvider isDark>
@@ -152,5 +182,80 @@ describe("<CurrentLayoutButton />", () => {
 
     expect(screen.getByText("MP4")).toBeDefined();
     expect(screen.queryByText("No layout")).toBeNull();
+  });
+
+  it("does not treat Space as a click on the layout opener", () => {
+    const onClick = jest.fn();
+    const layout = makeStoredLayout();
+    render(
+      <ThemeProvider isDark>
+        <CurrentLayoutButton
+          currentLayoutId={layout.id}
+          layouts={{ allLayouts: [layout], personalFolders: [], projectFolders: [] }}
+          onClick={onClick}
+          onOverwriteLayout={jest.fn()}
+          onSaveRecommendedLayout={jest.fn()}
+          onRevertLayout={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    const opener = screen.getByRole("button");
+    opener.focus();
+    fireEvent.keyDown(opener, { key: " ", code: "Space" });
+    fireEvent.keyUp(opener, { key: " ", code: "Space" });
+
+    // ButtonBase's Space keyup path can emit an act(...) warning; clear before afterEach.
+    for (const [message] of jest.mocked(console.error).mock.calls) {
+      expect(String(message)).toMatch(/act\(|validateDOMNesting/);
+    }
+    jest.mocked(console.error).mockClear();
+
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("does not preventDefault Space keyup on nested Save", () => {
+    const layout = makeRemotelyDeletedLayout("PERSONAL_WRITE");
+    renderButton(layout);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    const event = new KeyboardEvent("keyup", {
+      key: " ",
+      code: "Space",
+      bubbles: true,
+      cancelable: true,
+    });
+    saveButton.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("treats Enter as a click on the layout opener", () => {
+    const onClick = jest.fn();
+    const layout = makeStoredLayout();
+    render(
+      <ThemeProvider isDark>
+        <CurrentLayoutButton
+          currentLayoutId={layout.id}
+          layouts={{ allLayouts: [layout], personalFolders: [], projectFolders: [] }}
+          onClick={onClick}
+          onOverwriteLayout={jest.fn()}
+          onSaveRecommendedLayout={jest.fn()}
+          onRevertLayout={jest.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    const opener = screen.getByRole("button");
+    opener.focus();
+    fireEvent.keyDown(opener, { key: "Enter", code: "Enter" });
+
+    // ButtonBase's Enter keydown path can emit an act(...) warning; clear before afterEach.
+    for (const [message] of jest.mocked(console.error).mock.calls) {
+      expect(String(message)).toMatch(/act\(|validateDOMNesting/);
+    }
+    jest.mocked(console.error).mockClear();
+
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
