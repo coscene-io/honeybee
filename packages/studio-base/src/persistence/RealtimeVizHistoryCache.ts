@@ -24,7 +24,6 @@ import {
 const log = Log.getLogger(__filename);
 const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
 const RANGE_READ_TIMEOUT_MS = 5_000;
-const RANGE_REFRESH_INTERVAL_MS = 1_000;
 
 type ActiveRealtimeHistoryStatus = Exclude<RealtimeHistoryStatus, "disabled">;
 
@@ -45,9 +44,6 @@ export class RealtimeVizHistoryCache {
   #status: ActiveRealtimeHistoryStatus = "initializing";
   #onStatusChange?: (status: ActiveRealtimeHistoryStatus) => void;
   #failure?: Error;
-  #rangeRefreshTimer?: ReturnType<typeof setTimeout>;
-  #rangeRefreshPromise?: Promise<void>;
-  #persistedRangeVersion = 0;
 
   public constructor({
     sessionId,
@@ -69,9 +65,9 @@ export class RealtimeVizHistoryCache {
       retentionWindowMs,
       maxCacheSize,
       metricSink,
+      // Live readiness follows local commits; opening replay validates the session again.
       onReplayableRangeChange: ({ hasRange }) => {
         if (this.#initialized && !this.#disabled && !this.#closing) {
-          this.#persistedRangeVersion++;
           this.#setStatus(hasRange ? "ready" : "initializing");
         }
       },
@@ -124,7 +120,6 @@ export class RealtimeVizHistoryCache {
       // Buffered events may replace the old range during pruning. Let their normal flush
       // callback establish readiness from the committed range instead of publishing this snapshot.
       this.#setStatus(!hadBufferedEvents && hasInitialRange ? "ready" : "initializing");
-      this.#scheduleRangeRefresh();
     } catch (error) {
       if (this.#closing || this.#hasResetStarted(resetGeneration)) {
         return;
@@ -169,57 +164,6 @@ export class RealtimeVizHistoryCache {
       if (timer != undefined) {
         clearTimeout(timer);
       }
-    }
-  }
-
-  #scheduleRangeRefresh(): void {
-    if (
-      this.#disabled ||
-      this.#closing ||
-      !this.#initialized ||
-      this.#rangeRefreshTimer != undefined ||
-      this.#rangeRefreshPromise != undefined
-    ) {
-      return;
-    }
-    // Idle connections also need to observe resets by other writers. Poll bounded index keys,
-    // without overlapping reads or relying on BroadcastChannel availability in workers.
-    this.#rangeRefreshTimer = setTimeout(() => {
-      this.#rangeRefreshTimer = undefined;
-      const resetGeneration = this.#resetGeneration;
-      const persistedRangeVersion = this.#persistedRangeVersion;
-      const isCurrent = () =>
-        !this.#disabled &&
-        !this.#closing &&
-        !this.#hasResetStarted(resetGeneration) &&
-        persistedRangeVersion === this.#persistedRangeVersion;
-      const refresh = this.#readPersistedRange().then(
-        (hasRange) => {
-          if (isCurrent()) {
-            this.#setStatus(hasRange ? "ready" : "initializing");
-          }
-        },
-        (error: unknown) => {
-          if (isCurrent()) {
-            this.#disable(error, "Failed to refresh realtime cache readiness:");
-            this.#discardAfterFailure();
-          }
-        },
-      );
-      this.#rangeRefreshPromise = refresh;
-      void refresh.finally(() => {
-        if (this.#rangeRefreshPromise === refresh) {
-          this.#rangeRefreshPromise = undefined;
-        }
-        this.#scheduleRangeRefresh();
-      });
-    }, RANGE_REFRESH_INTERVAL_MS);
-  }
-
-  #cancelRangeRefresh(): void {
-    if (this.#rangeRefreshTimer != undefined) {
-      clearTimeout(this.#rangeRefreshTimer);
-      this.#rangeRefreshTimer = undefined;
     }
   }
 
@@ -268,7 +212,6 @@ export class RealtimeVizHistoryCache {
 
     this.#resetGeneration++;
     this.#initialized = false;
-    this.#cancelRangeRefresh();
     this.#pendingEvents = [];
     this.#pendingEstimatedBytes = 0;
     this.#setStatus("initializing");
@@ -327,7 +270,6 @@ export class RealtimeVizHistoryCache {
 
       this.#initialized = true;
       this.#persistLatestMetadata();
-      this.#scheduleRangeRefresh();
       return;
     }
   }
@@ -411,7 +353,6 @@ export class RealtimeVizHistoryCache {
 
   async #closeImpl(): Promise<void> {
     this.#closing = true;
-    this.#cancelRangeRefresh();
     const resetPromise = this.#resetPromise;
     if (this.#disabled || (!this.#initialized && resetPromise == undefined)) {
       this.#disabled = true;
@@ -474,7 +415,6 @@ export class RealtimeVizHistoryCache {
       error instanceof Error ? error : new Error("Realtime visualization history cache failed");
     this.#failure ??= failure;
     this.#disabled = true;
-    this.#cancelRangeRefresh();
     this.#pendingEvents = [];
     this.#pendingEstimatedBytes = 0;
     this.#setStatus("unavailable");

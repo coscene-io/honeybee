@@ -95,7 +95,6 @@ const selectSetIsReadyForSyncLayout = (store: CoreDataStore) => store.setIsReady
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectProject = (store: CoreDataStore) => store.project;
 const selectJobRun = (store: CoreDataStore) => store.jobRun;
-const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
 /** Close the current player, optionally requiring teardown to complete before source replacement. */
 export async function closePlayerForSourceSwitch(
@@ -265,17 +264,31 @@ export default function PlayerManager(
     { topicAliasPlayer: TopicAliasingPlayer; player: UserScriptPlayer } | undefined
   >();
 
+  // Track installations synchronously: React can batch away an intermediate player before
+  // MessagePipelineProvider mounts it and can register its close-on-replacement cleanup.
+  const currentPlayerRef = useRef<{
+    player: Player;
+    dataSource: NonNullable<CoreDataStore["dataSource"]>;
+  }>();
+  const setDataSource = useCoreData(selectSetDataSource);
+
   const { recents, addRecent } = useIndexedDbRecents();
 
   const userScripts = useCurrentLayoutSelector(userScriptsSelector);
   const globalVariables = useCurrentLayoutSelector(globalVariablesSelector);
   const globalVariablesRef = useLatest(globalVariables);
 
-  const constructPlayers = useCallback(
-    (newPlayer: Player | undefined) => {
-      if (!newPlayer) {
+  const installPlayer = useCallback(
+    (newPlayer: Player | undefined, dataSource: CoreDataStore["dataSource"]) => {
+      const previousSessionId = currentPlayerRef.current?.dataSource.sessionId;
+      if (previousSessionId != undefined && previousSessionId !== dataSource?.sessionId) {
+        void markRealtimeCacheForCleanup(previousSessionId);
+      }
+      if (newPlayer == undefined || dataSource == undefined) {
+        currentPlayerRef.current = undefined;
         setPlayerInstances(undefined);
-        return undefined;
+        setDataSource(undefined);
+        return;
       }
 
       const topicAliasingPlayer = new TopicAliasingPlayer(newPlayer);
@@ -287,12 +300,14 @@ export default function PlayerManager(
 
       userScriptPlayer.setGlobalVariables(globalVariablesRef.current);
 
+      currentPlayerRef.current = { player: userScriptPlayer, dataSource };
+      setDataSource(dataSource);
       setPlayerInstances({
         topicAliasPlayer: topicAliasingPlayer,
         player: userScriptPlayer,
       });
     },
-    [globalVariablesRef, perfRegistry, userScriptActions],
+    [globalVariablesRef, perfRegistry, userScriptActions, setDataSource],
   );
 
   useLayoutEffect(
@@ -323,8 +338,6 @@ export default function PlayerManager(
   const recordState = useCoreData(selectRecord);
   const projectState = useCoreData(selectProject);
   const jobRunState = useCoreData(selectJobRun);
-  const dataSourceState = useCoreData(selectDataSource);
-  const setDataSource = useCoreData(selectSetDataSource);
 
   const recordDisplayName = useMemo(() => {
     return recordState.value?.title ?? "";
@@ -380,7 +393,14 @@ export default function PlayerManager(
     { sourceId: string; args?: DataSourceArgs } | undefined
   >();
   const sourceSelectionGenerationRef = useRef(0);
-  const sourceRequestGenerationRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      sourceSelectionGenerationRef.current += 1;
+      void closePlayerForSourceSwitch(currentPlayerRef.current?.player);
+      currentPlayerRef.current = undefined;
+    };
+  }, []);
 
   const selectSource = useCallback(
     async (sourceId: string | undefined, args?: DataSourceArgs) => {
@@ -392,7 +412,7 @@ export default function PlayerManager(
       if (sourceId == undefined) {
         // A real teardown must invalidate in-flight source switches.
         sourceSelectionGenerationRef.current += 1;
-        sourceRequestGenerationRef.current += 1;
+        void closePlayerForSourceSwitch(currentPlayerRef.current?.player);
         // Flush any tracked sampled seek before the player goes away: this path bypasses both
         // setProperty("player", ...) and the collector's close(), so without the flush a stale
         // seek could later emit as settled/timeout with counters from a player that no longer
@@ -402,8 +422,7 @@ export default function PlayerManager(
         setSelectedSource(undefined);
         setCurrentSourceArgs(undefined);
         setCurrentSourceParams(undefined);
-        constructPlayers(undefined);
-        setDataSource(undefined);
+        installPlayer(undefined, undefined);
         return;
       }
 
@@ -459,13 +478,14 @@ export default function PlayerManager(
         }
       }
 
+      const previousPlayer = currentPlayerRef.current;
       const requestedReplaySessionId =
         args?.type === "persistent-cache" ? args.params?.sessionId : undefined;
       const replaySessionId =
         requestedReplaySessionId != undefined && requestedReplaySessionId !== ""
           ? requestedReplaySessionId
-          : dataSourceState?.sessionId;
-      const replayRecentId = dataSourceState?.recentId;
+          : previousPlayer?.dataSource.sessionId;
+      const replayRecentId = previousPlayer?.dataSource.recentId;
       if (args?.type === "persistent-cache" && replaySessionId == undefined) {
         enqueueSnackbar("sessionId is required for persistent cache source", {
           variant: "error",
@@ -473,18 +493,13 @@ export default function PlayerManager(
         return;
       }
 
-      const requestGeneration = ++sourceRequestGenerationRef.current;
-      // Preparing a sample does not close the active player. Keep any pending switch viable
-      // until the sample is ready; if loading fails, that earlier switch can still finish.
-      const selectionGeneration =
-        foundSource.type === "sample"
-          ? sourceSelectionGenerationRef.current
-          : ++sourceSelectionGenerationRef.current;
+      const selectionGeneration = ++sourceSelectionGenerationRef.current;
       const isCurrentSelection = () =>
-        isMounted() &&
-        (foundSource.type === "sample"
-          ? requestGeneration === sourceRequestGenerationRef.current
-          : selectionGeneration === sourceSelectionGenerationRef.current);
+        isMounted() && selectionGeneration === sourceSelectionGenerationRef.current;
+      const isOwnRealtimeReplay =
+        isPersistentCacheSource &&
+        previousPlayer?.dataSource.type === "connection" &&
+        previousPlayer.dataSource.sessionId === replaySessionId;
 
       // Publish the source identity only after the winning request finishes initialization.
       // A superseded request must not change the selection or reload target of the live player.
@@ -503,53 +518,23 @@ export default function PlayerManager(
 
       const commitFailedSource = () => {
         commitSourceState();
-        constructPlayers(undefined);
-        setDataSource(undefined);
+        installPlayer(undefined, undefined);
       };
 
-      if (foundSource.type === "sample") {
-        try {
-          const newPlayer = await foundSource.initialize({
-            metricsCollector,
-          });
-          if (!isCurrentSelection()) {
-            await closePlayerForSourceSwitch(newPlayer);
-            return;
-          }
-          if (newPlayer == undefined) {
-            throw new Error("Unable to initialize sample player");
-          }
-
-          sourceSelectionGenerationRef.current += 1;
-          commitSourceState();
-          constructPlayers(newPlayer);
-          setDataSource({ id: sourceId, type: "sample" });
-        } catch (error) {
-          if (isCurrentSelection()) {
-            enqueueSnackbar(
-              error instanceof Error ? error.message : "Unable to initialize sample player",
-              { variant: "error" },
-            );
-          }
-        }
-        return;
-      }
-
-      if (args == undefined) {
-        return;
-      }
-
       try {
-        await closePlayerForSourceSwitch(playerInstances?.player, {
+        await closePlayerForSourceSwitch(previousPlayer?.player, {
           // Realtime replay must never open a session whose final cache flush failed. Other source
           // switches retain the existing best-effort teardown behavior for compatibility.
-          propagateError: args.type === "persistent-cache",
+          propagateError: isOwnRealtimeReplay,
         });
       } catch (error) {
         if (!isCurrentSelection()) {
           return;
         }
-        playerInstances?.player.reOpen();
+        if (currentPlayerRef.current === previousPlayer) {
+          previousPlayer?.player.reOpen();
+          setDataSource(previousPlayer?.dataSource);
+        }
         enqueueSnackbar(`Unable to switch to playback: ${(error as Error).message}`, {
           variant: "error",
         });
@@ -563,9 +548,25 @@ export default function PlayerManager(
       }
 
       try {
+        if (foundSource.type === "sample") {
+          const newPlayer = await foundSource.initialize({ metricsCollector });
+          if (!isCurrentSelection()) {
+            await closePlayerForSourceSwitch(newPlayer);
+            return;
+          }
+          if (newPlayer == undefined) {
+            throw new Error("Unable to initialize sample player");
+          }
+          commitSourceState();
+          installPlayer(newPlayer, { id: sourceId, type: "sample" });
+          return;
+        }
+
+        if (args == undefined) {
+          return;
+        }
         switch (args.type) {
           case "connection": {
-            void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
             const sessionId = uuidv4();
             setDataSource({ id: sourceId, type: "connection", sessionId, params: args.params });
 
@@ -622,8 +623,6 @@ export default function PlayerManager(
             }
 
             commitSourceState();
-            constructPlayers(newPlayer);
-
             const recentId =
               sourceId === SHARE_MANIFEST_DATA_SOURCE_ID
                 ? undefined
@@ -635,7 +634,7 @@ export default function PlayerManager(
                     extra: args.params,
                   });
 
-            setDataSource({
+            installPlayer(newPlayer, {
               id: sourceId,
               type: "connection",
               sessionId,
@@ -665,20 +664,17 @@ export default function PlayerManager(
               throw new Error("Unable to initialize persistent cache player");
             }
 
-            setDataSource({
+            commitSourceState();
+            installPlayer(newPlayer, {
               id: sourceId,
               type: "persistent-cache",
               sessionId: replaySessionId,
               previousRecentId: replayRecentId,
             });
-            commitSourceState();
-            constructPlayers(newPlayer);
             return;
           }
 
           case "file": {
-            void markRealtimeCacheForCleanup(dataSourceState?.sessionId);
-
             const handle = args.handle;
             const files = args.files;
 
@@ -712,9 +708,7 @@ export default function PlayerManager(
               }
 
               commitSourceState();
-              constructPlayers(newPlayer);
-
-              setDataSource({ id: sourceId, type: "file" });
+              installPlayer(newPlayer, { id: sourceId, type: "file" });
               return;
             } else if (handle) {
               const permission = await handle.queryPermission({ mode: "read" });
@@ -753,7 +747,6 @@ export default function PlayerManager(
               }
 
               commitSourceState();
-              constructPlayers(newPlayer);
               const recentId = addRecent({
                 type: "file",
                 title: handle.name,
@@ -761,7 +754,7 @@ export default function PlayerManager(
                 handle,
               });
 
-              setDataSource({ id: sourceId, type: "file", recentId });
+              installPlayer(newPlayer, { id: sourceId, type: "file", recentId });
               return;
             }
           }
@@ -772,23 +765,23 @@ export default function PlayerManager(
         if (!isCurrentSelection()) {
           return;
         }
-        if (isPersistentCacheSource) {
-          playerInstances?.player.reOpen();
+        if (isOwnRealtimeReplay && currentPlayerRef.current === previousPlayer) {
+          previousPlayer.player.reOpen();
+          setDataSource(previousPlayer.dataSource);
         } else {
           commitFailedSource();
         }
-        enqueueSnackbar((error as Error).message, { variant: "error" });
+        enqueueSnackbar(error instanceof Error ? error.message : "Unable to initialize player", {
+          variant: "error",
+        });
       }
     },
     [
       playerSources,
       metricsCollector,
-      playerInstances,
-      constructPlayers,
+      installPlayer,
       setDataSource,
       enqueueSnackbar,
-      dataSourceState?.sessionId,
-      dataSourceState?.recentId,
       beforeConnectionSource,
       confirm,
       consoleApi,

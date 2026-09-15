@@ -263,62 +263,6 @@ describe("RealtimeVizHistoryCache", () => {
     }
   });
 
-  it("refreshes an idle cache after another connection clears its session", async () => {
-    const sessionId = "idle-shared-reset";
-    const writer = new IndexedDbMessageStore({ sessionId, kind: "realtime-viz" });
-    const event = {
-      topic: "/example",
-      receiveTime: { sec: 1, nsec: 0 },
-      message: {},
-      sizeInBytes: 1,
-      schemaName: "example/Message",
-    };
-    await writer.init();
-    await writer.append([event, { ...event, receiveTime: { sec: 1, nsec: 1 } }]);
-    await writer.flush();
-    let runRefresh = () => {};
-    let markRangeCleared = () => {};
-    const rangeCleared = new Promise<void>((resolve) => {
-      markRangeCleared = resolve;
-    });
-    const onStatusChange = jest.fn((status: string) => {
-      if (status === "initializing") {
-        markRangeCleared();
-      }
-    });
-    const originalSetTimeout = globalThis.setTimeout;
-    const timeoutSpy = jest
-      .spyOn(globalThis, "setTimeout")
-      .mockImplementation((handler, timeout, ...args) => {
-        if (timeout !== 1_000) {
-          return originalSetTimeout(handler, timeout, ...args);
-        }
-        runRefresh = () => {
-          handler(...args);
-        };
-        return originalSetTimeout(() => {}, 0);
-      });
-    const cache = new RealtimeVizHistoryCache({
-      sessionId,
-      retentionWindowMs: 30_000,
-      onStatusChange,
-    });
-    try {
-      await cache.init();
-      expect(onStatusChange).toHaveBeenLastCalledWith("ready");
-      await writer.clear();
-      runRefresh();
-      await rangeCleared;
-      expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
-        "ready",
-        "initializing",
-      ]);
-    } finally {
-      await Promise.all([cache.close(), writer.close()]);
-      timeoutSpy.mockRestore();
-    }
-  });
-
   it.each(["retention", "size"])(
     "waits for buffered initialization messages to survive %s pruning",
     async (limit) => {
