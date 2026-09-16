@@ -213,7 +213,7 @@ export function validateMessagePathInput(
     return "Invalid expression";
   }
   if (!parsed.isFullySpecified) {
-    return undefined;
+    return "Incomplete expression";
   }
   if (parsed.functionChain == undefined || parsed.functionChain.length === 0) {
     return undefined;

@@ -125,14 +125,12 @@ describe("validateMessagePathInput", () => {
     ).toBeDefined();
   });
 
-  it("does not error on an unclosed operand", () => {
-    expect(parseMessagePath("/t.v.@mul(")).toBeUndefined();
-    expect(validateMessagePathInput("/t.v.@mul(", plotSupport)).toBeUndefined();
-  });
-
-  it("errors on trailing junk after a function suffix", () => {
-    expect(parseMessagePath("/t.v.@abs#")).toBeUndefined();
-    expect(validateMessagePathInput("/t.v.@abs#", plotSupport)).toBe("Invalid expression");
+  it.each([
+    { path: "/t.v.@", expected: "Incomplete expression" },
+    { path: "/t.v.@mul(", expected: undefined },
+    { path: "/t.v.@abs#", expected: "Invalid expression" },
+  ])("validateMessagePathInput($path)", ({ path, expected }) => {
+    expect(validateMessagePathInput(path, plotSupport)).toBe(expected);
   });
 
   it("rejects @length on a scalar terminating type", () => {
