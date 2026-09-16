@@ -186,15 +186,17 @@ function applyNorm(value: unknown): number | undefined {
     if (value.length === 0) {
       return undefined;
     }
-    let sumOfSquares = 0;
+    // hypot(hypot(a, b), c) === hypot(a, b, c): folding avoids both the argument-count limit of
+    // a spread call and the overflow of a plain sum of squares.
+    let norm = 0;
     for (const item of value) {
       const n = Number(item);
       if (!Number.isFinite(n)) {
         return undefined;
       }
-      sumOfSquares += n * n;
+      norm = Math.hypot(norm, n);
     }
-    return Math.sqrt(sumOfSquares);
+    return norm;
   }
   if (!isRecord(value)) {
     return undefined;
@@ -361,6 +363,15 @@ export function hasNumericFields(
   );
 }
 
+/** `{x, y}` or `{x, y, z}` with numeric coordinates; mirrors what `applyNorm` accepts. */
+export function isVectorStructure(item: MessagePathStructureItem | undefined): boolean {
+  if (item?.structureType !== "message" || !hasNumericFields(item, ["x", "y"])) {
+    return false;
+  }
+  const z = item.nextByName.z;
+  return z == undefined || isNumericStructure(z);
+}
+
 function structMessage(datatype: string, fields: readonly string[]): MessagePathStructureItem {
   return {
     structureType: "message",
@@ -404,9 +415,7 @@ function structureAfterFunction(
   }
   if (VECTOR_FUNCTION_NAMES.includes(name)) {
     const ok =
-      input.structureType === "array"
-        ? isNumericStructure(input.next)
-        : hasNumericFields(input, ["x", "y"]);
+      input.structureType === "array" ? isNumericStructure(input.next) : isVectorStructure(input);
     return ok ? NUMERIC_PRIMITIVE : undefined;
   }
   // scalar, operand and time-series functions

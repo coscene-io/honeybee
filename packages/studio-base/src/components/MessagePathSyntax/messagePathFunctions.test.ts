@@ -285,8 +285,26 @@ describe("applyFunctionChain", () => {
     expect(applyFunctionChain(7n, [{ function: "add(1)" }])).toBe(8);
   });
 
-  it("computes the norm of a large array", () => {
+  it("computes the norm of a large array and of large values without overflow", () => {
     const big = new Float64Array(300_000).fill(1);
     expect(applyFunctionChain(big, [{ function: "norm" }])).toBeCloseTo(Math.sqrt(300_000));
+    expect(applyFunctionChain([1e200, 1e200], [{ function: "norm" }])).toBe(
+      Math.hypot(1e200, 1e200),
+    );
+  });
+
+  it("requires z to be numeric when present, matching validation", () => {
+    expect(applyFunctionChain({ x: 3, y: 4, z: "map" }, [{ function: "norm" }])).toBeUndefined();
+    expect(
+      validateMessagePathFunctions(parseMessagePath("/t.v.@norm")!, plotSupport, {
+        structureType: "message",
+        datatype: "Named",
+        nextByName: {
+          x: float64,
+          y: float64,
+          z: { structureType: "primitive", primitiveType: "string", datatype: "string" },
+        },
+      }),
+    ).toMatch(/"norm" cannot be applied/);
   });
 });

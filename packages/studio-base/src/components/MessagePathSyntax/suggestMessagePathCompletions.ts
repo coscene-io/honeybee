@@ -31,18 +31,13 @@ import {
   VECTOR_FUNCTION_NAMES,
   hasNumericFields,
   isNumericStructure,
+  isVectorStructure,
   structureAfterFunctionChain,
   validateMessagePathFunctions,
 } from "./messagePathFunctions";
 
-/** Parse failures that only mean the user is still typing a function or filter. */
-const RECOVERABLE_PARSE_CODES = new Set([
-  "unclosed_paren",
-  "empty_function",
-  "empty_field_access",
-  "unclosed_filter",
-  "empty_name",
-]);
+/** Parse failures that only mean the user is still typing a function operand. */
+const RECOVERABLE_PARSE_CODES = new Set(["unclosed_paren"]);
 
 function isTimeSeriesStep(step: MessagePathFunction): boolean {
   const name = parseFunction(step.function)?.name;
@@ -93,7 +88,7 @@ export function suggestFunctionSuffixes(args: {
       }
     }
   } else if (item.structureType === "message") {
-    if (hasNumericFields(item, ["x", "y"])) {
+    if (isVectorStructure(item)) {
       for (const name of VECTOR_FUNCTION_NAMES) {
         items.push(`@${name}`);
       }

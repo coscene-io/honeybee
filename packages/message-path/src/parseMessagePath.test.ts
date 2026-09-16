@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { parseMessagePath } from "./parseMessagePath";
+import { parseMessagePath, parseMessagePathWithDiagnostics } from "./parseMessagePath";
 
 describe("parseRosPath", () => {
   it("parses valid strings", () => {
@@ -530,6 +530,15 @@ describe("parseRosPath", () => {
     expect(parseMessagePath("/topic.foo[bar]")).toBeUndefined();
     expect(parseMessagePath("/topic.foo{bar==}")).toBeUndefined();
     expect(parseMessagePath("/t.v.@abs#")).toBeUndefined();
+  });
+
+  it("does not return a partial path for an unclosed filter", () => {
+    // `{id==1` must not evaluate like `{id==1}`; only diagnostics are reported.
+    for (const input of ["/t.items[:]{id==1", "/t{", "/t.items[:]{id"]) {
+      const { path, diagnostics } = parseMessagePathWithDiagnostics(input);
+      expect(path).toBeUndefined();
+      expect(diagnostics.map((d) => d.code)).toContain("unclosed_filter");
+    }
   });
 });
 

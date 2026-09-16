@@ -84,7 +84,6 @@ export function parseMessagePathWithDiagnostics(input: string): {
 } {
   const diagnostics: MessagePathDiagnostic[] = [];
   let pos = 0;
-  const flags = { recoverableIncomplete: false };
 
   const peek = (offset = 0): string | undefined => input[pos + offset];
   const atEnd = (): boolean => pos >= input.length;
@@ -373,21 +372,14 @@ export function parseMessagePathWithDiagnostics(input: string): {
       }
     }
 
-    let closed = false;
-    if (peek() === "}") {
-      pos++;
-      closed = true;
-    } else if (atEnd()) {
-      flags.recoverableIncomplete = true;
-      diagnostics.push({
-        code: "unclosed_filter",
-        message: "Unclosed filter",
-        start: open,
-        end: pos,
-      });
-    } else {
+    if (atEnd()) {
+      // Not recoverable: a partial AST here would evaluate `{id==1` exactly like `{id==1}`.
+      fail("unclosed_filter", "Unclosed filter", open, pos);
+    }
+    if (peek() !== "}") {
       fail("unexpected_input", `Unexpected "${peek() ?? ""}" in filter`, pos, pos + 1);
     }
+    pos++;
 
     const filter: MessagePathFilter = {
       type: "filter",
@@ -395,7 +387,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       value,
       nameLoc,
       valueLoc,
-      repr: input.slice(nameLoc, closed ? pos - 1 : pos),
+      repr: input.slice(nameLoc, pos - 1),
     };
     if (operator != undefined) {
       filter.operator = operator;
@@ -510,10 +502,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       topicNameRepr: topic.repr,
       messagePath,
       ...(functionChain.length > 0 ? { functionChain } : {}),
-      isFullySpecified:
-        !flags.recoverableIncomplete &&
-        topic.value !== "/" &&
-        isFullySpecified(messagePath, functionChain),
+      isFullySpecified: topic.value !== "/" && isFullySpecified(messagePath, functionChain),
     };
     return { path, diagnostics };
   } catch (err) {
