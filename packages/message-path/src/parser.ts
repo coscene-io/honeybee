@@ -32,8 +32,8 @@ export type MessagePathDiagnostic = {
 const FILTER_OPERATORS: readonly FilterOperator[] = ["==", "!=", "<=", ">=", "<", ">"];
 
 class UnrecoverableParseError extends Error {
-  override name = "UnrecoverableParseError";
-  constructor(readonly diagnostic: MessagePathDiagnostic) {
+  public override name = "UnrecoverableParseError";
+  public constructor(public readonly diagnostic: MessagePathDiagnostic) {
     super(diagnostic.message);
   }
 }
@@ -62,7 +62,7 @@ export function isFullySpecified(
 }
 
 function isIdChar(char: string | undefined): boolean {
-  if (char == undefined || char.length !== 1) {
+  if (char?.length !== 1) {
     return false;
   }
   return (
@@ -84,7 +84,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
 } {
   const diagnostics: MessagePathDiagnostic[] = [];
   let pos = 0;
-  let recoverableIncomplete = false;
+  const flags = { recoverableIncomplete: false };
 
   const peek = (offset = 0): string | undefined => input[pos + offset];
   const atEnd = (): boolean => pos >= input.length;
@@ -131,7 +131,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       value += char ?? "";
       pos++;
     }
-    fail("unclosed_quote", "Unclosed quoted string", start, input.length);
+    return fail("unclosed_quote", "Unclosed quoted string", start, input.length);
   };
 
   const parseTopic = (): { value: string; repr: string } => {
@@ -206,7 +206,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
 
     const startBound = parseSliceBound();
     if (startBound == undefined) {
-      fail("invalid_slice", "Invalid slice", start, pos + 1);
+      return fail("invalid_slice", "Invalid slice", start, pos + 1);
     }
     if (peek() === "]") {
       pos++;
@@ -221,7 +221,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       pos++;
       return { type: "slice", start: startBound, end };
     }
-    fail("invalid_slice", "Invalid slice", start, pos + 1);
+    return fail("invalid_slice", "Invalid slice", start, pos + 1);
   };
 
   const tryKeyword = (keyword: string): boolean => {
@@ -334,7 +334,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
         valueLoc = pos;
         const parsed = parseFilterValue();
         if (parsed == undefined) {
-          fail(
+          return fail(
             "missing_filter_value",
             "Expected filter value",
             valueLoc,
@@ -352,7 +352,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       pos++;
       closed = true;
     } else if (atEnd()) {
-      recoverableIncomplete = true;
+      flags.recoverableIncomplete = true;
       diagnostics.push({
         code: "unclosed_filter",
         message: "Unclosed filter",
@@ -467,9 +467,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
         }
       }
 
-      chain.push(
-        fieldAccess != undefined ? { function: fn, fieldAccess } : { function: fn },
-      );
+      chain.push(fieldAccess != undefined ? { function: fn, fieldAccess } : { function: fn });
     }
     return chain;
   };
@@ -487,7 +485,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       messagePath,
       ...(functionChain.length > 0 ? { functionChain } : {}),
       isFullySpecified:
-        !recoverableIncomplete &&
+        !flags.recoverableIncomplete &&
         topic.value !== "/" &&
         isFullySpecified(messagePath, functionChain),
     };

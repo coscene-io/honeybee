@@ -186,8 +186,8 @@ function applyNorm(value: unknown): number | undefined {
       return undefined;
     }
     const nums: number[] = [];
-    for (let i = 0; i < value.length; i++) {
-      const n = Number(value[i]);
+    for (const item of value) {
+      const n = Number(item);
       if (!Number.isFinite(n)) {
         return undefined;
       }
@@ -269,10 +269,10 @@ function applyStruct(name: string, value: unknown, fieldAccess: string | undefin
     return result;
   }
   const allowed = STRUCT_FIELD_ACCESS[name];
-  if (allowed == undefined || !allowed.includes(fieldAccess)) {
+  if (allowed?.includes(fieldAccess) !== true) {
     return undefined;
   }
-  return (result as Record<string, number>)[fieldAccess];
+  return result[fieldAccess];
 }
 
 function applyScalar(value: unknown, fn: (n: number) => number): unknown {
@@ -292,7 +292,7 @@ function applyScalar(value: unknown, fn: (n: number) => number): unknown {
 
 export function applyFunctionChain(
   value: unknown,
-  functionChain: MessagePathFunction[] | undefined,
+  functionChain: readonly MessagePathFunction[] | undefined,
 ): unknown {
   let current: unknown = value;
   for (const step of functionChain ?? []) {
@@ -353,7 +353,7 @@ export function validateMessagePathFunctions(
   if (chain == undefined || chain.length === 0) {
     return undefined;
   }
-  if (support.supportsMessagePathFunctions !== true) {
+  if (!support.supportsMessagePathFunctions) {
     return "This field does not accept functions";
   }
 
@@ -383,7 +383,7 @@ export function validateMessagePathFunctions(
         return `"${name}" does not support field access`;
       }
       const allowed = STRUCT_FIELD_ACCESS[name];
-      if (allowed == undefined || !allowed.includes(step.fieldAccess)) {
+      if (allowed?.includes(step.fieldAccess) !== true) {
         return `"${step.fieldAccess}" is not a valid field for ${name}`;
       }
     }
@@ -397,7 +397,7 @@ export function validateMessagePathFunctions(
     }
 
     if (TIME_SERIES_FUNCTION_NAMES.includes(name)) {
-      if (support.supportsTimeSeriesMessagePathFunctions === false) {
+      if (!support.supportsTimeSeriesMessagePathFunctions) {
         return "This field does not accept time-series functions";
       }
       if (seenTimeSeries) {
