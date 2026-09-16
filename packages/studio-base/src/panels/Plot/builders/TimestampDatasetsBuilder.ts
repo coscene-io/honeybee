@@ -35,7 +35,7 @@ import {
 import type { DataItem, UpdateDataAction } from "./TimestampDatasetsBuilderImpl";
 import { restoreUnpackedDataAccessor } from "../PackedDataset";
 import { getChartValue, isChartValue, toOwnedChartValue } from "../datum";
-import { MathFunction, mathFunctions } from "../mathFunctions";
+import { splitTimeSeriesFunctionChain } from "../splitTimeSeriesFunctionChain";
 
 const log = Logger.getLogger(__filename);
 
@@ -182,15 +182,11 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
     if (msgEvents.length > 0) {
       for (const series of this.#series) {
-        const name = series.config.parsed.functionChain?.[0]?.function;
-        const mathFn = name ? mathFunctions[name] : undefined;
-
         const pathItems = readMessagePathItems(
           msgEvents,
           series.config.parsed,
           series.config.timestampMethod,
           activeData.startTime,
-          mathFn,
         );
 
         this.#pendingDispatch.push({
@@ -270,9 +266,6 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           done += 1;
           continue;
         }
-        const name = series.config.parsed.functionChain?.[0]?.function;
-        const mathFn = name ? mathFunctions[name] : undefined;
-
         const messageEvents = series.blockCursor.next(blocks);
         if (!messageEvents) {
           done += 1;
@@ -284,7 +277,6 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           series.config.parsed,
           series.config.timestampMethod,
           startTime,
-          mathFn,
         );
 
         if (pathItems.length === 0) {
@@ -410,14 +402,11 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       ) {
         continue;
       }
-      const name = series.config.parsed.functionChain?.[0]?.function;
-      const mathFn = name ? mathFunctions[name] : undefined;
       const items = readMessagePathItems(
         events,
         series.config.parsed,
         series.config.timestampMethod,
         startTime,
-        mathFn,
       );
       if (items.length === 0) {
         continue;
@@ -703,15 +692,15 @@ function readMessagePathItems(
   path: Immutable<MessagePath>,
   timestampMethod: TimestampMethod,
   startTime: Immutable<Time>,
-  mathFunction?: MathFunction,
 ): DataItem[] {
+  const { pathBeforeSpecialFunction } = splitTimeSeriesFunctionChain(path as MessagePath);
   const out = [];
   for (const event of events) {
     if (event.topic !== path.topicName) {
       continue;
     }
 
-    const items = simpleGetMessagePathDataItems(event, path);
+    const items = simpleGetMessagePathDataItems(event, pathBeforeSpecialFunction);
     for (const item of items) {
       if (!isChartValue(item)) {
         continue;
@@ -728,13 +717,12 @@ function readMessagePathItems(
       }
 
       const xValue = toSec(subtractTime(timestamp, startTime));
-      const mathModified = mathFunction ? mathFunction(chartValue) : chartValue;
       out.push({
         x: xValue,
-        y: mathModified,
+        y: chartValue,
         receiveTime: event.receiveTime,
         headerStamp,
-        value: mathFunction ? mathModified : toOwnedChartValue(item),
+        value: toOwnedChartValue(item),
       });
     }
   }

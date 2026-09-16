@@ -8,6 +8,7 @@
 import * as Comlink from "@coscene-io/comlink";
 
 import { allocatePointBudgets } from "@foxglove/den/collection";
+import { MessagePath } from "@foxglove/message-path";
 import { compare, fromNanoSec, isTime, toNanoSec } from "@foxglove/rostime";
 import { Immutable, Time } from "@foxglove/studio";
 import {
@@ -38,6 +39,10 @@ import {
   PackedDatasetWriter,
 } from "../PackedDataset";
 import { Datum, OriginalValue } from "../datum";
+import {
+  splitTimeSeriesFunctionChain,
+  type TimeSeriesName,
+} from "../splitTimeSeriesFunctionChain";
 
 export type DataItem = Datum & { receiveTime: Time; headerStamp?: Time };
 
@@ -50,6 +55,8 @@ type Series = {
   /** Bounded current-frame values for range-owned replay topics; never rendered. */
   playbackHead: CompactSeriesData;
   prefixRevision: number;
+  specialFunction: TimeSeriesName | undefined;
+  postSpecialScalarFunctions: Array<(n: number) => number>;
   windowExtremaCache?: WindowExtremaCache;
   downsampleCache?: {
     key: string;
@@ -1057,7 +1064,7 @@ export class TimestampDatasetsBuilderImpl {
       const writer = new PackedDatasetWriter(relativeIndices.length + (addDiscontinuity ? 1 : 0));
       let outputIndex = 0;
       let discontinuityAdded = !addDiscontinuity;
-      const derivative = isDerivative(series);
+      const timeSeries = hasTimeSeriesFunction(series);
       for (const relativeIndex of relativeIndices) {
         const index = plan.start + relativeIndex;
         if (!discontinuityAdded && index >= series.full.length) {
@@ -1066,7 +1073,7 @@ export class TimestampDatasetsBuilderImpl {
         }
         const x = getSeriesX(series, index);
         const y = getSeriesY(series, index);
-        writer.set(outputIndex++, x, y, derivative ? y : getSeriesValue(series, index));
+        writer.set(outputIndex++, x, y, timeSeries ? y : getSeriesValue(series, index));
       }
 
       const packedData = writer.finish();
@@ -1379,7 +1386,7 @@ export class TimestampDatasetsBuilderImpl {
 
   #makeWindowPlan(series: Series, viewport: Immutable<Viewport>): WindowPlan {
     const length = series.full.length + series.current.length;
-    const derivative = isDerivative(series);
+    const timeSeries = hasTimeSeriesFunction(series);
     let start = 0;
     let end = length;
     // Interactive (pan/zoom/sync) bounds move on nearly every frame; exact bounds would change
@@ -1407,12 +1414,12 @@ export class TimestampDatasetsBuilderImpl {
     if (end < start) {
       end = start;
     }
-    if (derivative) {
+    if (timeSeries) {
       start = Math.max(1, start);
     }
 
     let extrema: WindowExtremaCache;
-    if (!derivative && start === 0 && end === length) {
+    if (!timeSeries && start === 0 && end === length) {
       const fullBounds = series.full.getBounds();
       const currentBounds = series.current.getBounds();
       extrema = {
@@ -1553,8 +1560,13 @@ export class TimestampDatasetsBuilderImpl {
         legendCurrent: new CompactSeriesData(undefined, MAX_CURRENT_DATUMS_PER_SERIES),
         playbackHead: new CompactSeriesData(undefined, MAX_CURRENT_DATUMS_PER_SERIES),
         prefixRevision: 0,
+        specialFunction: undefined,
+        postSpecialScalarFunctions: [],
       };
       existingSeries.config = config;
+      const split = splitTimeSeriesFunctionChain(config.parsed as MessagePath);
+      existingSeries.specialFunction = split.specialFunction;
+      existingSeries.postSpecialScalarFunctions = split.postSpecialScalarFunctions;
       newSeries.set(config.key, existingSeries);
     }
     this.#seriesByKey = newSeries;
@@ -1587,7 +1599,9 @@ function getTimestampCurrentValueCandidate(
   return {
     priority,
     time,
-    value: isDerivative(series) ? getDerivativeValue(series, store, index) : store.getValue(index),
+    value: hasTimeSeriesFunction(series)
+      ? getTimeSeriesValue(series, store, index)
+      : store.getValue(index),
   };
 }
 
@@ -1710,8 +1724,8 @@ function resolveBounds(
   return { min, max };
 }
 
-function isDerivative(series: Series): boolean {
-  return series.config.parsed.functionChain?.[0]?.function === "derivative";
+function hasTimeSeriesFunction(series: Series): boolean {
+  return series.specialFunction != undefined;
 }
 
 function getStoreIndex(series: Series, index: number): { store: CompactSeriesData; index: number } {
@@ -1728,20 +1742,24 @@ function getSeriesX(series: Series, index: number): number {
 function getSeriesY(series: Series, index: number): number {
   const storeIndex = getStoreIndex(series, index);
   const y = storeIndex.store.getY(storeIndex.index);
-  if (!isDerivative(series)) {
+  if (series.specialFunction == undefined) {
     return y;
   }
   if (index === 0) {
     return NaN;
   }
   const previousStoreIndex = getStoreIndex(series, index - 1);
-  const previousX = previousStoreIndex.store.getX(previousStoreIndex.index);
-  const previousY = previousStoreIndex.store.getY(previousStoreIndex.index);
-  const dx = storeIndex.store.getX(storeIndex.index) - previousX;
-  return dx === 0 ? NaN : (y - previousY) / dx;
+  return applyTimeSeriesFunction(
+    series.specialFunction,
+    storeIndex.store.getX(storeIndex.index),
+    y,
+    previousStoreIndex.store.getX(previousStoreIndex.index),
+    previousStoreIndex.store.getY(previousStoreIndex.index),
+    series.postSpecialScalarFunctions,
+  );
 }
 
-function getDerivativeValue(series: Series, store: CompactSeriesData, index: number): number {
+function getTimeSeriesValue(series: Series, store: CompactSeriesData, index: number): number {
   const x = store.getX(index);
   const y = store.getY(index);
   let previousStore: CompactSeriesData | undefined = index > 0 ? store : undefined;
@@ -1765,11 +1783,44 @@ function getDerivativeValue(series: Series, store: CompactSeriesData, index: num
       previousIndex = candidateIndex;
     }
   }
-  if (previousStore == undefined) {
+  if (previousStore == undefined || series.specialFunction == undefined) {
     return NaN;
   }
-  const dx = x - previousStore.getX(previousIndex);
-  return dx === 0 ? NaN : (y - previousStore.getY(previousIndex)) / dx;
+  return applyTimeSeriesFunction(
+    series.specialFunction,
+    x,
+    y,
+    previousStore.getX(previousIndex),
+    previousStore.getY(previousIndex),
+    series.postSpecialScalarFunctions,
+  );
+}
+
+function applyTimeSeriesFunction(
+  specialFunction: TimeSeriesName,
+  x: number,
+  y: number,
+  previousX: number,
+  previousY: number,
+  postSpecialScalarFunctions: Array<(n: number) => number>,
+): number {
+  const dx = x - previousX;
+  let value: number;
+  switch (specialFunction) {
+    case "timedelta":
+      value = dx;
+      break;
+    case "delta":
+      value = y - previousY;
+      break;
+    case "derivative":
+      value = dx === 0 ? NaN : (y - previousY) / dx;
+      break;
+  }
+  for (const fn of postSpecialScalarFunctions) {
+    value = fn(value);
+  }
+  return value;
 }
 
 function getSeriesValue(series: Series, index: number): OriginalValue {
