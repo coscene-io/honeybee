@@ -161,7 +161,11 @@ export function suggestFunctionSuffixes(args: {
       for (const name of ARRAY_FUNCTION_NAMES) {
         items.push(`@${name}`);
       }
-      appendScalarAndOperandSuffixes(items);
+      if (isNumericPrimitive(terminatingItem.next)) {
+        for (const name of VECTOR_FUNCTION_NAMES) {
+          items.push(`@${name}`);
+        }
+      }
       break;
     case "message": {
       if (hasNumericFields(terminatingItem, ["x", "y"])) {

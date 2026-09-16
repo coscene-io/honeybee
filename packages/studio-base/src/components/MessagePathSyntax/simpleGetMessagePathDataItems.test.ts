@@ -140,6 +140,12 @@ describe("simpleGetMessagePathDataItems", () => {
     expect(simpleGetMessagePathDataItems(msg(payload), parseMessagePath("/foo.arr[-1]")!)).toEqual([
       30,
     ]);
+    expect(simpleGetMessagePathDataItems(msg(payload), parseMessagePath("/foo.arr[-1:]")!)).toEqual(
+      [30],
+    );
+    expect(
+      simpleGetMessagePathDataItems(msg(payload), parseMessagePath("/foo.arr[1:-1]")!),
+    ).toEqual([20, 30]);
   });
 
   it("compares identifier filters as strings without schema", () => {

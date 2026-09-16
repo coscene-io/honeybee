@@ -49,9 +49,9 @@ export function simpleGetMessagePathDataItems(
         }
         const { start, end } = pathPart;
         const length = value.length;
-        // Cap Infinity (`[:]`) so the loop terminates; negative i maps with length + i.
-        for (let i = start; i <= Math.min(end, length - 1); i++) {
-          const index = i >= 0 ? i : length + i;
+        const startIdx = start < 0 ? length + start : start;
+        const endIdx = end === Infinity ? length - 1 : end < 0 ? length + end : end;
+        for (let index = startIdx; index <= endIdx; index++) {
           if (index < 0 || index >= length) {
             continue;
           }

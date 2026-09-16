@@ -50,16 +50,16 @@ describe("suggestFunctionSuffixes", () => {
   });
 
   it("suggests length on arrays and norm on xyz", () => {
-    expect(
-      suggestFunctionSuffixes({
-        terminatingItem: {
-          structureType: "array",
-          next: floatItem,
-          datatype: "float64[]",
-        },
-        support: plotSupport,
-      }),
-    ).toEqual(expect.arrayContaining(["@length"]));
+    const arrayItems = suggestFunctionSuffixes({
+      terminatingItem: {
+        structureType: "array",
+        next: floatItem,
+        datatype: "float64[]",
+      },
+      support: plotSupport,
+    });
+    expect(arrayItems).toEqual(expect.arrayContaining(["@length"]));
+    expect(arrayItems).not.toEqual(expect.arrayContaining(["@abs", "@mul("]));
     expect(
       suggestFunctionSuffixes({
         terminatingItem: {

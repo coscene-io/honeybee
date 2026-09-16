@@ -112,6 +112,21 @@ describe("validateMessagePathFunctions", () => {
     ).toMatch(/not a numeric global/i);
   });
 
+  it("rejects non-finite numeric globals as operands", () => {
+    expect(
+      validateMessagePathFunctions(parseMessagePath("/t.v.@mul($scale)")!, {
+        ...plotSupport,
+        globalVariables: { scale: Number.NaN },
+      }),
+    ).toMatch(/not a numeric global/i);
+    expect(
+      validateMessagePathFunctions(parseMessagePath("/t.v.@mul($scale)")!, {
+        ...plotSupport,
+        globalVariables: { scale: Number.POSITIVE_INFINITY },
+      }),
+    ).toMatch(/not a numeric global/i);
+  });
+
   it("rejects @length when the terminating value is not an array", () => {
     expect(
       validateMessagePathFunctions(parseMessagePath("/t.v.@length")!, plotSupport, {

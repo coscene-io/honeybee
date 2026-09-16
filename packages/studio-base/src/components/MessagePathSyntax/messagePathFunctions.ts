@@ -336,7 +336,8 @@ function validateOperand(
   }
   const raw = operandRaw?.trim();
   if (raw?.startsWith("$") === true) {
-    if (typeof globalVariables[raw.slice(1)] === "number") {
+    const globalValue = globalVariables[raw.slice(1)];
+    if (typeof globalValue === "number" && Number.isFinite(globalValue)) {
       return undefined;
     }
     return `"${raw}" is not a numeric global`;
