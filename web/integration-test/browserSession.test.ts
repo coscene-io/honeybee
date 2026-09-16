@@ -138,3 +138,25 @@ it("a hidden tab converges to a passive logged-out page without authenticating",
   );
   expect(signouts).toEqual([]);
 }, 30_000);
+
+it("a fresh signout cookie shows passive recovery without opening the legacy login route", async () => {
+  let authenticated = false;
+  page.on("request", (request) => {
+    const pathname = new URL(request.url()).pathname;
+    authenticated ||= pathname === "/login" || pathname.includes("/signout");
+  });
+  await context.addCookies([
+    {
+      name: "coSceneAuthStatusDev",
+      value: encodeURIComponent(
+        JSON.stringify({ status: "SIGN_OUT", updatedAt: Date.now() + 1000 }) ?? "",
+      ),
+      url: origin,
+    },
+  ]);
+  await page.getByText("You are signed out.", { exact: true }).waitFor();
+  expect(await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")).toBe(
+    "/auth/logged-out",
+  );
+  expect(authenticated).toBe(false);
+}, 30_000);

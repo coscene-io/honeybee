@@ -82,3 +82,20 @@ it("local playback stays available while authenticated APIs are stopped", () => 
     session.assertCurrent();
   }).toThrow();
 });
+
+it("a fresh signout broadcast stops protected work without deleting shared credentials", () => {
+  localStorage.setItem(tokenKey, "Bearer old");
+  const session = new BrowserSession();
+  session.observeSignOutBroadcast();
+  expect(session.getStatus()).toBe("logged-out");
+  expect(session.controller.signal.aborted).toBe(true);
+  expect(localStorage.getItem(tokenKey)).toBe("Bearer old");
+});
+it("a delayed signout broadcast preserves a replacement session and requires reload", () => {
+  localStorage.setItem(tokenKey, "Bearer old");
+  const session = new BrowserSession();
+  localStorage.setItem(tokenKey, "Bearer new");
+  session.observeSignOutBroadcast();
+  expect(session.getStatus()).toBe("changed");
+  expect(localStorage.getItem(tokenKey)).toBe("Bearer new");
+});

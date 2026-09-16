@@ -99,6 +99,12 @@ export class BrowserSession {
       throw new DOMException("Browser session changed; reload required", "AbortError");
     }
   }
+  public observeSignOutBroadcast(): void {
+    this.reconcile();
+    if (this.#status === "current") {
+      this.#stop("logged-out");
+    }
+  }
   public rejectCredential(credential: string): void {
     this.reconcile();
     if (this.#status !== "current" || credential !== this.credential) {
