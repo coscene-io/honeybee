@@ -495,7 +495,7 @@ describe("parseRosPath", () => {
           operator: "==",
         },
       ],
-      isFullySpecified: true,
+      isFullySpecified: false,
     });
     expect(parseMessagePath("/topic.foo{==-3}")).toEqual({
       topicName: "/topic",
@@ -512,7 +512,7 @@ describe("parseRosPath", () => {
           operator: "==",
         },
       ],
-      isFullySpecified: true,
+      isFullySpecified: false,
     });
   });
 
@@ -529,6 +529,86 @@ describe("parseRosPath", () => {
     expect(parseMessagePath("/topic.foo[].bar")).toBeUndefined();
     expect(parseMessagePath("/topic.foo[bar]")).toBeUndefined();
     expect(parseMessagePath("/topic.foo{bar==}")).toBeUndefined();
-    expect(parseMessagePath("/topic.foo{bar==baz}")).toBeUndefined();
   });
 });
+
+describe("FoxQL function chains", () => {
+  it("parses chained functions with struct field access", () => {
+    expect(parseMessagePath("/imu.orientation.@rpy.yaw.@degrees")).toEqual({
+      topicName: "/imu",
+      topicNameRepr: "/imu",
+      messagePath: [{ type: "name", name: "orientation", repr: "orientation" }],
+      functionChain: [{ function: "rpy", fieldAccess: "yaw" }, { function: "degrees" }],
+      isFullySpecified: true,
+    });
+  });
+
+  it("parses an operand function", () => {
+    expect(parseMessagePath("/wheel.speed.@mul(3.6)")).toEqual({
+      topicName: "/wheel",
+      topicNameRepr: "/wheel",
+      messagePath: [{ type: "name", name: "speed", repr: "speed" }],
+      functionChain: [{ function: "mul(3.6)" }],
+      isFullySpecified: true,
+    });
+  });
+
+  it("parses a variable operand", () => {
+    expect(parseMessagePath("/wheel.speed.@mul($scale)")!.functionChain).toEqual([
+      { function: "mul($scale)" },
+    ]);
+  });
+});
+
+describe("FoxQL filter operators", () => {
+  it("parses != < <= > >=", () => {
+    expect(parseMessagePath("/t.items[:]{id!=1}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      path: ["id"],
+      operator: "!=",
+      value: 1n,
+      repr: "id!=1",
+    });
+    expect(parseMessagePath("/t.items[:]{id>1}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      operator: ">",
+      value: 1n,
+    });
+    expect(parseMessagePath("/t.items[:]{id>=1}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      operator: ">=",
+    });
+    expect(parseMessagePath("/t.items[:]{id<1}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      operator: "<",
+    });
+    expect(parseMessagePath("/t.items[:]{id<=1}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      operator: "<=",
+    });
+  });
+
+  it("parses an unquoted identifier filter value", () => {
+    expect(parseMessagePath("/t.items[:]{status==MOVING}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      path: ["status"],
+      operator: "==",
+      value: "MOVING",
+      valueIsIdentifier: true,
+      repr: "status==MOVING",
+    });
+  });
+});
+
+describe("negative slice index", () => {
+  it("parses [-1]", () => {
+    expect(parseMessagePath("/t.arr[-1]")).toMatchObject({
+      messagePath: [
+        { type: "name", name: "arr", repr: "arr" },
+        { type: "slice", start: -1, end: -1 },
+      ],
+      isFullySpecified: true,
+    });
+  });
+});
+

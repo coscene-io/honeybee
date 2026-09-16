@@ -4080,8 +4080,6 @@ __metadata:
   resolution: "@foxglove/message-path@workspace:packages/message-path"
   dependencies:
     "@foxglove/tsconfig": 3.2.0
-    "@types/nearley": 2.11.5
-    nearley: 2.20.1
   languageName: unknown
   linkType: soft
 
