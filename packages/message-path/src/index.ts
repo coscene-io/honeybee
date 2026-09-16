@@ -7,4 +7,5 @@
 
 export * from "./parseFunction";
 export * from "./parseMessagePath";
+export * from "./stringifyMessagePath";
 export * from "./types";

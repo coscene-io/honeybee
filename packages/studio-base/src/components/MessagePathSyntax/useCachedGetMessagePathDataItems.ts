@@ -21,10 +21,12 @@ import { filterMap } from "@foxglove/den/collection";
 import { useDeepMemo, useShallowMemo } from "@foxglove/hooks";
 import {
   quoteTopicNameIfNeeded,
+  parseFunction,
   parseMessagePath,
   MessagePathStructureItem,
   MessagePathStructureItemMessage,
   MessagePath,
+  MessagePathFunction,
 } from "@foxglove/message-path";
 import { Immutable } from "@foxglove/studio";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
@@ -159,6 +161,22 @@ export function useCachedGetMessagePathDataItems(
   );
 }
 
+function fillFunctionOperand(
+  step: MessagePathFunction,
+  vars: GlobalVariables,
+): MessagePathFunction {
+  const parsed = parseFunction(step.function);
+  const raw = parsed?.operandRaw?.trim();
+  if (raw?.startsWith("$") !== true) {
+    return step;
+  }
+  const value = vars[raw.slice(1)];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return step;
+  }
+  return { ...step, function: `${parsed!.name}(${value})` };
+}
+
 export function fillInGlobalVariablesInPath(
   rosPath: MessagePath,
   globalVariables: GlobalVariables,
@@ -192,6 +210,13 @@ export function fillInGlobalVariablesInPath(
 
       return messagePathPart;
     }),
+    ...(rosPath.functionChain != undefined
+      ? {
+          functionChain: rosPath.functionChain.map((step) =>
+            fillFunctionOperand(step, globalVariables),
+          ),
+        }
+      : {}),
   };
 }
 
