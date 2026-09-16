@@ -8,6 +8,11 @@
 import { TypeOptions } from "i18next";
 
 export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
+  sessionChanged: "会话已变更，请刷新以使用新会话。",
+  sessionLoggedOut: "已退出登录。",
+  sessionRecoveryRequired: "会话已失效，请重新登录。",
+  reloadSession: "刷新页面",
+  openSessionRecovery: "前往登录恢复",
   about: "关于",
   addPanel: "添加面板",
   exploreSampleData: "探索样本数据",

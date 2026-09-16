@@ -70,6 +70,7 @@ import UserScriptPlayer from "@foxglove/studio-base/players/UserScriptPlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { UserScripts } from "@foxglove/studio-base/types/panels";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 const log = Logger.getLogger(__filename);
@@ -393,6 +394,21 @@ export default function PlayerManager(
     { sourceId: string; args?: DataSourceArgs } | undefined
   >();
   const sourceSelectionGenerationRef = useRef(0);
+  useEffect(() => {
+    const session = getBrowserSession();
+    if (session == undefined) {
+      return;
+    }
+    const stop = () => {
+      if (session.preservesPlayback()) {
+        return;
+      }
+      sourceSelectionGenerationRef.current += 1;
+      void closePlayerForSourceSwitch(currentPlayerRef.current?.player);
+      currentPlayerRef.current = undefined;
+    };
+    return session.subscribe(stop);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -494,8 +510,15 @@ export default function PlayerManager(
       }
 
       const selectionGeneration = ++sourceSelectionGenerationRef.current;
-      const isCurrentSelection = () =>
-        isMounted() && selectionGeneration === sourceSelectionGenerationRef.current;
+      const isCurrentSelection = () => {
+        const session = getBrowserSession();
+        session?.reconcile();
+        return (
+          isMounted() &&
+          selectionGeneration === sourceSelectionGenerationRef.current &&
+          (session == undefined || session.getStatus() === "current" || session.preservesPlayback())
+        );
+      };
       const isOwnRealtimeReplay =
         isPersistentCacheSource &&
         previousPlayer?.dataSource.type === "connection" &&
