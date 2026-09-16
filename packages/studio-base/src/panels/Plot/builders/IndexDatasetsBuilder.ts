@@ -27,7 +27,6 @@ import {
 } from "./IDatasetsBuilder";
 import { Dataset } from "../ChartRenderer";
 import { getChartValue, isChartValue, toOwnedChartValue, Datum } from "../datum";
-import { mathFunctions } from "../mathFunctions";
 
 type DatumWithReceiveTime = Datum & {
   receiveTime: Time;
@@ -79,12 +78,9 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
 
     const range: Bounds1D = { min: 0, max: 0 };
     for (const series of this.#seriesByKey.values()) {
-      const name = series.parsed.functionChain?.[0]?.function;
-      const mathFn = name ? mathFunctions[name] : undefined;
-
       const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
       if (legendMatch) {
-        series.legendValue = lastChartValue(legendMatch, mathFn);
+        series.legendValue = lastChartValue(legendMatch);
       }
 
       const msgEvent = lastMatchingTopic(msgEvents, series.parsed.topicName);
@@ -99,13 +95,11 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
         }
 
         const chartValue = getChartValue(item);
-        const mathModifiedValue =
-          mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
         return {
           x: idx,
-          y: chartValue == undefined ? NaN : (mathModifiedValue ?? chartValue),
+          y: chartValue == undefined ? NaN : chartValue,
           receiveTime: msgEvent.receiveTime,
-          value: mathModifiedValue ?? toOwnedChartValue(item),
+          value: toOwnedChartValue(item),
         };
       });
 
@@ -245,19 +239,14 @@ function lastMatchingTopic(msgEvents: Immutable<MessageEvent[]>, topic: string) 
   return undefined;
 }
 
-function lastChartValue(
-  items: readonly unknown[],
-  mathFn: ((value: number) => number) | undefined,
-): Datum["value"] | undefined {
+function lastChartValue(items: readonly unknown[]): Datum["value"] | undefined {
   for (let i = items.length - 1; i >= 0; --i) {
     const item = items[i];
     if (!isChartValue(item)) {
       continue;
     }
 
-    const chartValue = getChartValue(item);
-    const mathModifiedValue = mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
-    return mathModifiedValue ?? toOwnedChartValue(item);
+    return toOwnedChartValue(item);
   }
 
   return undefined;

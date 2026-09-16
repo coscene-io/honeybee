@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ChartDataset } from "chart.js";
-import * as _ from "lodash-es";
 
 import { filterMap } from "@foxglove/den/collection";
 import { MessagePath } from "@foxglove/message-path";
@@ -28,7 +27,6 @@ import {
 } from "./IDatasetsBuilder";
 import { Dataset } from "../ChartRenderer";
 import { getChartValue, isChartValue, toOwnedChartValue, Datum } from "../datum";
-import { mathFunctions } from "../mathFunctions";
 
 type DatumWithReceiveTime = Datum & {
   receiveTime: Time;
@@ -85,11 +83,9 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const name = series.parsed.functionChain?.[0]?.function;
-      const mathFn = name ? mathFunctions[name] : undefined;
       const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
       if (legendMatch) {
-        series.legendValue = lastChartValue(legendMatch, mathFn);
+        series.legendValue = lastChartValue(legendMatch);
       }
     }
 
@@ -97,35 +93,26 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
       return;
     }
 
-    {
-      const xName = this.#xParsedPath.functionChain?.[0]?.function;
-      const xAxisMathFn =
-        (xName ? mathFunctions[xName] : undefined) ?? _.identity<number>;
+    const msgEventForX = lastMatchingTopic(msgEvents, this.#xParsedPath.topicName);
+    if (msgEventForX) {
+      const items = simpleGetMessagePathDataItems(msgEventForX, this.#xParsedPath);
 
-      const msgEvent = lastMatchingTopic(msgEvents, this.#xParsedPath.topicName);
-      if (msgEvent) {
-        const items = simpleGetMessagePathDataItems(msgEvent, this.#xParsedPath);
-
-        this.#xValues = [];
-        for (const item of items) {
-          if (!isChartValue(item)) {
-            continue;
-          }
-
-          const chartValue = getChartValue(item);
-          if (chartValue == undefined) {
-            continue;
-          }
-
-          this.#xValues.push(xAxisMathFn(chartValue));
+      this.#xValues = [];
+      for (const item of items) {
+        if (!isChartValue(item)) {
+          continue;
         }
+
+        const chartValue = getChartValue(item);
+        if (chartValue == undefined) {
+          continue;
+        }
+
+        this.#xValues.push(chartValue);
       }
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const name = series.parsed.functionChain?.[0]?.function;
-      const mathFn = name ? mathFunctions[name] : undefined;
-
       const msgEvent = lastMatchingTopic(msgEvents, series.parsed.topicName);
       if (!msgEvent) {
         continue;
@@ -138,14 +125,12 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
         }
 
         const chartValue = getChartValue(item);
-        const mathModifiedValue =
-          mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
 
         return {
           x: this.#xValues[idx] ?? NaN,
-          y: chartValue == undefined ? NaN : (mathModifiedValue ?? chartValue),
+          y: chartValue == undefined ? NaN : chartValue,
           receiveTime: msgEvent.receiveTime,
-          value: mathModifiedValue ?? toOwnedChartValue(item),
+          value: toOwnedChartValue(item),
         };
       });
 
@@ -306,19 +291,14 @@ function lastMatchingTopic(msgEvents: Immutable<MessageEvent[]>, topic: string) 
   return undefined;
 }
 
-function lastChartValue(
-  items: readonly unknown[],
-  mathFn: ((value: number) => number) | undefined,
-): Datum["value"] | undefined {
+function lastChartValue(items: readonly unknown[]): Datum["value"] | undefined {
   for (let i = items.length - 1; i >= 0; --i) {
     const item = items[i];
     if (!isChartValue(item)) {
       continue;
     }
 
-    const chartValue = getChartValue(item);
-    const mathModifiedValue = mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
-    return mathModifiedValue ?? toOwnedChartValue(item);
+    return toOwnedChartValue(item);
   }
 
   return undefined;

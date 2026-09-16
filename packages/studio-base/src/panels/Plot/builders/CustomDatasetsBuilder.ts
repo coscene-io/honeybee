@@ -35,7 +35,6 @@ import {
 } from "./IDatasetsBuilder";
 import { restoreUnpackedDataAccessor } from "../PackedDataset";
 import { getChartValue, isChartValue, toOwnedChartValue } from "../datum";
-import { MathFunction, mathFunctions } from "../mathFunctions";
 
 export type { ValueItem } from "./CustomValueStore";
 
@@ -223,21 +222,13 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     const msgEvents = activeData.messages;
     if (msgEvents.length > 0) {
       if (this.#xParsedPath && !this.#rangeTopics.has(this.#xParsedPath.topicName)) {
-        const items = readMessagePathItems(
-          msgEvents,
-          this.#xParsedPath,
-          getMathFn(this.#xParsedPath),
-        );
+        const items = readMessagePathItems(msgEvents, this.#xParsedPath);
         this.#pendingDispatch.push({ type: "append-current-x", items: encodeNumericItems(items) });
         this.#recordXAppend("current", items);
       }
 
       for (const series of this.#series) {
-        const items = readMessagePathItems(
-          msgEvents,
-          series.config.parsed,
-          getMathFn(series.config.parsed),
-        );
+        const items = readMessagePathItems(msgEvents, series.config.parsed);
         this.#pendingDispatch.push({
           type: !series.config.enabled
             ? "append-legend"
@@ -266,11 +257,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         }
         let messageEvents;
         while ((messageEvents = this.#xValuesCursor.next(blocks)) != undefined) {
-          const items = readMessagePathItems(
-            messageEvents,
-            this.#xParsedPath,
-            getMathFn(this.#xParsedPath),
-          );
+          const items = readMessagePathItems(messageEvents, this.#xParsedPath);
           this.#pendingDispatch.push({ type: "append-full-x", items: encodeNumericItems(items) });
           this.#recordXAppend("full", items);
         }
@@ -290,11 +277,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         }
         let messageEvents;
         while ((messageEvents = series.blockCursor.next(blocks)) != undefined) {
-          const items = readMessagePathItems(
-            messageEvents,
-            series.config.parsed,
-            getMathFn(series.config.parsed),
-          );
+          const items = readMessagePathItems(messageEvents, series.config.parsed);
           this.#pendingDispatch.push({
             type: "append-full",
             series: series.config.key,
@@ -508,12 +491,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     let appended = false;
     let appendedXBounds: Bounds1D | undefined;
     if (this.#xParsedPath?.topicName === topic) {
-      const items = readMessagePathItems(
-        topicEvents,
-        this.#xParsedPath,
-        getMathFn(this.#xParsedPath),
-        "singleTopic",
-      );
+      const items = readMessagePathItems(topicEvents, this.#xParsedPath, "singleTopic");
       if (items.length > 0) {
         appended = true;
         appendedXBounds = computeBounds(undefined, items);
@@ -524,12 +502,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       if (!series.config.enabled || series.config.parsed.topicName !== topic) {
         continue;
       }
-      const items = readMessagePathItems(
-        topicEvents,
-        series.config.parsed,
-        getMathFn(series.config.parsed),
-        "singleTopic",
-      );
+      const items = readMessagePathItems(topicEvents, series.config.parsed, "singleTopic");
       if (items.length > 0) {
         appended = true;
         rangeDispatch.push({
@@ -929,7 +902,6 @@ function normalizeError(error: unknown, message: string): Error {
 function readMessagePathItems(
   events: Immutable<readonly MessageEvent[]>,
   path: Immutable<MessagePath>,
-  mathFunction?: MathFunction,
   eventScope: "allTopics" | "singleTopic" = "allTopics",
 ): ValueItem[] {
   const out: ValueItem[] = [];
@@ -946,20 +918,14 @@ function readMessagePathItems(
       if (chartValue == undefined) {
         continue;
       }
-      const mathModified = mathFunction ? mathFunction(chartValue) : chartValue;
       out.push({
-        value: mathModified,
-        originalValue: mathFunction ? mathModified : toOwnedChartValue(item),
+        value: chartValue,
+        originalValue: toOwnedChartValue(item),
         receiveTime: event.receiveTime,
       });
     }
   }
   return out;
-}
-
-function getMathFn(path: Immutable<MessagePath>): MathFunction | undefined {
-  const name = path.functionChain?.[0]?.function;
-  return name ? mathFunctions[name] : undefined;
 }
 
 function getHistoryOwnership(

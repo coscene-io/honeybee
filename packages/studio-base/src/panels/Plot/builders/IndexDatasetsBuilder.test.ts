@@ -231,6 +231,57 @@ describe("IndexDatasetsBuilder", () => {
     expect(resultWithCurrentValue.datasetsByConfigIndex[0]?.data[0]?.y).toBe(3);
   });
 
+  it("applies @mul(2) to both the plotted and current value", async () => {
+    const builder = new IndexDatasetsBuilder();
+
+    builder.setSeries(
+      buildSeriesItems([
+        {
+          enabled: true,
+          timestampMethod: "receiveTime",
+          value: "/bar.val.@mul(2)",
+        },
+      ]),
+    );
+
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [
+          {
+            topic: "/bar",
+            schemaName: "foo",
+            receiveTime: { sec: 0, nsec: 0 },
+            sizeInBytes: 0,
+            message: {
+              val: 3,
+            },
+          },
+        ],
+      }),
+    );
+
+    const result = await builder.getViewportDatasets();
+
+    expect(result).toEqual({
+      pathsWithMismatchedDataLengths: new Set(),
+      datasetsByConfigIndex: [
+        expect.objectContaining({
+          data: [{ x: 0, y: 6, value: 6, receiveTime: { sec: 0, nsec: 0 } }],
+          showLine: true,
+          pointRadius: 1.2,
+          fill: false,
+        }),
+      ],
+    });
+
+    const resultWithCurrentValue = await builder.getViewportDatasets(undefined, {
+      sec: 0,
+      nsec: 0,
+    });
+    expect(resultWithCurrentValue.currentValuesByConfigIndex).toEqual([6]);
+    expect(resultWithCurrentValue.datasetsByConfigIndex[0]?.data[0]?.y).toBe(6);
+  });
+
   it("supports toggling series enabled state", async () => {
     const builder = new IndexDatasetsBuilder();
 
