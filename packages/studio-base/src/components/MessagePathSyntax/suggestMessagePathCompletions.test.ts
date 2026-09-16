@@ -76,6 +76,26 @@ describe("suggestFunctionSuffixes", () => {
     ).toEqual(expect.arrayContaining(["@norm"]));
   });
 
+  it("suggests scalars after a struct field conversion", () => {
+    const quatItem = {
+      structureType: "message" as const,
+      datatype: "Quaternion",
+      nextByName: {
+        x: floatItem,
+        y: floatItem,
+        z: floatItem,
+        w: floatItem,
+      },
+    };
+    const items = suggestFunctionSuffixes({
+      terminatingItem: quatItem,
+      support: plotSupport,
+      functionChain: [{ function: "rpy", fieldAccess: "yaw" }],
+    });
+    expect(items).toEqual(expect.arrayContaining(["@degrees", "@abs"]));
+    expect(items).not.toEqual(expect.arrayContaining(["@rpy.yaw"]));
+  });
+
   it("suggests rpy fields on a quaternion-shaped message", () => {
     const items = suggestFunctionSuffixes({
       terminatingItem: {
@@ -108,6 +128,15 @@ describe("validateMessagePathInput", () => {
   it("does not error on an unclosed operand", () => {
     expect(parseMessagePath("/t.v.@mul(")).toBeUndefined();
     expect(validateMessagePathInput("/t.v.@mul(", plotSupport)).toBeUndefined();
+  });
+
+  it("errors on trailing junk after a function suffix", () => {
+    expect(parseMessagePath("/t.v.@abs#")).toBeUndefined();
+    expect(validateMessagePathInput("/t.v.@abs#", plotSupport)).toBe("Invalid expression");
+  });
+
+  it("rejects @length on a scalar terminating type", () => {
+    expect(validateMessagePathInput("/t.v.@length", plotSupport, floatItem)).toMatch(/array/i);
   });
 });
 

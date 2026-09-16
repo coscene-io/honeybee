@@ -1327,12 +1327,13 @@ export class TimestampDatasetsBuilderImpl {
   #getCsvDatum(series: Series, index: number): CsvDatum {
     const storeIndex = getStoreIndex(series, index);
     const store = storeIndex.store;
+    const y = getSeriesY(series, index);
     return {
       x: store.getX(storeIndex.index),
-      y: store.getY(storeIndex.index),
+      y,
       receiveTime: store.getReceiveTime(storeIndex.index),
       headerStamp: store.getHeaderStamp(storeIndex.index),
-      value: store.getValue(storeIndex.index),
+      value: series.specialFunction != undefined ? y : store.getValue(storeIndex.index),
     };
   }
 

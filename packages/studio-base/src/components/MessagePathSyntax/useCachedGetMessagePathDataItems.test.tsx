@@ -588,6 +588,51 @@ describe("useCachedGetMessagePathDataItems", () => {
       ).toEqual([[], [{ value: 1, path: "/some/topic{state==ON}.state", constantName: "ON" }]]);
     });
 
+    it("filters nested enum identifiers by walking the filter path", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: { mode: 0 } },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: { mode: 1 } },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/some/topic", schemaName: "wrapper" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          wrapper: {
+            definitions: [{ name: "state", type: "status", isComplex: true }],
+          },
+          status: {
+            definitions: [
+              { name: "IDLE", type: "uint32", isConstant: true, value: 0 },
+              { name: "ACTIVE", type: "uint32", isConstant: true, value: 1 },
+              { name: "mode", type: "uint32" },
+            ],
+          },
+        }),
+      );
+      expect(
+        addValuesWithPathsToItems(
+          messages,
+          "/some/topic{state.mode==ACTIVE}.state.mode",
+          topics,
+          datatypes,
+        ),
+      ).toEqual([
+        [],
+        [{ value: 1, path: "/some/topic{state.mode==ACTIVE}.state.mode", constantName: "ACTIVE" }],
+      ]);
+    });
+
     it("filters correctly with bigints", () => {
       const messages: MessageEvent[] = [
         {

@@ -529,6 +529,7 @@ describe("parseRosPath", () => {
     expect(parseMessagePath("/topic.foo[].bar")).toBeUndefined();
     expect(parseMessagePath("/topic.foo[bar]")).toBeUndefined();
     expect(parseMessagePath("/topic.foo{bar==}")).toBeUndefined();
+    expect(parseMessagePath("/t.v.@abs#")).toBeUndefined();
   });
 });
 
@@ -585,6 +586,19 @@ describe("FoxQL filter operators", () => {
     expect(parseMessagePath("/t.items[:]{id<=1}")!.messagePath[2]).toMatchObject({
       type: "filter",
       operator: "<=",
+    });
+  });
+
+  it("parses scientific notation filter values as numbers", () => {
+    expect(parseMessagePath("/t.items[:]{value>=1e3}")!.messagePath[2]).toMatchObject({
+      type: "filter",
+      path: ["value"],
+      operator: ">=",
+      value: 1000,
+      repr: "value>=1e3",
+    });
+    expect(parseMessagePath("/t.items[:]{value>=1e-3}")!.messagePath[2]).toMatchObject({
+      value: 0.001,
     });
   });
 

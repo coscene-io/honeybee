@@ -180,6 +180,29 @@ describe("TimestampDatasetsBuilderImpl", () => {
     ).toEqual([3]);
   });
 
+  it("exports timestamp CSV y as the time-series result", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const delta = makeSeries("csv-delta", 0, { path: "/topic.value.@delta" });
+    impl.applyActions([
+      updateSeries([delta]),
+      append("append-full", delta, [makeItem(0, 1), makeItem(2, 4)]),
+    ]);
+    expect(impl.getCsvData()[0]?.data.map(({ x, y }) => ({ x, y }))).toEqual([
+      { x: 0, y: NaN },
+      { x: 2, y: 3 },
+    ]);
+
+    const timedelta = makeSeries("csv-timedelta", 1, { path: "/topic.value.@timedelta" });
+    impl.applyActions([
+      updateSeries([timedelta]),
+      append("append-full", timedelta, [makeItem(0, 10), makeItem(2, 10)]),
+    ]);
+    expect(impl.getCsvData()[0]?.data.map(({ x, y }) => ({ x, y }))).toEqual([
+      { x: 0, y: NaN },
+      { x: 2, y: 2 },
+    ]);
+  });
+
   it("applies @derivative.@abs in the legend", () => {
     const impl = new TimestampDatasetsBuilderImpl();
     const series = makeSeries("der-abs", 0, { path: "/topic.value.@derivative.@abs" });

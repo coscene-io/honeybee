@@ -258,21 +258,47 @@ export function parseMessagePathWithDiagnostics(input: string): {
     if (peek() === "+" || peek() === "-") {
       pos++;
     }
-    if (!isDigit(peek())) {
-      pos = start;
-      return undefined;
-    }
+    const digitsStart = pos;
     while (isDigit(peek())) {
       pos++;
     }
-    if (peek() === "." && isDigit(peek(1))) {
+    const intDigits = pos - digitsStart;
+    let isFloat = false;
+    if (peek() === ".") {
+      const afterDot = peek(1);
+      if (intDigits > 0 || isDigit(afterDot)) {
+        pos++;
+        while (isDigit(peek())) {
+          pos++;
+        }
+        isFloat = true;
+      }
+    }
+    if (intDigits === 0 && !isFloat) {
+      pos = start;
+      return undefined;
+    }
+    if (peek() === "e" || peek() === "E") {
+      const expStart = pos;
       pos++;
+      if (peek() === "+" || peek() === "-") {
+        pos++;
+      }
+      const expDigitsStart = pos;
       while (isDigit(peek())) {
         pos++;
       }
-      return Number(input.slice(start, pos));
+      if (pos === expDigitsStart) {
+        pos = expStart;
+      } else {
+        isFloat = true;
+      }
     }
-    return BigInt(input.slice(start, pos));
+    const raw = input.slice(start, pos);
+    if (!/^[+-]?[0-9]+$/.test(raw)) {
+      return Number(raw);
+    }
+    return BigInt(raw);
   };
 
   const parseFilterValue = ():

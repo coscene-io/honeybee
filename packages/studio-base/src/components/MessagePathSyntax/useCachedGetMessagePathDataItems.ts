@@ -223,6 +223,27 @@ export function fillInGlobalVariablesInPath(
 }
 
 // enumValues is storedValue → name per field. Invert to name → storedValue for identifier filters.
+function structureAtFilterPath(
+  structureItem: MessagePathStructureItem | undefined,
+  path: string[],
+): MessagePathStructureItem | undefined {
+  let current = structureItem;
+  for (let i = 0; i < path.length - 1; i++) {
+    const name = path[i];
+    if (name == undefined || current == undefined) {
+      return undefined;
+    }
+    if (current.structureType === "message") {
+      current = current.nextByName[name];
+    } else if (current.structureType === "array") {
+      current = current.next;
+    } else {
+      return undefined;
+    }
+  }
+  return current;
+}
+
 function rewriteIdentifierFilter(
   pathItem: MessagePathFilter,
   structureItem: MessagePathStructureItem | undefined,
@@ -231,7 +252,8 @@ function rewriteIdentifierFilter(
   if (pathItem.valueIsIdentifier !== true || typeof pathItem.value !== "string") {
     return pathItem;
   }
-  const fieldEnums = structureItem != undefined ? enumValues[structureItem.datatype] : undefined;
+  const owner = structureAtFilterPath(structureItem, pathItem.path);
+  const fieldEnums = owner != undefined ? enumValues[owner.datatype] : undefined;
   if (fieldEnums == undefined) {
     return pathItem;
   }

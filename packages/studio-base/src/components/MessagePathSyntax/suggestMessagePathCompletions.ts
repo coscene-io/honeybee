@@ -14,7 +14,14 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { MessagePath, MessagePathStructureItem, parseMessagePath } from "@foxglove/message-path";
+import {
+  MessagePath,
+  MessagePathFunction,
+  MessagePathStructureItem,
+  parseFunction,
+  parseMessagePathWithDiagnostics,
+  STRUCT_FUNCTION_NAMES,
+} from "@foxglove/message-path";
 
 import {
   ARRAY_FUNCTION_NAMES,
@@ -51,6 +58,76 @@ function appendScalarAndOperandSuffixes(items: string[]): void {
   }
 }
 
+const NUMERIC_PRIMITIVE: MessagePathStructureItem = {
+  structureType: "primitive",
+  primitiveType: "float64",
+  datatype: "float64",
+};
+
+const RECOVERABLE_PARSE_CODES = new Set([
+  "unclosed_paren",
+  "empty_function",
+  "empty_field_access",
+  "unclosed_filter",
+  "empty_name",
+]);
+
+function structureAfterFunctionChain(
+  item: MessagePathStructureItem | undefined,
+  functionChain: readonly MessagePathFunction[] | undefined,
+): MessagePathStructureItem | undefined {
+  if (item == undefined) {
+    return undefined;
+  }
+  let current: MessagePathStructureItem = item;
+  for (const step of functionChain ?? []) {
+    const parsed = parseFunction(step.function);
+    if (parsed == undefined || parsed.name === "") {
+      break;
+    }
+    const { name } = parsed;
+    if (STRUCT_FUNCTION_NAMES.has(name)) {
+      if (step.fieldAccess != undefined && step.fieldAccess !== "") {
+        current = NUMERIC_PRIMITIVE;
+        continue;
+      }
+      if (name === "quat") {
+        current = {
+          structureType: "message",
+          datatype: "quat",
+          nextByName: {
+            x: NUMERIC_PRIMITIVE,
+            y: NUMERIC_PRIMITIVE,
+            z: NUMERIC_PRIMITIVE,
+            w: NUMERIC_PRIMITIVE,
+          },
+        };
+      } else {
+        current = {
+          structureType: "message",
+          datatype: name,
+          nextByName: {
+            roll: NUMERIC_PRIMITIVE,
+            pitch: NUMERIC_PRIMITIVE,
+            yaw: NUMERIC_PRIMITIVE,
+          },
+        };
+      }
+      continue;
+    }
+    if (
+      ARRAY_FUNCTION_NAMES.includes(name) ||
+      VECTOR_FUNCTION_NAMES.includes(name) ||
+      SCALAR_FUNCTION_NAMES.includes(name) ||
+      OPERAND_FUNCTION_NAMES.includes(name) ||
+      TIME_SERIES_FUNCTION_NAMES.includes(name)
+    ) {
+      current = NUMERIC_PRIMITIVE;
+    }
+  }
+  return current;
+}
+
 function appendTimeSeriesSuffixes(items: string[], support: MessagePathFunctionSupport): void {
   if (!support.supportsTimeSeriesMessagePathFunctions) {
     return;
@@ -63,8 +140,10 @@ function appendTimeSeriesSuffixes(items: string[], support: MessagePathFunctionS
 export function suggestFunctionSuffixes(args: {
   terminatingItem: MessagePathStructureItem | undefined;
   support: MessagePathFunctionSupport;
+  functionChain?: readonly MessagePathFunction[];
 }): string[] {
-  const { terminatingItem, support } = args;
+  const terminatingItem = structureAfterFunctionChain(args.terminatingItem, args.functionChain);
+  const { support } = args;
   if (!support.supportsMessagePathFunctions || terminatingItem == undefined) {
     return [];
   }
@@ -112,6 +191,7 @@ export function suggestFunctionSuffixes(args: {
 export function validateMessagePathInput(
   path: string,
   support: MessagePathFunctionSupport,
+  terminatingItem?: MessagePathStructureItem,
 ): string | undefined {
   if (path.trim().length === 0) {
     return undefined;
@@ -120,19 +200,21 @@ export function validateMessagePathInput(
     return "This field does not accept functions";
   }
 
-  const parsed = parseMessagePath(path);
-  const incompletePathError =
-    path.includes(".@") || path.includes("{") ? undefined : "Invalid expression";
+  const { path: parsed, diagnostics } = parseMessagePathWithDiagnostics(path);
   if (parsed == undefined) {
-    return incompletePathError;
+    const recoverable = diagnostics.some((item) => RECOVERABLE_PARSE_CODES.has(item.code));
+    if (recoverable) {
+      return undefined;
+    }
+    return "Invalid expression";
   }
   if (!parsed.isFullySpecified) {
-    return incompletePathError;
+    return undefined;
   }
   if (parsed.functionChain == undefined || parsed.functionChain.length === 0) {
     return undefined;
   }
-  return validateMessagePathFunctions(parsed, support);
+  return validateMessagePathFunctions(parsed, support, terminatingItem);
 }
 
 export function isCompleteFunctionPath(

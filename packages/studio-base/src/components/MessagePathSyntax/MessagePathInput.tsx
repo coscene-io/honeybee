@@ -401,6 +401,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         const suffixes = suggestFunctionSuffixes({
           terminatingItem,
           support: functionSupport,
+          functionChain: pathBeforeSuffix?.functionChain,
         });
         return {
           autocompleteItems: suffixes
@@ -546,8 +547,14 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
 
   const pathInputError = useMemo(
     () =>
-      trimmedPath.length > 0 ? validateMessagePathInput(trimmedPath, functionSupport) : undefined,
-    [functionSupport, trimmedPath],
+      trimmedPath.length > 0
+        ? validateMessagePathInput(
+            trimmedPath,
+            functionSupport,
+            structureTraversalResult?.structureItem,
+          )
+        : undefined,
+    [functionSupport, structureTraversalResult?.structureItem, trimmedPath],
   );
 
   const hasError =
