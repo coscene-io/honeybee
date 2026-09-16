@@ -78,6 +78,27 @@ describe("planPlotSubscriptions", () => {
     ]);
   });
 
+  it("subscribes to the whole topic for root function paths", () => {
+    expect(plan([path("/vector.@norm")])).toEqual([
+      {
+        subscription: {
+          topic: "/vector",
+          preloadType: "partial",
+        },
+        fallbackSubscription: {
+          topic: "/vector",
+          preloadType: "full",
+        },
+        rangeRequest: {
+          topic: "/vector",
+          payload: {},
+          seriesIndices: [0],
+          signature: expect.any(String),
+        },
+      },
+    ]);
+  });
+
   it("omits disabled, reference, invalid, and property-less paths", () => {
     expect(
       plan([

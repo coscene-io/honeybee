@@ -693,6 +693,49 @@ describe("useCachedGetMessagePathDataItems", () => {
         ],
       ]);
     });
+
+    it("includes the function chain in resolved item paths", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/wheel",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { speed: 10, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/wheel", schemaName: "some_datatype" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          some_datatype: {
+            definitions: [
+              { name: "speed", type: "float64" },
+              { name: "orientation", type: "geometry_msgs/Quaternion", isComplex: true },
+            ],
+          },
+          "geometry_msgs/Quaternion": {
+            definitions: [
+              { name: "x", type: "float64" },
+              { name: "y", type: "float64" },
+              { name: "z", type: "float64" },
+              { name: "w", type: "float64" },
+            ],
+          },
+        }),
+      );
+
+      expect(
+        addValuesWithPathsToItems(messages, "/wheel.speed.@mul(3.6)", topics, datatypes),
+      ).toEqual([[{ constantName: undefined, path: "/wheel.speed.@mul(3.6)", value: 36 }]]);
+      expect(
+        addValuesWithPathsToItems(
+          messages,
+          "/wheel.orientation.@rpy.yaw",
+          topics,
+          datatypes,
+        )[0]?.[0]?.path,
+      ).toEqual("/wheel.orientation.@rpy.yaw");
+    });
   });
 });
 

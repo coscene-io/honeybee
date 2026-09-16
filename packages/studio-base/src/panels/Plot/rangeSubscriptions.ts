@@ -188,14 +188,15 @@ export function planPlotSubscriptions(
 
   return Array.from(topics.values(), (topicPlan): PlotTopicSubscriptionPlan => {
     const fields = Array.from(topicPlan.fields);
+    const fieldPayload = fields.length > 0 ? { fields: [...fields] } : {};
     const subscription: SubscribePayload = {
       topic: topicPlan.topic,
-      fields: [...fields],
+      ...fieldPayload,
       preloadType: primaryPreloadType,
     };
     const fallbackSubscription: SubscribePayload = {
       topic: topicPlan.topic,
-      fields: [...fields],
+      ...fieldPayload,
       preloadType: rangeEnabled ? "full" : primaryPreloadType,
     };
 
@@ -206,7 +207,7 @@ export function planPlotSubscriptions(
         ? {
             rangeRequest: {
               topic: topicPlan.topic,
-              payload: { fields: [...fields] },
+              payload: fieldPayload,
               seriesIndices: [...topicPlan.seriesIndices],
               ...(topicPlan.includesXAxis ? { includesXAxis: true } : {}),
               signature: [

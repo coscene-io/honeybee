@@ -349,7 +349,13 @@ export function getMessagePathDataItems(
           constantName = enumMap?.[fieldName]?.[String(resolvedValue)];
         }
       }
-      queriedData.push({ value: resolvedValue, path, constantName });
+      const functionSuffix = (filledInPath.functionChain ?? [])
+        .map(
+          (step) =>
+            `.@${step.function}${step.fieldAccess != undefined ? `.${step.fieldAccess}` : ""}`,
+        )
+        .join("");
+      queriedData.push({ value: resolvedValue, path: `${path}${functionSuffix}`, constantName });
     } else if (
       pathItem.type === "name" &&
       (structureItem == undefined || structureItem.structureType === "message")

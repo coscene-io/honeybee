@@ -95,6 +95,9 @@ function requiredFields(
 ): string[] | undefined {
   const firstField = path.messagePath.find(isNamePart);
   if (firstField == undefined || firstField.name.length === 0) {
+    if ((path.functionChain?.length ?? 0) > 0) {
+      return [];
+    }
     return undefined;
   }
 
@@ -150,19 +153,20 @@ export function planStateTransitionsSubscriptions(args: {
 
   return [...topics.values()].map((topicPlan) => {
     const fields = [...topicPlan.fields];
+    const fieldPayload = fields.length > 0 ? { fields: [...fields] } : {};
     return {
       topic: topicPlan.topic,
       currentSubscription: {
         topic: topicPlan.topic,
-        fields: [...fields],
+        ...fieldPayload,
         preloadType: "partial",
       },
       fallbackSubscription: {
         topic: topicPlan.topic,
-        fields: [...fields],
+        ...fieldPayload,
         preloadType: "full",
       },
-      rangePayload: { fields: [...fields] },
+      rangePayload: fieldPayload,
       signature: [[...fields].sort().join(","), [...topicPlan.seriesKeys].sort().join("|")].join(
         ";",
       ),

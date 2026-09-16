@@ -70,6 +70,29 @@ describe("planStateTransitionsSubscriptions", () => {
     ]);
   });
 
+  it("subscribes to the whole topic for root function paths", () => {
+    expect(
+      planStateTransitionsSubscriptions({
+        paths: [path("/vector.@norm")],
+        globalVariables: {},
+      }),
+    ).toEqual([
+      {
+        topic: "/vector",
+        currentSubscription: {
+          topic: "/vector",
+          preloadType: "partial",
+        },
+        fallbackSubscription: {
+          topic: "/vector",
+          preloadType: "full",
+        },
+        rangePayload: {},
+        signature: ";receiveTime:/vector.@norm",
+      },
+    ]);
+  });
+
   it("omits disabled, invalid, and property-less paths", () => {
     expect(
       planStateTransitionsSubscriptions({
