@@ -49,7 +49,10 @@ beforeAll(async () => {
     server.listen(0, "127.0.0.1", resolve);
   });
   origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  browser = await chromium.launch();
+  browser = await chromium.launch({
+    channel: "chromium",
+    ignoreDefaultArgs: ["--disable-back-forward-cache"],
+  });
 }, 30_000);
 afterAll(async () => {
   await browser.close();
@@ -159,4 +162,39 @@ it("a fresh signout cookie shows passive recovery without opening the legacy log
     "/auth/logged-out",
   );
   expect(authenticated).toBe(false);
+}, 30_000);
+
+it("a genuine BFCache restoration observes an exit that happened while frozen", async () => {
+  const reasons: string[] = [];
+  const debug = await context.newCDPSession(page);
+  await debug.send("Page.enable");
+  debug.on("Page.backForwardCacheNotUsed", (event) => {
+    reasons.push(JSON.stringify(event.notRestoredExplanations) ?? "");
+  });
+  page.setDefaultTimeout(10_000);
+  await page.evaluate(() => {
+    window.addEventListener("pageshow", (event: PageTransitionEvent) => {
+      if (event.persisted === true) {
+        sessionStorage.setItem("e2e-studio-bfcache-restored", "yes");
+      }
+    });
+  });
+  await page.goto(`${origin}/peer`);
+  const peer = await context.newPage();
+  await peer.goto(`${origin}/peer`);
+  await peer.evaluate((key) => {
+    localStorage.removeItem(key);
+  }, tokenKey);
+  // A restored document emits pageshow rather than a new load event.
+  await page.goBack({ timeout: 10_000, waitUntil: "commit" });
+  expect({
+    persisted: await page.evaluate(() => sessionStorage.getItem("e2e-studio-bfcache-restored")),
+    reasons,
+  }).toEqual({ persisted: "yes", reasons: [] });
+  await page
+    .getByText("Your session expired. Sign in again to continue.", { exact: true })
+    .waitFor();
+  expect(await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")).toBe(
+    "/auth/recover",
+  );
 }, 30_000);
