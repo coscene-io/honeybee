@@ -79,7 +79,8 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
 
     const range: Bounds1D = { min: 0, max: 0 };
     for (const series of this.#seriesByKey.values()) {
-      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
+      const name = series.parsed.functionChain?.[0]?.function;
+      const mathFn = name ? mathFunctions[name] : undefined;
 
       const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
       if (legendMatch) {

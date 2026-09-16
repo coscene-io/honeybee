@@ -632,7 +632,7 @@ describe("fillInGlobalVariablesInPath", () => {
               end: { variableName: "end", startLoc: 0 },
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { start: 10, end: "123" },
       ),
@@ -643,6 +643,7 @@ describe("fillInGlobalVariablesInPath", () => {
         { name: "bar", type: "name", repr: "bar" },
         { type: "slice", start: 10, end: 123 },
       ],
+      isFullySpecified: true,
     });
 
     // Non-numbers
@@ -659,7 +660,7 @@ describe("fillInGlobalVariablesInPath", () => {
               end: { variableName: "end", startLoc: 0 },
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { end: "blah" },
       ),
@@ -670,6 +671,7 @@ describe("fillInGlobalVariablesInPath", () => {
         { type: "name", name: "bar", repr: "bar" },
         { type: "slice", start: 0, end: Infinity },
       ],
+      isFullySpecified: true,
     });
   });
 
@@ -689,7 +691,7 @@ describe("fillInGlobalVariablesInPath", () => {
               repr: "",
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { var: 123 },
       ),
@@ -699,6 +701,7 @@ describe("fillInGlobalVariablesInPath", () => {
       messagePath: [
         { type: "filter", path: ["bar"], value: 123, nameLoc: 0, valueLoc: 0, repr: "" },
       ],
+      isFullySpecified: true,
     });
   });
 
@@ -719,7 +722,7 @@ describe("fillInGlobalVariablesInPath", () => {
               repr: "",
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { var: true },
       ),
@@ -729,6 +732,7 @@ describe("fillInGlobalVariablesInPath", () => {
       messagePath: [
         { type: "filter", path: ["bar"], value: undefined, nameLoc: 0, valueLoc: 0, repr: "" },
       ],
+      isFullySpecified: true,
     });
   });
 });

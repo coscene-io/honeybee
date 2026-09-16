@@ -182,9 +182,8 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
     if (msgEvents.length > 0) {
       for (const series of this.#series) {
-        const mathFn = series.config.parsed.modifier
-          ? mathFunctions[series.config.parsed.modifier]
-          : undefined;
+        const name = series.config.parsed.functionChain?.[0]?.function;
+        const mathFn = name ? mathFunctions[name] : undefined;
 
         const pathItems = readMessagePathItems(
           msgEvents,
@@ -271,9 +270,8 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           done += 1;
           continue;
         }
-        const mathFn = series.config.parsed.modifier
-          ? mathFunctions[series.config.parsed.modifier]
-          : undefined;
+        const name = series.config.parsed.functionChain?.[0]?.function;
+        const mathFn = name ? mathFunctions[name] : undefined;
 
         const messageEvents = series.blockCursor.next(blocks);
         if (!messageEvents) {
@@ -412,9 +410,8 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       ) {
         continue;
       }
-      const mathFn = series.config.parsed.modifier
-        ? mathFunctions[series.config.parsed.modifier]
-        : undefined;
+      const name = series.config.parsed.functionChain?.[0]?.function;
+      const mathFn = name ? mathFunctions[name] : undefined;
       const items = readMessagePathItems(
         events,
         series.config.parsed,

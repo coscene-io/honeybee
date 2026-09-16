@@ -17,7 +17,7 @@
 import { Grammar, Parser } from "nearley";
 
 import grammar from "./grammar.ne";
-import { MessagePath } from "./types";
+import { MessagePath, MessagePathFunction, MessagePathPart } from "./types";
 
 const grammarObj = Grammar.fromCompiled(grammar);
 
@@ -39,11 +39,64 @@ export function quoteFieldNameIfNeeded(name: string): string {
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
 }
 
+export function isFullySpecified(
+  messagePath: MessagePathPart[],
+  functionChain: MessagePathFunction[] | undefined,
+): boolean {
+  for (const part of messagePath) {
+    if (part.type === "name" && part.name === "") {
+      return false;
+    }
+    if (part.type === "filter" && (part.operator == undefined || part.value == undefined)) {
+      return false;
+    }
+  }
+  for (const step of functionChain ?? []) {
+    if (step.function === "" || step.fieldAccess === "") {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Temporary Nearley adapter: map modifier → functionChain until the handwritten parser lands.
+type NearleyMessagePath = {
+  topicName: string;
+  topicNameRepr: string;
+  messagePath: MessagePathPart[];
+  modifier?: string;
+};
+
+function adaptNearleyResult(raw: NearleyMessagePath | undefined): MessagePath | undefined {
+  if (raw == undefined) {
+    return undefined;
+  }
+
+  const messagePath = raw.messagePath.map((part) => {
+    if (part.type === "filter" && part.value != undefined) {
+      return { ...part, operator: "==" as const };
+    }
+    return part;
+  });
+
+  const functionChain: MessagePathFunction[] | undefined =
+    typeof raw.modifier === "string" ? [{ function: raw.modifier }] : undefined;
+
+  return {
+    topicName: raw.topicName,
+    topicNameRepr: raw.topicNameRepr,
+    messagePath,
+    ...(functionChain != undefined ? { functionChain } : {}),
+    // "/" is an unfinished topic (empty identifier after the slash).
+    isFullySpecified: raw.topicName !== "/" && isFullySpecified(messagePath, functionChain),
+  };
+}
+
 const parseMessagePath = (path: string): MessagePath | undefined => {
   // Need to create a new Parser object for every new string to parse (should be cheap).
   const parser = new Parser(grammarObj);
   try {
-    return parser.feed(path).results[0];
+    return adaptNearleyResult(parser.feed(path).results[0]);
   } catch {
     return undefined;
   }

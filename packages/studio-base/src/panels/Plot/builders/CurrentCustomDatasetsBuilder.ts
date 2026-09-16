@@ -85,7 +85,8 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
+      const name = series.parsed.functionChain?.[0]?.function;
+      const mathFn = name ? mathFunctions[name] : undefined;
       const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
       if (legendMatch) {
         series.legendValue = lastChartValue(legendMatch, mathFn);
@@ -97,9 +98,9 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     {
+      const xName = this.#xParsedPath.functionChain?.[0]?.function;
       const xAxisMathFn =
-        (this.#xParsedPath.modifier ? mathFunctions[this.#xParsedPath.modifier] : undefined) ??
-        _.identity<number>;
+        (xName ? mathFunctions[xName] : undefined) ?? _.identity<number>;
 
       const msgEvent = lastMatchingTopic(msgEvents, this.#xParsedPath.topicName);
       if (msgEvent) {
@@ -122,7 +123,8 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
+      const name = series.parsed.functionChain?.[0]?.function;
+      const mathFn = name ? mathFunctions[name] : undefined;
 
       const msgEvent = lastMatchingTopic(msgEvents, series.parsed.topicName);
       if (!msgEvent) {

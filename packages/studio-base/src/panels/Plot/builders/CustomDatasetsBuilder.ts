@@ -958,7 +958,8 @@ function readMessagePathItems(
 }
 
 function getMathFn(path: Immutable<MessagePath>): MathFunction | undefined {
-  return path.modifier ? mathFunctions[path.modifier] : undefined;
+  const name = path.functionChain?.[0]?.function;
+  return name ? mathFunctions[name] : undefined;
 }
 
 function getHistoryOwnership(

@@ -45,7 +45,7 @@ describe("getFirstInvalidVariableFromRosPath", () => {
           repr: "myId==$not_yet_set_global_var",
         },
       ],
-      modifier: undefined,
+      isFullySpecified: true,
     };
     expect(getFirstInvalidVariableFromRosPath(rosPath, {}, setGlobalVars)).toEqual({
       loc: 10,

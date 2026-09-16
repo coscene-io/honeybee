@@ -22,7 +22,9 @@ export function stringifyMessagePath(path: Immutable<MessagePath>): string {
   return (
     path.topicNameRepr +
     path.messagePath.map(stringifyMessagePathPart).join("") +
-    (path.modifier ? `.@${path.modifier}` : "")
+    (path.functionChain ?? [])
+      .map((step) => `.@${step.function}${step.fieldAccess != undefined ? `.${step.fieldAccess}` : ""}`)
+      .join("")
   );
 }
 

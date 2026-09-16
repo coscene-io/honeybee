@@ -1711,7 +1711,7 @@ function resolveBounds(
 }
 
 function isDerivative(series: Series): boolean {
-  return series.config.parsed.modifier === "derivative";
+  return series.config.parsed.functionChain?.[0]?.function === "derivative";
 }
 
 function getStoreIndex(series: Series, index: number): { store: CompactSeriesData; index: number } {
