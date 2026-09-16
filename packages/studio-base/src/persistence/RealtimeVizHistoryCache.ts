@@ -5,7 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import race from "race-as-promised";
+
 import Log from "@foxglove/log";
+import { isGreaterThan } from "@foxglove/rostime";
 import type { MessageEvent } from "@foxglove/studio";
 import { TopicWithDecodingInfo } from "@foxglove/studio-base/players/IterablePlayer/IIterableSource";
 import type { RealtimeHistoryStatus, TopicStats } from "@foxglove/studio-base/players/types";
@@ -20,6 +23,7 @@ import {
 
 const log = Log.getLogger(__filename);
 const PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES = 256;
+const RANGE_READ_TIMEOUT_MS = 5_000;
 
 type ActiveRealtimeHistoryStatus = Exclude<RealtimeHistoryStatus, "disabled">;
 
@@ -61,6 +65,12 @@ export class RealtimeVizHistoryCache {
       retentionWindowMs,
       maxCacheSize,
       metricSink,
+      // Live readiness follows local commits; opening replay validates the session again.
+      onReplayableRangeChange: ({ hasRange }) => {
+        if (this.#initialized && !this.#disabled && !this.#closing) {
+          this.#setStatus(hasRange ? "ready" : "initializing");
+        }
+      },
       onWriteFailure: (error) => {
         this.#disable(error, "Disabling realtime viz history cache after persistence failure:");
         this.#discardAfterFailure();
@@ -84,29 +94,76 @@ export class RealtimeVizHistoryCache {
         return;
       }
 
-      let initializedWithData = false;
+      // Reopening a session can reuse a playable range even while its live source is idle.
+      // Read before draining the buffer so its append callbacks cannot overtake this snapshot.
+      const hasInitialRange = await this.#readPersistedRange();
+      if (this.#isDisabled() || this.#hasResetStarted(resetGeneration)) {
+        return;
+      }
+
+      let hadBufferedEvents = false;
       while (this.#pendingEvents.length > 0) {
+        hadBufferedEvents = true;
         const pendingEvents = this.#pendingEvents;
         this.#pendingEvents = [];
         this.#pendingEstimatedBytes = 0;
-        await this.#appendToStore(pendingEvents, { markReady: false });
+        await this.#appendToStore(pendingEvents);
         if (this.#isDisabled()) {
           return;
         }
         if (this.#hasResetStarted(resetGeneration)) {
           return;
         }
-        initializedWithData = true;
       }
       this.#initialized = true;
       this.#persistLatestMetadata();
-      if (initializedWithData) {
-        this.#setStatus("ready");
-      }
+      // Buffered events may replace the old range during pruning. Let their normal flush
+      // callback establish readiness from the committed range instead of publishing this snapshot.
+      this.#setStatus(!hadBufferedEvents && hasInitialRange ? "ready" : "initializing");
     } catch (error) {
+      if (this.#closing || this.#hasResetStarted(resetGeneration)) {
+        return;
+      }
       this.#disable(error, "Failed to initialize realtime viz history cache:");
       await this.#store.discardAndSeal("abandoned");
       throw error;
+    }
+  }
+
+  async #readPersistedRange(): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const read = async () => {
+        const before = await this.#store.getSessionMetadata();
+        if (before?.status !== "active" || before.cleanupToken != undefined) {
+          return false;
+        }
+        const stats = await this.#store.stats();
+        const after = await this.#store.getSessionMetadata();
+        // A reset by another connection must invalidate the snapshot before it is published.
+        // Timestamps prove the range even when another writer changed this connection's count.
+        return (
+          after?.status === "active" &&
+          after.cleanupToken == undefined &&
+          (before.contentRevision ?? 0) === (after.contentRevision ?? 0) &&
+          stats.earliest != undefined &&
+          stats.latest != undefined &&
+          isGreaterThan(stats.latest, stats.earliest)
+        );
+      };
+      // These reads happen after the store's own initialization deadline has finished.
+      return await race([
+        read(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error("Timed out reading the realtime cache range"));
+          }, RANGE_READ_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      if (timer != undefined) {
+        clearTimeout(timer);
+      }
     }
   }
 
@@ -195,16 +252,14 @@ export class RealtimeVizHistoryCache {
         continue;
       }
 
-      let resetWithData = false;
       while (this.#pendingEvents.length > 0) {
         const pendingEvents = this.#pendingEvents;
         this.#pendingEvents = [];
         this.#pendingEstimatedBytes = 0;
-        await this.#appendToStore(pendingEvents, { markReady: false });
+        await this.#appendToStore(pendingEvents);
         if (this.#isDisabled()) {
           return;
         }
-        resetWithData = true;
         if (resetGeneration !== this.#resetGeneration) {
           break;
         }
@@ -215,18 +270,11 @@ export class RealtimeVizHistoryCache {
 
       this.#initialized = true;
       this.#persistLatestMetadata();
-      if (resetWithData) {
-        this.#setStatus("ready");
-      }
       return;
     }
   }
 
-  async #appendToStore(
-    events: readonly MessageEvent[],
-    { markReady = true }: { markReady?: boolean } = {},
-  ): Promise<void> {
-    const resetGeneration = this.#resetGeneration;
+  async #appendToStore(events: readonly MessageEvent[]): Promise<void> {
     await this.#store.append(events, {
       // The WebSocket player already normalizes sizeInBytes against its decoded-size estimate.
       // Reuse it instead of recursively walking the same message again on this hot path.
@@ -234,9 +282,6 @@ export class RealtimeVizHistoryCache {
         (event) => event.sizeInBytes + PERSISTED_MESSAGE_INDEX_OVERHEAD_BYTES,
       ),
     });
-    if (markReady && this.#initialized && resetGeneration === this.#resetGeneration) {
-      this.#setStatus("ready");
-    }
   }
 
   public storeTopics(
@@ -309,14 +354,7 @@ export class RealtimeVizHistoryCache {
   async #closeImpl(): Promise<void> {
     this.#closing = true;
     const resetPromise = this.#resetPromise;
-    if (resetPromise != undefined) {
-      try {
-        await resetPromise;
-      } catch {
-        // Reset records the failure and starts abandonment; the disabled path below finishes it.
-      }
-    }
-    if (this.#disabled || !this.#initialized) {
+    if (this.#disabled || (!this.#initialized && resetPromise == undefined)) {
       this.#disabled = true;
       this.#pendingEvents = [];
       this.#pendingEstimatedBytes = 0;
@@ -326,9 +364,17 @@ export class RealtimeVizHistoryCache {
       }
       return;
     }
-    this.#disabled = true;
+    if (resetPromise == undefined) {
+      this.#disabled = true;
+    }
+    // Start the store shutdown deadline before waiting for reset. A healthy reset must still
+    // drain buffered messages and persist their metadata before the store seals the session.
+    const pendingOperations =
+      resetPromise == undefined
+        ? Array.from(this.#metadataWrites)
+        : [resetPromise.then(async () => await Promise.all(Array.from(this.#metadataWrites)))];
     try {
-      await this.#store.closeAfter(Array.from(this.#metadataWrites));
+      await this.#store.closeAfter(pendingOperations);
       if (this.#failure != undefined) {
         throw this.#failure;
       }
@@ -339,6 +385,10 @@ export class RealtimeVizHistoryCache {
         log.debug("Failed to abandon realtime cache after flush failure", closeError);
       }
       throw error;
+    } finally {
+      this.#disabled = true;
+      this.#pendingEvents = [];
+      this.#pendingEstimatedBytes = 0;
     }
   }
 

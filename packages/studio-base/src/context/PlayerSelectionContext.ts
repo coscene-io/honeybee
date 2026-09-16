@@ -70,6 +70,9 @@ export interface IDataSourceFactory {
 
   sampleLayout?: LayoutData;
 
+  /** Connection parameters that must be non-empty before the active player is closed. */
+  requiredParams?: readonly string[];
+
   formConfig?: {
     // Initialization args are populated with keys of the _id_ field
     fields: Field[];

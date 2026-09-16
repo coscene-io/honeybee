@@ -48,6 +48,8 @@ export default class FoxgloveWebSocketDataSourceFactory implements IDataSourceFa
     this.#deviceName = deviceName;
   }
 
+  public requiredParams = ["url"];
+
   public formConfig = {
     fields: [
       {

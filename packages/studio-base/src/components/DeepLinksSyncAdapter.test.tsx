@@ -15,6 +15,11 @@ import {
 } from "@foxglove/studio-base/components/DeepLinksSyncAdapter";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
+const mockSources = [
+  { id: "persistent-cache", type: "persistent-cache", legacyIds: ["old-cache"] },
+  { id: "coscene-data-platform", type: "connection" },
+  { id: "sample", type: "sample" },
+];
 const mockSelectSource = jest.fn();
 const mockSelectEvent = jest.fn();
 const mockSetIsReadyForSyncLayout = jest.fn();
@@ -29,7 +34,7 @@ let mockLoginStatus = "notLogin";
 let mockLastExternalInitConfig: string | undefined;
 
 jest.mock("@foxglove/studio-base/context/PlayerSelectionContext", () => ({
-  usePlayerSelection: () => ({ selectSource: mockSelectSource }),
+  usePlayerSelection: () => ({ availableSources: mockSources, selectSource: mockSelectSource }),
 }));
 
 jest.mock("react-hot-toast", () => ({
@@ -150,6 +155,24 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
       const generation = ++updateGeneration;
       return { isCurrent: () => generation === updateGeneration };
     });
+  });
+
+  it.each([
+    ["persistent-cache", "persistent-cache"],
+    ["old-cache", "persistent-cache"],
+    ["coscene-data-platform", "connection"],
+    ["sample", "connection"],
+  ])("preserves deep-link arguments for %s", (sourceId, type) => {
+    mockCurrentUser = { userId: "users/current-user" };
+    mockLoginStatus = "alreadyLogin";
+    const url = `${window.location.origin}/viz?ds=${sourceId}&ds.sessionId=link-session`;
+    const view = render(<DeepLinksSyncAdapter deepLinks={[url]} />);
+    expect(mockSelectSource).toHaveBeenCalledTimes(1);
+    expect(mockSelectSource).toHaveBeenCalledWith(sourceId, {
+      type,
+      params: { sessionId: "link-session", userId: "users/current-user" },
+    });
+    view.unmount();
   });
 
   it.each([

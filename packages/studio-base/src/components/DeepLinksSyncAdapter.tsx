@@ -93,7 +93,7 @@ export function DeepLinksSyncAdapter({
   const domainConfig = getDomainConfig();
 
   // 数据源和用户相关
-  const { selectSource } = usePlayerSelection();
+  const { availableSources, selectSource } = usePlayerSelection();
   const currentUser = useCurrentUser(selectUser);
   const loginStatus = useCurrentUser(selectUserLoginStatus);
 
@@ -384,9 +384,14 @@ export function DeepLinksSyncAdapter({
         return;
       }
 
+      const sourceId = unappliedSourceArgs.ds;
+      const foundSource = availableSources.find(
+        (source) => source.id === sourceId || source.legacyIds?.includes(sourceId) === true,
+      );
+
       // 构建数据源参数
       const sourceParams: DataSourceArgs = {
-        type: "connection",
+        type: foundSource?.type === "persistent-cache" ? "persistent-cache" : "connection",
         params: {
           ...(authless ? {} : currentUser),
           ...unappliedSourceArgs.dsParams,
@@ -414,6 +419,7 @@ export function DeepLinksSyncAdapter({
     currentUser,
     selectEvent,
     selectSource,
+    availableSources,
     unappliedSourceArgs,
     loginStatus,
     dataSourceDialog.open,

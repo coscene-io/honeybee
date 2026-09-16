@@ -71,6 +71,10 @@ export class PersistentCacheIterableSource implements IIterableSource {
         throw new Error("No cached realtime data is available for this session.");
       }
 
+      if (compare(stats.earliest, stats.latest) >= 0) {
+        throw new Error("Cached realtime data does not yet span a playable time range.");
+      }
+
       const topicStats = new Map<string, { numMessages: number }>();
 
       const topics: TopicWithDecodingInfo[] = [];

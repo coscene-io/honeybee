@@ -24,6 +24,8 @@ class RosbridgeDataSourceFactory implements IDataSourceFactory {
   ];
   public description = t("openDialog:rosbridgeDataSourceDesc");
 
+  public requiredParams = ["url"];
+
   public formConfig = {
     fields: [
       {

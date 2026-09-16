@@ -914,6 +914,14 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
       const messageTime = fromNanoSec(timestamp);
       this.#serverTime = messageTime;
+      if (
+        this.#serverPublishesTime &&
+        this.#clockTime == undefined &&
+        (this.#provisionalEndTime == undefined ||
+          isGreaterThan(messageTime, this.#provisionalEndTime))
+      ) {
+        this.#provisionalEndTime = messageTime;
+      }
 
       try {
         this.#receivedBytes += data.byteLength;
@@ -941,14 +949,6 @@ export default class FoxgloveWebSocketPlayer implements Player {
 
         // Persist message to cache asynchronously (non-blocking)
         (this.#persistentCache ?? this.#initializingPersistentCache)?.append([messageEvent]);
-        if (
-          this.#serverPublishesTime &&
-          this.#clockTime == undefined &&
-          (this.#provisionalEndTime == undefined ||
-            isGreaterThan(messageTime, this.#provisionalEndTime))
-        ) {
-          this.#provisionalEndTime = messageTime;
-        }
         this.#parsedMessagesBytes += sizeInBytes;
         if (this.#parsedMessagesBytes > CURRENT_FRAME_MAXIMUM_SIZE_BYTES) {
           this.#problems.addProblem(`webSocketPlayer:parsedMessageCacheFull`, {
@@ -1883,7 +1883,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
       }
     } else if (this.#clockTime == undefined && this.#serverTime != undefined) {
       // A server may advertise clock support before publishing its first clock event. Topic
-      // messages already carry a server timestamp, so use it until the dedicated clock arrives.
+      // messages already carry a server timestamp, so use them until the dedicated clock arrives.
+      // Keep this provisional time monotonic: subscriptions can deliver earlier timestamps after
+      // later ones, and PlayerStateActiveData forbids moving currentTime/receiveTime backward
+      // without bumping lastSeekTime.
+      if (
+        this.#provisionalEndTime != undefined &&
+        isGreaterThan(this.#provisionalEndTime, this.#serverTime)
+      ) {
+        return this.#provisionalEndTime;
+      }
       return this.#serverTime;
     }
 

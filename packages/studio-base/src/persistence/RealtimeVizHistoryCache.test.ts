@@ -5,10 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import race from "race-as-promised";
+
 import {
   clearIndexedDbMessageStoreDatabase,
   DEFAULT_APPEND_QUEUE_MAX_MESSAGES,
   IndexedDbMessageStore,
+  type MessageCacheMetricData,
 } from "./IndexedDbMessageStore";
 import { RealtimeVizHistoryCache } from "./RealtimeVizHistoryCache";
 
@@ -20,6 +23,291 @@ describe("RealtimeVizHistoryCache", () => {
   afterEach(async () => {
     await clearIndexedDbMessageStoreDatabase();
   });
+
+  it.each([0, 1])(
+    "restores an idle session's readiness from its persisted %i ns range",
+    async (nsec) => {
+      const sessionId = `reopened-range-${nsec}`;
+      const previous = new RealtimeVizHistoryCache({ sessionId, retentionWindowMs: 30_000 });
+      const event = {
+        topic: "/example",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+        schemaName: "example/Message",
+      };
+      await previous.init();
+      previous.append([event, { ...event, receiveTime: { sec: 1, nsec } }]);
+      await previous.close();
+
+      const onStatusChange = jest.fn();
+      const reopened = new RealtimeVizHistoryCache({
+        sessionId,
+        retentionWindowMs: 30_000,
+        onStatusChange,
+      });
+      try {
+        await reopened.init();
+        expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual(
+          nsec > 0 ? ["ready"] : [],
+        );
+      } finally {
+        await reopened.close();
+      }
+    },
+  );
+
+  it.each([
+    "reset",
+    "reset with read failure",
+    "another writer reset",
+    "close",
+    "close with read failure",
+  ])("ignores an initialization snapshot that settles after %s", async (action) => {
+    const sessionId = `stale-initial-range-${action}`;
+    const writer = new IndexedDbMessageStore({ sessionId, kind: "realtime-viz" });
+    const event = {
+      topic: "/example",
+      receiveTime: { sec: 1, nsec: 0 },
+      message: {},
+      sizeInBytes: 1,
+      schemaName: "example/Message",
+    };
+    await writer.init();
+    await writer.append([event, { ...event, receiveTime: { sec: 1, nsec: 1 } }]);
+    await writer.close();
+
+    let releaseRead = () => {};
+    let markReadStarted = () => {};
+    const readGate = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    const readStarted = new Promise<void>((resolve) => {
+      markReadStarted = resolve;
+    });
+    const statsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "stats")
+      .mockImplementationOnce(async function (this: IndexedDbMessageStore) {
+        statsSpy.mockRestore();
+        const stats = await this.stats();
+        markReadStarted();
+        await readGate;
+        if (action.endsWith("read failure")) {
+          throw new Error("initial stats read aborted");
+        }
+        return stats;
+      });
+    const onStatusChange = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId,
+      retentionWindowMs: 30_000,
+      onStatusChange,
+    });
+    try {
+      const initializing = cache.init();
+      await readStarted;
+      if (action.startsWith("reset")) {
+        await cache.reset();
+      } else if (action === "another writer reset") {
+        const other = new IndexedDbMessageStore({ sessionId, kind: "realtime-viz" });
+        try {
+          await other.init();
+          await other.clear();
+        } finally {
+          await other.close();
+        }
+      } else {
+        await cache.close();
+      }
+      releaseRead();
+      await initializing;
+      expect(onStatusChange).not.toHaveBeenCalled();
+    } finally {
+      releaseRead();
+      statsSpy.mockRestore();
+      await cache.close();
+    }
+  });
+
+  it("bounds a stalled initial range read", async () => {
+    jest.useFakeTimers();
+    let releaseRead: (stats: { count: number }) => void = () => {};
+    let markReadStarted = () => {};
+    const readGate = new Promise<{ count: number }>((resolve) => {
+      releaseRead = resolve;
+    });
+    const readStarted = new Promise<void>((resolve) => {
+      markReadStarted = resolve;
+    });
+    const statsSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "stats")
+      .mockImplementationOnce(async () => {
+        markReadStarted();
+        return await readGate;
+      });
+    const onStatusChange = jest.fn();
+    const onInitError = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "stalled-initial-range",
+      retentionWindowMs: 30_000,
+      onStatusChange,
+    });
+    const initializing = cache.init().catch(onInitError);
+    try {
+      await readStarted;
+      await jest.advanceTimersByTimeAsync(5_100);
+      expect(onStatusChange).toHaveBeenCalledWith("unavailable");
+      // Let normal store teardown settle without releasing the stalled read.
+      await initializing;
+      expect(onInitError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Timed out reading the realtime cache range" }),
+      );
+    } finally {
+      releaseRead({ count: 0 });
+      await initializing;
+      await cache.close().catch(() => undefined);
+      statsSpy.mockRestore();
+      jest.mocked(console.warn).mockClear();
+      jest.useRealTimers();
+    }
+  });
+
+  it("keeps both realtime caches usable when one writes during the other's reset", async () => {
+    const sessionId = "shared-realtime-reset";
+    let markWaiting = () => {};
+    const waiting = new Promise<void>((resolve) => {
+      markWaiting = resolve;
+    });
+    const metricSink = jest.fn((_event: string, data: MessageCacheMetricData) => {
+      if (data.status === "waiting-for-reset") {
+        markWaiting();
+      }
+    });
+    const firstStatus = jest.fn();
+    const secondStatus = jest.fn();
+    const first = new RealtimeVizHistoryCache({
+      sessionId,
+      retentionWindowMs: 30_000,
+      onStatusChange: firstStatus,
+    });
+    const second = new RealtimeVizHistoryCache({
+      sessionId,
+      retentionWindowMs: 30_000,
+      onStatusChange: secondStatus,
+      metricSink,
+    });
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    const event = {
+      topic: "/example",
+      receiveTime: { sec: 1, nsec: 0 },
+      message: {},
+      sizeInBytes: 1,
+      schemaName: "example/Message",
+    };
+    await first.init();
+    first.append([event, { ...event, receiveTime: { sec: 1, nsec: 1 } }]);
+    await Promise.resolve();
+    await appendSpy.mock.contexts[0]!.flush();
+    await second.init();
+    let resumeClear = () => {};
+    let markClearPaused = () => {};
+    const clearPaused = new Promise<void>((resolve) => {
+      markClearPaused = resolve;
+    });
+    const originalSetTimeout = globalThis.setTimeout;
+    const timeoutSpy = jest
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((handler, timeout, ...args) => {
+        if (timeout !== 0) {
+          return originalSetTimeout(handler, timeout, ...args);
+        }
+        timeoutSpy.mockRestore();
+        resumeClear = () => {
+          handler(...args);
+        };
+        markClearPaused();
+        return originalSetTimeout(() => {}, 0);
+      });
+    try {
+      const resetting = first.reset();
+      await clearPaused;
+      const events = [event, { ...event, receiveTime: { sec: 2, nsec: 0 } }];
+      second.append(events);
+      await Promise.resolve();
+      const secondStore = appendSpy.mock.contexts.at(-1)!;
+      const flushing = secondStore.flush();
+      await race([waiting, flushing.catch(() => undefined)]);
+      resumeClear();
+      expect(await Promise.allSettled([resetting, flushing])).toEqual([
+        { status: "fulfilled", value: undefined },
+        { status: "fulfilled", value: undefined },
+      ]);
+      expect(metricSink).toHaveBeenCalledWith(
+        "write",
+        expect.objectContaining({ status: "waiting-for-reset" }),
+      );
+      expect(firstStatus).not.toHaveBeenCalledWith("unavailable");
+      expect(secondStatus).not.toHaveBeenCalledWith("unavailable");
+      expect(await secondStore.getSessionMetadata()).toMatchObject({
+        status: "active",
+        messageCount: 2,
+      });
+      expect(
+        await secondStore.getMessages({ start: { sec: 0, nsec: 0 }, end: { sec: 3, nsec: 0 } }),
+      ).toEqual(events);
+    } finally {
+      resumeClear();
+      timeoutSpy.mockRestore();
+      appendSpy.mockRestore();
+      await Promise.allSettled([first.close(), second.close()]);
+    }
+  });
+
+  it.each(["retention", "size"])(
+    "waits for buffered initialization messages to survive %s pruning",
+    async (limit) => {
+      const sessionId = `buffered-pruning-${limit}`;
+      const previous = new RealtimeVizHistoryCache({
+        sessionId,
+        retentionWindowMs: 30_000,
+        maxCacheSize: 1_000,
+      });
+      const event = {
+        topic: "/example",
+        receiveTime: { sec: 1, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+        schemaName: "example/Message",
+      };
+      await previous.init();
+      previous.append([event, { ...event, receiveTime: { sec: 1, nsec: 1 } }]);
+      await previous.close();
+      const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+      const onStatusChange = jest.fn();
+      const reopened = new RealtimeVizHistoryCache({
+        sessionId,
+        retentionWindowMs: 30_000,
+        maxCacheSize: 1_000,
+        onStatusChange,
+      });
+      reopened.append([
+        {
+          ...event,
+          receiveTime: { sec: limit === "retention" ? 60 : 2, nsec: 0 },
+          sizeInBytes: limit === "size" ? 600 : 1,
+        },
+      ]);
+      try {
+        await reopened.init();
+        await appendSpy.mock.contexts[0]!.flush();
+        expect(onStatusChange).not.toHaveBeenCalledWith("ready");
+        expect((await appendSpy.mock.contexts[0]!.stats()).count).toBe(1);
+      } finally {
+        await reopened.close();
+        appendSpy.mockRestore();
+      }
+    },
+  );
 
   it("buffers messages during initialization and reuses their declared size", async () => {
     let resolveInit = () => {};
@@ -58,10 +346,13 @@ describe("RealtimeVizHistoryCache", () => {
       expect(appendSpy).toHaveBeenCalledWith([event], {
         estimatedSizeBytes: [1_256],
       });
-      expect(onStatusChange).toHaveBeenCalledWith("ready");
+      expect(onStatusChange).not.toHaveBeenCalledWith("ready");
 
-      cache.append([event]);
+      cache.append([{ ...event, receiveTime: { sec: 1, nsec: 0 } }]);
+      await Promise.resolve();
+      await appendSpy.mock.contexts[0]!.flush();
       expect(appendSpy).toHaveBeenCalledTimes(2);
+      expect(onStatusChange).toHaveBeenCalledWith("ready");
       await cache.close();
     } finally {
       appendSpy.mockRestore();
@@ -92,17 +383,24 @@ describe("RealtimeVizHistoryCache", () => {
     const topics = [{ name: "/example", schemaName: "example/Message" }];
     const datatypes = new Map([["example/Message", { definitions: [] }]]);
 
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
     await cache.init();
     cache.storeTopics(topics, new Map([["/example", { numMessages: 5 }]]));
     cache.storeDatatypes(datatypes);
-    cache.append([provisionalEvent]);
+    cache.append([provisionalEvent, { ...provisionalEvent, receiveTime: { sec: 2, nsec: 1 } }]);
     await Promise.resolve();
     await Promise.resolve();
 
+    await appendSpy.mock.contexts[0]!.flush();
     const resetPromise = cache.reset();
     cache.storeTopics(topics, new Map([["/example", { numMessages: 1 }]]));
-    cache.append([replacementEvent]);
+    const replacementEvents = [
+      replacementEvent,
+      { ...replacementEvent, receiveTime: { sec: 1, nsec: 1 } },
+    ];
+    cache.append(replacementEvents);
     await resetPromise;
+    await appendSpy.mock.contexts[0]!.flush();
     await cache.close();
 
     const reader = new IndexedDbMessageStore({
@@ -116,7 +414,7 @@ describe("RealtimeVizHistoryCache", () => {
         start: { sec: 0, nsec: 0 },
         end: { sec: 3, nsec: 0 },
       });
-      expect(messages).toEqual([replacementEvent]);
+      expect(messages).toEqual(replacementEvents);
       expect(await reader.getTopics()).toEqual([{ ...topics[0], topicStats: { numMessages: 1 } }]);
       expect(await reader.getDatatypes()).toEqual(datatypes);
       expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
@@ -233,6 +531,67 @@ describe("RealtimeVizHistoryCache", () => {
     }
   });
 
+  it("enables replay only after a persisted range, and drops readiness when pruning leaves one timestamp", async () => {
+    const onStatusChange = jest.fn();
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "replayable-range",
+      retentionWindowMs: 30_000,
+      maxCacheSize: 1_000,
+      onStatusChange,
+    });
+    const appendSpy = jest.spyOn(IndexedDbMessageStore.prototype, "append");
+    const statsSpy = jest.spyOn(IndexedDbMessageStore.prototype, "stats");
+    const event = {
+      topic: "/example",
+      schemaName: "example/Message",
+      message: {},
+      sizeInBytes: 1,
+      receiveTime: { sec: 1, nsec: 0 },
+    };
+    const flush = async () => {
+      await Promise.resolve();
+      await appendSpy.mock.contexts[0]!.flush();
+    };
+    await cache.init();
+    statsSpy.mockClear();
+    try {
+      cache.append([event, event]);
+      expect(statsSpy).not.toHaveBeenCalled();
+      await flush();
+      expect(onStatusChange).not.toHaveBeenCalledWith("ready");
+      expect(statsSpy).toHaveBeenCalledTimes(1);
+      cache.append([{ ...event, receiveTime: { sec: 1, nsec: 1 } }]);
+      await flush();
+      expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual(["ready"]);
+      // One large retained message displaces all earlier timestamps during size pruning.
+      cache.append([{ ...event, sizeInBytes: 600, receiveTime: { sec: 2, nsec: 0 } }]);
+      // Force the normal pruning interval to elapse without changing timer behavior.
+      const dateSpy = jest.spyOn(Date, "now").mockReturnValue(Date.now() + 2_000);
+      await flush();
+      dateSpy.mockRestore();
+      expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
+        "ready",
+        "initializing",
+      ]);
+      await cache.reset();
+      cache.append([event]);
+      await flush();
+      expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
+        "ready",
+        "initializing",
+      ]);
+      cache.append([{ ...event, receiveTime: { sec: 1, nsec: 1 } }]);
+      await flush();
+      expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
+        "ready",
+        "initializing",
+        "ready",
+      ]);
+    } finally {
+      await cache.close();
+    }
+  });
+
   it("reports the cache as unavailable after an append failure", async () => {
     const appendError = new Error("append failed");
     const appendSpy = jest
@@ -286,10 +645,10 @@ describe("RealtimeVizHistoryCache", () => {
       ]);
       await Promise.resolve();
       await Promise.resolve();
-      expect(onStatusChange).toHaveBeenCalledWith("ready");
+      expect(onStatusChange).not.toHaveBeenCalledWith("ready");
 
       await jest.advanceTimersByTimeAsync(250);
-      for (let attempt = 0; attempt < 10 && onStatusChange.mock.calls.length === 1; attempt++) {
+      for (let attempt = 0; attempt < 10 && onStatusChange.mock.calls.length === 0; attempt++) {
         await jest.advanceTimersByTimeAsync(0);
         await Promise.resolve();
       }
@@ -399,6 +758,53 @@ describe("RealtimeVizHistoryCache", () => {
       jest.mocked(console.warn).mockClear();
     } finally {
       storeTopicsSpy.mockRestore();
+    }
+  });
+
+  it("bounds close while a reset operation never settles", async () => {
+    jest.useFakeTimers();
+    let releaseClear = () => {};
+    let markClearStarted = () => {};
+    const clearGate = new Promise<void>((resolve) => {
+      releaseClear = resolve;
+    });
+    const clearStarted = new Promise<void>((resolve) => {
+      markClearStarted = resolve;
+    });
+    const clearSpy = jest
+      .spyOn(IndexedDbMessageStore.prototype, "clear")
+      .mockImplementationOnce(async () => {
+        markClearStarted();
+        await clearGate;
+      });
+    const cache = new RealtimeVizHistoryCache({
+      sessionId: "stalled-reset-close",
+      retentionWindowMs: 30_000,
+    });
+    let resetting: Promise<void> | undefined;
+    let closing: Promise<void> | undefined;
+    let closeError: unknown;
+    try {
+      await cache.init();
+      resetting = cache.reset();
+      await clearStarted;
+      closing = cache.close().catch((error: unknown) => {
+        closeError = error;
+      });
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(closeError).toEqual(
+        expect.objectContaining({ message: expect.stringContaining("pending close operations") }),
+      );
+      expect(console.warn).toHaveBeenCalledWith(
+        "IndexedDbMessageStore shutdown deadline exceeded",
+        expect.objectContaining({ operation: "pending close operations" }),
+      );
+      jest.mocked(console.warn).mockClear();
+    } finally {
+      releaseClear();
+      await Promise.allSettled([resetting, closing]);
+      clearSpy.mockRestore();
+      jest.useRealTimers();
     }
   });
 
