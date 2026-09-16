@@ -17,6 +17,7 @@
 import { parseMessagePath } from "@foxglove/message-path";
 
 import {
+  applyFunctionChain,
   compileScalarFunction,
   validateMessagePathFunctions,
 } from "./messagePathFunctions";
@@ -119,5 +120,59 @@ describe("validateMessagePathFunctions", () => {
         datatype: "float64",
       }),
     ).toMatch(/array/i);
+  });
+});
+
+const SQ2 = Math.SQRT1_2; // 90° yaw quaternion z/w
+
+describe("applyFunctionChain", () => {
+  it("applies scalar and operand", () => {
+    expect(applyFunctionChain(-3, [{ function: "abs" }])).toBe(3);
+    expect(applyFunctionChain(10, [{ function: "mul(3.6)" }])).toBeCloseTo(36);
+  });
+
+  it("computes length and norm", () => {
+    expect(applyFunctionChain([1, 2, 3], [{ function: "length" }])).toBe(3);
+    expect(applyFunctionChain({ x: 3, y: 4 }, [{ function: "norm" }])).toBe(5);
+    expect(applyFunctionChain({ x: 0, y: 0, z: 1 }, [{ function: "norm" }])).toBe(1);
+  });
+
+  it("converts quaternion yaw to degrees", () => {
+    expect(
+      applyFunctionChain(
+        { x: 0, y: 0, z: 0, w: 1 },
+        [{ function: "rpy", fieldAccess: "yaw" }, { function: "degrees" }],
+      ),
+    ).toBeCloseTo(0);
+    expect(
+      applyFunctionChain(
+        { x: 0, y: 0, z: SQ2, w: SQ2 },
+        [{ function: "rpy", fieldAccess: "yaw" }, { function: "degrees" }],
+      ),
+    ).toBeCloseTo(90);
+  });
+
+  it("reads a Time value as seconds before math", () => {
+    expect(
+      applyFunctionChain({ sec: 1, nsec: 500_000_000 }, [{ function: "mul(1000)" }]),
+    ).toBeCloseTo(1500);
+  });
+
+  it("skips time-series and unknown names", () => {
+    expect(applyFunctionChain(5, [{ function: "derivative" }])).toBe(5);
+    expect(applyFunctionChain(180, [{ function: "deg2rad" }])).toBe(180);
+  });
+
+  it("returns undefined when length/norm cannot apply", () => {
+    expect(applyFunctionChain(5, [{ function: "length" }])).toBeUndefined();
+    expect(applyFunctionChain({ a: 1 }, [{ function: "norm" }])).toBeUndefined();
+  });
+
+  it("maps scalar across numeric object fields", () => {
+    expect(applyFunctionChain({ x: -1, y: 2, name: "n" }, [{ function: "abs" }])).toEqual({
+      x: 1,
+      y: 2,
+      name: "n",
+    });
   });
 });

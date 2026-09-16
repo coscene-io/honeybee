@@ -14,12 +14,17 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { Euler, Quaternion } from "three";
+
 import {
   MessagePath,
+  MessagePathFunction,
   MessagePathStructureItem,
   parseFunction,
   STRUCT_FUNCTION_NAMES,
 } from "@foxglove/message-path";
+import { isTime, toSec } from "@foxglove/rostime";
+import { isTypedArray } from "@foxglove/studio-base/types/isTypedArray";
 
 export const SCALAR_FUNCTION_NAMES: readonly string[] = [
   "abs",
@@ -124,6 +129,201 @@ export function compileScalarFunction(functionStr: string): ((n: number) => numb
     return undefined;
   }
   return SCALAR_BY_NAME[name];
+}
+
+const tmpQuaternion = new Quaternion();
+const tmpEuler = new Euler();
+
+const STRUCT_EULER_ORDER: Record<string, "XYZ" | "ZYX" | "ZXY"> = {
+  rpy: "XYZ",
+  ypr: "ZYX",
+  yrp: "ZXY",
+};
+
+function wrapToPi(rad: number): number {
+  // three.js can return an equivalent wrap (e.g. -3π/2 instead of π/2); match Foxglove XYZ.
+  return Math.atan2(Math.sin(rad), Math.cos(rad));
+}
+
+function asFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function coerceToNumber(value: unknown): number | undefined {
+  switch (typeof value) {
+    case "number":
+      return Number.isFinite(value) ? value : undefined;
+    case "bigint":
+    case "boolean":
+    case "string": {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : undefined;
+    }
+    default:
+      if (isTime(value)) {
+        return toSec(value);
+      }
+      return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" && value != undefined && !Array.isArray(value) && !isTypedArray(value)
+  );
+}
+
+function applyLength(value: unknown): number | undefined {
+  if (Array.isArray(value) || isTypedArray(value)) {
+    return value.length;
+  }
+  return undefined;
+}
+
+function applyNorm(value: unknown): number | undefined {
+  if (Array.isArray(value) || isTypedArray(value)) {
+    if (value.length === 0) {
+      return undefined;
+    }
+    const nums: number[] = [];
+    for (let i = 0; i < value.length; i++) {
+      const n = Number(value[i]);
+      if (!Number.isFinite(n)) {
+        return undefined;
+      }
+      nums.push(n);
+    }
+    return Math.hypot(...nums);
+  }
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const x = asFiniteNumber(value.x);
+  const y = asFiniteNumber(value.y);
+  if (x == undefined || y == undefined) {
+    return undefined;
+  }
+  if (value.z == undefined) {
+    return Math.hypot(x, y);
+  }
+  const z = asFiniteNumber(value.z);
+  if (z == undefined) {
+    return undefined;
+  }
+  return Math.hypot(x, y, z);
+}
+
+function quatToRpy(
+  value: unknown,
+  order: "XYZ" | "ZYX" | "ZXY",
+): { roll: number; pitch: number; yaw: number } | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const x = asFiniteNumber(value.x);
+  const y = asFiniteNumber(value.y);
+  const z = asFiniteNumber(value.z);
+  const w = asFiniteNumber(value.w);
+  if (x == undefined || y == undefined || z == undefined || w == undefined) {
+    return undefined;
+  }
+  tmpQuaternion.set(x, y, z, w);
+  tmpEuler.setFromQuaternion(tmpQuaternion, order);
+  return {
+    roll: wrapToPi(tmpEuler.x),
+    pitch: wrapToPi(tmpEuler.y),
+    yaw: wrapToPi(tmpEuler.z),
+  };
+}
+
+function rpyToQuat(value: unknown): { x: number; y: number; z: number; w: number } | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const roll = asFiniteNumber(value.roll);
+  const pitch = asFiniteNumber(value.pitch);
+  const yaw = asFiniteNumber(value.yaw);
+  if (roll == undefined || pitch == undefined || yaw == undefined) {
+    return undefined;
+  }
+  tmpEuler.set(roll, pitch, yaw, "XYZ");
+  tmpQuaternion.setFromEuler(tmpEuler);
+  return { x: tmpQuaternion.x, y: tmpQuaternion.y, z: tmpQuaternion.z, w: tmpQuaternion.w };
+}
+
+function applyStruct(name: string, value: unknown, fieldAccess: string | undefined): unknown {
+  let result: Record<string, number> | undefined;
+  if (name === "quat") {
+    result = rpyToQuat(value);
+  } else {
+    const order = STRUCT_EULER_ORDER[name];
+    if (order == undefined) {
+      return undefined;
+    }
+    result = quatToRpy(value, order);
+  }
+  if (result == undefined) {
+    return undefined;
+  }
+  if (fieldAccess == undefined) {
+    return result;
+  }
+  const allowed = STRUCT_FIELD_ACCESS[name];
+  if (allowed == undefined || !allowed.includes(fieldAccess)) {
+    return undefined;
+  }
+  return (result as Record<string, number>)[fieldAccess];
+}
+
+function applyScalar(value: unknown, fn: (n: number) => number): unknown {
+  const n = coerceToNumber(value);
+  if (n != undefined) {
+    return fn(n);
+  }
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(value)) {
+    out[key] = typeof field === "number" && Number.isFinite(field) ? fn(field) : field;
+  }
+  return out;
+}
+
+export function applyFunctionChain(
+  value: unknown,
+  functionChain: MessagePathFunction[] | undefined,
+): unknown {
+  let current: unknown = value;
+  for (const step of functionChain ?? []) {
+    const parsed = parseFunction(step.function);
+    if (parsed == undefined) {
+      continue;
+    }
+    const { name } = parsed;
+    if (TIME_SERIES_FUNCTION_NAMES.includes(name) || !CATALOG_FUNCTION_NAMES.has(name)) {
+      continue;
+    }
+
+    if (ARRAY_FUNCTION_NAMES.includes(name)) {
+      current = applyLength(current);
+    } else if (VECTOR_FUNCTION_NAMES.includes(name)) {
+      current = applyNorm(current);
+    } else if (STRUCT_FUNCTION_NAMES.has(name)) {
+      current = applyStruct(name, current, step.fieldAccess);
+    } else {
+      const fn = compileScalarFunction(step.function);
+      if (fn == undefined) {
+        return undefined;
+      }
+      current = applyScalar(current, fn);
+    }
+
+    if (current == undefined) {
+      return undefined;
+    }
+  }
+  return current;
 }
 
 function validateOperand(
