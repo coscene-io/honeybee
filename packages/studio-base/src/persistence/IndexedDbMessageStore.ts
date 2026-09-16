@@ -65,6 +65,8 @@ const GLOBAL_BUDGET_CHECK_BYTES = 64 * MEBIBYTE;
 const STORAGE_ESTIMATE_TIMEOUT_MS = 1_000;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 5_000;
 const DEFAULT_MAINTENANCE_TIMEOUT_MS = 30_000;
+const RESET_WRITE_RETRY_TIMEOUT_MS = 30_000;
+const RESET_WRITE_RETRY_DELAY_MS = 25;
 const MAX_SHUTDOWN_STATUS_RESERVE_MS = 500;
 const DEFAULT_APPEND_BATCH_MAX_BYTES = 64 * MEBIBYTE;
 export const DEFAULT_APPEND_QUEUE_MAX_MESSAGES = 50_000;
@@ -78,6 +80,7 @@ const MESSAGE_READ_PAGE_MAX_SCANNED_RECORDS = 10_000;
 class StorageEstimateTimeoutError extends Error {}
 class ShutdownTimeoutError extends Error {}
 class MaintenanceTimeoutError extends Error {}
+class SessionResetInProgressError extends Error {}
 
 export type CacheSessionKind = "realtime-viz" | "playback-spill";
 export type CacheAccessMode = "reader" | "writer" | "maintenance";
@@ -492,6 +495,8 @@ interface IndexedDbMessageStoreOptions {
   metricSink?: MessageCacheMetricSink;
   /** Reports the first persistence failure, including failures from scheduled background flushes. */
   onWriteFailure?: (error: Error) => void;
+  /** Reports the persisted time range after each append batch and its retention/size pruning. */
+  onReplayableRangeChange?: (range: { hasRange: boolean }) => void;
 }
 
 function createMessageStores(db: IDB.IDBPDatabase<MessagesDB>): void {
@@ -560,6 +565,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #accessMode: CacheAccessMode;
   #metricSink: MessageCacheMetricSink | undefined;
   #onWriteFailure: ((error: Error) => void) | undefined;
+  #onReplayableRangeChange: ((range: { hasRange: boolean }) => void) | undefined;
   #postOpenInitializationTimeoutMs: number;
   #currentSessionId: string;
   #ownerId = createConnectionOwnerId();
@@ -602,6 +608,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   #shutdownDeadlineAt: number | undefined;
   #sessionCreated = false;
   #readerLeaseCreated = false;
+  #readerSessionRevision?: number;
 
   public constructor(options: IndexedDbMessageStoreOptions = {}) {
     const {
@@ -621,6 +628,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       accessMode = "writer",
       metricSink,
       onWriteFailure,
+      onReplayableRangeChange,
     } = options;
 
     this.#retentionWindowMs = retentionWindowMs;
@@ -639,6 +647,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#accessMode = accessMode;
     this.#metricSink = metricSink;
     this.#onWriteFailure = onWriteFailure;
+    this.#onReplayableRangeChange = onReplayableRangeChange;
     this.#currentSessionId = sessionId;
     if (!Number.isSafeInteger(maxQueuedMessages) || maxQueuedMessages <= 0) {
       throw new Error("maxQueuedMessages must be a positive safe integer");
@@ -837,7 +846,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
         log.debug("Skipping IndexedDbMessageStore initialization because store is already closed");
         return;
       }
-      const initializationDeadlineAt = performance.now() + this.#postOpenInitializationTimeoutMs;
+      let initializationDeadlineAt = performance.now() + this.#postOpenInitializationTimeoutMs;
 
       if (this.#accessMode === "reader") {
         this.#readerLeaseCreated = await this.#awaitInitializationStage(
@@ -869,12 +878,22 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       if (this.#shouldStopInitialization() || this.#accessMode === "maintenance") {
         return;
       }
-      await this.#awaitInitializationStage(
+      await this.#retryDuringSessionReset(
         async () => {
-          await this.#recordSessionCreation();
+          await this.#awaitInitializationStage(
+            async () => {
+              await this.#recordSessionCreation();
+            },
+            "session creation",
+            initializationDeadlineAt,
+          );
         },
-        "session creation",
-        initializationDeadlineAt,
+        "open session",
+        () => {
+          // Reset contention has its own bounded retry budget. Each database attempt and the
+          // remaining initialization stages still have the normal availability deadline.
+          initializationDeadlineAt = performance.now() + this.#postOpenInitializationTimeoutMs;
+        },
       );
       this.#sessionCreated = true;
       if (this.#shouldStopInitialization()) {
@@ -1412,6 +1431,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
       const messageIndex = tx.objectStore(STORE).index("bySession");
       const sessionMetadata = await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId);
+      this.#assertReplaySnapshot(sessionMetadata);
       const count =
         sessionMetadata?.messageCount ?? (await messageIndex.count(this.#currentSessionId));
       const approximateSizeBytes = normalizedStoredSize(sessionMetadata?.approximateSizeBytes);
@@ -1481,6 +1501,37 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
   }
 
+  async #retryDuringSessionReset<T>(
+    operation: () => Promise<T>,
+    name: string,
+    onRetry?: () => void,
+  ): Promise<T> {
+    const deadlineAt = performance.now() + RESET_WRITE_RETRY_TIMEOUT_MS;
+    let reportedWait = false;
+    for (;;) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (!(error instanceof SessionResetInProgressError)) {
+          throw error;
+        }
+        if (this.#closed || this.#unavailable || performance.now() >= deadlineAt) {
+          throw new Error(
+            `Unable to ${name}: timed out or closed while waiting for the session reset`,
+          );
+        }
+        if (!reportedWait) {
+          this.#reportMetric("write", { status: "waiting-for-reset", operation: name });
+          reportedWait = true;
+        }
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, RESET_WRITE_RETRY_DELAY_MS);
+        });
+        onRetry?.();
+      }
+    }
+  }
+
   async #recordSessionCreation(): Promise<void> {
     if (this.#closed) {
       return;
@@ -1494,6 +1545,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (existing?.status === "pending-delete" || existing?.status === "abandoned") {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be reopened");
+    }
+    if (existing?.cleanupToken != undefined) {
+      await tx.done;
+      throw new SessionResetInProgressError("IndexedDbMessageStore session is being cleared");
     }
     const metadata: CacheSessionMetadata = {
       sessionId: this.#currentSessionId,
@@ -1539,13 +1594,40 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is pending cleanup and cannot be replayed");
     }
+    if (this.#kind === "realtime-viz" && existing.cleanupToken != undefined) {
+      await tx.done;
+      throw new Error("IndexedDbMessageStore session is being reset and cannot be replayed");
+    }
     await store.put({
       ...existing,
       readers: Array.from(new Set([...(existing.readers ?? []), this.#ownerId])),
       lastActiveAt: Date.now(),
     });
     await tx.done;
+    this.#readerSessionRevision = normalizedContentRevision(existing.contentRevision);
     return true;
+  }
+
+  #assertReplaySnapshot(session: CacheSessionMetadata | undefined): void {
+    // Keep validation synchronous so the transaction stays active for the following reads.
+    // Spill readers retain cache-miss semantics; realtime replay requires a stable snapshot.
+    if (
+      this.#kind !== "realtime-viz" ||
+      this.#accessMode !== "reader" ||
+      (session == undefined && this.#readerSessionRevision == undefined)
+    ) {
+      return;
+    }
+    if (
+      session == undefined ||
+      this.#readerSessionRevision == undefined ||
+      session.cleanupToken != undefined ||
+      session.status === "pending-delete" ||
+      session.status === "abandoned" ||
+      normalizedContentRevision(session.contentRevision) !== this.#readerSessionRevision
+    ) {
+      throw new Error("Cached realtime session changed or is being reset; reopen replay.");
+    }
   }
 
   #hasFreshReaderLease(session: CacheSessionMetadata, cutoffTime: number): boolean {
@@ -1642,7 +1724,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #cleanupSessionData(
     sessionId: string,
     staleGuard?: { kind: CacheSessionKind; cutoffTime: number },
-    options: { abortWhenClosing?: boolean } = {},
+    options: { abortWhenClosing?: boolean; keepSession?: boolean } = {},
   ): Promise<boolean> {
     try {
       const db = await this.#dbPromise;
@@ -1651,6 +1733,22 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       const sessionsStore = sealTx.objectStore(SESSIONS_STORE);
       const sessionMetadata = await sessionsStore.get(sessionId);
       if (sessionMetadata == undefined) {
+        await sealTx.done;
+        return false;
+      }
+      if (
+        options.keepSession === true &&
+        sessionMetadata.status === "active" &&
+        sessionMetadata.cleanupToken != undefined
+      ) {
+        await sealTx.done;
+        throw new SessionResetInProgressError("IndexedDbMessageStore session is being cleared");
+      }
+      if (
+        options.keepSession === true &&
+        (sessionMetadata.status !== "active" ||
+          !(sessionMetadata.owners ?? []).includes(this.#ownerId))
+      ) {
         await sealTx.done;
         return false;
       }
@@ -1668,15 +1766,23 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
           return false;
         }
       }
+      // A live timeline reset must not advertise a terminal session to another tab's janitor.
+      // Keep the owner lease active while still using bounded transactions and cleanup tokens.
+      const cleanupStatus = options.keepSession === true ? "active" : "pending-delete";
       await sessionsStore.put({
         ...sessionMetadata,
-        status: "pending-delete",
+        status: cleanupStatus,
+        lastActiveAt: options.keepSession === true ? Date.now() : sessionMetadata.lastActiveAt,
         cleanupToken,
       });
       await sealTx.done;
 
       while (options.abortWhenClosing !== true || !this.#closing) {
-        const batchResult = await this.#deleteSessionMessageBatch(sessionId, cleanupToken);
+        const batchResult = await this.#deleteSessionMessageBatch(
+          sessionId,
+          cleanupToken,
+          cleanupStatus,
+        );
         if (!batchResult.stillOwner) {
           return false;
         }
@@ -1689,7 +1795,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       }
 
       while (options.abortWhenClosing !== true || !this.#closing) {
-        const batchResult = await this.#deleteSessionTopicBatch(sessionId, cleanupToken);
+        const batchResult = await this.#deleteSessionTopicBatch(
+          sessionId,
+          cleanupToken,
+          cleanupStatus,
+        );
         if (!batchResult.stillOwner) {
           return false;
         }
@@ -1702,7 +1812,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       }
 
       while (options.abortWhenClosing !== true || !this.#closing) {
-        const batchResult = await this.#deleteSessionLoadedRangeBatch(sessionId, cleanupToken);
+        const batchResult = await this.#deleteSessionLoadedRangeBatch(
+          sessionId,
+          cleanupToken,
+          cleanupStatus,
+        );
         if (!batchResult.stillOwner) {
           return false;
         }
@@ -1723,15 +1837,29 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       );
       const finalSessionMetadata = await metadataTx.objectStore(SESSIONS_STORE).get(sessionId);
       if (
-        finalSessionMetadata?.status !== "pending-delete" ||
+        finalSessionMetadata?.status !== cleanupStatus ||
         finalSessionMetadata.cleanupToken !== cleanupToken
       ) {
         await metadataTx.done;
         return false;
       }
       await metadataTx.objectStore(DATATYPES_STORE).delete(sessionId);
-      await metadataTx.objectStore(SESSIONS_STORE).delete(sessionId);
-      await metadataTx.done;
+      if (options.keepSession === true) {
+        const contentRevision = normalizedContentRevision(finalSessionMetadata.contentRevision) + 1;
+        await metadataTx.objectStore(SESSIONS_STORE).put({
+          ...finalSessionMetadata,
+          cleanupToken: undefined,
+          lastActiveAt: Date.now(),
+          messageCount: 0,
+          approximateSizeBytes: 0,
+          contentRevision,
+        });
+        await metadataTx.done;
+        this.#contentRevision = Math.max(this.#contentRevision, contentRevision);
+      } else {
+        await metadataTx.objectStore(SESSIONS_STORE).delete(sessionId);
+        await metadataTx.done;
+      }
       if (sessionId === this.#currentSessionId) {
         this.#messageCount = 0;
         this.#approximateSizeBytes = 0;
@@ -1739,6 +1867,9 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       log.debug(`Cleaned up all data for session: ${sessionId}`);
       return true;
     } catch (error) {
+      if (error instanceof SessionResetInProgressError) {
+        throw error;
+      }
       log.error(`Failed to cleanup session data for ${sessionId}:`, error);
       throw error;
     }
@@ -1747,13 +1878,14 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #deleteSessionMessageBatch(
     sessionId: string,
     cleanupToken: string,
+    cleanupStatus: "active" | "pending-delete",
   ): Promise<CleanupBatchResult> {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readwrite"));
     const messageStore = tx.objectStore(STORE);
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const metadata = await sessionsStore.get(sessionId);
-    if (metadata?.status !== "pending-delete" || metadata.cleanupToken !== cleanupToken) {
+    if (metadata?.status !== cleanupStatus || metadata.cleanupToken !== cleanupToken) {
       await tx.done;
       return { deletedAny: false, stillOwner: false };
     }
@@ -1800,12 +1932,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #deleteSessionTopicBatch(
     sessionId: string,
     cleanupToken: string,
+    cleanupStatus: "active" | "pending-delete",
   ): Promise<CleanupBatchResult> {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(db.transaction([TOPICS_STORE, SESSIONS_STORE], "readwrite"));
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const metadata = await sessionsStore.get(sessionId);
-    if (metadata?.status !== "pending-delete" || metadata.cleanupToken !== cleanupToken) {
+    if (metadata?.status !== cleanupStatus || metadata.cleanupToken !== cleanupToken) {
       await tx.done;
       return { deletedAny: false, stillOwner: false };
     }
@@ -1846,6 +1979,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   async #deleteSessionLoadedRangeBatch(
     sessionId: string,
     cleanupToken: string,
+    cleanupStatus: "active" | "pending-delete",
   ): Promise<CleanupBatchResult> {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(
@@ -1853,7 +1987,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     );
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const metadata = await sessionsStore.get(sessionId);
-    if (metadata?.status !== "pending-delete" || metadata.cleanupToken !== cleanupToken) {
+    if (metadata?.status !== cleanupStatus || metadata.cleanupToken !== cleanupToken) {
       await tx.done;
       return { deletedAny: false, stillOwner: false };
     }
@@ -2230,6 +2364,30 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (this.#closed || this.#unavailable || this.#writesDisabled) {
       throw new Error("IndexedDbMessageStore became unavailable before queued messages flushed");
     }
+    const latestTime = await this.#retryDuringSessionReset(
+      async () => await this.#appendBatch(batch),
+      "append messages",
+    );
+
+    if (!this.#closing) {
+      await this.#maybePrune(latestTime);
+      await this.#enforceGlobalBudget();
+    }
+    if (this.#onReplayableRangeChange != undefined && !this.#closing) {
+      // Two index cursors per persisted batch, only for callers that need replay readiness.
+      // Measure after pruning so a single retained timestamp never enables playback.
+      const stats = await this.stats();
+      this.#onReplayableRangeChange({
+        hasRange:
+          stats.count > 0 &&
+          stats.earliest != undefined &&
+          stats.latest != undefined &&
+          isGreaterThan(stats.latest, stats.earliest),
+      });
+    }
+  }
+
+  async #appendBatch(batch: QueuedMessage[]): Promise<Time | undefined> {
     const db = await this.#dbPromise;
 
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readwrite"), {
@@ -2250,6 +2408,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       if (sessionData?.status !== "active") {
         await tx.done;
         throw new Error("IndexedDbMessageStore session is no longer active");
+      }
+      if (sessionData.cleanupToken != undefined) {
+        await tx.done;
+        throw new SessionResetInProgressError("IndexedDbMessageStore session is being cleared");
       }
       // The session row is the allocation authority. Readwrite transactions are serialized across
       // tabs so two writers reopening the same session cannot overwrite equal-timestamp keys.
@@ -2296,10 +2458,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     this.#approximateSizeBytes = committedApproximateSizeBytes;
     this.#bytesSinceGlobalBudgetCheck += approximateSizeBytesAdded;
 
-    if (!this.#closing) {
-      await this.#maybePrune(latestTime);
-      await this.#enforceGlobalBudget();
-    }
+    return latestTime;
   }
 
   async #maybePrune(latestTime: Time | undefined): Promise<void> {
@@ -2808,6 +2967,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const db = await this.#dbPromise;
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
     const session = await tx.objectStore(SESSIONS_STORE).get(sessionId);
+    this.#assertReplaySnapshot(session);
     if (session?.status !== "active") {
       await tx.done;
       return undefined;
@@ -2888,9 +3048,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const db = await this.#dbPromise;
 
     const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
-    if (options.requireActiveSession === true) {
+    if (options.requireActiveSession === true || this.#accessMode === "reader") {
       const session = await tx.objectStore(SESSIONS_STORE).get(sessionId);
-      if (session?.status !== "active") {
+      this.#assertReplaySnapshot(session);
+      if (options.requireActiveSession === true && session?.status !== "active") {
         await tx.done;
         return undefined;
       }
@@ -3002,8 +3163,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
 
-    const tx = this.#trackTransaction(db.transaction(STORE, "readonly"));
-    const index = tx.store.index("bySessionTopicTime");
+    const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
+    if (this.#accessMode === "reader") {
+      this.#assertReplaySnapshot(await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId));
+    }
+    const index = tx.objectStore(STORE).index("bySessionTopicTime");
 
     const results: MessageEvent[] = [];
     for (const topic of topics) {
@@ -3037,10 +3201,16 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
       return;
     }
 
-    const deletedMessageCount = this.#messageCount;
-    await this.#cleanupSessionData(this.#currentSessionId);
-    this.#markContentRemoved(deletedMessageCount);
-    await this.#recordSessionCreation();
+    await this.#initPromise;
+    this.#assertWritable("clear the session");
+    const cleared = await this.#retryDuringSessionReset(
+      async () =>
+        await this.#cleanupSessionData(this.#currentSessionId, undefined, { keepSession: true }),
+      "clear session",
+    );
+    if (!cleared) {
+      throw new Error("IndexedDbMessageStore session changed while clearing its messages");
+    }
     this.#clearAppendQueue();
     this.#messageCount = 0;
     this.#approximateSizeBytes = 0;
@@ -3363,8 +3533,11 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const sessionId = this.#currentSessionId;
     const db = await this.#dbPromise;
 
-    const tx = this.#trackTransaction(db.transaction(STORE, "readonly"));
-    const index = tx.store.index("bySessionTime");
+    const tx = this.#trackTransaction(db.transaction([STORE, SESSIONS_STORE], "readonly"));
+    if (this.#accessMode === "reader") {
+      this.#assertReplaySnapshot(await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId));
+    }
+    const index = tx.objectStore(STORE).index("bySessionTime");
     const range = IDBKeyRange.bound(
       [sessionId, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER],
       [sessionId, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
@@ -3373,14 +3546,15 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     let earliest: Time | undefined;
     let latest: Time | undefined;
 
-    const firstCursor = await index.openCursor(range);
+    // Only the indexed timestamps are needed; avoid cloning large message payloads.
+    const firstCursor = await index.openKeyCursor(range);
     if (firstCursor != undefined) {
-      earliest = firstCursor.value.receiveTime;
+      earliest = { sec: firstCursor.key[1], nsec: firstCursor.key[2] };
     }
 
-    const lastCursor = await index.openCursor(range, "prev");
+    const lastCursor = await index.openKeyCursor(range, "prev");
     if (lastCursor != undefined) {
-      latest = lastCursor.value.receiveTime;
+      latest = { sec: lastCursor.key[1], nsec: lastCursor.key[2] };
     }
 
     await tx.done;
@@ -3506,6 +3680,12 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
   }
 
   public async storeDatatypes(datatypes: RosDatatypes): Promise<void> {
+    await this.#retryDuringSessionReset(async () => {
+      await this.#storeDatatypesOnce(datatypes);
+    }, "store datatypes");
+  }
+
+  async #storeDatatypesOnce(datatypes: RosDatatypes): Promise<void> {
     await this.#initPromise;
     this.#assertWritable("store datatype metadata");
 
@@ -3518,6 +3698,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (session?.status !== "active") {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is no longer active");
+    }
+    if (session.cleanupToken != undefined) {
+      await tx.done;
+      throw new SessionResetInProgressError("IndexedDbMessageStore session is being cleared");
     }
     const store = tx.objectStore(DATATYPES_STORE);
 
@@ -3542,8 +3726,13 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
 
     const db = await this.#dbPromise;
-    const tx = this.#trackTransaction(db.transaction(DATATYPES_STORE, "readonly"));
-    const result = await tx.store.get(this.#currentSessionId);
+    const tx = this.#trackTransaction(
+      db.transaction([DATATYPES_STORE, SESSIONS_STORE], "readonly"),
+    );
+    if (this.#accessMode === "reader") {
+      this.#assertReplaySnapshot(await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId));
+    }
+    const result = await tx.objectStore(DATATYPES_STORE).get(this.#currentSessionId);
     await tx.done;
 
     if (!result) {
@@ -3562,6 +3751,15 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     topics: readonly TopicWithDecodingInfo[],
     topicStats?: Map<string, TopicStats>,
   ): Promise<void> {
+    await this.#retryDuringSessionReset(async () => {
+      await this.#storeTopicsOnce(topics, topicStats);
+    }, "store topics");
+  }
+
+  async #storeTopicsOnce(
+    topics: readonly TopicWithDecodingInfo[],
+    topicStats?: Map<string, TopicStats>,
+  ): Promise<void> {
     await this.#initPromise;
     this.#assertWritable("store topic metadata");
 
@@ -3573,6 +3771,10 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     if (session?.status !== "active") {
       await tx.done;
       throw new Error("IndexedDbMessageStore session is no longer active");
+    }
+    if (session.cleanupToken != undefined) {
+      await tx.done;
+      throw new SessionResetInProgressError("IndexedDbMessageStore session is being cleared");
     }
     const now = Date.now();
     const topicNames = new Set(topics.map((topic) => topic.name));
@@ -3606,9 +3808,15 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     }
 
     const db = await this.#dbPromise;
-    const tx = this.#trackTransaction(db.transaction(TOPICS_STORE, "readonly"));
+    const tx = this.#trackTransaction(db.transaction([TOPICS_STORE, SESSIONS_STORE], "readonly"));
+    if (this.#accessMode === "reader") {
+      this.#assertReplaySnapshot(await tx.objectStore(SESSIONS_STORE).get(this.#currentSessionId));
+    }
     const out: TopicMetadata[] = [];
-    for await (const cursor of tx.store.index("bySession").iterate(this.#currentSessionId)) {
+    for await (const cursor of tx
+      .objectStore(TOPICS_STORE)
+      .index("bySession")
+      .iterate(this.#currentSessionId)) {
       const value = cursor.value;
       out.push({
         name: value.name,
@@ -3649,7 +3857,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     const store = tx.objectStore(LOADED_RANGES_STORE);
     const sessionsStore = tx.objectStore(SESSIONS_STORE);
     const existingSession = await sessionsStore.get(this.#currentSessionId);
-    if (existingSession?.status !== "active") {
+    if (existingSession?.status !== "active" || existingSession.cleanupToken != undefined) {
       await tx.done;
       return false;
     }

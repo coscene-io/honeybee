@@ -37,6 +37,82 @@ describe("PersistentCacheIterableSource", () => {
     await clearIndexedDbMessageStoreDatabase();
   });
 
+  it.each(["open", "iterate", "backfill", "after reset"])(
+    "rejects replay against a resetting or replaced snapshot: %s",
+    async (operation) => {
+      const sessionId = `reset-reader-${operation}`;
+      const writer = new IndexedDbMessageStore({ sessionId });
+      await writer.init();
+      await writer.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+      await writer.append(
+        [1, 2, 3].map((sec) => ({
+          topic: "/topic",
+          schemaName: "pkg/Msg",
+          receiveTime: { sec, nsec: 0 },
+          message: { sec },
+          sizeInBytes: 5 * 1024 * 1024,
+        })),
+      );
+      await writer.flush();
+      const source = new PersistentCacheIterableSource({ sessionId });
+      if (operation !== "open") {
+        await source.initialize();
+      }
+      let resumeClear = () => {};
+      let markPaused = () => {};
+      const paused = new Promise<void>((resolve) => {
+        markPaused = resolve;
+      });
+      const originalSetTimeout = globalThis.setTimeout;
+      const timeoutSpy = jest
+        .spyOn(globalThis, "setTimeout")
+        .mockImplementation((handler, timeout, ...args) => {
+          if (timeout !== 0) {
+            return originalSetTimeout(handler, timeout, ...args);
+          }
+          timeoutSpy.mockRestore();
+          resumeClear = () => {
+            handler(...args);
+          };
+          markPaused();
+          return originalSetTimeout(() => {}, 0);
+        });
+      const clearing = writer.clear();
+      try {
+        await paused;
+        const topics = new Map([["/topic", { topic: "/topic" }]]);
+        if (operation === "open") {
+          await expect(source.initialize()).rejects.toThrow("being reset");
+          expect((await readSessionMetadata(sessionId))?.readers ?? []).toEqual([]);
+          expect(console.error).toHaveBeenCalledWith(
+            "Failed to initialize IndexedDbMessageStore:",
+            expect.objectContaining({ message: expect.stringContaining("being reset") }),
+          );
+          jest.mocked(console.error).mockClear();
+        } else if (operation === "backfill") {
+          await expect(
+            source.getBackfillMessages({ topics, time: { sec: 3, nsec: 0 } }),
+          ).rejects.toThrow("changed or is being reset");
+        } else {
+          if (operation === "after reset") {
+            resumeClear();
+            await clearing;
+          }
+          await expect(source.messageIterator({ topics }).next()).rejects.toThrow(
+            "changed or is being reset",
+          );
+        }
+        expect((await readSessionMetadata(sessionId))?.status).toBe("active");
+      } finally {
+        resumeClear();
+        timeoutSpy.mockRestore();
+        await clearing;
+        await source.terminate();
+        await writer.close();
+      }
+    },
+  );
+
   it("initializes topics and datatypes from metadata", async () => {
     const store = new IndexedDbMessageStore({ sessionId: "source-metadata" });
     await store.init();
@@ -52,6 +128,15 @@ describe("PersistentCacheIterableSource", () => {
         topic: "/other",
         schemaName: "pkg/Msg",
         receiveTime: { sec: 1, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
         message: {},
         sizeInBytes: 1,
       },
@@ -88,6 +173,15 @@ describe("PersistentCacheIterableSource", () => {
         sizeInBytes: 1,
       },
     ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+      },
+    ]);
     await store.flush();
     await store.close();
 
@@ -117,6 +211,15 @@ describe("PersistentCacheIterableSource", () => {
         sizeInBytes: 1,
       },
     ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
+        sizeInBytes: 1,
+      },
+    ]);
     await store.flush();
     await store.close();
 
@@ -126,7 +229,7 @@ describe("PersistentCacheIterableSource", () => {
 
     const reader = new IndexedDbMessageStore({ sessionId: "readonly-terminate" });
     await reader.init();
-    expect((await reader.stats()).count).toBe(1);
+    expect((await reader.stats()).count).toBe(2);
     await reader.close();
   });
 
@@ -144,6 +247,15 @@ describe("PersistentCacheIterableSource", () => {
         schemaName: "pkg/Msg",
         receiveTime: { sec: 1, nsec: 0 },
         message: { value: 1 },
+        sizeInBytes: 1,
+      },
+    ]);
+    await store.append([
+      {
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 2, nsec: 0 },
+        message: {},
         sizeInBytes: 1,
       },
     ]);
@@ -174,6 +286,60 @@ describe("PersistentCacheIterableSource", () => {
       owners: [],
       readers: [],
     });
+  });
+
+  it.each([1, 3])(
+    "rejects %i messages with a single timestamp and releases the reader lease",
+    async (count) => {
+      const sessionId = `zero-duration-${count}`;
+      const store = new IndexedDbMessageStore({ sessionId });
+      await store.init();
+      await store.append(
+        Array.from({ length: count }, () => ({
+          topic: "/topic",
+          schemaName: "pkg/Msg",
+          receiveTime: { sec: 1, nsec: 0 },
+          message: {},
+          sizeInBytes: 1,
+        })),
+      );
+      await store.close();
+      const source = new PersistentCacheIterableSource({ sessionId });
+      await expect(source.initialize()).rejects.toThrow("does not yet span a playable time range");
+      expect(await readSessionMetadata(sessionId)).toMatchObject({
+        status: "closed",
+        messageCount: count,
+        readers: [],
+      });
+      await source.terminate();
+    },
+  );
+
+  it("accepts a range as small as one nanosecond", async () => {
+    const sessionId = "nanosecond-range";
+    const store = new IndexedDbMessageStore({ sessionId });
+    await store.init();
+    await store.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+    await store.append(
+      [0, 1].map((nsec) => ({
+        topic: "/topic",
+        schemaName: "pkg/Msg",
+        receiveTime: { sec: 1, nsec },
+        message: {},
+        sizeInBytes: 1,
+      })),
+    );
+    await store.close();
+    const source = new PersistentCacheIterableSource({ sessionId });
+    try {
+      await expect(source.initialize()).resolves.toMatchObject({
+        start: { sec: 1, nsec: 0 },
+        end: { sec: 1, nsec: 1 },
+        problems: [],
+      });
+    } finally {
+      await source.terminate();
+    }
   });
 
   it("does not create metadata when a replay session does not exist", async () => {

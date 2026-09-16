@@ -28,6 +28,8 @@ class RemoteMp4DataSourceFactory implements IDataSourceFactory {
   // the local open-file/drag-drop pickers, which can only route files to `type: "file"` sources.
   public description = "Open an H.264/H.265 MP4 over HTTP Range requests.";
 
+  public requiredParams = ["url"];
+
   public formConfig = {
     fields: [
       {
