@@ -97,7 +97,7 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
         const chartValue = getChartValue(item);
         return {
           x: idx,
-          y: chartValue == undefined ? NaN : chartValue,
+          y: chartValue ?? NaN,
           receiveTime: msgEvent.receiveTime,
           value: toOwnedChartValue(item),
         };

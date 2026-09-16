@@ -67,9 +67,9 @@ describe("validateMessagePathFunctions", () => {
   });
 
   it("rejects unknown names including deg2rad", () => {
-    expect(
-      validateMessagePathFunctions(parseMessagePath("/t.v.@deg2rad")!, plotSupport),
-    ).toMatch(/not a valid function/i);
+    expect(validateMessagePathFunctions(parseMessagePath("/t.v.@deg2rad")!, plotSupport)).toMatch(
+      /not a valid function/i,
+    );
   });
 
   it("rejects operand-less mul and extra operand on abs", () => {
@@ -139,16 +139,16 @@ describe("applyFunctionChain", () => {
 
   it("converts quaternion yaw to degrees", () => {
     expect(
-      applyFunctionChain(
-        { x: 0, y: 0, z: 0, w: 1 },
-        [{ function: "rpy", fieldAccess: "yaw" }, { function: "degrees" }],
-      ),
+      applyFunctionChain({ x: 0, y: 0, z: 0, w: 1 }, [
+        { function: "rpy", fieldAccess: "yaw" },
+        { function: "degrees" },
+      ]),
     ).toBeCloseTo(0);
     expect(
-      applyFunctionChain(
-        { x: 0, y: 0, z: SQ2, w: SQ2 },
-        [{ function: "rpy", fieldAccess: "yaw" }, { function: "degrees" }],
-      ),
+      applyFunctionChain({ x: 0, y: 0, z: SQ2, w: SQ2 }, [
+        { function: "rpy", fieldAccess: "yaw" },
+        { function: "degrees" },
+      ]),
     ).toBeCloseTo(90);
   });
 

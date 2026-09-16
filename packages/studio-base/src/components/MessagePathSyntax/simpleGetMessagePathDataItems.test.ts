@@ -124,9 +124,9 @@ describe("simpleGetMessagePathDataItems", () => {
   }
 
   it("applies function chains", () => {
-    expect(simpleGetMessagePathDataItems(msg({ v: -3 }), parseMessagePath("/foo.v.@abs")!)).toEqual([
-      3,
-    ]);
+    expect(simpleGetMessagePathDataItems(msg({ v: -3 }), parseMessagePath("/foo.v.@abs")!)).toEqual(
+      [3],
+    );
     expect(
       simpleGetMessagePathDataItems(msg({ v: { x: 3, y: 4 } }), parseMessagePath("/foo.v.@norm")!),
     ).toEqual([5]);
@@ -155,4 +155,3 @@ describe("simpleGetMessagePathDataItems", () => {
     ).toEqual([{ status: "MOVING" }]);
   });
 });
-

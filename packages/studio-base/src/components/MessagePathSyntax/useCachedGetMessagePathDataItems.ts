@@ -310,8 +310,8 @@ export function getMessagePathDataItems(
     const nextPathItem = filledInPath.messagePath[pathIndex + 1];
     if (!pathItem) {
       // If we're at the end of the `messagePath`, we're done! Just store the point.
-      value = applyFunctionChain(value, filledInPath.functionChain);
-      if (value == undefined) {
+      const resolvedValue = applyFunctionChain(value, filledInPath.functionChain);
+      if (resolvedValue == undefined) {
         return;
       }
       let constantName: string | undefined;
@@ -319,9 +319,9 @@ export function getMessagePathDataItems(
       if (prevPathItem?.type === "name") {
         const fieldName = prevPathItem.name;
         const enumMap = structureItem != undefined ? enumValues[structureItem.datatype] : undefined;
-        constantName = enumMap?.[fieldName]?.[value];
+        constantName = enumMap?.[fieldName]?.[resolvedValue];
       }
-      queriedData.push({ value, path, constantName });
+      queriedData.push({ value: resolvedValue, path, constantName });
     } else if (
       pathItem.type === "name" &&
       (structureItem == undefined || structureItem.structureType === "message")

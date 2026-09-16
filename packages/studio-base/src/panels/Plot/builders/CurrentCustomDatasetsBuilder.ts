@@ -128,7 +128,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
 
         return {
           x: this.#xValues[idx] ?? NaN,
-          y: chartValue == undefined ? NaN : chartValue,
+          y: chartValue ?? NaN,
           receiveTime: msgEvent.receiveTime,
           value: toOwnedChartValue(item),
         };

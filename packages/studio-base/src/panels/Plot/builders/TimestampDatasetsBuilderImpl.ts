@@ -39,10 +39,7 @@ import {
   PackedDatasetWriter,
 } from "../PackedDataset";
 import { Datum, OriginalValue } from "../datum";
-import {
-  splitTimeSeriesFunctionChain,
-  type TimeSeriesName,
-} from "../splitTimeSeriesFunctionChain";
+import { splitTimeSeriesFunctionChain, type TimeSeriesName } from "../splitTimeSeriesFunctionChain";
 
 export type DataItem = Datum & { receiveTime: Time; headerStamp?: Time };
 

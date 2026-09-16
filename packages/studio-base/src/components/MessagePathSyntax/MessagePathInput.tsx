@@ -320,8 +320,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     () => ({
       supportsMessagePathFunctions: supportsMessagePathFunctions === true,
       supportsTimeSeriesMessagePathFunctions:
-        supportsMessagePathFunctions === true &&
-        supportsTimeSeriesMessagePathFunctions !== false,
+        supportsMessagePathFunctions === true && supportsTimeSeriesMessagePathFunctions !== false,
       globalVariables,
     }),
     [globalVariables, supportsMessagePathFunctions, supportsTimeSeriesMessagePathFunctions],
@@ -344,11 +343,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     } else if (!topic) {
       return "topicName";
     } else if (
-      !isCompleteFunctionPath(
-        rosPath,
-        functionSupport,
-        structureTraversalResult?.structureItem,
-      ) &&
+      !isCompleteFunctionPath(rosPath, functionSupport, structureTraversalResult?.structureItem) &&
       (structureTraversalResult == undefined ||
         !structureTraversalResult.valid ||
         !validTerminatingStructureItem(structureTraversalResult.structureItem, validTypes))
@@ -551,9 +546,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
 
   const pathInputError = useMemo(
     () =>
-      trimmedPath.length > 0
-        ? validateMessagePathInput(trimmedPath, functionSupport)
-        : undefined,
+      trimmedPath.length > 0 ? validateMessagePathInput(trimmedPath, functionSupport) : undefined,
     [functionSupport, trimmedPath],
   );
 

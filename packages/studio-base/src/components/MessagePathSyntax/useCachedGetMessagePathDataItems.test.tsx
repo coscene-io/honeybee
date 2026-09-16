@@ -585,10 +585,7 @@ describe("useCachedGetMessagePathDataItems", () => {
       );
       expect(
         addValuesWithPathsToItems(messages, "/some/topic{state==ON}.state", topics, datatypes),
-      ).toEqual([
-        [],
-        [{ value: 1, path: "/some/topic{state==ON}.state", constantName: "ON" }],
-      ]);
+      ).toEqual([[], [{ value: 1, path: "/some/topic{state==ON}.state", constantName: "ON" }]]);
     });
 
     it("filters correctly with bigints", () => {

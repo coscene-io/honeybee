@@ -51,11 +51,8 @@ function appendScalarAndOperandSuffixes(items: string[]): void {
   }
 }
 
-function appendTimeSeriesSuffixes(
-  items: string[],
-  support: MessagePathFunctionSupport,
-): void {
-  if (support.supportsTimeSeriesMessagePathFunctions !== true) {
+function appendTimeSeriesSuffixes(items: string[], support: MessagePathFunctionSupport): void {
+  if (!support.supportsTimeSeriesMessagePathFunctions) {
     return;
   }
   for (const name of TIME_SERIES_FUNCTION_NAMES) {
@@ -68,7 +65,7 @@ export function suggestFunctionSuffixes(args: {
   support: MessagePathFunctionSupport;
 }): string[] {
   const { terminatingItem, support } = args;
-  if (support.supportsMessagePathFunctions !== true || terminatingItem == undefined) {
+  if (!support.supportsMessagePathFunctions || terminatingItem == undefined) {
     return [];
   }
 
@@ -119,16 +116,18 @@ export function validateMessagePathInput(
   if (path.trim().length === 0) {
     return undefined;
   }
-  if (support.supportsMessagePathFunctions !== true && path.includes(".@")) {
+  if (!support.supportsMessagePathFunctions && path.includes(".@")) {
     return "This field does not accept functions";
   }
 
   const parsed = parseMessagePath(path);
-  if (parsed == undefined || !parsed.isFullySpecified) {
-    if (path.includes(".@") || path.includes("{")) {
-      return undefined;
-    }
-    return "Invalid expression";
+  const incompletePathError =
+    path.includes(".@") || path.includes("{") ? undefined : "Invalid expression";
+  if (parsed == undefined) {
+    return incompletePathError;
+  }
+  if (!parsed.isFullySpecified) {
+    return incompletePathError;
   }
   if (parsed.functionChain == undefined || parsed.functionChain.length === 0) {
     return undefined;

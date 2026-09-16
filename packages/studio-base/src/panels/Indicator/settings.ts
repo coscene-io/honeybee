@@ -40,8 +40,7 @@ function messagePathUsesVariables(parsed: MessagePath): boolean {
     parsed.messagePath.some(
       (part) =>
         (part.type === "filter" && typeof part.value === "object") ||
-        (part.type === "slice" &&
-          (typeof part.start === "object" || typeof part.end === "object")),
+        (part.type === "slice" && (typeof part.start === "object" || typeof part.end === "object")),
     )
   ) {
     return true;
@@ -59,7 +58,7 @@ export function indicatorPathParseError(parsed: MessagePath | undefined): string
   if (messagePathUsesVariables(parsed)) {
     return VARIABLES_NOT_SUPPORTED;
   }
-  if (parsed.isFullySpecified !== true) {
+  if (!parsed.isFullySpecified) {
     return undefined;
   }
   return validateMessagePathFunctions(parsed, INDICATOR_PATH_FUNCTION_SUPPORT);
