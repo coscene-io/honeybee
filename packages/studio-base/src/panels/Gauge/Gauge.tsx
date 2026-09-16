@@ -11,10 +11,15 @@ import { v4 as uuidv4 } from "uuid";
 
 import { parseMessagePath, MessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
+import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { turboColorString } from "@foxglove/studio-base/util/colorUtils";
 
-import { settingsActionReducer, useSettingsTree } from "./settings";
+import {
+  GAUGE_PATH_FUNCTION_SUPPORT,
+  settingsActionReducer,
+  useSettingsTree,
+} from "./settings";
 import type { Config } from "./types";
 
 type Props = {
@@ -89,6 +94,9 @@ function reducer(state: State, action: Action): State {
           ) === true
         ) {
           pathParseError = "Message paths using variables are not currently supported";
+        }
+        if (pathParseError == undefined && newPath?.isFullySpecified === true) {
+          pathParseError = validateMessagePathFunctions(newPath, GAUGE_PATH_FUNCTION_SUPPORT);
         }
         let latestMatchingQueriedData: unknown;
         let error: Error | undefined;

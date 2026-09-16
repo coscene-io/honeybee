@@ -12,11 +12,16 @@ import { makeStyles } from "tss-react/mui";
 
 import { MessagePath, parseMessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
+import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { getMatchingRule } from "./getMatchingRule";
-import { settingsActionReducer, useSettingsTree } from "./settings";
+import {
+  INDICATOR_PATH_FUNCTION_SUPPORT,
+  settingsActionReducer,
+  useSettingsTree,
+} from "./settings";
 import { Config } from "./types";
 
 type Props = {
@@ -103,6 +108,9 @@ function reducer(state: State, action: Action): State {
           ) === true
         ) {
           pathParseError = "Message paths using variables are not currently supported";
+        }
+        if (pathParseError == undefined && newPath?.isFullySpecified === true) {
+          pathParseError = validateMessagePathFunctions(newPath, INDICATOR_PATH_FUNCTION_SUPPORT);
         }
         let latestMatchingQueriedData: unknown;
         let error: Error | undefined;

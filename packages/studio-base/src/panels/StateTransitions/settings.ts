@@ -12,13 +12,24 @@ import memoizeWeak from "memoize-weak";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
+import { parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
+import {
+  MessagePathFunctionSupport,
+  validateMessagePathFunctions,
+} from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 import { plotableRosTypes } from "@foxglove/studio-base/panels/Plot/plotableRosTypes";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { DEFAULT_PATH, stateTransitionPathDisplayName } from "./shared";
 import { StateTransitionConfig, StateTransitionPath } from "./types";
+
+const PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
+  supportsMessagePathFunctions: true,
+  supportsTimeSeriesMessagePathFunctions: false,
+  globalVariables: {},
+};
 
 // Note - we use memoizeWeak here instead of react memoization to allow us to memoize
 // at the level of individual nodes in our tree. This keeps our DOM updates small since
@@ -35,6 +46,11 @@ const makeSeriesNode = memoizeWeak(
     { path, canDelete, isArray }: PathState & { canDelete: boolean },
     t: TFunction<"stateTransitions">,
   ): SettingsTreeNode => {
+    const parsed = parseMessagePath(path.value);
+    const functionError =
+      parsed?.isFullySpecified === true
+        ? validateMessagePathFunctions(parsed, PATH_FUNCTION_SUPPORT)
+        : undefined;
     return {
       actions: canDelete
         ? [
@@ -70,7 +86,9 @@ const makeSeriesNode = memoizeWeak(
           input: "messagepath",
           value: path.value,
           validTypes: plotableRosTypes,
-          ...(isArray ? { error: t("arrayError") } : {}),
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: false,
+          error: functionError ?? (isArray ? t("arrayError") : undefined),
         },
         label: {
           input: "string",

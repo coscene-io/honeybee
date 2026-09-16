@@ -13,14 +13,25 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
+import { parseMessagePath } from "@foxglove/message-path";
 import {
   SettingsTreeAction,
   SettingsTreeNode,
   SettingsTreeNodeAction,
   SettingsTreeNodes,
 } from "@foxglove/studio";
+import {
+  MessagePathFunctionSupport,
+  validateMessagePathFunctions,
+} from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 
 import { Config, Rule } from "./types";
+
+export const INDICATOR_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
+  supportsMessagePathFunctions: true,
+  supportsTimeSeriesMessagePathFunctions: false,
+  globalVariables: {},
+};
 
 function ruleToString(rule: Rule): string {
   const operator = {
@@ -147,15 +158,22 @@ export function useSettingsTree(
 ): SettingsTreeNodes {
   const { t } = useTranslation("indicator");
   const { path, style, rules } = config;
-  const generalSettings: SettingsTreeNode = useMemo(
-    () => ({
+  const generalSettings: SettingsTreeNode = useMemo(() => {
+    const parsedPath = parseMessagePath(path);
+    const pathFunctionError =
+      parsedPath?.isFullySpecified === true
+        ? validateMessagePathFunctions(parsedPath, INDICATOR_PATH_FUNCTION_SUPPORT)
+        : undefined;
+    return {
       error,
       fields: {
         path: {
           label: t("messagePath"),
           input: "messagepath",
           value: path,
-          error: pathParseError,
+          error: pathParseError ?? pathFunctionError,
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: false,
         },
         style: {
           label: t("style"),
@@ -167,9 +185,8 @@ export function useSettingsTree(
           ],
         },
       },
-    }),
-    [error, path, pathParseError, style, t],
-  );
+    };
+  }, [error, path, pathParseError, style, t]);
 
   const { fallbackColor, fallbackLabel } = config;
   const ruleSettings: SettingsTreeNode = useMemo(

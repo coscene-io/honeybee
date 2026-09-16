@@ -11,9 +11,20 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
+import { parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
+import {
+  MessagePathFunctionSupport,
+  validateMessagePathFunctions,
+} from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 
 import type { Config } from "./types";
+
+export const GAUGE_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
+  supportsMessagePathFunctions: true,
+  supportsTimeSeriesMessagePathFunctions: false,
+  globalVariables: {},
+};
 
 export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAction): Config {
   return produce(prevConfig, (draft) => {
@@ -51,16 +62,23 @@ export function useSettingsTree(
   error: string | undefined,
 ): SettingsTreeNodes {
   const { t } = useTranslation("gauge");
-  const generalSettings = useMemo(
-    (): SettingsTreeNode => ({
+  const generalSettings = useMemo((): SettingsTreeNode => {
+    const parsedPath = parseMessagePath(config.path);
+    const pathFunctionError =
+      parsedPath?.isFullySpecified === true
+        ? validateMessagePathFunctions(parsedPath, GAUGE_PATH_FUNCTION_SUPPORT)
+        : undefined;
+    return {
       error,
       fields: {
         path: {
           label: t("messagePath"),
           input: "messagepath",
           value: config.path,
-          error: pathParseError,
+          error: pathParseError ?? pathFunctionError,
           validTypes: supportedDataTypes,
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: false,
         },
         minValue: {
           label: t("min"),
@@ -106,9 +124,8 @@ export function useSettingsTree(
           value: config.reverse,
         },
       },
-    }),
-    [error, config, pathParseError, t],
-  );
+    };
+  }, [error, config, pathParseError, t]);
   return useShallowMemo({
     general: generalSettings,
   });

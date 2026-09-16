@@ -58,6 +58,7 @@ const makeSeriesNode = memoizeWeak(
           value: path.value,
           validTypes: plotableRosTypes,
           supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: true,
         },
         label: {
           input: "string",
@@ -248,6 +249,8 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
                 input: "messagepath",
                 value: config.xAxisPath?.value ?? "",
                 validTypes: plotableRosTypes,
+                supportsMessagePathFunctions: true,
+                supportsTimeSeriesMessagePathFunctions: false,
               }
             : undefined,
         showXAxisLabels: {
