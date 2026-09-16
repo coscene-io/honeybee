@@ -341,7 +341,13 @@ export function getMessagePathDataItems(
       if (prevPathItem?.type === "name") {
         const fieldName = prevPathItem.name;
         const enumMap = structureItem != undefined ? enumValues[structureItem.datatype] : undefined;
-        constantName = enumMap?.[fieldName]?.[resolvedValue];
+        if (
+          typeof resolvedValue === "string" ||
+          typeof resolvedValue === "number" ||
+          typeof resolvedValue === "bigint"
+        ) {
+          constantName = enumMap?.[fieldName]?.[String(resolvedValue)];
+        }
       }
       queriedData.push({ value: resolvedValue, path, constantName });
     } else if (
