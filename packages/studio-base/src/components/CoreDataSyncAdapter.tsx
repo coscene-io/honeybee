@@ -518,27 +518,27 @@ export function CoreDataSyncAdapter(): ReactNull {
       return;
     }
 
-    const transport = axios.create();
-    transport.interceptors.request.use((config) => {
-      session?.assertCurrent(orgJwt);
-      if (session != undefined) {
+    const transport = session == undefined ? axios : axios.create();
+    if (session != undefined) {
+      transport.interceptors.request.use((config) => {
+        session.assertCurrent(orgJwt);
         config.signal = session.controller.signal;
-      }
-      return config;
-    });
-    transport.interceptors.response.use(
-      (response) => {
-        session?.assertCurrent(orgJwt);
-        return response;
-      },
-      (error: unknown) => {
-        if (axios.isAxiosError(error) && error.response?.status === 401) {
-          session?.rejectCredential(orgJwt);
-        }
-        session?.assertCurrent(orgJwt);
-        throw error;
-      },
-    );
+        return config;
+      });
+      transport.interceptors.response.use(
+        (response) => {
+          session.assertCurrent(orgJwt);
+          return response;
+        },
+        (error: unknown) => {
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            session.rejectCredential(orgJwt);
+          }
+          session.assertCurrent(orgJwt);
+          throw error;
+        },
+      );
+    }
     const api = DevicesApiFactory(
       new Configuration({
         accessToken: () => {
