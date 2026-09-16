@@ -1,0 +1,81 @@
+name: one-shot-webpack-leftover-lock
+
+on:
+  push:
+    branches:
+      - cursor/remove-webpack-leftover-8957
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-webpack-leftover-lock
+  cancel-in-progress: true
+
+jobs:
+  rewrite-lock:
+    if: github.event.head_commit.committer.email != '41898282+github-actions[bot]@users.noreply.github.com'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: cursor/remove-webpack-leftover-8957
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: corepack enable yarn
+      - name: Rewrite yarn.lock with yarn, then remove this workflow
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_PACKAGES_ORG_TOKEN:-}" ]; then
+            echo "GH_PACKAGES_ORG_TOKEN is empty"
+            exit 1
+          fi
+          git fetch origin main
+          git checkout origin/main -- yarn.lock
+          grep -F '"webpack": "5.97.1"' package.json
+          grep -F '"@rspack/dev-server": "2.1.0"' package.json
+          grep -F '"@rspack/cli": "2.1.10"' package.json
+          grep -F '"@rspack/core": "2.1.10"' package.json
+          if grep -q 'webpack-dev-server' package.json packages/studio-web/package.json packages/studio-desktop/package.json; then
+            echo "webpack-dev-server still declared"
+            exit 1
+          fi
+          if grep -q 'webpack-cli' package.json; then
+            echo "webpack-cli still declared"
+            exit 1
+          fi
+          if grep -q 'webpack-hot-middleware' package.json; then
+            echo "webpack-hot-middleware still declared"
+            exit 1
+          fi
+          yarn install --mode=update-lockfile
+          grep -F 'resolution: "webpack@npm:5.97.1"' yarn.lock
+          grep -F 'resolution: "@rspack/dev-server@npm:2.1.0"' yarn.lock
+          grep -F 'resolution: "@rspack/cli@npm:2.1.10"' yarn.lock
+          grep -F 'resolution: "@rspack/core@npm:2.1.10"' yarn.lock
+          if grep -q 'webpack-dev-server@npm' yarn.lock; then
+            echo "webpack-dev-server@npm remains"
+            exit 1
+          fi
+          if grep -q 'webpack-cli@npm' yarn.lock; then
+            echo "webpack-cli@npm remains"
+            exit 1
+          fi
+          if grep -q 'webpack-hot-middleware@npm' yarn.lock; then
+            echo "webpack-hot-middleware@npm remains"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add yarn.lock
+          git rm -f .github/workflows/one-shot-webpack-leftover-lock.yml
+          git status --short
+          git commit -m "chore: rewrite yarn.lock after removing leftover webpack packages"
+          git push
