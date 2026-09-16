@@ -9,6 +9,7 @@ import { parseMessagePath } from "@foxglove/message-path";
 import { MessageEvent } from "@foxglove/studio";
 
 import { simpleGetMessagePathDataItems } from "./simpleGetMessagePathDataItems";
+import { fillInGlobalVariablesInPath } from "./useCachedGetMessagePathDataItems";
 
 describe("simpleGetMessagePathDataItems", () => {
   it("returns root message if topic matches", () => {
@@ -159,5 +160,11 @@ describe("simpleGetMessagePathDataItems", () => {
         parseMessagePath("/foo{status==MOVING}")!,
       ),
     ).toEqual([{ status: "MOVING" }]);
+  });
+
+  it("returns nothing for a -Infinity slice global instead of hanging", () => {
+    const parsed = parseMessagePath("/foo.arr[$i:]")!;
+    const filled = fillInGlobalVariablesInPath(parsed, { i: Number.NEGATIVE_INFINITY });
+    expect(simpleGetMessagePathDataItems(msg({ arr: [10, 20, 30] }), filled)).toEqual([]);
   });
 });

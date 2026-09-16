@@ -51,6 +51,9 @@ export function simpleGetMessagePathDataItems(
         const length = value.length;
         const startIdx = start < 0 ? length + start : start;
         const endIdx = end === Infinity ? length - 1 : end < 0 ? length + end : end;
+        if (!Number.isFinite(startIdx) || !Number.isFinite(endIdx)) {
+          return;
+        }
         for (let index = startIdx; index <= endIdx; index++) {
           if (index < 0 || index >= length) {
             continue;
