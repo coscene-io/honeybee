@@ -11,6 +11,7 @@ import { MessageEvent } from "@foxglove/studio-base/players/types";
 import { isTypedArray } from "@foxglove/studio-base/types/isTypedArray";
 
 import { filterMatches } from "./filterMatches";
+import { applyFunctionChain } from "./messagePathFunctions";
 
 /**
  * Execute the given message path to extract item(s) from the message.
@@ -29,7 +30,10 @@ export function simpleGetMessagePathDataItems(
   function traverse(value: unknown, pathIndex: number): void {
     const pathPart = filledInPath.messagePath[pathIndex];
     if (pathPart == undefined) {
-      results.push(value);
+      const nextValue = applyFunctionChain(value, filledInPath.functionChain);
+      if (nextValue != undefined) {
+        results.push(nextValue);
+      }
       return;
     }
     if (value == undefined) {
@@ -44,8 +48,14 @@ export function simpleGetMessagePathDataItems(
           throw new Error("Variables in slices are not supported");
         }
         const { start, end } = pathPart;
-        for (let i = start; i < value.length && i <= end; i++) {
-          traverse(value[i], pathIndex + 1);
+        const length = value.length;
+        // Cap Infinity (`[:]`) so the loop terminates; negative i maps with length + i.
+        for (let i = start; i <= Math.min(end, length - 1); i++) {
+          const index = i >= 0 ? i : length + i;
+          if (index < 0 || index >= length) {
+            continue;
+          }
+          traverse(value[index], pathIndex + 1);
         }
         return;
       }

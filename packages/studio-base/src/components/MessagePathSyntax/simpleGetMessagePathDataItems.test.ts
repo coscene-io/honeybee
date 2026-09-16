@@ -112,4 +112,34 @@ describe("simpleGetMessagePathDataItems", () => {
       simpleGetMessagePathDataItems(message, parseMessagePath("/foo.foo.bars[$id]")!),
     ).toThrow("Variables in slices are not supported");
   });
+
+  function msg(message: unknown): MessageEvent {
+    return {
+      topic: "/foo",
+      receiveTime: { sec: 0, nsec: 0 },
+      sizeInBytes: 0,
+      schemaName: "datatype",
+      message,
+    };
+  }
+
+  it("applies function chains", () => {
+    expect(simpleGetMessagePathDataItems(msg({ v: -3 }), parseMessagePath("/foo.v.@abs")!)).toEqual([
+      3,
+    ]);
+    expect(
+      simpleGetMessagePathDataItems(msg({ v: { x: 3, y: 4 } }), parseMessagePath("/foo.v.@norm")!),
+    ).toEqual([5]);
+  });
+
+  it("filters with > and negative index", () => {
+    const payload = { items: [{ id: 1 }, { id: 2 }], arr: [10, 20, 30] };
+    expect(
+      simpleGetMessagePathDataItems(msg(payload), parseMessagePath("/foo.items[:]{id>1}.id")!),
+    ).toEqual([2]);
+    expect(simpleGetMessagePathDataItems(msg(payload), parseMessagePath("/foo.arr[-1]")!)).toEqual([
+      30,
+    ]);
+  });
 });
+

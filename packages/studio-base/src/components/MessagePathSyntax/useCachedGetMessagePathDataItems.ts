@@ -42,6 +42,7 @@ import {
 
 import { filterMatches } from "./filterMatches";
 import { TypicalFilterNames } from "./isTypicalFilterName";
+import { applyFunctionChain } from "./messagePathFunctions";
 import { messagePathStructures } from "./messagePathsForDatatype";
 
 type ValueInMapRecord<T> = T extends Map<unknown, infer I> ? I : never;
@@ -265,6 +266,10 @@ export function getMessagePathDataItems(
     const nextPathItem = filledInPath.messagePath[pathIndex + 1];
     if (!pathItem) {
       // If we're at the end of the `messagePath`, we're done! Just store the point.
+      value = applyFunctionChain(value, filledInPath.functionChain);
+      if (value == undefined) {
+        return;
+      }
       let constantName: string | undefined;
       const prevPathItem = filledInPath.messagePath[pathIndex - 1];
       if (prevPathItem?.type === "name") {
