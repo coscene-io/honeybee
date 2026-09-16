@@ -81,7 +81,9 @@ function stringifySlicePart(slicePart: SlicePart): string {
 }
 
 function stringifyFilter(filter: MessagePathFilter): string {
-  if (typeof filter.value === "object") {
+  // Keep the original quote style so parse(stringify(path)) round-trips. After a
+  // `$var` fill, repr still contains `$` and we rebuild from the substituted value.
+  if (typeof filter.value === "object" || !filter.repr.includes("$")) {
     return `{${filter.repr}}`;
   }
 

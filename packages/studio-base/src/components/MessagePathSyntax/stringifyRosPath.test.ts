@@ -33,6 +33,7 @@ describe("stringifyRosPath", () => {
     "/imu.orientation.@rpy.yaw.@degrees",
     "/wheel.speed.@mul(3.6)",
     "/topic.items[:]{id!=1}.name",
+    String.raw`/topic.items[:]{name=='a"b'}`,
   ];
   it.each(paths)("returns original string for: %s", (str) => {
     expect(stringifyMessagePath(parseMessagePath(str)!)).toEqual(str);

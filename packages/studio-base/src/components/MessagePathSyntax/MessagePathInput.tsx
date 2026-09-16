@@ -32,7 +32,7 @@ import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
 
-import { MessagePathFunctionSupport } from "./messagePathFunctions";
+import { MessagePathFunctionSupport, OPERAND_FUNCTION_NAMES } from "./messagePathFunctions";
 import {
   traverseStructure,
   messagePathStructures,
@@ -45,6 +45,52 @@ import {
   suggestFunctionSuffixes,
   validateMessagePathInput,
 } from "./suggestMessagePathCompletions";
+
+const OPERAND_OPEN_RE = /^([a-zA-Z0-9_-]+)\(/;
+
+/** Completions for `$globals` while typing an operand such as `.@mul($sc`. */
+export function getFunctionOperandGlobalAutocomplete(
+  path: string,
+  globalVariableNames: readonly string[],
+):
+  | {
+      autocompleteItems: string[];
+      autocompleteFilterText: string;
+      autocompleteRange: { start: number; end: number };
+    }
+  | undefined {
+  const lastAt = path.lastIndexOf(".@");
+  if (lastAt < 0) {
+    return undefined;
+  }
+  const afterAt = path.slice(lastAt + 2);
+  const nameMatch = OPERAND_OPEN_RE.exec(afterAt);
+  const name = nameMatch?.[1];
+  if (name == undefined || !OPERAND_FUNCTION_NAMES.includes(name)) {
+    return undefined;
+  }
+  const open = lastAt + 2 + name.length;
+  if (path[open] !== "(") {
+    return undefined;
+  }
+  const close = path.indexOf(")", open + 1);
+  const insideEnd = close === -1 ? path.length : close;
+  const inside = path.slice(open + 1, insideEnd);
+  const dollar = inside.lastIndexOf("$");
+  if (dollar < 0) {
+    return undefined;
+  }
+  const typed = inside.slice(dollar + 1);
+  if (typed !== "" && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(typed)) {
+    return undefined;
+  }
+  const start = open + 1 + dollar;
+  return {
+    autocompleteItems: globalVariableNames.map((item) => `$${item}`),
+    autocompleteFilterText: typed,
+    autocompleteRange: { start, end: start + 1 + typed.length },
+  };
+}
 
 export function tryToSetDefaultGlobalVar(
   variableName: string,
@@ -382,6 +428,16 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         autocompleteRange: { start: 0, end: Infinity },
       };
     } else if (functionSupport.supportsMessagePathFunctions && trimmedPath.includes(".@")) {
+      const operandGlobals = getFunctionOperandGlobalAutocomplete(
+        trimmedPath,
+        Object.keys(globalVariables),
+      );
+      if (operandGlobals != undefined) {
+        return {
+          ...operandGlobals,
+          autocompleteRange: withLeadingOffset(operandGlobals.autocompleteRange),
+        };
+      }
       const lastAt = trimmedPath.lastIndexOf(".@");
       const prefix = trimmedPath.slice(lastAt);
       // Unclosed `@mul(` does not parse; use the path before the last `.@` for structure.

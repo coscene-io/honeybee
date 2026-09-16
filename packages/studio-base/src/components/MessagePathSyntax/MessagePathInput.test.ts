@@ -17,7 +17,11 @@
 
 import { MessagePath } from "@foxglove/message-path";
 
-import { tryToSetDefaultGlobalVar, getFirstInvalidVariableFromRosPath } from "./MessagePathInput";
+import {
+  tryToSetDefaultGlobalVar,
+  getFirstInvalidVariableFromRosPath,
+  getFunctionOperandGlobalAutocomplete,
+} from "./MessagePathInput";
 
 describe("tryToSetDefaultGlobalVar", () => {
   it("correctly returns true/false depending on whether a global variable has a default", () => {
@@ -57,5 +61,17 @@ describe("getFirstInvalidVariableFromRosPath", () => {
       getFirstInvalidVariableFromRosPath(rosPath, { not_yet_set_global_var: 5 }, setGlobalVars),
     ).toEqual(undefined);
     expect(setGlobalVars).not.toHaveBeenCalled();
+  });
+});
+
+describe("getFunctionOperandGlobalAutocomplete", () => {
+  it("offers globals while typing an operand $ prefix", () => {
+    expect(
+      getFunctionOperandGlobalAutocomplete("/topic.value.@mul($sc", ["scale", "count"]),
+    ).toEqual({
+      autocompleteItems: ["$scale", "$count"],
+      autocompleteFilterText: "sc",
+      autocompleteRange: { start: 18, end: 21 },
+    });
   });
 });
