@@ -31,12 +31,29 @@ describe("filterMatches", () => {
     expect(filterMatches({ ...base, operator: "<=", value: 1, repr: "id<=1" }, { id: 1 })).toBe(
       true,
     );
-    expect(filterMatches({ ...base, operator: ">", value: 1, repr: "id>1" }, { id: 1 })).toBe(false);
+    expect(filterMatches({ ...base, operator: ">", value: 1, repr: "id>1" }, { id: 1 })).toBe(
+      false,
+    );
   });
 
   it("keeps loose == for 1 and true", () => {
     expect(filterMatches({ ...base, operator: "==", value: 1, repr: "id==1" }, { id: true })).toBe(
       true,
+    );
+  });
+
+  it("compares number 2 against bigint 1 for {id>1}", () => {
+    expect(filterMatches({ ...base, operator: ">", value: 1n, repr: "id>1" }, { id: 2 })).toBe(
+      true,
+    );
+  });
+
+  it("does not throw when comparing boolean true to bigint 1", () => {
+    expect(() =>
+      filterMatches({ ...base, operator: ">", value: 1n, repr: "id>1" }, { id: true }),
+    ).not.toThrow();
+    expect(filterMatches({ ...base, operator: ">", value: 1n, repr: "id>1" }, { id: true })).toBe(
+      false,
     );
   });
 });

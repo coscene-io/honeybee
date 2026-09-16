@@ -43,12 +43,31 @@ export function filterMatches(filter: Immutable<MessagePathFilter>, value: unkno
       // eslint-disable-next-line @coscene-io/strict-equality
       return currentValue != rhs;
     case "<":
-      return (currentValue as number) < (rhs as number);
     case "<=":
-      return (currentValue as number) <= (rhs as number);
     case ">":
-      return (currentValue as number) > (rhs as number);
     case ">=":
-      return (currentValue as number) >= (rhs as number);
+      return compareRelational(currentValue, rhs, operator);
+  }
+}
+
+// Mixed BigInt vs boolean/string throws TypeError; treat as no match.
+function compareRelational(
+  left: unknown,
+  right: string | number | bigint | boolean,
+  operator: "<" | "<=" | ">" | ">=",
+): boolean {
+  try {
+    switch (operator) {
+      case "<":
+        return (left as number) < (right as number);
+      case "<=":
+        return (left as number) <= (right as number);
+      case ">":
+        return (left as number) > (right as number);
+      case ">=":
+        return (left as number) >= (right as number);
+    }
+  } catch {
+    return false;
   }
 }

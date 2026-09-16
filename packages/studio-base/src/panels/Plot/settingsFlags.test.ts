@@ -15,10 +15,10 @@
 //   You may not use this file except in compliance with the License.
 
 import { parseMessagePath } from "@foxglove/message-path";
-
 import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 import { gaugePathParseError } from "@foxglove/studio-base/panels/Gauge/settings";
 import { indicatorPathParseError } from "@foxglove/studio-base/panels/Indicator/settings";
+import { plotPathFunctionError } from "@foxglove/studio-base/panels/Plot/settings";
 import { stateTransitionPathFunctionError } from "@foxglove/studio-base/panels/StateTransitions/settings";
 
 describe("panel FoxQL flags", () => {
@@ -33,10 +33,22 @@ describe("panel FoxQL flags", () => {
     globalVariables: {},
   };
 
-  it("plot allows derivative; gauge does not", () => {
+  it("plot timestamp x-axis allows @derivative; index/custom do not", () => {
     const parsed = parseMessagePath("/t.v.@derivative")!;
     expect(validateMessagePathFunctions(parsed, plot)).toBeUndefined();
     expect(validateMessagePathFunctions(parsed, gauge)).toBeDefined();
+    expect(plotPathFunctionError("/t.v.@derivative", "timestamp", {})).toBeUndefined();
+    expect(plotPathFunctionError("/t.v.@delta", "timestamp", {})).toBeUndefined();
+    expect(plotPathFunctionError("/t.v.@timedelta", "timestamp", {})).toBeUndefined();
+    expect(plotPathFunctionError("/t.v.@derivative", "index", {})).toBe(
+      "This field does not accept time-series functions",
+    );
+    expect(plotPathFunctionError("/t.v.@derivative", "custom", {})).toBe(
+      "This field does not accept time-series functions",
+    );
+    expect(plotPathFunctionError("/t.v.@derivative", "currentCustom", {})).toBe(
+      "This field does not accept time-series functions",
+    );
   });
 
   it("gauge and indicator treat $ function operands as unsupported variables", () => {
