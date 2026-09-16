@@ -72,6 +72,8 @@ type StartStateTransitionsRangeSubscriptionsArgs = Readonly<
 type MutableTopicPlan = {
   topic: string;
   fields: Set<string>;
+  /** True when any path on this topic needs the full message (root function paths). */
+  wholeMessage: boolean;
   seriesKeys: string[];
 };
 
@@ -142,18 +144,28 @@ export function planStateTransitionsSubscriptions(args: {
 
     let topicPlan = topics.get(resolved.topicName);
     if (topicPlan == undefined) {
-      topicPlan = { topic: resolved.topicName, fields: new Set<string>(), seriesKeys: [] };
+      topicPlan = {
+        topic: resolved.topicName,
+        fields: new Set<string>(),
+        wholeMessage: false,
+        seriesKeys: [],
+      };
       topics.set(resolved.topicName, topicPlan);
     }
-    for (const field of fields) {
-      topicPlan.fields.add(field);
+    if (fields.length === 0) {
+      topicPlan.wholeMessage = true;
+    } else {
+      for (const field of fields) {
+        topicPlan.fields.add(field);
+      }
     }
     topicPlan.seriesKeys.push(`${path.timestampMethod}:${stringifyMessagePath(resolved)}`);
   }
 
   return [...topics.values()].map((topicPlan) => {
     const fields = [...topicPlan.fields];
-    const fieldPayload = fields.length > 0 ? { fields: [...fields] } : {};
+    const fieldPayload =
+      topicPlan.wholeMessage || fields.length === 0 ? {} : { fields: [...fields] };
     return {
       topic: topicPlan.topic,
       currentSubscription: {
@@ -167,9 +179,10 @@ export function planStateTransitionsSubscriptions(args: {
         preloadType: "full",
       },
       rangePayload: fieldPayload,
-      signature: [[...fields].sort().join(","), [...topicPlan.seriesKeys].sort().join("|")].join(
-        ";",
-      ),
+      signature: [
+        topicPlan.wholeMessage ? "" : [...fields].sort().join(","),
+        [...topicPlan.seriesKeys].sort().join("|"),
+      ].join(";"),
     };
   });
 }

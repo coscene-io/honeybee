@@ -554,6 +554,34 @@ describe("useCachedGetMessagePathDataItems", () => {
       ]);
     });
 
+    it("does not label a transformed enum value as a constant", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: 0 },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/some/topic", schemaName: "some_datatype" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          some_datatype: {
+            definitions: [
+              { name: "OFF", type: "uint32", isConstant: true, value: 0 },
+              { name: "ON", type: "uint32", isConstant: true, value: 1 },
+              { name: "state", type: "uint32" },
+            ],
+          },
+        }),
+      );
+
+      expect(
+        addValuesWithPathsToItems(messages, "/some/topic.state.@add(1)", topics, datatypes),
+      ).toEqual([[{ value: 1, path: "/some/topic.state.@add(1)", constantName: undefined }]]);
+    });
+
     it("filters enum identifiers by constant name", () => {
       const messages: MessageEvent[] = [
         {

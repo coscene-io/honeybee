@@ -78,6 +78,27 @@ describe("planPlotSubscriptions", () => {
     ]);
   });
 
+  it("keeps a whole-message subscribe when mixing a root function with a named field", () => {
+    expect(plan([path("/vector.@norm"), path("/vector.x")])).toEqual([
+      {
+        subscription: {
+          topic: "/vector",
+          preloadType: "partial",
+        },
+        fallbackSubscription: {
+          topic: "/vector",
+          preloadType: "full",
+        },
+        rangeRequest: {
+          topic: "/vector",
+          payload: {},
+          seriesIndices: [0, 1],
+          signature: expect.any(String),
+        },
+      },
+    ]);
+  });
+
   it("subscribes to the whole topic for root function paths", () => {
     expect(plan([path("/vector.@norm")])).toEqual([
       {

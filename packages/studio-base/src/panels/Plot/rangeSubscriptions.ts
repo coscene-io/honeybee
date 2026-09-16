@@ -101,6 +101,8 @@ type PlanPlotSubscriptionsArgs = Readonly<{
 type MutableTopicPlan = {
   topic: string;
   fields: Set<string>;
+  /** True when any path on this topic needs the full message (root function paths). */
+  wholeMessage: boolean;
   seriesIndices: number[];
   seriesKeys: string[];
   includesXAxis: boolean;
@@ -145,6 +147,7 @@ export function planPlotSubscriptions(
       topicPlan = {
         topic: subscription.topic,
         fields: new Set<string>(),
+        wholeMessage: false,
         seriesIndices: [],
         seriesKeys: [],
         includesXAxis: false,
@@ -152,8 +155,12 @@ export function planPlotSubscriptions(
       topics.set(subscription.topic, topicPlan);
     }
 
-    for (const field of subscription.fields ?? []) {
-      topicPlan.fields.add(field);
+    if (subscription.fields == undefined) {
+      topicPlan.wholeMessage = true;
+    } else {
+      for (const field of subscription.fields) {
+        topicPlan.fields.add(field);
+      }
     }
     if (options.seriesIndex != undefined) {
       topicPlan.seriesIndices.push(options.seriesIndex);
@@ -188,7 +195,8 @@ export function planPlotSubscriptions(
 
   return Array.from(topics.values(), (topicPlan): PlotTopicSubscriptionPlan => {
     const fields = Array.from(topicPlan.fields);
-    const fieldPayload = fields.length > 0 ? { fields: [...fields] } : {};
+    const fieldPayload =
+      topicPlan.wholeMessage || fields.length === 0 ? {} : { fields: [...fields] };
     const subscription: SubscribePayload = {
       topic: topicPlan.topic,
       ...fieldPayload,
@@ -211,7 +219,7 @@ export function planPlotSubscriptions(
               seriesIndices: [...topicPlan.seriesIndices],
               ...(topicPlan.includesXAxis ? { includesXAxis: true } : {}),
               signature: [
-                [...fields].sort().join(","),
+                topicPlan.wholeMessage ? "" : [...fields].sort().join(","),
                 [...topicPlan.seriesKeys].sort().join("|"),
                 topicPlan.includesXAxis ? "x" : "",
               ].join(";"),

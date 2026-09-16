@@ -320,7 +320,9 @@ function FieldInput({
           path={field.value ?? ""}
           disabled={field.disabled}
           readOnly={field.readonly}
-          supportsMessagePathFunctions={field.supportsMessagePathFunctions}
+          supportsMessagePathFunctions={
+            field.supportsMessagePathFunctions ?? field.supportsMathModifiers
+          }
           supportsTimeSeriesMessagePathFunctions={field.supportsTimeSeriesMessagePathFunctions}
           onChange={(value) => {
             actionHandler({

@@ -338,7 +338,10 @@ export function getMessagePathDataItems(
       }
       let constantName: string | undefined;
       const prevPathItem = filledInPath.messagePath[pathIndex - 1];
-      if (prevPathItem?.type === "name") {
+      if (
+        prevPathItem?.type === "name" &&
+        (filledInPath.functionChain == undefined || filledInPath.functionChain.length === 0)
+      ) {
         const fieldName = prevPathItem.name;
         const enumMap = structureItem != undefined ? enumValues[structureItem.datatype] : undefined;
         if (
