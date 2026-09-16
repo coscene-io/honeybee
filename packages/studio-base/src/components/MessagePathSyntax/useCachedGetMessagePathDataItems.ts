@@ -26,6 +26,7 @@ import {
   MessagePathStructureItem,
   MessagePathStructureItemMessage,
   MessagePath,
+  MessagePathFilter,
   MessagePathFunction,
 } from "@foxglove/message-path";
 import { Immutable } from "@foxglove/studio";
@@ -221,6 +222,43 @@ export function fillInGlobalVariablesInPath(
   };
 }
 
+// enumValues is storedValue → name per field. Invert to name → storedValue for identifier filters.
+function rewriteIdentifierFilter(
+  pathItem: MessagePathFilter,
+  structureItem: MessagePathStructureItem | undefined,
+  enumValues: ReturnType<typeof enumValuesByDatatypeAndField>,
+): MessagePathFilter {
+  if (pathItem.valueIsIdentifier !== true || typeof pathItem.value !== "string") {
+    return pathItem;
+  }
+  const fieldEnums = structureItem != undefined ? enumValues[structureItem.datatype] : undefined;
+  if (fieldEnums == undefined) {
+    return pathItem;
+  }
+
+  const fieldName = pathItem.path[pathItem.path.length - 1];
+  const fieldMap = fieldName != undefined ? fieldEnums[fieldName] : undefined;
+  const nameToStored: Record<string, string> = {};
+  for (const [storedValue, name] of Object.entries(fieldMap ?? {})) {
+    nameToStored[name] = storedValue;
+  }
+
+  const storedValue = nameToStored[pathItem.value];
+  if (storedValue == undefined) {
+    return pathItem;
+  }
+  return { ...pathItem, value: storedValue };
+}
+
+function filterMatchesWithEnums(
+  pathItem: MessagePathFilter,
+  value: unknown,
+  structureItem: MessagePathStructureItem | undefined,
+  enumValues: ReturnType<typeof enumValuesByDatatypeAndField>,
+): boolean {
+  return filterMatches(rewriteIdentifierFilter(pathItem, structureItem, enumValues), value);
+}
+
 // Get a new item that has `queriedData` set to the values and paths as queried by `rosPath`.
 // Exported for tests.
 export function getMessagePathDataItems(
@@ -237,11 +275,17 @@ export function getMessagePathDataItems(
     return;
   }
 
+  const structure: MessagePathStructureItemMessage | undefined =
+    // If the topic has no schema, we can at least allow accessing the root message
+    topic.schemaName == undefined
+      ? { structureType: "message", datatype: "", nextByName: {} }
+      : structures[topic.schemaName];
+
   // Apply top-level filters first. If a message matches all top-level filters, then this function
   // will *always* return a history item, so this is our only chance to return nothing.
   for (const item of filledInPath.messagePath) {
     if (item.type === "filter") {
-      if (!filterMatches(item, message.message)) {
+      if (!filterMatchesWithEnums(item, message.message, structure, enumValues)) {
         return [];
       }
     } else {
@@ -344,7 +388,7 @@ export function getMessagePathDataItems(
         traverse(arrayElement, pathIndex + 1, newPath, structureItem?.next);
       }
     } else if (pathItem.type === "filter") {
-      if (filterMatches(pathItem, value)) {
+      if (filterMatchesWithEnums(pathItem, value, structureItem, enumValues)) {
         traverse(value, pathIndex + 1, `${path}{${pathItem.repr}}`, structureItem);
       }
     } else {
@@ -353,11 +397,6 @@ export function getMessagePathDataItems(
       );
     }
   }
-  const structure: MessagePathStructureItemMessage | undefined =
-    // If the topic has no schema, we can at least allow accessing the root message
-    topic.schemaName == undefined
-      ? { structureType: "message", datatype: "", nextByName: {} }
-      : structures[topic.schemaName];
   if (structure) {
     traverse(message.message, 0, quoteTopicNameIfNeeded(filledInPath.topicName), structure);
   }

@@ -554,6 +554,43 @@ describe("useCachedGetMessagePathDataItems", () => {
       ]);
     });
 
+    it("filters enum identifiers by constant name", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: 0 },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: 1 },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/some/topic", schemaName: "some_datatype" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          some_datatype: {
+            definitions: [
+              { name: "OFF", type: "uint32", isConstant: true, value: 0 },
+              { name: "ON", type: "uint32", isConstant: true, value: 1 },
+              { name: "state", type: "uint32" },
+            ],
+          },
+        }),
+      );
+      expect(
+        addValuesWithPathsToItems(messages, "/some/topic{state==ON}.state", topics, datatypes),
+      ).toEqual([
+        [],
+        [{ value: 1, path: "/some/topic{state==ON}.state", constantName: "ON" }],
+      ]);
+    });
+
     it("filters correctly with bigints", () => {
       const messages: MessageEvent[] = [
         {
@@ -780,13 +817,16 @@ describe("useDecodeMessagePathsForMessagesByTopic", () => {
     expect(result.current(messagesByTopic)).toEqual({
       // Value for /topic1.value
       "/topic1.value": [
-        { messageEvent: message, queriedData: [{ path: "/topic1.value", value: 1 }] },
+        {
+          messageEvent: message,
+          queriedData: [{ path: "/topic1.value", value: 1, constantName: undefined }],
+        },
       ],
       // Empty array for /topic2.value
       "/topic2.value": [],
       // No array for /topic3.value because the path is valid but the data is missing.
-      // Empty array for /topic3..value because path is invalid.
-      "/topic3..value": [],
+      // `/topic3..value` now parses (empty name recovery), so with no `/topic3`
+      // messages it is omitted rather than mapped to [].
     });
   });
 });

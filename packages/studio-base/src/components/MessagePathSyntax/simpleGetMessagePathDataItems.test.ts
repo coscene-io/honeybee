@@ -141,5 +141,18 @@ describe("simpleGetMessagePathDataItems", () => {
       30,
     ]);
   });
+
+  it("compares identifier filters as strings without schema", () => {
+    // simpleGet has no enum map — `{status==MOVING}` is a string compare (and loose ==).
+    expect(
+      simpleGetMessagePathDataItems(msg({ status: 1 }), parseMessagePath("/foo{status==MOVING}")!),
+    ).toEqual([]);
+    expect(
+      simpleGetMessagePathDataItems(
+        msg({ status: "MOVING" }),
+        parseMessagePath("/foo{status==MOVING}")!,
+      ),
+    ).toEqual([{ status: "MOVING" }]);
+  });
 });
 
