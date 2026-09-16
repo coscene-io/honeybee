@@ -57,7 +57,7 @@ const makeSeriesNode = memoizeWeak(
           input: "messagepath",
           value: path.value,
           validTypes: plotableRosTypes,
-          supportsMathModifiers: true,
+          supportsMessagePathFunctions: true,
         },
         label: {
           input: "string",

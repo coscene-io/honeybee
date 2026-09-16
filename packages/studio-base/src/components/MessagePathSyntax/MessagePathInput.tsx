@@ -32,6 +32,7 @@ import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
 
+import { MessagePathFunctionSupport } from "./messagePathFunctions";
 import {
   traverseStructure,
   messagePathStructures,
@@ -39,6 +40,10 @@ import {
   validTerminatingStructureItem,
   StructureTraversalResult,
 } from "./messagePathsForDatatype";
+import {
+  suggestFunctionSuffixes,
+  validateMessagePathInput,
+} from "./suggestMessagePathCompletions";
 
 export function tryToSetDefaultGlobalVar(
   variableName: string,
@@ -104,7 +109,8 @@ function getExamplePrimitive(primitiveType: PrimitiveType) {
 }
 
 type MessagePathInputBaseProps = {
-  supportsMathModifiers?: boolean;
+  supportsMessagePathFunctions?: boolean;
+  supportsTimeSeriesMessagePathFunctions?: boolean;
   path: string; // A path of the form `/topic.some_field[:]{id==42}.x`
   index?: number; // Optional index field which gets passed to `onChange` (so you don't have to create anonymous functions)
   onChange: (value: string, index?: number) => void;
@@ -148,7 +154,8 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const { datatypes, topics } = PanelAPI.useDataSourceInfo();
 
   const {
-    supportsMathModifiers,
+    supportsMessagePathFunctions,
+    supportsTimeSeriesMessagePathFunctions,
     path,
     prioritizedDatatype,
     validTypes,
@@ -241,7 +248,12 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       // or if we just autocompleted something with a filter (because we might want to
       // edit that filter), or if the autocomplete already has a filter (because we might
       // have just autocompleted a name inside that filter).
-      if (keepGoingAfterTopicName || value.includes("{") || path.includes("{")) {
+      if (
+        keepGoingAfterTopicName ||
+        value.includes("{") ||
+        path.includes("{") ||
+        value.includes("(")
+      ) {
         const newCursorPosition = autocompleteRange.start + value.length;
         setImmediate(() => {
           autocomplete.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -325,6 +337,17 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
 
   const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
 
+  const functionSupport: MessagePathFunctionSupport = useMemo(
+    () => ({
+      supportsMessagePathFunctions: supportsMessagePathFunctions === true,
+      supportsTimeSeriesMessagePathFunctions:
+        supportsMessagePathFunctions === true &&
+        supportsTimeSeriesMessagePathFunctions !== false,
+      globalVariables,
+    }),
+    [globalVariables, supportsMessagePathFunctions, supportsTimeSeriesMessagePathFunctions],
+  );
+
   const { autocompleteItems, autocompleteFilterText, autocompleteRange } = useMemo(() => {
     const withLeadingOffset = (range: { start: number; end: number }) => ({
       start: range.start + leadingWhitespaceLength,
@@ -336,6 +359,28 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         autocompleteItems: [],
         autocompleteFilterText: "",
         autocompleteRange: { start: 0, end: Infinity },
+      };
+    } else if (
+      functionSupport.supportsMessagePathFunctions &&
+      trimmedPath.includes(".@") &&
+      topic &&
+      rosPath
+    ) {
+      const lastAt = trimmedPath.lastIndexOf(".@");
+      const prefix = trimmedPath.slice(lastAt);
+      const suffixes = suggestFunctionSuffixes({
+        terminatingItem: structureTraversalResult?.structureItem,
+        support: functionSupport,
+      });
+      return {
+        autocompleteItems: suffixes
+          .map((suffix) => `.${suffix}`)
+          .filter((item) => item.startsWith(prefix)),
+        autocompleteFilterText: prefix,
+        autocompleteRange: withLeadingOffset({
+          start: lastAt,
+          end: Infinity,
+        }),
       };
     } else if (autocompleteType === "topicName") {
       // If the path is empty, return topic names only to show the full list of topics. Otherwise,
@@ -446,6 +491,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     noMultiSlices,
     globalVariables,
     leadingWhitespaceLength,
+    functionSupport,
   ]);
 
   const topicsByName = useMemo(() => _.keyBy(topics, ({ name }) => name), [topics]);
@@ -463,11 +509,16 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     );
   }, [autocompleteItems, prioritizedDatatype, topicsByName]);
 
-  const usesUnsupportedMathModifier =
-    (supportsMathModifiers == undefined || !supportsMathModifiers) && trimmedPath.includes(".@");
+  const pathInputError = useMemo(
+    () =>
+      trimmedPath.length > 0
+        ? validateMessagePathInput(trimmedPath, functionSupport)
+        : undefined,
+    [functionSupport, trimmedPath],
+  );
 
   const hasError =
-    usesUnsupportedMathModifier ||
+    pathInputError != undefined ||
     (autocompleteType != undefined && !disableAutocomplete && trimmedPath.length > 0);
 
   return (

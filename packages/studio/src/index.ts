@@ -685,8 +685,10 @@ export type SettingsTreeFieldMessagePath = {
   input: "messagepath";
   value?: string;
   validTypes?: string[];
-  /** True if the input should allow math modifiers like @abs. */
-  supportsMathModifiers?: boolean;
+  /** True if the input should allow FoxQL functions like @abs. */
+  supportsMessagePathFunctions?: boolean;
+  /** True if the input should allow time-series functions like @derivative. */
+  supportsTimeSeriesMessagePathFunctions?: boolean;
 };
 
 export type SettingsTreeFieldNumber = {
