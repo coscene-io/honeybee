@@ -17,6 +17,9 @@
 import { parseMessagePath } from "@foxglove/message-path";
 
 import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
+import { gaugePathParseError } from "@foxglove/studio-base/panels/Gauge/settings";
+import { indicatorPathParseError } from "@foxglove/studio-base/panels/Indicator/settings";
+import { stateTransitionPathFunctionError } from "@foxglove/studio-base/panels/StateTransitions/settings";
 
 describe("panel FoxQL flags", () => {
   const plot = {
@@ -34,5 +37,23 @@ describe("panel FoxQL flags", () => {
     const parsed = parseMessagePath("/t.v.@derivative")!;
     expect(validateMessagePathFunctions(parsed, plot)).toBeUndefined();
     expect(validateMessagePathFunctions(parsed, gauge)).toBeDefined();
+  });
+
+  it("gauge and indicator treat $ function operands as unsupported variables", () => {
+    const parsed = parseMessagePath("/t.v.@mul($scale)")!;
+    expect(gaugePathParseError(parsed)).toBe(
+      "Message paths using variables are not currently supported",
+    );
+    expect(indicatorPathParseError(parsed)).toBe(
+      "Message paths using variables are not currently supported",
+    );
+    expect(gaugePathParseError(parseMessagePath("/t.v.@mul(2)"))).toBeUndefined();
+  });
+
+  it("state transitions accepts numeric $scale globals", () => {
+    expect(stateTransitionPathFunctionError("/t.v.@mul($scale)", { scale: 2 })).toBeUndefined();
+    expect(stateTransitionPathFunctionError("/t.v.@mul($scale)", {})).toMatch(
+      /not a numeric global/i,
+    );
   });
 });

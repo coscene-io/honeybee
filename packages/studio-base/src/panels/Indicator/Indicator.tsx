@@ -12,16 +12,11 @@ import { makeStyles } from "tss-react/mui";
 
 import { MessagePath, parseMessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
-import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { getMatchingRule } from "./getMatchingRule";
-import {
-  INDICATOR_PATH_FUNCTION_SUPPORT,
-  settingsActionReducer,
-  useSettingsTree,
-} from "./settings";
+import { indicatorPathParseError, settingsActionReducer, useSettingsTree } from "./settings";
 import { Config } from "./types";
 
 type Props = {
@@ -98,20 +93,7 @@ function reducer(state: State, action: Action): State {
       }
       case "path": {
         const newPath = parseMessagePath(action.path);
-        let pathParseError: string | undefined;
-        if (
-          newPath?.messagePath.some(
-            (part) =>
-              (part.type === "filter" && typeof part.value === "object") ||
-              (part.type === "slice" &&
-                (typeof part.start === "object" || typeof part.end === "object")),
-          ) === true
-        ) {
-          pathParseError = "Message paths using variables are not currently supported";
-        }
-        if (pathParseError == undefined && newPath?.isFullySpecified === true) {
-          pathParseError = validateMessagePathFunctions(newPath, INDICATOR_PATH_FUNCTION_SUPPORT);
-        }
+        const pathParseError = indicatorPathParseError(newPath);
         let latestMatchingQueriedData: unknown;
         let error: Error | undefined;
         try {

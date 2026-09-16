@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
-import { parseMessagePath } from "@foxglove/message-path";
+import { MessagePath, parseFunction, parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
 import {
   MessagePathFunctionSupport,
@@ -20,11 +20,43 @@ import {
 
 import type { Config } from "./types";
 
-export const GAUGE_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
+const VARIABLES_NOT_SUPPORTED = "Message paths using variables are not currently supported";
+
+const GAUGE_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
   supportsMessagePathFunctions: true,
   supportsTimeSeriesMessagePathFunctions: false,
   globalVariables: {},
 };
+
+function messagePathUsesVariables(parsed: MessagePath): boolean {
+  if (
+    parsed.messagePath.some(
+      (part) =>
+        (part.type === "filter" && typeof part.value === "object") ||
+        (part.type === "slice" &&
+          (typeof part.start === "object" || typeof part.end === "object")),
+    )
+  ) {
+    return true;
+  }
+  return (parsed.functionChain ?? []).some((step) => {
+    const parsedFn = parseFunction(step.function);
+    return parsedFn?.operandRaw?.trim().startsWith("$") === true;
+  });
+}
+
+export function gaugePathParseError(parsed: MessagePath | undefined): string | undefined {
+  if (parsed == undefined) {
+    return undefined;
+  }
+  if (messagePathUsesVariables(parsed)) {
+    return VARIABLES_NOT_SUPPORTED;
+  }
+  if (parsed.isFullySpecified !== true) {
+    return undefined;
+  }
+  return validateMessagePathFunctions(parsed, GAUGE_PATH_FUNCTION_SUPPORT);
+}
 
 export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAction): Config {
   return produce(prevConfig, (draft) => {
@@ -62,20 +94,15 @@ export function useSettingsTree(
   error: string | undefined,
 ): SettingsTreeNodes {
   const { t } = useTranslation("gauge");
-  const generalSettings = useMemo((): SettingsTreeNode => {
-    const parsedPath = parseMessagePath(config.path);
-    const pathFunctionError =
-      parsedPath?.isFullySpecified === true
-        ? validateMessagePathFunctions(parsedPath, GAUGE_PATH_FUNCTION_SUPPORT)
-        : undefined;
-    return {
+  const generalSettings = useMemo(
+    (): SettingsTreeNode => ({
       error,
       fields: {
         path: {
           label: t("messagePath"),
           input: "messagepath",
           value: config.path,
-          error: pathParseError ?? pathFunctionError,
+          error: pathParseError ?? gaugePathParseError(parseMessagePath(config.path)),
           validTypes: supportedDataTypes,
           supportsMessagePathFunctions: true,
           supportsTimeSeriesMessagePathFunctions: false,
@@ -124,8 +151,9 @@ export function useSettingsTree(
           value: config.reverse,
         },
       },
-    };
-  }, [error, config, pathParseError, t]);
+    }),
+    [error, config, pathParseError, t],
+  );
   return useShallowMemo({
     general: generalSettings,
   });

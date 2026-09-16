@@ -13,7 +13,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
-import { parseMessagePath } from "@foxglove/message-path";
+import { MessagePath, parseFunction, parseMessagePath } from "@foxglove/message-path";
 import {
   SettingsTreeAction,
   SettingsTreeNode,
@@ -27,11 +27,43 @@ import {
 
 import { Config, Rule } from "./types";
 
-export const INDICATOR_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
+const VARIABLES_NOT_SUPPORTED = "Message paths using variables are not currently supported";
+
+const INDICATOR_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
   supportsMessagePathFunctions: true,
   supportsTimeSeriesMessagePathFunctions: false,
   globalVariables: {},
 };
+
+function messagePathUsesVariables(parsed: MessagePath): boolean {
+  if (
+    parsed.messagePath.some(
+      (part) =>
+        (part.type === "filter" && typeof part.value === "object") ||
+        (part.type === "slice" &&
+          (typeof part.start === "object" || typeof part.end === "object")),
+    )
+  ) {
+    return true;
+  }
+  return (parsed.functionChain ?? []).some((step) => {
+    const parsedFn = parseFunction(step.function);
+    return parsedFn?.operandRaw?.trim().startsWith("$") === true;
+  });
+}
+
+export function indicatorPathParseError(parsed: MessagePath | undefined): string | undefined {
+  if (parsed == undefined) {
+    return undefined;
+  }
+  if (messagePathUsesVariables(parsed)) {
+    return VARIABLES_NOT_SUPPORTED;
+  }
+  if (parsed.isFullySpecified !== true) {
+    return undefined;
+  }
+  return validateMessagePathFunctions(parsed, INDICATOR_PATH_FUNCTION_SUPPORT);
+}
 
 function ruleToString(rule: Rule): string {
   const operator = {
@@ -158,20 +190,15 @@ export function useSettingsTree(
 ): SettingsTreeNodes {
   const { t } = useTranslation("indicator");
   const { path, style, rules } = config;
-  const generalSettings: SettingsTreeNode = useMemo(() => {
-    const parsedPath = parseMessagePath(path);
-    const pathFunctionError =
-      parsedPath?.isFullySpecified === true
-        ? validateMessagePathFunctions(parsedPath, INDICATOR_PATH_FUNCTION_SUPPORT)
-        : undefined;
-    return {
+  const generalSettings: SettingsTreeNode = useMemo(
+    () => ({
       error,
       fields: {
         path: {
           label: t("messagePath"),
           input: "messagepath",
           value: path,
-          error: pathParseError ?? pathFunctionError,
+          error: pathParseError ?? indicatorPathParseError(parseMessagePath(path)),
           supportsMessagePathFunctions: true,
           supportsTimeSeriesMessagePathFunctions: false,
         },
@@ -185,8 +212,9 @@ export function useSettingsTree(
           ],
         },
       },
-    };
-  }, [error, path, pathParseError, style, t]);
+    }),
+    [error, path, pathParseError, style, t],
+  );
 
   const { fallbackColor, fallbackLabel } = config;
   const ruleSettings: SettingsTreeNode = useMemo(
