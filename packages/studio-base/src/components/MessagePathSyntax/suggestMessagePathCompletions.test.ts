@@ -14,7 +14,10 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { parseMessagePath } from "@foxglove/message-path";
+
 import {
+  isCompleteFunctionPath,
   suggestFunctionSuffixes,
   validateMessagePathInput,
 } from "./suggestMessagePathCompletions";
@@ -100,5 +103,22 @@ describe("validateMessagePathInput", () => {
         globalVariables: {},
       }),
     ).toBeDefined();
+  });
+
+  it("does not error on an unclosed operand", () => {
+    expect(parseMessagePath("/t.v.@mul(")).toBeUndefined();
+    expect(validateMessagePathInput("/t.v.@mul(", plotSupport)).toBeUndefined();
+  });
+});
+
+describe("isCompleteFunctionPath", () => {
+  it("treats converting functions as complete even when the field is not a primitive", () => {
+    expect(isCompleteFunctionPath(parseMessagePath("/t.arr.@length")!, plotSupport)).toBe(true);
+    expect(isCompleteFunctionPath(parseMessagePath("/t.q.@rpy.yaw")!, plotSupport)).toBe(true);
+  });
+
+  it("does not treat a path without a validating chain as complete", () => {
+    expect(isCompleteFunctionPath(parseMessagePath("/t.q")!, plotSupport)).toBe(false);
+    expect(isCompleteFunctionPath(parseMessagePath("/t.v.@deg2rad")!, plotSupport)).toBe(false);
   });
 });

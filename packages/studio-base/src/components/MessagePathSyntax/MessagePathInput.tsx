@@ -41,6 +41,7 @@ import {
   StructureTraversalResult,
 } from "./messagePathsForDatatype";
 import {
+  isCompleteFunctionPath,
   suggestFunctionSuffixes,
   validateMessagePathInput,
 } from "./suggestMessagePathCompletions";
@@ -315,28 +316,6 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     [allStructureItemsByPath, topicNamesAutocompleteItems],
   );
 
-  const autocompleteType = useMemo(() => {
-    if (!rosPath) {
-      return "topicName";
-    } else if (!topic) {
-      return "topicName";
-    } else if (
-      structureTraversalResult == undefined ||
-      !structureTraversalResult.valid ||
-      !validTerminatingStructureItem(structureTraversalResult.structureItem, validTypes)
-    ) {
-      return "messagePath";
-    }
-
-    if (invalidGlobalVariablesVariable) {
-      return "globalVariables";
-    }
-
-    return undefined;
-  }, [invalidGlobalVariablesVariable, structureTraversalResult, validTypes, rosPath, topic]);
-
-  const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
-
   const functionSupport: MessagePathFunctionSupport = useMemo(
     () => ({
       supportsMessagePathFunctions: supportsMessagePathFunctions === true,
@@ -347,6 +326,53 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     }),
     [globalVariables, supportsMessagePathFunctions, supportsTimeSeriesMessagePathFunctions],
   );
+
+  const autocompleteType = useMemo(() => {
+    if (!rosPath) {
+      // Unclosed `.@mul(` does not parse; keep mid-edit function paths off the topic-name error path.
+      if (functionSupport.supportsMessagePathFunctions && trimmedPath.includes(".@")) {
+        const lastAt = trimmedPath.lastIndexOf(".@");
+        const pathBeforeSuffix = parseMessagePath(trimmedPath.slice(0, lastAt));
+        if (
+          pathBeforeSuffix != undefined &&
+          topics.some(({ name }) => name === pathBeforeSuffix.topicName)
+        ) {
+          return undefined;
+        }
+      }
+      return "topicName";
+    } else if (!topic) {
+      return "topicName";
+    } else if (
+      !isCompleteFunctionPath(
+        rosPath,
+        functionSupport,
+        structureTraversalResult?.structureItem,
+      ) &&
+      (structureTraversalResult == undefined ||
+        !structureTraversalResult.valid ||
+        !validTerminatingStructureItem(structureTraversalResult.structureItem, validTypes))
+    ) {
+      return "messagePath";
+    }
+
+    if (invalidGlobalVariablesVariable) {
+      return "globalVariables";
+    }
+
+    return undefined;
+  }, [
+    functionSupport,
+    invalidGlobalVariablesVariable,
+    rosPath,
+    structureTraversalResult,
+    topic,
+    topics,
+    trimmedPath,
+    validTypes,
+  ]);
+
+  const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
 
   const { autocompleteItems, autocompleteFilterText, autocompleteRange } = useMemo(() => {
     const withLeadingOffset = (range: { start: number; end: number }) => ({
@@ -360,29 +386,41 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         autocompleteFilterText: "",
         autocompleteRange: { start: 0, end: Infinity },
       };
-    } else if (
-      functionSupport.supportsMessagePathFunctions &&
-      trimmedPath.includes(".@") &&
-      topic &&
-      rosPath
-    ) {
+    } else if (functionSupport.supportsMessagePathFunctions && trimmedPath.includes(".@")) {
       const lastAt = trimmedPath.lastIndexOf(".@");
       const prefix = trimmedPath.slice(lastAt);
-      const suffixes = suggestFunctionSuffixes({
-        terminatingItem: structureTraversalResult?.structureItem,
-        support: functionSupport,
-      });
-      return {
-        autocompleteItems: suffixes
-          .map((suffix) => `.${suffix}`)
-          .filter((item) => item.startsWith(prefix)),
-        autocompleteFilterText: prefix,
-        autocompleteRange: withLeadingOffset({
-          start: lastAt,
-          end: Infinity,
-        }),
-      };
-    } else if (autocompleteType === "topicName") {
+      // Unclosed `@mul(` does not parse; use the path before the last `.@` for structure.
+      const pathBeforeSuffix = parseMessagePath(trimmedPath.slice(0, lastAt));
+      const topicForFunctions =
+        pathBeforeSuffix != undefined
+          ? topics.find(({ name }) => name === pathBeforeSuffix.topicName)
+          : topic;
+      let terminatingItem = structureTraversalResult?.structureItem;
+      if (pathBeforeSuffix != undefined && topicForFunctions?.schemaName != undefined) {
+        terminatingItem = traverseStructure(
+          messagePathStructuresForDataype[topicForFunctions.schemaName],
+          pathBeforeSuffix.messagePath,
+        ).structureItem;
+      }
+      if (topicForFunctions != undefined) {
+        const suffixes = suggestFunctionSuffixes({
+          terminatingItem,
+          support: functionSupport,
+        });
+        return {
+          autocompleteItems: suffixes
+            .map((suffix) => `.${suffix}`)
+            .filter((item) => item.startsWith(prefix)),
+          autocompleteFilterText: prefix,
+          autocompleteRange: withLeadingOffset({
+            start: lastAt,
+            end: Infinity,
+          }),
+        };
+      }
+    }
+
+    if (autocompleteType === "topicName") {
       // If the path is empty, return topic names only to show the full list of topics. Otherwise,
       // use the full set of topic names and field paths to autocomplete
       return {
@@ -492,6 +530,8 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     globalVariables,
     leadingWhitespaceLength,
     functionSupport,
+    topics,
+    messagePathStructuresForDataype,
   ]);
 
   const topicsByName = useMemo(() => _.keyBy(topics, ({ name }) => name), [topics]);

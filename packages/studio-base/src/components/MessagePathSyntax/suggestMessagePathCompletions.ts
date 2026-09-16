@@ -14,7 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { MessagePathStructureItem, parseMessagePath } from "@foxglove/message-path";
+import { MessagePath, MessagePathStructureItem, parseMessagePath } from "@foxglove/message-path";
 
 import {
   ARRAY_FUNCTION_NAMES,
@@ -124,10 +124,7 @@ export function validateMessagePathInput(
   }
 
   const parsed = parseMessagePath(path);
-  if (parsed == undefined) {
-    return "Invalid expression";
-  }
-  if (!parsed.isFullySpecified) {
+  if (parsed == undefined || !parsed.isFullySpecified) {
     if (path.includes(".@") || path.includes("{")) {
       return undefined;
     }
@@ -137,4 +134,15 @@ export function validateMessagePathInput(
     return undefined;
   }
   return validateMessagePathFunctions(parsed, support);
+}
+
+export function isCompleteFunctionPath(
+  parsed: MessagePath,
+  support: MessagePathFunctionSupport,
+  terminatingItem?: MessagePathStructureItem,
+): boolean {
+  if (!parsed.isFullySpecified || (parsed.functionChain?.length ?? 0) === 0) {
+    return false;
+  }
+  return validateMessagePathFunctions(parsed, support, terminatingItem) == undefined;
 }
