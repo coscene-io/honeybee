@@ -22,40 +22,45 @@ import {
 
 export type TimeSeriesName = "delta" | "derivative" | "timedelta";
 
-export function splitTimeSeriesFunctionChain(path: MessagePath): {
+export type TimeSeriesSplit = {
+  /** Path (and function steps) evaluated per message before the time-series step. */
   pathBeforeSpecialFunction: MessagePath;
   specialFunction: TimeSeriesName | undefined;
+  /** Scalar/operand steps applied to the time-series result. */
   postSpecialScalarFunctions: Array<(n: number) => number>;
-} {
+};
+
+/**
+ * Split a Plot timestamp series path around its time-series function. Returns `undefined` when
+ * a step after the time-series function is not a scalar/operand function (e.g. a second
+ * `@derivative`), so the series is dropped rather than plotted with part of its chain ignored.
+ */
+export function splitTimeSeriesFunctionChain(path: MessagePath): TimeSeriesSplit | undefined {
   const chain = path.functionChain ?? [];
   let specialIndex = -1;
   let specialFunction: TimeSeriesName | undefined;
-  for (let index = 0; index < chain.length; index++) {
-    const parsed = parseFunction(chain[index]!.function);
-    if (parsed != undefined && isTimeSeriesName(parsed.name)) {
+  for (const [index, step] of chain.entries()) {
+    const name = parseFunction(step.function)?.name;
+    if (name != undefined && isTimeSeriesName(name)) {
       specialIndex = index;
-      specialFunction = parsed.name;
+      specialFunction = name;
       break;
     }
   }
-
-  if (specialIndex < 0 || specialFunction == undefined) {
-    return {
-      pathBeforeSpecialFunction: path,
-      specialFunction: undefined,
-      postSpecialScalarFunctions: [],
-    };
+  if (specialFunction == undefined) {
+    return { pathBeforeSpecialFunction: path, specialFunction, postSpecialScalarFunctions: [] };
   }
 
-  const before = chain.slice(0, specialIndex);
   const postSpecialScalarFunctions: Array<(n: number) => number> = [];
   for (const step of chain.slice(specialIndex + 1)) {
     const fn = compileScalarFunction(step.function);
-    if (fn) {
-      postSpecialScalarFunctions.push(fn);
+    if (fn == undefined) {
+      return undefined;
     }
+    postSpecialScalarFunctions.push(fn);
   }
 
+  const before = chain.slice(0, specialIndex);
   return {
     pathBeforeSpecialFunction: {
       ...path,

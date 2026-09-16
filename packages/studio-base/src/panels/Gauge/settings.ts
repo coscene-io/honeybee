@@ -11,51 +11,11 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
-import { MessagePath, parseFunction, parseMessagePath } from "@foxglove/message-path";
+import { parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
-import {
-  MessagePathFunctionSupport,
-  validateMessagePathFunctions,
-} from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
+import { validateSimpleMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 
 import type { Config } from "./types";
-
-const VARIABLES_NOT_SUPPORTED = "Message paths using variables are not currently supported";
-
-const GAUGE_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
-  supportsMessagePathFunctions: true,
-  supportsTimeSeriesMessagePathFunctions: false,
-  globalVariables: {},
-};
-
-function messagePathUsesVariables(parsed: MessagePath): boolean {
-  if (
-    parsed.messagePath.some(
-      (part) =>
-        (part.type === "filter" && typeof part.value === "object") ||
-        (part.type === "slice" && (typeof part.start === "object" || typeof part.end === "object")),
-    )
-  ) {
-    return true;
-  }
-  return (parsed.functionChain ?? []).some((step) => {
-    const parsedFn = parseFunction(step.function);
-    return parsedFn?.operandRaw?.trim().startsWith("$") === true;
-  });
-}
-
-export function gaugePathParseError(parsed: MessagePath | undefined): string | undefined {
-  if (parsed == undefined) {
-    return undefined;
-  }
-  if (messagePathUsesVariables(parsed)) {
-    return VARIABLES_NOT_SUPPORTED;
-  }
-  if (!parsed.isFullySpecified) {
-    return undefined;
-  }
-  return validateMessagePathFunctions(parsed, GAUGE_PATH_FUNCTION_SUPPORT);
-}
 
 export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAction): Config {
   return produce(prevConfig, (draft) => {
@@ -101,7 +61,7 @@ export function useSettingsTree(
           label: t("messagePath"),
           input: "messagepath",
           value: config.path,
-          error: pathParseError ?? gaugePathParseError(parseMessagePath(config.path)),
+          error: pathParseError ?? validateSimpleMessagePath(parseMessagePath(config.path)),
           validTypes: supportedDataTypes,
           supportsMessagePathFunctions: true,
           supportsTimeSeriesMessagePathFunctions: false,

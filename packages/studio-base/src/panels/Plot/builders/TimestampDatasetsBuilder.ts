@@ -693,7 +693,11 @@ function readMessagePathItems(
   timestampMethod: TimestampMethod,
   startTime: Immutable<Time>,
 ): DataItem[] {
-  const { pathBeforeSpecialFunction } = splitTimeSeriesFunctionChain(path as MessagePath);
+  const split = splitTimeSeriesFunctionChain(path as MessagePath);
+  if (split == undefined) {
+    return [];
+  }
+  const { pathBeforeSpecialFunction } = split;
   const out = [];
   for (const event of events) {
     if (event.topic !== path.topicName) {

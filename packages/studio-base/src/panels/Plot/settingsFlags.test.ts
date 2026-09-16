@@ -16,8 +16,7 @@
 
 import { parseMessagePath } from "@foxglove/message-path";
 import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
-import { gaugePathParseError } from "@foxglove/studio-base/panels/Gauge/settings";
-import { indicatorPathParseError } from "@foxglove/studio-base/panels/Indicator/settings";
+import { validateSimpleMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { plotPathFunctionError } from "@foxglove/studio-base/panels/Plot/settings";
 import { stateTransitionPathFunctionError } from "@foxglove/studio-base/panels/StateTransitions/settings";
 
@@ -51,15 +50,17 @@ describe("panel FoxQL flags", () => {
     );
   });
 
-  it("gauge and indicator treat $ function operands as unsupported variables", () => {
-    const parsed = parseMessagePath("/t.v.@mul($scale)")!;
-    expect(gaugePathParseError(parsed)).toBe(
-      "Message paths using variables are not currently supported",
+  it("gauge and indicator treat $ variables anywhere in the path as unsupported", () => {
+    const unsupported = "Message paths using variables are not currently supported";
+    expect(validateSimpleMessagePath(parseMessagePath("/t.v.@mul($scale)"))).toBe(unsupported);
+    expect(validateSimpleMessagePath(parseMessagePath("/t.arr[$i]"))).toBe(unsupported);
+    expect(validateSimpleMessagePath(parseMessagePath("/t.arr[:]{id==$id}.v"))).toBe(unsupported);
+    expect(validateSimpleMessagePath(parseMessagePath("/t.v.@mul(2)"))).toBeUndefined();
+    expect(validateSimpleMessagePath(parseMessagePath("/t.v.@derivative"))).toBe(
+      "This field does not accept time-series functions",
     );
-    expect(indicatorPathParseError(parsed)).toBe(
-      "Message paths using variables are not currently supported",
-    );
-    expect(gaugePathParseError(parseMessagePath("/t.v.@mul(2)"))).toBeUndefined();
+    expect(validateSimpleMessagePath(parseMessagePath("/t.v.@"))).toBeUndefined();
+    expect(validateSimpleMessagePath(undefined)).toBeUndefined();
   });
 
   it("state transitions accepts numeric $scale globals", () => {

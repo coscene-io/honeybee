@@ -5,13 +5,50 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { MessagePath } from "@foxglove/message-path";
+import { MessagePath, parseFunction } from "@foxglove/message-path";
 import { Immutable } from "@foxglove/studio";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
 import { isTypedArray } from "@foxglove/studio-base/types/isTypedArray";
 
 import { filterMatches } from "./filterMatches";
-import { applyFunctionChain } from "./messagePathFunctions";
+import {
+  applyFunctionChain,
+  MessagePathFunctionSupport,
+  validateMessagePathFunctions,
+} from "./messagePathFunctions";
+
+const SIMPLE_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
+  supportsMessagePathFunctions: true,
+  supportsTimeSeriesMessagePathFunctions: false,
+  globalVariables: {},
+};
+
+/**
+ * Settings error for a path that panels evaluate with `simpleGetMessagePathDataItems` and without
+ * global variables (Gauge, Indicator): `$variables` are unsupported anywhere in the path, and a
+ * completed function chain must be valid for a non-time-series field.
+ */
+export function validateSimpleMessagePath(parsed: MessagePath | undefined): string | undefined {
+  if (parsed == undefined) {
+    return undefined;
+  }
+  const usesVariables =
+    parsed.messagePath.some(
+      (part) =>
+        (part.type === "filter" && typeof part.value === "object") ||
+        (part.type === "slice" && (typeof part.start === "object" || typeof part.end === "object")),
+    ) ||
+    (parsed.functionChain ?? []).some(
+      (step) => parseFunction(step.function)?.operandRaw?.startsWith("$") === true,
+    );
+  if (usesVariables) {
+    return "Message paths using variables are not currently supported";
+  }
+  if (!parsed.isFullySpecified) {
+    return undefined;
+  }
+  return validateMessagePathFunctions(parsed, SIMPLE_PATH_FUNCTION_SUPPORT);
+}
 
 /**
  * Execute the given message path to extract item(s) from the message.
@@ -49,15 +86,11 @@ export function simpleGetMessagePathDataItems(
         }
         const { start, end } = pathPart;
         const length = value.length;
-        const startIdx = start < 0 ? length + start : start;
-        const endIdx = end === Infinity ? length - 1 : end < 0 ? length + end : end;
-        if (!Number.isFinite(startIdx) || !Number.isFinite(endIdx)) {
-          return;
-        }
+        // Negative bounds count from the end; clamping to [0, length) also keeps a non-finite
+        // bound (oversized literal or `$var`) from turning into an endless loop.
+        const startIdx = Math.max(start < 0 ? length + start : start, 0);
+        const endIdx = Math.min(end < 0 ? length + end : end, length - 1);
         for (let index = startIdx; index <= endIdx; index++) {
-          if (index < 0 || index >= length) {
-            continue;
-          }
           traverse(value[index], pathIndex + 1);
         }
         return;

@@ -21,17 +21,30 @@ import { splitTimeSeriesFunctionChain } from "./splitTimeSeriesFunctionChain";
 describe("splitTimeSeriesFunctionChain", () => {
   it("keeps a scalar-only chain on the path", () => {
     const path = parseMessagePath("/t.v.@abs")!;
-    const split = splitTimeSeriesFunctionChain(path);
+    const split = splitTimeSeriesFunctionChain(path)!;
     expect(split.specialFunction).toBeUndefined();
     expect(split.pathBeforeSpecialFunction.functionChain).toEqual([{ function: "abs" }]);
     expect(split.postSpecialScalarFunctions).toEqual([]);
   });
 
   it("splits @mul then @derivative then @abs", () => {
-    const split = splitTimeSeriesFunctionChain(parseMessagePath("/t.v.@mul(2).@derivative.@abs")!);
+    const split = splitTimeSeriesFunctionChain(parseMessagePath("/t.v.@mul(2).@derivative.@abs")!)!;
     expect(split.pathBeforeSpecialFunction.functionChain).toEqual([{ function: "mul(2)" }]);
     expect(split.specialFunction).toBe("derivative");
     expect(split.postSpecialScalarFunctions).toHaveLength(1);
     expect(split.postSpecialScalarFunctions[0]!(-4)).toBe(4);
   });
+
+  it("clears the chain when the time-series step is first", () => {
+    const split = splitTimeSeriesFunctionChain(parseMessagePath("/t.v.@delta")!)!;
+    expect(split.pathBeforeSpecialFunction.functionChain).toBeUndefined();
+    expect(split.specialFunction).toBe("delta");
+  });
+
+  it.each(["/t.v.@derivative.@derivative", "/t.v.@delta.@norm", "/t.v.@timedelta.@rpy.yaw"])(
+    "returns undefined for %s instead of dropping the invalid step",
+    (path) => {
+      expect(splitTimeSeriesFunctionChain(parseMessagePath(path)!)).toBeUndefined();
+    },
+  );
 });

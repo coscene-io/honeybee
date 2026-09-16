@@ -146,7 +146,8 @@ function wrapToPi(rad: number): number {
 }
 
 function asFiniteNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  const n = typeof value === "bigint" ? Number(value) : value;
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
 function coerceToNumber(value: unknown): number | undefined {
@@ -185,15 +186,15 @@ function applyNorm(value: unknown): number | undefined {
     if (value.length === 0) {
       return undefined;
     }
-    const nums: number[] = [];
+    let sumOfSquares = 0;
     for (const item of value) {
       const n = Number(item);
       if (!Number.isFinite(n)) {
         return undefined;
       }
-      nums.push(n);
+      sumOfSquares += n * n;
     }
-    return Math.hypot(...nums);
+    return Math.sqrt(sumOfSquares);
   }
   if (!isRecord(value)) {
     return undefined;
@@ -275,34 +276,25 @@ function applyStruct(name: string, value: unknown, fieldAccess: string | undefin
   return result[fieldAccess];
 }
 
-function applyScalar(value: unknown, fn: (n: number) => number): unknown {
-  const n = coerceToNumber(value);
-  if (n != undefined) {
-    return fn(n);
-  }
-  if (!isRecord(value)) {
-    return undefined;
-  }
-  const out: Record<string, unknown> = {};
-  for (const [key, field] of Object.entries(value)) {
-    out[key] = typeof field === "number" && Number.isFinite(field) ? fn(field) : field;
-  }
-  return out;
-}
-
+/**
+ * Apply every step of `functionChain` to `value`, left to right. Returns `undefined` when any step
+ * cannot be applied. Time-series steps are not per-sample operations: the Plot timestamp builder
+ * strips them before calling this (see `splitTimeSeriesFunctionChain`), every other caller gets
+ * `undefined` so an unsupported path shows no data instead of the untransformed value.
+ */
 export function applyFunctionChain(
   value: unknown,
   functionChain: readonly MessagePathFunction[] | undefined,
 ): unknown {
   let current: unknown = value;
   for (const step of functionChain ?? []) {
-    const parsed = parseFunction(step.function);
-    if (parsed == undefined) {
-      continue;
-    }
-    const { name } = parsed;
-    if (TIME_SERIES_FUNCTION_NAMES.includes(name) || !CATALOG_FUNCTION_NAMES.has(name)) {
-      continue;
+    const name = parseFunction(step.function)?.name;
+    if (
+      name == undefined ||
+      !CATALOG_FUNCTION_NAMES.has(name) ||
+      TIME_SERIES_FUNCTION_NAMES.includes(name)
+    ) {
+      return undefined;
     }
 
     if (ARRAY_FUNCTION_NAMES.includes(name)) {
@@ -313,10 +305,8 @@ export function applyFunctionChain(
       current = applyStruct(name, current, step.fieldAccess);
     } else {
       const fn = compileScalarFunction(step.function);
-      if (fn == undefined) {
-        return undefined;
-      }
-      current = applyScalar(current, fn);
+      const n = coerceToNumber(current);
+      current = fn != undefined && n != undefined ? fn(n) : undefined;
     }
 
     if (current == undefined) {
@@ -345,6 +335,103 @@ function validateOperand(
   return "Operand function requires a finite number or $variable";
 }
 
+const NUMERIC_PRIMITIVE: MessagePathStructureItem = {
+  structureType: "primitive",
+  primitiveType: "float64",
+  datatype: "float64",
+};
+
+/** Numeric primitive, or a ROS time/duration (coerced with `toSec` at evaluation time). */
+export function isNumericStructure(item: MessagePathStructureItem | undefined): boolean {
+  if (item?.structureType === "primitive") {
+    return item.primitiveType !== "string" && item.primitiveType !== "bool";
+  }
+  return (
+    item?.structureType === "message" && (item.datatype === "time" || item.datatype === "duration")
+  );
+}
+
+export function hasNumericFields(
+  item: MessagePathStructureItem | undefined,
+  names: readonly string[],
+): boolean {
+  return (
+    item?.structureType === "message" &&
+    names.every((name) => isNumericStructure(item.nextByName[name]))
+  );
+}
+
+function structMessage(datatype: string, fields: readonly string[]): MessagePathStructureItem {
+  return {
+    structureType: "message",
+    datatype,
+    nextByName: Object.fromEntries(fields.map((field) => [field, NUMERIC_PRIMITIVE])),
+  };
+}
+
+function describeStructure(item: MessagePathStructureItem): string {
+  switch (item.structureType) {
+    case "primitive":
+      return `a ${item.primitiveType}`;
+    case "array":
+      return "an array";
+    case "message":
+      return item.datatype === "" ? "a message" : `a ${item.datatype}`;
+  }
+}
+
+/**
+ * Structure produced by applying one (syntactically valid) function step to `input`, or
+ * `undefined` when the function cannot be applied to a value of that shape. This is the single
+ * source of truth that keeps validation, autocomplete and `applyFunctionChain` in agreement.
+ */
+function structureAfterFunction(
+  input: MessagePathStructureItem,
+  name: string,
+  fieldAccess: string | undefined,
+): MessagePathStructureItem | undefined {
+  if (STRUCT_FUNCTION_NAMES.has(name)) {
+    const required = name === "quat" ? ["roll", "pitch", "yaw"] : ["x", "y", "z", "w"];
+    if (!hasNumericFields(input, required)) {
+      return undefined;
+    }
+    return fieldAccess != undefined
+      ? NUMERIC_PRIMITIVE
+      : structMessage(name, STRUCT_FIELD_ACCESS[name]!);
+  }
+  if (ARRAY_FUNCTION_NAMES.includes(name)) {
+    return input.structureType === "array" ? NUMERIC_PRIMITIVE : undefined;
+  }
+  if (VECTOR_FUNCTION_NAMES.includes(name)) {
+    const ok =
+      input.structureType === "array"
+        ? isNumericStructure(input.next)
+        : hasNumericFields(input, ["x", "y"]);
+    return ok ? NUMERIC_PRIMITIVE : undefined;
+  }
+  // scalar, operand and time-series functions
+  return isNumericStructure(input) ? NUMERIC_PRIMITIVE : undefined;
+}
+
+/**
+ * Structure of the value produced by `functionChain` applied to `item`, or `undefined` when the
+ * input is unknown or some step cannot be applied.
+ */
+export function structureAfterFunctionChain(
+  item: MessagePathStructureItem | undefined,
+  functionChain: readonly MessagePathFunction[] | undefined,
+): MessagePathStructureItem | undefined {
+  let current = item;
+  for (const step of functionChain ?? []) {
+    const name = parseFunction(step.function)?.name;
+    if (current == undefined || name == undefined || !CATALOG_FUNCTION_NAMES.has(name)) {
+      return undefined;
+    }
+    current = structureAfterFunction(current, name, step.fieldAccess);
+  }
+  return current;
+}
+
 export function validateMessagePathFunctions(
   parsed: MessagePath,
   support: MessagePathFunctionSupport,
@@ -358,6 +445,7 @@ export function validateMessagePathFunctions(
     return "This field does not accept functions";
   }
 
+  let current = terminatingItem;
   let seenTimeSeries = false;
   for (const step of chain) {
     const parsedFn = parseFunction(step.function);
@@ -383,18 +471,9 @@ export function validateMessagePathFunctions(
       if (!STRUCT_FUNCTION_NAMES.has(name)) {
         return `"${name}" does not support field access`;
       }
-      const allowed = STRUCT_FIELD_ACCESS[name];
-      if (allowed?.includes(step.fieldAccess) !== true) {
+      if (STRUCT_FIELD_ACCESS[name]?.includes(step.fieldAccess) !== true) {
         return `"${step.fieldAccess}" is not a valid field for ${name}`;
       }
-    }
-
-    if (
-      ARRAY_FUNCTION_NAMES.includes(name) &&
-      terminatingItem != undefined &&
-      terminatingItem.structureType !== "array"
-    ) {
-      return `"${name}" can only be applied to an array`;
     }
 
     if (TIME_SERIES_FUNCTION_NAMES.includes(name)) {
@@ -407,10 +486,21 @@ export function validateMessagePathFunctions(
       seenTimeSeries = true;
     } else if (
       seenTimeSeries &&
-      compileScalarFunction(step.function) == undefined &&
+      !SCALAR_FUNCTION_NAMES.includes(name) &&
       !OPERAND_FUNCTION_NAMES.includes(name)
     ) {
+      // Redundant with the type check below once the structure is known; still needed when the
+      // caller has no schema (panel settings validation).
       return "Only scalar or operand functions are allowed after a time-series function";
+    }
+
+    // Type-check against the output of the previous step when the schema is known.
+    if (current != undefined) {
+      const next = structureAfterFunction(current, name, step.fieldAccess);
+      if (next == undefined) {
+        return `"${name}" cannot be applied to ${describeStructure(current)}`;
+      }
+      current = next;
     }
   }
 

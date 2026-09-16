@@ -12,11 +12,14 @@ import { makeStyles } from "tss-react/mui";
 
 import { MessagePath, parseMessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
-import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
+import {
+  simpleGetMessagePathDataItems,
+  validateSimpleMessagePath,
+} from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { getMatchingRule } from "./getMatchingRule";
-import { indicatorPathParseError, settingsActionReducer, useSettingsTree } from "./settings";
+import { settingsActionReducer, useSettingsTree } from "./settings";
 import { Config } from "./types";
 
 type Props = {
@@ -93,7 +96,7 @@ function reducer(state: State, action: Action): State {
       }
       case "path": {
         const newPath = parseMessagePath(action.path);
-        const pathParseError = indicatorPathParseError(newPath);
+        const pathParseError = validateSimpleMessagePath(newPath);
         let latestMatchingQueriedData: unknown;
         let error: Error | undefined;
         try {

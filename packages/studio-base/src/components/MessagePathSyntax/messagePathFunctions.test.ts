@@ -14,11 +14,12 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { parseMessagePath } from "@foxglove/message-path";
+import { MessagePathStructureItem, parseMessagePath } from "@foxglove/message-path";
 
 import {
   applyFunctionChain,
   compileScalarFunction,
+  structureAfterFunctionChain,
   validateMessagePathFunctions,
 } from "./messagePathFunctions";
 
@@ -31,6 +32,35 @@ const plotSupport = {
 const gaugeSupport = {
   ...plotSupport,
   supportsTimeSeriesMessagePathFunctions: false,
+};
+
+const float64: MessagePathStructureItem = {
+  structureType: "primitive",
+  primitiveType: "float64",
+  datatype: "float64",
+};
+const floatArray: MessagePathStructureItem = {
+  structureType: "array",
+  next: float64,
+  datatype: "float64[]",
+};
+const quaternion: MessagePathStructureItem = {
+  structureType: "message",
+  datatype: "geometry_msgs/Quaternion",
+  nextByName: { x: float64, y: float64, z: float64, w: float64 },
+};
+const vector2 = (x: MessagePathStructureItem): MessagePathStructureItem => ({
+  structureType: "message",
+  datatype: "Vector2",
+  nextByName: { x, y: x },
+});
+const stamp: MessagePathStructureItem = {
+  structureType: "message",
+  datatype: "time",
+  nextByName: {
+    sec: { structureType: "primitive", primitiveType: "uint32", datatype: "" },
+    nsec: { structureType: "primitive", primitiveType: "uint32", datatype: "" },
+  },
 };
 
 describe("compileScalarFunction", () => {
@@ -127,14 +157,75 @@ describe("validateMessagePathFunctions", () => {
     ).toMatch(/not a numeric global/i);
   });
 
-  it("rejects @length when the terminating value is not an array", () => {
+  it("rejects whitespace-only and mismatched-quote operands", () => {
+    expect(validateMessagePathFunctions(parseMessagePath("/t.v.@mul(   )")!, plotSupport)).toMatch(
+      /requires a finite number/i,
+    );
+    expect(validateMessagePathFunctions(parseMessagePath(`/t.v.@mul("2')`)!, plotSupport)).toMatch(
+      /requires a finite number/i,
+    );
     expect(
-      validateMessagePathFunctions(parseMessagePath("/t.v.@length")!, plotSupport, {
-        structureType: "primitive",
-        primitiveType: "float64",
-        datatype: "float64",
-      }),
-    ).toMatch(/array/i);
+      validateMessagePathFunctions(parseMessagePath(`/t.v.@mul("2")`)!, plotSupport),
+    ).toBeUndefined();
+  });
+
+  describe("with a known terminating type", () => {
+    it.each([
+      { path: "/t.v.@length", item: float64, error: /"length" cannot be applied to a float64/ },
+      { path: "/t.v.@norm", item: float64, error: /"norm" cannot be applied/ },
+      { path: "/t.v.@rpy.yaw", item: float64, error: /"rpy" cannot be applied/ },
+      { path: "/t.q.@quat.x", item: quaternion, error: /"quat" cannot be applied/ },
+      { path: "/t.arr.@abs", item: floatArray, error: /"abs" cannot be applied to an array/ },
+      { path: "/t.q.@abs", item: quaternion, error: /"abs" cannot be applied to a geometry_msgs/ },
+      // the second step is checked against the first step's output
+      { path: "/t.arr.@length.@length", item: floatArray, error: /"length" cannot be applied/ },
+      { path: "/t.q.@rpy.@abs", item: quaternion, error: /"abs" cannot be applied to a rpy/ },
+      { path: "/t.v.@derivative.@length", item: float64, error: /only scalar or operand/i },
+    ])("rejects $path", ({ path, item, error }) => {
+      expect(validateMessagePathFunctions(parseMessagePath(path)!, plotSupport, item)).toMatch(
+        error,
+      );
+    });
+
+    it.each([
+      { path: "/t.arr.@length.@mul(2)", item: floatArray },
+      { path: "/t.arr.@norm", item: floatArray },
+      { path: "/t.q.@rpy.yaw.@degrees", item: quaternion },
+      { path: "/t.q.@rpy", item: quaternion },
+      { path: "/t.q.@rpy.@quat.w", item: quaternion },
+      { path: "/t.stamp.@mul(1000).@derivative", item: stamp },
+      { path: "/t.v.@norm", item: vector2(float64) },
+    ])("accepts $path", ({ path, item }) => {
+      expect(
+        validateMessagePathFunctions(parseMessagePath(path)!, plotSupport, item),
+      ).toBeUndefined();
+    });
+  });
+});
+
+describe("structureAfterFunctionChain", () => {
+  it("returns the chain's output type", () => {
+    expect(structureAfterFunctionChain(quaternion, [{ function: "rpy" }])).toMatchObject({
+      structureType: "message",
+      datatype: "rpy",
+    });
+    expect(
+      structureAfterFunctionChain(quaternion, [{ function: "rpy", fieldAccess: "yaw" }]),
+    ).toMatchObject({ structureType: "primitive" });
+    expect(structureAfterFunctionChain(floatArray, [{ function: "length" }])).toMatchObject({
+      structureType: "primitive",
+    });
+    expect(structureAfterFunctionChain(stamp, [{ function: "abs" }])).toMatchObject({
+      structureType: "primitive",
+    });
+  });
+
+  it("is the identity for an empty chain and undefined for an inapplicable step", () => {
+    expect(structureAfterFunctionChain(quaternion, undefined)).toBe(quaternion);
+    expect(structureAfterFunctionChain(undefined, [{ function: "abs" }])).toBeUndefined();
+    expect(structureAfterFunctionChain(float64, [{ function: "length" }])).toBeUndefined();
+    expect(structureAfterFunctionChain(float64, [{ function: "deg2rad" }])).toBeUndefined();
+    expect(structureAfterFunctionChain(float64, [{ function: "" }])).toBeUndefined();
   });
 });
 
@@ -173,21 +264,29 @@ describe("applyFunctionChain", () => {
     ).toBeCloseTo(1500);
   });
 
-  it("skips time-series and unknown names", () => {
-    expect(applyFunctionChain(5, [{ function: "derivative" }])).toBe(5);
-    expect(applyFunctionChain(180, [{ function: "deg2rad" }])).toBe(180);
+  it("drops the item for time-series, unknown and incomplete steps", () => {
+    expect(applyFunctionChain(5, [{ function: "derivative" }])).toBeUndefined();
+    expect(applyFunctionChain(5, [{ function: "delta" }, { function: "abs" }])).toBeUndefined();
+    expect(applyFunctionChain(180, [{ function: "deg2rad" }])).toBeUndefined();
+    expect(applyFunctionChain(180, [{ function: "" }])).toBeUndefined();
   });
 
-  it("returns undefined when length/norm cannot apply", () => {
+  it("returns undefined when a step cannot apply to the value", () => {
     expect(applyFunctionChain(5, [{ function: "length" }])).toBeUndefined();
     expect(applyFunctionChain({ a: 1 }, [{ function: "norm" }])).toBeUndefined();
+    expect(applyFunctionChain({ x: -1, y: 2 }, [{ function: "abs" }])).toBeUndefined();
+    expect(applyFunctionChain([1, 2], [{ function: "abs" }])).toBeUndefined();
+    expect(applyFunctionChain(5, [{ function: "rpy", fieldAccess: "yaw" }])).toBeUndefined();
   });
 
-  it("maps scalar across numeric object fields", () => {
-    expect(applyFunctionChain({ x: -1, y: 2, name: "n" }, [{ function: "abs" }])).toEqual({
-      x: 1,
-      y: 2,
-      name: "n",
-    });
+  it("accepts bigint coordinates and elements", () => {
+    expect(applyFunctionChain({ x: 3n, y: 4n }, [{ function: "norm" }])).toBe(5);
+    expect(applyFunctionChain(new BigInt64Array([3n, 4n]), [{ function: "norm" }])).toBe(5);
+    expect(applyFunctionChain(7n, [{ function: "add(1)" }])).toBe(8);
+  });
+
+  it("computes the norm of a large array", () => {
+    const big = new Float64Array(300_000).fill(1);
+    expect(applyFunctionChain(big, [{ function: "norm" }])).toBeCloseTo(Math.sqrt(300_000));
   });
 });

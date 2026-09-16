@@ -32,7 +32,11 @@ import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
 
-import { MessagePathFunctionSupport, OPERAND_FUNCTION_NAMES } from "./messagePathFunctions";
+import {
+  MessagePathFunctionSupport,
+  OPERAND_FUNCTION_NAMES,
+  structureAfterFunctionChain,
+} from "./messagePathFunctions";
 import {
   traverseStructure,
   messagePathStructures,
@@ -40,11 +44,7 @@ import {
   validTerminatingStructureItem,
   StructureTraversalResult,
 } from "./messagePathsForDatatype";
-import {
-  isCompleteFunctionPath,
-  suggestFunctionSuffixes,
-  validateMessagePathInput,
-} from "./suggestMessagePathCompletions";
+import { suggestFunctionSuffixes, validateMessagePathInput } from "./suggestMessagePathCompletions";
 
 const OPERAND_OPEN_RE = /^([a-zA-Z0-9_-]+)\(/;
 
@@ -366,7 +366,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     () => ({
       supportsMessagePathFunctions: supportsMessagePathFunctions === true,
       supportsTimeSeriesMessagePathFunctions:
-        supportsMessagePathFunctions === true && supportsTimeSeriesMessagePathFunctions !== false,
+        supportsMessagePathFunctions === true && supportsTimeSeriesMessagePathFunctions === true,
       globalVariables,
     }),
     [globalVariables, supportsMessagePathFunctions, supportsTimeSeriesMessagePathFunctions],
@@ -388,11 +388,15 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       return "topicName";
     } else if (!topic) {
       return "topicName";
+    } else if (structureTraversalResult?.valid !== true) {
+      return "messagePath";
     } else if (
-      !isCompleteFunctionPath(rosPath, functionSupport, structureTraversalResult?.structureItem) &&
-      (structureTraversalResult == undefined ||
-        !structureTraversalResult.valid ||
-        !validTerminatingStructureItem(structureTraversalResult.structureItem, validTypes))
+      // A function chain changes the terminating type (`/q.@rpy.yaw` is a number, `/q.@rpy` is not),
+      // so `validTypes` is checked against the chain's output rather than the field itself.
+      !validTerminatingStructureItem(
+        structureAfterFunctionChain(structureTraversalResult.structureItem, rosPath.functionChain),
+        validTypes,
+      )
     ) {
       return "messagePath";
     }

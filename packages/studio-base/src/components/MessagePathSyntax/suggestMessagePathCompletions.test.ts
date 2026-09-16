@@ -14,13 +14,9 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { parseMessagePath } from "@foxglove/message-path";
+import { MessagePathStructureItem } from "@foxglove/message-path";
 
-import {
-  isCompleteFunctionPath,
-  suggestFunctionSuffixes,
-  validateMessagePathInput,
-} from "./suggestMessagePathCompletions";
+import { suggestFunctionSuffixes, validateMessagePathInput } from "./suggestMessagePathCompletions";
 
 const plotSupport = {
   supportsMessagePathFunctions: true,
@@ -28,10 +24,31 @@ const plotSupport = {
   globalVariables: {},
 };
 
-const floatItem = {
-  structureType: "primitive" as const,
-  primitiveType: "float64" as const,
+const noFunctionSupport = {
+  supportsMessagePathFunctions: false,
+  supportsTimeSeriesMessagePathFunctions: false,
+  globalVariables: {},
+};
+
+const floatItem: MessagePathStructureItem = {
+  structureType: "primitive",
+  primitiveType: "float64",
   datatype: "float64",
+};
+
+const quatItem: MessagePathStructureItem = {
+  structureType: "message",
+  datatype: "Quaternion",
+  nextByName: { x: floatItem, y: floatItem, z: floatItem, w: floatItem },
+};
+
+const timeItem: MessagePathStructureItem = {
+  structureType: "message",
+  datatype: "time",
+  nextByName: {
+    sec: { structureType: "primitive", primitiveType: "uint32", datatype: "" },
+    nsec: { structureType: "primitive", primitiveType: "uint32", datatype: "" },
+  },
 };
 
 describe("suggestFunctionSuffixes", () => {
@@ -40,112 +57,113 @@ describe("suggestFunctionSuffixes", () => {
     expect(items).toEqual(expect.arrayContaining(["@abs", "@mul(", "@degrees", "@derivative"]));
   });
 
+  it("suggests the same numeric functions on ROS time and duration", () => {
+    const items = suggestFunctionSuffixes({ terminatingItem: timeItem, support: plotSupport });
+    expect(items).toEqual(expect.arrayContaining(["@abs", "@mul(", "@derivative"]));
+    expect(items).not.toContain("@norm");
+  });
+
   it("omits time-series when disabled", () => {
     const items = suggestFunctionSuffixes({
       terminatingItem: floatItem,
       support: { ...plotSupport, supportsTimeSeriesMessagePathFunctions: false },
     });
-    expect(items).not.toEqual(expect.arrayContaining(["@derivative"]));
-    expect(items).toEqual(expect.arrayContaining(["@abs"]));
+    expect(items).not.toContain("@derivative");
+    expect(items).toContain("@abs");
+  });
+
+  it("does not suggest a second time-series function", () => {
+    const items = suggestFunctionSuffixes({
+      terminatingItem: floatItem,
+      support: plotSupport,
+      functionChain: [{ function: "derivative" }],
+    });
+    expect(items).toEqual(expect.arrayContaining(["@abs", "@mul("]));
+    expect(items).not.toEqual(expect.arrayContaining(["@delta", "@derivative", "@timedelta"]));
   });
 
   it("suggests length on arrays and norm on xyz", () => {
     const arrayItems = suggestFunctionSuffixes({
-      terminatingItem: {
-        structureType: "array",
-        next: floatItem,
-        datatype: "float64[]",
-      },
+      terminatingItem: { structureType: "array", next: floatItem, datatype: "float64[]" },
       support: plotSupport,
     });
-    expect(arrayItems).toEqual(expect.arrayContaining(["@length"]));
-    expect(arrayItems).not.toEqual(expect.arrayContaining(["@abs", "@mul("]));
+    expect(arrayItems).toEqual(["@length", "@norm"]);
     expect(
       suggestFunctionSuffixes({
         terminatingItem: {
           structureType: "message",
           datatype: "Vector3",
-          nextByName: {
-            x: floatItem,
-            y: floatItem,
-            z: floatItem,
-          },
+          nextByName: { x: floatItem, y: floatItem, z: floatItem },
         },
         support: plotSupport,
       }),
-    ).toEqual(expect.arrayContaining(["@norm"]));
+    ).toEqual(["@norm"]);
   });
 
   it("suggests scalars after a struct field conversion", () => {
-    const quatItem = {
-      structureType: "message" as const,
-      datatype: "Quaternion",
-      nextByName: {
-        x: floatItem,
-        y: floatItem,
-        z: floatItem,
-        w: floatItem,
-      },
-    };
     const items = suggestFunctionSuffixes({
       terminatingItem: quatItem,
       support: plotSupport,
       functionChain: [{ function: "rpy", fieldAccess: "yaw" }],
     });
     expect(items).toEqual(expect.arrayContaining(["@degrees", "@abs"]));
-    expect(items).not.toEqual(expect.arrayContaining(["@rpy.yaw"]));
+    expect(items).not.toContain("@rpy.yaw");
+  });
+
+  it("suggests quat fields after a whole-struct rpy conversion", () => {
+    const items = suggestFunctionSuffixes({
+      terminatingItem: quatItem,
+      support: plotSupport,
+      functionChain: [{ function: "rpy" }],
+    });
+    expect(items).toEqual(["@quat.x", "@quat.y", "@quat.z", "@quat.w"]);
   });
 
   it("suggests rpy fields on a quaternion-shaped message", () => {
-    const items = suggestFunctionSuffixes({
-      terminatingItem: {
-        structureType: "message",
-        datatype: "Quaternion",
-        nextByName: {
-          x: floatItem,
-          y: floatItem,
-          z: floatItem,
-          w: floatItem,
-        },
-      },
-      support: plotSupport,
-    });
+    const items = suggestFunctionSuffixes({ terminatingItem: quatItem, support: plotSupport });
     expect(items).toEqual(expect.arrayContaining(["@rpy.yaw", "@rpy.roll", "@rpy.pitch"]));
+  });
+
+  it("suggests nothing after an inapplicable chain or when functions are disabled", () => {
+    expect(
+      suggestFunctionSuffixes({
+        terminatingItem: floatItem,
+        support: plotSupport,
+        functionChain: [{ function: "length" }],
+      }),
+    ).toEqual([]);
+    expect(
+      suggestFunctionSuffixes({ terminatingItem: floatItem, support: noFunctionSupport }),
+    ).toEqual([]);
   });
 });
 
 describe("validateMessagePathInput", () => {
   it("errors when functions are disabled", () => {
-    expect(
-      validateMessagePathInput("/t.v.@abs", {
-        supportsMessagePathFunctions: false,
-        supportsTimeSeriesMessagePathFunctions: false,
-        globalVariables: {},
-      }),
-    ).toBeDefined();
+    expect(validateMessagePathInput("/t.v.@abs", noFunctionSupport)).toBe(
+      "This field does not accept functions",
+    );
+  });
+
+  it("allows quoted names containing .@ when functions are disabled", () => {
+    expect(validateMessagePathInput(`"/foo.@bar".value`, noFunctionSupport)).toBeUndefined();
+    expect(validateMessagePathInput(`/topic."value.@raw"`, noFunctionSupport)).toBeUndefined();
   });
 
   it.each([
     { path: "/t.v.@", expected: "Incomplete expression" },
+    { path: "/t.v.@rpy.", expected: "Incomplete expression" },
     { path: "/t.v.@mul(", expected: undefined },
     { path: "/t.v.@abs#", expected: "Invalid expression" },
+    { path: "/t.v.@abs", expected: undefined },
   ])("validateMessagePathInput($path)", ({ path, expected }) => {
     expect(validateMessagePathInput(path, plotSupport)).toBe(expected);
   });
 
-  it("rejects @length on a scalar terminating type", () => {
-    expect(validateMessagePathInput("/t.v.@length", plotSupport, floatItem)).toMatch(/array/i);
-  });
-});
-
-describe("isCompleteFunctionPath", () => {
-  it("treats converting functions as complete even when the field is not a primitive", () => {
-    expect(isCompleteFunctionPath(parseMessagePath("/t.arr.@length")!, plotSupport)).toBe(true);
-    expect(isCompleteFunctionPath(parseMessagePath("/t.q.@rpy.yaw")!, plotSupport)).toBe(true);
-  });
-
-  it("does not treat a path without a validating chain as complete", () => {
-    expect(isCompleteFunctionPath(parseMessagePath("/t.q")!, plotSupport)).toBe(false);
-    expect(isCompleteFunctionPath(parseMessagePath("/t.v.@deg2rad")!, plotSupport)).toBe(false);
+  it("type-checks the chain against the terminating item", () => {
+    expect(validateMessagePathInput("/t.v.@length", plotSupport, floatItem)).toMatch(
+      /cannot be applied/,
+    );
+    expect(validateMessagePathInput("/t.q.@rpy.yaw", plotSupport, quatItem)).toBeUndefined();
   });
 });

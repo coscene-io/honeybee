@@ -11,10 +11,13 @@ import { v4 as uuidv4 } from "uuid";
 
 import { parseMessagePath, MessagePath } from "@foxglove/message-path";
 import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
-import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
+import {
+  simpleGetMessagePathDataItems,
+  validateSimpleMessagePath,
+} from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { turboColorString } from "@foxglove/studio-base/util/colorUtils";
 
-import { gaugePathParseError, settingsActionReducer, useSettingsTree } from "./settings";
+import { settingsActionReducer, useSettingsTree } from "./settings";
 import type { Config } from "./types";
 
 type Props = {
@@ -79,7 +82,7 @@ function reducer(state: State, action: Action): State {
       }
       case "path": {
         const newPath = parseMessagePath(action.path);
-        const pathParseError = gaugePathParseError(newPath);
+        const pathParseError = validateSimpleMessagePath(newPath);
         let latestMatchingQueriedData: unknown;
         let error: Error | undefined;
         try {

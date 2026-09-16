@@ -162,9 +162,30 @@ describe("simpleGetMessagePathDataItems", () => {
     ).toEqual([{ status: "MOVING" }]);
   });
 
-  it("returns nothing for a -Infinity slice global instead of hanging", () => {
+  it("clamps non-finite and out-of-range slice bounds instead of hanging", () => {
+    const arr = [10, 20, 30];
     const parsed = parseMessagePath("/foo.arr[$i:]")!;
-    const filled = fillInGlobalVariablesInPath(parsed, { i: Number.NEGATIVE_INFINITY });
-    expect(simpleGetMessagePathDataItems(msg({ arr: [10, 20, 30] }), filled)).toEqual([]);
+    const fromNegInf = fillInGlobalVariablesInPath(parsed, { i: Number.NEGATIVE_INFINITY });
+    expect(simpleGetMessagePathDataItems(msg({ arr }), fromNegInf)).toEqual([10, 20, 30]);
+    const fromPosInf = fillInGlobalVariablesInPath(parsed, { i: Number.POSITIVE_INFINITY });
+    expect(simpleGetMessagePathDataItems(msg({ arr }), fromPosInf)).toEqual([]);
+    expect(
+      simpleGetMessagePathDataItems(
+        msg({ arr }),
+        parseMessagePath("/foo.arr[99999999999999999999]")!,
+      ),
+    ).toEqual([]);
+    expect(
+      simpleGetMessagePathDataItems(msg({ arr }), parseMessagePath("/foo.arr[-5:1]")!),
+    ).toEqual([10, 20]);
+  });
+
+  it("drops items whose function chain cannot be applied", () => {
+    expect(
+      simpleGetMessagePathDataItems(msg({ v: 3 }), parseMessagePath("/foo.v.@derivative")!),
+    ).toEqual([]);
+    expect(
+      simpleGetMessagePathDataItems(msg({ v: { x: 1 } }), parseMessagePath("/foo.v.@abs")!),
+    ).toEqual([]);
   });
 });

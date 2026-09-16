@@ -44,8 +44,14 @@ describe("parseFunction", () => {
     });
   });
 
-  it("treats empty parentheses as name-only", () => {
+  it("treats empty or whitespace-only parentheses as name-only", () => {
     expect(parseFunction("abs()")).toEqual({ name: "abs" });
+    expect(parseFunction("mul(   )")).toEqual({ name: "mul" });
+  });
+
+  it("does not coerce mismatched quotes or blank quoted operands to a number", () => {
+    expect(parseFunction(`mul("2')`)).toEqual({ name: "mul", operandRaw: `"2'` });
+    expect(parseFunction(`mul(" ")`)).toEqual({ name: "mul", operandRaw: " " });
   });
 
   it("returns undefined for an empty string", () => {

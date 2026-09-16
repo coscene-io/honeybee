@@ -36,14 +36,16 @@ export function parseFunction(functionStr: string): ParsedFunction | undefined {
   if (!name) {
     return undefined;
   }
-  const raw = match[2];
-  if (raw == undefined || raw.length === 0) {
+  const raw = match[2]?.trim() ?? "";
+  if (raw.length === 0) {
     return { name };
   }
-  const unquoted = raw.replace(/^["'](.*)["']$/s, "$1");
-  const asNumber = Number(unquoted);
+  const unquoted = /^"(.*)"$|^'(.*)'$/s.exec(raw);
+  const operandRaw = unquoted?.[1] ?? unquoted?.[2] ?? raw;
+  // `Number("")` and `Number("  ")` are 0; an empty operand is not a number.
+  const asNumber = operandRaw.trim().length === 0 ? NaN : Number(operandRaw);
   if (Number.isNaN(asNumber)) {
-    return { name, operandRaw: unquoted };
+    return { name, operandRaw };
   }
-  return { name, operand: asNumber, operandRaw: unquoted };
+  return { name, operand: asNumber, operandRaw };
 }

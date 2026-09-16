@@ -180,16 +180,16 @@ Semantics:
 
 After the path walker yields a value:
 
-1. If the next step is time-series, skip it (Plot applies later).
+1. A time-series step (or an unknown function) drops the item. The Plot timestamp builder strips the time-series step with `splitTimeSeriesFunctionChain` before calling the walker; every other surface therefore shows no data for such a path instead of the untransformed value.
 2. Coerce `{sec, nsec}` Time with `toSec` before any numeric function.
 3. Coerce bigint / boolean / numeric string to number for scalar/operand.
-4. Scalar on a plain object maps every numeric field and returns a new object (Raw Messages).
+4. Scalar/operand functions apply to numeric values only; on an object or array the item is dropped (autocomplete never offers them there, and validation rejects them when the schema is known).
 5. Struct without `fieldAccess` returns the whole object; with access, the scalar field.
 6. If a step cannot apply, drop that item (do not throw).
 
 Walkers that must call this: `simpleGetMessagePathDataItems`, `getMessagePathDataItems`.
 
-Negative indices: `simpleGetMessagePathDataItems` currently loops `for (i = start; i < length && i <= end)` and misses `[-1]`. Match `getMessagePathDataItems`: `index = i >= 0 ? i : length + i`.
+Negative indices: `simpleGetMessagePathDataItems` normalizes both slice bounds against `length` and clamps them to `[0, length)` before iterating, so `[-1:]`, `[1:-1]` and non-finite bounds behave.
 
 ### Filters
 
@@ -263,7 +263,7 @@ Filter suggestions include operators `== != < <= > >=` and enum constant names w
 `MessagePathInput` / settings field:
 
 - Rename `supportsMathModifiers` → `supportsMessagePathFunctions`
-- Add `supportsTimeSeriesMessagePathFunctions` (default `true` only when functions are enabled and the caller does not pass false)
+- Add `supportsTimeSeriesMessagePathFunctions` (explicit opt-in: only `true` enables `@delta`/`@derivative`/`@timedelta`)
 - `.@` in a field with functions disabled is an error (same as today)
 - Show `validateMessagePathFunctions` / parser diagnostic message as the field error when present
 

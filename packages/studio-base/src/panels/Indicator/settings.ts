@@ -13,56 +13,16 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
-import { MessagePath, parseFunction, parseMessagePath } from "@foxglove/message-path";
+import { parseMessagePath } from "@foxglove/message-path";
 import {
   SettingsTreeAction,
   SettingsTreeNode,
   SettingsTreeNodeAction,
   SettingsTreeNodes,
 } from "@foxglove/studio";
-import {
-  MessagePathFunctionSupport,
-  validateMessagePathFunctions,
-} from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
+import { validateSimpleMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 
 import { Config, Rule } from "./types";
-
-const VARIABLES_NOT_SUPPORTED = "Message paths using variables are not currently supported";
-
-const INDICATOR_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
-  supportsMessagePathFunctions: true,
-  supportsTimeSeriesMessagePathFunctions: false,
-  globalVariables: {},
-};
-
-function messagePathUsesVariables(parsed: MessagePath): boolean {
-  if (
-    parsed.messagePath.some(
-      (part) =>
-        (part.type === "filter" && typeof part.value === "object") ||
-        (part.type === "slice" && (typeof part.start === "object" || typeof part.end === "object")),
-    )
-  ) {
-    return true;
-  }
-  return (parsed.functionChain ?? []).some((step) => {
-    const parsedFn = parseFunction(step.function);
-    return parsedFn?.operandRaw?.trim().startsWith("$") === true;
-  });
-}
-
-export function indicatorPathParseError(parsed: MessagePath | undefined): string | undefined {
-  if (parsed == undefined) {
-    return undefined;
-  }
-  if (messagePathUsesVariables(parsed)) {
-    return VARIABLES_NOT_SUPPORTED;
-  }
-  if (!parsed.isFullySpecified) {
-    return undefined;
-  }
-  return validateMessagePathFunctions(parsed, INDICATOR_PATH_FUNCTION_SUPPORT);
-}
 
 function ruleToString(rule: Rule): string {
   const operator = {
@@ -197,7 +157,7 @@ export function useSettingsTree(
           label: t("messagePath"),
           input: "messagepath",
           value: path,
-          error: pathParseError ?? indicatorPathParseError(parseMessagePath(path)),
+          error: pathParseError ?? validateSimpleMessagePath(parseMessagePath(path)),
           supportsMessagePathFunctions: true,
           supportsTimeSeriesMessagePathFunctions: false,
         },

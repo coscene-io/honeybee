@@ -42,32 +42,15 @@ export function filterMatches(filter: Immutable<MessagePathFilter>, value: unkno
     case "!=":
       // eslint-disable-next-line @coscene-io/strict-equality
       return currentValue != rhs;
+    // Relational operators follow JS semantics: mixed number/bigint/numeric-string compare
+    // numerically, anything incomparable (e.g. bigint vs "abc") is simply `false`.
     case "<":
+      return (currentValue as number) < (rhs as number);
     case "<=":
+      return (currentValue as number) <= (rhs as number);
     case ">":
+      return (currentValue as number) > (rhs as number);
     case ">=":
-      return compareRelational(currentValue, rhs, operator);
-  }
-}
-
-// Mixed BigInt vs boolean/string throws TypeError; treat as no match.
-function compareRelational(
-  left: unknown,
-  right: string | number | bigint | boolean,
-  operator: "<" | "<=" | ">" | ">=",
-): boolean {
-  try {
-    switch (operator) {
-      case "<":
-        return (left as number) < (right as number);
-      case "<=":
-        return (left as number) <= (right as number);
-      case ">":
-        return (left as number) > (right as number);
-      case ">=":
-        return (left as number) >= (right as number);
-    }
-  } catch {
-    return false;
+      return (currentValue as number) >= (rhs as number);
   }
 }

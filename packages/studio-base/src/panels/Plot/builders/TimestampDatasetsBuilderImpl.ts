@@ -1562,9 +1562,10 @@ export class TimestampDatasetsBuilderImpl {
         postSpecialScalarFunctions: [],
       };
       existingSeries.config = config;
+      // An invalid chain yields no split; the builder then never appends data for this series.
       const split = splitTimeSeriesFunctionChain(config.parsed as MessagePath);
-      existingSeries.specialFunction = split.specialFunction;
-      existingSeries.postSpecialScalarFunctions = split.postSpecialScalarFunctions;
+      existingSeries.specialFunction = split?.specialFunction;
+      existingSeries.postSpecialScalarFunctions = split?.postSpecialScalarFunctions ?? [];
       newSeries.set(config.key, existingSeries);
     }
     this.#seriesByKey = newSeries;
