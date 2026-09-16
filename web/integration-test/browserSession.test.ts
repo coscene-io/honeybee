@@ -82,6 +82,11 @@ afterEach(async () => {
 });
 
 it("a second tab replacing credentials shows a reload prompt without injecting the new token into the old document", async () => {
+  let usedReplacementCredential = false;
+  page.on("request", (request) => {
+    usedReplacementCredential ||=
+      request.headers().authorization === "Bearer synthetic-replacement";
+  });
   const peer = await context.newPage();
   await peer.goto(`${origin}/peer`);
   await peer.evaluate((key) => {
@@ -94,6 +99,7 @@ it("a second tab replacing credentials shows a reload prompt without injecting t
   expect(await page.evaluate((key) => localStorage.getItem(key), tokenKey)).toBe(
     "Bearer synthetic-replacement",
   );
+  expect(usedReplacementCredential).toBe(false);
   await page.getByRole("button", { name: "Reload", exact: true }).click();
   await page.waitForSelector("#root > *");
   expect(
