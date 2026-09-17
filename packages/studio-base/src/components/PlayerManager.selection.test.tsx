@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import { act, render } from "@testing-library/react";
-import { useContext } from "react";
+import { Fragment, StrictMode, useContext, useEffect, useRef } from "react";
 
 import type { CoreDataStore } from "@foxglove/studio-base/context/CoreDataContext";
 import PlayerSelectionContext, {
@@ -126,23 +126,37 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function renderManager(sources: IDataSourceFactory[]) {
+function renderManager(
+  sources: IDataSourceFactory[],
+  options: { strictMode?: boolean; initialSourceId?: string } = {},
+) {
   const live = makePlayer();
   const initializeLive = jest.fn(() => live as unknown as Player);
   let selection: AsyncSelection;
   function CaptureSelection() {
     selection = useContext(PlayerSelectionContext) as AsyncSelection;
+    const initialized = useRef(false);
+    useEffect(() => {
+      // Deep links select their initial source once, including across StrictMode effect replay.
+      if (!initialized.current && options.initialSourceId != undefined) {
+        initialized.current = true;
+        void selection.selectSource(options.initialSourceId, { type: "connection" });
+      }
+    }, []);
     return ReactNull;
   }
+  const Wrapper = options.strictMode === true ? StrictMode : Fragment;
   const view = render(
-    <PlayerManager
-      playerSources={[
-        { id: "live", type: "connection", displayName: "Live", initialize: initializeLive },
-        ...sources,
-      ]}
-    >
-      <CaptureSelection />
-    </PlayerManager>,
+    <Wrapper>
+      <PlayerManager
+        playerSources={[
+          { id: "live", type: "connection", displayName: "Live", initialize: initializeLive },
+          ...sources,
+        ]}
+      >
+        <CaptureSelection />
+      </PlayerManager>
+    </Wrapper>,
   );
   return {
     ...view,
@@ -162,6 +176,40 @@ describe("PlayerManager source selection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStore.dataSource = undefined;
+  });
+
+  it("initializes a source selected once on mount under StrictMode", async () => {
+    const player = makePlayer();
+    const initialize = jest.fn(() => player as unknown as Player);
+    const view = renderManager(
+      [{ id: "initial", type: "connection", displayName: "Initial", initialize }],
+      { strictMode: true, initialSourceId: "initial" },
+    );
+    try {
+      await act(async () => {});
+      expect(initialize).toHaveBeenCalledTimes(1);
+      expect(player.setListener).toHaveBeenCalled();
+      expect(player.close).not.toHaveBeenCalled();
+      expect(mockStore.dataSource?.id).toBe("initial");
+      expect(view.selection().selectedSource?.id).toBe("initial");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("does not initialize a mount-selected source after a real unmount", async () => {
+    const initialize = jest.fn(() => makePlayer() as unknown as Player);
+    const view = renderManager(
+      [{ id: "initial", type: "connection", displayName: "Initial", initialize }],
+      { strictMode: true, initialSourceId: "initial" },
+    );
+    // Unmount before the asynchronous source switch reaches the factory.
+    view.unmount();
+    mockSetDataSource.mockClear();
+    await act(async () => {});
+    expect(initialize).not.toHaveBeenCalled();
+    expect(mockSetDataSource).not.toHaveBeenCalled();
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("waits for the active player to close before initializing a sample", async () => {
