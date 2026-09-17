@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ChartDataset } from "chart.js";
-import * as _ from "lodash-es";
 
 import { filterMap } from "@foxglove/den/collection";
 import { MessagePath } from "@foxglove/message-path";
@@ -14,6 +13,7 @@ import { Immutable, Time, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import {
   CsvDataChunkCallback,
@@ -28,7 +28,6 @@ import {
 } from "./IDatasetsBuilder";
 import { Dataset } from "../ChartRenderer";
 import { getChartValue, isChartValue, toOwnedChartValue, Datum } from "../datum";
-import { mathFunctions } from "../mathFunctions";
 
 type DatumWithReceiveTime = Datum & {
   receiveTime: Time;
@@ -48,6 +47,7 @@ type CurrentCustomSeriesItem = {
  * y-axis message path. It uses only the latest message for each path to build the datasets.
  */
 export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
+  #datatypes: Immutable<RosDatatypes> | undefined;
   #xParsedPath?: Immutable<MessagePath>;
 
   #xValues: number[] = [];
@@ -68,6 +68,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
       this.#clearLatestData();
     }
     const activeData = state.activeData;
+    this.#datatypes = activeData?.datatypes;
     if (!activeData) {
       this.#clearLegendValues();
       return;
@@ -85,10 +86,9 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
-      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
+      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed, this.#datatypes);
       if (legendMatch) {
-        series.legendValue = lastChartValue(legendMatch, mathFn);
+        series.legendValue = lastChartValue(legendMatch);
       }
     }
 
@@ -96,54 +96,44 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
       return;
     }
 
-    {
-      const xAxisMathFn =
-        (this.#xParsedPath.modifier ? mathFunctions[this.#xParsedPath.modifier] : undefined) ??
-        _.identity<number>;
+    const msgEventForX = lastMatchingTopic(msgEvents, this.#xParsedPath.topicName);
+    if (msgEventForX) {
+      const items = simpleGetMessagePathDataItems(msgEventForX, this.#xParsedPath, this.#datatypes);
 
-      const msgEvent = lastMatchingTopic(msgEvents, this.#xParsedPath.topicName);
-      if (msgEvent) {
-        const items = simpleGetMessagePathDataItems(msgEvent, this.#xParsedPath);
-
-        this.#xValues = [];
-        for (const item of items) {
-          if (!isChartValue(item)) {
-            continue;
-          }
-
-          const chartValue = getChartValue(item);
-          if (chartValue == undefined) {
-            continue;
-          }
-
-          this.#xValues.push(xAxisMathFn(chartValue));
+      this.#xValues = [];
+      for (const item of items) {
+        if (!isChartValue(item)) {
+          continue;
         }
+
+        const chartValue = getChartValue(item);
+        if (chartValue == undefined) {
+          continue;
+        }
+
+        this.#xValues.push(chartValue);
       }
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
-
       const msgEvent = lastMatchingTopic(msgEvents, series.parsed.topicName);
       if (!msgEvent) {
         continue;
       }
 
-      const items = simpleGetMessagePathDataItems(msgEvent, series.parsed);
+      const items = simpleGetMessagePathDataItems(msgEvent, series.parsed, this.#datatypes);
       const pathItems = filterMap(items, (item, idx) => {
         if (!isChartValue(item)) {
           return;
         }
 
         const chartValue = getChartValue(item);
-        const mathModifiedValue =
-          mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
 
         return {
           x: this.#xValues[idx] ?? NaN,
-          y: chartValue == undefined ? NaN : (mathModifiedValue ?? chartValue),
+          y: chartValue ?? NaN,
           receiveTime: msgEvent.receiveTime,
-          value: mathModifiedValue ?? toOwnedChartValue(item),
+          value: toOwnedChartValue(item),
         };
       });
 
@@ -277,6 +267,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
 function lastNonEmptyPathMatch(
   msgEvents: Immutable<MessageEvent[]>,
   path: Immutable<MessagePath>,
+  datatypes: Immutable<RosDatatypes> | undefined,
 ): unknown[] | undefined {
   for (let i = msgEvents.length - 1; i >= 0; --i) {
     const msgEvent = msgEvents[i]!;
@@ -284,7 +275,7 @@ function lastNonEmptyPathMatch(
       continue;
     }
 
-    const items = simpleGetMessagePathDataItems(msgEvent, path);
+    const items = simpleGetMessagePathDataItems(msgEvent, path, datatypes);
     if (items.length > 0) {
       return items;
     }
@@ -304,19 +295,14 @@ function lastMatchingTopic(msgEvents: Immutable<MessageEvent[]>, topic: string) 
   return undefined;
 }
 
-function lastChartValue(
-  items: readonly unknown[],
-  mathFn: ((value: number) => number) | undefined,
-): Datum["value"] | undefined {
+function lastChartValue(items: readonly unknown[]): Datum["value"] | undefined {
   for (let i = items.length - 1; i >= 0; --i) {
     const item = items[i];
     if (!isChartValue(item)) {
       continue;
     }
 
-    const chartValue = getChartValue(item);
-    const mathModifiedValue = mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
-    return mathModifiedValue ?? toOwnedChartValue(item);
+    return toOwnedChartValue(item);
   }
 
   return undefined;

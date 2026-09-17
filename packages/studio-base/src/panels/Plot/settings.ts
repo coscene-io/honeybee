@@ -13,11 +13,15 @@ import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
+import { validateMessagePathInput } from "@foxglove/studio-base/components/MessagePathSyntax/suggestMessagePathCompletions";
+import useGlobalVariables, {
+  type GlobalVariables,
+} from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 import { lineColors } from "@foxglove/studio-base/util/plotColors";
 
-import { PlotPath, PlotConfig, plotPathDisplayName } from "./config";
+import { PlotPath, PlotConfig, PlotXAxisVal, plotPathDisplayName } from "./config";
 import { plotableRosTypes } from "./plotableRosTypes";
 
 export const DEFAULT_PATH: PlotPath = Object.freeze({
@@ -26,9 +30,29 @@ export const DEFAULT_PATH: PlotPath = Object.freeze({
   enabled: true,
 });
 
+export function plotPathFunctionError(
+  pathValue: string,
+  xAxisVal: PlotXAxisVal,
+  globalVariables: GlobalVariables,
+): string | undefined {
+  return validateMessagePathInput(pathValue, {
+    supportsMessagePathFunctions: true,
+    supportsTimeSeriesMessagePathFunctions: xAxisVal === "timestamp",
+    globalVariables,
+  });
+}
+
 const makeSeriesNode = memoizeWeak(
-  // eslint-disable-next-line @coscene-io/no-boolean-parameters
-  (path: PlotPath, index: number, canDelete: boolean, t: TFunction<"plot">): SettingsTreeNode => {
+  (
+    path: PlotPath,
+    index: number,
+    // eslint-disable-next-line @coscene-io/no-boolean-parameters
+    canDelete: boolean,
+    t: TFunction<"plot">,
+    xAxisVal: PlotXAxisVal,
+    globalVariables: GlobalVariables,
+  ): SettingsTreeNode => {
+    const functionError = plotPathFunctionError(path.value, xAxisVal, globalVariables);
     return {
       actions: canDelete
         ? [
@@ -57,7 +81,9 @@ const makeSeriesNode = memoizeWeak(
           input: "messagepath",
           value: path.value,
           validTypes: plotableRosTypes,
-          supportsMathModifiers: true,
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: xAxisVal === "timestamp",
+          error: functionError,
         },
         label: {
           input: "string",
@@ -99,13 +125,23 @@ const makeSeriesNode = memoizeWeak(
 );
 
 const makeRootSeriesNode = memoizeWeak(
-  (paths: PlotPath[], t: TFunction<"plot">): SettingsTreeNode => {
+  (
+    paths: PlotPath[],
+    t: TFunction<"plot">,
+    xAxisVal: PlotXAxisVal,
+    globalVariables: GlobalVariables,
+  ): SettingsTreeNode => {
     const children = Object.fromEntries(
       paths.length === 0
-        ? [["0", makeSeriesNode(DEFAULT_PATH, 0, /*canDelete=*/ false, t)]]
+        ? [
+            [
+              "0",
+              makeSeriesNode(DEFAULT_PATH, 0, /*canDelete=*/ false, t, xAxisVal, globalVariables),
+            ],
+          ]
         : paths.map((path, index) => [
             `${index}`,
-            makeSeriesNode(path, index, /*canDelete=*/ true, t),
+            makeSeriesNode(path, index, /*canDelete=*/ true, t, xAxisVal, globalVariables),
           ]),
     );
 
@@ -148,7 +184,11 @@ const makeRootSeriesNode = memoizeWeak(
   },
 );
 
-function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTreeNodes {
+function buildSettingsTree(
+  config: PlotConfig,
+  t: TFunction<"plot">,
+  globalVariables: GlobalVariables,
+): SettingsTreeNodes {
   const maxYError =
     _.isNumber(config.minYValue) &&
     _.isNumber(config.maxYValue) &&
@@ -248,6 +288,8 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
                 input: "messagepath",
                 value: config.xAxisPath?.value ?? "",
                 validTypes: plotableRosTypes,
+                supportsMessagePathFunctions: true,
+                supportsTimeSeriesMessagePathFunctions: false,
               }
             : undefined,
         showXAxisLabels: {
@@ -282,7 +324,7 @@ function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTr
         },
       },
     },
-    paths: makeRootSeriesNode(config.paths, t),
+    paths: makeRootSeriesNode(config.paths, t, config.xAxisVal, globalVariables),
   };
 }
 
@@ -293,6 +335,7 @@ export function usePlotPanelSettings(
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("plot");
+  const { globalVariables } = useGlobalVariables();
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
@@ -390,7 +433,7 @@ export function usePlotPanelSettings(
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, t),
+      nodes: buildSettingsTree(config, t, globalVariables),
     });
-  }, [actionHandler, config, focusedPath, updatePanelSettingsTree, t]);
+  }, [actionHandler, config, focusedPath, globalVariables, updatePanelSettingsTree, t]);
 }

@@ -167,6 +167,55 @@ describe("TimestampDatasetsBuilderImpl", () => {
     ).toEqual([10]);
   });
 
+  it("plots delta and timedelta", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const delta = makeSeries("delta", 0, { path: "/topic.value.@delta" });
+    impl.applyActions([
+      updateSeries([delta]),
+      append("append-full", delta, [makeItem(0, 1), makeItem(2, 4)]),
+    ]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 2, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([3]);
+  });
+
+  it("exports timestamp CSV y as the time-series result", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const delta = makeSeries("csv-delta", 0, { path: "/topic.value.@delta" });
+    impl.applyActions([
+      updateSeries([delta]),
+      append("append-full", delta, [makeItem(0, 1), makeItem(2, 4)]),
+    ]);
+    expect(impl.getCsvData()[0]?.data.map(({ x, y }) => ({ x, y }))).toEqual([
+      { x: 0, y: NaN },
+      { x: 2, y: 3 },
+    ]);
+
+    const timedelta = makeSeries("csv-timedelta", 1, { path: "/topic.value.@timedelta" });
+    impl.applyActions([
+      updateSeries([timedelta]),
+      append("append-full", timedelta, [makeItem(0, 10), makeItem(2, 10)]),
+    ]);
+    expect(impl.getCsvData()[0]?.data.map(({ x, y }) => ({ x, y }))).toEqual([
+      { x: 0, y: NaN },
+      { x: 2, y: 2 },
+    ]);
+  });
+
+  it("applies @derivative.@abs in the legend", () => {
+    const impl = new TimestampDatasetsBuilderImpl();
+    const series = makeSeries("der-abs", 0, { path: "/topic.value.@derivative.@abs" });
+    impl.applyActions([
+      updateSeries([series]),
+      append("append-full", series, [makeItem(0, 0), makeItem(2, -20)]),
+    ]);
+    expect(
+      impl.getViewportDatasetsWithCurrentValues(viewport(), { sec: 2, nsec: 0 })
+        .currentValuesByConfigIndex,
+    ).toEqual([10]);
+  });
+
   it("uses the latest preceding value across legend accumulators for a derivative", () => {
     const impl = new TimestampDatasetsBuilderImpl();
     const series = makeSeries("derivative-accumulators", 0, {

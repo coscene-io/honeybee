@@ -416,3 +416,41 @@ describe("CurrentCustomDatasetsBuilder", () => {
     ]);
   });
 });
+
+it("resolves enum filters for plotted and current values", async () => {
+  const builder = new CurrentCustomDatasetsBuilder();
+  builder.setXPath(parseMessagePath("/foo{status==MOVING}.x"));
+  builder.setSeries(buildSeriesItems([{ value: "/foo{status==MOVING}.val.@mul(2)" }]));
+  builder.handlePlayerState(
+    buildPlayerState({
+      datatypes: new Map([
+        [
+          "foo",
+          {
+            definitions: [
+              { name: "MOVING", type: "uint8", isConstant: true, value: 1 },
+              { name: "status", type: "uint8" },
+              { name: "x", type: "float64" },
+              { name: "val", type: "float64" },
+            ],
+          },
+        ],
+      ]),
+      messages: [
+        {
+          topic: "/foo",
+          schemaName: "foo",
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 0,
+          message: { status: 1, x: 5, val: 3 },
+        },
+      ],
+    }),
+  );
+  const result = await builder.getViewportDatasets(
+    { bounds: {}, size: { width: 1000, height: 1000 } },
+    { sec: 0, nsec: 0 },
+  );
+  expect(result.datasetsByConfigIndex[0]?.data).toEqual([expect.objectContaining({ x: 5, y: 6 })]);
+  expect(result.currentValuesByConfigIndex).toEqual([6]);
+});

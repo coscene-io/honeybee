@@ -4,7 +4,6 @@
   "transform": {
     "\\.jsx?$": "<rootDir>/../../jest.swc-transformer.js",
     "\\.tsx?$": "<rootDir>/src/test/transformers/typescriptTransformerWithRawImports.js",
-    "\\.ne$": "<rootDir>/src/test/transformers/neTransformer.js",
     "\\.(bin|template|wasm)$": "<rootDir>/src/test/transformers/rawTransformer.js"
   },
   "//": "Enable transpilation of node_modules to support ESM-only packages",

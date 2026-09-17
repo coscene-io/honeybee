@@ -72,6 +72,8 @@ type StartStateTransitionsRangeSubscriptionsArgs = Readonly<
 type MutableTopicPlan = {
   topic: string;
   fields: Set<string>;
+  /** True when any path on this topic needs the full message (root function paths). */
+  wholeMessage: boolean;
   seriesKeys: string[];
 };
 
@@ -95,6 +97,9 @@ function requiredFields(
 ): string[] | undefined {
   const firstField = path.messagePath.find(isNamePart);
   if (firstField == undefined || firstField.name.length === 0) {
+    if ((path.functionChain?.length ?? 0) > 0) {
+      return [];
+    }
     return undefined;
   }
 
@@ -139,33 +144,45 @@ export function planStateTransitionsSubscriptions(args: {
 
     let topicPlan = topics.get(resolved.topicName);
     if (topicPlan == undefined) {
-      topicPlan = { topic: resolved.topicName, fields: new Set<string>(), seriesKeys: [] };
+      topicPlan = {
+        topic: resolved.topicName,
+        fields: new Set<string>(),
+        wholeMessage: false,
+        seriesKeys: [],
+      };
       topics.set(resolved.topicName, topicPlan);
     }
-    for (const field of fields) {
-      topicPlan.fields.add(field);
+    if (fields.length === 0) {
+      topicPlan.wholeMessage = true;
+    } else {
+      for (const field of fields) {
+        topicPlan.fields.add(field);
+      }
     }
     topicPlan.seriesKeys.push(`${path.timestampMethod}:${stringifyMessagePath(resolved)}`);
   }
 
   return [...topics.values()].map((topicPlan) => {
     const fields = [...topicPlan.fields];
+    const fieldPayload =
+      topicPlan.wholeMessage || fields.length === 0 ? {} : { fields: [...fields] };
     return {
       topic: topicPlan.topic,
       currentSubscription: {
         topic: topicPlan.topic,
-        fields: [...fields],
+        ...fieldPayload,
         preloadType: "partial",
       },
       fallbackSubscription: {
         topic: topicPlan.topic,
-        fields: [...fields],
+        ...fieldPayload,
         preloadType: "full",
       },
-      rangePayload: { fields: [...fields] },
-      signature: [[...fields].sort().join(","), [...topicPlan.seriesKeys].sort().join("|")].join(
-        ";",
-      ),
+      rangePayload: fieldPayload,
+      signature: [
+        topicPlan.wholeMessage ? "" : [...fields].sort().join(","),
+        [...topicPlan.seriesKeys].sort().join("|"),
+      ].join(";"),
     };
   });
 }

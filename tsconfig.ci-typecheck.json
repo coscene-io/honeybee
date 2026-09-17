@@ -31,13 +31,7 @@
     // for @typescript-eslint/rule-tester's package.json "exports" map), which conflicts
     // with the rest of the repo's "node" resolution if applied repo-wide. Still covered
     // by lint:ci's type-aware rules (via tsconfig.eslint.json) and by its own jest run.
-    "packages/eslint-plugin/**",
-    // message-path's own copy of the "*.ne" ambient module declaration (needed only for
-    // message-path's own isolated compilation, e.g. under build:packages) duplicates
-    // studio-base's identical one once merged into a single program: two independent
-    // `declare module "*.ne" { export default ...; }` blocks can't both have an export
-    // default for the same module, regardless of the inner identifier name.
-    "packages/message-path/src/typings/extensions.ts"
+    "packages/eslint-plugin/**"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",

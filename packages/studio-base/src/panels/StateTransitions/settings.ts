@@ -12,13 +12,33 @@ import memoizeWeak from "memoize-weak";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
+import { parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
+import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
+import useGlobalVariables, {
+  type GlobalVariables,
+} from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { plotableRosTypes } from "@foxglove/studio-base/panels/Plot/plotableRosTypes";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { DEFAULT_PATH, stateTransitionPathDisplayName } from "./shared";
 import { StateTransitionConfig, StateTransitionPath } from "./types";
+
+export function stateTransitionPathFunctionError(
+  pathValue: string,
+  globalVariables: GlobalVariables,
+): string | undefined {
+  const parsed = parseMessagePath(pathValue);
+  if (parsed?.isFullySpecified !== true) {
+    return undefined;
+  }
+  return validateMessagePathFunctions(parsed, {
+    supportsMessagePathFunctions: true,
+    supportsTimeSeriesMessagePathFunctions: false,
+    globalVariables,
+  });
+}
 
 // Note - we use memoizeWeak here instead of react memoization to allow us to memoize
 // at the level of individual nodes in our tree. This keeps our DOM updates small since
@@ -34,7 +54,9 @@ const makeSeriesNode = memoizeWeak(
     index: number,
     { path, canDelete, isArray }: PathState & { canDelete: boolean },
     t: TFunction<"stateTransitions">,
+    globalVariables: GlobalVariables,
   ): SettingsTreeNode => {
+    const functionError = stateTransitionPathFunctionError(path.value, globalVariables);
     return {
       actions: canDelete
         ? [
@@ -70,7 +92,9 @@ const makeSeriesNode = memoizeWeak(
           input: "messagepath",
           value: path.value,
           validTypes: plotableRosTypes,
-          ...(isArray ? { error: t("arrayError") } : {}),
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: false,
+          error: functionError ?? (isArray ? t("arrayError") : undefined),
         },
         label: {
           input: "string",
@@ -92,10 +116,24 @@ const makeSeriesNode = memoizeWeak(
 );
 
 const makeRootSeriesNode = memoizeWeak(
-  (paths: PathState[], t: TFunction<"stateTransitions">): SettingsTreeNode => {
+  (
+    paths: PathState[],
+    t: TFunction<"stateTransitions">,
+    globalVariables: GlobalVariables,
+  ): SettingsTreeNode => {
     const children = Object.fromEntries(
       paths.length === 0
-        ? [["0", makeSeriesNode(0, { path: DEFAULT_PATH, isArray: false, canDelete: false }, t)]]
+        ? [
+            [
+              "0",
+              makeSeriesNode(
+                0,
+                { path: DEFAULT_PATH, isArray: false, canDelete: false },
+                t,
+                globalVariables,
+              ),
+            ],
+          ]
         : paths.map(({ path, isArray }, index) => [
             `${index}`,
             makeSeriesNode(
@@ -106,6 +144,7 @@ const makeRootSeriesNode = memoizeWeak(
                 canDelete: true,
               },
               t,
+              globalVariables,
             ),
           ]),
     );
@@ -139,6 +178,7 @@ function buildSettingsTree(
   config: StateTransitionConfig,
   paths: PathState[],
   t: TFunction<"stateTransitions">,
+  globalVariables: GlobalVariables,
 ): SettingsTreeNodes {
   const maxXError =
     _.isNumber(config.xAxisMinValue) &&
@@ -188,7 +228,7 @@ function buildSettingsTree(
         },
       },
     },
-    paths: makeRootSeriesNode(paths, t),
+    paths: makeRootSeriesNode(paths, t, globalVariables),
   };
 }
 
@@ -200,6 +240,7 @@ export function useStateTransitionsPanelSettings(
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
   const { t } = useTranslation("stateTransitions");
+  const { globalVariables } = useGlobalVariables();
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
@@ -279,7 +320,7 @@ export function useStateTransitionsPanelSettings(
     updatePanelSettingsTree({
       actionHandler,
       focusedPath,
-      nodes: buildSettingsTree(config, paths, t),
+      nodes: buildSettingsTree(config, paths, t, globalVariables),
     });
-  }, [actionHandler, paths, config, focusedPath, t, updatePanelSettingsTree]);
+  }, [actionHandler, paths, config, focusedPath, globalVariables, t, updatePanelSettingsTree]);
 }

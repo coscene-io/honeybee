@@ -10,6 +10,7 @@ import ReactDOM from "react-dom";
 
 import { useCrash } from "@foxglove/hooks";
 import { PanelExtensionContext } from "@foxglove/studio";
+import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
 import { CaptureErrorBoundary } from "@foxglove/studio-base/components/CaptureErrorBoundary";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { PanelExtensionAdapter } from "@foxglove/studio-base/components/PanelExtensionAdapter";
@@ -44,10 +45,13 @@ type Props = {
 
 function IndicatorLightPanelAdapter(props: Props) {
   const crash = useCrash();
+  const { datatypes } = useDataSourceInfo();
+  const extensionData = useMemo(() => ({ datatypes }), [datatypes]);
   const boundInitPanel = useMemo(() => initPanel.bind(undefined, crash), [crash]);
 
   return (
     <PanelExtensionAdapter
+      extensionData={extensionData}
       config={props.config}
       saveConfig={props.saveConfig}
       initPanel={boundInitPanel}

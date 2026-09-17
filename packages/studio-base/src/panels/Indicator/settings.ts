@@ -13,12 +13,14 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
+import { parseMessagePath } from "@foxglove/message-path";
 import {
   SettingsTreeAction,
   SettingsTreeNode,
   SettingsTreeNodeAction,
   SettingsTreeNodes,
 } from "@foxglove/studio";
+import { validateSimpleMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 
 import { Config, Rule } from "./types";
 
@@ -155,7 +157,9 @@ export function useSettingsTree(
           label: t("messagePath"),
           input: "messagepath",
           value: path,
-          error: pathParseError,
+          error: pathParseError ?? validateSimpleMessagePath(parseMessagePath(path)),
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: false,
         },
         style: {
           label: t("style"),
