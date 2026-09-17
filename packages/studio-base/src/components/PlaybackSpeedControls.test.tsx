@@ -85,6 +85,11 @@ describe("<PlaybackSpeedControls />", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
+  it("focuses the slider when the popover opens", () => {
+    const track = renderControls();
+    expect(document.activeElement).toBe(track);
+  });
+
   it("does not commit workspace speed while dragging", () => {
     const track = renderControls();
     fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });

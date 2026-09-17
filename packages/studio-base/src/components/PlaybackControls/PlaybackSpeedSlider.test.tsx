@@ -139,4 +139,41 @@ describe("<PlaybackSpeedSlider />", () => {
       document.removeEventListener("keydown", onDocumentKeyDown);
     }
   });
+
+  it("ignores pointer events from a different pointer than the one that started the drag", () => {
+    const { track, onPreview, onCommit, onCancel } = renderSlider();
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(onPreview).toHaveBeenCalledWith(1.5);
+
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: clientXForIndex(25) });
+    fireEvent.pointerUp(window, { pointerId: 2, clientX: clientXForIndex(25) });
+    fireEvent.pointerCancel(window, { pointerId: 2 });
+
+    expect(onPreview).not.toHaveBeenCalledWith(10);
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(onCommit).toHaveBeenCalledWith(1.5);
+  });
+
+  it("commits the first and last presets on Home and End", () => {
+    const { track, onPreview, onCommit } = renderSlider({ value: 1 });
+    const onDocumentKeyDown = jest.fn();
+    document.addEventListener("keydown", onDocumentKeyDown);
+
+    try {
+      fireEvent.keyDown(track, { key: "Home" });
+      expect(onPreview).toHaveBeenCalledWith(0.01);
+      expect(onCommit).toHaveBeenCalledWith(0.01);
+
+      fireEvent.keyDown(track, { key: "End" });
+      expect(onPreview).toHaveBeenCalledWith(10);
+      expect(onCommit).toHaveBeenCalledWith(10);
+      expect(onDocumentKeyDown).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener("keydown", onDocumentKeyDown);
+    }
+  });
 });

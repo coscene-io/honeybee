@@ -101,6 +101,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         open={open}
         anchorEl={anchorEl}
         onClose={handleClose}
+        disableAutoFocus
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         transformOrigin={{ vertical: "bottom", horizontal: "center" }}
         slotProps={{

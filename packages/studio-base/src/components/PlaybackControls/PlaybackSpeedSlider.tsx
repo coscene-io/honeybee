@@ -7,10 +7,11 @@
 
 import { Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import {
+  PLAYBACK_SPEED_OPTIONS,
   formatPlaybackSpeed,
   fractionToPlaybackSpeed,
   playbackSpeedToFraction,
@@ -113,6 +114,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
   const { classes, cx } = useStyles();
   const trackRef = useRef<HTMLDivElement>(ReactNull);
   const draggingRef = useRef(false);
+  const activePointerIdRef = useRef<number | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
   const fraction = playbackSpeedToFraction(value);
 
@@ -122,6 +124,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
         return;
       }
       draggingRef.current = false;
+      activePointerIdRef.current = undefined;
       setDragging(false);
       const track = trackRef.current;
       if (next === "commit" && track != undefined && clientX != undefined) {
@@ -133,9 +136,16 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
     [onCancel, onCommit],
   );
 
+  useLayoutEffect(() => {
+    trackRef.current?.focus();
+  }, []);
+
   useEffect(() => {
+    const isActivePointer = (event: PointerEvent) =>
+      draggingRef.current && event.pointerId === activePointerIdRef.current;
+
     const onMove = (event: PointerEvent) => {
-      if (!draggingRef.current) {
+      if (!isActivePointer(event)) {
         return;
       }
       const track = trackRef.current;
@@ -145,9 +155,15 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
       onPreview(clientXToSpeed(track, event.clientX));
     };
     const onUp = (event: PointerEvent) => {
+      if (!isActivePointer(event)) {
+        return;
+      }
       finishDrag("commit", event.clientX);
     };
-    const onPointerCancel = () => {
+    const onPointerCancel = (event: PointerEvent) => {
+      if (!isActivePointer(event)) {
+        return;
+      }
       finishDrag("cancel");
     };
 
@@ -178,8 +194,12 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
         aria-valuenow={value}
         aria-valuetext={formatPlaybackSpeed(value)}
         onPointerDown={(event) => {
+          if (event.button !== 0 || draggingRef.current) {
+            return;
+          }
           event.preventDefault();
           draggingRef.current = true;
+          activePointerIdRef.current = event.pointerId;
           setDragging(true);
           event.currentTarget.focus();
           onPreview(clientXToSpeed(event.currentTarget, event.clientX));
@@ -204,6 +224,25 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
             event.preventDefault();
             event.stopPropagation();
             const next = stepPlaybackSpeed(value, "decrease");
+            onPreview(next);
+            onCommit(next);
+            return;
+          }
+          if (event.key === "Home") {
+            event.preventDefault();
+            event.stopPropagation();
+            const next = PLAYBACK_SPEED_OPTIONS[0];
+            onPreview(next);
+            onCommit(next);
+            return;
+          }
+          if (event.key === "End") {
+            event.preventDefault();
+            event.stopPropagation();
+            const next = PLAYBACK_SPEED_OPTIONS[PLAYBACK_SPEED_OPTIONS.length - 1];
+            if (next == undefined) {
+              return;
+            }
             onPreview(next);
             onCommit(next);
           }
