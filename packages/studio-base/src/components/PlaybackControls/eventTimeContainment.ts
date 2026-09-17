@@ -5,8 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { toSec } from "@foxglove/rostime";
+import { toSec, type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
+
+/** Playback seconds between two absolute times, using the same toSec origin as event.secondsSinceStart. */
+export function timelineDurationSeconds(startTime: Time, endTime: Time): number {
+  return toSec(endTime) - toSec(startTime);
+}
 
 export function isPlaybackSecondsInEvent({
   playbackSeconds,

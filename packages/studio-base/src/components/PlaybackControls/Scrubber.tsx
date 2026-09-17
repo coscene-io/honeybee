@@ -74,6 +74,7 @@ import {
   TIMELINE_BAG_OVERLAY_TOP_PX,
 } from "./constants";
 import { layoutEventLanes } from "./eventLanes";
+import { timelineDurationSeconds } from "./eventTimeContainment";
 import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
@@ -470,7 +471,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return undefined;
     }
 
-    return makeTimelineViewport(0, toSec(subtractTimes(endTime, startTime)));
+    return makeTimelineViewport(0, timelineDurationSeconds(startTime, endTime));
   }, [endTime, startTime]);
 
   const [viewport, setViewport] = useState<TimelineViewport | undefined>(defaultViewport);

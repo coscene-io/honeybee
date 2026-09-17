@@ -12,7 +12,7 @@ import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/
 import { add, fromSec, subtract, toSec, type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
-import { isPlaybackSecondsInEvent } from "./eventTimeContainment";
+import { isPlaybackSecondsInEvent, timelineDurationSeconds } from "./eventTimeContainment";
 
 const FIFTY_MINUTES_SEC = 50 * 60;
 
@@ -150,17 +150,42 @@ describe("isPlaybackSecondsInEvent", () => {
     const recordingEnd: Time = { sec: 1_700_003_000, nsec: 124_456_789 };
     const eventStart: Time = { sec: 1_700_001_500, nsec: 987_654_321 };
     const event = makeAbsoluteEvent("events/last", eventStart, recordingEnd, recordingStart);
-    const timelineDurationSeconds = toSec(recordingEnd) - toSec(recordingStart);
+    const originDuration = timelineDurationSeconds(recordingStart, recordingEnd);
 
     expect(
       isPlaybackSecondsInEvent({
-        playbackSeconds: timelineDurationSeconds,
+        playbackSeconds: originDuration,
         event,
-        timelineDurationSeconds,
+        timelineDurationSeconds: originDuration,
       }),
     ).toBe(true);
 
     const driftedEndSec = event.secondsSinceStart + toSec(subtract(event.endTime, event.startTime));
-    expect(driftedEndSec === timelineDurationSeconds).toBe(false);
+    expect(driftedEndSec === originDuration).toBe(false);
+  });
+
+  it("includes the timeline end when start nanos are zero and end has leftover nanos", () => {
+    const recordingStart: Time = { sec: 1_700_000_000, nsec: 0 };
+    const recordingEnd: Time = { sec: 1_700_003_000, nsec: 123_456_789 };
+    const eventStart: Time = { sec: 1_700_002_999, nsec: 0 };
+    const event = makeAbsoluteEvent("events/last", eventStart, recordingEnd, recordingStart);
+    const originDuration = timelineDurationSeconds(recordingStart, recordingEnd);
+    const subtractDuration = toSec(subtract(recordingEnd, recordingStart));
+
+    expect(originDuration === subtractDuration).toBe(false);
+    expect(
+      isPlaybackSecondsInEvent({
+        playbackSeconds: originDuration,
+        event,
+        timelineDurationSeconds: originDuration,
+      }),
+    ).toBe(true);
+    expect(
+      isPlaybackSecondsInEvent({
+        playbackSeconds: subtractDuration,
+        event,
+        timelineDurationSeconds: originDuration,
+      }),
+    ).toBe(false);
   });
 });

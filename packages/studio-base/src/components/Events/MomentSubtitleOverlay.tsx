@@ -16,7 +16,10 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { layoutEventLanes } from "@foxglove/studio-base/components/PlaybackControls/eventLanes";
-import { isPlaybackSecondsInEvent } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
+import {
+  isPlaybackSecondsInEvent,
+  timelineDurationSeconds,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { makeTimelineViewport } from "@foxglove/studio-base/components/PlaybackControls/timelineViewport";
 import {
   type EventsStore,
@@ -225,14 +228,14 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
       return [];
     }
 
-    const timelineDurationSeconds = toSec(endTime) - toSec(startTime);
-    if (timelineDurationSeconds < 0) {
+    const durationSeconds = timelineDurationSeconds(startTime, endTime);
+    if (durationSeconds < 0) {
       return [];
     }
 
     const playbackSeconds = toSec(currentTime) - toSec(startTime);
     const allEvents = events.value ?? [];
-    const viewport = makeTimelineViewport(0, timelineDurationSeconds);
+    const viewport = makeTimelineViewport(0, durationSeconds);
     const laneLayout = layoutEventLanes({ events: allEvents, viewport });
     const laneByEventName = new Map(
       laneLayout.items.map((item) => [item.event.event.name, item.lane]),
@@ -243,7 +246,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
         isPlaybackSecondsInEvent({
           playbackSeconds,
           event,
-          timelineDurationSeconds,
+          timelineDurationSeconds: durationSeconds,
         }),
       )
       .sort((left, right) => {

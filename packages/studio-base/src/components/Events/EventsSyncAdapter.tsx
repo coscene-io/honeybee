@@ -24,7 +24,10 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
-import { isPlaybackSecondsInEvent } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
+import {
+  isPlaybackSecondsInEvent,
+  timelineDurationSeconds,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
 import { isTimelineKeyboardEvent } from "@foxglove/studio-base/components/PlaybackControls/timelineKeyboardFocus";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -280,7 +283,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(endTime) - toSec(startTime);
+    return timelineDurationSeconds(startTime, endTime);
   }, [endTime, startTime]);
 
   // Sync events with console API.
