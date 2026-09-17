@@ -25,13 +25,7 @@ import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  subtract as subtractTimes,
-  add as addTimes,
-  toSec,
-  fromSec,
-  Time,
-} from "@foxglove/rostime";
+import { add as addTimes, toSec, fromSec, Time } from "@foxglove/rostime";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -507,7 +501,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return;
     }
 
-    const playheadSec = toSec(subtractTimes(currentTime, start));
+    const playheadSec = timelineDurationSeconds(start, currentTime);
     if (
       playheadSec >= currentViewport.visibleStartSec &&
       playheadSec <= currentViewport.visibleEndSec
@@ -552,7 +546,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       setHoverValue({
         componentId: hoverComponentId,
         type: "PLAYBACK_SECONDS",
-        value: toSec(timeFromStart),
+        value: playbackSeconds,
       });
     },
     [hoverComponentId, latestEndTime, latestStartTime, setHoverValue],
@@ -801,7 +795,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(subtractTimes(currentTime, startTime));
+    return timelineDurationSeconds(startTime, currentTime);
   }, [currentTime, startTime]);
 
   const onZoomSliderChange = useCallback(

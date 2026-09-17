@@ -187,5 +187,15 @@ describe("isPlaybackSecondsInEvent", () => {
         timelineDurationSeconds: originDuration,
       }),
     ).toBe(false);
+
+    const roundTrippedHover = toSec(fromSec(originDuration));
+    expect(roundTrippedHover === originDuration).toBe(false);
+    expect(
+      isPlaybackSecondsInEvent({
+        playbackSeconds: roundTrippedHover,
+        event,
+        timelineDurationSeconds: originDuration,
+      }),
+    ).toBe(false);
   });
 });
