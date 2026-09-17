@@ -34,12 +34,14 @@ if (typeof window.PointerEvent === "undefined") {
 const TRACK_LEFT = 100;
 const TRACK_WIDTH = 250;
 
-function renderSlider(overrides: {
-  value?: 1 | 1.5 | 10;
-  onPreview?: jest.Mock;
-  onCommit?: jest.Mock;
-  onCancel?: jest.Mock;
-} = {}) {
+function renderSlider(
+  overrides: {
+    value?: 1 | 1.5 | 10;
+    onPreview?: jest.Mock;
+    onCommit?: jest.Mock;
+    onCancel?: jest.Mock;
+  } = {},
+) {
   const onPreview = overrides.onPreview ?? jest.fn();
   const onCommit = overrides.onCommit ?? jest.fn();
   const onCancel = overrides.onCancel ?? jest.fn();

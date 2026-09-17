@@ -16,8 +16,8 @@ import {
 describe("playbackSpeed", () => {
   it("lists every selectable preset in index order", () => {
     expect([...PLAYBACK_SPEED_OPTIONS]).toEqual([
-      0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7,
-      7.5, 8, 8.5, 9, 9.5, 10,
+      0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5,
+      8, 8.5, 9, 9.5, 10,
     ]);
   });
 
