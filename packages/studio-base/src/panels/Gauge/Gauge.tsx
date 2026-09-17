@@ -10,11 +10,17 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useState } from "r
 import { v4 as uuidv4 } from "uuid";
 
 import { parseMessagePath, MessagePath } from "@foxglove/message-path";
-import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
+import {
+  MessageEvent,
+  PanelExtensionContext,
+  SettingsTreeAction,
+  Immutable,
+} from "@foxglove/studio";
 import {
   simpleGetMessagePathDataItems,
   validateSimpleMessagePath,
 } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { turboColorString } from "@foxglove/studio-base/util/colorUtils";
 
 import { settingsActionReducer, useSettingsTree } from "./settings";
@@ -41,12 +47,14 @@ type State = {
   latestMatchingQueriedData: unknown;
   error: Error | undefined;
   pathParseError: string | undefined;
+  datatypes?: Immutable<RosDatatypes>;
 };
 
 type Action =
   | { type: "frame"; messages: readonly MessageEvent[] }
   | { type: "path"; path: string }
-  | { type: "seek" };
+  | { type: "seek" }
+  | { type: "datatypes"; datatypes: Immutable<RosDatatypes> };
 
 function getSingleDataItem(results: unknown[]) {
   if (results.length <= 1) {
@@ -58,6 +66,10 @@ function getSingleDataItem(results: unknown[]) {
 function reducer(state: State, action: Action): State {
   try {
     switch (action.type) {
+      case "datatypes":
+        return action.datatypes === state.datatypes
+          ? state
+          : reducer({ ...state, datatypes: action.datatypes }, { type: "path", path: state.path });
       case "frame": {
         if (state.pathParseError != undefined) {
           return { ...state, latestMessage: _.last(action.messages), error: undefined };
@@ -70,7 +82,7 @@ function reducer(state: State, action: Action): State {
               continue;
             }
             const data = getSingleDataItem(
-              simpleGetMessagePathDataItems(message, state.parsedPath),
+              simpleGetMessagePathDataItems(message, state.parsedPath, state.datatypes),
             );
             if (data != undefined) {
               latestMatchingQueriedData = data;
@@ -88,7 +100,9 @@ function reducer(state: State, action: Action): State {
         try {
           latestMatchingQueriedData =
             newPath && pathParseError == undefined && state.latestMessage
-              ? getSingleDataItem(simpleGetMessagePathDataItems(state.latestMessage, newPath))
+              ? getSingleDataItem(
+                  simpleGetMessagePathDataItems(state.latestMessage, newPath, state.datatypes),
+                )
               : undefined;
         } catch (err) {
           error = err;
@@ -207,10 +221,16 @@ export function Gauge({ context }: Props): React.JSX.Element {
         dispatch({ type: "seek" });
       }
 
+      const datatypes = renderState.extensionData?.datatypes as Immutable<RosDatatypes> | undefined;
+      if (datatypes != undefined) {
+        dispatch({ type: "datatypes", datatypes });
+      }
+
       if (renderState.currentFrame) {
         dispatch({ type: "frame", messages: renderState.currentFrame });
       }
     };
+    context.watch("extensionData");
     context.watch("currentFrame");
     context.watch("didSeek");
 

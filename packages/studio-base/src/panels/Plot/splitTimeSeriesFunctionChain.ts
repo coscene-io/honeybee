@@ -18,6 +18,7 @@ import { MessagePath, parseFunction } from "@foxglove/message-path";
 import {
   compileScalarFunction,
   TIME_SERIES_FUNCTION_NAMES,
+  validateMessagePathFunctions,
 } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
 
 export type TimeSeriesName = "delta" | "derivative" | "timedelta";
@@ -36,6 +37,16 @@ export type TimeSeriesSplit = {
  * `@derivative`), so the series is dropped rather than plotted with part of its chain ignored.
  */
 export function splitTimeSeriesFunctionChain(path: MessagePath): TimeSeriesSplit | undefined {
+  if (
+    !path.isFullySpecified ||
+    validateMessagePathFunctions(path, {
+      supportsMessagePathFunctions: true,
+      supportsTimeSeriesMessagePathFunctions: true,
+      globalVariables: {},
+    }) != undefined
+  ) {
+    return undefined;
+  }
   const chain = path.functionChain ?? [];
   let specialIndex = -1;
   let specialFunction: TimeSeriesName | undefined;

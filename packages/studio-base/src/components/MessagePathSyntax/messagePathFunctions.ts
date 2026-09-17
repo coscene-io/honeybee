@@ -140,9 +140,8 @@ const STRUCT_EULER_ORDER: Record<string, "XYZ" | "ZYX" | "ZXY"> = {
   yrp: "ZXY",
 };
 
-function wrapToPi(rad: number): number {
-  // three.js can return an equivalent wrap (e.g. -3π/2 instead of π/2); match Foxglove XYZ.
-  return Math.atan2(Math.sin(rad), Math.cos(rad));
+function normalizeZero(value: number): number {
+  return Object.is(value, -0) ? 0 : value;
 }
 
 function asFiniteNumber(value: unknown): number | undefined {
@@ -153,12 +152,11 @@ function asFiniteNumber(value: unknown): number | undefined {
 function coerceToNumber(value: unknown): number | undefined {
   switch (typeof value) {
     case "number":
-      return Number.isFinite(value) ? value : undefined;
+      return value;
     case "bigint":
     case "boolean":
     case "string": {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : undefined;
+      return Number(value);
     }
     default:
       if (isTime(value)) {
@@ -233,9 +231,9 @@ function quatToRpy(
   tmpQuaternion.set(x, y, z, w);
   tmpEuler.setFromQuaternion(tmpQuaternion, order);
   return {
-    roll: wrapToPi(tmpEuler.x),
-    pitch: wrapToPi(tmpEuler.y),
-    yaw: wrapToPi(tmpEuler.z),
+    roll: normalizeZero(tmpEuler.x),
+    pitch: normalizeZero(tmpEuler.y),
+    yaw: normalizeZero(tmpEuler.z),
   };
 }
 
@@ -249,7 +247,8 @@ function rpyToQuat(value: unknown): { x: number; y: number; z: number; w: number
   if (roll == undefined || pitch == undefined || yaw == undefined) {
     return undefined;
   }
-  tmpEuler.set(roll, pitch, yaw, "XYZ");
+  // Foxglove 3.1.1 converts roll/pitch/yaw using the ZYX rotation order.
+  tmpEuler.set(roll, pitch, yaw, "ZYX");
   tmpQuaternion.setFromEuler(tmpEuler);
   return { x: tmpQuaternion.x, y: tmpQuaternion.y, z: tmpQuaternion.z, w: tmpQuaternion.w };
 }
@@ -293,7 +292,7 @@ export function applyFunctionChain(
     const name = parseFunction(step.function)?.name;
     if (
       name == undefined ||
-      !CATALOG_FUNCTION_NAMES.has(name) ||
+      validateFunctionStep(step, {}) != undefined ||
       TIME_SERIES_FUNCTION_NAMES.includes(name)
     ) {
       return undefined;
@@ -400,7 +399,11 @@ function structureAfterFunction(
   input: MessagePathStructureItem,
   name: string,
   fieldAccess: string | undefined,
+  options: { isTopic: boolean },
 ): MessagePathStructureItem | undefined {
+  if (name === "timedelta" && options.isTopic) {
+    return NUMERIC_PRIMITIVE;
+  }
   if (STRUCT_FUNCTION_NAMES.has(name)) {
     const required = name === "quat" ? ["roll", "pitch", "yaw"] : ["x", "y", "z", "w"];
     if (!hasNumericFields(input, required)) {
@@ -429,16 +432,54 @@ function structureAfterFunction(
 export function structureAfterFunctionChain(
   item: MessagePathStructureItem | undefined,
   functionChain: readonly MessagePathFunction[] | undefined,
+  options: { isTopic?: boolean } = {},
 ): MessagePathStructureItem | undefined {
   let current = item;
+  let currentIsTopic = options.isTopic === true;
   for (const step of functionChain ?? []) {
     const name = parseFunction(step.function)?.name;
     if (current == undefined || name == undefined || !CATALOG_FUNCTION_NAMES.has(name)) {
       return undefined;
     }
-    current = structureAfterFunction(current, name, step.fieldAccess);
+    current = structureAfterFunction(current, name, step.fieldAccess, { isTopic: currentIsTopic });
+    currentIsTopic = false;
   }
   return current;
+}
+
+function validateFunctionStep(
+  step: MessagePathFunction,
+  globalVariables: Record<string, unknown>,
+): string | undefined {
+  const parsedFn = parseFunction(step.function);
+  if (parsedFn == undefined) {
+    return `"${step.function}" is not a valid function`;
+  }
+
+  const { name, operand, operandRaw } = parsedFn;
+  if (!CATALOG_FUNCTION_NAMES.has(name)) {
+    return `"${name}" is not a valid function`;
+  }
+
+  if (OPERAND_FUNCTION_NAMES.includes(name)) {
+    const operandErr = validateOperand(operand, operandRaw, globalVariables);
+    if (operandErr != undefined) {
+      return operandErr;
+    }
+  } else if (operandRaw != undefined) {
+    return `"${name}" does not take an operand`;
+  }
+
+  if (step.fieldAccess != undefined) {
+    if (!STRUCT_FUNCTION_NAMES.has(name)) {
+      return `"${name}" does not support field access`;
+    }
+    if (STRUCT_FIELD_ACCESS[name]?.includes(step.fieldAccess) !== true) {
+      return `"${step.fieldAccess}" is not a valid field for ${name}`;
+    }
+  }
+
+  return undefined;
 }
 
 export function validateMessagePathFunctions(
@@ -456,34 +497,13 @@ export function validateMessagePathFunctions(
 
   let current = terminatingItem;
   let seenTimeSeries = false;
+  let isTopic = parsed.messagePath.every((part) => part.type === "filter");
   for (const step of chain) {
-    const parsedFn = parseFunction(step.function);
-    if (parsedFn == undefined) {
-      return `"${step.function}" is not a valid function`;
+    const stepError = validateFunctionStep(step, support.globalVariables);
+    if (stepError != undefined) {
+      return stepError;
     }
-
-    const { name, operand, operandRaw } = parsedFn;
-    if (!CATALOG_FUNCTION_NAMES.has(name)) {
-      return `"${name}" is not a valid function`;
-    }
-
-    if (OPERAND_FUNCTION_NAMES.includes(name)) {
-      const operandErr = validateOperand(operand, operandRaw, support.globalVariables);
-      if (operandErr != undefined) {
-        return operandErr;
-      }
-    } else if (operandRaw != undefined) {
-      return `"${name}" does not take an operand`;
-    }
-
-    if (step.fieldAccess != undefined) {
-      if (!STRUCT_FUNCTION_NAMES.has(name)) {
-        return `"${name}" does not support field access`;
-      }
-      if (STRUCT_FIELD_ACCESS[name]?.includes(step.fieldAccess) !== true) {
-        return `"${step.fieldAccess}" is not a valid field for ${name}`;
-      }
-    }
+    const name = parseFunction(step.function)!.name;
 
     if (TIME_SERIES_FUNCTION_NAMES.includes(name)) {
       if (!support.supportsTimeSeriesMessagePathFunctions) {
@@ -505,12 +525,13 @@ export function validateMessagePathFunctions(
 
     // Type-check against the output of the previous step when the schema is known.
     if (current != undefined) {
-      const next = structureAfterFunction(current, name, step.fieldAccess);
+      const next = structureAfterFunction(current, name, step.fieldAccess, { isTopic });
       if (next == undefined) {
         return `"${name}" cannot be applied to ${describeStructure(current)}`;
       }
       current = next;
     }
+    isTopic = false;
   }
 
   return undefined;

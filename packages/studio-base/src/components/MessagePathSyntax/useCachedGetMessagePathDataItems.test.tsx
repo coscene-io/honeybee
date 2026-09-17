@@ -943,3 +943,37 @@ describe("useDecodeMessagePathsForMessagesByTopic", () => {
     });
   });
 });
+
+it.each([
+  ["[:-1]", [1, 2, 3]],
+  ["[-2:]", [2, 3]],
+  ["[1:-1]", [2, 3]],
+  ["[-10:]", [1, 2, 3]],
+  ["[$start:]", [1, 2, 3]],
+] as const)(
+  "normalizes %s before applying functions in Raw Messages and State Transitions",
+  (slice, expected) => {
+    const datatypes: RosDatatypes = new Map([
+      ["foo", { definitions: [{ name: "values", type: "float64", isArray: true }] }],
+    ]);
+    const path = fillInGlobalVariablesInPath(parseMessagePath(`/foo.values${slice}.@abs`)!, {
+      start: -Infinity,
+    });
+    const message: MessageEvent = {
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: { sec: 0, nsec: 0 },
+      sizeInBytes: 0,
+      message: { values: [-1, -2, -3] },
+    };
+    expect(
+      getMessagePathDataItems(
+        message,
+        path,
+        { "/foo": { name: "/foo", schemaName: "foo" } },
+        messagePathStructures(datatypes),
+        {},
+      )?.map((item) => item.value),
+    ).toEqual(expected);
+  },
+);

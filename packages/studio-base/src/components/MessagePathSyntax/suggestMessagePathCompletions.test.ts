@@ -153,7 +153,9 @@ describe("validateMessagePathInput", () => {
   it.each([
     { path: "/t.v.@", expected: "Incomplete expression" },
     { path: "/t.v.@rpy.", expected: "Incomplete expression" },
-    { path: "/t.v.@mul(", expected: undefined },
+    { path: "/t.v.@mul(", expected: "Incomplete expression" },
+    { path: "/t.v.@mul(3.6", expected: "Incomplete expression" },
+    { path: "/t.v.@mul($scale", expected: "Incomplete expression" },
     { path: "/t.v.@abs#", expected: "Invalid expression" },
     { path: "/t.v.@abs", expected: undefined },
   ])("validateMessagePathInput($path)", ({ path, expected }) => {
@@ -166,4 +168,34 @@ describe("validateMessagePathInput", () => {
     );
     expect(validateMessagePathInput("/t.q.@rpy.yaw", plotSupport, quatItem)).toBeUndefined();
   });
+});
+
+it("supports topic-only timedelta and scalar completions after it", () => {
+  for (const path of ["/t.@timedelta", "/t{mode==1}.@timedelta", "/t.@timedelta.@mul(1000)"]) {
+    expect(validateMessagePathInput(path, plotSupport, quatItem)).toBeUndefined();
+  }
+  expect(validateMessagePathInput("/t.q.@timedelta", plotSupport, quatItem)).toMatch(
+    /cannot be applied/,
+  );
+  expect(
+    suggestFunctionSuffixes({ terminatingItem: quatItem, support: plotSupport, isTopic: true }),
+  ).toContain("@timedelta");
+  expect(
+    suggestFunctionSuffixes({ terminatingItem: quatItem, support: plotSupport }),
+  ).not.toContain("@timedelta");
+  expect(
+    suggestFunctionSuffixes({
+      terminatingItem: quatItem,
+      support: { ...plotSupport, supportsTimeSeriesMessagePathFunctions: false },
+      isTopic: true,
+    }),
+  ).not.toContain("@timedelta");
+  const items = suggestFunctionSuffixes({
+    terminatingItem: quatItem,
+    support: plotSupport,
+    isTopic: true,
+    functionChain: [{ function: "timedelta" }],
+  });
+  expect(items).toContain("@mul(");
+  expect(items).not.toContain("@timedelta");
 });

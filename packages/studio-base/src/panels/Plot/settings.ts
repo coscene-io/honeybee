@@ -12,9 +12,8 @@ import memoizeWeak from "memoize-weak";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
-import { validateMessagePathFunctions } from "@foxglove/studio-base/components/MessagePathSyntax/messagePathFunctions";
+import { validateMessagePathInput } from "@foxglove/studio-base/components/MessagePathSyntax/suggestMessagePathCompletions";
 import useGlobalVariables, {
   type GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
@@ -36,11 +35,7 @@ export function plotPathFunctionError(
   xAxisVal: PlotXAxisVal,
   globalVariables: GlobalVariables,
 ): string | undefined {
-  const parsed = parseMessagePath(pathValue);
-  if (parsed?.isFullySpecified !== true) {
-    return undefined;
-  }
-  return validateMessagePathFunctions(parsed, {
+  return validateMessagePathInput(pathValue, {
     supportsMessagePathFunctions: true,
     supportsTimeSeriesMessagePathFunctions: xAxisVal === "timestamp",
     globalVariables,

@@ -8,6 +8,7 @@
 import { MessagePath, parseFunction } from "@foxglove/message-path";
 import { Immutable } from "@foxglove/studio";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { isTypedArray } from "@foxglove/studio-base/types/isTypedArray";
 
 import { filterMatches } from "./filterMatches";
@@ -16,6 +17,7 @@ import {
   MessagePathFunctionSupport,
   validateMessagePathFunctions,
 } from "./messagePathFunctions";
+import { resolveMessagePathEnums } from "./resolveMessagePathEnums";
 
 const SIMPLE_PATH_FUNCTION_SUPPORT: MessagePathFunctionSupport = {
   supportsMessagePathFunctions: true,
@@ -56,16 +58,21 @@ export function validateSimpleMessagePath(parsed: MessagePath | undefined): stri
 export function simpleGetMessagePathDataItems(
   message: Immutable<MessageEvent>,
   filledInPath: Immutable<MessagePath>,
+  datatypes?: Immutable<RosDatatypes>,
 ): unknown[] {
   // We don't care about messages that don't match the topic we're looking for.
   if (message.topic !== filledInPath.topicName) {
     return [];
   }
 
+  const resolvedPath =
+    datatypes != undefined
+      ? resolveMessagePathEnums(filledInPath, message.schemaName, datatypes)
+      : filledInPath;
   const results: unknown[] = [];
 
   function traverse(value: unknown, pathIndex: number): void {
-    const pathPart = filledInPath.messagePath[pathIndex];
+    const pathPart = resolvedPath.messagePath[pathIndex];
     if (pathPart == undefined) {
       const nextValue = applyFunctionChain(value, filledInPath.functionChain);
       if (nextValue != undefined) {

@@ -7,6 +7,7 @@
 
 import { parseMessagePath } from "@foxglove/message-path";
 import { MessageEvent } from "@foxglove/studio";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { simpleGetMessagePathDataItems } from "./simpleGetMessagePathDataItems";
 import { fillInGlobalVariablesInPath } from "./useCachedGetMessagePathDataItems";
@@ -188,4 +189,66 @@ describe("simpleGetMessagePathDataItems", () => {
       simpleGetMessagePathDataItems(msg({ v: { x: 1 } }), parseMessagePath("/foo.v.@abs")!),
     ).toEqual([]);
   });
+});
+
+it("resolves nested enum identifiers using the message schema without changing quoted strings", () => {
+  const datatypes: RosDatatypes = new Map([
+    ["Root", { definitions: [{ name: "items", type: "Item", isComplex: true, isArray: true }] }],
+    [
+      "Item",
+      {
+        definitions: [
+          { name: "state", type: "State", isComplex: true },
+          { name: "value", type: "float64" },
+        ],
+      },
+    ],
+    [
+      "State",
+      {
+        definitions: [
+          { name: "MOVING", type: "uint8", isConstant: true, value: 1 },
+          { name: "status", type: "uint8" },
+        ],
+      },
+    ],
+  ]);
+  const message: MessageEvent = {
+    topic: "/t",
+    schemaName: "Root",
+    receiveTime: { sec: 0, nsec: 0 },
+    sizeInBytes: 0,
+    message: {
+      items: [
+        { state: { status: 1 }, value: 3 },
+        { state: { status: 2 }, value: 4 },
+      ],
+    },
+  };
+  const path = parseMessagePath("/t.items[:]{state.status==MOVING}.value.@mul(2)")!;
+  expect(simpleGetMessagePathDataItems(message, path, datatypes)).toEqual([6]);
+  expect(
+    simpleGetMessagePathDataItems(
+      message,
+      parseMessagePath('/t.items[:]{state.status=="MOVING"}.value')!,
+      datatypes,
+    ),
+  ).toEqual([]);
+  expect(
+    simpleGetMessagePathDataItems(
+      message,
+      parseMessagePath("/t.items[:]{state.status!=MOVING}.value")!,
+      datatypes,
+    ),
+  ).toEqual([4]);
+  // Cached resolution is invalidated when the source schema changes, and never mutates the AST.
+  const newDatatypes: RosDatatypes = new Map(datatypes);
+  newDatatypes.set("State", {
+    definitions: [
+      { name: "MOVING", type: "uint8", isConstant: true, value: 2 },
+      { name: "status", type: "uint8" },
+    ],
+  });
+  expect(simpleGetMessagePathDataItems(message, path, newDatatypes)).toEqual([8]);
+  expect(simpleGetMessagePathDataItems(message, path, datatypes)).toEqual([6]);
 });

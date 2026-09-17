@@ -18,6 +18,7 @@ import {
 } from "@foxglove/studio-base/panels/shared/DatasetWorkerPool";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { TimestampMethod, getTimestampForMessage } from "@foxglove/studio-base/util/time";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
@@ -66,6 +67,7 @@ type TimestampSeriesItem = {
  * downsampled data.
  */
 export class TimestampDatasetsBuilder implements IDatasetsBuilder {
+  #datatypes: Immutable<RosDatatypes> | undefined;
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
 
   /** Serializes action delivery so range batches cannot overtake viewport or block updates. */
@@ -147,6 +149,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
     this.#playerId = state.playerId;
     const activeData = state.activeData;
+    this.#datatypes = activeData?.datatypes;
     if (!activeData) {
       if (sourceChanged) {
         this.#resetForSourceChange();
@@ -187,6 +190,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           series.config.parsed,
           series.config.timestampMethod,
           activeData.startTime,
+          this.#datatypes,
         );
 
         this.#pendingDispatch.push({
@@ -277,6 +281,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           series.config.parsed,
           series.config.timestampMethod,
           startTime,
+          this.#datatypes,
         );
 
         if (pathItems.length === 0) {
@@ -407,6 +412,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
         series.config.parsed,
         series.config.timestampMethod,
         startTime,
+        this.#datatypes,
       );
       if (items.length === 0) {
         continue;
@@ -692,20 +698,27 @@ function readMessagePathItems(
   path: Immutable<MessagePath>,
   timestampMethod: TimestampMethod,
   startTime: Immutable<Time>,
+  datatypes: Immutable<RosDatatypes> | undefined,
 ): DataItem[] {
   const split = splitTimeSeriesFunctionChain(path as MessagePath);
   if (split == undefined) {
     return [];
   }
   const { pathBeforeSpecialFunction } = split;
+  const topicTimeDelta =
+    split.specialFunction === "timedelta" &&
+    pathBeforeSpecialFunction.functionChain == undefined &&
+    pathBeforeSpecialFunction.messagePath.every((part) => part.type === "filter");
   const out = [];
   for (const event of events) {
     if (event.topic !== path.topicName) {
       continue;
     }
 
-    const items = simpleGetMessagePathDataItems(event, pathBeforeSpecialFunction);
-    for (const item of items) {
+    const items = simpleGetMessagePathDataItems(event, pathBeforeSpecialFunction, datatypes);
+    for (const matchedItem of items) {
+      // Topic time deltas use only timestamps; filters still determine which messages match.
+      const item = topicTimeDelta ? 0 : matchedItem;
       if (!isChartValue(item)) {
         continue;
       }

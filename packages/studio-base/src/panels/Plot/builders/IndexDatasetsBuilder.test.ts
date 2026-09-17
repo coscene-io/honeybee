@@ -514,3 +514,65 @@ describe("IndexDatasetsBuilder", () => {
     ]);
   });
 });
+
+it("keeps array indices and NaN gaps after scalar functions", async () => {
+  const builder = new IndexDatasetsBuilder();
+  builder.setSeries(buildSeriesItems([{ value: "/foo.val[:].@abs" }]));
+  builder.handlePlayerState(
+    buildPlayerState({
+      messages: [
+        {
+          topic: "/foo",
+          schemaName: "foo",
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 0,
+          message: { val: [-1, NaN, -3] },
+        },
+      ],
+    }),
+  );
+  const result = await builder.getViewportDatasets();
+  expect(result.datasetsByConfigIndex[0]?.data.map(({ x, y }) => ({ x, y }))).toEqual([
+    { x: 0, y: 1 },
+    { x: 1, y: NaN },
+    { x: 2, y: 3 },
+  ]);
+});
+
+it("resolves enum filters for plotted and current values", async () => {
+  const builder = new IndexDatasetsBuilder();
+
+  builder.setSeries(buildSeriesItems([{ value: "/foo{status==MOVING}.val.@mul(2)" }]));
+  builder.handlePlayerState(
+    buildPlayerState({
+      datatypes: new Map([
+        [
+          "foo",
+          {
+            definitions: [
+              { name: "MOVING", type: "uint8", isConstant: true, value: 1 },
+              { name: "status", type: "uint8" },
+              { name: "x", type: "float64" },
+              { name: "val", type: "float64" },
+            ],
+          },
+        ],
+      ]),
+      messages: [
+        {
+          topic: "/foo",
+          schemaName: "foo",
+          receiveTime: { sec: 0, nsec: 0 },
+          sizeInBytes: 0,
+          message: { status: 1, x: 5, val: 3 },
+        },
+      ],
+    }),
+  );
+  const result = await builder.getViewportDatasets(
+    { bounds: {}, size: { width: 1000, height: 1000 } },
+    { sec: 0, nsec: 0 },
+  );
+  expect(result.datasetsByConfigIndex[0]?.data).toEqual([expect.objectContaining({ x: 0, y: 6 })]);
+  expect(result.currentValuesByConfigIndex).toEqual([6]);
+});

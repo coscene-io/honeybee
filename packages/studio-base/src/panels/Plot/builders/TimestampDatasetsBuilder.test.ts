@@ -1239,3 +1239,104 @@ describe("TimestampDatasetsBuilder", () => {
     });
   });
 });
+
+describe("FoxQL timestamp paths", () => {
+  it.each(["receiveTime", "headerStamp"] as const)(
+    "plots and exports filtered topic timedelta using %s",
+    async (timestampMethod) => {
+      const builder = createBuilder();
+      builder.setSeries(
+        buildSeriesItems([{ value: "/foo{active==true}.@timedelta.@mul(1000)", timestampMethod }]),
+      );
+      builder.handlePlayerState(
+        buildPlayerState({
+          messages: [
+            ...[0, 1, 3].map(
+              (sec): MessageEvent => ({
+                topic: "/foo",
+                schemaName: "foo",
+                receiveTime: { sec, nsec: 0 },
+                sizeInBytes: 0,
+                message: { active: sec !== 1, header: { stamp: { sec: sec * 2, nsec: 0 } } },
+              }),
+            ),
+          ],
+        }),
+      );
+      const x = timestampMethod === "receiveTime" ? 3 : 6;
+      const result = await builder.getViewportDatasets({
+        bounds: {},
+        size: { width: 1000, height: 1000 },
+      });
+      expect(result.datasetsByConfigIndex[0]?.data).toEqual([{ x, y: x * 1000, value: x * 1000 }]);
+      expect((await builder.getCsvData())[0]?.data).toEqual([
+        expect.objectContaining({ x: 0, y: NaN }),
+        expect.objectContaining({ x, y: x * 1000 }),
+      ]);
+    },
+  );
+
+  it.each([
+    "/foo.val.@derivative.@derivative",
+    "/foo.val.@derivative(2)",
+    "/foo.val.@derivative.foo",
+    "/foo.val.@delta.@abs.foo",
+    "/foo.val.@abs.foo",
+  ])("does not plot invalid expression %s", async (value) => {
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        messages: [0, 1].map(
+          (sec): MessageEvent => ({
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec, nsec: 0 },
+            sizeInBytes: 0,
+            message: { val: sec * 2 },
+          }),
+        ),
+      }),
+    );
+    const result = await builder.getViewportDatasets({
+      bounds: {},
+      size: { width: 1000, height: 1000 },
+    });
+    expect(result.datasetsByConfigIndex.flatMap((dataset) => dataset?.data ?? [])).toEqual([]);
+    expect((await builder.getCsvData()).flatMap((dataset) => dataset.data)).toEqual([]);
+  });
+
+  it("resolves root enum filters before computing topic timedelta", async () => {
+    const builder = createBuilder();
+    builder.setSeries(buildSeriesItems([{ value: "/foo{status==MOVING}.@timedelta" }]));
+    builder.handlePlayerState(
+      buildPlayerState({
+        datatypes: new Map([
+          [
+            "foo",
+            {
+              definitions: [
+                { name: "MOVING", type: "uint8", isConstant: true, value: 1 },
+                { name: "status", type: "uint8" },
+              ],
+            },
+          ],
+        ]),
+        messages: [0, 1, 3].map(
+          (sec): MessageEvent => ({
+            topic: "/foo",
+            schemaName: "foo",
+            receiveTime: { sec, nsec: 0 },
+            sizeInBytes: 0,
+            message: { status: sec === 1 ? 0 : 1 },
+          }),
+        ),
+      }),
+    );
+    await builder.getViewportDatasets({ bounds: {}, size: { width: 1000, height: 1000 } });
+    expect((await builder.getCsvData())[0]?.data).toEqual([
+      expect.objectContaining({ x: 0, y: NaN }),
+      expect.objectContaining({ x: 3, y: 3 }),
+    ]);
+  });
+});

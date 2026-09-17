@@ -70,3 +70,7 @@ describe("panel FoxQL flags", () => {
     );
   });
 });
+
+it.each(["/t.v.@mul(", "/t.v.@mul(3.6", "/t.v.@"])("reports incomplete Plot input %s", (path) => {
+  expect(plotPathFunctionError(path, "timestamp", {})).toBe("Incomplete expression");
+});

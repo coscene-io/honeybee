@@ -394,7 +394,9 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       // A function chain changes the terminating type (`/q.@rpy.yaw` is a number, `/q.@rpy` is not),
       // so `validTypes` is checked against the chain's output rather than the field itself.
       !validTerminatingStructureItem(
-        structureAfterFunctionChain(structureTraversalResult.structureItem, rosPath.functionChain),
+        structureAfterFunctionChain(structureTraversalResult.structureItem, rosPath.functionChain, {
+          isTopic: rosPath.messagePath.every((part) => part.type === "filter"),
+        }),
         validTypes,
       )
     ) {
@@ -462,6 +464,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
           terminatingItem,
           support: functionSupport,
           functionChain: pathBeforeSuffix?.functionChain,
+          isTopic: pathBeforeSuffix?.messagePath.every((part) => part.type === "filter"),
         });
         return {
           autocompleteItems: suffixes

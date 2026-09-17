@@ -162,7 +162,7 @@ Semantics:
 - `rpy`: quaternion `{x,y,z,w}` → `{roll,pitch,yaw}` radians, intrinsic XYZ (three.js `Euler.setFromQuaternion(q, "XYZ")`).
 - `ypr`: same with `"ZYX"`.
 - `yrp`: same with `"ZXY"`.
-- `quat`: `{roll,pitch,yaw}` radians → `{x,y,z,w}`, inverse of `rpy`.
+- `quat`: `{roll,pitch,yaw}` radians → `{x,y,z,w}`, using ZYX rotation order as in Foxglove 3.1.1 (inverse of `ypr`).
 - Struct field access allowed only for that function's fields: `rpy`/`ypr`/`yrp` → `roll|pitch|yaw`; `quat` → `x|y|z|w`.
 - Time-series: not applied in the per-sample walker.
 
@@ -189,7 +189,7 @@ After the path walker yields a value:
 
 Walkers that must call this: `simpleGetMessagePathDataItems`, `getMessagePathDataItems`.
 
-Negative indices: `simpleGetMessagePathDataItems` normalizes both slice bounds against `length` and clamps them to `[0, length)` before iterating, so `[-1:]`, `[1:-1]` and non-finite bounds behave.
+Negative indices: both message-path walkers normalize both slice bounds against `length` and clamp them to `[0, length)` before iterating, so `[-1:]`, `[1:-1]` and non-finite bounds behave.
 
 ### Filters
 
@@ -214,7 +214,7 @@ export function splitTimeSeriesFunctionChain(path: MessagePath): {
 
 Walker uses `pathBeforeSpecialFunction` (functions before the time-series step). Timestamp builder then:
 
-- `timedelta`: first sample skipped; later `x[n] - x[n-1]` seconds; ignore y.
+- `timedelta`: first sample skipped; later `x[n] - x[n-1]` seconds; ignore y. Topic-only paths such as `/topic.@timedelta` and `/topic{status==MOVING}.@timedelta` use matching messages regardless of their payload shape. Existing numeric field-path usage remains supported.
 - `derivative`: first sample skipped; `(y[n]-y[n-1]) / (x[n]-x[n-1])`; `dx === 0` → `NaN`.
 - `delta`: first sample skipped; `y[n] - y[n-1]`.
 - Apply `postSpecialScalarFunctions` to the result.
@@ -279,7 +279,7 @@ Filter suggestions include operators `== != < <= > >=` and enum constant names w
 | State Transitions series `value` | yes | no |
 | Table | no | no |
 
-Gauge / Indicator already use `simpleGetMessagePathDataItems`; enabling the flag plus walker-side evaluation is enough for data. They should still validate function chains and set `pathParseError` for unknown / time-series functions.
+Gauge / Indicator use `simpleGetMessagePathDataItems` and receive datatypes through the existing adapter `extensionData` so enum identifier filters resolve against the message schema. They should still validate function chains and set `pathParseError` for unknown / time-series functions.
 
 ## Error handling
 

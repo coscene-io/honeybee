@@ -36,9 +36,6 @@ import {
   validateMessagePathFunctions,
 } from "./messagePathFunctions";
 
-/** Parse failures that only mean the user is still typing a function operand. */
-const RECOVERABLE_PARSE_CODES = new Set(["unclosed_paren"]);
-
 function isTimeSeriesStep(step: MessagePathFunction): boolean {
   const name = parseFunction(step.function)?.name;
   return name != undefined && TIME_SERIES_FUNCTION_NAMES.includes(name);
@@ -52,17 +49,26 @@ export function suggestFunctionSuffixes(args: {
   terminatingItem: MessagePathStructureItem | undefined;
   support: MessagePathFunctionSupport;
   functionChain?: readonly MessagePathFunction[];
+  isTopic?: boolean;
 }): string[] {
   const { support, functionChain } = args;
   if (!support.supportsMessagePathFunctions) {
     return [];
   }
-  const item = structureAfterFunctionChain(args.terminatingItem, functionChain);
-  if (item == undefined) {
-    return [];
-  }
-
+  const item = structureAfterFunctionChain(args.terminatingItem, functionChain, {
+    isTopic: args.isTopic,
+  });
   const items: string[] = [];
+  if (
+    args.isTopic === true &&
+    (functionChain?.length ?? 0) === 0 &&
+    support.supportsTimeSeriesMessagePathFunctions
+  ) {
+    items.push("@timedelta");
+  }
+  if (item == undefined) {
+    return items;
+  }
   if (isNumericStructure(item)) {
     for (const name of SCALAR_FUNCTION_NAMES) {
       items.push(`@${name}`);
@@ -107,7 +113,7 @@ export function suggestFunctionSuffixes(args: {
     }
   }
 
-  return items;
+  return [...new Set(items)];
 }
 
 export function validateMessagePathInput(
@@ -121,8 +127,9 @@ export function validateMessagePathInput(
 
   const { path: parsed, diagnostics } = parseMessagePathWithDiagnostics(path);
   if (parsed == undefined) {
-    const recoverable = diagnostics.some((item) => RECOVERABLE_PARSE_CODES.has(item.code));
-    return recoverable ? undefined : "Invalid expression";
+    return diagnostics.some((item) => item.code === "unclosed_paren")
+      ? "Incomplete expression"
+      : "Invalid expression";
   }
   if (parsed.functionChain != undefined && !support.supportsMessagePathFunctions) {
     return "This field does not accept functions";

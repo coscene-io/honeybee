@@ -48,3 +48,14 @@ describe("splitTimeSeriesFunctionChain", () => {
     },
   );
 });
+
+it.each([
+  "/t.v.@derivative(2)",
+  "/t.v.@derivative.foo",
+  "/t.v.@delta.@abs.foo",
+  "/t.v.@delta.@abs(2)",
+  "/t.v.@abs.foo.@derivative",
+  "/t.v.@",
+])("rejects the complete invalid chain %s", (path) => {
+  expect(splitTimeSeriesFunctionChain(parseMessagePath(path)!)).toBeUndefined();
+});

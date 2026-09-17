@@ -18,6 +18,7 @@ import {
 } from "@foxglove/studio-base/panels/shared/DatasetWorkerPool";
 import { PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D, extendBounds1D, unionBounds1D } from "@foxglove/studio-base/types/Bounds";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
 import { UpdateDataAction } from "./CustomDatasetsBuilderImpl";
@@ -73,6 +74,7 @@ const registry = new FinalizationRegistry<BuilderLifetime>((lifetime) => {
 type AcquireWorker = typeof acquireCustomDatasetsBuilder;
 
 export class CustomDatasetsBuilder implements IDatasetsBuilder {
+  #datatypes: Immutable<RosDatatypes> | undefined;
   #xParsedPath?: Immutable<MessagePath>;
   #xValuesCursor?: BlockTopicCursor;
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
@@ -191,6 +193,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
     this.#playerId = state.playerId;
     const activeData = state.activeData;
+    this.#datatypes = activeData?.datatypes;
     if (!activeData) {
       if (sourceChanged) {
         this.#resetForSourceChange();
@@ -222,13 +225,13 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     const msgEvents = activeData.messages;
     if (msgEvents.length > 0) {
       if (this.#xParsedPath && !this.#rangeTopics.has(this.#xParsedPath.topicName)) {
-        const items = readMessagePathItems(msgEvents, this.#xParsedPath);
+        const items = readMessagePathItems(msgEvents, this.#xParsedPath, this.#datatypes);
         this.#pendingDispatch.push({ type: "append-current-x", items: encodeNumericItems(items) });
         this.#recordXAppend("current", items);
       }
 
       for (const series of this.#series) {
-        const items = readMessagePathItems(msgEvents, series.config.parsed);
+        const items = readMessagePathItems(msgEvents, series.config.parsed, this.#datatypes);
         this.#pendingDispatch.push({
           type: !series.config.enabled
             ? "append-legend"
@@ -257,7 +260,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         }
         let messageEvents;
         while ((messageEvents = this.#xValuesCursor.next(blocks)) != undefined) {
-          const items = readMessagePathItems(messageEvents, this.#xParsedPath);
+          const items = readMessagePathItems(messageEvents, this.#xParsedPath, this.#datatypes);
           this.#pendingDispatch.push({ type: "append-full-x", items: encodeNumericItems(items) });
           this.#recordXAppend("full", items);
         }
@@ -277,7 +280,7 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
         }
         let messageEvents;
         while ((messageEvents = series.blockCursor.next(blocks)) != undefined) {
-          const items = readMessagePathItems(messageEvents, series.config.parsed);
+          const items = readMessagePathItems(messageEvents, series.config.parsed, this.#datatypes);
           this.#pendingDispatch.push({
             type: "append-full",
             series: series.config.key,
@@ -491,7 +494,12 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
     let appended = false;
     let appendedXBounds: Bounds1D | undefined;
     if (this.#xParsedPath?.topicName === topic) {
-      const items = readMessagePathItems(topicEvents, this.#xParsedPath, "singleTopic");
+      const items = readMessagePathItems(
+        topicEvents,
+        this.#xParsedPath,
+        this.#datatypes,
+        "singleTopic",
+      );
       if (items.length > 0) {
         appended = true;
         appendedXBounds = computeBounds(undefined, items);
@@ -502,7 +510,12 @@ export class CustomDatasetsBuilder implements IDatasetsBuilder {
       if (!series.config.enabled || series.config.parsed.topicName !== topic) {
         continue;
       }
-      const items = readMessagePathItems(topicEvents, series.config.parsed, "singleTopic");
+      const items = readMessagePathItems(
+        topicEvents,
+        series.config.parsed,
+        this.#datatypes,
+        "singleTopic",
+      );
       if (items.length > 0) {
         appended = true;
         rangeDispatch.push({
@@ -902,6 +915,7 @@ function normalizeError(error: unknown, message: string): Error {
 function readMessagePathItems(
   events: Immutable<readonly MessageEvent[]>,
   path: Immutable<MessagePath>,
+  datatypes: Immutable<RosDatatypes> | undefined,
   eventScope: "allTopics" | "singleTopic" = "allTopics",
 ): ValueItem[] {
   const out: ValueItem[] = [];
@@ -909,7 +923,7 @@ function readMessagePathItems(
     if (eventScope === "allTopics" && event.topic !== path.topicName) {
       continue;
     }
-    const items = simpleGetMessagePathDataItems(event, path);
+    const items = simpleGetMessagePathDataItems(event, path, datatypes);
     for (const item of items) {
       if (!isChartValue(item)) {
         continue;

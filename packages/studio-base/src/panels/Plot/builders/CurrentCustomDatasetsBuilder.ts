@@ -13,6 +13,7 @@ import { Immutable, Time, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import {
   CsvDataChunkCallback,
@@ -46,6 +47,7 @@ type CurrentCustomSeriesItem = {
  * y-axis message path. It uses only the latest message for each path to build the datasets.
  */
 export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
+  #datatypes: Immutable<RosDatatypes> | undefined;
   #xParsedPath?: Immutable<MessagePath>;
 
   #xValues: number[] = [];
@@ -66,6 +68,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
       this.#clearLatestData();
     }
     const activeData = state.activeData;
+    this.#datatypes = activeData?.datatypes;
     if (!activeData) {
       this.#clearLegendValues();
       return;
@@ -83,7 +86,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
     }
 
     for (const series of this.#seriesByKey.values()) {
-      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
+      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed, this.#datatypes);
       if (legendMatch) {
         series.legendValue = lastChartValue(legendMatch);
       }
@@ -95,7 +98,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
 
     const msgEventForX = lastMatchingTopic(msgEvents, this.#xParsedPath.topicName);
     if (msgEventForX) {
-      const items = simpleGetMessagePathDataItems(msgEventForX, this.#xParsedPath);
+      const items = simpleGetMessagePathDataItems(msgEventForX, this.#xParsedPath, this.#datatypes);
 
       this.#xValues = [];
       for (const item of items) {
@@ -118,7 +121,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
         continue;
       }
 
-      const items = simpleGetMessagePathDataItems(msgEvent, series.parsed);
+      const items = simpleGetMessagePathDataItems(msgEvent, series.parsed, this.#datatypes);
       const pathItems = filterMap(items, (item, idx) => {
         if (!isChartValue(item)) {
           return;
@@ -264,6 +267,7 @@ export class CurrentCustomDatasetsBuilder implements IDatasetsBuilder {
 function lastNonEmptyPathMatch(
   msgEvents: Immutable<MessageEvent[]>,
   path: Immutable<MessagePath>,
+  datatypes: Immutable<RosDatatypes> | undefined,
 ): unknown[] | undefined {
   for (let i = msgEvents.length - 1; i >= 0; --i) {
     const msgEvent = msgEvents[i]!;
@@ -271,7 +275,7 @@ function lastNonEmptyPathMatch(
       continue;
     }
 
-    const items = simpleGetMessagePathDataItems(msgEvent, path);
+    const items = simpleGetMessagePathDataItems(msgEvent, path, datatypes);
     if (items.length > 0) {
       return items;
     }

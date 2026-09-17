@@ -308,3 +308,70 @@ describe("applyFunctionChain", () => {
     ).toMatch(/"norm" cannot be applied/);
   });
 });
+
+it.each([
+  "/t.arr.@length(2)",
+  "/t.arr.@length.foo",
+  "/t.v.@abs.foo",
+  "/t.v.@mul(2).foo",
+  "/t.v.@norm(2)",
+  "/t.v.@rpy(2).yaw",
+])("does not evaluate a different expression for %s", (path) => {
+  const parsed = parseMessagePath(path)!;
+  expect(validateMessagePathFunctions(parsed, plotSupport)).toBeDefined();
+  expect(applyFunctionChain([3, 4], parsed.functionChain)).toBeUndefined();
+  expect(applyFunctionChain(-2, parsed.functionChain)).toBeUndefined();
+});
+
+it.each(["rpy", "ypr", "yrp"])("normalizes signed zero for @%s", (name) => {
+  expect(applyFunctionChain({ x: 0, y: 0, z: 0, w: 1 }, [{ function: name }])).toEqual({
+    roll: 0,
+    pitch: 0,
+    yaw: 0,
+  });
+});
+
+it("converts Euler angles to a quaternion", () => {
+  const result = applyFunctionChain({ roll: Math.PI / 2, pitch: 0, yaw: 0 }, [
+    { function: "quat" },
+  ]);
+  expect(result).toEqual({
+    x: expect.closeTo(Math.SQRT1_2),
+    y: 0,
+    z: 0,
+    w: expect.closeTo(Math.SQRT1_2),
+  });
+});
+
+it("preserves non-finite scalar samples and allows later functions to transform them", () => {
+  expect(applyFunctionChain(NaN, [{ function: "abs" }])).toBeNaN();
+  expect(applyFunctionChain(Infinity, [{ function: "atan" }])).toBe(Math.PI / 2);
+  expect(applyFunctionChain(1, [{ function: "div(0)" }, { function: "atan" }])).toBe(Math.PI / 2);
+});
+
+// Numeric oracles from the installed Foxglove Studio 3.1.1, using a mixed-axis quaternion.
+it.each([
+  { name: "rpy", roll: -0.19739555984988078, pitch: 0.8232119771258756, yaw: 1.3734007669450157 },
+  { name: "ypr", roll: 0.7853981633974482, pitch: 0.33983690945412187, yaw: 1.4288992721907325 },
+  { name: "yrp", roll: 0.7297276562269661, pitch: 0.463647609000806, yaw: 1.1071487177940904 },
+])("matches Foxglove's $name rotation order", ({ name, roll, pitch, yaw }) => {
+  const norm = Math.sqrt(30);
+  expect(
+    applyFunctionChain({ x: 1 / norm, y: 2 / norm, z: 3 / norm, w: 4 / norm }, [
+      { function: name },
+    ]),
+  ).toEqual({
+    roll: expect.closeTo(roll, 12),
+    pitch: expect.closeTo(pitch, 12),
+    yaw: expect.closeTo(yaw, 12),
+  });
+});
+
+it("matches Foxglove's mixed-axis @quat conversion", () => {
+  expect(applyFunctionChain({ roll: 0.3, pitch: 0.4, yaw: 0.5 }, [{ function: "quat" }])).toEqual({
+    x: expect.closeTo(0.0933065937729005, 12),
+    y: expect.closeTo(0.2265663068902134, 12),
+    z: expect.closeTo(0.2109838268563661, 12),
+    w: expect.closeTo(0.9462808319656861, 12),
+  });
+});

@@ -45,6 +45,7 @@ import { filterMatches } from "./filterMatches";
 import { TypicalFilterNames } from "./isTypicalFilterName";
 import { applyFunctionChain } from "./messagePathFunctions";
 import { messagePathStructures } from "./messagePathsForDatatype";
+import { rewriteIdentifierFilter } from "./resolveMessagePathEnums";
 
 type ValueInMapRecord<T> = T extends Map<unknown, infer I> ? I : never;
 
@@ -222,56 +223,6 @@ export function fillInGlobalVariablesInPath(
   };
 }
 
-// enumValues is storedValue → name per field. Invert to name → storedValue for identifier filters.
-function structureAtFilterPath(
-  structureItem: MessagePathStructureItem | undefined,
-  path: string[],
-): MessagePathStructureItem | undefined {
-  let current = structureItem;
-  for (let i = 0; i < path.length - 1; i++) {
-    const name = path[i];
-    if (name == undefined || current == undefined) {
-      return undefined;
-    }
-    if (current.structureType === "message") {
-      current = current.nextByName[name];
-    } else if (current.structureType === "array") {
-      current = current.next;
-    } else {
-      return undefined;
-    }
-  }
-  return current;
-}
-
-function rewriteIdentifierFilter(
-  pathItem: MessagePathFilter,
-  structureItem: MessagePathStructureItem | undefined,
-  enumValues: ReturnType<typeof enumValuesByDatatypeAndField>,
-): MessagePathFilter {
-  if (pathItem.valueIsIdentifier !== true || typeof pathItem.value !== "string") {
-    return pathItem;
-  }
-  const owner = structureAtFilterPath(structureItem, pathItem.path);
-  const fieldEnums = owner != undefined ? enumValues[owner.datatype] : undefined;
-  if (fieldEnums == undefined) {
-    return pathItem;
-  }
-
-  const fieldName = pathItem.path[pathItem.path.length - 1];
-  const fieldMap = fieldName != undefined ? fieldEnums[fieldName] : undefined;
-  const nameToStored: Record<string, string> = {};
-  for (const [storedValue, name] of Object.entries(fieldMap ?? {})) {
-    nameToStored[name] = storedValue;
-  }
-
-  const storedValue = nameToStored[pathItem.value];
-  if (storedValue == undefined) {
-    return pathItem;
-  }
-  return { ...pathItem, value: storedValue };
-}
-
 function filterMatchesWithEnums(
   pathItem: MessagePathFilter,
   value: unknown,
@@ -376,16 +327,13 @@ export function getMessagePathDataItems(
           "getMessagePathDataItems only works on paths where global variables have been filled in",
         );
       }
-      const startIdx: number = start;
-      const endIdx: number = end;
-      if (typeof startIdx !== "number" || typeof endIdx !== "number") {
-        return;
-      }
-
-      // If the `pathItem` is a slice, iterate over all the relevant elements in the array.
+      // Normalize bounds before iterating, as in the simple walker. This also bounds oversized
+      // literals and non-finite globals, which must never produce an unbounded loop.
       const arrayLength = value.length as number;
-      for (let i = startIdx; i <= Math.min(endIdx, arrayLength - 1); i++) {
-        const index = i >= 0 ? i : arrayLength + i;
+      const startIdx = Math.max(start < 0 ? arrayLength + start : start, 0);
+      const endIdx = Math.min(end < 0 ? arrayLength + end : end, arrayLength - 1);
+      for (let index = startIdx; index <= endIdx; index++) {
+        const displayIndex = start < 0 ? index - arrayLength : index;
         const arrayElement = value[index];
         if (arrayElement == undefined) {
           continue;
@@ -409,18 +357,10 @@ export function getMessagePathDataItems(
                 : (JSON.stringify(filterValue) ?? "");
             newPath = `${path}[:]{${name}==${formattedValue}}`;
           } else {
-            // Use `i` here instead of `index`, since it's only different when `i` is negative,
-            // and in that case it's probably more useful to show to the user how many elements
-            // from the end of the array this data is, since they clearly are thinking in that way
-            // (otherwise they wouldn't have chosen a negative slice).
-            newPath = `${path}[${i}]`;
+            newPath = `${path}[${displayIndex}]`;
           }
         } else {
-          // Use `i` here instead of `index`, since it's only different when `i` is negative,
-          // and in that case it's probably more useful to show to the user how many elements
-          // from the end of the array this data is, since they clearly are thinking in that way
-          // (otherwise they wouldn't have chosen a negative slice).
-          newPath = `${path}[${i}]`;
+          newPath = `${path}[${displayIndex}]`;
         }
         traverse(arrayElement, pathIndex + 1, newPath, structureItem?.next);
       }
