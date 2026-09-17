@@ -33,9 +33,21 @@ export function subscribePayloadFromMessagePath(
     return { topic: parsedPath.topicName, preloadType: preloadType ?? "partial" };
   }
 
+  const fields = new Set([firstField.name]);
+  // Root filters run before field selection, so their inputs must survive projection too.
+  // Nested filters are already covered by the selected top-level field.
+  for (const part of parsedPath.messagePath) {
+    if (part === firstField) {
+      break;
+    }
+    if (part.type === "filter" && part.path[0] != undefined) {
+      fields.add(part.path[0]);
+    }
+  }
+
   return {
     topic: parsedPath.topicName,
     preloadType: preloadType ?? "partial",
-    fields: [firstField.name],
+    fields: [...fields],
   };
 }

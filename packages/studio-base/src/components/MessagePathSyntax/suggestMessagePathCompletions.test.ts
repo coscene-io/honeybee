@@ -57,11 +57,17 @@ describe("suggestFunctionSuffixes", () => {
     expect(items).toEqual(expect.arrayContaining(["@abs", "@mul(", "@degrees", "@derivative"]));
   });
 
-  it("suggests the same numeric functions on ROS time and duration", () => {
-    const items = suggestFunctionSuffixes({ terminatingItem: timeItem, support: plotSupport });
-    expect(items).toEqual(expect.arrayContaining(["@abs", "@mul(", "@derivative"]));
-    expect(items).not.toContain("@norm");
-  });
+  it.each(["time", "duration", "foxglove.Time"])(
+    "suggests numeric functions on Time-shaped %s",
+    (datatype) => {
+      const items = suggestFunctionSuffixes({
+        terminatingItem: { ...timeItem, datatype },
+        support: plotSupport,
+      });
+      expect(items).toEqual(expect.arrayContaining(["@abs", "@mul(", "@derivative"]));
+      expect(items).not.toContain("@norm");
+    },
+  );
 
   it("omits time-series when disabled", () => {
     const items = suggestFunctionSuffixes({

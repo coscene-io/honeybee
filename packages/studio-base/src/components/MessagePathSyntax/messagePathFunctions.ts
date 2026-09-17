@@ -342,13 +342,24 @@ const NUMERIC_PRIMITIVE: MessagePathStructureItem = {
   datatype: "float64",
 };
 
-/** Numeric primitive, or a ROS time/duration (coerced with `toSec` at evaluation time). */
+/** Numeric primitive, or a Time-shaped message (coerced with `toSec` at evaluation time). */
 export function isNumericStructure(item: MessagePathStructureItem | undefined): boolean {
   if (item?.structureType === "primitive") {
     return item.primitiveType !== "string" && item.primitiveType !== "bool";
   }
   return (
-    item?.structureType === "message" && (item.datatype === "time" || item.datatype === "duration")
+    item?.structureType === "message" &&
+    Object.keys(item.nextByName).length === 2 &&
+    ["sec", "nsec"].every((name) => {
+      const field = item.nextByName[name];
+      return (
+        field?.structureType === "primitive" &&
+        field.primitiveType !== "string" &&
+        field.primitiveType !== "bool" &&
+        field.primitiveType !== "int64" &&
+        field.primitiveType !== "uint64"
+      );
+    })
   );
 }
 

@@ -19,6 +19,7 @@ import { MessagePathStructureItem, parseMessagePath } from "@foxglove/message-pa
 import {
   applyFunctionChain,
   compileScalarFunction,
+  isNumericStructure,
   structureAfterFunctionChain,
   validateMessagePathFunctions,
 } from "./messagePathFunctions";
@@ -62,6 +63,38 @@ const stamp: MessagePathStructureItem = {
     nsec: { structureType: "primitive", primitiveType: "uint32", datatype: "" },
   },
 };
+
+describe("Time-shaped message types", () => {
+  it.each(["time", "duration", "foxglove.Time", "custom/Timestamp"])(
+    "accepts numeric sec/nsec fields in %s for scalar and time-series functions",
+    (datatype) => {
+      const item = { ...stamp, datatype };
+      expect(isNumericStructure(item)).toBe(true);
+      expect(
+        validateMessagePathFunctions(
+          parseMessagePath("/t.timestamp.@mul(1000).@derivative")!,
+          plotSupport,
+          item,
+        ),
+      ).toBeUndefined();
+      expect(structureAfterFunctionChain(item, [{ function: "mul(1000)" }])).toEqual(float64);
+    },
+  );
+
+  it.each<Record<string, MessagePathStructureItem>>([
+    { sec: float64 },
+    { sec: float64, nsec: { ...float64, primitiveType: "string" } },
+    { sec: { ...float64, primitiveType: "bool" }, nsec: float64 },
+    { sec: stamp, nsec: float64 },
+    { sec: float64, nsec: float64, extra: float64 },
+    { sec: { ...float64, primitiveType: "int64" }, nsec: float64 },
+    { sec: float64, nsec: { ...float64, primitiveType: "uint64" } },
+  ])("rejects malformed Time fields %j", (nextByName) => {
+    expect(
+      isNumericStructure({ structureType: "message", datatype: "custom/Time", nextByName }),
+    ).toBe(false);
+  });
+});
 
 describe("compileScalarFunction", () => {
   it("maps 3.1.1 names", () => {
