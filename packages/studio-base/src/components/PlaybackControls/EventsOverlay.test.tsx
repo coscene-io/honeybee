@@ -968,4 +968,89 @@ describe("<EventsOverlay />", () => {
       firePointerUp(106);
     },
   );
+
+  it("opens the single-event context menu for the moment that contains the playback time", () => {
+    const onEventContextMenuHandled = jest.fn();
+    const eventsStore = makeEventsStore({
+      events: [
+        makeEvent("events/before", 4, 1),
+        makeEvent("events/current", 5, 1),
+        makeEvent("events/after", 6, 1),
+      ],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={{ playbackSeconds: 5, clientX: 500, clientY: 40 }}
+          onEventContextMenuHandled={onEventContextMenuHandled}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(onEventContextMenuHandled).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("menuitem", { name: "Edit Moment" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "events/before" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "events/current" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "events/after" })).toBeNull();
+  });
+
+  it("opens the selection menu when two moments truly overlap the playback time", () => {
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/wide", 4, 4), makeEvent("events/inner", 5, 1)],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={{ playbackSeconds: 5.5, clientX: 500, clientY: 40 }}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByRole("menuitem", { name: "events/wide" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "events/inner" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Edit Moment" })).toBeNull();
+  });
+
+  it("does not open a moment menu when no moment contains the playback time", () => {
+    const onEventContextMenuHandled = jest.fn();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/current", 5, 1)],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={{ playbackSeconds: 4.5, clientX: 500, clientY: 40 }}
+          onEventContextMenuHandled={onEventContextMenuHandled}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(onEventContextMenuHandled).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
 });
