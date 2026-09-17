@@ -194,6 +194,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
           }
           if (event.key === "ArrowRight" || event.key === "ArrowUp") {
             event.preventDefault();
+            event.stopPropagation();
             const next = stepPlaybackSpeed(value, "increase");
             onPreview(next);
             onCommit(next);
@@ -201,6 +202,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
           }
           if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
             event.preventDefault();
+            event.stopPropagation();
             const next = stepPlaybackSpeed(value, "decrease");
             onPreview(next);
             onCommit(next);

@@ -124,4 +124,17 @@ describe("<PlaybackSpeedSlider />", () => {
     expect(onPreview).toHaveBeenCalledWith(0.8);
     expect(onCommit).toHaveBeenCalledWith(0.8);
   });
+
+  it("does not bubble arrow keydown to document-level listeners", () => {
+    const { track } = renderSlider({ value: 1 });
+    const onDocumentKeyDown = jest.fn();
+    document.addEventListener("keydown", onDocumentKeyDown);
+
+    try {
+      fireEvent.keyDown(track, { key: "ArrowRight" });
+      expect(onDocumentKeyDown).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener("keydown", onDocumentKeyDown);
+    }
+  });
 });
