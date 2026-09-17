@@ -1,0 +1,110 @@
+/** @jest-environment jsdom */
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { fireEvent, render, screen } from "@testing-library/react";
+
+import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
+import { PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID } from "@foxglove/studio-base/components/PlaybackControls/PlaybackSpeedSlider";
+import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+
+import PlaybackSpeedControls from "./PlaybackSpeedControls";
+
+// jsdom 26 does not implement PointerEvent, so fireEvent.pointer* would otherwise
+// construct a generic Event without clientX.
+if (typeof window.PointerEvent === "undefined") {
+  class PointerEventPolyfill extends MouseEvent {
+    public pointerId: number;
+
+    public constructor(type: string, init: MouseEventInit & { pointerId?: number } = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+    }
+  }
+
+  Object.defineProperty(window, "PointerEvent", {
+    configurable: true,
+    writable: true,
+    value: PointerEventPolyfill,
+  });
+}
+
+const TRACK_LEFT = 100;
+const TRACK_WIDTH = 250;
+
+function SpeedObserver(): React.JSX.Element {
+  const speed = useWorkspaceStore((store) => store.playbackControls.speed);
+  return <div data-testid="committed-speed">{speed}</div>;
+}
+
+function renderControls(): HTMLElement {
+  render(
+    <ThemeProvider isDark>
+      <WorkspaceContextProvider
+        disablePersistence
+        initialState={{ playbackControls: { repeat: false, speed: 1 } }}
+      >
+        <MockMessagePipelineProvider>
+          <PlaybackSpeedControls />
+          <SpeedObserver />
+        </MockMessagePipelineProvider>
+      </WorkspaceContextProvider>
+    </ThemeProvider>,
+  );
+
+  fireEvent.click(screen.getByTestId("PlaybackSpeedControls-Dropdown"));
+  const track = screen.getByTestId(PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID);
+  jest.spyOn(track, "getBoundingClientRect").mockReturnValue({
+    bottom: 68,
+    height: 28,
+    left: TRACK_LEFT,
+    right: TRACK_LEFT + TRACK_WIDTH,
+    top: 40,
+    width: TRACK_WIDTH,
+    x: TRACK_LEFT,
+    y: 40,
+    toJSON: () => ({}),
+  });
+  return track;
+}
+
+function clientXForIndex(index: number): number {
+  return TRACK_LEFT + (index / 25) * TRACK_WIDTH;
+}
+
+describe("<PlaybackSpeedControls />", () => {
+  it("opens a slider popover instead of a menu", () => {
+    renderControls();
+    expect(screen.getByRole("slider")).toBeTruthy();
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("does not commit workspace speed while dragging", () => {
+    const track = renderControls();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25) });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("10×");
+  });
+
+  it("commits workspace speed on pointerup", () => {
+    const track = renderControls();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1.5");
+  });
+
+  it("restores the committed speed when an in-progress drag is cancelled", () => {
+    const track = renderControls();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
+    fireEvent.keyDown(track, { key: "Escape" });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
+  });
+});
