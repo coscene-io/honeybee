@@ -9,7 +9,7 @@ import { create } from "@bufbuild/protobuf";
 import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 
-import { add, fromSec } from "@foxglove/rostime";
+import { add, fromSec, subtract, toSec, type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
 import { isPlaybackSecondsInEvent } from "./eventTimeContainment";
@@ -36,6 +36,32 @@ function makeEvent(name: string, startSec: number, durationSec: number): Timelin
     color: "#00ADEF",
     startPosition: startSec / FIFTY_MINUTES_SEC,
     endPosition: (startSec + durationSec) / FIFTY_MINUTES_SEC,
+    secondsSinceStart: startSec,
+  };
+}
+
+function makeAbsoluteEvent(
+  name: string,
+  startTime: Time,
+  endTime: Time,
+  recordingStart: Time,
+): TimelinePositionedEvent {
+  const startSec = toSec(startTime) - toSec(recordingStart);
+
+  return {
+    event: create(EventSchema, {
+      name,
+      displayName: name,
+      triggerTime: create(TimestampSchema, {
+        seconds: BigInt(startTime.sec),
+        nanos: startTime.nsec,
+      }),
+    }),
+    startTime,
+    endTime,
+    color: "#00ADEF",
+    startPosition: 0,
+    endPosition: 1,
     secondsSinceStart: startSec,
   };
 }
@@ -117,5 +143,24 @@ describe("isPlaybackSecondsInEvent", () => {
         timelineDurationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(true);
+  });
+
+  it("includes the timeline end for epoch-scale times without duration-conversion drift", () => {
+    const recordingStart: Time = { sec: 1_700_000_000, nsec: 123_456_789 };
+    const recordingEnd: Time = { sec: 1_700_003_000, nsec: 124_456_789 };
+    const eventStart: Time = { sec: 1_700_001_500, nsec: 987_654_321 };
+    const event = makeAbsoluteEvent("events/last", eventStart, recordingEnd, recordingStart);
+    const timelineDurationSeconds = toSec(recordingEnd) - toSec(recordingStart);
+
+    expect(
+      isPlaybackSecondsInEvent({
+        playbackSeconds: timelineDurationSeconds,
+        event,
+        timelineDurationSeconds,
+      }),
+    ).toBe(true);
+
+    const driftedEndSec = event.secondsSinceStart + toSec(subtract(event.endTime, event.startTime));
+    expect(driftedEndSec === timelineDurationSeconds).toBe(false);
   });
 });

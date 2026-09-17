@@ -280,7 +280,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(subtract(endTime, startTime));
+    return toSec(endTime) - toSec(startTime);
   }, [endTime, startTime]);
 
   // Sync events with console API.

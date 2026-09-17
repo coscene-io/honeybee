@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { subtract as subtractTimes, toSec } from "@foxglove/rostime";
+import { toSec } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -225,12 +225,12 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
       return [];
     }
 
-    const timelineDurationSeconds = toSec(subtractTimes(endTime, startTime));
+    const timelineDurationSeconds = toSec(endTime) - toSec(startTime);
     if (timelineDurationSeconds < 0) {
       return [];
     }
 
-    const playbackSeconds = toSec(subtractTimes(currentTime, startTime));
+    const playbackSeconds = toSec(currentTime) - toSec(startTime);
     const allEvents = events.value ?? [];
     const viewport = makeTimelineViewport(0, timelineDurationSeconds);
     const laneLayout = layoutEventLanes({ events: allEvents, viewport });

@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { subtract, toSec } from "@foxglove/rostime";
+import { toSec } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
 export function isPlaybackSecondsInEvent({
@@ -18,7 +18,8 @@ export function isPlaybackSecondsInEvent({
   timelineDurationSeconds: number;
 }): boolean {
   const eventStartSec = event.secondsSinceStart;
-  const eventEndSec = event.secondsSinceStart + toSec(subtract(event.endTime, event.startTime));
+  const recordingStartSec = toSec(event.startTime) - event.secondsSinceStart;
+  const eventEndSec = toSec(event.endTime) - recordingStartSec;
 
   if (eventStartSec === eventEndSec) {
     return playbackSeconds === eventStartSec;
