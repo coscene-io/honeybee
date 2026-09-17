@@ -206,6 +206,17 @@ describe("validateMessagePathFunctions", () => {
     it.each([
       { path: "/t.v.@length", item: float64, error: /"length" cannot be applied to a float64/ },
       { path: "/t.v.@norm", item: float64, error: /"norm" cannot be applied/ },
+      {
+        path: "/t.v.@norm",
+        item: { ...floatArray, next: stamp },
+        error: /"norm" cannot be applied/,
+      },
+      { path: "/t.v.@norm", item: vector2(stamp), error: /"norm" cannot be applied/ },
+      {
+        path: "/t.q.@rpy",
+        item: { ...quaternion, nextByName: { x: stamp, y: float64, z: float64, w: float64 } },
+        error: /"rpy" cannot be applied/,
+      },
       { path: "/t.v.@rpy.yaw", item: float64, error: /"rpy" cannot be applied/ },
       { path: "/t.q.@quat.x", item: quaternion, error: /"quat" cannot be applied/ },
       { path: "/t.arr.@abs", item: floatArray, error: /"abs" cannot be applied to an array/ },
@@ -269,6 +280,24 @@ describe("applyFunctionChain", () => {
     expect(applyFunctionChain(-3, [{ function: "abs" }])).toBe(3);
     expect(applyFunctionChain(10, [{ function: "mul(3.6)" }])).toBeCloseTo(36);
   });
+
+  it.each([true, false, "3", "", "not-a-number"])(
+    "does not coerce nonnumeric scalar %j",
+    (value) => {
+      expect(applyFunctionChain(value, [{ function: "negative" }])).toBeUndefined();
+      expect(applyFunctionChain(value, [{ function: "mul(3)" }])).toBeUndefined();
+      expect(applyFunctionChain(value, undefined)).toBe(value);
+    },
+  );
+
+  // eslint-disable-next-line no-restricted-syntax -- Null message values must not become zero.
+  it.each([true, "3", null, { sec: 3, nsec: 0 }])(
+    "rejects nonnumeric norm elements %j",
+    (value) => {
+      expect(applyFunctionChain([value, 4], [{ function: "norm" }])).toBeUndefined();
+      expect(applyFunctionChain({ x: value, y: 4 }, [{ function: "norm" }])).toBeUndefined();
+    },
+  );
 
   it("computes length and norm", () => {
     expect(applyFunctionChain([1, 2, 3], [{ function: "length" }])).toBe(3);

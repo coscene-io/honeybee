@@ -1282,6 +1282,9 @@ describe("FoxQL timestamp paths", () => {
     "/foo.val.@derivative.foo",
     "/foo.val.@delta.@abs.foo",
     "/foo.val.@abs.foo",
+    "/foo.enabled.@negative",
+    "/foo.label.@mul(3)",
+    "/foo.label.@mul(3).@derivative",
   ])("does not plot invalid expression %s", async (value) => {
     const builder = createBuilder();
     builder.setSeries(buildSeriesItems([{ value }]));
@@ -1293,7 +1296,7 @@ describe("FoxQL timestamp paths", () => {
             schemaName: "foo",
             receiveTime: { sec, nsec: 0 },
             sizeInBytes: 0,
-            message: { val: sec * 2 },
+            message: { val: sec * 2, enabled: true, label: String(sec * 2) },
           }),
         ),
       }),

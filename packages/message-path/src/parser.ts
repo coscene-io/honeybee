@@ -327,7 +327,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
       return { value: number };
     }
 
-    if (isIdChar(peek())) {
+    if (/^[A-Za-z_]$/.test(peek() ?? "")) {
       return { value: readId(), valueIsIdentifier: true };
     }
 

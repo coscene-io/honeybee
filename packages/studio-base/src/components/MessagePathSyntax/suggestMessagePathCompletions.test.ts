@@ -78,6 +78,25 @@ describe("suggestFunctionSuffixes", () => {
     expect(items).toContain("@abs");
   });
 
+  it("does not suggest norm for Time arrays or Time-valued vector coordinates", () => {
+    expect(
+      suggestFunctionSuffixes({
+        terminatingItem: { structureType: "array", next: timeItem, datatype: "time[]" },
+        support: plotSupport,
+      }),
+    ).toEqual(["@length"]);
+    expect(
+      suggestFunctionSuffixes({
+        terminatingItem: {
+          structureType: "message",
+          nextByName: { x: timeItem, y: timeItem },
+          datatype: "Times",
+        },
+        support: plotSupport,
+      }),
+    ).toEqual([]);
+  });
+
   it("does not suggest a second time-series function", () => {
     const items = suggestFunctionSuffixes({
       terminatingItem: floatItem,

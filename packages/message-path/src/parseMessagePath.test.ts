@@ -621,6 +621,45 @@ describe("FoxQL filter operators", () => {
       repr: "status==MOVING",
     });
   });
+
+  it.each(["-", "--", "+", "-MOVING", "+MOVING", "-_", "1MOVING"])(
+    "rejects invalid unquoted filter value %s",
+    (value) => {
+      expect(parseMessagePath(`/t.items[:]{value==${value}}`)).toBeUndefined();
+    },
+  );
+
+  it.each([
+    ["-1", -1n],
+    ["-0.5", -0.5],
+    ["-.5", -0.5],
+    ["-1e-3", -0.001],
+  ])("parses negative filter value %s", (literal, value) => {
+    expect(parseMessagePath(`/t.items[:]{value==${literal}}`)).toMatchObject({
+      isFullySpecified: true,
+      messagePath: [{ type: "name" }, { type: "slice" }, { type: "filter", value }],
+    });
+  });
+
+  it.each(["MOVING_1", "MODE-1", "_MODE_1"])("parses enum identifier %s", (value) => {
+    expect(parseMessagePath(`/t.items[:]{status==${value}}`)).toMatchObject({
+      isFullySpecified: true,
+      messagePath: [
+        { type: "name" },
+        { type: "slice" },
+        { type: "filter", value, valueIsIdentifier: true },
+      ],
+    });
+  });
+
+  it.each(['"-"', "'-'", '"-MOVING"'])("parses quoted filter value %s", (literal) => {
+    const filter = parseMessagePath(`/t.items[:]{value==${literal}}`)!.messagePath[2];
+    expect(filter).toMatchObject({
+      type: "filter",
+      value: literal.slice(1, -1),
+    });
+    expect(filter).not.toHaveProperty("valueIsIdentifier", true);
+  });
 });
 
 describe("negative slice index", () => {

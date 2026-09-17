@@ -154,10 +154,7 @@ function coerceToNumber(value: unknown): number | undefined {
     case "number":
       return value;
     case "bigint":
-    case "boolean":
-    case "string": {
       return Number(value);
-    }
     default:
       if (isTime(value)) {
         return toSec(value);
@@ -188,8 +185,8 @@ function applyNorm(value: unknown): number | undefined {
     // a spread call and the overflow of a plain sum of squares.
     let norm = 0;
     for (const item of value) {
-      const n = Number(item);
-      if (!Number.isFinite(n)) {
+      const n = asFiniteNumber(item);
+      if (n == undefined) {
         return undefined;
       }
       norm = Math.hypot(norm, n);
@@ -342,24 +339,30 @@ const NUMERIC_PRIMITIVE: MessagePathStructureItem = {
   datatype: "float64",
 };
 
+export function isNumericPrimitive(item: MessagePathStructureItem | undefined): boolean {
+  return (
+    item?.structureType === "primitive" &&
+    item.primitiveType !== "string" &&
+    item.primitiveType !== "bool"
+  );
+}
+
 /** Numeric primitive, or a Time-shaped message (coerced with `toSec` at evaluation time). */
 export function isNumericStructure(item: MessagePathStructureItem | undefined): boolean {
-  if (item?.structureType === "primitive") {
-    return item.primitiveType !== "string" && item.primitiveType !== "bool";
-  }
   return (
-    item?.structureType === "message" &&
-    Object.keys(item.nextByName).length === 2 &&
-    ["sec", "nsec"].every((name) => {
-      const field = item.nextByName[name];
-      return (
-        field?.structureType === "primitive" &&
-        field.primitiveType !== "string" &&
-        field.primitiveType !== "bool" &&
-        field.primitiveType !== "int64" &&
-        field.primitiveType !== "uint64"
-      );
-    })
+    isNumericPrimitive(item) ||
+    (item?.structureType === "message" &&
+      Object.keys(item.nextByName).length === 2 &&
+      ["sec", "nsec"].every((name) => {
+        const field = item.nextByName[name];
+        return (
+          field?.structureType === "primitive" &&
+          field.primitiveType !== "string" &&
+          field.primitiveType !== "bool" &&
+          field.primitiveType !== "int64" &&
+          field.primitiveType !== "uint64"
+        );
+      }))
   );
 }
 
@@ -369,7 +372,7 @@ export function hasNumericFields(
 ): boolean {
   return (
     item?.structureType === "message" &&
-    names.every((name) => isNumericStructure(item.nextByName[name]))
+    names.every((name) => isNumericPrimitive(item.nextByName[name]))
   );
 }
 
@@ -379,7 +382,7 @@ export function isVectorStructure(item: MessagePathStructureItem | undefined): b
     return false;
   }
   const z = item.nextByName.z;
-  return z == undefined || isNumericStructure(z);
+  return z == undefined || isNumericPrimitive(z);
 }
 
 function structMessage(datatype: string, fields: readonly string[]): MessagePathStructureItem {
@@ -429,7 +432,7 @@ function structureAfterFunction(
   }
   if (VECTOR_FUNCTION_NAMES.includes(name)) {
     const ok =
-      input.structureType === "array" ? isNumericStructure(input.next) : isVectorStructure(input);
+      input.structureType === "array" ? isNumericPrimitive(input.next) : isVectorStructure(input);
     return ok ? NUMERIC_PRIMITIVE : undefined;
   }
   // scalar, operand and time-series functions

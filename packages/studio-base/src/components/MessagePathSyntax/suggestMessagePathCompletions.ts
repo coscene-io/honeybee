@@ -30,6 +30,7 @@ import {
   TIME_SERIES_FUNCTION_NAMES,
   VECTOR_FUNCTION_NAMES,
   hasNumericFields,
+  isNumericPrimitive,
   isNumericStructure,
   isVectorStructure,
   structureAfterFunctionChain,
@@ -88,7 +89,7 @@ export function suggestFunctionSuffixes(args: {
     for (const name of ARRAY_FUNCTION_NAMES) {
       items.push(`@${name}`);
     }
-    if (isNumericStructure(item.next)) {
+    if (isNumericPrimitive(item.next)) {
       for (const name of VECTOR_FUNCTION_NAMES) {
         items.push(`@${name}`);
       }
