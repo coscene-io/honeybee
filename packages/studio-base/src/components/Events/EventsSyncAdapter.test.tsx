@@ -380,4 +380,41 @@ describe("<EventsSyncAdapter />", () => {
     expect(updatePermission).not.toHaveBeenCalled();
     expect(deletePermission).not.toHaveBeenCalled();
   });
+
+  it("sets eventsAtHoverValue from exact playback-time containment", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [
+        makeEvent("events/before", 4, 1),
+        makeEvent("events/current", 5, 1),
+        makeEvent("events/after", 6, 1),
+      ],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        currentTime={{ sec: 0, nsec: 0 }}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    act(() => {
+      timelineInteractionStore.getState().setHoverValue({
+        componentId: "test-hover",
+        type: "PLAYBACK_SECONDS",
+        value: 5,
+      });
+    });
+
+    await waitFor(() => {
+      expect(Object.keys(timelineInteractionStore.getState().eventsAtHoverValue).sort()).toEqual([
+        "events/current",
+      ]);
+    });
+  });
 });
