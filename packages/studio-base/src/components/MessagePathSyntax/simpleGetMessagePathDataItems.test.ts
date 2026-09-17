@@ -181,6 +181,25 @@ describe("simpleGetMessagePathDataItems", () => {
     ).toEqual([10, 20]);
   });
 
+  it.each([
+    ["[-4]", []],
+    ["[-3]", [10]],
+    ["[-1]", [30]],
+    ["[3]", []],
+    ["[-4:-4]", []],
+    ["[-4:]", [10, 20, 30]],
+    ["[:-4]", []],
+    ["[$index]", []],
+  ] as const)("preserves index and slice boundaries for %s", (slice, expected) => {
+    const path = fillInGlobalVariablesInPath(parseMessagePath(`/foo.arr${slice}.@abs`)!, {
+      index: -4,
+    });
+    for (const arr of [[-10, -20, -30], new Float64Array([-10, -20, -30])]) {
+      expect(simpleGetMessagePathDataItems(msg({ arr }), path)).toEqual(expected);
+    }
+    expect(simpleGetMessagePathDataItems(msg({ arr: [] }), path)).toEqual([]);
+  });
+
   it("drops items whose function chain cannot be applied", () => {
     expect(
       simpleGetMessagePathDataItems(msg({ v: 3 }), parseMessagePath("/foo.v.@derivative")!),

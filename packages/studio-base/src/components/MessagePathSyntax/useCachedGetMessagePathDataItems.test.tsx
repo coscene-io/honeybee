@@ -950,6 +950,13 @@ it.each([
   ["[1:-1]", [2, 3]],
   ["[-10:]", [1, 2, 3]],
   ["[$start:]", [1, 2, 3]],
+  ["[-4]", []],
+  ["[-3]", [1]],
+  ["[-1]", [3]],
+  ["[3]", []],
+  ["[-4:-4]", []],
+  ["[:-4]", []],
+  ["[$index]", []],
 ] as const)(
   "normalizes %s before applying functions in Raw Messages and State Transitions",
   (slice, expected) => {
@@ -958,6 +965,7 @@ it.each([
     ]);
     const path = fillInGlobalVariablesInPath(parseMessagePath(`/foo.values${slice}.@abs`)!, {
       start: -Infinity,
+      index: -4,
     });
     const message: MessageEvent = {
       topic: "/foo",
