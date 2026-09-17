@@ -11,7 +11,9 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
+import { parseMessagePath } from "@foxglove/message-path";
 import { SettingsTreeAction, SettingsTreeNode, SettingsTreeNodes } from "@foxglove/studio";
+import { validateSimpleMessagePath } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 
 import type { Config } from "./types";
 
@@ -59,8 +61,10 @@ export function useSettingsTree(
           label: t("messagePath"),
           input: "messagepath",
           value: config.path,
-          error: pathParseError,
+          error: pathParseError ?? validateSimpleMessagePath(parseMessagePath(config.path)),
           validTypes: supportedDataTypes,
+          supportsMessagePathFunctions: true,
+          supportsTimeSeriesMessagePathFunctions: false,
         },
         minValue: {
           label: t("min"),

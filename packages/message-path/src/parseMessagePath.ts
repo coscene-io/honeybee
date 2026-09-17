@@ -14,16 +14,15 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Grammar, Parser } from "nearley";
-
-import grammar from "./grammar.ne";
+import { parseMessagePathWithDiagnostics } from "./parser";
 import { MessagePath } from "./types";
 
-const grammarObj = Grammar.fromCompiled(grammar);
+export { isFullySpecified, parseMessagePathWithDiagnostics } from "./parser";
+export type { MessagePathDiagnostic } from "./parser";
 
 /** Wrap topic name in double quotes if it contains special characters */
 export function quoteTopicNameIfNeeded(name: string): string {
-  // Pattern should match `slashID` in grammar.ne
+  // Unquoted topic names are [a-zA-Z0-9_/-]+
   if (name.match(/^[a-zA-Z0-9_/-]+$/)) {
     return name;
   }
@@ -32,21 +31,13 @@ export function quoteTopicNameIfNeeded(name: string): string {
 
 /** Wrap field name in double quotes if it contains special characters */
 export function quoteFieldNameIfNeeded(name: string): string {
-  // Pattern should match `id` in grammar.ne
+  // Unquoted field names are [a-zA-Z0-9_-]+
   if (name.match(/^[a-zA-Z0-9_-]+$/)) {
     return name;
   }
   return `"${name.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
 }
 
-const parseMessagePath = (path: string): MessagePath | undefined => {
-  // Need to create a new Parser object for every new string to parse (should be cheap).
-  const parser = new Parser(grammarObj);
-  try {
-    return parser.feed(path).results[0];
-  } catch {
-    return undefined;
-  }
-};
-
-export { parseMessagePath };
+export function parseMessagePath(input: string): MessagePath | undefined {
+  return parseMessagePathWithDiagnostics(input).path;
+}

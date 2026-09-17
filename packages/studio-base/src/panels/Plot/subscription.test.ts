@@ -25,6 +25,17 @@ describe("subscription", () => {
       expect(toPayload("/foo.")).toEqual(undefined);
     });
 
+    it("subscribes to the whole root message for function-only paths", () => {
+      expect(toPayload("/vector.@norm")).toEqual({
+        topic: "/vector",
+        preloadType: "full",
+      });
+      expect(toPayload("/quaternion.@rpy.yaw")).toEqual({
+        topic: "/quaternion",
+        preloadType: "full",
+      });
+    });
+
     it("subscribes to one field", () => {
       expect(toPayload("/foo.bar")).toEqual({
         topic: "/foo",

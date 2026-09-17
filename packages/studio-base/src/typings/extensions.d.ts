@@ -64,10 +64,3 @@ declare module "*.woff2" {
   const url: string;
   export default url;
 }
-
-declare module "*.ne" {
-  import type { CompiledRules } from "nearley";
-
-  const compiledRules: CompiledRules;
-  export default compiledRules;
-}

@@ -21,10 +21,13 @@ import { filterMap } from "@foxglove/den/collection";
 import { useDeepMemo, useShallowMemo } from "@foxglove/hooks";
 import {
   quoteTopicNameIfNeeded,
+  parseFunction,
   parseMessagePath,
   MessagePathStructureItem,
   MessagePathStructureItemMessage,
   MessagePath,
+  MessagePathFilter,
+  MessagePathFunction,
 } from "@foxglove/message-path";
 import { Immutable } from "@foxglove/studio";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
@@ -40,7 +43,9 @@ import {
 
 import { filterMatches } from "./filterMatches";
 import { TypicalFilterNames } from "./isTypicalFilterName";
+import { applyFunctionChain } from "./messagePathFunctions";
 import { messagePathStructures } from "./messagePathsForDatatype";
+import { rewriteIdentifierFilter } from "./resolveMessagePathEnums";
 
 type ValueInMapRecord<T> = T extends Map<unknown, infer I> ? I : never;
 
@@ -159,6 +164,22 @@ export function useCachedGetMessagePathDataItems(
   );
 }
 
+function fillFunctionOperand(
+  step: MessagePathFunction,
+  vars: GlobalVariables,
+): MessagePathFunction {
+  const parsed = parseFunction(step.function);
+  const raw = parsed?.operandRaw?.trim();
+  if (raw?.startsWith("$") !== true) {
+    return step;
+  }
+  const value = vars[raw.slice(1)];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return step;
+  }
+  return { ...step, function: `${parsed!.name}(${value})` };
+}
+
 export function fillInGlobalVariablesInPath(
   rosPath: MessagePath,
   globalVariables: GlobalVariables,
@@ -192,7 +213,23 @@ export function fillInGlobalVariablesInPath(
 
       return messagePathPart;
     }),
+    ...(rosPath.functionChain != undefined
+      ? {
+          functionChain: rosPath.functionChain.map((step) =>
+            fillFunctionOperand(step, globalVariables),
+          ),
+        }
+      : {}),
   };
+}
+
+function filterMatchesWithEnums(
+  pathItem: MessagePathFilter,
+  value: unknown,
+  structureItem: MessagePathStructureItem | undefined,
+  enumValues: ReturnType<typeof enumValuesByDatatypeAndField>,
+): boolean {
+  return filterMatches(rewriteIdentifierFilter(pathItem, structureItem, enumValues), value);
 }
 
 // Get a new item that has `queriedData` set to the values and paths as queried by `rosPath`.
@@ -211,11 +248,17 @@ export function getMessagePathDataItems(
     return;
   }
 
+  const structure: MessagePathStructureItemMessage | undefined =
+    // If the topic has no schema, we can at least allow accessing the root message
+    topic.schemaName == undefined
+      ? { structureType: "message", datatype: "", nextByName: {} }
+      : structures[topic.schemaName];
+
   // Apply top-level filters first. If a message matches all top-level filters, then this function
   // will *always* return a history item, so this is our only chance to return nothing.
   for (const item of filledInPath.messagePath) {
     if (item.type === "filter") {
-      if (!filterMatches(item, message.message)) {
+      if (!filterMatchesWithEnums(item, message.message, structure, enumValues)) {
         return [];
       }
     } else {
@@ -240,14 +283,33 @@ export function getMessagePathDataItems(
     const nextPathItem = filledInPath.messagePath[pathIndex + 1];
     if (!pathItem) {
       // If we're at the end of the `messagePath`, we're done! Just store the point.
+      const resolvedValue = applyFunctionChain(value, filledInPath.functionChain);
+      if (resolvedValue == undefined) {
+        return;
+      }
       let constantName: string | undefined;
       const prevPathItem = filledInPath.messagePath[pathIndex - 1];
-      if (prevPathItem?.type === "name") {
+      if (
+        prevPathItem?.type === "name" &&
+        (filledInPath.functionChain == undefined || filledInPath.functionChain.length === 0)
+      ) {
         const fieldName = prevPathItem.name;
         const enumMap = structureItem != undefined ? enumValues[structureItem.datatype] : undefined;
-        constantName = enumMap?.[fieldName]?.[value];
+        if (
+          typeof resolvedValue === "string" ||
+          typeof resolvedValue === "number" ||
+          typeof resolvedValue === "bigint"
+        ) {
+          constantName = enumMap?.[fieldName]?.[String(resolvedValue)];
+        }
       }
-      queriedData.push({ value, path, constantName });
+      const functionSuffix = (filledInPath.functionChain ?? [])
+        .map(
+          (step) =>
+            `.@${step.function}${step.fieldAccess != undefined ? `.${step.fieldAccess}` : ""}`,
+        )
+        .join("");
+      queriedData.push({ value: resolvedValue, path: `${path}${functionSuffix}`, constantName });
     } else if (
       pathItem.type === "name" &&
       (structureItem == undefined || structureItem.structureType === "message")
@@ -265,16 +327,13 @@ export function getMessagePathDataItems(
           "getMessagePathDataItems only works on paths where global variables have been filled in",
         );
       }
-      const startIdx: number = start;
-      const endIdx: number = end;
-      if (typeof startIdx !== "number" || typeof endIdx !== "number") {
-        return;
-      }
-
-      // If the `pathItem` is a slice, iterate over all the relevant elements in the array.
+      // Normalize bounds before iterating, as in the simple walker. This also bounds oversized
+      // literals and non-finite globals, which must never produce an unbounded loop.
       const arrayLength = value.length as number;
-      for (let i = startIdx; i <= Math.min(endIdx, arrayLength - 1); i++) {
-        const index = i >= 0 ? i : arrayLength + i;
+      const startIdx = Math.max(start < 0 ? arrayLength + start : start, 0);
+      const endIdx = Math.min(end < 0 ? arrayLength + end : end, arrayLength - 1);
+      for (let index = startIdx; index <= endIdx; index++) {
+        const displayIndex = start < 0 ? index - arrayLength : index;
         const arrayElement = value[index];
         if (arrayElement == undefined) {
           continue;
@@ -298,23 +357,15 @@ export function getMessagePathDataItems(
                 : (JSON.stringify(filterValue) ?? "");
             newPath = `${path}[:]{${name}==${formattedValue}}`;
           } else {
-            // Use `i` here instead of `index`, since it's only different when `i` is negative,
-            // and in that case it's probably more useful to show to the user how many elements
-            // from the end of the array this data is, since they clearly are thinking in that way
-            // (otherwise they wouldn't have chosen a negative slice).
-            newPath = `${path}[${i}]`;
+            newPath = `${path}[${displayIndex}]`;
           }
         } else {
-          // Use `i` here instead of `index`, since it's only different when `i` is negative,
-          // and in that case it's probably more useful to show to the user how many elements
-          // from the end of the array this data is, since they clearly are thinking in that way
-          // (otherwise they wouldn't have chosen a negative slice).
-          newPath = `${path}[${i}]`;
+          newPath = `${path}[${displayIndex}]`;
         }
         traverse(arrayElement, pathIndex + 1, newPath, structureItem?.next);
       }
     } else if (pathItem.type === "filter") {
-      if (filterMatches(pathItem, value)) {
+      if (filterMatchesWithEnums(pathItem, value, structureItem, enumValues)) {
         traverse(value, pathIndex + 1, `${path}{${pathItem.repr}}`, structureItem);
       }
     } else {
@@ -323,11 +374,6 @@ export function getMessagePathDataItems(
       );
     }
   }
-  const structure: MessagePathStructureItemMessage | undefined =
-    // If the topic has no schema, we can at least allow accessing the root message
-    topic.schemaName == undefined
-      ? { structureType: "message", datatype: "", nextByName: {} }
-      : structures[topic.schemaName];
   if (structure) {
     traverse(message.message, 0, quoteTopicNameIfNeeded(filledInPath.topicName), structure);
   }

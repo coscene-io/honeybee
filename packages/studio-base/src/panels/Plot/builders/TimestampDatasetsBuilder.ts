@@ -18,6 +18,7 @@ import {
 } from "@foxglove/studio-base/panels/shared/DatasetWorkerPool";
 import { MessageBlock, PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { TimestampMethod, getTimestampForMessage } from "@foxglove/studio-base/util/time";
 
 import { BlockTopicCursor } from "./BlockTopicCursor";
@@ -35,7 +36,7 @@ import {
 import type { DataItem, UpdateDataAction } from "./TimestampDatasetsBuilderImpl";
 import { restoreUnpackedDataAccessor } from "../PackedDataset";
 import { getChartValue, isChartValue, toOwnedChartValue } from "../datum";
-import { MathFunction, mathFunctions } from "../mathFunctions";
+import { splitTimeSeriesFunctionChain } from "../splitTimeSeriesFunctionChain";
 
 const log = Logger.getLogger(__filename);
 
@@ -66,6 +67,7 @@ type TimestampSeriesItem = {
  * downsampled data.
  */
 export class TimestampDatasetsBuilder implements IDatasetsBuilder {
+  #datatypes: Immutable<RosDatatypes> | undefined;
   #pendingDispatch: Immutable<UpdateDataAction>[] = [];
 
   /** Serializes action delivery so range batches cannot overtake viewport or block updates. */
@@ -147,6 +149,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
     const sourceChanged = this.#playerId != undefined && this.#playerId !== state.playerId;
     this.#playerId = state.playerId;
     const activeData = state.activeData;
+    this.#datatypes = activeData?.datatypes;
     if (!activeData) {
       if (sourceChanged) {
         this.#resetForSourceChange();
@@ -182,16 +185,12 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
 
     if (msgEvents.length > 0) {
       for (const series of this.#series) {
-        const mathFn = series.config.parsed.modifier
-          ? mathFunctions[series.config.parsed.modifier]
-          : undefined;
-
         const pathItems = readMessagePathItems(
           msgEvents,
           series.config.parsed,
           series.config.timestampMethod,
           activeData.startTime,
-          mathFn,
+          this.#datatypes,
         );
 
         this.#pendingDispatch.push({
@@ -271,10 +270,6 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           done += 1;
           continue;
         }
-        const mathFn = series.config.parsed.modifier
-          ? mathFunctions[series.config.parsed.modifier]
-          : undefined;
-
         const messageEvents = series.blockCursor.next(blocks);
         if (!messageEvents) {
           done += 1;
@@ -286,7 +281,7 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
           series.config.parsed,
           series.config.timestampMethod,
           startTime,
-          mathFn,
+          this.#datatypes,
         );
 
         if (pathItems.length === 0) {
@@ -412,15 +407,12 @@ export class TimestampDatasetsBuilder implements IDatasetsBuilder {
       ) {
         continue;
       }
-      const mathFn = series.config.parsed.modifier
-        ? mathFunctions[series.config.parsed.modifier]
-        : undefined;
       const items = readMessagePathItems(
         events,
         series.config.parsed,
         series.config.timestampMethod,
         startTime,
-        mathFn,
+        this.#datatypes,
       );
       if (items.length === 0) {
         continue;
@@ -706,16 +698,27 @@ function readMessagePathItems(
   path: Immutable<MessagePath>,
   timestampMethod: TimestampMethod,
   startTime: Immutable<Time>,
-  mathFunction?: MathFunction,
+  datatypes: Immutable<RosDatatypes> | undefined,
 ): DataItem[] {
+  const split = splitTimeSeriesFunctionChain(path as MessagePath);
+  if (split == undefined) {
+    return [];
+  }
+  const { pathBeforeSpecialFunction } = split;
+  const topicTimeDelta =
+    split.specialFunction === "timedelta" &&
+    pathBeforeSpecialFunction.functionChain == undefined &&
+    pathBeforeSpecialFunction.messagePath.every((part) => part.type === "filter");
   const out = [];
   for (const event of events) {
     if (event.topic !== path.topicName) {
       continue;
     }
 
-    const items = simpleGetMessagePathDataItems(event, path);
-    for (const item of items) {
+    const items = simpleGetMessagePathDataItems(event, pathBeforeSpecialFunction, datatypes);
+    for (const matchedItem of items) {
+      // Topic time deltas use only timestamps; filters still determine which messages match.
+      const item = topicTimeDelta ? 0 : matchedItem;
       if (!isChartValue(item)) {
         continue;
       }
@@ -731,13 +734,12 @@ function readMessagePathItems(
       }
 
       const xValue = toSec(subtractTime(timestamp, startTime));
-      const mathModified = mathFunction ? mathFunction(chartValue) : chartValue;
       out.push({
         x: xValue,
-        y: mathModified,
+        y: chartValue,
         receiveTime: event.receiveTime,
         headerStamp,
-        value: mathFunction ? mathModified : toOwnedChartValue(item),
+        value: toOwnedChartValue(item),
       });
     }
   }

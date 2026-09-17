@@ -396,7 +396,8 @@ export default function PlayerManager(
 
   useEffect(() => {
     return () => {
-      sourceSelectionGenerationRef.current += 1;
+      // isMounted() rejects pending selections after a real unmount. Do not invalidate
+      // their generation here: StrictMode replays effect cleanup during initial mount.
       void closePlayerForSourceSwitch(currentPlayerRef.current?.player);
       currentPlayerRef.current = undefined;
     };

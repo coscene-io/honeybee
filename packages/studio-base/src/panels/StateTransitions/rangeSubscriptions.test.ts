@@ -70,6 +70,52 @@ describe("planStateTransitionsSubscriptions", () => {
     ]);
   });
 
+  it("keeps a whole-message subscribe when mixing a root function with a named field", () => {
+    expect(
+      planStateTransitionsSubscriptions({
+        paths: [path("/vector.@norm"), path("/vector.x")],
+        globalVariables: {},
+      }),
+    ).toEqual([
+      {
+        topic: "/vector",
+        currentSubscription: {
+          topic: "/vector",
+          preloadType: "partial",
+        },
+        fallbackSubscription: {
+          topic: "/vector",
+          preloadType: "full",
+        },
+        rangePayload: {},
+        signature: ";receiveTime:/vector.@norm|receiveTime:/vector.x",
+      },
+    ]);
+  });
+
+  it("subscribes to the whole topic for root function paths", () => {
+    expect(
+      planStateTransitionsSubscriptions({
+        paths: [path("/vector.@norm")],
+        globalVariables: {},
+      }),
+    ).toEqual([
+      {
+        topic: "/vector",
+        currentSubscription: {
+          topic: "/vector",
+          preloadType: "partial",
+        },
+        fallbackSubscription: {
+          topic: "/vector",
+          preloadType: "full",
+        },
+        rangePayload: {},
+        signature: ";receiveTime:/vector.@norm",
+      },
+    ]);
+  });
+
   it("omits disabled, invalid, and property-less paths", () => {
     expect(
       planStateTransitionsSubscriptions({

@@ -13,6 +13,7 @@ import { Immutable, Time, MessageEvent } from "@foxglove/studio";
 import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import { PlayerState } from "@foxglove/studio-base/players/types";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import {
   CsvDataChunkCallback,
@@ -27,7 +28,6 @@ import {
 } from "./IDatasetsBuilder";
 import { Dataset } from "../ChartRenderer";
 import { getChartValue, isChartValue, toOwnedChartValue, Datum } from "../datum";
-import { mathFunctions } from "../mathFunctions";
 
 type DatumWithReceiveTime = Datum & {
   receiveTime: Time;
@@ -45,6 +45,7 @@ type IndexDatasetsSeries = {
 const emptyPaths = new Set<string>();
 
 export class IndexDatasetsBuilder implements IDatasetsBuilder {
+  #datatypes: Immutable<RosDatatypes> | undefined;
   #seriesByKey = new Map<SeriesConfigKey, IndexDatasetsSeries>();
 
   #range?: Bounds1D;
@@ -58,6 +59,7 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
       this.#clearLatestData();
     }
     const activeData = state.activeData;
+    this.#datatypes = activeData?.datatypes;
     if (!activeData) {
       this.#clearLegendValues();
       return;
@@ -79,11 +81,9 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
 
     const range: Bounds1D = { min: 0, max: 0 };
     for (const series of this.#seriesByKey.values()) {
-      const mathFn = series.parsed.modifier ? mathFunctions[series.parsed.modifier] : undefined;
-
-      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed);
+      const legendMatch = lastNonEmptyPathMatch(msgEvents, series.parsed, this.#datatypes);
       if (legendMatch) {
-        series.legendValue = lastChartValue(legendMatch, mathFn);
+        series.legendValue = lastChartValue(legendMatch);
       }
 
       const msgEvent = lastMatchingTopic(msgEvents, series.parsed.topicName);
@@ -91,20 +91,18 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
         continue;
       }
 
-      const items = simpleGetMessagePathDataItems(msgEvent, series.parsed);
+      const items = simpleGetMessagePathDataItems(msgEvent, series.parsed, this.#datatypes);
       const pathItems = filterMap(items, (item, idx) => {
         if (!isChartValue(item)) {
           return;
         }
 
         const chartValue = getChartValue(item);
-        const mathModifiedValue =
-          mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
         return {
           x: idx,
-          y: chartValue == undefined ? NaN : (mathModifiedValue ?? chartValue),
+          y: chartValue ?? NaN,
           receiveTime: msgEvent.receiveTime,
-          value: mathModifiedValue ?? toOwnedChartValue(item),
+          value: toOwnedChartValue(item),
         };
       });
 
@@ -217,6 +215,7 @@ export class IndexDatasetsBuilder implements IDatasetsBuilder {
 function lastNonEmptyPathMatch(
   msgEvents: Immutable<MessageEvent[]>,
   path: Immutable<MessagePath>,
+  datatypes: Immutable<RosDatatypes> | undefined,
 ): unknown[] | undefined {
   for (let i = msgEvents.length - 1; i >= 0; --i) {
     const msgEvent = msgEvents[i]!;
@@ -224,7 +223,7 @@ function lastNonEmptyPathMatch(
       continue;
     }
 
-    const items = simpleGetMessagePathDataItems(msgEvent, path);
+    const items = simpleGetMessagePathDataItems(msgEvent, path, datatypes);
     if (items.length > 0) {
       return items;
     }
@@ -244,19 +243,14 @@ function lastMatchingTopic(msgEvents: Immutable<MessageEvent[]>, topic: string) 
   return undefined;
 }
 
-function lastChartValue(
-  items: readonly unknown[],
-  mathFn: ((value: number) => number) | undefined,
-): Datum["value"] | undefined {
+function lastChartValue(items: readonly unknown[]): Datum["value"] | undefined {
   for (let i = items.length - 1; i >= 0; --i) {
     const item = items[i];
     if (!isChartValue(item)) {
       continue;
     }
 
-    const chartValue = getChartValue(item);
-    const mathModifiedValue = mathFn && chartValue != undefined ? mathFn(chartValue) : undefined;
-    return mathModifiedValue ?? toOwnedChartValue(item);
+    return toOwnedChartValue(item);
   }
 
   return undefined;
