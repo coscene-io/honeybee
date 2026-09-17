@@ -16,6 +16,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { layoutEventLanes } from "@foxglove/studio-base/components/PlaybackControls/eventLanes";
+import { isPlaybackSecondsInEvent } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { makeTimelineViewport } from "@foxglove/studio-base/components/PlaybackControls/timelineViewport";
 import {
   type EventsStore,
@@ -193,30 +194,6 @@ function isDefaultPosition(position: undefined | MomentSubtitlePosition): boolea
     position == undefined ||
     (Math.abs(position.anchorX - DEFAULT_SUBTITLE_POSITION.anchorX) < 0.0001 &&
       position.bottom === DEFAULT_SUBTITLE_POSITION.bottom)
-  );
-}
-
-function isPlaybackSecondsInEvent({
-  playbackSeconds,
-  event,
-  timelineDurationSeconds,
-}: {
-  playbackSeconds: number;
-  event: TimelinePositionedEvent;
-  timelineDurationSeconds: number;
-}): boolean {
-  const eventStartSeconds = event.secondsSinceStart;
-  const eventEndSeconds =
-    event.secondsSinceStart + toSec(subtractTimes(event.endTime, event.startTime));
-
-  if (eventStartSeconds === eventEndSeconds) {
-    return playbackSeconds === eventStartSeconds;
-  }
-
-  return (
-    playbackSeconds >= eventStartSeconds &&
-    (playbackSeconds < eventEndSeconds ||
-      (playbackSeconds === timelineDurationSeconds && eventEndSeconds === timelineDurationSeconds))
   );
 }
 

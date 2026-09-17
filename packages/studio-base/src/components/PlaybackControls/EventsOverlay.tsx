@@ -57,6 +57,7 @@ import {
   ROLLING_EDIT_HANDLE_HITBOX_PX,
   type RollingEditPair,
 } from "./eventRollingEdit";
+import { isPlaybackSecondsInEvent } from "./eventTimeContainment";
 import {
   buildEventTimeUpdate,
   calculateBodyDragRange,
@@ -286,29 +287,6 @@ const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.looped
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-
-function isPlaybackSecondsInEvent({
-  playbackSeconds,
-  event,
-  timelineDurationSeconds,
-}: {
-  playbackSeconds: number;
-  event: TimelinePositionedEvent;
-  timelineDurationSeconds: number;
-}): boolean {
-  const eventStartSec = event.secondsSinceStart;
-  const eventEndSec = event.secondsSinceStart + toSec(subtract(event.endTime, event.startTime));
-
-  if (eventStartSec === eventEndSec) {
-    return playbackSeconds === eventStartSec;
-  }
-
-  return (
-    playbackSeconds >= eventStartSec &&
-    (playbackSeconds < eventEndSec ||
-      (playbackSeconds === timelineDurationSeconds && eventEndSec === timelineDurationSeconds))
-  );
-}
 
 function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
   return (value) => {
