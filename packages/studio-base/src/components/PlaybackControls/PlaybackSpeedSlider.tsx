@@ -118,14 +118,18 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
   const [dragging, setDragging] = useState(false);
   const fraction = playbackSpeedToFraction(value);
 
+  const stopDragging = useCallback(() => {
+    draggingRef.current = false;
+    activePointerIdRef.current = undefined;
+    setDragging(false);
+  }, []);
+
   const finishDrag = useCallback(
     (next: "commit" | "cancel", clientX?: number) => {
       if (!draggingRef.current) {
         return;
       }
-      draggingRef.current = false;
-      activePointerIdRef.current = undefined;
-      setDragging(false);
+      stopDragging();
       const track = trackRef.current;
       if (next === "commit" && track != undefined && clientX != undefined) {
         onCommit(clientXToSpeed(track, clientX));
@@ -133,7 +137,16 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
       }
       onCancel();
     },
-    [onCancel, onCommit],
+    [onCancel, onCommit, stopDragging],
+  );
+
+  const commitPreset = useCallback(
+    (next: PlaybackSpeed) => {
+      stopDragging();
+      onPreview(next);
+      onCommit(next);
+    },
+    [onCommit, onPreview, stopDragging],
   );
 
   useLayoutEffect(() => {
@@ -215,36 +228,29 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
           if (event.key === "ArrowRight" || event.key === "ArrowUp") {
             event.preventDefault();
             event.stopPropagation();
-            const next = stepPlaybackSpeed(value, "increase");
-            onPreview(next);
-            onCommit(next);
+            commitPreset(stepPlaybackSpeed(value, "increase"));
             return;
           }
           if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
             event.preventDefault();
             event.stopPropagation();
-            const next = stepPlaybackSpeed(value, "decrease");
-            onPreview(next);
-            onCommit(next);
+            commitPreset(stepPlaybackSpeed(value, "decrease"));
             return;
           }
           if (event.key === "Home") {
             event.preventDefault();
             event.stopPropagation();
-            const next = PLAYBACK_SPEED_OPTIONS[0];
-            onPreview(next);
-            onCommit(next);
+            commitPreset(PLAYBACK_SPEED_OPTIONS[0]);
             return;
           }
           if (event.key === "End") {
-            event.preventDefault();
-            event.stopPropagation();
             const next = PLAYBACK_SPEED_OPTIONS[PLAYBACK_SPEED_OPTIONS.length - 1];
             if (next == undefined) {
               return;
             }
-            onPreview(next);
-            onCommit(next);
+            event.preventDefault();
+            event.stopPropagation();
+            commitPreset(next);
           }
         }}
       >

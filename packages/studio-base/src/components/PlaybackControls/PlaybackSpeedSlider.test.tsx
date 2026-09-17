@@ -158,6 +158,18 @@ describe("<PlaybackSpeedSlider />", () => {
     expect(onCommit).toHaveBeenCalledWith(1.5);
   });
 
+  it("ends an in-progress drag when a keyboard commit happens", () => {
+    const { track, onCommit } = renderSlider();
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    fireEvent.keyDown(track, { key: "End" });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith(10);
+
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
   it("commits the first and last presets on Home and End", () => {
     const { track, onPreview, onCommit } = renderSlider({ value: 1 });
     const onDocumentKeyDown = jest.fn();
