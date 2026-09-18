@@ -5,12 +5,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { toSec, type Time } from "@foxglove/rostime";
+import { subtract, toSec, type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
-/** Playback seconds between two absolute times, using the same toSec origin as event.secondsSinceStart. */
+/** Subtract before conversion to preserve the relative-time axis used by synchronized charts. */
 export function timelineDurationSeconds(startTime: Time, endTime: Time): number {
-  return toSec(endTime) - toSec(startTime);
+  return toSec(subtract(endTime, startTime));
 }
 
 export function isPlaybackSecondsInEvent({
@@ -24,12 +24,10 @@ export function isPlaybackSecondsInEvent({
   recordingStartTime: Time;
   durationSeconds: number;
 }): boolean {
-  // Keep both bounds on toSec(absolute) - toSec(recordingStart). Reconstructing the origin
-  // as toSec(event.startTime) - secondsSinceStart drifts on leftover nanos and can match
-  // both sides of a shared [start, end) boundary.
-  const recordingStartSec = toSec(recordingStartTime);
-  const eventStartSec = toSec(event.startTime) - recordingStartSec;
-  const eventEndSec = toSec(event.endTime) - recordingStartSec;
+  // Derive each bound directly from the same Time origin. Adding a converted duration
+  // to the start offset can drift at shared boundaries and at the recording end.
+  const eventStartSec = timelineDurationSeconds(recordingStartTime, event.startTime);
+  const eventEndSec = timelineDurationSeconds(recordingStartTime, event.endTime);
 
   if (eventStartSec === eventEndSec) {
     return playbackSeconds === eventStartSec;

@@ -16,6 +16,7 @@ import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
 
+import { subtract, toSec } from "@foxglove/rostime";
 import { ContextInternal } from "@foxglove/studio-base/components/MessagePipeline";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -202,6 +203,8 @@ function Wrapper({
   children,
   consoleApi = {} as never,
   currentTime,
+  startTime = { sec: 0, nsec: 0 },
+  endTime = { sec: 10, nsec: 0 },
   eventEnabled = false,
   eventsStore,
   rollingEditEnabled = true,
@@ -209,6 +212,8 @@ function Wrapper({
 }: React.PropsWithChildren<{
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   currentTime: { sec: number; nsec: number };
+  startTime?: { sec: number; nsec: number };
+  endTime?: { sec: number; nsec: number };
   eventEnabled?: boolean;
   eventsStore: StoreApi<EventsStore>;
   rollingEditEnabled?: boolean;
@@ -223,8 +228,8 @@ function Wrapper({
         >
           <CoScenePlaylistProvider>
             <MockMessagePipelineProvider
-              startTime={{ sec: 0, nsec: 0 }}
-              endTime={{ sec: 10, nsec: 0 }}
+              startTime={startTime}
+              endTime={endTime}
               currentTime={currentTime}
             >
               <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
@@ -416,5 +421,54 @@ describe("<EventsSyncAdapter />", () => {
         "events/current",
       ]);
     });
+  });
+
+  it("matches synchronized chart hovers at fractional boundaries and the recording end", async () => {
+    const startTime = { sec: 1_700_000_000, nsec: 0 };
+    const boundary = { sec: 1_700_001_500, nsec: 123_456_789 };
+    const endTime = { sec: 1_700_003_000, nsec: 123_456_789 };
+    const first = {
+      ...makeEvent("events/first", startTime.sec, 1500),
+      startTime,
+      endTime: boundary,
+    };
+    const second = {
+      ...makeEvent("events/second", boundary.sec, 1500),
+      startTime: boundary,
+      endTime,
+    };
+    const eventsStore = makeEventsStore({
+      events: [first, second],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        startTime={startTime}
+        endTime={endTime}
+        currentTime={startTime}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    for (const time of [boundary, endTime]) {
+      act(() => {
+        timelineInteractionStore.getState().setHoverValue({
+          componentId: "chart-hover",
+          type: "PLAYBACK_SECONDS",
+          value: toSec(subtract(time, startTime)),
+        });
+      });
+
+      await waitFor(() => {
+        expect(Object.keys(timelineInteractionStore.getState().eventsAtHoverValue)).toEqual([
+          "events/second",
+        ]);
+      });
+    }
   });
 });

@@ -46,7 +46,7 @@ function makeAbsoluteEvent(
   endTime: Time,
   recordingStart: Time,
 ): TimelinePositionedEvent {
-  const startSec = toSec(startTime) - toSec(recordingStart);
+  const startSec = toSec(subtract(startTime, recordingStart));
 
   return {
     event: create(EventSchema, {
@@ -161,7 +161,7 @@ describe("isPlaybackSecondsInEvent", () => {
     const recordingEnd: Time = { sec: 1_700_003_000, nsec: 124_456_789 };
     const eventStart: Time = { sec: 1_700_001_500, nsec: 987_654_321 };
     const event = makeAbsoluteEvent("events/last", eventStart, recordingEnd, recordingStart);
-    const originDuration = timelineDurationSeconds(recordingStart, recordingEnd);
+    const originDuration = toSec(subtract(recordingEnd, recordingStart));
 
     expect(
       isPlaybackSecondsInEvent({
@@ -172,46 +172,37 @@ describe("isPlaybackSecondsInEvent", () => {
       }),
     ).toBe(true);
 
-    const driftedEndSec = event.secondsSinceStart + toSec(subtract(event.endTime, event.startTime));
-    expect(driftedEndSec === originDuration).toBe(false);
+    expect(timelineDurationSeconds(recordingStart, recordingEnd)).toBe(originDuration);
   });
 
-  it("includes the timeline end when start nanos are zero and end has leftover nanos", () => {
+  it("matches the precise relative-time endpoint emitted by synchronized charts", () => {
     const recordingStart: Time = { sec: 1_700_000_000, nsec: 0 };
     const recordingEnd: Time = { sec: 1_700_003_000, nsec: 123_456_789 };
     const eventStart: Time = { sec: 1_700_002_999, nsec: 0 };
     const event = makeAbsoluteEvent("events/last", eventStart, recordingEnd, recordingStart);
-    const originDuration = timelineDurationSeconds(recordingStart, recordingEnd);
-    const subtractDuration = toSec(subtract(recordingEnd, recordingStart));
+    // Plot and State Transitions subtract Time values before converting to seconds.
+    const chartPlaybackSeconds = toSec(subtract(recordingEnd, recordingStart));
+    const durationSeconds = timelineDurationSeconds(recordingStart, recordingEnd);
 
-    expect(originDuration === subtractDuration).toBe(false);
-    expect(
-      isPlaybackSecondsInEvent({
-        playbackSeconds: originDuration,
-        event,
-        recordingStartTime: recordingStart,
-        durationSeconds: originDuration,
-      }),
-    ).toBe(true);
-    expect(
-      isPlaybackSecondsInEvent({
-        playbackSeconds: subtractDuration,
-        event,
-        recordingStartTime: recordingStart,
-        durationSeconds: originDuration,
-      }),
-    ).toBe(false);
+    expect(durationSeconds).toBe(chartPlaybackSeconds);
+    expect(namesAt(chartPlaybackSeconds, [event], recordingStart, durationSeconds)).toEqual([
+      "events/last",
+    ]);
+  });
 
-    const roundTrippedHover = toSec(fromSec(originDuration));
-    expect(roundTrippedHover === originDuration).toBe(false);
-    expect(
-      isPlaybackSecondsInEvent({
-        playbackSeconds: roundTrippedHover,
-        event,
-        recordingStartTime: recordingStart,
-        durationSeconds: originDuration,
-      }),
-    ).toBe(false);
+  it("does not round epoch-scale nanosecond moments into a shared zero-duration point", () => {
+    const recordingStart: Time = { sec: 1_700_000_000, nsec: 0 };
+    const firstStart = { sec: 1_700_000_001, nsec: 1 };
+    const boundary = { sec: 1_700_000_001, nsec: 2 };
+    const secondEnd = { sec: 1_700_000_001, nsec: 3 };
+    const first = makeAbsoluteEvent("events/first", firstStart, boundary, recordingStart);
+    const second = makeAbsoluteEvent("events/second", boundary, secondEnd, recordingStart);
+    const boundaryPlayback = toSec(subtract(boundary, recordingStart));
+
+    expect(namesAt(boundaryPlayback, [first, second], recordingStart)).toEqual(["events/second"]);
+    expect(namesAt(toSec(subtract(firstStart, recordingStart)), [first], recordingStart)).toEqual([
+      "events/first",
+    ]);
   });
 
   it("assigns a shared fractional boundary to the later moment when recording start has leftover nanos", () => {
@@ -221,11 +212,8 @@ describe("isPlaybackSecondsInEvent", () => {
     const secondEnd: Time = { sec: 1502, nsec: 0 };
     const first = makeAbsoluteEvent("events/first", firstStart, boundary, recordingStart);
     const second = makeAbsoluteEvent("events/second", boundary, secondEnd, recordingStart);
-    const boundaryPlayback = toSec(boundary) - toSec(recordingStart);
+    const boundaryPlayback = toSec(subtract(boundary, recordingStart));
     const duration = timelineDurationSeconds(recordingStart, secondEnd);
-
-    const reconstructedOrigin = toSec(first.startTime) - first.secondsSinceStart;
-    expect(reconstructedOrigin === toSec(recordingStart)).toBe(false);
 
     expect(namesAt(boundaryPlayback, [first, second], recordingStart, duration)).toEqual([
       "events/second",
