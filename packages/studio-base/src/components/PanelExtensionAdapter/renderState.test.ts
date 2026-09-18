@@ -217,6 +217,19 @@ describe("renderState", () => {
         },
       ],
     });
+
+    // Preserve the number supplied by an extension rather than subtracting/adding an origin again.
+    const absoluteSeconds = 0.1;
+    const previewState = buildRenderState({
+      ...initialState,
+      hoverValue: {
+        type: "PLAYBACK_SECONDS",
+        componentId: "extension",
+        value: absoluteSeconds - 1.000000001,
+        absoluteSeconds,
+      },
+    });
+    expect(previewState?.previewTime).toBe(absoluteSeconds);
   });
 
   it("should avoid conversion if the topic schema is already the desired convertTo schema", () => {

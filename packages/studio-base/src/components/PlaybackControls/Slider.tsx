@@ -9,7 +9,6 @@ import { useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState, useLayoutEffect, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { subtract as subtractTimes, toSec } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -19,6 +18,7 @@ import {
   TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX,
   TimelinePositionIndicator,
 } from "./TimelinePositionIndicator";
+import { timelineDurationSeconds } from "./eventTimeContainment";
 import {
   clientXToFraction,
   fractionToTime,
@@ -80,7 +80,7 @@ function RenderSlider({ viewport }: { viewport: TimelineViewport }): React.JSX.E
   const fraction = useMemo(
     () =>
       currentTime && startTime
-        ? timeToFraction(toSec(subtractTimes(currentTime, startTime)), viewport)
+        ? timeToFraction(timelineDurationSeconds(startTime, currentTime), viewport)
         : undefined,
     [currentTime, startTime, viewport],
   );

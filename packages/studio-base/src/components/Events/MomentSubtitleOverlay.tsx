@@ -10,12 +10,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { subtract as subtractTimes, toSec } from "@foxglove/rostime";
 import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { layoutEventLanes } from "@foxglove/studio-base/components/PlaybackControls/eventLanes";
+import {
+  isPlaybackSecondsInEvent,
+  timelineDurationSeconds,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { makeTimelineViewport } from "@foxglove/studio-base/components/PlaybackControls/timelineViewport";
 import {
   type EventsStore,
@@ -196,30 +199,6 @@ function isDefaultPosition(position: undefined | MomentSubtitlePosition): boolea
   );
 }
 
-function isPlaybackSecondsInEvent({
-  playbackSeconds,
-  event,
-  timelineDurationSeconds,
-}: {
-  playbackSeconds: number;
-  event: TimelinePositionedEvent;
-  timelineDurationSeconds: number;
-}): boolean {
-  const eventStartSeconds = event.secondsSinceStart;
-  const eventEndSeconds =
-    event.secondsSinceStart + toSec(subtractTimes(event.endTime, event.startTime));
-
-  if (eventStartSeconds === eventEndSeconds) {
-    return playbackSeconds === eventStartSeconds;
-  }
-
-  return (
-    playbackSeconds >= eventStartSeconds &&
-    (playbackSeconds < eventEndSeconds ||
-      (playbackSeconds === timelineDurationSeconds && eventEndSeconds === timelineDurationSeconds))
-  );
-}
-
 export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
   const { classes, cx } = useStyles();
   const { t } = useTranslation("general");
@@ -248,14 +227,14 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
       return [];
     }
 
-    const timelineDurationSeconds = toSec(subtractTimes(endTime, startTime));
-    if (timelineDurationSeconds < 0) {
+    const durationSeconds = timelineDurationSeconds(startTime, endTime);
+    if (durationSeconds < 0) {
       return [];
     }
 
-    const playbackSeconds = toSec(subtractTimes(currentTime, startTime));
+    const playbackSeconds = timelineDurationSeconds(startTime, currentTime);
     const allEvents = events.value ?? [];
-    const viewport = makeTimelineViewport(0, timelineDurationSeconds);
+    const viewport = makeTimelineViewport(0, durationSeconds);
     const laneLayout = layoutEventLanes({ events: allEvents, viewport });
     const laneByEventName = new Map(
       laneLayout.items.map((item) => [item.event.event.name, item.lane]),
@@ -266,7 +245,8 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
         isPlaybackSecondsInEvent({
           playbackSeconds,
           event,
-          timelineDurationSeconds,
+          recordingStartTime: startTime,
+          durationSeconds,
         }),
       )
       .sort((left, right) => {

@@ -25,13 +25,7 @@ import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  subtract as subtractTimes,
-  add as addTimes,
-  toSec,
-  fromSec,
-  Time,
-} from "@foxglove/rostime";
+import { add as addTimes, toSec, fromSec, Time } from "@foxglove/rostime";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -74,6 +68,7 @@ import {
   TIMELINE_BAG_OVERLAY_TOP_PX,
 } from "./constants";
 import { layoutEventLanes } from "./eventLanes";
+import { timelineDurationSeconds } from "./eventTimeContainment";
 import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
@@ -470,7 +465,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return undefined;
     }
 
-    return makeTimelineViewport(0, toSec(subtractTimes(endTime, startTime)));
+    return makeTimelineViewport(0, timelineDurationSeconds(startTime, endTime));
   }, [endTime, startTime]);
 
   const [viewport, setViewport] = useState<TimelineViewport | undefined>(defaultViewport);
@@ -506,7 +501,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return;
     }
 
-    const playheadSec = toSec(subtractTimes(currentTime, start));
+    const playheadSec = timelineDurationSeconds(start, currentTime);
     if (
       playheadSec >= currentViewport.visibleStartSec &&
       playheadSec <= currentViewport.visibleEndSec
@@ -551,7 +546,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       setHoverValue({
         componentId: hoverComponentId,
         type: "PLAYBACK_SECONDS",
-        value: toSec(timeFromStart),
+        value: playbackSeconds,
       });
     },
     [hoverComponentId, latestEndTime, latestStartTime, setHoverValue],
@@ -800,7 +795,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(subtractTimes(currentTime, startTime));
+    return timelineDurationSeconds(startTime, currentTime);
   }, [currentTime, startTime]);
 
   const onZoomSliderChange = useCallback(

@@ -16,6 +16,7 @@ import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
 
+import { subtract, toSec } from "@foxglove/rostime";
 import { ContextInternal } from "@foxglove/studio-base/components/MessagePipeline";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -202,6 +203,8 @@ function Wrapper({
   children,
   consoleApi = {} as never,
   currentTime,
+  startTime = { sec: 0, nsec: 0 },
+  endTime = { sec: 10, nsec: 0 },
   eventEnabled = false,
   eventsStore,
   rollingEditEnabled = true,
@@ -209,6 +212,8 @@ function Wrapper({
 }: React.PropsWithChildren<{
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   currentTime: { sec: number; nsec: number };
+  startTime?: { sec: number; nsec: number };
+  endTime?: { sec: number; nsec: number };
   eventEnabled?: boolean;
   eventsStore: StoreApi<EventsStore>;
   rollingEditEnabled?: boolean;
@@ -223,8 +228,8 @@ function Wrapper({
         >
           <CoScenePlaylistProvider>
             <MockMessagePipelineProvider
-              startTime={{ sec: 0, nsec: 0 }}
-              endTime={{ sec: 10, nsec: 0 }}
+              startTime={startTime}
+              endTime={endTime}
               currentTime={currentTime}
             >
               <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
@@ -379,5 +384,142 @@ describe("<EventsSyncAdapter />", () => {
 
     expect(updatePermission).not.toHaveBeenCalled();
     expect(deletePermission).not.toHaveBeenCalled();
+  });
+
+  it("sets eventsAtHoverValue from exact playback-time containment", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [
+        makeEvent("events/before", 4, 1),
+        makeEvent("events/current", 5, 1),
+        makeEvent("events/after", 6, 1),
+      ],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        currentTime={{ sec: 0, nsec: 0 }}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    act(() => {
+      timelineInteractionStore.getState().setHoverValue({
+        componentId: "test-hover",
+        type: "PLAYBACK_SECONDS",
+        value: 5,
+      });
+    });
+
+    await waitFor(() => {
+      expect(Object.keys(timelineInteractionStore.getState().eventsAtHoverValue).sort()).toEqual([
+        "events/current",
+      ]);
+    });
+  });
+
+  it("matches synchronized chart hovers at fractional boundaries and the recording end", async () => {
+    const startTime = { sec: 1_700_000_000, nsec: 0 };
+    const boundary = { sec: 1_700_001_500, nsec: 123_456_789 };
+    const endTime = { sec: 1_700_003_000, nsec: 123_456_789 };
+    const first = {
+      ...makeEvent("events/first", startTime.sec, 1500),
+      startTime,
+      endTime: boundary,
+    };
+    const second = {
+      ...makeEvent("events/second", boundary.sec, 1500),
+      startTime: boundary,
+      endTime,
+    };
+    const eventsStore = makeEventsStore({
+      events: [first, second],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        startTime={startTime}
+        endTime={endTime}
+        currentTime={startTime}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    for (const time of [boundary, endTime]) {
+      act(() => {
+        timelineInteractionStore.getState().setHoverValue({
+          componentId: "chart-hover",
+          type: "PLAYBACK_SECONDS",
+          value: toSec(subtract(time, startTime)),
+        });
+      });
+
+      await waitFor(() => {
+        expect(Object.keys(timelineInteractionStore.getState().eventsAtHoverValue)).toEqual([
+          "events/second",
+        ]);
+      });
+    }
+  });
+
+  it("matches extension preview boundaries at the precision of the supplied absolute number", async () => {
+    const startTime = { sec: 1_700_000_000, nsec: 123_456_789 };
+    const boundary = { sec: 1_700_000_001, nsec: 987_654_321 };
+    const endTime = { sec: 1_700_000_003, nsec: 123_456_789 };
+    const eventsStore = makeEventsStore({
+      events: [
+        { ...makeEvent("events/first", startTime.sec, 1), startTime, endTime: boundary },
+        { ...makeEvent("events/second", boundary.sec, 2), startTime: boundary, endTime },
+        { ...makeEvent("events/point", boundary.sec, 0), startTime: boundary, endTime: boundary },
+      ],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        startTime={startTime}
+        endTime={endTime}
+        currentTime={startTime}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    for (const [time, expected] of [
+      [boundary, ["events/second", "events/point"]],
+      [endTime, ["events/second"]],
+    ] as const) {
+      act(() => {
+        timelineInteractionStore.getState().setHoverValue({
+          componentId: "extension-hover",
+          type: "PLAYBACK_SECONDS",
+          value: toSec(time) - toSec(startTime),
+          absoluteSeconds: toSec(time),
+        });
+      });
+      await waitFor(() => {
+        expect(Object.keys(timelineInteractionStore.getState().eventsAtHoverValue)).toEqual(
+          expected,
+        );
+      });
+    }
+
+    act(() => {
+      timelineInteractionStore.getState().clearHoverValue("extension-hover");
+    });
+    expect(timelineInteractionStore.getState().eventsAtHoverValue).toEqual({});
   });
 });

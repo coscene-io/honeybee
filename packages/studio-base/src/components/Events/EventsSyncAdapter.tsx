@@ -24,6 +24,11 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
+import {
+  isAbsoluteSecondsInEvent,
+  isPlaybackSecondsInEvent,
+  timelineDurationSeconds,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
 import { isTimelineKeyboardEvent } from "@foxglove/studio-base/components/PlaybackControls/timelineKeyboardFocus";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -60,8 +65,6 @@ import {
 } from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
-
-const HOVER_TOLERANCE = 0.01;
 
 const log = Logger.getLogger(__filename);
 
@@ -113,7 +116,7 @@ async function positionEvents(
         endPosition,
         startPosition,
         time: startTimeInSeconds,
-        secondsSinceStart: startTimeInSeconds - startSecs,
+        secondsSinceStart: timelineDurationSeconds(startTime, eventStartTime),
         color: stringToColor(event.record),
         imgUrl,
         recordDisplayName: eventInfo.recordDisplayName,
@@ -281,7 +284,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(subtract(endTime, startTime));
+    return timelineDurationSeconds(startTime, endTime);
   }, [endTime, startTime]);
 
   // Sync events with console API.
@@ -370,19 +373,26 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   // Sync hovered value and hovered events.
   useEffect(() => {
-    if (hoverValue && timeRange != undefined && timeRange > 0) {
-      const hoverPosition = scale(hoverValue.value, 0, timeRange, 0, 1);
-      const hoveredEvents = (events.value ?? []).filter((event) => {
-        return (
-          hoverPosition >= event.startPosition * (1 - HOVER_TOLERANCE) &&
-          hoverPosition <= event.endPosition * (1 + HOVER_TOLERANCE)
-        );
-      });
+    if (hoverValue && startTime && endTime && timeRange != undefined && timeRange > 0) {
+      const hoveredEvents = (events.value ?? []).filter((event) =>
+        hoverValue.absoluteSeconds != undefined
+          ? isAbsoluteSecondsInEvent({
+              absoluteSeconds: hoverValue.absoluteSeconds,
+              event,
+              recordingEndTime: endTime,
+            })
+          : isPlaybackSecondsInEvent({
+              playbackSeconds: hoverValue.value,
+              event,
+              recordingStartTime: startTime,
+              durationSeconds: timeRange,
+            }),
+      );
       setEventsAtHoverValue(hoveredEvents);
     } else {
       setEventsAtHoverValue([]);
     }
-  }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
+  }, [hoverValue, setEventsAtHoverValue, startTime, endTime, timeRange, events]);
 
   const startTimeRef = useLatest(startTime);
   const endTimeRef = useLatest(endTime);

@@ -7,12 +7,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render, act } from "@testing-library/react";
+import { render, act, screen } from "@testing-library/react";
 
 import { Condvar, signal } from "@foxglove/den/async";
-import { Time } from "@foxglove/rostime";
+import { toSec, Time } from "@foxglove/rostime";
 import { PanelExtensionContext, RenderState, MessageEvent, Immutable } from "@foxglove/studio";
 import MockPanelContextProvider from "@foxglove/studio-base/components/MockPanelContextProvider";
+import { useHoverValue } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { AdvertiseOptions, PlayerCapabilities } from "@foxglove/studio-base/players/types";
 import PanelSetup, { Fixture } from "@foxglove/studio-base/test/PanelSetup";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
@@ -54,6 +55,42 @@ describe("PanelExtensionAdapter", () => {
     // force a re-render to make sure we do not call init panel again
     handle.rerender(<Wrapper />);
     await sig;
+  });
+
+  it("preserves numeric preview timestamps for event matching and clears them on hover exit", () => {
+    const startTime = { sec: 1_700_000_000, nsec: 123_456_789 };
+    const boundary = { sec: 1_700_000_001, nsec: 987_654_321 };
+    const initPanel = jest.fn((_context: PanelExtensionContext) => {});
+    function HoverProbe(): React.JSX.Element {
+      const hover = useHoverValue();
+      return <div data-testid="extension-hover">{JSON.stringify(hover) ?? "undefined"}</div>;
+    }
+    render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup fixture={{ activeData: { startTime } }}>
+            <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            <HoverProbe />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+    const context = initPanel.mock.calls[0]![0];
+    for (const time of [startTime, boundary]) {
+      act(() => {
+        context.setPreviewTime(toSec(time));
+      });
+      expect(JSON.parse(screen.getByTestId("extension-hover").textContent)).toEqual({
+        type: "PLAYBACK_SECONDS",
+        componentId: "PanelExtensionAdatper",
+        value: toSec(time) - toSec(startTime),
+        absoluteSeconds: toSec(time),
+      });
+    }
+    act(() => {
+      context.setPreviewTime(undefined);
+    });
+    expect(screen.getByTestId("extension-hover").textContent).toBe("undefined");
   });
 
   it("sets didSeek=true when seeking", async () => {
