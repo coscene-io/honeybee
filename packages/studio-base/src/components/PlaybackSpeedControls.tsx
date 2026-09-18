@@ -39,7 +39,7 @@ const useStyles = makeStyles()((theme) => ({
   popoverPaper: {
     backgroundColor: theme.palette.background.paper,
     borderRadius: 12,
-    padding: theme.spacing(1.5, 2, 2),
+    padding: theme.spacing(1.25, 1.5, 1.5),
   },
 }));
 

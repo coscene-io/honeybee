@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { keyframes } from "@emotion/react";
 import { Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -29,21 +30,47 @@ export type PlaybackSpeedSliderProps = {
   onCancel: () => void;
 };
 
-const PARTICLES: ReadonlyArray<{ left: string; top: string; minFraction: number }> = [
-  { left: "14%", top: "38%", minFraction: 0.12 },
-  { left: "28%", top: "62%", minFraction: 0.28 },
-  { left: "42%", top: "32%", minFraction: 0.4 },
-  { left: "56%", top: "58%", minFraction: 0.52 },
-  { left: "70%", top: "36%", minFraction: 0.68 },
-  { left: "84%", top: "54%", minFraction: 0.82 },
+const TRACK_HEIGHT_PX = 20;
+// Cap-style thumb: same diameter as the track height so it reads as the fill's end cap.
+const THUMB_SIZE_PX = 20;
+
+// Particles stream left-to-right inside the fill towards the thumb. Each lane spans the
+// full fill width, so a lane-level `translateX(100%)` carries its dot exactly one fill
+// width — no pixel measurements needed and the animation stays transform-only.
+const PARTICLE_LANES: ReadonlyArray<{
+  /** Lane center line, px from the track's top edge. */
+  top: number;
+  /** Dot diameter (or streak height), px. */
+  size: number;
+  /** Streak width in px; renders a round dot when undefined. */
+  width?: number;
+  /** Base seconds per crossing at 1× speed factor. */
+  duration: number;
+  /** Negative phase offset in seconds so lanes stay desynchronized. */
+  delay: number;
+}> = [
+  { top: 4, size: 2, duration: 2.6, delay: -0.5 },
+  { top: 8, size: 3, duration: 3.4, delay: -1.8 },
+  { top: 12, size: 2, width: 8, duration: 2.2, delay: -1.1 },
+  { top: 16, size: 2, duration: 3.0, delay: -2.6 },
+  { top: 6, size: 2, duration: 2.8, delay: -0.9 },
+  { top: 14, size: 3, duration: 3.6, delay: -2.2 },
+  { top: 10, size: 2, width: 6, duration: 2.4, delay: -1.5 },
 ];
+
+const particleFlow = keyframes`
+  0% { transform: translateX(-12px); opacity: 0; }
+  15% { opacity: 0.9; }
+  85% { opacity: 0.9; }
+  100% { transform: translateX(100%); opacity: 0; }
+`;
 
 const useStyles = makeStyles()((theme) => ({
   root: {
     display: "flex",
     flexDirection: "column",
-    gap: theme.spacing(1.5),
-    minWidth: 228,
+    gap: theme.spacing(1),
+    minWidth: 200,
     userSelect: "none",
   },
   value: {
@@ -57,7 +84,7 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: alpha(theme.palette.primary.main, 0.16),
     borderRadius: 999,
     cursor: "ew-resize",
-    height: 28,
+    height: TRACK_HEIGHT_PX,
     outline: "none",
     position: "relative",
     touchAction: "none",
@@ -69,7 +96,7 @@ const useStyles = makeStyles()((theme) => ({
   fill: {
     background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.55)}, ${theme.palette.primary.main})`,
     borderRadius: 999,
-    boxShadow: `0 0 12px ${alpha(theme.palette.primary.main, 0.45)}`,
+    boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.45)}`,
     height: "100%",
     left: 0,
     overflow: "hidden",
@@ -77,29 +104,45 @@ const useStyles = makeStyles()((theme) => ({
     position: "absolute",
     top: 0,
   },
-  particle: {
-    backgroundColor: alpha(theme.palette.common.white, 0.7),
-    borderRadius: "50%",
-    height: 3,
+  fillSettled: {
+    transition: "width 100ms ease-out",
+  },
+  particleLane: {
+    animation: `${particleFlow} linear infinite`,
+    height: 0,
+    left: 0,
     pointerEvents: "none",
     position: "absolute",
-    width: 3,
+    right: 0,
+    willChange: "transform",
+    "@media (prefers-reduced-motion: reduce)": {
+      display: "none",
+    },
+  },
+  particleDot: {
+    backgroundColor: alpha(theme.palette.common.white, 0.75),
+    borderRadius: 999,
+    boxShadow: `0 0 3px ${alpha(theme.palette.common.white, 0.5)}`,
+    left: 0,
+    position: "absolute",
   },
   thumb: {
     backgroundColor: theme.palette.common.white,
     borderRadius: "50%",
     boxShadow: theme.shadows[2],
-    height: 18,
-    marginTop: -9,
+    height: THUMB_SIZE_PX,
+    marginTop: -THUMB_SIZE_PX / 2,
     pointerEvents: "none",
     position: "absolute",
     top: "50%",
-    transform: "translateX(-50%)",
     transition: "transform 80ms ease-out",
-    width: 18,
+    width: THUMB_SIZE_PX,
+  },
+  thumbSettled: {
+    transition: "left 100ms ease-out, transform 80ms ease-out",
   },
   thumbActive: {
-    transform: "translateX(-50%) scale(1.08)",
+    transform: "scale(1.08)",
   },
 }));
 
@@ -117,6 +160,14 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
   const activePointerIdRef = useRef<number | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
   const fraction = playbackSpeedToFraction(value);
+
+  // Particle flow speeds up as the previewed speed increases (0.6 at 0.01×, 2.5 at 10×).
+  const speedFactor = 0.6 + fraction * 1.9;
+  // The thumb travels fully inside the track: its left edge goes from 0 to
+  // (track width - thumb size), and the fill always extends to the thumb's center.
+  const thumbTravel = `${fraction * 100}% - ${fraction * THUMB_SIZE_PX}px`;
+  const thumbLeft = `calc(${thumbTravel})`;
+  const fillWidth = `calc(${thumbTravel} + ${THUMB_SIZE_PX / 2}px)`;
 
   const stopDragging = useCallback(() => {
     draggingRef.current = false;
@@ -192,7 +243,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
 
   return (
     <div className={classes.root}>
-      <Typography className={classes.value} variant="h6" component="div">
+      <Typography className={classes.value} variant="subtitle1" component="div">
         {formatPlaybackSpeed(value)}
       </Typography>
       <div
@@ -254,18 +305,38 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
           }
         }}
       >
-        <div className={classes.fill} style={{ width: `${fraction * 100}%` }}>
-          {PARTICLES.filter((particle) => fraction >= particle.minFraction).map((particle) => (
+        <div
+          className={cx(classes.fill, !dragging && classes.fillSettled)}
+          style={{ width: fillWidth }}
+        >
+          {PARTICLE_LANES.map((lane) => (
             <span
-              key={particle.left}
-              className={classes.particle}
-              style={{ left: particle.left, top: particle.top }}
-            />
+              key={lane.top}
+              className={classes.particleLane}
+              style={{
+                animationDelay: `${lane.delay}s`,
+                animationDuration: `${lane.duration / speedFactor}s`,
+                top: lane.top,
+              }}
+            >
+              <span
+                className={classes.particleDot}
+                style={{
+                  height: lane.size,
+                  top: -lane.size / 2,
+                  width: lane.width ?? lane.size,
+                }}
+              />
+            </span>
           ))}
         </div>
         <div
-          className={cx(classes.thumb, dragging && classes.thumbActive)}
-          style={{ left: `${fraction * 100}%` }}
+          className={cx(
+            classes.thumb,
+            dragging && classes.thumbActive,
+            !dragging && classes.thumbSettled,
+          )}
+          style={{ left: thumbLeft }}
         />
       </div>
     </div>
