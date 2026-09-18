@@ -188,6 +188,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
   const trackRef = useRef<HTMLDivElement>(ReactNull);
   const draggingRef = useRef(false);
   const activePointerIdRef = useRef<number | undefined>(undefined);
+  const dragPositionRef = useRef<{ clientX: number; speed: PlaybackSpeed } | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
   const fraction = playbackSpeedToFraction(value);
 
@@ -202,23 +203,42 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
   const stopDragging = useCallback(() => {
     draggingRef.current = false;
     activePointerIdRef.current = undefined;
+    dragPositionRef.current = undefined;
     setDragging(false);
   }, []);
+
+  const previewAt = useCallback(
+    (clientX: number) => {
+      const track = trackRef.current;
+      if (track == undefined) {
+        return undefined;
+      }
+      // Grow can move the track under a stationary pointer. Retain its last preview
+      // until the pointer actually changes position, including on release.
+      if (dragPositionRef.current?.clientX !== clientX) {
+        const speed = clientXToSpeed(track, clientX);
+        dragPositionRef.current = { clientX, speed };
+        onPreview(speed);
+      }
+      return dragPositionRef.current.speed;
+    },
+    [onPreview],
+  );
 
   const finishDrag = useCallback(
     (next: "commit" | "cancel", clientX?: number) => {
       if (!draggingRef.current) {
         return;
       }
+      const speed = next === "commit" && clientX != undefined ? previewAt(clientX) : undefined;
       stopDragging();
-      const track = trackRef.current;
-      if (next === "commit" && track != undefined && clientX != undefined) {
-        onCommit(clientXToSpeed(track, clientX));
+      if (speed != undefined) {
+        onCommit(speed);
         return;
       }
       onCancel();
     },
-    [onCancel, onCommit, stopDragging],
+    [onCancel, onCommit, previewAt, stopDragging],
   );
 
   const commitPreset = useCallback(
@@ -256,25 +276,19 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
       if (!isActivePointer(event)) {
         return;
       }
-      const track = trackRef.current;
-      if (track == undefined) {
-        return;
-      }
-      // A pointerup released outside the window is never delivered; the next move with no
-      // buttons pressed means the drag is over — commit where the pointer ended up (same
-      // recovery as MUI's slider) instead of previewing forever on hover.
-      if (event.buttons === 0) {
+      // End when the primary button is released, including chorded-button moves and
+      // recovery after a pointerup was lost outside the window.
+      if ((event.buttons & 1) === 0) {
         finishDrag("commit", event.clientX);
         return;
       }
-      onPreview(clientXToSpeed(track, event.clientX));
+      previewAt(event.clientX);
     };
     const onUp = (event: PointerEvent) => {
       if (!isActivePointer(event)) {
         return;
       }
-      // pointerup fires once per released button: commit on the primary-button release and
-      // ignore secondary releases while another button stays held.
+      // Ignore secondary releases while another button stays held.
       if (event.button !== 0 && event.buttons !== 0) {
         return;
       }
@@ -295,7 +309,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onPointerCancel);
     };
-  }, [finishDrag, onPreview]);
+  }, [finishDrag, previewAt]);
 
   return (
     <div className={classes.root}>
@@ -309,7 +323,15 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
               className={classes.resetButton}
               aria-label={reset.label}
               data-testid={PLAYBACK_SPEED_SLIDER_RESET_TEST_ID}
-              onClick={reset.onReset}
+              onClick={() => {
+                stopDragging();
+                reset.onReset();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === " ") {
+                  event.stopPropagation();
+                }
+              }}
               size="small"
             >
               <RestartAltIcon fontSize="inherit" />
@@ -337,7 +359,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
           activePointerIdRef.current = event.pointerId;
           setDragging(true);
           event.currentTarget.focus();
-          onPreview(clientXToSpeed(event.currentTarget, event.clientX));
+          previewAt(event.clientX);
         }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {

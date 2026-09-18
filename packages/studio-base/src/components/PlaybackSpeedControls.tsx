@@ -119,23 +119,25 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         }}
       >
         <div data-tourid="playback-speed-controls">
-          <PlaybackSpeedSlider
-            value={displaySpeed}
-            ariaLabel={t("playbackSpeed", { ns: "general" })}
-            onPreview={(next) => {
-              setPreviewSpeed(next);
-            }}
-            onCommit={commitSpeed}
-            onCancel={() => {
-              setPreviewSpeed(undefined);
-            }}
-            reset={{
-              label: t("resetToDefault", { ns: "general" }),
-              onReset: () => {
-                commitSpeed(1);
-              },
-            }}
-          />
+          {open && (
+            <PlaybackSpeedSlider
+              value={displaySpeed}
+              ariaLabel={t("playbackSpeed", { ns: "general" })}
+              onPreview={(next) => {
+                setPreviewSpeed(next);
+              }}
+              onCommit={commitSpeed}
+              onCancel={() => {
+                setPreviewSpeed(undefined);
+              }}
+              reset={{
+                label: t("resetToDefault", { ns: "general" }),
+                onReset: () => {
+                  commitSpeed(1);
+                },
+              }}
+            />
+          )}
         </div>
       </Popover>
     </>

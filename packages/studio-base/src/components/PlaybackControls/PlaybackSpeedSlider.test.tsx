@@ -86,7 +86,7 @@ function renderSlider(
 }
 
 function clientXForIndex(index: number): number {
-  return TRACK_LEFT + (index / 25) * TRACK_WIDTH;
+  return TRACK_LEFT + 10 + (index / 25) * (TRACK_WIDTH - 20);
 }
 
 describe("<PlaybackSpeedSlider />", () => {
@@ -113,6 +113,60 @@ describe("<PlaybackSpeedSlider />", () => {
     fireEvent.click(screen.getByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID));
 
     expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the active drag before resetting", () => {
+    const onReset = jest.fn();
+    const { track, onPreview, onCommit, onCancel } = renderSlider({ onReset });
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
+    fireEvent.click(screen.getByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID));
+    onPreview.mockClear();
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(8), buttons: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(onPreview).not.toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("preserves the preview when the opening transition moves under a stationary pointer", () => {
+    const { track, onPreview, onCommit } = renderSlider();
+    const rect = track.getBoundingClientRect();
+    jest.spyOn(track, "getBoundingClientRect").mockReturnValue({
+      bottom: 54,
+      height: 14,
+      left: 150,
+      width: 125,
+      right: 275,
+      top: 40,
+      x: 150,
+      y: 40,
+      toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: 228.6 });
+    expect(onPreview).toHaveBeenLastCalledWith(5.5);
+    jest.spyOn(track, "getBoundingClientRect").mockReturnValue(rect);
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 228.6, buttons: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 228.6 });
+    expect(onPreview).toHaveBeenLastCalledWith(5.5);
+    expect(onCommit).toHaveBeenCalledWith(5.5);
+  });
+
+  it("uses a new release coordinate even without an intermediate move event", () => {
+    const { track, onCommit } = renderSlider();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(16) });
+    expect(onCommit).toHaveBeenCalledWith(5.5);
+  });
+
+  it.each([0, 25])("keeps endpoint thumb %s stable without movement", (index) => {
+    const { track, onPreview, onCommit } = renderSlider();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(index) });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(index) });
+    const expected = index === 0 ? 0.01 : 10;
+    expect(onPreview).toHaveBeenCalledWith(expected);
+    expect(onCommit).toHaveBeenCalledWith(expected);
   });
 
   it("hides the reset button when no reset handler is provided", () => {
@@ -160,18 +214,33 @@ describe("<PlaybackSpeedSlider />", () => {
     expect(onCommit).toHaveBeenCalledWith(10);
   });
 
-  it("commits when the primary button releases while a secondary button is held", () => {
-    const { track, onCommit } = renderSlider();
+  it.each([2, 4])("ends the drag when only secondary buttons %s remain pressed", (buttons) => {
+    const { track, onPreview, onCommit } = renderSlider();
 
     fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
-    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(16), buttons: 3 });
-    fireEvent.pointerUp(window, {
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      clientX: clientXForIndex(16),
+      buttons: 1 | buttons,
+    });
+    // Chorded button releases are pointermove events until the last button is released.
+    fireEvent.pointerMove(window, {
       pointerId: 1,
       clientX: clientXForIndex(16),
       button: 0,
-      buttons: 2,
+      buttons,
     });
+    expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith(5.5);
+    onPreview.mockClear();
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25), buttons });
+    fireEvent.pointerUp(window, {
+      pointerId: 1,
+      clientX: clientXForIndex(25),
+      button: buttons === 2 ? 2 : 1,
+    });
+    expect(onPreview).not.toHaveBeenCalled();
+    expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
   it("maps pointer positions against the layout size while the popover scales open", () => {

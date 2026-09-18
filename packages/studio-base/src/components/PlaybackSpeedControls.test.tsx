@@ -6,8 +6,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import {
   PLAYBACK_SPEED_SLIDER_RESET_TEST_ID,
@@ -80,7 +81,7 @@ function renderControls(): HTMLElement {
 }
 
 function clientXForIndex(index: number): number {
-  return TRACK_LEFT + (index / 25) * TRACK_WIDTH;
+  return TRACK_LEFT + 10 + (index / 25) * (TRACK_WIDTH - 20);
 }
 
 describe("<PlaybackSpeedControls />", () => {
@@ -88,6 +89,10 @@ describe("<PlaybackSpeedControls />", () => {
     renderControls();
     expect(screen.getByRole("slider")).toBeTruthy();
     expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Playback speed" })).toBeTruthy();
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").getAttribute("aria-haspopup")).toBe(
+      "dialog",
+    );
   });
 
   it("focuses the slider when the popover opens", () => {
@@ -136,10 +141,43 @@ describe("<PlaybackSpeedControls />", () => {
     expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
   });
 
+  it("activates reset with Space without invoking global playback shortcuts", () => {
+    const onSpace = jest.fn((event: KeyboardEvent) => {
+      event.preventDefault();
+    });
+    render(<KeyListener global keyDownHandlers={{ Space: onSpace }} />);
+    const track = renderControls();
+    fireEvent.keyDown(track, { key: "End" });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("10");
+    const resetButton = screen.getByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID);
+    act(() => {
+      resetButton.focus();
+    });
+    expect(fireEvent.keyDown(resetButton, { key: " ", code: "Space" })).toBe(true);
+    fireEvent.keyUp(resetButton, { key: " ", code: "Space" });
+    // jsdom does not synthesize the native button click after Space.
+    fireEvent.click(resetButton);
+    expect(onSpace).not.toHaveBeenCalled();
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
+  });
+
   it("restores the committed speed when an in-progress drag is cancelled", () => {
     const track = renderControls();
     fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
     fireEvent.keyDown(track, { key: "Escape" });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
+  });
+
+  it("does not commit a cancelled drag during the popover exit transition", () => {
+    const track = renderControls();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
+    // A second contact can close the popover while the first pointer is still down.
+    const backdrop = document.querySelector(".MuiBackdrop-root")!;
+    fireEvent.mouseDown(backdrop);
+    fireEvent.click(backdrop);
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(16), buttons: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(16) });
     expect(screen.getByTestId("committed-speed").textContent).toBe("1");
     expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
   });
