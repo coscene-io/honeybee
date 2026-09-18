@@ -259,8 +259,21 @@ function firePointerDown(element: Element | Window, clientX: number): void {
   fireEvent(element, new MouseEvent("pointerdown", { bubbles: true, clientX }));
 }
 
+let animationFrameId = 0;
+const animationFrames = new Map<number, FrameRequestCallback>();
+function flushAnimationFrame(): void {
+  act(() => {
+    const callbacks = Array.from(animationFrames.values());
+    animationFrames.clear();
+    callbacks.forEach((callback) => {
+      callback(performance.now());
+    });
+  });
+}
+
 function firePointerMove(clientX: number): void {
   fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX }));
+  flushAnimationFrame();
 }
 
 function firePointerUp(clientX: number): void {
@@ -326,6 +339,16 @@ async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
 }
 
 describe("<EventsOverlay />", () => {
+  beforeEach(() => {
+    animationFrames.clear();
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      animationFrames.set(++animationFrameId, callback);
+      return animationFrameId;
+    });
+    jest.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      animationFrames.delete(id);
+    });
+  });
   afterEach(() => {
     jest.useRealTimers();
   });
@@ -612,6 +635,47 @@ describe("<EventsOverlay />", () => {
         { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
       ]);
     });
+  });
+
+  it("coalesces moves and commits the pointerup coordinate even before the next frame", async () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 200 }));
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 300 }));
+    expect(seekPlayback).not.toHaveBeenCalled();
+    flushAnimationFrame();
+    expect(seekPlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(3));
+    await act(async () => {
+      firePointerUp(500);
+    });
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(5));
+    expect(updateEvent).toHaveBeenCalledTimes(1);
+    expect(updateEvent.mock.calls[0]![0].event.triggerTime.seconds).toBe(BigInt(5));
+    const count = seekPlayback.mock.calls.length;
+    flushAnimationFrame();
+    expect(seekPlayback).toHaveBeenCalledTimes(count);
+  });
+
+  it("cancels pending previews without persisting a cancelled drag", () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 400 }));
+    fireEvent(window, new MouseEvent("pointercancel", { bubbles: true }));
+    flushAnimationFrame();
+    firePointerUp(400);
+    expect(seekPlayback).not.toHaveBeenCalled();
+    expect(updateEvent).not.toHaveBeenCalled();
   });
 
   it("seeks to the pointer time while dragging a moment body", async () => {
