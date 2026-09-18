@@ -1,0 +1,272 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import {
+  createContext,
+  forwardRef,
+  memo,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { VariableSizeList, type ListChildComponentProps } from "react-window";
+
+export type WindowedItem = { key: string; estimatedSize: number; content: React.ReactNode };
+type RowData = {
+  items: WindowedItem[];
+  horizontal: boolean;
+  measure: (index: number, size: number) => void;
+  pin: (index: number) => void;
+  styles: Map<string, React.CSSProperties>;
+};
+const PinnedContext = createContext<{ data: RowData; index: number | undefined } | undefined>(
+  undefined,
+);
+
+const Row = memo(function Row({ index, style, data }: ListChildComponentProps<RowData>) {
+  const item = data.items[index]!;
+  const ref = useRef<HTMLDivElement>(ReactNull);
+  data.styles.set(item.key, style);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element == undefined || data.horizontal) {
+      return;
+    }
+    const update = () => {
+      const size = element.getBoundingClientRect().height;
+      if (size > 0) {
+        data.measure(index, size);
+      }
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    update();
+    return () => {
+      observer.disconnect();
+    };
+  }, [data, index]);
+  return (
+    <div
+      style={style}
+      onPointerDownCapture={() => {
+        data.pin(index);
+      }}
+      onFocusCapture={() => {
+        data.pin(index);
+      }}
+    >
+      <div ref={ref} style={data.horizontal ? { height: "100%" } : undefined}>
+        {item.content}
+      </div>
+    </div>
+  );
+});
+
+// Keep an active row in the same React parent when it leaves the render window.
+// Its key/type remain identical, preserving local state, focus and portalled controls.
+const Inner = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function Inner(
+  { children, ...props },
+  ref,
+) {
+  const pinned = useContext(PinnedContext);
+  const rows = Array.isArray(children)
+    ? (children as React.ReactElement<ListChildComponentProps<RowData>>[])
+    : [];
+  const index = pinned?.index;
+  const item = index == undefined ? undefined : pinned?.data.items[index];
+  const extra =
+    pinned != undefined &&
+    index != undefined &&
+    item != undefined &&
+    !rows.some((row) => row.props.index === index) ? (
+      <Row
+        key={item.key}
+        data={pinned.data}
+        index={index}
+        style={{
+          ...(pinned.data.styles.get(item.key) ?? { position: "absolute", top: 0 }),
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
+    ) : undefined;
+  return (
+    <div {...props} ref={ref}>
+      {extra == undefined ? rows : [...rows, extra]}
+    </div>
+  );
+});
+
+/** The same windowing primitive supports variable-height sidebar rows and fixed-width cards. */
+export function WindowedList({
+  items,
+  horizontal = false,
+  scrollToKey,
+  resetKey,
+}: {
+  items: WindowedItem[];
+  horizontal?: boolean;
+  scrollToKey?: string;
+  resetKey?: unknown;
+}): React.JSX.Element {
+  const root = useRef<HTMLDivElement>(ReactNull);
+  const outer = useRef<HTMLDivElement>(ReactNull);
+  const list = useRef<VariableSizeList<RowData>>(ReactNull);
+  const sizes = useRef(new Map<string, number>());
+  const styles = useRef(new Map<string, React.CSSProperties>());
+  const scrollOffset = useRef(0);
+  const visibleStart = useRef(0);
+  const [bounds, setBounds] = useState({ width: 300, height: horizontal ? 50 : 600 });
+  const [pinnedKey, setPinnedKey] = useState<string | undefined>();
+  const indices = useMemo(() => new Map(items.map((item, index) => [item.key, index])), [items]);
+  useLayoutEffect(() => {
+    const element = root.current;
+    if (element == undefined) {
+      return;
+    }
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setBounds((old) =>
+          old.width === rect.width && old.height === rect.height
+            ? old
+            : { width: rect.width, height: rect.height },
+        );
+      }
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  const previousItems = useRef(items);
+  const previousMeasurement = useRef({ width: bounds.width, resetKey });
+  useLayoutEffect(() => {
+    const anchorIndex = visibleStart.current;
+    const anchor = previousItems.current[anchorIndex];
+    const anchorStyle = anchor == undefined ? undefined : styles.current.get(anchor.key);
+    const oldPosition = horizontal ? anchorStyle?.left : anchorStyle?.top;
+    const withinRow = typeof oldPosition === "number" ? scrollOffset.current - oldPosition : 0;
+    if (
+      previousMeasurement.current.width !== bounds.width ||
+      previousMeasurement.current.resetKey !== resetKey
+    ) {
+      sizes.current.clear();
+    }
+    previousMeasurement.current = { width: bounds.width, resetKey };
+    for (const key of sizes.current.keys()) {
+      if (!indices.has(key)) {
+        sizes.current.delete(key);
+      }
+    }
+    for (const key of styles.current.keys()) {
+      if (!indices.has(key)) {
+        styles.current.delete(key);
+      }
+    }
+    list.current?.resetAfterIndex(0, false);
+    if (anchor != undefined && scrollOffset.current > 0) {
+      const nextIndex = indices.get(anchor.key) ?? Math.min(anchorIndex, items.length - 1);
+      const nextAnchor = items[nextIndex];
+      const nextSize =
+        nextAnchor == undefined
+          ? 1
+          : (sizes.current.get(nextAnchor.key) ?? nextAnchor.estimatedSize);
+      let nextOffset = Math.max(0, Math.min(withinRow, nextSize - 1));
+      for (let index = 0; index < nextIndex; index++) {
+        const item = items[index]!;
+        nextOffset += sizes.current.get(item.key) ?? item.estimatedSize;
+      }
+      list.current?.scrollTo(Math.max(0, nextOffset));
+    }
+    previousItems.current = items;
+    list.current?.resetAfterIndex(0);
+  }, [bounds.width, resetKey, indices, items, horizontal]);
+  const measure = useCallback(
+    (index: number, size: number) => {
+      const item = items[index];
+      if (item == undefined) {
+        return;
+      }
+      const old = sizes.current.get(item.key) ?? item.estimatedSize;
+      if (old === size) {
+        return;
+      }
+      sizes.current.set(item.key, size);
+      list.current?.resetAfterIndex(index);
+      if (index < visibleStart.current) {
+        scrollOffset.current += size - old;
+        list.current?.scrollTo(scrollOffset.current);
+      }
+    },
+    [items],
+  );
+  const pin = useCallback(
+    (index: number) => {
+      setPinnedKey(items[index]?.key);
+    },
+    [items],
+  );
+  const data = useMemo<RowData>(
+    () => ({ items, horizontal, measure, pin, styles: styles.current }),
+    [items, horizontal, measure, pin],
+  );
+  const pinned = useMemo(
+    () => ({ data, index: pinnedKey == undefined ? undefined : indices.get(pinnedKey) }),
+    [data, indices, pinnedKey],
+  );
+  useLayoutEffect(() => {
+    if (scrollToKey == undefined) {
+      return;
+    }
+    const index = indices.get(scrollToKey);
+    if (index != undefined) {
+      list.current?.scrollToItem(index, horizontal ? "smart" : "center");
+    }
+  }, [scrollToKey, indices, horizontal]);
+  return (
+    <div
+      ref={root}
+      style={{
+        flex: "1 1 auto",
+        minHeight: 0,
+        minWidth: 0,
+        width: "100%",
+        height: horizontal ? 50 : "100%",
+      }}
+    >
+      <PinnedContext.Provider value={pinned}>
+        <VariableSizeList<RowData>
+          ref={list}
+          outerRef={outer}
+          innerElementType={Inner}
+          layout={horizontal ? "horizontal" : "vertical"}
+          width={bounds.width}
+          height={bounds.height}
+          itemCount={items.length}
+          itemData={data}
+          itemKey={(index) => items[index]!.key}
+          itemSize={(index) => sizes.current.get(items[index]!.key) ?? items[index]!.estimatedSize}
+          overscanCount={3}
+          onScroll={(state) => {
+            scrollOffset.current = state.scrollOffset;
+          }}
+          onItemsRendered={(state) => {
+            visibleStart.current = state.visibleStartIndex;
+          }}
+        >
+          {Row}
+        </VariableSizeList>
+      </PinnedContext.Provider>
+    </div>
+  );
+}
