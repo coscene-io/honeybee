@@ -471,4 +471,55 @@ describe("<EventsSyncAdapter />", () => {
       });
     }
   });
+
+  it("matches extension preview boundaries at the precision of the supplied absolute number", async () => {
+    const startTime = { sec: 1_700_000_000, nsec: 123_456_789 };
+    const boundary = { sec: 1_700_000_001, nsec: 987_654_321 };
+    const endTime = { sec: 1_700_000_003, nsec: 123_456_789 };
+    const eventsStore = makeEventsStore({
+      events: [
+        { ...makeEvent("events/first", startTime.sec, 1), startTime, endTime: boundary },
+        { ...makeEvent("events/second", boundary.sec, 2), startTime: boundary, endTime },
+        { ...makeEvent("events/point", boundary.sec, 0), startTime: boundary, endTime: boundary },
+      ],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper
+        startTime={startTime}
+        endTime={endTime}
+        currentTime={startTime}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+
+    for (const [time, expected] of [
+      [boundary, ["events/second", "events/point"]],
+      [endTime, ["events/second"]],
+    ] as const) {
+      act(() => {
+        timelineInteractionStore.getState().setHoverValue({
+          componentId: "extension-hover",
+          type: "PLAYBACK_SECONDS",
+          value: toSec(time) - toSec(startTime),
+          absoluteSeconds: toSec(time),
+        });
+      });
+      await waitFor(() => {
+        expect(Object.keys(timelineInteractionStore.getState().eventsAtHoverValue)).toEqual(
+          expected,
+        );
+      });
+    }
+
+    act(() => {
+      timelineInteractionStore.getState().clearHoverValue("extension-hover");
+    });
+    expect(timelineInteractionStore.getState().eventsAtHoverValue).toEqual({});
+  });
 });

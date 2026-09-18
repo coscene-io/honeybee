@@ -25,6 +25,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
 import {
+  isAbsoluteSecondsInEvent,
   isPlaybackSecondsInEvent,
   timelineDurationSeconds,
 } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
@@ -115,7 +116,7 @@ async function positionEvents(
         endPosition,
         startPosition,
         time: startTimeInSeconds,
-        secondsSinceStart: startTimeInSeconds - startSecs,
+        secondsSinceStart: timelineDurationSeconds(startTime, eventStartTime),
         color: stringToColor(event.record),
         imgUrl,
         recordDisplayName: eventInfo.recordDisplayName,
@@ -372,20 +373,26 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   // Sync hovered value and hovered events.
   useEffect(() => {
-    if (hoverValue && startTime && timeRange != undefined && timeRange > 0) {
+    if (hoverValue && startTime && endTime && timeRange != undefined && timeRange > 0) {
       const hoveredEvents = (events.value ?? []).filter((event) =>
-        isPlaybackSecondsInEvent({
-          playbackSeconds: hoverValue.value,
-          event,
-          recordingStartTime: startTime,
-          durationSeconds: timeRange,
-        }),
+        hoverValue.absoluteSeconds != undefined
+          ? isAbsoluteSecondsInEvent({
+              absoluteSeconds: hoverValue.absoluteSeconds,
+              event,
+              recordingEndTime: endTime,
+            })
+          : isPlaybackSecondsInEvent({
+              playbackSeconds: hoverValue.value,
+              event,
+              recordingStartTime: startTime,
+              durationSeconds: timeRange,
+            }),
       );
       setEventsAtHoverValue(hoveredEvents);
     } else {
       setEventsAtHoverValue([]);
     }
-  }, [hoverValue, setEventsAtHoverValue, startTime, timeRange, events]);
+  }, [hoverValue, setEventsAtHoverValue, startTime, endTime, timeRange, events]);
 
   const startTimeRef = useLatest(startTime);
   const endTimeRef = useLatest(endTime);

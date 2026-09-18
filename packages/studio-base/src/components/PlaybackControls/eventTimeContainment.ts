@@ -29,13 +29,42 @@ export function isPlaybackSecondsInEvent({
   const eventStartSec = timelineDurationSeconds(recordingStartTime, event.startTime);
   const eventEndSec = timelineDurationSeconds(recordingStartTime, event.endTime);
 
+  return isSecondsInRange(playbackSeconds, eventStartSec, eventEndSec, durationSeconds);
+}
+
+/**
+ * Numeric extension timestamps have already lost sub-ULP precision. Compare their bounds at
+ * that same precision rather than inventing nanoseconds by converting the input back to Time.
+ */
+export function isAbsoluteSecondsInEvent({
+  absoluteSeconds,
+  event,
+  recordingEndTime,
+}: {
+  absoluteSeconds: number;
+  event: TimelinePositionedEvent;
+  recordingEndTime: Time;
+}): boolean {
+  return isSecondsInRange(
+    absoluteSeconds,
+    toSec(event.startTime),
+    toSec(event.endTime),
+    toSec(recordingEndTime),
+  );
+}
+
+function isSecondsInRange(
+  seconds: number,
+  eventStartSec: number,
+  eventEndSec: number,
+  timelineEndSec: number,
+): boolean {
   if (eventStartSec === eventEndSec) {
-    return playbackSeconds === eventStartSec;
+    return seconds === eventStartSec;
   }
 
   return (
-    playbackSeconds >= eventStartSec &&
-    (playbackSeconds < eventEndSec ||
-      (playbackSeconds === durationSeconds && eventEndSec === durationSeconds))
+    seconds >= eventStartSec &&
+    (seconds < eventEndSec || (seconds === timelineEndSec && eventEndSec === timelineEndSec))
   );
 }

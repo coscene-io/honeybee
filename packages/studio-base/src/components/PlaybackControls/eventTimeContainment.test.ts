@@ -12,7 +12,11 @@ import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/
 import { add, fromSec, subtract, toSec, type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
-import { isPlaybackSecondsInEvent, timelineDurationSeconds } from "./eventTimeContainment";
+import {
+  isAbsoluteSecondsInEvent,
+  isPlaybackSecondsInEvent,
+  timelineDurationSeconds,
+} from "./eventTimeContainment";
 
 const FIFTY_MINUTES_SEC = 50 * 60;
 
@@ -218,5 +222,45 @@ describe("isPlaybackSecondsInEvent", () => {
     expect(namesAt(boundaryPlayback, [first, second], recordingStart, duration)).toEqual([
       "events/second",
     ]);
+  });
+});
+
+describe("isAbsoluteSecondsInEvent", () => {
+  const recordingStart: Time = { sec: 1_700_000_000, nsec: 123_456_789 };
+  const boundary: Time = { sec: 1_700_000_001, nsec: 987_654_321 };
+  const recordingEnd: Time = { sec: 1_700_000_003, nsec: 123_456_789 };
+  const first = makeAbsoluteEvent("events/first", recordingStart, boundary, recordingStart);
+  const second = makeAbsoluteEvent("events/second", boundary, recordingEnd, recordingStart);
+  const point = makeAbsoluteEvent("events/point", boundary, boundary, recordingStart);
+  // Spacing between adjacent representable numbers at these epoch-scale timestamps.
+  const numberStep = 2 ** -22;
+
+  it.each([
+    [toSec(boundary) - numberStep, ["events/first"]],
+    [toSec(boundary), ["events/second", "events/point"]],
+    [toSec(boundary) + numberStep, ["events/second"]],
+    [toSec(recordingEnd), ["events/second"]],
+    [toSec(recordingEnd) + numberStep, []],
+  ])("matches numeric preview %s without expanding the interval", (absoluteSeconds, expected) => {
+    const names = [first, second, point]
+      .filter((event) =>
+        isAbsoluteSecondsInEvent({ absoluteSeconds, event, recordingEndTime: recordingEnd }),
+      )
+      .map((event) => event.event.name);
+    expect(names).toEqual(expected);
+  });
+
+  it("preserves genuine overlapping events", () => {
+    const wide = makeAbsoluteEvent("events/wide", recordingStart, recordingEnd, recordingStart);
+    const names = [wide, second]
+      .filter((event) =>
+        isAbsoluteSecondsInEvent({
+          absoluteSeconds: toSec(boundary),
+          event,
+          recordingEndTime: recordingEnd,
+        }),
+      )
+      .map((event) => event.event.name);
+    expect(names).toEqual(["events/wide", "events/second"]);
   });
 });
