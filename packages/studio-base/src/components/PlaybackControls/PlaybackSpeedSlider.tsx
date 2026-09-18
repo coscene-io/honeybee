@@ -148,7 +148,14 @@ const useStyles = makeStyles()((theme) => ({
 
 function clientXToSpeed(track: HTMLElement, clientX: number): PlaybackSpeed {
   const rect = track.getBoundingClientRect();
-  const fraction = rect.width === 0 ? 0 : (clientX - rect.left) / rect.width;
+  // The rect reflects the Popover's Grow scale mid-transition while offsetWidth does not;
+  // normalize the pointer position into layout pixels so the inset-thumb math stays exact.
+  const scale = rect.width === 0 ? 1 : track.offsetWidth / rect.width;
+  const localX = (clientX - rect.left) * scale;
+  // The thumb center travels within [THUMB_SIZE_PX / 2, width - THUMB_SIZE_PX / 2], so the
+  // pointer maps against that inset range (fractionToPlaybackSpeed clamps the endpoints).
+  const travel = track.offsetWidth - THUMB_SIZE_PX;
+  const fraction = travel <= 0 ? 0 : (localX - THUMB_SIZE_PX / 2) / travel;
   return fractionToPlaybackSpeed(fraction);
 }
 
@@ -204,6 +211,20 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
     trackRef.current?.focus();
   }, []);
 
+  // If the popover closes mid-drag (e.g. a backdrop tap from a second pointer), the
+  // pending pointerup never arrives — release the preview back to the committed speed.
+  const onCancelRef = useRef(onCancel);
+  useLayoutEffect(() => {
+    onCancelRef.current = onCancel;
+  });
+  useEffect(() => {
+    return () => {
+      if (draggingRef.current) {
+        onCancelRef.current();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const isActivePointer = (event: PointerEvent) =>
       draggingRef.current && event.pointerId === activePointerIdRef.current;
@@ -216,10 +237,22 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
       if (track == undefined) {
         return;
       }
+      // A pointerup released outside the window is never delivered; the next move with no
+      // buttons pressed means the drag is over — commit where the pointer ended up (same
+      // recovery as MUI's slider) instead of previewing forever on hover.
+      if (event.buttons === 0) {
+        finishDrag("commit", event.clientX);
+        return;
+      }
       onPreview(clientXToSpeed(track, event.clientX));
     };
     const onUp = (event: PointerEvent) => {
       if (!isActivePointer(event)) {
+        return;
+      }
+      // pointerup fires once per released button: commit on the primary-button release and
+      // ignore secondary releases while another button stays held.
+      if (event.button !== 0 && event.buttons !== 0) {
         return;
       }
       finishDrag("commit", event.clientX);

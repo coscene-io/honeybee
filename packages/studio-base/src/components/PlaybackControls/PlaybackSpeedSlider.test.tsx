@@ -46,7 +46,7 @@ function renderSlider(
   const onCommit = overrides.onCommit ?? jest.fn();
   const onCancel = overrides.onCancel ?? jest.fn();
 
-  render(
+  const { unmount } = render(
     <ThemeProvider isDark>
       <PlaybackSpeedSlider
         value={overrides.value ?? 1}
@@ -70,8 +70,10 @@ function renderSlider(
     y: 40,
     toJSON: () => ({}),
   });
+  // jsdom has no layout, so offsetWidth is always 0 — mirror the mocked rect width.
+  Object.defineProperty(track, "offsetWidth", { configurable: true, value: TRACK_WIDTH });
 
-  return { track, onPreview, onCommit, onCancel };
+  return { track, onPreview, onCommit, onCancel, unmount };
 }
 
 function clientXForIndex(index: number): number {
@@ -86,12 +88,103 @@ describe("<PlaybackSpeedSlider />", () => {
     expect(onPreview).toHaveBeenCalledWith(1.5);
     expect(onCommit).not.toHaveBeenCalled();
 
-    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25) });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25), buttons: 1 });
     expect(onPreview).toHaveBeenCalledWith(10);
     expect(onCommit).not.toHaveBeenCalled();
 
     fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(25) });
     expect(onCommit).toHaveBeenCalledWith(10);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("commits and ends the drag when a move reports no buttons pressed (lost pointerup)", () => {
+    const { track, onPreview, onCommit, onCancel } = renderSlider();
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(onPreview).toHaveBeenCalledWith(1.5);
+
+    // The pointerup was lost (released outside the window): the next hover move reports
+    // buttons 0, so the drag commits there instead of following the cursor forever.
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25), buttons: 0 });
+    expect(onCommit).toHaveBeenCalledWith(10);
+    expect(onCancel).not.toHaveBeenCalled();
+
+    onPreview.mockClear();
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(0), buttons: 0 });
+    expect(onPreview).not.toHaveBeenCalled();
+  });
+
+  it("ignores a secondary button release while the primary button stays held", () => {
+    const { track, onPreview, onCommit } = renderSlider();
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(16), buttons: 1 });
+
+    // Right button released mid-drag: buttons still reports the held primary button.
+    fireEvent.pointerUp(window, {
+      pointerId: 1,
+      clientX: clientXForIndex(16),
+      button: 2,
+      buttons: 1,
+    });
+    expect(onCommit).not.toHaveBeenCalled();
+
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25), buttons: 1 });
+    expect(onPreview).toHaveBeenCalledWith(10);
+
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(25), buttons: 0 });
+    expect(onCommit).toHaveBeenCalledWith(10);
+  });
+
+  it("commits when the primary button releases while a secondary button is held", () => {
+    const { track, onCommit } = renderSlider();
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(16), buttons: 3 });
+    fireEvent.pointerUp(window, {
+      pointerId: 1,
+      clientX: clientXForIndex(16),
+      button: 0,
+      buttons: 2,
+    });
+    expect(onCommit).toHaveBeenCalledWith(5.5);
+  });
+
+  it("maps pointer positions against the layout size while the popover scales open", () => {
+    const { track, onPreview } = renderSlider();
+
+    // Mid Grow transition the rendered rect is half the layout size (offsetWidth stays 250).
+    jest.spyOn(track, "getBoundingClientRect").mockReturnValue({
+      bottom: 54,
+      height: 14,
+      left: 150,
+      right: 275,
+      top: 40,
+      width: 125,
+      x: 150,
+      y: 40,
+      toJSON: () => ({}),
+    });
+
+    // Layout x for index 16 is 10 + (16 / 25) * (250 - 20) = 157.2, rendered at
+    // clientX 150 + 157.2 * 0.5 = 228.6.
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: 228.6 });
+    expect(onPreview).toHaveBeenCalledWith(5.5);
+  });
+
+  it("cancels the preview when unmounted mid-drag", () => {
+    const { track, onCommit, onCancel, unmount } = renderSlider();
+
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    unmount();
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel on unmount when no drag is in progress", () => {
+    const { onCancel, unmount } = renderSlider();
+    unmount();
     expect(onCancel).not.toHaveBeenCalled();
   });
 

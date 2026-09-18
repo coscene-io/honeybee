@@ -81,7 +81,7 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
           className={classes.button}
           id="playback-speed-button"
           aria-label={`${t("playbackSpeed", { ns: "general" })} ${formatPlaybackSpeed(displaySpeed)}`}
-          aria-haspopup="true"
+          aria-haspopup="dialog"
           aria-expanded={open ? "true" : undefined}
           aria-controls={open ? "playback-speed-popover" : undefined}
           onClick={(event) => {
@@ -107,6 +107,8 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
         slotProps={{
           paper: {
             className: classes.popoverPaper,
+            role: "dialog",
+            "aria-label": t("playbackSpeed", { ns: "general" }),
             square: false,
           },
         }}

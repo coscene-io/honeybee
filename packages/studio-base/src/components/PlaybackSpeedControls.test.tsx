@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import { PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID } from "@foxglove/studio-base/components/PlaybackControls/PlaybackSpeedSlider";
@@ -71,6 +71,8 @@ function renderControls(): HTMLElement {
     y: 40,
     toJSON: () => ({}),
   });
+  // jsdom has no layout, so offsetWidth is always 0 — mirror the mocked rect width.
+  Object.defineProperty(track, "offsetWidth", { configurable: true, value: TRACK_WIDTH });
   return track;
 }
 
@@ -93,7 +95,7 @@ describe("<PlaybackSpeedControls />", () => {
   it("does not commit workspace speed while dragging", () => {
     const track = renderControls();
     fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
-    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25) });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: clientXForIndex(25), buttons: 1 });
     expect(screen.getByTestId("committed-speed").textContent).toBe("1");
     expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("10×");
   });
@@ -111,5 +113,14 @@ describe("<PlaybackSpeedControls />", () => {
     fireEvent.keyDown(track, { key: "Escape" });
     expect(screen.getByTestId("committed-speed").textContent).toBe("1");
     expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
+  });
+
+  it("closes the popover on Escape when no drag is in progress", async () => {
+    const track = renderControls();
+    fireEvent.keyDown(track, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByTestId(PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID)).toBeNull();
+    });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
   });
 });
