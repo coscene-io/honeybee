@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { keyframes } from "@emotion/react";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -41,37 +40,6 @@ export type PlaybackSpeedSliderProps = {
 const TRACK_HEIGHT_PX = 20;
 // Cap-style thumb: same diameter as the track height so it reads as the fill's end cap.
 const THUMB_SIZE_PX = 20;
-
-// Particles stream left-to-right inside the fill towards the thumb. Each lane spans the
-// full fill width, so a lane-level `translateX(100%)` carries its dot exactly one fill
-// width — no pixel measurements needed and the animation stays transform-only.
-const PARTICLE_LANES: ReadonlyArray<{
-  /** Lane center line, px from the track's top edge. */
-  top: number;
-  /** Dot diameter (or streak height), px. */
-  size: number;
-  /** Streak width in px; renders a round dot when undefined. */
-  width?: number;
-  /** Base seconds per crossing at 1× speed factor. */
-  duration: number;
-  /** Negative phase offset in seconds so lanes stay desynchronized. */
-  delay: number;
-}> = [
-  { top: 4, size: 2, duration: 2.6, delay: -0.5 },
-  { top: 8, size: 3, duration: 3.4, delay: -1.8 },
-  { top: 12, size: 2, width: 8, duration: 2.2, delay: -1.1 },
-  { top: 16, size: 2, duration: 3.0, delay: -2.6 },
-  { top: 6, size: 2, duration: 2.8, delay: -0.9 },
-  { top: 14, size: 3, duration: 3.6, delay: -2.2 },
-  { top: 10, size: 2, width: 6, duration: 2.4, delay: -1.5 },
-];
-
-const particleFlow = keyframes`
-  0% { transform: translateX(-12px); opacity: 0; }
-  15% { opacity: 0.9; }
-  85% { opacity: 0.9; }
-  100% { transform: translateX(100%); opacity: 0; }
-`;
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -130,25 +98,6 @@ const useStyles = makeStyles()((theme) => ({
   fillSettled: {
     transition: "width 100ms ease-out",
   },
-  particleLane: {
-    animation: `${particleFlow} linear infinite`,
-    height: 0,
-    left: 0,
-    pointerEvents: "none",
-    position: "absolute",
-    right: 0,
-    willChange: "transform",
-    "@media (prefers-reduced-motion: reduce)": {
-      display: "none",
-    },
-  },
-  particleDot: {
-    backgroundColor: alpha(theme.palette.common.white, 0.75),
-    borderRadius: 999,
-    boxShadow: `0 0 3px ${alpha(theme.palette.common.white, 0.5)}`,
-    left: 0,
-    position: "absolute",
-  },
   thumb: {
     backgroundColor: theme.palette.common.white,
     borderRadius: "50%",
@@ -192,8 +141,6 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
   const [dragging, setDragging] = useState(false);
   const fraction = playbackSpeedToFraction(value);
 
-  // Particle flow speeds up as the previewed speed increases (0.6 at 0.01×, 2.5 at 10×).
-  const speedFactor = 0.6 + fraction * 1.9;
   // The thumb travels fully inside the track: its left edge goes from 0 to
   // (track width - thumb size), and the fill always extends to the thumb's center.
   const thumbTravel = `${fraction * 100}% - ${fraction * THUMB_SIZE_PX}px`;
@@ -401,28 +348,7 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
         <div
           className={cx(classes.fill, !dragging && classes.fillSettled)}
           style={{ width: fillWidth }}
-        >
-          {PARTICLE_LANES.map((lane) => (
-            <span
-              key={lane.top}
-              className={classes.particleLane}
-              style={{
-                animationDelay: `${lane.delay}s`,
-                animationDuration: `${lane.duration / speedFactor}s`,
-                top: lane.top,
-              }}
-            >
-              <span
-                className={classes.particleDot}
-                style={{
-                  height: lane.size,
-                  top: -lane.size / 2,
-                  width: lane.width ?? lane.size,
-                }}
-              />
-            </span>
-          ))}
-        </div>
+        />
         <div
           className={cx(
             classes.thumb,

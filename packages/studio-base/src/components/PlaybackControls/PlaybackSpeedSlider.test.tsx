@@ -374,4 +374,12 @@ describe("<PlaybackSpeedSlider />", () => {
       document.removeEventListener("keydown", onDocumentKeyDown);
     }
   });
+
+  it("does not render particle animation inside the track fill", () => {
+    const { track } = renderSlider();
+    const fill = track.firstElementChild;
+
+    expect(fill).not.toBeNull();
+    expect(fill!.querySelectorAll("span")).toHaveLength(0);
+  });
 });
