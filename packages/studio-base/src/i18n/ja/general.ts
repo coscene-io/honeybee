@@ -21,5 +21,6 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   decreaseMomentSubtitleFontSize: "Decrease subtitle font size",
   increaseMomentSubtitleFontSize: "Increase subtitle font size",
   resetMomentSubtitlePosition: "Reset subtitle position",
+  resetToDefault: "Reset to default",
   panTimeline: "Pan timeline",
 };

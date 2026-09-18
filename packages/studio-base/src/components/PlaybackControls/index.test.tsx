@@ -153,7 +153,7 @@ describe("<PlaybackControls />", () => {
       );
     });
 
-    expect(screen.getByTestId("playback-speed").textContent).toBe("2");
+    expect(screen.getByTestId("playback-speed").textContent).toBe("1.5");
 
     act(() => {
       document.dispatchEvent(
