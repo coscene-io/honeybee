@@ -1122,12 +1122,14 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       return;
     }
 
+    // Viewport is 0-based playback seconds (makeTimelineViewport(0, recordingDuration)), so
+    // timeRange equals toSec(endTime) - toSec(startTime) on the same axis as event bounds.
     const matchingEvents = (events.value ?? []).filter((event) =>
       isPlaybackSecondsInEvent({
         playbackSeconds: eventContextMenuRequest.playbackSeconds,
         event,
         recordingStartTime: startTime,
-        timelineDurationSeconds: timeRange,
+        durationSeconds: timeRange,
       }),
     );
 

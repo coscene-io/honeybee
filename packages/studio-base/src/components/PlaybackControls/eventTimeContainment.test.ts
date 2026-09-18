@@ -80,7 +80,7 @@ function namesAt(
         playbackSeconds,
         event,
         recordingStartTime,
-        timelineDurationSeconds: durationSeconds,
+        durationSeconds,
       }),
     )
     .map((event) => event.event.name);
@@ -130,7 +130,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: 1500,
         event,
         recordingStartTime: ZERO_START,
-        timelineDurationSeconds: FIFTY_MINUTES_SEC,
+        durationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(true);
     expect(
@@ -138,7 +138,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: 1500.001,
         event,
         recordingStartTime: ZERO_START,
-        timelineDurationSeconds: FIFTY_MINUTES_SEC,
+        durationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(false);
   });
@@ -151,7 +151,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: FIFTY_MINUTES_SEC,
         event,
         recordingStartTime: ZERO_START,
-        timelineDurationSeconds: FIFTY_MINUTES_SEC,
+        durationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(true);
   });
@@ -168,7 +168,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: originDuration,
         event,
         recordingStartTime: recordingStart,
-        timelineDurationSeconds: originDuration,
+        durationSeconds: originDuration,
       }),
     ).toBe(true);
 
@@ -190,7 +190,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: originDuration,
         event,
         recordingStartTime: recordingStart,
-        timelineDurationSeconds: originDuration,
+        durationSeconds: originDuration,
       }),
     ).toBe(true);
     expect(
@@ -198,7 +198,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: subtractDuration,
         event,
         recordingStartTime: recordingStart,
-        timelineDurationSeconds: originDuration,
+        durationSeconds: originDuration,
       }),
     ).toBe(false);
 
@@ -209,7 +209,7 @@ describe("isPlaybackSecondsInEvent", () => {
         playbackSeconds: roundTrippedHover,
         event,
         recordingStartTime: recordingStart,
-        timelineDurationSeconds: originDuration,
+        durationSeconds: originDuration,
       }),
     ).toBe(false);
   });

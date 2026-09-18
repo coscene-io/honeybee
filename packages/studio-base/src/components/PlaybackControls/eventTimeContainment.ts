@@ -17,12 +17,12 @@ export function isPlaybackSecondsInEvent({
   playbackSeconds,
   event,
   recordingStartTime,
-  timelineDurationSeconds,
+  durationSeconds,
 }: {
   playbackSeconds: number;
   event: TimelinePositionedEvent;
   recordingStartTime: Time;
-  timelineDurationSeconds: number;
+  durationSeconds: number;
 }): boolean {
   // Keep both bounds on toSec(absolute) - toSec(recordingStart). Reconstructing the origin
   // as toSec(event.startTime) - secondsSinceStart drifts on leftover nanos and can match
@@ -38,6 +38,6 @@ export function isPlaybackSecondsInEvent({
   return (
     playbackSeconds >= eventStartSec &&
     (playbackSeconds < eventEndSec ||
-      (playbackSeconds === timelineDurationSeconds && eventEndSec === timelineDurationSeconds))
+      (playbackSeconds === durationSeconds && eventEndSec === durationSeconds))
   );
 }

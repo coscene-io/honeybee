@@ -378,7 +378,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
           playbackSeconds: hoverValue.value,
           event,
           recordingStartTime: startTime,
-          timelineDurationSeconds: timeRange,
+          durationSeconds: timeRange,
         }),
       );
       setEventsAtHoverValue(hoveredEvents);

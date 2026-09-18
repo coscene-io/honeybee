@@ -247,7 +247,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
           playbackSeconds,
           event,
           recordingStartTime: startTime,
-          timelineDurationSeconds: durationSeconds,
+          durationSeconds,
         }),
       )
       .sort((left, right) => {
