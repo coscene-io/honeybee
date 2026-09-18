@@ -62,6 +62,11 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
     }
   }, [speed, setPlaybackSpeed]);
 
+  const commitSpeed = (next: PlaybackSpeed) => {
+    setSpeed(next);
+    setPreviewSpeed(undefined);
+  };
+
   const handleClose = () => {
     setPreviewSpeed(undefined);
     setAnchorEl(undefined);
@@ -120,12 +125,15 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
             onPreview={(next) => {
               setPreviewSpeed(next);
             }}
-            onCommit={(next) => {
-              setSpeed(next);
-              setPreviewSpeed(undefined);
-            }}
+            onCommit={commitSpeed}
             onCancel={() => {
               setPreviewSpeed(undefined);
+            }}
+            reset={{
+              label: t("resetToDefault", { ns: "general" }),
+              onReset: () => {
+                commitSpeed(1);
+              },
             }}
           />
         </div>

@@ -6,7 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { keyframes } from "@emotion/react";
-import { Typography } from "@mui/material";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import { IconButton, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { makeStyles } from "tss-react/mui";
@@ -21,6 +22,7 @@ import {
 import { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
 export const PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID = "PlaybackSpeedSlider-Track";
+export const PLAYBACK_SPEED_SLIDER_RESET_TEST_ID = "PlaybackSpeedSlider-Reset";
 
 export type PlaybackSpeedSliderProps = {
   value: PlaybackSpeed;
@@ -28,6 +30,12 @@ export type PlaybackSpeedSliderProps = {
   onPreview: (speed: PlaybackSpeed) => void;
   onCommit: (speed: PlaybackSpeed) => void;
   onCancel: () => void;
+  /** When set, a header button resets the speed to the parent's default (e.g. 1×). */
+  reset?: {
+    /** Tooltip text and aria-label for the button. */
+    label: string;
+    onReset: () => void;
+  };
 };
 
 const TRACK_HEIGHT_PX = 20;
@@ -72,6 +80,21 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(1),
     minWidth: 200,
     userSelect: "none",
+  },
+  header: {
+    position: "relative",
+  },
+  resetButton: {
+    color: theme.palette.text.secondary,
+    fontSize: 16,
+    padding: theme.spacing(0.25),
+    position: "absolute",
+    right: 0,
+    top: "50%",
+    transform: "translateY(-50%)",
+    ":hover": {
+      color: theme.palette.text.primary,
+    },
   },
   value: {
     color: theme.palette.primary.main,
@@ -160,7 +183,7 @@ function clientXToSpeed(track: HTMLElement, clientX: number): PlaybackSpeed {
 }
 
 function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element {
-  const { value, ariaLabel, onPreview, onCommit, onCancel } = props;
+  const { value, ariaLabel, onPreview, onCommit, onCancel, reset } = props;
   const { classes, cx } = useStyles();
   const trackRef = useRef<HTMLDivElement>(ReactNull);
   const draggingRef = useRef(false);
@@ -276,9 +299,24 @@ function PlaybackSpeedSlider(props: PlaybackSpeedSliderProps): React.JSX.Element
 
   return (
     <div className={classes.root}>
-      <Typography className={classes.value} variant="subtitle1" component="div">
-        {formatPlaybackSpeed(value)}
-      </Typography>
+      <div className={classes.header}>
+        <Typography className={classes.value} variant="subtitle1" component="div">
+          {formatPlaybackSpeed(value)}
+        </Typography>
+        {reset != undefined && (
+          <Tooltip title={reset.label}>
+            <IconButton
+              className={classes.resetButton}
+              aria-label={reset.label}
+              data-testid={PLAYBACK_SPEED_SLIDER_RESET_TEST_ID}
+              onClick={reset.onReset}
+              size="small"
+            >
+              <RestartAltIcon fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </div>
       <div
         ref={trackRef}
         className={classes.track}

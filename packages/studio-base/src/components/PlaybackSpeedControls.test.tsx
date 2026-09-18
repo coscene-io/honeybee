@@ -9,7 +9,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
-import { PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID } from "@foxglove/studio-base/components/PlaybackControls/PlaybackSpeedSlider";
+import {
+  PLAYBACK_SPEED_SLIDER_RESET_TEST_ID,
+  PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID,
+} from "@foxglove/studio-base/components/PlaybackControls/PlaybackSpeedSlider";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
@@ -105,6 +108,32 @@ describe("<PlaybackSpeedControls />", () => {
     fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
     fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(8) });
     expect(screen.getByTestId("committed-speed").textContent).toBe("1.5");
+  });
+
+  it("resets to 1× when the reset button is clicked", () => {
+    const track = renderControls();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(8) });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(8) });
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1.5");
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1.5×");
+
+    fireEvent.click(screen.getByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID));
+
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
+    // The popover stays open so the slider can be adjusted again right away.
+    expect(screen.getByTestId(PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID)).toBeTruthy();
+  });
+
+  it("clears an in-progress preview when the reset button is clicked", () => {
+    const track = renderControls();
+    fireEvent.pointerDown(track, { pointerId: 1, clientX: clientXForIndex(25) });
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("10×");
+
+    fireEvent.click(screen.getByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID));
+
+    expect(screen.getByTestId("committed-speed").textContent).toBe("1");
+    expect(screen.getByTestId("PlaybackSpeedControls-Dropdown").textContent).toBe("1×");
   });
 
   it("restores the committed speed when an in-progress drag is cancelled", () => {

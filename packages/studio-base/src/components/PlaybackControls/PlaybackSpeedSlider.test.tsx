@@ -10,7 +10,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
-import PlaybackSpeedSlider, { PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID } from "./PlaybackSpeedSlider";
+import PlaybackSpeedSlider, {
+  PLAYBACK_SPEED_SLIDER_RESET_TEST_ID,
+  PLAYBACK_SPEED_SLIDER_TRACK_TEST_ID,
+} from "./PlaybackSpeedSlider";
 
 // jsdom 26 does not implement PointerEvent, so fireEvent.pointer* would otherwise
 // construct a generic Event without clientX.
@@ -40,6 +43,7 @@ function renderSlider(
     onPreview?: jest.Mock;
     onCommit?: jest.Mock;
     onCancel?: jest.Mock;
+    onReset?: jest.Mock;
   } = {},
 ) {
   const onPreview = overrides.onPreview ?? jest.fn();
@@ -54,6 +58,11 @@ function renderSlider(
         onPreview={onPreview}
         onCommit={onCommit}
         onCancel={onCancel}
+        reset={
+          overrides.onReset != undefined
+            ? { label: "Reset to default", onReset: overrides.onReset }
+            : undefined
+        }
       />
     </ThemeProvider>,
   );
@@ -95,6 +104,21 @@ describe("<PlaybackSpeedSlider />", () => {
     fireEvent.pointerUp(window, { pointerId: 1, clientX: clientXForIndex(25) });
     expect(onCommit).toHaveBeenCalledWith(10);
     expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("invokes onReset from the header reset button", () => {
+    const onReset = jest.fn();
+    renderSlider({ onReset });
+
+    fireEvent.click(screen.getByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID));
+
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the reset button when no reset handler is provided", () => {
+    renderSlider();
+
+    expect(screen.queryByTestId(PLAYBACK_SPEED_SLIDER_RESET_TEST_ID)).toBeNull();
   });
 
   it("commits and ends the drag when a move reports no buttons pressed (lost pointerup)", () => {
