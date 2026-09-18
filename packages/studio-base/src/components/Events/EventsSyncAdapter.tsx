@@ -24,12 +24,12 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
-import {
-  isAbsoluteSecondsInEvent,
-  isPlaybackSecondsInEvent,
-  timelineDurationSeconds,
-} from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
+import { timelineDurationSeconds } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
+import {
+  EMPTY_EVENTS,
+  getEventTimeIndex,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeIndex";
 import { isTimelineKeyboardEvent } from "@foxglove/studio-base/components/PlaybackControls/timelineKeyboardFocus";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -374,20 +374,11 @@ export function EventsSyncAdapter(): React.JSX.Element {
   // Sync hovered value and hovered events.
   useEffect(() => {
     if (hoverValue && startTime && endTime && timeRange != undefined && timeRange > 0) {
-      const hoveredEvents = (events.value ?? []).filter((event) =>
+      const index = getEventTimeIndex(events.value ?? EMPTY_EVENTS, startTime);
+      const hoveredEvents =
         hoverValue.absoluteSeconds != undefined
-          ? isAbsoluteSecondsInEvent({
-              absoluteSeconds: hoverValue.absoluteSeconds,
-              event,
-              recordingEndTime: endTime,
-            })
-          : isPlaybackSecondsInEvent({
-              playbackSeconds: hoverValue.value,
-              event,
-              recordingStartTime: startTime,
-              durationSeconds: timeRange,
-            }),
-      );
+          ? index.atAbsoluteTime(hoverValue.absoluteSeconds, endTime)
+          : index.atRelativeTime(hoverValue.value, timeRange);
       setEventsAtHoverValue(hoveredEvents);
     } else {
       setEventsAtHoverValue([]);

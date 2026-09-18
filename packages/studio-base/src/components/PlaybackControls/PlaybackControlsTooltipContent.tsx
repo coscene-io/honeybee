@@ -8,7 +8,7 @@
 import { Divider, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import * as _ from "lodash-es";
-import { Fragment } from "react";
+import { Fragment, memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -66,8 +66,6 @@ export function PlaybackControlsTooltipContent(params: {
 }): ReactNull | React.JSX.Element {
   const { stamp } = params;
   const { timeFormat, formatTime, formatDate } = useAppTimeFormat();
-  const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
-  const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const startTime = useMessagePipeline(selectStartTime);
   const { classes } = useStyles();
   const { t } = useTranslation("event");
@@ -79,66 +77,6 @@ export function PlaybackControlsTooltipContent(params: {
   const timeFromStart = subtractTimes(stamp, startTime);
 
   const tooltipItems: PlaybackControlsTooltipItem[] = [];
-
-  if (!_.isEmpty(hoveredEvents)) {
-    Object.values(hoveredEvents).forEach(({ event }) => {
-      const eventStartTime = fromNanoSec(
-        event.triggerTime!.seconds * BigInt(1e9) + BigInt(event.triggerTime!.nanos),
-      );
-      const eventEndTime = add(eventStartTime, fromNanoSec(durationToNanoSeconds(event.duration)));
-
-      tooltipItems.push({
-        type: "item",
-        title: t("momentName"),
-        value: event.displayName,
-      });
-      tooltipItems.push({
-        type: "item",
-        title: t("start"),
-        value: formatTime(eventStartTime),
-      });
-      tooltipItems.push({
-        type: "item",
-        title: t("end"),
-        value: formatTime(eventEndTime),
-      });
-
-      if (!_.isEmpty(event.customizedFields)) {
-        Object.entries(event.customizedFields).forEach(([key, val]) => {
-          tooltipItems.push({ type: "item", title: key, value: val });
-        });
-      }
-      tooltipItems.push({ type: "divider" });
-    });
-  }
-
-  if (!_.isEmpty(hoveredBags)) {
-    Object.values(hoveredBags).forEach((bag) => {
-      if (bag.startTime && bag.endTime) {
-        tooltipItems.push({
-          type: "item",
-          title: t("name"),
-          value: bag.displayName,
-        });
-        tooltipItems.push({
-          type: "item",
-          title: t("start"),
-          value: formatTime(bag.startTime),
-        });
-        tooltipItems.push({
-          type: "item",
-          title: t("end"),
-          value: formatTime(bag.endTime),
-        });
-        tooltipItems.push({
-          type: "item",
-          title: t("duration"),
-          value: dayjs(toDate(subtractTimes(bag.endTime, bag.startTime))).format("mm[min]ss[s]"),
-        });
-      }
-      tooltipItems.push({ type: "divider" });
-    });
-  }
 
   switch (timeFormat) {
     case "TOD":
@@ -158,7 +96,18 @@ export function PlaybackControlsTooltipContent(params: {
 
   return (
     <div className={classes.tooltipWrapper}>
-      {tooltipItems.map((item, idx) => {
+      <MemoTooltipDetails />
+      <TooltipItems items={tooltipItems} />
+    </div>
+  );
+}
+
+function TooltipItems({ items }: { items: PlaybackControlsTooltipItem[] }): React.JSX.Element {
+  const { classes } = useStyles();
+  return (
+    <>
+      {" "}
+      {items.map((item, idx) => {
         if (item.type === "divider") {
           return <Divider key={`divider_${idx}`} className={classes.tooltipDivider} />;
         }
@@ -179,6 +128,82 @@ export function PlaybackControlsTooltipContent(params: {
           </Fragment>
         );
       })}
-    </div>
+    </>
   );
 }
+
+const MemoTooltipDetails = memo(function TooltipDetails() {
+  const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
+  const hoveredBags = useTimelineInteractionState(selectHoveredBags);
+  const { formatTime } = useAppTimeFormat();
+  const { t } = useTranslation("event");
+  const items = useMemo(() => {
+    const tooltipItems: PlaybackControlsTooltipItem[] = [];
+
+    if (!_.isEmpty(hoveredEvents)) {
+      Object.values(hoveredEvents).forEach(({ event }) => {
+        const eventStartTime = fromNanoSec(
+          event.triggerTime!.seconds * BigInt(1e9) + BigInt(event.triggerTime!.nanos),
+        );
+        const eventEndTime = add(
+          eventStartTime,
+          fromNanoSec(durationToNanoSeconds(event.duration)),
+        );
+
+        tooltipItems.push({
+          type: "item",
+          title: t("momentName"),
+          value: event.displayName,
+        });
+        tooltipItems.push({
+          type: "item",
+          title: t("start"),
+          value: formatTime(eventStartTime),
+        });
+        tooltipItems.push({
+          type: "item",
+          title: t("end"),
+          value: formatTime(eventEndTime),
+        });
+
+        if (!_.isEmpty(event.customizedFields)) {
+          Object.entries(event.customizedFields).forEach(([key, val]) => {
+            tooltipItems.push({ type: "item", title: key, value: val });
+          });
+        }
+        tooltipItems.push({ type: "divider" });
+      });
+    }
+
+    if (!_.isEmpty(hoveredBags)) {
+      Object.values(hoveredBags).forEach((bag) => {
+        if (bag.startTime && bag.endTime) {
+          tooltipItems.push({
+            type: "item",
+            title: t("name"),
+            value: bag.displayName,
+          });
+          tooltipItems.push({
+            type: "item",
+            title: t("start"),
+            value: formatTime(bag.startTime),
+          });
+          tooltipItems.push({
+            type: "item",
+            title: t("end"),
+            value: formatTime(bag.endTime),
+          });
+          tooltipItems.push({
+            type: "item",
+            title: t("duration"),
+            value: dayjs(toDate(subtractTimes(bag.endTime, bag.startTime))).format("mm[min]ss[s]"),
+          });
+        }
+        tooltipItems.push({ type: "divider" });
+      });
+    }
+
+    return tooltipItems;
+  }, [hoveredEvents, hoveredBags, formatTime, t]);
+  return <TooltipItems items={items} />;
+});

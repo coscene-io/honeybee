@@ -53,7 +53,7 @@ export function isAbsoluteSecondsInEvent({
   );
 }
 
-function isSecondsInRange(
+export function isSecondsInRange(
   seconds: number,
   eventStartSec: number,
   eventEndSec: number,

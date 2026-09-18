@@ -11,6 +11,7 @@ import type React from "react";
 import { toSec } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
+import { MinimumIndex, partitionPoint } from "./MinimumIndex";
 import { EVENT_LANE_HEIGHT_PX } from "./constants";
 import { timeToFraction, type TimelineViewport } from "./timelineViewport";
 
@@ -100,39 +101,128 @@ export function layoutEventLanes({
       return left.event.event.name.localeCompare(right.event.event.name);
     });
 
-  const laneEndPositions: number[] = [];
-  const laneEndSecs: number[] = [];
+  // One slot per candidate (including equal ends). Only each lane's current tail has
+  // a finite value. This avoids heaps and preserves first-fit lane selection exactly.
+  const ends = candidates
+    .map((candidate, index) => ({ candidate, index }))
+    .sort((a, b) => a.candidate.endSec - b.candidate.endSec);
+  const coordinateByCandidate = new Map(ends.map((entry, coordinate) => [entry.index, coordinate]));
+  const minimums = new MinimumIndex(ends.length);
+  const laneTails: number[] = [];
   const items: EventLaneLayoutItem[] = [];
 
-  for (const candidate of candidates) {
-    let lane = 0;
-    while (lane < laneEndPositions.length) {
-      const laneEndSec = laneEndSecs[lane];
-      const isExactlyTouchingPrevious =
-        laneEndSec != undefined && areTimelineSecondsAdjacent(laneEndSec, candidate.startSec);
-      if (
-        isExactlyTouchingPrevious ||
-        laneEndPositions[lane]! <= candidate.startPosition - EVENT_LANE_OVERLAP_TOLERANCE_FRACTION
-      ) {
-        break;
-      }
-
-      lane++;
+  candidates.forEach((candidate, candidateIndex) => {
+    const ordinaryEnd = partitionPoint(
+      ends.length,
+      (i) =>
+        ends[i]!.candidate.endPosition + EVENT_LANE_OVERLAP_TOLERANCE_FRACTION <=
+        candidate.startPosition - EVENT_LANE_OVERLAP_TOLERANCE_FRACTION,
+    );
+    // Use the original subtraction/comparison, rather than rounded start +/- epsilon.
+    const adjacentStart = partitionPoint(
+      ends.length,
+      (i) =>
+        ends[i]!.candidate.endSec < candidate.startSec &&
+        !areTimelineSecondsAdjacent(ends[i]!.candidate.endSec, candidate.startSec),
+    );
+    const adjacentEnd = partitionPoint(
+      ends.length,
+      (i) =>
+        ends[i]!.candidate.endSec <= candidate.startSec ||
+        areTimelineSecondsAdjacent(ends[i]!.candidate.endSec, candidate.startSec),
+    );
+    const available = Math.min(
+      minimums.minimum(0, ordinaryEnd),
+      minimums.minimum(adjacentStart, adjacentEnd),
+    );
+    const lane = Number.isFinite(available) ? available : laneTails.length;
+    const oldTail = laneTails[lane];
+    if (oldTail != undefined) {
+      minimums.set(oldTail, Infinity);
     }
-
-    laneEndPositions[lane] = candidate.endPosition + EVENT_LANE_OVERLAP_TOLERANCE_FRACTION;
-    laneEndSecs[lane] = candidate.endSec;
+    const coordinate = coordinateByCandidate.get(candidateIndex)!;
+    laneTails[lane] = coordinate;
+    minimums.set(coordinate, lane);
     items.push({ ...candidate, lane });
-  }
+  });
+  return { items, laneCount: laneTails.length };
+}
 
-  return {
-    items,
-    laneCount: laneEndPositions.length,
-  };
+const layouts = new WeakMap<
+  TimelinePositionedEvent[],
+  { key: string; layout: EventLaneLayout }[]
+>();
+
+/** Share only the two most recent viewports for each immutable snapshot. */
+export function getCachedEventLaneLayout(args: {
+  events: TimelinePositionedEvent[];
+  viewport: TimelineViewport;
+}): EventLaneLayout {
+  const { events, viewport } = args;
+  const key = `${viewport.totalStartSec}:${viewport.totalEndSec}:${viewport.visibleStartSec}:${viewport.visibleEndSec}`;
+  const cached = layouts.get(events) ?? [];
+  const match = cached.find((entry) => entry.key === key);
+  if (match != undefined) {
+    return match.layout;
+  }
+  const layout = layoutEventLanes(args);
+  layouts.set(events, [{ key, layout }, ...cached.slice(0, 1)]);
+  return layout;
+}
+
+const layoutIndexes = new WeakMap<
+  EventLaneLayout,
+  {
+    byName: Map<string, EventLaneLayoutItem>;
+    byLane: EventLaneLayoutItem[][];
+  }
+>();
+
+export function indexEventLanes(layout: EventLaneLayout): {
+  byName: Map<string, EventLaneLayoutItem>;
+  byLane: EventLaneLayoutItem[][];
+} {
+  let index = layoutIndexes.get(layout);
+  if (index == undefined) {
+    const byName = new Map<string, EventLaneLayoutItem>();
+    const byLane: EventLaneLayoutItem[][] = Array.from({ length: layout.laneCount }, () => []);
+    for (const item of layout.items) {
+      byName.set(item.event.event.name, item);
+      byLane[item.lane]!.push(item);
+    }
+    index = { byName, byLane };
+    layoutIndexes.set(layout, index);
+  }
+  return index;
 }
 
 export function getEventLaneByName(layout: EventLaneLayout, eventName: string): number | undefined {
-  return layout.items.find((item) => item.event.event.name === eventName)?.lane;
+  return indexEventLanes(layout).byName.get(eventName)?.lane;
+}
+
+/** Preserve memoized ticks when a drag only changes a subset of the complete layout. */
+export function reuseEventLaneItems(
+  layout: EventLaneLayout,
+  previous: EventLaneLayout,
+): EventLaneLayout {
+  if (layout === previous) {
+    return layout;
+  }
+  const oldItems = indexEventLanes(previous).byName;
+  return {
+    ...layout,
+    items: layout.items.map((item) => {
+      const old = oldItems.get(item.event.event.name);
+      return old?.event === item.event &&
+        old.lane === item.lane &&
+        old.startPosition === item.startPosition &&
+        old.endPosition === item.endPosition &&
+        old.startSec === item.startSec &&
+        old.endSec === item.endSec
+        ? old
+        : item;
+    }),
+  };
 }
 
 export function getEventLaneRenderStyle(
