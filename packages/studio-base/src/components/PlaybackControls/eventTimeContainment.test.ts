@@ -66,13 +66,21 @@ function makeAbsoluteEvent(
   };
 }
 
-function namesAt(playbackSeconds: number, events: TimelinePositionedEvent[]): string[] {
+const ZERO_START: Time = { sec: 0, nsec: 0 };
+
+function namesAt(
+  playbackSeconds: number,
+  events: TimelinePositionedEvent[],
+  recordingStartTime: Time = ZERO_START,
+  durationSeconds: number = FIFTY_MINUTES_SEC,
+): string[] {
   return events
     .filter((event) =>
       isPlaybackSecondsInEvent({
         playbackSeconds,
         event,
-        timelineDurationSeconds: FIFTY_MINUTES_SEC,
+        recordingStartTime,
+        timelineDurationSeconds: durationSeconds,
       }),
     )
     .map((event) => event.event.name);
@@ -121,6 +129,7 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: 1500,
         event,
+        recordingStartTime: ZERO_START,
         timelineDurationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(true);
@@ -128,6 +137,7 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: 1500.001,
         event,
+        recordingStartTime: ZERO_START,
         timelineDurationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(false);
@@ -140,6 +150,7 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: FIFTY_MINUTES_SEC,
         event,
+        recordingStartTime: ZERO_START,
         timelineDurationSeconds: FIFTY_MINUTES_SEC,
       }),
     ).toBe(true);
@@ -156,6 +167,7 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: originDuration,
         event,
+        recordingStartTime: recordingStart,
         timelineDurationSeconds: originDuration,
       }),
     ).toBe(true);
@@ -177,6 +189,7 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: originDuration,
         event,
+        recordingStartTime: recordingStart,
         timelineDurationSeconds: originDuration,
       }),
     ).toBe(true);
@@ -184,6 +197,7 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: subtractDuration,
         event,
+        recordingStartTime: recordingStart,
         timelineDurationSeconds: originDuration,
       }),
     ).toBe(false);
@@ -194,8 +208,27 @@ describe("isPlaybackSecondsInEvent", () => {
       isPlaybackSecondsInEvent({
         playbackSeconds: roundTrippedHover,
         event,
+        recordingStartTime: recordingStart,
         timelineDurationSeconds: originDuration,
       }),
     ).toBe(false);
+  });
+
+  it("assigns a shared fractional boundary to the later moment when recording start has leftover nanos", () => {
+    const recordingStart: Time = { sec: 0, nsec: 723_255_838 };
+    const firstStart: Time = { sec: 1500, nsec: 566_271_339 };
+    const boundary: Time = { sec: 1501, nsec: 284_571_692 };
+    const secondEnd: Time = { sec: 1502, nsec: 0 };
+    const first = makeAbsoluteEvent("events/first", firstStart, boundary, recordingStart);
+    const second = makeAbsoluteEvent("events/second", boundary, secondEnd, recordingStart);
+    const boundaryPlayback = toSec(boundary) - toSec(recordingStart);
+    const duration = timelineDurationSeconds(recordingStart, secondEnd);
+
+    const reconstructedOrigin = toSec(first.startTime) - first.secondsSinceStart;
+    expect(reconstructedOrigin === toSec(recordingStart)).toBe(false);
+
+    expect(namesAt(boundaryPlayback, [first, second], recordingStart, duration)).toEqual([
+      "events/second",
+    ]);
   });
 });

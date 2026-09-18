@@ -1126,6 +1126,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       isPlaybackSecondsInEvent({
         playbackSeconds: eventContextMenuRequest.playbackSeconds,
         event,
+        recordingStartTime: startTime,
         timelineDurationSeconds: timeRange,
       }),
     );

@@ -16,14 +16,19 @@ export function timelineDurationSeconds(startTime: Time, endTime: Time): number 
 export function isPlaybackSecondsInEvent({
   playbackSeconds,
   event,
+  recordingStartTime,
   timelineDurationSeconds,
 }: {
   playbackSeconds: number;
   event: TimelinePositionedEvent;
+  recordingStartTime: Time;
   timelineDurationSeconds: number;
 }): boolean {
-  const eventStartSec = event.secondsSinceStart;
-  const recordingStartSec = toSec(event.startTime) - event.secondsSinceStart;
+  // Keep both bounds on toSec(absolute) - toSec(recordingStart). Reconstructing the origin
+  // as toSec(event.startTime) - secondsSinceStart drifts on leftover nanos and can match
+  // both sides of a shared [start, end) boundary.
+  const recordingStartSec = toSec(recordingStartTime);
+  const eventStartSec = toSec(event.startTime) - recordingStartSec;
   const eventEndSec = toSec(event.endTime) - recordingStartSec;
 
   if (eventStartSec === eventEndSec) {

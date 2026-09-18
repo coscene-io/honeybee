@@ -246,6 +246,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
         isPlaybackSecondsInEvent({
           playbackSeconds,
           event,
+          recordingStartTime: startTime,
           timelineDurationSeconds: durationSeconds,
         }),
       )

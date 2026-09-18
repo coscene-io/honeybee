@@ -372,11 +372,12 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   // Sync hovered value and hovered events.
   useEffect(() => {
-    if (hoverValue && timeRange != undefined && timeRange > 0) {
+    if (hoverValue && startTime && timeRange != undefined && timeRange > 0) {
       const hoveredEvents = (events.value ?? []).filter((event) =>
         isPlaybackSecondsInEvent({
           playbackSeconds: hoverValue.value,
           event,
+          recordingStartTime: startTime,
           timelineDurationSeconds: timeRange,
         }),
       );
@@ -384,7 +385,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
     } else {
       setEventsAtHoverValue([]);
     }
-  }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
+  }, [hoverValue, setEventsAtHoverValue, startTime, timeRange, events]);
 
   const startTimeRef = useLatest(startTime);
   const endTimeRef = useLatest(endTime);
