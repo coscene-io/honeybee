@@ -393,6 +393,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerup", onPointerUp);
         window.removeEventListener("pointercancel", onPointerUp);
+        stopDrag.current = () => {};
       };
       window.addEventListener("pointercancel", onPointerUp, { once: true });
       window.addEventListener("pointermove", onPointerMove);

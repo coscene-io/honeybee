@@ -11,7 +11,7 @@ import { alpha, Menu, MenuItem, type PopoverPosition, Tooltip } from "@mui/mater
 import Fade from "@mui/material/Fade";
 import Popper from "@mui/material/Popper";
 import * as _ from "lodash-es";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
@@ -24,11 +24,7 @@ import {
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { type EventContextMenuRequest } from "@foxglove/studio-base/components/PlaybackControls/Scrubber";
-import {
-  getSnappedEventMark,
-  EVENT_SNAP_THRESHOLD,
-  nearbyBoundaries,
-} from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
+import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   type EventsStore,
@@ -44,6 +40,7 @@ import {
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 import { EVENT_LANE_HEIGHT_PX } from "./constants";
+import { LaneSnapCache, snapRangeToLaneBoundaries } from "./eventLaneSnap";
 import {
   getEventLaneRenderStyle,
   indexEventLanes,
@@ -95,6 +92,12 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
     overflow: "hidden",
   },
   laneContent: {
+    // Keep the app's border-box sizing explicit for bars and rolling-edit handles.
+    // Inheritance makes Blink repeat costly descendant style work during movement.
+    boxSizing: "border-box",
+    "& *, &::before, &::after, & *::before, & *::after": {
+      boxSizing: "border-box",
+    },
     left: 0,
     position: "absolute",
     right: 0,
@@ -302,7 +305,19 @@ function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<
   };
 }
 
+type EventTickClasses = {
+  states: string[];
+  label: string;
+  startHandle: string;
+  endHandle: string;
+  startLine: string;
+  endLine: string;
+  startLineVisible: string;
+  endLineVisible: string;
+};
+
 function EventTick({
+  tickClasses,
   forceHovered = false,
   isDragging,
   isPreview = false,
@@ -310,6 +325,7 @@ function EventTick({
   onBodyPointerDown,
   onEdgePointerDown,
 }: {
+  tickClasses: EventTickClasses;
   forceHovered?: boolean;
   isDragging: boolean;
   isPreview?: boolean;
@@ -335,17 +351,15 @@ function EventTick({
   const isSelected = useEvents(
     useCallback((store: EventsStore) => store.selectedEventId === eventName, [eventName]),
   );
-  const { classes, cx } = useStyles();
   const showEdges = isHovered || isSelected || isDragging;
 
   return (
     <div
-      className={cx(classes.tick, {
-        [classes.tickHovered]: isHovered,
-        [classes.tickSelected]: isSelected,
-        [classes.tickDragging]: isDragging,
-        [classes.rollingEditPreview]: isPreview,
-      })}
+      className={
+        tickClasses.states[
+          (isHovered ? 1 : 0) | (isSelected ? 2 : 0) | (isDragging ? 4 : 0) | (isPreview ? 8 : 0)
+        ]
+      }
       style={getEventLaneRenderStyle(item)}
       data-testid="timeline-event"
       data-event-name={eventName}
@@ -353,36 +367,24 @@ function EventTick({
         onBodyPointerDown(event, item);
       }}
     >
-      <span className={classes.tickLabel}>{item.event.event.displayName || eventName}</span>
+      <span className={tickClasses.label}>{item.event.event.displayName || eventName}</span>
       <div
-        className={cx(classes.edgeHandle, classes.edgeHandleStart)}
+        className={tickClasses.startHandle}
         data-testid="timeline-event-start-handle"
         onPointerDown={(event) => {
           onEdgePointerDown(event, "start", item);
         }}
       >
-        <div
-          className={cx(
-            classes.edgeHandleLine,
-            classes.edgeHandleLineStart,
-            showEdges && classes.edgeHandleLineVisible,
-          )}
-        />
+        <div className={showEdges ? tickClasses.startLineVisible : tickClasses.startLine} />
       </div>
       <div
-        className={cx(classes.edgeHandle, classes.edgeHandleEnd)}
+        className={tickClasses.endHandle}
         data-testid="timeline-event-end-handle"
         onPointerDown={(event) => {
           onEdgePointerDown(event, "end", item);
         }}
       >
-        <div
-          className={cx(
-            classes.edgeHandleLine,
-            classes.edgeHandleLineEnd,
-            showEdges && classes.edgeHandleLineVisible,
-          )}
-        />
+        <div className={showEdges ? tickClasses.endLineVisible : tickClasses.endLine} />
       </div>
     </div>
   );
@@ -881,118 +883,6 @@ function areEventMarksEqual(
   );
 }
 
-const laneBoundaryCache = new WeakMap<
-  EventLaneLayoutItem[],
-  Map<number, { position: number; sec: number; name: string; order: number }[]>
->();
-
-function snapRangeToLaneBoundaries({
-  activeEventName,
-  edge,
-  lane,
-  layoutItems,
-  range,
-  viewport,
-}: {
-  activeEventName: string;
-  edge?: EventResizeEdge;
-  lane: number;
-  layoutItems: EventLaneLayoutItem[];
-  range: EventTimeRange;
-  viewport: TimelineViewport;
-}): EventTimeRange {
-  let byLane = laneBoundaryCache.get(layoutItems);
-  if (byLane == undefined) {
-    byLane = new Map();
-    layoutItems.forEach((item, order) => {
-      const candidates = byLane!.get(item.lane) ?? [];
-      candidates.push(
-        {
-          position: timeToFraction(item.startSec, viewport),
-          sec: item.startSec,
-          name: item.event.event.name,
-          order: order * 2,
-        },
-        {
-          position: timeToFraction(item.endSec, viewport),
-          sec: item.endSec,
-          name: item.event.event.name,
-          order: order * 2 + 1,
-        },
-      );
-      byLane!.set(item.lane, candidates);
-    });
-    for (const candidates of byLane.values()) {
-      candidates.sort((a, b) =>
-        a.position === b.position ? a.order - b.order : a.position - b.position,
-      );
-    }
-    laneBoundaryCache.set(layoutItems, byLane);
-  }
-  const laneCandidates = byLane.get(lane) ?? [];
-  const near = [
-    ...(edge === "end"
-      ? []
-      : nearbyBoundaries(
-          laneCandidates,
-          timeToFraction(range.startSec, viewport),
-          EVENT_SNAP_THRESHOLD,
-        )),
-    ...(edge === "start"
-      ? []
-      : nearbyBoundaries(
-          laneCandidates,
-          timeToFraction(range.endSec, viewport),
-          EVENT_SNAP_THRESHOLD,
-        )),
-  ];
-  const candidates = Array.from(new Set(near))
-    .filter((candidate) => candidate.name !== activeEventName)
-    .sort((a, b) => a.order - b.order);
-  let snappedRange = range;
-  let smallestGap = EVENT_SNAP_THRESHOLD;
-
-  for (const candidate of candidates) {
-    const candidateSec = candidate.sec;
-    const candidatePosition = candidate.position;
-    const edgesToCheck =
-      edge == undefined
-        ? (["start", "end"] as const)
-        : edge === "start"
-          ? (["start"] as const)
-          : (["end"] as const);
-
-    for (const edgeToCheck of edgesToCheck) {
-      const edgeSec = edgeToCheck === "start" ? range.startSec : range.endSec;
-      const gap = Math.abs(timeToFraction(edgeSec, viewport) - candidatePosition);
-      if (gap > smallestGap) {
-        continue;
-      }
-
-      smallestGap = gap;
-      const deltaSec = candidateSec - edgeSec;
-      if (edge == undefined) {
-        snappedRange = {
-          endSec: range.endSec + deltaSec,
-          startSec: range.startSec + deltaSec,
-        };
-      } else if (edge === "start") {
-        snappedRange = {
-          ...range,
-          startSec: Math.min(candidateSec, range.endSec),
-        };
-      } else {
-        snappedRange = {
-          ...range,
-          endSec: Math.max(candidateSec, range.startSec),
-        };
-      }
-    }
-  }
-
-  return snappedRange;
-}
-
 function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const {
     componentId,
@@ -1021,7 +911,37 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const hoverValue = useHoverValue({ componentId, isPlaybackSeconds: true });
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
+  // Share Emotion's serialized class combinations across every tick. Re-running the
+  // complete style hook for thousands of items otherwise dominates viewport updates.
+  const tickClasses = useMemo<EventTickClasses>(
+    () => ({
+      states: Array.from({ length: 16 }, (_, state) =>
+        cx(classes.tick, {
+          [classes.tickHovered]: (state & 1) !== 0,
+          [classes.tickSelected]: (state & 2) !== 0,
+          [classes.tickDragging]: (state & 4) !== 0,
+          [classes.rollingEditPreview]: (state & 8) !== 0,
+        }),
+      ),
+      label: classes.tickLabel,
+      startHandle: cx(classes.edgeHandle, classes.edgeHandleStart),
+      endHandle: cx(classes.edgeHandle, classes.edgeHandleEnd),
+      startLine: cx(classes.edgeHandleLine, classes.edgeHandleLineStart),
+      endLine: cx(classes.edgeHandleLine, classes.edgeHandleLineEnd),
+      startLineVisible: cx(
+        classes.edgeHandleLine,
+        classes.edgeHandleLineStart,
+        classes.edgeHandleLineVisible,
+      ),
+      endLineVisible: cx(
+        classes.edgeHandleLine,
+        classes.edgeHandleLineEnd,
+        classes.edgeHandleLineVisible,
+      ),
+    }),
+    [classes, cx],
+  );
   const { t } = useTranslation("event");
   const rootRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const { width, ref: resizeRef } = useResizeDetector<HTMLDivElement>({
@@ -1135,8 +1055,10 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     eventMarks.length === 0;
 
   useEffect(() => {
-    onPreviewLaneCountChange?.(eventDrag == undefined ? undefined : renderLaneLayout.laneCount);
-  }, [eventDrag, onPreviewLaneCountChange, renderLaneLayout.laneCount]);
+    onPreviewLaneCountChange?.(
+      eventDrag == undefined && rollingEdit == undefined ? undefined : renderLaneLayout.laneCount,
+    );
+  }, [eventDrag, rollingEdit, onPreviewLaneCountChange, renderLaneLayout.laneCount]);
 
   const laneByEventName = useMemo(() => {
     return new Map(renderLaneLayout.items.map((item) => [item.event.event.name, item.lane]));
@@ -1300,6 +1222,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     [consoleApi, events, refreshEvents, setEvents, viewport],
   );
 
+  const [laneSnapCache] = useState(() => new LaneSnapCache());
   const cleanupEventDrag = useRef<() => void>(() => {});
   useEffect(
     () => () => {
@@ -1307,7 +1230,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     },
     [],
   );
-  useEffect(() => {
+  useLayoutEffect(() => {
     cleanupEventDrag.current();
     eventDragRef.current = undefined;
     setEventDrag(undefined);
@@ -1359,7 +1282,8 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
               activeEventName: currentDrag.event.event.name,
               edge: currentDrag.kind === "edge" ? currentDrag.edge : undefined,
               lane: activeLane,
-              layoutItems: currentLaneLayout.items,
+              layoutItems: indexEventLanes(currentLaneLayout).byLane[activeLane] ?? [],
+              cache: laneSnapCache,
               range: nextRange,
               viewport,
             })
@@ -1445,14 +1369,16 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       window.addEventListener("pointercancel", onPointerCancel, { once: true });
       cleanupEventDrag.current = () => {
         input.cancel();
+        laneSnapCache.clear();
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerup", onPointerUp);
         window.removeEventListener("pointercancel", onPointerCancel);
+        cleanupEventDrag.current = () => {};
       };
       eventDragRef.current = nextDrag;
       setEventDrag(nextDrag);
     },
-    [commitEventTimeEdit, onSeek, rollingEditEnabled, setLoopedEvent, viewport],
+    [commitEventTimeEdit, laneSnapCache, onSeek, rollingEditEnabled, setLoopedEvent, viewport],
   );
 
   const startEventBodyDrag = useCallback(
@@ -1690,7 +1616,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       return;
     }
     const input = frameInput((event: PointerEvent) => {
-      if (rootRef.current == undefined) {
+      if (rootRef.current == undefined || rollingEditRef.current?.pair !== rollingEditPair) {
         return;
       }
       const boundarySec = clampRollingEditBoundary(
@@ -1890,6 +1816,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           return (
             <MemoEventTick
               key={eventName}
+              tickClasses={tickClasses}
               item={renderItem}
               isDragging={draggedRange != undefined}
               isPreview={previewRange != undefined && draggedRange == undefined}
@@ -1935,6 +1862,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     [
       canWriteEvents,
       classes,
+      tickClasses,
       contextMenu?.event.event.name,
       eventDrag,
       laneByEventName,

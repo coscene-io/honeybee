@@ -96,7 +96,8 @@ export function PlaybackControlsTooltipContent(params: {
 
   return (
     <div className={classes.tooltipWrapper}>
-      <MemoTooltipDetails />
+      <MemoMomentDetails />
+      <MemoBagDetails />
       <TooltipItems items={tooltipItems} />
     </div>
   );
@@ -132,9 +133,8 @@ function TooltipItems({ items }: { items: PlaybackControlsTooltipItem[] }): Reac
   );
 }
 
-const MemoTooltipDetails = memo(function TooltipDetails() {
+const MemoMomentDetails = memo(function MomentDetails() {
   const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
-  const hoveredBags = useTimelineInteractionState(selectHoveredBags);
   const { formatTime } = useAppTimeFormat();
   const { t } = useTranslation("event");
   const items = useMemo(() => {
@@ -175,6 +175,17 @@ const MemoTooltipDetails = memo(function TooltipDetails() {
       });
     }
 
+    return tooltipItems;
+  }, [hoveredEvents, formatTime, t]);
+  return <TooltipItems items={items} />;
+});
+
+const MemoBagDetails = memo(function BagDetails() {
+  const hoveredBags = useTimelineInteractionState(selectHoveredBags);
+  const { formatTime } = useAppTimeFormat();
+  const { t } = useTranslation("event");
+  const items = useMemo(() => {
+    const tooltipItems: PlaybackControlsTooltipItem[] = [];
     if (!_.isEmpty(hoveredBags)) {
       Object.values(hoveredBags).forEach((bag) => {
         if (bag.startTime && bag.endTime) {
@@ -204,6 +215,6 @@ const MemoTooltipDetails = memo(function TooltipDetails() {
     }
 
     return tooltipItems;
-  }, [hoveredEvents, hoveredBags, formatTime, t]);
+  }, [hoveredBags, formatTime, t]);
   return <TooltipItems items={items} />;
 });

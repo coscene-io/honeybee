@@ -14,8 +14,8 @@ import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/Even
 import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 
 import { getEventLaneByName, getEventLaneRenderStyle, layoutEventLanes } from "./eventLanes";
-import { makeTimelineViewport } from "./timelineViewport";
 import { referenceLayoutEventLanes } from "./eventLanes.testUtils";
+import { makeTimelineViewport } from "./timelineViewport";
 
 function makeEvent(
   name: string,
@@ -73,7 +73,8 @@ describe("layoutEventLanes", () => {
     const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
     for (let run = 0; run < 30; run++) {
       const events = Array.from({ length: 150 }, (_, index) => {
-        const start = 1 + Math.round(random() * 20) + [-0.002, 0, 0.001999999, 0.002000001][index % 4]!;
+        const start =
+          1 + Math.round(random() * 20) + [-0.002, 0, 0.001999999, 0.002000001][index % 4]!;
         return makeEvent(`event/${index}`, start, index % 7 === 0 ? 0 : Math.round(random() * 5));
       });
       const viewport = { ...makeTimelineViewport(0, 25), visibleStartSec: 2, visibleEndSec: 15 };

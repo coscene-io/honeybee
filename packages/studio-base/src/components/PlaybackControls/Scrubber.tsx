@@ -473,7 +473,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const [viewport, setViewport] = useState<TimelineViewport | undefined>(defaultViewport);
   const [previewEventLaneCount, setPreviewEventLaneCount] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (wheelFrame.current != undefined) {
       cancelAnimationFrame(wheelFrame.current);
     }
