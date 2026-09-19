@@ -13,6 +13,7 @@ import { add, fromSec } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 
 import { EVENT_SNAP_THRESHOLD, getSnappedEventMark } from "./eventSnap";
+import { referenceGetSnappedEventMark } from "./eventSnap.testUtils";
 
 function makeEvent(name: string, startSec: number, durationSec: number): TimelinePositionedEvent {
   const startTime = fromSec(startSec);
@@ -135,5 +136,26 @@ describe("getSnappedEventMark", () => {
         events,
       }),
     ).toEqual(mark);
+  });
+});
+
+describe("snap equivalence", () => {
+  it("preserves original order, equal distance priority, exclusions and exact thresholds", () => {
+    const events = Array.from({ length: 200 }, (_, index) =>
+      makeEvent(`event-${index}`, (index % 25) / 4, index % 3),
+    ).reverse();
+    for (let index = 0; index < 500; index++) {
+      const args = {
+        events,
+        mark: { key: "mark", position: index / 499, time: { sec: 0, nsec: 0 } },
+        threshold: [0, 0.01, 0.125][index % 3]!,
+        excludedEventName: events[index % events.length]!.event.name,
+        eligibleEventNames:
+          index % 2 === 0
+            ? undefined
+            : new Set(events.filter((_, i) => i % 2 === 0).map((event) => event.event.name)),
+      };
+      expect(getSnappedEventMark(args)).toEqual(referenceGetSnappedEventMark(args));
+    }
   });
 });

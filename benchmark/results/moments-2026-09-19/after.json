@@ -1,0 +1,834 @@
+{
+  "browser": "148.0.7778.96",
+  "cpu": "Apple M4 Pro",
+  "cpuRate": 1,
+  "generatedAt": "2026-09-19T03:19:45.204Z",
+  "steps": 70,
+  "caseTimeoutMs": 180000,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "results": [
+    {
+      "count": 1000,
+      "distribution": "short",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 116.87306501547988,
+          "inputP95Ms": 9,
+          "frameP95Ms": 9.699999999999818,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 98.4455958549224,
+          "inputP95Ms": 31.5,
+          "frameP95Ms": 23.200000000000045,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 119.17098445595855,
+          "inputP95Ms": 14.799999997019768,
+          "frameP95Ms": 9.900000000000091,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 118.65793780687393,
+          "inputP95Ms": 25.80000000447035,
+          "frameP95Ms": 10,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        }
+      },
+      "mountMs": 257.591333,
+      "dom": {
+        "total": 6197,
+        "ticks": 1000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "short",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 114.53879047037265,
+          "inputP95Ms": 9.700000002980232,
+          "frameP95Ms": 9.700000000000045,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 98.14612868047978,
+          "inputP95Ms": 27.80000000447035,
+          "frameP95Ms": 24.800000000000182,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 113.00774458669198,
+          "inputP95Ms": 28.799999997019768,
+          "frameP95Ms": 10.099999999999909,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 117.31005319874507,
+          "inputP95Ms": 29.5,
+          "frameP95Ms": 9.900000000000091,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 118.57142857142857,
+          "inputP95Ms": 14.5,
+          "frameP95Ms": 9.800000000000182,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 300.75895799999944,
+      "dom": {
+        "total": 6688,
+        "ticks": 1000,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "continuous",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 116.83958398792447,
+          "inputP95Ms": 10,
+          "frameP95Ms": 9.700000000000045,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 87.92225821378986,
+          "inputP95Ms": 35.20000000298023,
+          "frameP95Ms": 34.200000000000045,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 120.01684446939923,
+          "inputP95Ms": 12.199999995529652,
+          "frameP95Ms": 9.700000000000273,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 117.17224319750026,
+          "inputP95Ms": 33.899999998509884,
+          "frameP95Ms": 9.400000000000546,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        }
+      },
+      "mountMs": 267.54625000000124,
+      "dom": {
+        "total": 8191,
+        "ticks": 1000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "continuous",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 42.57874338118893,
+          "inputP95Ms": 30,
+          "frameP95Ms": 32.700000000000045,
+          "maxLongTaskMs": 54,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 86.20689655172406,
+          "inputP95Ms": 33.399999998509884,
+          "frameP95Ms": 32.69999999999982,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 103.77413183372948,
+          "inputP95Ms": 24.100000001490116,
+          "frameP95Ms": 16.700000000000273,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 116.15900877645855,
+          "inputP95Ms": 33.69999999552965,
+          "frameP95Ms": 9.900000000000546,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 118.59381617958505,
+          "inputP95Ms": 15.399999998509884,
+          "frameP95Ms": 9.800000000000182,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 318.64300000000003,
+      "dom": {
+        "total": 8682,
+        "ticks": 1000,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "overlapping",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 115.4859711672609,
+          "inputP95Ms": 10.399999998509884,
+          "frameP95Ms": 10.200000000000045,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 98.7525987525987,
+          "inputP95Ms": 30.799999997019768,
+          "frameP95Ms": 25.799999999999955,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 120.1341758327483,
+          "inputP95Ms": 12.400000005960464,
+          "frameP95Ms": 10.099999999999909,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 118.44098609007025,
+          "inputP95Ms": 27.30000000447035,
+          "frameP95Ms": 9.800000000000182,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        }
+      },
+      "mountMs": 252.02687499999956,
+      "dom": {
+        "total": 6198,
+        "ticks": 1000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "overlapping",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 46.617329992424686,
+          "inputP95Ms": 28.899999998509884,
+          "frameP95Ms": 33.19999999999982,
+          "maxLongTaskMs": 58,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 98.7525987525987,
+          "inputP95Ms": 24.399999998509884,
+          "frameP95Ms": 17,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 112.75220888830279,
+          "inputP95Ms": 17,
+          "frameP95Ms": 10.400000000000091,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 117.40151317505864,
+          "inputP95Ms": 27.600000001490116,
+          "frameP95Ms": 9.799999999999272,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 119.96572407883465,
+          "inputP95Ms": 14.299999997019768,
+          "frameP95Ms": 9.800000000000182,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 300.56933299999946,
+      "dom": {
+        "total": 6689,
+        "ticks": 1000,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "short",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 116.07843137254902,
+          "inputP95Ms": 11.399999998509884,
+          "frameP95Ms": 10,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 54.60005460005464,
+          "inputP95Ms": 98.70000000298023,
+          "frameP95Ms": 91.70000000000027,
+          "maxLongTaskMs": 99,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 105.65141285321332,
+          "inputP95Ms": 20.899999998509884,
+          "frameP95Ms": 17.40000000000009,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 109.07768755302382,
+          "inputP95Ms": 82.09999999403954,
+          "frameP95Ms": 9.700000000000728,
+          "maxLongTaskMs": 79,
+          "samples": 4
+        }
+      },
+      "mountMs": 357.1939590000002,
+      "dom": {
+        "total": 14494,
+        "ticks": 2382,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "short",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 101.78117048346056,
+          "inputP95Ms": 30.200000002980232,
+          "frameP95Ms": 25,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 52.693208430913295,
+          "inputP95Ms": 91.20000000298023,
+          "frameP95Ms": 83.5,
+          "maxLongTaskMs": 91,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 91.53828979682966,
+          "inputP95Ms": 43.29999999701977,
+          "frameP95Ms": 17.899999999999636,
+          "maxLongTaskMs": 61,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 107.64262648008614,
+          "inputP95Ms": 85.39999999850988,
+          "frameP95Ms": 9.899999999999636,
+          "maxLongTaskMs": 79,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 120.02743484224969,
+          "inputP95Ms": 13.899999998509884,
+          "frameP95Ms": 9.400000000000546,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 420.16649999999936,
+      "dom": {
+        "total": 14985,
+        "ticks": 2382,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "continuous",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 30.103918727447148,
+          "inputP95Ms": 37.30000000447035,
+          "frameP95Ms": 41.70000000000027,
+          "maxLongTaskMs": 58,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 35.9527478171546,
+          "inputP95Ms": 148.20000000298023,
+          "frameP95Ms": 124.5,
+          "maxLongTaskMs": 147,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 43.190325367117765,
+          "inputP95Ms": 53.400000005960464,
+          "frameP95Ms": 50,
+          "maxLongTaskMs": 53,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 90.233019335647,
+          "inputP95Ms": 183.89999999850988,
+          "frameP95Ms": 16.700000000000728,
+          "maxLongTaskMs": 173,
+          "samples": 4
+        }
+      },
+      "mountMs": 497.6735830000034,
+      "dom": {
+        "total": 40191,
+        "ticks": 5000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "continuous",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 19.380873997769875,
+          "inputP95Ms": 56.5,
+          "frameP95Ms": 59.30000000000018,
+          "maxLongTaskMs": 83,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 30.814142069412892,
+          "inputP95Ms": 170.10000000149012,
+          "frameP95Ms": 166.69999999999982,
+          "maxLongTaskMs": 169,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 29.07714674728267,
+          "inputP95Ms": 77.79999999701977,
+          "frameP95Ms": 68.29999999999927,
+          "maxLongTaskMs": 96,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 76.4800302143329,
+          "inputP95Ms": 200.19999999552965,
+          "frameP95Ms": 18.299999999999272,
+          "maxLongTaskMs": 192,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 88.72781804548875,
+          "inputP95Ms": 20.399999998509884,
+          "frameP95Ms": 18.30000000000109,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 561.3658339999965,
+      "dom": {
+        "total": 40682,
+        "ticks": 5000,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "overlapping",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 115.32012242633537,
+          "inputP95Ms": 10.299999997019768,
+          "frameP95Ms": 9.900000000000091,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 64.8088139987038,
+          "inputP95Ms": 69.20000000298023,
+          "frameP95Ms": 68.20000000000027,
+          "maxLongTaskMs": 68,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 98.26236606895019,
+          "inputP95Ms": 29.700000002980232,
+          "frameP95Ms": 16.800000000000182,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 111.6933259790403,
+          "inputP95Ms": 65.60000000149012,
+          "frameP95Ms": 9.399999999999636,
+          "maxLongTaskMs": 62,
+          "samples": 4
+        }
+      },
+      "mountMs": 330.4363330000051,
+      "dom": {
+        "total": 11332,
+        "ticks": 1855,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "overlapping",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 38.39641037305758,
+          "inputP95Ms": 34.899999998509884,
+          "frameP95Ms": 33.69999999999982,
+          "maxLongTaskMs": 57,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 63.39673006339677,
+          "inputP95Ms": 65,
+          "frameP95Ms": 58.29999999999973,
+          "maxLongTaskMs": 64,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 69.25603312865914,
+          "inputP95Ms": 46.30000000447035,
+          "frameP95Ms": 34.29999999999973,
+          "maxLongTaskMs": 57,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 110.6612685560054,
+          "inputP95Ms": 72.20000000298023,
+          "frameP95Ms": 10.199999999999818,
+          "maxLongTaskMs": 63,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 119.77087311230682,
+          "inputP95Ms": 13.899999998509884,
+          "frameP95Ms": 10.099999999999454,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 390.56658400000015,
+      "dom": {
+        "total": 11823,
+        "ticks": 1855,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 21600,
+      "distribution": "short",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 115.3340041798901,
+          "inputP95Ms": 11.399999998509884,
+          "frameP95Ms": 9.899999999999977,
+          "maxLongTaskMs": 0,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 42.21284159075762,
+          "inputP95Ms": 128.90000000596046,
+          "frameP95Ms": 126,
+          "maxLongTaskMs": 129,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 66.34778583551922,
+          "inputP95Ms": 47.600000001490116,
+          "frameP95Ms": 40.500000000000455,
+          "maxLongTaskMs": 52,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 106.75302866738637,
+          "inputP95Ms": 106,
+          "frameP95Ms": 9.800000000000182,
+          "maxLongTaskMs": 103,
+          "samples": 4
+        }
+      },
+      "mountMs": 408.0858750000043,
+      "dom": {
+        "total": 15118,
+        "ticks": 2486,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 21600,
+      "distribution": "short",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 62.39875202495951,
+          "inputP95Ms": 30.799999997019768,
+          "frameP95Ms": 26.200000000000045,
+          "maxLongTaskMs": 51,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 40.75164138555582,
+          "inputP95Ms": 129.40000000596046,
+          "frameP95Ms": 125,
+          "maxLongTaskMs": 129,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 53.21561394490974,
+          "inputP95Ms": 74.5,
+          "frameP95Ms": 58.30000000000018,
+          "maxLongTaskMs": 156,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 104,
+          "inputP95Ms": 111.19999999552965,
+          "frameP95Ms": 9.899999999999636,
+          "maxLongTaskMs": 104,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 119.98628728145344,
+          "inputP95Ms": 10.300000004470348,
+          "frameP95Ms": 10.100000000000364,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 518.445292000004,
+      "dom": {
+        "total": 15609,
+        "ticks": 2486,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 21600,
+      "distribution": "continuous",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 5.64143521335505,
+          "inputP95Ms": 185.70000000298023,
+          "frameP95Ms": 185,
+          "maxLongTaskMs": 209,
+          "samples": 69
+        },
+        "zoom": {
+          "fps": 5.200208008320334,
+          "inputP95Ms": 795.6000000014901,
+          "frameP95Ms": 783.8999999999996,
+          "maxLongTaskMs": 795,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 8.206314826523887,
+          "inputP95Ms": 285.6000000014901,
+          "frameP95Ms": 249.39999999999782,
+          "maxLongTaskMs": 398,
+          "samples": 41
+        },
+        "playback": {
+          "fps": 9.533690379384808,
+          "inputP95Ms": 1847.5,
+          "frameP95Ms": 140.79999999999563,
+          "maxLongTaskMs": 1773,
+          "samples": 4
+        }
+      },
+      "mountMs": 1778.7152500000084,
+      "dom": {
+        "total": 172991,
+        "ticks": 21600,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 21600,
+      "distribution": "continuous",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 4.967357365881351,
+          "inputP95Ms": 211.60000000149012,
+          "frameP95Ms": 210,
+          "maxLongTaskMs": 253,
+          "samples": 69
+        },
+        "zoom": {
+          "fps": 7.716942547362732,
+          "inputP95Ms": 812.1999999955297,
+          "frameP95Ms": 808.3999999999978,
+          "maxLongTaskMs": 811,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 6.94303815778054,
+          "inputP95Ms": 296.5,
+          "frameP95Ms": 275.6000000000022,
+          "maxLongTaskMs": 390,
+          "samples": 41
+        },
+        "playback": {
+          "fps": 8.857633669744475,
+          "inputP95Ms": 1743,
+          "frameP95Ms": 175.59999999999854,
+          "maxLongTaskMs": 1712,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 17.86831055123737,
+          "inputP95Ms": 95.70000000298023,
+          "frameP95Ms": 83.70000000000437,
+          "maxLongTaskMs": 100,
+          "samples": 21
+        }
+      },
+      "mountMs": 1921.2040419999976,
+      "dom": {
+        "total": 173482,
+        "ticks": 21600,
+        "listRows": 8
+      }
+    },
+    {
+      "count": 21600,
+      "distribution": "overlapping",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 19.64160792121832,
+          "inputP95Ms": 62.79999999701977,
+          "frameP95Ms": 66.09999999999991,
+          "maxLongTaskMs": 85,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 13.409556073117372,
+          "inputP95Ms": 450.3999999985099,
+          "frameP95Ms": 458.3000000000002,
+          "maxLongTaskMs": 450,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 24.631997950617773,
+          "inputP95Ms": 100.79999999701977,
+          "frameP95Ms": 91.60000000000036,
+          "maxLongTaskMs": 109,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 70.69574963358902,
+          "inputP95Ms": 290.6000000014901,
+          "frameP95Ms": 18,
+          "maxLongTaskMs": 273,
+          "samples": 4
+        }
+      },
+      "mountMs": 864.4435830000148,
+      "dom": {
+        "total": 57782,
+        "ticks": 7200,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 21600,
+      "distribution": "overlapping",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 14.257177300672778,
+          "inputP95Ms": 83,
+          "frameP95Ms": 82.70000000000027,
+          "maxLongTaskMs": 97,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 14.076954015283556,
+          "inputP95Ms": 523.6999999955297,
+          "frameP95Ms": 391.39999999999964,
+          "maxLongTaskMs": 523,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 19.97666725264891,
+          "inputP95Ms": 134.5,
+          "frameP95Ms": 115.19999999999891,
+          "maxLongTaskMs": 167,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 63.38206710048174,
+          "inputP95Ms": 279.09999999403954,
+          "frameP95Ms": 25.399999999999636,
+          "maxLongTaskMs": 270,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 114.57455770850885,
+          "inputP95Ms": 18.299999997019768,
+          "frameP95Ms": 10.100000000000364,
+          "maxLongTaskMs": 0,
+          "samples": 21
+        }
+      },
+      "mountMs": 938.3431249999849,
+      "dom": {
+        "total": 58273,
+        "ticks": 7200,
+        "listRows": 8
+      }
+    }
+  ],
+  "sourceCommit": "96d16c1bc"
+}

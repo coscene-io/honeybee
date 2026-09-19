@@ -31,6 +31,8 @@ function compareEventStartTime(
   return toSec(left.startTime) - toSec(right.startTime);
 }
 
+const sortedSnapshots = new WeakMap<TimelinePositionedEvent[], TimelinePositionedEvent[]>();
+
 function getRollingEditEventSequences({
   laneByEventName,
   events,
@@ -38,7 +40,11 @@ function getRollingEditEventSequences({
   laneByEventName?: ReadonlyMap<string, number>;
   events: TimelinePositionedEvent[];
 }): TimelinePositionedEvent[][] {
-  const sortedEvents = [...events].sort(compareEventStartTime);
+  let sortedEvents = sortedSnapshots.get(events);
+  if (sortedEvents == undefined) {
+    sortedEvents = [...events].sort(compareEventStartTime);
+    sortedSnapshots.set(events, sortedEvents);
+  }
   if (laneByEventName == undefined) {
     return [sortedEvents];
   }

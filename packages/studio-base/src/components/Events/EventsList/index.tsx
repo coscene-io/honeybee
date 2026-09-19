@@ -18,12 +18,11 @@ import {
   Typography,
   Accordion,
   AccordionSummary,
-  AccordionDetails,
   Select,
   MenuItem,
   SelectChangeEvent,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -54,6 +53,10 @@ import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { EventView } from "./EventView";
+import { eventListDetails, groupEvents } from "./eventListModel";
+import { EMPTY_EVENTS } from "../../PlaybackControls/eventTimeIndex";
+import { WindowedList, type WindowedItem } from "../WindowedList";
+import { useMomentScrollTarget } from "../useMomentScrollTarget";
 
 const log = Logger.getLogger(__filename);
 
@@ -141,12 +144,43 @@ const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectEndTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.endTime;
 
-const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 const selectSetEventsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setEventsAtHoverValue;
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
+
+const ConnectedEventView = memo(function ConnectedEventView(
+  props: Omit<React.ComponentProps<typeof EventView>, "isHovered" | "isSelected" | "isLoopedEvent">,
+) {
+  const name = props.event.event.name;
+  const isHovered = useTimelineInteractionState(
+    useCallback(
+      (store: TimelineInteractionStateStore) =>
+        store.hoveredEvent != undefined
+          ? store.hoveredEvent.event.name === name
+          : store.eventsAtHoverValue[name] != undefined,
+      [name],
+    ),
+  );
+  const isLoopedEvent = useTimelineInteractionState(
+    useCallback(
+      (store: TimelineInteractionStateStore) => store.loopedEvent?.event.name === name,
+      [name],
+    ),
+  );
+  const isSelected = useEvents(
+    useCallback((store: EventsStore) => store.selectedEventId === name, [name]),
+  );
+  return (
+    <EventView
+      {...props}
+      isHovered={isHovered}
+      isSelected={isSelected}
+      isLoopedEvent={isLoopedEvent}
+    />
+  );
+});
 
 export function EventsList(): React.JSX.Element {
   const consoleApi = useConsoleApi();
@@ -168,7 +202,6 @@ export function EventsList(): React.JSX.Element {
   const setFilter = useEvents(selectSetEventFilter);
 
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
-  const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setEventsAtHoverValue = useTimelineInteractionState(selectSetEventsAtHoverValue);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
@@ -189,34 +222,53 @@ export function EventsList(): React.JSX.Element {
     project.value?.isArchived === false &&
     record.value?.isArchived === false;
 
-  const timestampedEvents = useMemo(() => {
-    const classifiedEvents = new Map<
-      string,
-      (TimelinePositionedEvent & { formattedTime: string })[]
-    >();
-    events.value?.forEach((event) => {
-      const recordTitle: string = `${event.projectDisplayName}/${event.recordDisplayName}`;
-
-      if (classifiedEvents.has(recordTitle)) {
-        classifiedEvents.set(recordTitle, [
-          ...(classifiedEvents.get(recordTitle) ?? []),
-          {
-            ...event,
-            formattedTime: formatTime(event.startTime),
-          },
-        ]);
-      } else {
-        classifiedEvents.set(recordTitle, [
-          {
-            ...event,
-            formattedTime: formatTime(event.startTime),
-          },
-        ]);
-      }
+  const timestampedEvents = useMemo(
+    () => groupEvents(events.value ?? EMPTY_EVENTS),
+    [events.value],
+  );
+  const details = useMemo(
+    () =>
+      new Map(
+        (events.value ?? EMPTY_EVENTS).map((event) => [
+          event.event.name,
+          eventListDetails(event, formatTime),
+        ]),
+      ),
+    [events.value, formatTime],
+  );
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setExpanded((previous) => {
+      const entries = Object.entries(previous);
+      return entries.every(([key]) => timestampedEvents.has(key))
+        ? previous
+        : Object.fromEntries(entries.filter(([key]) => timestampedEvents.has(key)));
     });
-
-    return classifiedEvents;
-  }, [events, formatTime]);
+  }, [timestampedEvents]);
+  const selectedRef = useRef(selectedEventId);
+  selectedRef.current = selectedEventId;
+  const creatorCache = useMemo(
+    () => ({
+      api: consoleApi,
+      version: events.value,
+      requests: new Map<string, Promise<string>>(),
+    }),
+    [consoleApi, events.value],
+  );
+  const getCreator = useCallback(
+    async (name: string) => {
+      let pending = creatorCache.requests.get(name);
+      if (pending == undefined) {
+        pending = consoleApi
+          .batchGetUsers([name])
+          .then((response) => response.users[0]?.nickname ?? "");
+        creatorCache.requests.set(name, pending);
+        void pending.catch(() => creatorCache.requests.delete(name));
+      }
+      return await pending;
+    },
+    [consoleApi, creatorCache],
+  );
 
   const clearFilter = useCallback(() => {
     setFilter("");
@@ -224,7 +276,7 @@ export function EventsList(): React.JSX.Element {
 
   const onClick = useCallback(
     (event: TimelinePositionedEvent) => {
-      if (event.event.name === selectedEventId) {
+      if (event.event.name === selectedRef.current) {
         selectEvent(undefined);
       } else {
         selectEvent(event.event.name);
@@ -234,7 +286,7 @@ export function EventsList(): React.JSX.Element {
         seek(event.startTime);
       }
     },
-    [seek, selectEvent, selectedEventId],
+    [seek, selectEvent],
   );
 
   const onHoverEnd = useCallback(() => {
@@ -318,6 +370,140 @@ export function EventsList(): React.JSX.Element {
       log.error(error);
     });
   }, [getDiagnosisRule]);
+
+  const onEdit = useCallback(
+    (currentEvent: ToModifyEvent) => {
+      if (currentEvent.startTime && currentEvent.duration != undefined && startTime && endTime) {
+        setEventMarks([
+          positionEventMark({ currentTime: currentEvent.startTime, startTime, endTime }),
+          positionEventMark({
+            currentTime: add(currentEvent.startTime, fromSec(currentEvent.duration)),
+            startTime,
+            endTime,
+          }),
+        ]);
+        setToModifyEvent(currentEvent);
+      }
+    },
+    [startTime, endTime, setEventMarks, setToModifyEvent],
+  );
+  const rows = useMemo(() => {
+    const result: WindowedItem[] = [];
+    let groupIndex = 0;
+    const query = filter.toLowerCase();
+    for (const [recordTitle, group] of timestampedEvents) {
+      const isExpanded = expanded[recordTitle] ?? groupIndex === 0;
+      const headerId = `moment-group-${groupIndex++}`;
+      result.push({
+        key: `group:${recordTitle}`,
+        estimatedSize: 44,
+        content: (
+          <Accordion
+            expanded={isExpanded}
+            onChange={(_event, value) => {
+              setExpanded((old) => ({ ...old, [recordTitle]: value }));
+            }}
+            className={classes.accordionRoot}
+            disableGutters
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              id={headerId}
+              className={classes.accordionSummary}
+            >
+              <div className={classes.accordionTitle} title="test">
+                <Stack paddingLeft={0.75}>
+                  <span
+                    className={classes.colorBlock}
+                    style={{ backgroundColor: group[0]?.color }}
+                  />
+                </Stack>
+                <Stack
+                  flex={1}
+                  overflow="hidden"
+                  title={`${t("from", { ns: "general" })} ${group[0]?.projectDisplayName} ${t("project", { ns: "general" })}`}
+                >
+                  <Typography noWrap>{group[0]?.recordDisplayName}</Typography>
+                </Stack>
+              </div>
+            </AccordionSummary>
+            <></>
+          </Accordion>
+        ),
+      });
+      if (!isExpanded) {
+        continue;
+      }
+      for (const event of group) {
+        const detail = details.get(event.event.name)!;
+        if (query !== "" && !detail.search.some((field) => field.includes(query))) {
+          continue;
+        }
+        result.push({
+          key: event.event.name,
+          estimatedSize: momentVariant === "small" ? 90 : 180,
+          content: (
+            <div className={classes.accordion}>
+              {event === group[0] && <Stack className={classes.line} />}
+              <ConnectedEventView
+                event={event}
+                filter={filter}
+                details={detail}
+                getCreator={getCreator}
+                variant={momentVariant}
+                diagnosisRuleData={diagnosisRuleData.value}
+                disabledScroll
+                onClick={onClick}
+                onHoverStart={onHoverStart}
+                onHoverEnd={onHoverEnd}
+                onEdit={onEdit}
+                onSetLoopedEvent={setLoopedEvent}
+                confirm={confirm}
+              />
+            </div>
+          ),
+        });
+      }
+    }
+    // The original padding belongs to the scrollable content, not the viewport.
+    result.push({
+      key: "spacer:bottom",
+      estimatedSize: 16,
+      content: <div style={{ height: 16 }} />,
+    });
+    return result;
+  }, [
+    timestampedEvents,
+    expanded,
+    filter,
+    classes,
+    t,
+    details,
+    getCreator,
+    momentVariant,
+    diagnosisRuleData.value,
+    onClick,
+    onHoverStart,
+    onHoverEnd,
+    onEdit,
+    setLoopedEvent,
+    confirm,
+  ]);
+  // Match the previous last matching row's scrollIntoView, without requiring it to be mounted.
+  const rowOrder = useMemo(() => new Map(rows.map((row, index) => [row.key, index])), [rows]);
+  const hoveredNames = useMemo(
+    () =>
+      new Set(
+        hoveredEvent == undefined ? Object.keys(eventsAtHoverValue) : [hoveredEvent.event.name],
+      ),
+    [hoveredEvent, eventsAtHoverValue],
+  );
+  const scrollToKey = useMomentScrollTarget({
+    selected: selectedEventId,
+    hovered: hoveredNames,
+    order: rowOrder,
+    disabled: disabledScroll,
+  });
 
   return (
     <Stack className={classes.root} overflow="hidden" fullHeight>
@@ -412,98 +598,9 @@ export function EventsList(): React.JSX.Element {
         onMouseLeave={() => {
           setDisabledScroll(false);
         }}
-        style={{ overflow: "auto", paddingBottom: "16px" }}
+        style={{ display: "flex", flex: "1 1 auto", minHeight: 0 }}
       >
-        {Array.from(timestampedEvents.keys()).map((recordTitle, index) => {
-          return (
-            <div key={recordTitle}>
-              <Accordion defaultExpanded={index === 0} className={classes.accordionRoot}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="panel1-content"
-                  id="panel1-header"
-                  className={classes.accordionSummary}
-                >
-                  <div className={classes.accordionTitle} title="test">
-                    <Stack paddingLeft={0.75}>
-                      <span
-                        className={classes.colorBlock}
-                        style={{
-                          backgroundColor: (timestampedEvents.get(recordTitle) ?? [])[0]?.color,
-                        }}
-                      />
-                    </Stack>
-                    <Stack
-                      flex={1}
-                      overflow="hidden"
-                      title={`${t("from", { ns: "general" })} ${
-                        timestampedEvents.get(recordTitle)?.[0]?.projectDisplayName
-                      } ${t("project", { ns: "general" })}`}
-                    >
-                      <Typography noWrap>
-                        {timestampedEvents.get(recordTitle)?.[0]?.recordDisplayName}
-                      </Typography>
-                    </Stack>
-                  </div>
-                </AccordionSummary>
-                <AccordionDetails className={classes.accordion}>
-                  <Stack className={classes.line} />
-                  {(timestampedEvents.get(recordTitle) ?? []).map((event) => {
-                    return (
-                      <EventView
-                        key={event.event.name}
-                        event={event}
-                        filter={filter}
-                        variant={momentVariant}
-                        diagnosisRuleData={diagnosisRuleData.value}
-                        // When hovering within the event list only show hover state on directly
-                        // hovered event.
-                        isHovered={
-                          hoveredEvent
-                            ? event.event.name === hoveredEvent.event.name
-                            : eventsAtHoverValue[event.event.name] != undefined
-                        }
-                        isLoopedEvent={loopedEvent?.event.name === event.event.name}
-                        disabledScroll={disabledScroll}
-                        isSelected={event.event.name === selectedEventId}
-                        onClick={onClick}
-                        onHoverStart={onHoverStart}
-                        onHoverEnd={onHoverEnd}
-                        onEdit={(currentEvent: ToModifyEvent) => {
-                          if (
-                            currentEvent.startTime &&
-                            currentEvent.duration != undefined &&
-                            startTime &&
-                            endTime
-                          ) {
-                            setEventMarks([
-                              positionEventMark({
-                                currentTime: currentEvent.startTime,
-                                startTime,
-                                endTime,
-                              }),
-                              positionEventMark({
-                                currentTime: add(
-                                  currentEvent.startTime,
-                                  fromSec(currentEvent.duration),
-                                ),
-                                startTime,
-                                endTime,
-                              }),
-                            ]);
-                            setToModifyEvent(currentEvent);
-                          }
-                        }}
-                        onSetLoopedEvent={setLoopedEvent}
-                        confirm={confirm}
-                      />
-                    );
-                  })}
-                </AccordionDetails>
-              </Accordion>
-            </div>
-          );
-        })}
+        <WindowedList items={rows} resetKey={momentVariant} scrollToKey={scrollToKey} />
       </div>
     </Stack>
   );

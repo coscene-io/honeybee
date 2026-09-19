@@ -14,11 +14,15 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { layoutEventLanes } from "@foxglove/studio-base/components/PlaybackControls/eventLanes";
 import {
-  isPlaybackSecondsInEvent,
-  timelineDurationSeconds,
-} from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
+  getCachedEventLaneLayout,
+  indexEventLanes,
+} from "@foxglove/studio-base/components/PlaybackControls/eventLanes";
+import { timelineDurationSeconds } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
+import {
+  EMPTY_EVENTS,
+  getEventTimeIndex,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeIndex";
 import { makeTimelineViewport } from "@foxglove/studio-base/components/PlaybackControls/timelineViewport";
 import {
   type EventsStore,
@@ -217,54 +221,71 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
   const [focusedWithin, setFocusedWithin] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const activeEvents = useMemo((): TimelinePositionedEvent[] => {
-    if (
-      !subtitle.enabled ||
-      currentTime == undefined ||
-      startTime == undefined ||
-      endTime == undefined
-    ) {
-      return [];
+  // Retain the subtitle's full-record layout independently of the two viewport
+  // slots used by the scrubber, so zooming cannot evict it between playback frames.
+  const subtitleTimeline = useMemo(() => {
+    if (!subtitle.enabled || startTime == undefined || endTime == undefined) {
+      return undefined;
     }
-
     const durationSeconds = timelineDurationSeconds(startTime, endTime);
     if (durationSeconds < 0) {
+      return undefined;
+    }
+    const allEvents = events.value ?? EMPTY_EVENTS;
+    const viewport = makeTimelineViewport(0, durationSeconds);
+    const laneLayout = getCachedEventLaneLayout({ events: allEvents, viewport });
+    return {
+      durationSeconds,
+      laneByEventName: indexEventLanes(laneLayout).byName,
+      index: getEventTimeIndex(allEvents, startTime),
+    };
+  }, [endTime, events.value, startTime, subtitle.enabled]);
+
+  const activeEventsCandidate = useMemo((): TimelinePositionedEvent[] => {
+    if (currentTime == undefined || startTime == undefined || subtitleTimeline == undefined) {
       return [];
     }
-
+    const { durationSeconds, laneByEventName, index } = subtitleTimeline;
     const playbackSeconds = timelineDurationSeconds(startTime, currentTime);
-    const allEvents = events.value ?? [];
-    const viewport = makeTimelineViewport(0, durationSeconds);
-    const laneLayout = layoutEventLanes({ events: allEvents, viewport });
-    const laneByEventName = new Map(
-      laneLayout.items.map((item) => [item.event.event.name, item.lane]),
-    );
+    return index.atRelativeTime(playbackSeconds, durationSeconds).sort((left, right) => {
+      const laneDelta =
+        (laneByEventName.get(left.event.name)?.lane ?? Number.MAX_SAFE_INTEGER) -
+        (laneByEventName.get(right.event.name)?.lane ?? Number.MAX_SAFE_INTEGER);
+      if (laneDelta !== 0) {
+        return laneDelta;
+      }
 
-    return allEvents
-      .filter((event) =>
-        isPlaybackSecondsInEvent({
-          playbackSeconds,
-          event,
-          recordingStartTime: startTime,
-          durationSeconds,
-        }),
-      )
-      .sort((left, right) => {
-        const laneDelta =
-          (laneByEventName.get(left.event.name) ?? Number.MAX_SAFE_INTEGER) -
-          (laneByEventName.get(right.event.name) ?? Number.MAX_SAFE_INTEGER);
-        if (laneDelta !== 0) {
-          return laneDelta;
-        }
+      const startDelta = left.secondsSinceStart - right.secondsSinceStart;
+      if (startDelta !== 0) {
+        return startDelta;
+      }
 
-        const startDelta = left.secondsSinceStart - right.secondsSinceStart;
-        if (startDelta !== 0) {
-          return startDelta;
-        }
+      return left.event.name.localeCompare(right.event.name);
+    });
+  }, [currentTime, startTime, subtitleTimeline]);
 
-        return left.event.name.localeCompare(right.event.name);
-      });
-  }, [currentTime, endTime, events.value, startTime, subtitle.enabled]);
+  const activeEventsRef = useRef(activeEventsCandidate);
+  if (
+    activeEventsCandidate.length !== activeEventsRef.current.length ||
+    activeEventsCandidate.some((event, index) => event !== activeEventsRef.current[index])
+  ) {
+    activeEventsRef.current = activeEventsCandidate;
+  }
+  const activeEvents = activeEventsRef.current;
+
+  const subtitleLines = useMemo(
+    () =>
+      activeEvents.map((event) => (
+        <span
+          className={classes.subtitleLine}
+          data-testid="moment-subtitle-line"
+          key={event.event.name}
+        >
+          {getEventDisplayName(event)}
+        </span>
+      )),
+    [activeEvents, classes.subtitleLine],
+  );
 
   const decreaseFontSize = useCallback((): void => {
     setMomentSubtitleFontSize((old) =>
@@ -326,6 +347,14 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
     setFocusedWithin(true);
   }, [clearHideControlsTimeout]);
 
+  const stopDrag = useRef<() => void>(() => {});
+  useEffect(
+    () => () => {
+      stopDrag.current();
+    },
+    [],
+  );
+
   const startDrag = useCallback(
     (event: React.PointerEvent<HTMLDivElement>): void => {
       if (event.button !== 0) {
@@ -335,6 +364,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
       event.preventDefault();
       event.stopPropagation();
 
+      stopDrag.current();
       const rect = subtitleRef.current?.getBoundingClientRect();
       const { width: windowWidth, height: windowHeight } = getWindowSize();
       const startPosition = getEffectivePosition(subtitle.position);
@@ -360,9 +390,15 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
 
       const onPointerUp = (): void => {
         setDragging(false);
-        window.removeEventListener("pointermove", onPointerMove);
+        stopDrag.current();
       };
-
+      stopDrag.current = () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerUp);
+        stopDrag.current = () => {};
+      };
+      window.addEventListener("pointercancel", onPointerUp, { once: true });
       window.addEventListener("pointermove", onPointerMove);
       window.addEventListener("pointerup", onPointerUp, { once: true });
     },
@@ -458,15 +494,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
         }}
         tabIndex={0}
       >
-        {activeEvents.map((event) => (
-          <span
-            className={classes.subtitleLine}
-            data-testid="moment-subtitle-line"
-            key={event.event.name}
-          >
-            {getEventDisplayName(event)}
-          </span>
-        ))}
+        {subtitleLines}
       </div>
     </div>
   );

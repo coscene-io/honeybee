@@ -1,0 +1,106 @@
+{
+  "browser": "148.0.7778.96",
+  "cpu": "Apple M4 Pro",
+  "cpuRate": 4,
+  "generatedAt": "2026-09-19T03:10:48.870Z",
+  "steps": 70,
+  "caseTimeoutMs": 180000,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "results": [
+    {
+      "count": 1000,
+      "distribution": "short",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 90.95077957811067,
+          "inputP95Ms": 26,
+          "frameP95Ms": 18.300000000000182,
+          "maxLongTaskMs": 53,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 42.166000887705245,
+          "inputP95Ms": 121.60000000149012,
+          "frameP95Ms": 115.29999999999973,
+          "maxLongTaskMs": 120,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 73.29842931937172,
+          "inputP95Ms": 47.899999998509884,
+          "frameP95Ms": 34.100000000000364,
+          "maxLongTaskMs": 52,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 94.98956158663883,
+          "inputP95Ms": 103.39999999850988,
+          "frameP95Ms": 18.300000000000182,
+          "maxLongTaskMs": 93,
+          "samples": 4
+        }
+      },
+      "mountMs": 1128.299,
+      "dom": {
+        "total": 6197,
+        "ticks": 1000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "short",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 38.69290470084507,
+          "inputP95Ms": 57.600000001490116,
+          "frameP95Ms": 49.600000000000364,
+          "maxLongTaskMs": 171,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 28.967515001034542,
+          "inputP95Ms": 125.60000000149012,
+          "frameP95Ms": 126.59999999999991,
+          "maxLongTaskMs": 125,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 50.85100655080615,
+          "inputP95Ms": 146.09999999403954,
+          "frameP95Ms": 48.600000000000364,
+          "maxLongTaskMs": 158,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 52.703316674239026,
+          "inputP95Ms": 117.70000000298023,
+          "frameP95Ms": 41.20000000000073,
+          "maxLongTaskMs": 105,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 32.87757019100302,
+          "inputP95Ms": 67.89999999850988,
+          "frameP95Ms": 48.900000000001455,
+          "maxLongTaskMs": 59,
+          "samples": 21
+        }
+      },
+      "mountMs": 1239.017417,
+      "dom": {
+        "total": 6688,
+        "ticks": 1000,
+        "listRows": 8
+      }
+    }
+  ],
+  "sourceCommit": "40c9988ec"
+}

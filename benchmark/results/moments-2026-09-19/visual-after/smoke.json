@@ -1,0 +1,593 @@
+{
+  "errors": [],
+  "snapshots": [
+    "initial",
+    "search",
+    "menu"
+  ],
+  "soak": [
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7671,
+      "JSHeapUsedSize": 27110988
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7571,
+      "JSHeapUsedSize": 33431728
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7464,
+      "JSHeapUsedSize": 32063532
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7359,
+      "JSHeapUsedSize": 33382352
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7259,
+      "JSHeapUsedSize": 36967784
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7159,
+      "JSHeapUsedSize": 40880612
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 7075,
+      "JSHeapUsedSize": 34750756
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 6975,
+      "JSHeapUsedSize": 31931996
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 6875,
+      "JSHeapUsedSize": 35507936
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 6791,
+      "JSHeapUsedSize": 40602716
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 6691,
+      "JSHeapUsedSize": 30559228
+    },
+    {
+      "Documents": 1,
+      "JSEventListeners": 374,
+      "Nodes": 6607,
+      "JSHeapUsedSize": 31784956
+    }
+  ],
+  "geometry": [
+    {
+      "name": "Moment 0",
+      "x": 0,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 1",
+      "x": 120,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 2",
+      "x": 240,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 3",
+      "x": 360,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 4",
+      "x": 480,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 5",
+      "x": 600,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 6",
+      "x": 720,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 7",
+      "x": 840,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 8",
+      "x": 960,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 9",
+      "x": 1080,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 57.796875,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 10",
+      "x": 1200,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 65.5625,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    },
+    {
+      "name": "Moment 11",
+      "x": 1320,
+      "y": 801,
+      "width": 119.984375,
+      "height": 24,
+      "background": "rgb(186, 224, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "padding": "0px 8px",
+      "descendants": [
+        {
+          "width": 65.5625,
+          "height": 20,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        },
+        {
+          "width": 10,
+          "height": 22,
+          "boxSizing": "border-box",
+          "opacity": "1"
+        },
+        {
+          "width": 2,
+          "height": 16,
+          "boxSizing": "border-box",
+          "opacity": "0"
+        }
+      ]
+    }
+  ],
+  "menuItems": [
+    "Edit Moment",
+    "Loop Play"
+  ],
+  "sourceCommit": "96d16c1bc"
+}
