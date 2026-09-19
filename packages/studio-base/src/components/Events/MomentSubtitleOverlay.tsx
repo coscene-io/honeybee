@@ -221,28 +221,33 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
   const [focusedWithin, setFocusedWithin] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const activeEventsCandidate = useMemo((): TimelinePositionedEvent[] => {
-    if (
-      !subtitle.enabled ||
-      currentTime == undefined ||
-      startTime == undefined ||
-      endTime == undefined
-    ) {
-      return [];
+  // Retain the subtitle's full-record layout independently of the two viewport
+  // slots used by the scrubber, so zooming cannot evict it between playback frames.
+  const subtitleTimeline = useMemo(() => {
+    if (!subtitle.enabled || startTime == undefined || endTime == undefined) {
+      return undefined;
     }
-
     const durationSeconds = timelineDurationSeconds(startTime, endTime);
     if (durationSeconds < 0) {
-      return [];
+      return undefined;
     }
-
-    const playbackSeconds = timelineDurationSeconds(startTime, currentTime);
     const allEvents = events.value ?? EMPTY_EVENTS;
     const viewport = makeTimelineViewport(0, durationSeconds);
     const laneLayout = getCachedEventLaneLayout({ events: allEvents, viewport });
-    const laneByEventName = indexEventLanes(laneLayout).byName;
+    return {
+      durationSeconds,
+      laneByEventName: indexEventLanes(laneLayout).byName,
+      index: getEventTimeIndex(allEvents, startTime),
+    };
+  }, [endTime, events.value, startTime, subtitle.enabled]);
 
-    return getEventTimeIndex(allEvents, startTime)
+  const activeEventsCandidate = useMemo((): TimelinePositionedEvent[] => {
+    if (currentTime == undefined || startTime == undefined || subtitleTimeline == undefined) {
+      return [];
+    }
+    const { durationSeconds, laneByEventName, index } = subtitleTimeline;
+    const playbackSeconds = timelineDurationSeconds(startTime, currentTime);
+    return index
       .atRelativeTime(playbackSeconds, durationSeconds)
       .sort((left, right) => {
         const laneDelta =
@@ -259,7 +264,7 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
 
         return left.event.name.localeCompare(right.event.name);
       });
-  }, [currentTime, endTime, events.value, startTime, subtitle.enabled]);
+  }, [currentTime, startTime, subtitleTimeline]);
 
   const activeEventsRef = useRef(activeEventsCandidate);
   if (

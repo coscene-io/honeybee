@@ -237,6 +237,14 @@ export function EventsList(): React.JSX.Element {
     [events.value, formatTime],
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setExpanded((previous) => {
+      const entries = Object.entries(previous);
+      return entries.every(([key]) => timestampedEvents.has(key))
+        ? previous
+        : Object.fromEntries(entries.filter(([key]) => timestampedEvents.has(key)));
+    });
+  }, [timestampedEvents]);
   const selectedRef = useRef(selectedEventId);
   selectedRef.current = selectedEventId;
   const creatorCache = useMemo(

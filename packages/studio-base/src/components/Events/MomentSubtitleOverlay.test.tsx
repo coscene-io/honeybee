@@ -11,7 +11,7 @@ import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import i18n from "i18next";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { add } from "@foxglove/rostime";
 import {
@@ -19,6 +19,8 @@ import {
   MomentSubtitleOverlay,
 } from "@foxglove/studio-base/components/Events/MomentSubtitleOverlay";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
+import { getCachedEventLaneLayout } from "@foxglove/studio-base/components/PlaybackControls/eventLanes";
+import { makeTimelineViewport } from "@foxglove/studio-base/components/PlaybackControls/timelineViewport";
 import {
   type EventsStore,
   type TimelinePositionedEvent,
@@ -27,6 +29,11 @@ import {
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+
+jest.mock("@foxglove/studio-base/components/PlaybackControls/eventLanes", () => {
+  const actual = jest.requireActual<typeof import("@foxglove/studio-base/components/PlaybackControls/eventLanes")>("@foxglove/studio-base/components/PlaybackControls/eventLanes");
+  return { ...actual, getCachedEventLaneLayout: jest.fn(actual.getCachedEventLaneLayout) };
+});
 
 type MomentSubtitleSettings = {
   enabled: boolean;
@@ -123,6 +130,30 @@ describe("<MomentSubtitleOverlay />", () => {
     await i18n.changeLanguage("en");
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
+  });
+
+  it("retains the full-record subtitle layout across playback and scrubber cache eviction", () => {
+    const startTime = { sec: 100, nsec: 0 };
+    const endTime = { sec: 110, nsec: 0 };
+    const events = [makePositionedEvent("Long moment", 0, 10)];
+    function Playback(): React.JSX.Element {
+      const [sec, setSec] = useState(101);
+      return <MockMessagePipelineProvider startTime={startTime} endTime={endTime} currentTime={{ sec, nsec: 0 }}>
+        <button onClick={() => { setSec(sec + 1); }}>advance</button>
+        <MomentSubtitleOverlay />
+      </MockMessagePipelineProvider>;
+    }
+    render(<ThemeProvider isDark><WorkspaceContextProvider disablePersistence initialState={{ playbackControls: { momentSubtitle: { enabled: true, fontSize: 24 } } }}>
+      <EventsProvider><SeedEvents events={events} /><Playback /></EventsProvider>
+    </WorkspaceContextProvider></ThemeProvider>);
+    const viewport = makeTimelineViewport(0, 10);
+    getCachedEventLaneLayout({ events, viewport: { ...viewport, visibleStartSec: 1 } });
+    getCachedEventLaneLayout({ events, viewport: { ...viewport, visibleStartSec: 2 } });
+    jest.mocked(getCachedEventLaneLayout).mockClear();
+    fireEvent.click(screen.getByText("advance"));
+    fireEvent.click(screen.getByText("advance"));
+    expect(getCachedEventLaneLayout).not.toHaveBeenCalled();
+    expect(screen.getByTestId("moment-subtitle").textContent).toBe("Long moment");
   });
 
   it("renders the active event displayName as a subtitle", () => {
