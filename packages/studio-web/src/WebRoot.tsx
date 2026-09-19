@@ -5,7 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   IDataSourceFactory,
@@ -23,6 +24,7 @@ import {
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { initializeBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 import { useCoSceneInit } from "./CoSceneInit";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
@@ -36,7 +38,20 @@ export function WebRoot(props: {
 }): React.JSX.Element {
   const appConfig = getAppConfig();
   const baseUrl = appConfig.CS_HONEYBEE_BASE_URL ?? "";
-  const jwt = localStorage.getItem("coScene_org_jwt") ?? "";
+  const [session] = useState(initializeBrowserSession);
+  const [, setRevision] = useState(0);
+  const { t } = useTranslation("appBar");
+  const jwt = session.credential;
+  useEffect(() => {
+    const unsubscribe = session.subscribe(() => {
+      setRevision((value) => value + 1);
+    });
+    const stopListening = session.listen();
+    return () => {
+      unsubscribe();
+      stopListening();
+    };
+  }, [session]);
 
   useCoSceneInit();
 
@@ -81,6 +96,38 @@ export function WebRoot(props: {
     }
     return providers;
   }, [coSceneProviders, props.extraProviders]);
+
+  if (session.getStatus() !== "current" && !session.preservesPlayback()) {
+    return (
+      <main role="alert" style={{ padding: 32 }}>
+        <p>
+          {t(
+            session.getStatus() === "changed"
+              ? "sessionChanged"
+              : session.getStatus() === "logged-out"
+                ? "sessionLoggedOut"
+                : "sessionRecoveryRequired",
+          )}
+        </p>
+        {session.getStatus() === "changed" ? (
+          <button
+            onClick={() => {
+              window.location.reload();
+            }}
+          >
+            {t("reloadSession")}
+          </button>
+        ) : (
+          <a
+            target="_self"
+            href={session.getStatus() === "logged-out" ? "/auth/logged-out" : "/auth/recover"}
+          >
+            {t("openSessionRecovery")}
+          </a>
+        )}
+      </main>
+    );
+  }
 
   return (
     <>

@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 import { setAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import {
   SHARE_MANIFEST_DATA_SOURCE_ID,
@@ -29,11 +30,14 @@ export function AuthlessDataSourceSyncAdapter(): ReactNull {
 
   useEffect(() => {
     setAuthlessDataSource({ authless: isAuthless });
+    getBrowserSession()?.setLocalPlayback({
+      local: isAuthless || dataSource?.type === "file" || dataSource?.type === "persistent-cache",
+    });
 
     return () => {
       setAuthlessDataSource({ authless: false });
     };
-  }, [isAuthless]);
+  }, [isAuthless, dataSource?.type]);
 
   return ReactNull;
 }
