@@ -247,23 +247,21 @@ export function MomentSubtitleOverlay(): React.JSX.Element | ReactNull {
     }
     const { durationSeconds, laneByEventName, index } = subtitleTimeline;
     const playbackSeconds = timelineDurationSeconds(startTime, currentTime);
-    return index
-      .atRelativeTime(playbackSeconds, durationSeconds)
-      .sort((left, right) => {
-        const laneDelta =
-          (laneByEventName.get(left.event.name)?.lane ?? Number.MAX_SAFE_INTEGER) -
-          (laneByEventName.get(right.event.name)?.lane ?? Number.MAX_SAFE_INTEGER);
-        if (laneDelta !== 0) {
-          return laneDelta;
-        }
+    return index.atRelativeTime(playbackSeconds, durationSeconds).sort((left, right) => {
+      const laneDelta =
+        (laneByEventName.get(left.event.name)?.lane ?? Number.MAX_SAFE_INTEGER) -
+        (laneByEventName.get(right.event.name)?.lane ?? Number.MAX_SAFE_INTEGER);
+      if (laneDelta !== 0) {
+        return laneDelta;
+      }
 
-        const startDelta = left.secondsSinceStart - right.secondsSinceStart;
-        if (startDelta !== 0) {
-          return startDelta;
-        }
+      const startDelta = left.secondsSinceStart - right.secondsSinceStart;
+      if (startDelta !== 0) {
+        return startDelta;
+      }
 
-        return left.event.name.localeCompare(right.event.name);
-      });
+      return left.event.name.localeCompare(right.event.name);
+    });
   }, [currentTime, startTime, subtitleTimeline]);
 
   const activeEventsRef = useRef(activeEventsCandidate);

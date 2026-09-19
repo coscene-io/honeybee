@@ -466,7 +466,11 @@ export function EventsList(): React.JSX.Element {
       }
     }
     // The original padding belongs to the scrollable content, not the viewport.
-    result.push({ key: "spacer:bottom", estimatedSize: 16, content: <div style={{ height: 16 }} /> });
+    result.push({
+      key: "spacer:bottom",
+      estimatedSize: 16,
+      content: <div style={{ height: 16 }} />,
+    });
     return result;
   }, [
     timestampedEvents,

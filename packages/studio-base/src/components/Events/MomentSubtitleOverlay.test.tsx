@@ -31,7 +31,9 @@ import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceC
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 jest.mock("@foxglove/studio-base/components/PlaybackControls/eventLanes", () => {
-  const actual = jest.requireActual<typeof import("@foxglove/studio-base/components/PlaybackControls/eventLanes")>("@foxglove/studio-base/components/PlaybackControls/eventLanes");
+  const actual = jest.requireActual<
+    typeof import("@foxglove/studio-base/components/PlaybackControls/eventLanes")
+  >("@foxglove/studio-base/components/PlaybackControls/eventLanes");
   return { ...actual, getCachedEventLaneLayout: jest.fn(actual.getCachedEventLaneLayout) };
 });
 
@@ -138,14 +140,36 @@ describe("<MomentSubtitleOverlay />", () => {
     const events = [makePositionedEvent("Long moment", 0, 10)];
     function Playback(): React.JSX.Element {
       const [sec, setSec] = useState(101);
-      return <MockMessagePipelineProvider startTime={startTime} endTime={endTime} currentTime={{ sec, nsec: 0 }}>
-        <button onClick={() => { setSec(sec + 1); }}>advance</button>
-        <MomentSubtitleOverlay />
-      </MockMessagePipelineProvider>;
+      return (
+        <MockMessagePipelineProvider
+          startTime={startTime}
+          endTime={endTime}
+          currentTime={{ sec, nsec: 0 }}
+        >
+          <button
+            onClick={() => {
+              setSec(sec + 1);
+            }}
+          >
+            advance
+          </button>
+          <MomentSubtitleOverlay />
+        </MockMessagePipelineProvider>
+      );
     }
-    render(<ThemeProvider isDark><WorkspaceContextProvider disablePersistence initialState={{ playbackControls: { momentSubtitle: { enabled: true, fontSize: 24 } } }}>
-      <EventsProvider><SeedEvents events={events} /><Playback /></EventsProvider>
-    </WorkspaceContextProvider></ThemeProvider>);
+    render(
+      <ThemeProvider isDark>
+        <WorkspaceContextProvider
+          disablePersistence
+          initialState={{ playbackControls: { momentSubtitle: { enabled: true, fontSize: 24 } } }}
+        >
+          <EventsProvider>
+            <SeedEvents events={events} />
+            <Playback />
+          </EventsProvider>
+        </WorkspaceContextProvider>
+      </ThemeProvider>,
+    );
     const viewport = makeTimelineViewport(0, 10);
     getCachedEventLaneLayout({ events, viewport: { ...viewport, visibleStartSec: 1 } });
     getCachedEventLaneLayout({ events, viewport: { ...viewport, visibleStartSec: 2 } });
