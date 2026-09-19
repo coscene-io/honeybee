@@ -465,6 +465,8 @@ export function EventsList(): React.JSX.Element {
         });
       }
     }
+    // The original padding belongs to the scrollable content, not the viewport.
+    result.push({ key: "spacer:bottom", estimatedSize: 16, content: <div style={{ height: 16 }} /> });
     return result;
   }, [
     timestampedEvents,
@@ -592,7 +594,7 @@ export function EventsList(): React.JSX.Element {
         onMouseLeave={() => {
           setDisabledScroll(false);
         }}
-        style={{ display: "flex", flex: "1 1 auto", minHeight: 0, paddingBottom: 16 }}
+        style={{ display: "flex", flex: "1 1 auto", minHeight: 0 }}
       >
         <WindowedList items={rows} resetKey={momentVariant} scrollToKey={scrollToKey} />
       </div>
