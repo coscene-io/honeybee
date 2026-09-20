@@ -120,7 +120,9 @@ const Row = memo(function Row({
   const { horizontal, measure } = data;
   const item = data.items[index]!;
   const ref = useRef<HTMLDivElement>(ReactNull);
-  data.styles.set(item.key, style);
+  useLayoutEffect(() => {
+    data.styles.set(item.key, style);
+  }, [data.styles, item.key, style]);
   useLayoutEffect(() => {
     if (retained && ref.current != undefined) {
       return excludeFromTabOrder(ref.current);
@@ -248,14 +250,16 @@ export function WindowedList({
     };
     return observeSize(element, measure);
   }, []);
-  const previousItems = useRef(items);
+  const anchorSnapshot = useRef<{
+    anchorIndex: number;
+    anchorKey: string | undefined;
+    withinRow: number;
+    offset: number;
+  }>();
   const previousMeasurement = useRef({ width: bounds.width, resetKey });
   useLayoutEffect(() => {
-    const anchorIndex = visibleStart.current;
-    const anchor = previousItems.current[anchorIndex];
-    const anchorStyle = anchor == undefined ? undefined : styles.current.get(anchor.key);
-    const oldPosition = horizontal ? anchorStyle?.left : anchorStyle?.top;
-    const withinRow = typeof oldPosition === "number" ? scrollOffset.current - oldPosition : 0;
+    const { anchorIndex = 0, anchorKey, withinRow = 0, offset = 0 } = anchorSnapshot.current ?? {};
+    const committedStyles = styles.current;
     if (
       previousMeasurement.current.width !== bounds.width ||
       previousMeasurement.current.resetKey !== resetKey
@@ -274,8 +278,8 @@ export function WindowedList({
       }
     }
     list.current?.resetAfterIndex(0, false);
-    if (anchor != undefined && scrollOffset.current > 0) {
-      const nextIndex = indices.get(anchor.key) ?? Math.min(anchorIndex, items.length - 1);
+    if (anchorKey != undefined && offset > 0) {
+      const nextIndex = indices.get(anchorKey) ?? Math.min(anchorIndex, items.length - 1);
       const nextAnchor = items[nextIndex];
       const nextSize =
         nextAnchor == undefined
@@ -286,10 +290,23 @@ export function WindowedList({
         const item = items[index]!;
         nextOffset += sizes.current.get(item.key) ?? item.estimatedSize;
       }
-      list.current?.scrollTo(Math.max(0, nextOffset));
+      // New rows measure before react-window reports this requested scroll in its next commit.
+      scrollOffset.current = Math.max(0, nextOffset);
+      visibleStart.current = nextIndex;
+      list.current?.scrollTo(scrollOffset.current);
     }
-    previousItems.current = items;
     list.current?.resetAfterIndex(0);
+    return () => {
+      // Capture the previous commit before child layout effects update styles and measurements.
+      // A render-time snapshot can become stale if rendering yields while the user scrolls.
+      const anchorIndex = visibleStart.current;
+      const anchor = items[anchorIndex];
+      const anchorStyle = anchor == undefined ? undefined : committedStyles.get(anchor.key);
+      const oldPosition = horizontal ? anchorStyle?.left : anchorStyle?.top;
+      const offset = scrollOffset.current;
+      const withinRow = typeof oldPosition === "number" ? offset - oldPosition : 0;
+      anchorSnapshot.current = { anchorIndex, anchorKey: anchor?.key, withinRow, offset };
+    };
   }, [bounds.width, resetKey, indices, items, horizontal]);
   const measure = useCallback(
     (index: number, size: number) => {

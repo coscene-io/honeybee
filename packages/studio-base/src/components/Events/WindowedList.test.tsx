@@ -7,7 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { WindowedList } from "./WindowedList";
@@ -425,6 +425,130 @@ describe("resize delivery", () => {
       });
       flushFrame();
       expect(viewport.scrollTop).toBe(offset);
+    },
+  );
+});
+
+describe("scroll anchoring", () => {
+  const items = Array.from({ length: 100 }, (_, index) => ({
+    key: `row-${index}`,
+    estimatedSize: 100,
+    content: <StatefulRow name={`row-${index}`} />,
+  }));
+
+  function viewportOf(container: HTMLElement) {
+    const viewport = container.firstElementChild!.firstElementChild as HTMLElement;
+    Object.defineProperties(viewport, {
+      clientHeight: { value: 600 },
+      scrollHeight: { value: 10000 },
+      clientWidth: { value: 300 },
+      scrollWidth: { value: 10000 },
+    });
+    return viewport;
+  }
+
+  it.each([
+    [false, "insert", 1100],
+    [false, "delete", 900],
+    [true, "insert", 1100],
+    [true, "delete", 900],
+  ] as const)(
+    "preserves the visible key and row offset, horizontal=%s, change=%s",
+    (horizontal, change, expectedPosition) => {
+      const { container, rerender } = render(
+        <WindowedList items={items} horizontal={horizontal} />,
+        { wrapper: StrictMode },
+      );
+      const viewport = viewportOf(container);
+      fireEvent.scroll(viewport, {
+        target: horizontal ? { scrollLeft: 1037 } : { scrollTop: 1037 },
+      });
+      const next =
+        change === "insert"
+          ? [{ key: "new", estimatedSize: 100, content: <button>new</button> }, ...items]
+          : items.slice(1);
+      rerender(<WindowedList items={next} horizontal={horizontal} />);
+      const anchor = screen.getByText("row-10:0").parentElement!.parentElement!;
+      expect(parseFloat(horizontal ? anchor.style.left : anchor.style.top)).toBe(expectedPosition);
+      expect(horizontal ? viewport.scrollLeft : viewport.scrollTop).toBe(expectedPosition + 37);
+    },
+  );
+
+  it.each([false, true])(
+    "uses the latest scroll before each update, horizontal=%s",
+    (horizontal) => {
+      const { container, rerender } = render(
+        <WindowedList items={items} horizontal={horizontal} />,
+        { wrapper: StrictMode },
+      );
+      const viewport = viewportOf(container);
+      fireEvent.scroll(viewport, {
+        target: horizontal ? { scrollLeft: 1037 } : { scrollTop: 1037 },
+      });
+      rerender(<WindowedList items={items.slice(1)} horizontal={horizontal} />);
+      fireEvent.scroll(viewport, {
+        target: horizontal ? { scrollLeft: 1961 } : { scrollTop: 1961 },
+      });
+      rerender(<WindowedList items={items.slice(2)} horizontal={horizontal} />);
+      const anchor = screen.getByText("row-20:0").parentElement!.parentElement!;
+      expect(parseFloat(horizontal ? anchor.style.left : anchor.style.top)).toBe(1800);
+      expect(horizontal ? viewport.scrollLeft : viewport.scrollTop).toBe(1861);
+    },
+  );
+
+  it.each([false, true])(
+    "uses the previous index if the anchor was deleted, horizontal=%s",
+    (horizontal) => {
+      const { container, rerender } = render(
+        <WindowedList items={items} horizontal={horizontal} />,
+      );
+      const viewport = viewportOf(container);
+      fireEvent.scroll(viewport, {
+        target: horizontal ? { scrollLeft: 1037 } : { scrollTop: 1037 },
+      });
+      rerender(
+        <WindowedList
+          items={items.filter((item) => item.key !== "row-10")}
+          horizontal={horizontal}
+        />,
+      );
+      const anchor = screen.getByText("row-11:0").parentElement!.parentElement!;
+      expect(parseFloat(horizontal ? anchor.style.left : anchor.style.top)).toBe(1000);
+      expect(horizontal ? viewport.scrollLeft : viewport.scrollTop).toBe(1037);
+    },
+  );
+
+  it.each(["insert", "delete"])(
+    "preserves the row offset when rows measure during %s",
+    (change) => {
+      const heights = new Map<string, number>([["row-8:0", 140]]);
+      jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const text =
+          this.firstElementChild?.tagName === "BUTTON"
+            ? this.firstElementChild.textContent
+            : undefined;
+        return DOMRect.fromRect({
+          width: 300,
+          height: text == undefined ? 0 : (heights.get(text) ?? 100),
+        });
+      });
+      const { container, rerender } = render(<WindowedList items={items} />);
+      const viewport = viewportOf(container);
+      fireEvent.scroll(viewport, { target: { scrollTop: 1077 } });
+      expect(screen.getByText("row-10:0").parentElement!.parentElement!.style.top).toBe("1040px");
+      heights.set("row-9:0", 180);
+      const next =
+        change === "insert"
+          ? [{ key: "new", estimatedSize: 100, content: <button>new</button> }, ...items]
+          : items.slice(1);
+      rerender(<WindowedList items={next} />);
+      const expectedPosition = change === "insert" ? 1220 : 1020;
+      expect(screen.getByText("row-10:0").parentElement!.parentElement!.style.top).toBe(
+        `${expectedPosition}px`,
+      );
+      expect(viewport.scrollTop).toBe(expectedPosition + 37);
     },
   );
 });
