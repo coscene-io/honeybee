@@ -11,6 +11,7 @@ import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import { alpha, Slider as MuiSlider, Tooltip } from "@mui/material";
 import {
   forwardRef,
+  type SetStateAction,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -470,17 +471,29 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const pendingWheelViewport = useRef<TimelineViewport | undefined>();
   const wheelFrame = useRef<number | undefined>();
-  const [viewport, setViewport] = useState<TimelineViewport | undefined>(defaultViewport);
+  const [viewport, setViewportState] = useState<TimelineViewport | undefined>(defaultViewport);
   const [previewEventLaneCount, setPreviewEventLaneCount] = useState<number | undefined>(undefined);
 
-  useLayoutEffect(() => {
+  const cancelPendingWheelViewport = useCallback(() => {
     if (wheelFrame.current != undefined) {
       cancelAnimationFrame(wheelFrame.current);
     }
     wheelFrame.current = undefined;
     pendingWheelViewport.current = undefined;
+  }, []);
+
+  // A later viewport action supersedes wheel input queued for the next frame.
+  const setViewport = useCallback(
+    (update: SetStateAction<TimelineViewport | undefined>) => {
+      cancelPendingWheelViewport();
+      setViewportState(update);
+    },
+    [cancelPendingWheelViewport],
+  );
+
+  useLayoutEffect(() => {
     setViewport(defaultViewport);
-  }, [defaultViewport]);
+  }, [defaultViewport, setViewport]);
 
   const resolvedViewport = viewport ?? defaultViewport;
   const latestViewport = useLatest(resolvedViewport);
@@ -527,7 +540,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       const sourceViewport = oldViewport ?? currentViewport;
       return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
     });
-  }, [currentTime, latestViewport, latestStartTime]);
+  }, [currentTime, latestViewport, latestStartTime, setViewport]);
 
   const onChange = useCallback(
     (playbackSeconds: number) => {
@@ -740,14 +753,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [beginTimelinePointerInteraction],
   );
 
-  useEffect(
-    () => () => {
-      if (wheelFrame.current != undefined) {
-        cancelAnimationFrame(wheelFrame.current);
-      }
-    },
-    [],
-  );
+  useEffect(() => cancelPendingWheelViewport, [cancelPendingWheelViewport]);
 
   // Attached as a non-passive native listener (see the effect below) rather than via React's
   // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
@@ -788,7 +794,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         const next = pendingWheelViewport.current;
         pendingWheelViewport.current = undefined;
         if (next != undefined) {
-          setViewport((old) => (old != undefined && viewportEquals(old, next) ? old : next));
+          setViewportState((old) => (old != undefined && viewportEquals(old, next) ? old : next));
         }
       });
     },
@@ -844,7 +850,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
       });
     },
-    [latestViewport, zoomAnchorSec],
+    [latestViewport, setViewport, zoomAnchorSec],
   );
 
   // After a mouse drag on the zoom slider, MUI releases focus to <body>, which sits outside the
@@ -897,7 +903,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
       });
     },
-    [latestViewport, zoomAnchorSecRef],
+    [latestViewport, setViewport, zoomAnchorSecRef],
   );
 
   // Reset the timeline zoom back to the full recording range.
@@ -906,7 +912,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return;
     }
     setViewport(defaultViewport);
-  }, [defaultViewport]);
+  }, [defaultViewport, setViewport]);
 
   // Pan the visible window to start at the position requested by the horizontal scrollbar.
   const onScrollbarScroll = useCallback(
@@ -920,7 +926,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
       });
     },
-    [latestViewport],
+    [latestViewport, setViewport],
   );
 
   const isZoomed = resolvedViewport != undefined && isViewportZoomed(resolvedViewport);
