@@ -30,28 +30,43 @@ const PinnedContext = createContext<{ data: RowData; index: number | undefined }
   undefined,
 );
 
+/** Layout writes must run outside ResizeObserver's delivery cycle. */
+function observeSize(element: HTMLElement, measure: () => void): () => void {
+  let frame: number | undefined;
+  const observer = new ResizeObserver(() => {
+    frame ??= requestAnimationFrame(() => {
+      frame = undefined;
+      measure();
+    });
+  });
+  observer.observe(element);
+  measure();
+  return () => {
+    observer.disconnect();
+    if (frame != undefined) {
+      cancelAnimationFrame(frame);
+    }
+  };
+}
+
 const Row = memo(function Row({ index, style, data }: ListChildComponentProps<RowData>) {
+  const { horizontal, measure } = data;
   const item = data.items[index]!;
   const ref = useRef<HTMLDivElement>(ReactNull);
   data.styles.set(item.key, style);
   useLayoutEffect(() => {
     const element = ref.current;
-    if (element == undefined || data.horizontal) {
+    if (element == undefined || horizontal) {
       return;
     }
     const update = () => {
       const size = element.getBoundingClientRect().height;
       if (size > 0) {
-        data.measure(index, size);
+        measure(index, size);
       }
     };
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    update();
-    return () => {
-      observer.disconnect();
-    };
-  }, [data, index]);
+    return observeSize(element, update);
+  }, [horizontal, measure, index]);
   return (
     <div
       style={style}
@@ -141,12 +156,7 @@ export function WindowedList({
         );
       }
     };
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    measure();
-    return () => {
-      observer.disconnect();
-    };
+    return observeSize(element, measure);
   }, []);
   const previousItems = useRef(items);
   const previousMeasurement = useRef({ width: bounds.width, resetKey });
