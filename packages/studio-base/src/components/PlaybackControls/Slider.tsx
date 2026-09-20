@@ -135,10 +135,15 @@ function Slider(props: Props): React.JSX.Element {
   );
 
   const applySeek = useRef<(clientX: number) => void>(() => {});
+  const lastSeekSeconds = useRef<number | undefined>();
   useLayoutEffect(() => {
     applySeek.current = (clientX) => {
       if (!disabled) {
-        onChange(getPlaybackSecondsAtClientX(clientX));
+        const seconds = getPlaybackSecondsAtClientX(clientX);
+        if (seconds !== lastSeekSeconds.current) {
+          lastSeekSeconds.current = seconds;
+          onChange(seconds);
+        }
       }
     };
   }, [disabled, getPlaybackSecondsAtClientX, onChange]);
@@ -264,7 +269,9 @@ function Slider(props: Props): React.JSX.Element {
         document.activeElement.blur();
       }
       ev.preventDefault();
-      onChange(getPlaybackSecondsAtMouse(ev));
+      const seconds = getPlaybackSecondsAtMouse(ev);
+      lastSeekSeconds.current = seconds;
+      onChange(seconds);
       mouseDownRef.current = true;
       setMouseDown(true);
     },

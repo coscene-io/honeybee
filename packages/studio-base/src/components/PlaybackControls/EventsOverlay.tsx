@@ -958,6 +958,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const [rollingEdit, setRollingEdit] = useState<
     | {
         boundarySec: number;
+        initialClientX: number;
         pair: RollingEditPair;
       }
     | undefined
@@ -1612,11 +1613,18 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   ]);
 
   useEffect(() => {
-    if (!rollingEditEnabled || rollingEditPair == undefined) {
+    if (!rollingEditEnabled) {
+      rollingEditRef.current = undefined;
+      setRollingEdit(undefined);
       return;
     }
+    if (rollingEditPair == undefined) {
+      return;
+    }
+    let receivedPointerMove = false;
     const input = frameInput((event: PointerEvent) => {
-      if (rootRef.current == undefined || rollingEditRef.current?.pair !== rollingEditPair) {
+      const current = rollingEditRef.current;
+      if (rootRef.current == undefined || current?.pair !== rollingEditPair) {
         return;
       }
       const boundarySec = clampRollingEditBoundary(
@@ -1624,14 +1632,20 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         clientXToTime(getPointerClientX(event), rootRef.current.getBoundingClientRect(), viewport),
       );
       onSeek?.(boundarySec);
-      rollingEditRef.current = { pair: rollingEditPair, boundarySec };
+      rollingEditRef.current = { ...current, boundarySec };
       setRollingEdit(rollingEditRef.current);
     });
     const onPointerMove = (event: PointerEvent) => {
+      receivedPointerMove = true;
       input.schedule(event);
     };
     const onPointerUp = (event: PointerEvent) => {
-      input.flush(event);
+      if (
+        receivedPointerMove ||
+        getPointerClientX(event) !== rollingEditRef.current?.initialClientX
+      ) {
+        input.flush(event);
+      }
       const current = rollingEditRef.current;
       if (current != undefined) {
         void commitRollingEdit(current.pair, current.boundarySec);
@@ -1850,7 +1864,11 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
                 onPointerDown={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  setRollingEdit({ pair, boundarySec: pair.boundarySec });
+                  setRollingEdit({
+                    pair,
+                    boundarySec: pair.boundarySec,
+                    initialClientX: getPointerClientX(event),
+                  });
                 }}
               >
                 <div className={classes.rollingEditHandleLine} />

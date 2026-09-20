@@ -138,6 +138,7 @@ export function WindowedList({
   const styles = useRef(new Map<string, React.CSSProperties>());
   const scrollOffset = useRef(0);
   const visibleStart = useRef(0);
+  const scrollTarget = useRef<number | undefined>();
   const [bounds, setBounds] = useState({ width: 300, height: horizontal ? 50 : 600 });
   const [pinnedKey, setPinnedKey] = useState<string | undefined>();
   const indices = useMemo(() => new Map(items.map((item, index) => [item.key, index])), [items]);
@@ -213,7 +214,11 @@ export function WindowedList({
       }
       sizes.current.set(item.key, size);
       list.current?.resetAfterIndex(index);
-      if (index < visibleStart.current) {
+      if (scrollTarget.current != undefined) {
+        // Newly mounted rows can move a target far beyond its estimated position.
+        // Keep aligning while measurements settle, until the user scrolls away.
+        list.current?.scrollToItem(scrollTarget.current, "center");
+      } else if (index < visibleStart.current) {
         scrollOffset.current += size - old;
         list.current?.scrollTo(scrollOffset.current);
       }
@@ -235,10 +240,8 @@ export function WindowedList({
     [data, indices, pinnedKey],
   );
   useLayoutEffect(() => {
-    if (scrollToKey == undefined) {
-      return;
-    }
-    const index = indices.get(scrollToKey);
+    const index = scrollToKey == undefined ? undefined : indices.get(scrollToKey);
+    scrollTarget.current = index;
     if (index != undefined) {
       list.current?.scrollToItem(index, horizontal ? "smart" : "center");
     }
@@ -268,6 +271,9 @@ export function WindowedList({
           itemSize={(index) => sizes.current.get(items[index]!.key) ?? items[index]!.estimatedSize}
           overscanCount={3}
           onScroll={(state) => {
+            if (!state.scrollUpdateWasRequested && state.scrollOffset !== scrollOffset.current) {
+              scrollTarget.current = undefined;
+            }
             scrollOffset.current = state.scrollOffset;
           }}
           onItemsRendered={(state) => {

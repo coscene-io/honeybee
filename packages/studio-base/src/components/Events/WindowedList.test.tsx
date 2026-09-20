@@ -72,6 +72,28 @@ it("preserves the visible item when estimates change with the display mode", () 
   );
 });
 
+it("keeps an automatic target visible when mounted rows are much taller than estimated", () => {
+  jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return DOMRect.fromRect({
+      width: 300,
+      height: this.firstElementChild?.tagName === "BUTTON" ? 1000 : 0,
+    });
+  });
+  const items = Array.from({ length: 1000 }, (_, index) => ({
+    key: `row-${index}`,
+    estimatedSize: 100,
+    content: <StatefulRow name={`row-${index}`} />,
+  }));
+  const { container } = render(<WindowedList items={items} scrollToKey="row-800" />);
+  const target = screen.getByText("row-800:0").parentElement!.parentElement!;
+  const viewport = container.firstElementChild!.firstElementChild as HTMLElement;
+  expect(parseFloat(target.style.top)).toBeLessThan(viewport.scrollTop + 600);
+  expect(parseFloat(target.style.top) + 1000).toBeGreaterThan(viewport.scrollTop);
+  expect(screen.getAllByRole("button").length).toBeLessThan(15);
+});
+
 describe("resize delivery", () => {
   let notifications: Map<Element, () => void>;
   let frames: Map<number, FrameRequestCallback>;
@@ -193,4 +215,31 @@ describe("resize delivery", () => {
     flushFrame();
     expect(screen.getByText("row-11:0").parentElement!.parentElement!.style.top).toBe("100px");
   });
+
+  it.each(["manual scroll", "cleared target"])(
+    "stops measurement-driven automatic positioning after %s",
+    (cancellation) => {
+      const { container, rerender } = render(<WindowedList items={items} scrollToKey="row-10" />);
+      const viewport = container.firstElementChild!.firstElementChild as HTMLElement;
+      if (cancellation === "manual scroll") {
+        Object.defineProperties(viewport, {
+          clientHeight: { value: 600 },
+          scrollHeight: { value: 2000 },
+        });
+        fireEvent.scroll(viewport, { target: { scrollTop: 400 } });
+      } else {
+        rerender(<WindowedList items={items} />);
+      }
+      const offset = viewport.scrollTop;
+      const measuredRow = screen.getByText(
+        cancellation === "manual scroll" ? "row-4:0" : "row-10:0",
+      ).parentElement!;
+      act(() => {
+        rectangles.set(measuredRow, { width: 300, height: 400 });
+        notifications.get(measuredRow)!();
+      });
+      flushFrame();
+      expect(viewport.scrollTop).toBe(offset);
+    },
+  );
 });
