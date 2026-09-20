@@ -7,6 +7,8 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 
+import type { WindowedScrollRequest } from "./WindowedList";
+
 /** Match per-row scroll effects: only changed active rows scroll; a stale selection must not
  * override a newly hovered row. The last changed row in display order wins, as before. */
 export function useMomentScrollTarget({
@@ -19,14 +21,14 @@ export function useMomentScrollTarget({
   hovered: ReadonlySet<string>;
   order: ReadonlyMap<string, number>;
   disabled?: boolean;
-}): string | undefined {
+}): WindowedScrollRequest | undefined {
   const previous = useRef<{
     selected: string | undefined;
     hovered: ReadonlySet<string>;
     order: ReadonlyMap<string, number>;
     disabled: boolean;
   }>();
-  const [target, setTarget] = useState<string | undefined>();
+  const [target, setTarget] = useState<WindowedScrollRequest | undefined>();
   useLayoutEffect(() => {
     const old = previous.current;
     previous.current = { selected, hovered, order, disabled };
@@ -65,7 +67,8 @@ export function useMomentScrollTarget({
         next = name;
       }
     }
-    setTarget(next);
+    // A changed active state can request the same row again after a manual scroll.
+    setTarget(next == undefined ? undefined : { key: next });
   }, [selected, hovered, order, disabled]);
   return target;
 }

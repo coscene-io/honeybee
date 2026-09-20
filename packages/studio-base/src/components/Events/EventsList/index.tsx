@@ -498,7 +498,7 @@ export function EventsList(): React.JSX.Element {
       ),
     [hoveredEvent, eventsAtHoverValue],
   );
-  const scrollToKey = useMomentScrollTarget({
+  const scrollRequest = useMomentScrollTarget({
     selected: selectedEventId,
     hovered: hoveredNames,
     order: rowOrder,
@@ -600,7 +600,7 @@ export function EventsList(): React.JSX.Element {
         }}
         style={{ display: "flex", flex: "1 1 auto", minHeight: 0 }}
       >
-        <WindowedList items={rows} resetKey={momentVariant} scrollToKey={scrollToKey} />
+        <WindowedList items={rows} resetKey={momentVariant} scrollRequest={scrollRequest} />
       </div>
     </Stack>
   );

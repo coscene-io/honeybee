@@ -19,11 +19,13 @@ import {
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 
 export type WindowedItem = { key: string; estimatedSize: number; content: React.ReactNode };
+export type WindowedScrollRequest = { key: string };
 type RowData = {
   items: WindowedItem[];
   horizontal: boolean;
   measure: (index: number, size: number) => void;
   pin: (index: number) => void;
+  reveal: (index: number) => void;
   styles: Map<string, React.CSSProperties>;
 };
 const PinnedContext = createContext<{ data: RowData; index: number | undefined } | undefined>(
@@ -49,11 +51,82 @@ function observeSize(element: HTMLElement, measure: () => void): () => void {
   };
 }
 
-const Row = memo(function Row({ index, style, data }: ListChildComponentProps<RowData>) {
+/** Preserve programmatic focus restoration (e.g. dialogs), but skip retained controls on Tab. */
+function excludeFromTabOrder(element: HTMLElement): () => void {
+  const original = new Map<Element, string | ReactNull>();
+  const rememberChanges = (records: MutationRecord[]) => {
+    for (const record of records) {
+      if (record.type === "attributes" && record.attributeName === "tabindex") {
+        const target = record.target as Element;
+        if (original.has(target)) {
+          original.set(target, target.getAttribute("tabindex"));
+        }
+      }
+    }
+  };
+  const restore = (target: Element, tabIndex: string | ReactNull) => {
+    if (tabIndex == undefined) {
+      target.removeAttribute("tabindex");
+    } else {
+      target.setAttribute("tabindex", tabIndex);
+    }
+  };
+  const update = () => {
+    // Do not record our own writes as application changes to the original tabindex.
+    observer.disconnect();
+    for (const [target, tabIndex] of original) {
+      if (!element.contains(target)) {
+        restore(target, tabIndex);
+        original.delete(target);
+      }
+    }
+    const targets = element.querySelectorAll(
+      "a[href], area[href], button, input, select, textarea, iframe, object, embed, " +
+        "summary, audio[controls], video[controls], [tabindex], [contenteditable]",
+    );
+    for (const target of targets) {
+      if (!original.has(target)) {
+        original.set(target, target.getAttribute("tabindex"));
+      }
+      target.setAttribute("tabindex", "-1");
+    }
+    observer.observe(element, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["tabindex", "href", "contenteditable", "controls"],
+    });
+  };
+  const observer = new MutationObserver((records) => {
+    rememberChanges(records);
+    update();
+  });
+  update();
+  return () => {
+    rememberChanges(observer.takeRecords());
+    observer.disconnect();
+    for (const [target, tabIndex] of original) {
+      restore(target, tabIndex);
+    }
+  };
+}
+
+const Row = memo(function Row({
+  index,
+  style,
+  data,
+  retained = false,
+}: ListChildComponentProps<RowData> & { retained?: boolean }) {
   const { horizontal, measure } = data;
   const item = data.items[index]!;
   const ref = useRef<HTMLDivElement>(ReactNull);
   data.styles.set(item.key, style);
+  useLayoutEffect(() => {
+    if (retained && ref.current != undefined) {
+      return excludeFromTabOrder(ref.current);
+    }
+    return;
+  }, [retained]);
   useLayoutEffect(() => {
     const element = ref.current;
     if (element == undefined || horizontal) {
@@ -73,8 +146,12 @@ const Row = memo(function Row({ index, style, data }: ListChildComponentProps<Ro
       onPointerDownCapture={() => {
         data.pin(index);
       }}
-      onFocusCapture={() => {
+      onFocusCapture={(event) => {
         data.pin(index);
+        // A portal's focus bubbles through React, but must not scroll its hidden anchor.
+        if (retained && event.currentTarget.contains(event.target)) {
+          data.reveal(index);
+        }
       }}
     >
       <div ref={ref} style={data.horizontal ? { height: "100%" } : undefined}>
@@ -105,6 +182,7 @@ const Inner = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(f
         key={item.key}
         data={pinned.data}
         index={index}
+        retained
         style={{
           ...(pinned.data.styles.get(item.key) ?? { position: "absolute", top: 0 }),
           opacity: 0,
@@ -123,12 +201,12 @@ const Inner = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(f
 export function WindowedList({
   items,
   horizontal = false,
-  scrollToKey,
+  scrollRequest,
   resetKey,
 }: {
   items: WindowedItem[];
   horizontal?: boolean;
-  scrollToKey?: string;
+  scrollRequest?: WindowedScrollRequest;
   resetKey?: unknown;
 }): React.JSX.Element {
   const root = useRef<HTMLDivElement>(ReactNull);
@@ -139,9 +217,20 @@ export function WindowedList({
   const scrollOffset = useRef(0);
   const visibleStart = useRef(0);
   const scrollTarget = useRef<number | undefined>();
+  const [scrollbarHeight, setScrollbarHeight] = useState(0);
+  const horizontalHeight = 50 + scrollbarHeight;
   const [bounds, setBounds] = useState({ width: 300, height: horizontal ? 50 : 600 });
   const [pinnedKey, setPinnedKey] = useState<string | undefined>();
   const indices = useMemo(() => new Map(items.map((item, index) => [item.key, index])), [items]);
+  useLayoutEffect(() => {
+    const element = outer.current;
+    if (!horizontal || element == undefined) {
+      return;
+    }
+    return observeSize(element, () => {
+      setScrollbarHeight(Math.max(0, element.offsetHeight - element.clientHeight));
+    });
+  }, [horizontal]);
   useLayoutEffect(() => {
     const element = root.current;
     if (element == undefined) {
@@ -231,21 +320,26 @@ export function WindowedList({
     },
     [items],
   );
+  const reveal = useCallback((index: number) => {
+    // Restoring focus takes precedence over the previous hover/selection scroll request.
+    scrollTarget.current = undefined;
+    list.current?.scrollToItem(index, "smart");
+  }, []);
   const data = useMemo<RowData>(
-    () => ({ items, horizontal, measure, pin, styles: styles.current }),
-    [items, horizontal, measure, pin],
+    () => ({ items, horizontal, measure, pin, reveal, styles: styles.current }),
+    [items, horizontal, measure, pin, reveal],
   );
   const pinned = useMemo(
     () => ({ data, index: pinnedKey == undefined ? undefined : indices.get(pinnedKey) }),
     [data, indices, pinnedKey],
   );
   useLayoutEffect(() => {
-    const index = scrollToKey == undefined ? undefined : indices.get(scrollToKey);
+    const index = scrollRequest == undefined ? undefined : indices.get(scrollRequest.key);
     scrollTarget.current = index;
     if (index != undefined) {
       list.current?.scrollToItem(index, horizontal ? "smart" : "center");
     }
-  }, [scrollToKey, indices, horizontal]);
+  }, [scrollRequest, indices, horizontal]);
   return (
     <div
       ref={root}
@@ -254,7 +348,7 @@ export function WindowedList({
         minHeight: 0,
         minWidth: 0,
         width: "100%",
-        height: horizontal ? 50 : "100%",
+        height: horizontal ? horizontalHeight : "100%",
       }}
     >
       <PinnedContext.Provider value={pinned}>
@@ -264,7 +358,7 @@ export function WindowedList({
           innerElementType={Inner}
           layout={horizontal ? "horizontal" : "vertical"}
           width={bounds.width}
-          height={bounds.height}
+          height={horizontal ? horizontalHeight : bounds.height}
           itemCount={items.length}
           itemData={data}
           itemKey={(index) => items[index]!.key}

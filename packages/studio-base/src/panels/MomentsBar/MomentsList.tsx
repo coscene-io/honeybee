@@ -224,7 +224,7 @@ export default function MomentsList({
 
   return events.length > 0 ? (
     <Stack width={1} className={classes.container}>
-      <WindowedList items={items} horizontal scrollToKey={target} />
+      <WindowedList items={items} horizontal scrollRequest={target} />
     </Stack>
   ) : (
     <></>
