@@ -259,8 +259,21 @@ function firePointerDown(element: Element | Window, clientX: number): void {
   fireEvent(element, new MouseEvent("pointerdown", { bubbles: true, clientX }));
 }
 
+let animationFrameId = 0;
+const animationFrames = new Map<number, FrameRequestCallback>();
+function flushAnimationFrame(): void {
+  act(() => {
+    const callbacks = Array.from(animationFrames.values());
+    animationFrames.clear();
+    callbacks.forEach((callback) => {
+      callback(performance.now());
+    });
+  });
+}
+
 function firePointerMove(clientX: number): void {
   fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX }));
+  flushAnimationFrame();
 }
 
 function firePointerUp(clientX: number): void {
@@ -326,6 +339,16 @@ async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
 }
 
 describe("<EventsOverlay />", () => {
+  beforeEach(() => {
+    animationFrames.clear();
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      animationFrames.set(++animationFrameId, callback);
+      return animationFrameId;
+    });
+    jest.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      animationFrames.delete(id);
+    });
+  });
   afterEach(() => {
     jest.useRealTimers();
   });
@@ -614,6 +637,47 @@ describe("<EventsOverlay />", () => {
     });
   });
 
+  it("coalesces moves and commits the pointerup coordinate even before the next frame", async () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 200 }));
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 300 }));
+    expect(seekPlayback).not.toHaveBeenCalled();
+    flushAnimationFrame();
+    expect(seekPlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(3));
+    await act(async () => {
+      firePointerUp(500);
+    });
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(5));
+    expect(updateEvent).toHaveBeenCalledTimes(1);
+    expect(updateEvent.mock.calls[0]![0].event.triggerTime.seconds).toBe(BigInt(5));
+    const count = seekPlayback.mock.calls.length;
+    flushAnimationFrame();
+    expect(seekPlayback).toHaveBeenCalledTimes(count);
+  });
+
+  it("cancels pending previews without persisting a cancelled drag", () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 400 }));
+    fireEvent(window, new MouseEvent("pointercancel", { bubbles: true }));
+    flushAnimationFrame();
+    firePointerUp(400);
+    expect(seekPlayback).not.toHaveBeenCalled();
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
   it("seeks to the pointer time while dragging a moment body", async () => {
     const { seekPlayback } = renderOverlayWithSeek({
       events: [makeEvent("events/body", 1, 2)],
@@ -683,6 +747,99 @@ describe("<EventsOverlay />", () => {
     await act(async () => {
       firePointerUp(600);
     });
+  });
+
+  it("preserves the boundary when clicking a rolling edit handle away from its center", async () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { eventsStore, seekPlayback } = renderOverlayWithSeek({
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+    });
+    mockTimelineRect();
+    firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 504);
+    await act(async () => {
+      firePointerUp(504);
+    });
+    expect(seekPlayback).not.toHaveBeenCalled();
+    expect(getEventRanges(eventsStore)).toEqual([
+      { startSec: 0, endSec: 5 },
+      { startSec: 5, endSec: 10 },
+    ]);
+  });
+
+  it.each(["release only", "pending move"])(
+    "commits the final rolling edit release position with %s",
+    async (input) => {
+      const updateEvent = jest.fn().mockResolvedValue({});
+      const { eventsStore, seekPlayback } = renderOverlayWithSeek({
+        consoleApi: makeConsoleApiMock({ updateEvent }),
+        events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+      });
+      mockTimelineRect();
+      firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 504);
+      if (input === "pending move") {
+        fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 600 }));
+      }
+      await act(async () => {
+        firePointerUp(700);
+      });
+      flushAnimationFrame();
+      expect(seekPlayback).toHaveBeenCalledTimes(1);
+      expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(7));
+      expect(updateEvent).toHaveBeenCalledTimes(2);
+      expect(getEventRanges(eventsStore)).toEqual([
+        { startSec: 0, endSec: 7 },
+        { startSec: 7, endSec: 10 },
+      ]);
+    },
+  );
+
+  it("discards a rolling edit and its pending preview when the mode is disabled", () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const consoleApi = makeConsoleApiMock({ updateEvent });
+    const onSeek = jest.fn();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+    const content = ({ enabled }: { enabled: boolean }) => (
+      <Wrapper
+        consoleApi={consoleApi}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+          rollingEditEnabled={enabled}
+          onSeek={onSeek}
+        />
+      </Wrapper>
+    );
+    const { rerender } = render(content({ enabled: true }));
+    mockTimelineRect();
+    firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 500);
+    firePointerMove(600);
+    expect(screen.getAllByTestId("timeline-event")[0]!.style.width).toBe("max(60%, 4px)");
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 700 }));
+    rerender(content({ enabled: false }));
+    flushAnimationFrame();
+    expect(screen.getAllByTestId("timeline-event")[0]!.style.width).toBe("max(50%, 4px)");
+    expect(onSeek).toHaveBeenCalledTimes(1);
+    rerender(content({ enabled: true }));
+    firePointerUp(800);
+    expect(updateEvent).not.toHaveBeenCalled();
+    expect(getEventRanges(eventsStore)).toEqual([
+      { startSec: 0, endSec: 5 },
+      { startSec: 5, endSec: 10 },
+    ]);
   });
 
   it("does not seek while a moment body move stays under the drag threshold", async () => {

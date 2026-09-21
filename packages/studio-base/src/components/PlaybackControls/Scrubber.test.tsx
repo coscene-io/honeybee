@@ -28,6 +28,7 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import Scrubber from "./Scrubber";
 import type { HoverOverEvent } from "./Slider";
+import { zoomViewportAtTime, type TimelineViewport } from "./timelineViewport";
 
 type MockPipelineStore = NonNullable<React.ContextType<typeof ContextInternal>>;
 type MockPipelineProps = {
@@ -51,6 +52,7 @@ let mockSliderProps:
   | {
       disabled?: boolean;
       cursor?: string;
+      viewport?: TimelineViewport;
       onChange?: (playbackSeconds: number) => void;
       onHoverOver?: (event: HoverOverEvent) => void;
       onHoverOut?: () => void;
@@ -100,6 +102,7 @@ jest.mock("./Slider", () => ({
   default: function MockSlider(props: {
     disabled?: boolean;
     cursor?: string;
+    viewport?: TimelineViewport;
     onChange?: (playbackSeconds: number) => void;
     onHoverOver?: (event: HoverOverEvent) => void;
     onHoverOut?: () => void;
@@ -242,6 +245,141 @@ describe("<Scrubber />", () => {
     );
 
     expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
+  });
+
+  describe("queued wheel viewport updates", () => {
+    let frames: Map<number, FrameRequestCallback>;
+    beforeEach(() => {
+      frames = new Map();
+      let id = 0;
+      jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+        frames.set(++id, callback);
+        return id;
+      });
+      jest.spyOn(window, "cancelAnimationFrame").mockImplementation((frame) => {
+        frames.delete(frame);
+      });
+    });
+    const flushFrames = () => {
+      const callbacks = [...frames.values()];
+      frames.clear();
+      act(() => {
+        callbacks.forEach((callback) => {
+          callback(0);
+        });
+      });
+    };
+    const getScrubber = () => {
+      const scrubber = screen
+        .getByTestId("timeline-content")
+        .closest<HTMLElement>("[data-timeline-scrubber]")!;
+      jest
+        .spyOn(scrubber, "getBoundingClientRect")
+        .mockReturnValue(DOMRect.fromRect({ width: 1000, height: 200 }));
+      return scrubber;
+    };
+
+    it.each(["reset", "slider", "keyboard", "scrollbar"])(
+      "does not overwrite a later %s action with an older wheel update",
+      (action) => {
+        render(
+          <Wrapper>
+            <Scrubber onSeek={jest.fn()} />
+          </Wrapper>,
+        );
+        const scrubber = getScrubber();
+        fireEvent.change(screen.getByRole("slider", { name: "Timeline zoom" }), {
+          target: { value: 40 },
+        });
+        const before = mockSliderProps!.viewport;
+        fireEvent.wheel(scrubber, { ctrlKey: true, deltaY: -200, clientX: 500 });
+        expect(mockSliderProps!.viewport).toEqual(before);
+        switch (action) {
+          case "reset":
+            fireEvent.click(screen.getByRole("button", { name: "Zoom to fit" }));
+            break;
+          case "slider":
+            fireEvent.change(screen.getByRole("slider", { name: "Timeline zoom" }), {
+              target: { value: 70 },
+            });
+            break;
+          case "keyboard":
+            act(() => {
+              scrubber.focus();
+            });
+            fireEvent.keyDown(scrubber, { key: "=", code: "Equal", ctrlKey: true, keyCode: 187 });
+            break;
+          case "scrollbar":
+            fireEvent.keyDown(screen.getByRole("scrollbar"), { key: "ArrowRight" });
+            break;
+        }
+        const newerViewport = mockSliderProps!.viewport;
+        expect(newerViewport).not.toEqual(before);
+        flushFrames();
+        expect(mockSliderProps!.viewport).toEqual(newerViewport);
+      },
+    );
+
+    it("accumulates consecutive wheel inputs into a single frame", () => {
+      render(
+        <Wrapper>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const scrubber = getScrubber();
+      const before = mockSliderProps!.viewport!;
+      fireEvent.wheel(scrubber, { ctrlKey: true, deltaY: -100, clientX: 500 });
+      fireEvent.wheel(scrubber, { ctrlKey: true, deltaY: -200, clientX: 500 });
+      expect(mockSliderProps!.viewport).toBe(before);
+      expect(frames.size).toBe(1);
+      flushFrames();
+      const expected = zoomViewportAtTime(before, 5, -300);
+      expect(mockSliderProps!.viewport!.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
+      expect(mockSliderProps!.viewport!.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
+    });
+
+    it("cancels pending wheel input on unmount", () => {
+      const { unmount } = render(
+        <Wrapper>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      fireEvent.wheel(getScrubber(), { ctrlKey: true, deltaY: -200, clientX: 500 });
+      expect(frames.size).toBe(1);
+      unmount();
+      expect(frames.size).toBe(0);
+    });
+
+    it("does not overwrite playback auto-follow with a queued wheel update", () => {
+      let pipeline: MockPipelineStore | undefined;
+      render(
+        <Wrapper>
+          <MessagePipelineStoreProbe
+            onStore={(store) => {
+              pipeline = store;
+            }}
+          />
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const scrubber = getScrubber();
+      fireEvent.change(screen.getByRole("slider", { name: "Timeline zoom" }), {
+        target: { value: 40 },
+      });
+      fireEvent.wheel(scrubber, { ctrlKey: true, deltaY: -200, clientX: 500 });
+      act(() => {
+        const activeData = pipeline!.getState().public.playerState.activeData!;
+        dispatchMockPipelineProps(pipeline!, {
+          startTime: activeData.startTime,
+          endTime: activeData.endTime,
+          currentTime: { sec: 9, nsec: 0 },
+        });
+      });
+      const followed = mockSliderProps!.viewport!;
+      expect(followed.visibleStartSec).toBeGreaterThan(1);
+      flushFrames();
+      expect(mockSliderProps!.viewport).toEqual(followed);
+    });
   });
 
   it("does not reserve event-lane height when events are disabled", () => {

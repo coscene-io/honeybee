@@ -19,6 +19,7 @@ import {
   TimelinePositionIndicator,
 } from "./TimelinePositionIndicator";
 import { timelineDurationSeconds } from "./eventTimeContainment";
+import { frameInput } from "./frameInput";
 import {
   clientXToFraction,
   fractionToTime,
@@ -133,6 +134,27 @@ function Slider(props: Props): React.JSX.Element {
     [getPlaybackSecondsAtClientX],
   );
 
+  const applySeek = useRef<(clientX: number) => void>(() => {});
+  const lastSeekSeconds = useRef<number | undefined>();
+  useLayoutEffect(() => {
+    applySeek.current = (clientX) => {
+      if (!disabled) {
+        const seconds = getPlaybackSecondsAtClientX(clientX);
+        if (seconds !== lastSeekSeconds.current) {
+          lastSeekSeconds.current = seconds;
+          onChange(seconds);
+        }
+      }
+    };
+  }, [disabled, getPlaybackSecondsAtClientX, onChange]);
+  const seekInput = useMemo(
+    () =>
+      frameInput((clientX: number) => {
+        applySeek.current(clientX);
+      }),
+    [],
+  );
+
   const cancelPendingHover = useCallback(() => {
     if (hoverAnimationFrameRef.current != undefined) {
       cancelAnimationFrame(hoverAnimationFrameRef.current);
@@ -196,13 +218,26 @@ function Slider(props: Props): React.JSX.Element {
     }
   }, [cancelPendingHover, onHoverOut]);
 
-  const onPointerUp = useCallback((): void => {
+  const onPointerUp = useCallback(
+    (event: PointerEvent): void => {
+      seekInput.flush(event.clientX);
+      mouseDownRef.current = false;
+      setMouseDown(false);
+      if (!mouseInsideRef.current) {
+        cancelPendingHover();
+        onHoverOut?.();
+      }
+    },
+    [cancelPendingHover, onHoverOut, seekInput],
+  );
+
+  const onPointerCancel = useCallback(() => {
+    seekInput.cancel();
+    cancelPendingHover();
+    mouseDownRef.current = false;
     setMouseDown(false);
-    if (!mouseInsideRef.current) {
-      cancelPendingHover();
-      onHoverOut?.();
-    }
-  }, [cancelPendingHover, onHoverOut]);
+    onHoverOut?.();
+  }, [cancelPendingHover, onHoverOut, seekInput]);
 
   const onPointerMove = useCallback(
     (ev: React.PointerEvent | PointerEvent): void => {
@@ -220,10 +255,9 @@ function Slider(props: Props): React.JSX.Element {
       if (!mouseDownRef.current) {
         return;
       }
-      const playbackSeconds = getPlaybackSecondsAtMouse(ev);
-      onChange(playbackSeconds);
+      seekInput.schedule(ev.clientX);
     },
-    [disabled, getPlaybackSecondsAtMouse, onChange, scheduleHoverOver],
+    [disabled, seekInput, scheduleHoverOver],
   );
 
   const onPointerDown = useCallback(
@@ -235,7 +269,10 @@ function Slider(props: Props): React.JSX.Element {
         document.activeElement.blur();
       }
       ev.preventDefault();
-      onChange(getPlaybackSecondsAtMouse(ev));
+      const seconds = getPlaybackSecondsAtMouse(ev);
+      lastSeekSeconds.current = seconds;
+      onChange(seconds);
+      mouseDownRef.current = true;
       setMouseDown(true);
     },
     [disabled, getPlaybackSecondsAtMouse, onChange],
@@ -262,13 +299,27 @@ function Slider(props: Props): React.JSX.Element {
     if (mouseDown) {
       window.addEventListener("pointerup", onPointerUp);
       window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointercancel", onPointerCancel);
       return () => {
         window.removeEventListener("pointerup", onPointerUp);
         window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointercancel", onPointerCancel);
       };
     }
     return undefined;
-  }, [mouseDown, onPointerMove, onPointerUp]);
+  }, [mouseDown, onPointerMove, onPointerUp, onPointerCancel]);
+
+  useEffect(
+    () => () => {
+      seekInput.cancel();
+    },
+    [seekInput],
+  );
+  useEffect(() => {
+    if (disabled && mouseDownRef.current) {
+      onPointerCancel();
+    }
+  }, [disabled, onPointerCancel]);
 
   useEffect(() => {
     return cancelPendingHover;

@@ -161,7 +161,7 @@ describe("<Slider />", () => {
     expect(onHoverOver).not.toHaveBeenCalled();
   });
 
-  it("keeps drag seek changes immediate while hover updates are frame-coalesced", () => {
+  it("coalesces drag seek changes and flushes the final pointer-up position", () => {
     const onChange = jest.fn();
     const onHoverOver = jest.fn();
     const slider = renderSlider({ onChange, onHoverOver });
@@ -170,19 +170,63 @@ describe("<Slider />", () => {
     firePointerEvent(window, "pointermove", 160);
     firePointerEvent(window, "pointermove", 220);
 
-    expect(onChange).toHaveBeenCalledTimes(3);
-    expect(onChange).toHaveBeenNthCalledWith(1, 1);
-    expect(onChange).toHaveBeenNthCalledWith(2, 3);
-    expect(onChange).toHaveBeenNthCalledWith(3, 6);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith(1);
     expect(onHoverOver).not.toHaveBeenCalled();
 
     act(flushAnimationFrames);
 
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenLastCalledWith(6);
     expect(onHoverOver).toHaveBeenCalledTimes(1);
     expect(onHoverOver).toHaveBeenLastCalledWith({
       playbackSeconds: 6,
       clientX: 220,
       clientY: 45,
     });
+    firePointerEvent(window, "pointermove", 240);
+    firePointerEvent(window, "pointerup", 280);
+    expect(onChange).toHaveBeenCalledTimes(3);
+    expect(onChange).toHaveBeenLastCalledWith(9);
+    act(flushAnimationFrames);
+    expect(onChange).toHaveBeenCalledTimes(3);
+  });
+
+  it("cancels pending seeks on pointer cancellation", () => {
+    const onChange = jest.fn();
+    const slider = renderSlider({ onChange });
+    firePointerEvent(slider, "pointerdown", 120);
+    firePointerEvent(window, "pointermove", 220);
+    firePointerEvent(window, "pointercancel", 250);
+    act(flushAnimationFrames);
+    firePointerEvent(window, "pointerup", 280);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("seeks once per click and does not repeat an already applied drag position on release", () => {
+    const onChange = jest.fn();
+    const slider = renderSlider({ onChange });
+    firePointerEvent(slider, "pointerdown", 120);
+    firePointerEvent(window, "pointerup", 120);
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    firePointerEvent(slider, "pointerdown", 120);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    firePointerEvent(window, "pointermove", 200);
+    act(flushAnimationFrames);
+    expect(onChange).toHaveBeenCalledTimes(3);
+    firePointerEvent(window, "pointerup", 200);
+    expect(onChange).toHaveBeenCalledTimes(3);
+  });
+
+  it("discards a pending move when release returns to the last applied position", () => {
+    const onChange = jest.fn();
+    const slider = renderSlider({ onChange });
+    firePointerEvent(slider, "pointerdown", 120);
+    firePointerEvent(window, "pointermove", 200);
+    firePointerEvent(window, "pointerup", 120);
+    act(flushAnimationFrames);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith(1);
   });
 });

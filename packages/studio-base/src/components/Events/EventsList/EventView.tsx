@@ -14,7 +14,7 @@ import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
 import ShareIcon from "@mui/icons-material/ShareOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
 import { alpha, Stack, IconButton, Link, Typography } from "@mui/material";
-import { useCallback, useEffect, useRef, useState, Fragment, useMemo } from "react";
+import { useCallback, useEffect, useRef, memo, Fragment, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -40,6 +40,8 @@ import {
 import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
+
+import { eventListDetails } from "./eventListModel";
 
 const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
   event: {
@@ -105,6 +107,8 @@ function EventViewComponent(params: {
   isLoopedEvent: boolean;
   variant: "small" | "learge";
   disabledScroll?: boolean;
+  details?: ReturnType<typeof eventListDetails>;
+  getCreator?: (name: string) => Promise<string>;
   diagnosisRuleData?: DiagnosisRule;
   onClick: (event: TimelinePositionedEvent) => void;
   onHoverStart: (event: TimelinePositionedEvent) => void;
@@ -121,6 +125,7 @@ function EventViewComponent(params: {
     isLoopedEvent,
     variant,
     diagnosisRuleData,
+    getCreator,
     onClick,
     onHoverStart,
     onHoverEnd,
@@ -159,12 +164,15 @@ function EventViewComponent(params: {
     }
   }, [isSelected, isHovered, disabledScroll]);
 
-  const [show, setShow] = useState(true);
-
-  const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
-    await deleteEventWithFile({ consoleApi, event });
-    toast.success(t("momentDeleted"));
-    refreshEvents();
+  const deleteEvent = useCallback(async () => {
+    try {
+      await deleteEventWithFile({ consoleApi, event });
+      toast.success(t("momentDeleted"));
+      refreshEvents();
+    } catch {
+      // The initiating row may have left the virtual window while the request was pending.
+      toast.error(t("errorDeletingEvent"));
+    }
   }, [consoleApi, event, refreshEvents, t]);
 
   const confirmDelete = useCallback(async () => {
@@ -183,46 +191,10 @@ function EventViewComponent(params: {
   }, [confirm, deleteEvent, t]);
 
   const displayName = event.event.displayName;
-  const triggerTime = formatTime(
-    fromDate(
-      timestampDate(
-        event.event.triggerTime ?? create(TimestampSchema, { seconds: BigInt(0), nanos: 0 }),
-      ),
-    ),
-  );
-  const duration = `${durationToSeconds(event.event.duration).toFixed(3)} s`;
+  const { triggerTime, duration } = params.details ?? eventListDetails(event, formatTime);
   const description = event.event.description;
   const metadataMap = Object.entries(event.event.customizedFields);
   const imgUrl = event.imgUrl;
-
-  useEffect(() => {
-    if (deletedEvent.error) {
-      toast.error(t("errorDeletingEvent"));
-    }
-  }, [deletedEvent, t]);
-
-  useEffect(() => {
-    if (!filter) {
-      setShow(true);
-      return;
-    }
-    const filteredText = [displayName, triggerTime, duration, description].find((item) => {
-      return item.toLowerCase().includes(filter.toLowerCase());
-    });
-
-    const filteredMap = metadataMap.find((item) => {
-      return (
-        item[0].toLowerCase().includes(filter.toLowerCase()) ||
-        item[1].toLowerCase().includes(filter.toLowerCase())
-      );
-    });
-
-    if (filteredMap || filteredText) {
-      setShow(true);
-    } else {
-      setShow(false);
-    }
-  }, [displayName, triggerTime, duration, description, metadataMap, filter]);
 
   const handleShareEvent = async () => {
     const link = window.location.href;
@@ -323,10 +295,13 @@ function EventViewComponent(params: {
   }, [organizationSlug, projectSlug, event.event.device]);
 
   const [humanCreator, getHumanCreator] = useAsyncFn(async () => {
+    if (getCreator != undefined) {
+      return await getCreator(event.event.creator);
+    }
     const users = await consoleApi.batchGetUsers([event.event.creator]);
     const user = users.users[0];
     return user?.nickname ?? "";
-  }, [consoleApi, event.event.creator]);
+  }, [consoleApi, event.event.creator, getCreator]);
 
   useEffect(() => {
     getHumanCreator().catch((err: unknown) => {
@@ -334,7 +309,7 @@ function EventViewComponent(params: {
     });
   }, [getHumanCreator]);
 
-  return show ? (
+  return (
     <Stack flexDirection="row" paddingRight={2} ref={scrollRef}>
       <Stack marginLeft={2.5} marginRight={1.5} gap={0.5} alignItems="center">
         <Stack width="1px" height="15px" className={classes.line} />
@@ -513,9 +488,7 @@ function EventViewComponent(params: {
         </div>
       </Stack>
     </Stack>
-  ) : (
-    <></>
   );
 }
 
-export const EventView = EventViewComponent;
+export const EventView = memo(EventViewComponent);

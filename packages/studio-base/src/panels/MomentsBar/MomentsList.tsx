@@ -6,10 +6,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Stack, Typography, alpha } from "@mui/material";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useMemo, useRef, memo } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { toDate } from "@foxglove/rostime";
+import { WindowedList } from "@foxglove/studio-base/components/Events/WindowedList";
+import { useMomentHover } from "@foxglove/studio-base/components/Events/useMomentHover";
+import { useMomentScrollTarget } from "@foxglove/studio-base/components/Events/useMomentScrollTarget";
 import {
   MessagePipelineContext,
   useMessagePipeline,
@@ -27,7 +30,6 @@ import {
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
-const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.setHoveredEvent;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
@@ -62,35 +64,31 @@ const useStyles = makeStyles()((theme, _params) => ({
   },
 }));
 
-const SingleMomentView: ({
+const SingleMomentView = memo(function SingleMomentView({
   event,
-  isHovered,
-  isSelected,
   onClick,
-  onHoverStart,
-  onHoverEnd,
 }: {
   event: TimelinePositionedEvent;
-  isHovered: boolean;
-  isSelected: boolean;
   onClick: (event: TimelinePositionedEvent) => void;
-  onHoverStart: (event: TimelinePositionedEvent) => void;
-  onHoverEnd: (event: TimelinePositionedEvent) => void;
-}) => React.JSX.Element = ({ event, isHovered, isSelected, onClick, onHoverStart, onHoverEnd }) => {
+}) {
   const { classes, cx } = useStyles();
-  const scrollRef = useRef<HTMLDivElement>(ReactNull);
-
-  useEffect(() => {
-    if (isSelected || isHovered) {
-      if (scrollRef.current) {
-        scrollRef.current.scrollIntoView();
-      }
-    }
-  }, [isSelected, isHovered]);
-
+  const name = event.event.name;
+  const { onHoverStart, onHoverEnd } = useMomentHover();
+  const isHovered = useTimelineInteractionState(
+    useCallback(
+      (store: TimelineInteractionStateStore) =>
+        store.hoveredEvent?.event.name === name ||
+        store.eventsAtHoverValue[name] != undefined ||
+        store.loopedEvent?.event.name === name,
+      [name],
+    ),
+  );
+  const isSelected = useEvents(
+    useCallback((store: EventsStore) => store.selectedEventId === name, [name]),
+  );
   const currentEvent = event;
   return (
-    <div ref={scrollRef}>
+    <div>
       <Stack
         height="46px"
         padding="2px"
@@ -111,7 +109,7 @@ const SingleMomentView: ({
           onHoverStart(event);
         }}
         onMouseLeave={() => {
-          onHoverEnd(event);
+          onHoverEnd();
         }}
       >
         <Stack
@@ -144,7 +142,7 @@ const SingleMomentView: ({
       </Stack>
     </div>
   );
-};
+});
 
 export default function MomentsList({
   events,
@@ -152,7 +150,6 @@ export default function MomentsList({
   events: TimelinePositionedEvent[];
 }): React.JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
-  const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
@@ -160,21 +157,12 @@ export default function MomentsList({
   const selectEvent = useEvents(selectSelectEvent);
 
   const { classes } = useStyles();
-
-  const onHoverEnd = useCallback(() => {
-    setHoveredEvent(undefined);
-  }, [setHoveredEvent]);
-
-  const onHoverStart = useCallback(
-    (event: TimelinePositionedEvent) => {
-      setHoveredEvent(event);
-    },
-    [setHoveredEvent],
-  );
+  const selectedRef = useRef(selectedEventId);
+  selectedRef.current = selectedEventId;
 
   const onClick = useCallback(
     (event: TimelinePositionedEvent) => {
-      if (event.event.name === selectedEventId) {
+      if (event.event.name === selectedRef.current) {
         selectEvent(undefined);
       } else {
         selectEvent(event.event.name);
@@ -184,37 +172,37 @@ export default function MomentsList({
         seek(event.startTime);
       }
     },
-    [seek, selectEvent, selectedEventId],
+    [seek, selectEvent],
   );
 
-  return events.length > 0 ? (
-    <Stack
-      width={1}
-      display="flex"
-      flexDirection="row"
-      gap="8px"
-      paddingBottom="4px"
-      overflow="auto"
-      className={classes.container}
-    >
-      {events.map((event) => {
-        const isHovered =
-          event.event.name === hoveredEvent?.event.name ||
-          eventsAtHoverValue[event.event.name] != undefined ||
-          loopedEvent?.event.name === event.event.name;
+  const items = useMemo(
+    () =>
+      events.map((event, index) => ({
+        key: event.event.name,
+        estimatedSize: index === events.length - 1 ? 160 : 168,
+        content: <SingleMomentView event={event} onClick={onClick} />,
+      })),
+    [events, onClick],
+  );
+  const order = useMemo(
+    () => new Map(events.map((event, index) => [event.event.name, index])),
+    [events],
+  );
+  const hoveredNames = useMemo(() => {
+    const names = new Set(Object.keys(eventsAtHoverValue));
+    if (hoveredEvent != undefined) {
+      names.add(hoveredEvent.event.name);
+    }
+    if (loopedEvent != undefined) {
+      names.add(loopedEvent.event.name);
+    }
+    return names;
+  }, [eventsAtHoverValue, hoveredEvent, loopedEvent]);
+  const target = useMomentScrollTarget({ selected: selectedEventId, hovered: hoveredNames, order });
 
-        return (
-          <SingleMomentView
-            event={event}
-            key={event.event.name}
-            isHovered={isHovered}
-            isSelected={event.event.name === selectedEventId}
-            onClick={onClick}
-            onHoverStart={onHoverStart}
-            onHoverEnd={onHoverEnd}
-          />
-        );
-      })}
+  return events.length > 0 ? (
+    <Stack width={1} className={classes.container}>
+      <WindowedList items={items} horizontal scrollRequest={target} />
     </Stack>
   ) : (
     <></>

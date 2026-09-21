@@ -76,8 +76,8 @@ export type TimelineInteractionStateStore = Immutable<{
       | ((oldValue: undefined | SyncBounds) => undefined | SyncBounds),
   ) => void;
 
-  /** Sets or clears the directly hovered event. */
-  setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent) => void;
+  /** Sets or clears the directly hovered event. A source can only clear its own hover. */
+  setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent, source?: symbol) => void;
 
   setHoveredBag: (hoveredBag: undefined | BagFileInfo) => void;
 

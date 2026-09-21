@@ -5,6 +5,7 @@
 .idea/
 .DS_Store
 .webpack/
+.webpack-moments/
 ci/apt/packages
 dist/
 node_modules/

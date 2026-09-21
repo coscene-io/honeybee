@@ -1,0 +1,181 @@
+{
+  "browser": "148.0.7778.96",
+  "cpu": "Apple M4 Pro",
+  "cpuRate": 1,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "results": [
+    {
+      "count": 1000,
+      "distribution": "short",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 70.4875388101032,
+          "inputP95Ms": 19.19999999552965,
+          "frameP95Ms": 25,
+          "maxLongTaskMs": 55,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 15.196285352469395,
+          "inputP95Ms": 555.5,
+          "frameP95Ms": 551.3999999999996,
+          "maxLongTaskMs": 555,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 91.06980232495849,
+          "inputP95Ms": 28.399999998509884,
+          "frameP95Ms": 24.699999999999818,
+          "maxLongTaskMs": 0,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 99.80935292138614,
+          "inputP95Ms": 149,
+          "frameP95Ms": 9.599999999999454,
+          "maxLongTaskMs": 145,
+          "samples": 4
+        }
+      },
+      "mountMs": 489.29812499999997,
+      "dom": {
+        "total": 6197,
+        "ticks": 1000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "short",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 3.3412913346377735,
+          "inputP95Ms": 335.3999999985099,
+          "frameP95Ms": 333.59999999999854,
+          "maxLongTaskMs": 392,
+          "samples": 69
+        },
+        "zoom": {
+          "fps": 16.51886628412449,
+          "inputP95Ms": 512.1000000014901,
+          "frameP95Ms": 508.5,
+          "maxLongTaskMs": 511,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 6.5758796733581235,
+          "inputP95Ms": 646.4000000059605,
+          "frameP95Ms": 616.5000000000036,
+          "maxLongTaskMs": 656,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 4.185981612688177,
+          "inputP95Ms": 717.1999999955297,
+          "frameP95Ms": 991.4000000000015,
+          "maxLongTaskMs": 417,
+          "samples": 4
+        },
+        "listScroll": {
+          "fps": 6.774215400694843,
+          "inputP95Ms": 649.5999999940395,
+          "frameP95Ms": 641.8000000000029,
+          "maxLongTaskMs": 853,
+          "samples": 21
+        }
+      },
+      "mountMs": 1849.203125,
+      "dom": {
+        "total": 53246,
+        "ticks": 1000,
+        "listRows": 1000
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "short",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 15.986699066376776,
+          "inputP95Ms": 78.60000000149012,
+          "frameP95Ms": 76.29999999999927,
+          "maxLongTaskMs": 87,
+          "samples": 70
+        },
+        "zoom": {
+          "fps": 0.6545216537580452,
+          "inputP95Ms": 20230.80000000447,
+          "frameP95Ms": 20224.899999999998,
+          "maxLongTaskMs": 20230,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 32.532754973244884,
+          "inputP95Ms": 125,
+          "frameP95Ms": 108.40000000000146,
+          "maxLongTaskMs": 129,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 23.40229541663552,
+          "inputP95Ms": 3181.89999999851,
+          "frameP95Ms": 10.30000000000291,
+          "maxLongTaskMs": 3176,
+          "samples": 4
+        }
+      },
+      "mountMs": 4511.263249999989,
+      "dom": {
+        "total": 30213,
+        "ticks": 5000,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "short",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 0.6151580209136152,
+          "inputP95Ms": 1855.5,
+          "frameP95Ms": 1858.2999999999993,
+          "maxLongTaskMs": 1932,
+          "samples": 69
+        },
+        "zoom": {
+          "fps": 0.5989184237876306,
+          "inputP95Ms": 20611.60000000149,
+          "frameP95Ms": 20591.5,
+          "maxLongTaskMs": 20611,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 1.265142889177271,
+          "inputP95Ms": 3348.60000000149,
+          "frameP95Ms": 3291.399999999994,
+          "maxLongTaskMs": 3556,
+          "samples": 42
+        }
+      },
+      "mountMs": 11414.971791999997,
+      "dom": {
+        "total": 265262,
+        "ticks": 5000,
+        "listRows": 5000
+      },
+      "failure": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Toggle playback' })\u001b[22m\n\u001b[2m    - locator resolved to <button>Toggle playback</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - performing click action\u001b[22m\n"
+    }
+  ],
+  "sourceCommit": "e6980d208"
+}

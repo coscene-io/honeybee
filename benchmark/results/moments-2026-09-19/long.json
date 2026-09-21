@@ -1,0 +1,240 @@
+{
+  "browser": "148.0.7778.96",
+  "cpu": "Apple M4 Pro",
+  "cpuRate": 1,
+  "generatedAt": "2026-09-19T03:12:40.343Z",
+  "steps": 5,
+  "caseTimeoutMs": 30000,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "results": [
+    {
+      "count": 1000,
+      "distribution": "long",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 35.298270384751156,
+          "inputP95Ms": 69.80000000447035,
+          "frameP95Ms": 68.29999999999995,
+          "maxLongTaskMs": 69,
+          "samples": 5
+        },
+        "zoom": {
+          "fps": 119.70074812967574,
+          "inputP95Ms": 12.399999998509884,
+          "frameP95Ms": 9.600000000000136,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 62.76234259444333,
+          "inputP95Ms": 42.19999999552965,
+          "frameP95Ms": 41.69999999999982,
+          "maxLongTaskMs": 74,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 119.68800430338894,
+          "inputP95Ms": 12.600000001490116,
+          "frameP95Ms": 10.099999999999454,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        }
+      },
+      "mountMs": 216.630542,
+      "dom": {
+        "total": 262,
+        "ticks": 10,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 1000,
+      "distribution": "long",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 19.34984520123839,
+          "inputP95Ms": 85.10000000149012,
+          "frameP95Ms": 83.39999999999998,
+          "maxLongTaskMs": 101,
+          "samples": 4
+        },
+        "zoom": {
+          "fps": 120.02182214948175,
+          "inputP95Ms": 10.100000001490116,
+          "frameP95Ms": 9.900000000000091,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 74.23602989779835,
+          "inputP95Ms": 63.69999999552965,
+          "frameP95Ms": 50.40000000000009,
+          "maxLongTaskMs": 91,
+          "samples": 42
+        }
+      },
+      "mountMs": 266.9662500000004,
+      "dom": {
+        "total": 753,
+        "ticks": 10,
+        "listRows": 8
+      },
+      "timeout": true,
+      "failure": "Error: locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Toggle playback' })\u001b[22m\n\u001b[2m    - locator resolved to <button>Toggle playback</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 551</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 551</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    51 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 551</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    },
+    {
+      "count": 5000,
+      "distribution": "long",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 7.141836880445651,
+          "inputP95Ms": 277,
+          "frameP95Ms": 275,
+          "maxLongTaskMs": 371,
+          "samples": 4
+        },
+        "zoom": {
+          "fps": 56.02240896358541,
+          "inputP95Ms": 31.899999998509884,
+          "frameP95Ms": 33.299999999999955,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 16.68370916527636,
+          "inputP95Ms": 229.39999999850988,
+          "frameP95Ms": 208.39999999999964,
+          "maxLongTaskMs": 318,
+          "samples": 42
+        },
+        "playback": {
+          "fps": 117.25955204216073,
+          "inputP95Ms": 14.5,
+          "frameP95Ms": 10.300000000001091,
+          "maxLongTaskMs": 0,
+          "samples": 4
+        }
+      },
+      "mountMs": 224.63091700000223,
+      "dom": {
+        "total": 262,
+        "ticks": 10,
+        "listRows": 0
+      }
+    },
+    {
+      "count": 5000,
+      "distribution": "long",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 5.666685555618519,
+          "inputP95Ms": 365.19999999552965,
+          "frameP95Ms": 365.5999999999999,
+          "maxLongTaskMs": 486,
+          "samples": 4
+        },
+        "zoom": {
+          "fps": 51.97920831667335,
+          "inputP95Ms": 33.100000001490116,
+          "frameP95Ms": 34.90000000000009,
+          "maxLongTaskMs": 0,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 30.947995974861875,
+          "inputP95Ms": 286.8999999985099,
+          "frameP95Ms": 265.90000000000055,
+          "maxLongTaskMs": 342,
+          "samples": 42
+        }
+      },
+      "mountMs": 286.93962499999907,
+      "dom": {
+        "total": 753,
+        "ticks": 10,
+        "listRows": 8
+      },
+      "timeout": true,
+      "failure": "Error: locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Toggle playback' })\u001b[22m\n\u001b[2m    - locator resolved to <button>Toggle playback</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 2890</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 2890</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    42 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 2890</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    },
+    {
+      "count": 21600,
+      "distribution": "long",
+      "extras": false,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 1.3888503097136191,
+          "inputP95Ms": 1587.6000000014901,
+          "frameP95Ms": 1568,
+          "maxLongTaskMs": 2129,
+          "samples": 4
+        },
+        "zoom": {
+          "fps": 14.055911291582067,
+          "inputP95Ms": 125.39999999850988,
+          "frameP95Ms": 107.89999999999964,
+          "maxLongTaskMs": 107,
+          "samples": 3
+        }
+      },
+      "mountMs": 264.182249999998,
+      "dom": {
+        "total": 262,
+        "ticks": 10,
+        "listRows": 0
+      },
+      "timeout": true,
+      "failure": "Error: mouse.move: Target page, context or browser has been closed"
+    },
+    {
+      "count": 21600,
+      "distribution": "long",
+      "extras": true,
+      "errors": [],
+      "phases": {
+        "hover": {
+          "fps": 1.1363378105043067,
+          "inputP95Ms": 1988.8999999985099,
+          "frameP95Ms": 1958.3000000000002,
+          "maxLongTaskMs": 1974,
+          "samples": 4
+        },
+        "zoom": {
+          "fps": 14.50421940928269,
+          "inputP95Ms": 128.29999999701977,
+          "frameP95Ms": 108.60000000000036,
+          "maxLongTaskMs": 107,
+          "samples": 3
+        },
+        "drag": {
+          "fps": 6.955597276572644,
+          "inputP95Ms": 1462.6000000014901,
+          "frameP95Ms": 1358,
+          "maxLongTaskMs": 1571,
+          "samples": 41
+        }
+      },
+      "mountMs": 377.823332999993,
+      "dom": {
+        "total": 753,
+        "ticks": 10,
+        "listRows": 8
+      },
+      "timeout": true,
+      "failure": "Error: locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Toggle playback' })\u001b[22m\n\u001b[2m    - locator resolved to <button>Toggle playback</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 12596</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 12596</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    3 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <span class=\"mui-nkgdpc-subtitleLine\" data-testid=\"moment-subtitle-line\">Moment 12596</span> from <div class=\"mui-11lqw22-root\" data-controls-visible=\"false\" data-testid=\"moment-subtitle-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 500ms\u001b[22m\n"
+    }
+  ],
+  "sourceCommit": "40c9988ec"
+}
