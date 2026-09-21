@@ -164,10 +164,15 @@ function EventViewComponent(params: {
     }
   }, [isSelected, isHovered, disabledScroll]);
 
-  const [deletedEvent, deleteEvent] = useAsyncFn(async () => {
-    await deleteEventWithFile({ consoleApi, event });
-    toast.success(t("momentDeleted"));
-    refreshEvents();
+  const deleteEvent = useCallback(async () => {
+    try {
+      await deleteEventWithFile({ consoleApi, event });
+      toast.success(t("momentDeleted"));
+      refreshEvents();
+    } catch {
+      // The initiating row may have left the virtual window while the request was pending.
+      toast.error(t("errorDeletingEvent"));
+    }
   }, [consoleApi, event, refreshEvents, t]);
 
   const confirmDelete = useCallback(async () => {
@@ -190,12 +195,6 @@ function EventViewComponent(params: {
   const description = event.event.description;
   const metadataMap = Object.entries(event.event.customizedFields);
   const imgUrl = event.imgUrl;
-
-  useEffect(() => {
-    if (deletedEvent.error) {
-      toast.error(t("errorDeletingEvent"));
-    }
-  }, [deletedEvent, t]);
 
   const handleShareEvent = async () => {
     const link = window.location.href;

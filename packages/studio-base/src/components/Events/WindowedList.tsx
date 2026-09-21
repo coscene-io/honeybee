@@ -218,7 +218,8 @@ export function WindowedList({
   const styles = useRef(new Map<string, React.CSSProperties>());
   const scrollOffset = useRef(0);
   const visibleStart = useRef(0);
-  const scrollTarget = useRef<number | undefined>();
+  const scrollTarget = useRef(scrollRequest);
+  const previousScrollRequest = useRef(scrollRequest);
   const [scrollbarHeight, setScrollbarHeight] = useState(0);
   const horizontalHeight = 50 + scrollbarHeight;
   const [bounds, setBounds] = useState({ width: 300, height: horizontal ? 50 : 600 });
@@ -320,16 +321,18 @@ export function WindowedList({
       }
       sizes.current.set(item.key, size);
       list.current?.resetAfterIndex(index);
-      if (scrollTarget.current != undefined) {
+      const targetIndex =
+        scrollTarget.current == undefined ? undefined : indices.get(scrollTarget.current.key);
+      if (targetIndex != undefined) {
         // Newly mounted rows can move a target far beyond its estimated position.
         // Keep aligning while measurements settle, until the user scrolls away.
-        list.current?.scrollToItem(scrollTarget.current, "center");
+        list.current?.scrollToItem(targetIndex, "center");
       } else if (index < visibleStart.current) {
         scrollOffset.current += size - old;
         list.current?.scrollTo(scrollOffset.current);
       }
     },
-    [items],
+    [indices, items],
   );
   const pin = useCallback(
     (index: number) => {
@@ -351,8 +354,13 @@ export function WindowedList({
     [data, indices, pinnedKey],
   );
   useLayoutEffect(() => {
-    const index = scrollRequest == undefined ? undefined : indices.get(scrollRequest.key);
-    scrollTarget.current = index;
+    if (previousScrollRequest.current !== scrollRequest) {
+      previousScrollRequest.current = scrollRequest;
+      scrollTarget.current = scrollRequest;
+    }
+    // A content refresh must not restart a request canceled by scrolling or focus restoration.
+    const index =
+      scrollTarget.current == undefined ? undefined : indices.get(scrollTarget.current.key);
     if (index != undefined) {
       list.current?.scrollToItem(index, horizontal ? "smart" : "center");
     }

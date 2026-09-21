@@ -71,3 +71,43 @@ it("returns to a selected card on new hover after manual scrolling, without repe
   expect(viewport.scrollLeft).toBe(151200);
   expect(screen.queryByText("row-0")).toBeNull();
 });
+
+it("keeps the latest request when existing rows refresh or reorder without changing active state", () => {
+  const order = new Map([
+    ["early", 0],
+    ["late", 1],
+  ]);
+  const { result, rerender } = renderHook((props) => useMomentScrollTarget(props), {
+    initialProps: { selected: "late", hovered: new Set<string>(), order },
+  });
+  rerender({ selected: "late", hovered: new Set(["early"]), order });
+  const hoverRequest = result.current;
+  expect(hoverRequest).toEqual({ key: "early" });
+  rerender({ selected: "late", hovered: new Set(["early"]), order: new Map(order) });
+  expect(result.current).toBe(hoverRequest);
+  rerender({
+    selected: "late",
+    hovered: new Set(["early"]),
+    order: new Map([
+      ["late", 0],
+      ["early", 1],
+    ]),
+  });
+  expect(result.current).toBe(hoverRequest);
+});
+
+it("locates an active row when it first appears and forgets a removed target", () => {
+  const { result, rerender } = renderHook(
+    ({ order }) => useMomentScrollTarget({ selected: "moment", hovered: new Set(), order }),
+    { initialProps: { order: new Map<string, number>() } },
+  );
+  expect(result.current).toBeUndefined();
+  rerender({ order: new Map([["moment", 0]]) });
+  const firstRequest = result.current;
+  expect(firstRequest).toEqual({ key: "moment" });
+  rerender({ order: new Map() });
+  expect(result.current).toBeUndefined();
+  rerender({ order: new Map([["moment", 0]]) });
+  expect(result.current).toEqual(firstRequest);
+  expect(result.current).not.toBe(firstRequest);
+});

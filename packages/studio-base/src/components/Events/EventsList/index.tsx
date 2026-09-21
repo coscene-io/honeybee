@@ -246,10 +246,18 @@ export function EventsList(): React.JSX.Element {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setExpanded((previous) => {
-      const entries = Object.entries(previous);
-      return entries.every(([key]) => timestampedEvents.has(key))
-        ? previous
-        : Object.fromEntries(entries.filter(([key]) => timestampedEvents.has(key)));
+      const titles = Array.from(timestampedEvents.keys());
+      if (
+        Object.keys(previous).length === titles.length &&
+        titles.every((title) => previous[title] != undefined)
+      ) {
+        return previous;
+      }
+      // Match keyed accordions: initialize a group's default only when it first appears.
+      // Removing absent groups also lets them get a fresh default if they reappear later.
+      return Object.fromEntries(
+        titles.map((title, index) => [title, previous[title] ?? index === 0]),
+      );
     });
   }, [timestampedEvents]);
   const selectedRef = useRef(selectedEventId);

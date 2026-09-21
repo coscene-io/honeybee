@@ -73,11 +73,13 @@ function TestDialogs(): React.JSX.Element {
 function makeEvent({
   file,
   name,
+  recordDisplayName = "Record",
   startNsec = 0,
   startSec,
 }: {
   file?: string;
   name: string;
+  recordDisplayName?: string;
   startNsec?: number;
   startSec: number;
 }): TimelinePositionedEvent {
@@ -96,7 +98,7 @@ function makeEvent({
     endPosition: (startSec + 1) / 10,
     secondsSinceStart: startSec,
     projectDisplayName: "Project",
-    recordDisplayName: "Record",
+    recordDisplayName,
   };
 }
 
@@ -242,6 +244,147 @@ describe("<EventsList />", () => {
       });
       expect(screen.queryByText("events/row-0")).toBeNull();
       expect(screen.getByTestId("hover-state").textContent).toBe("|");
+    },
+  );
+
+  it("preserves initial group expansion when a refresh reorders records", async () => {
+    const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });
+    const second = makeEvent({ name: "events/second", recordDisplayName: "Record B", startSec: 2 });
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(<Wrapper consoleApi={consoleApi} events={[first, second]} />);
+    expect(
+      (await screen.findByRole("button", { name: "Record A" })).getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[second, first]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record A" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(screen.getByText("events/first")).toBeTruthy();
+    expect(screen.queryByText("events/second")).toBeNull();
+  });
+
+  it("keeps explicit expansion choices across reorder and content refresh", async () => {
+    const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });
+    const second = makeEvent({ name: "events/second", recordDisplayName: "Record B", startSec: 2 });
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(<Wrapper consoleApi={consoleApi} events={[first, second]} />);
+    const firstHeader = await screen.findByRole("button", { name: "Record A" });
+    await act(async () => {
+      fireEvent.click(firstHeader);
+      fireEvent.click(screen.getByRole("button", { name: "Record B" }));
+    });
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[{ ...second }, { ...first }]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record A" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.queryByText("events/first")).toBeNull();
+    expect(screen.getByText("events/second")).toBeTruthy();
+  });
+
+  it("initializes new groups once and discards expansion only when their group disappears", async () => {
+    const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });
+    const second = makeEvent({ name: "events/second", recordDisplayName: "Record B", startSec: 2 });
+    const inserted = makeEvent({
+      name: "events/inserted",
+      recordDisplayName: "Record C",
+      startSec: 3,
+    });
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(<Wrapper consoleApi={consoleApi} events={[first, second]} />);
+    await screen.findByRole("button", { name: "Record A" });
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[inserted, first, second]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record C" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Record A" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[second]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[]} />);
+    });
+    expect(screen.queryByRole("button", { name: "Record B" })).toBeNull();
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[second]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByText("events/second")).toBeTruthy();
+  });
+
+  it.each(["mounted", "unmounted"])(
+    "reports deletion failure once even if the original row is %s",
+    async (rowState) => {
+      let rejectDeletion: (reason: Error) => void = () => {
+        throw new Error("Deletion has not started");
+      };
+      const deleteEvent: jest.MockedFunction<DeleteEvent> = jest.fn().mockImplementation(
+        async () =>
+          await new Promise((_resolve, reject) => {
+            rejectDeletion = reject;
+          }),
+      );
+      const events = Array.from({ length: 100 }, (_, index) =>
+        makeEvent({ name: `events/row-${index}`, startSec: index }),
+      );
+      render(<Wrapper consoleApi={makeConsoleApi({ deleteEvent })} events={events} />);
+      const label = await screen.findByText("events/row-0");
+      let viewport = label.parentElement;
+      while (viewport != undefined && viewport.style.overflow !== "auto") {
+        viewport = viewport.parentElement;
+      }
+      const button = screen.getAllByTitle("Delete")[0]!;
+      fireEvent.pointerDown(button);
+      fireEvent.click(button);
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", { name: "Delete" }),
+      );
+      await waitFor(() => {
+        expect(deleteEvent).toHaveBeenCalledTimes(1);
+      });
+      if (rowState === "unmounted") {
+        Object.defineProperties(viewport!, {
+          clientHeight: { value: 600 },
+          scrollHeight: { value: 20000 },
+        });
+        await act(async () => {
+          fireEvent.scroll(viewport!, { target: { scrollTop: 5000 } });
+        });
+        const nextRow = screen.getAllByTestId("sidebar-event").find((row) => !row.contains(label))!;
+        fireEvent.pointerDown(nextRow);
+        expect(screen.queryByText("events/row-0")).toBeNull();
+      }
+      await act(async () => {
+        rejectDeletion(new Error("Delete failed"));
+      });
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenCalledWith("Error deleting event");
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
     },
   );
 

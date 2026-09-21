@@ -552,3 +552,44 @@ describe("scroll anchoring", () => {
     },
   );
 });
+
+it.each([false, true])(
+  "does not replay a canceled scroll request when rows refresh or reorder, horizontal=%s",
+  (horizontal) => {
+    const items = Array.from({ length: 1000 }, (_, index) => ({
+      key: `row-${index}`,
+      estimatedSize: 100,
+      content: <StatefulRow name={`row-${index}`} />,
+    }));
+    const scrollRequest = { key: "row-0" };
+    const { container, rerender } = render(
+      <WindowedList items={items} horizontal={horizontal} scrollRequest={scrollRequest} />,
+    );
+    const viewport = container.firstElementChild!.firstElementChild as HTMLElement;
+    Object.defineProperties(viewport, {
+      clientHeight: { value: 600 },
+      scrollHeight: { value: 100000 },
+      clientWidth: { value: 300 },
+      scrollWidth: { value: 100000 },
+    });
+    fireEvent.scroll(viewport, {
+      target: horizontal ? { scrollLeft: 90037 } : { scrollTop: 90037 },
+    });
+    const refreshed = items.map((item) => ({ ...item }));
+    rerender(
+      <WindowedList items={refreshed} horizontal={horizontal} scrollRequest={scrollRequest} />,
+    );
+    expect(horizontal ? viewport.scrollLeft : viewport.scrollTop).toBe(90037);
+    expect(screen.queryByText("row-0:0")).toBeNull();
+    const reordered = [refreshed[1]!, refreshed[0]!, ...refreshed.slice(2)];
+    rerender(
+      <WindowedList items={reordered} horizontal={horizontal} scrollRequest={scrollRequest} />,
+    );
+    expect(horizontal ? viewport.scrollLeft : viewport.scrollTop).toBe(90037);
+    expect(screen.queryByText("row-0:0")).toBeNull();
+    rerender(
+      <WindowedList items={reordered} horizontal={horizontal} scrollRequest={{ key: "row-0" }} />,
+    );
+    expect(screen.getByText("row-0:0")).toBeTruthy();
+  },
+);

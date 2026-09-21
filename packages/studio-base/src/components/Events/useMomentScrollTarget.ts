@@ -44,17 +44,23 @@ export function useMomentScrollTarget({
     if (old?.selected != undefined) {
       all.add(old.selected);
     }
-    const reset = old == undefined || old.disabled || old.order !== order;
+    const reset = old == undefined || old.disabled;
     for (const name of all) {
       if (
         reset ||
         (name === selected) !== (name === old.selected) ||
-        hovered.has(name) !== old.hovered.has(name)
+        hovered.has(name) !== old.hovered.has(name) ||
+        (!old.order.has(name) && order.has(name))
       ) {
         changed.add(name);
       }
     }
     if (changed.size === 0) {
+      // Replacing or reordering existing rows does not reactivate them. Only retire
+      // a request whose row disappeared; keep the latest hover ahead of stale selection.
+      setTarget((current) =>
+        current != undefined && !order.has(current.key) ? undefined : current,
+      );
       return;
     }
     let next: string | undefined;
