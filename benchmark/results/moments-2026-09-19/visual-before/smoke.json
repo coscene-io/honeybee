@@ -1,10 +1,6 @@
 {
   "errors": [],
-  "snapshots": [
-    "initial",
-    "search",
-    "menu"
-  ],
+  "snapshots": ["initial", "search", "menu"],
   "soak": [],
   "geometry": [
     {
@@ -512,9 +508,6 @@
       ]
     }
   ],
-  "menuItems": [
-    "Edit Moment",
-    "Loop Play"
-  ],
+  "menuItems": ["Edit Moment", "Loop Play"],
   "sourceCommit": "e6980d208"
 }
