@@ -1647,6 +1647,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         input.flush(event);
       }
       const current = rollingEditRef.current;
+      rollingEditRef.current = undefined;
       if (current != undefined) {
         void commitRollingEdit(current.pair, current.boundarySec);
       }
@@ -1654,16 +1655,19 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     };
     const cancel = () => {
       input.cancel();
+      rollingEditRef.current = undefined;
       setRollingEdit(undefined);
     };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp, { once: true });
     window.addEventListener("pointercancel", cancel, { once: true });
+    window.addEventListener("blur", cancel, { once: true });
     return () => {
       input.cancel();
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("blur", cancel);
     };
   }, [commitRollingEdit, onSeek, rollingEditPair, rollingEditEnabled, viewport]);
 

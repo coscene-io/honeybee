@@ -146,18 +146,39 @@ function HoverProbe(): React.JSX.Element {
   return <div data-testid="hover-state">{`${name ?? ""}|${hover?.componentId ?? ""}`}</div>;
 }
 
+function ScrollInteractionProbe({ event }: { event: TimelinePositionedEvent }): React.JSX.Element {
+  const setHoveredEvent = useTimelineInteractionState((store) => store.setHoveredEvent);
+  const selected = useEvents((store) => store.selectedEventId);
+  return (
+    <>
+      <div data-testid="selected-event">{selected}</div>
+      <button
+        onClick={() => {
+          setHoveredEvent(event);
+        }}
+      >
+        Hover external moment
+      </button>
+    </>
+  );
+}
+
 function Wrapper({
   consoleApi,
   view = "sidebar",
   events,
   projectArchived,
   recordArchived,
+  seekPlayback,
+  externalHoverEvent,
 }: {
   consoleApi: React.ContextType<typeof CoSceneConsoleApiContext>;
   view?: "sidebar" | "moments";
   events: TimelinePositionedEvent[];
   projectArchived?: boolean;
   recordArchived?: boolean;
+  seekPlayback?: (time: { sec: number; nsec: number }) => void;
+  externalHoverEvent?: TimelinePositionedEvent;
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -168,6 +189,7 @@ function Wrapper({
               <EventsProvider>
                 <TimelineInteractionStateProvider>
                   <MockMessagePipelineProvider
+                    seekPlayback={seekPlayback}
                     startTime={{ sec: 0, nsec: 0 }}
                     currentTime={{ sec: 0, nsec: 0 }}
                     endTime={{ sec: 10, nsec: 0 }}
@@ -180,6 +202,7 @@ function Wrapper({
                     <EventFetchCountProbe />
                     <EventToModifyProbe />
                     <HoverProbe />
+                    {externalHoverEvent && <ScrollInteractionProbe event={externalHoverEvent} />}
                     {view === "sidebar" ? <EventsList /> : <MomentsList events={events} />}
                     <TestDialogs />
                   </MockMessagePipelineProvider>
@@ -246,6 +269,79 @@ describe("<EventsList />", () => {
       expect(screen.getByTestId("hover-state").textContent).toBe("|");
     },
   );
+
+  it.each(["sidebar", "moments"] as const)(
+    "keeps %s local hover and selection still, then follows external hover after leaving",
+    async (view) => {
+      const events = Array.from({ length: 100 }, (_, index) =>
+        makeEvent({ name: `events/row-${index}`, startSec: index }),
+      );
+      const seekPlayback = jest.fn();
+      render(
+        <Wrapper
+          consoleApi={makeConsoleApi()}
+          events={events}
+          view={view}
+          seekPlayback={seekPlayback}
+          externalHoverEvent={events[90]}
+        />,
+      );
+      // Use an edge row: scrolling the first row would also leave the offset at zero.
+      const index = view === "sidebar" ? 3 : 1;
+      const label = await screen.findByText(`events/row-${index}`);
+      let viewport = label.parentElement;
+      while (viewport != undefined && viewport.style.overflow !== "auto") {
+        viewport = viewport.parentElement;
+      }
+      expect(viewport).not.toBeNull();
+      const offset = view === "sidebar" ? "scrollTop" : "scrollLeft";
+      expect(viewport![offset]).toBe(0);
+      fireEvent.mouseEnter(label);
+      expect(screen.getByTestId("hover-state").textContent).toBe(
+        `events/row-${index}|event_events/row-${index}`,
+      );
+      expect(viewport![offset]).toBe(0);
+      fireEvent.click(label);
+      expect(screen.getByTestId("selected-event").textContent).toBe(`events/row-${index}`);
+      expect(seekPlayback).toHaveBeenLastCalledWith(events[index]!.startTime);
+      expect(viewport![offset]).toBe(0);
+      fireEvent.mouseLeave(label);
+      fireEvent.click(screen.getByRole("button", { name: "Hover external moment" }));
+      await waitFor(() => {
+        expect(screen.getByText("events/row-90")).toBeTruthy();
+        expect(viewport![offset]).toBeGreaterThan(0);
+      });
+    },
+  );
+
+  it("resumes external hover after the horizontal list is emptied while hovered", async () => {
+    const events = Array.from({ length: 100 }, (_, index) =>
+      makeEvent({ name: `events/row-${index}`, startSec: index }),
+    );
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(
+      <Wrapper
+        consoleApi={consoleApi}
+        events={events}
+        view="moments"
+        externalHoverEvent={events[90]}
+      />,
+    );
+    fireEvent.mouseEnter(await screen.findByText("events/row-1"));
+    rerender(<Wrapper consoleApi={consoleApi} events={[]} view="moments" />);
+    expect(screen.queryByText("events/row-1")).toBeNull();
+    // Removing the hovered DOM node does not dispatch mouseleave.
+    rerender(
+      <Wrapper
+        consoleApi={consoleApi}
+        events={events}
+        view="moments"
+        externalHoverEvent={events[90]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hover external moment" }));
+    expect(await screen.findByText("events/row-90")).toBeTruthy();
+  });
 
   it("preserves initial group expansion when a refresh reorders records", async () => {
     const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });

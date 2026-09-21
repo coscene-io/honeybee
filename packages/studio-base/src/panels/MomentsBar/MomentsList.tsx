@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Stack, Typography, alpha } from "@mui/material";
 import dayjs from "dayjs";
-import { useCallback, useMemo, useRef, memo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { toDate } from "@foxglove/rostime";
@@ -157,8 +157,18 @@ export default function MomentsList({
   const selectEvent = useEvents(selectSelectEvent);
 
   const { classes } = useStyles();
+  const [disabledScroll, setDisabledScroll] = useState(false);
+  const pointerInside = useRef(false);
   const selectedRef = useRef(selectedEventId);
   selectedRef.current = selectedEventId;
+
+  useEffect(() => {
+    if (events.length === 0) {
+      // Removing the hovered container does not dispatch mouseleave.
+      pointerInside.current = false;
+      setDisabledScroll(false);
+    }
+  }, [events.length]);
 
   const onClick = useCallback(
     (event: TimelinePositionedEvent) => {
@@ -198,10 +208,27 @@ export default function MomentsList({
     }
     return names;
   }, [eventsAtHoverValue, hoveredEvent, loopedEvent]);
-  const target = useMomentScrollTarget({ selected: selectedEventId, hovered: hoveredNames, order });
+  const target = useMomentScrollTarget({
+    selected: selectedEventId,
+    hovered: hoveredNames,
+    order,
+    // Store hover updates can commit before the mouse-enter state update.
+    disabled: disabledScroll || pointerInside.current,
+  });
 
   return events.length > 0 ? (
-    <Stack width={1} className={classes.container}>
+    <Stack
+      width={1}
+      className={classes.container}
+      onMouseEnter={() => {
+        pointerInside.current = true;
+        setDisabledScroll(true);
+      }}
+      onMouseLeave={() => {
+        pointerInside.current = false;
+        setDisabledScroll(false);
+      }}
+    >
       <WindowedList items={items} horizontal scrollRequest={target} />
     </Stack>
   ) : (

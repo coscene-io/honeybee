@@ -749,6 +749,42 @@ describe("<EventsOverlay />", () => {
     });
   });
 
+  it.each(["pointercancel", "blur"])(
+    "discards rolling previews and an immediate release after %s",
+    async (eventType) => {
+      const updateEvent = jest.fn().mockResolvedValue({});
+      const { eventsStore, seekPlayback } = renderOverlayWithSeek({
+        consoleApi: makeConsoleApiMock({ updateEvent }),
+        events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+      });
+      mockTimelineRect();
+      firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 500);
+      firePointerMove(600);
+      expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(6));
+      seekPlayback.mockClear();
+      await act(async () => {
+        fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 700 }));
+        fireEvent(window, new Event(eventType));
+        // Release before React commits cancellation and removes the window listeners.
+        firePointerUp(700);
+      });
+      flushAnimationFrame();
+      expect(seekPlayback).not.toHaveBeenCalled();
+      expect(updateEvent).not.toHaveBeenCalled();
+      expect(getEventRanges(eventsStore)).toEqual([
+        { startSec: 0, endSec: 5 },
+        { startSec: 5, endSec: 10 },
+      ]);
+      // Cancelling must also leave the next interaction usable.
+      await dragRollingEditBoundary(800);
+      expect(updateEvent).toHaveBeenCalledTimes(2);
+      expect(getEventRanges(eventsStore)).toEqual([
+        { startSec: 0, endSec: 8 },
+        { startSec: 8, endSec: 10 },
+      ]);
+    },
+  );
+
   it("preserves the boundary when clicking a rolling edit handle away from its center", async () => {
     const updateEvent = jest.fn().mockResolvedValue({});
     const { eventsStore, seekPlayback } = renderOverlayWithSeek({

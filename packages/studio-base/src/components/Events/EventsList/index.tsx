@@ -222,6 +222,7 @@ export function EventsList(): React.JSX.Element {
   const setEventMarks = useEvents(selectSetEventMarks);
 
   const [disabledScroll, setDisabledScroll] = useState(false);
+  const pointerInside = useRef(false);
   const [isDeletingAllEvents, setIsDeletingAllEvents] = useState(false);
   const allEventCount = events.value?.length ?? 0;
   const canDeleteEvents =
@@ -502,7 +503,8 @@ export function EventsList(): React.JSX.Element {
     selected: selectedEventId,
     hovered: hoveredNames,
     order: rowOrder,
-    disabled: disabledScroll,
+    // Store hover updates can commit before the mouse-enter state update.
+    disabled: disabledScroll || pointerInside.current,
   });
 
   return (
@@ -593,9 +595,11 @@ export function EventsList(): React.JSX.Element {
       )}
       <div
         onMouseEnter={() => {
+          pointerInside.current = true;
           setDisabledScroll(true);
         }}
         onMouseLeave={() => {
+          pointerInside.current = false;
           setDisabledScroll(false);
         }}
         style={{ display: "flex", flex: "1 1 auto", minHeight: 0 }}
