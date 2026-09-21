@@ -11,6 +11,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { toDate } from "@foxglove/rostime";
 import { WindowedList } from "@foxglove/studio-base/components/Events/WindowedList";
+import { useMomentHover } from "@foxglove/studio-base/components/Events/useMomentHover";
 import { useMomentScrollTarget } from "@foxglove/studio-base/components/Events/useMomentScrollTarget";
 import {
   MessagePipelineContext,
@@ -29,7 +30,6 @@ import {
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
 const selectEventsAtHoverValue = (store: TimelineInteractionStateStore) => store.eventsAtHoverValue;
-const selectSetHoveredEvent = (store: TimelineInteractionStateStore) => store.setHoveredEvent;
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 const selectSelectEvent = (store: EventsStore) => store.selectEvent;
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
@@ -67,16 +67,13 @@ const useStyles = makeStyles()((theme, _params) => ({
 const SingleMomentView = memo(function SingleMomentView({
   event,
   onClick,
-  onHoverStart,
-  onHoverEnd,
 }: {
   event: TimelinePositionedEvent;
   onClick: (event: TimelinePositionedEvent) => void;
-  onHoverStart: (event: TimelinePositionedEvent) => void;
-  onHoverEnd: (event: TimelinePositionedEvent) => void;
 }) {
   const { classes, cx } = useStyles();
   const name = event.event.name;
+  const { onHoverStart, onHoverEnd } = useMomentHover();
   const isHovered = useTimelineInteractionState(
     useCallback(
       (store: TimelineInteractionStateStore) =>
@@ -112,7 +109,7 @@ const SingleMomentView = memo(function SingleMomentView({
           onHoverStart(event);
         }}
         onMouseLeave={() => {
-          onHoverEnd(event);
+          onHoverEnd();
         }}
       >
         <Stack
@@ -153,7 +150,6 @@ export default function MomentsList({
   events: TimelinePositionedEvent[];
 }): React.JSX.Element {
   const eventsAtHoverValue = useTimelineInteractionState(selectEventsAtHoverValue);
-  const setHoveredEvent = useTimelineInteractionState(selectSetHoveredEvent);
   const hoveredEvent = useTimelineInteractionState(selectHoveredEvent);
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const selectedEventId = useEvents(selectSelectedEventId);
@@ -163,17 +159,6 @@ export default function MomentsList({
   const { classes } = useStyles();
   const selectedRef = useRef(selectedEventId);
   selectedRef.current = selectedEventId;
-
-  const onHoverEnd = useCallback(() => {
-    setHoveredEvent(undefined);
-  }, [setHoveredEvent]);
-
-  const onHoverStart = useCallback(
-    (event: TimelinePositionedEvent) => {
-      setHoveredEvent(event);
-    },
-    [setHoveredEvent],
-  );
 
   const onClick = useCallback(
     (event: TimelinePositionedEvent) => {
@@ -195,16 +180,9 @@ export default function MomentsList({
       events.map((event, index) => ({
         key: event.event.name,
         estimatedSize: index === events.length - 1 ? 160 : 168,
-        content: (
-          <SingleMomentView
-            event={event}
-            onClick={onClick}
-            onHoverStart={onHoverStart}
-            onHoverEnd={onHoverEnd}
-          />
-        ),
+        content: <SingleMomentView event={event} onClick={onClick} />,
       })),
-    [events, onClick, onHoverStart, onHoverEnd],
+    [events, onClick],
   );
   const order = useMemo(
     () => new Map(events.map((event, index) => [event.event.name, index])),

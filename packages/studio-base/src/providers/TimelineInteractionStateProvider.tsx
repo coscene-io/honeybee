@@ -20,6 +20,8 @@ import { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 
 export function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStateStore> {
   return createStore((set) => {
+    let hoveredEventSource: symbol | undefined;
+    let eventHoverValue: HoverValue | undefined;
     return {
       eventsAtHoverValue: {},
       bagsAtHoverValue: {},
@@ -63,18 +65,27 @@ export function createTimelineInteractionStateStore(): StoreApi<TimelineInteract
         }
       },
 
-      setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent) => {
+      setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent, source?: symbol) => {
         if (hoveredEvent) {
-          set({
-            hoveredEvent,
-            hoverValue: {
-              componentId: `event_${hoveredEvent.event.name}`,
-              type: "PLAYBACK_SECONDS",
-              value: hoveredEvent.secondsSinceStart,
-            },
-          });
-        } else {
-          set({ hoveredEvent: undefined, hoverValue: undefined });
+          hoveredEventSource = source;
+          eventHoverValue = {
+            componentId: `event_${hoveredEvent.event.name}`,
+            type: "PLAYBACK_SECONDS",
+            value: hoveredEvent.secondsSinceStart,
+          };
+          set({ hoveredEvent, hoverValue: eventHoverValue });
+        } else if (source == undefined || source === hoveredEventSource) {
+          const previousHoverValue = eventHoverValue;
+          hoveredEventSource = undefined;
+          eventHoverValue = undefined;
+          set((store) => ({
+            hoveredEvent: undefined,
+            // Unmounting a row must not erase a newer plot/timeline hover value.
+            hoverValue:
+              source == undefined || store.hoverValue === previousHoverValue
+                ? undefined
+                : store.hoverValue,
+          }));
         }
       },
 

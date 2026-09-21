@@ -11,7 +11,7 @@ import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { ProjectSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { RecordSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 
@@ -26,6 +26,8 @@ import {
   type TimelinePositionedEvent,
   useEvents,
 } from "@foxglove/studio-base/context/EventsContext";
+import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import MomentsList from "@foxglove/studio-base/panels/MomentsBar/MomentsList";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
@@ -136,13 +138,21 @@ function EventToModifyProbe(): React.JSX.Element {
   return <div data-testid="event-to-modify-start">{`${startTime?.sec}:${startTime?.nsec}`}</div>;
 }
 
+function HoverProbe(): React.JSX.Element {
+  const name = useTimelineInteractionState((store) => store.hoveredEvent?.event.name);
+  const hover = useTimelineInteractionState((store) => store.hoverValue);
+  return <div data-testid="hover-state">{`${name ?? ""}|${hover?.componentId ?? ""}`}</div>;
+}
+
 function Wrapper({
   consoleApi,
+  view = "sidebar",
   events,
   projectArchived,
   recordArchived,
 }: {
   consoleApi: React.ContextType<typeof CoSceneConsoleApiContext>;
+  view?: "sidebar" | "moments";
   events: TimelinePositionedEvent[];
   projectArchived?: boolean;
   recordArchived?: boolean;
@@ -167,7 +177,8 @@ function Wrapper({
                     <SeedEvents events={events} />
                     <EventFetchCountProbe />
                     <EventToModifyProbe />
-                    <EventsList />
+                    <HoverProbe />
+                    {view === "sidebar" ? <EventsList /> : <MomentsList events={events} />}
                     <TestDialogs />
                   </MockMessagePipelineProvider>
                 </TimelineInteractionStateProvider>
@@ -202,6 +213,37 @@ describe("<EventsList />", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  it.each(["sidebar", "moments"] as const)(
+    "clears hover when a %s row scrolls out of the virtual window without mouseleave",
+    async (view) => {
+      const events = Array.from({ length: 100 }, (_, index) =>
+        makeEvent({ name: `events/row-${index}`, startSec: index }),
+      );
+      render(<Wrapper consoleApi={makeConsoleApi()} events={events} view={view} />);
+      const label = await screen.findByText("events/row-0");
+      let viewport = label.parentElement;
+      while (viewport != undefined && viewport.style.overflow !== "auto") {
+        viewport = viewport.parentElement;
+      }
+      expect(viewport).not.toBeNull();
+      Object.defineProperties(viewport!, {
+        clientHeight: { value: 600 },
+        scrollHeight: { value: 20000 },
+        clientWidth: { value: 300 },
+        scrollWidth: { value: 20000 },
+      });
+      fireEvent.mouseEnter(label);
+      expect(screen.getByTestId("hover-state").textContent).toBe("events/row-0|event_events/row-0");
+      await act(async () => {
+        fireEvent.scroll(viewport!, {
+          target: view === "sidebar" ? { scrollTop: 5000 } : { scrollLeft: 5000 },
+        });
+      });
+      expect(screen.queryByText("events/row-0")).toBeNull();
+      expect(screen.getByTestId("hover-state").textContent).toBe("|");
+    },
+  );
 
   it("deletes all loaded events even when the list is filtered", async () => {
     const events = [

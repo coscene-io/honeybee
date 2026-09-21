@@ -56,6 +56,7 @@ import { EventView } from "./EventView";
 import { eventListDetails, groupEvents } from "./eventListModel";
 import { EMPTY_EVENTS } from "../../PlaybackControls/eventTimeIndex";
 import { WindowedList, type WindowedItem } from "../WindowedList";
+import { useMomentHover } from "../useMomentHover";
 import { useMomentScrollTarget } from "../useMomentScrollTarget";
 
 const log = Logger.getLogger(__filename);
@@ -151,9 +152,13 @@ const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
 
 const ConnectedEventView = memo(function ConnectedEventView(
-  props: Omit<React.ComponentProps<typeof EventView>, "isHovered" | "isSelected" | "isLoopedEvent">,
+  props: Omit<
+    React.ComponentProps<typeof EventView>,
+    "isHovered" | "isSelected" | "isLoopedEvent" | "onHoverStart" | "onHoverEnd"
+  >,
 ) {
   const name = props.event.event.name;
+  const { onHoverStart, onHoverEnd } = useMomentHover();
   const isHovered = useTimelineInteractionState(
     useCallback(
       (store: TimelineInteractionStateStore) =>
@@ -175,6 +180,8 @@ const ConnectedEventView = memo(function ConnectedEventView(
   return (
     <EventView
       {...props}
+      onHoverStart={onHoverStart}
+      onHoverEnd={onHoverEnd}
       isHovered={isHovered}
       isSelected={isSelected}
       isLoopedEvent={isLoopedEvent}
@@ -287,17 +294,6 @@ export function EventsList(): React.JSX.Element {
       }
     },
     [seek, selectEvent],
-  );
-
-  const onHoverEnd = useCallback(() => {
-    setHoveredEvent(undefined);
-  }, [setHoveredEvent]);
-
-  const onHoverStart = useCallback(
-    (event: TimelinePositionedEvent) => {
-      setHoveredEvent(event);
-    },
-    [setHoveredEvent],
   );
 
   const onDeleteAllEvents = useCallback(async () => {
@@ -454,8 +450,6 @@ export function EventsList(): React.JSX.Element {
                 diagnosisRuleData={diagnosisRuleData.value}
                 disabledScroll
                 onClick={onClick}
-                onHoverStart={onHoverStart}
-                onHoverEnd={onHoverEnd}
                 onEdit={onEdit}
                 onSetLoopedEvent={setLoopedEvent}
                 confirm={confirm}
@@ -483,8 +477,6 @@ export function EventsList(): React.JSX.Element {
     momentVariant,
     diagnosisRuleData.value,
     onClick,
-    onHoverStart,
-    onHoverEnd,
     onEdit,
     setLoopedEvent,
     confirm,
