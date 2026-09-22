@@ -382,6 +382,66 @@ describe("<Scrubber />", () => {
     });
   });
 
+  it("shows the horizontal scrollbar only once the timeline is zoomed in", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    const timelineViewport = screen.getByTestId("timeline-content").parentElement!;
+    // Zoom is virtual: the content width stays the viewport width, so a native overflow bar
+    // would never appear. overflow-x stays hidden; the custom bar is the visible scroller.
+    expect(getComputedStyle(timelineViewport).overflowX).toBe("hidden");
+    expect(screen.queryByTestId("timeline-scrollbar")).toBeNull();
+
+    fireEvent.change(screen.getByRole("slider", { name: "Timeline zoom" }), {
+      target: { value: 50 },
+    });
+
+    expect(screen.getByTestId("timeline-scrollbar")).toBeTruthy();
+    expect(getComputedStyle(timelineViewport).overflowX).toBe("hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom to fit" }));
+    expect(screen.queryByTestId("timeline-scrollbar")).toBeNull();
+  });
+
+  it("pans the viewport when the horizontal scrollbar is dragged", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+
+    fireEvent.change(screen.getByRole("slider", { name: "Timeline zoom" }), {
+      target: { value: 50 },
+    });
+
+    const track = screen.getByTestId("timeline-scrollbar");
+    jest.spyOn(track, "getBoundingClientRect").mockReturnValue({
+      bottom: 12,
+      height: 8,
+      left: 0,
+      right: 200,
+      top: 0,
+      width: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const before = mockSliderProps!.viewport!;
+    const beforeDuration = before.visibleEndSec - before.visibleStartSec;
+
+    // Click the right edge of the track to page the window toward the end of the recording.
+    fireEvent(track, new MouseEvent("pointerdown", { bubbles: true, clientX: 200 }));
+
+    const after = mockSliderProps!.viewport!;
+    expect(after.visibleStartSec).toBeGreaterThan(before.visibleStartSec);
+    expect(after.visibleEndSec - after.visibleStartSec).toBeCloseTo(beforeDuration);
+    expect(after.visibleEndSec).toBeLessThanOrEqual(after.totalEndSec);
+  });
+
   it("does not reserve event-lane height when events are disabled", () => {
     render(
       <Wrapper>
