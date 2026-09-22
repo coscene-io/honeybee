@@ -195,7 +195,7 @@ export class VideoGopCache {
       // If the first post-seek frame lands inside an already-cached GOP, discard that range's
       // later frames before appending it. Otherwise a backward seek could produce
       // key...future...target in one physical decode batch.
-      this.#byteSize -= range.truncateAfterPublishTime(cachedFrame.publishTimeNs);
+      this.#byteSize -= range.truncateAfterFrame(cachedFrame);
     }
     if (range == undefined || !ranges.includes(range)) {
       range = new CachedVideoRange();
@@ -596,12 +596,17 @@ class CachedVideoRange {
     return framesForPublishTime(this.frames, targetNs, afterNs);
   }
 
-  public truncateAfterPublishTime(targetNs: bigint): number {
-    let targetIndex = -1;
-    for (let i = 0; i < this.frames.length; i++) {
-      if (this.frames[i]!.publishTimeNs <= targetNs) {
-        targetIndex = i;
-      }
+  public truncateAfterFrame(target: CachedVideoFrame): number {
+    // Equal publish timestamps can belong to later physical frames. Prefer the actual
+    // backfill boundary so resuming playback cannot append duplicates behind those futures.
+    let targetIndex = findLastIndex(this.frames, (frame) =>
+      sameVideoFrameMessage(frame.messageEvent, target.messageEvent),
+    );
+    if (targetIndex < 0) {
+      targetIndex = findLastIndex(
+        this.frames,
+        (frame) => frame.publishTimeNs <= target.publishTimeNs,
+      );
     }
     if (targetIndex < 0 || targetIndex === this.frames.length - 1) {
       return 0;

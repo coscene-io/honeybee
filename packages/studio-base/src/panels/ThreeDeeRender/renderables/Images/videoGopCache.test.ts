@@ -193,6 +193,23 @@ describe("VideoGopCache", () => {
     expect(cache.byteSize()).toBe(24);
   });
 
+  it("truncates at the copied backfill boundary when future publish timestamps are equal", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const future = h264Frame(12, 101, "delta");
+    cache.addFrames([key, target, future]);
+    cache.handleSeek(t(11, 500_000_000));
+    cache.addFrame(h264Frame(11, 101, "delta"));
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toBeUndefined();
+    expect(cache.byteSize()).toBe(16);
+    cache.addFrame(future);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, target, future]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
   it("deduplicates only the first valid post-seek frame", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
