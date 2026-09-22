@@ -6,7 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import i18n from "i18next";
 import { useContext, useEffect } from "react";
 
@@ -349,6 +357,44 @@ describe("<Scrubber />", () => {
       unmount();
       expect(frames.size).toBe(0);
     });
+
+    it.each([
+      { modifier: "ctrlKey" as const, label: "Ctrl+wheel" },
+      { modifier: "metaKey" as const, label: "Cmd+wheel" },
+    ])(
+      "cancels browser page zoom for $label on the timeline and content below it",
+      ({ modifier }) => {
+        render(
+          <Wrapper>
+            <Scrubber onSeek={jest.fn()} />
+          </Wrapper>,
+        );
+        const timelineContent = screen.getByTestId("timeline-content");
+        getScrubber();
+        const leaked = jest.fn();
+        document.addEventListener("wheel", leaked);
+
+        try {
+          const event = createEvent.wheel(timelineContent, {
+            [modifier]: true,
+            bubbles: true,
+            cancelable: true,
+            clientX: 500,
+            deltaY: -200,
+          });
+          fireEvent(timelineContent, event);
+
+          expect(event.defaultPrevented).toBe(true);
+          expect(leaked).not.toHaveBeenCalled();
+
+          const before = mockSliderProps!.viewport!;
+          flushFrames();
+          expect(mockSliderProps!.viewport).not.toEqual(before);
+        } finally {
+          document.removeEventListener("wheel", leaked);
+        }
+      },
+    );
 
     it("does not overwrite playback auto-follow with a queued wheel update", () => {
       let pipeline: MockPipelineStore | undefined;

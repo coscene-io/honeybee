@@ -755,12 +755,20 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   useEffect(() => cancelPendingWheelViewport, [cancelPendingWheelViewport]);
 
-  // Attached as a non-passive native listener (see the effect below) rather than via React's
-  // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
-  // no-op. Without it the browser's own Ctrl+wheel page-zoom fires on Windows/Linux (on macOS
-  // Ctrl+wheel isn't a page-zoom gesture, so the bug only shows up off-Mac).
+  // Attached as a non-passive native capture listener (see the effect below) rather than via
+  // React's `onWheel` prop: React registers wheel listeners as passive, which makes
+  // `preventDefault()` a no-op. Without a cancelable listener the browser's own Ctrl+wheel
+  // page/fullscreen zoom fires on Windows/Linux (on macOS Ctrl+wheel isn't a page-zoom gesture,
+  // so the bug only shows up off-Mac). Capture + stopPropagation keep that default from leaking
+  // out of the timeline even when a child is the event target or the viewport isn't ready yet.
   const onWheel = useCallback(
     (event: WheelEvent): void => {
+      const isZoomGesture = event.ctrlKey || event.metaKey;
+      if (isZoomGesture) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
       const currentViewport = pendingWheelViewport.current ?? latestViewport.current;
       const target = scrubberRef.current;
       if (currentViewport == undefined || target == undefined) {
@@ -768,8 +776,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       }
       const rect = target.getBoundingClientRect();
       let nextViewport: TimelineViewport;
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
+      if (isZoomGesture) {
         if (!isTimelineZoomEnabled()) {
           return;
         }
@@ -801,16 +808,17 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport],
   );
 
-  // Register the wheel handler natively with `{ passive: false }` so the `preventDefault()` calls
-  // above actually suppress the browser default (Ctrl+wheel page zoom, horizontal trackpad scroll).
+  // Register the wheel handler natively with `{ passive: false, capture: true }` so the
+  // `preventDefault()` calls above actually suppress the browser default (Ctrl+wheel page zoom,
+  // horizontal trackpad scroll) before a child scroller can mark the event uncancelable.
   useEffect(() => {
     const target = scrubberRef.current;
     if (target == undefined) {
       return;
     }
-    target.addEventListener("wheel", onWheel, { passive: false });
+    target.addEventListener("wheel", onWheel, { capture: true, passive: false });
     return () => {
-      target.removeEventListener("wheel", onWheel);
+      target.removeEventListener("wheel", onWheel, { capture: true });
     };
   }, [onWheel]);
 
