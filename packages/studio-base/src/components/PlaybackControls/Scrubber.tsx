@@ -755,12 +755,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   useEffect(() => cancelPendingWheelViewport, [cancelPendingWheelViewport]);
 
-  // Attached as a non-passive native capture listener (see the effect below) rather than via
-  // React's `onWheel` prop: React registers wheel listeners as passive, which makes
-  // `preventDefault()` a no-op. Without a cancelable listener the browser's own Ctrl+wheel
-  // page/fullscreen zoom fires on Windows/Linux (on macOS Ctrl+wheel isn't a page-zoom gesture,
-  // so the bug only shows up off-Mac). Capture + stopPropagation keep that default from leaking
-  // out of the timeline even when a child is the event target or the viewport isn't ready yet.
+  // Native non-passive capture listener, not React `onWheel` (React marks wheel as passive,
+  // so preventDefault is a no-op). Cancel the Ctrl/Cmd zoom gesture before returning when
+  // no viewport exists. Handle capture so a descendant that stopPropagation()s during bubble
+  // cannot hide the event from this handler. Mac uses the same metaKey branch; capture and
+  // stopPropagation apply there as well.
   const onWheel = useCallback(
     (event: WheelEvent): void => {
       const isZoomGesture = event.ctrlKey || event.metaKey;
@@ -808,9 +807,8 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport],
   );
 
-  // Register the wheel handler natively with `{ passive: false, capture: true }` so the
-  // `preventDefault()` calls above actually suppress the browser default (Ctrl+wheel page zoom,
-  // horizontal trackpad scroll) before a child scroller can mark the event uncancelable.
+  // `{ passive: false, capture: true }` lets preventDefault cancel the browser Ctrl+wheel
+  // default, and runs this handler before a descendant's bubble-phase stopPropagation.
   useEffect(() => {
     const target = scrubberRef.current;
     if (target == undefined) {
