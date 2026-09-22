@@ -29,6 +29,7 @@ import {
   VideoGopCache,
   detectBFrames,
   parseVideoFrameInfo,
+  sameVideoFrameMessage,
   type VideoFrameInfo,
 } from "./videoGopCache";
 import { filterCompressedVideoQueue } from "./videoMessageQueue";
@@ -277,7 +278,33 @@ export class CompressedVideoController {
   async #recoverSeek(generation: number, targetNs: bigint): Promise<void> {
     const targetTime = fromNanoSec(targetNs);
     try {
-      let frames = this.#cache.seekAndReturnFramesForReceiveTime(this.#topic, targetTime);
+      if (
+        generation !== this.#generation ||
+        this.#seekTargetNs !== targetNs ||
+        this.#renderer.currentTime !== targetNs
+      ) {
+        return;
+      }
+      // Renderer ingests the current seek's backfill before this serialized recovery runs.
+      // Its last video frame can precede the seek time, especially after truncating cached futures.
+      const desiredTarget = this.#desiredTarget;
+      const backfillTarget =
+        desiredTarget?.topic === this.#topic &&
+        compare(desiredTarget.receiveTime, targetTime) <= 0 &&
+        parseVideoFrameInfo(desiredTarget) != undefined
+          ? desiredTarget
+          : undefined;
+      let frames = this.#cache.seekAndReturnFramesForReceiveTime(
+        this.#topic,
+        backfillTarget?.receiveTime ?? targetTime,
+      );
+      const cachedTarget = frames?.at(-1);
+      if (
+        backfillTarget != undefined &&
+        (cachedTarget == undefined || !sameVideoFrameMessage(cachedTarget, backfillTarget))
+      ) {
+        frames = undefined;
+      }
       if (frames == undefined && this.#renderer.subscribeMessageRange != undefined) {
         frames = await this.#lookbackFrames(generation, targetTime);
       }
@@ -588,7 +615,7 @@ function mergeFramesByReceiveTime(
       const aStart = a.length - candidate;
       let matches = true;
       for (let index = 0; index < candidate; index++) {
-        if (!sameLookbackFrame(a[aStart + index]!, b[index]!)) {
+        if (!sameVideoFrameMessage(a[aStart + index]!, b[index]!)) {
           matches = false;
           break;
         }
@@ -607,32 +634,6 @@ function mergeFramesByReceiveTime(
     return leftNs < rightNs ? -1 : leftNs > rightNs ? 1 : 0;
   });
   return merged;
-}
-
-function sameLookbackFrame(left: MessageEvent, right: MessageEvent): boolean {
-  if (
-    left.topic !== right.topic ||
-    left.schemaName !== right.schemaName ||
-    compare(left.receiveTime, right.receiveTime) !== 0
-  ) {
-    return false;
-  }
-  const leftMessage = left.message as CompressedVideo;
-  const rightMessage = right.message as CompressedVideo;
-  if (
-    compare(leftMessage.timestamp, rightMessage.timestamp) !== 0 ||
-    leftMessage.frame_id !== rightMessage.frame_id ||
-    leftMessage.format !== rightMessage.format ||
-    leftMessage.data.length !== rightMessage.data.length
-  ) {
-    return false;
-  }
-  for (let index = 0; index < leftMessage.data.length; index++) {
-    if (leftMessage.data[index] !== rightMessage.data[index]) {
-      return false;
-    }
-  }
-  return true;
 }
 
 async function delay(ms: number): Promise<void> {
