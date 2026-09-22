@@ -406,7 +406,7 @@ describe("<Scrubber />", () => {
     expect(screen.queryByTestId("timeline-scrollbar")).toBeNull();
   });
 
-  it("pans the viewport when the horizontal scrollbar is dragged", () => {
+  it("pans the viewport when the horizontal scrollbar track is clicked", () => {
     render(
       <Wrapper>
         <Scrubber onSeek={jest.fn()} />
