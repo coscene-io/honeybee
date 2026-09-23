@@ -61,7 +61,7 @@ const selectBeginExternalInitConfigUpdate = (state: CoreDataStore) =>
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
 export function getWebLoginRedirectUrl(location: Pick<Location, "pathname" | "search">): string {
-  return `/login?redirectToPath=${encodeURIComponent(location.pathname + location.search)}`;
+  return `/auth/recover?redirectToPath=${encodeURIComponent(location.pathname + location.search)}`;
 }
 
 function ExpiredShareManifestDialog(): React.JSX.Element {

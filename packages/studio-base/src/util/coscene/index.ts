@@ -18,6 +18,8 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
+import { getBrowserSession } from "../browserSession";
+
 export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
@@ -56,7 +58,13 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const jwt = localStorage.getItem(ACCESS_TOKEN_NAME);
+  const session = isAuthlessDataSource() ? undefined : getBrowserSession();
+  session?.assertCurrent();
+  const jwt = session?.credential ?? localStorage.getItem(ACCESS_TOKEN_NAME);
+  const request =
+    session == undefined
+      ? req
+      : { ...req, signal: AbortSignal.any([req.signal, session.controller.signal]) };
   if (jwt) {
     req.header.set("Authorization", jwt);
     req.header.set("x-cos-request-id", uuidv4());
@@ -65,7 +73,9 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
   }
 
   try {
-    return await next(req);
+    const response = await next(request);
+    session?.assertCurrent();
+    return response;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
@@ -76,13 +86,15 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          session?.rejectCredential(jwt ?? "");
         }
       }
     }
 
+    if (session != undefined) {
+      session.assertCurrent();
+      throw error;
+    }
     console.error(error);
     try {
       console.error(

@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import { useCookies } from "react-cookie";
 
 import { getAuthStatusCookieName } from "@foxglove/studio-base/util/appConfig";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -94,7 +95,12 @@ function AuthSignOutListener(): React.JSX.Element {
     }
 
     redirected.current = true;
-    window.location.href = `/login?redirectToPath=${encodeURIComponent(
+    const session = getBrowserSession();
+    if (session != undefined) {
+      session.observeSignOutBroadcast();
+      return;
+    }
+    window.location.href = `/auth/logged-out?redirectToPath=${encodeURIComponent(
       window.location.pathname + window.location.search,
     )}`;
   }, [authStatusCookie]);
