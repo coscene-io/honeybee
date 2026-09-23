@@ -755,12 +755,19 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   useEffect(() => cancelPendingWheelViewport, [cancelPendingWheelViewport]);
 
-  // Attached as a non-passive native listener (see the effect below) rather than via React's
-  // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
-  // no-op. Without it the browser's own Ctrl+wheel page-zoom fires on Windows/Linux (on macOS
-  // Ctrl+wheel isn't a page-zoom gesture, so the bug only shows up off-Mac).
+  // Native non-passive capture listener, not React `onWheel` (React marks wheel as passive,
+  // so preventDefault is a no-op). Cancel the Ctrl/Cmd zoom gesture before returning when
+  // no viewport exists. Handle capture so a descendant that stopPropagation()s during bubble
+  // cannot hide the event from this handler. Mac uses the same metaKey branch; capture and
+  // stopPropagation apply there as well.
   const onWheel = useCallback(
     (event: WheelEvent): void => {
+      const isZoomGesture = event.ctrlKey || event.metaKey;
+      if (isZoomGesture) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
       const currentViewport = pendingWheelViewport.current ?? latestViewport.current;
       const target = scrubberRef.current;
       if (currentViewport == undefined || target == undefined) {
@@ -768,8 +775,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       }
       const rect = target.getBoundingClientRect();
       let nextViewport: TimelineViewport;
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
+      if (isZoomGesture) {
         if (!isTimelineZoomEnabled()) {
           return;
         }
@@ -801,16 +807,16 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [latestViewport],
   );
 
-  // Register the wheel handler natively with `{ passive: false }` so the `preventDefault()` calls
-  // above actually suppress the browser default (Ctrl+wheel page zoom, horizontal trackpad scroll).
+  // `{ passive: false, capture: true }` lets preventDefault cancel the browser Ctrl+wheel
+  // default, and runs this handler before a descendant's bubble-phase stopPropagation.
   useEffect(() => {
     const target = scrubberRef.current;
     if (target == undefined) {
       return;
     }
-    target.addEventListener("wheel", onWheel, { passive: false });
+    target.addEventListener("wheel", onWheel, { capture: true, passive: false });
     return () => {
-      target.removeEventListener("wheel", onWheel);
+      target.removeEventListener("wheel", onWheel, { capture: true });
     };
   }, [onWheel]);
 
