@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { H264, H265 } from "@foxglove/den/video";
-import { Time, fromNanoSec, toNanoSec } from "@foxglove/rostime";
+import { Time, compare, fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import { playbackPerformanceMetrics } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 
@@ -123,6 +123,38 @@ export function parseVideoFrameInfo(msg: MessageEvent): VideoFrameInfo | undefin
   }
 }
 
+/** Compare validated video messages without conflating distinct frames with equal timestamps. */
+export function sameVideoFrameMessage(left: MessageEvent, right: MessageEvent): boolean {
+  if (
+    left.topic !== right.topic ||
+    left.schemaName !== right.schemaName ||
+    compare(left.receiveTime, right.receiveTime) !== 0
+  ) {
+    return false;
+  }
+  const leftMessage = left.message as CompressedVideoLike;
+  const rightMessage = right.message as CompressedVideoLike;
+  if (
+    compare(leftMessage.timestamp, rightMessage.timestamp) !== 0 ||
+    leftMessage.frame_id !== rightMessage.frame_id ||
+    leftMessage.format !== rightMessage.format
+  ) {
+    return false;
+  }
+  if (leftMessage.data === rightMessage.data) {
+    return true;
+  }
+  if (leftMessage.data.length !== rightMessage.data.length) {
+    return false;
+  }
+  for (let index = 0; index < leftMessage.data.length; index++) {
+    if (leftMessage.data[index] !== rightMessage.data[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export class VideoGopCache {
   readonly #rangesByTopic = new Map<string, CachedVideoRange[]>();
   readonly #activeRangeByTopic = new Map<string, CachedVideoRange>();
@@ -158,11 +190,12 @@ export class VideoGopCache {
     const ranges = this.#rangesByTopic.get(msg.topic) ?? [];
     let range = this.#activeRangeByTopic.get(msg.topic);
     range ??= ranges.find((entry) => entry.overlapsPublishTime(cachedFrame.publishTimeNs));
-    if (this.#topicsAwaitingPostSeekFrame.delete(msg.topic) && range != undefined) {
+    const isPostSeekFrame = this.#topicsAwaitingPostSeekFrame.delete(msg.topic);
+    if (isPostSeekFrame && range != undefined) {
       // If the first post-seek frame lands inside an already-cached GOP, discard that range's
       // later frames before appending it. Otherwise a backward seek could produce
       // key...future...target in one physical decode batch.
-      this.#byteSize -= range.truncateAfterPublishTime(cachedFrame.publishTimeNs);
+      this.#byteSize -= range.truncateAfterFrame(cachedFrame);
     }
     if (range == undefined || !ranges.includes(range)) {
       range = new CachedVideoRange();
@@ -170,7 +203,16 @@ export class VideoGopCache {
       this.#rangesByTopic.set(msg.topic, ranges);
     }
 
-    this.#byteSize += range.addFrame(cachedFrame);
+    // A seek backfill can wrap the already-cached boundary frame in a new message/payload object.
+    // Deduplicate only this boundary; ordinary playback may contain genuinely repeated messages.
+    const previousFrame = range.frames.at(-1);
+    if (
+      !isPostSeekFrame ||
+      previousFrame == undefined ||
+      !sameVideoFrameMessage(previousFrame.messageEvent, msg)
+    ) {
+      this.#byteSize += range.addFrame(cachedFrame);
+    }
     this.#activeRangeByTopic.set(msg.topic, range);
     this.#mergeOverlappingRanges(msg.topic);
     this.#pruneToBudget();
@@ -554,12 +596,17 @@ class CachedVideoRange {
     return framesForPublishTime(this.frames, targetNs, afterNs);
   }
 
-  public truncateAfterPublishTime(targetNs: bigint): number {
-    let targetIndex = -1;
-    for (let i = 0; i < this.frames.length; i++) {
-      if (this.frames[i]!.publishTimeNs <= targetNs) {
-        targetIndex = i;
-      }
+  public truncateAfterFrame(target: CachedVideoFrame): number {
+    // Equal publish timestamps can belong to later physical frames. Prefer the actual
+    // backfill boundary so resuming playback cannot append duplicates behind those futures.
+    let targetIndex = findLastIndex(this.frames, (frame) =>
+      sameVideoFrameMessage(frame.messageEvent, target.messageEvent),
+    );
+    if (targetIndex < 0) {
+      targetIndex = findLastIndex(
+        this.frames,
+        (frame) => frame.publishTimeNs <= target.publishTimeNs,
+      );
     }
     if (targetIndex < 0 || targetIndex === this.frames.length - 1) {
       return 0;

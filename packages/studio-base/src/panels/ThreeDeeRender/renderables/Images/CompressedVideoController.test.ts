@@ -71,6 +71,18 @@ function deferred() {
   });
   return { promise, resolve };
 }
+
+function mockMessageRange(frames: readonly MessageEvent<CompressedVideo>[]) {
+  return jest.fn<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>>((args) => {
+    void args.onNewRangeIterator(
+      (async function* () {
+        yield frames;
+      })(),
+    );
+    return jest.fn();
+  });
+}
+
 describe("awaited video tick scheduling", () => {
   beforeEach(() => {
     jest.spyOn(H264, "IsAnnexB").mockReturnValue(true);
@@ -299,6 +311,346 @@ describe("awaited video tick scheduling", () => {
       anyFrameTimeoutMs: 2000,
     });
   });
+
+  it.each([
+    [250, 150, 50],
+    [150, 150, 149, 120, 101],
+  ])("reuses warm GOPs for between-frame backward seeks at %j ms", async (...seekTimes) => {
+    const { controller, renderer, display } = setup();
+    const frames = [0, 100, 200, 300].map((ms) =>
+      frame(ms * 1_000_000, ms === 0 ? "key" : "delta"),
+    );
+    const request = mockMessageRange(frames);
+    const search = jest.fn();
+    renderer.subscribeMessageRange = request;
+    controller.updateOptions({ onSeekKeyframeSearchChange: search });
+    await controller.enqueueVideoFrames(frames);
+    renderer.stopped = true;
+
+    for (const seekMs of seekTimes) {
+      const targetIndex = Math.floor(seekMs / 100);
+      renderer.currentTime = BigInt(seekMs) * 1_000_000n;
+      display.mockClear();
+      controller.handleSeek();
+      // Match Renderer: ingest the backfill before the queued recovery starts.
+      await controller.enqueueVideoFrames([
+        frame(targetIndex * 100_000_000, targetIndex === 0 ? "key" : "delta"),
+      ]);
+
+      expect(request).not.toHaveBeenCalled();
+      expect(display).toHaveBeenCalledTimes(1);
+      expect(display.mock.calls[0]![0]).toEqual(frames.slice(0, targetIndex + 1));
+      expect(display.mock.calls[0]![1]).toBe("seek");
+      expect(search).not.toHaveBeenCalledWith({ active: true });
+    }
+    controller.dispose();
+  });
+
+  it("selects the nearest cached keyframe when stepping backwards across GOPs", async () => {
+    const { controller, renderer, display } = setup();
+    const frames = [0, 100, 200, 300, 400, 500].map((ms) =>
+      frame(ms * 1_000_000, ms % 200 === 0 ? "key" : "delta"),
+    );
+    renderer.subscribeMessageRange = mockMessageRange(frames);
+    await controller.enqueueVideoFrames(frames);
+    renderer.stopped = true;
+    for (const [seekMs, firstIndex, lastIndex] of [
+      [450, 4, 4],
+      [350, 2, 3],
+      [150, 0, 1],
+    ] as const) {
+      renderer.currentTime = BigInt(seekMs) * 1_000_000n;
+      controller.handleSeek();
+      await controller.enqueueVideoFrames([frames[lastIndex]!]);
+      expect(display.mock.calls.at(-1)![0]).toEqual(frames.slice(firstIndex, lastIndex + 1));
+    }
+    expect(renderer.subscribeMessageRange).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("locates the backfilled GOP by receive time when the publish clock differs", async () => {
+    const { controller, renderer, display } = setup();
+    const frames = [0, 100, 200].map((ms) => ({
+      ...frame((ms + 10_000) * 1_000_000, ms === 0 ? "key" : "delta"),
+      receiveTime: fromNanoSec(BigInt(ms) * 1_000_000n),
+    }));
+    await controller.enqueueVideoFrames(frames);
+    renderer.subscribeMessageRange = mockMessageRange(frames);
+    renderer.stopped = true;
+    renderer.currentTime = 150_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([frames[1]!]);
+
+    expect(renderer.subscribeMessageRange).not.toHaveBeenCalled();
+    expect(display.mock.calls.at(-1)![0]).toEqual(frames.slice(0, 2));
+    controller.dispose();
+  });
+
+  it.each(["future", "invalid"])(
+    "ignores a %s backfill as the cache lookup target",
+    async (kind) => {
+      const { controller, renderer, display } = setup();
+      const frames = [frame(0, "key"), frame(100_000_000), frame(200_000_000)];
+      await controller.enqueueVideoFrames(frames);
+      renderer.subscribeMessageRange = mockMessageRange(frames);
+      renderer.stopped = true;
+      renderer.currentTime = 150_000_000n;
+      const backfill = frame(kind === "future" ? 200_000_000 : 100_000_000);
+      if (kind === "invalid") {
+        backfill.message.data = new Uint8Array();
+      }
+      controller.handleSeek();
+      await controller.enqueueVideoFrames([backfill]);
+
+      expect(renderer.subscribeMessageRange).not.toHaveBeenCalled();
+      expect(display.mock.calls.at(-1)![0]).toEqual(frames.slice(0, 2));
+      controller.dispose();
+    },
+  );
+
+  it("rejects a cached target with matching timestamps but different content", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const target = frame(100_000_000);
+    const wrongTarget = frame(100_000_000);
+    wrongTarget.message.data = new Uint8Array([0x41, 1]);
+    jest
+      .spyOn(VideoGopCache.prototype, "seekAndReturnFramesForReceiveTime")
+      .mockReturnValueOnce([key, wrongTarget]);
+    renderer.subscribeMessageRange = mockMessageRange([key, target]);
+    renderer.stopped = true;
+    renderer.currentTime = 100_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([target]);
+
+    expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([key, target]);
+    controller.dispose();
+  });
+
+  it("looks back when cached physical order cannot reach the backfilled target", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const futureReceived = { ...frame(100_000_000), receiveTime: fromNanoSec(400_000_000n) };
+    const target = { ...frame(200_000_000), receiveTime: fromNanoSec(100_000_000n) };
+    await controller.enqueueVideoFrames([key, futureReceived, target]);
+    const request = mockMessageRange([key, target]);
+    renderer.subscribeMessageRange = request;
+    renderer.currentTime = 150_000_000n;
+    renderer.stopped = true;
+    display.mockClear();
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([target]);
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]![0].timeRange?.end).toEqual(fromNanoSec(150_000_000n));
+    expect(display.mock.calls[0]![0]).toEqual([key, target]);
+    controller.dispose();
+  });
+
+  it("does not treat a newly appended backfill as proof of a complete cached GOP", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const deltas = [100, 200, 300].map((ms) => ({
+      ...frame(100_000_000),
+      receiveTime: fromNanoSec(BigInt(ms) * 1_000_000n),
+    }));
+    await controller.enqueueVideoFrames([key, deltas[0]!]);
+    renderer.subscribeMessageRange = mockMessageRange([key, ...deltas]);
+    renderer.stopped = true;
+    renderer.currentTime = 350_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([deltas[2]!]);
+
+    expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls.at(-1)![0]).toEqual([key, ...deltas]);
+    controller.dispose();
+  });
+
+  it("does not poison later seeks when an uncached delta cannot be recovered", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const deltas = [100, 200, 300].map((ms) => ({
+      ...frame(100_000_000),
+      receiveTime: fromNanoSec(BigInt(ms) * 1_000_000n),
+    }));
+    await controller.enqueueVideoFrames([key, deltas[0]!]);
+    display.mockClear();
+    renderer.stopped = true;
+    renderer.currentTime = 350_000_000n;
+    for (let index = 0; index < 2; index++) {
+      controller.handleSeek();
+      await controller.enqueueVideoFrames([deltas[2]!]);
+      expect(display).not.toHaveBeenCalled();
+    }
+
+    renderer.subscribeMessageRange = mockMessageRange([key, ...deltas]);
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([deltas[2]!]);
+    expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls.at(-1)![0]).toEqual([key, ...deltas]);
+    controller.dispose();
+  });
+
+  it("recovers a self-contained keyframe backfill batch without a range service", async () => {
+    const { controller, renderer, display } = setup();
+    const frames = [frame(0, "key"), frame(100_000_000)];
+    renderer.stopped = true;
+    renderer.currentTime = 150_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames(frames);
+    expect(display.mock.calls.at(-1)![0]).toEqual(frames);
+
+    renderer.stopped = false;
+    renderer.currentTime = 200_000_000n;
+    const next = frame(200_000_000);
+    await controller.enqueueVideoFrames([next]);
+    expect(display.mock.calls.at(-1)![0]).toEqual([next]);
+    renderer.stopped = true;
+    renderer.currentTime = 250_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([next]);
+    expect(display.mock.calls.at(-1)![0]).toEqual([...frames, next]);
+    controller.dispose();
+  });
+
+  it("truncates same-publish-time futures before resuming a warm seek", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const deltas = [100, 200, 300, 400].map((ms) => ({
+      ...frame(100_000_000),
+      receiveTime: fromNanoSec(BigInt(ms) * 1_000_000n),
+    }));
+    await controller.enqueueVideoFrames([key, ...deltas.slice(0, 3)]);
+    renderer.stopped = true;
+    renderer.currentTime = 150_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([deltas[0]!]);
+    expect(display.mock.calls.at(-1)![0]).toEqual([key, deltas[0]]);
+
+    renderer.stopped = false;
+    renderer.currentTime = 400_000_000n;
+    await controller.enqueueVideoFrames(deltas.slice(1));
+    renderer.stopped = true;
+    renderer.currentTime = 450_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([deltas[3]!]);
+    expect(display.mock.calls.at(-1)![0]).toEqual([key, ...deltas]);
+    controller.dispose();
+  });
+
+  it("does not bridge an unrecovered seek gap when playback resumes", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const deltas = [100, 200, 300, 400].map((ms) => ({
+      ...frame(100_000_000),
+      receiveTime: fromNanoSec(BigInt(ms) * 1_000_000n),
+    }));
+    await controller.enqueueVideoFrames([key, deltas[0]!]);
+    renderer.stopped = true;
+    renderer.currentTime = 350_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([deltas[2]!]);
+    renderer.stopped = false;
+    renderer.currentTime = 400_000_000n;
+    await controller.enqueueVideoFrames([deltas[3]!]);
+
+    renderer.subscribeMessageRange = mockMessageRange([key, ...deltas]);
+    renderer.stopped = true;
+    renderer.currentTime = 450_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([deltas[3]!]);
+    expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls.at(-1)![0]).toEqual([key, ...deltas]);
+    controller.dispose();
+  });
+
+  it("resumes caching at a new keyframe after seek recovery is unavailable", async () => {
+    const { controller, renderer, display } = setup();
+    await controller.enqueueVideoFrames([frame(0, "key"), frame(100_000_000)]);
+    renderer.stopped = true;
+    renderer.currentTime = 350_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([frame(300_000_000)]);
+
+    renderer.stopped = false;
+    renderer.currentTime = 600_000_000n;
+    const key = frame(500_000_000, "key");
+    const delta = frame(600_000_000);
+    await controller.enqueueVideoFrames([frame(400_000_000), key, delta]);
+    renderer.stopped = true;
+    renderer.currentTime = 650_000_000n;
+    display.mockClear();
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([delta]);
+    expect(display.mock.calls[0]![0]).toEqual([key, delta]);
+    controller.dispose();
+  });
+
+  it("looks back for a backfilled delta without a cached keyframe", async () => {
+    const { controller, renderer, display } = setup();
+    const key = frame(0, "key");
+    const target = frame(100_000_000);
+    const request = mockMessageRange([key, target]);
+    renderer.subscribeMessageRange = request;
+    renderer.currentTime = 150_000_000n;
+    renderer.stopped = true;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([target]);
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([key, target]);
+    controller.dispose();
+  });
+
+  it("discards a superseded seek and its backfilled target", async () => {
+    const { controller, renderer, display } = setup();
+    const frames = [frame(0, "key"), frame(100_000_000), frame(200_000_000)];
+    await controller.enqueueVideoFrames(frames);
+    renderer.subscribeMessageRange = mockMessageRange(frames);
+    renderer.stopped = true;
+    display.mockClear();
+    renderer.currentTime = 150_000_000n;
+    controller.handleSeek();
+    const first = controller.enqueueVideoFrames([frame(100_000_000)]);
+    renderer.currentTime = 50_000_000n;
+    controller.handleSeek();
+    const second = controller.enqueueVideoFrames([frame(0, "key")]);
+    await Promise.all([first, second]);
+
+    expect(renderer.subscribeMessageRange).not.toHaveBeenCalled();
+    expect(display).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([frames[0]]);
+    controller.dispose();
+  });
+
+  it.each(["clear", "handleTimestampRegression", "dispose"] as const)(
+    "invalidates a pending seek target on %s",
+    async (reset) => {
+      const { controller, renderer, display } = setup();
+      const frames = [frame(0, "key"), frame(100_000_000), frame(200_000_000)];
+      await controller.enqueueVideoFrames(frames);
+      renderer.subscribeMessageRange = mockMessageRange(frames);
+      renderer.stopped = true;
+      renderer.currentTime = 150_000_000n;
+      display.mockClear();
+      controller.handleSeek();
+      const work = controller.enqueueVideoFrames([frame(100_000_000)]);
+      controller[reset]();
+      await work;
+
+      expect(display).not.toHaveBeenCalled();
+      expect(renderer.subscribeMessageRange).not.toHaveBeenCalled();
+      if (reset !== "dispose") {
+        renderer.currentTime = 250_000_000n;
+        controller.handleSeek();
+        await controller.enqueueVideoFrames([]);
+        expect(display.mock.calls[0]![0]).toEqual(frames);
+        expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+        controller.dispose();
+      }
+    },
+  );
 
   it("extends the cached GOP after seeking and resumes without a range subscription", async () => {
     const { controller, renderer, display } = setup();
