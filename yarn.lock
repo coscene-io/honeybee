@@ -4364,7 +4364,7 @@ __metadata:
     "@mui/x-date-pickers": 8.8.0
     "@popperjs/core": ^2.11.8
     "@protobufjs/base64": 1.1.2
-    "@rspack/core": 2.1.10
+    "@rspack/core": 2.2.6
     "@sentry/browser": 8.24.0
     "@sentry/core": 8.24.0
     "@sentry/types": 8.24.0
@@ -4510,7 +4510,7 @@ __metadata:
     "@foxglove/theme": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
     "@mcap/core": 2.1.7
-    "@rspack/core": 2.1.10
+    "@rspack/core": 2.2.6
     "@rspack/plugin-react-refresh": 2.0.2
     "@types/electron-devtools-installer": 2.2.3
     "@types/plist": ^3.0.3
@@ -4553,7 +4553,7 @@ __metadata:
     "@foxglove/theme": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
     "@mui/material": 7.3.11
-    "@rspack/core": 2.1.10
+    "@rspack/core": 2.2.6
     "@rspack/plugin-react-refresh": 2.0.2
     "@sentry/webpack-plugin": 2.22.0
     "@types/react-refresh": ^0
@@ -6628,79 +6628,79 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rspack/binding-darwin-arm64@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-darwin-arm64@npm:2.1.10"
+"@rspack/binding-darwin-arm64@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-darwin-arm64@npm:2.2.6"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@rspack/binding-darwin-x64@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-darwin-x64@npm:2.1.10"
+"@rspack/binding-darwin-x64@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-darwin-x64@npm:2.2.6"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-arm64-gnu@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-arm64-gnu@npm:2.1.10"
+"@rspack/binding-linux-arm64-gnu@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-arm64-gnu@npm:2.2.6"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-arm64-musl@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-arm64-musl@npm:2.1.10"
+"@rspack/binding-linux-arm64-musl@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-arm64-musl@npm:2.2.6"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-ppc64-gnu@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-ppc64-gnu@npm:2.1.10"
+"@rspack/binding-linux-ppc64-gnu@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-ppc64-gnu@npm:2.2.6"
   conditions: os=linux & cpu=ppc64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-riscv64-gnu@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-riscv64-gnu@npm:2.1.10"
+"@rspack/binding-linux-riscv64-gnu@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-riscv64-gnu@npm:2.2.6"
   conditions: os=linux & cpu=riscv64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-riscv64-musl@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-riscv64-musl@npm:2.1.10"
+"@rspack/binding-linux-riscv64-musl@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-riscv64-musl@npm:2.2.6"
   conditions: os=linux & cpu=riscv64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-s390x-gnu@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-s390x-gnu@npm:2.1.10"
+"@rspack/binding-linux-s390x-gnu@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-s390x-gnu@npm:2.2.6"
   conditions: os=linux & cpu=s390x & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-x64-gnu@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-x64-gnu@npm:2.1.10"
+"@rspack/binding-linux-x64-gnu@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-x64-gnu@npm:2.2.6"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rspack/binding-linux-x64-musl@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-linux-x64-musl@npm:2.1.10"
+"@rspack/binding-linux-x64-musl@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-linux-x64-musl@npm:2.2.6"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rspack/binding-wasm32-wasi@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-wasm32-wasi@npm:2.1.10"
+"@rspack/binding-wasm32-wasi@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-wasm32-wasi@npm:2.2.6"
   dependencies:
     "@emnapi/core": 1.11.3
     "@emnapi/runtime": 1.11.3
@@ -6709,45 +6709,45 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rspack/binding-win32-arm64-msvc@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-win32-arm64-msvc@npm:2.1.10"
+"@rspack/binding-win32-arm64-msvc@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-win32-arm64-msvc@npm:2.2.6"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
 
-"@rspack/binding-win32-ia32-msvc@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-win32-ia32-msvc@npm:2.1.10"
+"@rspack/binding-win32-ia32-msvc@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-win32-ia32-msvc@npm:2.2.6"
   conditions: os=win32 & cpu=ia32
   languageName: node
   linkType: hard
 
-"@rspack/binding-win32-x64-msvc@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding-win32-x64-msvc@npm:2.1.10"
+"@rspack/binding-win32-x64-msvc@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding-win32-x64-msvc@npm:2.2.6"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@rspack/binding@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/binding@npm:2.1.10"
+"@rspack/binding@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/binding@npm:2.2.6"
   dependencies:
-    "@rspack/binding-darwin-arm64": 2.1.10
-    "@rspack/binding-darwin-x64": 2.1.10
-    "@rspack/binding-linux-arm64-gnu": 2.1.10
-    "@rspack/binding-linux-arm64-musl": 2.1.10
-    "@rspack/binding-linux-ppc64-gnu": 2.1.10
-    "@rspack/binding-linux-riscv64-gnu": 2.1.10
-    "@rspack/binding-linux-riscv64-musl": 2.1.10
-    "@rspack/binding-linux-s390x-gnu": 2.1.10
-    "@rspack/binding-linux-x64-gnu": 2.1.10
-    "@rspack/binding-linux-x64-musl": 2.1.10
-    "@rspack/binding-wasm32-wasi": 2.1.10
-    "@rspack/binding-win32-arm64-msvc": 2.1.10
-    "@rspack/binding-win32-ia32-msvc": 2.1.10
-    "@rspack/binding-win32-x64-msvc": 2.1.10
+    "@rspack/binding-darwin-arm64": 2.2.6
+    "@rspack/binding-darwin-x64": 2.2.6
+    "@rspack/binding-linux-arm64-gnu": 2.2.6
+    "@rspack/binding-linux-arm64-musl": 2.2.6
+    "@rspack/binding-linux-ppc64-gnu": 2.2.6
+    "@rspack/binding-linux-riscv64-gnu": 2.2.6
+    "@rspack/binding-linux-riscv64-musl": 2.2.6
+    "@rspack/binding-linux-s390x-gnu": 2.2.6
+    "@rspack/binding-linux-x64-gnu": 2.2.6
+    "@rspack/binding-linux-x64-musl": 2.2.6
+    "@rspack/binding-wasm32-wasi": 2.2.6
+    "@rspack/binding-win32-arm64-msvc": 2.2.6
+    "@rspack/binding-win32-ia32-msvc": 2.2.6
+    "@rspack/binding-win32-x64-msvc": 2.2.6
   dependenciesMeta:
     "@rspack/binding-darwin-arm64":
       optional: true
@@ -6777,13 +6777,13 @@ __metadata:
       optional: true
     "@rspack/binding-win32-x64-msvc":
       optional: true
-  checksum: 7c271bf97c3cddb569b3f36cd8fba99724901f652c585ccf8468b71ac070b07b14d7e83544eb6f93f900090714ef38647be9fbe02b4dbf44c249aeb54d9dfe30
+  checksum: ea9e9dd359576b6c5d8905837d00bcf9878e2821e15564ef172361c437d2157b23a3ccf05fe812638d513c1b7de84a440773cd7d933b8dea1bd8cc4256b188da
   languageName: node
   linkType: hard
 
-"@rspack/cli@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/cli@npm:2.1.10"
+"@rspack/cli@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/cli@npm:2.2.6"
   peerDependencies:
     "@rspack/core": ^2.0.0-0
     "@rspack/dev-server": ^2.0.0-0
@@ -6792,15 +6792,15 @@ __metadata:
       optional: true
   bin:
     rspack: ./bin/rspack.js
-  checksum: 95e295c7a0bfa7c1451fdc4048dc0a28f7f1f7216afeb31b6f603aca22877e0a2e825251453f74ed60924771919840525e59a57d9a71f516e544f6cf4d2343ac
+  checksum: 04581f56271e2bffbbb3ab3fed7c9309c27a2f285b448af280acc2260401915ec48c941e19c03605183a88ed746228b946fd91f57f981d4930a3d9cd5db49db5
   languageName: node
   linkType: hard
 
-"@rspack/core@npm:2.1.10":
-  version: 2.1.10
-  resolution: "@rspack/core@npm:2.1.10"
+"@rspack/core@npm:2.2.6":
+  version: 2.2.6
+  resolution: "@rspack/core@npm:2.2.6"
   dependencies:
-    "@rspack/binding": 2.1.10
+    "@rspack/binding": 2.2.6
   peerDependencies:
     "@module-federation/runtime-tools": ^0.24.1 || ^2.0.0
     "@swc/helpers": ^0.5.23
@@ -6809,7 +6809,7 @@ __metadata:
       optional: true
     "@swc/helpers":
       optional: true
-  checksum: 8b8f724f8c0654fc47cb7b35cc69156830d7419bd5f1925884373911c157ac57bee4fad2b258413d27abdb458b5c038249ffa2003ce043f6255d9cfba5bd87f0
+  checksum: 4313aa7e6a300fdc7e6ef31b2512c3df1254f50fa3c55a81542e37c27cb90d2c228ae44685e59efb1af1ec8f18c10a0376df8db22ff74725e1393f93cd486e3a
   languageName: node
   linkType: hard
 
@@ -10898,7 +10898,7 @@ __metadata:
     "@foxglove/schemas": 2.0.0
     "@foxglove/studio": "workspace:*"
     "@foxglove/studio-base": "workspace:*"
-    "@rspack/core": 2.1.10
+    "@rspack/core": 2.2.6
     "@rspack/plugin-react-refresh": 2.0.2
     "@types/react": 18.3.27
     "@types/react-dom": 18.3.7
@@ -12717,8 +12717,8 @@ __metadata:
     "@foxglove/studio-base": "workspace:*"
     "@foxglove/studio-desktop": "workspace:*"
     "@foxglove/ws-protocol": 0.1.2
-    "@rspack/cli": 2.1.10
-    "@rspack/core": 2.1.10
+    "@rspack/cli": 2.2.6
+    "@rspack/core": 2.2.6
     "@types/ws": ^8
     electron: 35.0.3
     playwright: 1.60.0
@@ -15792,8 +15792,8 @@ __metadata:
     "@actions/tool-cache": 2.0.1
     "@coscene-io/eslint-plugin": "workspace:*"
     "@foxglove/tsconfig": 3.2.0
-    "@rspack/cli": 2.1.10
-    "@rspack/core": 2.1.10
+    "@rspack/cli": 2.2.6
+    "@rspack/core": 2.2.6
     "@rspack/dev-server": 2.1.0
     "@swc/core": 1.16.2
     "@swc/jest": 0.2.39
@@ -24988,8 +24988,8 @@ __metadata:
     "@foxglove/log": "workspace:*"
     "@foxglove/studio-desktop": "workspace:*"
     "@foxglove/studio-web": "workspace:*"
-    "@rspack/cli": 2.1.10
-    "@rspack/core": 2.1.10
+    "@rspack/cli": 2.2.6
+    "@rspack/core": 2.2.6
     "@types/serve-handler": ^6
     electron: 35.0.3
     playwright: 1.60.0
