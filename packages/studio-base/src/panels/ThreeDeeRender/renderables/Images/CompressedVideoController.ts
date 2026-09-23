@@ -182,7 +182,8 @@ export class CompressedVideoController {
         }
         if (keyframeIndex >= 0) {
           this.#seekReplayFrames = frames.slice(keyframeIndex);
-          this.#cache.addFrameRange(this.#seekReplayFrames);
+          // The first post-seek frame must truncate the stale cached suffix before replay.
+          this.#cache.addFrames(this.#seekReplayFrames);
         }
         // Do not cache an isolated delta, even if lookback fails: a later seek must
         // not mistake that same incomplete sequence for a warm GOP.

@@ -428,6 +428,31 @@ describe("awaited video tick scheduling", () => {
     controller.dispose();
   });
 
+  it("replaces stale overlapping GOP frames before a later warm seek", async () => {
+    const { controller, renderer, display } = setup();
+    const oldKey = frame(0, "key");
+    const oldDelta = frame(100_000_000);
+    const newKey = frame(0, "key");
+    newKey.message.data = new Uint8Array([0x65, 1]);
+    const newDelta = frame(100_000_000);
+    newDelta.message.data = new Uint8Array([0x41, 1]);
+    await controller.enqueueVideoFrames([oldKey, oldDelta]);
+    renderer.stopped = true;
+
+    renderer.currentTime = 150_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([newKey, newDelta]);
+    expect(display.mock.calls.at(-1)![0]).toEqual([newKey, newDelta]);
+
+    display.mockClear();
+    renderer.currentTime = 175_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([newDelta]);
+    expect(display).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([newKey, newDelta]);
+    controller.dispose();
+  });
+
   it("looks back when cached physical order cannot reach the backfilled target", async () => {
     const { controller, renderer, display } = setup();
     const key = frame(0, "key");
