@@ -6,6 +6,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+# CI runs on the shared cos-m self-hosted fleet. A newer push to the same ref
+# supersedes the older run's result, so cancel it instead of queueing both on
+# a runner (the 2026-09-11..14 queue-up: 18 queued CI runs on this workflow).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     if: github.event.pull_request.draft == false
