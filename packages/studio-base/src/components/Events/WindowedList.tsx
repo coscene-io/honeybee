@@ -166,7 +166,7 @@ const Row = memo(function Row({
 // Keep an active row in the same React parent when it leaves the render window.
 // Its key/type remain identical, preserving local state, focus and portalled controls.
 const Inner = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function Inner(
-  { children, ...props },
+  { children, style, ...props },
   ref,
 ) {
   const pinned = useContext(PinnedContext);
@@ -193,7 +193,9 @@ const Inner = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(f
       />
     ) : undefined;
   return (
-    <div {...props} ref={ref}>
+    // react-window disables hit testing while scrolling. Refreshes can keep extending its
+    // debounce, so visible moment controls must opt out. Retained rows still disable it individually.
+    <div {...props} ref={ref} style={{ ...style, pointerEvents: "auto" }}>
       {extra == undefined ? rows : [...rows, extra]}
     </div>
   );
