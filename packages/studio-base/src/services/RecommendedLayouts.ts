@@ -406,7 +406,7 @@ export function resolveRecommendedLayout(
   const workflows = manifest.robots[match.robot]?.resolution[match.config]?.[transport];
   const workflowEntry = Object.entries(workflows ?? {})[0];
   if (!workflowEntry?.[1].viewer) {
-    return undefined;
+    return transport === "h264" ? resolveRecommendedLayout(manifest, match, "default") : undefined;
   }
   return descriptorForEntry(
     manifest,

@@ -370,6 +370,54 @@ describe("RecommendedLayoutProvider", () => {
     expect(result.current).toMatchObject({ status: "ready", robot: "astribot-s1" });
   });
 
+  it("automatically selects the same-config default layout for a video record without H.264 layouts", async () => {
+    const service = jest.requireActual<
+      typeof import("@foxglove/studio-base/services/RecommendedLayouts")
+    >("@foxglove/studio-base/services/RecommendedLayouts");
+    manifest = service.parseRecommendedLayoutManifest({
+      robots: {
+        test: {
+          device_type_match: { RobotA: "gripper" },
+          resolution: {
+            _default: { h264: { first: { viewer: "layouts/other-config.json" } } },
+            gripper: { default: { first: { viewer: "layouts/gripper.json" } } },
+          },
+        },
+      },
+    });
+    jest.mocked(loadRecommendedLayoutManifest).mockResolvedValue(manifest);
+    jest
+      .mocked(matchRecommendedLayoutDeviceType)
+      .mockImplementation(service.matchRecommendedLayoutDeviceType);
+    jest.mocked(listRecommendedLayouts).mockImplementation(service.listRecommendedLayouts);
+    jest.mocked(resolveRecommendedLayout).mockImplementation(service.resolveRecommendedLayout);
+    jest.mocked(hasCompressedVideoTopic).mockImplementation(service.hasCompressedVideoTopic);
+    topics.mockResolvedValue({ metaData: [{ schemaName: "foxglove.CompressedVideo" }] });
+
+    const { result } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+    expect(resolveRecommendedLayout).toHaveBeenCalledWith(
+      manifest,
+      { robot: "test", config: "gripper" },
+      "h264",
+    );
+    const state = result.current;
+    if (state.status !== "ready") {
+      throw new Error("Expected recommended layouts to be ready");
+    }
+    expect(state.automaticLayout).toMatchObject({
+      transport: "default",
+      resolution: "gripper",
+      url: "https://honeybee-public-layouts.coscene.io/layouts/gripper.json",
+    });
+    expect(state.layouts).toHaveLength(1);
+    expect(state.automaticLayout).toBe(state.layouts[0]);
+  });
+
   it("retries metadata once, then hides the entire recommendation capability", async () => {
     topics.mockRejectedValue(new Error("metadata unavailable"));
     const { result } = renderHook(() => useRecommendedLayouts(), {

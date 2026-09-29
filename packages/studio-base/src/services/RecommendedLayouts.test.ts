@@ -112,7 +112,7 @@ describe("RecommendedLayouts", () => {
       url: gripperUrl,
     });
     expect(resolveRecommendedLayout(manifest, match, "default")).toEqual(layouts[0]);
-    expect(resolveRecommendedLayout(manifest, match, "h264")).toBeUndefined();
+    expect(resolveRecommendedLayout(manifest, match, "h264")).toEqual(layouts[0]);
 
     const defaultLayouts = listRecommendedLayouts(manifest, DEFAULT_MATCH);
     expect(defaultLayouts.some((layout) => layout.url.endsWith("/layouts/gripper.json"))).toBe(
@@ -372,7 +372,13 @@ describe("RecommendedLayouts", () => {
     });
     expect(
       resolveRecommendedLayout(manifest, { robot: "noDefaultResolution", config: "1080p" }, "h264"),
-    ).toBe(undefined);
+    ).toEqual(
+      resolveRecommendedLayout(
+        manifest,
+        { robot: "noDefaultResolution", config: "1080p" },
+        "default",
+      ),
+    );
     expect(
       resolveRecommendedLayout(
         manifest,
@@ -384,6 +390,76 @@ describe("RecommendedLayouts", () => {
       resolveRecommendedLayout(manifest, { robot: "missing", config: "_default" }, "default"),
     ).toBe(undefined);
   });
+
+  it.each([
+    undefined,
+    {},
+    {
+      first: { annotator: "layouts/annotator-h264.json" },
+      second: { viewer: "layouts/later-viewer-h264.json" },
+    },
+  ])("falls back to the matched config's default viewer when H.264 is unavailable: %j", (h264) => {
+    const manifest = parseRecommendedLayoutManifest({
+      robots: {
+        test: {
+          device_type_match: { device: "gripper" },
+          resolution: {
+            _default: { h264: { first: { viewer: "layouts/other-config.json" } } },
+            gripper: {
+              default: { first: { viewer: "layouts/gripper.json" } },
+              h264,
+            },
+          },
+        },
+      },
+    });
+    const match = matchRecommendedLayoutDeviceType(manifest, "device")!;
+    const fallback = resolveRecommendedLayout(manifest, match, "h264");
+    expect(fallback).toEqual(resolveRecommendedLayout(manifest, match, "default"));
+    expect(fallback).toMatchObject({
+      id: layoutId(
+        "test",
+        "default",
+        "https://honeybee-public-layouts.coscene.io/layouts/gripper.json",
+        "gripper",
+      ),
+      transport: "default",
+      resolution: "gripper",
+    });
+    expect(listRecommendedLayouts(manifest, match)).toContainEqual(fallback);
+  });
+
+  it("prefers an available H.264 viewer over the default viewer", () => {
+    const manifest = makeManifest();
+    expect(resolveRecommendedLayout(manifest, DEFAULT_MATCH, "h264")).toMatchObject({
+      transport: "h264",
+      url: "https://honeybee-public-layouts.coscene.io/layouts/h264-viewer.json",
+    });
+  });
+
+  it.each(["default", "h264"] as const)(
+    "does not fall back to another config or a later workflow for %s",
+    (transport) => {
+      const manifest = parseRecommendedLayoutManifest({
+        robots: {
+          test: {
+            device_type_match: { device: "gripper" },
+            resolution: {
+              _default: { default: { first: { viewer: "layouts/other-config.json" } } },
+              gripper: {
+                default: {
+                  first: { annotator: "layouts/annotator.json" },
+                  second: { viewer: "layouts/later-viewer.json" },
+                },
+              },
+            },
+          },
+        },
+      });
+      const match = matchRecommendedLayoutDeviceType(manifest, "device")!;
+      expect(resolveRecommendedLayout(manifest, match, transport)).toBeUndefined();
+    },
+  );
 
   it.each([
     "foxglove.CompressedVideo",
