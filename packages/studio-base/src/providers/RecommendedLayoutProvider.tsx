@@ -19,6 +19,7 @@ import {
   listRecommendedLayouts,
   loadRecommendedLayoutData,
   loadRecommendedLayoutManifest,
+  matchRecommendedLayoutDeviceType,
   resolveRecommendedLayout,
 } from "@foxglove/studio-base/services/RecommendedLayouts";
 
@@ -91,23 +92,24 @@ export default function RecommendedLayoutProvider({
     setState({ status: "loading", layouts: [] });
     const resolve = async () => {
       const manifest = await loadRecommendedLayoutManifest();
-      if (!manifest.robots[deviceType]) {
+      const match = matchRecommendedLayoutDeviceType(manifest, deviceType);
+      if (!match) {
         return { status: "ready", layouts: [] } as const;
       }
 
-      const layouts = listRecommendedLayouts(manifest, deviceType);
+      const layouts = listRecommendedLayouts(manifest, match);
       if (layouts.length === 0) {
-        return { status: "ready", robot: deviceType, layouts } as const;
+        return { status: "ready", robot: match.robot, layouts } as const;
       }
 
       const metadata = await consoleApi.topics(showtUrlKey);
       const transport = hasCompressedVideoTopic(metadata.metaData) ? "h264" : "default";
-      const resolvedAutomaticLayout = resolveRecommendedLayout(manifest, deviceType, transport);
+      const resolvedAutomaticLayout = resolveRecommendedLayout(manifest, match, transport);
       const automaticLayout = resolvedAutomaticLayout
         ? (layouts.find((layout) => layout.id === resolvedAutomaticLayout.id) ??
           resolvedAutomaticLayout)
         : undefined;
-      return { status: "ready", robot: deviceType, layouts, automaticLayout } as const;
+      return { status: "ready", robot: match.robot, layouts, automaticLayout } as const;
     };
 
     const resolveWithRetry = async () => {

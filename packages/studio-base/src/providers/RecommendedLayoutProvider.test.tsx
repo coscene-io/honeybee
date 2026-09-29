@@ -21,6 +21,7 @@ import {
   listRecommendedLayouts,
   loadRecommendedLayoutData,
   loadRecommendedLayoutManifest,
+  matchRecommendedLayoutDeviceType,
   resolveRecommendedLayout,
   type RecommendedLayoutDescriptor,
   type RecommendedLayoutManifest,
@@ -41,6 +42,7 @@ jest.mock("@foxglove/studio-base/services/RecommendedLayouts", () => ({
   listRecommendedLayouts: jest.fn(),
   loadRecommendedLayoutData: jest.fn(),
   loadRecommendedLayoutManifest: jest.fn(),
+  matchRecommendedLayoutDeviceType: jest.fn(),
   resolveRecommendedLayout: jest.fn(),
 }));
 
@@ -85,21 +87,33 @@ describe("RecommendedLayoutProvider", () => {
       showtUrlKey: "records/record-a",
     };
     topics = jest.fn().mockResolvedValue({ metaData: [] });
-    manifest = { robots: { RobotA: { resolution: {} }, RobotB: { resolution: {} } } };
+    manifest = {
+      robots: {
+        RobotA: { device_type_match: {}, resolution: {} },
+        RobotB: { device_type_match: {}, resolution: {} },
+      },
+    };
 
     jest.mocked(useCoreData).mockImplementation((selector) => selector(coreData as CoreDataStore));
     jest.mocked(useConsoleApi).mockReturnValue({ topics } as unknown as ConsoleApi);
     jest.mocked(loadRecommendedLayoutManifest).mockResolvedValue(manifest);
     jest
+      .mocked(matchRecommendedLayoutDeviceType)
+      .mockImplementation((_manifest, deviceType) =>
+        deviceType === "RobotA" || deviceType === "RobotB"
+          ? { robot: deviceType, config: "_default" }
+          : undefined,
+      );
+    jest
       .mocked(listRecommendedLayouts)
-      .mockImplementation((_manifest, robot) =>
-        robot === "RobotA" ? robotALayouts : [descriptor(robot, "default")],
+      .mockImplementation((_manifest, match) =>
+        match.robot === "RobotA" ? robotALayouts : [descriptor(match.robot, "default")],
       );
     jest.mocked(hasCompressedVideoTopic).mockReturnValue(false);
     jest.mocked(useFeatureIsOnWithConfig).mockReturnValue(false);
     jest
       .mocked(resolveRecommendedLayout)
-      .mockImplementation((_manifest, robot, transport) => descriptor(robot, transport));
+      .mockImplementation((_manifest, match, transport) => descriptor(match.robot, transport));
   });
 
   it("uses the GrowthBook flag to disable and re-enable recommendations", async () => {
@@ -286,9 +300,17 @@ describe("RecommendedLayoutProvider", () => {
     await waitFor(() => {
       expect(result.current.status).toBe("ready");
     });
-    expect(listRecommendedLayouts).toHaveBeenCalledWith(manifest, "RobotA");
+    expect(matchRecommendedLayoutDeviceType).toHaveBeenCalledWith(manifest, "RobotA");
+    expect(listRecommendedLayouts).toHaveBeenCalledWith(manifest, {
+      robot: "RobotA",
+      config: "_default",
+    });
     expect(hasCompressedVideoTopic).toHaveBeenCalledWith([]);
-    expect(resolveRecommendedLayout).toHaveBeenCalledWith(manifest, "RobotA", "h264");
+    expect(resolveRecommendedLayout).toHaveBeenCalledWith(
+      manifest,
+      { robot: "RobotA", config: "_default" },
+      "h264",
+    );
     expect(result.current).toMatchObject({
       status: "ready",
       robot: "RobotA",
@@ -312,8 +334,88 @@ describe("RecommendedLayoutProvider", () => {
       expect(result.current.status).toBe("ready");
     });
     expect(result.current.layouts).toEqual([]);
+    expect(matchRecommendedLayoutDeviceType).toHaveBeenCalledWith(manifest, "robota");
     expect(listRecommendedLayouts).not.toHaveBeenCalled();
     expect(topics).not.toHaveBeenCalled();
+  });
+
+  it("passes a display-name deviceType into the matcher", async () => {
+    coreData = {
+      dataSource: { id: "coscene-data-platform", type: "connection" },
+      externalInitConfig: { recordId: "record-a" },
+      record: recordState("星尘-S1"),
+      showtUrlKey: "records/record-a",
+    };
+    jest.mocked(matchRecommendedLayoutDeviceType).mockReturnValue({
+      robot: "astribot-s1",
+      config: "_default",
+    });
+    const { result } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+    expect(matchRecommendedLayoutDeviceType).toHaveBeenCalledWith(manifest, "星尘-S1");
+    expect(listRecommendedLayouts).toHaveBeenCalledWith(manifest, {
+      robot: "astribot-s1",
+      config: "_default",
+    });
+    expect(resolveRecommendedLayout).toHaveBeenCalledWith(
+      manifest,
+      { robot: "astribot-s1", config: "_default" },
+      "default",
+    );
+    expect(result.current).toMatchObject({ status: "ready", robot: "astribot-s1" });
+  });
+
+  it("automatically selects the same-config default layout for a video record without H.264 layouts", async () => {
+    const service = jest.requireActual<
+      typeof import("@foxglove/studio-base/services/RecommendedLayouts")
+    >("@foxglove/studio-base/services/RecommendedLayouts");
+    manifest = service.parseRecommendedLayoutManifest({
+      robots: {
+        test: {
+          device_type_match: { RobotA: "gripper" },
+          resolution: {
+            _default: { h264: { first: { viewer: "layouts/other-config.json" } } },
+            gripper: { default: { first: { viewer: "layouts/gripper.json" } } },
+          },
+        },
+      },
+    });
+    jest.mocked(loadRecommendedLayoutManifest).mockResolvedValue(manifest);
+    jest
+      .mocked(matchRecommendedLayoutDeviceType)
+      .mockImplementation(service.matchRecommendedLayoutDeviceType);
+    jest.mocked(listRecommendedLayouts).mockImplementation(service.listRecommendedLayouts);
+    jest.mocked(resolveRecommendedLayout).mockImplementation(service.resolveRecommendedLayout);
+    jest.mocked(hasCompressedVideoTopic).mockImplementation(service.hasCompressedVideoTopic);
+    topics.mockResolvedValue({ metaData: [{ schemaName: "foxglove.CompressedVideo" }] });
+
+    const { result } = renderHook(() => useRecommendedLayouts(), {
+      wrapper: RecommendedLayoutProvider,
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+    expect(resolveRecommendedLayout).toHaveBeenCalledWith(
+      manifest,
+      { robot: "test", config: "gripper" },
+      "h264",
+    );
+    const state = result.current;
+    if (state.status !== "ready") {
+      throw new Error("Expected recommended layouts to be ready");
+    }
+    expect(state.automaticLayout).toMatchObject({
+      transport: "default",
+      resolution: "gripper",
+      url: "https://honeybee-public-layouts.coscene.io/layouts/gripper.json",
+    });
+    expect(state.layouts).toHaveLength(1);
+    expect(state.automaticLayout).toBe(state.layouts[0]);
   });
 
   it("retries metadata once, then hides the entire recommendation capability", async () => {
