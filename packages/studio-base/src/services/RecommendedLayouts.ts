@@ -24,9 +24,16 @@ const MAX_CACHED_LAYOUTS = 32;
 export type RecommendedLayoutTransport = "default" | "h264";
 
 type WorkflowResolution = Record<string, Record<string, string>>;
+type TransportResolution = Partial<Record<RecommendedLayoutTransport, WorkflowResolution>>;
 
 type RobotManifest = {
-  resolution?: Record<string, Partial<Record<RecommendedLayoutTransport, WorkflowResolution>>>;
+  device_type_match: Record<string, string>;
+  resolution: Record<string, TransportResolution>;
+};
+
+export type RecommendedLayoutMatch = {
+  robot: string;
+  config: string;
 };
 
 export type RecommendedLayoutManifest = {
@@ -127,17 +134,28 @@ export function parseRecommendedLayoutManifest(value: unknown): RecommendedLayou
 
   const robots = createStringMap<RobotManifest>();
   for (const [robotName, robotValue] of Object.entries(value.robots)) {
-    if (!isRecord(robotValue) || !isRecord(robotValue.resolution)) {
+    if (!isRecord(robotValue)) {
       continue;
     }
 
-    const resolutions =
-      createStringMap<Partial<Record<RecommendedLayoutTransport, WorkflowResolution>>>();
-    for (const [resolutionName, resolutionValue] of Object.entries(robotValue.resolution)) {
+    const deviceTypeMatch = createStringMap<string>();
+    for (const [deviceType, config] of Object.entries(
+      isRecord(robotValue.device_type_match) ? robotValue.device_type_match : {},
+    )) {
+      if (typeof config !== "string" || config.length === 0) {
+        throw new Error(`Recommended layout configuration is invalid for ${deviceType}`);
+      }
+      deviceTypeMatch[deviceType] = config;
+    }
+
+    const resolutions = createStringMap<TransportResolution>();
+    for (const [resolutionName, resolutionValue] of Object.entries(
+      isRecord(robotValue.resolution) ? robotValue.resolution : {},
+    )) {
       if (!isRecord(resolutionValue)) {
         continue;
       }
-      const transports: Partial<Record<RecommendedLayoutTransport, WorkflowResolution>> = {};
+      const transports: TransportResolution = {};
       const defaultResolution = parseWorkflowResolution(resolutionValue.default);
       const h264Resolution = parseWorkflowResolution(resolutionValue.h264);
       if (defaultResolution) {
@@ -146,20 +164,40 @@ export function parseRecommendedLayoutManifest(value: unknown): RecommendedLayou
       if (h264Resolution) {
         transports.h264 = h264Resolution;
       }
-      if (Object.keys(transports).length > 0) {
-        resolutions[resolutionName] = transports;
-      }
+      // Keep an empty group so a mapped config is present even when it has no layouts.
+      resolutions[resolutionName] = transports;
     }
 
-    if (Object.keys(resolutions).length > 0) {
-      robots[robotName] = { resolution: resolutions };
-    }
+    robots[robotName] = { device_type_match: deviceTypeMatch, resolution: resolutions };
   }
 
   return {
     robots,
     ...(typeof value.generated_at === "string" ? { generated_at: value.generated_at } : {}),
   };
+}
+
+export function matchRecommendedLayoutDeviceType(
+  manifest: RecommendedLayoutManifest,
+  deviceType: string,
+): RecommendedLayoutMatch | undefined {
+  let match: RecommendedLayoutMatch | undefined;
+  for (const [robot, entry] of Object.entries(manifest.robots)) {
+    if (!Object.hasOwn(entry.device_type_match, deviceType)) {
+      continue;
+    }
+    if (match) {
+      throw new Error(`Recommended layout device type matches multiple robots: ${deviceType}`);
+    }
+    const config = entry.device_type_match[deviceType];
+    if (typeof config !== "string" || !Object.hasOwn(entry.resolution, config)) {
+      throw new Error(
+        `Recommended layout configuration does not exist: ${robot}/${String(config)}`,
+      );
+    }
+    match = { robot, config };
+  }
+  return match;
 }
 
 async function readResponseText(response: Response): Promise<string> {
@@ -287,16 +325,19 @@ function recommendedLayoutId(
   robot: string,
   transport: RecommendedLayoutTransport,
   url: string,
+  config: string,
 ): LayoutID {
   const parts = [robot, transport, url].map(encodeURIComponent);
-  return `recommended:${parts.join(":")}` as LayoutID;
+  // Keep existing default-config links valid; distinguish other configurations even
+  // when they point at the same layout file.
+  const configSuffix = config === "_default" ? "" : `:config=${encodeURIComponent(config)}`;
+  return `recommended:${parts.join(":")}${configSuffix}` as LayoutID;
 }
 
 function descriptorForEntry(
   manifest: RecommendedLayoutManifest,
-  robot: string,
+  match: RecommendedLayoutMatch,
   transport: RecommendedLayoutTransport,
-  resolution: string,
   workflow: string,
   role: string,
   path: string,
@@ -306,9 +347,9 @@ function descriptorForEntry(
     throw new Error("Recommended layout URL must use the manifest origin");
   }
   return {
-    id: recommendedLayoutId(robot, transport, url.toString()),
-    robot,
-    resolution,
+    id: recommendedLayoutId(match.robot, transport, url.toString(), match.config),
+    robot: match.robot,
+    resolution: match.config,
     transport,
     workflow,
     role,
@@ -320,10 +361,10 @@ function descriptorForEntry(
 
 export function listRecommendedLayouts(
   manifest: RecommendedLayoutManifest,
-  robot: string,
+  match: RecommendedLayoutMatch,
 ): RecommendedLayoutDescriptor[] {
-  const resolutions = manifest.robots[robot]?.resolution;
-  if (!resolutions) {
+  const root = manifest.robots[match.robot]?.resolution[match.config];
+  if (!root) {
     return [];
   }
 
@@ -331,24 +372,14 @@ export function listRecommendedLayouts(
   for (const transport of ["default", "h264"] as const) {
     const seenUrls = new Set<string>();
     const transportLayouts: RecommendedLayoutDescriptor[] = [];
-    for (const [resolution, transportConfigs] of Object.entries(resolutions)) {
-      for (const [workflow, roles] of Object.entries(transportConfigs[transport] ?? {})) {
-        for (const [role, path] of Object.entries(roles)) {
-          const descriptor = descriptorForEntry(
-            manifest,
-            robot,
-            transport,
-            resolution,
-            workflow,
-            role,
-            path,
-          );
-          if (seenUrls.has(descriptor.url)) {
-            continue;
-          }
-          seenUrls.add(descriptor.url);
-          transportLayouts.push(descriptor);
+    for (const [workflow, roles] of Object.entries(root[transport] ?? {})) {
+      for (const [role, path] of Object.entries(roles)) {
+        const descriptor = descriptorForEntry(manifest, match, transport, workflow, role, path);
+        if (seenUrls.has(descriptor.url)) {
+          continue;
         }
+        seenUrls.add(descriptor.url);
+        transportLayouts.push(descriptor);
       }
     }
 
@@ -369,19 +400,18 @@ export function listRecommendedLayouts(
 
 export function resolveRecommendedLayout(
   manifest: RecommendedLayoutManifest,
-  robot: string,
+  match: RecommendedLayoutMatch,
   transport: RecommendedLayoutTransport,
 ): RecommendedLayoutDescriptor | undefined {
-  const workflows = manifest.robots[robot]?.resolution?.["_default"]?.[transport];
+  const workflows = manifest.robots[match.robot]?.resolution[match.config]?.[transport];
   const workflowEntry = Object.entries(workflows ?? {})[0];
   if (!workflowEntry?.[1].viewer) {
     return undefined;
   }
   return descriptorForEntry(
     manifest,
-    robot,
+    match,
     transport,
-    "_default",
     workflowEntry[0],
     "viewer",
     workflowEntry[1].viewer,

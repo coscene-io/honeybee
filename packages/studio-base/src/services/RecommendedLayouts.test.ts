@@ -10,6 +10,7 @@ import {
   listRecommendedLayouts,
   loadRecommendedLayoutData,
   loadRecommendedLayoutManifest,
+  matchRecommendedLayoutDeviceType,
   parseRecommendedLayoutManifest,
   resolveRecommendedLayout,
   type RecommendedLayoutDescriptor,
@@ -40,17 +41,168 @@ function layoutResponse(version = 1): Response {
   );
 }
 
+function layoutId(robot: string, transport: string, url: string, config = "_default"): string {
+  const base = `recommended:${[robot, transport, url].map(encodeURIComponent).join(":")}`;
+  return config === "_default" ? base : `${base}:config=${encodeURIComponent(config)}`;
+}
+
+function makeManifest() {
+  return parseRecommendedLayoutManifest({
+    generated_at: "2026-08-07T00:00:00Z",
+    robots: {
+      "agibot-a2": {
+        device_type_match: { "agibot-远征A2": "_default", "A2 gripper": "gripper" },
+        resolution: {
+          _default: {
+            default: {
+              inspect: {
+                viewer: "layouts/viewer.json",
+                annotator: "layouts/annotator.json",
+              },
+              secondary: { qa: "layouts/secondary-qa.json" },
+            },
+            h264: {
+              inspect: { qa: "layouts/h264-qa.json", viewer: "layouts/h264-viewer.json" },
+            },
+          },
+          gripper: {
+            default: { inspect: { viewer: "layouts/gripper.json" } },
+          },
+        },
+      },
+    },
+  });
+}
+
+const DEFAULT_MATCH = { robot: "agibot-a2", config: "_default" };
+
 describe("RecommendedLayouts", () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.useRealTimers();
   });
 
-  it("matches robot keys exactly and lists every role across every resolution", () => {
+  it("matches device_type_match keys exactly without falling back to robot keys", () => {
+    const manifest = makeManifest();
+
+    expect(matchRecommendedLayoutDeviceType(manifest, "agibot-远征A2")).toEqual(DEFAULT_MATCH);
+    for (const name of [
+      "agibot-a2",
+      "Agibot-远征A2",
+      "agibot-远征A2 ",
+      "unknown",
+      "toString",
+      "",
+    ]) {
+      expect(matchRecommendedLayoutDeviceType(manifest, name)).toBeUndefined();
+    }
+    expect(listRecommendedLayouts(manifest, DEFAULT_MATCH)).toHaveLength(5);
+  });
+
+  it("uses only the mapped configuration for listing and automatic selection", () => {
+    const manifest = makeManifest();
+    const match = matchRecommendedLayoutDeviceType(manifest, "A2 gripper")!;
+    expect(match).toEqual({ robot: "agibot-a2", config: "gripper" });
+    const layouts = listRecommendedLayouts(manifest, match);
+    const gripperUrl = "https://honeybee-public-layouts.coscene.io/layouts/gripper.json";
+    expect(layouts).toHaveLength(1);
+    expect(layouts[0]).toMatchObject({
+      id: layoutId("agibot-a2", "default", gripperUrl, "gripper"),
+      resolution: "gripper",
+      url: gripperUrl,
+    });
+    expect(resolveRecommendedLayout(manifest, match, "default")).toEqual(layouts[0]);
+    expect(resolveRecommendedLayout(manifest, match, "h264")).toBeUndefined();
+
+    const defaultLayouts = listRecommendedLayouts(manifest, DEFAULT_MATCH);
+    expect(defaultLayouts.some((layout) => layout.url.endsWith("/layouts/gripper.json"))).toBe(
+      false,
+    );
+    expect(defaultLayouts[0]?.id).toBe(
+      layoutId(
+        "agibot-a2",
+        "default",
+        "https://honeybee-public-layouts.coscene.io/layouts/viewer.json",
+      ),
+    );
+    expect(defaultLayouts[0]?.id.includes(":config=")).toBe(false);
+  });
+
+  it("supports aliases and config-only robots without a _default group", () => {
+    const manifest = parseRecommendedLayoutManifest({
+      robots: {
+        test: {
+          device_type_match: { first: "hand", second: "hand", third: "hand:other" },
+          resolution: {
+            hand: { default: { inspect: { viewer: "shared.json" } } },
+            "hand:other": { default: { inspect: { viewer: "shared.json" } } },
+          },
+        },
+      },
+    });
+    const first = matchRecommendedLayoutDeviceType(manifest, "first")!;
+    expect(matchRecommendedLayoutDeviceType(manifest, "second")).toEqual(first);
+    const third = matchRecommendedLayoutDeviceType(manifest, "third")!;
+    const firstLayout = listRecommendedLayouts(manifest, first)[0];
+    const thirdLayout = listRecommendedLayouts(manifest, third)[0];
+    const sharedUrl = "https://honeybee-public-layouts.coscene.io/shared.json";
+    expect(firstLayout?.url).toBe(thirdLayout?.url);
+    expect(firstLayout?.url).toBe(sharedUrl);
+    expect(firstLayout?.id).toBe(layoutId("test", "default", sharedUrl, "hand"));
+    expect(thirdLayout?.id).toBe(layoutId("test", "default", sharedUrl, "hand:other"));
+    expect(firstLayout?.id).not.toBe(thirdLayout?.id);
+  });
+
+  it("rejects ambiguous device types even when a matching robot has no layouts", () => {
+    const manifest = parseRecommendedLayoutManifest({
+      robots: {
+        first: { device_type_match: { duplicate: "_default" }, resolution: { _default: {} } },
+        second: { device_type_match: { duplicate: "_default" }, resolution: { _default: {} } },
+      },
+    });
+    expect(() => matchRecommendedLayoutDeviceType(manifest, "duplicate")).toThrow(
+      "multiple robots",
+    );
+  });
+
+  it.each<{ resolution: unknown }>([
+    { resolution: undefined },
+    { resolution: {} },
+    { resolution: { missing: [] } },
+    { resolution: { toString: {} } },
+    { resolution: { _default: { default: { inspect: { viewer: "default.json" } } } } },
+  ])("reports a missing mapped config instead of using _default: %j", ({ resolution }) => {
+    const manifest = parseRecommendedLayoutManifest({
+      robots: { test: { device_type_match: { device: "missing" }, resolution } },
+    });
+    expect(() => matchRecommendedLayoutDeviceType(manifest, "device")).toThrow(
+      "configuration does not exist",
+    );
+  });
+
+  it("does not resolve inherited config properties", () => {
+    const manifest = parseRecommendedLayoutManifest({
+      robots: { test: { device_type_match: { device: "toString" }, resolution: {} } },
+    });
+    expect(() => matchRecommendedLayoutDeviceType(manifest, "device")).toThrow(
+      "configuration does not exist",
+    );
+  });
+
+  it.each([undefined, 1, ""])("rejects invalid config mappings: %j", (config) => {
+    expect(() =>
+      parseRecommendedLayoutManifest({
+        robots: { test: { device_type_match: { device: config } } },
+      }),
+    ).toThrow("configuration is invalid");
+  });
+
+  it("lists every role in the matched configuration and dedupes urls per transport", () => {
     const manifest = parseRecommendedLayoutManifest({
       generated_at: "2026-07-31T14:10:25+00:00",
       robots: {
         RobotA: {
+          device_type_match: { "Robot A": "_default", "Robot A HD": "1080p" },
           resolution: {
             _default: {
               default: {
@@ -83,10 +235,11 @@ describe("RecommendedLayouts", () => {
       },
     });
 
-    expect(listRecommendedLayouts(manifest, "robota")).toEqual([]);
-    expect(listRecommendedLayouts(manifest, "toString")).toEqual([]);
+    expect(matchRecommendedLayoutDeviceType(manifest, "RobotA")).toBeUndefined();
+    expect(matchRecommendedLayoutDeviceType(manifest, "toString")).toBeUndefined();
+    expect(listRecommendedLayouts(manifest, { robot: "RobotA", config: "missing" })).toEqual([]);
 
-    const layouts = listRecommendedLayouts(manifest, "RobotA");
+    const layouts = listRecommendedLayouts(manifest, { robot: "RobotA", config: "_default" });
     expect(
       layouts.map(({ transport, resolution, workflow, role, name }) => ({
         transport,
@@ -115,28 +268,7 @@ describe("RecommendedLayouts", () => {
         resolution: "_default",
         workflow: "review",
         role: "viewer",
-        name: "review / viewer / _default",
-      },
-      {
-        transport: "default",
-        resolution: "1080p",
-        workflow: "inspect",
-        role: "engineer",
-        name: "inspect / engineer",
-      },
-      {
-        transport: "default",
-        resolution: "1080p",
-        workflow: "inspect",
-        role: "viewer",
-        name: "inspect / viewer",
-      },
-      {
-        transport: "default",
-        resolution: "720p",
-        workflow: "review",
-        role: "viewer",
-        name: "review / viewer / 720p",
+        name: "review / viewer",
       },
       {
         transport: "h264",
@@ -146,12 +278,50 @@ describe("RecommendedLayouts", () => {
         name: "review / viewer",
       },
     ]);
-
     expect(layouts.filter((layout) => layout.url.endsWith("/layouts/shared.json"))).toHaveLength(2);
-    expect(layouts.every((layout) => layout.id.startsWith("recommended:"))).toBe(true);
+    expect(
+      layouts.every(
+        (layout) => layout.id.startsWith("recommended:") && !layout.id.includes(":config="),
+      ),
+    ).toBe(true);
+
+    const hdLayouts = listRecommendedLayouts(
+      manifest,
+      matchRecommendedLayoutDeviceType(manifest, "Robot A HD")!,
+    );
+    expect(hdLayouts.map((layout) => layout.resolution)).toEqual([
+      "1080p",
+      "1080p",
+      "1080p",
+      "1080p",
+    ]);
+    expect(hdLayouts.every((layout) => layout.id.endsWith(":config=1080p"))).toBe(true);
+    expect(hdLayouts.some((layout) => layout.url.endsWith("/layouts/review-720p.json"))).toBe(
+      false,
+    );
   });
 
-  it("uses only the first _default workflow and never falls back", () => {
+  it("dedupes identical urls within one configuration and transport", () => {
+    const manifest = parseRecommendedLayoutManifest({
+      robots: {
+        RobotA: {
+          resolution: {
+            _default: {
+              default: {
+                review: { viewer: "layouts/shared.json", annotator: "layouts/shared.json" },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const layouts = listRecommendedLayouts(manifest, { robot: "RobotA", config: "_default" });
+    expect(layouts).toHaveLength(1);
+    expect(layouts[0]).toMatchObject({ role: "viewer", workflow: "review" });
+  });
+
+  it("uses only the first workflow viewer in the matched configuration", () => {
     const manifest = parseRecommendedLayoutManifest({
       robots: {
         firstWorkflowHasNoViewer: {
@@ -180,17 +350,39 @@ describe("RecommendedLayouts", () => {
       },
     });
 
-    expect(resolveRecommendedLayout(manifest, "firstWorkflowHasNoViewer", "default")).toBe(
-      undefined,
-    );
-    expect(resolveRecommendedLayout(manifest, "firstWorkflowHasNoViewer", "h264")).toMatchObject({
+    const defaultMatch = { robot: "firstWorkflowHasNoViewer", config: "_default" };
+    expect(resolveRecommendedLayout(manifest, defaultMatch, "default")).toBe(undefined);
+    expect(resolveRecommendedLayout(manifest, defaultMatch, "h264")).toMatchObject({
       resolution: "_default",
       workflow: "first",
       role: "viewer",
       transport: "h264",
     });
-    expect(resolveRecommendedLayout(manifest, "noDefaultResolution", "default")).toBe(undefined);
-    expect(resolveRecommendedLayout(manifest, "missing", "default")).toBe(undefined);
+    expect(
+      resolveRecommendedLayout(
+        manifest,
+        { robot: "noDefaultResolution", config: "1080p" },
+        "default",
+      ),
+    ).toMatchObject({
+      resolution: "1080p",
+      workflow: "first",
+      role: "viewer",
+      transport: "default",
+    });
+    expect(
+      resolveRecommendedLayout(manifest, { robot: "noDefaultResolution", config: "1080p" }, "h264"),
+    ).toBe(undefined);
+    expect(
+      resolveRecommendedLayout(
+        manifest,
+        { robot: "noDefaultResolution", config: "_default" },
+        "default",
+      ),
+    ).toBe(undefined);
+    expect(
+      resolveRecommendedLayout(manifest, { robot: "missing", config: "_default" }, "default"),
+    ).toBe(undefined);
   });
 
   it.each([
