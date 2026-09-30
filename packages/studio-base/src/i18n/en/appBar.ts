@@ -6,6 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const appBar = {
+  sessionChanged: "Your session changed. Reload to use the new session.",
+  sessionLoggedOut: "You are signed out.",
+  sessionRecoveryRequired: "Your session expired. Sign in again to continue.",
+  reloadSession: "Reload",
+  openSessionRecovery: "Open sign-in recovery",
   about: "About",
   addPanel: "Add panel",
   exploreSampleData: "Explore sample data",

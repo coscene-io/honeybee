@@ -233,7 +233,7 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
     expect(mockToastError).toHaveBeenCalledTimes(1);
     expect(jest.getTimerCount()).toBe(1);
     expect(getWebLoginRedirectUrl(window.location)).toBe(
-      `/login?redirectToPath=${encodeURIComponent(new URL(url).pathname + new URL(url).search)}`,
+      `/auth/recover?redirectToPath=${encodeURIComponent(new URL(url).pathname + new URL(url).search)}`,
     );
   });
 
