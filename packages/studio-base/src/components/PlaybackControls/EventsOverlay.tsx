@@ -84,7 +84,7 @@ const HOTSPOT_WIDTH_PER_CENT = 0.01;
 const EVENT_CLICK_DRAG_THRESHOLD_PX = 4;
 const EVENT_MARK_TOOLTIP_AUTO_HIDE_MS = 3_000;
 
-const useStyles = makeStyles()(({ transitions, palette }) => ({
+const useStyles = makeStyles()(({ transitions, palette, zIndex }) => ({
   root: {
     inset: 0,
     pointerEvents: "none",
@@ -270,6 +270,9 @@ const useStyles = makeStyles()(({ transitions, palette }) => ({
     position: "absolute",
     top: 0,
     zIndex: 1,
+  },
+  createEventPopper: {
+    zIndex: zIndex.modal,
   },
   createEventContainer: {
     backgroundColor: palette.background.paper,
@@ -552,6 +555,7 @@ function EventMark({
         anchorEl={anchorEl}
         transition
         id="event-mark-popper"
+        className={classes.createEventPopper}
         style={{ opacity: isHiddenCreateEventPopper ? 0 : 1 }}
         modifiers={[
           // Keep at least 20px of breathing room from the window edges so the popper doesn't

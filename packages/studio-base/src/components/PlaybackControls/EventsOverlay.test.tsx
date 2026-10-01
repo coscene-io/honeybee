@@ -12,6 +12,7 @@ import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 import * as _ from "lodash-es";
+import { useEffect } from "react";
 import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
@@ -20,8 +21,10 @@ import { add, fromSec, type Time } from "@foxglove/rostime";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   EventsContext,
+  useEvents,
   type EventsStore,
   type TimelinePositionedEvent,
   type TimelinePositionedEventMark,
@@ -31,11 +34,18 @@ import {
   type SyncBounds,
   type TimelineInteractionStateStore,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
+import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
+import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import { EventsOverlay } from "./EventsOverlay";
+import Scrubber from "./Scrubber";
 import { makeTimelineViewport } from "./timelineViewport";
 
 jest.mock("@foxglove/studio-base/components/Events/CreateEventContainer/index", () => ({
@@ -323,6 +333,25 @@ function renderOverlayWithSeek({
   return { eventsStore, seekPlayback };
 }
 
+function SeedCreateEventPopper(): ReactNull {
+  const setDataSource = useCoreData((store: CoreDataStore) => store.setDataSource);
+  const setProject = useCoreData((store: CoreDataStore) => store.setProject);
+  const setRecord = useCoreData((store: CoreDataStore) => store.setRecord);
+  const setEventMarks = useEvents((store: EventsStore) => store.setEventMarks);
+
+  useEffect(() => {
+    setDataSource({ id: "coscene-data-platform", type: "connection" });
+    setProject({ loading: false, value: { isArchived: false } as never });
+    setRecord({ loading: false, value: { isArchived: false } as never });
+    setEventMarks([
+      { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+      { key: "end", position: 0.3, time: { sec: 3, nsec: 0 } },
+    ]);
+  }, [setDataSource, setEventMarks, setProject, setRecord]);
+
+  return ReactNull;
+}
+
 async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
   mockTimelineRect();
   const handle = screen.getByTestId("timeline-rolling-edit-handle");
@@ -471,6 +500,69 @@ describe("<EventsOverlay />", () => {
     });
 
     expect(screen.getByTestId("create-event-container")).toBeTruthy();
+  });
+
+  it("keeps the create event popper above the timeline hover tooltip", async () => {
+    render(
+      <ThemeProvider isDark>
+        <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+          <CoSceneConsoleApiContext.Provider
+            value={makeConsoleApiMock({
+              createEvent: { permission: () => false },
+              updateEvent: { permission: () => true },
+            })}
+          >
+            <CoreDataProvider>
+              <WorkspaceContextProvider disablePersistence>
+                <MockMessagePipelineProvider
+                  startTime={{ sec: 0, nsec: 0 }}
+                  endTime={{ sec: 10, nsec: 0 }}
+                  currentTime={{ sec: 1, nsec: 0 }}
+                >
+                  <PlaybackInteractionStateProvider>
+                    <TimelineInteractionStateProvider>
+                      <CoScenePlaylistProvider>
+                        <EventsProvider>
+                          <SeedCreateEventPopper />
+                          <div data-testid="scrubber-shell" style={{ height: 32, width: 1000 }}>
+                            <Scrubber onSeek={jest.fn()} />
+                          </div>
+                        </EventsProvider>
+                      </CoScenePlaylistProvider>
+                    </TimelineInteractionStateProvider>
+                  </PlaybackInteractionStateProvider>
+                </MockMessagePipelineProvider>
+              </WorkspaceContextProvider>
+            </CoreDataProvider>
+          </CoSceneConsoleApiContext.Provider>
+        </AppConfigurationContext.Provider>
+      </ThemeProvider>,
+    );
+
+    const createEventContainer = await screen.findByTestId("create-event-container");
+    const slider = screen.getByTestId("scrubber-slider");
+    slider.getBoundingClientRect = () => ({
+      bottom: 32,
+      height: 32,
+      left: 0,
+      right: 1000,
+      top: 0,
+      width: 1000,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent(slider, new MouseEvent("pointermove", { bubbles: true, clientX: 200, clientY: 20 }));
+    flushAnimationFrame();
+
+    const tooltip = await screen.findByTestId("timeline-hover-tooltip");
+    const popper = createEventContainer.closest("#event-mark-popper");
+    expect(popper).not.toBeNull();
+    expect(popper!.parentElement).toBe(document.body);
+    expect(tooltip.parentElement).toBe(document.body);
+    expect(Number(getComputedStyle(popper!).zIndex)).toBeGreaterThan(
+      Number(getComputedStyle(tooltip).zIndex),
+    );
   });
 
   it("does not rewrite event marks when a dragged create mark stays at the same position", async () => {
