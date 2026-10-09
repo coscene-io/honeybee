@@ -6,7 +6,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import i18n from "i18next";
 import { useContext, useEffect } from "react";
 
@@ -28,7 +36,11 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import Scrubber from "./Scrubber";
 import type { HoverOverEvent } from "./Slider";
-import { zoomViewportAtTime, type TimelineViewport } from "./timelineViewport";
+import {
+  panViewportBySeconds,
+  zoomViewportAtTime,
+  type TimelineViewport,
+} from "./timelineViewport";
 
 type MockPipelineStore = NonNullable<React.ContextType<typeof ContextInternal>>;
 type MockPipelineProps = {
@@ -179,11 +191,13 @@ function Wrapper({
   createEventAllowed = false,
   consoleApi,
   eventEnabled = false,
+  noActiveData = false,
   updateEventAllowed = false,
 }: React.PropsWithChildren<{
   createEventAllowed?: boolean;
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   eventEnabled?: boolean;
+  noActiveData?: boolean;
   updateEventAllowed?: boolean;
 }>): React.JSX.Element {
   return (
@@ -201,9 +215,10 @@ function Wrapper({
           <CoreDataProvider>
             <WorkspaceContextProvider disablePersistence>
               <MockMessagePipelineProvider
-                startTime={{ sec: 0, nsec: 0 }}
-                endTime={{ sec: 10, nsec: 0 }}
-                currentTime={{ sec: 1, nsec: 0 }}
+                noActiveData={noActiveData}
+                startTime={noActiveData ? undefined : { sec: 0, nsec: 0 }}
+                endTime={noActiveData ? undefined : { sec: 10, nsec: 0 }}
+                currentTime={noActiveData ? undefined : { sec: 1, nsec: 0 }}
               >
                 <PlaybackInteractionStateProvider>
                   <TimelineInteractionStateProvider>
@@ -348,6 +363,143 @@ describe("<Scrubber />", () => {
       expect(frames.size).toBe(1);
       unmount();
       expect(frames.size).toBe(0);
+    });
+
+    it("cancels Ctrl+wheel before a missing viewport can queue an update", () => {
+      render(
+        <Wrapper noActiveData>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const timelineContent = screen.getByTestId("timeline-content");
+      getScrubber();
+
+      const event = createEvent.wheel(timelineContent, {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        ctrlKey: true,
+        deltaY: -200,
+      });
+      fireEvent(timelineContent, event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(frames.size).toBe(0);
+      expect(mockSliderProps).toBeUndefined();
+    });
+
+    it("cancels Ctrl+wheel during capture when a descendant stops bubble propagation", () => {
+      render(
+        <Wrapper>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const timelineContent = screen.getByTestId("timeline-content");
+      getScrubber();
+      const stopAtTarget = (wheelEvent: Event) => {
+        wheelEvent.stopPropagation();
+      };
+      timelineContent.addEventListener("wheel", stopAtTarget);
+
+      try {
+        const before = mockSliderProps!.viewport!;
+        const event = createEvent.wheel(timelineContent, {
+          bubbles: true,
+          cancelable: true,
+          clientX: 500,
+          ctrlKey: true,
+          deltaY: -200,
+        });
+        fireEvent(timelineContent, event);
+
+        expect(event.defaultPrevented).toBe(true);
+        flushFrames();
+        expect(mockSliderProps!.viewport).not.toEqual(before);
+      } finally {
+        timelineContent.removeEventListener("wheel", stopAtTarget);
+      }
+    });
+
+    it.each([
+      { modifier: "ctrlKey" as const, label: "Ctrl+wheel" },
+      { modifier: "metaKey" as const, label: "Cmd+wheel" },
+    ])("cancels $label on timeline content and zooms the ready viewport", ({ modifier }) => {
+      render(
+        <Wrapper>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const timelineContent = screen.getByTestId("timeline-content");
+      getScrubber();
+
+      const before = mockSliderProps!.viewport!;
+      const event = createEvent.wheel(timelineContent, {
+        [modifier]: true,
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        deltaY: -200,
+      });
+      fireEvent(timelineContent, event);
+
+      expect(event.defaultPrevented).toBe(true);
+      flushFrames();
+      const expected = zoomViewportAtTime(before, 5, -200);
+      expect(mockSliderProps!.viewport!.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
+      expect(mockSliderProps!.viewport!.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
+    });
+
+    it("leaves ordinary vertical wheel uncanceled", () => {
+      render(
+        <Wrapper>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const scrubber = getScrubber();
+      const before = mockSliderProps!.viewport!;
+
+      const event = createEvent.wheel(scrubber, {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        deltaY: 200,
+      });
+      fireEvent(scrubber, event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(frames.size).toBe(0);
+      expect(mockSliderProps!.viewport).toBe(before);
+    });
+
+    it("pans the ready viewport for horizontal wheel", () => {
+      render(
+        <Wrapper>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const scrubber = getScrubber();
+      fireEvent.change(screen.getByRole("slider", { name: "Timeline zoom" }), {
+        target: { value: 40 },
+      });
+      const before = mockSliderProps!.viewport!;
+
+      const event = createEvent.wheel(scrubber, {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        deltaX: 200,
+        deltaY: 0,
+      });
+      fireEvent(scrubber, event);
+
+      expect(event.defaultPrevented).toBe(true);
+      flushFrames();
+      const expected = panViewportBySeconds(
+        before,
+        (200 / 1000) * (before.visibleEndSec - before.visibleStartSec),
+      );
+      expect(mockSliderProps!.viewport!.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
+      expect(mockSliderProps!.viewport!.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
     });
 
     it("does not overwrite playback auto-follow with a queued wheel update", () => {
