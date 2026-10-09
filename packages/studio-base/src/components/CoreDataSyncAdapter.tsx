@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Project } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
+import axios from "axios";
 import { useEffect, useRef } from "react";
 import { useAsync, useAsyncFn } from "react-use";
 import { AsyncState } from "react-use/lib/useAsync";
@@ -31,6 +32,7 @@ import { TaskStore, useTasks } from "@foxglove/studio-base/context/TasksContext"
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectOrganization = (state: CoreDataStore) => state.organization;
@@ -505,7 +507,8 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   // ColinkApi
   useAsync(async () => {
-    const orgJwt = localStorage.getItem("coScene_org_jwt");
+    const session = getBrowserSession();
+    const orgJwt = session?.credential ?? localStorage.getItem("coScene_org_jwt");
     if (
       coordinatorConfig == undefined ||
       !coordinatorConfig.enabled ||
@@ -515,13 +518,37 @@ export function CoreDataSyncAdapter(): ReactNull {
       return;
     }
 
+    const transport = session == undefined ? axios : axios.create();
+    if (session != undefined) {
+      transport.interceptors.request.use((config) => {
+        session.assertCurrent(orgJwt);
+        config.signal = session.controller.signal;
+        return config;
+      });
+      transport.interceptors.response.use(
+        (response) => {
+          session.assertCurrent(orgJwt);
+          return response;
+        },
+        (error: unknown) => {
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            session.rejectCredential(orgJwt);
+          }
+          session.assertCurrent(orgJwt);
+          throw error;
+        },
+      );
+    }
     const api = DevicesApiFactory(
       new Configuration({
         accessToken: () => {
+          session?.assertCurrent(orgJwt);
           return orgJwt;
         },
         basePath: `${coordinatorConfig.target_server}/api`,
       }),
+      undefined,
+      transport,
     );
 
     setColinkApi(api);
