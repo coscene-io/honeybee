@@ -4438,7 +4438,7 @@ __metadata:
     moment: 2.30.1
     moment-duration-format: 2.3.2
     moment-timezone: 0.5.45
-    monaco-editor: 0.55.1
+    monaco-editor: 0.57.0
     monaco-editor-webpack-plugin: 7.1.1
     natsort: 2.0.3
     notistack: 3.0.1
@@ -12909,15 +12909,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.2.7":
-  version: 3.2.7
-  resolution: "dompurify@npm:3.2.7"
+"dompurify@npm:3.4.15":
+  version: 3.4.15
+  resolution: "dompurify@npm:3.4.15"
   dependencies:
     "@types/trusted-types": ^2.0.7
   dependenciesMeta:
     "@types/trusted-types":
       optional: true
-  checksum: 15958b76e0266f463303b81bc190ab78808c20640e5211dcf7e5071e4fe4396b904c04a8cb68e149e02ab44360defa13a00147e3f23721d41a81ca4bf6d7c983
+  checksum: eed918cafb29624c71d53e3950b9166c9b6ec4a6cc0e1a7f48de722b67f39002d6b30b5703818294dacd62a6491243674b328425fc24db759ebcec55579c4c34
   languageName: node
   linkType: hard
 
@@ -19405,13 +19405,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-editor@npm:0.55.1":
-  version: 0.55.1
-  resolution: "monaco-editor@npm:0.55.1"
+"monaco-editor@npm:0.57.0":
+  version: 0.57.0
+  resolution: "monaco-editor@npm:0.57.0"
   dependencies:
-    dompurify: 3.2.7
+    dompurify: 3.4.15
     marked: 14.0.0
-  checksum: e6f6d9507e2c9cb81fd30370f853a42cd5133236d2d00158ce74e14c19044606c0dfc0465d9af57b7cf164c4f813c9b87572ebb57d10b02d713a61b566b77d56
+  checksum: dcf8598e1bb9f050af1858715d09c8a984e907f440214e80dc7c730d28ef2d9db6e540538f76dfc57f5b2137ac8777ba038b1e27bcb886e2b34754c0c942140f
   languageName: node
   linkType: hard
 
