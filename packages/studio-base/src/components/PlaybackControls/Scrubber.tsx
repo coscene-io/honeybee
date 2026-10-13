@@ -208,7 +208,8 @@ const useStyles = makeStyles()((theme) => ({
     pointerEvents: "none",
     position: "fixed",
     top: 0,
-    zIndex: theme.zIndex.tooltip,
+    // Timeline hover hints must stay behind the create/edit event popper.
+    zIndex: theme.zIndex.modal - 1,
     willChange: "transform",
   },
   timelineHoverTooltipArrow: {

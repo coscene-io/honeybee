@@ -651,6 +651,64 @@ describe("ImageMode compressed video seek replay", () => {
     expect(imageMode.createdRenderables[0]!.setImageCalls).toEqual([]);
   });
 
+  it("replays a warm between-frame seek and resumes with the synchronization guard", async () => {
+    const messageHandler = new SynchronizingCompressedVideoMessageHandler();
+    nextMessageHandler = messageHandler;
+    const renderer = makeRenderer({ synchronize: true });
+    const imageMode = new TestImageMode(renderer);
+    const subscription = compressedVideoSubscription(imageMode);
+    const keyframe = makeVideoMessage(0n, "key");
+    const target = makeVideoMessage(100_000_000n, "delta");
+    const future = makeVideoMessage(200_000_000n, "delta");
+    renderer.currentTime = 200_000_000n;
+    messageHandler.completeTarget(future);
+    await subscription.processQueue?.([keyframe, target, future], PLAYBACK_CONTEXT);
+    const renderable = imageMode.createdRenderables[0]!;
+    const request = jest.fn<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>>(
+      (args) => {
+        void args.onNewRangeIterator(
+          (async function* () {
+            yield [keyframe, target];
+          })(),
+        );
+        return jest.fn();
+      },
+    );
+    renderer.subscribeMessageRange = request;
+    renderer.isPlaybackStopped = () => true;
+    renderer.getPlaybackIsPlaying = () => false;
+    renderer.currentTime = 150_000_000n;
+    messageHandler.completeTarget(target);
+    imageMode.handleSeek();
+    await subscription.processQueue?.([makeVideoMessage(100_000_000n, "delta")], SEEK_CONTEXT);
+
+    expect(request).not.toHaveBeenCalled();
+    expect(renderable.setCompressedVideoFrameBatches.at(-1)).toEqual([
+      keyframe.message,
+      target.message,
+    ]);
+    expect(renderable.userData.image).toEqual(target.message);
+    expect(messageHandler.updateImageState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ message: target.message }),
+      target.message,
+    );
+    const canDisplay = renderable.setCompressedVideoFrameOptions.at(-1)!.canDisplayFrame!;
+    expect(canDisplay(target)).toBe(true);
+    expect(canDisplay(future)).toBe(false);
+    expect(renderer.hud.getHUDItems().map((item) => item.id)).not.toContain("SEEK_KEYFRAME_SEARCH");
+
+    renderer.isPlaybackStopped = () => false;
+    renderer.getPlaybackIsPlaying = () => true;
+    renderer.currentTime = 200_000_000n;
+    messageHandler.completeTarget(future);
+    await subscription.processQueue?.([future], PLAYBACK_CONTEXT);
+    expect(renderable.setCompressedVideoFrameBatches.at(-1)).toEqual([future.message]);
+    expect(renderable.userData.image).toEqual(future.message);
+    expect(renderable.resetForSeekCalls).toBe(1);
+    expect(request).not.toHaveBeenCalled();
+    imageMode.dispose();
+  });
+
   it("submits one ordered playback batch and records the displayed target state", async () => {
     const messageHandler = new FakeMessageHandler();
     nextMessageHandler = messageHandler;
