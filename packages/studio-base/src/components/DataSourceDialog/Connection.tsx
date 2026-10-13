@@ -182,7 +182,7 @@ export default function Connection(): React.JSX.Element {
       }
     } else {
       selectSource(selectedSource.id, {
-        type: "connection",
+        type: selectedSource.type === "persistent-cache" ? "persistent-cache" : "connection",
         params: { ...currentUser, ...fieldValues },
       });
     }

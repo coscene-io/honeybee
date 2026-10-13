@@ -172,7 +172,6 @@ export default class UserScriptPlayer implements Player {
 
   // exposed as a static to allow testing to mock/replace
   public static CreateTransformWorker = (): SharedWorker => {
-    // foxglove-depcheck-used: babel-plugin-transform-import-meta
     return new SharedWorker(new URL("./transformerWorker/index", import.meta.url), {
       // Although we are using SharedWorkers, we do not actually want to share worker instances
       // between tabs. We achieve this by passing in a unique name.
@@ -182,7 +181,6 @@ export default class UserScriptPlayer implements Player {
 
   // exposed as a static to allow testing to mock/replace
   public static CreateRuntimeWorker = (): SharedWorker => {
-    // foxglove-depcheck-used: babel-plugin-transform-import-meta
     return new SharedWorker(new URL("./runtimeWorker/index", import.meta.url), {
       // Although we are using SharedWorkers, we do not actually want to share worker instances
       // between tabs. We achieve this by passing in a unique name.
@@ -1315,6 +1313,9 @@ export default class UserScriptPlayer implements Player {
   public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
     const scriptRegistration = this.#scriptRegistrationsByOutputTopic.get(args.topic);
     if (scriptRegistration != undefined) {
+      if (args.skipUserScripts === true) {
+        return undefined;
+      }
       return this.#subscribeScriptMessageRange(args, scriptRegistration);
     }
     return this.#player.subscribeMessageRange?.(args);
@@ -1347,18 +1348,27 @@ export default class UserScriptPlayer implements Player {
         .flatMap((topic) => inputMessagesByTopic.get(topic) ?? [])
         .sort((a, b) => compare(a.receiveTime, b.receiveTime));
 
-      Promise.resolve(
-        args.onNewRangeIterator(
-          this.#scriptMessageRangeIterator(
-            inputMessages,
-            scriptRegistration,
-            globalVariables,
-            () => aborted,
-          ),
-        ),
-      ).catch((err: unknown) => {
+      const handleCallbackError = (err: unknown) => {
         log.warn(`User script message range subscription failed: ${String(err)}`);
-      });
+        aborted = true;
+        for (const unsubscribe of unsubscribes) {
+          unsubscribe();
+        }
+      };
+      try {
+        void Promise.resolve(
+          args.onNewRangeIterator(
+            this.#scriptMessageRangeIterator(
+              inputMessages,
+              scriptRegistration,
+              globalVariables,
+              () => aborted,
+            ),
+          ),
+        ).catch(handleCallbackError);
+      } catch (err) {
+        handleCallbackError(err);
+      }
     };
 
     const handleInputMessages = (inputTopic: string, inputMessages: MessageEvent[]) => {
@@ -1402,6 +1412,8 @@ export default class UserScriptPlayer implements Player {
     return this.#player.subscribeMessageRange?.({
       topic: inputTopic,
       timeRange: args.timeRange,
+      // Script inputs are aggregated before the output iterator is emitted, so they must finish.
+      receiveLiveData: false,
       onNewRangeIterator: async (iterator) => {
         const inputMessages: MessageEvent[] = [];
         try {

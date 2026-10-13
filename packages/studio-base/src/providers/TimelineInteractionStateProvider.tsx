@@ -18,8 +18,10 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 
-function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStateStore> {
+export function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStateStore> {
   return createStore((set) => {
+    let hoveredEventSource: symbol | undefined;
+    let eventHoverValue: HoverValue | undefined;
     return {
       eventsAtHoverValue: {},
       bagsAtHoverValue: {},
@@ -36,8 +38,18 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
       },
 
       setEventsAtHoverValue: (eventsAtHoverValue: TimelinePositionedEvent[]) => {
-        // CoScene
-        set({ eventsAtHoverValue: _.keyBy(eventsAtHoverValue, (event) => event.event.name) });
+        set((store) => {
+          const next = _.keyBy(eventsAtHoverValue, (event) => event.event.name);
+          const previousKeys = Object.keys(store.eventsAtHoverValue);
+          const nextKeys = Object.keys(next);
+          return previousKeys.length === nextKeys.length &&
+            nextKeys.every(
+              (key, index) =>
+                previousKeys[index] === key && store.eventsAtHoverValue[key] === next[key],
+            )
+            ? store
+            : { eventsAtHoverValue: next };
+        });
       },
 
       setGlobalBounds: (
@@ -53,18 +65,27 @@ function createTimelineInteractionStateStore(): StoreApi<TimelineInteractionStat
         }
       },
 
-      setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent) => {
+      setHoveredEvent: (hoveredEvent: undefined | TimelinePositionedEvent, source?: symbol) => {
         if (hoveredEvent) {
-          set({
-            hoveredEvent,
-            hoverValue: {
-              componentId: `event_${hoveredEvent.event.name}`,
-              type: "PLAYBACK_SECONDS",
-              value: hoveredEvent.secondsSinceStart,
-            },
-          });
-        } else {
-          set({ hoveredEvent: undefined, hoverValue: undefined });
+          hoveredEventSource = source;
+          eventHoverValue = {
+            componentId: `event_${hoveredEvent.event.name}`,
+            type: "PLAYBACK_SECONDS",
+            value: hoveredEvent.secondsSinceStart,
+          };
+          set({ hoveredEvent, hoverValue: eventHoverValue });
+        } else if (source == undefined || source === hoveredEventSource) {
+          const previousHoverValue = eventHoverValue;
+          hoveredEventSource = undefined;
+          eventHoverValue = undefined;
+          set((store) => ({
+            hoveredEvent: undefined,
+            // Unmounting a row must not erase a newer plot/timeline hover value.
+            hoverValue:
+              source == undefined || store.hoverValue === previousHoverValue
+                ? undefined
+                : store.hoverValue,
+          }));
         }
       },
 
@@ -106,7 +127,7 @@ export default function TimelineInteractionStateProvider({
 }: {
   children?: ReactNode;
 }): React.JSX.Element {
-  const [store] = useState(createTimelineInteractionStateStore());
+  const [store] = useState(createTimelineInteractionStateStore);
 
   return (
     <TimelineInteractionStateContext.Provider value={store}>

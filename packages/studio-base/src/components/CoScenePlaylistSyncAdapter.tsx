@@ -95,7 +95,7 @@ function positionBag({
   return {
     startTime: bagFileStartTime,
     endTime: bagFileEndTime,
-    secondsSinceStart: startTimeInSeconds - startSecs,
+    secondsSinceStart: toSec(subtract(bagFileStartTime, startTime)),
     fileType: ghostModeFileType,
     startPosition,
     endPosition,

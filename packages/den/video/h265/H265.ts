@@ -47,15 +47,15 @@ const IRAP_MIN = H265NaluType.BLA_W_LP;
 const IRAP_MAX = H265NaluType.CRA_NUT;
 
 export class H265 implements H26xCodec {
-  public IsAnnexB(data: Uint8Array): boolean {
+  public IsAnnexB(data: ArrayLike<number>): boolean {
     return H265.IsAnnexB(data);
   }
 
-  public AnnexBBoxSize(data: Uint8Array): number | undefined {
+  public AnnexBBoxSize(data: ArrayLike<number>): number | undefined {
     return H265.AnnexBBoxSize(data);
   }
 
-  public IsKeyframe(data: Uint8Array): boolean {
+  public IsKeyframe(data: ArrayLike<number>): boolean {
     return H265.IsKeyframe(data);
   }
 
@@ -71,15 +71,15 @@ export class H265 implements H26xCodec {
     return H265.GetNaluTypeFromHeader(headerByte);
   }
 
-  public static IsAnnexB(data: Uint8Array): boolean {
+  public static IsAnnexB(data: ArrayLike<number>): boolean {
     return isAnnexB(data);
   }
 
-  public static AnnexBBoxSize(data: Uint8Array): number | undefined {
+  public static AnnexBBoxSize(data: ArrayLike<number>): number | undefined {
     return annexBBoxSize(data);
   }
 
-  public static IsKeyframe(data: Uint8Array): boolean {
+  public static IsKeyframe(data: ArrayLike<number>): boolean {
     const boxSize = H265.AnnexBBoxSize(data);
     if (boxSize == undefined) {
       return false;
@@ -132,11 +132,19 @@ export class H265 implements H26xCodec {
     return config;
   }
 
+  public static HasBFrames(data: Uint8Array): boolean | undefined {
+    const spsData = H265.GetFirstNALUOfType(data, H265NaluType.SPS);
+    if (spsData == undefined) {
+      return undefined;
+    }
+    return new SPSSNALU(spsData).max_num_reorder_pics > 0;
+  }
+
   public static FindNextStartCode(data: Uint8Array, start: number): number {
     return findNextStartCode(data, start);
   }
 
-  public static FindNextStartCodeEnd(data: Uint8Array, start: number): number {
+  public static FindNextStartCodeEnd(data: ArrayLike<number>, start: number): number {
     return findNextStartCodeEnd(data, start);
   }
 

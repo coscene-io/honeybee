@@ -5,10 +5,15 @@
 .idea/
 .DS_Store
 .webpack/
+.webpack-moments/
 ci/apt/packages
 dist/
 node_modules/
 temp/
+
+# Superpowers planning documents
+/docs/superpowers/
+
 # for jest --coverage
 coverage/
 

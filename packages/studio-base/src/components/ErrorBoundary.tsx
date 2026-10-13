@@ -6,7 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Link, Button, Typography } from "@mui/material";
-import { Component, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Component, ComponentType, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Trans, withTranslation, WithTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { reportError } from "@foxglove/studio-base/reportError";
@@ -24,7 +25,7 @@ type State = {
   currentError: { error: Error; errorInfo: ErrorInfo } | undefined;
 };
 
-export default class ErrorBoundary extends Component<PropsWithChildren<Props>, State> {
+class ErrorBoundaryInner extends Component<PropsWithChildren<Props & WithTranslation>, State> {
   public override state: State = {
     currentError: undefined,
   };
@@ -35,6 +36,10 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
   }
 
   public override render(): ReactNode {
+    // Resolve labels through the i18n instance (same type as the global t, which
+    // accepts namespace-prefixed keys); withTranslation re-renders on language change.
+    const { i18n } = this.props;
+
     if (this.state.currentError) {
       const actions = this.props.actions ?? (
         <Stack
@@ -51,7 +56,7 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
               this.setState({ currentError: undefined });
             }}
           >
-            Dismiss
+            {i18n.t("general:dismiss")}
           </Button>
         </Stack>
       );
@@ -63,16 +68,20 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
           errorInfo={this.state.currentError.errorInfo}
           content={
             <Typography>
-              Something went wrong.{" "}
-              <Link
-                color="inherit"
-                onClick={() => {
-                  this.setState({ currentError: undefined });
+              <Trans
+                i18nKey="somethingWentWrongApp"
+                ns="error"
+                components={{
+                  dismissLink: (
+                    <Link
+                      color="inherit"
+                      onClick={() => {
+                        this.setState({ currentError: undefined });
+                      }}
+                    />
+                  ),
                 }}
-              >
-                Dismiss this error
-              </Link>{" "}
-              to continue using the app. If the issue persists, try restarting the app.
+              />
             </Typography>
           }
           actions={actions}
@@ -82,3 +91,8 @@ export default class ErrorBoundary extends Component<PropsWithChildren<Props>, S
     return this.props.children;
   }
 }
+
+const ErrorBoundary: ComponentType<PropsWithChildren<Props>> =
+  withTranslation()(ErrorBoundaryInner);
+
+export default ErrorBoundary;

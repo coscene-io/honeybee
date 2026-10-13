@@ -144,7 +144,6 @@ export function makeConfig(
             },
           },
         },
-        { test: /\.ne$/, loader: "nearley-loader" }, // foxglove-depcheck-used: nearley-loader
         {
           test: /\.(png|jpg|gif)$/i,
           type: "asset",

@@ -25,6 +25,30 @@ describe("subscribePayloadFromMessagePath", () => {
 
   it("handles complex paths", () => {
     const result = subscribePayloadFromMessagePath("topic{x==1}.field[:].subfield");
-    expect(result).toEqual({ topic: "topic", fields: ["field"], preloadType: "partial" });
+    expect(result).toEqual({ topic: "topic", fields: ["field", "x"], preloadType: "partial" });
+  });
+
+  it("includes root filter dependencies before a function chain", () => {
+    expect(
+      subscribePayloadFromMessagePath(
+        '/tf{child_frame_id=="LIDAR_TOP"}.rotation.@rpy.yaw.@degrees',
+      ),
+    ).toEqual({ topic: "/tf", fields: ["rotation", "child_frame_id"], preloadType: "partial" });
+  });
+
+  it("deduplicates nested root dependencies and keeps nested filters inside the selected field", () => {
+    expect(
+      subscribePayloadFromMessagePath(
+        "/t{header.seq>0}{header.seq<10}{items.id!=0}.items[:]{id==1}.value",
+        "full",
+      ),
+    ).toEqual({ topic: "/t", fields: ["items", "header"], preloadType: "full" });
+  });
+
+  it("keeps whole-topic subscriptions for filtered root functions", () => {
+    expect(subscribePayloadFromMessagePath('/tf{child_frame_id=="LIDAR_TOP"}.@timedelta')).toEqual({
+      topic: "/tf",
+      preloadType: "partial",
+    });
   });
 });

@@ -11,7 +11,7 @@ import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { ProjectSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/project_pb";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 import { RecordSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import toast from "react-hot-toast";
 
@@ -26,6 +26,8 @@ import {
   type TimelinePositionedEvent,
   useEvents,
 } from "@foxglove/studio-base/context/EventsContext";
+import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import MomentsList from "@foxglove/studio-base/panels/MomentsBar/MomentsList";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
@@ -71,11 +73,13 @@ function TestDialogs(): React.JSX.Element {
 function makeEvent({
   file,
   name,
+  recordDisplayName = "Record",
   startNsec = 0,
   startSec,
 }: {
   file?: string;
   name: string;
+  recordDisplayName?: string;
   startNsec?: number;
   startSec: number;
 }): TimelinePositionedEvent {
@@ -94,7 +98,7 @@ function makeEvent({
     endPosition: (startSec + 1) / 10,
     secondsSinceStart: startSec,
     projectDisplayName: "Project",
-    recordDisplayName: "Record",
+    recordDisplayName,
   };
 }
 
@@ -136,16 +140,45 @@ function EventToModifyProbe(): React.JSX.Element {
   return <div data-testid="event-to-modify-start">{`${startTime?.sec}:${startTime?.nsec}`}</div>;
 }
 
+function HoverProbe(): React.JSX.Element {
+  const name = useTimelineInteractionState((store) => store.hoveredEvent?.event.name);
+  const hover = useTimelineInteractionState((store) => store.hoverValue);
+  return <div data-testid="hover-state">{`${name ?? ""}|${hover?.componentId ?? ""}`}</div>;
+}
+
+function ScrollInteractionProbe({ event }: { event: TimelinePositionedEvent }): React.JSX.Element {
+  const setHoveredEvent = useTimelineInteractionState((store) => store.setHoveredEvent);
+  const selected = useEvents((store) => store.selectedEventId);
+  return (
+    <>
+      <div data-testid="selected-event">{selected}</div>
+      <button
+        onClick={() => {
+          setHoveredEvent(event);
+        }}
+      >
+        Hover external moment
+      </button>
+    </>
+  );
+}
+
 function Wrapper({
   consoleApi,
+  view = "sidebar",
   events,
   projectArchived,
   recordArchived,
+  seekPlayback,
+  externalHoverEvent,
 }: {
   consoleApi: React.ContextType<typeof CoSceneConsoleApiContext>;
+  view?: "sidebar" | "moments";
   events: TimelinePositionedEvent[];
   projectArchived?: boolean;
   recordArchived?: boolean;
+  seekPlayback?: (time: { sec: number; nsec: number }) => void;
+  externalHoverEvent?: TimelinePositionedEvent;
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -156,6 +189,7 @@ function Wrapper({
               <EventsProvider>
                 <TimelineInteractionStateProvider>
                   <MockMessagePipelineProvider
+                    seekPlayback={seekPlayback}
                     startTime={{ sec: 0, nsec: 0 }}
                     currentTime={{ sec: 0, nsec: 0 }}
                     endTime={{ sec: 10, nsec: 0 }}
@@ -167,7 +201,9 @@ function Wrapper({
                     <SeedEvents events={events} />
                     <EventFetchCountProbe />
                     <EventToModifyProbe />
-                    <EventsList />
+                    <HoverProbe />
+                    {externalHoverEvent && <ScrollInteractionProbe event={externalHoverEvent} />}
+                    {view === "sidebar" ? <EventsList /> : <MomentsList events={events} />}
                     <TestDialogs />
                   </MockMessagePipelineProvider>
                 </TimelineInteractionStateProvider>
@@ -202,6 +238,251 @@ describe("<EventsList />", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  it.each(["sidebar", "moments"] as const)(
+    "clears hover when a %s row scrolls out of the virtual window without mouseleave",
+    async (view) => {
+      const events = Array.from({ length: 100 }, (_, index) =>
+        makeEvent({ name: `events/row-${index}`, startSec: index }),
+      );
+      render(<Wrapper consoleApi={makeConsoleApi()} events={events} view={view} />);
+      const label = await screen.findByText("events/row-0");
+      let viewport = label.parentElement;
+      while (viewport != undefined && viewport.style.overflow !== "auto") {
+        viewport = viewport.parentElement;
+      }
+      expect(viewport).not.toBeNull();
+      Object.defineProperties(viewport!, {
+        clientHeight: { value: 600 },
+        scrollHeight: { value: 20000 },
+        clientWidth: { value: 300 },
+        scrollWidth: { value: 20000 },
+      });
+      fireEvent.mouseEnter(label);
+      expect(screen.getByTestId("hover-state").textContent).toBe("events/row-0|event_events/row-0");
+      await act(async () => {
+        fireEvent.scroll(viewport!, {
+          target: view === "sidebar" ? { scrollTop: 5000 } : { scrollLeft: 5000 },
+        });
+      });
+      expect(screen.queryByText("events/row-0")).toBeNull();
+      expect(screen.getByTestId("hover-state").textContent).toBe("|");
+    },
+  );
+
+  it.each(["sidebar", "moments"] as const)(
+    "keeps %s local hover and selection still, then follows external hover after leaving",
+    async (view) => {
+      const events = Array.from({ length: 100 }, (_, index) =>
+        makeEvent({ name: `events/row-${index}`, startSec: index }),
+      );
+      const seekPlayback = jest.fn();
+      render(
+        <Wrapper
+          consoleApi={makeConsoleApi()}
+          events={events}
+          view={view}
+          seekPlayback={seekPlayback}
+          externalHoverEvent={events[90]}
+        />,
+      );
+      // Use an edge row: scrolling the first row would also leave the offset at zero.
+      const index = view === "sidebar" ? 3 : 1;
+      const label = await screen.findByText(`events/row-${index}`);
+      let viewport = label.parentElement;
+      while (viewport != undefined && viewport.style.overflow !== "auto") {
+        viewport = viewport.parentElement;
+      }
+      expect(viewport).not.toBeNull();
+      const offset = view === "sidebar" ? "scrollTop" : "scrollLeft";
+      expect(viewport![offset]).toBe(0);
+      fireEvent.mouseEnter(label);
+      expect(screen.getByTestId("hover-state").textContent).toBe(
+        `events/row-${index}|event_events/row-${index}`,
+      );
+      expect(viewport![offset]).toBe(0);
+      fireEvent.click(label);
+      expect(screen.getByTestId("selected-event").textContent).toBe(`events/row-${index}`);
+      expect(seekPlayback).toHaveBeenLastCalledWith(events[index]!.startTime);
+      expect(viewport![offset]).toBe(0);
+      fireEvent.mouseLeave(label);
+      fireEvent.click(screen.getByRole("button", { name: "Hover external moment" }));
+      await waitFor(() => {
+        expect(screen.getByText("events/row-90")).toBeTruthy();
+        expect(viewport![offset]).toBeGreaterThan(0);
+      });
+    },
+  );
+
+  it("resumes external hover after the horizontal list is emptied while hovered", async () => {
+    const events = Array.from({ length: 100 }, (_, index) =>
+      makeEvent({ name: `events/row-${index}`, startSec: index }),
+    );
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(
+      <Wrapper
+        consoleApi={consoleApi}
+        events={events}
+        view="moments"
+        externalHoverEvent={events[90]}
+      />,
+    );
+    fireEvent.mouseEnter(await screen.findByText("events/row-1"));
+    rerender(<Wrapper consoleApi={consoleApi} events={[]} view="moments" />);
+    expect(screen.queryByText("events/row-1")).toBeNull();
+    // Removing the hovered DOM node does not dispatch mouseleave.
+    rerender(
+      <Wrapper
+        consoleApi={consoleApi}
+        events={events}
+        view="moments"
+        externalHoverEvent={events[90]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hover external moment" }));
+    expect(await screen.findByText("events/row-90")).toBeTruthy();
+  });
+
+  it("preserves initial group expansion when a refresh reorders records", async () => {
+    const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });
+    const second = makeEvent({ name: "events/second", recordDisplayName: "Record B", startSec: 2 });
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(<Wrapper consoleApi={consoleApi} events={[first, second]} />);
+    expect(
+      (await screen.findByRole("button", { name: "Record A" })).getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[second, first]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record A" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(screen.getByText("events/first")).toBeTruthy();
+    expect(screen.queryByText("events/second")).toBeNull();
+  });
+
+  it("keeps explicit expansion choices across reorder and content refresh", async () => {
+    const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });
+    const second = makeEvent({ name: "events/second", recordDisplayName: "Record B", startSec: 2 });
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(<Wrapper consoleApi={consoleApi} events={[first, second]} />);
+    const firstHeader = await screen.findByRole("button", { name: "Record A" });
+    await act(async () => {
+      fireEvent.click(firstHeader);
+      fireEvent.click(screen.getByRole("button", { name: "Record B" }));
+    });
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[{ ...second }, { ...first }]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record A" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.queryByText("events/first")).toBeNull();
+    expect(screen.getByText("events/second")).toBeTruthy();
+  });
+
+  it("initializes new groups once and discards expansion only when their group disappears", async () => {
+    const first = makeEvent({ name: "events/first", recordDisplayName: "Record A", startSec: 1 });
+    const second = makeEvent({ name: "events/second", recordDisplayName: "Record B", startSec: 2 });
+    const inserted = makeEvent({
+      name: "events/inserted",
+      recordDisplayName: "Record C",
+      startSec: 3,
+    });
+    const consoleApi = makeConsoleApi();
+    const { rerender } = render(<Wrapper consoleApi={consoleApi} events={[first, second]} />);
+    await screen.findByRole("button", { name: "Record A" });
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[inserted, first, second]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record C" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Record A" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[second]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[]} />);
+    });
+    expect(screen.queryByRole("button", { name: "Record B" })).toBeNull();
+    await act(async () => {
+      rerender(<Wrapper consoleApi={consoleApi} events={[second]} />);
+    });
+    expect(screen.getByRole("button", { name: "Record B" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(screen.getByText("events/second")).toBeTruthy();
+  });
+
+  it.each(["mounted", "unmounted"])(
+    "reports deletion failure once even if the original row is %s",
+    async (rowState) => {
+      let rejectDeletion: (reason: Error) => void = () => {
+        throw new Error("Deletion has not started");
+      };
+      const deleteEvent: jest.MockedFunction<DeleteEvent> = jest.fn().mockImplementation(
+        async () =>
+          await new Promise((_resolve, reject) => {
+            rejectDeletion = reject;
+          }),
+      );
+      const events = Array.from({ length: 100 }, (_, index) =>
+        makeEvent({ name: `events/row-${index}`, startSec: index }),
+      );
+      render(<Wrapper consoleApi={makeConsoleApi({ deleteEvent })} events={events} />);
+      const label = await screen.findByText("events/row-0");
+      let viewport = label.parentElement;
+      while (viewport != undefined && viewport.style.overflow !== "auto") {
+        viewport = viewport.parentElement;
+      }
+      const button = screen.getAllByTitle("Delete")[0]!;
+      fireEvent.pointerDown(button);
+      fireEvent.click(button);
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", { name: "Delete" }),
+      );
+      await waitFor(() => {
+        expect(deleteEvent).toHaveBeenCalledTimes(1);
+      });
+      if (rowState === "unmounted") {
+        Object.defineProperties(viewport!, {
+          clientHeight: { value: 600 },
+          scrollHeight: { value: 20000 },
+        });
+        await act(async () => {
+          fireEvent.scroll(viewport!, { target: { scrollTop: 5000 } });
+        });
+        const nextRow = screen.getAllByTestId("sidebar-event").find((row) => !row.contains(label))!;
+        fireEvent.pointerDown(nextRow);
+        expect(screen.queryByText("events/row-0")).toBeNull();
+      }
+      await act(async () => {
+        rejectDeletion(new Error("Delete failed"));
+      });
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenCalledWith("Error deleting event");
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(screen.getByTestId("event-fetch-count").textContent).toBe("0");
+    },
+  );
 
   it("deletes all loaded events even when the list is filtered", async () => {
     const events = [

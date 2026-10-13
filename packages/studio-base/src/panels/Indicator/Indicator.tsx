@@ -11,9 +11,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useState 
 import { makeStyles } from "tss-react/mui";
 
 import { MessagePath, parseMessagePath } from "@foxglove/message-path";
-import { MessageEvent, PanelExtensionContext, SettingsTreeAction } from "@foxglove/studio";
-import { simpleGetMessagePathDataItems } from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
+import {
+  MessageEvent,
+  PanelExtensionContext,
+  SettingsTreeAction,
+  Immutable,
+} from "@foxglove/studio";
+import {
+  simpleGetMessagePathDataItems,
+  validateSimpleMessagePath,
+} from "@foxglove/studio-base/components/MessagePathSyntax/simpleGetMessagePathDataItems";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 
 import { getMatchingRule } from "./getMatchingRule";
 import { settingsActionReducer, useSettingsTree } from "./settings";
@@ -52,12 +61,14 @@ type State = {
   latestMatchingQueriedData: unknown;
   error: Error | undefined;
   pathParseError: string | undefined;
+  datatypes?: Immutable<RosDatatypes>;
 };
 
 type Action =
   | { type: "frame"; messages: readonly MessageEvent[] }
   | { type: "path"; path: string }
-  | { type: "seek" };
+  | { type: "seek" }
+  | { type: "datatypes"; datatypes: Immutable<RosDatatypes> };
 
 function getSingleDataItem(results: unknown[]) {
   if (results.length <= 1) {
@@ -69,6 +80,10 @@ function getSingleDataItem(results: unknown[]) {
 function reducer(state: State, action: Action): State {
   try {
     switch (action.type) {
+      case "datatypes":
+        return action.datatypes === state.datatypes
+          ? state
+          : reducer({ ...state, datatypes: action.datatypes }, { type: "path", path: state.path });
       case "frame": {
         if (state.pathParseError != undefined) {
           return { ...state, latestMessage: _.last(action.messages), error: undefined };
@@ -81,7 +96,7 @@ function reducer(state: State, action: Action): State {
               continue;
             }
             const data = getSingleDataItem(
-              simpleGetMessagePathDataItems(message, state.parsedPath),
+              simpleGetMessagePathDataItems(message, state.parsedPath, state.datatypes),
             );
             if (data != undefined) {
               latestMatchingQueriedData = data;
@@ -93,23 +108,15 @@ function reducer(state: State, action: Action): State {
       }
       case "path": {
         const newPath = parseMessagePath(action.path);
-        let pathParseError: string | undefined;
-        if (
-          newPath?.messagePath.some(
-            (part) =>
-              (part.type === "filter" && typeof part.value === "object") ||
-              (part.type === "slice" &&
-                (typeof part.start === "object" || typeof part.end === "object")),
-          ) === true
-        ) {
-          pathParseError = "Message paths using variables are not currently supported";
-        }
+        const pathParseError = validateSimpleMessagePath(newPath);
         let latestMatchingQueriedData: unknown;
         let error: Error | undefined;
         try {
           latestMatchingQueriedData =
             newPath && pathParseError == undefined && state.latestMessage
-              ? getSingleDataItem(simpleGetMessagePathDataItems(state.latestMessage, newPath))
+              ? getSingleDataItem(
+                  simpleGetMessagePathDataItems(state.latestMessage, newPath, state.datatypes),
+                )
               : undefined;
         } catch (err) {
           error = err;
@@ -182,10 +189,16 @@ export function Indicator({ context }: Props): React.JSX.Element {
         dispatch({ type: "seek" });
       }
 
+      const datatypes = renderState.extensionData?.datatypes as Immutable<RosDatatypes> | undefined;
+      if (datatypes != undefined) {
+        dispatch({ type: "datatypes", datatypes });
+      }
+
       if (renderState.currentFrame) {
         dispatch({ type: "frame", messages: renderState.currentFrame });
       }
     };
+    context.watch("extensionData");
     context.watch("currentFrame");
     context.watch("didSeek");
 

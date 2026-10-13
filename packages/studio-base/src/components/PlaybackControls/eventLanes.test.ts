@@ -11,8 +11,10 @@ import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/
 
 import { add, fromSec } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
+import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 
 import { getEventLaneByName, getEventLaneRenderStyle, layoutEventLanes } from "./eventLanes";
+import { referenceLayoutEventLanes } from "./eventLanes.testUtils";
 import { makeTimelineViewport } from "./timelineViewport";
 
 function makeEvent(
@@ -45,6 +47,42 @@ function makeEvent(
 }
 
 describe("layoutEventLanes", () => {
+  it.each(["short", "continuous", "overlapping", "long"] as const)(
+    "preserves legacy first-fit layout for %s moments and clipped viewports",
+    (distribution) => {
+      const events = makeMomentFixture(1000, distribution);
+      for (const [visibleStartSec, visibleEndSec] of [
+        [0, 3600],
+        [1777, 1800],
+        [0, 0.1],
+      ]) {
+        const viewport = {
+          ...makeTimelineViewport(0, 3600),
+          visibleStartSec: visibleStartSec!,
+          visibleEndSec: visibleEndSec!,
+        };
+        expect(layoutEventLanes({ events, viewport })).toEqual(
+          referenceLayoutEventLanes({ events, viewport }),
+        );
+      }
+    },
+  );
+
+  it("preserves lane choice around adjacency tolerance, tied positions and clipping", () => {
+    let seed = 42;
+    const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+    for (let run = 0; run < 30; run++) {
+      const events = Array.from({ length: 150 }, (_, index) => {
+        const start =
+          1 + Math.round(random() * 20) + [-0.002, 0, 0.001999999, 0.002000001][index % 4]!;
+        return makeEvent(`event/${index}`, start, index % 7 === 0 ? 0 : Math.round(random() * 5));
+      });
+      const viewport = { ...makeTimelineViewport(0, 25), visibleStartSec: 2, visibleEndSec: 15 };
+      expect(layoutEventLanes({ events, viewport })).toEqual(
+        referenceLayoutEventLanes({ events, viewport }),
+      );
+    }
+  });
   it("splits overlapping events into separate lanes", () => {
     const layout = layoutEventLanes({
       events: [makeEvent("events/first", 1, 4), makeEvent("events/second", 2, 2)],

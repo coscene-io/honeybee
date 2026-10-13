@@ -14,4 +14,9 @@ export const variable: Partial<TypeOptions["resources"]["variable"]> = {
   duplicateNameError: "已存在同名变量。请选择一个唯一的变量名以保存更改。",
   copied: "已复制",
   copy: "复制",
+  general: "通用",
+  min: "最小值",
+  max: "最大值",
+  step: "步长",
+  variableName: "变量名",
 };

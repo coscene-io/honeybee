@@ -2,7 +2,7 @@
   "testMatch": ["<rootDir>/src/**/*.test.ts(x)?"],
   "setupFiles": ["<rootDir>/test/setup.ts"],
   "transform": {
-    "\\.[jt]sx?$": ["babel-jest", { "rootMode": "upward" }]
+    "\\.[jt]sx?$": "<rootDir>/../../jest.swc-transformer.js"
   },
   "//": "Enable transpilation of node_modules to support ESM-only packages",
   "transformIgnorePatterns": [],

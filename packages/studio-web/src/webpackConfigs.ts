@@ -5,12 +5,16 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { rspack, type Configuration, type RspackPluginInstance } from "@rspack/core";
+import {
+  rspack,
+  type Configuration,
+  type DevServer,
+  type RspackPluginInstance,
+} from "@rspack/core";
 import { ReactRefreshRspackPlugin } from "@rspack/plugin-react-refresh";
 import { sentryWebpackPlugin } from "@sentry/webpack-plugin";
 // foxglove-depcheck-used: webpack
 import path from "path";
-import type { ConnectHistoryApiFallbackOptions } from "webpack-dev-server";
 
 import { isRspackServe, type WebpackArgv } from "@foxglove/studio-base/WebpackArgv";
 import { makeConfig } from "@foxglove/studio-base/webpack";
@@ -33,7 +37,7 @@ export interface RspackConfiguration extends Configuration {
       | {
           directory?: string;
         };
-    historyApiFallback?: ConnectHistoryApiFallbackOptions;
+    historyApiFallback?: DevServer["historyApiFallback"];
     hot?: boolean;
     allowedHosts?: string | string[];
     proxy?: Array<{
@@ -65,7 +69,7 @@ export type ConfigParams = {
   /** Set the app version information */
   version: string;
   /** Needs to be overridden for react-router */
-  historyApiFallback?: ConnectHistoryApiFallbackOptions;
+  historyApiFallback?: DevServer["historyApiFallback"];
   /** Customizations to index.html */
   indexHtmlOptions?: Partial<{
     title?: string;

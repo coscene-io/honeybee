@@ -18,6 +18,7 @@ import { Autocomplete, TextField } from "@mui/material";
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { compare } from "@foxglove/rostime";
@@ -74,6 +75,7 @@ function DiagnosticStatusPanel(props: Props) {
     secondsUntilStale = DEFAULT_SECONDS_UNTIL_STALE,
   } = config;
   const { classes } = useStyles();
+  const { t } = useTranslation("diagnostics");
 
   const staleTime = useStaleTime(secondsUntilStale);
 
@@ -155,7 +157,8 @@ function DiagnosticStatusPanel(props: Props) {
 
   // If there are available options but none match the user input we show a No matches
   // but if we don't have any options at all then we show waiting for diagnostics...
-  const noOptionsText = autocompleteOptions.length > 0 ? "No matches" : "Waiting for diagnostics…";
+  const noOptionsText =
+    autocompleteOptions.length > 0 ? t("noMatches") : t("waitingForDiagnostics");
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
@@ -172,9 +175,9 @@ function DiagnosticStatusPanel(props: Props) {
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildStatusPanelSettingsTree(config, topicToRender, availableTopics),
+      nodes: buildStatusPanelSettingsTree(config, topicToRender, availableTopics, t),
     });
-  }, [actionHandler, config, availableTopics, topicToRender, updatePanelSettingsTree]);
+  }, [actionHandler, config, availableTopics, t, topicToRender, updatePanelSettingsTree]);
 
   return (
     <Stack flex="auto" overflow="hidden">
@@ -231,11 +234,9 @@ function DiagnosticStatusPanel(props: Props) {
           ))}
         </Stack>
       ) : selectedDisplayName ? (
-        <EmptyState>
-          Waiting for diagnostics from <code>{selectedDisplayName}</code>
-        </EmptyState>
+        <EmptyState>{t("waitingForDiagnosticsFrom", { name: selectedDisplayName })}</EmptyState>
       ) : (
-        <EmptyState>No diagnostic node selected</EmptyState>
+        <EmptyState>{t("noDiagnosticNodeSelected")}</EmptyState>
       )}
     </Stack>
   );

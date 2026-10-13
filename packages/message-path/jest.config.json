@@ -1,0 +1,8 @@
+{
+  "testMatch": ["<rootDir>/src/**/*.test.ts(x)?"],
+  "transform": {
+    "\\.[jt]sx?$": "<rootDir>/../../jest.swc-transformer.js"
+  },
+  "transformIgnorePatterns": [],
+  "haste": { "forceNodeFilesystemAPI": true }
+}

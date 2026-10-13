@@ -37,6 +37,16 @@ export function isChartValue(value: unknown): value is OriginalValue {
   return false;
 }
 
+/**
+ * Return a value that is safe to retain beyond the lifetime of its source message. Chart values
+ * read from a decoded message can be sub-objects of (or lazy views into) that message, and
+ * storing them as-is can keep the whole decoded message graph alive. Primitives pass through;
+ * the only object variant, Time, is copied.
+ */
+export function toOwnedChartValue(value: OriginalValue): OriginalValue {
+  return typeof value === "object" ? { sec: value.sec, nsec: value.nsec } : value;
+}
+
 export function getChartValue(value: unknown): number | undefined {
   switch (typeof value) {
     case "bigint":

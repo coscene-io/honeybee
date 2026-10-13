@@ -8,6 +8,7 @@
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelStateContextProvider";
@@ -15,31 +16,34 @@ import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { VariableSliderConfig } from "./types";
 
-function buildSettingsTree(config: VariableSliderConfig): SettingsTreeNodes {
+function buildSettingsTree(
+  config: VariableSliderConfig,
+  t: ReturnType<typeof useTranslation<"variable">>["t"],
+): SettingsTreeNodes {
   return {
     general: {
-      label: "General",
+      label: t("general"),
       fields: {
         min: {
-          label: "Min",
+          label: t("min"),
           input: "number",
-          placeholder: "min",
+          placeholder: t("min"),
           value: config.sliderProps.min,
         },
         max: {
-          label: "Max",
+          label: t("max"),
           input: "number",
-          placeholder: "max",
+          placeholder: t("max"),
           value: config.sliderProps.max,
         },
         step: {
-          label: "Step",
+          label: t("step"),
           input: "number",
-          placeholder: "step",
+          placeholder: t("step"),
           value: config.sliderProps.step,
         },
         globalVariableName: {
-          label: "variableName",
+          label: t("variableName"),
           input: "string",
           value: config.globalVariableName,
         },
@@ -53,6 +57,7 @@ export function useVariableSliderSettings(
   saveConfig: SaveConfig<VariableSliderConfig>,
 ): void {
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
+  const { t } = useTranslation("variable");
 
   const actionHandler = useCallback(
     (action: SettingsTreeAction) => {
@@ -79,7 +84,7 @@ export function useVariableSliderSettings(
   useEffect(() => {
     updatePanelSettingsTree({
       actionHandler,
-      nodes: buildSettingsTree(config),
+      nodes: buildSettingsTree(config, t),
     });
-  }, [actionHandler, config, updatePanelSettingsTree]);
+  }, [actionHandler, config, t, updatePanelSettingsTree]);
 }

@@ -194,7 +194,7 @@ export default function DocumentDropListener(props: Props): React.JSX.Element {
         data-puppeteer-file-upload
         multiple
       />
-      <DropOverlay open={hovering}>Drop a file here</DropOverlay>
+      <DropOverlay open={hovering}>{t("dropFileHere")}</DropOverlay>
     </>
   );
 }

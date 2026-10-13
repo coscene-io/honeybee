@@ -26,6 +26,10 @@ import { Bounds, Bounds1D } from "@foxglove/studio-base/types/Bounds";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 import { grey } from "@foxglove/studio-base/util/toolsColorScheme";
 
+import {
+  PackedStateTransitionDataset,
+  unpackStateTransitionDataset,
+} from "./StateTransitionsDatasetBuilderImpl";
 import { downsampleStates, MAX_POINTS, Viewport } from "./downsampleStates";
 import { Datum } from "./types";
 
@@ -73,6 +77,29 @@ export type InteractionEvent =
   | PanEndInteractionEvent;
 
 export type Dataset = ChartDataset<"scatter", Datum[]>;
+
+type DatasetWithConfigIndex = Dataset & { configIndex?: number };
+
+function isPackedDatasets(
+  datasets: Dataset[] | PackedStateTransitionDataset[],
+): datasets is PackedStateTransitionDataset[] {
+  return datasets.length > 0 && "x" in datasets[0]!;
+}
+
+function materializePackedDataset(packed: PackedStateTransitionDataset): DatasetWithConfigIndex {
+  return {
+    configIndex: packed.configIndex,
+    label: packed.label,
+    borderWidth: packed.borderWidth,
+    pointBackgroundColor: packed.pointBackgroundColor,
+    pointBorderColor: packed.pointBorderColor,
+    pointHoverRadius: packed.pointHoverRadius,
+    pointRadius: packed.pointRadius,
+    pointStyle: packed.pointStyle,
+    showLine: packed.showLine,
+    data: unpackStateTransitionDataset(packed),
+  };
+}
 
 type ChartType = Chart<"scatter", Datum[]>;
 
@@ -442,23 +469,33 @@ export class StateTransitionsChartRenderer {
     });
 
     for (const element of elements) {
-      const data = this.#chartInstance.data.datasets[element.datasetIndex]?.data[element.index];
+      const dataset = this.#chartInstance.data.datasets[element.datasetIndex];
+      const data = dataset?.data[element.index];
       if (data == undefined || typeof data === "number") {
         continue;
       }
 
       out.push({
         data,
-        configIndex: element.datasetIndex,
+        configIndex: (dataset as DatasetWithConfigIndex).configIndex ?? element.datasetIndex,
       });
     }
 
     return out;
   }
 
-  public updateDatasets(datasets: Dataset[], viewport?: Viewport): Scale | undefined {
-    // Downsample datasets before rendering (if viewport is provided)
-    const processedDatasets = viewport ? this.#downsampleDatasets(datasets, viewport) : datasets;
+  public updateDatasets(
+    datasets: Dataset[] | PackedStateTransitionDataset[],
+    viewport?: Viewport,
+  ): Scale | undefined {
+    const materialized = isPackedDatasets(datasets)
+      ? datasets.map(materializePackedDataset)
+      : datasets;
+    // Legacy callers may still provide object datasets and a viewport. Packed datasets are
+    // already sliced and downsampled in the Dataset Worker.
+    const processedDatasets = viewport
+      ? this.#downsampleDatasets(materialized, viewport)
+      : materialized;
 
     // Apply a line segment coloring function
     for (const ds of processedDatasets) {

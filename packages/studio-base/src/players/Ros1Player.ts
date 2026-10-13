@@ -272,7 +272,10 @@ export default class Ros1Player implements Player {
         {
           severity: "error",
           message: "ROS connection failed",
+          messageKey: "rosConnectionFailed",
           tip: `Ensure that roscore is running and accessible at: ${this.#url}`,
+          tipKey: "roscoreUnreachableTip",
+          tipParams: { url: this.#url },
           error,
         },
         { skipEmit: false },

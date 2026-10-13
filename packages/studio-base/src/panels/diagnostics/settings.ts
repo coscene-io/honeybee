@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { TFunction } from "i18next";
+
 import { SettingsTreeNodes } from "@foxglove/studio";
 
 import {
@@ -17,31 +19,34 @@ export function buildSummarySettingsTree(
   config: DiagnosticSummaryConfig,
   topicToRender: string,
   availableTopics: readonly string[],
+  t: TFunction<"diagnostics">,
 ): SettingsTreeNodes {
   const topicOptions = availableTopics.map((topic) => ({ label: topic, value: topic }));
   const topicIsAvailable = availableTopics.includes(topicToRender);
   if (!topicIsAvailable) {
     topicOptions.unshift({ value: topicToRender, label: topicToRender });
   }
-  const topicError = topicIsAvailable ? undefined : `Topic ${topicToRender} is not available`;
+  const topicError = topicIsAvailable
+    ? undefined
+    : t("topicNotAvailable", { topic: topicToRender });
 
   return {
     general: {
-      label: "General",
+      label: t("general"),
       fields: {
         topicToRender: {
-          label: "Topic",
+          label: t("topic"),
           input: "select",
           value: topicToRender,
           error: topicError,
           options: topicOptions,
         },
-        sortByLevel: { label: "Sort by level", input: "boolean", value: config.sortByLevel },
+        sortByLevel: { label: t("sortByLevel"), input: "boolean", value: config.sortByLevel },
         secondsUntilStale: {
-          label: "Stale timeout",
-          help: "Number of seconds after which entries will be marked as stale if no new diagnostic message(s) have been received",
+          label: t("staleTimeout"),
+          help: t("staleTimeoutHelp"),
           input: "number",
-          placeholder: `${DEFAULT_SECONDS_UNTIL_STALE} seconds`,
+          placeholder: t("secondsPlaceholder", { seconds: DEFAULT_SECONDS_UNTIL_STALE }),
           min: 0,
           step: 1,
           precision: 0,
@@ -56,27 +61,30 @@ export function buildStatusPanelSettingsTree(
   config: DiagnosticStatusConfig,
   topicToRender: string,
   availableTopics: readonly string[],
+  t: TFunction<"diagnostics">,
 ): SettingsTreeNodes {
   const topicOptions = availableTopics.map((topic) => ({ label: topic, value: topic }));
   const topicIsAvailable = availableTopics.includes(topicToRender);
   if (!topicIsAvailable) {
     topicOptions.unshift({ value: topicToRender, label: topicToRender });
   }
-  const topicError = topicIsAvailable ? undefined : `Topic ${topicToRender} is not available`;
+  const topicError = topicIsAvailable
+    ? undefined
+    : t("topicNotAvailable", { topic: topicToRender });
 
   return {
     general: {
-      label: "General",
+      label: t("general"),
       fields: {
         topicToRender: {
-          label: "Topic",
+          label: t("topic"),
           input: "select",
           value: topicToRender,
           error: topicError,
           options: topicOptions,
         },
         numericPrecision: {
-          label: "Numeric precision",
+          label: t("numericPrecision"),
           input: "number",
           min: 0,
           max: 17,
@@ -86,10 +94,10 @@ export function buildStatusPanelSettingsTree(
           value: config.numericPrecision,
         },
         secondsUntilStale: {
-          label: "Stale timeout",
-          help: "Number of seconds after which entries will be marked as stale if no new diagnostic message(s) have been received",
+          label: t("staleTimeout"),
+          help: t("staleTimeoutHelp"),
           input: "number",
-          placeholder: `${DEFAULT_SECONDS_UNTIL_STALE} seconds`,
+          placeholder: t("secondsPlaceholder", { seconds: DEFAULT_SECONDS_UNTIL_STALE }),
           min: 0,
           step: 1,
           precision: 0,

@@ -29,6 +29,7 @@ export const playList: Partial<TypeOptions["resources"]["playList"]> = {
   generateMediaFailed: "media 生成失败，请检查文件",
   generateMediaProcessing: "media 生成中，稍后即可播放",
   projectFrom: "来自{{projectName}}",
+  selectOrCreateRecord: "选择或创建记录",
   selectRecord: "选择记录",
   createRecord: "创建记录",
   selectRecordFromProjectResources: "选择项目资源",

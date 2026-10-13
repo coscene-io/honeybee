@@ -474,6 +474,56 @@ describe("UserScriptPlayer", () => {
       expect(fakePlayer.seekPlayback).toHaveBeenCalledWith({ sec: 2, nsec: 2 });
     });
 
+    it("skips arbitrary named script output ranges while forwarding source ranges", async () => {
+      const outputTopic = "/derived/arbitrary_output";
+      const fakePlayer = new FakePlayer();
+      const sourceUnsubscribe = jest.fn();
+      const subscribeMessageRange = jest.fn<
+        ReturnType<SubscribeMessageRange>,
+        Parameters<SubscribeMessageRange>
+      >(() => sourceUnsubscribe);
+      (
+        fakePlayer as unknown as { subscribeMessageRange: typeof subscribeMessageRange }
+      ).subscribeMessageRange = subscribeMessageRange;
+      const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
+      const [done] = setListenerHelper(userScriptPlayer);
+
+      await userScriptPlayer.setUserScripts({
+        nodeId: {
+          name: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
+          sourceCode: nodeUserCode.replace(`${DEFAULT_STUDIO_SCRIPT_PREFIX}1`, outputTopic),
+        },
+      });
+      await fakePlayer.emit({
+        activeData: {
+          ...basicPlayerState,
+          messages: [],
+          topics: [{ name: "/np_input", schemaName: "/np_input_datatype" }],
+          datatypes: new Map(Object.entries({ foo: { definitions: [] } })),
+        },
+      });
+      await done;
+
+      expect(
+        userScriptPlayer.subscribeMessageRange({
+          topic: outputTopic,
+          skipUserScripts: true,
+          onNewRangeIterator: jest.fn(),
+        }),
+      ).toBeUndefined();
+      expect(subscribeMessageRange).not.toHaveBeenCalled();
+
+      const sourceRangeArgs = {
+        topic: "/np_input",
+        payload: { fields: ["payload"] },
+        receiveLiveData: true,
+        skipUserScripts: true,
+        onNewRangeIterator: jest.fn(),
+      };
+      expect(userScriptPlayer.subscribeMessageRange(sourceRangeArgs)).toBe(sourceUnsubscribe);
+      expect(subscribeMessageRange).toHaveBeenCalledWith(sourceRangeArgs);
+    });
+
     it("maps message range subscriptions for user script output topics", async () => {
       const fakePlayer = new FakePlayer();
       const userScriptPlayer = new UserScriptPlayer(fakePlayer, defaultUserScriptActions);
@@ -516,6 +566,7 @@ describe("UserScriptPlayer", () => {
       const rangeUnsubscribe = userScriptPlayer.subscribeMessageRange({
         topic: `${DEFAULT_STUDIO_SCRIPT_PREFIX}1`,
         timeRange: { start: { sec: 0, nsec: 0 }, end: { sec: 1, nsec: 0 } },
+        receiveLiveData: true,
         onNewRangeIterator: async (iterator) => {
           for await (const batch of iterator) {
             outputMessages.push(...batch);
@@ -530,6 +581,7 @@ describe("UserScriptPlayer", () => {
         expect.objectContaining({
           topic: "/np_input",
           timeRange: { start: { sec: 0, nsec: 0 }, end: { sec: 1, nsec: 0 } },
+          receiveLiveData: false,
         }),
       );
       expect(outputMessages).toEqual([

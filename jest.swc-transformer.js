@@ -5,9 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-declare module "*.ne" {
-  import type { CompiledRules } from "nearley";
+const { createTransformer } = require("@swc/jest");
 
-  const compiledRules: CompiledRules;
-  export default compiledRules;
-}
+module.exports = createTransformer({
+  jsc: {
+    parser: {
+      syntax: "typescript",
+      tsx: true,
+      decorators: true,
+    },
+    transform: {
+      react: {
+        runtime: "classic",
+      },
+    },
+    externalHelpers: false,
+  },
+});

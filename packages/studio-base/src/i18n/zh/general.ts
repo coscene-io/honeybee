@@ -47,6 +47,7 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   loopPlayback: "循环播放",
   invalidSeekStep: "步长需大于等于 1e-6 秒且小于等于 1 小时，已重置为 0.1 秒。",
   playbackSpeed: "播放速度",
+  resetToDefault: "重置为默认",
   enableMomentSubtitles: "开启一刻为字幕",
   disableMomentSubtitles: "关闭一刻为字幕",
   decreaseMomentSubtitleFontSize: "减小字幕字号",
@@ -72,4 +73,9 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   shortcutZoomFit: "缩放以适应",
   shortcutZoomCursor: "在光标处缩放",
   mouseWheel: "鼠标滚轮",
+  noMatchingItemsFound: "未找到匹配项",
+  searchKeyword: "搜索关键字",
+  dropFileHere: "将文件拖放到此处",
+  dismiss: "关闭",
+  unknownPanelType: "未知面板类型：{{type}}。",
 };

@@ -28,10 +28,14 @@ export type PrimitiveType =
   | "float64"
   | "string";
 
+export type FilterOperator = "==" | "!=" | "<" | "<=" | ">" | ">=";
+
 export type MessagePathFilter = {
   type: "filter";
   path: string[];
-  value?: number | string | bigint | { variableName: string; startLoc: number };
+  operator?: FilterOperator;
+  value?: number | string | bigint | boolean | { variableName: string; startLoc: number };
+  valueIsIdentifier?: boolean;
   nameLoc: number;
   valueLoc: number;
   repr: string; // the original string representation of the filter
@@ -56,6 +60,8 @@ export type MessagePathPart =
     }
   | MessagePathFilter;
 
+export type MessagePathFunction = { function: string; fieldAccess?: string };
+
 export type MessagePath = {
   /** Referenced topic name */
   topicName: string;
@@ -65,7 +71,8 @@ export type MessagePath = {
    */
   topicNameRepr: string;
   messagePath: MessagePathPart[];
-  modifier?: string;
+  functionChain?: MessagePathFunction[];
+  isFullySpecified: boolean;
 };
 
 // "Structure items" are a more useful version of `datatypes`. They can be

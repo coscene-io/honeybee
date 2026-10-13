@@ -18,4 +18,6 @@ export type HoverValue = {
   value: number;
   componentId: string;
   type: "PLAYBACK_SECONDS" | "OTHER";
+  /** Original numeric extension timestamp, for comparing event bounds at the input's precision. */
+  absoluteSeconds?: number;
 };

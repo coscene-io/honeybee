@@ -7,6 +7,12 @@
 
 import { H265, H265NaluType } from "./H265";
 
+const SAMPLE_B_FRAME_SPS = new Uint8Array([
+  0x00, 0x00, 0x00, 0x01, 0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00,
+  0x03, 0x00, 0x00, 0x03, 0x00, 0x96, 0xa0, 0x03, 0xc0, 0x80, 0x16, 0x85, 0x96, 0x56, 0x69, 0x24,
+  0xca, 0xe6, 0xa0, 0x20, 0x20, 0x20, 0x80, 0x00, 0x00, 0x03, 0x00, 0x80, 0x00, 0x00, 0x1e, 0x04,
+]);
+
 describe("H265", () => {
   describe("GetNaluTypeFromHeader", () => {
     it("should extract NALU type from header byte correctly", () => {
@@ -231,6 +237,18 @@ describe("H265", () => {
       const invalidData = new Uint8Array([0x00]);
       const sps = H265.GetFirstNALUOfType(invalidData, H265NaluType.SPS);
       expect(sps).toBeUndefined();
+    });
+  });
+
+  describe("HasBFrames", () => {
+    it("reads the SPS picture reordering declaration", () => {
+      expect(H265.HasBFrames(SAMPLE_B_FRAME_SPS)).toBe(true);
+    });
+
+    it("returns undefined before an SPS is available", () => {
+      expect(
+        H265.HasBFrames(new Uint8Array([0x00, 0x00, 0x00, 0x01, 0x02, 0x01, 0x00])),
+      ).toBeUndefined();
     });
   });
 

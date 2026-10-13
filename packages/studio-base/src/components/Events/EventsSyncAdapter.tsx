@@ -24,7 +24,12 @@ import {
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
+import { timelineDurationSeconds } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
+import {
+  EMPTY_EVENTS,
+  getEventTimeIndex,
+} from "@foxglove/studio-base/components/PlaybackControls/eventTimeIndex";
 import { isTimelineKeyboardEvent } from "@foxglove/studio-base/components/PlaybackControls/timelineKeyboardFocus";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -43,6 +48,10 @@ import {
   useHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import {
+  useWorkspaceStore,
+  type WorkspaceContextStore,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
@@ -56,8 +65,6 @@ import {
 } from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
-
-const HOVER_TOLERANCE = 0.01;
 
 const log = Logger.getLogger(__filename);
 
@@ -109,7 +116,7 @@ async function positionEvents(
         endPosition,
         startPosition,
         time: startTimeInSeconds,
-        secondsSinceStart: startTimeInSeconds - startSecs,
+        secondsSinceStart: timelineDurationSeconds(startTime, eventStartTime),
         color: stringToColor(event.record),
         imgUrl,
         recordDisplayName: eventInfo.recordDisplayName,
@@ -169,6 +176,8 @@ const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
+const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
+  store.playbackControls.rollingEditEnabled;
 
 function LoopedEventPlaybackSync(): ReactNull {
   const currentTime = useMessagePipeline(selectCurrentTime);
@@ -213,6 +222,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const bagFiles = usePlaylist(selectBagFiles);
   const pause = useMessagePipeline(selectPause);
   const seek = useMessagePipeline(selectSeek);
+  const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
   const setCustomFieldSchema = useEvents(selectSetCustomFieldSchema);
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
@@ -274,7 +284,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(subtract(endTime, startTime));
+    return timelineDurationSeconds(startTime, endTime);
   }, [endTime, startTime]);
 
   // Sync events with console API.
@@ -363,19 +373,17 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   // Sync hovered value and hovered events.
   useEffect(() => {
-    if (hoverValue && timeRange != undefined && timeRange > 0) {
-      const hoverPosition = scale(hoverValue.value, 0, timeRange, 0, 1);
-      const hoveredEvents = (events.value ?? []).filter((event) => {
-        return (
-          hoverPosition >= event.startPosition * (1 - HOVER_TOLERANCE) &&
-          hoverPosition <= event.endPosition * (1 + HOVER_TOLERANCE)
-        );
-      });
+    if (hoverValue && startTime && endTime && timeRange != undefined && timeRange > 0) {
+      const index = getEventTimeIndex(events.value ?? EMPTY_EVENTS, startTime);
+      const hoveredEvents =
+        hoverValue.absoluteSeconds != undefined
+          ? index.atAbsoluteTime(hoverValue.absoluteSeconds, endTime)
+          : index.atRelativeTime(hoverValue.value, timeRange);
       setEventsAtHoverValue(hoveredEvents);
     } else {
       setEventsAtHoverValue([]);
     }
-  }, [hoverValue, setEventsAtHoverValue, timeRange, events]);
+  }, [hoverValue, setEventsAtHoverValue, startTime, endTime, timeRange, events]);
 
   const startTimeRef = useLatest(startTime);
   const endTimeRef = useLatest(endTime);
@@ -402,8 +410,10 @@ export function EventsSyncAdapter(): React.JSX.Element {
       }
 
       const mark = positionEventMark({ currentTime: current, startTime: start, endTime: end });
-      const snappedMark = getSnappedEventMark({ mark, events: events.value ?? [] });
-      const nextMarks = [...marks, snappedMark].sort((a, b) => a.position - b.position);
+      const nextMark = rollingEditEnabled
+        ? getSnappedEventMark({ mark, events: events.value ?? [] })
+        : mark;
+      const nextMarks = [...marks, nextMark].sort((a, b) => a.position - b.position);
 
       setEventMarks(nextMarks);
     },
@@ -413,6 +423,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
       events.value,
       getMessagePipeline,
       pauseRef,
+      rollingEditEnabled,
       setEventMarks,
       startTimeRef,
     ],

@@ -32,7 +32,7 @@ import {
   GridRowSelectionModel,
   useGridApiContext,
   useGridSelector,
-  gridRowSelectionStateSelector,
+  gridRowSelectionIdsSelector,
   GridFooter,
   GridFooterContainer,
 } from "@mui/x-data-grid";
@@ -132,17 +132,13 @@ function CustomFooter({
   const { classes } = useStyles();
   const { t } = useTranslation("task");
   const apiRef = useGridApiContext();
-  const rowSelectionState = useGridSelector(apiRef, gridRowSelectionStateSelector);
-
-  const selectedRowIds = Array.isArray(rowSelectionState)
-    ? rowSelectionState
-    : Array.from(rowSelectionState);
-
+  const selectedRows = useGridSelector(apiRef, gridRowSelectionIdsSelector);
+  const selectedRowIds = Array.from(selectedRows.keys(), (id) => String(id));
   const selectedCount = selectedRowIds.length;
 
   const handleButtonClick = () => {
     if (onButtonClick) {
-      onButtonClick(selectedRowIds.map((id) => String(id)));
+      onButtonClick(selectedRowIds);
     }
   };
 
@@ -312,7 +308,10 @@ export default function RecordTable({
   const externalInitConfig = useCoreData(selectExternalInitConfig);
 
   // 选择状态管理
-  const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>([]);
+  const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>({
+    type: "include",
+    ids: new Set(),
+  });
 
   // 根据当前语言获取DataGrid的locale文本
   const dataGridLocaleText = useMemo(() => {
@@ -348,10 +347,10 @@ export default function RecordTable({
     (newSelectionModel: GridRowSelectionModel) => {
       setRowSelectionModel(newSelectionModel);
       if (onSelectionChange) {
-        // 将选择模型转换为字符串数组
-        const selectedIds = Array.isArray(newSelectionModel)
-          ? newSelectionModel.map((id) => String(id))
-          : [];
+        const selectedIds =
+          newSelectionModel.type === "include"
+            ? Array.from(newSelectionModel.ids, (id) => String(id))
+            : [];
         onSelectionChange(selectedIds);
       }
     },
@@ -548,6 +547,7 @@ export default function RecordTable({
       checkboxSelection
       disableColumnFilter
       disableRowSelectionOnClick
+      disableRowSelectionExcludeModel
       disableVirtualization
       density="compact"
       className={classes.dataGrid}

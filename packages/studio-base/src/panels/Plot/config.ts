@@ -43,8 +43,14 @@ export type PlotXAxisVal =
   // correspondible series message path value at the same array index. Only the latest message is used
   // for x-axis and each series
   | "currentCustom"
-  // like "timestamp" but only accumulated the current timestamp is shown
+  // Deprecated layout value. Normalize to "timestamp" before using the config.
   | "partialTimestamp";
+
+export type ActivePlotXAxisVal = Exclude<PlotXAxisVal, "partialTimestamp">;
+
+export function normalizePlotXAxisVal(xAxisVal: PlotXAxisVal): ActivePlotXAxisVal {
+  return xAxisVal === "partialTimestamp" ? "timestamp" : xAxisVal;
+}
 
 export type PlotDataItem = {
   queriedData: MessagePathDataItem[];

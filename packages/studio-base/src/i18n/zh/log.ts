@@ -14,4 +14,6 @@ export const log: Partial<TypeOptions["resources"]["log"]> = {
   minLogLevel: "日志级别",
   nameFilter: "命名空间",
   showAll: "显示全部",
+  display: "显示",
+  reverseOrder: "倒序",
 };

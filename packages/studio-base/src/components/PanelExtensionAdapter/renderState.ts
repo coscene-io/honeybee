@@ -331,7 +331,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
       const startTime = activeData?.startTime;
 
       if (startTime != undefined && hoverValue != undefined) {
-        const stamp = toSec(startTime) + hoverValue.value;
+        const stamp = hoverValue.absoluteSeconds ?? toSec(startTime) + hoverValue.value;
         if (stamp !== renderState.previewTime) {
           shouldRender = true;
         }

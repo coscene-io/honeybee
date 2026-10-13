@@ -156,6 +156,69 @@ describe("WorkerIterableSource", () => {
     expect(sourceWorkerRemote.terminate).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["handshake", "metadata"])(
+    "bounds preinitialization when the worker %s never responds",
+    async (stage) => {
+      jest.useFakeTimers();
+      const { dispose, sourceWorkerRemote } = setupWorkerRemote();
+      const gate = deferred<void>();
+      if (stage === "handshake") {
+        (ComlinkWrap as jest.Mock).mockReturnValue({
+          remote: jest.fn(async () => {
+            await gate.promise;
+            return sourceWorkerRemote;
+          }),
+          dispose,
+        });
+      } else {
+        sourceWorkerRemote.initialize.mockImplementationOnce(async () => {
+          await gate.promise;
+          return initResult;
+        });
+      }
+      const source = new WorkerIterableSource({ initWorker: () => ({}) as Worker, initArgs: {} });
+      let initializationError: unknown;
+      const initializing = source.preinitialize().catch((error: unknown) => {
+        initializationError = error;
+      });
+      try {
+        await flushPromises();
+        await jest.advanceTimersByTimeAsync(15_000);
+        expect(initializationError).toEqual(
+          expect.objectContaining({ message: "Timed out preinitializing worker source" }),
+        );
+        expect(dispose).toHaveBeenCalledTimes(1);
+        gate.resolve();
+        await initializing;
+        await expect(source.initialize()).rejects.toBe(initializationError);
+        expect(ComlinkWrap).toHaveBeenCalledTimes(1);
+      } finally {
+        gate.resolve();
+        await initializing;
+        await source.terminate();
+        jest.useRealTimers();
+      }
+    },
+  );
+
+  it("reuses an explicitly preinitialized worker when the player initializes", async () => {
+    const { dispose, sourceWorkerRemote } = setupWorkerRemote();
+    const source = new WorkerIterableSource({
+      initWorker: () => ({}) as Worker,
+      initArgs: {},
+    });
+
+    await expect(source.preinitialize()).resolves.toBe(initResult);
+    await expect(source.initialize()).resolves.toBe(initResult);
+
+    expect(ComlinkWrap).toHaveBeenCalledTimes(1);
+    expect(sourceWorkerRemote.initialize).toHaveBeenCalledTimes(1);
+
+    await source.terminate();
+    expect(sourceWorkerRemote.terminate).toHaveBeenCalledTimes(1);
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("does not publish a worker remote that arrives after termination", async () => {
     const { dispose, sourceWorkerRemote } = setupWorkerRemote();
     const remote = deferred<typeof sourceWorkerRemote>();

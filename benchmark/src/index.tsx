@@ -32,7 +32,7 @@ async function main() {
 
   const { Root } = await import("./Root");
 
-  // eslint-disable-next-line react/no-deprecated
+  // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
   ReactDOM.render(<Root />, rootEl);
 }
 

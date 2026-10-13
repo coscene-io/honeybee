@@ -120,6 +120,10 @@ type IterablePlayerState =
   | "play"
   | "reset-playback-iterator";
 
+type ActiveMessageRange = {
+  cancel: () => Promise<void>;
+};
+
 /**
  * IterablePlayer implements the Player interface for IIterableSource instances.
  *
@@ -165,7 +169,9 @@ export class IterablePlayer implements Player {
   #receivedBytes: number = 0;
   #hasError = false;
   #lastRangeMillis?: number;
-  #lastMessageEvent?: MessageEvent;
+  #pendingPlaybackResults:
+    | { results: readonly Readonly<IteratorResult>[]; index: number }
+    | undefined;
   #lastStamp?: Time;
   #publishedTopics = new Map<string, Set<string>>();
   #seekTarget?: Time;
@@ -184,8 +190,9 @@ export class IterablePlayer implements Player {
   // Buffered source used for playback.
   #bufferedSource: IIterableSource & { sourceType: "serialized" | "deserialized" };
 
-  // Independent deserialized source used only for bounded panel-owned message range reads.
+  // Independent deserialized source used only for panel-owned message range reads.
   #messageRangeSource?: IDeserializedIterableSource;
+  #activeMessageRanges = new Set<ActiveMessageRange>();
 
   // Buffering source implementation. We store a reference to it here so we can access buffer information such as loaded ranges & memory size.
   #bufferImpl: BufferedIterableSource;
@@ -195,6 +202,7 @@ export class IterablePlayer implements Player {
 
   // The iterator for reading messages during playback
   #playbackIterator?: AsyncIterator<Readonly<IteratorResult>>;
+  #playbackIteratorTopics?: TopicSelection;
   #playbackIteratorAbort?: AbortController;
 
   #blockLoader?: BlockLoader;
@@ -314,9 +322,9 @@ export class IterablePlayer implements Player {
     this.#metricsCollector.play(this.#speed);
     this.#isPlaying = true;
 
-    // If we are idling we can start playing, if we have a next state queued we let that state
-    // finish and it will see that we should be playing
-    if (this.#state === "idle" && (!this.#nextState || this.#nextState === "idle")) {
+    // A resume can arrive before the paused tick finishes. Replace its pending idle transition
+    // so entering idle does not overwrite this request to continue playing.
+    if (this.#nextState === "idle" || (this.#state === "idle" && this.#nextState == undefined)) {
       this.#setState("play");
     } else {
       this.#queueEmitState(); // update isPlaying state to UI
@@ -443,27 +451,79 @@ export class IterablePlayer implements Player {
 
   public subscribeMessageRange(args: SubscribeMessageRangeArgs): (() => void) | undefined {
     const source = this.#messageRangeSource;
-    if (source == undefined) {
+    if (source == undefined || this.#closePromise != undefined) {
       return undefined;
     }
 
     const abortController = new AbortController();
     let iterator: AsyncIterableIterator<Readonly<IteratorResult>> | undefined;
+    let iteratorReturnPromise: Promise<void> | undefined;
+    let cancelPromise: Promise<void> | undefined;
+
+    const returnIterator = async (): Promise<void> => {
+      if (iteratorReturnPromise != undefined) {
+        await iteratorReturnPromise;
+        return;
+      }
+
+      const currentIterator = iterator;
+      if (currentIterator?.return == undefined) {
+        return;
+      }
+
+      iteratorReturnPromise = Promise.resolve()
+        .then(async () => {
+          await currentIterator.return?.();
+        })
+        .catch((err: unknown) => {
+          log.warn(`Failed to close message range iterator: ${String(err)}`);
+        });
+      await iteratorReturnPromise;
+    };
+
+    const releaseRange = async (): Promise<void> => {
+      try {
+        await returnIterator();
+      } finally {
+        this.#activeMessageRanges.delete(activeRange);
+      }
+    };
+    const activeRange: ActiveMessageRange = {
+      cancel: async () => {
+        abortController.abort();
+        cancelPromise ??= releaseRange();
+        await cancelPromise;
+      },
+    };
+    this.#activeMessageRanges.add(activeRange);
+    const isAborted = () => abortController.signal.aborted;
 
     const rangeIterator = (async function* (): AsyncIterableIterator<readonly MessageEvent[]> {
-      let messages: MessageEvent[] = [];
-      iterator = source.messageIterator({
-        topics: new Map([[args.topic, { topic: args.topic }]]),
-        start: args.timeRange.start,
-        end: args.timeRange.end,
-        consumptionType: "full",
-        abortSignal: abortController.signal,
-      });
+      if (isAborted()) {
+        return;
+      }
 
+      let messages: MessageEvent[] = [];
+      const subscription: SubscribePayload =
+        args.payload?.fields == undefined
+          ? { topic: args.topic }
+          : { topic: args.topic, fields: args.payload.fields };
       try {
-        for await (const result of iterator) {
-          if (abortController.signal.aborted) {
-            return;
+        iterator = source.messageIterator({
+          topics: new Map([[args.topic, subscription]]),
+          start: args.timeRange?.start,
+          end: args.timeRange?.end,
+          consumptionType: "full",
+          abortSignal: abortController.signal,
+        });
+        for (;;) {
+          const next = await iterator.next();
+          if (next.done === true) {
+            break;
+          }
+          const result = next.value;
+          if (isAborted()) {
+            continue;
           }
           if (result.type === "message-event" && result.msgEvent.topic === args.topic) {
             messages.push(result.msgEvent);
@@ -473,22 +533,27 @@ export class IterablePlayer implements Player {
             }
           }
         }
-      } finally {
-        await iterator.return?.();
-      }
 
-      if (!abortController.signal.aborted && messages.length > 0) {
-        yield messages;
+        if (!isAborted() && messages.length > 0) {
+          yield messages;
+        }
+      } finally {
+        await releaseRange();
       }
     })();
 
-    Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch((err: unknown) => {
+    const handleCallbackError = (err: unknown) => {
       log.warn(`Message range subscription failed: ${String(err)}`);
-    });
+      void activeRange.cancel();
+    };
+    try {
+      void Promise.resolve(args.onNewRangeIterator(rangeIterator)).catch(handleCallbackError);
+    } catch (err) {
+      handleCallbackError(err);
+    }
 
     return () => {
-      abortController.abort();
-      void iterator?.return?.();
+      void activeRange.cancel();
     };
   }
 
@@ -542,6 +607,7 @@ export class IterablePlayer implements Player {
     this.#abort?.abort();
     this.#abort = undefined;
     if (newState !== "idle" && newState !== "play") {
+      this.#pendingPlaybackResults = undefined;
       this.#abortPlaybackIterator();
     }
     void this.#runState();
@@ -577,6 +643,7 @@ export class IterablePlayer implements Player {
           this.#abortPlaybackIterator();
           await this.#playbackIterator.return?.();
           this.#playbackIterator = undefined;
+          this.#playbackIteratorTopics = undefined;
         }
 
         switch (state) {
@@ -795,6 +862,8 @@ export class IterablePlayer implements Player {
         : add(this.#currentTime, { sec: 0, nsec: 1 });
 
     log.debug("Ending previous iterator");
+    this.#pendingPlaybackResults = undefined;
+    this.#lastStamp = undefined;
     this.#abortPlaybackIterator();
     await this.#playbackIterator?.return?.();
 
@@ -804,8 +873,9 @@ export class IterablePlayer implements Player {
     log.debug("Initializing forward iterator from", next);
     const playbackIteratorAbort = new AbortController();
     this.#playbackIteratorAbort = playbackIteratorAbort;
+    this.#playbackIteratorTopics = this.#allTopics;
     this.#playbackIterator = this.#bufferedSource.messageIterator({
-      topics: this.#allTopics,
+      topics: this.#playbackIteratorTopics,
       start: next,
       consumptionType: "partial",
       fetchCompleteTopicState,
@@ -870,7 +940,7 @@ export class IterablePlayer implements Player {
     const startTime = this.#start;
     const targetTime = clampTime(this.#seekTarget, startTime, this.#end);
 
-    this.#lastMessageEvent = undefined;
+    this.#pendingPlaybackResults = undefined;
 
     // If the backfill does not complete within 100 milliseconds, we emit with no messages to
     // indicate buffering. This provides feedback to the user that we've acknowledged their seek
@@ -1037,61 +1107,11 @@ export class IterablePlayer implements Player {
     const targetTime = add(this.#currentTime, fromMillis(rangeMillis));
     const end: Time = clampTime(targetTime, this.#start, this.#untilTime ?? this.#end);
 
-    // If a lastStamp is available from the previous tick we check the stamp against our current
-    // tick's end time. If this stamp is after our current tick's end time then we don't need to
-    // read any messages and can shortcut the rest of the logic to set the current time to the tick
-    // end time and queue an emit.
-    //
-    // If we have a lastStamp but it isn't after the tick end, then we clear it and proceed with the
-    // tick logic.
-
-    // ps:
-    // The optimization here is to avoid parsing new data when
-    // the data returned by the two getStreams requests overlap.
-    // Instead, it reads already parsed data from the cache.
-    // 这里的优化是为了两次的 getStreams 的请求返回的数据有重叠的情况下，
-    // 不需要去解析新的数据，而是从已经解析好的缓存中读取已经解析的数据
-    if (this.#lastStamp) {
-      if (compare(this.#lastStamp, end) >= 0) {
-        // Wait for the previous render frame to finish
-        await this.#queueEmitState.currentPromise;
-
-        this.#currentTime = end;
-        this.#messages = [];
-        this.#queueEmitState();
-
-        if (this.#untilTime && compare(this.#currentTime, this.#untilTime) >= 0) {
-          this.pausePlayback();
-        }
-        return;
-      }
-
-      this.#lastStamp = undefined;
-    }
-
     const msgEvents: MessageEvent[] = [];
-
-    // When ending the previous tick, we might have already read a message from the iterator which
-    // belongs to our tick. This logic brings that message into our current batch of message events.
-    if (this.#lastMessageEvent != undefined) {
-      // If the last message we saw is still ahead of the tick end time, we don't emit anything
-      if (compare(this.#lastMessageEvent.receiveTime, end) > 0) {
-        // Wait for the previous render frame to finish
-        await this.#queueEmitState.currentPromise;
-
-        this.#currentTime = end;
-        this.#messages = msgEvents;
-        this.#queueEmitState();
-
-        if (this.#untilTime && compare(this.#currentTime, this.#untilTime) >= 0) {
-          this.pausePlayback();
-        }
-        return;
-      }
-
-      msgEvents.push(this.#lastMessageEvent);
-      this.#lastMessageEvent = undefined;
-    }
+    const pendingResults = this.#pendingPlaybackResults?.results ?? [];
+    let pendingIndex = this.#pendingPlaybackResults?.index ?? 0;
+    this.#pendingPlaybackResults = undefined;
+    let nextResult: Readonly<IteratorResult> | undefined;
 
     // If we take too long to read the tick data, we set the player into a BUFFERING presence. This
     // indicates that the player is waiting to load more data. When the tick finally finishes, we
@@ -1106,15 +1126,33 @@ export class IterablePlayer implements Player {
     try {
       // Read from the iterator through the end of the tick time
       for (;;) {
+        // Replay an interrupted tick before using the source's watermark or reading more data.
+        if (pendingIndex === pendingResults.length && this.#lastStamp != undefined) {
+          if (compare(this.#lastStamp, end) >= 0) {
+            break;
+          }
+          this.#lastStamp = undefined;
+        }
         if (!this.#playbackIterator) {
           throw new Error("Invariant. this._playbackIterator is undefined.");
         }
 
-        const result = await this.#playbackIterator.next();
-        if (result.done === true || this.#nextState) {
+        const fromPending = pendingIndex < pendingResults.length;
+        const result = fromPending
+          ? { done: false as const, value: pendingResults[pendingIndex++]! }
+          : await this.#playbackIterator.next();
+        if (result.done === true) {
           break;
         }
         const iterResult = result.value;
+        if (!this.#isPlaybackTickCurrent()) {
+          if (fromPending) {
+            pendingIndex--;
+          } else {
+            nextResult = iterResult;
+          }
+          break;
+        }
 
         if (iterResult.type === "problem") {
           this.#problemManager.addProblem(`connid-${iterResult.connectionId}`, iterResult.problem);
@@ -1129,7 +1167,11 @@ export class IterablePlayer implements Player {
         if (iterResult.type === "message-event") {
           // The message is past the tick end time, we need to save it for next tick
           if (compare(iterResult.msgEvent.receiveTime, end) > 0) {
-            this.#lastMessageEvent = iterResult.msgEvent;
+            if (fromPending) {
+              pendingIndex--;
+            } else {
+              nextResult = iterResult;
+            }
             break;
           }
 
@@ -1146,15 +1188,38 @@ export class IterablePlayer implements Player {
     // Set the presence back to PRESENT since we are no longer buffering
     this.#presence = PlayerPresence.PRESENT;
 
-    if (this.#nextState) {
+    const remainingResults =
+      nextResult != undefined
+        ? { results: [nextResult], index: 0 }
+        : pendingIndex < pendingResults.length
+          ? { results: pendingResults, index: pendingIndex }
+          : undefined;
+
+    // A pending UI/progress update can start another render as the previous promise settles.
+    // Wait for that render too so this batch is emitted immediately, while playback is still current.
+    while (this.#isPlaybackTickCurrent() && this.#queueEmitState.currentPromise != undefined) {
+      await this.#queueEmitState.currentPromise;
+    }
+    if (!this.#isPlaybackTickCurrent()) {
+      if (
+        this.#closePromise == undefined &&
+        !this.#hasError &&
+        (this.#nextState == undefined || this.#nextState === "idle" || this.#nextState === "play")
+      ) {
+        // Pausing retains the iterator. Preserve every consumed message so H264 reference frames
+        // reach all panels in order on resume, without emitting a nonempty stopped tick.
+        this.#pendingPlaybackResults = {
+          results: [
+            ...msgEvents.map((msgEvent): IteratorResult => ({ type: "message-event", msgEvent })),
+            ...(remainingResults?.results.slice(remainingResults.index) ?? []),
+          ],
+          index: 0,
+        };
+      }
       return;
     }
 
-    // Wait on any active emit state to finish as part of this tick
-    // Without waiting on the emit state to finish we might drop messages since our emitState
-    // might get debounced
-    await this.#queueEmitState.currentPromise;
-
+    this.#pendingPlaybackResults = remainingResults;
     this.#currentTime = end;
     this.#messages = msgEvents;
     this.#queueEmitState();
@@ -1163,6 +1228,15 @@ export class IterablePlayer implements Player {
     if (this.#untilTime && compare(this.#currentTime, this.#untilTime) >= 0) {
       this.pausePlayback();
     }
+  }
+
+  #isPlaybackTickCurrent(): boolean {
+    return (
+      this.#isPlaying &&
+      this.#nextState == undefined &&
+      this.#closePromise == undefined &&
+      !this.#hasError
+    );
   }
 
   async #stateIdle() {
@@ -1227,6 +1301,12 @@ export class IterablePlayer implements Player {
     // Track the identity of allTopics, if this changes we need to reset our iterator to
     // get new messages for new topics
     const allTopics = this.#allTopics;
+    // A rapid resume can replace the playing state before its subscription-change check runs.
+    // Compare against the iterator's own topics before replaying any retained results.
+    if (this.#playbackIteratorTopics !== allTopics) {
+      this.#setState("reset-playback-iterator");
+      return;
+    }
 
     try {
       while (this.#isPlaying && !this.#hasError && !this.#nextState) {
@@ -1265,8 +1345,8 @@ export class IterablePlayer implements Player {
 
         // If subscriptions changed, update to the new subscriptions
         if (this.#allTopics !== allTopics) {
-          // Discard any last message event since the new iterator will repeat it
-          this.#lastMessageEvent = undefined;
+          // The replacement iterator will repeat any results retained from the old subscriptions.
+          this.#pendingPlaybackResults = undefined;
 
           // Bail playback and reset the playback iterator when topics have changed so we can load
           // the new topics
@@ -1289,6 +1369,7 @@ export class IterablePlayer implements Player {
 
   async #closeImpl(): Promise<void> {
     this.#isPlaying = false;
+    this.#pendingPlaybackResults = undefined;
     this.#abortPlaybackIterator();
 
     let closeError: unknown;
@@ -1303,6 +1384,13 @@ export class IterablePlayer implements Player {
     // The block loader and playback iterator may still be reading the source. Stop them in order
     // before clearing the cache and terminating the underlying source.
     await attempt(async () => {
+      await Promise.all(
+        Array.from(this.#activeMessageRanges, async (range) => {
+          await range.cancel();
+        }),
+      );
+    });
+    await attempt(async () => {
       await this.#blockLoader?.stopLoading();
     });
     await attempt(async () => {
@@ -1311,6 +1399,7 @@ export class IterablePlayer implements Player {
 
     const playbackIterator = this.#playbackIterator;
     this.#playbackIterator = undefined;
+    this.#playbackIteratorTopics = undefined;
     await attempt(async () => {
       await playbackIterator?.return?.();
     });

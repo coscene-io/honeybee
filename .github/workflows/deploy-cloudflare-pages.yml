@@ -19,7 +19,7 @@ concurrency:
 jobs:
   deploy:
     name: Build and deploy web
-    runs-on: gcp
+    runs-on: cos-m
     environment: io
     timeout-minutes: 30
 

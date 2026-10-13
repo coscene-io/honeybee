@@ -28,12 +28,7 @@ export class WorkerMp4MediabunnyController implements RemoteVideoFrameProvider {
     this.#url = url;
     const { remote, dispose } = ComlinkWrap<
       (url: string) => Comlink.Remote<Mp4MediabunnyControllerWorker>
-    >(
-      new Worker(
-        // foxglove-depcheck-used: babel-plugin-transform-import-meta
-        new URL("./Mp4MediabunnyController.worker", import.meta.url),
-      ),
-    );
+    >(new Worker(new URL("./Mp4MediabunnyController.worker", import.meta.url)));
     this.#initializeWorker = remote;
     this.#disposeWorker = dispose;
   }

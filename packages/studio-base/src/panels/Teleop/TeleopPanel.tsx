@@ -7,6 +7,7 @@
 
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { DeepPartial } from "ts-essentials";
 
 import { ros1 } from "@foxglove/rosmsg-msgs-common";
@@ -45,65 +46,69 @@ type Config = {
   rightButton: { field: string; value: number };
 };
 
-function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTreeNodes {
+function buildSettingsTree(
+  config: Config,
+  topics: readonly Topic[],
+  t: ReturnType<typeof useTranslation<"teleop">>["t"],
+): SettingsTreeNodes {
   const general: SettingsTreeNode = {
-    label: "General",
+    label: t("general"),
     fields: {
-      publishRate: { label: "Publish rate", input: "number", value: config.publishRate },
+      publishRate: { label: t("publishRate"), input: "number", value: config.publishRate },
       topic: {
-        label: "Topic",
+        label: t("topic"),
         input: "autocomplete",
         value: config.topic,
-        items: topics.map((t) => t.name),
+        items: topics.map((topic) => topic.name),
       },
     },
     children: {
       upButton: {
-        label: "Up Button",
+        label: t("upButton"),
         fields: {
           field: {
-            label: "Field",
+            label: t("field"),
             input: "select",
             value: config.upButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.upButton.value },
+          value: { label: t("value"), input: "number", value: config.upButton.value },
         },
       },
       downButton: {
-        label: "Down Button",
+        label: t("downButton"),
         fields: {
           field: {
-            label: "Field",
+            label: t("field"),
             input: "select",
             value: config.downButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.downButton.value },
+          value: { label: t("value"), input: "number", value: config.downButton.value },
         },
       },
       leftButton: {
-        label: "Left Button",
+        label: t("leftButton"),
         fields: {
           field: {
-            label: "Field",
+            label: t("field"),
             input: "select",
             value: config.leftButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.leftButton.value },
+          value: { label: t("value"), input: "number", value: config.leftButton.value },
         },
       },
       rightButton: {
-        label: "Right Button",
+        label: t("rightButton"),
         fields: {
           field: {
-            label: "Field",
+            label: t("field"),
             input: "select",
             value: config.rightButton.field,
             options: geometryMsgOptions,
           },
-          value: { label: "Value", input: "number", value: config.rightButton.value },
+          value: { label: t("value"), input: "number", value: config.rightButton.value },
         },
       },
     },
@@ -115,6 +120,7 @@ function buildSettingsTree(config: Config, topics: readonly Topic[]): SettingsTr
 function TeleopPanel(props: TeleopPanelProps): React.JSX.Element {
   const { context } = props;
   const { saveState } = context;
+  const { t } = useTranslation("teleop");
 
   const [currentAction, setCurrentAction] = useState<DirectionalPadAction | undefined>();
   const [topics, setTopics] = useState<readonly Topic[]>([]);
@@ -171,13 +177,13 @@ function TeleopPanel(props: TeleopPanelProps): React.JSX.Element {
   }, [context]);
 
   useEffect(() => {
-    const tree = buildSettingsTree(config, topics);
+    const tree = buildSettingsTree(config, topics, t);
     context.updatePanelSettingsEditor({
       actionHandler: settingsActionHandler,
       nodes: tree,
     });
     saveState(config);
-  }, [config, context, saveState, settingsActionHandler, topics]);
+  }, [config, context, saveState, settingsActionHandler, t, topics]);
 
   // advertise topic
   const { topic: currentTopic } = config;
@@ -287,10 +293,8 @@ function TeleopPanel(props: TeleopPanelProps): React.JSX.Element {
         alignItems="center"
         style={{ padding: "min(5%, 8px)", textAlign: "center" }}
       >
-        {!canPublish && <EmptyState>Connect to a data source that supports publishing</EmptyState>}
-        {canPublish && !hasTopic && (
-          <EmptyState>Select a publish topic in the panel settings</EmptyState>
-        )}
+        {!canPublish && <EmptyState>{t("connectToPublishableSource")}</EmptyState>}
+        {canPublish && !hasTopic && <EmptyState>{t("selectPublishTopic")}</EmptyState>}
         {enabled && <DirectionalPad onAction={setCurrentAction} disabled={!enabled} />}
       </Stack>
     </ThemeProvider>

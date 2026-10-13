@@ -10,12 +10,33 @@ import type { MessageEvent } from "@foxglove/studio";
 
 import { CompressedVideo } from "./ImageTypes";
 import { isVideoKeyframe } from "./decodeImage";
-import { normalizeCompressedVideo } from "./imageNormalizers";
+import type { VideoFrameInfo } from "./videoGopCache";
 import { PartialMessage } from "../../SceneExtension";
 
-export type CompressedVideoMessageEvent = MessageEvent<PartialMessage<CompressedVideo>>;
+export type CompressedVideoMessageEvent = MessageEvent<
+  PartialMessage<CompressedVideo> | VideoFrameInfo["frame"]
+>;
 
 export type RecordCompressedVideoKeyframe = (topic: string, receiveTime: Time) => void;
+
+export function videoDelayBucket(delayNs: bigint): string | undefined {
+  if (delayNs <= 0n) {
+    return undefined;
+  }
+  if (delayNs < 100_000_000n) {
+    return "<0.1s";
+  }
+  if (delayNs < 500_000_000n) {
+    return "<0.5s";
+  }
+  if (delayNs < 1_000_000_000n) {
+    return "<1s";
+  }
+  if (delayNs < 5_000_000_000n) {
+    return "<5s";
+  }
+  return "≥5s";
+}
 
 /**
  * Compressed video frames depend on previous frames. Keep the newest decodable GOP instead of
@@ -46,8 +67,11 @@ function filterCompressedVideoQueueWithKeyframes(
   >();
 
   for (const messageEvent of queue) {
-    const normalizedMessage = normalizeCompressedVideo(messageEvent.message);
-    const isKeyframe = isVideoKeyframe(normalizedMessage);
+    const data = messageEvent.message.data;
+    const isKeyframe = isVideoKeyframe({
+      format: messageEvent.message.format,
+      data: data instanceof Uint8Array || Array.isArray(data) ? data : undefined,
+    });
     if (isKeyframe) {
       recordKeyframe?.(messageEvent.topic, messageEvent.receiveTime);
     }

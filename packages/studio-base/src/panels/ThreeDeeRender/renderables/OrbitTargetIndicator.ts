@@ -40,9 +40,12 @@ export class OrbitTargetIndicator extends THREE.Object3D {
   #held = false;
   /** Timestamp in `performance.now()` milliseconds at which the fade-out starts */
   #fadeStartMs?: number;
+  #fadeTimer?: ReturnType<typeof setTimeout>;
+  #requestFrame: () => void;
 
-  public constructor() {
+  public constructor(requestFrame: () => void) {
     super();
+    this.#requestFrame = requestFrame;
     this.name = "OrbitTargetIndicator";
     this.visible = false;
 
@@ -81,6 +84,7 @@ export class OrbitTargetIndicator extends THREE.Object3D {
   }
 
   public dispose(): void {
+    this.hide();
     this.#geometry.dispose();
     for (const material of this.#materials) {
       material.dispose();
@@ -89,6 +93,7 @@ export class OrbitTargetIndicator extends THREE.Object3D {
 
   /** Reveal the indicator and pin it at full opacity until `release()` is called */
   public hold(): void {
+    this.#clearFadeTimer();
     this.#held = true;
     this.#fadeStartMs = undefined;
     this.visible = true;
@@ -102,10 +107,16 @@ export class OrbitTargetIndicator extends THREE.Object3D {
     }
     this.#held = false;
     this.#fadeStartMs = nowMs + HOLD_MS;
+    // Nothing changes during the hold. Wake the event-driven renderer only when fading starts.
+    this.#fadeTimer = setTimeout(() => {
+      this.#fadeTimer = undefined;
+      this.#requestFrame();
+    }, HOLD_MS);
   }
 
   /** Hide immediately, cancelling any in-progress fade */
   public hide(): void {
+    this.#clearFadeTimer();
     this.#held = false;
     this.#fadeStartMs = undefined;
     this.visible = false;
@@ -129,9 +140,8 @@ export class OrbitTargetIndicator extends THREE.Object3D {
     }
 
     const elapsedMs = nowMs - this.#fadeStartMs;
-    if (elapsedMs <= 0) {
-      // Still inside the hold window, but we need to keep rendering so the fade starts on time
-      return true;
+    if (elapsedMs < 0) {
+      return false;
     }
     if (elapsedMs >= FADE_MS) {
       this.hide();
@@ -139,6 +149,11 @@ export class OrbitTargetIndicator extends THREE.Object3D {
     }
     this.#setOpacity(1 - elapsedMs / FADE_MS);
     return true;
+  }
+
+  #clearFadeTimer(): void {
+    clearTimeout(this.#fadeTimer);
+    this.#fadeTimer = undefined;
   }
 
   #setOpacity(opacity: number): void {

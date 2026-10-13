@@ -106,7 +106,9 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
     // The orbit target lives in the same space as `#perspectiveCamera.position`, which OrbitControls
     // treats as world space, so the indicator has to be parented to the camera group to pick up the
     // same frame-follow transform.
-    this.#targetIndicator = new OrbitTargetIndicator();
+    this.#targetIndicator = new OrbitTargetIndicator(() => {
+      renderer.queueAnimationFrame();
+    });
     this.#cameraGroup.add(this.#targetIndicator);
 
     this.#controls = new OrbitControls(this.#perspectiveCamera, this.#canvas);
@@ -133,6 +135,7 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
     // Keyup is tracked on the window: if focus moves while a pan key is held, the keyup is
     // delivered elsewhere and a canvas-only listener would leave the key stuck down
     window.addEventListener("keyup", this.#onPanKeyUp);
+    window.addEventListener("blur", this.#onWindowBlur);
   }
 
   public override dispose(): void {
@@ -150,6 +153,7 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
     this.#canvas.removeEventListener("keydown", this.#onPanKeyDown);
     this.#canvas.removeEventListener("blur", this.#onCanvasBlur);
     window.removeEventListener("keyup", this.#onPanKeyUp);
+    window.removeEventListener("blur", this.#onWindowBlur);
     this.#stopTrackingPointers();
     this.#targetIndicator.dispose();
 
@@ -217,6 +221,13 @@ export class CameraStateSettings extends SceneExtension implements ICameraHandle
       this.#heldPanKeys.clear();
       this.#syncIndicatorHold();
     }
+  };
+
+  #onWindowBlur = (): void => {
+    // Alt-Tab can leave the canvas focused, with keyup/pointerup delivered outside the app.
+    this.#stopTrackingPointers();
+    this.#heldPanKeys.clear();
+    this.#syncIndicatorHold();
   };
 
   /** Pin the indicator visible while any drag or pan key is active, and release it once none are */

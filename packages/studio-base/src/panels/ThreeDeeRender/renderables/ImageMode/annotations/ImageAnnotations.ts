@@ -89,7 +89,6 @@ export class ImageAnnotations extends THREE.Object3D {
     this.#canvasWidth = context.initialCanvasWidth;
     this.#canvasHeight = context.initialCanvasHeight;
     this.#pixelRatio = context.initialPixelRatio;
-    context.messageHandler.addListener(this.#updateFromMessageState);
   }
 
   public getSubscriptions(): readonly AnyRendererSubscription[] {
@@ -168,7 +167,7 @@ export class ImageAnnotations extends THREE.Object3D {
     }
   }
 
-  #updateFromMessageState = (newState: MessageRenderState) => {
+  public updateFromMessageState = (newState: MessageRenderState): void => {
     if (newState.annotationsByTopic != undefined) {
       for (const { originalMessage, annotations } of newState.annotationsByTopic.values()) {
         this.#handleMessage(originalMessage, annotations);

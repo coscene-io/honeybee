@@ -41,11 +41,8 @@ export const plot = {
   xAxis: "X Axis",
   yAxis: "Y Axis",
   resetView: "Reset view",
-  fullTimestamp: "Timestamp (full)",
-  partialTimestamp: "Timestamp (current)",
-  tooManyMessages:
-    "The current number of messages on the panel is too large, already automatically switched to playback by the current timestamp",
-  switchImmediately: "Switch immediately",
+  fullHistoryXAxisHelp:
+    "Loads full history when the data source supports range queries. Live sources use a bounded sliding current window.",
   enableAllSeries: "Enable all",
   disableAllSeries: "Disable all",
   toggleAllSeries: "Toggle all",

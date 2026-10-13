@@ -147,13 +147,22 @@ function ProblemDetails(props: { details: DetailsType; tip?: React.ReactNode }):
 
 export function ProblemsList(): React.JSX.Element {
   const { t } = useTranslation("problemsList");
+  const { t: tError } = useTranslation("error");
   const { classes } = useStyles();
   const playerProblems = useMessagePipeline(selectPlayerProblems);
   const sessionProblems = useProblemsStore(selectProblems);
 
   const allProblems = useMemo(() => {
-    return [...sessionProblems, ...playerProblems];
-  }, [sessionProblems, playerProblems]);
+    return [...sessionProblems, ...playerProblems].map((problem) => ({
+      ...problem,
+      message: problem.messageKey
+        ? tError(problem.messageKey, { defaultValue: problem.message })
+        : problem.message,
+      tip: problem.tipKey ? tError(problem.tipKey, problem.tipParams) : problem.tip,
+      // Keep expansion state stable when the translated message changes.
+      originalMessage: problem.message,
+    }));
+  }, [sessionProblems, playerProblems, tError]);
 
   if (allProblems.length === 0) {
     return <EmptyState>{t("noProblemsFound")}</EmptyState>;
@@ -164,7 +173,7 @@ export function ProblemsList(): React.JSX.Element {
       {allProblems.map((problem, idx) => (
         <Accordion
           className={classes.acccordion}
-          key={`${idx}.${problem.severity}.${problem.message}`}
+          key={`${idx}.${problem.severity}.${problem.originalMessage}`}
           slotProps={{
             transition: { unmountOnExit: true },
           }}

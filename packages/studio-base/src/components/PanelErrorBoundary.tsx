@@ -6,7 +6,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Link } from "@mui/material";
-import { Component, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Component, ComponentType, ErrorInfo, PropsWithChildren, ReactNode } from "react";
+import { Trans, withTranslation, WithTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { reportError } from "@foxglove/studio-base/reportError";
@@ -25,7 +26,7 @@ type State = {
   currentError: { error: Error; errorInfo: ErrorInfo } | undefined;
 };
 
-export default class PanelErrorBoundary extends Component<PropsWithChildren<Props>, State> {
+class PanelErrorBoundaryInner extends Component<PropsWithChildren<Props & WithTranslation>, State> {
   public override state: State = {
     currentError: undefined,
   };
@@ -36,26 +37,34 @@ export default class PanelErrorBoundary extends Component<PropsWithChildren<Prop
   }
 
   public override render(): ReactNode {
+    // Resolve labels through the i18n instance (same type as the global t, which
+    // accepts namespace-prefixed keys); withTranslation re-renders on language change.
+    const { i18n } = this.props;
+
     if (this.state.currentError) {
       return (
         <ErrorDisplay
-          title="This panel encountered an unexpected error"
+          title={i18n.t("error:panelUnexpectedError")}
           error={this.state.currentError.error}
           errorInfo={this.state.currentError.errorInfo}
           showErrorDetails={this.props.showErrorDetails}
           hideErrorSourceLocations={this.props.hideErrorSourceLocations}
           content={
             <p>
-              Something went wrong in this panel.{" "}
-              <Link
-                color="inherit"
-                onClick={() => {
-                  this.setState({ currentError: undefined });
+              <Trans
+                i18nKey="somethingWentWrongPanel"
+                ns="error"
+                components={{
+                  dismissLink: (
+                    <Link
+                      color="inherit"
+                      onClick={() => {
+                        this.setState({ currentError: undefined });
+                      }}
+                    />
+                  ),
                 }}
-              >
-                Dismiss this error
-              </Link>{" "}
-              to continue using this panel. If the issue persists, try resetting the panel.
+              />
             </p>
           }
           actions={
@@ -68,26 +77,26 @@ export default class PanelErrorBoundary extends Component<PropsWithChildren<Prop
                     this.setState({ currentError: undefined });
                   }}
                 >
-                  Dismiss
+                  {i18n.t("general:dismiss")}
                 </Button>
                 <Button
                   variant="outlined"
-                  title="Reset panel settings to default values"
+                  title={i18n.t("error:resetPanelSettingsToDefault")}
                   color="error"
                   onClick={() => {
                     this.setState({ currentError: undefined });
                     this.props.onResetPanel();
                   }}
                 >
-                  Reset Panel
+                  {i18n.t("error:resetPanel")}
                 </Button>
                 <Button
                   variant="text"
-                  title="Remove this panel from the layout"
+                  title={i18n.t("error:removePanelFromLayout")}
                   color="error"
                   onClick={this.props.onRemovePanel}
                 >
-                  Remove Panel
+                  {i18n.t("error:removePanel")}
                 </Button>
               </Stack>
             </>
@@ -98,3 +107,8 @@ export default class PanelErrorBoundary extends Component<PropsWithChildren<Prop
     return this.props.children;
   }
 }
+
+const PanelErrorBoundary: ComponentType<PropsWithChildren<Props>> =
+  withTranslation()(PanelErrorBoundaryInner);
+
+export default PanelErrorBoundary;

@@ -37,10 +37,12 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
     ],
   };
 
-  public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
+  public async initialize(args: DataSourceFactoryInitializeArgs): Promise<Player | undefined> {
     try {
       // Extract parameters
-      const sessionId = args.params?.sessionId ?? args.sessionId;
+      const fieldSessionId = args.params?.sessionId;
+      const sessionId =
+        fieldSessionId != undefined && fieldSessionId !== "" ? fieldSessionId : args.sessionId;
       const retentionWindowMs = args.retentionWindowMs;
       const maxCacheSize = args.maxCacheSize;
 
@@ -51,7 +53,6 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
 
       const source = new WorkerIterableSource({
         initWorker: () => {
-          // foxglove-depcheck-used: babel-plugin-transform-import-meta
           return new Worker(
             new URL(
               "@foxglove/studio-base/players/IterablePlayer/PersistentCache/PersistentCacheIterableSource.worker",
@@ -66,17 +67,33 @@ class PersistentCacheDataSourceFactory implements IDataSourceFactory {
         },
       });
 
-      // Return a wrapper that handles initialization
-      return new IterablePlayer({
-        metricsCollector: args.metricsCollector,
-        source,
-        sourceId: this.id,
-        urlParams: { sessionId },
-        enablePlaybackSpillCache: false,
-      });
+      // IterablePlayer normally initializes after MessagePipeline installs its listener. Run the
+      // real worker initialization now and reuse it so PlayerManager can recover before switching.
+      await source.preinitialize();
+
+      try {
+        // Return a wrapper that handles initialization
+        return new IterablePlayer({
+          metricsCollector: args.metricsCollector,
+          source,
+          sourceId: this.id,
+          urlParams: { sessionId },
+          enablePlaybackSpillCache: false,
+        });
+      } catch (error) {
+        try {
+          await source.terminate();
+        } catch (terminationError) {
+          console.warn(
+            "Failed to terminate initialized persistent cache source:",
+            terminationError,
+          );
+        }
+        throw error;
+      }
     } catch (error) {
       console.error("Failed to initialize PersistentCacheDataSourceFactory:", error);
-      return undefined;
+      throw error;
     }
   }
 }

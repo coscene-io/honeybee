@@ -26,6 +26,8 @@
 
 import type { Dataset, UpdateAction } from "./StateTransitionsChartRenderer";
 import { StateTransitionsCoordinator } from "./StateTransitionsCoordinator";
+import { LocalStateTransitionsDatasetBuilder } from "./StateTransitionsDatasetBuilder";
+import { PackedStateTransitionDataset } from "./StateTransitionsDatasetBuilderImpl";
 import type { StateTransitionsRenderer } from "./StateTransitionsRenderer";
 
 jest.setTimeout(300_000);
@@ -118,10 +120,10 @@ function makeMockRenderer() {
     update: jest.fn(async (_action: UpdateAction) => {
       return { x: { min: 0, max: 30 }, y: { min: -20, max: 0 } };
     }),
-    updateDatasets: jest.fn(async (datasets: Dataset[]) => {
+    updateDatasets: jest.fn(async (datasets: Array<Dataset | PackedStateTransitionDataset>) => {
       updateDatasetsCalls += 1;
       for (const ds of datasets) {
-        deliveredPoints += ds.data.length;
+        deliveredPoints += "x" in ds ? ds.x.length : ds.data.length;
       }
       // The real renderer posts datasets to a chart worker: a structured clone whose cost is
       // proportional to delivered points. Model that transport cost so blockedMs reflects it.
@@ -189,7 +191,10 @@ const probeIt = process.env.PERF_PROBE === "1" ? it : it.skip;
 
 probeIt("viewport perf probe (prints measurements; asserts nothing)", async () => {
   const { renderer, stats } = makeMockRenderer();
-  const coordinator = new StateTransitionsCoordinator(renderer);
+  const coordinator = new StateTransitionsCoordinator(
+    renderer,
+    new LocalStateTransitionsDatasetBuilder(),
+  );
 
   coordinator.handleConfig(
     {

@@ -67,18 +67,12 @@ export class PersistentCacheIterableSource implements IIterableSource {
         });
       }, READER_LEASE_HEARTBEAT_MS);
 
-      // If no data is available, return minimal initialization
-      if (stats.count === 0 || !stats.earliest || !stats.latest) {
-        return {
-          start: { sec: 0, nsec: 0 },
-          end: { sec: 0, nsec: 0 },
-          topics: [],
-          topicStats: new Map(),
-          datatypes: new Map(),
-          profile: undefined,
-          publishersByTopic: new Map(),
-          problems: [],
-        };
+      if (stats.count === 0 || stats.earliest == undefined || stats.latest == undefined) {
+        throw new Error("No cached realtime data is available for this session.");
+      }
+
+      if (compare(stats.earliest, stats.latest) >= 0) {
+        throw new Error("Cached realtime data does not yet span a playable time range.");
       }
 
       const topicStats = new Map<string, { numMessages: number }>();

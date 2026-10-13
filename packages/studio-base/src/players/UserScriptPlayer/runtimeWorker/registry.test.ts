@@ -16,6 +16,7 @@
 import { containsFuncDeclaration, stringifyFuncsInObject, requireImplementation } from "./registry";
 
 const someFunc = (a: number, b: number) => a + b;
+const someFuncString = String(someFunc);
 const otherArgs = [1, false, "abc"];
 describe("containsFuncDeclaration", () => {
   it("returns true if a single arg is a function declaration", () => {
@@ -48,8 +49,8 @@ describe("containsFuncDeclaration", () => {
 describe("stringifyFuncsInObject", () => {
   it("stringifies just the functions in an object", () => {
     expect(stringifyFuncsInObject({ someKey: someFunc, anotherKey: someFunc })).toEqual({
-      someKey: "(a, b) => a + b",
-      anotherKey: "(a, b) => a + b",
+      someKey: someFuncString,
+      anotherKey: someFuncString,
     });
     expect(
       stringifyFuncsInObject({
@@ -57,8 +58,8 @@ describe("stringifyFuncsInObject", () => {
         anotherKey: { nestedKey: someFunc, anotherNestedKey: 5 },
       }),
     ).toEqual({
-      someKey: "(a, b) => a + b",
-      anotherKey: { nestedKey: "(a, b) => a + b", anotherNestedKey: 5 },
+      someKey: someFuncString,
+      anotherKey: { nestedKey: someFuncString, anotherNestedKey: 5 },
     });
     expect(
       stringifyFuncsInObject({

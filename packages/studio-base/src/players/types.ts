@@ -35,16 +35,47 @@ export type ParsedMessageDefinitionsByTopic = {
   [topic: string]: MessageDefinition[];
 };
 
-export type PlaybackSpeed = 0.01 | 0.02 | 0.05 | 0.1 | 0.2 | 0.5 | 0.8 | 1 | 2 | 3 | 5;
+export type PlaybackSpeed =
+  | 0.01
+  | 0.02
+  | 0.05
+  | 0.1
+  | 0.2
+  | 0.5
+  | 0.8
+  | 1
+  | 1.5
+  | 2
+  | 2.5
+  | 3
+  | 3.5
+  | 4
+  | 4.5
+  | 5
+  | 5.5
+  | 6
+  | 6.5
+  | 7
+  | 7.5
+  | 8
+  | 8.5
+  | 9
+  | 9.5
+  | 10;
 
 export type TopicSelection = Map<string, SubscribePayload>;
 
 export type SubscribeMessageRangeArgs = {
   topic: string;
-  timeRange: {
+  timeRange?: {
     start: Time;
     end: Time;
   };
+  payload?: Readonly<Pick<SubscribePayload, "fields">>;
+  /** Continue with newly arriving messages when the Player supports live range subscriptions. */
+  receiveLiveData?: boolean;
+  /** Skip ranges produced by UserScriptPlayer while still allowing source-topic ranges. */
+  skipUserScripts?: boolean;
   onNewRangeIterator: (iterator: AsyncIterable<readonly MessageEvent[]>) => void | Promise<void>;
 };
 
@@ -127,13 +158,24 @@ export enum PlayerPresence {
 export type PlayerProblem = {
   severity: NotificationSeverity;
   message: string;
+  // Serializable translation metadata is resolved by the UI, including for worker problems.
+  messageKey?: keyof typeof import("@foxglove/studio-base/i18n/en/error").error;
   error?: Error;
   tip?: React.ReactNode;
+  tipKey?: keyof typeof import("@foxglove/studio-base/i18n/en/error").error;
+  tipParams?: Record<string, string>;
 };
 
 export type PlayerURLState = Immutable<{
   sourceId: string;
   parameters?: Record<string, string>;
+}>;
+
+export type RealtimeHistoryStatus = "disabled" | "initializing" | "ready" | "unavailable";
+
+export type RealtimeHistoryState = Readonly<{
+  status: RealtimeHistoryStatus;
+  retentionWindowMs: number;
 }>;
 
 export type PlayerState = {
@@ -167,6 +209,10 @@ export type PlayerState = {
   // out any data when switching to a new player.
   // 此播放器的唯一 ID（通常是在构造时生成的 UUID）。用于在切换到新播放器时清除任何数据。
   playerId: string;
+
+  // The effective cache state for the current realtime player generation. This intentionally
+  // reflects the player that is already connected rather than the latest application setting.
+  realtimeHistory?: RealtimeHistoryState;
 
   // String name for the player
   // The player could set this value to represent the current connection, name, ports, etc.

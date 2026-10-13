@@ -118,6 +118,8 @@ function ToolbarComponent(props: Props): React.JSX.Element {
             path={topicPath}
             onChange={onTopicPathChange}
             inputStyle={{ height: 20 }}
+            supportsMessagePathFunctions={true}
+            supportsTimeSeriesMessagePathFunctions={false}
           />
         </Stack>
 
@@ -174,6 +176,8 @@ function ToolbarComponent(props: Props): React.JSX.Element {
               index={1}
               path={diffTopicPath}
               onChange={onDiffTopicPathChange}
+              supportsMessagePathFunctions={true}
+              supportsTimeSeriesMessagePathFunctions={false}
               {...(topic ? { prioritizedDatatype: topic.schemaName } : {})}
             />
           )}

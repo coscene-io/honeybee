@@ -43,6 +43,7 @@ export const dataCollection: Partial<TypeOptions["resources"]["dataCollection"]>
   showRequest: "显示请求",
   color: "颜色",
   serviceName: "服务名称",
+  serviceCannotBeEmpty: "服务不能为空",
   taskStatePending: "任务等待中",
   pendingUploadFiles: "待上传文件数",
   uploadFileFail: "上传文件失败",

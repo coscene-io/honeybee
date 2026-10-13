@@ -7,6 +7,7 @@
 
 import { Link, Typography } from "@mui/material";
 import { ReactElement, useEffect } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useSessionStorageValue } from "@foxglove/hooks";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
@@ -14,6 +15,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 
 export function LaunchingInDesktopScreen(): ReactElement {
+  const { t } = useTranslation("openDialog");
   const [, setLaunchPreference] = useSessionStorageValue(AppSetting.LAUNCH_PREFERENCE);
 
   const cleanWebURL = new URL(window.location.href);
@@ -71,28 +73,30 @@ export function LaunchingInDesktopScreen(): ReactElement {
         style={{ maxWidth: 480 }}
       >
         <Typography align="center" variant="h2" fontWeight={600}>
-          Launching coScene Studio…
+          {t("launchingCoSceneStudio")}
         </Typography>
         <Typography align="center" fontWeight={600}>
-          We’ve directed you to the desktop app.
+          {t("directedToDesktopApp")}
         </Typography>
         <Stack gap={0.5}>
           <Typography align="center">
-            You can also{" "}
-            <Link color="primary" underline="hover" onClick={openWeb}>
-              open this link in your browser
-            </Link>
-            .
+            <Trans
+              t={t}
+              i18nKey="youCanAlsoOpenInBrowser"
+              components={{
+                link: <Link color="primary" underline="hover" onClick={openWeb} />,
+              }}
+            />
           </Typography>
           <Typography align="center">
-            Don’t have the app installed?&nbsp;
+            {t("dontHaveAppInstalled")}&nbsp;
             <Link
               color="primary"
               underline="hover"
               href="https://www.coscene.cn/download"
               target="_blank"
             >
-              Download coScene Studio
+              {t("downloadCoSceneStudio")}
             </Link>
           </Typography>
         </Stack>

@@ -33,11 +33,16 @@ export async function decodeCompressedImageToBitmap(
   image: CompressedImageTypes,
   resizeWidth?: number,
 ): Promise<ImageBitmap> {
-  const bitmapData = new Blob([new Uint8Array(image.data)], { type: `image/${image.format}` });
+  const bitmapData = new Blob([image.data as Uint8Array<ArrayBuffer>], {
+    type: `image/${image.format}`,
+  });
   return await createImageBitmap(bitmapData, { resizeWidth });
 }
 
-export function isVideoKeyframe(frameMsg: CompressedVideo): boolean {
+export function isVideoKeyframe(frameMsg: { format?: string; data?: ArrayLike<number> }): boolean {
+  if (frameMsg.data == undefined) {
+    return false;
+  }
   switch (frameMsg.format) {
     case "h264": {
       // Search for an IDR NAL unit to determine if this is a keyframe

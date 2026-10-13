@@ -8,6 +8,7 @@
 import { Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
+import { CompressedVideo } from "./ImageTypes";
 import { VideoGopCache } from "./videoGopCache";
 
 const TOPIC = "/camera";
@@ -35,14 +36,28 @@ function h264Frame(
 }
 
 describe("VideoGopCache", () => {
-  it("replays the GOP covering a receiveTime seek in publish timestamp order", () => {
+  it("replays the GOP covering a receiveTime seek in physical insertion order", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
     const delta1 = h264Frame(11, 101, "delta");
     const delta2 = h264Frame(12, 102, "delta");
-    cache.addFrames([delta2, key, delta1]);
+    cache.addFrames([key, delta2, delta1]);
 
-    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, delta1, delta2]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, delta2, delta1]);
+  });
+
+  it("preserves a decreasing publish timestamp for the decoder to reject", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const laterTimestamp = h264Frame(11, 102, "delta");
+    const decreasingTimestamp = h264Frame(12, 101, "delta");
+    cache.addFrames([key, laterTimestamp, decreasingTimestamp]);
+
+    expect(cache.framesForPublishTime(TOPIC, t(101))).toEqual([
+      key,
+      laterTimestamp,
+      decreasingTimestamp,
+    ]);
   });
 
   it("does not skip a future-received delta when replaying by receiveTime", () => {
@@ -75,28 +90,29 @@ describe("VideoGopCache", () => {
     expect(cache.framesForPublishTime(TOPIC, t(102), t(100))).toEqual([middle, delta]);
   });
 
-  it("dedupes duplicate publish timestamps by keeping the last write", () => {
+  it("keeps every frame with a duplicate publish timestamp", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
     const first = h264Frame(11, 101, "delta", 8);
-    const replacement = h264Frame(12, 101, "delta", 16);
-    cache.addFrames([key, first, replacement]);
+    const duplicate = h264Frame(12, 101, "delta", 16);
+    cache.addFrames([key, first, duplicate]);
 
-    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, replacement]);
+    expect(cache.framesForPublishTime(TOPIC, t(101))).toEqual([key, first, duplicate]);
+    expect(cache.byteSize()).toBe(32);
   });
 
-  it("replaces an out-of-order duplicate publish timestamp without changing frame order", () => {
+  it("does not reorder or replace out-of-order duplicate publish timestamps", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key", 8);
     const later = h264Frame(12, 102, "delta", 8);
     const first = h264Frame(11, 101, "delta", 8);
-    const replacement = h264Frame(13, 101, "delta", 16);
+    const duplicate = h264Frame(13, 101, "delta", 16);
 
     cache.addFrames([key, later, first]);
-    cache.addFrame(replacement);
+    cache.addFrame(duplicate);
 
-    expect(cache.framesForReceiveTime(TOPIC, t(13))).toEqual([key, replacement, later]);
-    expect(cache.byteSize()).toBe(32);
+    expect(cache.framesForReceiveTime(TOPIC, t(13))).toEqual([key, later, first, duplicate]);
+    expect(cache.byteSize()).toBe(40);
   });
 
   it("does not stitch a post-seek delta onto an older cached range", () => {
@@ -123,6 +139,134 @@ describe("VideoGopCache", () => {
     cache.addFrame(targetDelta);
 
     expect(cache.framesForPublishTime(TOPIC, t(150))).toBeUndefined();
+  });
+
+  it("truncates cached future frames before appending a backward-seek target", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const originalTarget = h264Frame(11, 101, "delta");
+    const future1 = h264Frame(12, 102, "delta");
+    const future2 = h264Frame(13, 103, "delta");
+    const newTarget = h264Frame(11, 101, "delta", 16);
+    cache.addFrames([key, originalTarget, future1, future2]);
+
+    cache.handleSeek(t(11));
+    cache.addFrame(newTarget);
+
+    expect(cache.framesForPublishTime(TOPIC, t(101))).toEqual([key, originalTarget, newTarget]);
+    expect(cache.framesForPublishTime(TOPIC, t(103))).toBeUndefined();
+    expect(cache.byteSize()).toBe(32);
+  });
+
+  it("truncates cached future frames even after the seek range was selected", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const originalTarget = h264Frame(11, 101, "delta");
+    const future = h264Frame(12, 102, "delta");
+    const newTarget = h264Frame(11, 101, "delta", 16);
+    cache.addFrames([key, originalTarget, future]);
+
+    cache.handleSeek(t(11));
+    expect(cache.seekAndReturnFramesForPublishTime(TOPIC, t(101))).toEqual([key, originalTarget]);
+    cache.addFrame(newTarget);
+
+    expect(cache.framesForPublishTime(TOPIC, t(101))).toEqual([key, originalTarget, newTarget]);
+    expect(cache.framesForPublishTime(TOPIC, t(102))).toBeUndefined();
+  });
+
+  it("deduplicates copied seek backfills after truncation and resumes appending", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const future = h264Frame(12, 102, "delta");
+    cache.addFrames([key, target, future]);
+
+    for (let i = 0; i < 10; i++) {
+      cache.handleSeek(t(11, 500_000_000));
+      expect(cache.addFrame(h264Frame(11, 101, "delta"))).toBe(true);
+      expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+      expect(cache.byteSize()).toBe(16);
+    }
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toBeUndefined();
+    cache.addFrame(future);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, target, future]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("truncates at the copied backfill boundary when future publish timestamps are equal", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const future = h264Frame(12, 101, "delta");
+    cache.addFrames([key, target, future]);
+    cache.handleSeek(t(11, 500_000_000));
+    cache.addFrame(h264Frame(11, 101, "delta"));
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toBeUndefined();
+    expect(cache.byteSize()).toBe(16);
+    cache.addFrame(future);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, target, future]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("deduplicates only the first valid post-seek frame", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    expect(cache.addFrame({ ...target, message: {} })).toBe(false);
+    cache.addFrame(h264Frame(11, 101, "delta"));
+    expect(cache.byteSize()).toBe(16);
+
+    const repeated = h264Frame(11, 101, "delta");
+    cache.addFrame(repeated);
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target, repeated]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("retains distinct same-size payloads with identical timestamps after seeking", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const different = h264Frame(11, 101, "delta");
+    (different.message as { data: Uint8Array }).data[7] = 1;
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    cache.addFrame(different);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target, different]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("deduplicates a legacy array backfill against the same typed-array payload", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const message = target.message as CompressedVideo;
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    cache.addFrame({ ...target, message: { ...message, data: Array.from(message.data) } });
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+    expect(cache.byteSize()).toBe(16);
+  });
+
+  it("retains changed frame metadata even when the payload object is shared", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const changed = {
+      ...target,
+      message: { ...(target.message as CompressedVideo), frame_id: "other-camera" },
+    };
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    cache.addFrame(changed);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target, changed]);
+    expect(cache.byteSize()).toBe(24);
   });
 
   it("continues appending deltas to the GOP selected by a cached receive-time seek", () => {
@@ -169,6 +313,29 @@ describe("VideoGopCache", () => {
     cache.addFrame(delta);
 
     expect(cache.framesForPublishTime(TOPIC, t(100), t(50))).toBeUndefined();
+  });
+
+  it("retains distinct frames with equal receive times when merging ranges", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const first = h264Frame(11, 101, "delta");
+    const second = h264Frame(11, 101, "delta", 16);
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, first]);
+    cache.addFrameRange([second, end]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, first, second, end]);
+  });
+
+  it("merges a historical range fetched later in stream chronology", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const middle = h264Frame(11, 101, "delta");
+    const target = h264Frame(12, 102, "delta");
+    cache.addFrameRange([middle, target]);
+    cache.handleSeek(t(10));
+    cache.addFrameRange([key, middle]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, middle, target]);
+    expect(cache.byteSize()).toBe(24);
   });
 
   it("merges overlapping cached ranges and replays from the nearest keyframe", () => {
@@ -229,9 +396,9 @@ describe("VideoGopCache", () => {
     cache.addFrame(h264Frame(2, 1, "key", 16));
     cache.addFrame(h264Frame(11, 11, "delta", 8));
 
-    expect(cache.byteSize()).toBe(32);
+    expect(cache.byteSize()).toBe(40);
     expect(cache.framesForPublishTime(TOPIC, t(11))).toEqual([
-      h264Frame(10, 10, "key", 8),
+      h264Frame(2, 1, "key", 16),
       h264Frame(11, 11, "delta", 8),
     ]);
   });

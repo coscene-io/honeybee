@@ -32,6 +32,7 @@ describe("McapIterableSource", () => {
     expect(problems).toEqual([
       {
         message: "This file contains no messages.",
+        messageKey: "fileContainsNoMessages",
         severity: "warn",
       },
     ]);

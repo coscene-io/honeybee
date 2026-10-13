@@ -27,8 +27,30 @@ export function filterMatches(filter: Immutable<MessagePathFilter>, value: unkno
     }
   }
 
-  // Test equality using `==` so we can be forgiving for comparing booleans with integers,
-  // comparing numbers with strings, bigints with numbers, and so on.
-  // eslint-disable-next-line @coscene-io/strict-equality
-  return currentValue != undefined && currentValue == filter.value;
+  if (currentValue == undefined) {
+    return false;
+  }
+
+  const operator = filter.operator ?? "==";
+  const rhs = filter.value;
+  switch (operator) {
+    case "==":
+      // Test equality using `==` so we can be forgiving for comparing booleans with integers,
+      // comparing numbers with strings, bigints with numbers, and so on.
+      // eslint-disable-next-line @coscene-io/strict-equality
+      return currentValue == rhs;
+    case "!=":
+      // eslint-disable-next-line @coscene-io/strict-equality
+      return currentValue != rhs;
+    // Relational operators follow JS semantics: mixed number/bigint/numeric-string compare
+    // numerically, anything incomparable (e.g. bigint vs "abc") is simply `false`.
+    case "<":
+      return (currentValue as number) < (rhs as number);
+    case "<=":
+      return (currentValue as number) <= (rhs as number);
+    case ">":
+      return (currentValue as number) > (rhs as number);
+    case ">=":
+      return (currentValue as number) >= (rhs as number);
+  }
 }

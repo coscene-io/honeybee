@@ -84,6 +84,21 @@ describe("Playback bar pointer events", () => {
     expect(getComputedStyle(range!).pointerEvents).toBe("none");
   });
 
+  it("places the progress band below the timeline ruler", () => {
+    render(
+      <Wrapper>
+        <ProgressPlot loading={false} viewport={viewport} />
+      </Wrapper>,
+    );
+
+    const ruler = screen.getByTestId("timeline-ruler");
+    const progressBand = screen.getByTestId("timeline-progress-band");
+
+    expect(getComputedStyle(ruler).flexBasis).toBe("14px");
+    expect(ruler.nextElementSibling).toBe(progressBand);
+    expect(getComputedStyle(progressBand).flexBasis).toBe("4px");
+  });
+
   it("keeps bags overlay out of hit testing", () => {
     const { container } = render(
       <Wrapper>

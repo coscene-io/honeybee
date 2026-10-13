@@ -22,8 +22,10 @@ class VelodyneDataSourceFactory implements IDataSourceFactory {
   public description = t("openDialog:velodyneDataSourceDesc");
   public docsLinks = [{ url: "https://foxglove.dev/docs/studio/connection/velodyne" }];
 
+  public requiredParams = ["port"];
+
   public formConfig = {
-    fields: [{ id: "port", label: "UDP Port", defaultValue: "2369" }],
+    fields: [{ id: "port", label: t("openDialog:udpPort"), defaultValue: "2369" }],
   };
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {

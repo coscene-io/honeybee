@@ -31,6 +31,11 @@ export type QueuedDecodedVideoFrame<TMetadata> = {
   metadata: TMetadata;
 };
 
+type ActiveQueueBatch = {
+  error?: Error;
+  settle?: (error?: Error) => void;
+};
+
 const log = Logger.getLogger(__filename);
 const MAX_BUFFERED_FRAMES = 1;
 const MAX_TIMED_OUT_TIMESTAMPS = 1024;
@@ -47,6 +52,7 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
   readonly #decoderInit: VideoDecoderInit;
   #decoder: VideoDecoder;
   #decoderConfig: VideoDecoderConfig | undefined;
+  #decoderGeneration = 0;
   readonly #mutex = new Mutex();
   #codedSize: { width: number; height: number } | undefined;
 
@@ -69,6 +75,7 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     }
   >();
   #discardQueuedTimestamps = new Set<number>();
+  #activeQueueBatch: ActiveQueueBatch | undefined;
 
   // Stores the last decoded frame as an ImageBitmap, should be set after decode()
   public lastImageBitmap: ImageBitmap | undefined;
@@ -121,7 +128,23 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
           this.#frameBuffer.shift()?.close();
         }
       },
-      error: (error) => this.emit("error", error),
+      error: (error) => {
+        const batch = this.#activeQueueBatch;
+        if (batch?.settle != undefined) {
+          batch.settle(error);
+        } else if (batch != undefined) {
+          batch.error = error;
+        }
+
+        // A decoder error is terminal for every callback that was registered against this
+        // decoder generation. In particular, decodeQueueSize may reach zero before WebCodecs
+        // reports an EncodingError, after queueFrames() has already returned. Do not leave those
+        // callbacks looking like viable late outputs.
+        this.#clearPending();
+        this.#clearQueued({ discardOutput: true });
+        this.#foundKeyFrame = false;
+        this.emit("error", error);
+      },
     };
     this.#decoder = new VideoDecoder(this.#decoderInit);
   }
@@ -131,6 +154,7 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
    * be called before decode() will accept frames.
    */
   public async init(decoderConfig: VideoDecoderConfig): Promise<void> {
+    const decoderGeneration = this.#decoderGeneration;
     await this.#mutex.runExclusive(async () => {
       // Optimize for latency means we do not have to call flush() in every decode() call
       // See <https://github.com/w3c/webcodecs/issues/206>
@@ -143,6 +167,9 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
       };
 
       let support = await VideoDecoder.isConfigSupported(selectedConfig);
+      if (decoderGeneration !== this.#decoderGeneration) {
+        return;
+      }
       if (support.supported !== true) {
         log.warn(
           `VideoDecoder does not support configuration ${JSON.stringify(
@@ -159,6 +186,10 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
           `VideoDecoder does not support configuration ${JSON.stringify(decoderConfig)}`,
         );
         this.emit("error", err);
+        return;
+      }
+
+      if (decoderGeneration !== this.#decoderGeneration) {
         return;
       }
 
@@ -262,51 +293,145 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
     return this.getLatestFrame();
   }
 
-  public queueFrames<TMetadata>(
+  public async queueFrames<TMetadata>(
     frames: readonly QueuedVideoFrame<TMetadata>[],
     onFrame: (frame: QueuedDecodedVideoFrame<TMetadata>) => void,
-  ): void {
-    if (this.#decoder.state === "closed") {
-      this.emit("warn", "VideoDecoder is closed, creating a new one");
-      this.#decoder = new VideoDecoder(this.#decoderInit);
+  ): Promise<void> {
+    if (this.#activeQueueBatch != undefined) {
+      throw new Error("Cannot queue a new video batch while the previous batch is decoding");
     }
+    const batch: ActiveQueueBatch = {};
+    this.#activeQueueBatch = batch;
 
-    if (this.#decoder.state === "unconfigured") {
-      this.emit("debug", "Waiting for initialization...");
-      return;
-    }
-
-    for (const frame of frames) {
-      if (frame.type === "key") {
-        this.#foundKeyFrame = true;
-      }
-      if (!this.#foundKeyFrame) {
-        continue;
+    try {
+      if (this.#decoder.state === "closed") {
+        this.emit("warn", "VideoDecoder is closed, creating a new one");
+        this.#decoder = new VideoDecoder(this.#decoderInit);
       }
 
-      const ts = Math.trunc(frame.timestampMicros);
-      this.#discardQueuedTimestamps.delete(ts);
-      this.#queuedByTimestamp.set(ts, {
-        metadata: frame.metadata,
-        onFrame: onFrame as (frame: QueuedDecodedVideoFrame<unknown>) => void,
-      });
+      if (this.#decoder.state === "unconfigured") {
+        this.emit("debug", "Waiting for initialization...");
+        throw new Error("Video decoder is not configured");
+      }
 
-      try {
-        this.#decoder.decode(
-          new EncodedVideoChunk({ type: frame.type, data: frame.data, timestamp: ts }),
-        );
-      } catch (unk) {
-        this.#queuedByTimestamp.delete(ts);
-        this.emit(
-          "error",
-          new Error(
+      let submittedFrameCount = 0;
+      for (const frame of frames) {
+        if (frame.type === "key") {
+          this.#foundKeyFrame = true;
+        }
+        if (!this.#foundKeyFrame) {
+          continue;
+        }
+
+        const ts = Math.trunc(frame.timestampMicros);
+        this.#discardQueuedTimestamps.delete(ts);
+        this.#queuedByTimestamp.set(ts, {
+          metadata: frame.metadata,
+          onFrame: onFrame as (frame: QueuedDecodedVideoFrame<unknown>) => void,
+        });
+
+        try {
+          this.#decoder.decode(
+            new EncodedVideoChunk({ type: frame.type, data: frame.data, timestamp: ts }),
+          );
+          submittedFrameCount++;
+        } catch (unk) {
+          this.#queuedByTimestamp.delete(ts);
+          const error = new Error(
             `Failed to decode ${frame.data.byteLength} byte chunk at time ${ts}: ${
               (unk as Error).message
             }`,
-          ),
-        );
+          );
+          this.emit("error", error);
+          throw error;
+        }
+      }
+
+      if (submittedFrameCount === 0) {
+        throw new Error("No video frames were submitted to the decoder");
+      }
+
+      await this.#waitForDecodeQueueToDrain(batch);
+    } catch (error) {
+      // A decode failure can leave earlier chunks from this batch in the decoder queue, or close
+      // the decoder entirely. Reset and restore it so those chunks cannot overlap the next batch,
+      // which must start decoding from a new keyframe.
+      this.#resetAfterQueueFailure();
+      throw error;
+    } finally {
+      if (this.#activeQueueBatch === batch) {
+        this.#activeQueueBatch = undefined;
       }
     }
+  }
+
+  /** Discards queued output callbacks except for an optional frame that may still arrive late. */
+  public discardQueuedFramesExcept(timestampMicros?: number): void {
+    const retainedTimestamp =
+      timestampMicros == undefined ? undefined : Math.trunc(timestampMicros);
+    for (const timestamp of this.#queuedByTimestamp.keys()) {
+      if (timestamp === retainedTimestamp) {
+        continue;
+      }
+      this.#queuedByTimestamp.delete(timestamp);
+      this.#discardQueuedTimestamps.add(timestamp);
+    }
+    this.#trimDiscardQueuedTimestamps();
+  }
+
+  async #waitForDecodeQueueToDrain(batch: ActiveQueueBatch): Promise<void> {
+    if (batch.error != undefined) {
+      throw batch.error;
+    }
+    const decoder = this.#decoder;
+    if (decoder.state !== "configured" || decoder.decodeQueueSize === 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const listener = (): void => {
+        if (batch.error != undefined) {
+          settle(batch.error);
+        } else if (decoder.state !== "configured" || decoder.decodeQueueSize === 0) {
+          settle();
+        }
+      };
+      const settle = (error?: Error): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        decoder.removeEventListener("dequeue", listener);
+        batch.settle = undefined;
+        if (error != undefined) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      };
+
+      batch.settle = settle;
+      decoder.addEventListener("dequeue", listener);
+      listener();
+    });
+  }
+
+  #settleActiveQueueBatch(): void {
+    const batch = this.#activeQueueBatch;
+    this.#activeQueueBatch = undefined;
+    batch?.settle?.();
+  }
+
+  #resetAfterQueueFailure(): void {
+    this.resetForSeek();
+    if (this.#decoderConfig == undefined || this.#decoder.state === "configured") {
+      return;
+    }
+    if (this.#decoder.state === "closed") {
+      this.#decoder = new VideoDecoder(this.#decoderInit);
+    }
+    this.#decoder.configure(this.#decoderConfig);
   }
 
   /**
@@ -420,17 +545,21 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
       for (const timestamp of this.#queuedByTimestamp.keys()) {
         this.#discardQueuedTimestamps.add(timestamp);
       }
-      while (this.#discardQueuedTimestamps.size > MAX_TIMED_OUT_TIMESTAMPS) {
-        const oldestTimestamp = this.#discardQueuedTimestamps.values().next().value;
-        if (oldestTimestamp == undefined) {
-          break;
-        }
-        this.#discardQueuedTimestamps.delete(oldestTimestamp);
-      }
+      this.#trimDiscardQueuedTimestamps();
     } else {
       this.#discardQueuedTimestamps.clear();
     }
     this.#queuedByTimestamp.clear();
+  }
+
+  #trimDiscardQueuedTimestamps(): void {
+    while (this.#discardQueuedTimestamps.size > MAX_TIMED_OUT_TIMESTAMPS) {
+      const oldestTimestamp = this.#discardQueuedTimestamps.values().next().value;
+      if (oldestTimestamp == undefined) {
+        break;
+      }
+      this.#discardQueuedTimestamps.delete(oldestTimestamp);
+    }
   }
 
   /**
@@ -442,6 +571,9 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
    * reconfigure it with the saved config.
    */
   public resetForSeek(): void {
+    this.#decoderGeneration++;
+    this.#settleActiveQueueBatch();
+
     if (this.#decoder.state === "configured") {
       this.#decoder.reset();
       // After reset(), decoder is in "unconfigured" state, need to reconfigure
@@ -468,6 +600,9 @@ export class VideoPlayer extends EventEmitter<VideoPlayerEventTypes> {
    * stream information or decoder configuration.
    */
   public close(): void {
+    this.#decoderGeneration++;
+    this.#settleActiveQueueBatch();
+
     if (this.#decoder.state !== "closed") {
       this.#decoder.close();
     }

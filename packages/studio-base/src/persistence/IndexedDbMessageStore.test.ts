@@ -12,6 +12,7 @@ import { MessageEvent } from "@foxglove/studio";
 import {
   type CacheSessionKind,
   type CacheSessionMetadata,
+  type MessageCacheMetricData,
   clearIndexedDbMessageStoreDatabase,
   indexedDbMessageCacheApi,
   IndexedDbMessageStore,
@@ -115,6 +116,209 @@ describe("IndexedDbMessageStore", () => {
 
   afterEach(async () => {
     await clearIndexedDbMessageStoreDatabase();
+  });
+
+  it("keeps a resetting session active while another connection runs cleanup", async () => {
+    const sessionId = "reset-during-cleanup";
+    const store = new IndexedDbMessageStore({ sessionId });
+    const janitor = new IndexedDbMessageStore({ accessMode: "maintenance" });
+    await Promise.all([store.init(), janitor.init()]);
+    await store.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+    await store.storeDatatypes(new Map([["pkg/Msg", { definitions: [] }]]));
+    await store.append(
+      [1, 2, 3].map((seq) => ({
+        ...messageEvent(seq),
+        sizeInBytes: 5 * 1024 * 1024,
+      })),
+    );
+    await store.flush();
+    const metadataBefore = await store.getSessionMetadata();
+    let metadataDuringReset: CacheSessionMetadata | undefined;
+    let cleanup: Promise<void> | undefined;
+    const originalSetTimeout = globalThis.setTimeout;
+    const timeoutSpy = jest
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((handler, timeout, ...args) => {
+        if (timeout !== 0) {
+          return originalSetTimeout(handler, timeout, ...args);
+        }
+        // Pause the reset between its bounded deletion transactions. The other connection gets
+        // a complete cleanup pass before the reset resumes, including without Web Locks.
+        timeoutSpy.mockRestore();
+        cleanup = (async () => {
+          metadataDuringReset = await store.getSessionMetadata();
+          await janitor.cleanupOldSessions();
+        })();
+        void cleanup.finally(() => {
+          handler(...args);
+        });
+        return originalSetTimeout(() => {}, 0);
+      });
+    try {
+      await store.clear();
+      await cleanup;
+      expect(metadataDuringReset).toMatchObject({
+        status: "active",
+        owners: metadataBefore?.owners,
+      });
+      expect(await store.getSessionMetadata()).toMatchObject({
+        status: "active",
+        messageCount: 0,
+        approximateSizeBytes: 0,
+        owners: metadataBefore?.owners,
+        cleanupToken: undefined,
+      });
+      expect((await store.getSessionMetadata())?.contentRevision).toBeGreaterThan(
+        metadataBefore?.contentRevision ?? 0,
+      );
+      expect(await store.getTopics()).toEqual([]);
+      expect(await store.getDatatypes()).toBeUndefined();
+      await store.append([messageEvent(4)]);
+      await store.flush();
+      expect((await store.stats()).count).toBe(1);
+    } finally {
+      timeoutSpy.mockRestore();
+      await Promise.all([store.close(), janitor.close()]);
+    }
+  });
+
+  it.each(["append", "topics", "datatypes", "new writer", "clear"])(
+    "retries a concurrent %s after reset has removed messages",
+    async (operation) => {
+      const sessionId = `reset-concurrent-${operation}`;
+      const store = new IndexedDbMessageStore({ sessionId });
+      let markWaiting = () => {};
+      const waiting = new Promise<void>((resolve) => {
+        markWaiting = resolve;
+      });
+      const metricSink = jest.fn((_event: string, data: MessageCacheMetricData) => {
+        if (data.status === "waiting-for-reset") {
+          markWaiting();
+        }
+      });
+      const other = new IndexedDbMessageStore({ sessionId, metricSink });
+      let newWriter: IndexedDbMessageStore | undefined;
+      await Promise.all([store.init(), other.init()]);
+      await store.append([messageEvent(1)]);
+      await store.storeTopics([{ name: "/topic", schemaName: "pkg/Msg" }]);
+      await store.flush();
+      const originalSetTimeout = globalThis.setTimeout;
+      let yields = 0;
+      let concurrentWrite: Promise<void> | undefined;
+      let writeError: unknown;
+      const timeoutSpy = jest
+        .spyOn(globalThis, "setTimeout")
+        .mockImplementation((handler, timeout, ...args) => {
+          if (timeout !== 0 || ++yields !== 2) {
+            return originalSetTimeout(handler, timeout, ...args);
+          }
+          // The message loop is now empty and topic deletion has yielded. A surviving append at
+          // this point used to disagree with the final zeroed session counters.
+          timeoutSpy.mockRestore();
+          concurrentWrite = (async () => {
+            try {
+              switch (operation) {
+                case "append":
+                  await other.append([messageEvent(2)]);
+                  await other.flush();
+                  break;
+                case "topics":
+                  await other.storeTopics([{ name: "/late", schemaName: "pkg/Msg" }]);
+                  break;
+                case "datatypes":
+                  await other.storeDatatypes(new Map([["pkg/Msg", { definitions: [] }]]));
+                  break;
+                case "new writer":
+                  newWriter = new IndexedDbMessageStore({ sessionId, metricSink });
+                  await newWriter.init();
+                  break;
+                case "clear":
+                  await other.clear();
+                  break;
+              }
+            } catch (error) {
+              writeError = error;
+            }
+          })();
+          void race([waiting, concurrentWrite]).then(() => {
+            handler(...args);
+          });
+          return originalSetTimeout(() => {}, 0);
+        });
+      try {
+        await store.clear();
+        await concurrentWrite;
+        expect(writeError).toBeUndefined();
+        expect(metricSink).toHaveBeenCalledWith(
+          "write",
+          expect.objectContaining({ status: "waiting-for-reset" }),
+        );
+        expect((await store.getSessionMetadata())?.messageCount).toBe(
+          operation === "append" ? 1 : 0,
+        );
+        expect(
+          await store.getMessages({ start: { sec: 0, nsec: 0 }, end: { sec: 20, nsec: 0 } }),
+        ).toEqual(operation === "append" ? [messageEvent(2)] : []);
+        if (operation === "topics") {
+          expect(await store.getTopics()).toEqual([expect.objectContaining({ name: "/late" })]);
+        } else {
+          expect(await store.getTopics()).toEqual([]);
+        }
+        expect(await store.getDatatypes()).toEqual(
+          operation === "datatypes" ? new Map([["pkg/Msg", { definitions: [] }]]) : undefined,
+        );
+        await store.append([messageEvent(3)]);
+        await store.flush();
+        expect((await store.stats()).count).toBe(operation === "append" ? 2 : 1);
+      } finally {
+        timeoutSpy.mockRestore();
+        await Promise.allSettled([store.close(), other.close(), newWriter?.close()]);
+        jest.mocked(console.warn).mockClear();
+        jest.mocked(console.error).mockClear();
+      }
+    },
+  );
+
+  it("lets a new writer wait for reset beyond the normal initialization deadline", async () => {
+    const sessionId = "reset-delayed-new-writer";
+    const original = new IndexedDbMessageStore({ sessionId });
+    await original.init();
+    const db = await IDB.openDB(REALTIME_MESSAGE_CACHE_DB_NAME);
+    const metadata = (await db.get("sessions", sessionId)) as CacheSessionMetadata;
+    await db.put("sessions", { ...metadata, cleanupToken: "held-reset" });
+    let markWaiting = () => {};
+    const waiting = new Promise<void>((resolve) => {
+      markWaiting = resolve;
+    });
+    const other = new IndexedDbMessageStore({
+      sessionId,
+      openTimeoutMs: 500,
+      metricSink: (_event, data) => {
+        if (data.status === "waiting-for-reset") {
+          markWaiting();
+        }
+      },
+    });
+    let initializationError: unknown;
+    const initializing = other.init().catch((error: unknown) => {
+      initializationError = error;
+    });
+    try {
+      await waiting;
+      await wait(650);
+      expect(initializationError).toBeUndefined();
+      await db.put("sessions", { ...metadata, cleanupToken: undefined });
+      await initializing;
+      expect(initializationError).toBeUndefined();
+      expect(other.isWritable()).toBe(true);
+      expect((await other.getSessionMetadata())?.owners).toHaveLength(2);
+    } finally {
+      const current = (await db.get("sessions", sessionId)) as CacheSessionMetadata;
+      await db.put("sessions", { ...current, cleanupToken: undefined });
+      await initializing;
+      await Promise.allSettled([other.close(), original.close()]);
+      db.close();
+    }
   });
 
   it("flushes queued appends on close", async () => {
@@ -402,6 +606,39 @@ describe("IndexedDbMessageStore", () => {
 
     expect(messages.map((msg) => msg.message)).toEqual([{ seq: 2 }]);
     await store.close();
+  });
+
+  it("continues retention pruning across reduced transaction batches", async () => {
+    const store = new IndexedDbMessageStore({
+      sessionId: "multi-batch-retention-window",
+      retentionWindowMs: 1_000,
+    });
+    await store.init();
+
+    try {
+      const expired = Array.from({ length: 9 }, (_, index) =>
+        messageEvent(index, "/topic", { sec: index + 1, nsec: 0 }),
+      );
+      const current = messageEvent(1000, "/topic", { sec: 100, nsec: 0 });
+      await store.append([...expired, current], {
+        estimatedSizeBytes: [...expired.map(() => 5 * 1024 ** 2), 10],
+      });
+      await store.flush();
+
+      // Eight yielded cleanup transactions leave one bounded batch. A subsequent append should
+      // continue immediately instead of waiting for the normal one-second prune interval.
+      const next = messageEvent(1001, "/topic", { sec: 100, nsec: 1 });
+      await store.append([next]);
+      await store.flush();
+
+      const messages = await store.getMessages({
+        start: { sec: 0, nsec: 0 },
+        end: { sec: 101, nsec: 0 },
+      });
+      expect(messages.map((message) => message.message)).toEqual([{ seq: 1000 }, { seq: 1001 }]);
+    } finally {
+      await store.close();
+    }
   });
 
   it("closes the database connection even when close fails to flush pending messages", async () => {
@@ -1026,6 +1263,42 @@ describe("IndexedDbMessageStore", () => {
       await appendPromise;
       await store.flush();
       expect((await store.stats()).count).toBe(1);
+    } finally {
+      await store.close();
+      if (originalStorage == undefined) {
+        Reflect.deleteProperty(navigator, "storage");
+      } else {
+        Object.defineProperty(navigator, "storage", originalStorage);
+      }
+    }
+  });
+
+  it("uses the fallback budget when the initial storage estimate stalls", async () => {
+    const originalStorage = Object.getOwnPropertyDescriptor(navigator, "storage");
+    const metricSink = jest.fn();
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: {
+        estimate: async () => await new Promise<StorageEstimate>(() => undefined),
+      },
+    });
+    const store = new IndexedDbMessageStore({
+      sessionId: "stalled-initial-storage-estimate",
+      openTimeoutMs: 2_000,
+      metricSink,
+    });
+
+    try {
+      await expect(withTimeout(store.init(), 3_000)).resolves.toBeUndefined();
+      expect(store.isWritable()).toBe(true);
+      expect(store.getMaxCacheSize()).toBe(512 * 1024 ** 2);
+      expect(metricSink).toHaveBeenCalledWith(
+        "storage",
+        expect.objectContaining({
+          kind: "realtime-viz",
+          status: "timeout",
+        }),
+      );
     } finally {
       await store.close();
       if (originalStorage == undefined) {
@@ -2333,7 +2606,45 @@ describe("IndexedDbMessageStore", () => {
     }
   });
 
-  it("applies the initialization deadline to a post-open transaction", async () => {
+  it("starts the post-open deadline after the database connection opens", async () => {
+    const originalOpenDB = IDB.openDB;
+    const originalStorage = Object.getOwnPropertyDescriptor(navigator, "storage");
+    const estimate = jest.fn(async () => {
+      await wait(180);
+      return { quota: 10 * 1024 ** 3, usage: 0 };
+    });
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: { estimate },
+    });
+    const openDBSpy = jest
+      .spyOn(indexedDbMessageCacheApi, "openDB")
+      .mockImplementation(async (...args: Parameters<typeof IDB.openDB>) => {
+        const db = await originalOpenDB(...args);
+        await wait(200);
+        return db;
+      });
+    const store = new IndexedDbMessageStore({
+      sessionId: "fresh-post-open-deadline",
+      openTimeoutMs: 300,
+    });
+
+    try {
+      await expect(withTimeout(store.init(), 1_000)).resolves.toBeUndefined();
+      expect(estimate).toHaveBeenCalledTimes(1);
+      expect(store.isWritable()).toBe(true);
+    } finally {
+      openDBSpy.mockRestore();
+      await store.close();
+      if (originalStorage == undefined) {
+        Reflect.deleteProperty(navigator, "storage");
+      } else {
+        Object.defineProperty(navigator, "storage", originalStorage);
+      }
+    }
+  });
+
+  it("fails closed when session creation exceeds the post-open deadline", async () => {
     const originalOpenDB = IDB.openDB;
     let injectedHang = false;
     let rejectTransaction: ((error: Error) => void) | undefined;
@@ -2379,18 +2690,28 @@ describe("IndexedDbMessageStore", () => {
           },
         });
       });
+    const metricSink = jest.fn();
     const store = new IndexedDbMessageStore({
       sessionId: "post-open-timeout",
       openTimeoutMs: 25,
+      metricSink,
     });
 
     try {
-      await expect(withTimeout(store.init(), 250)).rejects.toThrow(
+      await expect(withTimeout(store.init(), 500)).rejects.toThrow(
         "Timed out initializing IndexedDbMessageStore during session creation",
       );
       expect(injectedHang).toBe(true);
       expect(abort).toHaveBeenCalledTimes(1);
       expect(store.isWritable()).toBe(false);
+      expect(metricSink).toHaveBeenCalledWith(
+        "open",
+        expect.objectContaining({
+          kind: "realtime-viz",
+          status: "timeout",
+          stage: "session creation",
+        }),
+      );
       jest.mocked(console.error).mockClear();
     } finally {
       openDBSpy.mockRestore();

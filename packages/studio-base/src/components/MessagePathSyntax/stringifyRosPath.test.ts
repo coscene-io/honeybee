@@ -30,6 +30,10 @@ describe("stringifyRosPath", () => {
     '/topic.foo{bar=="baz"}.a{bar=="baz"}.b{bar==3}.c{bar==-1}.d{bar==false}.e[:]{bar.baz==true}',
     '/topic{foo=="bar"}{baz==2}.a[3].b{x=="y"}',
     "/topic.foo{bar==$}.a{bar.baz==$my_var_1}",
+    "/imu.orientation.@rpy.yaw.@degrees",
+    "/wheel.speed.@mul(3.6)",
+    "/topic.items[:]{id!=1}.name",
+    String.raw`/topic.items[:]{name=='a"b'}`,
   ];
   it.each(paths)("returns original string for: %s", (str) => {
     expect(stringifyMessagePath(parseMessagePath(str)!)).toEqual(str);
@@ -46,5 +50,15 @@ describe("stringifyRosPath", () => {
     expect(
       stringifyMessagePath(fillInGlobalVariablesInPath(parseMessagePath(path)!, globalVariables)),
     ).toEqual(expected);
+  });
+
+  it("fills a function operand variable", () => {
+    expect(
+      stringifyMessagePath(
+        fillInGlobalVariablesInPath(parseMessagePath("/wheel.speed.@mul($scale)")!, {
+          scale: 3.6,
+        }),
+      ),
+    ).toEqual("/wheel.speed.@mul(3.6)");
   });
 });

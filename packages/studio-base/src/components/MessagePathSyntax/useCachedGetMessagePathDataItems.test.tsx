@@ -554,6 +554,113 @@ describe("useCachedGetMessagePathDataItems", () => {
       ]);
     });
 
+    it("does not label a transformed enum value as a constant", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: 0 },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/some/topic", schemaName: "some_datatype" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          some_datatype: {
+            definitions: [
+              { name: "OFF", type: "uint32", isConstant: true, value: 0 },
+              { name: "ON", type: "uint32", isConstant: true, value: 1 },
+              { name: "state", type: "uint32" },
+            ],
+          },
+        }),
+      );
+
+      expect(
+        addValuesWithPathsToItems(messages, "/some/topic.state.@add(1)", topics, datatypes),
+      ).toEqual([[{ value: 1, path: "/some/topic.state.@add(1)", constantName: undefined }]]);
+    });
+
+    it("filters enum identifiers by constant name", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: 0 },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: 1 },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/some/topic", schemaName: "some_datatype" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          some_datatype: {
+            definitions: [
+              { name: "OFF", type: "uint32", isConstant: true, value: 0 },
+              { name: "ON", type: "uint32", isConstant: true, value: 1 },
+              { name: "state", type: "uint32" },
+            ],
+          },
+        }),
+      );
+      expect(
+        addValuesWithPathsToItems(messages, "/some/topic{state==ON}.state", topics, datatypes),
+      ).toEqual([[], [{ value: 1, path: "/some/topic{state==ON}.state", constantName: "ON" }]]);
+    });
+
+    it("filters nested enum identifiers by walking the filter path", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: { mode: 0 } },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+        {
+          topic: "/some/topic",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { state: { mode: 1 } },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/some/topic", schemaName: "wrapper" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          wrapper: {
+            definitions: [{ name: "state", type: "status", isComplex: true }],
+          },
+          status: {
+            definitions: [
+              { name: "IDLE", type: "uint32", isConstant: true, value: 0 },
+              { name: "ACTIVE", type: "uint32", isConstant: true, value: 1 },
+              { name: "mode", type: "uint32" },
+            ],
+          },
+        }),
+      );
+      expect(
+        addValuesWithPathsToItems(
+          messages,
+          "/some/topic{state.mode==ACTIVE}.state.mode",
+          topics,
+          datatypes,
+        ),
+      ).toEqual([
+        [],
+        [{ value: 1, path: "/some/topic{state.mode==ACTIVE}.state.mode", constantName: "ACTIVE" }],
+      ]);
+    });
+
     it("filters correctly with bigints", () => {
       const messages: MessageEvent[] = [
         {
@@ -614,6 +721,49 @@ describe("useCachedGetMessagePathDataItems", () => {
         ],
       ]);
     });
+
+    it("includes the function chain in resolved item paths", () => {
+      const messages: MessageEvent[] = [
+        {
+          topic: "/wheel",
+          receiveTime: { sec: 0, nsec: 0 },
+          message: { speed: 10, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+          schemaName: "datatype",
+          sizeInBytes: 0,
+        },
+      ];
+      const topics: Topic[] = [{ name: "/wheel", schemaName: "some_datatype" }];
+      const datatypes: RosDatatypes = new Map(
+        Object.entries({
+          some_datatype: {
+            definitions: [
+              { name: "speed", type: "float64" },
+              { name: "orientation", type: "geometry_msgs/Quaternion", isComplex: true },
+            ],
+          },
+          "geometry_msgs/Quaternion": {
+            definitions: [
+              { name: "x", type: "float64" },
+              { name: "y", type: "float64" },
+              { name: "z", type: "float64" },
+              { name: "w", type: "float64" },
+            ],
+          },
+        }),
+      );
+
+      expect(
+        addValuesWithPathsToItems(messages, "/wheel.speed.@mul(3.6)", topics, datatypes),
+      ).toEqual([[{ constantName: undefined, path: "/wheel.speed.@mul(3.6)", value: 36 }]]);
+      expect(
+        addValuesWithPathsToItems(
+          messages,
+          "/wheel.orientation.@rpy.yaw",
+          topics,
+          datatypes,
+        )[0]?.[0]?.path,
+      ).toEqual("/wheel.orientation.@rpy.yaw");
+    });
   });
 });
 
@@ -632,7 +782,7 @@ describe("fillInGlobalVariablesInPath", () => {
               end: { variableName: "end", startLoc: 0 },
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { start: 10, end: "123" },
       ),
@@ -643,6 +793,7 @@ describe("fillInGlobalVariablesInPath", () => {
         { name: "bar", type: "name", repr: "bar" },
         { type: "slice", start: 10, end: 123 },
       ],
+      isFullySpecified: true,
     });
 
     // Non-numbers
@@ -659,7 +810,7 @@ describe("fillInGlobalVariablesInPath", () => {
               end: { variableName: "end", startLoc: 0 },
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { end: "blah" },
       ),
@@ -670,6 +821,7 @@ describe("fillInGlobalVariablesInPath", () => {
         { type: "name", name: "bar", repr: "bar" },
         { type: "slice", start: 0, end: Infinity },
       ],
+      isFullySpecified: true,
     });
   });
 
@@ -689,7 +841,7 @@ describe("fillInGlobalVariablesInPath", () => {
               repr: "",
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { var: 123 },
       ),
@@ -699,6 +851,7 @@ describe("fillInGlobalVariablesInPath", () => {
       messagePath: [
         { type: "filter", path: ["bar"], value: 123, nameLoc: 0, valueLoc: 0, repr: "" },
       ],
+      isFullySpecified: true,
     });
   });
 
@@ -719,7 +872,7 @@ describe("fillInGlobalVariablesInPath", () => {
               repr: "",
             },
           ],
-          modifier: undefined,
+          isFullySpecified: true,
         },
         { var: true },
       ),
@@ -729,6 +882,7 @@ describe("fillInGlobalVariablesInPath", () => {
       messagePath: [
         { type: "filter", path: ["bar"], value: undefined, nameLoc: 0, valueLoc: 0, repr: "" },
       ],
+      isFullySpecified: true,
     });
   });
 });
@@ -776,13 +930,58 @@ describe("useDecodeMessagePathsForMessagesByTopic", () => {
     expect(result.current(messagesByTopic)).toEqual({
       // Value for /topic1.value
       "/topic1.value": [
-        { messageEvent: message, queriedData: [{ path: "/topic1.value", value: 1 }] },
+        {
+          messageEvent: message,
+          queriedData: [{ path: "/topic1.value", value: 1, constantName: undefined }],
+        },
       ],
       // Empty array for /topic2.value
       "/topic2.value": [],
       // No array for /topic3.value because the path is valid but the data is missing.
-      // Empty array for /topic3..value because path is invalid.
-      "/topic3..value": [],
+      // `/topic3..value` now parses (empty name recovery), so with no `/topic3`
+      // messages it is omitted rather than mapped to [].
     });
   });
 });
+
+it.each([
+  ["[:-1]", [1, 2, 3]],
+  ["[-2:]", [2, 3]],
+  ["[1:-1]", [2, 3]],
+  ["[-10:]", [1, 2, 3]],
+  ["[$start:]", [1, 2, 3]],
+  ["[-4]", []],
+  ["[-3]", [1]],
+  ["[-1]", [3]],
+  ["[3]", []],
+  ["[-4:-4]", []],
+  ["[:-4]", []],
+  ["[$index]", []],
+] as const)(
+  "normalizes %s before applying functions in Raw Messages and State Transitions",
+  (slice, expected) => {
+    const datatypes: RosDatatypes = new Map([
+      ["foo", { definitions: [{ name: "values", type: "float64", isArray: true }] }],
+    ]);
+    const path = fillInGlobalVariablesInPath(parseMessagePath(`/foo.values${slice}.@abs`)!, {
+      start: -Infinity,
+      index: -4,
+    });
+    const message: MessageEvent = {
+      topic: "/foo",
+      schemaName: "foo",
+      receiveTime: { sec: 0, nsec: 0 },
+      sizeInBytes: 0,
+      message: { values: [-1, -2, -3] },
+    };
+    expect(
+      getMessagePathDataItems(
+        message,
+        path,
+        { "/foo": { name: "/foo", schemaName: "foo" } },
+        messagePathStructures(datatypes),
+        {},
+      )?.map((item) => item.value),
+    ).toEqual(expected);
+  },
+);

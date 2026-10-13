@@ -20,18 +20,19 @@ import { CSSProperties, useCallback, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
-import {
-  quoteTopicNameIfNeeded,
-  parseMessagePath,
-  MessagePath,
-  PrimitiveType,
-} from "@foxglove/message-path";
+import { quoteTopicNameIfNeeded, parseMessagePath, MessagePath } from "@foxglove/message-path";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
 import { Autocomplete, IAutocomplete } from "@foxglove/studio-base/components/Autocomplete";
 import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import { enumValuesByDatatypeAndField } from "@foxglove/studio-base/util/enums";
 
+import {
+  MessagePathFunctionSupport,
+  OPERAND_FUNCTION_NAMES,
+  structureAfterFunctionChain,
+} from "./messagePathFunctions";
 import {
   traverseStructure,
   messagePathStructures,
@@ -39,6 +40,54 @@ import {
   validTerminatingStructureItem,
   StructureTraversalResult,
 } from "./messagePathsForDatatype";
+import { suggestFilterCompletions } from "./suggestFilterCompletions";
+import { suggestFunctionSuffixes, validateMessagePathInput } from "./suggestMessagePathCompletions";
+
+const OPERAND_OPEN_RE = /^([a-zA-Z0-9_-]+)\(/;
+
+/** Completions for `$globals` while typing an operand such as `.@mul($sc`. */
+export function getFunctionOperandGlobalAutocomplete(
+  path: string,
+  globalVariableNames: readonly string[],
+):
+  | {
+      autocompleteItems: string[];
+      autocompleteFilterText: string;
+      autocompleteRange: { start: number; end: number };
+    }
+  | undefined {
+  const lastAt = path.lastIndexOf(".@");
+  if (lastAt < 0) {
+    return undefined;
+  }
+  const afterAt = path.slice(lastAt + 2);
+  const nameMatch = OPERAND_OPEN_RE.exec(afterAt);
+  const name = nameMatch?.[1];
+  if (name == undefined || !OPERAND_FUNCTION_NAMES.includes(name)) {
+    return undefined;
+  }
+  const open = lastAt + 2 + name.length;
+  if (path[open] !== "(") {
+    return undefined;
+  }
+  const close = path.indexOf(")", open + 1);
+  const insideEnd = close === -1 ? path.length : close;
+  const inside = path.slice(open + 1, insideEnd);
+  const dollar = inside.lastIndexOf("$");
+  if (dollar < 0) {
+    return undefined;
+  }
+  const typed = inside.slice(dollar + 1);
+  if (typed !== "" && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(typed)) {
+    return undefined;
+  }
+  const start = open + 1 + dollar;
+  return {
+    autocompleteItems: globalVariableNames.map((item) => `$${item}`),
+    autocompleteFilterText: typed,
+    autocompleteRange: { start, end: start + 1 + typed.length },
+  };
+}
 
 export function tryToSetDefaultGlobalVar(
   variableName: string,
@@ -83,28 +132,9 @@ export function getFirstInvalidVariableFromRosPath(
   }).find(({ variableName }) => !tryToSetDefaultGlobalVar(variableName, setGlobalVariables));
 }
 
-function getExamplePrimitive(primitiveType: PrimitiveType) {
-  switch (primitiveType) {
-    case "string":
-      return '""';
-    case "bool":
-      return "true";
-    case "float32":
-    case "float64":
-    case "uint8":
-    case "uint16":
-    case "uint32":
-    case "uint64":
-    case "int8":
-    case "int16":
-    case "int32":
-    case "int64":
-      return "0";
-  }
-}
-
 type MessagePathInputBaseProps = {
-  supportsMathModifiers?: boolean;
+  supportsMessagePathFunctions?: boolean;
+  supportsTimeSeriesMessagePathFunctions?: boolean;
   path: string; // A path of the form `/topic.some_field[:]{id==42}.x`
   index?: number; // Optional index field which gets passed to `onChange` (so you don't have to create anonymous functions)
   onChange: (value: string, index?: number) => void;
@@ -148,7 +178,8 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
   const { datatypes, topics } = PanelAPI.useDataSourceInfo();
 
   const {
-    supportsMathModifiers,
+    supportsMessagePathFunctions,
+    supportsTimeSeriesMessagePathFunctions,
     path,
     prioritizedDatatype,
     validTypes,
@@ -241,7 +272,12 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       // or if we just autocompleted something with a filter (because we might want to
       // edit that filter), or if the autocomplete already has a filter (because we might
       // have just autocompleted a name inside that filter).
-      if (keepGoingAfterTopicName || value.includes("{") || path.includes("{")) {
+      if (
+        keepGoingAfterTopicName ||
+        value.includes("{") ||
+        path.includes("{") ||
+        value.includes("(")
+      ) {
         const newCursorPosition = autocompleteRange.start + value.length;
         setImmediate(() => {
           autocomplete.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -303,15 +339,43 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     [allStructureItemsByPath, topicNamesAutocompleteItems],
   );
 
+  const functionSupport: MessagePathFunctionSupport = useMemo(
+    () => ({
+      supportsMessagePathFunctions: supportsMessagePathFunctions === true,
+      supportsTimeSeriesMessagePathFunctions:
+        supportsMessagePathFunctions === true && supportsTimeSeriesMessagePathFunctions === true,
+      globalVariables,
+    }),
+    [globalVariables, supportsMessagePathFunctions, supportsTimeSeriesMessagePathFunctions],
+  );
+
   const autocompleteType = useMemo(() => {
     if (!rosPath) {
+      // Unclosed `.@mul(` does not parse; keep mid-edit function paths off the topic-name error path.
+      if (functionSupport.supportsMessagePathFunctions && trimmedPath.includes(".@")) {
+        const lastAt = trimmedPath.lastIndexOf(".@");
+        const pathBeforeSuffix = parseMessagePath(trimmedPath.slice(0, lastAt));
+        if (
+          pathBeforeSuffix != undefined &&
+          topics.some(({ name }) => name === pathBeforeSuffix.topicName)
+        ) {
+          return undefined;
+        }
+      }
       return "topicName";
     } else if (!topic) {
       return "topicName";
+    } else if (structureTraversalResult?.valid !== true) {
+      return "messagePath";
     } else if (
-      structureTraversalResult == undefined ||
-      !structureTraversalResult.valid ||
-      !validTerminatingStructureItem(structureTraversalResult.structureItem, validTypes)
+      // A function chain changes the terminating type (`/q.@rpy.yaw` is a number, `/q.@rpy` is not),
+      // so `validTypes` is checked against the chain's output rather than the field itself.
+      !validTerminatingStructureItem(
+        structureAfterFunctionChain(structureTraversalResult.structureItem, rosPath.functionChain, {
+          isTopic: rosPath.messagePath.every((part) => part.type === "filter"),
+        }),
+        validTypes,
+      )
     ) {
       return "messagePath";
     }
@@ -321,9 +385,30 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     }
 
     return undefined;
-  }, [invalidGlobalVariablesVariable, structureTraversalResult, validTypes, rosPath, topic]);
+  }, [
+    functionSupport,
+    invalidGlobalVariablesVariable,
+    rosPath,
+    structureTraversalResult,
+    topic,
+    topics,
+    trimmedPath,
+    validTypes,
+  ]);
 
   const structures = useMemo(() => messagePathStructures(datatypes), [datatypes]);
+  const enumValues = useMemo(() => enumValuesByDatatypeAndField(datatypes), [datatypes]);
+  const filterAutocomplete = useMemo(
+    () =>
+      suggestFilterCompletions(
+        trimmedPath,
+        topics,
+        structures,
+        enumValues,
+        Object.keys(globalVariables),
+      ),
+    [trimmedPath, topics, structures, enumValues, globalVariables],
+  );
 
   const { autocompleteItems, autocompleteFilterText, autocompleteRange } = useMemo(() => {
     const withLeadingOffset = (range: { start: number; end: number }) => ({
@@ -337,7 +422,58 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         autocompleteFilterText: "",
         autocompleteRange: { start: 0, end: Infinity },
       };
-    } else if (autocompleteType === "topicName") {
+    } else if (filterAutocomplete != undefined) {
+      return {
+        ...filterAutocomplete,
+        autocompleteRange: withLeadingOffset(filterAutocomplete.autocompleteRange),
+      };
+    } else if (functionSupport.supportsMessagePathFunctions && trimmedPath.includes(".@")) {
+      const operandGlobals = getFunctionOperandGlobalAutocomplete(
+        trimmedPath,
+        Object.keys(globalVariables),
+      );
+      if (operandGlobals != undefined) {
+        return {
+          ...operandGlobals,
+          autocompleteRange: withLeadingOffset(operandGlobals.autocompleteRange),
+        };
+      }
+      const lastAt = trimmedPath.lastIndexOf(".@");
+      const prefix = trimmedPath.slice(lastAt);
+      // Unclosed `@mul(` does not parse; use the path before the last `.@` for structure.
+      const pathBeforeSuffix = parseMessagePath(trimmedPath.slice(0, lastAt));
+      const topicForFunctions =
+        pathBeforeSuffix != undefined
+          ? topics.find(({ name }) => name === pathBeforeSuffix.topicName)
+          : topic;
+      let terminatingItem = structureTraversalResult?.structureItem;
+      if (pathBeforeSuffix != undefined && topicForFunctions?.schemaName != undefined) {
+        terminatingItem = traverseStructure(
+          messagePathStructuresForDataype[topicForFunctions.schemaName],
+          pathBeforeSuffix.messagePath,
+        ).structureItem;
+      }
+      if (topicForFunctions != undefined) {
+        const suffixes = suggestFunctionSuffixes({
+          terminatingItem,
+          support: functionSupport,
+          functionChain: pathBeforeSuffix?.functionChain,
+          isTopic: pathBeforeSuffix?.messagePath.every((part) => part.type === "filter"),
+        });
+        return {
+          autocompleteItems: suffixes
+            .map((suffix) => `.${suffix}`)
+            .filter((item) => item.startsWith(prefix)),
+          autocompleteFilterText: prefix,
+          autocompleteRange: withLeadingOffset({
+            start: lastAt,
+            end: Infinity,
+          }),
+        };
+      }
+    }
+
+    if (autocompleteType === "topicName") {
       // If the path is empty, return topic names only to show the full list of topics. Otherwise,
       // use the full set of topic names and field paths to autocomplete
       return {
@@ -348,70 +484,39 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
         autocompleteRange: { start: leadingWhitespaceLength, end: Infinity },
       };
     } else if (autocompleteType === "messagePath" && topic && rosPath) {
-      if (
-        structureTraversalResult &&
-        !structureTraversalResult.valid &&
-        structureTraversalResult.msgPathPart?.type === "filter" &&
-        structureTraversalResult.structureItem?.structureType === "message"
-      ) {
-        const { msgPathPart } = structureTraversalResult;
+      // Exclude any initial filters ("/topic{foo=='bar'}") from the range that will be replaced
+      // when the user chooses a new message path.
+      const initialFilterLength =
+        rosPath.messagePath[0]?.type === "filter" ? rosPath.messagePath[0].repr.length + 2 : 0;
 
-        const items: string[] = [];
+      const structure = topic.schemaName != undefined ? structures[topic.schemaName] : undefined;
 
-        // Provide filter suggestions for primitive values, since they're the only kinds of values
-        // that can be filtered on.
-        for (const name of Object.keys(structureTraversalResult.structureItem.nextByName)) {
-          const item = structureTraversalResult.structureItem.nextByName[name];
-          if (item?.structureType === "primitive") {
-            items.push(`${name}==${getExamplePrimitive(item.primitiveType)}`);
-          }
-        }
+      return {
+        autocompleteItems:
+          structure == undefined
+            ? []
+            : filterMap(
+                messagePathsForStructure(structure, {
+                  validTypes,
+                  noMultiSlices,
+                  messagePath: rosPath.messagePath,
+                }),
+                (item) => item.path,
+              ),
 
-        const filterText = msgPathPart.path.join(".");
-
-        return {
-          autocompleteItems: items,
-          autocompleteFilterText: filterText,
-          autocompleteRange: withLeadingOffset({
-            start: msgPathPart.nameLoc,
-            end: msgPathPart.nameLoc + filterText.length,
-          }),
-        };
-      } else {
-        // Exclude any initial filters ("/topic{foo=='bar'}") from the range that will be replaced
-        // when the user chooses a new message path.
-        const initialFilterLength =
-          rosPath.messagePath[0]?.type === "filter" ? rosPath.messagePath[0].repr.length + 2 : 0;
-
-        const structure = topic.schemaName != undefined ? structures[topic.schemaName] : undefined;
-
-        return {
-          autocompleteItems:
-            structure == undefined
-              ? []
-              : filterMap(
-                  messagePathsForStructure(structure, {
-                    validTypes,
-                    noMultiSlices,
-                    messagePath: rosPath.messagePath,
-                  }),
-                  (item) => item.path,
-                ),
-
-          autocompleteRange: withLeadingOffset({
-            start: rosPath.topicNameRepr.length + initialFilterLength,
-            end: Infinity,
-          }),
-          // Filter out filters (hah!) in a pretty crude way, so autocomplete still works
-          // when already having specified a filter and you want to see what other object
-          // names you can complete it with. Kind of an edge case, and this doesn't work
-          // ideally (because it will remove your existing filter if you actually select
-          // the autocomplete item), but it's easy to do for now, and nice to have.
-          autocompleteFilterText: trimmedPath
-            .substring(rosPath.topicNameRepr.length)
-            .replace(/\{[^}]*\}/g, ""),
-        };
-      }
+        autocompleteRange: withLeadingOffset({
+          start: rosPath.topicNameRepr.length + initialFilterLength,
+          end: Infinity,
+        }),
+        // Filter out filters (hah!) in a pretty crude way, so autocomplete still works
+        // when already having specified a filter and you want to see what other object
+        // names you can complete it with. Kind of an edge case, and this doesn't work
+        // ideally (because it will remove your existing filter if you actually select
+        // the autocomplete item), but it's easy to do for now, and nice to have.
+        autocompleteFilterText: trimmedPath
+          .substring(rosPath.topicNameRepr.length)
+          .replace(/\{[^}]*\}/g, ""),
+      };
     } else if (invalidGlobalVariablesVariable) {
       return {
         autocompleteItems: Object.keys(globalVariables).map((key) => `$${key}`),
@@ -433,6 +538,7 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     };
   }, [
     disableAutocomplete,
+    filterAutocomplete,
     autocompleteType,
     topic,
     rosPath,
@@ -446,6 +552,9 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     noMultiSlices,
     globalVariables,
     leadingWhitespaceLength,
+    functionSupport,
+    topics,
+    messagePathStructuresForDataype,
   ]);
 
   const topicsByName = useMemo(() => _.keyBy(topics, ({ name }) => name), [topics]);
@@ -463,11 +572,20 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
     );
   }, [autocompleteItems, prioritizedDatatype, topicsByName]);
 
-  const usesUnsupportedMathModifier =
-    (supportsMathModifiers == undefined || !supportsMathModifiers) && trimmedPath.includes(".@");
+  const pathInputError = useMemo(
+    () =>
+      trimmedPath.length > 0
+        ? validateMessagePathInput(
+            trimmedPath,
+            functionSupport,
+            structureTraversalResult?.structureItem,
+          )
+        : undefined,
+    [functionSupport, structureTraversalResult?.structureItem, trimmedPath],
+  );
 
   const hasError =
-    usesUnsupportedMathModifier ||
+    pathInputError != undefined ||
     (autocompleteType != undefined && !disableAutocomplete && trimmedPath.length > 0);
 
   return (
@@ -481,7 +599,12 @@ export default React.memo<MessagePathInputBaseProps>(function MessagePathInput(
       value={path}
       onChange={onChange}
       onSelect={(value, autocomplete) => {
-        onSelect(value, autocomplete, autocompleteType, autocompleteRange);
+        onSelect(
+          value,
+          autocomplete,
+          filterAutocomplete != undefined ? "messagePath" : autocompleteType,
+          autocompleteRange,
+        );
       }}
       hasError={hasError}
       placeholder={

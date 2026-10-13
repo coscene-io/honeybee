@@ -454,6 +454,7 @@ function PanelExtensionAdapter(
             type: "PLAYBACK_SECONDS",
             componentId: "PanelExtensionAdatper",
             value: secondsFromStart,
+            absoluteSeconds: stamp,
           });
         }
       },

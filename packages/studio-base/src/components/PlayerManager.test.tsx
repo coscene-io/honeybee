@@ -29,6 +29,18 @@ describe("closePlayerForSourceSwitch", () => {
     expect(close).toHaveBeenCalledTimes(1);
     jest.mocked(console.warn).mockClear();
   });
+
+  it("reports teardown failures when the replacement requires a complete cache flush", async () => {
+    const closeError = new Error("close failed");
+    const close = jest.fn().mockRejectedValue(closeError);
+
+    await expect(closePlayerForSourceSwitch({ close }, { propagateError: true })).rejects.toBe(
+      closeError,
+    );
+
+    expect(close).toHaveBeenCalledTimes(1);
+    jest.mocked(console.warn).mockClear();
+  });
 });
 
 describe("markRealtimeCacheForCleanup", () => {

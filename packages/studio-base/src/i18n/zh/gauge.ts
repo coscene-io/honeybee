@@ -5,8 +5,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import * as Comlink from "@coscene-io/comlink";
+import { TypeOptions } from "i18next";
 
-import { CustomDatasetsBuilderImpl } from "./CustomDatasetsBuilderImpl";
-
-Comlink.expose(new CustomDatasetsBuilderImpl());
+export const gauge: Partial<TypeOptions["resources"]["gauge"]> = {
+  messagePath: "消息路径",
+  min: "最小值",
+  max: "最大值",
+  colorMode: "颜色模式",
+  colorMap: "颜色映射",
+  gradient: "渐变",
+  reverse: "反转",
+  redToGreen: "红到绿",
+  rainbow: "彩虹",
+  turbo: "Turbo",
+};

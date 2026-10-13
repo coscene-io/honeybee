@@ -13,4 +13,9 @@ export const variable = {
     "A variable with this name already exists. Please select a unique variable name to save changes.",
   copied: "Copied",
   copy: "Copy",
+  general: "General",
+  min: "Min",
+  max: "Max",
+  step: "Step",
+  variableName: "Variable name",
 };

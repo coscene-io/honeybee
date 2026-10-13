@@ -25,13 +25,17 @@ function opacities(indicator: OrbitTargetIndicator): number[] {
 
 describe("OrbitTargetIndicator", () => {
   let indicator: OrbitTargetIndicator;
+  const requestFrame = jest.fn();
 
   beforeEach(() => {
-    indicator = new OrbitTargetIndicator();
+    jest.useFakeTimers();
+    requestFrame.mockClear();
+    indicator = new OrbitTargetIndicator(requestFrame);
   });
 
   afterEach(() => {
     indicator.dispose();
+    jest.useRealTimers();
   });
 
   it("starts hidden", () => {
@@ -81,10 +85,45 @@ describe("OrbitTargetIndicator", () => {
     indicator.hold();
     indicator.release(T0);
 
-    // Still animating, so it must keep asking for frames to start the fade on time
-    expect(indicator.update(1, T0 + HOLD_MS / 2)).toBe(true);
+    // The delayed wake-up starts the fade; static frames do not need to request another frame.
+    expect(indicator.update(1, T0 + HOLD_MS / 2)).toBe(false);
     expect(opacities(indicator)).toEqual([1, 1, 1]);
     expect(indicator.visible).toBe(true);
+  });
+
+  it("requests one delayed frame when the hold window expires", () => {
+    indicator.hold();
+    indicator.release(T0);
+
+    jest.advanceTimersByTime(HOLD_MS - 1);
+    expect(requestFrame).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    expect(indicator.update(1, T0 + HOLD_MS)).toBe(true);
+    jest.advanceTimersByTime(FADE_MS);
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the previous wake-up when a new interaction begins", () => {
+    indicator.hold();
+    indicator.release(T0);
+    jest.advanceTimersByTime(HOLD_MS / 2);
+    indicator.hold();
+    jest.advanceTimersByTime(HOLD_MS);
+    expect(requestFrame).not.toHaveBeenCalled();
+
+    indicator.release(T0 + HOLD_MS * 1.5);
+    jest.advanceTimersByTime(HOLD_MS);
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["hide", "dispose"] as const)("%s cancels a pending wake-up", (method) => {
+    indicator.hold();
+    indicator.release(T0);
+    indicator[method]();
+    jest.advanceTimersByTime(HOLD_MS + FADE_MS);
+    expect(requestFrame).not.toHaveBeenCalled();
+    expect(indicator.visible).toBe(false);
   });
 
   it("fades out once the hold window expires", () => {
@@ -131,6 +170,8 @@ describe("OrbitTargetIndicator", () => {
     indicator.release(T0);
     // A stray release (e.g. a trailing pointercancel) must not push the fade back
     indicator.release(T0 + 5000);
+    jest.advanceTimersByTime(HOLD_MS);
+    expect(requestFrame).toHaveBeenCalledTimes(1);
     expect(indicator.update(1, T0 + HOLD_MS + FADE_MS)).toBe(false);
     expect(indicator.visible).toBe(false);
   });

@@ -12,6 +12,7 @@ import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 import * as _ from "lodash-es";
+import { useEffect } from "react";
 import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
@@ -20,8 +21,10 @@ import { add, fromSec, type Time } from "@foxglove/rostime";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   EventsContext,
+  useEvents,
   type EventsStore,
   type TimelinePositionedEvent,
   type TimelinePositionedEventMark,
@@ -31,11 +34,18 @@ import {
   type SyncBounds,
   type TimelineInteractionStateStore,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
+import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
+import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
 import { EventsOverlay } from "./EventsOverlay";
+import Scrubber from "./Scrubber";
 import { makeTimelineViewport } from "./timelineViewport";
 
 jest.mock("@foxglove/studio-base/components/Events/CreateEventContainer/index", () => ({
@@ -259,8 +269,21 @@ function firePointerDown(element: Element | Window, clientX: number): void {
   fireEvent(element, new MouseEvent("pointerdown", { bubbles: true, clientX }));
 }
 
+let animationFrameId = 0;
+const animationFrames = new Map<number, FrameRequestCallback>();
+function flushAnimationFrame(): void {
+  act(() => {
+    const callbacks = Array.from(animationFrames.values());
+    animationFrames.clear();
+    callbacks.forEach((callback) => {
+      callback(performance.now());
+    });
+  });
+}
+
 function firePointerMove(clientX: number): void {
   fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX }));
+  flushAnimationFrame();
 }
 
 function firePointerUp(clientX: number): void {
@@ -310,6 +333,25 @@ function renderOverlayWithSeek({
   return { eventsStore, seekPlayback };
 }
 
+function SeedCreateEventPopper(): ReactNull {
+  const setDataSource = useCoreData((store: CoreDataStore) => store.setDataSource);
+  const setProject = useCoreData((store: CoreDataStore) => store.setProject);
+  const setRecord = useCoreData((store: CoreDataStore) => store.setRecord);
+  const setEventMarks = useEvents((store: EventsStore) => store.setEventMarks);
+
+  useEffect(() => {
+    setDataSource({ id: "coscene-data-platform", type: "connection" });
+    setProject({ loading: false, value: { isArchived: false } as never });
+    setRecord({ loading: false, value: { isArchived: false } as never });
+    setEventMarks([
+      { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+      { key: "end", position: 0.3, time: { sec: 3, nsec: 0 } },
+    ]);
+  }, [setDataSource, setEventMarks, setProject, setRecord]);
+
+  return ReactNull;
+}
+
 async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
   mockTimelineRect();
   const handle = screen.getByTestId("timeline-rolling-edit-handle");
@@ -326,6 +368,16 @@ async function dragRollingEditBoundary(targetClientX: number): Promise<void> {
 }
 
 describe("<EventsOverlay />", () => {
+  beforeEach(() => {
+    animationFrames.clear();
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      animationFrames.set(++animationFrameId, callback);
+      return animationFrameId;
+    });
+    jest.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      animationFrames.delete(id);
+    });
+  });
   afterEach(() => {
     jest.useRealTimers();
   });
@@ -450,6 +502,69 @@ describe("<EventsOverlay />", () => {
     expect(screen.getByTestId("create-event-container")).toBeTruthy();
   });
 
+  it("keeps the create event popper above the timeline hover tooltip", async () => {
+    render(
+      <ThemeProvider isDark>
+        <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+          <CoSceneConsoleApiContext.Provider
+            value={makeConsoleApiMock({
+              createEvent: { permission: () => false },
+              updateEvent: { permission: () => true },
+            })}
+          >
+            <CoreDataProvider>
+              <WorkspaceContextProvider disablePersistence>
+                <MockMessagePipelineProvider
+                  startTime={{ sec: 0, nsec: 0 }}
+                  endTime={{ sec: 10, nsec: 0 }}
+                  currentTime={{ sec: 1, nsec: 0 }}
+                >
+                  <PlaybackInteractionStateProvider>
+                    <TimelineInteractionStateProvider>
+                      <CoScenePlaylistProvider>
+                        <EventsProvider>
+                          <SeedCreateEventPopper />
+                          <div data-testid="scrubber-shell" style={{ height: 32, width: 1000 }}>
+                            <Scrubber onSeek={jest.fn()} />
+                          </div>
+                        </EventsProvider>
+                      </CoScenePlaylistProvider>
+                    </TimelineInteractionStateProvider>
+                  </PlaybackInteractionStateProvider>
+                </MockMessagePipelineProvider>
+              </WorkspaceContextProvider>
+            </CoreDataProvider>
+          </CoSceneConsoleApiContext.Provider>
+        </AppConfigurationContext.Provider>
+      </ThemeProvider>,
+    );
+
+    const createEventContainer = await screen.findByTestId("create-event-container");
+    const slider = screen.getByTestId("scrubber-slider");
+    slider.getBoundingClientRect = () => ({
+      bottom: 32,
+      height: 32,
+      left: 0,
+      right: 1000,
+      top: 0,
+      width: 1000,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent(slider, new MouseEvent("pointermove", { bubbles: true, clientX: 200, clientY: 20 }));
+    flushAnimationFrame();
+
+    const tooltip = await screen.findByTestId("timeline-hover-tooltip");
+    const popper = createEventContainer.closest("#event-mark-popper");
+    expect(popper).not.toBeNull();
+    expect(popper!.parentElement).toBe(document.body);
+    expect(tooltip.parentElement).toBe(document.body);
+    expect(Number(getComputedStyle(popper!).zIndex)).toBeGreaterThan(
+      Number(getComputedStyle(tooltip).zIndex),
+    );
+  });
+
   it("does not rewrite event marks when a dragged create mark stays at the same position", async () => {
     const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
     const eventsStore = makeEventsStore({
@@ -524,6 +639,137 @@ describe("<EventsOverlay />", () => {
     ]);
   });
 
+  it("snaps a dragged create mark to a nearby event when linked adjustment is enabled", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 1, 1)],
+      eventMarks: [
+        { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          rollingEditEnabled
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    act(() => {
+      timelineInteractionStore.getState().setHoverValue({
+        componentId: "test-component",
+        type: "PLAYBACK_SECONDS",
+        value: 1.99,
+      });
+    });
+
+    await waitFor(() => {
+      expect(setEventMarks).toHaveBeenCalledWith([
+        { key: "start", position: 0.2, time: { sec: 2, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ]);
+    });
+  });
+
+  it("does not snap a dragged create mark when linked adjustment is disabled", async () => {
+    const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 1, 1)],
+      eventMarks: [
+        { key: "start", position: 0.1, time: { sec: 1, nsec: 0 } },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ],
+      setEventMarks,
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={timelineInteractionStore}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          rollingEditEnabled={false}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    act(() => {
+      timelineInteractionStore.getState().setHoverValue({
+        componentId: "test-component",
+        type: "PLAYBACK_SECONDS",
+        value: 1.99,
+      });
+    });
+
+    await waitFor(() => {
+      expect(setEventMarks).toHaveBeenCalledWith([
+        {
+          key: "start",
+          position: 0.199,
+          time: add({ sec: 0, nsec: 0 }, fromSec(1.99)),
+        },
+        { key: "end", position: 0.5, time: { sec: 5, nsec: 0 } },
+      ]);
+    });
+  });
+
+  it("coalesces moves and commits the pointerup coordinate even before the next frame", async () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 200 }));
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 300 }));
+    expect(seekPlayback).not.toHaveBeenCalled();
+    flushAnimationFrame();
+    expect(seekPlayback).toHaveBeenCalledTimes(1);
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(3));
+    await act(async () => {
+      firePointerUp(500);
+    });
+    expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(5));
+    expect(updateEvent).toHaveBeenCalledTimes(1);
+    expect(updateEvent.mock.calls[0]![0].event.triggerTime.seconds).toBe(BigInt(5));
+    const count = seekPlayback.mock.calls.length;
+    flushAnimationFrame();
+    expect(seekPlayback).toHaveBeenCalledTimes(count);
+  });
+
+  it("cancels pending previews without persisting a cancelled drag", () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { seekPlayback } = renderOverlayWithSeek({
+      events: [makeEvent("events/body", 1, 2)],
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+    });
+    mockTimelineRect(screen.getByTestId("events-overlay"));
+    firePointerDown(screen.getByTestId("timeline-event"), 100);
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 400 }));
+    fireEvent(window, new MouseEvent("pointercancel", { bubbles: true }));
+    flushAnimationFrame();
+    firePointerUp(400);
+    expect(seekPlayback).not.toHaveBeenCalled();
+    expect(updateEvent).not.toHaveBeenCalled();
+  });
+
   it("seeks to the pointer time while dragging a moment body", async () => {
     const { seekPlayback } = renderOverlayWithSeek({
       events: [makeEvent("events/body", 1, 2)],
@@ -593,6 +839,135 @@ describe("<EventsOverlay />", () => {
     await act(async () => {
       firePointerUp(600);
     });
+  });
+
+  it.each(["pointercancel", "blur"])(
+    "discards rolling previews and an immediate release after %s",
+    async (eventType) => {
+      const updateEvent = jest.fn().mockResolvedValue({});
+      const { eventsStore, seekPlayback } = renderOverlayWithSeek({
+        consoleApi: makeConsoleApiMock({ updateEvent }),
+        events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+      });
+      mockTimelineRect();
+      firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 500);
+      firePointerMove(600);
+      expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(6));
+      seekPlayback.mockClear();
+      await act(async () => {
+        fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 700 }));
+        fireEvent(window, new Event(eventType));
+        // Release before React commits cancellation and removes the window listeners.
+        firePointerUp(700);
+      });
+      flushAnimationFrame();
+      expect(seekPlayback).not.toHaveBeenCalled();
+      expect(updateEvent).not.toHaveBeenCalled();
+      expect(getEventRanges(eventsStore)).toEqual([
+        { startSec: 0, endSec: 5 },
+        { startSec: 5, endSec: 10 },
+      ]);
+      // Cancelling must also leave the next interaction usable.
+      await dragRollingEditBoundary(800);
+      expect(updateEvent).toHaveBeenCalledTimes(2);
+      expect(getEventRanges(eventsStore)).toEqual([
+        { startSec: 0, endSec: 8 },
+        { startSec: 8, endSec: 10 },
+      ]);
+    },
+  );
+
+  it("preserves the boundary when clicking a rolling edit handle away from its center", async () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const { eventsStore, seekPlayback } = renderOverlayWithSeek({
+      consoleApi: makeConsoleApiMock({ updateEvent }),
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+    });
+    mockTimelineRect();
+    firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 504);
+    await act(async () => {
+      firePointerUp(504);
+    });
+    expect(seekPlayback).not.toHaveBeenCalled();
+    expect(getEventRanges(eventsStore)).toEqual([
+      { startSec: 0, endSec: 5 },
+      { startSec: 5, endSec: 10 },
+    ]);
+  });
+
+  it.each(["release only", "pending move"])(
+    "commits the final rolling edit release position with %s",
+    async (input) => {
+      const updateEvent = jest.fn().mockResolvedValue({});
+      const { eventsStore, seekPlayback } = renderOverlayWithSeek({
+        consoleApi: makeConsoleApiMock({ updateEvent }),
+        events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+      });
+      mockTimelineRect();
+      firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 504);
+      if (input === "pending move") {
+        fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 600 }));
+      }
+      await act(async () => {
+        firePointerUp(700);
+      });
+      flushAnimationFrame();
+      expect(seekPlayback).toHaveBeenCalledTimes(1);
+      expect(seekPlayback).toHaveBeenLastCalledWith(fromSec(7));
+      expect(updateEvent).toHaveBeenCalledTimes(2);
+      expect(getEventRanges(eventsStore)).toEqual([
+        { startSec: 0, endSec: 7 },
+        { startSec: 7, endSec: 10 },
+      ]);
+    },
+  );
+
+  it("discards a rolling edit and its pending preview when the mode is disabled", () => {
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const consoleApi = makeConsoleApiMock({ updateEvent });
+    const onSeek = jest.fn();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+    const timelineInteractionStore = makeTimelineInteractionStore();
+    const content = ({ enabled }: { enabled: boolean }) => (
+      <Wrapper
+        consoleApi={consoleApi}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+          rollingEditEnabled={enabled}
+          onSeek={onSeek}
+        />
+      </Wrapper>
+    );
+    const { rerender } = render(content({ enabled: true }));
+    mockTimelineRect();
+    firePointerDown(screen.getByTestId("timeline-rolling-edit-handle"), 500);
+    firePointerMove(600);
+    expect(screen.getAllByTestId("timeline-event")[0]!.style.width).toBe("max(60%, 4px)");
+    fireEvent(window, new MouseEvent("pointermove", { bubbles: true, clientX: 700 }));
+    rerender(content({ enabled: false }));
+    flushAnimationFrame();
+    expect(screen.getAllByTestId("timeline-event")[0]!.style.width).toBe("max(50%, 4px)");
+    expect(onSeek).toHaveBeenCalledTimes(1);
+    rerender(content({ enabled: true }));
+    firePointerUp(800);
+    expect(updateEvent).not.toHaveBeenCalled();
+    expect(getEventRanges(eventsStore)).toEqual([
+      { startSec: 0, endSec: 5 },
+      { startSec: 5, endSec: 10 },
+    ]);
   });
 
   it("does not seek while a moment body move stays under the drag threshold", async () => {
@@ -878,4 +1253,89 @@ describe("<EventsOverlay />", () => {
       firePointerUp(106);
     },
   );
+
+  it("opens the single-event context menu for the moment that contains the playback time", () => {
+    const onEventContextMenuHandled = jest.fn();
+    const eventsStore = makeEventsStore({
+      events: [
+        makeEvent("events/before", 4, 1),
+        makeEvent("events/current", 5, 1),
+        makeEvent("events/after", 6, 1),
+      ],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={{ playbackSeconds: 5, clientX: 500, clientY: 40 }}
+          onEventContextMenuHandled={onEventContextMenuHandled}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(onEventContextMenuHandled).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("menuitem", { name: "Edit Moment" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "events/before" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "events/current" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "events/after" })).toBeNull();
+  });
+
+  it("opens the selection menu when two moments truly overlap the playback time", () => {
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/wide", 4, 4), makeEvent("events/inner", 5, 1)],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={{ playbackSeconds: 5.5, clientX: 500, clientY: 40 }}
+          onEventContextMenuHandled={jest.fn()}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByRole("menuitem", { name: "events/wide" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "events/inner" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Edit Moment" })).toBeNull();
+  });
+
+  it("does not open a moment menu when no moment contains the playback time", () => {
+    const onEventContextMenuHandled = jest.fn();
+    const eventsStore = makeEventsStore({
+      events: [makeEvent("events/current", 5, 1)],
+      eventMarks: [],
+      setEventMarks: jest.fn(),
+    });
+
+    render(
+      <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+        <EventsOverlay
+          componentId="test-component"
+          canWriteEvents
+          isDragging={false}
+          eventContextMenuRequest={{ playbackSeconds: 4.5, clientX: 500, clientY: 40 }}
+          onEventContextMenuHandled={onEventContextMenuHandled}
+          setCursor={jest.fn()}
+          viewport={viewport}
+        />
+      </Wrapper>,
+    );
+
+    expect(onEventContextMenuHandled).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
 });

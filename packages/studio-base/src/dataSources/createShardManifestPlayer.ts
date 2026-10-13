@@ -48,7 +48,6 @@ export function createShardManifestPlayer(args: {
   const source = new WorkerSerializedIterableSource({
     initWorker: () => {
       return new Worker(
-        // foxglove-depcheck-used: babel-plugin-transform-import-meta
         new URL(
           "@foxglove/studio-base/players/IterablePlayer/coScene-shard-manifest/ShardManifestIterableSource.worker",
           import.meta.url,

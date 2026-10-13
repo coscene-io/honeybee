@@ -19,11 +19,7 @@
   "scripts": {
     "prepack": "yarn run -T tsc -b"
   },
-  "dependencies": {
-    "nearley": "2.20.1"
-  },
   "devDependencies": {
-    "@foxglove/tsconfig": "3.2.0",
-    "@types/nearley": "2.11.5"
+    "@foxglove/tsconfig": "3.2.0"
   }
 }

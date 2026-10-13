@@ -7,6 +7,7 @@
 
 import { Typography, Link, Divider } from "@mui/material";
 import { ErrorInfo, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -87,6 +88,7 @@ type ErrorDisplayProps = {
 
 function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
   const { classes } = useStyles();
+  const { t } = useTranslation("error");
   const { error, errorInfo, hideErrorSourceLocations = false } = props;
 
   const [showErrorDetails, setShowErrorDetails] = useState(props.showErrorDetails ?? false);
@@ -104,14 +106,14 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
 
     return (
       <div>
-        <Typography fontWeight="bold">Error stack:</Typography>
+        <Typography fontWeight="bold">{t("errorStack")}</Typography>
         <ErrorStacktrace
           stack={stackWithoutMessage}
           hideSourceLocations={hideErrorSourceLocations}
         />
         {errorInfo && (
           <>
-            <Typography fontWeight="bold">Component stack:</Typography>
+            <Typography fontWeight="bold">{t("componentStack")}</Typography>
             <ErrorStacktrace
               stack={errorInfo.componentStack ?? ""}
               hideSourceLocations={hideErrorSourceLocations}
@@ -120,14 +122,14 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
         )}
       </div>
     );
-  }, [error, errorInfo, hideErrorSourceLocations, showErrorDetails]);
+  }, [error, errorInfo, hideErrorSourceLocations, showErrorDetails, t]);
 
   return (
     <div className={classes.grid}>
       <Stack gap={2} paddingBottom={2}>
         <Stack>
           <Typography variant="h4" gutterBottom>
-            {props.title ?? "The app encountered an unexpected error"}
+            {props.title ?? t("appUnexpectedError")}
           </Typography>
           <Typography variant="body1">{props.content}</Typography>
         </Stack>
@@ -141,7 +143,7 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
             setShowErrorDetails(!showErrorDetails);
           }}
         >
-          {showErrorDetails ? "Hide" : "Show"} details
+          {showErrorDetails ? t("hideDetails") : t("showDetails")}
         </Link>
       </Stack>
       {errorDetails && <div className={classes.errorDetailContainer}>{errorDetails}</div>}

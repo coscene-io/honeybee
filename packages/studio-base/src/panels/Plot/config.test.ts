@@ -5,7 +5,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { isReferenceLinePlotPathType } from "./config";
+import { isReferenceLinePlotPathType, normalizePlotXAxisVal } from "./config";
+
+describe("normalizePlotXAxisVal", () => {
+  it("migrates the deprecated partial timestamp layout value", () => {
+    expect(normalizePlotXAxisVal("partialTimestamp")).toBe("timestamp");
+  });
+
+  it.each(["timestamp", "index", "custom", "currentCustom"] as const)(
+    "keeps the active '%s' value",
+    (value) => {
+      expect(normalizePlotXAxisVal(value)).toBe(value);
+    },
+  );
+});
 
 describe("isReferenceLinePlotPathType", () => {
   it.each(["0", "1.2", "1e6"])("returns true for '%s'", (value) => {

@@ -8,6 +8,7 @@
 import { produce } from "immer";
 import * as _ from "lodash-es";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useShallowMemo } from "@foxglove/hooks";
 import { SettingsTreeAction, SettingsTreeNodes } from "@foxglove/studio";
@@ -19,9 +20,9 @@ export const defaultConfig: Config = {
   layout: "vertical",
 };
 
-function serviceError(serviceName?: string) {
+function serviceError(message: string, serviceName?: string) {
   if (!serviceName) {
-    return "Service cannot be empty";
+    return message;
   }
   return undefined;
 }
@@ -36,42 +37,43 @@ export function settingsActionReducer(prevConfig: Config, action: SettingsTreeAc
 }
 
 export function useSettingsTree(config: Config): SettingsTreeNodes {
+  const { t } = useTranslation("callService");
   const settings = useMemo(
     (): SettingsTreeNodes => ({
       general: {
         fields: {
           serviceName: {
-            label: "Service name",
+            label: t("serviceName"),
             input: "string",
-            error: serviceError(config.serviceName),
+            error: serviceError(t("serviceCannotBeEmpty"), config.serviceName),
             value: config.serviceName ?? "",
           },
           layout: {
-            label: "Layout",
+            label: t("layout"),
             input: "toggle",
             options: [
-              { label: "Vertical", value: "vertical" },
-              { label: "Horizontal", value: "horizontal" },
+              { label: t("vertical"), value: "vertical" },
+              { label: t("horizontal"), value: "horizontal" },
             ],
             value: config.layout ?? defaultConfig.layout,
           },
         },
       },
       button: {
-        label: "Button",
+        label: t("button"),
         fields: {
           buttonText: {
-            label: "Title",
+            label: t("title"),
             input: "string",
             value: config.buttonText,
-            placeholder: `Call service ${config.serviceName ?? ""}`,
+            placeholder: t("callServicePlaceholder", { serviceName: config.serviceName ?? "" }),
           },
-          buttonTooltip: { label: "Tooltip", input: "string", value: config.buttonTooltip },
-          buttonColor: { label: "Color", input: "rgb", value: config.buttonColor },
+          buttonTooltip: { label: t("tooltip"), input: "string", value: config.buttonTooltip },
+          buttonColor: { label: t("color"), input: "rgb", value: config.buttonColor },
         },
       },
     }),
-    [config],
+    [config, t],
   );
   return useShallowMemo(settings);
 }

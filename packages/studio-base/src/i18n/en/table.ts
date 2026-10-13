@@ -14,4 +14,6 @@ export const table = {
   searchingNextMatchingFrame: "Searching for next matching frame…",
   noTopicSelected: "No topic selected",
   waitingForNextMessage: "Waiting for next message…",
+  cannotRenderPrimitiveValues:
+    "Cannot render primitive values in a table. Try using the Raw Messages panel instead.",
 };

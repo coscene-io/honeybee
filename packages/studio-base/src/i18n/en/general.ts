@@ -47,6 +47,7 @@ export const general = {
   loopPlayback: "Loop playback",
   invalidSeekStep: "Seek step must be >= 1e-6s and <= 1 hour. Reset to 0.1 s.",
   playbackSpeed: "Playback speed",
+  resetToDefault: "Reset to default",
   enableMomentSubtitles: "Enable moment subtitles",
   disableMomentSubtitles: "Disable moment subtitles",
   decreaseMomentSubtitleFontSize: "Decrease subtitle font size",
@@ -72,4 +73,7 @@ export const general = {
   shortcutZoomFit: "Zoom to fit",
   shortcutZoomCursor: "Zoom at cursor",
   mouseWheel: "scroll",
+  dropFileHere: "Drop a file here",
+  dismiss: "Dismiss",
+  unknownPanelType: "Unknown panel type: {{type}}.",
 };

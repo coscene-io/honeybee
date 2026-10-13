@@ -11,6 +11,7 @@ import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import { alpha, Slider as MuiSlider, Tooltip } from "@mui/material";
 import {
   forwardRef,
+  type SetStateAction,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -25,13 +26,7 @@ import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  subtract as subtractTimes,
-  add as addTimes,
-  toSec,
-  fromSec,
-  Time,
-} from "@foxglove/rostime";
+import { add as addTimes, toSec, fromSec, Time } from "@foxglove/rostime";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -71,9 +66,10 @@ import {
   EVENT_LANE_LAYER_TOP_PX,
   getTimelineContentHeight,
   SCRUBBER_TOOLBAR_HEIGHT_PX,
-  TIMELINE_RULER_HEIGHT_PX,
+  TIMELINE_BAG_OVERLAY_TOP_PX,
 } from "./constants";
-import { layoutEventLanes } from "./eventLanes";
+import { getCachedEventLaneLayout } from "./eventLanes";
+import { timelineDurationSeconds } from "./eventTimeContainment";
 import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
@@ -212,7 +208,8 @@ const useStyles = makeStyles()((theme) => ({
     pointerEvents: "none",
     position: "fixed",
     top: 0,
-    zIndex: theme.zIndex.tooltip,
+    // Timeline hover hints must stay behind the create/edit event popper.
+    zIndex: theme.zIndex.modal - 1,
     willChange: "transform",
   },
   timelineHoverTooltipArrow: {
@@ -470,15 +467,34 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return undefined;
     }
 
-    return makeTimelineViewport(0, toSec(subtractTimes(endTime, startTime)));
+    return makeTimelineViewport(0, timelineDurationSeconds(startTime, endTime));
   }, [endTime, startTime]);
 
-  const [viewport, setViewport] = useState<TimelineViewport | undefined>(defaultViewport);
+  const pendingWheelViewport = useRef<TimelineViewport | undefined>();
+  const wheelFrame = useRef<number | undefined>();
+  const [viewport, setViewportState] = useState<TimelineViewport | undefined>(defaultViewport);
   const [previewEventLaneCount, setPreviewEventLaneCount] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
+  const cancelPendingWheelViewport = useCallback(() => {
+    if (wheelFrame.current != undefined) {
+      cancelAnimationFrame(wheelFrame.current);
+    }
+    wheelFrame.current = undefined;
+    pendingWheelViewport.current = undefined;
+  }, []);
+
+  // A later viewport action supersedes wheel input queued for the next frame.
+  const setViewport = useCallback(
+    (update: SetStateAction<TimelineViewport | undefined>) => {
+      cancelPendingWheelViewport();
+      setViewportState(update);
+    },
+    [cancelPendingWheelViewport],
+  );
+
+  useLayoutEffect(() => {
     setViewport(defaultViewport);
-  }, [defaultViewport]);
+  }, [defaultViewport, setViewport]);
 
   const resolvedViewport = viewport ?? defaultViewport;
   const latestViewport = useLatest(resolvedViewport);
@@ -506,7 +522,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return;
     }
 
-    const playheadSec = toSec(subtractTimes(currentTime, start));
+    const playheadSec = timelineDurationSeconds(start, currentTime);
     if (
       playheadSec >= currentViewport.visibleStartSec &&
       playheadSec <= currentViewport.visibleEndSec
@@ -525,7 +541,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       const sourceViewport = oldViewport ?? currentViewport;
       return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
     });
-  }, [currentTime, latestViewport, latestStartTime]);
+  }, [currentTime, latestViewport, latestStartTime, setViewport]);
 
   const onChange = useCallback(
     (playbackSeconds: number) => {
@@ -551,11 +567,15 @@ export default function Scrubber(props: Props): React.JSX.Element {
       setHoverValue({
         componentId: hoverComponentId,
         type: "PLAYBACK_SECONDS",
-        value: toSec(timeFromStart),
+        value: playbackSeconds,
       });
     },
     [hoverComponentId, latestEndTime, latestStartTime, setHoverValue],
   );
+
+  const handleEventContextMenuHandled = useCallback(() => {
+    setEventContextMenuRequest(undefined);
+  }, []);
 
   const onContextMenu = useCallback((event: ContextMenuEvent): void => {
     setEventContextMenuRequest(event);
@@ -734,44 +754,50 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [beginTimelinePointerInteraction],
   );
 
+  useEffect(() => cancelPendingWheelViewport, [cancelPendingWheelViewport]);
+
   // Attached as a non-passive native listener (see the effect below) rather than via React's
   // `onWheel` prop: React registers wheel listeners as passive, which makes `preventDefault()` a
   // no-op. Without it the browser's own Ctrl+wheel page-zoom fires on Windows/Linux (on macOS
   // Ctrl+wheel isn't a page-zoom gesture, so the bug only shows up off-Mac).
   const onWheel = useCallback(
     (event: WheelEvent): void => {
-      const currentViewport = latestViewport.current;
+      const currentViewport = pendingWheelViewport.current ?? latestViewport.current;
       const target = scrubberRef.current;
       if (currentViewport == undefined || target == undefined) {
         return;
       }
-
       const rect = target.getBoundingClientRect();
+      let nextViewport: TimelineViewport;
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
         if (!isTimelineZoomEnabled()) {
           return;
         }
-        const anchorSec = clientXToTime(event.clientX, rect, currentViewport);
-        setViewport((oldViewport) => {
-          const sourceViewport = oldViewport ?? currentViewport;
-          const nextViewport = zoomViewportAtTime(sourceViewport, anchorSec, event.deltaY);
-          return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
-        });
+        nextViewport = zoomViewportAtTime(
+          currentViewport,
+          clientXToTime(event.clientX, rect, currentViewport),
+          event.deltaY,
+        );
+      } else if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+        event.preventDefault();
+        nextViewport = panViewportBySeconds(
+          currentViewport,
+          (event.deltaX / Math.max(rect.width, 1)) *
+            (currentViewport.visibleEndSec - currentViewport.visibleStartSec),
+        );
+      } else {
         return;
       }
-
-      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
-        event.preventDefault();
-        setViewport((oldViewport) => {
-          const sourceViewport = oldViewport ?? currentViewport;
-          const deltaSec =
-            (event.deltaX / Math.max(rect.width, 1)) *
-            (sourceViewport.visibleEndSec - sourceViewport.visibleStartSec);
-          const nextViewport = panViewportBySeconds(sourceViewport, deltaSec);
-          return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
-        });
-      }
+      pendingWheelViewport.current = nextViewport;
+      wheelFrame.current ??= requestAnimationFrame(() => {
+        wheelFrame.current = undefined;
+        const next = pendingWheelViewport.current;
+        pendingWheelViewport.current = undefined;
+        if (next != undefined) {
+          setViewportState((old) => (old != undefined && viewportEquals(old, next) ? old : next));
+        }
+      });
     },
     [latestViewport],
   );
@@ -800,7 +826,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return undefined;
     }
 
-    return toSec(subtractTimes(currentTime, startTime));
+    return timelineDurationSeconds(startTime, currentTime);
   }, [currentTime, startTime]);
 
   const onZoomSliderChange = useCallback(
@@ -825,7 +851,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
       });
     },
-    [latestViewport, zoomAnchorSec],
+    [latestViewport, setViewport, zoomAnchorSec],
   );
 
   // After a mouse drag on the zoom slider, MUI releases focus to <body>, which sits outside the
@@ -878,7 +904,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
       });
     },
-    [latestViewport, zoomAnchorSecRef],
+    [latestViewport, setViewport, zoomAnchorSecRef],
   );
 
   // Reset the timeline zoom back to the full recording range.
@@ -887,7 +913,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return;
     }
     setViewport(defaultViewport);
-  }, [defaultViewport]);
+  }, [defaultViewport, setViewport]);
 
   // Pan the visible window to start at the position requested by the horizontal scrollbar.
   const onScrollbarScroll = useCallback(
@@ -901,7 +927,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         return viewportEquals(sourceViewport, nextViewport) ? sourceViewport : nextViewport;
       });
     },
-    [latestViewport],
+    [latestViewport, setViewport],
   );
 
   const isZoomed = resolvedViewport != undefined && isViewportZoomed(resolvedViewport);
@@ -958,7 +984,8 @@ export default function Scrubber(props: Props): React.JSX.Element {
       return 0;
     }
 
-    return layoutEventLanes({ events: events.value ?? [], viewport: resolvedViewport }).laneCount;
+    return getCachedEventLaneLayout({ events: events.value ?? [], viewport: resolvedViewport })
+      .laneCount;
   }, [enableList.event, events.value, resolvedViewport]);
 
   const timelineContentHeight = useMemo((): number => {
@@ -1072,7 +1099,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
           <ShortcutsHelpButton />
         </div>
       </div>
-      <div className={classes.timelineViewport}>
+      <div className={classes.timelineViewport} data-timeline-scroll-container>
         <div
           ref={timelineContentRef}
           id="timeline-content"
@@ -1087,7 +1114,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
               position="absolute"
               flex="auto"
               fullWidth
-              style={{ height: TIMELINE_RULER_HEIGHT_PX, top: 0 }}
+              style={{ height: TIMELINE_BAG_OVERLAY_TOP_PX, top: 0 }}
             >
               <ProgressPlot loading={loading} viewport={resolvedViewport} />
             </Stack>
@@ -1109,7 +1136,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
             <Stack
               position="absolute"
               fullWidth
-              style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_RULER_HEIGHT_PX }}
+              style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_BAG_OVERLAY_TOP_PX }}
             >
               <BagsOverlay viewport={resolvedViewport} />
             </Stack>
@@ -1121,9 +1148,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 canWriteEvents={canWriteEvents}
                 isDragging={isDragging}
                 eventContextMenuRequest={eventContextMenuRequest}
-                onEventContextMenuHandled={() => {
-                  setEventContextMenuRequest(undefined);
-                }}
+                onEventContextMenuHandled={handleEventContextMenuHandled}
                 onPreviewLaneCountChange={handlePreviewEventLaneCountChange}
                 onSeek={onChange}
                 rollingEditEnabled={rollingEditEnabled}

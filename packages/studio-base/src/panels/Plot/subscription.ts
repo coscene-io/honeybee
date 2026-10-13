@@ -24,6 +24,9 @@ export function pathToSubscribePayload(
 
   const firstField = parts.find(typeIsName);
   if (firstField == undefined || firstField.name.length === 0) {
+    if ((path.functionChain?.length ?? 0) > 0) {
+      return { topic, preloadType };
+    }
     return undefined;
   }
 
