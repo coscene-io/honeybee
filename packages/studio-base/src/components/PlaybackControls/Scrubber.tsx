@@ -759,14 +759,13 @@ export default function Scrubber(props: Props): React.JSX.Element {
   // Native non-passive capture listener, not React `onWheel` (React marks wheel as passive,
   // so preventDefault is a no-op). Cancel the Ctrl/Cmd zoom gesture before returning when
   // no viewport exists. Handle capture so a descendant that stopPropagation()s during bubble
-  // cannot hide the event from this handler. Mac uses the same metaKey branch; capture and
-  // stopPropagation apply there as well.
+  // cannot hide the event from this handler. Leave propagation intact so window activity
+  // listeners still receive the gesture. The same handling applies to Ctrl and Cmd.
   const onWheel = useCallback(
     (event: WheelEvent): void => {
       const isZoomGesture = event.ctrlKey || event.metaKey;
       if (isZoomGesture) {
         event.preventDefault();
-        event.stopPropagation();
       }
 
       const currentViewport = pendingWheelViewport.current ?? latestViewport.current;

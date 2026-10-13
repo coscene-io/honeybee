@@ -396,9 +396,9 @@ describe("<Scrubber />", () => {
       );
       const timelineContent = screen.getByTestId("timeline-content");
       getScrubber();
-      const stopAtTarget = (wheelEvent: Event) => {
+      const stopAtTarget = jest.fn((wheelEvent: Event) => {
         wheelEvent.stopPropagation();
-      };
+      });
       timelineContent.addEventListener("wheel", stopAtTarget);
 
       try {
@@ -413,6 +413,7 @@ describe("<Scrubber />", () => {
         fireEvent(timelineContent, event);
 
         expect(event.defaultPrevented).toBe(true);
+        expect(stopAtTarget).toHaveBeenCalledWith(event);
         flushFrames();
         expect(mockSliderProps!.viewport).not.toEqual(before);
       } finally {
@@ -423,7 +424,7 @@ describe("<Scrubber />", () => {
     it.each([
       { modifier: "ctrlKey" as const, label: "Ctrl+wheel" },
       { modifier: "metaKey" as const, label: "Cmd+wheel" },
-    ])("cancels $label on timeline content and zooms the ready viewport", ({ modifier }) => {
+    ])("cancels $label and zooms while preserving window activity events", ({ modifier }) => {
       render(
         <Wrapper>
           <Scrubber onSeek={jest.fn()} />
@@ -440,13 +441,21 @@ describe("<Scrubber />", () => {
         clientX: 500,
         deltaY: -200,
       });
-      fireEvent(timelineContent, event);
+      const onActivity = jest.fn();
+      window.addEventListener("wheel", onActivity);
+      try {
+        fireEvent(timelineContent, event);
 
-      expect(event.defaultPrevented).toBe(true);
-      flushFrames();
-      const expected = zoomViewportAtTime(before, 5, -200);
-      expect(mockSliderProps!.viewport!.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
-      expect(mockSliderProps!.viewport!.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
+        expect(event.defaultPrevented).toBe(true);
+        expect(onActivity).toHaveBeenCalledTimes(1);
+        expect(onActivity).toHaveBeenCalledWith(event);
+        flushFrames();
+        const expected = zoomViewportAtTime(before, 5, -200);
+        expect(mockSliderProps!.viewport!.visibleStartSec).toBeCloseTo(expected.visibleStartSec);
+        expect(mockSliderProps!.viewport!.visibleEndSec).toBeCloseTo(expected.visibleEndSec);
+      } finally {
+        window.removeEventListener("wheel", onActivity);
+      }
     });
 
     it("leaves ordinary vertical wheel uncanceled", () => {
