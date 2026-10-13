@@ -8,6 +8,7 @@
 import { Time } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 
+import { CompressedVideo } from "./ImageTypes";
 import { VideoGopCache } from "./videoGopCache";
 
 const TOPIC = "/camera";
@@ -171,6 +172,101 @@ describe("VideoGopCache", () => {
 
     expect(cache.framesForPublishTime(TOPIC, t(101))).toEqual([key, originalTarget, newTarget]);
     expect(cache.framesForPublishTime(TOPIC, t(102))).toBeUndefined();
+  });
+
+  it("deduplicates copied seek backfills after truncation and resumes appending", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const future = h264Frame(12, 102, "delta");
+    cache.addFrames([key, target, future]);
+
+    for (let i = 0; i < 10; i++) {
+      cache.handleSeek(t(11, 500_000_000));
+      expect(cache.addFrame(h264Frame(11, 101, "delta"))).toBe(true);
+      expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+      expect(cache.byteSize()).toBe(16);
+    }
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toBeUndefined();
+    cache.addFrame(future);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, target, future]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("truncates at the copied backfill boundary when future publish timestamps are equal", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const future = h264Frame(12, 101, "delta");
+    cache.addFrames([key, target, future]);
+    cache.handleSeek(t(11, 500_000_000));
+    cache.addFrame(h264Frame(11, 101, "delta"));
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toBeUndefined();
+    expect(cache.byteSize()).toBe(16);
+    cache.addFrame(future);
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, target, future]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("deduplicates only the first valid post-seek frame", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    expect(cache.addFrame({ ...target, message: {} })).toBe(false);
+    cache.addFrame(h264Frame(11, 101, "delta"));
+    expect(cache.byteSize()).toBe(16);
+
+    const repeated = h264Frame(11, 101, "delta");
+    cache.addFrame(repeated);
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target, repeated]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("retains distinct same-size payloads with identical timestamps after seeking", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const different = h264Frame(11, 101, "delta");
+    (different.message as { data: Uint8Array }).data[7] = 1;
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    cache.addFrame(different);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target, different]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("deduplicates a legacy array backfill against the same typed-array payload", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const message = target.message as CompressedVideo;
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    cache.addFrame({ ...target, message: { ...message, data: Array.from(message.data) } });
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target]);
+    expect(cache.byteSize()).toBe(16);
+  });
+
+  it("retains changed frame metadata even when the payload object is shared", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const target = h264Frame(11, 101, "delta");
+    const changed = {
+      ...target,
+      message: { ...(target.message as CompressedVideo), frame_id: "other-camera" },
+    };
+    cache.addFrames([key, target]);
+    cache.handleSeek(t(11));
+    cache.addFrame(changed);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(11))).toEqual([key, target, changed]);
+    expect(cache.byteSize()).toBe(24);
   });
 
   it("continues appending deltas to the GOP selected by a cached receive-time seek", () => {

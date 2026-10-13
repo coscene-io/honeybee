@@ -25,6 +25,48 @@ function StatefulRow({ name }: { name: string }): React.JSX.Element {
   );
 }
 
+it.each([false, true])(
+  "keeps visible controls hit-testable during scrolling and refreshes, horizontal=%s",
+  (horizontal) => {
+    // Keep react-window's scroll debounce pending throughout the assertions.
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation(() => 1);
+    const items = Array.from({ length: 100 }, (_, index) => ({
+      key: `row-${index}`,
+      estimatedSize: 100,
+      content: <StatefulRow name={`row-${index}`} />,
+    }));
+    const { container, rerender } = render(<WindowedList items={items} horizontal={horizontal} />);
+    const retainedButton = screen.getByText("row-0:0");
+    fireEvent.pointerDown(retainedButton);
+    const viewport = container.firstElementChild!.firstElementChild as HTMLElement;
+    Object.defineProperties(viewport, {
+      clientHeight: { value: 600 },
+      scrollHeight: { value: 10000 },
+      clientWidth: { value: 300 },
+      scrollWidth: { value: 10000 },
+    });
+    fireEvent.scroll(viewport, {
+      target: horizontal ? { scrollLeft: 5000 } : { scrollTop: 5000 },
+    });
+
+    const expectInteractiveRows = () => {
+      // fireEvent.click bypasses CSS hit testing; check the inherited pointer-events too.
+      expect(getComputedStyle(screen.getByText("row-50:0")).pointerEvents).toBe("auto");
+      expect(getComputedStyle(retainedButton).pointerEvents).toBe("none");
+      expect(retainedButton.tabIndex).toBe(-1);
+    };
+    expectInteractiveRows();
+    for (let refresh = 0; refresh < 5; refresh++) {
+      rerender(<WindowedList items={items.map((item) => ({ ...item }))} horizontal={horizontal} />);
+      expectInteractiveRows();
+      expect(horizontal ? viewport.scrollLeft : viewport.scrollTop).toBe(5000);
+    }
+
+    fireEvent.click(screen.getByText("row-50:0"));
+    expect(screen.getByText("row-50:1")).toBeDefined();
+  },
+);
+
 it("windows rows, locates unmounted IDs and retains the active row's state", () => {
   const items = Array.from({ length: 1000 }, (_, index) => ({
     key: `row-${index}`,
