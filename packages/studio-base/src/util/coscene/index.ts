@@ -18,6 +18,12 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
 
+import {
+  getBrowserAuthUrl,
+  getBrowserSession,
+  markBrowserCredentialInvalid,
+} from "../browserSession";
+
 export * from "./cosel";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
@@ -56,7 +62,11 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const jwt = localStorage.getItem(ACCESS_TOKEN_NAME);
+  const session = isAuthlessDataSource() ? undefined : getBrowserSession();
+  session?.assertCurrent();
+  const jwt = session?.credential ?? localStorage.getItem(ACCESS_TOKEN_NAME);
+  const request =
+    session == undefined ? req : { ...req, signal: session.requestSignal(req.signal) };
   if (jwt) {
     req.header.set("Authorization", jwt);
     req.header.set("x-cos-request-id", uuidv4());
@@ -65,7 +75,9 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
   }
 
   try {
-    return await next(req);
+    const response = await next(request);
+    session?.assertCurrent();
+    return response;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
@@ -76,13 +88,17 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
         if (isDesktopApp()) {
           authBridge?.logout();
         } else {
-          window.location.href = `/login?redirectToPath=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`;
+          if (session != undefined) {
+            session.rejectCredential(jwt ?? "");
+          } else if (localStorage.getItem(ACCESS_TOKEN_NAME) === jwt) {
+            markBrowserCredentialInvalid(jwt ?? "");
+            window.location.href = getBrowserAuthUrl("/auth/recover");
+          }
         }
       }
     }
 
+    session?.assertCurrent();
     console.error(error);
     try {
       console.error(
@@ -91,9 +107,8 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     } catch (err) {
       console.error(err);
     }
+    throw error;
   }
-
-  return await next(req);
 };
 
 const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {

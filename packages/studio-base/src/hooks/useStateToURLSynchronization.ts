@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// import * as _ from "lodash-es";
 import { useEffect } from "react";
 import { useDebounce } from "use-debounce";
 
@@ -52,8 +51,9 @@ export function useStateToURLSynchronization(): void {
 
   // Sync current time with the url.
   useEffect(() => {
-    updateUrl({
-      time: canSeek ? debouncedCurrentTime : undefined,
-    });
+    // Keep the launch seek time while authentication and player initialization are pending.
+    if (canSeek && debouncedCurrentTime != undefined) {
+      updateUrl({ time: debouncedCurrentTime });
+    }
   }, [canSeek, debouncedCurrentTime]);
 }

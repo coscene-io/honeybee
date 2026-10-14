@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 
 import {
@@ -16,6 +16,12 @@ import {
   useCurrentUser,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import CoSceneCurrentUserProvider from "@foxglove/studio-base/providers/CoSceneCurrentUserProvider";
+import { BrowserSession, getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+
+jest.mock("@foxglove/studio-base/util/browserSession", () => ({
+  ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
+  getBrowserSession: jest.fn(),
+}));
 
 type ObservedUserState = Pick<UserStore, "loginStatus" | "role" | "user">;
 
@@ -69,6 +75,8 @@ function seedPersistedUserStore(loginStatus: LoginStatus): void {
 describe("<CoSceneCurrentUserProvider />", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
+    jest.mocked(getBrowserSession).mockReturnValue(undefined);
   });
 
   it("uses the token when legacy persisted state says the user is logged out", () => {
@@ -132,5 +140,39 @@ describe("<CoSceneCurrentUserProvider />", () => {
       });
       expect(persisted.state).not.toHaveProperty("loginStatus");
     });
+  });
+
+  it("updates login status for local playback when the browser session expires", () => {
+    localStorage.setItem("coScene_org_jwt", "Bearer initial");
+    const session = new BrowserSession();
+    session.setLocalPlayback({ local: true });
+    jest.mocked(getBrowserSession).mockReturnValue(session);
+    const observedStates: ObservedUserState[] = [];
+    render(
+      <CoSceneCurrentUserProvider>
+        <CurrentUserObserver onChange={(state) => observedStates.push(state)} />
+      </CoSceneCurrentUserProvider>,
+    );
+    expect(observedStates.at(-1)?.loginStatus).toBe("alreadyLogin");
+    act(() => {
+      session.rejectCredential("Bearer initial");
+    });
+    expect(observedStates.at(-1)?.loginStatus).toBe("notLogin");
+    expect(session.preservesPlayback()).toBe(true);
+  });
+
+  it("does not hydrate another account's cached identity or permissions in a browser document", () => {
+    localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+    seedPersistedUserStore("alreadyLogin");
+    jest.mocked(getBrowserSession).mockReturnValue(new BrowserSession());
+    const observedStates: ObservedUserState[] = [];
+    render(
+      <CoSceneCurrentUserProvider>
+        <CurrentUserObserver onChange={(state) => observedStates.push(state)} />
+      </CoSceneCurrentUserProvider>,
+    );
+    expect(observedStates[0]?.loginStatus).toBe("alreadyLogin");
+    expect(observedStates[0]?.user).toBeUndefined();
+    expect(observedStates[0]?.role).not.toEqual(cachedRole);
   });
 });

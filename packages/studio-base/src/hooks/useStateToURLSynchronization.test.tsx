@@ -26,7 +26,26 @@ jest.mock("@foxglove/studio-base/context/CurrentLayoutContext");
 jest.mock("@foxglove/studio-base/components/MessagePipeline");
 
 describe("useStateToURLSynchronization", () => {
+  it.each([{ capabilities: [] }, { capabilities: ["playbackControl"] }])(
+    "preserves a launch seek while the player is not ready (%j)",
+    ({ capabilities }) => {
+      const originalUrl =
+        "http://localhost/viz?ds=coscene-data-platform&ds.key=record&layoutId=layout&time=2025-04-07T02%3A08%3A22.721000000Z#detail";
+      window.history.replaceState(undefined, "", originalUrl);
+      (useMessagePipeline as jest.Mock).mockImplementation((selector) =>
+        selector({
+          playerState: { activeData: undefined, capabilities },
+        }),
+      );
+      renderHook(useStateToURLSynchronization, {
+        wrapper: ({ children }) => <EventsProvider>{children}</EventsProvider>,
+      });
+      expect(window.location.href).toBe(originalUrl);
+    },
+  );
+
   it("updates the url with a stable source time", () => {
+    window.history.replaceState(undefined, "", "http://localhost/");
     const spy = jest.spyOn(window.history, "replaceState");
 
     (useMessagePipeline as jest.Mock).mockImplementation((selector) =>

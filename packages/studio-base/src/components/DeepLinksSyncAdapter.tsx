@@ -38,6 +38,7 @@ import { useSyncTimeFromUrl } from "@foxglove/studio-base/hooks/useSyncTimeFromU
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import type { AppURLState } from "@foxglove/studio-base/util/appURLState";
+import { getBrowserAuthUrl } from "@foxglove/studio-base/util/browserSession";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
@@ -60,8 +61,10 @@ const selectBeginExternalInitConfigUpdate = (state: CoreDataStore) =>
 
 const DEFAULT_DEEPLINKS = Object.freeze([]);
 
-export function getWebLoginRedirectUrl(location: Pick<Location, "pathname" | "search">): string {
-  return `/login?redirectToPath=${encodeURIComponent(location.pathname + location.search)}`;
+export function getWebLoginRedirectUrl(
+  location: Pick<Location, "pathname" | "search" | "hash">,
+): string {
+  return getBrowserAuthUrl("/auth/login", location);
 }
 
 function ExpiredShareManifestDialog(): React.JSX.Element {
@@ -178,11 +181,13 @@ export function DeepLinksSyncAdapter({
         if (isDesktopApp()) {
           window.open(`https://${domainConfig.webDomain}/studio/login`);
         } else {
-          window.location.href = getWebLoginRedirectUrl(window.location);
+          window.location.href = getWebLoginRedirectUrl(
+            deepLinks[0] != undefined ? new URL(deepLinks[0]) : window.location,
+          );
         }
       }, 500);
     }, 1000);
-  }, [t, domainConfig.webDomain]);
+  }, [t, domainConfig.webDomain, deepLinks]);
 
   // ========== 配置和 API ==========
   const [lastExternalInitConfig, setLastExternalInitConfig] = useAppConfigurationValue<string>(
