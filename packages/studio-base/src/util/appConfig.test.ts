@@ -12,7 +12,6 @@ describe("getDomainConfig", () => {
   const defaultDomainConfig = {
     env: "saas",
     logo: "coscene",
-    authStatusCookieName: "coSceneAuthStatus",
     authStatusCookieDomain: "coscene.cn",
     webDomain: "coscene.cn",
     ssoDomain: "sso.coscene.cn",
@@ -21,11 +20,27 @@ describe("getDomainConfig", () => {
   const agibotDomainConfig = {
     env: "saas",
     logo: "agibot",
-    authStatusCookieName: "agibotAuthStatus",
     authStatusCookieDomain: "coscene.cn",
     webDomain: "agibot.coscene.cn",
     ssoDomain: "agibot.sso.coscene.cn",
   };
+
+  it.each([undefined, "", "legacyAuthStatus"])(
+    "accepts retired cookie name %s without changing domain selection",
+    (authStatusCookieName) => {
+      const fallback = { ...defaultDomainConfig, authStatusCookieName };
+      const tenant = { ...agibotDomainConfig, authStatusCookieName };
+      window.cosConfig = { DOMAIN_CONFIG: { default: fallback } };
+      expect(getDomainConfig()).toEqual(fallback);
+      window.cosConfig.DOMAIN_CONFIG![window.location.hostname] = tenant;
+      expect(getDomainConfig()).toEqual(tenant);
+    },
+  );
+
+  it("does not emit a status cookie name in built-in defaults", () => {
+    window.cosConfig = undefined;
+    expect(getDomainConfig()).not.toHaveProperty("authStatusCookieName");
+  });
 
   afterEach(() => {
     window.cosConfig = undefined;

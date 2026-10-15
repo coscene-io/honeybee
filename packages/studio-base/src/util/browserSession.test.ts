@@ -213,7 +213,6 @@ it.each(["/auth/login", "/auth/logout", "/auth/recover", "/auth/logged-out"] as 
         default: {
           env: "test",
           logo: "coscene",
-          authStatusCookieName: "unused",
           authStatusCookieDomain: "unused",
           webDomain: "console.example.test",
           ssoDomain: "sso.example.test",
@@ -260,7 +259,6 @@ it.each([
         env,
         webDomain,
         logo: "coscene",
-        authStatusCookieName: "unused",
         authStatusCookieDomain: "unused",
         ssoDomain: "unused.example.test",
       },
