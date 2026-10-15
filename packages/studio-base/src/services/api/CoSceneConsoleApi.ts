@@ -817,7 +817,7 @@ class CoSceneConsoleApi {
   }
 
   async #sessionFetch(url: string, config: RequestInit): Promise<Response> {
-    const session = isAuthlessDataSource() ? undefined : getBrowserSession();
+    const session = getBrowserSession();
     session?.assertCurrent(this.#authHeader);
     const response = await fetch(url, {
       ...config,
@@ -853,18 +853,16 @@ class CoSceneConsoleApi {
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        if (!isAuthlessDataSource()) {
-          if (!isDesktopApp()) {
-            const session = getBrowserSession();
-            if (session != undefined) {
-              session.rejectCredential(this.#authHeader ?? "");
-            } else if (localStorage.getItem("coScene_org_jwt") === this.#authHeader) {
-              markBrowserCredentialInvalid(this.#authHeader ?? "");
-              window.location.href = getBrowserAuthUrl("/auth/recover");
-            }
-          } else {
-            authBridge?.logout();
+        if (!isDesktopApp()) {
+          const session = getBrowserSession();
+          if (session != undefined) {
+            session.rejectCredential(this.#authHeader ?? "");
+          } else if (localStorage.getItem("coScene_org_jwt") === this.#authHeader) {
+            markBrowserCredentialInvalid(this.#authHeader ?? "");
+            window.location.href = getBrowserAuthUrl("/auth/recover");
           }
+        } else if (!isAuthlessDataSource()) {
+          authBridge?.logout();
         }
       } else if (res.status === 403) {
         toast.error(t("unauthorized", { ns: "error" }));
@@ -878,9 +876,7 @@ class CoSceneConsoleApi {
           `Status ${res.status}: ${err instanceof Error ? err.message : String(err)}`,
         );
       })) as { message?: string; error?: string; errorCode?: number };
-      if (!isAuthlessDataSource()) {
-        getBrowserSession()?.assertCurrent(this.#authHeader);
-      }
+      getBrowserSession()?.assertCurrent(this.#authHeader);
       const message = json.message ?? json.error;
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
@@ -902,9 +898,7 @@ class CoSceneConsoleApi {
     } catch {
       throw new Error("Request Failed.");
     }
-    if (!isAuthlessDataSource()) {
-      getBrowserSession()?.assertCurrent(this.#authHeader);
-    }
+    getBrowserSession()?.assertCurrent(this.#authHeader);
     return { status: res.status, json };
   }
 

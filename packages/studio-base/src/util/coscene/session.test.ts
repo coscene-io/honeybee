@@ -88,14 +88,18 @@ it.each([false, true])("never retries a failed mutation (desktop=%s)", async (de
   (console.error as jest.Mock).mockClear();
 });
 
-it("blocks a replacement credential before sending another request", async () => {
+it.each([false, true])("blocks a replacement credential (public share=%s)", async (authless) => {
+  setAuthlessDataSource({ authless });
+  session.setLocalPlayback({ local: authless });
   localStorage.setItem("coScene_org_jwt", "Bearer replacement");
   const next = jest.fn().mockResolvedValue(response);
   await expect(intercept(next)(request())).rejects.toThrow("session changed");
   expect(next).not.toHaveBeenCalled();
 });
 
-it("rejects a delayed old-session 401 without invalidating the new credential", async () => {
+it.each([false, true])("rejects a delayed old-session 401 (public share=%s)", async (authless) => {
+  setAuthlessDataSource({ authless });
+  session.setLocalPlayback({ local: authless });
   let reject!: (error: Error) => void;
   const next = jest.fn().mockImplementation(
     async () =>
@@ -112,12 +116,15 @@ it("rejects a delayed old-session 401 without invalidating the new credential", 
   expect(next).toHaveBeenCalledTimes(1);
 });
 
-it("records a matching 401 for the main site's recovery page", async () => {
+it.each([false, true])("records a matching protected 401 (public share=%s)", async (authless) => {
+  setAuthlessDataSource({ authless });
+  session.setLocalPlayback({ local: authless });
   const next = jest.fn().mockRejectedValue(new ConnectError("expired", Code.Unauthenticated));
   await expect(intercept(next)(request())).rejects.toThrow("session changed");
   expect(session.getStatus()).toBe("recover");
   expect(sessionStorage.getItem("coScene_invalid_org_jwt")).toBe("Bearer initial");
   expect(next).toHaveBeenCalledTimes(1);
+  expect(session.preservesPlayback()).toBe(authless);
 });
 
 it("does not treat a permission denial as logout", async () => {
@@ -139,4 +146,26 @@ it("combines request cancellation with the document session", async () => {
   expect(sent.header.get("Authorization")).toBe("Bearer initial");
   controller.abort();
   expect(sent.signal.aborted).toBe(true);
+});
+
+it("cancels protected RPCs during public playback and rejects their late responses", async () => {
+  setAuthlessDataSource({ authless: true });
+  session.setLocalPlayback({ local: true });
+  let complete!: (value: UnaryResponse) => void;
+  const next = jest.fn().mockImplementation(
+    async () =>
+      await new Promise<UnaryResponse>((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const pending = intercept(next)(request());
+  const sent = next.mock.calls[0]![0] as UnaryRequest;
+  expect(sent.header.get("Authorization")).toBe("Bearer initial");
+  localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+  session.reconcile();
+  complete(response);
+  await expect(pending).rejects.toThrow("session changed");
+  expect(sent.signal.aborted).toBe(true);
+  expect(session.preservesPlayback()).toBe(true);
+  expect(sessionStorage.getItem("coScene_invalid_org_jwt")).toBeNull();
 });

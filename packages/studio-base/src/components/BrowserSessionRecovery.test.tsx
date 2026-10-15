@@ -95,3 +95,21 @@ it("renders a public share despite a rejected account token", () => {
   expect(screen.getByTestId("studio")).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
 });
+
+it("keeps public playback mounted when a peer replaces the protected session", () => {
+  const hash = new URLSearchParams({ manifestUrl: "https://storage.example/manifest.json" });
+  window.history.replaceState(undefined, "", `/viz?ds=coscene-share-manifest#${hash.toString()}`);
+  const session = new BrowserSession();
+  jest.mocked(initializeBrowserSession).mockReturnValue(session);
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  act(() => {
+    localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+    window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
+  });
+  expect(session.getStatus()).toBe("changed");
+  expect(session.controller.signal.aborted).toBe(true);
+  expect(session.preservesPlayback()).toBe(true);
+  expect(session.credential).toBe("Bearer initial");
+  expect(screen.getByTestId("studio")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
+});

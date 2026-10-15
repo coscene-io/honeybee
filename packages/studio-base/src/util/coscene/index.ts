@@ -62,7 +62,8 @@ export function getOS(): string | undefined {
 }
 
 const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  const session = isAuthlessDataSource() ? undefined : getBrowserSession();
+  // Public playback does not make profile, layout, or record RPCs public.
+  const session = getBrowserSession();
   session?.assertCurrent();
   const jwt = session?.credential ?? localStorage.getItem(ACCESS_TOKEN_NAME);
   const request =
@@ -84,9 +85,11 @@ const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
     // grpc error code-16 === http status code 401
     // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
     if (error.code === Code.Unauthenticated) {
-      if (window.location.pathname !== "/login" && !isAuthlessDataSource()) {
+      if (window.location.pathname !== "/login") {
         if (isDesktopApp()) {
-          authBridge?.logout();
+          if (!isAuthlessDataSource()) {
+            authBridge?.logout();
+          }
         } else {
           if (session != undefined) {
             session.rejectCredential(jwt ?? "");

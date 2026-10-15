@@ -16,12 +16,13 @@ import {
   LayoutState,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
-import { PlayerCapabilities } from "@foxglove/studio-base/players/types";
+import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectCanSeek = (ctx: MessagePipelineContext) =>
   ctx.playerState.capabilities.includes(PlayerCapabilities.playbackControl);
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectLayoutIdForUrlSync = (layoutState: LayoutState) =>
   layoutState.selectedLayout?.transient === true ? undefined : layoutState.selectedLayout?.id;
 
@@ -36,6 +37,7 @@ function updateUrl(newState: AppURLState) {
  */
 export function useStateToURLSynchronization(): void {
   const canSeek = useMessagePipeline(selectCanSeek);
+  const playerPresence = useMessagePipeline(selectPlayerPresence);
   const currentTime = useMessagePipeline(selectCurrentTime);
   const [debouncedCurrentTime] = useDebounce(currentTime, 500, { maxWait: 500 });
   const layoutId = useCurrentLayoutSelector(selectLayoutIdForUrlSync);
@@ -54,6 +56,8 @@ export function useStateToURLSynchronization(): void {
     // Keep the launch seek time while authentication and player initialization are pending.
     if (canSeek && debouncedCurrentTime != undefined) {
       updateUrl({ time: debouncedCurrentTime });
+    } else if (playerPresence === PlayerPresence.PRESENT && !canSeek) {
+      updateUrl({ time: undefined });
     }
-  }, [canSeek, debouncedCurrentTime]);
+  }, [canSeek, debouncedCurrentTime, playerPresence]);
 }
