@@ -95,24 +95,6 @@ it("local playback stays available while authenticated APIs are stopped", () => 
   }).toThrow();
 });
 
-it("a fresh signout broadcast stops protected work without deleting shared credentials", () => {
-  localStorage.setItem(tokenKey, "Bearer old");
-  const session = new BrowserSession();
-  session.observeSignOutBroadcast();
-  expect(session.getStatus()).toBe("logged-out");
-  expect(session.controller.signal.aborted).toBe(true);
-  expect(localStorage.getItem(tokenKey)).toBe("Bearer old");
-  expect(sessionStorage.getItem("coScene_invalid_org_jwt")).toBe("Bearer old");
-});
-it("a delayed signout broadcast preserves a replacement session and requires reload", () => {
-  localStorage.setItem(tokenKey, "Bearer old");
-  const session = new BrowserSession();
-  localStorage.setItem(tokenKey, "Bearer new");
-  session.observeSignOutBroadcast();
-  expect(session.getStatus()).toBe("changed");
-  expect(localStorage.getItem(tokenKey)).toBe("Bearer new");
-});
-
 it("restores a tab-local invalidation after a reload", () => {
   localStorage.setItem(tokenKey, "Bearer rejected");
   sessionStorage.setItem("coScene_invalid_org_jwt", "Bearer rejected");
@@ -199,5 +181,23 @@ it.each(["request", "session"])("supports %s cancellation without AbortSignal.an
     } else {
       Reflect.deleteProperty(AbortSignal, "any");
     }
+  }
+});
+
+it("ignores retired status cookies without changing the credential boundary", () => {
+  localStorage.setItem(tokenKey, "Bearer current");
+  const session = new BrowserSession();
+  const stop = session.listen();
+  try {
+    document.cookie = `coSceneAuthStatusDev=${encodeURIComponent(JSON.stringify({ status: "SIGN_OUT", updatedAt: Date.now() }) ?? "")}; Path=/`;
+    window.dispatchEvent(new Event("pageshow"));
+    expect(session.getStatus()).toBe("current");
+    expect(() => {
+      session.assertCurrent();
+    }).not.toThrow();
+    expect(localStorage.getItem(tokenKey)).toBe("Bearer current");
+  } finally {
+    stop();
+    document.cookie = "coSceneAuthStatusDev=; Max-Age=0; Path=/";
   }
 });

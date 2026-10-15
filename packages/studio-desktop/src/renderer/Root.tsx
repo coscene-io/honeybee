@@ -39,6 +39,7 @@ import NativeWindowContext from "@foxglove/studio-base/context/NativeWindowConte
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { isShareManifestUrl } from "@foxglove/studio-base/util/shareManifest";
 
+import { bindDesktopAuth, useDesktopSessionState } from "./desktopAuth";
 import { DesktopExtensionLoader } from "./services/DesktopExtensionLoader";
 import { NativeAppMenu } from "./services/NativeAppMenu";
 import { NativeWindow } from "./services/NativeWindow";
@@ -62,21 +63,16 @@ export default function Root(props: {
 
   const { t, i18n } = useTranslation("appBar");
 
-  // notify user login status change
-  const [loginStatusKey, setLoginStatusKey] = useState(0);
-
-  const authToken = localStorage.getItem("coScene_org_jwt");
-
+  const { session, workspaceGeneration, discardStartupLinks } = useDesktopSessionState();
   const appConfig = getAppConfig();
   const consoleApi = useMemo(
     () =>
       new ConsoleApi(
         appConfig.CS_HONEYBEE_BASE_URL ?? "",
         appConfig.VITE_APP_BFF_URL ?? "",
-        authToken ?? "",
+        session.credential,
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [appConfig.CS_HONEYBEE_BASE_URL, appConfig.VITE_APP_BFF_URL, session],
   );
 
   useEffect(() => {
@@ -100,31 +96,14 @@ export default function Root(props: {
     };
   }, [appConfiguration]);
 
-  useEffect(() => {
-    if (authToken) {
-      consoleApi.setAuthHeader(authToken);
-    }
-
-    const cleanup = authBridge?.onAuthToken((token) => {
-      localStorage.setItem("coScene_org_jwt", token);
-      consoleApi.setAuthHeader(token);
-      setLoginStatusKey((key) => key + 1);
-      toast.success(t("loginSuccess"));
-    });
-
-    return cleanup;
-  }, [consoleApi, t, authToken]);
-
-  useEffect(() => {
-    // Passive logout, token expired
-    const cleanup = authBridge?.onLogout(() => {
-      toast.error(t("loginExpired", { ns: "account" }));
-      localStorage.removeItem("coScene_org_jwt");
-      setLoginStatusKey((key) => key + 1);
-    });
-
-    return cleanup;
-  }, [t]);
+  useEffect(
+    () =>
+      bindDesktopAuth(authBridge, {
+        onLogin: () => toast.success(t("loginSuccess")),
+        onLogout: () => toast.error(t("loginExpired", { ns: "account" })),
+      }),
+    [t],
+  );
 
   const [extensionLoaders] = useState(() => [
     new IdbExtensionLoader("org"),
@@ -211,7 +190,7 @@ export default function Root(props: {
     };
   }, []);
 
-  const initProviders = SharedProviders({ consoleApi, loginStatusKey });
+  const initProviders = SharedProviders({ consoleApi, loginStatusKey: session.generation });
 
   const extraProviders = useMemo(() => {
     const providers: React.JSX.Element[] = initProviders;
@@ -229,13 +208,14 @@ export default function Root(props: {
   return (
     <>
       <SharedRoot
+        key={workspaceGeneration}
         appBarLeftInset={ctxbridge?.platform === "darwin" && !isFullScreen ? 72 : undefined}
         appConfiguration={appConfiguration}
         onAppBarDoubleClick={() => {
           nativeWindow.handleTitleBarDoubleClick();
         }}
         dataSources={dataSources}
-        deepLinks={deepLinks}
+        deepLinks={discardStartupLinks ? [] : deepLinks}
         enableGlobalCss
         enableLaunchPreferenceScreen
         extraProviders={extraProviders}

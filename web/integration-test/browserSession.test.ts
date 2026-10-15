@@ -146,12 +146,7 @@ it("a hidden tab converges to a passive logged-out page without authenticating",
   expect(signouts).toEqual([]);
 }, 30_000);
 
-it("a fresh signout cookie shows passive recovery without opening the legacy login route", async () => {
-  let authenticated = false;
-  page.on("request", (request) => {
-    const pathname = new URL(request.url()).pathname;
-    authenticated ||= pathname === "/login" || pathname.includes("/signout");
-  });
+it("ignores retired status cookies while the same-origin credential remains current", async () => {
   await context.addCookies([
     {
       name: "coSceneAuthStatusDev",
@@ -161,11 +156,12 @@ it("a fresh signout cookie shows passive recovery without opening the legacy log
       url: origin,
     },
   ]);
-  await page.getByText("You are signed out.", { exact: true }).waitFor();
-  expect(await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")).toBe(
-    `/auth/logged-out?redirectToPath=${encodeURIComponent("/viz/")}`,
+  await page.reload();
+  await page.waitForSelector("#root > *");
+  expect(await page.getByText("You are signed out.", { exact: true }).count()).toBe(0);
+  expect(await page.evaluate((key) => localStorage.getItem(key), tokenKey)).toBe(
+    "Bearer synthetic-initial",
   );
-  expect(authenticated).toBe(false);
 }, 30_000);
 
 it("a genuine BFCache restoration observes an exit that happened while frozen", async () => {

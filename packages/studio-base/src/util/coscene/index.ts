@@ -14,6 +14,7 @@ import i18next from "i18next";
 import { v4 as uuidv4 } from "uuid";
 
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { getDesktopSession, DesktopSession } from "@foxglove/studio-base/util/desktopSession";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import { ACCESS_TOKEN_NAME } from "@foxglove/studio-base/util/queries";
 import { Auth } from "@foxglove/studio-desktop/src/common/types";
@@ -61,58 +62,63 @@ export function getOS(): string | undefined {
   return os;
 }
 
-const setAuthorizationUnaryInterceptor: Interceptor = (next) => async (req) => {
-  // Public playback does not make profile, layout, or record RPCs public.
-  const session = getBrowserSession();
-  session?.assertCurrent();
-  const jwt = session?.credential ?? localStorage.getItem(ACCESS_TOKEN_NAME);
-  const request =
-    session == undefined ? req : { ...req, signal: session.requestSignal(req.signal) };
-  if (jwt) {
-    req.header.set("Authorization", jwt);
-    req.header.set("x-cos-request-id", uuidv4());
-  } else {
-    console.error("no jwt");
-  }
-
-  try {
-    const response = await next(request);
+const setAuthorizationUnaryInterceptor =
+  (desktopSession?: DesktopSession): Interceptor =>
+  (next) =>
+  async (req) => {
+    // Public playback does not make profile, layout, or record RPCs public.
+    const session = getBrowserSession() ?? desktopSession;
     session?.assertCurrent();
-    return response;
+    const jwt = session?.credential ?? localStorage.getItem(ACCESS_TOKEN_NAME);
+    const request =
+      session == undefined ? req : { ...req, signal: session.requestSignal(req.signal) };
+    if (jwt) {
+      req.header.set("Authorization", jwt);
+      req.header.set("x-cos-request-id", uuidv4());
+    } else {
+      console.error("no jwt");
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    // grpc error code-16 === http status code 401
-    // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
-    if (error.code === Code.Unauthenticated) {
-      if (window.location.pathname !== "/login") {
-        if (isDesktopApp()) {
-          if (!isAuthlessDataSource()) {
-            authBridge?.logout();
-          }
-        } else {
-          if (session != undefined) {
-            session.rejectCredential(jwt ?? "");
-          } else if (localStorage.getItem(ACCESS_TOKEN_NAME) === jwt) {
-            markBrowserCredentialInvalid(jwt ?? "");
-            window.location.href = getBrowserAuthUrl("/auth/recover");
+    try {
+      const response = await next(request);
+      session?.assertCurrent();
+      return response;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      // grpc error code-16 === http status code 401
+      // https://grpc.github.io/grpc/core/md_doc_statuscodes.html
+      if (error.code === Code.Unauthenticated) {
+        if (window.location.pathname !== "/login") {
+          if (isDesktopApp()) {
+            if (session != undefined) {
+              session.rejectCredential(jwt ?? "");
+            } else if (!isAuthlessDataSource()) {
+              authBridge?.logout();
+            }
+          } else {
+            if (session != undefined) {
+              session.rejectCredential(jwt ?? "");
+            } else if (localStorage.getItem(ACCESS_TOKEN_NAME) === jwt) {
+              markBrowserCredentialInvalid(jwt ?? "");
+              window.location.href = getBrowserAuthUrl("/auth/recover");
+            }
           }
         }
       }
-    }
 
-    session?.assertCurrent();
-    console.error(error);
-    try {
-      console.error(
-        `Error Calling GRPC Service ${req.service.typeName} Code: ${error.code} Message: ${error.message}`,
-      );
-    } catch (err) {
-      console.error(err);
+      session?.assertCurrent();
+      console.error(error);
+      try {
+        console.error(
+          `Error Calling GRPC Service ${req.service.typeName} Code: ${error.code} Message: ${error.message}`,
+        );
+      } catch (err) {
+        console.error(err);
+      }
+      throw error;
     }
-    throw error;
-  }
-};
+  };
 
 const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {
   req.header.set("x-cos-utc-offset", String(new Date().getTimezoneOffset()));
@@ -121,12 +127,18 @@ const setLocaleInfoUnaryInterceptor: Interceptor = (next) => async (req) => {
   return await next(req);
 };
 
-export function getPromiseClient<T extends DescService>(service: T): Client<T> {
+export function getPromiseClient<T extends DescService>(
+  service: T,
+  desktopSession = getDesktopSession(),
+): Client<T> {
   return createClient(
     service,
     createGrpcWebTransport({
       baseUrl: getAppConfig().VITE_APP_BASE_API_URL ?? "https://api.dev.coscene.cn",
-      interceptors: [setAuthorizationUnaryInterceptor, setLocaleInfoUnaryInterceptor],
+      interceptors: [
+        setAuthorizationUnaryInterceptor(desktopSession),
+        setLocaleInfoUnaryInterceptor,
+      ],
     }),
   );
 }

@@ -42,7 +42,7 @@ export function main(): void {
 
   log.debug(`Start Preload`);
   log.info(`${COSCENE_PRODUCT_NAME} ${COSCENE_PRODUCT_VERSION}`);
-  log.info(`initializing preloader, argv="${window.process.argv.join(" ")}"`);
+  log.info("Initializing preloader");
 
   window.onerror = (ev) => {
     console.error(ev);
@@ -207,9 +207,12 @@ export function main(): void {
   };
 
   const authBridge: Auth = {
-    onAuthToken: (callback: (token: string) => void) => {
-      const subscription = (_event: IpcRendererEvent, token: string) => {
-        callback(token);
+    ready: () => {
+      void ipcRenderer.invoke("auth-ready");
+    },
+    onAuthToken: (callback: (token: string, sessionId?: string) => void) => {
+      const subscription = (_event: IpcRendererEvent, token: string, sessionId?: string) => {
+        callback(token, sessionId);
       };
       ipcRenderer.on("auth-token", subscription);
 
@@ -217,9 +220,9 @@ export function main(): void {
         ipcRenderer.removeListener("auth-token", subscription);
       };
     },
-    onLogout: (callback: () => void) => {
-      const subscription = (_event: IpcRendererEvent) => {
-        callback();
+    onLogout: (callback: (credential?: string, sessionId?: string) => void) => {
+      const subscription = (_event: IpcRendererEvent, credential?: string, sessionId?: string) => {
+        callback(credential, sessionId);
       };
       ipcRenderer.on("auth-signout", subscription);
 
@@ -228,8 +231,8 @@ export function main(): void {
       };
     },
     // notify main process send message to all windows
-    logout: () => {
-      void ipcRenderer.invoke("auth-logout");
+    logout: (credential?: string, sessionId?: string) => {
+      void ipcRenderer.invoke("auth-logout", credential, sessionId);
     },
   };
 

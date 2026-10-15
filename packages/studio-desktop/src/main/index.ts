@@ -13,6 +13,7 @@ import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base/src/AppSetting";
 import { initI18n } from "@foxglove/studio-base/src/i18n";
 
+import { DesktopAuthBroker } from "./DesktopAuthBroker";
 import StudioAppUpdater from "./StudioAppUpdater";
 import StudioWindow from "./StudioWindow";
 import getDevModeIcon from "./getDevModeIcon";
@@ -30,6 +31,7 @@ import {
 } from "../common/webpackDefines";
 
 const log = Logger.getLogger(__filename);
+const desktopAuth = new DesktopAuthBroker();
 
 /**
  * Determine whether an item in argv is a file that we should try opening as a data source.
@@ -106,7 +108,7 @@ export async function main(): Promise<void> {
   // Forward urls/files opened in a second instance to our default handlers so it's as if we opened
   // them with this instance.
   app.on("second-instance", (_ev, argv, _workingDirectory) => {
-    log.debug("Received arguments from second app instance:", argv);
+    log.debug("Received a second app instance");
 
     // Bring the app to the front
     const someWindow = BrowserWindow.getAllWindows()[0];
@@ -183,7 +185,7 @@ export async function main(): Promise<void> {
   // works on osx - even when app is closed
   // tho it is a bit strange since it isn't clear when this runs...
   app.on("open-url", (ev, url) => {
-    log.debug("open-url handler", url);
+    log.debug("Received a desktop link");
     if (!url.startsWith("coscene://")) {
       return;
     }
@@ -191,18 +193,12 @@ export async function main(): Promise<void> {
     ev.preventDefault();
 
     if (url.startsWith("coscene://signin-complete")) {
-      const urlObj = new URL(url);
-      const params = urlObj.searchParams;
-
-      const token = params.get("jwt");
-      if (token) {
-        const decodedToken = Buffer.from(token, "base64").toString("utf8");
-
-        BrowserWindow.getAllWindows().forEach((win) => {
-          win.webContents.send("auth-token", decodedToken);
-        });
+      if (desktopAuth.acceptLink(url)) {
+        if (app.isReady() && BrowserWindow.getAllWindows().length === 0) {
+          new StudioWindow().load();
+        }
       } else {
-        log.warn(`signin-complete token not found`);
+        log.warn("Invalid desktop sign-in callback");
       }
       // When completing sign in from Console, the browser can launch this URL to re-focus the app.
       app.focus({ steal: true });
@@ -228,11 +224,19 @@ export async function main(): Promise<void> {
     void updateLanguage();
   });
 
-  ipcMain.handle("auth-logout", () => {
+  ipcMain.handle("auth-logout", (_event, credential?: string, sessionId?: string) => {
     log.debug("auth-logout");
 
-    BrowserWindow.getAllWindows().forEach((win) => {
-      win.webContents.send("auth-signout");
+    desktopAuth.logout(credential, sessionId);
+  });
+
+  ipcMain.handle("auth-ready", (event) => {
+    const sender = event.sender;
+    desktopAuth.ready(sender.id, (channel, credential, sessionId) => {
+      sender.send(channel, credential, sessionId);
+    });
+    sender.once("destroyed", () => {
+      desktopAuth.remove(sender.id);
     });
   });
 
@@ -242,7 +246,15 @@ export async function main(): Promise<void> {
   app.on("ready", async () => {
     updateNativeColorScheme();
     const argv = process.argv;
-    const deepLinks = argv.filter((arg) => arg.startsWith("coscene://"));
+    const deepLinks = argv.filter((arg) => {
+      if (arg.startsWith("coscene://signin-complete")) {
+        if (!desktopAuth.acceptLink(arg)) {
+          log.warn("Invalid desktop sign-in callback");
+        }
+        return false;
+      }
+      return arg.startsWith("coscene://");
+    });
 
     // create the initial window now to display to the user immediately
     // loading the app url happens at the end of ready to ensure we've setup all the handlers, settings, etc

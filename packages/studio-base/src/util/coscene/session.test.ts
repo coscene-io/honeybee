@@ -12,7 +12,13 @@ import type { Interceptor, UnaryRequest, UnaryResponse } from "@connectrpc/conne
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { RecordService } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/services/record_pb";
 
+import { mockDesktopLocks } from "@foxglove/studio-base/test/mockDesktopLocks";
 import { BrowserSession, getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+import {
+  clearDesktopCredential,
+  getDesktopSession,
+  installDesktopCredential,
+} from "@foxglove/studio-base/util/desktopSession";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { getPromiseClient, setAuthlessDataSource } from "./index";
@@ -57,6 +63,7 @@ function request(signal = new AbortController().signal): UnaryRequest {
 }
 
 beforeEach(() => {
+  mockDesktopLocks();
   localStorage.clear();
   sessionStorage.clear();
   localStorage.setItem("coScene_org_jwt", "Bearer initial");
@@ -169,3 +176,44 @@ it("cancels protected RPCs during public playback and rejects their late respons
   expect(session.preservesPlayback()).toBe(true);
   expect(sessionStorage.getItem("coScene_invalid_org_jwt")).toBeNull();
 });
+
+it.each([false, true])(
+  "pins desktop RPCs to the login that created the client (401=%s)",
+  async (unauthorized) => {
+    jest.mocked(getBrowserSession).mockReturnValue(undefined);
+    jest.mocked(isDesktopApp).mockReturnValue(true);
+    await installDesktopCredential("Bearer initial");
+    jest.mocked(createGrpcWebTransport).mockClear();
+    getPromiseClient(RecordService);
+    const desktopInterceptor =
+      jest.mocked(createGrpcWebTransport).mock.calls[0]![0].interceptors![0]!;
+    let complete!: (value: UnaryResponse) => void;
+    let reject!: (error: Error) => void;
+    const next = jest.fn().mockImplementation(
+      async () =>
+        await new Promise<UnaryResponse>((resolve, fail) => {
+          complete = resolve;
+          reject = fail;
+        }),
+    );
+    const pending = desktopInterceptor(next)(request());
+    const sent = next.mock.calls[0]![0] as UnaryRequest;
+    await installDesktopCredential("Bearer initial");
+    const current = getDesktopSession();
+    if (unauthorized) {
+      reject(new ConnectError("old login", Code.Unauthenticated));
+    } else {
+      complete(response);
+    }
+    try {
+      await expect(pending).rejects.toThrow("Desktop session changed");
+      expect(sent.signal.aborted).toBe(true);
+      expect(getDesktopSession()).toBe(current);
+      expect(localStorage.getItem("coScene_org_jwt")).toBe("Bearer initial");
+      await expect(desktopInterceptor(next)(request())).rejects.toThrow("Desktop session changed");
+      expect(next).toHaveBeenCalledTimes(1);
+    } finally {
+      await clearDesktopCredential();
+    }
+  },
+);

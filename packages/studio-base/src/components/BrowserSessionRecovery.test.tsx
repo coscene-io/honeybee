@@ -60,7 +60,17 @@ it.each([
     if (status === "recover") {
       session.rejectCredential("Bearer initial");
     } else {
-      session.observeSignOutBroadcast();
+      localStorage.setItem(
+        "coscene.auth.session-version.v1",
+        JSON.stringify({
+          version: "ab".repeat(16),
+          reason: "logout",
+          signOutPendingUntilMs: 0,
+          isServerSignOutConfirmed: true,
+        }) ?? "",
+      );
+      localStorage.removeItem("coScene_org_jwt");
+      session.reconcile();
     }
   });
   const link = screen.getByRole("link", { name: "Open sign-in recovery" });

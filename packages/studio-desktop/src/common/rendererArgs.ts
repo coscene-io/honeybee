@@ -36,8 +36,8 @@ export function decodeRendererArg<K extends keyof RendererArgTypes>(
   const argValue = args.find((str) => str.startsWith(argPrefix))?.substring(argPrefix.length);
   try {
     return argValue ? JSON.parse(atob(argValue)) : undefined;
-  } catch (error) {
-    log.error(error);
+  } catch {
+    log.error("Invalid renderer argument encoding");
     return undefined;
   }
 }

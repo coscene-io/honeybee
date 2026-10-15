@@ -12,7 +12,6 @@ import CoSceneLayoutStorageContext from "@foxglove/studio-base/context/CoSceneLa
 import S3FileServiceContext from "@foxglove/studio-base/context/S3FileServiceContext";
 import UrdfStorageContext from "@foxglove/studio-base/context/UrdfStorageContext";
 import CoSceneConsoleApiRemoteLayoutStorageProvider from "@foxglove/studio-base/providers/CoSceneConsoleApiRemoteLayoutStorageProvider";
-import CoSceneCookiesProvider from "@foxglove/studio-base/providers/CoSceneCookiesProvider";
 import CoSceneCurrentUserProvider from "@foxglove/studio-base/providers/CoSceneCurrentUserProvider";
 import CoSceneLayoutManagerProvider from "@foxglove/studio-base/providers/CoSceneLayoutManagerProvider";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
@@ -60,7 +59,6 @@ export function SharedProviders({
       <CoSceneLayoutManagerProvider key="CoSceneLayoutManagerProvider" />,
       <CurrentLayoutProvider key="CurrentLayoutProvider" />,
       <CoScenePlaylistProvider key="CoScenePlaylistProvider" />,
-      <CoSceneCookiesProvider key="CoSceneCookiesProvider" />,
       <GrowthBookRecommendedLayoutProvider
         key="GrowthBookRecommendedLayoutProvider"
         enabled={recommendedLayoutsEnabled}

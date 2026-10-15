@@ -19,8 +19,16 @@ import {
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+import {
+  getDesktopSession,
+  subscribeDesktopSession,
+} from "@foxglove/studio-base/util/desktopSession";
 
 function getLoginStatus(): UserStore["loginStatus"] {
+  const desktop = getDesktopSession();
+  if (desktop != undefined) {
+    return desktop.credential ? "alreadyLogin" : "notLogin";
+  }
   const session = getBrowserSession();
   if (session != undefined) {
     return session.credential && session.getStatus() === "current" ? "alreadyLogin" : "notLogin";
@@ -33,9 +41,9 @@ type PersistedUserStore = Pick<UserStore, "role"> & {
 };
 
 function mergePersistedUserStore(persistedState: unknown, currentState: UserStore): UserStore {
-  // Browser documents verify their identity before initializing protected data. Shared cached
+  // Active sessions verify their identity before initializing protected data. Shared cached
   // profile and permission data can belong to the account that a peer just replaced.
-  if (getBrowserSession() != undefined) {
+  if (getBrowserSession() != undefined || getDesktopSession() != undefined) {
     return currentState;
   }
   if (persistedState == undefined || typeof persistedState !== "object") {
@@ -112,6 +120,15 @@ export default function CoSceneCurrentUserProvider({
       store.setState({ loginStatus: getLoginStatus() });
     };
     syncLoginStatus();
+    if (getDesktopSession() != undefined) {
+      return subscribeDesktopSession(() => {
+        store.setState({
+          loginStatus: getLoginStatus(),
+          user: undefined,
+          role: { organizationRole: 0, projectRole: 0 },
+        });
+      });
+    }
     return getBrowserSession()?.subscribe(syncLoginStatus);
   }, [loginStatusKey, store]);
 
