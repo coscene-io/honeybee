@@ -177,6 +177,11 @@ import type {
 } from "@foxglove/studio-base/context/CoreDataContext";
 import PlayerProblemManager from "@foxglove/studio-base/players/PlayerProblemManager";
 import {
+  getBrowserAuthUrl,
+  getBrowserSession,
+  markBrowserCredentialInvalid,
+} from "@foxglove/studio-base/util/browserSession";
+import {
   getPromiseClient,
   CosQuery,
   SerializeOption,
@@ -527,6 +532,7 @@ class CoSceneConsoleApi {
   }
 
   public setAuthHeader(header: string): void {
+    getBrowserSession()?.assertCurrent(header);
     this.#authHeader = header;
   }
 
@@ -810,6 +816,21 @@ class CoSceneConsoleApi {
     return { fullUrl, fullConfig };
   }
 
+  async #sessionFetch(url: string, config: RequestInit): Promise<Response> {
+    const session = getBrowserSession();
+    session?.assertCurrent(this.#authHeader);
+    const response = await fetch(url, {
+      ...config,
+      signal:
+        session == undefined ? config.signal : session.requestSignal(config.signal ?? undefined),
+    });
+    session?.assertCurrent(this.#authHeader);
+    if (response.status === 401 && new Headers(config.headers).has("Authorization")) {
+      session?.rejectCredential(this.#authHeader ?? "");
+    }
+    return response;
+  }
+
   async #request<T>(
     url: string,
     config?: RequestInit,
@@ -828,18 +849,20 @@ class CoSceneConsoleApi {
 
     const { fullUrl, fullConfig } = this.getRequectConfig(url, config, customHost);
 
-    const res = await fetch(fullUrl, fullConfig);
+    const res = await this.#sessionFetch(fullUrl, fullConfig);
     this.#responseObserver?.(res);
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
-        if (!isAuthlessDataSource()) {
-          if (!isDesktopApp()) {
-            window.location.href = `/login?redirectToPath=${encodeURIComponent(
-              window.location.pathname + window.location.search,
-            )}`;
-          } else {
-            authBridge?.logout();
+        if (!isDesktopApp()) {
+          const session = getBrowserSession();
+          if (session != undefined) {
+            session.rejectCredential(this.#authHeader ?? "");
+          } else if (localStorage.getItem("coScene_org_jwt") === this.#authHeader) {
+            markBrowserCredentialInvalid(this.#authHeader ?? "");
+            window.location.href = getBrowserAuthUrl("/auth/recover");
           }
+        } else if (!isAuthlessDataSource()) {
+          authBridge?.logout();
         }
       } else if (res.status === 403) {
         toast.error(t("unauthorized", { ns: "error" }));
@@ -853,6 +876,7 @@ class CoSceneConsoleApi {
           `Status ${res.status}: ${err instanceof Error ? err.message : String(err)}`,
         );
       })) as { message?: string; error?: string; errorCode?: number };
+      getBrowserSession()?.assertCurrent(this.#authHeader);
       const message = json.message ?? json.error;
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
@@ -868,11 +892,14 @@ class CoSceneConsoleApi {
       throw new HttpError(res.status, message ?? `Status ${res.status}`, res);
     }
 
+    let json: T;
     try {
-      return { status: res.status, json: (await res.json()) as T };
+      json = (await res.json()) as T;
     } catch {
       throw new Error("Request Failed.");
     }
+    getBrowserSession()?.assertCurrent(this.#authHeader);
+    return { status: res.status, json };
   }
 
   async #post<T>(
@@ -986,7 +1013,7 @@ class CoSceneConsoleApi {
       }),
     });
 
-    return await fetch(fullUrl, fullConfig);
+    return await this.#sessionFetch(fullUrl, fullConfig);
   }
 
   public async getPlaylist(key: string): Promise<getPlaylistResponse> {
@@ -1323,7 +1350,7 @@ class CoSceneConsoleApi {
 
     const url = uploadUrlsResult.preSignedUrls[name] ?? "";
 
-    const res = await fetch(url, {
+    const res = await this.#sessionFetch(url, {
       method: "PUT",
       body: file,
     });
@@ -1388,7 +1415,7 @@ class CoSceneConsoleApi {
 
   public async getFilesStatus(key: string): Promise<Response> {
     const { fullConfig, fullUrl } = this.getRequectConfig(`/v1/data/getFilesStatus/${key}`);
-    return await fetch(fullUrl, fullConfig);
+    return await this.#sessionFetch(fullUrl, fullConfig);
   }
 
   public createRecord = Object.assign(

@@ -93,4 +93,17 @@ describe("shouldRedirectForAuthStatusCookie", () => {
       }),
     ).toBe(false);
   });
+
+  it("ignores future-dated signout broadcasts", () => {
+    expect(
+      shouldRedirectForAuthStatusCookie({
+        cookie: { status: AuthStatus.SIGN_OUT, updatedAt: mountedAt + 1 },
+        mountedAt,
+        observedAt: mountedAt,
+        alreadyRedirected: false,
+        isDesktop: false,
+        isAuthless: false,
+      }),
+    ).toBe(false);
+  });
 });

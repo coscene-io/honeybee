@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import { useCookies } from "react-cookie";
 
 import { getAuthStatusCookieName } from "@foxglove/studio-base/util/appConfig";
+import { getBrowserAuthUrl, getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
@@ -22,6 +23,7 @@ type AuthStatusCookie = {
 type ShouldRedirectForAuthStatusCookieArgs = {
   cookie: unknown;
   mountedAt: number;
+  observedAt?: number;
   alreadyRedirected: boolean;
   isDesktop: boolean;
   isAuthless: boolean;
@@ -56,6 +58,7 @@ function isAuthStatusCookie(cookie: unknown): cookie is AuthStatusCookie {
 export function shouldRedirectForAuthStatusCookie({
   cookie,
   mountedAt,
+  observedAt = Date.now(),
   alreadyRedirected,
   isDesktop,
   isAuthless,
@@ -70,7 +73,7 @@ export function shouldRedirectForAuthStatusCookie({
 
   const updatedAt = parseUpdatedAtMs(cookie.updatedAt);
 
-  return updatedAt != undefined && updatedAt >= mountedAt;
+  return updatedAt != undefined && updatedAt >= mountedAt && updatedAt <= observedAt;
 }
 
 function AuthSignOutListener(): React.JSX.Element {
@@ -94,9 +97,12 @@ function AuthSignOutListener(): React.JSX.Element {
     }
 
     redirected.current = true;
-    window.location.href = `/login?redirectToPath=${encodeURIComponent(
-      window.location.pathname + window.location.search,
-    )}`;
+    const session = getBrowserSession();
+    if (session != undefined) {
+      session.observeSignOutBroadcast();
+      return;
+    }
+    window.location.href = getBrowserAuthUrl("/auth/logged-out");
   }, [authStatusCookie]);
 
   return <></>;

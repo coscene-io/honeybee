@@ -18,12 +18,26 @@ import {
   User,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+
+function getLoginStatus(): UserStore["loginStatus"] {
+  const session = getBrowserSession();
+  if (session != undefined) {
+    return session.credential && session.getStatus() === "current" ? "alreadyLogin" : "notLogin";
+  }
+  return localStorage.getItem("coScene_org_jwt") != undefined ? "alreadyLogin" : "notLogin";
+}
 
 type PersistedUserStore = Pick<UserStore, "role"> & {
   user: (Omit<User, "avatarUrl"> & { avatarUrl?: string }) | undefined;
 };
 
 function mergePersistedUserStore(persistedState: unknown, currentState: UserStore): UserStore {
+  // Browser documents verify their identity before initializing protected data. Shared cached
+  // profile and permission data can belong to the account that a peer just replaced.
+  if (getBrowserSession() != undefined) {
+    return currentState;
+  }
   if (persistedState == undefined || typeof persistedState !== "object") {
     return currentState;
   }
@@ -44,8 +58,6 @@ function mergePersistedUserStore(persistedState: unknown, currentState: UserStor
 }
 
 function createCurrentUserStore() {
-  const authToken = localStorage.getItem("coScene_org_jwt");
-
   return createStore<UserStore>()(
     persist<UserStore, [], [], PersistedUserStore>(
       (set) => ({
@@ -54,7 +66,7 @@ function createCurrentUserStore() {
           organizationRole: OrganizationRoleWeight[OrganizationRoleEnum.ORGANIZATION_READER],
           projectRole: ProjectRoleWeight[ProjectRoleEnum.ANONYMOUS_USER],
         },
-        loginStatus: authToken != undefined ? "alreadyLogin" : "notLogin",
+        loginStatus: getLoginStatus(),
         setUser: (user) => {
           set({ user });
         },
@@ -96,12 +108,11 @@ export default function CoSceneCurrentUserProvider({
   const [store] = useState(createCurrentUserStore);
 
   useEffect(() => {
-    const authToken = localStorage.getItem("coScene_org_jwt");
-    if (authToken != undefined) {
-      store.setState({ loginStatus: "alreadyLogin" });
-    } else {
-      store.setState({ loginStatus: "notLogin" });
-    }
+    const syncLoginStatus = () => {
+      store.setState({ loginStatus: getLoginStatus() });
+    };
+    syncLoginStatus();
+    return getBrowserSession()?.subscribe(syncLoginStatus);
   }, [loginStatusKey, store]);
 
   return (

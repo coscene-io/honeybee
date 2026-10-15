@@ -218,9 +218,9 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
   );
 
   it("keeps the complete viz URL while a logged-out user is redirected", async () => {
-    const url = `${window.location.origin}/viz?ds=coscene-data-platform&ds.key=record-key&layoutId=${encodeURIComponent(
+    const url = `${window.location.origin}/viz?ds=coscene-data-platform&ds.key=record-key&time=2025-04-07T02%3A08%3A22.721000000Z&layoutId=${encodeURIComponent(
       "warehouses/warehouse-a/projects/project-a/layouts/layout-a",
-    )}`;
+    )}#detail`;
     window.history.replaceState(undefined, "", url);
 
     render(<DeepLinksSyncAdapter deepLinks={[url]} />);
@@ -233,7 +233,9 @@ describe("<DeepLinksSyncAdapter /> share manifest handling", () => {
     expect(mockToastError).toHaveBeenCalledTimes(1);
     expect(jest.getTimerCount()).toBe(1);
     expect(getWebLoginRedirectUrl(window.location)).toBe(
-      `/login?redirectToPath=${encodeURIComponent(new URL(url).pathname + new URL(url).search)}`,
+      `/auth/login?redirectToPath=${encodeURIComponent(
+        new URL(url).pathname + new URL(url).search + new URL(url).hash,
+      )}`,
     );
   });
 

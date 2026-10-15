@@ -18,6 +18,7 @@ import PlayerSelectionContext, {
 import FoxgloveWebSocketDataSourceFactory from "@foxglove/studio-base/dataSources/FoxgloveWebSocketDataSourceFactory";
 import { IndexedDbMessageStore } from "@foxglove/studio-base/persistence/IndexedDbMessageStore";
 import type { Player } from "@foxglove/studio-base/players/types";
+import { BrowserSession, getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 import PlayerManager from "./PlayerManager";
 
@@ -36,6 +37,11 @@ const mockConsoleApi = { setType: jest.fn() };
 const mockEmpty = {};
 const mockRecents = { recents: [], addRecent: jest.fn(() => "recent-id") };
 const mockEnqueueSnackbar = jest.fn();
+
+jest.mock("@foxglove/studio-base/util/browserSession", () => ({
+  ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
+  getBrowserSession: jest.fn(),
+}));
 
 jest.mock("@foxglove/studio-base/persistence/IndexedDbMessageStore", () => ({
   IndexedDbMessageStore: jest.fn(() => ({
@@ -176,6 +182,60 @@ describe("PlayerManager source selection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStore.dataSource = undefined;
+    localStorage.clear();
+    sessionStorage.clear();
+    jest.mocked(getBrowserSession).mockReturnValue(undefined);
+  });
+
+  it("closes an online player when another document replaces the session", async () => {
+    localStorage.setItem("coScene_org_jwt", "Bearer initial");
+    const session = new BrowserSession();
+    jest.mocked(getBrowserSession).mockReturnValue(session);
+    const view = renderManager([]);
+    try {
+      await view.openLive();
+      await act(async () => {
+        localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+        session.reconcile();
+      });
+      expect(view.live.close).toHaveBeenCalledTimes(1);
+      expect(session.controller.signal.aborted).toBe(true);
+      expect(localStorage.getItem("coScene_org_jwt")).toBe("Bearer replacement");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("keeps a local file player running while protected APIs require recovery", async () => {
+    localStorage.setItem("coScene_org_jwt", "Bearer initial");
+    const session = new BrowserSession();
+    jest.mocked(getBrowserSession).mockReturnValue(session);
+    const player = makePlayer();
+    const view = renderManager([
+      {
+        id: "local",
+        type: "file",
+        displayName: "Local",
+        initialize: () => player as unknown as Player,
+      },
+    ]);
+    try {
+      await act(async () => {
+        await view
+          .selection()
+          .selectSource("local", { type: "file", files: [new File([], "local.mcap")] });
+        session.setLocalPlayback({ local: true });
+        session.rejectCredential("Bearer initial");
+      });
+      expect(player.close).not.toHaveBeenCalled();
+      expect(view.selection().selectedSource?.id).toBe("local");
+      expect(session.getStatus()).toBe("recover");
+      expect(() => {
+        session.assertCurrent();
+      }).toThrow("session changed");
+    } finally {
+      view.unmount();
+    }
   });
 
   it("initializes a source selected once on mount under StrictMode", async () => {

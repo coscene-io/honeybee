@@ -33,6 +33,7 @@ import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/use
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
+import { getBrowserAuthUrl } from "@foxglove/studio-base/util/browserSession";
 import {
   downloadLatestStudio,
   getCoStudioVersion,
@@ -127,7 +128,7 @@ export function UserMenu({
       dialogActions.dataSource.open("start");
       toast.success(t("signoutSuccess"));
     } else {
-      window.location.href = "/login";
+      window.location.href = getBrowserAuthUrl("/auth/logout");
     }
   }, [
     isDesktop,

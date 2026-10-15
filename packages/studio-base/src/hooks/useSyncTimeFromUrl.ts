@@ -33,17 +33,16 @@ export function useSyncTimeFromUrl(targetUrlState: AppURLState | undefined): voi
   // Wait until player is ready before we try to seek.
   // Seek to time in URL.
   useEffect(() => {
-    if (
-      playerPresence !== PlayerPresence.PRESENT ||
-      !seekPlayback ||
-      isAppliedTime ||
-      time == undefined
-    ) {
+    if (playerPresence !== PlayerPresence.PRESENT || isAppliedTime || time == undefined) {
       return;
     }
 
-    log.debug(`Seeking to url time:`, time);
-    seekPlayback(time);
+    // A ready live source consumes its launch time too; do not carry that seek
+    // into an unrelated recording selected later in this document.
+    if (seekPlayback) {
+      log.debug(`Seeking to url time:`, time);
+      seekPlayback(time);
+    }
     setIsAppliedTime(true);
   }, [playerPresence, seekPlayback, isAppliedTime, time]);
 }
