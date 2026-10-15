@@ -39,7 +39,6 @@ beforeAll(async () => {
             default: {
               env: "test",
               logo: "coscene",
-              authStatusCookieName: "unused",
               authStatusCookieDomain: "unused",
               webDomain: "console.example.test",
               ssoDomain: "sso.example.test",

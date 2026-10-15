@@ -8,7 +8,8 @@
 interface DomainConfig {
   env: string;
   logo: string;
-  authStatusCookieName: string;
+  /** @deprecated Accepted only for compatibility with older deployment configuration. */
+  authStatusCookieName?: string;
   authStatusCookieDomain: string;
   webDomain: string;
   ssoDomain: string;
@@ -18,7 +19,6 @@ const DEFAULT_DOMAN_CONFIG: { [domain: string]: DomainConfig } = {
   default: {
     env: "local",
     logo: "coscene",
-    authStatusCookieName: "coSceneAuthStatusDev",
     authStatusCookieDomain: "localhost",
     webDomain: "dev.coscene.cn",
     ssoDomain: "sso.dev.coscene.cn",
@@ -178,8 +178,4 @@ export function getDomainConfig(): DomainConfig {
     appConfig.DOMAIN_CONFIG?.default ??
     DEFAULT_DOMAN_CONFIG.default!
   );
-}
-
-export function getAuthStatusCookieName(): string {
-  return getDomainConfig().authStatusCookieName;
 }
