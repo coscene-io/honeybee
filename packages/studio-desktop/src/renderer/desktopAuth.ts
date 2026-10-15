@@ -23,6 +23,16 @@ export function bindDesktopAuth(
   bridge: Auth | undefined,
   { onLogin, onLogout }: { onLogin: () => void; onLogout: () => void },
 ): () => void {
+  // Storage or the initiating renderer can retire a session before its IPC logout arrives.
+  // Remember the login this renderer observed independently of shared-token deletion.
+  let observedLogin = getDesktopSession();
+  let active = true;
+  const stopSession = subscribeDesktopSession(() => {
+    const session = getDesktopSession();
+    if (session?.credential) {
+      observedLogin = session;
+    }
+  });
   const stopLogin = bridge?.onAuthToken((credential, sessionId) => {
     void installDesktopCredential(credential, sessionId)
       .then((accepted) => {
@@ -36,8 +46,17 @@ export function bindDesktopAuth(
   });
   const stopLogout = bridge?.onLogout((credential, sessionId) => {
     void clearDesktopCredential(credential, sessionId)
-      .then((cleared) => {
-        if (cleared) {
+      .then(() => {
+        const current = getDesktopSession();
+        if (
+          active &&
+          observedLogin?.credential &&
+          (credential == undefined || credential === observedLogin.credential) &&
+          (sessionId == undefined || sessionId === observedLogin.sessionId) &&
+          current?.credential === "" &&
+          current.sessionId === observedLogin.sessionId
+        ) {
+          observedLogin = undefined;
           onLogout();
         }
       })
@@ -47,6 +66,8 @@ export function bindDesktopAuth(
   });
   bridge?.ready?.();
   return () => {
+    active = false;
+    stopSession();
     stopLogin?.();
     stopLogout?.();
   };

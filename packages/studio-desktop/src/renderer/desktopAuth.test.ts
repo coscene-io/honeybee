@@ -109,3 +109,77 @@ it("keeps the workspace mounted for local/public playback across login and passi
   unmount();
   await clearDesktopCredential();
 });
+
+describe("logout notifications after shared credential removal", () => {
+  beforeEach(async () => {
+    mockDesktopLocks();
+    localStorage.clear();
+    initializeDesktopSession();
+    await clearDesktopCredential();
+  });
+
+  async function flush(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+
+  it.each(["initiator", "peer", "reconciled peer"])(
+    "notifies the %s once and ignores a delayed logout after re-login",
+    async (renderer) => {
+      const ipc = new EventEmitter();
+      const bridge: Auth = {
+        onAuthToken: () => () => undefined,
+        onLogout: (callback) => {
+          ipc.on("logout", callback);
+          return () => {
+            ipc.off("logout", callback);
+          };
+        },
+        logout: jest.fn(),
+      };
+      Object.assign(global, { authBridge: bridge });
+      await installDesktopCredential("Bearer same", "notification:1");
+      const onLogout = jest.fn();
+      const stop = bindDesktopAuth(bridge, { onLogin: jest.fn(), onLogout });
+      try {
+        await flush();
+        if (renderer === "initiator") {
+          getDesktopSession()!.rejectCredential("Bearer same");
+          await flush();
+          expect(bridge.logout).toHaveBeenCalledWith("Bearer same", "notification:1");
+        } else {
+          // A different renderer removed the shared token before the broker broadcast.
+          localStorage.removeItem("coScene_org_jwt");
+          if (renderer === "reconciled peer") {
+            window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
+            await flush();
+            expect(getDesktopSession()!.credential).toBe("");
+          }
+        }
+        expect(localStorage.getItem("coScene_org_jwt")).toBeNull();
+        ipc.emit("logout", "Bearer same", "notification:1");
+        ipc.emit("logout", "Bearer same", "notification:1");
+        await flush();
+        expect(getDesktopSession()!.credential).toBe("");
+        expect(onLogout).toHaveBeenCalledTimes(1);
+
+        await installDesktopCredential("Bearer same", "notification:2");
+        ipc.emit("logout", "Bearer same", "notification:1");
+        await flush();
+        expect(getDesktopSession()!.credential).toBe("Bearer same");
+        expect(onLogout).toHaveBeenCalledTimes(1);
+
+        // An IPC handler waiting on persistence must not notify an unmounted binding.
+        ipc.emit("logout", "Bearer same", "notification:2");
+        stop();
+        await flush();
+        expect(onLogout).toHaveBeenCalledTimes(1);
+      } finally {
+        stop();
+        Reflect.deleteProperty(global, "authBridge");
+        await clearDesktopCredential();
+      }
+    },
+  );
+});
