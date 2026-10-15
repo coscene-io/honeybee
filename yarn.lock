@@ -4449,7 +4449,6 @@ __metadata:
     ramda: 0.29.1
     react: ^18.3.1
     react-colorful: 5.7.0
-    react-cookie: 7.2.0
     react-dnd: 16.0.1
     react-dnd-html5-backend: 16.0.1
     react-dom: ^18.3.1
@@ -4512,6 +4511,7 @@ __metadata:
     "@mcap/core": 2.1.7
     "@rspack/core": 2.1.10
     "@rspack/plugin-react-refresh": 2.0.2
+    "@testing-library/react": 16.3.3
     "@types/electron-devtools-installer": 2.2.3
     "@types/plist": ^3.0.3
     "@types/pngjs": ^6.0.2
@@ -8251,13 +8251,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/cookie@npm:^0.6.0":
-  version: 0.6.0
-  resolution: "@types/cookie@npm:0.6.0"
-  checksum: 5edce7995775b0b196b142883e4d4f71fd93c294eaec973670f1fa2540b70ea7390408ed513ddefef5fcb12a578100c76596e8f2a714b0c2ae9f70ee773f4510
-  languageName: node
-  linkType: hard
-
 "@types/cytoscape-dagre@workspace:packages/@types/cytoscape-dagre":
   version: 0.0.0-use.local
   resolution: "@types/cytoscape-dagre@workspace:packages/@types/cytoscape-dagre"
@@ -8428,16 +8421,6 @@ __metadata:
   dependencies:
     "@types/unist": "*"
   checksum: 7a973e8d16fcdf3936090fa2280f408fb2b6a4f13b42edeb5fbd614efe042b82eac68e298e556d50f6b4ad585a3a93c353e9c826feccdc77af59de8dd400d044
-  languageName: node
-  linkType: hard
-
-"@types/hoist-non-react-statics@npm:^3.3.5":
-  version: 3.3.5
-  resolution: "@types/hoist-non-react-statics@npm:3.3.5"
-  dependencies:
-    "@types/react": "*"
-    hoist-non-react-statics: ^3.3.0
-  checksum: b645b062a20cce6ab1245ada8274051d8e2e0b2ee5c6bd58215281d0ec6dae2f26631af4e2e7c8abe238cdcee73fcaededc429eef569e70908f82d0cc0ea31d7
   languageName: node
   linkType: hard
 
@@ -12023,13 +12006,6 @@ __metadata:
   version: 2.0.1
   resolution: "convert-to-spaces@npm:2.0.1"
   checksum: bbb324e5916fe9866f65c0ff5f9c1ea933764d0bdb09fccaf59542e40545ed483db6b2339c6d9eb56a11965a58f1a6038f3174f0e2fb7601343c7107ca5e2751
-  languageName: node
-  linkType: hard
-
-"cookie@npm:^0.7.2":
-  version: 0.7.2
-  resolution: "cookie@npm:0.7.2"
-  checksum: 9bf8555e33530affd571ea37b615ccad9b9a34febbf2c950c86787088eb00a8973690833b0f8ebd6b69b753c62669ea60cec89178c1fb007bf0749abed74f93e
   languageName: node
   linkType: hard
 
@@ -15765,7 +15741,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hoist-non-react-statics@npm:^3.3.0, hoist-non-react-statics@npm:^3.3.1, hoist-non-react-statics@npm:^3.3.2":
+"hoist-non-react-statics@npm:^3.3.1, hoist-non-react-statics@npm:^3.3.2":
   version: 3.3.2
   resolution: "hoist-non-react-statics@npm:3.3.2"
   dependencies:
@@ -21137,19 +21113,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-cookie@npm:7.2.0":
-  version: 7.2.0
-  resolution: "react-cookie@npm:7.2.0"
-  dependencies:
-    "@types/hoist-non-react-statics": ^3.3.5
-    hoist-non-react-statics: ^3.3.2
-    universal-cookie: ^7.0.0
-  peerDependencies:
-    react: ">= 16.3.0"
-  checksum: ed76e7e3447b29a9f93757cb44810106944772fa88110cf1aa8e2fe0c668a046c1caf99debc023b38750ecb787aff9e1aa3a9b4c80c49e7a8748a90325a0160a
-  languageName: node
-  linkType: hard
-
 "react-dnd-html5-backend@npm:16.0.1, react-dnd-html5-backend@npm:^16.0.1":
   version: 16.0.1
   resolution: "react-dnd-html5-backend@npm:16.0.1"
@@ -24543,16 +24506,6 @@ __metadata:
     unist-util-is: ^6.0.0
     unist-util-visit-parents: ^6.0.0
   checksum: 9ec42e618e7e5d0202f3c191cd30791b51641285732767ee2e6bcd035931032e3c1b29093f4d7fd0c79175bbc1f26f24f26ee49770d32be76f8730a652a857e6
-  languageName: node
-  linkType: hard
-
-"universal-cookie@npm:^7.0.0":
-  version: 7.2.1
-  resolution: "universal-cookie@npm:7.2.1"
-  dependencies:
-    "@types/cookie": ^0.6.0
-    cookie: ^0.7.2
-  checksum: 4141e07a36892ce0f9b5d036bd697ccc954ee62101191277bdad3fd350dfb7e5868a076d6840206a902cc8a0c177117abaa917524ade177e0f0fb1061e20285d
   languageName: node
   linkType: hard
 

@@ -33,6 +33,7 @@ import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import { Configuration, DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+import { getDesktopSession } from "@foxglove/studio-base/util/desktopSession";
 
 const selectExternalInitConfig = (state: CoreDataStore) => state.externalInitConfig;
 const selectOrganization = (state: CoreDataStore) => state.organization;
@@ -507,7 +508,7 @@ export function CoreDataSyncAdapter(): ReactNull {
 
   // ColinkApi
   useAsync(async () => {
-    const session = getBrowserSession();
+    const session = getBrowserSession() ?? getDesktopSession();
     const orgJwt = session?.credential ?? localStorage.getItem("coScene_org_jwt");
     if (
       coordinatorConfig == undefined ||

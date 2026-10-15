@@ -16,7 +16,12 @@ import {
   useCurrentUser,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import CoSceneCurrentUserProvider from "@foxglove/studio-base/providers/CoSceneCurrentUserProvider";
+import { mockDesktopLocks } from "@foxglove/studio-base/test/mockDesktopLocks";
 import { BrowserSession, getBrowserSession } from "@foxglove/studio-base/util/browserSession";
+import {
+  installDesktopCredential,
+  clearDesktopCredential,
+} from "@foxglove/studio-base/util/desktopSession";
 
 jest.mock("@foxglove/studio-base/util/browserSession", () => ({
   ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
@@ -175,4 +180,26 @@ describe("<CoSceneCurrentUserProvider />", () => {
     expect(observedStates[0]?.user).toBeUndefined();
     expect(observedStates[0]?.role).not.toEqual(cachedRole);
   });
+});
+
+it("clears desktop identity and roles while the playback provider remains mounted", async () => {
+  mockDesktopLocks();
+  localStorage.clear();
+  jest.mocked(getBrowserSession).mockReturnValue(undefined);
+  await installDesktopCredential("Bearer desktop", "identity:1");
+  seedPersistedUserStore("alreadyLogin");
+  const observed: ObservedUserState[] = [];
+  const { unmount } = render(
+    <CoSceneCurrentUserProvider>
+      <CurrentUserObserver onChange={(state) => observed.push(state)} />
+    </CoSceneCurrentUserProvider>,
+  );
+  expect(observed.at(-1)?.user).toBeUndefined();
+  expect(observed.at(-1)?.role).not.toEqual(cachedRole);
+  await act(async () => {
+    await clearDesktopCredential();
+  });
+  expect(observed.at(-1)?.loginStatus).toBe("notLogin");
+  expect(observed.at(-1)?.user).toBeUndefined();
+  unmount();
 });

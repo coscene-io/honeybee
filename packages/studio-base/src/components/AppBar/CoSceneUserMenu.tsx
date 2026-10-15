@@ -26,14 +26,13 @@ import {
   useCurrentUser as useCoSceneCurrentUser,
   UserStore,
 } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { useCurrentUserType } from "@foxglove/studio-base/context/CurrentUserContext";
-import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { getAppConfig, getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { getBrowserAuthUrl } from "@foxglove/studio-base/util/browserSession";
+import { setDesktopLocalPlayback, signOutDesktop } from "@foxglove/studio-base/util/desktopSession";
 import {
   downloadLatestStudio,
   getCoStudioVersion,
@@ -59,10 +58,7 @@ type UserMenuProps = {
 };
 
 const selectUser = (store: UserStore) => store.user;
-const selectSetUser = (store: UserStore) => store.setUser;
 const selectLoginStatus = (store: UserStore) => store.loginStatus;
-const selectSetLoginStatus = (store: UserStore) => store.setLoginStatus;
-const selectResetCoreDataStore = (store: CoreDataStore) => store.resetCoreDataStore;
 
 function CoStudioEnvBadge() {
   const appConfig = getAppConfig();
@@ -92,8 +88,6 @@ export function UserMenu({
   const confirm = useConfirm();
   const { t } = useTranslation("appBar");
   const [latestVersion, setLatestVersion] = useState("");
-  const setUser = useCoSceneCurrentUser(selectSetUser);
-  const resetCoreDataStore = useCoreData(selectResetCoreDataStore);
 
   const domainConfig = getDomainConfig();
 
@@ -108,37 +102,23 @@ export function UserMenu({
   }, []);
 
   const { dialogActions } = useWorkspaceActions();
-  const { selectSource } = usePlayerSelection();
 
   const isDesktop = isDesktopApp();
 
   const userInfo = useCoSceneCurrentUser(selectUser);
   const loginStatus = useCoSceneCurrentUser(selectLoginStatus);
-  const setLoginStatus = useCoSceneCurrentUser(selectSetLoginStatus);
 
   const posthog = usePostHog();
 
   const beginSignOut = useCallback(async () => {
     if (isDesktop) {
-      localStorage.removeItem("coScene_org_jwt");
-      setLoginStatus("notLogin");
-      setUser(undefined);
-      resetCoreDataStore();
-      selectSource(undefined);
-      dialogActions.dataSource.open("start");
+      setDesktopLocalPlayback({ local: false });
+      await signOutDesktop();
       toast.success(t("signoutSuccess"));
     } else {
       window.location.href = getBrowserAuthUrl("/auth/logout");
     }
-  }, [
-    isDesktop,
-    setLoginStatus,
-    setUser,
-    resetCoreDataStore,
-    selectSource,
-    dialogActions.dataSource,
-    t,
-  ]);
+  }, [isDesktop, t]);
 
   const onSignoutClick = useCallback(() => {
     void confirm({

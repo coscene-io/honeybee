@@ -17,6 +17,14 @@ let context: BrowserContext;
 let page: Page;
 let origin: string;
 const tokenKey = "coScene_org_jwt";
+// Run this suite once per production artifact with the matching public path.
+const viewerPath = process.env.HONEYBEE_WEB_PUBLIC_PATH === "/" ? "/" : "/viz/";
+const standalone = viewerPath === "/";
+const consoleOrigin = "https://console.example.test";
+const authPrefix = standalone ? consoleOrigin : "";
+function returnTo(location: URL): string {
+  return `${standalone ? "/viz" : location.pathname}${location.search}${location.hash}`;
+}
 
 beforeAll(async () => {
   server = http.createServer(async (request, response) => {
@@ -27,6 +35,16 @@ beforeAll(async () => {
           VITE_APP_BASE_API_URL: `${origin}/mock-api`,
           CS_HONEYBEE_BASE_URL: `${origin}/mock-console`,
           VITE_APP_BFF_URL: `${origin}/mock-bff`,
+          DOMAIN_CONFIG: {
+            default: {
+              env: "test",
+              logo: "coscene",
+              authStatusCookieName: "unused",
+              authStatusCookieDomain: "unused",
+              webDomain: "console.example.test",
+              ssoDomain: "sso.example.test",
+            },
+          },
           SENTRY_ENABLED: false,
           LANGUAGE: { default: "en", options: ["en"] },
         })};`,
@@ -81,7 +99,7 @@ beforeEach(async () => {
     localStorage.setItem(key, "Bearer synthetic-initial");
     localStorage.setItem("i18nextLng", "en");
   }, tokenKey);
-  await page.goto(`${origin}/viz/`);
+  await page.goto(`${origin}${viewerPath}`);
   await page.waitForSelector("#root > *");
 }, 45_000);
 afterEach(async () => {
@@ -141,17 +159,12 @@ it("a hidden tab converges to a passive logged-out page without authenticating",
   await page.bringToFront();
   await page.getByText("You are signed out.", { exact: true }).waitFor();
   expect(await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")).toBe(
-    `/auth/logged-out?redirectToPath=${encodeURIComponent("/viz/")}`,
+    `${authPrefix}/auth/logged-out?redirectToPath=${encodeURIComponent(standalone ? "/viz" : viewerPath)}`,
   );
   expect(signouts).toEqual([]);
 }, 30_000);
 
-it("a fresh signout cookie shows passive recovery without opening the legacy login route", async () => {
-  let authenticated = false;
-  page.on("request", (request) => {
-    const pathname = new URL(request.url()).pathname;
-    authenticated ||= pathname === "/login" || pathname.includes("/signout");
-  });
+it("ignores retired status cookies while the same-origin credential remains current", async () => {
   await context.addCookies([
     {
       name: "coSceneAuthStatusDev",
@@ -161,11 +174,12 @@ it("a fresh signout cookie shows passive recovery without opening the legacy log
       url: origin,
     },
   ]);
-  await page.getByText("You are signed out.", { exact: true }).waitFor();
-  expect(await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")).toBe(
-    `/auth/logged-out?redirectToPath=${encodeURIComponent("/viz/")}`,
+  await page.reload();
+  await page.waitForSelector("#root > *");
+  expect(await page.getByText("You are signed out.", { exact: true }).count()).toBe(0);
+  expect(await page.evaluate((key) => localStorage.getItem(key), tokenKey)).toBe(
+    "Bearer synthetic-initial",
   );
-  expect(authenticated).toBe(false);
 }, 30_000);
 
 it("a genuine BFCache restoration observes an exit that happened while frozen", async () => {
@@ -199,7 +213,7 @@ it("a genuine BFCache restoration observes an exit that happened while frozen", 
     .getByText("Your session expired. Sign in again to continue.", { exact: true })
     .waitFor();
   expect(await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")).toBe(
-    `/auth/recover?redirectToPath=${encodeURIComponent("/viz/")}`,
+    `${authPrefix}/auth/recover?redirectToPath=${encodeURIComponent(standalone ? "/viz" : viewerPath)}`,
   );
 }, 30_000);
 
@@ -208,18 +222,16 @@ it("a first logged-out deep link retains its record, layout, seek time and hash"
   await page.evaluate((key) => {
     localStorage.removeItem(key);
   }, tokenKey);
-  const link = new URL(`${origin}/viz/`);
+  const link = new URL(`${origin}${viewerPath}`);
   link.searchParams.set("ds", "coscene-data-platform");
   link.searchParams.set("ds.key", "synthetic-record");
   link.searchParams.set("layoutId", "users/synthetic/layouts/synthetic");
   link.searchParams.set("time", "2025-04-07T02:08:22.721000000Z");
   link.hash = "detail";
   await page.goto(link.href);
-  await page.waitForURL(`${origin}/auth/login?**`);
+  await page.waitForURL(`${standalone ? consoleOrigin : origin}/auth/login?**`);
   const destination = new URL(page.url());
-  expect(destination.searchParams.get("redirectToPath")).toBe(
-    link.pathname + link.search + link.hash,
-  );
+  expect(destination.searchParams.get("redirectToPath")).toBe(returnTo(link));
 }, 30_000);
 
 it("a rejected token offers recovery and stays invalid across reload", async () => {
@@ -227,20 +239,43 @@ it("a rejected token offers recovery and stays invalid across reload", async () 
   await page.evaluate((key) => {
     sessionStorage.setItem("coScene_invalid_org_jwt", localStorage.getItem(key) ?? "");
   }, tokenKey);
-  const link = `${origin}/viz/?ds=coscene-data-platform&ds.key=synthetic&time=2025-04-07T02%3A08%3A22.721000000Z#detail`;
+  const link = `${origin}${viewerPath}?ds=coscene-data-platform&ds.key=synthetic&time=2025-04-07T02%3A08%3A22.721000000Z#detail`;
   await page.goto(link);
   await page.getByRole("link", { name: "Open sign-in recovery" }).waitFor();
   const recovery = new URL(
     (await page.getByRole("link", { name: "Open sign-in recovery" }).getAttribute("href")) ?? "",
     origin,
   );
+  expect(recovery.origin).toBe(standalone ? consoleOrigin : origin);
   expect(recovery.pathname).toBe("/auth/recover");
-  expect(recovery.searchParams.get("redirectToPath")).toBe(
-    new URL(link).pathname + new URL(link).search + new URL(link).hash,
-  );
+  expect(recovery.searchParams.get("redirectToPath")).toBe(returnTo(new URL(link)));
   await page.reload();
   await page.getByRole("link", { name: "Open sign-in recovery" }).waitFor();
   expect(await page.evaluate(() => sessionStorage.getItem("coScene_invalid_org_jwt"))).toBe(
     "Bearer synthetic-initial",
   );
+}, 30_000);
+
+it("keeps anonymous public sharing on the viewer instead of opening Console auth", async () => {
+  await page.goto(`${origin}/peer`);
+  await page.evaluate((key) => {
+    localStorage.removeItem(key);
+  }, tokenKey);
+  const authRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/auth/")) {
+      authRequests.push(request.url());
+    }
+  });
+  const share = new URL(`${origin}${viewerPath}`);
+  share.searchParams.set("ds", "coscene-share-manifest");
+  share.hash = new URLSearchParams({ manifestUrl: `${origin}/mock-manifest.json` }).toString();
+  await page.goto(share.href);
+  await page.waitForSelector("#root > *");
+  // Allow the private-source login debounce to expire; public sources must never schedule it.
+  await page.waitForTimeout(2_000);
+  expect(new URL(page.url()).origin).toBe(origin);
+  expect(new URL(page.url()).pathname).toBe(viewerPath);
+  expect(authRequests).toEqual([]);
+  expect(await page.getByRole("link", { name: "Open sign-in recovery" }).count()).toBe(0);
 }, 30_000);

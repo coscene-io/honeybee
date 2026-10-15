@@ -14,7 +14,7 @@ import { Device } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alp
 import { Record } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/record_pb";
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { JobRun } from "@coscene-io/cosceneapis-es-v2/coscene/matrix/v1alpha1/resources/job_run_pb";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 
@@ -26,6 +26,11 @@ import {
   CoordinatorConfig,
 } from "@foxglove/studio-base/context/CoreDataContext";
 import { DevicesApiFactory } from "@foxglove/studio-base/services/api/CoLink";
+import {
+  getDesktopSession,
+  preservesDesktopPlayback,
+  subscribeDesktopSession,
+} from "@foxglove/studio-base/util/desktopSession";
 import { SHARE_MANIFEST_DATA_SOURCE_ID } from "@foxglove/studio-base/util/shareManifest";
 
 const defaultCoreDataStore = {
@@ -205,6 +210,16 @@ export default function CoreDataProvider({
   children?: ReactNode;
 }): React.JSX.Element {
   const [store] = useState(CreateCoreDataStore);
+  useEffect(() => {
+    if (getDesktopSession() == undefined) {
+      return;
+    }
+    return subscribeDesktopSession(() => {
+      const dataSource = preservesDesktopPlayback() ? store.getState().dataSource : undefined;
+      store.getState().resetCoreDataStore();
+      store.setState({ dataSource });
+    });
+  }, [store]);
 
   return <CoreDataContext.Provider value={store}>{children}</CoreDataContext.Provider>;
 }

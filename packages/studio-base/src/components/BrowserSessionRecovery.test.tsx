@@ -60,7 +60,17 @@ it.each([
     if (status === "recover") {
       session.rejectCredential("Bearer initial");
     } else {
-      session.observeSignOutBroadcast();
+      localStorage.setItem(
+        "coscene.auth.session-version.v1",
+        JSON.stringify({
+          version: "ab".repeat(16),
+          reason: "logout",
+          signOutPendingUntilMs: 0,
+          isServerSignOutConfirmed: true,
+        }) ?? "",
+      );
+      localStorage.removeItem("coScene_org_jwt");
+      session.reconcile();
     }
   });
   const link = screen.getByRole("link", { name: "Open sign-in recovery" });
@@ -112,4 +122,30 @@ it("keeps public playback mounted when a peer replaces the protected session", (
   expect(session.credential).toBe("Bearer initial");
   expect(screen.getByTestId("studio")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
+});
+
+it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expiry", (basePath) => {
+  const previousBasePath = process.env.HONEYBEE_WEB_PUBLIC_PATH;
+  process.env.HONEYBEE_WEB_PUBLIC_PATH = basePath;
+  window.history.replaceState(undefined, "", basePath);
+  const session = new BrowserSession();
+  jest.mocked(initializeBrowserSession).mockReturnValue(session);
+  try {
+    render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+    const workspace = screen.getByTestId("studio");
+    act(() => {
+      session.setLocalPlayback({ local: true });
+      session.rejectCredential("Bearer initial");
+    });
+    expect(session.getStatus()).toBe("recover");
+    expect(screen.getByTestId("studio")).toBe(workspace);
+    expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
+    expect(window.location.pathname).toBe(basePath);
+  } finally {
+    if (previousBasePath == undefined) {
+      delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
+    } else {
+      process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+    }
+  }
 });

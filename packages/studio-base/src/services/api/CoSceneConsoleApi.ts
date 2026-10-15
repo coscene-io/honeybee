@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { MessageInitShape } from "@bufbuild/protobuf";
+import type { DescService, MessageInitShape } from "@bufbuild/protobuf";
 import { create, fromBinary } from "@bufbuild/protobuf";
 import type { Empty, FieldMask } from "@bufbuild/protobuf/wkt";
 import type { Label } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/label_pb";
@@ -188,6 +188,7 @@ import {
   isAuthlessDataSource,
 } from "@foxglove/studio-base/util/coscene";
 import { generateFileName } from "@foxglove/studio-base/util/coscene/upload";
+import { getDesktopSession } from "@foxglove/studio-base/util/desktopSession";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 import {
   Endpoint,
@@ -458,6 +459,7 @@ class CoSceneConsoleApi {
   #baseUrl: string;
   #bffUrl: string;
   #authHeader?: string;
+  #desktopSession = getDesktopSession();
   #responseObserver: undefined | ((response: Response) => void);
   #problemManager = new PlayerProblemManager();
   #baseInfo: ApiBaseInfo = {};
@@ -473,6 +475,18 @@ class CoSceneConsoleApi {
     this.#baseUrl = baseUrl;
     this.#bffUrl = bffUrl;
     this.#authHeader = jwt;
+    this.#desktopSession?.controller.signal.addEventListener(
+      "abort",
+      () => {
+        this.#authHeader = "";
+      },
+      { once: true },
+    );
+  }
+
+  #getPromiseClient<T extends DescService>(service: T) {
+    this.#desktopSession?.assertCurrent(this.#authHeader);
+    return getPromiseClient(service, this.#desktopSession);
   }
 
   public async setApiBaseInfo(
@@ -532,7 +546,7 @@ class CoSceneConsoleApi {
   }
 
   public setAuthHeader(header: string): void {
-    getBrowserSession()?.assertCurrent(header);
+    (getBrowserSession() ?? this.#desktopSession)?.assertCurrent(header);
     this.#authHeader = header;
   }
 
@@ -632,12 +646,12 @@ class CoSceneConsoleApi {
       parent,
       layout,
     });
-    return await getPromiseClient(LayoutService).createUserLayout(req);
+    return await this.#getPromiseClient(LayoutService).createUserLayout(req);
   }
 
   public async getUserLayout({ name }: { name: string }): Promise<Layout> {
     const req = create(GetUserLayoutRequestSchema, { name });
-    return await getPromiseClient(LayoutService).getUserLayout(req);
+    return await this.#getPromiseClient(LayoutService).getUserLayout(req);
   }
 
   public async listUserLayouts({
@@ -654,7 +668,7 @@ class CoSceneConsoleApi {
       filter,
       view,
     });
-    return await getPromiseClient(LayoutService).listUserLayouts(req);
+    return await this.#getPromiseClient(LayoutService).listUserLayouts(req);
   }
 
   public async updateUserLayout({
@@ -668,12 +682,12 @@ class CoSceneConsoleApi {
       userLayout: layout,
       updateMask,
     });
-    return await getPromiseClient(LayoutService).updateUserLayout(req);
+    return await this.#getPromiseClient(LayoutService).updateUserLayout(req);
   }
 
   public async deleteUserLayout({ name }: { name: string }): Promise<Empty> {
     const req = create(DeleteUserLayoutRequestSchema, { name });
-    return await getPromiseClient(LayoutService).deleteUserLayout(req);
+    return await this.#getPromiseClient(LayoutService).deleteUserLayout(req);
   }
 
   public createProjectLayout = Object.assign(
@@ -682,7 +696,7 @@ class CoSceneConsoleApi {
         parent,
         layout,
       });
-      return await getPromiseClient(LayoutService).createProjectLayout(req);
+      return await this.#getPromiseClient(LayoutService).createProjectLayout(req);
     },
     {
       permission: () => {
@@ -697,7 +711,7 @@ class CoSceneConsoleApi {
   public getProjectLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Layout> => {
       const req = create(GetProjectLayoutRequestSchema, { name });
-      return await getPromiseClient(LayoutService).getProjectLayout(req);
+      return await this.#getPromiseClient(LayoutService).getProjectLayout(req);
     },
     {
       permission: () => {
@@ -724,7 +738,7 @@ class CoSceneConsoleApi {
         filter,
         view,
       });
-      return await getPromiseClient(LayoutService).listProjectLayouts(req);
+      return await this.#getPromiseClient(LayoutService).listProjectLayouts(req);
     },
     {
       permission: () => {
@@ -742,7 +756,7 @@ class CoSceneConsoleApi {
         projectLayout: layout,
         updateMask,
       });
-      return await getPromiseClient(LayoutService).updateProjectLayout(req);
+      return await this.#getPromiseClient(LayoutService).updateProjectLayout(req);
     },
     {
       permission: () => {
@@ -757,7 +771,7 @@ class CoSceneConsoleApi {
   public deleteProjectLayout = Object.assign(
     async ({ name }: { name: string }): Promise<Empty> => {
       const req = create(DeleteProjectLayoutRequestSchema, { name });
-      return await getPromiseClient(LayoutService).deleteProjectLayout(req);
+      return await this.#getPromiseClient(LayoutService).deleteProjectLayout(req);
     },
     {
       permission: () => {
@@ -817,7 +831,7 @@ class CoSceneConsoleApi {
   }
 
   async #sessionFetch(url: string, config: RequestInit): Promise<Response> {
-    const session = getBrowserSession();
+    const session = getBrowserSession() ?? this.#desktopSession;
     session?.assertCurrent(this.#authHeader);
     const response = await fetch(url, {
       ...config,
@@ -854,13 +868,15 @@ class CoSceneConsoleApi {
     if (res.status !== 200 && !allowedStatuses.includes(res.status)) {
       if (res.status === 401) {
         if (!isDesktopApp()) {
-          const session = getBrowserSession();
+          const session = getBrowserSession() ?? this.#desktopSession;
           if (session != undefined) {
             session.rejectCredential(this.#authHeader ?? "");
           } else if (localStorage.getItem("coScene_org_jwt") === this.#authHeader) {
             markBrowserCredentialInvalid(this.#authHeader ?? "");
             window.location.href = getBrowserAuthUrl("/auth/recover");
           }
+        } else if (this.#desktopSession != undefined) {
+          this.#desktopSession.rejectCredential(this.#authHeader ?? "");
         } else if (!isAuthlessDataSource()) {
           authBridge?.logout();
         }
@@ -876,7 +892,7 @@ class CoSceneConsoleApi {
           `Status ${res.status}: ${err instanceof Error ? err.message : String(err)}`,
         );
       })) as { message?: string; error?: string; errorCode?: number };
-      getBrowserSession()?.assertCurrent(this.#authHeader);
+      (getBrowserSession() ?? this.#desktopSession)?.assertCurrent(this.#authHeader);
       const message = json.message ?? json.error;
       if (json.errorCode != undefined) {
         const coSceneErrorMessageKey = CoSceneErrors[json.errorCode];
@@ -898,7 +914,7 @@ class CoSceneConsoleApi {
     } catch {
       throw new Error("Request Failed.");
     }
-    getBrowserSession()?.assertCurrent(this.#authHeader);
+    (getBrowserSession() ?? this.#desktopSession)?.assertCurrent(this.#authHeader);
     return { status: res.status, json };
   }
 
@@ -1043,7 +1059,7 @@ class CoSceneConsoleApi {
         record: recordName,
       });
 
-      const newEvent = await getPromiseClient(EventService).createEvent(createEventRequest);
+      const newEvent = await this.#getPromiseClient(EventService).createEvent(createEventRequest);
 
       return newEvent;
     },
@@ -1081,7 +1097,7 @@ class CoSceneConsoleApi {
         name: eventName,
       });
 
-      return await getPromiseClient(EventService).deleteEvent(deleteEventRequest);
+      return await this.#getPromiseClient(EventService).deleteEvent(deleteEventRequest);
     },
     {
       permission: () => {
@@ -1097,7 +1113,7 @@ class CoSceneConsoleApi {
         updateMask,
       });
 
-      await getPromiseClient(EventService).updateEvent(req);
+      await this.#getPromiseClient(EventService).updateEvent(req);
     },
     {
       permission: () => {
@@ -1111,7 +1127,7 @@ class CoSceneConsoleApi {
     const request = create(GetUserRequestSchema, {
       name: userName,
     });
-    const result = await getPromiseClient(UserService).getUser(request);
+    const result = await this.#getPromiseClient(UserService).getUser(request);
     return result;
   }
 
@@ -1120,12 +1136,12 @@ class CoSceneConsoleApi {
     const request = create(BatchGetUsersRequestSchema, {
       names: userNames,
     });
-    return await getPromiseClient(UserService).batchGetUsers(request);
+    return await this.#getPromiseClient(UserService).batchGetUsers(request);
   }
 
   public async getOrg(orgName: string): Promise<Organization> {
     const request = create(GetOrganizationRequestSchema, { name: orgName });
-    return await getPromiseClient(OrganizationService).getOrganization(request);
+    return await this.#getPromiseClient(OrganizationService).getOrganization(request);
   }
 
   public createTask = Object.assign(
@@ -1169,7 +1185,7 @@ class CoSceneConsoleApi {
         task: newTask,
       });
       // create task does not have remove dumplicates logic, so we use upsert task to create task
-      return await getPromiseClient(TaskService).upsertTask(request);
+      return await this.#getPromiseClient(TaskService).upsertTask(request);
     },
     {
       permission: () => {
@@ -1185,7 +1201,7 @@ class CoSceneConsoleApi {
         task,
       });
       // create task does not have remove dumplicates logic, so we use upsert task to create task
-      return await getPromiseClient(TaskService).createTask(request);
+      return await this.#getPromiseClient(TaskService).createTask(request);
     },
     {
       permission: () => {
@@ -1202,7 +1218,8 @@ class CoSceneConsoleApi {
     const request = create(GetTicketSystemMetadataRequestSchema, {
       name: parent,
     });
-    const result = await getPromiseClient(TicketSystemService).getTicketSystemMetadata(request);
+    const result =
+      await this.#getPromiseClient(TicketSystemService).getTicketSystemMetadata(request);
     return result;
   }
 
@@ -1211,7 +1228,7 @@ class CoSceneConsoleApi {
       name,
     });
 
-    await getPromiseClient(TaskService).syncTask(req);
+    await this.#getPromiseClient(TaskService).syncTask(req);
   }
 
   public async listOrganizationUsers(): Promise<CoUser[]> {
@@ -1219,7 +1236,7 @@ class CoSceneConsoleApi {
       parent: "organizations/current",
       pageSize: 100,
     });
-    const result = await getPromiseClient(UserService).listOrganizationUsers(request);
+    const result = await this.#getPromiseClient(UserService).listOrganizationUsers(request);
     return result.organizationUsers;
   }
 
@@ -1228,14 +1245,14 @@ class CoSceneConsoleApi {
       name: recordName,
     });
 
-    return await getPromiseClient(RecordService).getRecord(req);
+    return await this.#getPromiseClient(RecordService).getRecord(req);
   }
 
   public async getProject({ projectName }: { projectName: string }): Promise<Project> {
     const req = create(GetProjectRequestSchema, {
       name: projectName,
     });
-    return await getPromiseClient(ProjectService).getProject(req);
+    return await this.#getPromiseClient(ProjectService).getProject(req);
   }
 
   public async listUserProjects({
@@ -1259,7 +1276,7 @@ class CoSceneConsoleApi {
       req.filter = filter;
     }
 
-    const projectClient = getPromiseClient(ProjectService);
+    const projectClient = this.#getPromiseClient(ProjectService);
 
     return await projectClient.listUserProjects(req);
   }
@@ -1282,7 +1299,7 @@ class CoSceneConsoleApi {
       skip: pageSize * currentPage,
     });
 
-    const recordClient = getPromiseClient(RecordService);
+    const recordClient = this.#getPromiseClient(RecordService);
 
     return await recordClient.listRecords(req);
   }
@@ -1305,7 +1322,7 @@ class CoSceneConsoleApi {
       skip: pageSize * currentPage,
     });
 
-    const fileClient = getPromiseClient(FileService);
+    const fileClient = this.#getPromiseClient(FileService);
 
     return await fileClient.listFiles(req);
   }
@@ -1314,7 +1331,7 @@ class CoSceneConsoleApi {
     payload: MessageInitShape<typeof GenerateFileUploadUrlsRequestSchema>,
   ): Promise<GenerateFileUploadUrlsResponse> {
     const req = create(GenerateFileUploadUrlsRequestSchema, payload);
-    return await getPromiseClient(FileService)
+    return await this.#getPromiseClient(FileService)
       .generateFileUploadUrls(req)
       .catch((err: unknown) => {
         console.error("generateFileUploadUrls", err);
@@ -1364,7 +1381,7 @@ class CoSceneConsoleApi {
     payload: MessageInitShape<typeof GenerateFileDownloadUrlRequestSchema>,
   ): Promise<GenerateFileDownloadUrlResponse> {
     const req = create(GenerateFileDownloadUrlRequestSchema, payload);
-    return await getPromiseClient(FileService)
+    return await this.#getPromiseClient(FileService)
       .generateFileDownloadUrl(req)
       .catch((err: unknown) => {
         console.error("error", err);
@@ -1373,7 +1390,7 @@ class CoSceneConsoleApi {
   }
 
   public async getJobRun(jobRunName: string): Promise<JobRun> {
-    const jobRunClient = getPromiseClient(JobRunService);
+    const jobRunClient = this.#getPromiseClient(JobRunService);
 
     const req = create(GetJobRunRequestSchema, {
       name: jobRunName,
@@ -1406,7 +1423,7 @@ class CoSceneConsoleApi {
     payload: MessageInitShape<typeof DeleteFileRequestSchema>,
   ): Promise<void> {
     const req = create(DeleteFileRequestSchema, payload);
-    await getPromiseClient(FileService)
+    await this.#getPromiseClient(FileService)
       .deleteFile(req)
       .catch((err: unknown) => {
         throw err;
@@ -1421,7 +1438,7 @@ class CoSceneConsoleApi {
   public createRecord = Object.assign(
     async (payload: MessageInitShape<typeof CreateRecordRequestSchema>): Promise<CoSceneRecord> => {
       const req = create(CreateRecordRequestSchema, payload);
-      return await getPromiseClient(RecordService).createRecord(req);
+      return await this.#getPromiseClient(RecordService).createRecord(req);
     },
     {
       permission: () => {
@@ -1440,7 +1457,7 @@ class CoSceneConsoleApi {
       name,
     });
 
-    return await getPromiseClient(DiagnosisService).getDiagnosisRule(req);
+    return await this.#getPromiseClient(DiagnosisService).getDiagnosisRule(req);
   }
 
   public async syncMedia({ key }: { key: string }): Promise<void> {
@@ -1459,7 +1476,7 @@ class CoSceneConsoleApi {
       : undefined;
 
     const req = create(ListUserRolesRequestSchema, { parent });
-    return await getPromiseClient(RoleService).listUserRoles(req);
+    return await this.#getPromiseClient(RoleService).listUserRoles(req);
   }
 
   async #getPermissionList(baseInfo: ApiBaseInfo): Promise<PermissionList> {
@@ -1515,7 +1532,7 @@ class CoSceneConsoleApi {
         skip: pageSize * currentPage,
       });
 
-      return await getPromiseClient(DeviceService).listProjectDevices(req);
+      return await this.#getPromiseClient(DeviceService).listProjectDevices(req);
     },
     {
       permission: () => {
@@ -1542,7 +1559,7 @@ class CoSceneConsoleApi {
         pageSize,
       });
 
-      return await getPromiseClient(LabelService).listLabels(req);
+      return await this.#getPromiseClient(LabelService).listLabels(req);
     },
     {
       permission: () => {
@@ -1554,7 +1571,7 @@ class CoSceneConsoleApi {
   public createLabel = Object.assign(
     async (payload: MessageInitShape<typeof CreateLabelRequestSchema>): Promise<Label> => {
       const req = create(CreateLabelRequestSchema, payload);
-      return await getPromiseClient(LabelService).createLabel(req);
+      return await this.#getPromiseClient(LabelService).createLabel(req);
     },
     {
       permission: () => {
@@ -1566,7 +1583,7 @@ class CoSceneConsoleApi {
   public deleteLabel = Object.assign(
     async (payload: MessageInitShape<typeof DeleteLabelRequestSchema>): Promise<void> => {
       const req = create(DeleteLabelRequestSchema, payload);
-      await getPromiseClient(LabelService).deleteLabel(req);
+      await this.#getPromiseClient(LabelService).deleteLabel(req);
     },
     {
       permission: () => {
@@ -1578,7 +1595,7 @@ class CoSceneConsoleApi {
   public updateLabel = Object.assign(
     async (payload: MessageInitShape<typeof UpdateLabelRequestSchema>): Promise<Label> => {
       const req = create(UpdateLabelRequestSchema, payload);
-      return await getPromiseClient(LabelService).updateLabel(req);
+      return await this.#getPromiseClient(LabelService).updateLabel(req);
     },
     {
       permission: () => {
@@ -1590,7 +1607,7 @@ class CoSceneConsoleApi {
   public updateRecord = Object.assign(
     async (payload: MessageInitShape<typeof UpdateRecordRequestSchema>): Promise<CoSceneRecord> => {
       const req = create(UpdateRecordRequestSchema, payload);
-      return await getPromiseClient(RecordService).updateRecord(req);
+      return await this.#getPromiseClient(RecordService).updateRecord(req);
     },
     {
       permission: () => {
@@ -1602,7 +1619,7 @@ class CoSceneConsoleApi {
   public getDevice = Object.assign(
     async ({ deviceName }: { deviceName: string }): Promise<Device> => {
       const req = create(GetDeviceRequestSchema, { name: deviceName });
-      return await getPromiseClient(DeviceService).getDevice(req);
+      return await this.#getPromiseClient(DeviceService).getDevice(req);
     },
     {
       permission: () => {
@@ -1614,7 +1631,7 @@ class CoSceneConsoleApi {
   public getTask = Object.assign(
     async ({ taskName }: { taskName: string }): Promise<Task> => {
       const req = create(GetTaskRequestSchema, { name: taskName });
-      return await getPromiseClient(TaskService).getTask(req);
+      return await this.#getPromiseClient(TaskService).getTask(req);
     },
     {
       permission: () => {
@@ -1628,7 +1645,7 @@ class CoSceneConsoleApi {
       payload: MessageInitShape<typeof ListOrganizationSubscriptionsRequestSchema>,
     ): Promise<ListOrganizationSubscriptionsResponse> => {
       const req = create(ListOrganizationSubscriptionsRequestSchema, payload);
-      return await getPromiseClient(SubscriptionService).listOrganizationSubscriptions(req);
+      return await this.#getPromiseClient(SubscriptionService).listOrganizationSubscriptions(req);
     },
     {
       permission: () => {
@@ -1643,7 +1660,7 @@ class CoSceneConsoleApi {
   public getRecordCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = create(GetRecordCustomFieldSchemaRequestSchema, { project });
-      return await getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);
+      return await this.#getPromiseClient(CustomFieldService).getRecordCustomFieldSchema(req);
     },
     {
       permission: () => {
@@ -1658,7 +1675,7 @@ class CoSceneConsoleApi {
   public getMomentCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = create(GetMomentCustomFieldSchemaRequestSchema, { project });
-      return await getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
+      return await this.#getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
     },
     {
       permission: () => {
@@ -1673,7 +1690,7 @@ class CoSceneConsoleApi {
   public getDeviceCustomFieldSchema = Object.assign(
     async (): Promise<CustomFieldSchema> => {
       const req = create(GetDeviceCustomFieldSchemaRequestSchema);
-      return await getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
+      return await this.#getPromiseClient(CustomFieldService).getDeviceCustomFieldSchema(req);
     },
     {
       permission: () => {
@@ -1688,7 +1705,7 @@ class CoSceneConsoleApi {
   public getTaskCustomFieldSchema = Object.assign(
     async (project: string): Promise<CustomFieldSchema> => {
       const req = create(GetTaskCustomFieldSchemaRequestSchema, { project });
-      return await getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
+      return await this.#getPromiseClient(CustomFieldService).getTaskCustomFieldSchema(req);
     },
     {
       permission: () => {
@@ -1703,7 +1720,7 @@ class CoSceneConsoleApi {
   public getFile = Object.assign(
     async (payload: MessageInitShape<typeof GetFileRequestSchema>): Promise<File_es> => {
       const req = create(GetFileRequestSchema, payload);
-      return await getPromiseClient(FileService).getFile(req);
+      return await this.#getPromiseClient(FileService).getFile(req);
     },
     {
       permission: () => {
@@ -1717,7 +1734,7 @@ class CoSceneConsoleApi {
       payload: MessageInitShape<typeof GenerateSecurityTokenRequestSchema>,
     ): Promise<GenerateSecurityTokenResponse> => {
       const req = create(GenerateSecurityTokenRequestSchema, payload);
-      return await getPromiseClient(SecurityTokenService).generateSecurityToken(req);
+      return await this.#getPromiseClient(SecurityTokenService).generateSecurityToken(req);
     },
     {
       permission: () => {
@@ -1734,7 +1751,7 @@ class CoSceneConsoleApi {
       payload: MessageInitShape<typeof ListTasksRequestSchema>,
     ): Promise<ListTasksResponse> => {
       const req = create(ListTasksRequestSchema, payload);
-      return await getPromiseClient(TaskService).listTasks(req);
+      return await this.#getPromiseClient(TaskService).listTasks(req);
     },
     {
       permission: () => {
@@ -1746,7 +1763,7 @@ class CoSceneConsoleApi {
   public updateTask = Object.assign(
     async (payload: MessageInitShape<typeof UpdateTaskRequestSchema>): Promise<Task> => {
       const req = create(UpdateTaskRequestSchema, payload);
-      return await getPromiseClient(TaskService).updateTask(req);
+      return await this.#getPromiseClient(TaskService).updateTask(req);
     },
     {
       permission: () => {
@@ -1758,7 +1775,7 @@ class CoSceneConsoleApi {
   public linkTasks = Object.assign(
     async (payload: MessageInitShape<typeof LinkTaskRequestSchema>): Promise<Empty> => {
       const req = create(LinkTaskRequestSchema, payload);
-      return await getPromiseClient(TaskService).linkTask(req);
+      return await this.#getPromiseClient(TaskService).linkTask(req);
     },
     {
       permission: () => {
@@ -1770,7 +1787,7 @@ class CoSceneConsoleApi {
   public unlinkTasks = Object.assign(
     async (payload: MessageInitShape<typeof UnlinkTaskRequestSchema>): Promise<Empty> => {
       const req = create(UnlinkTaskRequestSchema, payload);
-      return await getPromiseClient(TaskService).unlinkTask(req);
+      return await this.#getPromiseClient(TaskService).unlinkTask(req);
     },
     {
       permission: () => {
@@ -1799,7 +1816,7 @@ class CoSceneConsoleApi {
   public upsertOrgConfigMap = Object.assign(
     async (payload: MessageInitShape<typeof UpsertConfigMapRequestSchema>): Promise<void> => {
       const req = create(UpsertConfigMapRequestSchema, payload);
-      await getPromiseClient(ConfigMapService).upsertConfigMap(req);
+      await this.#getPromiseClient(ConfigMapService).upsertConfigMap(req);
     },
     {
       permission: () => {
@@ -1811,7 +1828,7 @@ class CoSceneConsoleApi {
   public getOrgConfigMap = Object.assign(
     async (payload: MessageInitShape<typeof GetConfigMapRequestSchema>): Promise<ConfigMap> => {
       const req = create(GetConfigMapRequestSchema, payload);
-      return await getPromiseClient(ConfigMapService).getConfigMap(req);
+      return await this.#getPromiseClient(ConfigMapService).getConfigMap(req);
     },
     {
       permission: () => {
@@ -1825,7 +1842,7 @@ class CoSceneConsoleApi {
       payload: MessageInitShape<typeof GetStorageClusterRequestSchema>,
     ): Promise<StorageCluster> => {
       const req = create(GetStorageClusterRequestSchema, payload);
-      return await getPromiseClient(StorageClusterService).getStorageCluster(req);
+      return await this.#getPromiseClient(StorageClusterService).getStorageCluster(req);
     },
     {
       permission: () => {

@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 import { setAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
+import { setDesktopLocalPlayback } from "@foxglove/studio-base/util/desktopSession";
 import {
   SHARE_MANIFEST_DATA_SOURCE_ID,
   windowShareManifestParseResult,
@@ -30,9 +31,10 @@ export function AuthlessDataSourceSyncAdapter(): ReactNull {
 
   useEffect(() => {
     setAuthlessDataSource({ authless: isAuthless });
-    getBrowserSession()?.setLocalPlayback({
-      local: isAuthless || dataSource?.type === "file" || dataSource?.type === "persistent-cache",
-    });
+    const local =
+      isAuthless || dataSource?.type === "file" || dataSource?.type === "persistent-cache";
+    getBrowserSession()?.setLocalPlayback({ local });
+    setDesktopLocalPlayback({ local });
 
     return () => {
       setAuthlessDataSource({ authless: false });
