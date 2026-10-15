@@ -92,6 +92,7 @@ jest.mock("@foxglove/studio-base/hooks/useSyncTimeFromUrl", () => ({
 
 jest.mock("@foxglove/studio-base/util/appConfig", () => ({
   getDomainConfig: () => ({ webDomain: "dev.coscene.cn" }),
+  getWebBasePathname: () => "/viz",
 }));
 
 jest.mock("@foxglove/studio-base/util/isDesktopApp", () => ({

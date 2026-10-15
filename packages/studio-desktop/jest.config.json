@@ -4,7 +4,7 @@
     "\\.[jt]sx?$": "<rootDir>/../../jest.swc-transformer.js"
   },
   "moduleNameMapper": {
-    "@foxglove/studio-base/(.*)": "<rootDir>/../studio-base/src/$1"
+    "^@foxglove/studio-base/(?:src/)?(.*)$": "<rootDir>/../studio-base/src/$1"
   },
   "//": "Native find is slow because it does not exclude files: https://github.com/facebook/jest/pull/11264#issuecomment-825377579",
   "haste": { "forceNodeFilesystemAPI": true }

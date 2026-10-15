@@ -201,3 +201,84 @@ it("ignores retired status cookies without changing the credential boundary", ()
     document.cookie = "coSceneAuthStatusDev=; Max-Age=0; Path=/";
   }
 });
+
+it.each(["/auth/login", "/auth/logout", "/auth/recover", "/auth/logged-out"] as const)(
+  "continues standalone %s on Console without copying viewer credentials",
+  (path) => {
+    const previousBasePath = process.env.HONEYBEE_WEB_PUBLIC_PATH;
+    const previousConfig = window.cosConfig;
+    process.env.HONEYBEE_WEB_PUBLIC_PATH = "/";
+    window.cosConfig = {
+      DOMAIN_CONFIG: {
+        default: {
+          env: "test",
+          logo: "coscene",
+          authStatusCookieName: "unused",
+          authStatusCookieDomain: "unused",
+          webDomain: "console.example.test",
+          ssoDomain: "sso.example.test",
+        },
+      },
+    };
+    localStorage.setItem(tokenKey, "Bearer never-in-the-url");
+    const source = new URL(
+      "https://viewer.example.test/?ds=coscene-data-platform&ds.key=record&layoutId=layout&time=2025-04-07T02%3A08%3A22.721000000Z#detail",
+    );
+    try {
+      const destination = new URL(getBrowserAuthUrl(path, source));
+      expect(destination.origin).toBe("https://console.example.test");
+      expect(destination.pathname).toBe(path);
+      expect(destination.searchParams.get("redirectToPath")).toBe(
+        `/viz${source.search}${source.hash}`,
+      );
+      expect(destination.href).not.toContain("never-in-the-url");
+      expect(localStorage.getItem(tokenKey)).toBe("Bearer never-in-the-url");
+    } finally {
+      if (previousBasePath == undefined) delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
+      else process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+      window.cosConfig = previousConfig;
+    }
+  },
+);
+
+it.each([
+  ["local", "dev.coscene.cn"],
+  ["saas", "coscene.cn"],
+  ["io", "coscene.io"],
+])("uses the selected %s Console domain for a standalone viewer", (env, webDomain) => {
+  const previousBasePath = process.env.HONEYBEE_WEB_PUBLIC_PATH;
+  const previousConfig = window.cosConfig;
+  const previousRemoteHostname = window.cosConfigRemoteHostname;
+  process.env.HONEYBEE_WEB_PUBLIC_PATH = "/";
+  window.cosConfigRemoteHostname = "selected-config.example.test";
+  window.cosConfig = {
+    DOMAIN_CONFIG: {
+      "selected-config.example.test": {
+        env,
+        webDomain,
+        logo: "coscene",
+        authStatusCookieName: "unused",
+        authStatusCookieDomain: "unused",
+        ssoDomain: "unused.example.test",
+      },
+    },
+  };
+  try {
+    const destination = new URL(
+      getBrowserAuthUrl("/auth/login", {
+        pathname: "/",
+        search: "?ds=coscene-data-platform&ds.key=record",
+        hash: "#detail",
+      }),
+    );
+    expect(destination.origin).toBe(`https://${webDomain}`);
+    expect(destination.searchParams.get("redirectToPath")).toBe(
+      "/viz?ds=coscene-data-platform&ds.key=record#detail",
+    );
+  } finally {
+    if (previousBasePath == undefined) delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
+    else process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+    window.cosConfig = previousConfig;
+    window.cosConfigRemoteHostname = previousRemoteHostname;
+  }
+});

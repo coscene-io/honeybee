@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { getDomainConfig, getWebBasePathname } from "./appConfig";
+
 const TOKEN_KEY = "coScene_org_jwt";
 const INVALID_TOKEN_KEY = "coScene_invalid_org_jwt";
 const VERSION_KEY = "coscene.auth.session-version.v1";
@@ -14,8 +16,13 @@ export function getBrowserAuthUrl(
   path: "/auth/login" | "/auth/logout" | "/auth/recover" | "/auth/logged-out",
   location: Pick<Location, "pathname" | "search" | "hash"> = window.location,
 ): string {
-  return `${path}?redirectToPath=${encodeURIComponent(
-    location.pathname + location.search + location.hash,
+  // Root-mounted viewers own anonymous playback, while Console owns private-data auth.
+  // Continue there instead of attempting to share credentials across origins.
+  const standalone = getWebBasePathname() === "/";
+  const authOrigin = standalone ? new URL(`https://${getDomainConfig().webDomain}`).origin : "";
+  const returnPath = standalone ? "/viz" : location.pathname;
+  return `${authOrigin}${path}?redirectToPath=${encodeURIComponent(
+    returnPath + location.search + location.hash,
   )}`;
 }
 
