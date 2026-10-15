@@ -263,7 +263,9 @@ it("keeps anonymous public sharing on the viewer instead of opening Console auth
   }, tokenKey);
   const authRequests: string[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname.startsWith("/auth/")) authRequests.push(request.url());
+    if (new URL(request.url()).pathname.startsWith("/auth/")) {
+      authRequests.push(request.url());
+    }
   });
   const share = new URL(`${origin}${viewerPath}`);
   share.searchParams.set("ds", "coscene-share-manifest");

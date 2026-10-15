@@ -234,8 +234,11 @@ it.each(["/auth/login", "/auth/logout", "/auth/recover", "/auth/logged-out"] as 
       expect(destination.href).not.toContain("never-in-the-url");
       expect(localStorage.getItem(tokenKey)).toBe("Bearer never-in-the-url");
     } finally {
-      if (previousBasePath == undefined) delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
-      else process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+      if (previousBasePath == undefined) {
+        delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
+      } else {
+        process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+      }
       window.cosConfig = previousConfig;
     }
   },
@@ -276,8 +279,11 @@ it.each([
       "/viz?ds=coscene-data-platform&ds.key=record#detail",
     );
   } finally {
-    if (previousBasePath == undefined) delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
-    else process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+    if (previousBasePath == undefined) {
+      delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
+    } else {
+      process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+    }
     window.cosConfig = previousConfig;
     window.cosConfigRemoteHostname = previousRemoteHostname;
   }

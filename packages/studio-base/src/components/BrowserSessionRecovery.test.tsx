@@ -142,7 +142,10 @@ it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expi
     expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
     expect(window.location.pathname).toBe(basePath);
   } finally {
-    if (previousBasePath == undefined) delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
-    else process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+    if (previousBasePath == undefined) {
+      delete process.env.HONEYBEE_WEB_PUBLIC_PATH;
+    } else {
+      process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
+    }
   }
 });
