@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import {
   IDataSourceFactory,
@@ -25,12 +24,14 @@ import {
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import {
-  getBrowserAuthUrl,
   initializeBrowserSession,
+  markBrowserCredentialInvalid,
 } from "@foxglove/studio-base/util/browserSession";
 import { windowShareManifestParseResult } from "@foxglove/studio-base/util/shareManifest";
 
 import { useCoSceneInit } from "./CoSceneInit";
+import { fetchOrganizationAccess, OrganizationAccessView } from "./OrganizationAccess";
+import type { OrganizationAccess } from "./OrganizationAccess";
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -50,7 +51,60 @@ export function WebRoot(props: {
   });
   const [deepLinks] = useState(() => [window.location.href]);
   const [, setRevision] = useState(0);
-  const { t } = useTranslation("appBar");
+  const [access, setAccess] = useState<OrganizationAccess>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
+  const [opened, setOpened] = useState(false);
+  const status = session.getStatus();
+  const preservesPlayback = session.preservesPlayback();
+  const key = new URL(window.location.href).searchParams.get("ds.key");
+  useEffect(() => {
+    if (preservesPlayback || !key) {
+      setAccess({ status: "ready" });
+      return;
+    }
+    if (status === "recover" || status === "logged-out") return;
+    const controller = new AbortController();
+    setAccess({ status: "loading" });
+    let credential = session.credential;
+    try {
+      if (status === "changed") credential = localStorage.getItem("coScene_org_jwt") ?? "";
+    } catch {
+      setAccess({ status: "login" });
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      setAccess({ status: "error" });
+    }, 20_000);
+    void fetchOrganizationAccess(
+      appConfig.VITE_APP_BFF_URL ?? "",
+      key,
+      credential,
+      controller.signal,
+    )
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          if (result.status === "login" && credential) {
+            markBrowserCredentialInvalid(credential);
+            if (status === "current") session.rejectCredential(credential);
+          }
+          setAccess(result);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAccess({ status: "error" });
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+      });
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [appConfig.VITE_APP_BFF_URL, key, session, status, preservesPlayback, attempt]);
+  useEffect(() => {
+    if (access.status === "ready" && status === "current") setOpened(true);
+  }, [access.status, status]);
   const jwt = session.credential;
   useEffect(() => {
     const unsubscribe = session.subscribe(() => {
@@ -107,39 +161,11 @@ export function WebRoot(props: {
     return providers;
   }, [coSceneProviders, props.extraProviders]);
 
-  if (session.getStatus() !== "current" && !session.preservesPlayback()) {
-    return (
-      <main role="alert" style={{ padding: 32 }}>
-        <p>
-          {t(
-            session.getStatus() === "changed"
-              ? "sessionChanged"
-              : session.getStatus() === "logged-out"
-                ? "sessionLoggedOut"
-                : "sessionRecoveryRequired",
-          )}
-        </p>
-        {session.getStatus() === "changed" ? (
-          <button
-            onClick={() => {
-              window.location.reload();
-            }}
-          >
-            {t("reloadSession")}
-          </button>
-        ) : (
-          <a
-            target="_self"
-            href={getBrowserAuthUrl(
-              session.getStatus() === "logged-out" ? "/auth/logged-out" : "/auth/recover",
-            )}
-          >
-            {t("openSessionRecovery")}
-          </a>
-        )}
-      </main>
-    );
-  }
+  const changed = status === "changed" && !preservesPlayback;
+  const recovery =
+    !preservesPlayback && (status === "recover" || status === "logged-out") ? status : undefined;
+  const blocked = !preservesPlayback && (status !== "current" || access.status !== "ready");
+  const showWorkspace = opened || !blocked;
 
   return (
     <>
@@ -153,7 +179,22 @@ export function WebRoot(props: {
         extraProviders={extraProviders}
         AppBarComponent={props.AppBarComponent}
       >
-        <StudioApp />
+        <>
+          {showWorkspace && (
+            <div style={{ display: blocked ? "none" : "contents" }}>
+              <StudioApp />
+            </div>
+          )}
+          {blocked && (
+            <OrganizationAccessView
+              access={access}
+              changed={changed}
+              modal={opened && changed}
+              recovery={recovery}
+              onRetry={() => setAttempt((value) => value + 1)}
+            />
+          )}
+        </>
       </SharedRoot>
     </>
   );

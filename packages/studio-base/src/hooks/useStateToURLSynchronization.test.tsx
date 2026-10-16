@@ -15,7 +15,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { ReactNode } from "react";
 
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
@@ -23,7 +23,13 @@ import { useStateToURLSynchronization } from "@foxglove/studio-base/hooks/useSta
 import { useSyncTimeFromUrl } from "@foxglove/studio-base/hooks/useSyncTimeFromUrl";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
+import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
+import * as browserSession from "@foxglove/studio-base/util/browserSession";
 
+jest.mock("@foxglove/studio-base/util/browserSession", () => ({
+  ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
+  getBrowserSession: jest.fn(),
+}));
 jest.mock("@foxglove/studio-base/context/CurrentLayoutContext");
 jest.mock("@foxglove/studio-base/components/MessagePipeline");
 
@@ -145,4 +151,31 @@ describe("useStateToURLSynchronization", () => {
       "http://localhost/?time=1970-01-01T00%3A00%3A01.000000001Z",
     );
   });
+});
+
+it("captures the latest position on a session boundary and does not erase it during teardown", () => {
+  localStorage.setItem("coScene_org_jwt", "Bearer initial");
+  const session = new browserSession.BrowserSession();
+  jest.mocked(browserSession.getBrowserSession).mockReturnValue(session);
+  window.history.replaceState(undefined, "", "/viz?ds.key=record&layoutId=layout#panel");
+  let currentTime = { sec: 1, nsec: 0 };
+  let capabilities = ["playbackControl"];
+  (useMessagePipeline as jest.Mock).mockImplementation((selector) =>
+    selector({
+      playerState: { activeData: { currentTime }, capabilities, presence: PlayerPresence.PRESENT },
+    }),
+  );
+  const { rerender } = renderHook(useStateToURLSynchronization);
+  currentTime = { sec: 5, nsec: 123 };
+  rerender();
+  act(() => {
+    localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+    session.reconcile();
+  });
+  capabilities = [];
+  rerender();
+  expect(parseAppURLState(new URL(window.location.href))?.time).toEqual(currentTime);
+  expect(window.location.hash).toBe("#panel");
+  expect(new URL(window.location.href).searchParams.get("ds.key")).toBe("record");
+  localStorage.removeItem("coScene_org_jwt");
 });

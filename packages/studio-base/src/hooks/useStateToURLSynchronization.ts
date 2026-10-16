@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDebounce } from "use-debounce";
 
 import {
@@ -18,6 +18,7 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
 import { AppURLState, updateAppURLState } from "@foxglove/studio-base/util/appURLState";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 const selectCanSeek = (ctx: MessagePipelineContext) =>
   ctx.playerState.capabilities.includes(PlayerCapabilities.playbackControl);
@@ -42,8 +43,23 @@ export function useStateToURLSynchronization(): void {
   const [debouncedCurrentTime] = useDebounce(currentTime, 500, { maxWait: 500 });
   const layoutId = useCurrentLayoutSelector(selectLayoutIdForUrlSync);
 
+  const latest = useRef({ currentTime, layoutId });
+  latest.current = { currentTime, layoutId };
+  useEffect(() => {
+    const session = getBrowserSession();
+    return session?.subscribe(() => {
+      if (session.preservesPlayback() || session.getStatus() === "current") return;
+      // Capture the exact position before player teardown; do not wait for debounce.
+      const snapshot = latest.current;
+      if (snapshot.currentTime != undefined) updateUrl({ time: snapshot.currentTime });
+      if (snapshot.layoutId != undefined) updateUrl({ layoutId: snapshot.layoutId });
+    });
+  }, []);
+
   // Sync layoutId with the url.
   useEffect(() => {
+    const session = getBrowserSession();
+    if (session && !session.preservesPlayback() && session.getStatus() !== "current") return;
     if (layoutId == undefined) {
       return;
     }
@@ -53,6 +69,8 @@ export function useStateToURLSynchronization(): void {
 
   // Sync current time with the url.
   useEffect(() => {
+    const session = getBrowserSession();
+    if (session && !session.preservesPlayback() && session.getStatus() !== "current") return;
     // Keep the launch seek time while authentication and player initialization are pending.
     if (canSeek && debouncedCurrentTime != undefined) {
       updateUrl({ time: debouncedCurrentTime });

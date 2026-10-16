@@ -6,12 +6,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 import {
   BrowserSession,
   initializeBrowserSession,
 } from "@foxglove/studio-base/util/browserSession";
+import { fetchOrganizationAccess } from "@foxglove/studio-web/src/OrganizationAccess";
 import { WebRoot } from "@foxglove/studio-web/src/WebRoot";
 
 jest.mock("@foxglove/studio-base", () => ({
@@ -26,7 +27,9 @@ jest.mock("@foxglove/studio-base", () => ({
   RemoteMp4DataSourceFactory: jest.fn(),
   PersistentCacheDataSourceFactory: jest.fn(),
 }));
-jest.mock("@foxglove/studio-base/StudioApp", () => ({ StudioApp: () => ReactNull }));
+jest.mock("@foxglove/studio-base/StudioApp", () => ({
+  StudioApp: () => <div data-testid="workspace" />,
+}));
 jest.mock("@foxglove/studio-web/src/CoSceneInit", () => ({ useCoSceneInit: jest.fn() }));
 jest.mock("@foxglove/studio-web/src/services/LocalStorageAppConfiguration", () => ({
   __esModule: true,
@@ -37,7 +40,13 @@ jest.mock("@foxglove/studio-base/util/browserSession", () => ({
   initializeBrowserSession: jest.fn(),
 }));
 
+jest.mock("@foxglove/studio-web/src/OrganizationAccess", () => ({
+  ...jest.requireActual("@foxglove/studio-web/src/OrganizationAccess"),
+  fetchOrganizationAccess: jest.fn().mockResolvedValue({ status: "ready" }),
+}));
+
 beforeEach(() => {
+  jest.mocked(fetchOrganizationAccess).mockResolvedValue({ status: "ready" });
   localStorage.clear();
   sessionStorage.clear();
   localStorage.setItem("coScene_org_jwt", "Bearer initial");
@@ -77,10 +86,10 @@ it.each([
   const href = new URL(link.getAttribute("href")!, window.location.origin);
   expect(href.pathname).toBe(path);
   expect(href.searchParams.get("redirectToPath")).toBe(returnTo);
-  expect(screen.queryByTestId("studio")).toBeNull();
+  expect(screen.queryByTestId("workspace")).toBeNull();
 });
 
-it("offers reload after replacement without adopting the new token", () => {
+it("offers explicit continuation after replacement without adopting the new token", async () => {
   const session = new BrowserSession();
   jest.mocked(initializeBrowserSession).mockReturnValue(session);
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
@@ -88,9 +97,11 @@ it("offers reload after replacement without adopting the new token", () => {
     localStorage.setItem("coScene_org_jwt", "Bearer replacement");
     window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
   });
-  expect(screen.getByRole("button", { name: "Reload" })).not.toBeNull();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Continue viewing" })).not.toBeNull(),
+  );
   expect(session.credential).toBe("Bearer initial");
-  expect(screen.queryByTestId("studio")).toBeNull();
+  expect(screen.queryByTestId("workspace")).toBeNull();
 });
 
 it("renders a public share despite a rejected account token", () => {
@@ -102,7 +113,7 @@ it("renders a public share despite a rejected account token", () => {
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
   expect(session.getStatus()).toBe("recover");
   expect(session.preservesPlayback()).toBe(true);
-  expect(screen.getByTestId("studio")).not.toBeNull();
+  expect(screen.getByTestId("workspace")).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
 });
 
@@ -120,7 +131,7 @@ it("keeps public playback mounted when a peer replaces the protected session", (
   expect(session.controller.signal.aborted).toBe(true);
   expect(session.preservesPlayback()).toBe(true);
   expect(session.credential).toBe("Bearer initial");
-  expect(screen.getByTestId("studio")).not.toBeNull();
+  expect(screen.getByTestId("workspace")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
 });
 
@@ -132,13 +143,13 @@ it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expi
   jest.mocked(initializeBrowserSession).mockReturnValue(session);
   try {
     render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
-    const workspace = screen.getByTestId("studio");
+    const workspace = screen.getByTestId("workspace");
     act(() => {
       session.setLocalPlayback({ local: true });
       session.rejectCredential("Bearer initial");
     });
     expect(session.getStatus()).toBe("recover");
-    expect(screen.getByTestId("studio")).toBe(workspace);
+    expect(screen.getByTestId("workspace")).toBe(workspace);
     expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
     expect(window.location.pathname).toBe(basePath);
   } finally {
@@ -148,4 +159,44 @@ it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expi
       process.env.HONEYBEE_WEB_PUBLIC_PATH = previousBasePath;
     }
   }
+});
+
+it("checks access before mounting a private workspace and repeats the check after a session change", async () => {
+  const session = new BrowserSession();
+  jest.mocked(initializeBrowserSession).mockReturnValue(session);
+  const access = jest.mocked(fetchOrganizationAccess);
+  access.mockResolvedValueOnce({ status: "ready" }).mockResolvedValueOnce({
+    status: "organization-mismatch",
+    organization: { name: "organizations/a", displayName: "A" },
+    currentOrganization: { name: "organizations/b", displayName: "B" },
+  });
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  expect(screen.queryByTestId("workspace")).toBeNull();
+  await waitFor(() => expect(screen.getByTestId("workspace")).not.toBeNull());
+  act(() => {
+    localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+    session.reconcile();
+  });
+  await screen.findByRole("dialog");
+  await screen.findByRole("button", { name: "Switch back to A and continue" });
+  expect(session.controller.signal.aborted).toBe(true);
+  expect(screen.getByTestId("workspace").parentElement?.style.display).toBe("none");
+  expect(access).toHaveBeenLastCalledWith(
+    expect.any(String),
+    "record",
+    "Bearer replacement",
+    expect.any(AbortSignal),
+  );
+});
+
+it("does not mount private data or layout providers for a mismatched link", async () => {
+  jest.mocked(fetchOrganizationAccess).mockResolvedValue({
+    status: "organization-mismatch",
+    organization: { name: "organizations/b", displayName: "B" },
+  });
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  await screen.findByRole("button", { name: "Switch to B and open" });
+  expect(screen.queryByTestId("workspace")).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
