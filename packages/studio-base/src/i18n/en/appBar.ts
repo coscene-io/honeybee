@@ -9,7 +9,6 @@ export const appBar = {
   useAnotherAccount: "Use another account",
   sessionChanged:
     "Your session has changed. Continue to reopen this visualization with the current session.",
-  visualization: "Visualization",
   checkingOrganization: "Checking access…",
   organizationChanged: "Your organization has changed",
   switchOrganizationTitle: "Switch organizations to open this visualization",
@@ -28,6 +27,7 @@ export const appBar = {
   switchBackOrganization: "Switch back to {{organization}} and continue",
   switchingOrganization: "Switching…",
   chooseOrganization: "Choose organization",
+  namedOrganizationHome: "Go to {{organization}} home",
   currentOrganizationHome: "Go to current organization home",
   organizationSwitchAffectsTabs: "Switching organizations also affects your other open pages.",
 

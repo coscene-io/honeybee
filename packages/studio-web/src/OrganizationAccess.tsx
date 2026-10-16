@@ -149,9 +149,6 @@ export function OrganizationAccessView({
   accountUrl.pathname = "/auth/change-account";
   const content = (
     <Stack spacing={3} className={classes.content}>
-      <Typography variant="overline" color="text.secondary">
-        {t("visualization")}
-      </Typography>
       <Typography id="organization-access-title" variant="h5">
         {title}
       </Typography>
@@ -227,7 +224,9 @@ export function OrganizationAccessView({
             </Button>
           )}
           <Button target="_self" href={home}>
-            {t("currentOrganizationHome")}
+            {access.currentOrganization?.displayName
+              ? t("namedOrganizationHome", { organization: access.currentOrganization.displayName })
+              : t("currentOrganizationHome")}
           </Button>
         </Stack>
       )}

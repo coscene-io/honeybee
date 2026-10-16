@@ -10,7 +10,6 @@ import { TypeOptions } from "i18next";
 export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   useAnotherAccount: "使用其他账号",
   sessionChanged: "会话已变更，请使用当前会话继续查看。",
-  visualization: "可视化",
   checkingOrganization: "正在检查访问权限…",
   organizationChanged: "当前组织已变更",
   switchOrganizationTitle: "切换组织以打开可视化",
@@ -27,6 +26,7 @@ export const appBar: Partial<TypeOptions["resources"]["appBar"]> = {
   switchBackOrganization: "切回 {{organization}} 并继续",
   switchingOrganization: "正在切换…",
   chooseOrganization: "选择组织",
+  namedOrganizationHome: "前往 {{organization}} 首页",
   currentOrganizationHome: "前往当前组织首页",
   organizationSwitchAffectsTabs: "切换组织会同步影响其他已打开的页面。",
 
