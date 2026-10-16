@@ -66,6 +66,8 @@ import {
 import { QueryFields } from "@foxglove/studio-base/util/queries";
 import { durationToNanoSeconds } from "@foxglove/studio-base/util/time";
 
+import { getEventQueryBound } from "./eventQueryTime";
+
 const log = Logger.getLogger(__filename);
 
 async function positionEvents(
@@ -302,8 +304,8 @@ export function EventsSyncAdapter(): React.JSX.Element {
         }
 
         const fileSource = bagFile.name;
-        const currentBagStartTime = toSec(bagFile.startTime);
-        const currentBagEndTime = toSec(bagFile.endTime);
+        const currentBagStartTime = getEventQueryBound(bagFile.startTime, "lower");
+        const currentBagEndTime = getEventQueryBound(bagFile.endTime, "upper");
 
         if (bagFile.fileType === "GHOST_RESULT_FILE") {
           const projectName = fileSource.split("/workflowRuns/")[0];
