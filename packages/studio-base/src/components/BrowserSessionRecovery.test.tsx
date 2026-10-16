@@ -10,6 +10,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 
 import {
   BrowserSession,
+  getBrowserAuthUrl,
   initializeBrowserSession,
 } from "@foxglove/studio-base/util/browserSession";
 import { fetchOrganizationAccess } from "@foxglove/studio-web/src/OrganizationAccess";
@@ -38,6 +39,11 @@ jest.mock("@foxglove/studio-web/src/services/LocalStorageAppConfiguration", () =
 jest.mock("@foxglove/studio-base/util/browserSession", () => ({
   ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
   initializeBrowserSession: jest.fn(),
+  getBrowserAuthUrl: jest.fn(
+    jest.requireActual<typeof import("@foxglove/studio-base/util/browserSession")>(
+      "@foxglove/studio-base/util/browserSession",
+    ).getBrowserAuthUrl,
+  ),
 }));
 
 jest.mock("@foxglove/studio-web/src/OrganizationAccess", () => ({
@@ -46,6 +52,13 @@ jest.mock("@foxglove/studio-web/src/OrganizationAccess", () => ({
 }));
 
 beforeEach(() => {
+  jest
+    .mocked(getBrowserAuthUrl)
+    .mockImplementation(
+      jest.requireActual<typeof import("@foxglove/studio-base/util/browserSession")>(
+        "@foxglove/studio-base/util/browserSession",
+      ).getBrowserAuthUrl,
+    );
   jest.mocked(fetchOrganizationAccess).mockResolvedValue({ status: "ready" });
   localStorage.clear();
   sessionStorage.clear();
@@ -97,9 +110,9 @@ it("offers explicit continuation after replacement without adopting the new toke
     localStorage.setItem("coScene_org_jwt", "Bearer replacement");
     window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
   });
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Continue viewing" })).not.toBeNull(),
-  );
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Continue viewing" })).not.toBeNull();
+  });
   expect(session.credential).toBe("Bearer initial");
   expect(screen.queryByTestId("workspace")).toBeNull();
 });
@@ -172,7 +185,9 @@ it("checks access before mounting a private workspace and repeats the check afte
   });
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
   expect(screen.queryByTestId("workspace")).toBeNull();
-  await waitFor(() => expect(screen.getByTestId("workspace")).not.toBeNull());
+  await waitFor(() => {
+    expect(screen.getByTestId("workspace")).not.toBeNull();
+  });
   act(() => {
     localStorage.setItem("coScene_org_jwt", "Bearer replacement");
     session.reconcile();
@@ -199,4 +214,27 @@ it("does not mount private data or layout providers for a mismatched link", asyn
   await screen.findByRole("button", { name: "Switch to B and open" });
   expect(screen.queryByTestId("workspace")).toBeNull();
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("automatically starts fresh login before mounting a private link without credentials", () => {
+  localStorage.removeItem("coScene_org_jwt");
+  const returnTo = window.location.pathname + window.location.search + window.location.hash;
+  let destination = "";
+  const actual = jest.requireActual<typeof import("@foxglove/studio-base/util/browserSession")>(
+    "@foxglove/studio-base/util/browserSession",
+  );
+  jest.mocked(getBrowserAuthUrl).mockImplementation((path) => {
+    destination = actual.getBrowserAuthUrl(path);
+    // Hash navigation is supported in jsdom, unlike a cross-document redirect.
+    return "#fresh-login";
+  });
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  jest.mocked(fetchOrganizationAccess).mockClear();
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  expect(window.location.hash).toBe("#fresh-login");
+  const target = new URL(destination, window.location.origin);
+  expect(target.pathname).toBe("/auth/login");
+  expect(target.searchParams.get("redirectToPath")).toBe(returnTo);
+  expect(fetchOrganizationAccess).not.toHaveBeenCalled();
+  expect(screen.queryByTestId("workspace")).toBeNull();
 });

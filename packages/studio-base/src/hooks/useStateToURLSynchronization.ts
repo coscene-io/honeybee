@@ -48,18 +48,26 @@ export function useStateToURLSynchronization(): void {
   useEffect(() => {
     const session = getBrowserSession();
     return session?.subscribe(() => {
-      if (session.preservesPlayback() || session.getStatus() === "current") return;
+      if (session.preservesPlayback() || session.getStatus() === "current") {
+        return;
+      }
       // Capture the exact position before player teardown; do not wait for debounce.
       const snapshot = latest.current;
-      if (snapshot.currentTime != undefined) updateUrl({ time: snapshot.currentTime });
-      if (snapshot.layoutId != undefined) updateUrl({ layoutId: snapshot.layoutId });
+      if (snapshot.currentTime != undefined) {
+        updateUrl({ time: snapshot.currentTime });
+      }
+      if (snapshot.layoutId != undefined) {
+        updateUrl({ layoutId: snapshot.layoutId });
+      }
     });
   }, []);
 
   // Sync layoutId with the url.
   useEffect(() => {
     const session = getBrowserSession();
-    if (session && !session.preservesPlayback() && session.getStatus() !== "current") return;
+    if (session && !session.preservesPlayback() && session.getStatus() !== "current") {
+      return;
+    }
     if (layoutId == undefined) {
       return;
     }
@@ -70,7 +78,9 @@ export function useStateToURLSynchronization(): void {
   // Sync current time with the url.
   useEffect(() => {
     const session = getBrowserSession();
-    if (session && !session.preservesPlayback() && session.getStatus() !== "current") return;
+    if (session && !session.preservesPlayback() && session.getStatus() !== "current") {
+      return;
+    }
     // Keep the launch seek time while authentication and player initialization are pending.
     if (canSeek && debouncedCurrentTime != undefined) {
       updateUrl({ time: debouncedCurrentTime });

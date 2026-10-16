@@ -24,6 +24,7 @@ import {
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import {
+  getBrowserAuthUrl,
   initializeBrowserSession,
   markBrowserCredentialInvalid,
 } from "@foxglove/studio-base/util/browserSession";
@@ -62,12 +63,22 @@ export function WebRoot(props: {
       setAccess({ status: "ready" });
       return;
     }
-    if (status === "recover" || status === "logged-out") return;
+    if (status === "recover" || status === "logged-out") {
+      return;
+    }
+    if (status === "current" && !session.credential) {
+      // A first visit is a login, not recovery from an expired session. The
+      // access gate owns this redirect because StudioApp is not mounted yet.
+      window.location.assign(getBrowserAuthUrl("/auth/login"));
+      return;
+    }
     const controller = new AbortController();
     setAccess({ status: "loading" });
     let credential = session.credential;
     try {
-      if (status === "changed") credential = localStorage.getItem("coScene_org_jwt") ?? "";
+      if (status === "changed") {
+        credential = localStorage.getItem("coScene_org_jwt") ?? "";
+      }
     } catch {
       setAccess({ status: "login" });
       return;
@@ -86,13 +97,17 @@ export function WebRoot(props: {
         if (!controller.signal.aborted) {
           if (result.status === "login" && credential) {
             markBrowserCredentialInvalid(credential);
-            if (status === "current") session.rejectCredential(credential);
+            if (status === "current") {
+              session.rejectCredential(credential);
+            }
           }
           setAccess(result);
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setAccess({ status: "error" });
+        if (!controller.signal.aborted) {
+          setAccess({ status: "error" });
+        }
       })
       .finally(() => {
         window.clearTimeout(timeout);
@@ -103,7 +118,9 @@ export function WebRoot(props: {
     };
   }, [appConfig.VITE_APP_BFF_URL, key, session, status, preservesPlayback, attempt]);
   useEffect(() => {
-    if (access.status === "ready" && status === "current") setOpened(true);
+    if (access.status === "ready" && status === "current") {
+      setOpened(true);
+    }
   }, [access.status, status]);
   const jwt = session.credential;
   useEffect(() => {
@@ -191,7 +208,9 @@ export function WebRoot(props: {
               changed={changed}
               modal={opened && changed}
               recovery={recovery}
-              onRetry={() => setAttempt((value) => value + 1)}
+              onRetry={() => {
+                setAttempt((value) => value + 1);
+              }}
             />
           )}
         </>

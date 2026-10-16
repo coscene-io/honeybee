@@ -17,9 +17,22 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { getDomainConfig, getWebBasePathname } from "@foxglove/studio-base/util/appConfig";
 import { getBrowserAuthUrl } from "@foxglove/studio-base/util/browserSession";
+
+const useStyles = makeStyles()((theme) => ({
+  content: { maxWidth: 520, width: "100%", padding: theme.spacing(2) },
+  page: {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    backgroundColor: theme.palette.background.default,
+    color: theme.palette.text.primary,
+    padding: theme.spacing(3),
+  },
+}));
 
 export type Organization = { name: string; displayName: string };
 export type OrganizationAccess = {
@@ -40,7 +53,9 @@ export function getOrganizationSwitchUrl(organization?: Organization): string {
   const login = new URL(getBrowserAuthUrl("/auth/login"), window.location.href);
   const target = new URL("/switch-organization", login.origin);
   target.searchParams.set("returnTo", login.searchParams.get("redirectToPath") ?? "/");
-  if (organization) target.searchParams.set("organization", organization.name);
+  if (organization) {
+    target.searchParams.set("organization", organization.name);
+  }
   return target.href;
 }
 
@@ -51,7 +66,9 @@ export async function fetchOrganizationAccess(
   credential: string,
   signal: AbortSignal,
 ): Promise<OrganizationAccess> {
-  if (!credential) return { status: "login" };
+  if (!credential) {
+    return { status: "login" };
+  }
   const response = await fetch(
     `${baseUrl.replace(/\/$/, "")}/bff/shortenUrl/${encodeURIComponent(key)}/access`,
     {
@@ -61,20 +78,30 @@ export async function fetchOrganizationAccess(
       cache: "no-store",
     },
   );
-  if (response.status === 401) return { status: "login" };
-  if (response.status === 403) return { status: "denied" };
-  if (response.status === 404) return { status: "unavailable" };
-  if (!response.ok) throw new Error("Access check failed");
+  if (response.status === 401) {
+    return { status: "login" };
+  }
+  if (response.status === 403) {
+    return { status: "denied" };
+  }
+  if (response.status === 404) {
+    return { status: "unavailable" };
+  }
+  if (!response.ok) {
+    throw new Error("Access check failed");
+  }
   const result = (await response.json()) as OrganizationAccess;
-  if (!["ready", "organization-mismatch", "organization-unavailable"].includes(result.status))
+  if (!["ready", "organization-mismatch", "organization-unavailable"].includes(result.status)) {
     throw new Error("Invalid access response");
+  }
   if (
     result.status === "organization-mismatch" &&
     (!result.organization ||
       !/^organizations\/[\w-]+$/.test(result.organization.name) ||
       typeof result.organization.displayName !== "string")
-  )
+  ) {
     throw new Error("Invalid organization response");
+  }
   return result;
 }
 
@@ -92,6 +119,7 @@ export function OrganizationAccessView({
   onRetry: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("appBar");
+  const { classes } = useStyles();
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     // If the browser's unsaved-edit confirmation cancels navigation, the action
@@ -120,7 +148,7 @@ export function OrganizationAccessView({
   const accountUrl = new URL(getBrowserAuthUrl("/auth/login"), window.location.href);
   accountUrl.pathname = "/auth/change-account";
   const content = (
-    <Stack spacing={3} sx={{ maxWidth: 520, width: "100%", p: 2 }}>
+    <Stack spacing={3} className={classes.content}>
       <Typography variant="overline" color="text.secondary">
         {t("visualization")}
       </Typography>
@@ -221,17 +249,7 @@ export function OrganizationAccessView({
       <DialogContent>{content}</DialogContent>
     </Dialog>
   ) : (
-    <Box
-      component="main"
-      sx={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        bgcolor: "background.default",
-        color: "text.primary",
-        p: 3,
-      }}
-    >
+    <Box component="main" className={classes.page}>
       {content}
     </Box>
   );

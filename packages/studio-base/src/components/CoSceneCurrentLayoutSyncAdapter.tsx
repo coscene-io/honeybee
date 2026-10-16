@@ -135,7 +135,9 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   useEffect(() => {
     const session = getBrowserSession();
     return session?.subscribe(() => {
-      if (!session.preservesPlayback()) debouncedUnsavedLayoutActions.flush();
+      if (!session.preservesPlayback()) {
+        debouncedUnsavedLayoutActions.flush();
+      }
     });
   }, [debouncedUnsavedLayoutActions]);
 
@@ -144,9 +146,10 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
     // pending in memory, or when a transient layout has no durable working copy.
     if (
       unsavedLayouts === EMPTY_UNSAVED_LAYOUTS &&
-      !(selectedLayout?.transient && selectedLayout.edited)
-    )
+      !(selectedLayout?.transient === true && selectedLayout.edited === true)
+    ) {
       return;
+    }
     const confirmLeave = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required by older supported browsers.
