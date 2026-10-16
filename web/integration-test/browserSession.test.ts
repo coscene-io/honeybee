@@ -105,7 +105,7 @@ afterEach(async () => {
   await context.close();
 });
 
-it("a second tab replacing credentials shows a reload prompt without injecting the new token into the old document", async () => {
+it("a second tab replacing credentials offers to continue without injecting the new token into the old document", async () => {
   let usedReplacementCredential = false;
   page.on("request", (request) => {
     usedReplacementCredential ||=
@@ -117,18 +117,27 @@ it("a second tab replacing credentials shows a reload prompt without injecting t
     localStorage.setItem(key, "Bearer synthetic-replacement");
   }, tokenKey);
   await page
-    .getByText("Your session changed. Reload to use the new session.", { exact: true })
+    .getByText(
+      "Your session has changed. Continue to reopen this visualization with the current session.",
+      { exact: true },
+    )
     .waitFor();
-  expect(await page.getByRole("button", { name: "Reload", exact: true }).count()).toBe(1);
+  expect(await page.getByRole("button", { name: "Continue viewing", exact: true }).count()).toBe(1);
   expect(await page.evaluate((key) => localStorage.getItem(key), tokenKey)).toBe(
     "Bearer synthetic-replacement",
   );
   expect(usedReplacementCredential).toBe(false);
-  await page.getByRole("button", { name: "Reload", exact: true }).click();
+  await Promise.all([
+    page.waitForEvent("load"),
+    page.getByRole("button", { name: "Continue viewing", exact: true }).click(),
+  ]);
   await page.waitForSelector("#root > *");
   expect(
     await page
-      .getByText("Your session changed. Reload to use the new session.", { exact: true })
+      .getByText(
+        "Your session has changed. Continue to reopen this visualization with the current session.",
+        { exact: true },
+      )
       .count(),
   ).toBe(0);
 }, 30_000);

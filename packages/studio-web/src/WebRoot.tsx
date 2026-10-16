@@ -206,7 +206,7 @@ export function WebRoot(props: {
             <OrganizationAccessView
               access={access}
               changed={changed}
-              modal={opened && changed}
+              modal={opened}
               recovery={recovery}
               onRetry={() => {
                 setAttempt((value) => value + 1);
