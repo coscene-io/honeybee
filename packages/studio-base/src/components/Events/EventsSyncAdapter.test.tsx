@@ -20,6 +20,11 @@ import { subtract, toSec } from "@foxglove/rostime";
 import { ContextInternal } from "@foxglove/studio-base/components/MessagePipeline";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
+import {
+  type BagFileInfo,
+  CoScenePlaylistContext,
+  type CoScenePlaylistStore,
+} from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   EventsContext,
@@ -36,6 +41,10 @@ import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlay
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import type {
+  EventList,
+  SingleFileGetEventsRequest,
+} from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
 
 import { EventsSyncAdapter } from "./EventsSyncAdapter";
 
@@ -249,6 +258,96 @@ function Wrapper({
 }
 
 describe("<EventsSyncAdapter />", () => {
+  it.each([
+    ["NORMAL_FILE", 363_000_000],
+    ["NORMAL_FILE", 2_000_000],
+    ["GHOST_RESULT_FILE", 363_000_000],
+    ["GHOST_RESULT_FILE", 2_000_000],
+  ] as const)(
+    "retains moments at both %s file bounds after refreshing (start nanos: %i)",
+    async (fileType, startNanos) => {
+      const startTime = { sec: 1_785_401_051, nsec: startNanos };
+      const endTime = { sec: 1_785_401_229, nsec: 899_000_000 };
+      const boundaryEvents: EventList = [startTime, endTime].map((time, index) => ({
+        event: create(EventSchema, {
+          name: `events/boundary-${index}`,
+          triggerTime: create(TimestampSchema, {
+            seconds: BigInt(time.sec),
+            nanos: time.nsec,
+          }),
+          duration: create(DurationSchema, { seconds: index === 0 ? 1n : 0n }),
+        }),
+        projectDisplayName: "project",
+        recordDisplayName: "record",
+      }));
+      // Model a server comparing its nanosecond timestamps against numeric query bounds.
+      const getEvents = jest.fn(
+        async ({ fileList }: { fileList: SingleFileGetEventsRequest[] }) => {
+          const file = fileList[0]!;
+          const lowerBound = BigInt(file.startTime.toFixed(9).replace(".", ""));
+          const upperBound = BigInt(file.endTime.toFixed(9).replace(".", ""));
+          return boundaryEvents.filter(({ event }) => {
+            const triggerTime = event.triggerTime!;
+            const nanos = triggerTime.seconds * 1_000_000_000n + BigInt(triggerTime.nanos);
+            return nanos >= lowerBound && nanos <= upperBound;
+          });
+        },
+      );
+      const eventsStore = makeEventsStore({ events: [], setEventMarks: jest.fn() });
+      const bagFiles: BagFileInfo[] = [
+        {
+          name:
+            fileType === "NORMAL_FILE"
+              ? "warehouses/warehouse/projects/project/records/record/files/file"
+              : "warehouses/warehouse/projects/project/workflowRuns/workflow/outputs/file",
+          displayName: "file",
+          fileType,
+          mediaStatues: "OK",
+          startTime,
+          endTime,
+        },
+      ];
+      const playlistStore = createStore<CoScenePlaylistStore>(() => ({
+        bagFiles: { loading: false, value: bagFiles },
+        setBagFiles: jest.fn(),
+        setCurrentBagFiles: jest.fn(),
+      }));
+
+      render(
+        <Wrapper
+          consoleApi={{ getEvents } as never}
+          currentTime={startTime}
+          startTime={startTime}
+          endTime={endTime}
+          eventsStore={eventsStore}
+          timelineInteractionStore={makeTimelineInteractionStore()}
+        >
+          <CoScenePlaylistContext.Provider value={playlistStore}>
+            <EventsSyncAdapter />
+          </CoScenePlaylistContext.Provider>
+        </Wrapper>,
+      );
+
+      const expectBoundaryEvents = () => {
+        expect(eventsStore.getState().events.value?.map(({ event }) => event.name)).toEqual([
+          "events/boundary-0",
+          "events/boundary-1",
+        ]);
+      };
+      await waitFor(expectBoundaryEvents);
+
+      getEvents.mockClear();
+      act(() => {
+        eventsStore.getState().refreshEvents();
+      });
+      await waitFor(() => {
+        expect(getEvents).toHaveBeenCalledTimes(1);
+        expect(eventsStore.getState().events.loading).toBe(false);
+        expectBoundaryEvents();
+      });
+    },
+  );
+
   it("snaps shortcut-created marks to nearby event boundaries when linked adjustment is enabled", async () => {
     const setEventMarks = jest.fn<void, [TimelinePositionedEventMark[]]>();
     const eventsStore = makeEventsStore({
