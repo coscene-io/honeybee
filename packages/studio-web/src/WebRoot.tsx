@@ -57,7 +57,8 @@ export function WebRoot(props: {
   const [opened, setOpened] = useState(false);
   const status = session.getStatus();
   const preservesPlayback = session.preservesPlayback();
-  const key = new URL(window.location.href).searchParams.get("ds.key");
+  const params = new URL(window.location.href).searchParams;
+  const key = params.get("ds") === "coscene-data-platform" ? params.get("ds.key") : undefined;
   useEffect(() => {
     if (preservesPlayback || !key) {
       setAccess({ status: "ready" });

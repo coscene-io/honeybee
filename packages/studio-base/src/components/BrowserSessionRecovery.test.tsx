@@ -238,3 +238,30 @@ it("automatically starts fresh login before mounting a private link without cred
   expect(fetchOrganizationAccess).not.toHaveBeenCalled();
   expect(screen.queryByTestId("workspace")).toBeNull();
 });
+
+it.each([
+  { source: "custom-source", authenticated: true },
+  { source: "custom-source", authenticated: false },
+  { source: "", authenticated: true },
+  { source: "", authenticated: false },
+])(
+  "does not gate a generic ds.key for $source (authenticated: $authenticated)",
+  ({ source, authenticated }) => {
+    if (!authenticated) {
+      localStorage.removeItem("coScene_org_jwt");
+    }
+    const params = new URLSearchParams({ "ds.key": "custom-key" });
+    if (source) {
+      params.set("ds", source);
+    }
+    window.history.replaceState(undefined, "", `/viz?${params.toString()}#detail`);
+    const originalUrl = window.location.href;
+    jest.mocked(getBrowserAuthUrl).mockReturnValue("#unexpected-login");
+    jest.mocked(fetchOrganizationAccess).mockClear();
+    jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+    render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+    expect(screen.getByTestId("workspace")).not.toBeNull();
+    expect(fetchOrganizationAccess).not.toHaveBeenCalled();
+    expect(window.location.href).toBe(originalUrl);
+  },
+);
