@@ -221,20 +221,22 @@ function Wrapper({
 }>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
-      <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
-        <CoSceneConsoleApiContext.Provider value={consoleApi}>
-          <MockMessagePipelineProvider
-            startTime={{ sec: 0, nsec: 0 }}
-            endTime={{ sec: 10, nsec: 0 }}
-            currentTime={{ sec: 1, nsec: 0 }}
-            seekPlayback={seekPlayback}
-          >
-            <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
-              <EventsContext.Provider value={eventsStore}>{children}</EventsContext.Provider>
-            </TimelineInteractionStateContext.Provider>
-          </MockMessagePipelineProvider>
-        </CoSceneConsoleApiContext.Provider>
-      </AppConfigurationContext.Provider>
+      <WorkspaceContextProvider disablePersistence>
+        <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+          <CoSceneConsoleApiContext.Provider value={consoleApi}>
+            <MockMessagePipelineProvider
+              startTime={{ sec: 0, nsec: 0 }}
+              endTime={{ sec: 10, nsec: 0 }}
+              currentTime={{ sec: 1, nsec: 0 }}
+              seekPlayback={seekPlayback}
+            >
+              <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
+                <EventsContext.Provider value={eventsStore}>{children}</EventsContext.Provider>
+              </TimelineInteractionStateContext.Provider>
+            </MockMessagePipelineProvider>
+          </CoSceneConsoleApiContext.Provider>
+        </AppConfigurationContext.Provider>
+      </WorkspaceContextProvider>
     </ThemeProvider>
   );
 }

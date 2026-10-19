@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { Button, Popover, Tooltip } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,9 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(0.625, 0.5),
     backgroundColor: "transparent",
     minWidth: "auto",
+    fontSize: 12,
+    fontVariantNumeric: "tabular-nums",
+    fontWeight: 500,
 
     ":hover": {
       backgroundColor: theme.palette.action.hover,
@@ -94,11 +98,11 @@ function PlaybackSpeedControls(props: { disabled?: boolean }): React.JSX.Element
           }}
           data-testid="PlaybackSpeedControls-Dropdown"
           disabled={props.disabled}
-          disableRipple
-          variant="contained"
+          variant="text"
           color="inherit"
         >
           {formatPlaybackSpeed(displaySpeed)}
+          <ArrowDropDownIcon fontSize="small" />
         </Button>
       </Tooltip>
       <Popover

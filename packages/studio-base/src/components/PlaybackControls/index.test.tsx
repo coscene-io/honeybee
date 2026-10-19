@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 
 import type { Time } from "@foxglove/rostime";
@@ -41,16 +41,34 @@ jest.mock("./PlaybackTimeDisplay", () => ({
 }));
 jest.mock("./Scrubber", () => ({
   __esModule: true,
-  default: function MockScrubber({ onSeek }: { onSeek: (seekTo: Time) => void }) {
+  default: function MockScrubber({
+    onSeek,
+    playback,
+    playbackOptions,
+    seekStep,
+    speed,
+    time,
+    sourceInfo,
+  }: React.ComponentProps<typeof import("./Scrubber").default>) {
     return (
-      <button
-        data-testid="scrubber"
-        onClick={() => {
-          onSeek({ sec: 2, nsec: 0 });
-        }}
-      >
-        scrubber
-      </button>
+      <>
+        <div>
+          {playback}
+          {playbackOptions}
+          {seekStep}
+          {speed}
+          {time?.({ compact: false })}
+          {sourceInfo}
+        </div>
+        <button
+          data-testid="scrubber"
+          onClick={() => {
+            onSeek({ sec: 2, nsec: 0 });
+          }}
+        >
+          scrubber
+        </button>
+      </>
     );
   },
 }));
@@ -91,7 +109,11 @@ function KeyframeSearchLock({ active = true }: { active?: boolean }): ReactNull 
 function Wrapper({
   children,
   realtimeHistory,
-}: React.PropsWithChildren<{ realtimeHistory?: RealtimeHistoryState }>): React.JSX.Element {
+  timelineHeight = 200,
+}: React.PropsWithChildren<{
+  realtimeHistory?: RealtimeHistoryState;
+  timelineHeight?: number;
+}>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
       <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
@@ -107,7 +129,7 @@ function Wrapper({
           <CoreDataProvider>
             <WorkspaceContextProvider
               disablePersistence
-              initialState={{ playbackControls: { repeat: false, speed: 1 } }}
+              initialState={{ playbackControls: { repeat: false, speed: 1, timelineHeight } }}
             >
               <PlaybackInteractionStateProvider>
                 <MockMessagePipelineProvider realtimeHistory={realtimeHistory}>
@@ -403,6 +425,181 @@ describe("<PlaybackControls />", () => {
 
     expect(screen.getByTestId("playback-controls").style.height).toBe("250px");
     expect(screen.getByTestId("timeline-height").textContent).toBe("250");
+  });
+  it.each([500, 1000])("caps pointer resizing at 80%% of a %ipx viewport", (viewportHeight) => {
+    jest.replaceProperty(window, "innerHeight", viewportHeight);
+    render(
+      <Wrapper>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    const root = screen.getByTestId("playback-controls");
+    const handle = screen.getByTestId("playback-controls-resize-handle");
+
+    expect(root.style.height).toBe("200px");
+
+    act(() => {
+      handle.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientY: 200 }));
+      window.dispatchEvent(new MouseEvent("pointermove", { clientY: -1000 }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientY: -1000 }));
+    });
+    expect(root.style.height).toBe(`${viewportHeight * 0.8}px`);
+    expect(handle.getAttribute("aria-valuemax")).toBe(`${viewportHeight * 0.8}`);
+    expect(getComputedStyle(root).maxHeight).toBe("80vh");
+
+    act(() => {
+      handle.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientY: 40 }));
+      window.dispatchEvent(new MouseEvent("pointermove", { clientY: 2000 }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientY: 2000 }));
+    });
+    expect(root.style.height).toBe("126px");
+  });
+
+  it("caps keyboard resizing at the viewport limit", () => {
+    jest.replaceProperty(window, "innerHeight", 1000);
+    render(
+      <Wrapper timelineHeight={795}>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    const root = screen.getByTestId("playback-controls");
+    const handle = screen.getByRole("separator", { name: "Timeline height" });
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(root.style.height).toBe("800px");
+    expect(handle.getAttribute("aria-valuenow")).toBe("800");
+    fireEvent.keyDown(handle, { key: "ArrowDown" });
+    expect(root.style.height).toBe("790px");
+  });
+
+  it("reclamps saved height and immediately follows the pointer after the viewport shrinks", async () => {
+    jest.replaceProperty(window, "innerHeight", 500);
+    render(
+      <Wrapper timelineHeight={780}>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    const root = screen.getByTestId("playback-controls");
+    const handle = screen.getByRole("separator", { name: "Timeline height" });
+    expect(root.style.height).toBe("400px");
+
+    jest.replaceProperty(window, "innerHeight", 1000);
+    fireEvent(window, new Event("resize"));
+    await waitFor(() => {
+      expect(root.style.height).toBe("780px");
+    });
+
+    act(() => {
+      handle.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientY: 200 }));
+    });
+    jest.replaceProperty(window, "innerHeight", 500);
+    fireEvent(window, new Event("resize"));
+    await waitFor(() => {
+      expect(root.style.height).toBe("400px");
+      expect(handle.getAttribute("aria-valuemax")).toBe("400");
+      expect(handle.getAttribute("aria-valuenow")).toBe("400");
+    });
+    act(() => {
+      window.dispatchEvent(new MouseEvent("pointermove", { clientY: 210 }));
+    });
+    expect(root.style.height).toBe("390px");
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("pointermove", { clientY: 220 }));
+      window.dispatchEvent(new MouseEvent("pointermove", { clientY: 230 }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientY: 230 }));
+    });
+    expect(root.style.height).toBe("370px");
+    expect(handle.getAttribute("aria-valuenow")).toBe("370");
+  });
+
+  it("follows the visible saved height when the viewport grows during a drag", async () => {
+    jest.replaceProperty(window, "innerHeight", 500);
+    render(
+      <Wrapper timelineHeight={780}>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    const root = screen.getByTestId("playback-controls");
+    const handle = screen.getByRole("separator", { name: "Timeline height" });
+    expect(root.style.height).toBe("400px");
+    act(() => {
+      handle.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientY: 200 }));
+    });
+
+    jest.replaceProperty(window, "innerHeight", 1000);
+    fireEvent(window, new Event("resize"));
+    await waitFor(() => {
+      expect(root.style.height).toBe("780px");
+      expect(handle.getAttribute("aria-valuemax")).toBe("800");
+    });
+    act(() => {
+      window.dispatchEvent(new MouseEvent("pointermove", { clientY: 210 }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientY: 210 }));
+    });
+    expect(root.style.height).toBe("770px");
+  });
+
+  it("keeps the viewport cap even when it is below the usual minimum height", () => {
+    jest.replaceProperty(window, "innerHeight", 150);
+    render(
+      <Wrapper>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={jest.fn()}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+      </Wrapper>,
+    );
+
+    const root = screen.getByTestId("playback-controls");
+    const handle = screen.getByRole("separator", { name: "Timeline height" });
+    expect(root.style.height).toBe("120px");
+    expect(getComputedStyle(root).minHeight).toBe("min(126px, 80vh)");
+    expect(handle.getAttribute("aria-valuemin")).toBe("120");
+    expect(handle.getAttribute("aria-valuemax")).toBe("120");
+    fireEvent.keyDown(handle, { key: "ArrowDown" });
+    expect(root.style.height).toBe("120px");
   });
 });
 

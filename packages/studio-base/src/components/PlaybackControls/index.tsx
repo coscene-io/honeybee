@@ -30,6 +30,7 @@ import {
 import { IconButton, Tooltip, Typography, Link } from "@mui/material";
 import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
+import { useLatest, useWindowSize } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
 import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
@@ -61,40 +62,63 @@ import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
 import SeekStepControls, { MIN_SEEK_STEP_MS, MAX_SEEK_STEP_MS } from "./SeekStepControls";
-import { TIMELINE_MIN_HEIGHT_PX, TIMELINE_MAX_HEIGHT_PX } from "./constants";
+import { TIMELINE_TOOLBAR_HEIGHT_PX } from "./TimelineToolbar";
+import { TIMELINE_MIN_HEIGHT_PX } from "./constants";
 import { SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
 import { DIRECTION, jumpSeek } from "./sharedHelpers";
 
-const useStyles = makeStyles()((theme) => ({
+const TIMELINE_MAX_HEIGHT_RATIO = 0.8;
+const TIMELINE_MAX_HEIGHT_CSS = `${TIMELINE_MAX_HEIGHT_RATIO * 100}vh`;
+
+const useStyles = makeStyles<{ minTimelineHeight: number }>()((theme, { minTimelineHeight }) => ({
   root: {
     backgroundColor: theme.palette.background.paper,
     borderTop: `1px solid ${theme.palette.divider}`,
     display: "flex",
     flexDirection: "column",
-    maxHeight: TIMELINE_MAX_HEIGHT_PX,
-    minHeight: TIMELINE_MIN_HEIGHT_PX,
+    minHeight: `min(${minTimelineHeight}px, ${TIMELINE_MAX_HEIGHT_CSS})`,
+    maxHeight: TIMELINE_MAX_HEIGHT_CSS,
     overflow: "hidden",
     position: "relative",
-    zIndex: 100000,
+    zIndex: theme.zIndex.appBar,
   },
   resizeHandle: {
     cursor: "ns-resize",
-    height: 6,
+    height: 8,
     left: 0,
     position: "absolute",
     right: 0,
-    top: -3,
-    zIndex: 2,
-  },
-  resizeHandleActive: {
-    backgroundColor: theme.palette.action.hover,
-  },
-  controlsRow: {
-    borderTop: `1px solid ${theme.palette.divider}`,
-    flex: "0 0 auto",
-    minHeight: 40,
-    overflowX: "auto",
-    padding: theme.spacing(0.5, 1, 0.75, 1),
+    top: -4,
+    zIndex: 1,
+    "&:focus-visible": { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: -2 },
+    "&::before": {
+      backgroundColor: theme.palette.divider,
+      borderRadius: 2,
+      content: '""',
+      height: 3,
+      left: "calc(50% - 16px)",
+      position: "absolute",
+      top: 4,
+      width: 32,
+    },
+
+    "&::after": {
+      backgroundColor: theme.palette.primary.main,
+      content: '""',
+      height: 1,
+      left: 0,
+      opacity: 0,
+      position: "absolute",
+      right: 0,
+      top: 4,
+      transition: theme.transitions.create("opacity", {
+        duration: theme.transitions.duration.shortest,
+      }),
+    },
+
+    "&:hover::after": {
+      opacity: 0.5,
+    },
   },
   realtimeRoot: {
     maxHeight: "none",
@@ -124,8 +148,8 @@ const selectUrlState = (ctx: MessagePipelineContext) => ctx.playerState.urlState
 const selectRealtimeHistory = (ctx: MessagePipelineContext) => ctx.playerState.realtimeHistory;
 const selectDataSource = (store: CoreDataStore) => store.dataSource;
 
-function clampTimelineHeight(height: number): number {
-  return Math.min(Math.max(height, TIMELINE_MIN_HEIGHT_PX), TIMELINE_MAX_HEIGHT_PX);
+function clampTimelineHeight(value: number, minHeight: number, maxHeight: number): number {
+  return Math.min(maxHeight, Math.max(minHeight, value));
 }
 
 function getPointerClientY(
@@ -176,26 +200,85 @@ export default function PlaybackControls(props: {
 
   const { t } = useTranslation("event");
 
-  const { classes, cx } = useStyles();
+  const [toolbarHeight, setToolbarHeight] = useState(TIMELINE_TOOLBAR_HEIGHT_PX);
+  const minTimelineHeight = TIMELINE_MIN_HEIGHT_PX + toolbarHeight - TIMELINE_TOOLBAR_HEIGHT_PX;
+  const minTimelineHeightRef = useLatest(minTimelineHeight);
+  const { classes, cx } = useStyles({ minTimelineHeight });
   const repeat = useWorkspaceStore(selectPlaybackRepeat);
   const playbackSpeed = useWorkspaceStore(selectPlaybackSpeed);
-  const timelineHeight = useWorkspaceStore(selectTimelineHeight);
+  const { height: windowHeight } = useWindowSize();
+  const maxTimelineHeight = windowHeight * TIMELINE_MAX_HEIGHT_RATIO;
+  const timelineHeight = clampTimelineHeight(
+    useWorkspaceStore(selectTimelineHeight),
+    minTimelineHeight,
+    maxTimelineHeight,
+  );
   const {
     playbackControlActions: { setRepeat, setSpeed, setTimelineHeight },
   } = useWorkspaceActions();
-  const timelineResizeState = useRef<
-    | {
-        initialHeight: number;
-        initialY: number;
-      }
-    | undefined
-  >(undefined);
-  const [isTimelineResizing, setIsTimelineResizing] = useState(false);
+  const timelineResizeClientYRef = useRef<number | undefined>(undefined);
+
+  const resizeCleanup = useRef<() => void>(() => {});
+  useEffect(
+    () => () => {
+      resizeCleanup.current();
+    },
+    [],
+  );
 
   const toggleRepeat = useCallback(() => {
     // toggle repeat on the workspace
     setRepeat((old) => !old);
   }, [setRepeat]);
+
+  const startTimelineResize = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>): void => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      resizeCleanup.current();
+
+      timelineResizeClientYRef.current = getPointerClientY(event);
+
+      const onPointerMove = (pointerEvent: PointerEvent): void => {
+        const previousClientY = timelineResizeClientYRef.current;
+        if (previousClientY == undefined) {
+          return;
+        }
+
+        const clientY = getPointerClientY(pointerEvent);
+        const heightDelta = previousClientY - clientY;
+        const maxHeight = window.innerHeight * TIMELINE_MAX_HEIGHT_RATIO;
+        timelineResizeClientYRef.current = clientY;
+
+        setTimelineHeight((height) => {
+          // Apply each delta to the visible height, which may change when the viewport resizes.
+          const minHeight = minTimelineHeightRef.current;
+          const visibleHeight = clampTimelineHeight(height, minHeight, maxHeight);
+          return clampTimelineHeight(visibleHeight + heightDelta, minHeight, maxHeight);
+        });
+      };
+
+      const onPointerUp = (): void => {
+        resizeCleanup.current();
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp, { once: true });
+      window.addEventListener("pointercancel", onPointerUp, { once: true });
+      window.addEventListener("blur", onPointerUp, { once: true });
+      resizeCleanup.current = () => {
+        timelineResizeClientYRef.current = undefined;
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerUp);
+        window.removeEventListener("blur", onPointerUp);
+      };
+    },
+    [minTimelineHeightRef, setTimelineHeight],
+  );
 
   useEffect(() => {
     // if workspace has a preference stored that is not reflected in the iterable player...
@@ -304,46 +387,6 @@ export default function PlaybackControls(props: {
     [isKeyframeSearchActive, playbackSpeed, setSpeed],
   );
 
-  const startTimelineResize = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>): void => {
-      event.preventDefault();
-      timelineResizeState.current = {
-        initialHeight: timelineHeight,
-        initialY: getPointerClientY(event),
-      };
-      setIsTimelineResizing(true);
-    },
-    [timelineHeight],
-  );
-
-  useEffect(() => {
-    if (!isTimelineResizing) {
-      return undefined;
-    }
-
-    const onPointerMove = (event: PointerEvent): void => {
-      const state = timelineResizeState.current;
-      if (state == undefined) {
-        return;
-      }
-
-      const deltaY = state.initialY - getPointerClientY(event);
-      setTimelineHeight(clampTimelineHeight(state.initialHeight + deltaY));
-    };
-
-    const onPointerUp = (): void => {
-      timelineResizeState.current = undefined;
-      setIsTimelineResizing(false);
-    };
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp, { once: true });
-    return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    };
-  }, [isTimelineResizing, setTimelineHeight]);
-
   const hasPlaybackSpeedModifier = useCallback(
     (event: KeyboardEvent) => event.ctrlKey || event.metaKey || event.altKey,
     [],
@@ -351,7 +394,17 @@ export default function PlaybackControls(props: {
 
   const keyDownHandlers = useMemo(
     () => ({
-      " ": togglePlayPause,
+      " ": (event: KeyboardEvent) => {
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.closest("button") &&
+          event.target.closest("[data-timeline-toolbar], [role=dialog]")
+        ) {
+          return false;
+        }
+        togglePlayPause();
+        return true;
+      },
       ArrowLeft: (ev: KeyboardEvent) => {
         seekBackwardAction(ev);
       },
@@ -390,138 +443,169 @@ export default function PlaybackControls(props: {
       <div
         className={classes.root}
         data-testid="playback-controls"
-        style={{ height: clampTimelineHeight(timelineHeight) }}
+        style={{ height: timelineHeight }}
       >
         <div
-          className={cx(classes.resizeHandle, {
-            [classes.resizeHandleActive]: isTimelineResizing,
-          })}
+          className={classes.resizeHandle}
           data-testid="playback-controls-resize-handle"
+          role="separator"
+          tabIndex={0}
+          aria-label={t("timelineHeight", { ns: "general" })}
+          aria-orientation="horizontal"
+          aria-valuemin={Math.min(minTimelineHeight, maxTimelineHeight)}
+          aria-valuemax={maxTimelineHeight}
+          aria-valuenow={timelineHeight}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+              event.preventDefault();
+              event.stopPropagation();
+              setTimelineHeight(
+                clampTimelineHeight(
+                  timelineHeight + (event.key === "ArrowUp" ? 10 : -10),
+                  minTimelineHeight,
+                  maxTimelineHeight,
+                ),
+              );
+            }
+          }}
           onPointerDown={startTimelineResize}
         />
-        <Scrubber onSeek={seekIfAllowed} />
-        <Stack className={classes.controlsRow} direction="row" alignItems="center" gap={1}>
-          <Stack direction="row" flex={1} gap={0.5}>
-            <Tooltip
-              // A desired workflow is the ability to copy data source info text (start, end, duration)
-              // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
-              // clicks on the <HoverableIconButton> and then goes to copy text from the tooltip.
-              //
-              // Disabling the focus listener fixes this quirk and the tooltip behaves as expected.
-              // https://mui.com/material-ui/api/tooltip/#prop-disableFocusListener
-              disableFocusListener
-              classes={{ popper: classes.popper }}
-              title={
-                <Stack paddingY={0.75}>
-                  <DataSourceInfoView disableSource />
-                </Stack>
-              }
-            >
+        <Scrubber
+          onSeek={seekIfAllowed}
+          onToolbarHeightChange={setToolbarHeight}
+          playback={
+            <>
               <HoverableIconButton
-                className={cx(classes.dataSourceInfoButton, {
-                  [classes.disabled]: disableControls,
-                })}
+                disabled={disableControls}
                 size="small"
-                icon={<Info20Regular />}
+                aria-label={t("seekBackward", { ns: "general" })}
+                title={
+                  <ShortcutHint
+                    label={t("seekBackward", { ns: "general" })}
+                    keys={SHORTCUTS.seekBackward}
+                  />
+                }
+                icon={<Previous20Regular />}
+                activeIcon={<Previous20Filled />}
+                onClick={() => {
+                  seekBackwardAction();
+                }}
               />
-            </Tooltip>
-            <PlaybackTimeDisplay onSeek={seekIfAllowed} onPause={pause} />
-            {dataSource?.type === "persistent-cache" &&
-              dataSource.previousRecentId != undefined && (
-                <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "websocket" })}>
-                  <IconButton
-                    component="button"
-                    size="small"
-                    onClick={() => {
-                      if (dataSource.previousRecentId != undefined) {
-                        selectRecent(dataSource.previousRecentId);
-                      }
-                    }}
-                  >
-                    <Typography variant="body2" marginLeft="4px">
-                      {t("switchToRealTime", { ns: "websocket" })}
-                    </Typography>
-                  </IconButton>
-                </Tooltip>
-              )}
-          </Stack>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <HoverableIconButton
-              disabled={disableControls}
-              size="small"
-              aria-label={t("seekBackward", { ns: "general" })}
-              title={
-                <ShortcutHint
-                  label={t("seekBackward", { ns: "general" })}
-                  keys={SHORTCUTS.seekBackward}
-                />
-              }
-              icon={<Previous20Regular />}
-              activeIcon={<Previous20Filled />}
-              onClick={() => {
-                seekBackwardAction();
-              }}
-            />
-            <HoverableIconButton
-              disabled={disableControls}
-              size="small"
-              id="play-pause-button"
-              aria-label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
-              title={
-                <ShortcutHint
-                  label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
-                  keys={SHORTCUTS.playPause}
-                />
-              }
-              onClick={togglePlayPause}
-              icon={isPlaying ? <Pause20Regular /> : <Play20Regular />}
-              activeIcon={isPlaying ? <Pause20Filled /> : <Play20Filled />}
-            />
-            <HoverableIconButton
-              disabled={disableControls}
-              size="small"
-              aria-label={t("seekForward", { ns: "general" })}
-              title={
-                <ShortcutHint
-                  label={t("seekForward", { ns: "general" })}
-                  keys={SHORTCUTS.seekForward}
-                />
-              }
-              icon={<Next20Regular />}
-              activeIcon={<Next20Filled />}
-              onClick={() => {
-                seekForwardAction();
-              }}
-            />
-          </Stack>
-
-          <Stack direction="row" flex={1} alignItems="center" justifyContent="flex-end" gap={0.5}>
-            {urlState?.parameters?.jobRunsId != undefined && (
-              <>
-                <ImageShadow20Filled />
-                <div>{t("shadowMode", { ns: "playList" })}</div>
-              </>
-            )}
-
-            <SeekStepControls disabled={disableControls} onEditingChange={setSeekStepEditing} />
+              <HoverableIconButton
+                disabled={disableControls}
+                size="small"
+                id="play-pause-button"
+                aria-label={
+                  isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })
+                }
+                title={
+                  <ShortcutHint
+                    label={isPlaying ? t("pause", { ns: "general" }) : t("play", { ns: "general" })}
+                    keys={SHORTCUTS.playPause}
+                  />
+                }
+                onClick={togglePlayPause}
+                icon={isPlaying ? <Pause20Regular /> : <Play20Regular />}
+                activeIcon={isPlaying ? <Pause20Filled /> : <Play20Filled />}
+              />
+              <HoverableIconButton
+                disabled={disableControls}
+                size="small"
+                aria-label={t("seekForward", { ns: "general" })}
+                title={
+                  <ShortcutHint
+                    label={t("seekForward", { ns: "general" })}
+                    keys={SHORTCUTS.seekForward}
+                  />
+                }
+                icon={<Next20Regular />}
+                activeIcon={<Next20Filled />}
+                onClick={() => {
+                  seekForwardAction();
+                }}
+              />
+            </>
+          }
+          playbackOptions={
             <HoverableIconButton
               size="small"
               title={t("loopPlayback", { ns: "general" })}
+              aria-label={t("loopPlayback", { ns: "general" })}
+              aria-pressed={repeatEnabled}
               disabled={disableControls}
               color={repeatEnabled ? "primary" : "inherit"}
               onClick={toggleRepeat}
               icon={repeat ? <ArrowRepeatAll20Regular /> : <ArrowRepeatAllOff20Regular />}
             />
-            <PlaybackSpeedControls />
-          </Stack>
-        </Stack>
+          }
+          seekStep={
+            <SeekStepControls disabled={disableControls} onEditingChange={setSeekStepEditing} />
+          }
+          speed={<PlaybackSpeedControls disabled={disableControls} />}
+          time={({ compact }) => (
+            <PlaybackTimeDisplay compact={compact} onSeek={seekIfAllowed} onPause={pause} />
+          )}
+          sourceInfo={
+            <>
+              {urlState?.parameters?.jobRunsId != undefined && (
+                <>
+                  <ImageShadow20Filled />
+                  <div>{t("shadowMode", { ns: "playList" })}</div>
+                </>
+              )}
+              <Tooltip
+                // A desired workflow is the ability to copy data source info text (start, end, duration)
+                // from the tooltip. However, there's a UX quirk where the tooltip will close if the user
+                // clicks on the <HoverableIconButton> and then goes to copy text from the tooltip.
+                //
+                // Disabling the focus listener fixes this quirk and the tooltip behaves as expected.
+                // https://mui.com/material-ui/api/tooltip/#prop-disableFocusListener
+                disableFocusListener
+                classes={{ popper: classes.popper }}
+                title={
+                  <Stack paddingY={0.75}>
+                    <DataSourceInfoView disableSource />
+                  </Stack>
+                }
+              >
+                <HoverableIconButton
+                  className={cx(classes.dataSourceInfoButton, {
+                    [classes.disabled]: disableControls,
+                  })}
+                  size="small"
+                  aria-label={t("dataSourceInfo", { ns: "general" })}
+                  icon={<Info20Regular />}
+                />
+              </Tooltip>
+              {dataSource?.type === "persistent-cache" &&
+                dataSource.previousRecentId != undefined && (
+                  <Tooltip title={t("switchToRealTimeFromPlayback", { ns: "websocket" })}>
+                    <IconButton
+                      component="button"
+                      size="small"
+                      style={{ width: "auto" }}
+                      onClick={() => {
+                        if (dataSource.previousRecentId != undefined) {
+                          selectRecent(dataSource.previousRecentId);
+                        }
+                      }}
+                    >
+                      <Typography variant="body2" marginLeft="4px">
+                        {t("switchToRealTime", { ns: "websocket" })}
+                      </Typography>
+                    </IconButton>
+                  </Tooltip>
+                )}
+            </>
+          }
+        />
       </div>
     </>
   );
 }
 
 export function RealtimeVizPlaybackControls(): React.JSX.Element {
-  const { classes, cx } = useStyles();
+  const { classes, cx } = useStyles({ minTimelineHeight: TIMELINE_MIN_HEIGHT_PX });
   const { t } = useTranslation("websocket");
   const { dialogActions } = useWorkspaceActions();
   const [retentionWindowMs] = useAppConfigurationValue<number>(AppSetting.RETENTION_WINDOW_MS);

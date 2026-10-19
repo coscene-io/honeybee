@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create, fromJson } from "@bufbuild/protobuf";
+import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -13,9 +15,10 @@ import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
 import { EventsList } from "@foxglove/studio-base/components/Events/EventsList";
 import { EventsSyncAdapter } from "@foxglove/studio-base/components/Events/EventsSyncAdapter";
 import { MomentSubtitleOverlay } from "@foxglove/studio-base/components/Events/MomentSubtitleOverlay";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
-import Scrubber from "@foxglove/studio-base/components/PlaybackControls/Scrubber";
+import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
@@ -33,6 +36,8 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { CustomFieldSchemaSchema } from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
+import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api/moment-custom-field/types";
 import {
   makeMomentFixture,
   type MomentDistribution,
@@ -56,11 +61,14 @@ const api = {
 function Seed({
   events,
   extras,
+  groupingSchema,
 }: {
   events: TimelinePositionedEvent[];
   extras: boolean;
+  groupingSchema: MomentCustomFieldSchema;
 }): ReactNull {
   const setEvents = useEvents((store) => store.setEvents);
+  const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
   const setDataSource = useCoreData((store) => store.setDataSource);
   const setProject = useCoreData((store) => store.setProject);
   const setRecord = useCoreData((store) => store.setRecord);
@@ -74,7 +82,23 @@ function Seed({
     setRecord({ loading: false, value: { isArchived: false } as never });
     setMomentSubtitleEnabled(extras);
   }, [events, extras, setEvents, setDataSource, setProject, setRecord, setMomentSubtitleEnabled]);
+  useEffect(() => {
+    // Simulate an asynchronous schema read, after the adapter clears an old project snapshot.
+    let active = true;
+    void Promise.resolve(groupingSchema).then((schema) => {
+      if (active) {
+        setCustomFieldSchema(schema);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [groupingSchema, setCustomFieldSchema]);
   return ReactNull;
+}
+
+function BenchmarkMomentsList(): React.JSX.Element {
+  return <MomentsList events={useVisibleEvents()} />;
 }
 
 function MomentsBenchmark(): React.JSX.Element {
@@ -92,9 +116,47 @@ function MomentsBenchmark(): React.JSX.Element {
   const count = Number(query.get("count") ?? 1000);
   const distribution = (query.get("distribution") ?? "short") as MomentDistribution;
   const extras = query.get("extras") === "true";
-  const events = useMemo(
-    () => makeMomentFixture(count, distribution, origin),
-    [count, distribution],
+  const groupLevels = Math.max(0, Math.min(5, Number(query.get("groupLevels") ?? 0)));
+  const groupCount = Math.max(1, Math.min(count, Number(query.get("groupCount") ?? 8)));
+  const groupingSchema = useMemo(
+    () =>
+      fromJson(CustomFieldSchemaSchema, {
+        properties: Array.from({ length: groupLevels }, (_, level) => ({
+          id: `field-${level}`,
+          name: `Level ${level + 1}`,
+          enums: {
+            values: Object.fromEntries(
+              Array.from({ length: groupCount }, (_, value) => [
+                String(value),
+                `Option ${String(value).padStart(3, "0")}`,
+              ]),
+            ),
+          },
+        })),
+        groupingRules: Array.from({ length: groupLevels }, (_, level) => ({
+          propertyId: `field-${level}`,
+        })),
+      }),
+    [groupLevels, groupCount],
+  );
+  const events = useMemo<TimelinePositionedEvent[]>(
+    () =>
+      makeMomentFixture(count, distribution, origin).map(
+        (entry, index): TimelinePositionedEvent => ({
+          ...entry,
+          event: {
+            ...entry.event,
+            customizedFields: index % 3 === 0 ? { _doubtful: "true" } : {},
+            customFieldValues: Array.from({ length: groupLevels }, (_, level) =>
+              create(CustomFieldValueSchema, {
+                property: { id: `field-${level}` },
+                value: { case: "enums", value: { id: String((index + level) % groupCount) } },
+              }),
+            ),
+          },
+        }),
+      ),
+    [count, distribution, groupLevels, groupCount],
   );
   const [currentTime, setCurrentTime] = useState<Time>(origin);
   const [playing, setPlaying] = useState(false);
@@ -132,7 +194,7 @@ function MomentsBenchmark(): React.JSX.Element {
                       <TimelineInteractionStateProvider>
                         <CoScenePlaylistProvider>
                           <EventsProvider>
-                            <Seed events={events} extras={extras} />
+                            <Seed events={events} extras={extras} groupingSchema={groupingSchema} />
                             <EventsSyncAdapter />
                             <div
                               style={{
@@ -155,7 +217,7 @@ function MomentsBenchmark(): React.JSX.Element {
                                   <p>
                                     {count} moments / {distribution}
                                   </p>
-                                  {extras && <MomentsList events={events} />}
+                                  {extras && <BenchmarkMomentsList />}
                                 </div>
                                 {extras && (
                                   <div style={{ width: 380 }}>
@@ -163,11 +225,23 @@ function MomentsBenchmark(): React.JSX.Element {
                                   </div>
                                 )}
                               </div>
-                              <div
-                                style={{ height: 240, display: "flex", flexDirection: "column" }}
-                              >
-                                <Scrubber onSeek={setCurrentTime} />
-                              </div>
+                              <PlaybackControls
+                                isPlaying={playing}
+                                repeatEnabled={false}
+                                play={() => {
+                                  setPlaying(true);
+                                }}
+                                pause={() => {
+                                  setPlaying(false);
+                                }}
+                                seek={setCurrentTime}
+                                enableRepeatPlayback={() => {}}
+                                getTimeInfo={() => ({
+                                  startTime: origin,
+                                  endTime: end,
+                                  currentTime,
+                                })}
+                              />
                               {extras && <MomentSubtitleOverlay />}
                             </div>
                           </EventsProvider>

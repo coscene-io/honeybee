@@ -247,6 +247,27 @@ describe("<Scrubber />", () => {
     expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
   });
 
+  it.each(["blur", "pointercancel", "pointerup"])(
+    "stops resizing the track column after %s",
+    (eventType) => {
+      render(
+        <Wrapper eventEnabled>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const resizer = screen.getByTestId("moment-track-resizer");
+      jest
+        .spyOn(resizer.parentElement!, "getBoundingClientRect")
+        .mockReturnValue(DOMRect.fromRect({ width: 220 }));
+      fireEvent(resizer, new MouseEvent("pointerdown", { bubbles: true, clientX: 220 }));
+      fireEvent(window, new MouseEvent("pointermove", { clientX: 260 }));
+      expect(resizer.getAttribute("aria-valuenow")).toBe("260");
+      fireEvent(window, new Event(eventType));
+      fireEvent(window, new MouseEvent("pointermove", { clientX: 300 }));
+      expect(resizer.getAttribute("aria-valuenow")).toBe("260");
+    },
+  );
+
   describe("queued wheel viewport updates", () => {
     let frames: Map<number, FrameRequestCallback>;
     beforeEach(() => {
@@ -274,7 +295,7 @@ describe("<Scrubber />", () => {
         .getByTestId("timeline-content")
         .closest<HTMLElement>("[data-timeline-scrubber]")!;
       jest
-        .spyOn(scrubber, "getBoundingClientRect")
+        .spyOn(screen.getByTestId("timeline-content"), "getBoundingClientRect")
         .mockReturnValue(DOMRect.fromRect({ width: 1000, height: 200 }));
       return scrubber;
     };
@@ -391,7 +412,9 @@ describe("<Scrubber />", () => {
 
     const timelineContent = screen.getByTestId("timeline-content");
     expect(timelineContent.style.minHeight).toBe("30px");
-    expect(getComputedStyle(timelineContent.parentElement!).overflowY).toBe("auto");
+    expect(
+      getComputedStyle(timelineContent.closest("[data-timeline-scroll-container]")!).overflowY,
+    ).toBe("auto");
   });
 
   it("reserves only the rendered event-lane height when events are enabled", async () => {
@@ -764,5 +787,101 @@ describe("<Scrubber />", () => {
     });
 
     expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
+  });
+  it.each(["pointerout", "mouseout", "blur", "visibilitychange"])(
+    "dismisses visible and pending timeline hover on %s and allows hovering again",
+    (eventType) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrameId = 0;
+      const requestFrame = jest.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+        const id = ++nextFrameId;
+        frames.set(id, cb);
+        return id;
+      });
+      const cancelFrame = jest.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+        frames.delete(id);
+      });
+      const visibility = jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+
+      try {
+        render(
+          <Wrapper>
+            <Scrubber onSeek={jest.fn()} />
+          </Wrapper>,
+        );
+        const timelineContent = screen.getByTestId("timeline-content");
+        jest.spyOn(timelineContent, "getBoundingClientRect").mockReturnValue({
+          bottom: 120,
+          height: 90,
+          left: 100,
+          right: 300,
+          top: 30,
+          width: 200,
+          x: 100,
+          y: 30,
+          toJSON: () => ({}),
+        });
+        const move = () => {
+          fireEvent(
+            timelineContent,
+            new MouseEvent("pointermove", { bubbles: true, clientX: 200, clientY: 60 }),
+          );
+        };
+        const flushFrames = () => {
+          const callbacks = [...frames.values()];
+          frames.clear();
+          callbacks.forEach((cb) => {
+            cb(performance.now());
+          });
+        };
+
+        act(() => {
+          mockSliderProps!.onHoverOver!({ playbackSeconds: 2, clientX: 140, clientY: 60 });
+          move();
+        });
+        expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
+
+        act(() => {
+          if (eventType === "visibilitychange") {
+            visibility.mockReturnValue("hidden");
+            fireEvent(document, new Event(eventType));
+          } else if (eventType === "blur") {
+            fireEvent(window, new Event(eventType));
+          } else {
+            // A fast viewport exit may skip the timeline's own leave handler.
+            fireEvent(document, new MouseEvent(eventType, { bubbles: true }));
+          }
+        });
+        expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
+        act(flushFrames);
+        expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
+
+        visibility.mockReturnValue("visible");
+        act(move);
+        act(flushFrames);
+        expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
+      } finally {
+        requestFrame.mockRestore();
+        cancelFrame.mockRestore();
+        visibility.mockRestore();
+      }
+    },
+  );
+
+  it("keeps timeline hover visible for transitions inside the document and visible-page events", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+    act(() => {
+      mockSliderProps!.onHoverOver!({ playbackSeconds: 2, clientX: 140, clientY: 60 });
+      fireEvent(
+        document,
+        new MouseEvent("pointerout", { bubbles: true, relatedTarget: document.body }),
+      );
+      fireEvent(document, new Event("visibilitychange"));
+    });
+    expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
   });
 });

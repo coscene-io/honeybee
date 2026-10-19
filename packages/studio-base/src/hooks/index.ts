@@ -9,4 +9,5 @@
 
 export { useAppConfigurationValue } from "./useAppConfigurationValue";
 export { useAppTimeFormat } from "./useAppTimeFormat";
+export { usePlaybackTimeFormat } from "./usePlaybackTimeFormat";
 export { useFrameNavigation } from "./useFrameNavigation";

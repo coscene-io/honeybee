@@ -270,6 +270,9 @@ export function TimeFormat({
         <ToggleButton value="TOD" data-testid="timeformat-local">
           {formatTime(exampleTime, timezone)}
         </ToggleButton>
+        <ToggleButton value="REL" data-testid="timeformat-relative">
+          {t("relativeTime")}
+        </ToggleButton>
       </ToggleButtonGroup>
     </Stack>
   );

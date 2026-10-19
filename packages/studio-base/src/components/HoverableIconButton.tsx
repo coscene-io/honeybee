@@ -63,19 +63,22 @@ const HoverableIconButton = forwardRef<HTMLButtonElement, Props>((props, ref) =>
     }
   }, [props.disabled]);
 
+  const button = (
+    <IconButton
+      ref={ref}
+      {...rest}
+      component="button"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      color={activeColor != undefined ? (hovered ? activeColor : color) : color}
+    >
+      {activeIcon != undefined ? (hovered ? activeIcon : icon) : icon}
+      {children}
+    </IconButton>
+  );
   return (
     <Tooltip title={title}>
-      <IconButton
-        ref={ref}
-        {...rest}
-        component="button"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        color={activeColor != undefined ? (hovered ? activeColor : color) : color}
-      >
-        {activeIcon != undefined ? (hovered ? activeIcon : icon) : icon}
-        {children}
-      </IconButton>
+      {props.disabled === true ? <span style={{ display: "inline-flex" }}>{button}</span> : button}
     </Tooltip>
   );
 });

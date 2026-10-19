@@ -41,4 +41,5 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   settings: "設定",
   timestampFormat: "タイムスタンプ形式",
   webApp: "ウェブアプリ",
+  relativeTime: "相対時間（再生開始から）",
 };

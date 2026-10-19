@@ -18,7 +18,7 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useHoverValue } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 
 import HoverBar from "./HoverBar";
 import { TimelinePositionIndicator } from "./TimelinePositionIndicator";
@@ -77,7 +77,7 @@ function UnmemoizedPlaybackBarHoverTicks(props: Props): React.JSX.Element {
   const startTime = useMessagePipeline(getStartTime);
   const endTime = useMessagePipeline(getEndTime);
   const hoverValue = useHoverValue({ componentId, isPlaybackSeconds: true });
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
   const hoverTimeLabelRef = useRef<HTMLDivElement | ReactNull>(ReactNull);
   const [hoverTimeLabelWidth, setHoverTimeLabelWidth] = useState(0);
 

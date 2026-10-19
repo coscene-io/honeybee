@@ -66,11 +66,13 @@ const restrictedSyntaxRule = [
 
 module.exports = [
   globalIgnores([
+    "packages/studio-base/src/services/api/moment-custom-field/generated/**",
     "**/dist",
     "**/out",
     "**/template",
     "packages/**/wasm/*.js",
     "**/.webpack/**",
+    "**/.webpack-moments/**",
     "**/.yarn/**",
   ]),
   {

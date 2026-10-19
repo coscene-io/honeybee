@@ -24,7 +24,7 @@ import { AutoSizer } from "react-virtualized";
 import { VariableSizeList as List } from "react-window";
 import { makeStyles } from "tss-react/mui";
 
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { NormalizedLogMessage } from "@foxglove/studio-base/panels/Log/types";
 
 import LogMessage from "./LogMessage";
@@ -53,20 +53,25 @@ function Row(props: {
   index: number;
   style: CSSProperties;
 }): React.JSX.Element {
-  const { timeFormat, timeZone } = useAppTimeFormat();
+  const { timeFormat, timeZone, playbackOrigin } = usePlaybackTimeFormat();
   const ref = useRef<HTMLDivElement>(ReactNull);
 
   useEffect(() => {
     if (ref.current) {
       props.data.setRowHeight(props.index, ref.current.clientHeight);
     }
-  }, [props.data, props.index]);
+  }, [props.data, props.index, timeFormat, timeZone]);
 
   const item = props.data.items[props.index]!;
 
   return (
     <div style={{ ...props.style, height: "auto" }} ref={ref}>
-      <LogMessage value={item} timestampFormat={timeFormat} timeZone={timeZone} />
+      <LogMessage
+        value={item}
+        timestampFormat={timeFormat}
+        timeZone={timeZone}
+        playbackOrigin={playbackOrigin}
+      />
     </div>
   );
 }

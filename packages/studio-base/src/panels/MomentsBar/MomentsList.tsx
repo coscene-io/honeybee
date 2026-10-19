@@ -5,12 +5,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Stack, Typography, alpha } from "@mui/material";
-import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { toDate } from "@foxglove/rostime";
 import { WindowedList } from "@foxglove/studio-base/components/Events/WindowedList";
+import {
+  DOUBTFUL_MOMENT_COLOR,
+  isMomentDoubtful,
+} from "@foxglove/studio-base/components/Events/momentDoubtful";
 import { useMomentHover } from "@foxglove/studio-base/components/Events/useMomentHover";
 import { useMomentScrollTarget } from "@foxglove/studio-base/components/Events/useMomentScrollTarget";
 import {
@@ -26,6 +28,7 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks/usePlaybackTimeFormat";
 
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
@@ -87,6 +90,7 @@ const SingleMomentView = memo(function SingleMomentView({
     useCallback((store: EventsStore) => store.selectedEventId === name, [name]),
   );
   const currentEvent = event;
+  const { formatTime } = usePlaybackTimeFormat();
   return (
     <div>
       <Stack
@@ -117,7 +121,11 @@ const SingleMomentView = memo(function SingleMomentView({
           borderRadius="1px"
           height={1}
           marginRight="8px"
-          style={{ backgroundColor: currentEvent.color }}
+          style={{
+            backgroundColor: isMomentDoubtful(currentEvent.event.customizedFields)
+              ? DOUBTFUL_MOMENT_COLOR
+              : currentEvent.color,
+          }}
         />
         <Stack justifyContent="space-between" flex={1} width="0">
           <Stack flex={1} flexDirection="row" justifyContent="center" alignContent="center">
@@ -135,7 +143,7 @@ const SingleMomentView = memo(function SingleMomentView({
           </Stack>
           <Stack flex={1} justifyContent="center" flexDirection="column-reverse">
             <Typography variant="caption" display="block" gutterBottom>
-              {dayjs(toDate(currentEvent.startTime)).format("HH:mm:ss")}
+              {formatTime(currentEvent.startTime)}
             </Typography>
           </Stack>
         </Stack>

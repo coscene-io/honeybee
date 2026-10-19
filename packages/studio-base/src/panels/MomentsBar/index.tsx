@@ -7,12 +7,12 @@
 
 import { useMemo } from "react";
 
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
 import Panel from "@foxglove/studio-base/components/Panel";
 import PanelToolbar, {
   PANEL_TOOLBAR_MIN_HEIGHT,
 } from "@foxglove/studio-base/components/PanelToolbar";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { useMomentsBarSettings } from "@foxglove/studio-base/panels/MomentsBar/settings";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
@@ -28,22 +28,20 @@ const defaultConfig: MomentsBarConfig = {
   selectRecords: [],
 };
 
-const selectEvents = (store: EventsStore) => store.events;
-
 function MomentsBar(props: Props) {
   const { saveConfig, config } = props;
 
   useMomentsBarSettings(config, saveConfig);
 
-  const events = useEvents(selectEvents);
+  const events = useVisibleEvents();
 
   const { selectRecords, momentsFilter } = config;
 
   const filteredEvents = useMemo(() => {
     if (selectRecords.length === 0 && (momentsFilter == undefined || momentsFilter === "")) {
-      return events.value ?? [];
+      return events;
     }
-    return (events.value ?? [])
+    return events
       .filter((event) => {
         return selectRecords.length === 0 || selectRecords.includes(event.event.record);
       })

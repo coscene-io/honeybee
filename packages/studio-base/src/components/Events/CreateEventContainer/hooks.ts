@@ -16,6 +16,7 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
 
+import { isMomentDoubtful } from "../momentDoubtful";
 import { CreateEventForm } from "./types";
 
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
@@ -52,6 +53,9 @@ export const useDefaultEventForm = (): CreateEventForm => {
 
   const markStartTime = eventMarks[0]?.time;
 
+  const editableMetadata =
+    toModifyEvent?.metadataEntries.filter((entry) => entry.key !== "_doubtful") ?? [];
+
   if (toModifyEvent != undefined) {
     return {
       eventName: toModifyEvent.eventName,
@@ -59,10 +63,10 @@ export const useDefaultEventForm = (): CreateEventForm => {
       duration: toModifyEvent.duration,
       durationUnit: toModifyEvent.durationUnit,
       description: toModifyEvent.description,
-      metadataEntries:
-        toModifyEvent.metadataEntries.length > 0
-          ? toModifyEvent.metadataEntries
-          : [{ key: "", value: "" }],
+      isDoubtful: isMomentDoubtful(
+        Object.fromEntries(toModifyEvent.metadataEntries.map(({ key, value }) => [key, value])),
+      ),
+      metadataEntries: editableMetadata.length > 0 ? editableMetadata : [{ key: "", value: "" }],
       enabledCreateNewTask: toModifyEvent.enabledCreateNewTask,
       fileName: toModifyEvent.record,
       imgUrl: toModifyEvent.imgUrl,
@@ -73,6 +77,7 @@ export const useDefaultEventForm = (): CreateEventForm => {
   }
 
   return {
+    isDoubtful: false,
     eventName: "",
     startTime: markStartTime,
     duration: 1,

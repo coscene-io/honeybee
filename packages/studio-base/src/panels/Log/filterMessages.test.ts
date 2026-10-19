@@ -17,7 +17,12 @@
 import { MessageEvent } from "@foxglove/studio-base/players/types";
 
 import filterMessages from "./filterMessages";
-import { LogLevel, Ros1RosgraphMsgs$Log, Ros2RosgraphMsgs$Log } from "./types";
+import {
+  LogLevel,
+  type LogMessageEvent,
+  Ros1RosgraphMsgs$Log,
+  Ros2RosgraphMsgs$Log,
+} from "./types";
 
 describe("filter", () => {
   const ros1msgs = [
@@ -158,3 +163,48 @@ describe("filter", () => {
     });
   });
 });
+
+it.each([
+  {
+    topic: "/log",
+    receiveTime: { sec: 100, nsec: 0 },
+    schemaName: "ros.rosgraph_msgs.Log",
+    sizeInBytes: 0,
+    message: {
+      header: { seq: 0, frame_id: "", stamp: { sec: 100, nsec: 0 } },
+      level: 2,
+      msg: "info",
+      name: "/node",
+      file: "node.cc",
+      function: "run",
+      line: 1,
+      topics: [],
+    },
+  },
+  {
+    topic: "/log",
+    receiveTime: { sec: 100, nsec: 0 },
+    schemaName: "ros.rcl_interfaces.Log",
+    sizeInBytes: 0,
+    message: {
+      stamp: { sec: 100, nsec: 0 },
+      level: 20,
+      msg: "info",
+      name: "/node",
+      file: "node.cc",
+      function: "run",
+      line: 1,
+    },
+  },
+] satisfies LogMessageEvent[])(
+  "filters the supported $schemaName alias by its normalized log level",
+  (event) => {
+    const events: LogMessageEvent[] = [event];
+    expect(
+      filterMessages(events, { minLogLevel: LogLevel.INFO, searchTerms: [], nameFilter: {} }),
+    ).toEqual(events);
+    expect(
+      filterMessages(events, { minLogLevel: LogLevel.WARN, searchTerms: [], nameFilter: {} }),
+    ).toEqual([]);
+  },
+);

@@ -24,6 +24,10 @@ import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
+import {
+  DOUBTFUL_MOMENT_COLOR,
+  isMomentDoubtful,
+} from "@foxglove/studio-base/components/Events/momentDoubtful";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   useMessagePipeline,
@@ -37,7 +41,7 @@ import {
   useEvents,
   ToModifyEvent,
 } from "@foxglove/studio-base/context/EventsContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
@@ -140,7 +144,7 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const customFieldSchema = useEvents(selectCustomFieldSchema);
 
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
   const { t } = useTranslation("event");
 
   const project = useCoreData(selectProject);
@@ -193,7 +197,9 @@ function EventViewComponent(params: {
   const displayName = event.event.displayName;
   const { triggerTime, duration } = params.details ?? eventListDetails(event, formatTime);
   const description = event.event.description;
-  const metadataMap = Object.entries(event.event.customizedFields);
+  const metadataMap = Object.entries(event.event.customizedFields).filter(
+    ([key]) => key !== "_doubtful",
+  );
   const imgUrl = event.imgUrl;
 
   const handleShareEvent = async () => {
@@ -316,7 +322,9 @@ function EventViewComponent(params: {
         <div
           className={classes.ring}
           style={{
-            borderColor: event.color,
+            borderColor: isMomentDoubtful(event.event.customizedFields)
+              ? DOUBTFUL_MOMENT_COLOR
+              : event.color,
           }}
         />
         <Stack width="1px" flex="1" className={classes.line} />

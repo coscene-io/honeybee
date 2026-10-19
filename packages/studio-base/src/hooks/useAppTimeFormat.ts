@@ -12,6 +12,10 @@ import { Time } from "@foxglove/studio";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatDate, formatTime } from "@foxglove/studio-base/util/formatTime";
+import {
+  formatPlaybackDuration,
+  formatRelativeTime,
+} from "@foxglove/studio-base/util/relativeTime";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 import { useAppConfigurationValue } from "./useAppConfigurationValue";
@@ -25,35 +29,41 @@ export interface IAppTimeFormat {
   timeZone: string | undefined;
 }
 
-export function useAppTimeFormat(): IAppTimeFormat {
+export function useAppTimeFormat(playbackOrigin?: Time): IAppTimeFormat {
   const [timeFormat, setTimeFormat] = useAppConfigurationValue<string>(AppSetting.TIME_FORMAT);
   const [timeZone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
 
   const effectiveFormat: TimeDisplayMethod = useMemo(
-    () => (timeFormat === "SEC" ? "SEC" : "TOD"),
+    () => (timeFormat === "SEC" || timeFormat === "REL" ? timeFormat : "TOD"),
     [timeFormat],
   );
 
   const formatDateCallback = useCallback(
     (date: Time) => {
-      return formatDate(date, timeZone);
+      return effectiveFormat === "REL" ? "" : formatDate(date, timeZone);
     },
-    [timeZone],
+    [effectiveFormat, timeZone],
   );
 
   const formatTimeCallback = useCallback(
     (stamp: Time) => {
+      if (effectiveFormat === "REL") {
+        return formatRelativeTime(stamp, playbackOrigin);
+      }
       if (effectiveFormat === "TOD") {
         return formatTime(stamp, timeZone);
       } else {
         return formatTimeRaw(stamp);
       }
     },
-    [effectiveFormat, timeZone],
+    [effectiveFormat, timeZone, playbackOrigin],
   );
 
   const formatDurationCallback = useCallback(
     (duration: Time) => {
+      if (effectiveFormat === "REL") {
+        return formatPlaybackDuration(duration);
+      }
       if (effectiveFormat === "TOD") {
         return (
           moment.duration(duration.sec * 1e3).format("h:mm:ss", { trim: false }) +

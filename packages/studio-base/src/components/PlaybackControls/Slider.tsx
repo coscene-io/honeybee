@@ -26,6 +26,7 @@ import {
   timeToFraction,
   type TimelineViewport,
 } from "./timelineViewport";
+import { useTimelineHoverDismissal } from "./useTimelineHoverDismissal";
 
 export type HoverOverEvent = {
   /** Hovered playback seconds relative to the playback start. */
@@ -92,7 +93,7 @@ function RenderSlider({ viewport }: { viewport: TimelineViewport }): React.JSX.E
 
   return (
     <TimelinePositionIndicator
-      color={theme.palette.text.primary}
+      color={theme.palette.error.main}
       dataTestId="playback-current-time-indicator"
       fillOpacity={0.85}
       style={{ left: `${fraction * 100}%` }}
@@ -162,6 +163,12 @@ function Slider(props: Props): React.JSX.Element {
     }
     pendingHoverRef.current = undefined;
   }, []);
+
+  const dismissHover = useCallback(() => {
+    cancelPendingHover();
+    onHoverOut?.();
+  }, [cancelPendingHover, onHoverOut]);
+  useTimelineHoverDismissal(dismissHover);
 
   const flushPendingHover = useCallback(() => {
     hoverAnimationFrameRef.current = undefined;
@@ -262,7 +269,7 @@ function Slider(props: Props): React.JSX.Element {
 
   const onPointerDown = useCallback(
     (ev: React.PointerEvent<HTMLDivElement>): void => {
-      if (disabled) {
+      if (disabled || ev.button !== 0) {
         return;
       }
       if (document.activeElement instanceof HTMLElement) {

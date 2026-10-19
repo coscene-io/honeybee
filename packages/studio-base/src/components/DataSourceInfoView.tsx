@@ -18,9 +18,9 @@ import {
 } from "@foxglove/studio-base/components/MessagePipeline";
 import Stack from "@foxglove/studio-base/components/Stack";
 import Timestamp from "@foxglove/studio-base/components/Timestamp";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
-import { formatDuration } from "@foxglove/studio-base/util/formatTime";
+import { formatSourceTime, formatDuration } from "@foxglove/studio-base/util/formatTime";
 import { formatTimeRaw, isAbsoluteTime } from "@foxglove/studio-base/util/time";
 
 const useStyles = makeStyles()((theme) => ({
@@ -137,7 +137,7 @@ export function DataSourceInfoView({
 
   const durationRef = useRef<HTMLDivElement>(ReactNull);
   const endTimeRef = useRef<HTMLDivElement>(ReactNull);
-  const { formatDate, formatTime } = useAppTimeFormat();
+  const { formatDate, formatTime, timeFormat, timeZone } = usePlaybackTimeFormat();
 
   // We bypass react and update the DOM elements directly for better performance here.
   useEffect(() => {
@@ -153,14 +153,18 @@ export function DataSourceInfoView({
     if (endTimeRef.current) {
       if (endTime) {
         const date = formatDate(endTime);
-        endTimeRef.current.innerText = !isAbsoluteTime(endTime)
-          ? formatTimeRaw(endTime)
-          : `${date} ${formatTime(endTime)}`;
+        endTimeRef.current.title = formatSourceTime(endTime, timeZone);
+        endTimeRef.current.innerText =
+          timeFormat === "REL"
+            ? formatTime(endTime)
+            : !isAbsoluteTime(endTime)
+              ? formatTimeRaw(endTime)
+              : `${date} ${formatTime(endTime)}`;
       } else {
         endTimeRef.current.innerHTML = EmDash;
       }
     }
-  }, [endTime, formatTime, startTime, playerPresence, formatDate]);
+  }, [endTime, formatTime, startTime, playerPresence, formatDate, timeFormat, timeZone]);
 
   return (
     <MemoDataSourceInfoContent

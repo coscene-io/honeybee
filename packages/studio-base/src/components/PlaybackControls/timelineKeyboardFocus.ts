@@ -21,6 +21,8 @@ export const TIMELINE_SCRUBBER_ATTRIBUTE = "data-timeline-scrubber";
 export function isTimelineKeyboardEvent(event: KeyboardEvent): boolean {
   const { target } = event;
   return (
-    target instanceof HTMLElement && target.closest(`[${TIMELINE_SCRUBBER_ATTRIBUTE}]`) != undefined
+    target instanceof HTMLElement &&
+    target.closest(`[${TIMELINE_SCRUBBER_ATTRIBUTE}]`) != undefined &&
+    target.closest("[data-timeline-toolbar], [data-moment-track-controls]") == undefined
   );
 }

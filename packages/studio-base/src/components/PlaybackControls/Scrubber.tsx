@@ -12,6 +12,7 @@ import { alpha, Slider as MuiSlider, Tooltip } from "@mui/material";
 import {
   forwardRef,
   type SetStateAction,
+  type SyntheticEvent,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -27,6 +28,7 @@ import { makeStyles } from "tss-react/mui";
 import { v4 as uuidv4 } from "uuid";
 
 import { add as addTimes, toSec, fromSec, Time } from "@foxglove/rostime";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
@@ -36,7 +38,7 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
-import { type EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useEvents } from "@foxglove/studio-base/context/EventsContext";
 import {
   selectIsKeyframeSearchActive,
   usePlaybackInteractionState,
@@ -54,6 +56,7 @@ import { PlayerPresence } from "@foxglove/studio-base/players/types";
 
 import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
+import { MomentTrackList } from "./MomentTrackList";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
 import { ProgressPlot } from "./ProgressPlot";
@@ -61,16 +64,23 @@ import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import Slider, { type ContextMenuEvent, type HoverOverEvent } from "./Slider";
 import { TIMELINE_POSITION_INDICATOR_HANDLE_HEIGHT_PX } from "./TimelinePositionIndicator";
 import TimelineScrollbar from "./TimelineScrollbar";
+import { TimelineToolbar, type TimelineToolbarProps } from "./TimelineToolbar";
 import {
   BAG_OVERLAY_HEIGHT_PX,
   EVENT_LANE_LAYER_TOP_PX,
   getTimelineContentHeight,
-  SCRUBBER_TOOLBAR_HEIGHT_PX,
   TIMELINE_BAG_OVERLAY_TOP_PX,
 } from "./constants";
-import { getCachedEventLaneLayout } from "./eventLanes";
 import { timelineDurationSeconds } from "./eventTimeContainment";
 import { MOD, SHORTCUTS, ShortcutHint } from "./keyboardShortcuts";
+import {
+  DEFAULT_MOMENT_TIMELINE_SETTINGS,
+  EMPTY_TRACK_VIEW,
+  getMomentTracks,
+  layoutMomentTracks,
+  type MomentTrackLayout,
+  type MomentTrackView,
+} from "./momentTracks";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
   clampTimelineViewport,
@@ -85,6 +95,7 @@ import {
   zoomViewportAtTime,
   type TimelineViewport,
 } from "./timelineViewport";
+import { useTimelineHoverDismissal } from "./useTimelineHoverDismissal";
 import EventCreateInactiveIcon from "../../assets/event-create-inactive.svg";
 import MomentSubtitleActiveIcon from "../../assets/moment-subtitle-active.svg";
 import MomentSubtitleInactiveIcon from "../../assets/moment-subtitle-inactive.svg";
@@ -93,6 +104,7 @@ import RollingEditInactiveIcon from "../../assets/rolling-edit-inactive.svg";
 
 // Synthetic wheel delta applied per Ctrl/Cmd +/- keypress, fed into zoomViewportAtTime.
 const ZOOM_KEY_WHEEL_DELTA: number = 300;
+const ZOOM_PERCENT_EPSILON = 1e-6;
 const TIMELINE_TOOLTIP_OFFSET_PX: number = 8;
 const TIMELINE_TOOLTIP_VIEWPORT_PADDING_PX: number = 8;
 
@@ -120,35 +132,12 @@ const useStyles = makeStyles()((theme) => ({
     // default focus ring around the whole strip would be noisy, so suppress it.
     outline: "none",
   },
-  toolbar: {
-    alignItems: "center",
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    display: "flex",
-    flex: `0 0 ${SCRUBBER_TOOLBAR_HEIGHT_PX}px`,
-    height: SCRUBBER_TOOLBAR_HEIGHT_PX,
-    justifyContent: "space-between",
-    paddingInline: theme.spacing(0.5),
-  },
-  toolbarGroup: {
-    alignItems: "center",
-    display: "flex",
-    gap: theme.spacing(0.5),
-    minWidth: 0,
-  },
-  toolbarActions: {
-    alignItems: "center",
-    display: "flex",
-    gap: theme.spacing(0.5),
-    marginLeft: "auto",
-    minWidth: 0,
-  },
   zoomControl: {
     alignItems: "center",
     color: theme.palette.text.secondary,
     display: "flex",
     gap: theme.spacing(0.75),
-    minWidth: 240,
-    width: 320,
+    width: "100%",
   },
   zoomIcon: {
     color: "currentColor",
@@ -158,7 +147,7 @@ const useStyles = makeStyles()((theme) => ({
   zoomSlider: {
     color: theme.palette.text.primary,
     flex: "1 1 auto",
-    minWidth: 80,
+    minWidth: 48,
     paddingBlock: theme.spacing(0.75),
 
     "& .MuiSlider-rail": {
@@ -181,8 +170,49 @@ const useStyles = makeStyles()((theme) => ({
     position: "relative",
   },
   timelineContent: {
+    flex: "1 1 0",
+    minWidth: 0,
     height: "100%",
     position: "relative",
+  },
+  timelineRow: { display: "flex", height: "100%", position: "relative" },
+  trackColumn: {
+    position: "relative",
+    flexShrink: 0,
+    borderRight: `1px solid ${theme.palette.divider}`,
+    backgroundColor: theme.palette.background.paper,
+  },
+  trackHeader: {
+    alignItems: "center",
+    backgroundColor: theme.palette.background.paper,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    color: theme.palette.text.secondary,
+    display: "flex",
+    fontSize: 11,
+    fontWeight: 600,
+    height: TIMELINE_BAG_OVERLAY_TOP_PX,
+    paddingInline: 12,
+  },
+  fileHeader: {
+    color: theme.palette.text.secondary,
+    fontSize: 11,
+    height: BAG_OVERLAY_HEIGHT_PX,
+    lineHeight: `${BAG_OVERLAY_HEIGHT_PX}px`,
+    paddingInline: 12,
+  },
+  trackList: { position: "absolute", left: 0, right: 0, top: EVENT_LANE_LAYER_TOP_PX },
+  trackResizer: {
+    position: "absolute",
+    right: -3,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    cursor: "col-resize",
+    zIndex: 5,
+    "&:hover, &:focus-visible": {
+      backgroundColor: alpha(theme.palette.primary.main, 0.2),
+      outline: "none",
+    },
   },
   laneLayer: {
     bottom: 0,
@@ -230,13 +260,16 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectRecord = (store: CoreDataStore) => store.record;
-const selectEvents = (store: EventsStore) => store.events;
 const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.rollingEditEnabled;
 const selectMomentSubtitleEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.momentSubtitle.enabled;
 
-type Props = {
+type Props = Pick<
+  TimelineToolbarProps,
+  "playback" | "playbackOptions" | "seekStep" | "speed" | "time" | "sourceInfo"
+> & {
+  onToolbarHeightChange?: (height: number) => void;
   onSeek: (seekTo: Time) => void;
 };
 
@@ -352,7 +385,13 @@ function EventIcon(): React.JSX.Element {
   );
 }
 
-function EventButton({ disableControls }: { disableControls: boolean }): React.JSX.Element {
+function EventButton({
+  disableControls,
+  showLabel,
+}: {
+  disableControls: boolean;
+  showLabel?: boolean;
+}): React.JSX.Element {
   const { t } = useTranslation("event");
   const label = t("createMomentTips");
 
@@ -364,7 +403,9 @@ function EventButton({ disableControls }: { disableControls: boolean }): React.J
       title={<ShortcutHint label={label} keys={SHORTCUTS.createMoment} />}
       icon={<EventIcon />}
       onClick={dispatchCreateMomentShortcut}
-    />
+    >
+      {showLabel === true && <span style={{ fontSize: 12 }}>{t("createMoment")}</span>}
+    </HoverableIconButton>
   );
 }
 
@@ -379,7 +420,7 @@ function MomentSubtitleIcon({ active }: { active: boolean }): React.JSX.Element 
       data-testid={active ? "moment-subtitle-icon-active" : "moment-subtitle-icon-inactive"}
       style={{ display: "inline-flex" }}
     >
-      <Icon focusable="false" />
+      <Icon focusable="false" viewBox="0 0 24 24" />
     </span>
   );
 }
@@ -387,7 +428,9 @@ function MomentSubtitleIcon({ active }: { active: boolean }): React.JSX.Element 
 function MomentSubtitleButton({
   enabled,
   onClick,
+  showLabel,
 }: {
+  showLabel?: boolean;
   enabled: boolean;
   onClick: () => void;
 }): React.JSX.Element {
@@ -401,8 +444,11 @@ function MomentSubtitleButton({
       size="small"
       title={label}
       icon={<MomentSubtitleIcon active={enabled} />}
+      aria-pressed={enabled}
       onClick={onClick}
-    />
+    >
+      {showLabel === true && <span style={{ fontSize: 12 }}>{label}</span>}
+    </HoverableIconButton>
   );
 }
 
@@ -417,7 +463,7 @@ function RollingEditIcon({ active }: { active: boolean }): React.JSX.Element {
       data-testid={active ? "rolling-edit-icon-active" : "rolling-edit-icon-inactive"}
       style={{ display: "inline-flex" }}
     >
-      <Icon focusable="false" />
+      <Icon focusable="false" viewBox="0 0 24 24" />
     </span>
   );
 }
@@ -442,11 +488,15 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const enableList = useCoreData(selectEnableList);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
-  const events = useEvents(selectEvents);
+  const visibleEvents = useVisibleEvents();
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
   const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
+  const schema = useEvents((store) => store.customFieldSchema);
+  const trackSettings = useWorkspaceStore(
+    (store) => store.playbackControls.momentTimeline ?? DEFAULT_MOMENT_TIMELINE_SETTINGS,
+  );
   const {
-    playbackControlActions: { setRollingEditEnabled, setMomentSubtitleEnabled },
+    playbackControlActions: { setRollingEditEnabled, setMomentSubtitleEnabled, setMomentTimeline },
   } = useWorkspaceActions();
 
   const setHoverValue = useSetHoverValue();
@@ -473,7 +523,9 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const pendingWheelViewport = useRef<TimelineViewport | undefined>();
   const wheelFrame = useRef<number | undefined>();
   const [viewport, setViewportState] = useState<TimelineViewport | undefined>(defaultViewport);
-  const [previewEventLaneCount, setPreviewEventLaneCount] = useState<number | undefined>(undefined);
+  const [previewTracks, setPreviewTracks] = useState<
+    { base: MomentTrackLayout; layout: MomentTrackLayout } | undefined
+  >();
 
   const cancelPendingWheelViewport = useCallback(() => {
     if (wheelFrame.current != undefined) {
@@ -583,10 +635,20 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const clearHoverValue = useClearHoverValue();
 
+  const cancelPendingTimelineHover = useCallback((): void => {
+    if (timelineHoverAnimationFrameRef.current != undefined) {
+      cancelAnimationFrame(timelineHoverAnimationFrameRef.current);
+      timelineHoverAnimationFrameRef.current = undefined;
+    }
+    pendingTimelineHoverRef.current = undefined;
+  }, []);
+
   const onHoverOut = useCallback(() => {
+    cancelPendingTimelineHover();
     clearHoverValue(hoverComponentId);
     hoverTooltipRef.current?.hide();
-  }, [clearHoverValue, hoverComponentId]);
+  }, [cancelPendingTimelineHover, clearHoverValue, hoverComponentId]);
+  useTimelineHoverDismissal(onHoverOut);
 
   // Clean up the hover value when we are unmounted.
   useEffect(() => onHoverOut, [onHoverOut]);
@@ -595,14 +657,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const max = useMemo(() => endTime && toSec(endTime), [endTime]);
 
   const [isDragging, setIsDragging] = useState(false);
-
-  const cancelPendingTimelineHover = useCallback((): void => {
-    if (timelineHoverAnimationFrameRef.current != undefined) {
-      cancelAnimationFrame(timelineHoverAnimationFrameRef.current);
-      timelineHoverAnimationFrameRef.current = undefined;
-    }
-    pendingTimelineHoverRef.current = undefined;
-  }, []);
 
   const flushPendingTimelineHover = useCallback((): void => {
     timelineHoverAnimationFrameRef.current = undefined;
@@ -726,8 +780,17 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const onScrubberPointerDownCapture = useCallback(
     (event: React.PointerEvent<HTMLDivElement>): void => {
+      if (event.button !== 0) {
+        return;
+      }
       const scrubber = scrubberRef.current;
       const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("[data-moment-track-controls], [data-timeline-toolbar]")
+      ) {
+        return;
+      }
       if (scrubber == undefined || !(target instanceof Node) || !scrubber.contains(target)) {
         return;
       }
@@ -763,11 +826,19 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const onWheel = useCallback(
     (event: WheelEvent): void => {
       const currentViewport = pendingWheelViewport.current ?? latestViewport.current;
-      const target = scrubberRef.current;
+      const target = timelineContentRef.current;
       if (currentViewport == undefined || target == undefined) {
         return;
       }
       const rect = target.getBoundingClientRect();
+      if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      ) {
+        return;
+      }
       let nextViewport: TimelineViewport;
       if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
@@ -829,6 +900,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
     return timelineDurationSeconds(startTime, currentTime);
   }, [currentTime, startTime]);
 
+  const disableZoomControls =
+    zoomPercent == undefined ||
+    zoomAnchorSec == undefined ||
+    startTime == undefined ||
+    endTime == undefined;
+
   const onZoomSliderChange = useCallback(
     (_event: Event, value: number | number[]): void => {
       const currentViewport = latestViewport.current;
@@ -881,10 +958,15 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [onZoomSliderChange],
   );
 
-  const handleZoomSliderChangeCommitted = useCallback((): void => {
-    setZoomSliderDragging(false);
-    restoreScrubberFocus();
-  }, [restoreScrubberFocus]);
+  const handleZoomSliderChangeCommitted = useCallback(
+    (event: Event | SyntheticEvent): void => {
+      setZoomSliderDragging(false);
+      if (event.type === "mouseup" || event.type === "touchend") {
+        restoreScrubberFocus();
+      }
+    },
+    [restoreScrubberFocus],
+  );
 
   // Keyboard zoom: Ctrl/Cmd +/- zoom in/out (anchored at the playhead), Shift+Z resets to fit.
   const zoomAnchorSecRef = useLatest(zoomAnchorSec);
@@ -979,22 +1061,83 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
   );
 
-  const eventLaneCount = useMemo((): number => {
-    if (resolvedViewport == undefined || enableList.event !== "ENABLE") {
-      return 0;
-    }
-
-    return getCachedEventLaneLayout({ events: events.value ?? [], viewport: resolvedViewport })
-      .laneCount;
-  }, [enableList.event, events.value, resolvedViewport]);
-
-  const timelineContentHeight = useMemo((): number => {
-    const effectiveEventLaneCount = previewEventLaneCount ?? eventLaneCount;
-    return getTimelineContentHeight({
-      eventLaneCount: effectiveEventLaneCount,
-      showEventLanes: resolvedViewport != undefined && enableList.event === "ENABLE",
-    });
-  }, [enableList.event, eventLaneCount, previewEventLaneCount, resolvedViewport]);
+  const trackScope = project.value?.name ?? "";
+  const trackView = trackSettings.views[trackScope] ?? EMPTY_TRACK_VIEW;
+  const tracks = useMemo(() => getMomentTracks(visibleEvents, schema), [visibleEvents, schema]);
+  const trackOptions = useMemo(() => ({ tracks, view: trackView }), [tracks, trackView]);
+  const trackLayout = useMemo(
+    () =>
+      resolvedViewport != undefined
+        ? layoutMomentTracks({ ...trackOptions, viewport: resolvedViewport })
+        : undefined,
+    [resolvedViewport, trackOptions],
+  );
+  const visibleTrackLayout =
+    previewTracks != undefined && previewTracks.base === trackLayout
+      ? previewTracks.layout
+      : trackLayout;
+  const showTracks = resolvedViewport != undefined && enableList.event === "ENABLE";
+  const timelineContentHeight = getTimelineContentHeight({
+    eventLaneCount: visibleTrackLayout?.laneCount ?? 0,
+    showEventLanes: showTracks,
+  });
+  const setTrackView = useCallback(
+    (view: MomentTrackView) => {
+      setMomentTimeline((old) => ({ ...old, views: { ...old.views, [trackScope]: view } }));
+    },
+    [setMomentTimeline, trackScope],
+  );
+  const handleTrackLayoutChange = useCallback(
+    (layout: MomentTrackLayout | undefined) => {
+      setPreviewTracks(
+        layout != undefined && trackLayout != undefined ? { base: trackLayout, layout } : undefined,
+      );
+    },
+    [trackLayout],
+  );
+  const trackLabelWidth = Math.min(480, Math.max(160, trackSettings.labelWidth));
+  const trackColumnWidth = showTracks ? `min(${trackLabelWidth}px, 45%)` : 0;
+  const resizeCleanup = useRef<() => void>(() => {});
+  useEffect(
+    () => () => {
+      resizeCleanup.current();
+    },
+    [],
+  );
+  const startTrackResize = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      resizeCleanup.current();
+      const initialX = event.clientX;
+      const initialWidth =
+        event.currentTarget.parentElement?.getBoundingClientRect().width ?? trackLabelWidth;
+      const move = (next: PointerEvent) => {
+        setMomentTimeline((old) => ({
+          ...old,
+          labelWidth: Math.min(480, Math.max(160, initialWidth + next.clientX - initialX)),
+        }));
+      };
+      const finish = () => {
+        resizeCleanup.current();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", finish, { once: true });
+      window.addEventListener("pointercancel", finish, { once: true });
+      window.addEventListener("blur", finish, { once: true });
+      resizeCleanup.current = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", finish);
+        window.removeEventListener("pointercancel", finish);
+        window.removeEventListener("blur", finish);
+        resizeCleanup.current = () => {};
+      };
+    },
+    [setMomentTimeline, trackLabelWidth],
+  );
 
   const toggleRollingEdit = useCallback((): void => {
     setRollingEditEnabled((old) => !old);
@@ -1003,10 +1146,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const toggleMomentSubtitle = useCallback((): void => {
     setMomentSubtitleEnabled((old) => !old);
   }, [setMomentSubtitleEnabled]);
-
-  const handlePreviewEventLaneCountChange = useCallback((laneCount: number | undefined): void => {
-    setPreviewEventLaneCount(laneCount);
-  }, []);
 
   return (
     <div
@@ -1022,161 +1161,265 @@ export default function Scrubber(props: Props): React.JSX.Element {
     >
       {isTimelineZoomEnabled() && <KeyListener global keyDownHandlers={zoomKeyDownHandlers} />}
       <TimelineHoverTooltip ref={hoverTooltipRef} />
-      <div className={classes.toolbar}>
-        <div className={classes.toolbarGroup}>
-          {canCreateEvents && <MemoedEventButton disableControls={disableControls} />}
-        </div>
-        <div className={classes.toolbarActions}>
-          {isTimelineZoomEnabled() && (
-            <div className={classes.zoomControl}>
-              <Tooltip title={<ShortcutHint label={t("zoomOut")} keys={SHORTCUTS.zoomOut} />}>
-                <ZoomOutIcon className={classes.zoomIcon} />
-              </Tooltip>
-              <Tooltip
-                // The slider is already labeled "Timeline zoom"; surface the quick-zoom hint as a
-                // description so it doesn't override the slider's accessible name.
-                describeChild
-                open={zoomSliderHovered || zoomSliderDragging}
-                title={
-                  <ShortcutHint
-                    label={t("shortcutZoomCursor")}
-                    keys={[`${MOD} + ${t("mouseWheel")}`]}
-                  />
-                }
-              >
-                <MuiSlider
-                  aria-label={t("timelineZoom")}
-                  className={classes.zoomSlider}
-                  disabled={
-                    zoomPercent == undefined ||
-                    zoomAnchorSec == undefined ||
-                    startTime == undefined ||
-                    endTime == undefined
-                  }
-                  min={0}
-                  max={100}
-                  size="small"
-                  value={zoomPercent ?? 0}
-                  onChange={handleZoomSliderChange}
-                  onChangeCommitted={handleZoomSliderChangeCommitted}
-                  onMouseEnter={() => {
-                    setZoomSliderHovered(true);
-                  }}
-                  onMouseLeave={() => {
-                    setZoomSliderHovered(false);
-                  }}
-                />
-              </Tooltip>
-              <Tooltip title={<ShortcutHint label={t("zoomIn")} keys={SHORTCUTS.zoomIn} />}>
-                <ZoomInIcon className={classes.zoomIcon} />
-              </Tooltip>
+      <TimelineToolbar
+        onHeightChange={props.onToolbarHeightChange}
+        playback={props.playback}
+        playbackOptions={props.playbackOptions}
+        seekStep={props.seekStep}
+        speed={props.speed}
+        time={props.time}
+        sourceInfo={props.sourceInfo}
+        create={
+          canCreateEvents
+            ? ({ showLabel }) => (
+                <MemoedEventButton disableControls={disableControls} showLabel={showLabel} />
+              )
+            : undefined
+        }
+        editing={({ showLabel }) => (
+          <>
+            {enableList.event === "ENABLE" && (
+              <MemoedMomentSubtitleButton
+                enabled={momentSubtitleEnabled}
+                onClick={toggleMomentSubtitle}
+                showLabel={showLabel}
+              />
+            )}
+            {enableList.event === "ENABLE" && canWriteEvents && (
               <HoverableIconButton
                 size="small"
-                title={<ShortcutHint label={t("shortcutZoomFit")} keys={SHORTCUTS.zoomFit} />}
-                aria-label={t("shortcutZoomFit")}
-                icon={<FitScreenIcon fontSize="small" />}
-                onClick={resetZoom}
+                aria-label={t(
+                  rollingEditEnabled
+                    ? "disableLinkedEventAdjustment"
+                    : "enableLinkedEventAdjustment",
+                  { ns: "event" },
+                )}
+                title={t(
+                  rollingEditEnabled
+                    ? "disableLinkedEventAdjustment"
+                    : "enableLinkedEventAdjustment",
+                  { ns: "event" },
+                )}
+                aria-pressed={rollingEditEnabled}
+                icon={<RollingEditIcon active={rollingEditEnabled} />}
+                onClick={toggleRollingEdit}
+              >
+                {showLabel && (
+                  <span style={{ fontSize: 12 }}>
+                    {t(
+                      rollingEditEnabled
+                        ? "disableLinkedEventAdjustment"
+                        : "enableLinkedEventAdjustment",
+                      { ns: "event" },
+                    )}
+                  </span>
+                )}
+              </HoverableIconButton>
+            )}
+          </>
+        )}
+        zoom={
+          <div className={classes.zoomControl}>
+            <HoverableIconButton
+              size="small"
+              aria-label={t("zoomOut")}
+              title={<ShortcutHint label={t("zoomOut")} keys={SHORTCUTS.zoomOut} />}
+              disabled={disableZoomControls || zoomPercent <= ZOOM_PERCENT_EPSILON}
+              icon={<ZoomOutIcon className={classes.zoomIcon} />}
+              onClick={(event) => {
+                zoomTimelineByKey("out");
+                if (event.detail > 0) {
+                  restoreScrubberFocus();
+                }
+              }}
+            />
+            <Tooltip
+              // The slider is already labeled "Timeline zoom"; surface the quick-zoom hint as a
+              // description so it doesn't override the slider's accessible name.
+              describeChild
+              open={zoomSliderHovered || zoomSliderDragging}
+              title={
+                <ShortcutHint
+                  label={t("shortcutZoomCursor")}
+                  keys={[`${MOD} + ${t("mouseWheel")}`]}
+                />
+              }
+            >
+              <MuiSlider
+                aria-label={t("timelineZoom")}
+                className={classes.zoomSlider}
+                disabled={disableZoomControls}
+                min={0}
+                max={100}
+                size="small"
+                value={zoomPercent ?? 0}
+                onChange={handleZoomSliderChange}
+                onChangeCommitted={handleZoomSliderChangeCommitted}
+                onMouseEnter={() => {
+                  setZoomSliderHovered(true);
+                }}
+                onMouseLeave={() => {
+                  setZoomSliderHovered(false);
+                }}
+              />
+            </Tooltip>
+            <HoverableIconButton
+              size="small"
+              aria-label={t("zoomIn")}
+              title={<ShortcutHint label={t("zoomIn")} keys={SHORTCUTS.zoomIn} />}
+              disabled={disableZoomControls || zoomPercent >= 100 - ZOOM_PERCENT_EPSILON}
+              icon={<ZoomInIcon className={classes.zoomIcon} />}
+              onClick={(event) => {
+                zoomTimelineByKey("in");
+                if (event.detail > 0) {
+                  restoreScrubberFocus();
+                }
+              }}
+            />
+          </div>
+        }
+        fit={({ showLabel }) => (
+          <HoverableIconButton
+            size="small"
+            title={<ShortcutHint label={t("shortcutZoomFit")} keys={SHORTCUTS.zoomFit} />}
+            aria-label={t("shortcutZoomFit")}
+            icon={<FitScreenIcon fontSize="small" />}
+            onClick={resetZoom}
+          >
+            {showLabel && <span style={{ fontSize: 12 }}>{t("shortcutZoomFit")}</span>}
+          </HoverableIconButton>
+        )}
+        help={({ showLabel }) => <ShortcutsHelpButton showLabel={showLabel} />}
+      />
+      <div className={classes.timelineViewport} data-timeline-scroll-container>
+        <div className={classes.timelineRow} style={{ minHeight: timelineContentHeight }}>
+          {showTracks && visibleTrackLayout != undefined && (
+            <div
+              className={classes.trackColumn}
+              data-moment-track-controls
+              style={{ width: trackColumnWidth }}
+            >
+              <div className={classes.trackHeader}>{t("timelineTracks")}</div>
+              <div className={classes.fileHeader}>{t("timelineFiles")}</div>
+              <div className={classes.trackList}>
+                <MomentTrackList
+                  layout={visibleTrackLayout}
+                  view={trackView}
+                  onViewChange={setTrackView}
+                />
+              </div>
+              <div
+                role="separator"
+                tabIndex={0}
+                aria-orientation="vertical"
+                aria-label={t("trackListWidth", { ns: "event" })}
+                aria-valuemin={160}
+                aria-valuemax={480}
+                aria-valuenow={trackLabelWidth}
+                className={classes.trackResizer}
+                data-testid="moment-track-resizer"
+                onPointerDown={startTrackResize}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setMomentTimeline((old) => ({
+                      ...old,
+                      labelWidth: Math.min(
+                        480,
+                        Math.max(160, old.labelWidth + (event.key === "ArrowLeft" ? -10 : 10)),
+                      ),
+                    }));
+                  }
+                }}
               />
             </div>
           )}
-          {enableList.event === "ENABLE" && (
-            <MemoedMomentSubtitleButton
-              enabled={momentSubtitleEnabled}
-              onClick={toggleMomentSubtitle}
-            />
-          )}
-          {canWriteEvents && (
-            <HoverableIconButton
-              size="small"
-              title={t(
-                rollingEditEnabled ? "disableLinkedEventAdjustment" : "enableLinkedEventAdjustment",
-                { ns: "event" },
-              )}
-              icon={<RollingEditIcon active={rollingEditEnabled} />}
-              onClick={toggleRollingEdit}
-            />
-          )}
-          <ShortcutsHelpButton />
-        </div>
-      </div>
-      <div className={classes.timelineViewport} data-timeline-scroll-container>
-        <div
-          ref={timelineContentRef}
-          id="timeline-content"
-          className={classes.timelineContent}
-          data-testid="timeline-content"
-          style={{ minHeight: timelineContentHeight }}
-          onPointerUp={finishTimelinePointerInteraction}
-          onPointerLeave={onTimelineContentPointerLeave}
-        >
-          {resolvedViewport && (
-            <Stack
-              position="absolute"
-              flex="auto"
-              fullWidth
-              style={{ height: TIMELINE_BAG_OVERLAY_TOP_PX, top: 0 }}
-            >
-              <ProgressPlot loading={loading} viewport={resolvedViewport} />
-            </Stack>
-          )}
-          <Stack ref={sliderLayerRef} fullHeight fullWidth position="absolute" flex={1}>
+          <div
+            ref={timelineContentRef}
+            id="timeline-content"
+            className={classes.timelineContent}
+            data-testid="timeline-content"
+            style={{ minHeight: timelineContentHeight }}
+            onPointerLeave={onTimelineContentPointerLeave}
+            onPointerUp={finishTimelinePointerInteraction}
+          >
             {resolvedViewport && (
-              <Slider
-                disabled={disableControls || min == undefined || max == undefined}
-                onContextMenu={onContextMenu}
-                onHoverOver={onHoverOver}
-                onHoverOut={onHoverOut}
-                onChange={onChange}
-                cursor={cursor}
-                viewport={resolvedViewport}
-              />
+              <Stack
+                position="absolute"
+                flex="auto"
+                fullWidth
+                style={{ height: TIMELINE_BAG_OVERLAY_TOP_PX, top: 0 }}
+              >
+                <ProgressPlot loading={loading} viewport={resolvedViewport} />
+              </Stack>
             )}
-          </Stack>
-          {resolvedViewport && (
-            <Stack
-              position="absolute"
-              fullWidth
-              style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_BAG_OVERLAY_TOP_PX }}
-            >
-              <BagsOverlay viewport={resolvedViewport} />
+            <Stack ref={sliderLayerRef} fullHeight fullWidth position="absolute" flex={1}>
+              {resolvedViewport && (
+                <Slider
+                  disabled={disableControls || min == undefined || max == undefined}
+                  onContextMenu={onContextMenu}
+                  onHoverOver={onHoverOver}
+                  onHoverOut={onHoverOut}
+                  onChange={onChange}
+                  cursor={cursor}
+                  viewport={resolvedViewport}
+                />
+              )}
             </Stack>
-          )}
-          <div className={classes.laneLayer} data-testid="event-lane-layer">
-            {resolvedViewport && enableList.event === "ENABLE" && (
-              <EventsOverlay
-                componentId={hoverComponentId}
-                canWriteEvents={canWriteEvents}
-                isDragging={isDragging}
-                eventContextMenuRequest={eventContextMenuRequest}
-                onEventContextMenuHandled={handleEventContextMenuHandled}
-                onPreviewLaneCountChange={handlePreviewEventLaneCountChange}
-                onSeek={onChange}
-                rollingEditEnabled={rollingEditEnabled}
-                setCursor={setCursor}
-                viewport={resolvedViewport}
-              />
+            {resolvedViewport && (
+              <Stack
+                position="absolute"
+                fullWidth
+                style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_BAG_OVERLAY_TOP_PX }}
+              >
+                <BagsOverlay viewport={resolvedViewport} />
+              </Stack>
+            )}
+            <div className={classes.laneLayer} data-testid="event-lane-layer">
+              {resolvedViewport && enableList.event === "ENABLE" && (
+                <EventsOverlay
+                  componentId={hoverComponentId}
+                  canWriteEvents={canWriteEvents}
+                  isDragging={isDragging}
+                  eventContextMenuRequest={eventContextMenuRequest}
+                  onEventContextMenuHandled={handleEventContextMenuHandled}
+                  trackLayout={trackLayout}
+                  trackOptions={trackOptions}
+                  onTrackLayoutChange={handleTrackLayoutChange}
+                  onSeek={onChange}
+                  rollingEditEnabled={rollingEditEnabled}
+                  setCursor={setCursor}
+                  viewport={resolvedViewport}
+                />
+              )}
+            </div>
+            {resolvedViewport && (
+              <Stack
+                className={classes.hoverTickLayer}
+                data-testid="playback-hover-tick-layer"
+                fullHeight
+                fullWidth
+                position="absolute"
+                flex={1}
+              >
+                <PlaybackBarHoverTicks componentId={hoverComponentId} viewport={resolvedViewport} />
+              </Stack>
             )}
           </div>
-          {resolvedViewport && (
-            <Stack
-              className={classes.hoverTickLayer}
-              data-testid="playback-hover-tick-layer"
-              fullHeight
-              fullWidth
-              position="absolute"
-              flex={1}
-            >
-              <PlaybackBarHoverTicks componentId={hoverComponentId} viewport={resolvedViewport} />
-            </Stack>
-          )}
         </div>
       </div>
       {isZoomed && (
-        <TimelineScrollbar
-          viewport={resolvedViewport}
-          onScroll={onScrollbarScroll}
-          disabled={disableControls}
-        />
+        <div style={{ display: "flex" }}>
+          <div style={{ width: trackColumnWidth, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <TimelineScrollbar
+              viewport={resolvedViewport}
+              onScroll={onScrollbarScroll}
+              disabled={disableControls}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

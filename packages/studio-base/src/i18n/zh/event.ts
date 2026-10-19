@@ -93,4 +93,9 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   startTimeAndDurationRequired: "开始时间和持续时间不能为空",
   fieldConfiguration: "字段配置",
   save: "保存",
+  ungroupedValue: "未填写",
+  unknownOption: "未知选项：{{value}}",
+  toggleGroup: "展开或折叠 {{name}}",
+  trackListWidth: "轨道列表宽度",
+  doubtful: "存疑",
 };

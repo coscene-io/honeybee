@@ -5,9 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { timestampDate } from "@bufbuild/protobuf/wkt";
-
-import { fromDate, type Time } from "@foxglove/rostime";
+import { type Time } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
@@ -15,11 +13,7 @@ export function eventListDetails(
   event: TimelinePositionedEvent,
   formatTime: (time: Time) => string,
 ): { triggerTime: string; duration: string; search: string[] } {
-  const triggerTime = formatTime(
-    event.event.triggerTime == undefined
-      ? { sec: 0, nsec: 0 }
-      : fromDate(timestampDate(event.event.triggerTime)),
-  );
+  const triggerTime = formatTime(event.startTime);
   const duration = `${durationToSeconds(event.event.duration).toFixed(3)} s`;
   return {
     triggerTime,

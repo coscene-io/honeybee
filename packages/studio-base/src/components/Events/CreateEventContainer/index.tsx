@@ -38,6 +38,7 @@ import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsCont
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
+import { buildMomentCustomizedFields } from "../momentDoubtful";
 import { CreateEventForm, CreateTaskForm } from "./types";
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
@@ -216,7 +217,8 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       }
 
       const filteredMeta = event.metadataEntries.filter(
-        (entry) => entry.key.length > 0 && entry.value.length > 0,
+        (entry) =>
+          entry.key.length > 0 && entry.value.length > 0 && entry.key.trim() !== "_doubtful",
       );
 
       const keyedMetadata = Object.fromEntries(
@@ -255,7 +257,10 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         description: event.description,
         files: imageFiles,
         customFieldValues: convertCustomFieldValuesMapToArray(event.customFieldValues ?? {}),
-        customizedFields: keyedMetadata,
+        customizedFields: buildMomentCustomizedFields({
+          fields: keyedMetadata,
+          isDoubtful: event.isDoubtful === true,
+        }),
       });
 
       if (isEditing) {

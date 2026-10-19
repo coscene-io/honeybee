@@ -8,9 +8,12 @@
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweepOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
+  Checkbox,
+  Menu,
   Button,
   CircularProgress,
   IconButton,
@@ -49,9 +52,12 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
+import { useVisibleEvents } from "../momentDoubtful";
 import { EventView } from "./EventView";
 import { eventListDetails, groupEvents } from "./eventListModel";
 import { EMPTY_EVENTS } from "../../PlaybackControls/eventTimeIndex";
@@ -193,10 +199,18 @@ export function EventsList(): React.JSX.Element {
   const consoleApi = useConsoleApi();
 
   const events = useEvents(selectEvents);
+  const visibleEvents = useVisibleEvents();
+  const doubtfulOnly = useWorkspaceStore(
+    (store) => store.playbackControls.momentTimeline?.doubtfulOnly ?? false,
+  );
+  const {
+    playbackControlActions: { setMomentTimeline },
+  } = useWorkspaceActions();
+  const [filterAnchor, setFilterAnchor] = useState<HTMLElement | undefined>();
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
   const refreshEvents = useEvents(selectRefreshEvents);
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
 
   const seek = useMessagePipeline(selectSeek);
   const startTime = useMessagePipeline(selectStartTime);
@@ -230,10 +244,7 @@ export function EventsList(): React.JSX.Element {
     project.value?.isArchived === false &&
     record.value?.isArchived === false;
 
-  const timestampedEvents = useMemo(
-    () => groupEvents(events.value ?? EMPTY_EVENTS),
-    [events.value],
-  );
+  const timestampedEvents = useMemo(() => groupEvents(visibleEvents), [visibleEvents]);
   const details = useMemo(
     () =>
       new Map(
@@ -530,6 +541,40 @@ export function EventsList(): React.JSX.Element {
             },
           }}
         />
+        <IconButton
+          aria-label={t("filterMoments")}
+          aria-haspopup="menu"
+          aria-expanded={filterAnchor != undefined}
+          color={doubtfulOnly ? "primary" : "default"}
+          onClick={(event) => {
+            setFilterAnchor(event.currentTarget);
+          }}
+        >
+          <FilterAltOutlinedIcon />
+        </IconButton>
+        <Menu
+          open={filterAnchor != undefined}
+          anchorEl={filterAnchor}
+          onClose={() => {
+            setFilterAnchor(undefined);
+          }}
+        >
+          <MenuItem
+            role="menuitemcheckbox"
+            aria-checked={doubtfulOnly}
+            onClick={() => {
+              setMomentTimeline((old) => ({ ...old, doubtfulOnly: old.doubtfulOnly !== true }));
+            }}
+          >
+            <Checkbox
+              checked={doubtfulOnly}
+              tabIndex={-1}
+              disableRipple
+              slotProps={{ input: { "aria-hidden": true } }}
+            />
+            {t("doubtful")}
+          </MenuItem>
+        </Menu>
         <Select
           variant="filled"
           size="small"

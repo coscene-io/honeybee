@@ -9,6 +9,8 @@ import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Button,
+  Checkbox,
+  FormControlLabel,
   TextField,
   Typography,
   FormLabel,
@@ -36,7 +38,7 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 
 import { CreateEventForm } from "../types";
 
@@ -74,7 +76,7 @@ const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.ReactNode {
   const { classes } = useStyles();
   const { t } = useTranslation("event");
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const [isComposition, setIsComposition] = useState(false);
 
@@ -236,6 +238,23 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
   return (
     <Stack>
+      <Controller
+        name="isDoubtful"
+        control={control}
+        render={({ field }) => (
+          <FormControlLabel
+            label={t("doubtful")}
+            control={
+              <Checkbox
+                checked={field.value === true}
+                onChange={(_event, checked) => {
+                  field.onChange(checked);
+                }}
+              />
+            }
+          />
+        )}
+      />
       <Stack paddingTop={2}>
         <Controller
           name="eventName"

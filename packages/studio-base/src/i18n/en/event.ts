@@ -94,4 +94,9 @@ export const event = {
   startTimeAndDurationRequired: "Start time and duration are required",
   fieldConfiguration: "Field configuration",
   save: "Save",
+  ungroupedValue: "Not filled",
+  unknownOption: "Unknown option: {{value}}",
+  toggleGroup: "Expand or collapse {{name}}",
+  trackListWidth: "Track list width",
+  doubtful: "Doubtful",
 };

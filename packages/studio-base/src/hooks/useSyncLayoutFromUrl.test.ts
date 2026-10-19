@@ -142,6 +142,7 @@ function makeWorkspaceActions(openLayoutDrawer: jest.Mock): WorkspaceActions {
     },
     playbackControlActions: {
       setRepeat: jest.fn(),
+      setMomentTimeline: jest.fn(),
       setRollingEditEnabled: jest.fn(),
       setSpeed: jest.fn(),
       setTimelineHeight: jest.fn(),

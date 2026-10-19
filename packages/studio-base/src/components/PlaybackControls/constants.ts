@@ -8,10 +8,6 @@
 /** Minimum height (px) of the bottom timeline / playback panel. */
 export const TIMELINE_MIN_HEIGHT_PX = 126;
 
-/** Maximum height (px) of the bottom timeline / playback panel. */
-export const TIMELINE_MAX_HEIGHT_PX = 360;
-
-export const SCRUBBER_TOOLBAR_HEIGHT_PX = 32;
 export const TIMELINE_RULER_HEIGHT_PX = 14;
 export const TIMELINE_PROGRESS_HEIGHT_PX = 4;
 export const BAG_OVERLAY_HEIGHT_PX = 12;

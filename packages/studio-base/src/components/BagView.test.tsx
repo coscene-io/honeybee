@@ -9,6 +9,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useLayoutEffect } from "react";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
@@ -69,10 +70,12 @@ function PlaylistSeeder(props: { bagFiles: BagFileInfo[] }): ReactNull {
 function renderBagView({
   bag = makeBag("files/current.bag"),
   confirmResult = "ok",
+  relativeTime = false,
   playlistBagFiles = [makeBag("files/other.bag"), makeBag("files/current.bag")],
 }: {
   bag?: BagFileInfo;
   confirmResult?: "ok" | "cancel";
+  relativeTime?: boolean;
   playlistBagFiles?: BagFileInfo[];
 } = {}): {
   confirm: jest.MockedFunction<confirmTypes>;
@@ -95,7 +98,9 @@ function renderBagView({
 
   render(
     <ThemeProvider isDark={false}>
-      <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+      <AppConfigurationContext.Provider
+        value={makeMockAppConfiguration(relativeTime ? [[AppSetting.TIME_FORMAT, "REL"]] : [])}
+      >
         <CoSceneConsoleApiContext.Provider
           value={makeConsoleApiMock({
             setExternalInitConfig,
@@ -114,6 +119,7 @@ function renderBagView({
               <CoreDataProvider>
                 <CoScenePlaylistProvider>
                   <MockMessagePipelineProvider
+                    startTime={{ sec: 1700000000, nsec: 500000000 }}
                     urlState={{
                       sourceId: "coscene-data-platform",
                       parameters: { key: "old-key" },
@@ -153,6 +159,19 @@ function showFileActions(filename: string): void {
 }
 
 describe("<BagView />", () => {
+  it("shows file start relative to the shared playback origin without a wall-clock date", () => {
+    renderBagView({
+      relativeTime: true,
+      bag: {
+        ...makeBag("files/time.bag"),
+        startTime: { sec: 1700000014, nsec: 605000000 },
+        endTime: { sec: 1700000020, nsec: 0 },
+      },
+    });
+    expect(screen.getByText("00:00:14.105")).toBeTruthy();
+    expect(screen.queryByText(/2023-11-14/)).toBeNull();
+  });
+
   it("replaces the playlist with only the selected file after confirmation", async () => {
     const { confirm, selectSource, setExternalInitConfig, updateUrl } = renderBagView();
 

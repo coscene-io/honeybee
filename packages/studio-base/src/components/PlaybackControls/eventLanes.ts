@@ -201,10 +201,10 @@ export function getEventLaneByName(layout: EventLaneLayout, eventName: string): 
 }
 
 /** Preserve memoized ticks when a drag only changes a subset of the complete layout. */
-export function reuseEventLaneItems(
-  layout: EventLaneLayout,
+export function reuseEventLaneItems<T extends EventLaneLayout>(
+  layout: T,
   previous: EventLaneLayout,
-): EventLaneLayout {
+): T {
   if (layout === previous) {
     return layout;
   }

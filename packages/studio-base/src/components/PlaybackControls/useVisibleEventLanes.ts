@@ -12,6 +12,7 @@ import { EVENT_LANE_HEIGHT_PX } from "./constants";
 export function useVisibleEventLanes(
   root: RefObject<HTMLDivElement>,
   laneCount: number,
+  alignment: "center" | "top" = "center",
 ): { first: number; last: number } {
   const [range, setRange] = useState({ first: 0, last: 13 });
   useLayoutEffect(() => {
@@ -29,7 +30,10 @@ export function useVisibleEventLanes(
       if (visible.height === 0) {
         return;
       }
-      const laneTop = rect.top + (rect.height - Math.max(1, laneCount) * EVENT_LANE_HEIGHT_PX) / 2;
+      const laneTop =
+        alignment === "top"
+          ? rect.top
+          : rect.top + (rect.height - Math.max(1, laneCount) * EVENT_LANE_HEIGHT_PX) / 2;
       const first = Math.max(0, Math.floor((visible.top - laneTop) / EVENT_LANE_HEIGHT_PX) - 2);
       const last = Math.min(
         laneCount - 1,
@@ -52,6 +56,6 @@ export function useVisibleEventLanes(
         cancelAnimationFrame(frame);
       }
     };
-  }, [root, laneCount]);
+  }, [root, laneCount, alignment]);
   return range;
 }

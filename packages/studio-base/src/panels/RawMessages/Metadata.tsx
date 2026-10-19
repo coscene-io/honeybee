@@ -21,6 +21,7 @@ import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
 import Stack from "@foxglove/studio-base/components/Stack";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks/usePlaybackTimeFormat";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
@@ -61,6 +62,7 @@ export default function Metadata({
   diffMessage,
 }: Props): React.JSX.Element {
   const { classes } = useStyles();
+  const { formatTime, timeFormat } = usePlaybackTimeFormat();
 
   // Access these by ref so that our callbacks aren't invalidated and CopyButton
   // memoization is stable.
@@ -98,7 +100,11 @@ export default function Metadata({
           ) : (
             datatype
           )}
-          {` @ ${formatTimeRaw(message.receiveTime)} sec`}
+          <span title={formatTimeRaw(message.receiveTime)}>
+            {timeFormat === "REL"
+              ? ` @ ${formatTime(message.receiveTime)}`
+              : ` @ ${formatTimeRaw(message.receiveTime)} sec`}
+          </span>
         </Typography>
         <CopyButton size="small" iconSize="small" className={classes.button} getText={copyData} />
       </Stack>
@@ -110,7 +116,12 @@ export default function Metadata({
               variant="caption"
               lineHeight={1.2}
               color="text.secondary"
-            >{`diff @ ${formatTimeRaw(diffMessage.receiveTime)} sec `}</Typography>
+              title={formatTimeRaw(diffMessage.receiveTime)}
+            >
+              {timeFormat === "REL"
+                ? `diff @ ${formatTime(diffMessage.receiveTime)}`
+                : `diff @ ${formatTimeRaw(diffMessage.receiveTime)} sec `}
+            </Typography>
             <CopyButton
               size="small"
               iconSize="small"
