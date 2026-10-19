@@ -69,7 +69,7 @@ it.each(["changed", "recover", "logged-out"])("closes the portal layout drawer o
             reason: "logout",
             signOutPendingUntilMs: 0,
             isServerSignOutConfirmed: true,
-          }),
+          }) ?? "",
         );
         localStorage.removeItem("coScene_org_jwt");
       } else {
