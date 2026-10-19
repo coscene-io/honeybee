@@ -193,7 +193,7 @@ it("checks access before mounting a private workspace and repeats the check afte
     session.reconcile();
   });
   await screen.findByRole("dialog");
-  await screen.findByRole("button", { name: "Switch back to A and continue" });
+  await screen.findByRole("button", { name: "Switch back and continue" });
   expect(session.controller.signal.aborted).toBe(true);
   expect(screen.getByTestId("workspace").parentElement?.style.display).toBe("none");
   expect(access).toHaveBeenLastCalledWith(
@@ -211,7 +211,7 @@ it("does not mount private data or layout providers for a mismatched link", asyn
   });
   jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
-  await screen.findByRole("button", { name: "Switch to B and open" });
+  await screen.findByRole("button", { name: "Switch and continue" });
   expect(screen.queryByTestId("workspace")).toBeNull();
   expect(screen.queryByRole("dialog")).toBeNull();
 });

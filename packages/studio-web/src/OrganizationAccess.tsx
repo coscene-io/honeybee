@@ -23,6 +23,18 @@ import { getDomainConfig, getWebBasePathname } from "@foxglove/studio-base/util/
 import { getBrowserAuthUrl } from "@foxglove/studio-base/util/browserSession";
 
 const useStyles = makeStyles()((theme) => ({
+  row: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing(2),
+    padding: theme.spacing(2),
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: theme.shape.borderRadius,
+    [theme.breakpoints.down("sm")]: { flexDirection: "column", alignItems: "flex-start" },
+  },
+  organizationName: { minWidth: 0, overflowWrap: "anywhere" },
+  rowAction: { flexShrink: 0 },
   content: { maxWidth: 520, width: "100%", padding: theme.spacing(2) },
   page: {
     minHeight: "100vh",
@@ -152,40 +164,15 @@ export function OrganizationAccessView({
       <Typography id="organization-access-title" variant="h5">
         {title}
       </Typography>
-      {mismatch && (
-        <Stack spacing={1}>
-          <Typography>
-            {t("linkOrganization", { organization: access.organization?.displayName })}
-          </Typography>
-          {access.currentOrganization && (
-            <Typography color="text.secondary">
-              {t("currentOrganization", { organization: access.currentOrganization.displayName })}
+      {mismatch && !login && (
+        <Stack spacing={2}>
+          <Box className={classes.row}>
+            <Typography className={classes.organizationName}>
+              {t("linkOrganization", { organization: access.organization?.displayName })}
             </Typography>
-          )}
-        </Stack>
-      )}
-      {loading && <CircularProgress size={24} />}
-      {access.status === "organization-unavailable" && (
-        <Typography>{t("organizationUnavailable")}</Typography>
-      )}
-      {access.status === "denied" && <Typography>{t("resourceDenied")}</Typography>}
-      {access.status === "unavailable" && <Typography>{t("linkUnavailable")}</Typography>}
-      {access.status === "error" && <Alert severity="error">{t("accessCheckFailed")}</Alert>}
-      {!loading && (
-        <Stack direction="row" flexWrap="wrap" gap={1}>
-          {login ? (
             <Button
               variant="contained"
-              target="_self"
-              href={getBrowserAuthUrl(
-                recovery === "logged-out" ? "/auth/logged-out" : "/auth/recover",
-              )}
-            >
-              {t("openSessionRecovery")}
-            </Button>
-          ) : mismatch ? (
-            <Button
-              variant="contained"
+              className={classes.rowAction}
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -200,6 +187,39 @@ export function OrganizationAccessView({
                     : "switchOrganization",
                 { organization: access.organization?.displayName },
               )}
+            </Button>
+          </Box>
+          <Box className={classes.row}>
+            <Typography className={classes.organizationName} color="text.secondary">
+              {t("currentOrganization", {
+                organization:
+                  access.currentOrganization?.displayName ?? t("organizationNameUnavailable"),
+              })}
+            </Typography>
+            <Button className={classes.rowAction} target="_self" href={home}>
+              {t("organizationHome")}
+            </Button>
+          </Box>
+        </Stack>
+      )}
+      {loading && <CircularProgress size={24} />}
+      {access.status === "organization-unavailable" && (
+        <Typography>{t("organizationUnavailable")}</Typography>
+      )}
+      {access.status === "denied" && <Typography>{t("resourceDenied")}</Typography>}
+      {access.status === "unavailable" && <Typography>{t("linkUnavailable")}</Typography>}
+      {access.status === "error" && <Alert severity="error">{t("accessCheckFailed")}</Alert>}
+      {!loading && (!mismatch || login) && (
+        <Stack direction="row" flexWrap="wrap" gap={1}>
+          {login ? (
+            <Button
+              variant="contained"
+              target="_self"
+              href={getBrowserAuthUrl(
+                recovery === "logged-out" ? "/auth/logged-out" : "/auth/recover",
+              )}
+            >
+              {t("openSessionRecovery")}
             </Button>
           ) : access.status === "error" ? (
             <Button variant="contained" onClick={onRetry}>

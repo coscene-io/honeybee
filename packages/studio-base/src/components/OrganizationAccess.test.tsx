@@ -72,11 +72,11 @@ it("keeps the changed-organization dialog open on Escape", () => {
       onRetry={jest.fn()}
     />,
   );
-  expect(screen.getByText("This link belongs to A.")).not.toBeNull();
+  expect(screen.getByText("Link organization: A")).not.toBeNull();
   expect(screen.getByText("Current organization: B")).not.toBeNull();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   expect(screen.getByRole("dialog")).not.toBeNull();
-  expect(screen.getByRole("button", { name: "Switch back to A and continue" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Switch back and continue" })).not.toBeNull();
 });
 
 it("offers an inline retry for network failure", () => {
