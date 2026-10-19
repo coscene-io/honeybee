@@ -6,7 +6,33 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const appBar = {
-  sessionChanged: "Your session changed. Reload to use the new session.",
+  useAnotherAccount: "Use another account",
+  sessionChanged:
+    "Your session has changed. Continue to reopen this visualization with the current session.",
+  checkingOrganization: "Checking access…",
+  organizationChanged: "Your organization has changed",
+  switchOrganizationTitle: "Switch organizations to continue",
+  linkOrganization: "Link organization: {{organization}}",
+  currentOrganization: "Current organization: {{organization}}",
+  organizationUnavailable:
+    "Your account cannot access the organization for this link. Contact the person who shared it or use another account.",
+  resourceDenied:
+    "You do not have permission to view this resource. Contact your project administrator.",
+  linkUnavailableTitle: "Unable to open this link",
+  linkUnavailable: "This link may have expired, or your account may not have access.",
+  accessCheckFailed: "Unable to check access. Check your connection and try again.",
+  retryAccessCheck: "Try again",
+  continueVisualization: "Continue viewing",
+  switchOrganization: "Switch and continue",
+  switchBackOrganization: "Switch back and continue",
+  switchingOrganization: "Switching…",
+  chooseOrganization: "Choose organization",
+  namedOrganizationHome: "Go to {{organization}} home",
+  organizationHome: "Go to home",
+  organizationNameUnavailable: "Unknown",
+  currentOrganizationHome: "Go to current organization home",
+  organizationSwitchAffectsTabs: "Switching organizations also affects your other open pages.",
+
   sessionLoggedOut: "You are signed out.",
   sessionRecoveryRequired: "Your session expired. Sign in again to continue.",
   reloadSession: "Reload",

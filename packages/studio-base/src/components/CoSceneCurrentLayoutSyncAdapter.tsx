@@ -20,6 +20,7 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { isLayoutEqual } from "@foxglove/studio-base/services/LayoutManager/compareLayouts";
+import { getBrowserSession } from "@foxglove/studio-base/util/browserSession";
 
 type UpdatedLayout = NonNullable<LayoutState["selectedLayout"]>;
 
@@ -130,6 +131,35 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
     unsavedLayouts,
     SAVE_INTERVAL_MS,
   );
+
+  useEffect(() => {
+    const session = getBrowserSession();
+    return session?.subscribe(() => {
+      if (!session.preservesPlayback()) {
+        debouncedUnsavedLayoutActions.flush();
+      }
+    });
+  }, [debouncedUnsavedLayoutActions]);
+
+  useEffect(() => {
+    // Cached working copies survive navigation. Only warn while edits are still
+    // pending in memory, or when a transient layout has no durable working copy.
+    if (
+      unsavedLayouts === EMPTY_UNSAVED_LAYOUTS &&
+      !(selectedLayout?.transient === true && selectedLayout.edited === true)
+    ) {
+      return;
+    }
+    const confirmLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required by older supported browsers.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", confirmLeave);
+    return () => {
+      window.removeEventListener("beforeunload", confirmLeave);
+    };
+  }, [unsavedLayouts, selectedLayout?.transient, selectedLayout?.edited]);
 
   // Do not leave an edit only in this component after the user switches layouts. Starting the
   // update now lets subsequent actions on the previous layout observe its edit revision.

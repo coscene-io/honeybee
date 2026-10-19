@@ -6,12 +6,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 import {
   BrowserSession,
+  getBrowserAuthUrl,
   initializeBrowserSession,
 } from "@foxglove/studio-base/util/browserSession";
+import { fetchOrganizationAccess } from "@foxglove/studio-web/src/OrganizationAccess";
 import { WebRoot } from "@foxglove/studio-web/src/WebRoot";
 
 jest.mock("@foxglove/studio-base", () => ({
@@ -26,7 +28,9 @@ jest.mock("@foxglove/studio-base", () => ({
   RemoteMp4DataSourceFactory: jest.fn(),
   PersistentCacheDataSourceFactory: jest.fn(),
 }));
-jest.mock("@foxglove/studio-base/StudioApp", () => ({ StudioApp: () => ReactNull }));
+jest.mock("@foxglove/studio-base/StudioApp", () => ({
+  StudioApp: () => <div data-testid="workspace" />,
+}));
 jest.mock("@foxglove/studio-web/src/CoSceneInit", () => ({ useCoSceneInit: jest.fn() }));
 jest.mock("@foxglove/studio-web/src/services/LocalStorageAppConfiguration", () => ({
   __esModule: true,
@@ -35,9 +39,27 @@ jest.mock("@foxglove/studio-web/src/services/LocalStorageAppConfiguration", () =
 jest.mock("@foxglove/studio-base/util/browserSession", () => ({
   ...jest.requireActual("@foxglove/studio-base/util/browserSession"),
   initializeBrowserSession: jest.fn(),
+  getBrowserAuthUrl: jest.fn(
+    jest.requireActual<typeof import("@foxglove/studio-base/util/browserSession")>(
+      "@foxglove/studio-base/util/browserSession",
+    ).getBrowserAuthUrl,
+  ),
+}));
+
+jest.mock("@foxglove/studio-web/src/OrganizationAccess", () => ({
+  ...jest.requireActual("@foxglove/studio-web/src/OrganizationAccess"),
+  fetchOrganizationAccess: jest.fn().mockResolvedValue({ status: "ready" }),
 }));
 
 beforeEach(() => {
+  jest
+    .mocked(getBrowserAuthUrl)
+    .mockImplementation(
+      jest.requireActual<typeof import("@foxglove/studio-base/util/browserSession")>(
+        "@foxglove/studio-base/util/browserSession",
+      ).getBrowserAuthUrl,
+    );
+  jest.mocked(fetchOrganizationAccess).mockResolvedValue({ status: "ready" });
   localStorage.clear();
   sessionStorage.clear();
   localStorage.setItem("coScene_org_jwt", "Bearer initial");
@@ -77,10 +99,10 @@ it.each([
   const href = new URL(link.getAttribute("href")!, window.location.origin);
   expect(href.pathname).toBe(path);
   expect(href.searchParams.get("redirectToPath")).toBe(returnTo);
-  expect(screen.queryByTestId("studio")).toBeNull();
+  expect(screen.queryByTestId("workspace")).toBeNull();
 });
 
-it("offers reload after replacement without adopting the new token", () => {
+it("offers explicit continuation after replacement without adopting the new token", async () => {
   const session = new BrowserSession();
   jest.mocked(initializeBrowserSession).mockReturnValue(session);
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
@@ -88,9 +110,11 @@ it("offers reload after replacement without adopting the new token", () => {
     localStorage.setItem("coScene_org_jwt", "Bearer replacement");
     window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
   });
-  expect(screen.getByRole("button", { name: "Reload" })).not.toBeNull();
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Continue viewing" })).not.toBeNull();
+  });
   expect(session.credential).toBe("Bearer initial");
-  expect(screen.queryByTestId("studio")).toBeNull();
+  expect(screen.queryByTestId("workspace")).toBeNull();
 });
 
 it("renders a public share despite a rejected account token", () => {
@@ -102,7 +126,7 @@ it("renders a public share despite a rejected account token", () => {
   render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
   expect(session.getStatus()).toBe("recover");
   expect(session.preservesPlayback()).toBe(true);
-  expect(screen.getByTestId("studio")).not.toBeNull();
+  expect(screen.getByTestId("workspace")).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
 });
 
@@ -120,7 +144,7 @@ it("keeps public playback mounted when a peer replaces the protected session", (
   expect(session.controller.signal.aborted).toBe(true);
   expect(session.preservesPlayback()).toBe(true);
   expect(session.credential).toBe("Bearer initial");
-  expect(screen.getByTestId("studio")).not.toBeNull();
+  expect(screen.getByTestId("workspace")).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
 });
 
@@ -132,13 +156,13 @@ it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expi
   jest.mocked(initializeBrowserSession).mockReturnValue(session);
   try {
     render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
-    const workspace = screen.getByTestId("studio");
+    const workspace = screen.getByTestId("workspace");
     act(() => {
       session.setLocalPlayback({ local: true });
       session.rejectCredential("Bearer initial");
     });
     expect(session.getStatus()).toBe("recover");
-    expect(screen.getByTestId("studio")).toBe(workspace);
+    expect(screen.getByTestId("workspace")).toBe(workspace);
     expect(screen.queryByRole("link", { name: "Open sign-in recovery" })).toBeNull();
     expect(window.location.pathname).toBe(basePath);
   } finally {
@@ -149,3 +173,95 @@ it.each(["/", "/viz/"])("keeps local playback mounted on the %s build after expi
     }
   }
 });
+
+it("checks access before mounting a private workspace and repeats the check after a session change", async () => {
+  const session = new BrowserSession();
+  jest.mocked(initializeBrowserSession).mockReturnValue(session);
+  const access = jest.mocked(fetchOrganizationAccess);
+  access.mockResolvedValueOnce({ status: "ready" }).mockResolvedValueOnce({
+    status: "organization-mismatch",
+    organization: { name: "organizations/a", displayName: "A" },
+    currentOrganization: { name: "organizations/b", displayName: "B" },
+  });
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  expect(screen.queryByTestId("workspace")).toBeNull();
+  await waitFor(() => {
+    expect(screen.getByTestId("workspace")).not.toBeNull();
+  });
+  act(() => {
+    localStorage.setItem("coScene_org_jwt", "Bearer replacement");
+    session.reconcile();
+  });
+  await screen.findByRole("dialog");
+  await screen.findByRole("button", { name: "Switch back and continue" });
+  expect(session.controller.signal.aborted).toBe(true);
+  expect(screen.getByTestId("workspace").parentElement?.style.display).toBe("none");
+  expect(access).toHaveBeenLastCalledWith(
+    expect.any(String),
+    "record",
+    "Bearer replacement",
+    expect.any(AbortSignal),
+  );
+});
+
+it("does not mount private data or layout providers for a mismatched link", async () => {
+  jest.mocked(fetchOrganizationAccess).mockResolvedValue({
+    status: "organization-mismatch",
+    organization: { name: "organizations/b", displayName: "B" },
+  });
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  await screen.findByRole("button", { name: "Switch and continue" });
+  expect(screen.queryByTestId("workspace")).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("automatically starts fresh login before mounting a private link without credentials", () => {
+  localStorage.removeItem("coScene_org_jwt");
+  const returnTo = window.location.pathname + window.location.search + window.location.hash;
+  let destination = "";
+  const actual = jest.requireActual<typeof import("@foxglove/studio-base/util/browserSession")>(
+    "@foxglove/studio-base/util/browserSession",
+  );
+  jest.mocked(getBrowserAuthUrl).mockImplementation((path) => {
+    destination = actual.getBrowserAuthUrl(path);
+    // Hash navigation is supported in jsdom, unlike a cross-document redirect.
+    return "#fresh-login";
+  });
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  jest.mocked(fetchOrganizationAccess).mockClear();
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  expect(window.location.hash).toBe("#fresh-login");
+  const target = new URL(destination, window.location.origin);
+  expect(target.pathname).toBe("/auth/login");
+  expect(target.searchParams.get("redirectToPath")).toBe(returnTo);
+  expect(fetchOrganizationAccess).not.toHaveBeenCalled();
+  expect(screen.queryByTestId("workspace")).toBeNull();
+});
+
+it.each([
+  { source: "custom-source", authenticated: true },
+  { source: "custom-source", authenticated: false },
+  { source: "", authenticated: true },
+  { source: "", authenticated: false },
+])(
+  "does not gate a generic ds.key for $source (authenticated: $authenticated)",
+  ({ source, authenticated }) => {
+    if (!authenticated) {
+      localStorage.removeItem("coScene_org_jwt");
+    }
+    const params = new URLSearchParams({ "ds.key": "custom-key" });
+    if (source) {
+      params.set("ds", source);
+    }
+    window.history.replaceState(undefined, "", `/viz?${params.toString()}#detail`);
+    const originalUrl = window.location.href;
+    jest.mocked(getBrowserAuthUrl).mockReturnValue("#unexpected-login");
+    jest.mocked(fetchOrganizationAccess).mockClear();
+    jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+    render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+    expect(screen.getByTestId("workspace")).not.toBeNull();
+    expect(fetchOrganizationAccess).not.toHaveBeenCalled();
+    expect(window.location.href).toBe(originalUrl);
+  },
+);
