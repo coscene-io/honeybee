@@ -96,6 +96,7 @@ import { isAuthlessDataSource } from "@foxglove/studio-base/util/coscene";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 import { useWorkspaceActions } from "./context/Workspace/useWorkspaceActions";
+import { useCloseLayoutDrawerOnSessionChange } from "./hooks/useCloseLayoutDrawerOnSessionChange";
 import useNativeAppMenuEvent from "./hooks/useNativeAppMenuEvent";
 
 const PERSONAL_INFO_CONFIG_ID = "personalInfo";
@@ -153,6 +154,7 @@ const selectDataSource = (state: CoreDataStore) => state.dataSource;
 const selectPaid = (store: SubscriptionEntitlementStore) => store.paid;
 
 function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
+  useCloseLayoutDrawerOnSessionChange();
   const { PerformanceSidebarComponent } = useAppContext();
   const analytics = useAnalytics();
   const { classes } = useStyles();
