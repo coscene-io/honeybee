@@ -17,6 +17,7 @@
 import * as _ from "lodash-es";
 import { makeStyles } from "tss-react/mui";
 
+import type { Time } from "@foxglove/rostime";
 import useLogStyles from "@foxglove/studio-base/panels/Log/useLogStyles";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 
@@ -43,8 +44,9 @@ export default React.memo(function LogMessage(props: {
   value: NormalizedLogMessage;
   timestampFormat: TimeDisplayMethod;
   timeZone: string | undefined;
+  playbackOrigin?: Time;
 }) {
-  const { value: msg, timestampFormat, timeZone } = props;
+  const { value: msg, timestampFormat, timeZone, playbackOrigin } = props;
 
   const { classes, cx } = useStyles();
   const { classes: logClasses } = useLogStyles();
@@ -71,7 +73,14 @@ export default React.memo(function LogMessage(props: {
       <div>
         <span>[{_.padStart(strLevel, 5, " ")}]</span>
         <span>
-          [<Stamp stamp={stamp} timestampFormat={timestampFormat} timeZone={timeZone} />]
+          [
+          <Stamp
+            stamp={stamp}
+            timestampFormat={timestampFormat}
+            timeZone={timeZone}
+            playbackOrigin={playbackOrigin}
+          />
+          ]
         </span>
         {msg.name != undefined && <span>[{msg.name}]:</span>}
         <span>&nbsp;</span>

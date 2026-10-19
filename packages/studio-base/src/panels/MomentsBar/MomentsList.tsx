@@ -5,11 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import { Stack, Typography, alpha } from "@mui/material";
-import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { makeStyles } from "tss-react/mui";
 
-import { toDate } from "@foxglove/rostime";
 import { WindowedList } from "@foxglove/studio-base/components/Events/WindowedList";
 import { useMomentHover } from "@foxglove/studio-base/components/Events/useMomentHover";
 import { useMomentScrollTarget } from "@foxglove/studio-base/components/Events/useMomentScrollTarget";
@@ -26,6 +24,7 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks/usePlaybackTimeFormat";
 
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectHoveredEvent = (store: TimelineInteractionStateStore) => store.hoveredEvent;
@@ -72,6 +71,7 @@ const SingleMomentView = memo(function SingleMomentView({
   onClick: (event: TimelinePositionedEvent) => void;
 }) {
   const { classes, cx } = useStyles();
+  const { formatTime } = usePlaybackTimeFormat();
   const name = event.event.name;
   const { onHoverStart, onHoverEnd } = useMomentHover();
   const isHovered = useTimelineInteractionState(
@@ -135,7 +135,7 @@ const SingleMomentView = memo(function SingleMomentView({
           </Stack>
           <Stack flex={1} justifyContent="center" flexDirection="column-reverse">
             <Typography variant="caption" display="block" gutterBottom>
-              {dayjs(toDate(currentEvent.startTime)).format("HH:mm:ss")}
+              {formatTime(currentEvent.startTime)}
             </Typography>
           </Stack>
         </Stack>

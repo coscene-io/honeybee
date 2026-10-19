@@ -24,6 +24,8 @@ import { Time, toDate, fromDate } from "@foxglove/rostime";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 
 import parseFuzzyRosTime from "./parseFuzzyRosTime";
+import { parseRelativeTime } from "./relativeTime";
+import { formatTimeRaw, isAbsoluteTime } from "./time";
 
 // All time functions that require `moment` should live in this file.
 
@@ -33,6 +35,11 @@ momentDurationFormatSetup(moment);
 
 export function format(stamp: Time, timezone?: string): string {
   return `${formatDate(stamp, timezone)} ${formatTime(stamp, timezone)}`;
+}
+
+/** Preserve simulation/source-relative timestamps instead of inventing a calendar date. */
+export function formatSourceTime(stamp: Time, timezone?: string): string {
+  return isAbsoluteTime(stamp) ? format(stamp, timezone) : formatTimeRaw(stamp);
 }
 
 export function formatDate(stamp: Time, timezone?: string): string {
@@ -75,12 +82,20 @@ const todDateTimeRegex = /^\d+-\d+-\d+\s+\d+:\d+:\d+.\d+\s[PpAa][Mm]\s[A-Za-z$]+
 export const getValidatedTimeAndMethodFromString = ({
   text,
   timezone,
+  timeFormat,
+  playbackOrigin,
 }: {
   text?: string;
   timezone?: string;
+  timeFormat?: TimeDisplayMethod;
+  playbackOrigin?: Time;
 }): { time?: Time; method: TimeDisplayMethod } | undefined => {
   if (text == undefined || text === "") {
     return;
+  }
+  if (timeFormat === "REL") {
+    const time = parseRelativeTime(text, playbackOrigin);
+    return time == undefined ? undefined : { time, method: "REL" };
   }
   const isInvalidRawTime = isNaN(+text);
   const isInvalidTodTime = !(todDateTimeRegex.test(text) && parseTimeStr(text, timezone));

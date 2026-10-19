@@ -23,4 +23,9 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   resetMomentSubtitlePosition: "Reset subtitle position",
   resetToDefault: "Reset to default",
   panTimeline: "Pan timeline",
+  totalDuration: "合計時間",
+  elapsedTime: "再生経過時間",
+  relativeTimeSeconds: "相対時間（秒）",
+  playbackTime: "現在の再生時刻",
+  timeDisplayFormat: "時刻表示形式",
 };

@@ -37,7 +37,7 @@ import {
   useEvents,
   ToModifyEvent,
 } from "@foxglove/studio-base/context/EventsContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
@@ -140,7 +140,7 @@ function EventViewComponent(params: {
   const refreshEvents = useEvents(selectRefreshEvents);
   const customFieldSchema = useEvents(selectCustomFieldSchema);
 
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
   const { t } = useTranslation("event");
 
   const project = useCoreData(selectProject);

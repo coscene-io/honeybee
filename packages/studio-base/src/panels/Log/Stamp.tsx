@@ -19,6 +19,7 @@ import * as _ from "lodash-es";
 import { Time } from "@foxglove/studio";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import { formatTime } from "@foxglove/studio-base/util/formatTime";
+import { formatRelativeTime } from "@foxglove/studio-base/util/relativeTime";
 
 // pad the start of `val` with 0's to make the total string length `count` size
 function PadStart(val: unknown, count: number) {
@@ -29,9 +30,13 @@ type Props = {
   stamp: Time;
   timestampFormat: TimeDisplayMethod;
   timeZone: string | undefined;
+  playbackOrigin?: Time;
 };
 
 function Stamp(props: Props): React.JSX.Element {
+  if (props.timestampFormat === "REL") {
+    return <span>{formatRelativeTime(props.stamp, props.playbackOrigin)}</span>;
+  }
   if (props.timestampFormat === "TOD") {
     const formattedTime = formatTime(props.stamp, props.timeZone);
     return <span>{formattedTime}</span>;

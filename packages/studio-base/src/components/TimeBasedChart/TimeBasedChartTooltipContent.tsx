@@ -26,7 +26,7 @@ export type TimeBasedChartTooltipData = {
   configIndex: number;
   value: number | bigint | boolean | string;
   constantName?: string;
-  absoluteTime?: string;
+  timeLabel?: string;
 };
 
 type Props = Immutable<{
@@ -79,12 +79,12 @@ const useStyles = makeStyles()((theme) => ({
       marginBottom: theme.spacing(0.5),
     },
   },
-  absoluteTime: {
+  timeLabel: {
     fontSize: "0.75rem",
     opacity: 0.8,
     marginBottom: theme.spacing(0.25),
   },
-  absoluteTimeGrid: {
+  timeLabelGrid: {
     gridColumn: "1/4",
     fontSize: "0.75rem",
     opacity: 0.8,
@@ -167,7 +167,7 @@ export default function TimeBasedChartTooltipContent(
           {tooltip.constantName != undefined ? ` (${tooltip.constantName})` : ""}
         </div>
         {content.length > 1 && <OverflowMessage />}
-        {tooltip.absoluteTime && <div className={classes.absoluteTime}>{tooltip.absoluteTime}</div>}
+        {tooltip.timeLabel && <div className={classes.timeLabel}>{tooltip.timeLabel}</div>}
       </Stack>
     );
   }
@@ -198,9 +198,9 @@ export default function TimeBasedChartTooltipContent(
               {tooltip.constantName != undefined ? ` (${tooltip.constantName})` : ""}
             </div>
             {item.hasMultipleValues && <OverflowMessage />}
-            {tooltip.absoluteTime && idx === sortedItems.length - 1 && (
+            {tooltip.timeLabel && idx === sortedItems.length - 1 && (
               <>
-                <div className={classes.absoluteTimeGrid}>{tooltip.absoluteTime}</div>
+                <div className={classes.timeLabelGrid}>{tooltip.timeLabel}</div>
               </>
             )}
           </Fragment>

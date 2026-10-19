@@ -39,6 +39,9 @@ export const appSettings: Partial<TypeOptions["resources"]["appSettings"]> = {
   sendAnonymizedCrashReports: "匿名化されたクラッシュレポートを送信",
   sendAnonymizedUsageData: "匿名化された使用データを送信して、CoScene Studioの改善に役立てる",
   settings: "設定",
+  dateTime: "日時",
+  unixTime: "Unix タイムスタンプ",
+  relativeTime: "相対時間（再生開始から）",
   timestampFormat: "タイムスタンプ形式",
   webApp: "ウェブアプリ",
 };

@@ -49,7 +49,7 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 
 import { EventView } from "./EventView";
@@ -196,7 +196,7 @@ export function EventsList(): React.JSX.Element {
   const selectedEventId = useEvents(selectSelectedEventId);
   const selectEvent = useEvents(selectSelectEvent);
   const refreshEvents = useEvents(selectRefreshEvents);
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
 
   const seek = useMessagePipeline(selectSeek);
   const startTime = useMessagePipeline(selectStartTime);

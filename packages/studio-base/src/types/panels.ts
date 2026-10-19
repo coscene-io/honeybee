@@ -28,7 +28,7 @@ export type PanelConfig = {
   [key: string]: unknown;
 };
 
-export type TimeDisplayMethod = "SEC" | "TOD";
+export type TimeDisplayMethod = "SEC" | "TOD" | "REL";
 
 export type PrefixDisplayMedia = "true" | "false";
 
