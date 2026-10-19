@@ -23,6 +23,7 @@ import {
 } from "@foxglove/studio-base";
 import { StudioApp } from "@foxglove/studio-base/StudioApp";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
+import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 import {
   getBrowserAuthUrl,
   initializeBrowserSession,
@@ -57,8 +58,32 @@ export function WebRoot(props: {
   const [opened, setOpened] = useState(false);
   const status = session.getStatus();
   const preservesPlayback = session.preservesPlayback();
-  const params = new URL(window.location.href).searchParams;
-  const key = params.get("ds") === "coscene-data-platform" ? params.get("ds.key") : undefined;
+  const urlState = parseAppURLState(new URL(window.location.href));
+  const key = urlState?.ds === "coscene-data-platform" ? urlState.dsParams?.key : undefined;
+  useEffect(() => {
+    // Status remains "changed" across subsequent replacements. Recheck each
+    // boundary without adopting its credential in the mounted workspace.
+    const refresh = () => {
+      setAttempt((value) => value + 1);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.key == undefined ||
+        event.key === "coScene_org_jwt" ||
+        event.key === "coscene.auth.session-version.v1"
+      ) {
+        refresh();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("pageshow", refresh);
+    window.addEventListener("coscene:session-version", refresh);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("pageshow", refresh);
+      window.removeEventListener("coscene:session-version", refresh);
+    };
+  }, []);
   useEffect(() => {
     if (preservesPlayback || !key) {
       setAccess({ status: "ready" });

@@ -265,3 +265,68 @@ it.each([
     expect(window.location.href).toBe(originalUrl);
   },
 );
+
+it.each(["denied", "login"] as const)(
+  "ignores a delayed %s after a second credential replacement",
+  async (status) => {
+    const session = new BrowserSession();
+    jest.mocked(initializeBrowserSession).mockReturnValue(session);
+    const access = jest.mocked(fetchOrganizationAccess);
+    access.mockClear();
+    render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+    await screen.findByTestId("workspace");
+    let finish: (value: { status: typeof status }) => void = () => {};
+    access.mockImplementationOnce(
+      async () =>
+        await new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    act(() => {
+      localStorage.setItem("coScene_org_jwt", "Bearer second");
+      window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
+    });
+    const staleSignal = access.mock.calls.at(-1)![3];
+    act(() => {
+      localStorage.setItem("coScene_org_jwt", "Bearer third");
+      window.dispatchEvent(new StorageEvent("storage", { key: "coScene_org_jwt" }));
+    });
+    await screen.findByRole("button", { name: "Continue viewing" });
+    expect(access).toHaveBeenLastCalledWith(
+      expect.any(String),
+      "record",
+      "Bearer third",
+      expect.any(AbortSignal),
+    );
+    expect(staleSignal.aborted).toBe(true);
+    await act(async () => {
+      finish({ status });
+    });
+    expect(screen.getByRole("button", { name: "Continue viewing" })).not.toBeNull();
+    expect(sessionStorage.getItem("coScene_invalid_org_jwt")).toBeNull();
+    expect(session.credential).toBe("Bearer initial");
+    expect(screen.getByTestId("workspace").parentElement?.style.display).toBe("none");
+  },
+);
+
+it("preflights the last nonempty duplicate key used by playback", async () => {
+  window.history.replaceState(
+    undefined,
+    "",
+    "/viz?ds=coscene-data-platform&ds.key=allowed&ds.key=other&ds.key=",
+  );
+  jest.mocked(initializeBrowserSession).mockReturnValue(new BrowserSession());
+  const access = jest.mocked(fetchOrganizationAccess);
+  access.mockClear();
+  access.mockResolvedValue({ status: "denied" });
+  render(<WebRoot extraProviders={undefined} dataSources={undefined} />);
+  await waitFor(() => {
+    expect(access).toHaveBeenCalledWith(
+      expect.any(String),
+      "other",
+      "Bearer initial",
+      expect.any(AbortSignal),
+    );
+  });
+  expect(screen.queryByTestId("workspace")).toBeNull();
+});

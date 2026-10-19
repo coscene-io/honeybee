@@ -142,6 +142,10 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   }, [debouncedUnsavedLayoutActions]);
 
   useEffect(() => {
+    // Electron has no browser recovery flow; preventing unload there can block window close.
+    if (getBrowserSession() == undefined) {
+      return;
+    }
     // Cached working copies survive navigation. Only warn while edits are still
     // pending in memory, or when a transient layout has no durable working copy.
     if (
