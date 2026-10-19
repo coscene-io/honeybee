@@ -51,7 +51,9 @@ describe("UnconnectedPlaybackTimeDisplay", () => {
     expect(onSeek).toHaveBeenCalledTimes(1);
     expect(onSeek).toHaveBeenCalledWith({ sec: 1700000006, nsec: 123456789 });
     expect(appTimeFormat.setTimeFormat).toHaveBeenCalledWith("SEC");
-    expect(screen.getByRole("button", { name: "Time display format" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { hidden: true, name: "Time display format" }),
+    ).toBeTruthy();
   });
 });
 
@@ -149,7 +151,7 @@ describe("relative playback editing", () => {
 
   it("offers named global modes in the dropdown", async () => {
     const { setTimeFormat } = renderRelativeDisplay();
-    fireEvent.click(screen.getByRole("button", { name: "Time display format" }));
+    fireEvent.click(screen.getByRole("button", { hidden: true, name: "Time display format" }));
     await act(async () => {
       fireEvent.click(screen.getByRole("menuitem", { name: /Unix timestamp/ }));
     });

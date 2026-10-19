@@ -95,7 +95,7 @@ it("keeps settings, playback, file boundaries, log and raw-message metadata sync
   expect(screen.getByText("@ 00:00:14.105", { exact: false })).toBeTruthy();
   expect(JSON.stringify(data)).toBe(serialized);
   expect(onSeek).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Time display format" }));
+  fireEvent.click(screen.getByRole("button", { hidden: true, name: "Time display format" }));
   fireEvent.click(screen.getByRole("menuitem", { name: /Unix timestamp/ }));
   await waitFor(() => {
     expect(screen.getByTestId("timeformat-seconds").getAttribute("aria-pressed")).toBe("true");
