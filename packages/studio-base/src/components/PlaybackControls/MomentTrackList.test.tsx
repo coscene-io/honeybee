@@ -35,7 +35,7 @@ function layout(count: number): MomentTrackLayout {
   };
 }
 
-it("collapses by stable identity and virtualizes labels against the shared scroll container", async () => {
+it("virtualizes leaf labels against the shared scroll container", async () => {
   const onViewChange = jest.fn();
   let scrollOffset = 0;
   jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
@@ -62,8 +62,7 @@ it("collapses by stable identity and virtualizes labels against the shared scrol
     </ThemeProvider>,
   );
   expect(screen.getAllByTestId("moment-track-title").length).toBeLessThan(15);
-  fireEvent.click(screen.getByRole("button", { name: "Expand or collapse Platform: Option 0" }));
-  expect(onViewChange).toHaveBeenCalledWith({ collapsed: { "track/0": true } });
+  expect(screen.queryByRole("button")).toBeNull();
   act(() => {
     scrollOffset = 2800;
     fireEvent.scroll(screen.getByTestId("scroll"));
@@ -74,3 +73,48 @@ it("collapses by stable identity and virtualizes labels against the shared scrol
   expect(screen.queryByText("Platform: Option 0 (1)")).toBeNull();
   expect(screen.getAllByTestId("moment-track-title").length).toBeLessThan(15);
 });
+
+it("only offers a toggle on a group with children", () => {
+  const grouped = layout(2);
+  const parent = grouped.rows[0]!.track;
+  const leaf = grouped.rows[1]!.track;
+  parent.children = [leaf];
+  parent.count = 2;
+  leaf.depth = 1;
+  const onViewChange = jest.fn();
+  render(
+    <ThemeProvider isDark>
+      <MomentTrackList layout={grouped} view={{}} onViewChange={onViewChange} />
+    </ThemeProvider>,
+  );
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  fireEvent.click(screen.getByText("Platform: Option 1 (1)"));
+  expect(onViewChange).not.toHaveBeenCalled();
+  const toggle = screen.getByRole("button", { name: "Expand or collapse Platform: Option 0" });
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(toggle);
+  expect(onViewChange).toHaveBeenCalledWith({ collapsed: { [parent.id]: true } });
+});
+
+it.each(["value", "missing", "ungrouped"] as const)(
+  "renders a %s leaf without an interactive toggle, including saved collapse state",
+  (kind) => {
+    const leafLayout = layout(1);
+    leafLayout.rows[0]!.track.kind = kind;
+    leafLayout.rows[0]!.collapsed = true;
+    const onViewChange = jest.fn();
+    render(
+      <ThemeProvider isDark>
+        <MomentTrackList
+          layout={leafLayout}
+          view={{ collapsed: { "track/0": true } }}
+          onViewChange={onViewChange}
+        />
+      </ThemeProvider>,
+    );
+    const row = screen.getByTestId("moment-track-title");
+    expect(row.querySelector("button, [aria-expanded], [tabindex]")).toBeNull();
+    fireEvent.click(row);
+    expect(onViewChange).not.toHaveBeenCalled();
+  },
+);

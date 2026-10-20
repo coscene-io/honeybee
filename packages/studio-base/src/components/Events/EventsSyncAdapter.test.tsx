@@ -375,6 +375,44 @@ describe("<EventsSyncAdapter />", () => {
     },
   );
 
+  it("ignores saved leaf collapse flags for navigation, hover and shortcut snapping", async () => {
+    const events = [makeEvent("leaf", 1, 2), makeEvent("root", 5, 1)];
+    events[0]!.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: { id: "platform" },
+        value: { case: "enums", value: { id: "a" } },
+      }),
+    ];
+    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+    const interaction = makeTimelineInteractionStore();
+    render(
+      <Wrapper
+        eventsStore={eventsStore}
+        timelineInteractionStore={interaction}
+        currentTime={{ sec: 1, nsec: 5_000 }}
+      >
+        <EventsSyncAdapter />
+        <CollapseFirstGroup />
+        <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+      </Wrapper>,
+    );
+    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+    expect(eventsStore.getState().selectedEventId).toBe("leaf");
+    act(() => {
+      interaction
+        .getState()
+        .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+    });
+    await waitFor(() => {
+      expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(["leaf"]);
+    });
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "1", code: "Digit1", altKey: true });
+    });
+    expect(eventsStore.getState().eventMarks[0]?.time).toEqual({ sec: 1, nsec: 0 });
+    expect(eventsStore.getState().events.value).toEqual(events);
+  });
+
   it("clears the previous project schema and ignores its late response after navigation", async () => {
     let resolveOld: (schema: MomentCustomFieldSchema) => void = () => {};
     let resolveNew: (schema: MomentCustomFieldSchema) => void = () => {};

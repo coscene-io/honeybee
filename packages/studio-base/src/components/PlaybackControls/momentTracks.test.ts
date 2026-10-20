@@ -285,7 +285,7 @@ describe("project Moment grouping", () => {
     expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(5);
   });
 
-  it("splits overlapping Moments within each leaf and collapses an entire subtree", () => {
+  it("keeps overlapping leaf Moments visible despite saved collapse flags", () => {
     const entries = [
       event("one", { platform: "a" }),
       event("two", { platform: "a" }),
@@ -300,9 +300,40 @@ describe("project Moment grouping", () => {
       viewport,
       view: { collapsed: { [tracks[0]!.id]: true } },
     });
-    expect(collapsed.rows.map((row) => row.laneCount)).toEqual([1, 1]);
-    expect(collapsed.items.map((item) => item.event.event.name)).toEqual(["three"]);
+    expect(collapsed.rows.map((row) => row.collapsed)).toEqual([false, false]);
+    expect(collapsed.rows.map((row) => row.laneCount)).toEqual([2, 1]);
+    expect(collapsed.items).toEqual(full.items);
     expect(entries).toHaveLength(3);
+  });
+
+  it.each([undefined, schema()])(
+    "ignores saved collapse flags on the ungrouped or all-empty root (%s)",
+    (current) => {
+      const entries = [event("root")];
+      const tracks = getMomentTracks(entries, current);
+      const layout = layoutMomentTracks({
+        tracks,
+        viewport,
+        view: { collapsed: { [tracks[0]!.id]: true } },
+      });
+      expect(layout.rows[0]?.collapsed).toBe(false);
+      expect(layout.items.map((item) => item.event.event.name)).toEqual(["root"]);
+    },
+  );
+
+  it("shows a formerly collapsed parent when its children disappear from the projection", () => {
+    const current = schema(["a", "b"]);
+    const entries = [event("parent", { a: "a" }), event("child", { a: "a", b: "a" })];
+    const tracks = getMomentTracks(entries, current);
+    const view = { collapsed: { [tracks[0]!.id]: true } };
+    expect(layoutMomentTracks({ tracks, viewport, view }).items).toHaveLength(0);
+    const filtered = getMomentTracks([entries[0]!], current);
+    expect(filtered[0]?.id).toBe(tracks[0]!.id);
+    expect(
+      layoutMomentTracks({ tracks: filtered, viewport, view }).items.map(
+        (item) => item.event.event.name,
+      ),
+    ).toEqual(["parent"]);
   });
 
   it("shares unaffected leaf items during a drag and shifts later labels with preview lanes", () => {

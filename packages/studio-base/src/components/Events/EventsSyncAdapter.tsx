@@ -30,6 +30,7 @@ import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackC
 import { getEventTimeIndex } from "@foxglove/studio-base/components/PlaybackControls/eventTimeIndex";
 import {
   getMomentTracks,
+  isMomentTrackCollapsed,
   EMPTY_TRACK_VIEW,
   type MomentTrack,
 } from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
@@ -246,7 +247,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const navigationEvents = useMemo(() => {
     const names = new Set<string>();
     const visit = (track: MomentTrack) => {
-      if (trackView.collapsed?.[track.id] === true) {
+      if (isMomentTrackCollapsed(track, trackView)) {
         return;
       }
       track.events.forEach((entry) => names.add(entry.event.name));

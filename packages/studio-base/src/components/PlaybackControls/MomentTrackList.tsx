@@ -39,6 +39,7 @@ const useStyles = makeStyles()((theme) => ({
     paddingRight: 6,
   },
   button: { padding: 5, height: 28, width: 28, borderRadius: 4, flexShrink: 0 },
+  toggleSpacer: { height: 28, width: 28, flexShrink: 0 },
 }));
 
 export function MomentTrackList({
@@ -85,24 +86,28 @@ export function MomentTrackList({
                 paddingLeft: track.depth * 12,
               }}
             >
-              <IconButton
-                size="small"
-                className={classes.button}
-                aria-label={t("toggleGroup", { name: label })}
-                aria-expanded={!collapsed}
-                onClick={() => {
-                  onViewChange({
-                    ...view,
-                    collapsed: { ...view.collapsed, [track.id]: !collapsed },
-                  });
-                }}
-              >
-                {collapsed ? (
-                  <ChevronRightIcon fontSize="inherit" />
-                ) : (
-                  <ExpandMoreIcon fontSize="inherit" />
-                )}
-              </IconButton>
+              {track.children.length > 0 ? (
+                <IconButton
+                  size="small"
+                  className={classes.button}
+                  aria-label={t("toggleGroup", { name: label })}
+                  aria-expanded={!collapsed}
+                  onClick={() => {
+                    onViewChange({
+                      ...view,
+                      collapsed: { ...view.collapsed, [track.id]: !collapsed },
+                    });
+                  }}
+                >
+                  {collapsed ? (
+                    <ChevronRightIcon fontSize="inherit" />
+                  ) : (
+                    <ExpandMoreIcon fontSize="inherit" />
+                  )}
+                </IconButton>
+              ) : (
+                <span aria-hidden className={classes.toggleSpacer} />
+              )}
               <Tooltip title={label}>
                 <span className={classes.title}>
                   {label} ({track.count})

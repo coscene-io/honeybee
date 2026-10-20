@@ -48,6 +48,11 @@ export type MomentTrackRow = {
 };
 export type MomentTrackLayout = EventLaneLayout & { rows: MomentTrackRow[] };
 
+/** Ignore saved collapse flags when a node is now a leaf, including after filtering. */
+export function isMomentTrackCollapsed(track: MomentTrack, view: MomentTrackView): boolean {
+  return track.children.length > 0 && view.collapsed?.[track.id] === true;
+}
+
 // Explicit UTF-16 order is stable across browser languages and ICU versions.
 function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -217,7 +222,7 @@ export function layoutMomentTracks({
   const items: EventLaneLayoutItem[] = [];
   let laneCount = 0;
   const visit = (track: MomentTrack) => {
-    const collapsed = view.collapsed?.[track.id] === true;
+    const collapsed = isMomentTrackCollapsed(track, view);
     let events = track.events;
     if (overrides && events.some((entry) => overrides.has(entry.event.name))) {
       events = events.map((entry) => overrides.get(entry.event.name) ?? entry);

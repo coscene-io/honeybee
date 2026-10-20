@@ -233,6 +233,78 @@
       ],
       "scrollHeight": 1826,
       "scrollTop": 1200
+    },
+    {
+      "name": "leaf-disclosure",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "bars": 8,
+      "rows": [
+        {
+          "expanded": "true",
+          "hasToggle": true,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 1: Option 000 (4)",
+          "top": 495
+        },
+        {
+          "expanded": "true",
+          "hasToggle": true,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 2: Option 000 (2)",
+          "top": 523
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 551
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 579
+        },
+        {
+          "expanded": "true",
+          "hasToggle": true,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 2: Option 000 (2)",
+          "top": 607
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 635
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 663
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\"]",
+          "label": "Not filled (1)",
+          "top": 691
+        }
+      ],
+      "leafClickBars": 8,
+      "parentCollapsedBars": 4,
+      "restoredBars": 8
     }
   ],
   "console": []
