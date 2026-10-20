@@ -118,6 +118,7 @@ function MomentsBenchmark(): React.JSX.Element {
   const extras = query.get("extras") === "true";
   const groupLevels = Math.max(0, Math.min(5, Number(query.get("groupLevels") ?? 0)));
   const groupCount = Math.max(1, Math.min(count, Number(query.get("groupCount") ?? 8)));
+  const optionalFields = query.get("optionalFields") === "true";
   const groupingSchema = useMemo(
     () =>
       fromJson(CustomFieldSchemaSchema, {
@@ -147,16 +148,18 @@ function MomentsBenchmark(): React.JSX.Element {
           event: {
             ...entry.event,
             customizedFields: index % 3 === 0 ? { _doubtful: "true" } : {},
-            customFieldValues: Array.from({ length: groupLevels }, (_, level) =>
-              create(CustomFieldValueSchema, {
-                property: { id: `field-${level}` },
-                value: { case: "enums", value: { id: String((index + level) % groupCount) } },
-              }),
-            ),
+            customFieldValues: Array.from({ length: groupLevels }, (_, level) => level)
+              .filter((level) => !optionalFields || (index & (1 << level)) !== 0)
+              .map((level) =>
+                create(CustomFieldValueSchema, {
+                  property: { id: `field-${level}` },
+                  value: { case: "enums", value: { id: String((index + level) % groupCount) } },
+                }),
+              ),
           },
         }),
       ),
-    [count, distribution, groupLevels, groupCount],
+    [count, distribution, groupLevels, groupCount, optionalFields],
   );
   const [currentTime, setCurrentTime] = useState<Time>(origin);
   const [playing, setPlaying] = useState(false);

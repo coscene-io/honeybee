@@ -278,7 +278,7 @@ function SeedSchemaProject({ id }: { id: string }): ReactNull {
   return ReactNull;
 }
 
-function CollapseFirstGroup(): ReactNull {
+function CollapseFirstGroup({ collapsed = true }: { collapsed?: boolean }): ReactNull {
   const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
   const events = useEvents((store) => store.events.value);
   const {
@@ -288,13 +288,17 @@ function CollapseFirstGroup(): ReactNull {
     const schema = create(CustomFieldSchemaSchema, {
       properties: [
         { id: "platform", type: { case: "enums", value: { values: { a: "Alpha", b: "Beta" } } } },
+        { id: "detail", type: { case: "enums", value: { values: { a: "Detail" } } } },
       ],
-      groupingRules: [{ propertyId: "platform" }],
+      groupingRules: [{ propertyId: "platform" }, { propertyId: "detail" }],
     });
     const group = getMomentTracks(events ?? [], schema)[0]!;
     setCustomFieldSchema(schema);
-    setMomentTimeline((old) => ({ ...old, views: { "": { collapsed: { [group.id]: true } } } }));
-  }, [events, setCustomFieldSchema, setMomentTimeline]);
+    setMomentTimeline((old) => ({
+      ...old,
+      views: { "": { collapsed: { [group.id]: collapsed } } },
+    }));
+  }, [collapsed, events, setCustomFieldSchema, setMomentTimeline]);
   return ReactNull;
 }
 
@@ -320,41 +324,56 @@ describe("<EventsSyncAdapter />", () => {
     expect(eventsStore.getState().events.value).toHaveLength(2);
   });
 
-  it("skips collapsed groups during keyboard navigation and hover without truncating stored Moments", async () => {
-    const events = [makeEvent("hidden", 1, 2), makeEvent("visible", 1, 2)];
-    events.forEach((entry, i) => {
-      entry.event.customFieldValues = [
+  it.each([false, true])(
+    "includes parent Moments and children only when expanded (collapsed=%s)",
+    async (collapsed) => {
+      const events = [makeEvent("parent", 1, 2), makeEvent("child", 1, 2), makeEvent("root", 1, 2)];
+      events.slice(0, 2).forEach((entry) => {
+        entry.event.customFieldValues = [
+          create(CustomFieldValueSchema, {
+            property: { id: "platform" },
+            value: { case: "enums", value: { id: "a" } },
+          }),
+        ];
+      });
+      events[1]!.event.customFieldValues.push(
         create(CustomFieldValueSchema, {
-          property: { id: "platform" },
-          value: { case: "enums", value: { id: i === 0 ? "a" : "b" } },
+          property: { id: "detail" },
+          value: { case: "enums", value: { id: "a" } },
         }),
-      ];
-    });
-    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
-    const interaction = makeTimelineInteractionStore();
-    render(
-      <Wrapper
-        eventsStore={eventsStore}
-        timelineInteractionStore={interaction}
-        currentTime={{ sec: 1, nsec: 0 }}
-      >
-        <EventsSyncAdapter />
-        <CollapseFirstGroup />
-        <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
-      </Wrapper>,
-    );
-    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
-    expect(eventsStore.getState().selectedEventId).toBe("visible");
-    act(() => {
-      interaction
-        .getState()
-        .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
-    });
-    await waitFor(() => {
-      expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(["visible"]);
-    });
-    expect(eventsStore.getState().events.value).toHaveLength(2);
-  });
+      );
+      const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+      const interaction = makeTimelineInteractionStore();
+      render(
+        <Wrapper
+          eventsStore={eventsStore}
+          timelineInteractionStore={interaction}
+          currentTime={{ sec: 1, nsec: 0 }}
+        >
+          <EventsSyncAdapter />
+          <CollapseFirstGroup collapsed={collapsed} />
+          <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+        </Wrapper>,
+      );
+      fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+      expect(eventsStore.getState().selectedEventId).toBe(collapsed ? "root" : "parent");
+      if (!collapsed) {
+        fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+        expect(eventsStore.getState().selectedEventId).toBe("child");
+      }
+      act(() => {
+        interaction
+          .getState()
+          .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+      });
+      await waitFor(() => {
+        expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(
+          collapsed ? ["root"] : ["parent", "child", "root"],
+        );
+      });
+      expect(eventsStore.getState().events.value).toHaveLength(3);
+    },
+  );
 
   it("clears the previous project schema and ignores its late response after navigation", async () => {
     let resolveOld: (schema: MomentCustomFieldSchema) => void = () => {};

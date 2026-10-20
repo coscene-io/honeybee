@@ -48,10 +48,8 @@ function event(name: string, fields: Record<string, string> = {}): TimelinePosit
   );
   return entry;
 }
-function leaves(tracks: MomentTrack[]): MomentTrack[] {
-  return tracks.flatMap((track) =>
-    track.children.length === 0 ? [track] : leaves(track.children),
-  );
+function allTracks(tracks: MomentTrack[]): MomentTrack[] {
+  return tracks.flatMap((track) => [track, ...allTracks(track.children)]);
 }
 
 describe("project Moment grouping", () => {
@@ -134,7 +132,7 @@ describe("project Moment grouping", () => {
     expect(deleted.events).toEqual(entries);
   });
 
-  it("uses the full path and preserves missing intermediate levels without empty Cartesian groups", () => {
+  it("skips missing intermediate fields and keeps the full occupied field/option path", () => {
     const current = schema(["a", "b", "c", "d", "e"]);
     current.properties = current.properties.map((entry) =>
       property(
@@ -148,9 +146,67 @@ describe("project Moment grouping", () => {
     ];
     const tracks = getMomentTracks(entries, current);
     const layout = layoutMomentTracks({ tracks, viewport, view: {} });
-    expect(layout.rows).toHaveLength(10);
+    expect(layout.rows).toHaveLength(6);
+    expect(layout.rows.map((row) => row.track.depth)).toEqual([0, 1, 2, 0, 1, 2]);
+    expect(layout.rows.map((row) => row.track.fieldName)).toEqual(["a", "c", "e", "a", "c", "e"]);
     expect(layout.items.map((item) => item.event.event.name).sort()).toEqual(["one", "two"]);
-    expect(new Set(leaves(tracks).map((track) => track.id)).size).toBe(2);
+    expect(new Set(allTracks(tracks).map((track) => track.id)).size).toBe(6);
+  });
+
+  it("places all eight optional-field combinations at their last filled field or the root", () => {
+    const entries = [
+      event("none"),
+      event("a", { a: "a" }),
+      event("b", { b: "a" }),
+      event("c", { c: "a" }),
+      event("ab", { a: "a", b: "a" }),
+      event("ac", { a: "a", c: "a" }),
+      event("bc", { b: "a", c: "a" }),
+      event("abc", { a: "a", b: "a", c: "a" }),
+    ];
+    const tracks = getMomentTracks(entries, schema(["a", "b", "c"]));
+    const flat = allTracks(tracks);
+    expect(flat).toHaveLength(8);
+    expect(flat.flatMap((track) => track.events)).toHaveLength(entries.length);
+    for (const entry of entries) {
+      const track = flat.find((candidate) => candidate.events.includes(entry))!;
+      expect(track.events).toEqual([entry]);
+      const fields = entry.event.customFieldValues.map((value) => value.property!.id);
+      expect(track.depth).toBe(Math.max(0, fields.length - 1));
+      expect(track.fieldName).toBe(fields.at(-1) ?? "");
+      if (fields.length > 0) {
+        expect(JSON.parse(track.id)[1].map(([id]: string[]) => id)).toEqual(fields);
+      }
+    }
+    const rootA = tracks.find((track) => track.fieldName === "a")!;
+    expect(rootA.events.map((entry) => entry.event.name)).toEqual(["a"]);
+    expect(rootA.count).toBe(4);
+    expect(rootA.children.map((track) => track.fieldName)).toEqual(["b", "c"]);
+    expect(rootA.children[0]?.events.map((entry) => entry.event.name)).toEqual(["ab"]);
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(entries.length);
+  });
+
+  it("keeps absent, unset and empty enum values on one root track without a five-level chain", () => {
+    const entries = [event("absent"), event("unset"), event("empty")];
+    entries[1]!.event.customFieldValues = [
+      create(CustomFieldValueSchema, { property: { id: "a" } }),
+    ];
+    entries[2]!.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: { id: "b" },
+        value: { case: "enums", value: { id: "", ids: [] } },
+      }),
+    ];
+    const tracks = getMomentTracks(entries, schema(["a", "b", "c", "d", "e"]));
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0]).toMatchObject({
+      depth: 0,
+      fieldName: "",
+      count: 3,
+      children: [],
+      events: entries,
+    });
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(3);
   });
 
   it("preserves values stored via legacy ids and invalid or multi-value historical data", () => {
@@ -176,11 +232,57 @@ describe("project Moment grouping", () => {
     const tracks = getMomentTracks(entries, schema());
     expect(tracks.map((track) => track.kind)).toEqual(["value", "unknown", "unknown", "missing"]);
     expect(
-      leaves(tracks)
+      allTracks(tracks)
         .flatMap((track) => track.events)
         .map((entry) => entry.event.name)
         .sort(),
     ).toEqual(entries.map((entry) => entry.event.name).sort());
+  });
+
+  it("lays out parent Moments with child tracks, including overlap previews and subtree collapse", () => {
+    const entries = [
+      event("parent-one", { a: "a" }),
+      event("parent-two", { a: "a" }),
+      event("child", { a: "a", b: "a" }),
+      event("grandchild", { a: "a", b: "a", c: "a" }),
+      event("sibling", { a: "b" }),
+    ];
+    entries[1]!.secondsSinceStart = 100;
+    const tracks = getMomentTracks(entries, schema(["a", "b", "c"]));
+    const before = layoutMomentTracks({ tracks, viewport, view: {} });
+    expect(before.rows.map((row) => [row.lane, row.laneCount])).toEqual([
+      [0, 1],
+      [1, 1],
+      [2, 1],
+      [3, 1],
+    ]);
+    expect(before.items.map((item) => item.event.event.name).sort()).toEqual(
+      entries.map((entry) => entry.event.name).sort(),
+    );
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items[0]).toBe(before.items[0]);
+    const preview = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: {},
+      overrides: new Map([["parent-two", { ...entries[1]!, secondsSinceStart: 0 }]]),
+    });
+    expect(preview.rows.map((row) => [row.lane, row.laneCount])).toEqual([
+      [0, 2],
+      [2, 1],
+      [3, 1],
+      [4, 1],
+    ]);
+    expect(preview.items.find((item) => item.event.event.name === "child")?.lane).toBe(2);
+    expect(preview.items.find((item) => item.event.event.name === "grandchild")?.lane).toBe(3);
+    expect(entries[1]!.secondsSinceStart).toBe(100);
+    const collapsed = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { collapsed: { [tracks[0]!.id]: true } },
+    });
+    expect(collapsed.rows).toHaveLength(2);
+    expect(collapsed.items.map((item) => item.event.event.name)).toEqual(["sibling"]);
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(5);
   });
 
   it("splits overlapping Moments within each leaf and collapses an entire subtree", () => {

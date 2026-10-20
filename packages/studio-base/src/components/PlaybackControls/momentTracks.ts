@@ -23,8 +23,10 @@ export type MomentTrack = {
   fieldName: string;
   depth: number;
   kind: "value" | "unknown" | "missing" | "ungrouped";
+  /** Includes this group's own Moments and all descendants. */
   count: number;
   children: MomentTrack[];
+  /** Moments attached directly to this group, even when it also has children. */
   events: TimelinePositionedEvent[];
 };
 export type MomentTrackView = { collapsed?: Record<string, boolean> };
@@ -95,7 +97,7 @@ function getGroupValue(entry: TimelinePositionedEvent, property: Property): Grou
   };
 }
 
-/** Only occupied paths are created. Identities contain the complete field/option path. */
+/** Skip unfilled fields; each occupied path can contain both Moments and child groups. */
 export function getMomentTracks(
   events: TimelinePositionedEvent[],
   schema?: MomentCustomFieldSchema,
@@ -119,9 +121,13 @@ export function getMomentTracks(
   const nodes = new Map<string, MomentTrack>();
   for (const event of events) {
     let children = roots;
+    let parent: MomentTrack | undefined;
     const path: string[][] = [];
-    properties.forEach((property, depth) => {
+    for (const property of properties) {
       const value = getGroupValue(event, property);
+      if (value.kind === "missing") {
+        continue;
+      }
       path.push([property.id, value.key]);
       const id = JSON.stringify(["moment-groups/v1", path])!;
       let node = nodes.get(id);
@@ -131,7 +137,7 @@ export function getMomentTracks(
           title: value.title,
           kind: value.kind,
           fieldName: property.name,
-          depth,
+          depth: path.length - 1,
           count: 0,
           children: [],
           events: [],
@@ -140,11 +146,30 @@ export function getMomentTracks(
         children.push(node);
       }
       node.count++;
-      if (depth === properties.length - 1) {
-        node.events.push(event);
-      }
+      parent = node;
       children = node.children;
-    });
+    }
+    if (parent == undefined) {
+      // Fully unfilled Moments share one root track, without placeholder ancestors.
+      const id = '["moment-groups/v1"]';
+      parent = nodes.get(id);
+      if (parent == undefined) {
+        parent = {
+          id,
+          title: "",
+          fieldName: "",
+          depth: 0,
+          kind: "missing",
+          count: 0,
+          children: [],
+          events: [],
+        };
+        nodes.set(id, parent);
+        roots.push(parent);
+      }
+      parent.count++;
+    }
+    parent.events.push(event);
   }
   const rank = { value: 0, unknown: 1, missing: 2, ungrouped: 0 };
   const sort = (tracks: MomentTrack[]) => {
@@ -198,9 +223,7 @@ export function layoutMomentTracks({
       events = events.map((entry) => overrides.get(entry.event.name) ?? entry);
     }
     const layout =
-      track.children.length === 0 && !collapsed
-        ? getCachedEventLaneLayout({ events, viewport })
-        : undefined;
+      events.length > 0 && !collapsed ? getCachedEventLaneLayout({ events, viewport }) : undefined;
     const lanes = Math.max(1, layout?.laneCount ?? 0);
     rows.push({ track, lane: laneCount, laneCount: lanes, collapsed });
     if (layout) {
