@@ -79,8 +79,6 @@ export const general = {
   timelineHeight: "Timeline height",
   timelineControls: "Timeline controls",
   timelineMoreTools: "More timeline tools",
-  timelineTracks: "Tracks",
-  timelineFiles: "Files",
   playbackTime: "Current playback time",
   timeDisplayFormat: "Time display format",
   dataSourceInfo: "Data source info",

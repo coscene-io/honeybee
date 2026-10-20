@@ -81,8 +81,6 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   timelineHeight: "时间轴高度",
   timelineControls: "时间轴控制",
   timelineMoreTools: "更多时间轴工具",
-  timelineTracks: "轨道",
-  timelineFiles: "文件",
   playbackTime: "当前播放时间",
   timeDisplayFormat: "时间显示格式",
   dataSourceInfo: "数据源信息",

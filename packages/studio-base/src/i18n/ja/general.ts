@@ -26,8 +26,6 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   timelineHeight: "タイムラインの高さ",
   timelineControls: "タイムライン操作",
   timelineMoreTools: "その他のタイムラインツール",
-  timelineTracks: "トラック",
-  timelineFiles: "ファイル",
   playbackTime: "現在の再生時刻",
   timeDisplayFormat: "時刻表示形式",
   dataSourceInfo: "データソース情報",

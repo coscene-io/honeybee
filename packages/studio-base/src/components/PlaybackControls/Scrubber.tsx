@@ -183,22 +183,12 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
   },
   trackHeader: {
-    alignItems: "center",
     backgroundColor: theme.palette.background.paper,
     borderBottom: `1px solid ${theme.palette.divider}`,
-    color: theme.palette.text.secondary,
-    display: "flex",
-    fontSize: 11,
-    fontWeight: 600,
     height: TIMELINE_BAG_OVERLAY_TOP_PX,
-    paddingInline: 12,
   },
   fileHeader: {
-    color: theme.palette.text.secondary,
-    fontSize: 11,
     height: BAG_OVERLAY_HEIGHT_PX,
-    lineHeight: `${BAG_OVERLAY_HEIGHT_PX}px`,
-    paddingInline: 12,
   },
   trackList: { position: "absolute", left: 0, right: 0, top: EVENT_LANE_LAYER_TOP_PX },
   trackResizer: {
@@ -1299,8 +1289,8 @@ export default function Scrubber(props: Props): React.JSX.Element {
               data-moment-track-controls
               style={{ width: trackColumnWidth }}
             >
-              <div className={classes.trackHeader}>{t("timelineTracks")}</div>
-              <div className={classes.fileHeader}>{t("timelineFiles")}</div>
+              <div aria-hidden className={classes.trackHeader} />
+              <div aria-hidden className={classes.fileHeader} />
               <div className={classes.trackList}>
                 <MomentTrackList
                   layout={visibleTrackLayout}
