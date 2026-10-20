@@ -380,7 +380,7 @@ function dispatchCreateMomentShortcut(): void {
 function EventIcon(): React.JSX.Element {
   return (
     <span aria-hidden="true" data-testid="event-create-icon" style={{ display: "inline-flex" }}>
-      <EventCreateInactiveIcon focusable="false" />
+      <EventCreateInactiveIcon focusable="false" viewBox="0 0 16 16" />
     </span>
   );
 }
@@ -463,7 +463,7 @@ function RollingEditIcon({ active }: { active: boolean }): React.JSX.Element {
       data-testid={active ? "rolling-edit-icon-active" : "rolling-edit-icon-inactive"}
       style={{ display: "inline-flex" }}
     >
-      <Icon focusable="false" viewBox="0 0 24 24" />
+      <Icon focusable="false" viewBox="0 0 16 16" />
     </span>
   );
 }
