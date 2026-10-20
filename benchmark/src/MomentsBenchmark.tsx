@@ -22,6 +22,7 @@ import PlaybackControls from "@foxglove/studio-base/components/PlaybackControls"
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import {
   useEvents,
   type TimelinePositionedEvent,
@@ -95,6 +96,17 @@ function Seed({
     };
   }, [groupingSchema, setCustomFieldSchema]);
   return ReactNull;
+}
+
+function BenchmarkDialogs(): React.JSX.Element {
+  const dialogs = useDialogs((store) => store.dialogs);
+  return (
+    <>
+      {Array.from(dialogs.entries()).map(([key, dialog]) => (
+        <div key={key}>{dialog}</div>
+      ))}
+    </>
+  );
 }
 
 function BenchmarkMomentsList(): React.JSX.Element {
@@ -187,6 +199,7 @@ function MomentsBenchmark(): React.JSX.Element {
             <CoreDataProvider>
               <WorkspaceContextProvider disablePersistence>
                 <DialogsProvider>
+                  <BenchmarkDialogs />
                   <MockMessagePipelineProvider
                     startTime={origin}
                     endTime={end}

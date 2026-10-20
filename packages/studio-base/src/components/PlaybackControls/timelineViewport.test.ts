@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
+  focusTimelineViewport,
   clientXToTime,
   getTimelineViewportZoomPercent,
   getViewportScrollMetrics,
@@ -161,5 +162,25 @@ describe("timelineViewport", () => {
       right: "calc(100% - 50% - 1px)",
     });
     expect(timelineRangeToStyle(50, 60, viewport)).toBeUndefined();
+  });
+});
+
+describe("focusTimelineViewport", () => {
+  it("fits a moment with padding and keeps zero-duration moments visible", () => {
+    expect(focusTimelineViewport(makeTimelineViewport(0, 100), 40, 50)).toEqual({
+      totalStartSec: 0,
+      totalEndSec: 100,
+      visibleStartSec: 38,
+      visibleEndSec: 52,
+    });
+    const point = focusTimelineViewport(makeTimelineViewport(0, 100), 0, 0);
+    expect(point.visibleStartSec).toBe(0);
+    expect(point.visibleEndSec).toBeGreaterThan(0);
+  });
+  it("rejects invalid ranges and clamps to recording bounds", () => {
+    const viewport = makeTimelineViewport(0, 100);
+    expect(focusTimelineViewport(viewport, NaN, 4)).toBe(viewport);
+    expect(focusTimelineViewport(viewport, 4, 3)).toBe(viewport);
+    expect(focusTimelineViewport(viewport, 98, 100).visibleEndSec).toBe(100);
   });
 });

@@ -15,7 +15,9 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
@@ -23,6 +25,7 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
@@ -58,6 +61,9 @@ let mockSliderProps:
       onHoverOut?: () => void;
     }
   | undefined;
+let mockEventsOverlayProps:
+  | React.ComponentProps<typeof import("./EventsOverlay").EventsOverlay>
+  | undefined;
 let mockRenderPortalledEventsOverlay = false;
 let mockShortcutsHelpButtonRenderCount = 0;
 
@@ -65,7 +71,10 @@ jest.mock("./EventsOverlay", () => {
   const { createPortal } = jest.requireActual<typeof import("react-dom")>("react-dom");
 
   return {
-    EventsOverlay: function MockEventsOverlay(): React.JSX.Element {
+    EventsOverlay: function MockEventsOverlay(
+      props: NonNullable<typeof mockEventsOverlayProps>,
+    ): React.JSX.Element {
+      mockEventsOverlayProps = props;
       if (mockRenderPortalledEventsOverlay) {
         return createPortal(
           <input aria-label="Portalled event form input" />,
@@ -193,6 +202,7 @@ function Wrapper({
           value={
             consoleApi ??
             ({
+              deleteEvent: { permission: () => false },
               createEvent: { permission: () => createEventAllowed },
               updateEvent: { permission: () => updateEventAllowed },
             } as never)
@@ -551,6 +561,7 @@ describe("<Scrubber />", () => {
       <Wrapper
         consoleApi={
           {
+            deleteEvent: { permission: () => false },
             createEvent: { permission: createPermission },
             updateEvent: { permission: updatePermission },
           } as never
@@ -884,4 +895,65 @@ describe("<Scrubber />", () => {
     });
     expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
   });
+});
+
+it("focuses the Moment viewport without moving playback and fit restores the full recording", () => {
+  const seek = jest.fn();
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={seek} />
+    </Wrapper>,
+  );
+  act(() => {
+    mockEventsOverlayProps?.onFocusEvent?.({
+      startTime: { sec: 4, nsec: 0 },
+      endTime: { sec: 6, nsec: 0 },
+    } as never);
+  });
+  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(3.5);
+  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
+  expect(seek).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Zoom to fit" }));
+  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(0);
+  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(10);
+});
+
+function SidebarFocusFixture(): React.JSX.Element {
+  const setEvents = useEvents((store) => store.setEvents);
+  const requestFocus = useTimelineInteractionState((store) => store.setEventToFocus);
+  const pending = useTimelineInteractionState((store) => store.eventToFocus);
+  return (
+    <>
+      <button
+        onClick={() => {
+          const event = {
+            ...makeMomentFixture(1, "short", { sec: 0, nsec: 0 })[0]!,
+            startTime: { sec: 4, nsec: 0 },
+            endTime: { sec: 6, nsec: 0 },
+            secondsSinceStart: 4,
+          };
+          setEvents({ loading: false, value: [event] });
+          requestFocus(event);
+        }}
+      >
+        Focus sidebar fixture
+      </button>
+      <span data-testid="pending-sidebar-focus">{pending?.event.name ?? "none"}</span>
+    </>
+  );
+}
+
+it("consumes a sidebar focus request through the shared store without seeking", () => {
+  const seek = jest.fn();
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={seek} />
+      <SidebarFocusFixture />
+    </Wrapper>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Focus sidebar fixture" }));
+  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(3.5);
+  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
+  expect(screen.getByTestId("pending-sidebar-focus").textContent).toBe("none");
+  expect(seek).not.toHaveBeenCalled();
 });

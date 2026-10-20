@@ -8,6 +8,11 @@
 import { TypeOptions } from "i18next";
 
 export const event: Partial<TypeOptions["resources"]["event"]> = {
+  viewMoment: "查看一刻",
+  focusMoment: "聚焦此一刻",
+  alignStartToCursor: "起点对齐到游标",
+  alignEndToCursor: "终点对齐到游标",
+  close: "关闭",
   addPhoto: "添加照片",
   cancel: "取消",
   copiedMomentToClipboard: "已复制一刻到剪贴板",

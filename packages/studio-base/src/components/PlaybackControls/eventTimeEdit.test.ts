@@ -11,6 +11,7 @@ import { DeviceSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
 
 import {
+  alignEventBoundaryToCursor,
   buildEventTimeUpdate,
   calculateBodyDragRange,
   calculateResizeRange,
@@ -86,5 +87,32 @@ describe("eventTimeEdit", () => {
 
     expect(update.event.device).toBeUndefined();
     expect(update.updateMask.paths).toEqual(["trigger_time", "duration_nanos", "duration"]);
+  });
+});
+
+describe("alignEventBoundaryToCursor", () => {
+  const viewport = { ...makeTimelineViewport(0, 10), visibleStartSec: 2, visibleEndSec: 8 };
+  it.each([undefined, NaN, Infinity, -1, 1, 9, 11])(
+    "rejects invisible or invalid cursor %s",
+    (cursorSec) => {
+      expect(
+        alignEventBoundaryToCursor({
+          cursorSec,
+          edge: "start",
+          range: { startSec: 3, endSec: 6 },
+          viewport,
+        }),
+      ).toBeUndefined();
+    },
+  );
+  it.each([
+    ["start", 6],
+    ["start", 7],
+    ["end", 3],
+    ["end", 2],
+  ] as const)("rejects a nonpositive result for %s at %s", (edge, cursorSec) => {
+    expect(
+      alignEventBoundaryToCursor({ cursorSec, edge, range: { startSec: 3, endSec: 6 }, viewport }),
+    ).toBeUndefined();
   });
 });

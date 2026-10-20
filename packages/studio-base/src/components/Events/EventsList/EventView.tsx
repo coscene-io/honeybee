@@ -10,11 +10,13 @@ import { timestampDate, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { DiagnosisRule } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/diagnosis_rule_pb";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import EditIcon from "@mui/icons-material/EditOutlined";
+import FitScreenIcon from "@mui/icons-material/FitScreen";
 import RepeatOneOutlinedIcon from "@mui/icons-material/RepeatOneOutlined";
 import ShareIcon from "@mui/icons-material/ShareOutlined";
 import TimerOutlinedIcon from "@mui/icons-material/TimerOutlined";
-import { alpha, Stack, IconButton, Link, Typography } from "@mui/material";
-import { useCallback, useEffect, useRef, memo, Fragment, useMemo } from "react";
+import VisibilityIcon from "@mui/icons-material/VisibilityOutlined";
+import { alpha, Stack, IconButton, Link, Typography, type PopoverPosition } from "@mui/material";
+import { useCallback, useEffect, useRef, memo, Fragment, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn } from "react-use";
@@ -23,6 +25,7 @@ import { makeStyles } from "tss-react/mui";
 import Logger from "@foxglove/log";
 import { toRFC3339String, fromDate, areEqual } from "@foxglove/rostime";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
+import { EventDetails } from "@foxglove/studio-base/components/Events/EventDetails";
 import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
 import {
   DOUBTFUL_MOMENT_COLOR,
@@ -41,6 +44,7 @@ import {
   useEvents,
   ToModifyEvent,
 } from "@foxglove/studio-base/context/EventsContext";
+import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
@@ -157,6 +161,12 @@ function EventViewComponent(params: {
   const recordIsArchived = useMemo(() => record.value?.isArchived, [record]);
 
   const seek = useMessagePipeline(selectSeek);
+  const focusEvent = useTimelineInteractionState((store) => store.setEventToFocus);
+  const [viewPosition, setViewPosition] = useState<PopoverPosition>();
+  const canEditEvent =
+    consoleApi.updateEvent.permission() &&
+    projectIsArchived === false &&
+    recordIsArchived === false;
 
   const scrollRef = useRef<HTMLDivElement>(ReactNull);
 
@@ -230,12 +240,10 @@ function EventViewComponent(params: {
       duration: durationToSeconds(event.event.duration),
       durationUnit: "sec",
       description: event.event.description,
-      metadataEntries: metadataMap.map(([key, value]: string[]) => {
-        return {
-          key: key ?? "",
-          value: value ?? "",
-        };
-      }),
+      metadataEntries: Object.entries(event.event.customizedFields).map(([key, value]) => ({
+        key,
+        value,
+      })),
       enabledCreateNewTask: false,
       fileName: "",
       imgUrl: event.imgUrl,
@@ -330,6 +338,15 @@ function EventViewComponent(params: {
         <Stack width="1px" flex="1" className={classes.line} />
       </Stack>
 
+      {viewPosition && (
+        <EventDetails
+          event={event}
+          anchorPosition={viewPosition}
+          onClose={() => {
+            setViewPosition(undefined);
+          }}
+        />
+      )}
       <Stack flex={1} gap={1} width="0">
         <div className={classes.eventTitle}>
           <div>
@@ -351,13 +368,29 @@ function EventViewComponent(params: {
               <RepeatOneOutlinedIcon fontSize="small" />
             </IconButton>
 
-            {consoleApi.updateEvent.permission() &&
-              projectIsArchived === false &&
-              recordIsArchived === false && (
-                <IconButton size="small" onClick={handleEditEvent} title={t("editMoment")}>
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              )}
+            <IconButton
+              size="small"
+              title={t("focusMoment")}
+              onClick={() => {
+                focusEvent(event);
+              }}
+            >
+              <FitScreenIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              title={t(canEditEvent ? "editMoment" : "viewMoment")}
+              onClick={(click) => {
+                if (canEditEvent) {
+                  handleEditEvent();
+                } else {
+                  const rect = click.currentTarget.getBoundingClientRect();
+                  setViewPosition({ top: rect.bottom, left: rect.left });
+                }
+              }}
+            >
+              {canEditEvent ? <EditIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+            </IconButton>
 
             <IconButton size="small" onClick={handleShareEvent} title={t("share")}>
               <ShareIcon fontSize="small" />

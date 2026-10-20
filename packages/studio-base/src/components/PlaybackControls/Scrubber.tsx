@@ -38,12 +38,16 @@ import {
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
-import { useEvents } from "@foxglove/studio-base/context/EventsContext";
+import {
+  useEvents,
+  type TimelinePositionedEvent,
+} from "@foxglove/studio-base/context/EventsContext";
 import {
   selectIsKeyframeSearchActive,
   usePlaybackInteractionState,
 } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import {
+  useTimelineInteractionState,
   useClearHoverValue,
   useSetHoverValue,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
@@ -83,6 +87,7 @@ import {
 } from "./momentTracks";
 import { isTimelineKeyboardEvent } from "./timelineKeyboardFocus";
 import {
+  focusTimelineViewport,
   clampTimelineViewport,
   clientXToTime,
   getTimelineViewportZoomPercent,
@@ -537,6 +542,34 @@ export default function Scrubber(props: Props): React.JSX.Element {
   useLayoutEffect(() => {
     setViewport(defaultViewport);
   }, [defaultViewport, setViewport]);
+
+  const focusEvent = useCallback(
+    (event: Pick<TimelinePositionedEvent, "startTime" | "endTime">) => {
+      if (defaultViewport == undefined || startTime == undefined) {
+        return;
+      }
+      setViewport((old) =>
+        focusTimelineViewport(
+          old ?? defaultViewport,
+          timelineDurationSeconds(startTime, event.startTime),
+          timelineDurationSeconds(startTime, event.endTime),
+        ),
+      );
+    },
+    [defaultViewport, setViewport, startTime],
+  );
+
+  const eventToFocus = useTimelineInteractionState((store) => store.eventToFocus);
+  const setEventToFocus = useTimelineInteractionState((store) => store.setEventToFocus);
+  useEffect(() => {
+    if (eventToFocus == undefined || defaultViewport == undefined || startTime == undefined) {
+      return;
+    }
+    if (visibleEvents.some((event) => event.event.name === eventToFocus.event.name)) {
+      focusEvent(eventToFocus);
+    }
+    setEventToFocus(undefined);
+  }, [defaultViewport, eventToFocus, focusEvent, setEventToFocus, startTime, visibleEvents]);
 
   const resolvedViewport = viewport ?? defaultViewport;
   const latestViewport = useLatest(resolvedViewport);
@@ -1042,6 +1075,15 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
   );
 
+  const canDeleteEvents = useMemo(
+    () =>
+      enableList.event === "ENABLE" &&
+      consoleApi.deleteEvent.permission() &&
+      project.value?.isArchived === false &&
+      record.value?.isArchived === false,
+    [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
+  );
+
   const canWriteEvents = useMemo(
     () =>
       enableList.event === "ENABLE" &&
@@ -1371,6 +1413,8 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 <EventsOverlay
                   componentId={hoverComponentId}
                   canWriteEvents={canWriteEvents}
+                  canDeleteEvents={canDeleteEvents}
+                  onFocusEvent={focusEvent}
                   isDragging={isDragging}
                   eventContextMenuRequest={eventContextMenuRequest}
                   onEventContextMenuHandled={handleEventContextMenuHandled}

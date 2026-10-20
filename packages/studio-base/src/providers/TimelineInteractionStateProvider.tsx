@@ -30,6 +30,10 @@ export function createTimelineInteractionStateStore(): StoreApi<TimelineInteract
       hoveredBag: undefined,
       hoverValue: undefined,
       loopedEvent: undefined,
+      eventToFocus: undefined,
+      setEventToFocus: (eventToFocus) => {
+        set({ eventToFocus });
+      },
 
       clearHoverValue: (componentId: string) => {
         set((store) => ({

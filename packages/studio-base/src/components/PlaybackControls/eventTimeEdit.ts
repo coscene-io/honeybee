@@ -29,6 +29,36 @@ export type EventTimeRange = {
   startSec: number;
 };
 
+export function alignEventBoundaryToCursor({
+  cursorSec,
+  edge,
+  range,
+  viewport,
+}: {
+  cursorSec: number | undefined;
+  edge: EventResizeEdge;
+  range: EventTimeRange;
+  viewport: TimelineViewport;
+}): EventTimeRange | undefined {
+  if (
+    cursorSec == undefined ||
+    !Number.isFinite(cursorSec) ||
+    cursorSec < viewport.visibleStartSec ||
+    cursorSec > viewport.visibleEndSec ||
+    cursorSec < viewport.totalStartSec ||
+    cursorSec > viewport.totalEndSec
+  ) {
+    return undefined;
+  }
+  const next =
+    edge === "start" ? { ...range, startSec: cursorSec } : { ...range, endSec: cursorSec };
+  return next.startSec >= viewport.totalStartSec &&
+    next.endSec <= viewport.totalEndSec &&
+    next.startSec < next.endSec
+    ? next
+    : undefined;
+}
+
 export type BodyDragAnchor = {
   pointerToCenterOffset: number;
   sourceEndSec: number;
