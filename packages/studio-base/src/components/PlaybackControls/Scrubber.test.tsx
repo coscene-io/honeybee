@@ -243,9 +243,9 @@ describe("<Scrubber />", () => {
     await i18n.changeLanguage("en");
   });
 
-  it("keeps the first moment lane at least 4px below the bag file bar", () => {
+  it("aligns group names and moment lanes directly below the compact ruler", () => {
     render(
-      <Wrapper>
+      <Wrapper eventEnabled>
         <Scrubber onSeek={jest.fn()} />
       </Wrapper>,
     );
@@ -254,7 +254,10 @@ describe("<Scrubber />", () => {
       getComputedStyle(screen.getByTestId("event-lane-layer")).top,
     );
 
-    expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
+    expect(eventLaneLayerTop).toBe(18);
+    const trackList = screen.getByTestId("moment-track-list").parentElement!;
+    expect(Number.parseFloat(getComputedStyle(trackList).top)).toBe(eventLaneLayerTop);
+    expect(trackList.parentElement?.firstElementChild).toBe(trackList);
   });
 
   it.each(["blur", "pointercancel", "pointerup"])(
@@ -421,7 +424,7 @@ describe("<Scrubber />", () => {
     );
 
     const timelineContent = screen.getByTestId("timeline-content");
-    expect(timelineContent.style.minHeight).toBe("30px");
+    expect(timelineContent.style.minHeight).toBe("18px");
     expect(
       getComputedStyle(timelineContent.closest("[data-timeline-scroll-container]")!).overflowY,
     ).toBe("auto");
@@ -435,7 +438,7 @@ describe("<Scrubber />", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("62px");
+      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("46px");
     });
   });
 

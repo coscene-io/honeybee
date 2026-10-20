@@ -10,15 +10,14 @@ export const TIMELINE_MIN_HEIGHT_PX = 126;
 
 export const TIMELINE_RULER_HEIGHT_PX = 14;
 export const TIMELINE_PROGRESS_HEIGHT_PX = 4;
-export const BAG_OVERLAY_HEIGHT_PX = 12;
-export const TIMELINE_BAG_TO_EVENT_GAP_PX = 4;
+export const BAG_OVERLAY_HEIGHT_PX = TIMELINE_PROGRESS_HEIGHT_PX;
 export const EVENT_LANE_HEIGHT_PX = 28;
 export const TIMELINE_SCROLLBAR_HEIGHT_PX = 12;
 
-export const TIMELINE_BAG_OVERLAY_TOP_PX = TIMELINE_RULER_HEIGHT_PX + TIMELINE_PROGRESS_HEIGHT_PX;
+// File ranges share the progress strip instead of reserving a separate header row.
+export const TIMELINE_BAG_OVERLAY_TOP_PX = TIMELINE_RULER_HEIGHT_PX;
 
-export const EVENT_LANE_LAYER_TOP_PX =
-  TIMELINE_BAG_OVERLAY_TOP_PX + BAG_OVERLAY_HEIGHT_PX + TIMELINE_BAG_TO_EVENT_GAP_PX;
+export const EVENT_LANE_LAYER_TOP_PX = TIMELINE_RULER_HEIGHT_PX + TIMELINE_PROGRESS_HEIGHT_PX;
 
 export function getTimelineContentHeight({
   eventLaneCount,

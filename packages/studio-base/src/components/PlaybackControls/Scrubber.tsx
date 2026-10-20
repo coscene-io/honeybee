@@ -187,14 +187,6 @@ const useStyles = makeStyles()((theme) => ({
     borderRight: `1px solid ${theme.palette.divider}`,
     backgroundColor: theme.palette.background.paper,
   },
-  trackHeader: {
-    backgroundColor: theme.palette.background.paper,
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    height: TIMELINE_BAG_OVERLAY_TOP_PX,
-  },
-  fileHeader: {
-    height: BAG_OVERLAY_HEIGHT_PX,
-  },
   trackList: { position: "absolute", left: 0, right: 0, top: EVENT_LANE_LAYER_TOP_PX },
   trackResizer: {
     position: "absolute",
@@ -1331,8 +1323,6 @@ export default function Scrubber(props: Props): React.JSX.Element {
               data-moment-track-controls
               style={{ width: trackColumnWidth }}
             >
-              <div aria-hidden className={classes.trackHeader} />
-              <div aria-hidden className={classes.fileHeader} />
               <div className={classes.trackList}>
                 <MomentTrackList
                   layout={visibleTrackLayout}
@@ -1381,7 +1371,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
                 position="absolute"
                 flex="auto"
                 fullWidth
-                style={{ height: TIMELINE_BAG_OVERLAY_TOP_PX, top: 0 }}
+                style={{ height: EVENT_LANE_LAYER_TOP_PX, top: 0 }}
               >
                 <ProgressPlot loading={loading} viewport={resolvedViewport} />
               </Stack>
