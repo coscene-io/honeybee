@@ -113,7 +113,9 @@ describe("SeekStepControls", () => {
         </AppConfigurationContext.Provider>
       </ThemeProvider>,
     );
-    expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Step size" }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Step size" }).disabled).toBe(
+      true,
+    );
   });
 
   it.each([
