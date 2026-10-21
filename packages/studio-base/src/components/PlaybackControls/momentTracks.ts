@@ -58,6 +58,10 @@ export function isMomentTrackCollapsed(track: MomentTrack, view: MomentTrackView
   return track.children.length > 0 && view.collapsed?.[track.id] === true;
 }
 
+export function isMomentTrackHidden(track: MomentTrack, view: MomentTrackView): boolean {
+  return track.children.length === 0 && view.hidden?.[track.id] === true;
+}
+
 // Explicit UTF-16 order is stable across browser languages and ICU versions.
 function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -252,7 +256,7 @@ export function layoutMomentTracks({
   let laneCount = 0;
   const visit = (track: MomentTrack) => {
     const collapsed = isMomentTrackCollapsed(track, view);
-    const hidden = track.children.length === 0 && view.hidden?.[track.id] === true;
+    const hidden = isMomentTrackHidden(track, view);
     let events = track.events;
     if (overrides && events.some((entry) => overrides.has(entry.event.name))) {
       events = events.map((entry) => overrides.get(entry.event.name) ?? entry);
