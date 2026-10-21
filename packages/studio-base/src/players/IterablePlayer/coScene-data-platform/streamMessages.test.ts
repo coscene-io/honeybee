@@ -151,65 +151,88 @@ describe("streamMessages", () => {
     },
   );
 
-  it("yields within a large mcap chunk when the batch size budget is reached", async () => {
-    const records = [
-      {
-        type: "Schema",
-        id: 1,
-        name: "JsonMessage",
-        encoding: "jsonschema",
-        data: new Uint8Array([1]),
-      },
-      {
-        type: "Channel",
-        id: 1,
-        topic: "/json",
-        schemaId: 1,
-        messageEncoding: "json",
-      },
-      ...Array.from({ length: 160 }, (_, index) => ({
-        type: "Message",
-        channelId: 1,
-        logTime: BigInt(index),
-        data: new Uint8Array([index]),
-      })),
-      { type: "DataEnd" },
-    ];
-    const nextRecord = jest.fn(() => records.shift());
-    mockMcapStreamReader.mockImplementation(
-      () =>
-        ({
-          append: jest.fn(),
-          nextRecord,
-          done: jest.fn(() => true),
-        }) as unknown as InstanceType<typeof McapStreamReader>,
-    );
-    const getStreams = jest.fn(async () => response(200, { body: streamBody() }));
+  it.each([
+    { budget: "size", millisecondsPerMessage: 0, expectedBatchSizes: [128, 32] },
+    { budget: "time", millisecondsPerMessage: 1, expectedBatchSizes: [30, 32, 32, 32, 32, 2] },
+  ])(
+    "yields within a large mcap chunk when the $budget budget is reached",
+    async ({ millisecondsPerMessage, expectedBatchSizes }) => {
+      // Keep batch boundaries independent of the runner's speed and concurrent test load.
+      let now = 0;
+      jest.spyOn(performance, "now").mockImplementation(() => now);
+      mockParseChannel.mockReturnValue({
+        deserialize: (data: Uint8Array) => {
+          now += millisecondsPerMessage;
+          return { size: data.byteLength };
+        },
+      } as ReturnType<typeof parseChannel>);
+      const records = [
+        {
+          type: "Schema",
+          id: 1,
+          name: "JsonMessage",
+          encoding: "jsonschema",
+          data: new Uint8Array([1]),
+        },
+        {
+          type: "Channel",
+          id: 1,
+          topic: "/json",
+          schemaId: 1,
+          messageEncoding: "json",
+        },
+        ...Array.from({ length: 160 }, (_, index) => ({
+          type: "Message",
+          channelId: 1,
+          logTime: BigInt(index),
+          data: new Uint8Array([index]),
+        })),
+        { type: "DataEnd" },
+      ];
+      const nextRecord = jest.fn(() => records.shift());
+      mockMcapStreamReader.mockImplementation(
+        () =>
+          ({
+            append: jest.fn(),
+            nextRecord,
+            done: jest.fn(() => true),
+          }) as unknown as InstanceType<typeof McapStreamReader>,
+      );
+      const getStreams = jest.fn(async () => response(200, { body: streamBody() }));
 
-    const iterator = streamMessages({
-      api: { getStreams },
-      parsedChannelsByTopic: new Map(),
-      params: {
-        start: { sec: 0, nsec: 0 },
-        end: { sec: 1, nsec: 0 },
-        id: "record-id",
-        projectName: "warehouses/w/projects/p",
-        topics: ["/json"],
-      },
-    });
+      const iterator = streamMessages({
+        api: { getStreams },
+        parsedChannelsByTopic: new Map(),
+        params: {
+          start: { sec: 0, nsec: 0 },
+          end: { sec: 1, nsec: 0 },
+          id: "record-id",
+          projectName: "warehouses/w/projects/p",
+          topics: ["/json"],
+        },
+      });
 
-    const firstResult = await iterator.next();
-    expect(firstResult.done).toBe(false);
-    if (firstResult.done !== false) {
-      throw new Error("Expected the first stream result to contain messages");
-    }
-    expect(firstResult.value).toHaveLength(128);
+      const firstResult = await iterator.next();
+      expect(firstResult.done).toBe(false);
+      if (firstResult.done !== false) {
+        throw new Error("Expected the first stream result to contain messages");
+      }
+      expect(firstResult.value).toHaveLength(expectedBatchSizes[0]!);
+      // Two records define the schema/channel; later messages must still be unread at the yield.
+      expect(nextRecord).toHaveBeenCalledTimes(expectedBatchSizes[0]! + 2);
 
-    const secondResult = await iterator.next();
-    expect(secondResult.done).toBe(false);
-    if (secondResult.done !== false) {
-      throw new Error("Expected the second stream result to contain messages");
-    }
-    expect(secondResult.value).toHaveLength(32);
-  });
+      const batches = [firstResult.value];
+      for await (const batch of iterator) {
+        batches.push(batch);
+      }
+      expect(batches.map((batch) => batch.length)).toEqual(expectedBatchSizes);
+      expect(
+        batches
+          .flat()
+          .map((result) =>
+            result.type === "message-event" ? result.msgEvent.receiveTime.nsec : undefined,
+          ),
+      ).toEqual(Array.from({ length: 160 }, (_, index) => index));
+    },
+  );
 });
