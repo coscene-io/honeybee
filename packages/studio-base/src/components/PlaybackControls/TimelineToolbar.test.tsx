@@ -258,25 +258,26 @@ describe("TimelineToolbar", () => {
     const trigger = screen.getByRole("button", { name: "More timeline tools" });
     fireEvent.click(trigger);
     const more = screen.getByRole("dialog", { name: "More timeline tools" });
-    fireEvent.click(within(more).getByRole("button", { name: /Step size/ }));
+    const input = within(more).getByRole<HTMLInputElement>("textbox", { name: "Step size" });
+    fireEvent.focus(input);
     expect(onEditingChange).toHaveBeenLastCalledWith(true);
-    const input = within(more).getByRole("textbox");
     fireEvent.change(input, { target: { value: "0.25" } });
     fireEvent.keyDown(input, { key });
 
     expect(configuration.get(AppSetting.SEEK_STEP_MS)).toBe(expectedStep);
-    expect(document.activeElement).toBe(within(more).getByRole("button", { name: /Step size/ }));
+    expect(within(more).getByRole("textbox", { name: "Step size" })).toBe(input);
+    expect(input.value).toBe(String(expectedStep / 1000));
     expect(onEditingChange).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole("dialog", { name: "More timeline tools" })).toBeTruthy();
 
-    fireEvent.keyDown(more, { key: "Escape" });
+    fireEvent.keyDown(input, { key: "Escape" });
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "More timeline tools" })).toBeNull();
       expect(document.activeElement).toBe(trigger);
     });
     fireEvent.click(trigger);
-    expect(screen.getByRole("button", { name: /Step size/ }).textContent).toContain(
-      `${expectedStep / 1000} sec`,
+    expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Step size" }).value).toBe(
+      String(expectedStep / 1000),
     );
   });
 });

@@ -43,6 +43,8 @@ export const general = {
   pause: "Pause",
   play: "Play",
   seekForward: "Seek forward",
+  seekStep: "Step size",
+  seekStepHelp: "Step interval when paused",
   seekStepDescription: "Step size: Controls the forward/backward playback interval when paused",
   loopPlayback: "Loop playback",
   invalidSeekStep: "Seek step must be >= 1e-6s and <= 1 hour. Reset to 0.1 s.",
