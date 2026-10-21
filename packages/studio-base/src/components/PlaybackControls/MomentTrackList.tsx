@@ -7,6 +7,8 @@
 
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { alpha, IconButton, Tooltip } from "@mui/material";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +33,7 @@ const useStyles = makeStyles()((theme) => ({
     "&:hover": { backgroundColor: alpha(theme.palette.text.primary, 0.04) },
   },
   title: {
+    flex: 1,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -64,7 +67,7 @@ export function MomentTrackList({
     >
       {layout.rows
         .filter((row) => row.lane <= visible.last && row.lane + row.laneCount > visible.first)
-        .map(({ track, lane, laneCount, collapsed }) => {
+        .map(({ track, lane, laneCount, collapsed, hidden }) => {
           const title =
             track.kind === "ungrouped"
               ? t("moments")
@@ -84,6 +87,7 @@ export function MomentTrackList({
                 top: lane * EVENT_LANE_HEIGHT_PX,
                 height: laneCount * EVENT_LANE_HEIGHT_PX,
                 paddingLeft: track.depth * 12,
+                opacity: hidden ? 0.55 : 1,
               }}
             >
               {track.children.length > 0 ? (
@@ -112,6 +116,25 @@ export function MomentTrackList({
                 <span className={classes.title}>
                   {label} ({track.count})
                 </span>
+              </Tooltip>
+              <Tooltip title={t(hidden ? "showTrack" : "hideTrack", { name: label })}>
+                <IconButton
+                  size="small"
+                  className={classes.button}
+                  aria-label={t(hidden ? "showTrack" : "hideTrack", { name: label })}
+                  onClick={() => {
+                    onViewChange({
+                      ...view,
+                      hidden: { ...view.hidden, [track.id]: !hidden },
+                    });
+                  }}
+                >
+                  {hidden ? (
+                    <VisibilityOffIcon fontSize="inherit" />
+                  ) : (
+                    <VisibilityIcon fontSize="inherit" />
+                  )}
+                </IconButton>
               </Tooltip>
             </div>
           );

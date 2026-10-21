@@ -103,6 +103,8 @@ export const event = {
   ungroupedValue: "Not filled",
   unknownOption: "Unknown option: {{value}}",
   toggleGroup: "Expand or collapse {{name}}",
+  hideTrack: "Hide track {{name}}",
+  showTrack: "Show track {{name}}",
   trackListWidth: "Track list width",
   doubtful: "Doubtful",
 };

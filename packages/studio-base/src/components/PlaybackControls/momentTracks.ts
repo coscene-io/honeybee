@@ -29,7 +29,11 @@ export type MomentTrack = {
   /** Moments attached directly to this group, even when it also has children. */
   events: TimelinePositionedEvent[];
 };
-export type MomentTrackView = { collapsed?: Record<string, boolean> };
+export type MomentTrackView = {
+  collapsed?: Record<string, boolean>;
+  /** Hiding a group suppresses its entire subtree without changing child preferences. */
+  hidden?: Record<string, boolean>;
+};
 export type MomentTimelineSettings = {
   doubtfulOnly?: boolean;
   labelWidth: number;
@@ -45,6 +49,7 @@ export type MomentTrackRow = {
   lane: number;
   laneCount: number;
   collapsed: boolean;
+  hidden: boolean;
 };
 export type MomentTrackLayout = EventLaneLayout & { rows: MomentTrackRow[] };
 
@@ -247,21 +252,24 @@ export function layoutMomentTracks({
   let laneCount = 0;
   const visit = (track: MomentTrack) => {
     const collapsed = isMomentTrackCollapsed(track, view);
+    const hidden = view.hidden?.[track.id] === true;
     let events = track.events;
     if (overrides && events.some((entry) => overrides.has(entry.event.name))) {
       events = events.map((entry) => overrides.get(entry.event.name) ?? entry);
     }
     const layout =
-      events.length > 0 && !collapsed ? getCachedEventLaneLayout({ events, viewport }) : undefined;
+      events.length > 0 && !collapsed && !hidden
+        ? getCachedEventLaneLayout({ events, viewport })
+        : undefined;
     const lanes = Math.max(1, layout?.laneCount ?? 0);
-    rows.push({ track, lane: laneCount, laneCount: lanes, collapsed });
+    rows.push({ track, lane: laneCount, laneCount: lanes, collapsed, hidden });
     if (layout) {
       for (const item of offsetItems(layout, laneCount)) {
         items.push(item);
       }
     }
     laneCount += lanes;
-    if (!collapsed) {
+    if (!collapsed && !hidden) {
       track.children.forEach(visit);
     }
   };

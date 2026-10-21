@@ -1020,3 +1020,24 @@ it("renders foreign-project Moments outside the active schema's groups", () => {
   );
   expect(screen.getAllByTestId("moment-track-title")).toHaveLength(2);
 });
+
+it("hides and restores a project track without seeking or removing its source Moments", () => {
+  const seek = jest.fn();
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={seek} />
+      <ProjectScopedTracksFixture />
+    </Wrapper>,
+  );
+  const tracks = mockEventsOverlayProps!.trackOptions!.tracks;
+  expect(mockEventsOverlayProps!.trackLayout!.items).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Hide track Alpha" }));
+  expect(mockEventsOverlayProps!.trackLayout!.items.map((item) => item.event.event.name)).toEqual([
+    "warehouses/one/projects/other/events/foreign",
+  ]);
+  expect(mockEventsOverlayProps!.trackOptions!.tracks).toBe(tracks);
+  expect(screen.getByText("Alpha (1)")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Show track Alpha" }));
+  expect(mockEventsOverlayProps!.trackLayout!.items).toHaveLength(2);
+  expect(seek).not.toHaveBeenCalled();
+});

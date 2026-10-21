@@ -350,6 +350,79 @@ describe("project Moment grouping", () => {
     expect(entries).toHaveLength(3);
   });
 
+  it("hides a parent's whole subtree and restores it without changing child visibility or data", () => {
+    const entries = [
+      event("parent-one", { a: "a" }),
+      event("parent-two", { a: "a" }),
+      event("child", { a: "a", b: "a" }),
+      event("grandchild", { a: "a", b: "a", c: "a" }),
+      event("sibling", { a: "b" }),
+    ];
+    const snapshot = structuredClone(entries);
+    const tracks = getMomentTracks(entries, schema(["a", "b", "c"]));
+    const parent = tracks[0]!;
+    const child = parent.children[0]!;
+    const childView = { hidden: { [child.id]: true } };
+    const before = layoutMomentTracks({ tracks, viewport, view: childView });
+    const hidden = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { hidden: { ...childView.hidden, [parent.id]: true } },
+      overrides: new Map([["parent-one", { ...entries[0]!, secondsSinceStart: 100 }]]),
+    });
+    expect(hidden.rows.map((row) => [row.track.id, row.lane, row.laneCount, row.hidden])).toEqual([
+      [parent.id, 0, 1, true],
+      [tracks[1]!.id, 1, 1, false],
+    ]);
+    expect(hidden.items.map((item) => item.event.event.name)).toEqual(["sibling"]);
+    expect(hidden.rows[0]!.track.count).toBe(4);
+    expect(layoutMomentTracks({ tracks, viewport, view: childView })).toEqual(before);
+    expect(before.items.map((item) => item.event.event.name)).toEqual([
+      "parent-one",
+      "parent-two",
+      "sibling",
+    ]);
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(5);
+    expect(entries).toEqual(snapshot);
+  });
+
+  it("preserves collapse separately when hiding and showing a parent", () => {
+    const tracks = getMomentTracks(
+      [event("parent", { a: "a" }), event("child", { a: "a", b: "a" })],
+      schema(["a", "b"]),
+    );
+    const id = tracks[0]!.id;
+    const view = { collapsed: { [id]: true }, hidden: { [id]: false } };
+    const result = layoutMomentTracks({ tracks, viewport, view });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ collapsed: true, hidden: false, laneCount: 1 });
+    expect(result.items).toHaveLength(0);
+  });
+
+  it.each([undefined, schema()])("hides ungrouped and unfilled leaf tracks (%s)", (current) => {
+    const tracks = getMomentTracks([event("one"), event("two")], current);
+    const result = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { hidden: { [tracks[0]!.id]: true } },
+    });
+    expect(result.items).toHaveLength(0);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ hidden: true, laneCount: 1 });
+    expect(result.rows[0]!.track.count).toBe(2);
+  });
+
+  it("retains a parent's hidden preference when filtering leaves it without children", () => {
+    const current = schema(["a", "b"]);
+    const parent = event("parent", { a: "a" });
+    const tracks = getMomentTracks([parent, event("child", { a: "a", b: "a" })], current);
+    const view = { hidden: { [tracks[0]!.id]: true } };
+    const filtered = getMomentTracks([parent], current);
+    const result = layoutMomentTracks({ tracks: filtered, viewport, view });
+    expect(result.items).toHaveLength(0);
+    expect(result.rows[0]).toMatchObject({ hidden: true, collapsed: false, laneCount: 1 });
+  });
+
   it.each([undefined, schema()])(
     "ignores saved collapse flags on the ungrouped or all-empty root (%s)",
     (current) => {
