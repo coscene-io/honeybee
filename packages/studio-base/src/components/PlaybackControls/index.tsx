@@ -398,7 +398,9 @@ export default function PlaybackControls(props: {
         if (
           event.target instanceof HTMLElement &&
           event.target.closest("button") &&
-          event.target.closest("[data-timeline-toolbar], [role=dialog]")
+          event.target.closest(
+            "[data-timeline-toolbar], [data-moment-track-controls], [role=dialog]",
+          )
         ) {
           return false;
         }

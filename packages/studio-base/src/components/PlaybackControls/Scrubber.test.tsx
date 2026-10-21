@@ -254,7 +254,7 @@ describe("<Scrubber />", () => {
       getComputedStyle(screen.getByTestId("event-lane-layer")).top,
     );
 
-    expect(eventLaneLayerTop).toBe(18);
+    expect(eventLaneLayerTop).toBe(20);
     const trackList = screen.getByTestId("moment-track-list").parentElement!;
     expect(Number.parseFloat(getComputedStyle(trackList).top)).toBe(eventLaneLayerTop);
     expect(trackList.parentElement?.firstElementChild).toBe(trackList);
@@ -424,7 +424,7 @@ describe("<Scrubber />", () => {
     );
 
     const timelineContent = screen.getByTestId("timeline-content");
-    expect(timelineContent.style.minHeight).toBe("18px");
+    expect(timelineContent.style.minHeight).toBe("20px");
     expect(
       getComputedStyle(timelineContent.closest("[data-timeline-scroll-container]")!).overflowY,
     ).toBe("auto");
@@ -438,7 +438,7 @@ describe("<Scrubber />", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("46px");
+      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("48px");
     });
   });
 

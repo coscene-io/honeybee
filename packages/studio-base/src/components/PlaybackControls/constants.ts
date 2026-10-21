@@ -8,7 +8,7 @@
 /** Minimum height (px) of the bottom timeline / playback panel. */
 export const TIMELINE_MIN_HEIGHT_PX = 126;
 
-export const TIMELINE_RULER_HEIGHT_PX = 14;
+export const TIMELINE_RULER_HEIGHT_PX = 16;
 export const TIMELINE_PROGRESS_HEIGHT_PX = 4;
 export const BAG_OVERLAY_HEIGHT_PX = TIMELINE_PROGRESS_HEIGHT_PX;
 export const EVENT_LANE_HEIGHT_PX = 28;

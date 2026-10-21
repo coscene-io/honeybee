@@ -147,6 +147,41 @@ function Wrapper({
 }
 
 describe("<PlaybackControls />", () => {
+  it("leaves Space to the focused group button while retaining the global playback shortcut", () => {
+    const play = jest.fn();
+    const toggle = jest.fn();
+    render(
+      <Wrapper>
+        <PlaybackControls
+          isPlaying={false}
+          repeatEnabled={false}
+          getTimeInfo={() => ({})}
+          play={play}
+          pause={jest.fn()}
+          seek={jest.fn()}
+          enableRepeatPlayback={jest.fn()}
+        />
+        <div data-moment-track-controls>
+          <button onClick={toggle}>Toggle group</button>
+        </div>
+      </Wrapper>,
+    );
+    const button = screen.getByRole("button", { name: "Toggle group" });
+    const key = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: " ",
+      code: "Space",
+    });
+    fireEvent(button, key);
+    expect(key.defaultPrevented).toBe(false);
+    expect(play).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    expect(toggle).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: " ", code: "Space" });
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
   it("adjusts playback speed with keyboard shortcuts", () => {
     render(
       <Wrapper>

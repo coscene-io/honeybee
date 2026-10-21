@@ -21,6 +21,7 @@ import { makeStyles } from "tss-react/mui";
 import { CustomFieldValuesFields } from "@foxglove/studio-base/components/CustomFieldProperty/field/CustomFieldValuesFields";
 import {
   DOUBTFUL_MOMENT_COLOR,
+  DOUBTFUL_FIELD_KEY,
   isMomentDoubtful,
 } from "@foxglove/studio-base/components/Events/momentDoubtful";
 import {
@@ -78,7 +79,7 @@ export function EventDetails({
     [t("duration"), `${durationToSeconds(event.event.duration).toFixed(3)} s`],
     [t("description"), event.event.description],
     ...Object.entries(event.event.customizedFields)
-      .filter(([key]) => !key.startsWith("_"))
+      .filter(([key]) => key !== DOUBTFUL_FIELD_KEY)
       .map(([key, value]) => [key, value]),
   ];
   return (

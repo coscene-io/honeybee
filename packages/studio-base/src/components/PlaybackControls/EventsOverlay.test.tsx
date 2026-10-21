@@ -1486,7 +1486,7 @@ describe("Moment context menu migration", () => {
     event.event.description = "Public description";
     event.event.customizedFields = {
       visible: "public value",
-      _source: "private source",
+      _source: "user-provided source",
       _doubtful: "true",
     };
     const state = mount({ writable: false, deletable: false, events: [event] });
@@ -1500,7 +1500,9 @@ describe("Moment context menu migration", () => {
     expect(screen.getByRole("dialog", { name: "View Moment" })).toBeTruthy();
     expect(screen.getByText("Public description")).toBeTruthy();
     expect(screen.getByText("public value")).toBeTruthy();
-    expect(screen.queryByText("private source")).toBeNull();
+    expect(screen.getByText("_source")).toBeTruthy();
+    expect(screen.getByText("user-provided source")).toBeTruthy();
+    expect(screen.queryByText("_doubtful")).toBeNull();
     expect(state.eventsStore.getState().toModifyEvent).toBeUndefined();
     expect(state.seek).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });

@@ -21,7 +21,15 @@ import {
   iconButtonClasses,
   inputBaseClasses,
 } from "@mui/material";
-import { useState, useCallback, useMemo, useEffect, MouseEvent, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  MouseEvent,
+  useRef,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -272,6 +280,13 @@ export function UnconnectedPlaybackTimeDisplay({
   const [inputText, setInputText] = useState<string | undefined>(currentTimeString ?? undefined);
   const [hasError, setHasError] = useState<boolean>(false);
 
+  useLayoutEffect(() => {
+    if (isEditing) {
+      // Compact TOD expands on focus; select only after the complete value reaches the DOM.
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
+
   const commitInput = useCallback(() => {
     if (!editingRef.current) {
       return true;
@@ -362,7 +377,10 @@ export function UnconnectedPlaybackTimeDisplay({
               error={hasError}
               variant="filled"
               size="small"
-              onFocus={(e) => {
+              onFocus={(event) => {
+                if (event.target !== inputRef.current) {
+                  return;
+                }
                 onPause();
                 if (timeOutID.current != undefined) {
                   clearTimeout(timeOutID.current);
@@ -372,7 +390,6 @@ export function UnconnectedPlaybackTimeDisplay({
                 setHasError(false);
                 setIsEditing(true);
                 setInputText(currentTimeString);
-                e.target.select();
               }}
               onBlur={(e) => {
                 e.preventDefault();

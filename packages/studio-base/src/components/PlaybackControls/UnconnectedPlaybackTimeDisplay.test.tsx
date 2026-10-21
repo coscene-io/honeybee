@@ -48,12 +48,17 @@ describe("UnconnectedPlaybackTimeDisplay", () => {
     fireEvent.focus(input);
     expect(onPause).toHaveBeenCalledTimes(1);
     expect(input.value).toBe(`${formatDate(currentTime, "UTC")} ${formatTime(currentTime, "UTC")}`);
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(input.value.length);
     fireEvent.change(input, { target: { value: "1700000006.123456789" } });
+    expect(input.selectionStart).toBe(input.value.length);
     fireEvent.submit(input.closest("form")!);
     expect(onSeek).toHaveBeenCalledTimes(1);
     expect(onSeek).toHaveBeenCalledWith({ sec: 1700000006, nsec: 123456789 });
     expect(appTimeFormat.setTimeFormat).toHaveBeenCalledWith("SEC");
-    expect(screen.getByRole("button", { name: "Time display format" })).toBeTruthy();
+    const formatButton = screen.getByRole("button", { name: "Time display format" });
+    fireEvent.focus(formatButton);
+    expect(onPause).toHaveBeenCalledTimes(1);
   });
 });
 
