@@ -63,11 +63,16 @@ export function CustomFieldEnumEditor({
         disableClearable={allowClear === false}
         disableCloseOnSelect={true}
         onChange={(_, newValue) => {
-          customFieldValue.value = {
-            case: "enums",
-            value: create(EnumValueSchema, { ids: newValue.map((v) => v.value) }),
-          };
-          onChange(customFieldValue);
+          onChange({
+            ...customFieldValue,
+            value:
+              newValue.length > 0
+                ? {
+                    case: "enums",
+                    value: create(EnumValueSchema, { ids: newValue.map((v) => v.value) }),
+                  }
+                : { case: undefined },
+          });
         }}
         options={options}
         getOptionLabel={(option) => option.keyword}
@@ -111,13 +116,12 @@ export function CustomFieldEnumEditor({
       size="small"
       disableClearable={allowClear === false}
       onChange={(_, newValue) => {
-        if (newValue) {
-          customFieldValue.value = {
-            case: "enums",
-            value: create(EnumValueSchema, { id: newValue.value }),
-          };
-          onChange(customFieldValue);
-        }
+        onChange({
+          ...customFieldValue,
+          value: newValue
+            ? { case: "enums", value: create(EnumValueSchema, { id: newValue.value }) }
+            : { case: undefined },
+        });
       }}
       options={options}
       getOptionLabel={(option) => option.keyword}
@@ -127,7 +131,7 @@ export function CustomFieldEnumEditor({
           (option) =>
             customFieldValue.value.case === "enums" &&
             option.value === customFieldValue.value.value.id,
-        ) ?? undefined
+        ) ?? ReactNull
       }
       disabled={disabled}
       noOptionsText={t("noMatchingItemsFound")}
