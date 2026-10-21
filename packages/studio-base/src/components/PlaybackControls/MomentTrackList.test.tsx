@@ -76,7 +76,7 @@ it("virtualizes leaf labels against the shared scroll container", async () => {
   expect(screen.getAllByTestId("moment-track-title").length).toBeLessThan(15);
 });
 
-it("offers collapse only on parents and visibility on every track", () => {
+it("offers collapse only on parents and visibility only on leaves", () => {
   const grouped = layout(2);
   const parent = grouped.rows[0]!.track;
   const leaf = grouped.rows[1]!.track;
@@ -84,18 +84,32 @@ it("offers collapse only on parents and visibility on every track", () => {
   parent.count = 2;
   leaf.depth = 1;
   const onViewChange = jest.fn();
-  render(
+  const state = render(
     <ThemeProvider isDark>
       <MomentTrackList layout={grouped} view={{}} onViewChange={onViewChange} />
     </ThemeProvider>,
   );
-  expect(screen.getAllByRole("button")).toHaveLength(3);
+  expect(screen.getAllByRole("button")).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Hide track Platform: Option 0" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Hide track Platform: Option 1" })).toBeTruthy();
   fireEvent.click(screen.getByText("Platform: Option 1 (1)"));
   expect(onViewChange).not.toHaveBeenCalled();
   const toggle = screen.getByRole("button", { name: "Expand or collapse Platform: Option 0" });
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   fireEvent.click(toggle);
   expect(onViewChange).toHaveBeenCalledWith({ collapsed: { [parent.id]: true } });
+  state.rerender(
+    <ThemeProvider isDark>
+      <MomentTrackList
+        layout={{ ...grouped, rows: [{ ...grouped.rows[0]!, collapsed: true }], laneCount: 1 }}
+        view={{ collapsed: { [parent.id]: true }, hidden: { [parent.id]: true } }}
+        onViewChange={onViewChange}
+      />
+    </ThemeProvider>,
+  );
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: /Show track|Hide track/ })).toBeNull();
+  expect(screen.getByTestId("moment-track-title").style.opacity).toBe("1");
 });
 
 it.each(["value", "missing", "ungrouped", "unknown"] as const)(

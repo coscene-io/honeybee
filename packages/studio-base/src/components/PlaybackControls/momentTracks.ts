@@ -31,7 +31,7 @@ export type MomentTrack = {
 };
 export type MomentTrackView = {
   collapsed?: Record<string, boolean>;
-  /** Hiding a group suppresses its entire subtree without changing child preferences. */
+  /** Visibility applies only to current leaf tracks; saved parent flags are ignored. */
   hidden?: Record<string, boolean>;
 };
 export type MomentTimelineSettings = {
@@ -252,7 +252,7 @@ export function layoutMomentTracks({
   let laneCount = 0;
   const visit = (track: MomentTrack) => {
     const collapsed = isMomentTrackCollapsed(track, view);
-    const hidden = view.hidden?.[track.id] === true;
+    const hidden = track.children.length === 0 && view.hidden?.[track.id] === true;
     let events = track.events;
     if (overrides && events.some((entry) => overrides.has(entry.event.name))) {
       events = events.map((entry) => overrides.get(entry.event.name) ?? entry);
@@ -269,7 +269,7 @@ export function layoutMomentTracks({
       }
     }
     laneCount += lanes;
-    if (!collapsed && !hidden) {
+    if (!collapsed) {
       track.children.forEach(visit);
     }
   };

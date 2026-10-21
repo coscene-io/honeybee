@@ -117,25 +117,27 @@ export function MomentTrackList({
                   {label} ({track.count})
                 </span>
               </Tooltip>
-              <Tooltip title={t(hidden ? "showTrack" : "hideTrack", { name: label })}>
-                <IconButton
-                  size="small"
-                  className={classes.button}
-                  aria-label={t(hidden ? "showTrack" : "hideTrack", { name: label })}
-                  onClick={() => {
-                    onViewChange({
-                      ...view,
-                      hidden: { ...view.hidden, [track.id]: !hidden },
-                    });
-                  }}
-                >
-                  {hidden ? (
-                    <VisibilityOffIcon fontSize="inherit" />
-                  ) : (
-                    <VisibilityIcon fontSize="inherit" />
-                  )}
-                </IconButton>
-              </Tooltip>
+              {track.children.length === 0 && (
+                <Tooltip title={t(hidden ? "showTrack" : "hideTrack", { name: label })}>
+                  <IconButton
+                    size="small"
+                    className={classes.button}
+                    aria-label={t(hidden ? "showTrack" : "hideTrack", { name: label })}
+                    onClick={() => {
+                      onViewChange({
+                        ...view,
+                        hidden: { ...view.hidden, [track.id]: !hidden },
+                      });
+                    }}
+                  >
+                    {hidden ? (
+                      <VisibilityOffIcon fontSize="inherit" />
+                    ) : (
+                      <VisibilityIcon fontSize="inherit" />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              )}
             </div>
           );
         })}
