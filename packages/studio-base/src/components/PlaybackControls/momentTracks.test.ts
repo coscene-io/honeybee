@@ -53,6 +53,18 @@ function allTracks(tracks: MomentTrack[]): MomentTrack[] {
 }
 
 describe("project Moment grouping", () => {
+  it("retains a single track larger than the JavaScript argument limit", () => {
+    const template = event("template");
+    const entries = Array.from({ length: 140_000 }, (_, index) => ({
+      ...template,
+      event: { ...template.event, name: `events/${index}` },
+    }));
+    const result = layoutMomentTracks({ tracks: getMomentTracks(entries), viewport, view: {} });
+    expect(result.items).toHaveLength(entries.length);
+    expect(result.laneCount).toBe(entries.length);
+    expect(new Set(result.items.map((item) => item.event.event.name)).size).toBe(entries.length);
+  });
+
   it("decodes rules from the actual protocol JSON and remains compatible with old servers", () => {
     const current = fromJson(CustomFieldSchemaSchema, {
       properties: [{ id: "platform", enums: { values: { a: "Alpha" } } }],

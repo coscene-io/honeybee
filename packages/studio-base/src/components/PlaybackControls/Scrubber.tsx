@@ -1391,9 +1391,14 @@ export default function Scrubber(props: Props): React.JSX.Element {
             </Stack>
             {resolvedViewport && (
               <Stack
+                data-testid="timeline-file-layer"
                 position="absolute"
                 fullWidth
-                style={{ height: BAG_OVERLAY_HEIGHT_PX, top: TIMELINE_BAG_OVERLAY_TOP_PX }}
+                style={{
+                  height: BAG_OVERLAY_HEIGHT_PX,
+                  top: TIMELINE_BAG_OVERLAY_TOP_PX,
+                  pointerEvents: "none",
+                }}
               >
                 <BagsOverlay viewport={resolvedViewport} />
               </Stack>

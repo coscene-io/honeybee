@@ -416,6 +416,15 @@ describe("<Scrubber />", () => {
     });
   });
 
+  it("lets pointer events pass through the shared file and progress strip", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+    expect(getComputedStyle(screen.getByTestId("timeline-file-layer")).pointerEvents).toBe("none");
+  });
+
   it("does not reserve event-lane height when events are disabled", () => {
     render(
       <Wrapper>

@@ -232,7 +232,9 @@ export function layoutMomentTracks({
     const lanes = Math.max(1, layout?.laneCount ?? 0);
     rows.push({ track, lane: laneCount, laneCount: lanes, collapsed });
     if (layout) {
-      items.push(...offsetItems(layout, laneCount));
+      for (const item of offsetItems(layout, laneCount)) {
+        items.push(item);
+      }
     }
     laneCount += lanes;
     if (!collapsed) {
