@@ -20,7 +20,8 @@ import {
   FormControlLabel,
   Link,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import cloneDeep from "lodash-es/cloneDeep";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -33,12 +34,23 @@ import { TaskForm } from "@foxglove/studio-base/components/Events/CreateEventCon
 import { useDefaultEventForm } from "@foxglove/studio-base/components/Events/CreateEventContainer/hooks";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
-import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
-import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { CoSceneCurrentUserContext } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
+import {
+  CoreDataContext,
+  CoreDataStore,
+  useCoreData,
+} from "@foxglove/studio-base/context/CoreDataContext";
+import {
+  EventsContext,
+  EventsStore,
+  useEvents,
+  type MomentCreationScope,
+} from "@foxglove/studio-base/context/EventsContext";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 import { buildMomentCustomizedFields } from "../momentDoubtful";
+import { isSameMomentCreationScope, restoreMomentCustomFieldValues } from "./customFieldDefaults";
 import { CreateEventForm, CreateTaskForm } from "./types";
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
@@ -93,6 +105,14 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
 }
 
 export function CreateEventContainer({ onClose }: { onClose: () => void }): React.ReactNode {
+  const projectName = useCoreData(
+    (store) =>
+      `warehouses/${store.externalInitConfig?.warehouseId}/projects/${store.externalInitConfig?.projectId}`,
+  );
+  return <CreateEventFormContainer key={projectName} onClose={onClose} />;
+}
+
+function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.ReactNode {
   const [isComposition, setIsComposition] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [enabledCreateNewTask, setEnabledCreateNewTask] = useState(false);
@@ -112,17 +132,62 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const isSubmittingRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
   const isEditing = toModifyEvent != undefined;
   const { t } = useTranslation("event");
 
-  const defaultEventForm = useDefaultEventForm();
-
-  const eventForm = useForm<CreateEventForm>({
-    defaultValues: defaultEventForm,
+  const coreDataStore = useContext(CoreDataContext)!;
+  const eventsStore = useContext(EventsContext)!;
+  const userStore = useContext(CoSceneCurrentUserContext);
+  const getCreationScope = (): MomentCreationScope => {
+    const { externalInitConfig: config, baseUrl } = coreDataStore.getState();
+    return {
+      projectName: `warehouses/${config?.warehouseId}/projects/${config?.projectId}`,
+      baseUrl,
+      userId: userStore?.getState().user?.userId,
+    };
+  };
+  const creationScope = getCreationScope();
+  // Defaults stay fixed for the lifetime of this dialog.
+  const [rememberedValues] = useState(() => {
+    const previous = eventsStore.getState().lastCreatedMomentDefaults;
+    return previous && isSameMomentCreationScope(previous, creationScope)
+      ? cloneDeep(previous.values)
+      : [];
   });
+  const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
+  const properties = schemaProjectName === projectName ? schema?.properties : undefined;
+  const restoredValues = useMemo(
+    () => restoreMomentCustomFieldValues(properties ?? [], rememberedValues),
+    [properties, rememberedValues],
+  );
+  const defaultEventForm = useDefaultEventForm(restoredValues);
+  const eventForm = useForm<CreateEventForm>({ defaultValues: defaultEventForm });
+  const defaultsInitialized = useRef(properties != undefined);
+
+  useEffect(() => {
+    if (isEditing || defaultsInitialized.current || properties == undefined) {
+      return;
+    }
+    defaultsInitialized.current = true;
+    const current = eventForm.getValues("customFieldValues");
+    for (const [id, value] of Object.entries(restoredValues)) {
+      if (current?.[id] == undefined) {
+        eventForm.setValue(`customFieldValues.${id}`, value);
+      }
+    }
+  }, [eventForm, isEditing, properties, restoredValues]);
 
   const taskForm = useForm<CreateTaskForm>({
     defaultValues: {
@@ -144,20 +209,18 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   );
 
   useEffect(() => {
-    document.addEventListener("compositionstart", () => {
+    const onCompositionStart = () => {
       setIsComposition(true);
-    });
-    document.addEventListener("compositionend", () => {
+    };
+    const onCompositionEnd = () => {
       setIsComposition(false);
-    });
+    };
+    document.addEventListener("compositionstart", onCompositionStart);
+    document.addEventListener("compositionend", onCompositionEnd);
 
     return () => {
-      document.removeEventListener("compositionstart", () => {
-        setIsComposition(true);
-      });
-      document.removeEventListener("compositionend", () => {
-        setIsComposition(false);
-      });
+      document.removeEventListener("compositionstart", onCompositionStart);
+      document.removeEventListener("compositionend", onCompositionEnd);
     };
   }, []);
 
@@ -198,6 +261,15 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
     let shouldResetSubmitting = true;
 
     try {
+      if (!isEditing && properties != undefined) {
+        eventForm.setValue(
+          "customFieldValues",
+          restoreMomentCustomFieldValues(
+            properties,
+            convertCustomFieldValuesMapToArray(eventForm.getValues("customFieldValues") ?? {}),
+          ),
+        );
+      }
       const isEventFormValid = await eventForm.trigger();
       let isTaskFormValid = true;
 
@@ -210,6 +282,11 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       }
 
       const event = eventForm.getValues();
+      const customFieldValues = cloneDeep(
+        isEditing || properties != undefined
+          ? convertCustomFieldValuesMapToArray(event.customFieldValues ?? {})
+          : [],
+      );
 
       if (event.startTime == undefined || event.duration == undefined) {
         toast.error(t("startTimeAndDurationRequired"));
@@ -256,7 +333,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         duration: secondsToDuration(durationSeconds),
         description: event.description,
         files: imageFiles,
-        customFieldValues: convertCustomFieldValuesMapToArray(event.customFieldValues ?? {}),
+        customFieldValues,
         customizedFields: buildMomentCustomizedFields({
           fields: keyedMetadata,
           isDoubtful: event.isDoubtful === true,
@@ -278,20 +355,37 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
           recordName,
         });
 
+        // Missing schema is not an intentional clear: no hidden fields are sent
+        // and the previous snapshot stays available for the next dialog.
+        if (
+          isMountedRef.current &&
+          properties != undefined &&
+          isSameMomentCreationScope(creationScope, getCreationScope())
+        ) {
+          eventsStore.getState().setLastCreatedMomentDefaults({
+            ...getCreationScope(),
+            values: customFieldValues,
+          });
+        }
+
         toast.success(t("createMomentSuccess"));
         if (enabledCreateNewTask) {
           await handleCreateTask(res);
         }
       }
 
-      refreshEvents();
       shouldResetSubmitting = false;
-      onClose();
+      if (isSameMomentCreationScope(creationScope, getCreationScope())) {
+        refreshEvents();
+      }
+      if (isMountedRef.current) {
+        onClose();
+      }
     } catch (error) {
       console.error(error);
       toast.error(t("createMomentFailed"));
     } finally {
-      if (shouldResetSubmitting) {
+      if (shouldResetSubmitting && isMountedRef.current) {
         isSubmittingRef.current = false;
         setIsLoading(false);
       }

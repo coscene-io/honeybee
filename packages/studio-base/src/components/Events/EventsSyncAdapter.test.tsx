@@ -106,6 +106,7 @@ function makeEventsStore({
 }): StoreApi<EventsStore> {
   return createStore<EventsStore>((set) => ({
     eventFetchCount: 0,
+    setLastCreatedMomentDefaults: jest.fn(),
     events: { loading: false, value: events },
     filter: "",
     selectedEventId: undefined,

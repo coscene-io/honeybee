@@ -22,13 +22,11 @@ export function CustomFieldStringEditor({
   customFieldValue: CustomFieldValue;
   disabled?: boolean;
 }): React.ReactNode {
-  const [value, setValue] = useState<string | undefined>(undefined);
+  const [value, setValue] = useState("");
 
   useEffect(() => {
-    if (customFieldValue.value.case === "text" && value == undefined) {
-      setValue(customFieldValue.value.value.value);
-    }
-  }, [customFieldValue.value, value]);
+    setValue(customFieldValue.value.case === "text" ? customFieldValue.value.value.value : "");
+  }, [customFieldValue.value]);
 
   const onSave = (value: string) => {
     if (value) {

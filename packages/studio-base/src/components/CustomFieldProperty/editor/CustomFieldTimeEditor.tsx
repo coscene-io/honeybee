@@ -32,13 +32,13 @@ export function CustomFieldTimeEditor({
   const { t } = useTranslation("general");
   const { property } = customFieldValue;
 
-  let value: Dayjs | undefined;
+  let value: Dayjs | ReactNull = ReactNull;
   if (customFieldValue.value.case === "time") {
     const dateValue =
       customFieldValue.value.value.value != undefined
         ? timestampDate(customFieldValue.value.value.value)
         : undefined;
-    value = dateValue ? dayjs(dateValue) : undefined;
+    value = dateValue ? dayjs(dateValue) : ReactNull;
   }
 
   return (

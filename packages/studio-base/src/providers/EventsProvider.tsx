@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import cloneDeep from "lodash-es/cloneDeep";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -31,6 +32,9 @@ function createEventsStore() {
     toModifyEvent: undefined,
     customFieldSchema: undefined,
     customFieldSchemaProjectName: undefined,
+    setLastCreatedMomentDefaults: (defaults) => {
+      set({ lastCreatedMomentDefaults: cloneDeep(defaults) });
+    },
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
