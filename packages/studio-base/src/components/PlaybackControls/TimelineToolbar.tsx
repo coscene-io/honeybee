@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import { alpha, Popover, Typography } from "@mui/material";
+import { alpha, Popover } from "@mui/material";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
@@ -22,12 +22,20 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: theme.palette.background.paper,
     borderBottom: `1px solid ${theme.palette.divider}`,
     display: "flex",
-    flex: `0 0 ${TIMELINE_TOOLBAR_HEIGHT_PX}px`,
-    gap: 6,
-    height: TIMELINE_TOOLBAR_HEIGHT_PX,
+    flex: "0 0 auto",
+    flexWrap: "wrap",
+    columnGap: 6,
+    rowGap: 0,
+    minHeight: TIMELINE_TOOLBAR_HEIGHT_PX,
     minWidth: 0,
     paddingInline: 8,
     whiteSpace: "nowrap",
+    // Each wrapped line keeps the original toolbar rhythm, allowing for the bottom border.
+    "& > div": {
+      alignItems: "center",
+      display: "flex",
+      minHeight: TIMELINE_TOOLBAR_HEIGHT_PX - 1,
+    },
     "& .MuiIconButton-root": { width: 30 },
   },
   controls: {
@@ -47,17 +55,10 @@ const useStyles = makeStyles()((theme) => ({
     },
     "& svg": { flexShrink: 0, height: 18, width: 18 },
   },
-  compact: { gap: 4, paddingInline: 6 },
-  minimal: {
-    flexBasis: TIMELINE_TOOLBAR_HEIGHT_PX * 2,
-    flexWrap: "wrap",
-    height: TIMELINE_TOOLBAR_HEIGHT_PX * 2,
-    rowGap: 0,
-  },
+  compact: { columnGap: 4, paddingInline: 6 },
   group: { alignItems: "center", display: "flex", flexShrink: 0, gap: 2 },
+  end: { marginLeft: "auto" },
   zoom: { flex: "0 1 180px", minWidth: 120 },
-  // Leave room on the zoom row for the 30px More button and the compact 4px gap.
-  minimalZoom: { flexBasis: "calc(100% - 34px)" },
   time: {
     flex: "0 1 auto",
     minWidth: 0,
@@ -68,21 +69,25 @@ const useStyles = makeStyles()((theme) => ({
   paper: {
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: 8,
-    minWidth: 240,
+    width: 240,
     maxWidth: "calc(100vw - 32px)",
-    padding: theme.spacing(1.5),
-    "& > div > div": { flexWrap: "wrap" },
+    padding: 6,
   },
-  section: {
-    "& + &": { borderTop: `1px solid ${theme.palette.divider}`, marginTop: 12, paddingTop: 12 },
-  },
-  sectionTitle: { color: theme.palette.text.secondary, display: "block", marginBottom: 6 },
   tools: {
     alignItems: "stretch",
     display: "flex",
     flexDirection: "column",
-    gap: 4,
-    "& .MuiIconButton-root": { justifyContent: "flex-start", width: "100%", gap: 8 },
+    "&& .MuiIconButton-root": {
+      borderRadius: 4,
+      color: theme.palette.text.primary,
+      justifyContent: "flex-start",
+      width: "100%",
+      height: 32,
+      paddingInline: 8,
+      gap: 8,
+      "& svg": { color: theme.palette.text.secondary },
+      "@media (pointer: coarse)": { height: 48 },
+    },
   },
 }));
 
@@ -104,23 +109,22 @@ export type TimelineToolbarProps = {
 /** Measure this strip, rather than the window: open sidebars also consume toolbar space. */
 export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element {
   const { onHeightChange } = props;
-  const { width, ref } = useResizeDetector<HTMLDivElement>({
-    handleHeight: false,
+  const { width, height, ref } = useResizeDetector<HTMLDivElement>({
+    observerOptions: { box: "border-box" },
     refreshMode: "debounce",
     refreshRate: 60,
   });
   const availableWidth = width != undefined && width > 0 ? width : Infinity;
   const compact = availableWidth < 640;
   const condensed = availableWidth < 1000;
-  const minimal = availableWidth < 480;
   const { classes, cx } = useStyles();
   const { t } = useTranslation("general");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | undefined>();
   const id = useId();
 
   useEffect(() => {
-    onHeightChange?.(TIMELINE_TOOLBAR_HEIGHT_PX * (minimal ? 2 : 1));
-  }, [minimal, onHeightChange]);
+    onHeightChange?.(Math.max(TIMELINE_TOOLBAR_HEIGHT_PX, Math.ceil(height ?? 0)));
+  }, [height, onHeightChange]);
 
   return (
     <>
@@ -128,7 +132,6 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
         ref={ref}
         className={cx(classes.root, classes.controls, {
           [classes.compact]: compact,
-          [classes.minimal]: minimal,
         })}
         data-timeline-toolbar
         data-testid="timeline-toolbar"
@@ -138,20 +141,20 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
       >
         <div className={classes.group}>
           {props.playback}
-          {!compact && props.playbackOptions}
+          {props.playbackOptions}
           {props.speed}
         </div>
         {props.time && <span className={classes.divider} aria-hidden />}
         <div className={classes.time}>{props.time?.({ compact: condensed })}</div>
-        {!condensed && <div className={classes.group}>{props.sourceInfo}</div>}
+        <div className={classes.group}>{props.sourceInfo}</div>
         <div className={classes.spacer} />
         <div className={classes.group}>
-          {!compact && props.create?.({ showLabel: false })}
-          {!condensed && props.editing({ showLabel: false })}
+          {props.create?.({ showLabel: false })}
+          {props.editing({ showLabel: false })}
         </div>
-        <div className={cx(classes.zoom, { [classes.minimalZoom]: minimal })}>{props.zoom}</div>
-        <div className={classes.group}>
-          {!minimal && props.fit({ showLabel: false })}
+        <div className={classes.zoom}>{props.zoom}</div>
+        <div className={cx(classes.group, classes.end)}>
+          {props.fit({ showLabel: false })}
           <HoverableIconButton
             size="small"
             icon={<MoreHorizIcon />}
@@ -189,51 +192,9 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
           },
         }}
       >
-        {((compact && props.playbackOptions != undefined) ||
-          (condensed && props.sourceInfo != undefined)) && (
-          <div className={classes.section}>
-            <Typography variant="caption" className={classes.sectionTitle}>
-              {t("shortcutsSectionPlayback")}
-            </Typography>
-            <div className={classes.group}>
-              {compact && props.playbackOptions}
-              {condensed && props.sourceInfo}
-            </div>
-          </div>
-        )}
-        {condensed && (
-          <div className={classes.section}>
-            <Typography variant="caption" className={classes.sectionTitle}>
-              {t("shortcutsSectionMoments")}
-            </Typography>
-            <div className={classes.tools}>
-              {compact && (
-                <div
-                  onClick={() => {
-                    setAnchorEl(undefined);
-                  }}
-                >
-                  {props.create?.({ showLabel: true })}
-                </div>
-              )}
-              {props.editing({ showLabel: true })}
-            </div>
-          </div>
-        )}
-        <div className={classes.section}>
-          <div className={classes.tools}>
-            {minimal && (
-              <div
-                onClick={() => {
-                  setAnchorEl(undefined);
-                }}
-              >
-                {props.fit({ showLabel: true })}
-              </div>
-            )}
-            {props.help({ showLabel: true })}
-            {props.seekStep}
-          </div>
+        <div className={classes.tools}>
+          {props.help({ showLabel: true })}
+          {props.seekStep}
         </div>
       </Popover>
     </>

@@ -19,8 +19,9 @@ import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { TimelineToolbar } from "./TimelineToolbar";
 
 let mockWidth = 1200;
+let mockHeight: number | undefined = 40;
 jest.mock("react-resize-detector", () => ({
-  useResizeDetector: () => ({ width: mockWidth, ref: jest.fn() }),
+  useResizeDetector: () => ({ width: mockWidth, height: mockHeight, ref: jest.fn() }),
 }));
 
 function ToolbarFixture({
@@ -65,10 +66,11 @@ function ToolbarFixture({
 describe("TimelineToolbar", () => {
   beforeEach(async () => {
     mockWidth = 1200;
+    mockHeight = 40;
     await i18n.changeLanguage("en");
   });
 
-  it.each([1200, 1000, 999, 640])(
+  it.each([1200, 1000, 999, 640, 639, 480, 479, 375])(
     "keeps playback on the left and seek step inside more at %dpx",
     (width) => {
       mockWidth = width;
@@ -84,9 +86,9 @@ describe("TimelineToolbar", () => {
         "Forward",
         "Repeat",
         "Speed",
-        ...(width >= 1000 ? ["Source"] : []),
+        "Source",
         "Create",
-        ...(width >= 1000 ? ["Edit"] : []),
+        "Edit",
         "Fit",
         "",
       ]);
@@ -96,7 +98,6 @@ describe("TimelineToolbar", () => {
       expect(
         within(more)
           .getAllByRole("button")
-          .slice(-2)
           .map((button) => button.textContent),
       ).toEqual(["Help", "Step"]);
       expect(screen.getAllByRole("button", { name: "Step" })).toHaveLength(1);
@@ -104,15 +105,15 @@ describe("TimelineToolbar", () => {
     },
   );
 
-  it("moves secondary tools into more based on actual width and mounts each control once", () => {
+  it("keeps secondary controls mounted on the toolbar when its width changes", () => {
     const result = render(<ToolbarFixture />);
-    mockWidth = 720;
+    const edit = screen.getByRole("button", { name: "Edit" });
+    mockWidth = 375;
     result.rerender(<ToolbarFixture />);
-    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Edit" })).toBe(edit);
     expect(screen.getByLabelText("Time").dataset.compact).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
-    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(1);
+    expect(within(screen.getByRole("dialog")).queryByRole("button", { name: "Edit" })).toBeNull();
   });
 
   it.each([1200, 1000, 999, 640, 639, 480, 479, 375])(
@@ -132,31 +133,34 @@ describe("TimelineToolbar", () => {
     },
   );
 
-  it("gives zoom its own row at narrow widths", () => {
+  it("allows toolbar controls to wrap instead of adding them to more", () => {
     mockWidth = 375;
-    const { rerender } = render(<ToolbarFixture />);
+    render(<ToolbarFixture />);
     const toolbar = screen.getByRole("toolbar", { name: "Timeline controls" });
     expect(getComputedStyle(toolbar).flexWrap).toBe("wrap");
-    expect(getComputedStyle(toolbar).height).toBe("80px");
-
-    mockWidth = 480;
-    rerender(<ToolbarFixture />);
-    expect(getComputedStyle(toolbar).height).toBe("40px");
+    expect(getComputedStyle(toolbar).minHeight).toBe("40px");
   });
 
-  it("reports toolbar height changes when its width crosses the two-row breakpoint", () => {
+  it("reports the measured height so wrapped controls retain timeline space", () => {
     const onHeightChange = jest.fn();
+    mockHeight = undefined;
     const { rerender } = render(<ToolbarFixture onHeightChange={onHeightChange} />);
     expect(onHeightChange).toHaveBeenLastCalledWith(40);
 
     mockWidth = 375;
+    mockHeight = 118;
     rerender(<ToolbarFixture onHeightChange={onHeightChange} />);
-    expect(onHeightChange).toHaveBeenLastCalledWith(80);
+    expect(onHeightChange).toHaveBeenLastCalledWith(118);
 
-    mockWidth = 480;
+    // A label or source-info change can alter height without changing the width.
+    mockHeight = 157;
+    rerender(<ToolbarFixture onHeightChange={onHeightChange} />);
+    expect(onHeightChange).toHaveBeenLastCalledWith(157);
+
+    mockWidth = 1200;
+    mockHeight = 40;
     rerender(<ToolbarFixture onHeightChange={onHeightChange} />);
     expect(onHeightChange).toHaveBeenLastCalledWith(40);
-    expect(onHeightChange).toHaveBeenCalledTimes(3);
   });
 
   it("keeps shortcut help mounted when opened from more and returns to the tools", async () => {
@@ -194,52 +198,24 @@ describe("TimelineToolbar", () => {
     },
   );
 
-  it.each([639, 375])(
-    "retains playback, speed and time at %dpx and exposes hidden tools in more",
-    (width) => {
-      mockWidth = width;
-      const onCreate = jest.fn();
-      render(<ToolbarFixture onCreate={onCreate} />);
-      for (const name of ["Play", "Speed"]) {
-        expect(screen.getByRole("button", { name })).toBeTruthy();
-      }
-      for (const name of [
-        "Step",
-        "Repeat",
-        "Source",
-        "Create",
-        "Edit",
-        ...(width < 480 ? ["Fit"] : []),
-      ]) {
-        expect(screen.queryByRole("button", { name })).toBeNull();
-      }
-      fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
-      const more = screen.getByRole("dialog");
-      for (const name of [
-        "Repeat",
-        "Source",
-        "Create",
-        "Edit",
-        ...(width < 480 ? ["Fit"] : []),
-        "Help",
-        "Step",
-      ]) {
-        expect(within(more).getByRole("button", { name })).toBeTruthy();
-      }
-      expect(screen.getAllByRole("button", { name: "Step" })).toHaveLength(1);
-      expect(
-        within(more)
-          .getAllByRole("button")
-          .slice(-2)
-          .map((button) => button.textContent),
-      ).toEqual(["Help", "Step"]);
-      fireEvent.click(within(more).getByRole("button", { name: "Create" }));
-      expect(onCreate).toHaveBeenCalledTimes(1);
-      expect(
-        screen.getByRole("button", { name: "More timeline tools" }).getAttribute("aria-expanded"),
-      ).toBe("false");
-    },
-  );
+  it.each([639, 375])("retains all other tools outside more at %dpx", (width) => {
+    mockWidth = width;
+    const onCreate = jest.fn();
+    render(<ToolbarFixture onCreate={onCreate} />);
+    const toolbar = screen.getByRole("toolbar", { name: "Timeline controls" });
+    for (const name of ["Play", "Speed", "Repeat", "Source", "Create", "Edit", "Fit"]) {
+      expect(within(toolbar).getByRole("button", { name })).toBeTruthy();
+    }
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Create" }));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
+    const more = screen.getByRole("dialog");
+    expect(
+      within(more)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Help", "Step"]);
+  });
 
   it.each([
     { width: 1200, key: "Enter", expectedStep: 250 },

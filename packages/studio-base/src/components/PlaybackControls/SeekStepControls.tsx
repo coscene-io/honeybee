@@ -5,7 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { InputAdornment, TextField, Typography } from "@mui/material";
+import { ArrowBidirectionalLeftRight20Regular } from "@fluentui/react-icons";
+import { alpha, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import { visuallyHidden } from "@mui/utils";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
@@ -19,31 +21,41 @@ export const MAX_SEEK_STEP_MS = 3600 * 1000;
 
 const useStyles = makeStyles()((theme) => ({
   root: {
-    borderTop: `1px solid ${theme.palette.divider}`,
-    marginTop: theme.spacing(0.5),
-    padding: theme.spacing(1, 0.625, 0.5, 4),
-  },
-  row: {
     alignItems: "center",
-    display: "flex",
+    borderRadius: 4,
+    display: "grid",
+    gridTemplateColumns: "18px minmax(0, 1fr) 88px",
     gap: theme.spacing(1),
-    justifyContent: "space-between",
+    minHeight: 32,
+    paddingInline: 8,
+    "&:focus-within": { backgroundColor: theme.palette.action.hover },
+    "@media (pointer: coarse)": { minHeight: 48 },
   },
-  label: { fontSize: 12 },
+  icon: { color: theme.palette.text.secondary, height: 18, width: 18 },
+  label: { fontSize: 12, lineHeight: 1.25 },
   input: {
-    flex: "0 0 108px",
-    width: 108,
-    "& .MuiInputBase-root": { borderRadius: 5, fontSize: 12, height: 32, paddingRight: 8 },
+    minWidth: 0,
+    "& .MuiInputBase-root": {
+      backgroundColor: alpha(theme.palette.text.primary, 0.025),
+      borderRadius: 4,
+      fontSize: 12,
+      height: 26,
+      paddingRight: 7,
+    },
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: alpha(theme.palette.text.primary, 0.12),
+    },
     "& input": {
       fontVariantNumeric: "tabular-nums",
-      padding: theme.spacing(0.75, 1),
+      minWidth: 0,
+      padding: theme.spacing(0, 0, 0, 0.875),
       textAlign: "right",
     },
+    "& .MuiInputAdornment-root": { fontSize: 11, marginLeft: 4 },
     "@media (pointer: coarse)": {
       "& .MuiInputBase-root": { fontSize: 16, height: 44 },
     },
   },
-  helper: { color: theme.palette.text.secondary, fontSize: 12, marginTop: theme.spacing(0.75) },
 }));
 
 export interface SeekStepControlsProps {
@@ -114,8 +126,9 @@ export default function SeekStepControls({
   }, [seekStepInput, setSeekStepMs]);
 
   return (
-    <div className={classes.root}>
-      <div className={classes.row}>
+    <Tooltip title={t("seekStepHelp")} describeChild>
+      <div className={classes.root}>
+        <ArrowBidirectionalLeftRight20Regular className={classes.icon} aria-hidden />
         <Typography
           component="label"
           htmlFor={id}
@@ -160,10 +173,10 @@ export default function SeekStepControls({
             },
           }}
         />
+        <span id={`${id}-help`} style={visuallyHidden}>
+          {t("seekStepHelp")}
+        </span>
       </div>
-      <Typography id={`${id}-help`} className={classes.helper}>
-        {t("seekStepHelp")}
-      </Typography>
-    </div>
+    </Tooltip>
   );
 }
