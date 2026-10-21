@@ -57,6 +57,11 @@ import {
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
 import { PublishClickEventMap, PublishClickType } from "./renderables/PublishClickTool";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/PublishSettings";
+import {
+  SpatialAnnotationEditor,
+  SPATIAL_ANNOTATION_SOURCE_KEY,
+  SPATIAL_ANNOTATION_PLAYING_KEY,
+} from "./spatialAnnotation/SpatialAnnotationEditor";
 import { getTopicMessageFrequencies } from "./topicMessageFrequencies";
 import { InterfaceMode } from "./types";
 
@@ -196,6 +201,10 @@ export function ThreeDeeRender(props: {
   const backgroundColor = config.scene.backgroundColor;
 
   const [canvas, setCanvas] = useState<HTMLCanvasElement | ReactNull>(ReactNull);
+  const [annotationActive, setAnnotationActive] = useState(false);
+  const onAnnotationActiveChange = useCallback((state: "active" | "inactive") => {
+    setAnnotationActive(state === "active");
+  }, []);
   const [renderer, setRenderer] = useState<IRenderer | undefined>(undefined);
   const rendererRef = useRef<IRenderer | undefined>(undefined);
   const rendererWorkRef = useRef<Promise<void>>(Promise.resolve());
@@ -970,29 +979,53 @@ export function ThreeDeeRender(props: {
           }}
         />
         <RendererContext.Provider value={renderer}>
-          <RendererOverlay
-            interfaceMode={interfaceMode}
-            canvas={canvas}
-            addPanel={addPanel}
-            enableStats={config.scene.enableStats ?? false}
-            perspective={config.cameraState.perspective}
-            onTogglePerspective={onTogglePerspective}
-            measureActive={measureActive}
-            onClickMeasure={onClickMeasure}
-            canPublish={canPublish}
-            publishActive={publishActive}
-            onClickPublish={onClickPublish}
-            onShowTopicSettings={onShowTopicSettings}
-            publishClickType={renderer?.publishClickTool.publishClickType ?? "point"}
-            onChangePublishClickType={onChangePublishClickType}
-            timezone={timezone}
-            onResetCamera={onResetCamera}
-            onZoomIn={onZoomIn}
-            onZoomOut={onZoomOut}
-            selectedImageTopic={selectedImageTopic}
-            selectedImageTopicMessageFrequency={selectedImageTopicMessageFrequency}
-          />
+          {!annotationActive && (
+            <RendererOverlay
+              interfaceMode={interfaceMode}
+              canvas={canvas}
+              addPanel={addPanel}
+              enableStats={config.scene.enableStats ?? false}
+              perspective={config.cameraState.perspective}
+              onTogglePerspective={onTogglePerspective}
+              measureActive={measureActive}
+              onClickMeasure={onClickMeasure}
+              canPublish={canPublish}
+              publishActive={publishActive}
+              onClickPublish={onClickPublish}
+              onShowTopicSettings={onShowTopicSettings}
+              publishClickType={renderer?.publishClickTool.publishClickType ?? "point"}
+              onChangePublishClickType={onChangePublishClickType}
+              timezone={timezone}
+              onResetCamera={onResetCamera}
+              onZoomIn={onZoomIn}
+              onZoomOut={onZoomOut}
+              selectedImageTopic={selectedImageTopic}
+              selectedImageTopicMessageFrequency={selectedImageTopicMessageFrequency}
+            />
+          )}
         </RendererContext.Provider>
+        {process.env.NODE_ENV === "development" &&
+          interfaceMode === "image" &&
+          renderer != undefined &&
+          canvas != undefined &&
+          selectedImageTopic != undefined &&
+          typeof extensionData?.[SPATIAL_ANNOTATION_SOURCE_KEY] === "string" && (
+            <SpatialAnnotationEditor
+              key={JSON.stringify([
+                extensionData[SPATIAL_ANNOTATION_SOURCE_KEY],
+                selectedImageTopic,
+              ])}
+              renderer={renderer}
+              canvas={canvas}
+              onActiveChange={onAnnotationActiveChange}
+              context={context}
+              scope={
+                JSON.stringify([extensionData[SPATIAL_ANNOTATION_SOURCE_KEY], selectedImageTopic])!
+              }
+              topic={selectedImageTopic}
+              isPlaying={extensionData[SPATIAL_ANNOTATION_PLAYING_KEY] === true}
+            />
+          )}
       </div>
     </ThemeProvider>
   );

@@ -47,6 +47,7 @@ import { ColorModeSettings } from "./renderables/colorMode";
 import { MarkerPool } from "./renderables/markers/MarkerPool";
 import { Quaternion, Vector3 } from "./ros";
 import { BaseSettings, CustomLayerSettings, SelectEntry } from "./settings";
+import { ImageAnnotationViewport } from "./spatialAnnotation/viewport";
 import { TransformTree } from "./transforms";
 import { InterfaceMode } from "./types";
 
@@ -389,6 +390,9 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   canResetView(): boolean;
   /** Reset any manual view modifications (image mode only). */
   resetView(): void;
+
+  /** Snapshot of the image actually displayed, for the local spatial annotation prototype. */
+  getImageAnnotationViewport?: () => ImageAnnotationViewport | undefined;
 
   setSelectedRenderable(selection: PickedRenderable | undefined): void;
 

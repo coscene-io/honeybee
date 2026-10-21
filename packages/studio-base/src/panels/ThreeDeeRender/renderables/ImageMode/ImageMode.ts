@@ -108,6 +108,10 @@ import {
   COMPRESSED_IMAGE_DATATYPES as ROS_COMPRESSED_IMAGE_DATATYPES,
   CameraInfo,
 } from "../../ros";
+import {
+  createImageAnnotationViewport,
+  ImageAnnotationViewport,
+} from "../../spatialAnnotation/viewport";
 import { topicIsConvertibleToSchema } from "../../topicIsConvertibleToSchema";
 import { ICameraHandler } from "../ICameraHandler";
 import { getTopicMatchPrefix, sortPrefixMatchesToFront } from "../Images/topicPrefixMatching";
@@ -1311,6 +1315,21 @@ export class ImageMode
 
   public getActiveCamera(): THREE.PerspectiveCamera | THREE.OrthographicCamera {
     return this.#camera;
+  }
+
+  public getAnnotationViewport(): ImageAnnotationViewport | undefined {
+    const data = this.imageRenderable?.userData;
+    const model = this.#cameraModel?.model;
+    if (model == undefined || data?.displayedFrameState == undefined || data.texture == undefined) {
+      return undefined;
+    }
+    return createImageAnnotationViewport(
+      model,
+      this.#camera,
+      this.renderer.input.canvasSize,
+      data.topic,
+      data.displayedFrameState.receiveTime,
+    );
   }
 
   public handleResize(width: number, height: number, _pixelRatio: number): void {

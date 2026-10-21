@@ -1002,6 +1002,12 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
     return this.#imageModeExtension?.hasModifiedView() ?? false;
   }
 
+  public getImageAnnotationViewport(): ReturnType<
+    NonNullable<IRenderer["getImageAnnotationViewport"]>
+  > {
+    return this.#imageModeExtension?.getAnnotationViewport();
+  }
+
   public resetView(): void {
     this.#imageModeExtension?.resetViewModifications();
     this.queueAnimationFrame();

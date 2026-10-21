@@ -16,6 +16,10 @@ import {
   ForwardedAnalytics,
   useForwardAnalytics,
 } from "@foxglove/studio-base/components/ForwardAnalyticsContextProvider";
+import {
+  MessagePipelineContext,
+  useMessagePipeline,
+} from "@foxglove/studio-base/components/MessagePipeline";
 import Panel from "@foxglove/studio-base/components/Panel";
 import {
   BuiltinPanelExtensionContext,
@@ -28,8 +32,16 @@ import { SaveConfig } from "@foxglove/studio-base/types/panels";
 
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ThreeDeeRender } from "./ThreeDeeRender";
+import {
+  SPATIAL_ANNOTATION_SOURCE_KEY,
+  SPATIAL_ANNOTATION_PLAYING_KEY,
+} from "./spatialAnnotation/SpatialAnnotationEditor";
 import { TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY } from "./topicMessageFrequencies";
 import { InterfaceMode } from "./types";
+
+const selectSpatialSource = ({ playerState }: MessagePipelineContext) => playerState.playerId;
+const selectSpatialPlaying = ({ playerState }: MessagePipelineContext) =>
+  playerState.activeData?.isPlaying === true;
 
 type InitPanelArgs = {
   crash: ReturnType<typeof useCrash>;
@@ -123,9 +135,15 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
 
 function ImagePanelAdapter(props: Props) {
   const topicMessageFrequencies = useTopicPublishFrequencies();
+  const spatialSource = useMessagePipeline(selectSpatialSource);
+  const spatialPlaying = useMessagePipeline(selectSpatialPlaying);
   const extensionData = useMemo(
-    () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
-    [topicMessageFrequencies],
+    () => ({
+      [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies,
+      [SPATIAL_ANNOTATION_SOURCE_KEY]: spatialSource,
+      [SPATIAL_ANNOTATION_PLAYING_KEY]: spatialPlaying,
+    }),
+    [topicMessageFrequencies, spatialSource, spatialPlaying],
   );
 
   return (
