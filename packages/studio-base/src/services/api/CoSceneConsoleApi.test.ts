@@ -70,9 +70,12 @@ describe("CoSceneConsoleApi", () => {
     global.fetch = originalFetch;
   });
 
-  it("reads project grouping rules with the current descriptor through the existing transport", async () => {
+  it("reads project grouping and field track rules through the existing transport", async () => {
     const api = await createApi(completeBaseInfo);
-    const schema = create(CustomFieldSchemaSchema, { groupingRules: [{ propertyId: "platform" }] });
+    const schema = create(CustomFieldSchemaSchema, {
+      groupingRules: [{ propertyId: "platform" }],
+      trackRules: [{ propertyId: "action" }, { propertyId: "participants" }],
+    });
     const getMomentCustomFieldSchema = jest.fn().mockResolvedValue(schema);
     mockGetPromiseClient.mockReturnValue({ getMomentCustomFieldSchema } as never);
     expect(

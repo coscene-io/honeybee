@@ -50,23 +50,28 @@ import waitForFonts from "@foxglove/studio-base/util/waitForFonts";
 const origin = { sec: 0, nsec: 0 };
 const end = { sec: 3600, nsec: 0 };
 const configuration = makeMockAppConfiguration();
+const fieldProject = "warehouses/benchmark/projects/moments";
 const allowed = Object.assign(async () => ({}), { permission: () => true });
 const api = {
   updateEvent: allowed,
   createEvent: allowed,
   deleteEvent: allowed,
   getDiagnosisRule: async () => ({ rules: [] }),
-  batchGetUsers: async () => ({ users: [] }),
+  batchGetUsers: async (names: string[]) => ({
+    users: names.map((name) => ({ name, nickname: name === "users/amy" ? "Amy" : "Lee" })),
+  }),
 } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
 
 function Seed({
   events,
   extras,
   groupingSchema,
+  fieldTracks,
 }: {
   events: TimelinePositionedEvent[];
   extras: boolean;
   groupingSchema: MomentCustomFieldSchema;
+  fieldTracks: boolean;
 }): ReactNull {
   const setEvents = useEvents((store) => store.setEvents);
   const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
@@ -79,22 +84,34 @@ function Seed({
   useEffect(() => {
     setEvents({ loading: false, value: events });
     setDataSource({ id: "coscene-data-platform", type: "connection" });
-    setProject({ loading: false, value: { isArchived: false } as never });
+    setProject({
+      loading: false,
+      value: { name: fieldTracks ? fieldProject : undefined, isArchived: false } as never,
+    });
     setRecord({ loading: false, value: { isArchived: false } as never });
     setMomentSubtitleEnabled(extras);
-  }, [events, extras, setEvents, setDataSource, setProject, setRecord, setMomentSubtitleEnabled]);
+  }, [
+    events,
+    extras,
+    fieldTracks,
+    setEvents,
+    setDataSource,
+    setProject,
+    setRecord,
+    setMomentSubtitleEnabled,
+  ]);
   useEffect(() => {
     // Simulate an asynchronous schema read, after the adapter clears an old project snapshot.
     let active = true;
     void Promise.resolve(groupingSchema).then((schema) => {
       if (active) {
-        setCustomFieldSchema(schema);
+        setCustomFieldSchema(schema, fieldTracks ? fieldProject : undefined);
       }
     });
     return () => {
       active = false;
     };
-  }, [groupingSchema, setCustomFieldSchema]);
+  }, [groupingSchema, fieldTracks, setCustomFieldSchema]);
   return ReactNull;
 }
 
@@ -131,26 +148,50 @@ function MomentsBenchmark(): React.JSX.Element {
   const groupLevels = Math.max(0, Math.min(5, Number(query.get("groupLevels") ?? 0)));
   const groupCount = Math.max(1, Math.min(count, Number(query.get("groupCount") ?? 8)));
   const optionalFields = query.get("optionalFields") === "true";
+  const fieldTracks = query.get("fieldTracks") === "true";
+  const isDark = query.get("theme") !== "light";
   const groupingSchema = useMemo(
     () =>
       fromJson(CustomFieldSchemaSchema, {
-        properties: Array.from({ length: groupLevels }, (_, level) => ({
-          id: `field-${level}`,
-          name: `Level ${level + 1}`,
-          enums: {
-            values: Object.fromEntries(
-              Array.from({ length: groupCount }, (_, value) => [
-                String(value),
-                `Option ${String(value).padStart(3, "0")}`,
-              ]),
-            ),
-          },
-        })),
+        properties: [
+          ...Array.from({ length: groupLevels }, (_, level) => ({
+            id: `field-${level}`,
+            name: `Level ${level + 1}`,
+            enums: {
+              values: Object.fromEntries(
+                Array.from({ length: groupCount }, (_, value) => [
+                  String(value),
+                  `Option ${String(value).padStart(3, "0")}`,
+                ]),
+              ),
+            },
+          })),
+          ...(fieldTracks
+            ? [
+                { id: "action", name: "Action", text: {} },
+                { id: "confidence", name: "Confidence", number: {} },
+                { id: "status", name: "Status", enums: { values: { ready: "Ready" } } },
+                {
+                  id: "tags",
+                  name: "Tags",
+                  enums: { multiple: true, values: { pick: "Pick", place: "Place" } },
+                },
+                { id: "timestamp", name: "Recorded at", time: {} },
+                { id: "operator", name: "Operator", user: {} },
+                { id: "reviewers", name: "Reviewers", user: { multiple: true } },
+              ]
+            : []),
+        ],
         groupingRules: Array.from({ length: groupLevels }, (_, level) => ({
           propertyId: `field-${level}`,
         })),
+        trackRules: fieldTracks
+          ? ["action", "confidence", "status", "tags", "timestamp", "operator", "reviewers"].map(
+              (propertyId) => ({ propertyId }),
+            )
+          : [],
       }),
-    [groupLevels, groupCount],
+    [groupLevels, groupCount, fieldTracks],
   );
   const events = useMemo<TimelinePositionedEvent[]>(
     () =>
@@ -159,19 +200,54 @@ function MomentsBenchmark(): React.JSX.Element {
           ...entry,
           event: {
             ...entry.event,
+            record: fieldTracks ? `${fieldProject}/records/example` : entry.event.record,
             customizedFields: index % 3 === 0 ? { _doubtful: "true" } : {},
-            customFieldValues: Array.from({ length: groupLevels }, (_, level) => level)
-              .filter((level) => !optionalFields || (index & (1 << level)) !== 0)
-              .map((level) =>
-                create(CustomFieldValueSchema, {
-                  property: { id: `field-${level}` },
-                  value: { case: "enums", value: { id: String((index + level) % groupCount) } },
-                }),
-              ),
+            customFieldValues: [
+              ...Array.from({ length: groupLevels }, (_, level) => level)
+                .filter((level) => !optionalFields || (index & (1 << level)) !== 0)
+                .map((level) =>
+                  create(CustomFieldValueSchema, {
+                    property: { id: `field-${level}` },
+                    value: { case: "enums", value: { id: String((index + level) % groupCount) } },
+                  }),
+                ),
+              ...(fieldTracks
+                ? [
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "action" },
+                      text: { value: index % 2 !== 0 ? "Place cup" : "Pick up cup" },
+                    }),
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "confidence" },
+                      number: { value: index },
+                    }),
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "status" },
+                      enums: { id: "ready" },
+                    }),
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "tags" },
+                      enums: { ids: ["pick", "place"] },
+                    }),
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "timestamp" },
+                      time: { value: "2026-10-21T08:00:00Z" },
+                    }),
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "operator" },
+                      user: { ids: ["amy"] },
+                    }),
+                    fromJson(CustomFieldValueSchema, {
+                      property: { id: "reviewers" },
+                      user: { ids: ["amy", "lee"] },
+                    }),
+                  ]
+                : []),
+            ],
           },
         }),
       ),
-    [count, distribution, groupLevels, groupCount, optionalFields],
+    [count, distribution, groupLevels, groupCount, optionalFields, fieldTracks],
   );
   const [currentTime, setCurrentTime] = useState<Time>(origin);
   const [playing, setPlaying] = useState(false);
@@ -191,7 +267,7 @@ function MomentsBenchmark(): React.JSX.Element {
     };
   }, [playing]);
   return (
-    <ThemeProvider isDark>
+    <ThemeProvider isDark={isDark}>
       <GlobalCss />
       <CssBaseline>
         <AppConfigurationContext.Provider value={configuration}>
@@ -210,15 +286,20 @@ function MomentsBenchmark(): React.JSX.Element {
                       <TimelineInteractionStateProvider>
                         <CoScenePlaylistProvider>
                           <EventsProvider>
-                            <Seed events={events} extras={extras} groupingSchema={groupingSchema} />
+                            <Seed
+                              events={events}
+                              extras={extras}
+                              groupingSchema={groupingSchema}
+                              fieldTracks={fieldTracks}
+                            />
                             <EventsSyncAdapter />
                             <div
                               style={{
                                 height: "100vh",
                                 display: "flex",
                                 flexDirection: "column",
-                                background: "#121212",
-                                color: "white",
+                                background: isDark ? "#121212" : "white",
+                                color: isDark ? "white" : "#121212",
                               }}
                             >
                               <button

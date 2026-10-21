@@ -7,9 +7,13 @@
 
 import type { CustomFieldSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 
-import type { CustomFieldGroupingRule } from "./generated/common/custom_field_pb";
+import type {
+  CustomFieldGroupingRule,
+  CustomFieldTrackRule,
+} from "./generated/common/custom_field_pb";
 
 /** Optional for old server snapshots; the current descriptor decodes missing rules as []. */
 export type MomentCustomFieldSchema = CustomFieldSchema & {
   groupingRules?: CustomFieldGroupingRule[];
+  trackRules?: CustomFieldTrackRule[];
 };

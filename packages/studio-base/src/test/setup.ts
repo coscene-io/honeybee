@@ -52,11 +52,25 @@ class ResizeObserverMock {
 
   public disconnect() {}
 
-  public observe() {
-    const entry = {
-      contentRect: { width: 150, height: 150 },
+  public observe(target: Element) {
+    const entry: ResizeObserverEntry = {
+      target,
+      contentRect: {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 150,
+        bottom: 150,
+        width: 150,
+        height: 150,
+        toJSON: () => ({}),
+      },
+      borderBoxSize: [{ inlineSize: 150, blockSize: 150 }],
+      contentBoxSize: [{ inlineSize: 150, blockSize: 150 }],
+      devicePixelContentBoxSize: [{ inlineSize: 150, blockSize: 150 }],
     };
-    this.#callback([entry as ResizeObserverEntry], this);
+    this.#callback([entry], this);
   }
 
   public unobserve() {}

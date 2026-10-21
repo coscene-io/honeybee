@@ -288,10 +288,14 @@ function FirstTrackView({
   collapsed = true,
   hidden = false,
   projectName,
+  projections = false,
+  hideFields = false,
 }: {
   collapsed?: boolean;
   hidden?: boolean;
   projectName?: string;
+  projections?: boolean;
+  hideFields?: boolean;
 }): ReactNull {
   const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
   const events = useEvents((store) => store.events.value);
@@ -303,8 +307,10 @@ function FirstTrackView({
       properties: [
         { id: "platform", type: { case: "enums", value: { values: { a: "Alpha", b: "Beta" } } } },
         { id: "detail", type: { case: "enums", value: { values: { a: "Detail" } } } },
+        { id: "action", type: { case: "text", value: {} } },
       ],
       groupingRules: [{ propertyId: "platform" }, { propertyId: "detail" }],
+      trackRules: projections ? [{ propertyId: "action" }] : [],
     });
     const group = getMomentTracks(events ?? [], schema, projectName)[0]!;
     setCustomFieldSchema(schema, projectName);
@@ -313,11 +319,27 @@ function FirstTrackView({
       views: {
         [projectName ?? ""]: {
           collapsed: { [group.id]: collapsed },
-          hidden: { [group.id]: hidden },
+          hidden: {
+            [group.id]: hidden,
+            ...Object.fromEntries(
+              group.children
+                .filter((child) => child.kind === "field")
+                .map((child) => [child.id, hideFields]),
+            ),
+          },
         },
       },
     }));
-  }, [collapsed, events, hidden, projectName, setCustomFieldSchema, setMomentTimeline]);
+  }, [
+    collapsed,
+    events,
+    hidden,
+    projectName,
+    projections,
+    hideFields,
+    setCustomFieldSchema,
+    setMomentTimeline,
+  ]);
   return ReactNull;
 }
 
@@ -401,6 +423,54 @@ describe("<EventsSyncAdapter />", () => {
         );
       });
       expect(eventsStore.getState().events.value).toHaveLength(3);
+    },
+  );
+
+  it.each([
+    { hidden: true, hideFields: false },
+    { hidden: false, hideFields: true },
+    { hidden: true, hideFields: true },
+  ])(
+    "uses each original Moment once while any projection is visible (%j)",
+    async ({ hidden, hideFields }) => {
+      const events = [makeEvent("leaf", 1, 2), makeEvent("root", 5, 1)];
+      events[0]!.event.customFieldValues = [
+        create(CustomFieldValueSchema, {
+          property: { id: "platform" },
+          value: { case: "enums", value: { id: "a" } },
+        }),
+        create(CustomFieldValueSchema, {
+          property: { id: "action" },
+          value: { case: "text", value: { value: "Pick" } },
+        }),
+      ];
+      const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+      const interaction = makeTimelineInteractionStore();
+      render(
+        <Wrapper
+          eventsStore={eventsStore}
+          timelineInteractionStore={interaction}
+          currentTime={{ sec: 1, nsec: 0 }}
+        >
+          <EventsSyncAdapter />
+          <FirstTrackView projections collapsed={false} hidden={hidden} hideFields={hideFields} />
+          <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+        </Wrapper>,
+      );
+      fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+      const visible = !hidden || !hideFields;
+      expect(eventsStore.getState().selectedEventId).toBe(visible ? "leaf" : "root");
+      act(() => {
+        interaction
+          .getState()
+          .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+      });
+      await waitFor(() => {
+        expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(
+          visible ? ["leaf"] : [],
+        );
+      });
+      expect(eventsStore.getState().events.value).toEqual(events);
     },
   );
 

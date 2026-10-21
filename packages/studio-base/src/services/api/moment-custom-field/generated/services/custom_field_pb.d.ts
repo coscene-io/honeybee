@@ -2,16 +2,16 @@
 // @generated from file coscene/dataplatform/v1alpha3/services/custom_field.proto (package coscene.dataplatform.v1alpha3.services, syntax proto3)
 /* eslint-disable */
 
-import type { Message } from '@bufbuild/protobuf';
-import type { GenFile, GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-import type { EmptySchema } from '@bufbuild/protobuf/wkt';
-
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import type { Message } from "@bufbuild/protobuf";
 import type {
   CustomFieldGroupingRule,
   CustomFieldSchema,
   CustomFieldSchemaSchema,
+  CustomFieldTrackRule,
   Property,
-} from '../common/custom_field_pb.js';
+} from "../common/custom_field_pb.js";
+import type { EmptySchema } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file coscene/dataplatform/v1alpha3/services/custom_field.proto.
@@ -25,7 +25,7 @@ export declare const file_coscene_dataplatform_v1alpha3_services_custom_field: G
  * @generated from message coscene.dataplatform.v1alpha3.services.GetCustomFieldSchemaRequest
  */
 export declare type GetCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.GetCustomFieldSchemaRequest'> & {};
+  Message<"coscene.dataplatform.v1alpha3.services.GetCustomFieldSchemaRequest"> & {};
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.services.GetCustomFieldSchemaRequest.
@@ -39,7 +39,7 @@ export declare const GetCustomFieldSchemaRequestSchema: GenMessage<GetCustomFiel
  * @generated from message coscene.dataplatform.v1alpha3.services.RemoveCustomFieldPropertiesRequest
  */
 export declare type RemoveCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.RemoveCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.RemoveCustomFieldPropertiesRequest"> & {
     /**
      * The property to remove.
      *
@@ -61,7 +61,7 @@ export declare const RemoveCustomFieldPropertiesRequestSchema: GenMessage<Remove
  * @generated from message coscene.dataplatform.v1alpha3.services.GetDeviceCustomFieldSchemaRequest
  */
 export declare type GetDeviceCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.GetDeviceCustomFieldSchemaRequest'> & {};
+  Message<"coscene.dataplatform.v1alpha3.services.GetDeviceCustomFieldSchemaRequest"> & {};
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.services.GetDeviceCustomFieldSchemaRequest.
@@ -75,7 +75,7 @@ export declare const GetDeviceCustomFieldSchemaRequestSchema: GenMessage<GetDevi
  * @generated from message coscene.dataplatform.v1alpha3.services.AddCustomFieldPropertiesRequest
  */
 export declare type AddCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.AddCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.AddCustomFieldPropertiesRequest"> & {
     /**
      * The property to add.
      *
@@ -96,7 +96,7 @@ export declare const AddCustomFieldPropertiesRequestSchema: GenMessage<AddCustom
  * @generated from message coscene.dataplatform.v1alpha3.services.AddDeviceCustomFieldPropertiesRequest
  */
 export declare type AddDeviceCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.AddDeviceCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.AddDeviceCustomFieldPropertiesRequest"> & {
     /**
      * The property to add.
      *
@@ -117,7 +117,7 @@ export declare const AddDeviceCustomFieldPropertiesRequestSchema: GenMessage<Add
  * @generated from message coscene.dataplatform.v1alpha3.services.RemoveDeviceCustomFieldPropertiesRequest
  */
 export declare type RemoveDeviceCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.RemoveDeviceCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.RemoveDeviceCustomFieldPropertiesRequest"> & {
     /**
      * The property to remove.
      *
@@ -140,7 +140,7 @@ export declare const RemoveDeviceCustomFieldPropertiesRequestSchema: GenMessage<
  * @generated from message coscene.dataplatform.v1alpha3.services.GetRecordCustomFieldSchemaRequest
  */
 export declare type GetRecordCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.GetRecordCustomFieldSchemaRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.GetRecordCustomFieldSchemaRequest"> & {
     /**
      * The project resource name.
      *
@@ -161,7 +161,7 @@ export declare const GetRecordCustomFieldSchemaRequestSchema: GenMessage<GetReco
  * @generated from message coscene.dataplatform.v1alpha3.services.SortRecordCustomFieldSchemaRequest
  */
 export declare type SortRecordCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.SortRecordCustomFieldSchemaRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.SortRecordCustomFieldSchemaRequest"> & {
     /**
      * The project resource name.
      *
@@ -189,7 +189,7 @@ export declare const SortRecordCustomFieldSchemaRequestSchema: GenMessage<SortRe
  * @generated from message coscene.dataplatform.v1alpha3.services.AddRecordCustomFieldPropertiesRequest
  */
 export declare type AddRecordCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.AddRecordCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.AddRecordCustomFieldPropertiesRequest"> & {
     /**
      * The project resource name.
      *
@@ -217,7 +217,7 @@ export declare const AddRecordCustomFieldPropertiesRequestSchema: GenMessage<Add
  * @generated from message coscene.dataplatform.v1alpha3.services.RemoveRecordCustomFieldPropertiesRequest
  */
 export declare type RemoveRecordCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.RemoveRecordCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.RemoveRecordCustomFieldPropertiesRequest"> & {
     /**
      * The project resource name.
      *
@@ -247,7 +247,7 @@ export declare const RemoveRecordCustomFieldPropertiesRequestSchema: GenMessage<
  * @generated from message coscene.dataplatform.v1alpha3.services.GetMomentCustomFieldSchemaRequest
  */
 export declare type GetMomentCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.GetMomentCustomFieldSchemaRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.GetMomentCustomFieldSchemaRequest"> & {
     /**
      * The project resource name.
      *
@@ -263,14 +263,14 @@ export declare type GetMomentCustomFieldSchemaRequest =
 export declare const GetMomentCustomFieldSchemaRequestSchema: GenMessage<GetMomentCustomFieldSchemaRequest>;
 
 /**
- * Request message for SetMomentCustomFieldGrouping.
+ * Request message for SetMomentCustomFieldRules.
  *
- * @generated from message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldGroupingRequest
+ * @generated from message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldRulesRequest
  */
-export declare type SetMomentCustomFieldGroupingRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldGroupingRequest'> & {
+export declare type SetMomentCustomFieldRulesRequest =
+  Message<"coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldRulesRequest"> & {
     /**
-     * Required. The project whose Moment grouping configuration is replaced.
+     * Required. The project whose Moment grouping and track rules are replaced.
      *
      * @generated from field: string project = 1;
      */
@@ -278,31 +278,42 @@ export declare type SetMomentCustomFieldGroupingRequest =
 
     /**
      * Complete replacement of the grouping rules, from outermost to innermost.
-     * At most five rules are allowed; each property ID may appear only once.
-     * Only single-select enum properties (multiple = false) enabled for this
-     * project's Moments are supported. An empty or omitted list clears grouping.
-     * No properties or their form order are replaced.
+     * At most five rules are allowed. Only single-select enum properties enabled
+     * for this project's Moments are supported. An empty or omitted list clears
+     * grouping. Each property ID must be unique across both rule collections.
      *
      * @generated from field: repeated coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule grouping_rules = 2;
      */
     groupingRules: CustomFieldGroupingRule[];
+
+    /**
+     * Complete replacement of the additional field track rules. All field types
+     * defined by Property.type and enabled for this project's Moments are
+     * supported, including multi-select enums and multi-user fields. Multiple
+     * rules are allowed without the five-level grouping limit. An empty or omitted
+     * list clears additional field tracks. Each property ID must be unique across
+     * both rule collections. List order does not define track display ordering.
+     *
+     * @generated from field: repeated coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule track_rules = 3;
+     */
+    trackRules: CustomFieldTrackRule[];
   };
 
 /**
- * Describes the message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldGroupingRequest.
- * Use `create(SetMomentCustomFieldGroupingRequestSchema)` to create a new message.
+ * Describes the message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldRulesRequest.
+ * Use `create(SetMomentCustomFieldRulesRequestSchema)` to create a new message.
  */
-export declare const SetMomentCustomFieldGroupingRequestSchema: GenMessage<SetMomentCustomFieldGroupingRequest>;
+export declare const SetMomentCustomFieldRulesRequestSchema: GenMessage<SetMomentCustomFieldRulesRequest>;
 
 /**
- * Response message for SetMomentCustomFieldGrouping.
+ * Response message for SetMomentCustomFieldRules.
  *
- * @generated from message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldGroupingResponse
+ * @generated from message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldRulesResponse
  */
-export declare type SetMomentCustomFieldGroupingResponse =
-  Message<'coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldGroupingResponse'> & {
+export declare type SetMomentCustomFieldRulesResponse =
+  Message<"coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldRulesResponse"> & {
     /**
-     * The current Moment custom field schema, including grouping.
+     * The complete current Moment custom field schema with both saved collections.
      *
      * @generated from field: coscene.dataplatform.v1alpha3.common.CustomFieldSchema schema = 1;
      */
@@ -310,10 +321,10 @@ export declare type SetMomentCustomFieldGroupingResponse =
   };
 
 /**
- * Describes the message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldGroupingResponse.
- * Use `create(SetMomentCustomFieldGroupingResponseSchema)` to create a new message.
+ * Describes the message coscene.dataplatform.v1alpha3.services.SetMomentCustomFieldRulesResponse.
+ * Use `create(SetMomentCustomFieldRulesResponseSchema)` to create a new message.
  */
-export declare const SetMomentCustomFieldGroupingResponseSchema: GenMessage<SetMomentCustomFieldGroupingResponse>;
+export declare const SetMomentCustomFieldRulesResponseSchema: GenMessage<SetMomentCustomFieldRulesResponse>;
 
 /**
  * Request message for SortMomentCustomFieldSchemaRequest.
@@ -321,7 +332,7 @@ export declare const SetMomentCustomFieldGroupingResponseSchema: GenMessage<SetM
  * @generated from message coscene.dataplatform.v1alpha3.services.SortMomentCustomFieldSchemaRequest
  */
 export declare type SortMomentCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.SortMomentCustomFieldSchemaRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.SortMomentCustomFieldSchemaRequest"> & {
     /**
      * The project resource name.
      *
@@ -349,7 +360,7 @@ export declare const SortMomentCustomFieldSchemaRequestSchema: GenMessage<SortMo
  * @generated from message coscene.dataplatform.v1alpha3.services.AddMomentCustomFieldPropertiesRequest
  */
 export declare type AddMomentCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.AddMomentCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.AddMomentCustomFieldPropertiesRequest"> & {
     /**
      * The project resource name.
      *
@@ -377,7 +388,7 @@ export declare const AddMomentCustomFieldPropertiesRequestSchema: GenMessage<Add
  * @generated from message coscene.dataplatform.v1alpha3.services.RemoveMomentCustomFieldPropertiesRequest
  */
 export declare type RemoveMomentCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.RemoveMomentCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.RemoveMomentCustomFieldPropertiesRequest"> & {
     /**
      * The project resource name.
      *
@@ -407,7 +418,7 @@ export declare const RemoveMomentCustomFieldPropertiesRequestSchema: GenMessage<
  * @generated from message coscene.dataplatform.v1alpha3.services.GetTaskCustomFieldSchemaRequest
  */
 export declare type GetTaskCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.GetTaskCustomFieldSchemaRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.GetTaskCustomFieldSchemaRequest"> & {
     /**
      * The project resource name.
      *
@@ -428,7 +439,7 @@ export declare const GetTaskCustomFieldSchemaRequestSchema: GenMessage<GetTaskCu
  * @generated from message coscene.dataplatform.v1alpha3.services.SortTaskCustomFieldSchemaRequest
  */
 export declare type SortTaskCustomFieldSchemaRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.SortTaskCustomFieldSchemaRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.SortTaskCustomFieldSchemaRequest"> & {
     /**
      * The project resource name.
      *
@@ -456,7 +467,7 @@ export declare const SortTaskCustomFieldSchemaRequestSchema: GenMessage<SortTask
  * @generated from message coscene.dataplatform.v1alpha3.services.AddTaskCustomFieldPropertiesRequest
  */
 export declare type AddTaskCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.AddTaskCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.AddTaskCustomFieldPropertiesRequest"> & {
     /**
      * The project resource name.
      *
@@ -484,7 +495,7 @@ export declare const AddTaskCustomFieldPropertiesRequestSchema: GenMessage<AddTa
  * @generated from message coscene.dataplatform.v1alpha3.services.RemoveTaskCustomFieldPropertiesRequest
  */
 export declare type RemoveTaskCustomFieldPropertiesRequest =
-  Message<'coscene.dataplatform.v1alpha3.services.RemoveTaskCustomFieldPropertiesRequest'> & {
+  Message<"coscene.dataplatform.v1alpha3.services.RemoveTaskCustomFieldPropertiesRequest"> & {
     /**
      * The project resource name.
      *
@@ -519,7 +530,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.GetCustomFieldSchema
    */
   getCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof GetCustomFieldSchemaRequestSchema;
     output: typeof CustomFieldSchemaSchema;
   };
@@ -530,7 +541,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.AddCustomFieldProperties
    */
   addCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof AddCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -540,7 +551,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveCustomFieldProperties
    */
   removeCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof RemoveCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -552,7 +563,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.GetDeviceCustomFieldSchema
    */
   getDeviceCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof GetDeviceCustomFieldSchemaRequestSchema;
     output: typeof CustomFieldSchemaSchema;
   };
@@ -562,7 +573,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.AddDeviceCustomFieldProperties
    */
   addDeviceCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof AddDeviceCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -572,7 +583,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveDeviceCustomFieldProperties
    */
   removeDeviceCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof RemoveDeviceCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -584,7 +595,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.GetRecordCustomFieldSchema
    */
   getRecordCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof GetRecordCustomFieldSchemaRequestSchema;
     output: typeof CustomFieldSchemaSchema;
   };
@@ -594,7 +605,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.SortRecordCustomFieldSchema
    */
   sortRecordCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof SortRecordCustomFieldSchemaRequestSchema;
     output: typeof EmptySchema;
   };
@@ -604,7 +615,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.AddRecordCustomFieldProperties
    */
   addRecordCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof AddRecordCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -614,60 +625,62 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveRecordCustomFieldProperties
    */
   removeRecordCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof RemoveRecordCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
   /**
    * Get the custom field schema for moment.
-   * Returns project-wide grouping rules shared by all clients, independently
-   * of playback layouts. Other schema categories do not currently return
-   * grouping_rules.
+   * Returns project-wide grouping and track rules shared by all clients,
+   * independently of playback layouts. Other schema categories do not
+   * currently return grouping_rules or track_rules.
    * api-linter: core::0131::http-uri-name=disabled
    * api-linter: core::0131::response-message-name=disabled
    *
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.GetMomentCustomFieldSchema
    */
   getMomentCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof GetMomentCustomFieldSchemaRequestSchema;
     output: typeof CustomFieldSchemaSchema;
   };
   /**
-   * Atomically replace the project's shared Moment custom field grouping.
+   * Atomically replace the project's shared Moment grouping and track rules.
    * Requires the project's Moment custom field configuration write permission
-   * and an active project. The server validates all rules against the current
-   * schema and replaces them in the same transaction, including coordination
-   * with concurrent field removal or changes to grouping eligibility.
-   * The last successful replacement wins; no client version token is required.
-   * Field form order and Moment values are preserved.
-   * Rules define only the grouping hierarchy, not display ordering.
-   * Legacy schema mutations preserve grouping except for the cleanup required
-   * when a referenced field is removed or becomes unsupported.
-   * Invalid rules fail with INVALID_ARGUMENT without changing any rules.
-   * Removing a referenced field from the project, deleting its organization
-   * definition, or changing it to an unsupported grouping type (including a
-   * multi-select enum) must atomically remove affected rules, compact remaining
-   * hierarchies in every affected project.
-   * This custom method replaces a non-resource configuration in full, without
-   * the field mask used by a standard resource Update method.
+   * and an active project. Both collections are validated against the current
+   * project schema and saved in one transaction, coordinated with concurrent
+   * field removal and type changes. Empty or omitted collections are cleared;
+   * clients must submit the complete desired configuration on every save.
+   * Invalid or duplicate property IDs, fields outside the project's schema or
+   * without a type, unsupported grouping types, more than five grouping rules,
+   * or an overlap between the collections fail with INVALID_ARGUMENT without
+   * any changes.
+   * The last successful replacement wins; no client version token or field
+   * mask is required. Field definitions, form order and Moment values are
+   * preserved. Rules do not define track display ordering.
+   * Other schema mutations preserve both collections except for invalid-field
+   * cleanup: removing a field from the project or deleting its organization
+   * definition removes its rules atomically in each affected project. Changing
+   * a grouping field away from a single-select enum removes its grouping rule
+   * and compacts the hierarchy. Track rules survive changes between supported
+   * field types and are removed if the field no longer has a supported type.
    * api-linter: core::0134::synonyms=disabled
    *
-   * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.SetMomentCustomFieldGrouping
+   * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.SetMomentCustomFieldRules
    */
-  setMomentCustomFieldGrouping: {
-    methodKind: 'unary';
-    input: typeof SetMomentCustomFieldGroupingRequestSchema;
-    output: typeof SetMomentCustomFieldGroupingResponseSchema;
+  setMomentCustomFieldRules: {
+    methodKind: "unary";
+    input: typeof SetMomentCustomFieldRulesRequestSchema;
+    output: typeof SetMomentCustomFieldRulesResponseSchema;
   };
   /**
    * Sort the custom field schema for moment.
-   * Only changes field form order; grouping rules are preserved.
+   * Only changes field form order; grouping and track rules are preserved.
    *
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.SortMomentCustomFieldSchema
    */
   sortMomentCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof SortMomentCustomFieldSchemaRequestSchema;
     output: typeof EmptySchema;
   };
@@ -677,7 +690,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.AddMomentCustomFieldProperties
    */
   addMomentCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof AddMomentCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -687,7 +700,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveMomentCustomFieldProperties
    */
   removeMomentCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof RemoveMomentCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -699,7 +712,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.GetTaskCustomFieldSchema
    */
   getTaskCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof GetTaskCustomFieldSchemaRequestSchema;
     output: typeof CustomFieldSchemaSchema;
   };
@@ -709,7 +722,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.SortTaskCustomFieldSchema
    */
   sortTaskCustomFieldSchema: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof SortTaskCustomFieldSchemaRequestSchema;
     output: typeof EmptySchema;
   };
@@ -719,7 +732,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.AddTaskCustomFieldProperties
    */
   addTaskCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof AddTaskCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };
@@ -729,7 +742,7 @@ export declare const CustomFieldService: GenService<{
    * @generated from rpc coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveTaskCustomFieldProperties
    */
   removeTaskCustomFieldProperties: {
-    methodKind: 'unary';
+    methodKind: "unary";
     input: typeof RemoveTaskCustomFieldPropertiesRequestSchema;
     output: typeof EmptySchema;
   };

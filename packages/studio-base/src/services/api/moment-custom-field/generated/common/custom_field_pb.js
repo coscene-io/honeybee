@@ -2,9 +2,9 @@
 // @generated from file coscene/dataplatform/v1alpha3/common/custom_field.proto (package coscene.dataplatform.v1alpha3.common, syntax proto3)
 /* eslint-disable */
 
-import { file_google_api_field_behavior } from '@buf/googleapis_googleapis.bufbuild_es/google/api/field_behavior_pb.js';
-import { fileDesc, messageDesc } from '@bufbuild/protobuf/codegenv2';
-import { file_google_protobuf_timestamp } from '@bufbuild/protobuf/wkt';
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_api_field_behavior } from "@buf/googleapis_googleapis.bufbuild_es/google/api/field_behavior_pb.js";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file coscene/dataplatform/v1alpha3/common/custom_field.proto.
@@ -12,7 +12,7 @@ import { file_google_protobuf_timestamp } from '@bufbuild/protobuf/wkt';
 export const file_coscene_dataplatform_v1alpha3_common_custom_field =
   /*@__PURE__*/
   fileDesc(
-    'Cjdjb3NjZW5lL2RhdGFwbGF0Zm9ybS92MWFscGhhMy9jb21tb24vY3VzdG9tX2ZpZWxkLnByb3RvEiRjb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24itAEKEUN1c3RvbUZpZWxkU2NoZW1hEkIKCnByb3BlcnRpZXMYASADKAsyLi5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uUHJvcGVydHkSWwoOZ3JvdXBpbmdfcnVsZXMYAiADKAsyPS5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uQ3VzdG9tRmllbGRHcm91cGluZ1J1bGVCBOJBAQMiNAoXQ3VzdG9tRmllbGRHcm91cGluZ1J1bGUSGQoLcHJvcGVydHlfaWQYASABKAlCBOJBAQIimAMKCFByb3BlcnR5EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIcmVxdWlyZWQYBCABKAgSPgoEdGV4dBgKIAEoCzIuLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5UZXh0VHlwZUgAEkIKBm51bWJlchgLIAEoCzIwLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5OdW1iZXJUeXBlSAASPwoFZW51bXMYDCABKAsyLi5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uRW51bVR5cGVIABI+CgR0aW1lGA0gASgLMi4uY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLlRpbWVUeXBlSAASPgoEdXNlchgOIAEoCzIuLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5Vc2VyVHlwZUgAQgYKBHR5cGUiCgoIVGV4dFR5cGUiDAoKTnVtYmVyVHlwZSKXAQoIRW51bVR5cGUSSgoGdmFsdWVzGAEgAygLMjouY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLkVudW1UeXBlLlZhbHVlc0VudHJ5EhAKCG11bHRpcGxlGAIgASgIGi0KC1ZhbHVlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiGgoIVGltZVR5cGUSDgoGZm9ybWF0GAEgASgJIhwKCFVzZXJUeXBlEhAKCG11bHRpcGxlGAEgASgIIqcDChBDdXN0b21GaWVsZFZhbHVlEkAKCHByb3BlcnR5GAEgASgLMi4uY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLlByb3BlcnR5Ej8KBHRleHQYCiABKAsyLy5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uVGV4dFZhbHVlSAASQwoGbnVtYmVyGAsgASgLMjEuY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLk51bWJlclZhbHVlSAASQAoFZW51bXMYDCABKAsyLy5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uRW51bVZhbHVlSAASPwoEdGltZRgNIAEoCzIvLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5UaW1lVmFsdWVIABI/CgR1c2VyGA4gASgLMi8uY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLlVzZXJWYWx1ZUgAQgcKBXZhbHVlIhoKCVRleHRWYWx1ZRINCgV2YWx1ZRgBIAEoCSIcCgtOdW1iZXJWYWx1ZRINCgV2YWx1ZRgBIAEoASIkCglFbnVtVmFsdWUSCgoCaWQYASABKAkSCwoDaWRzGAIgAygJIjYKCVRpbWVWYWx1ZRIpCgV2YWx1ZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGAoJVXNlclZhbHVlEgsKA2lkcxgBIAMoCUJYWlZnaXRodWIuY29tL2Nvc2NlbmUtaW8vY29zY2VuZWFwaXMvZGF0YXBsYXRmb3JtL2dlbnByb3RvL3YxYWxwaGEzL2NvbW1vbjtjb21tb252MWFscGhhM2IGcHJvdG8z',
+    "Cjdjb3NjZW5lL2RhdGFwbGF0Zm9ybS92MWFscGhhMy9jb21tb24vY3VzdG9tX2ZpZWxkLnByb3RvEiRjb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24iiwIKEUN1c3RvbUZpZWxkU2NoZW1hEkIKCnByb3BlcnRpZXMYASADKAsyLi5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uUHJvcGVydHkSWwoOZ3JvdXBpbmdfcnVsZXMYAiADKAsyPS5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uQ3VzdG9tRmllbGRHcm91cGluZ1J1bGVCBOJBAQMSVQoLdHJhY2tfcnVsZXMYAyADKAsyOi5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uQ3VzdG9tRmllbGRUcmFja1J1bGVCBOJBAQMiNAoXQ3VzdG9tRmllbGRHcm91cGluZ1J1bGUSGQoLcHJvcGVydHlfaWQYASABKAlCBOJBAQIiMQoUQ3VzdG9tRmllbGRUcmFja1J1bGUSGQoLcHJvcGVydHlfaWQYASABKAlCBOJBAQIimAMKCFByb3BlcnR5EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIcmVxdWlyZWQYBCABKAgSPgoEdGV4dBgKIAEoCzIuLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5UZXh0VHlwZUgAEkIKBm51bWJlchgLIAEoCzIwLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5OdW1iZXJUeXBlSAASPwoFZW51bXMYDCABKAsyLi5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uRW51bVR5cGVIABI+CgR0aW1lGA0gASgLMi4uY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLlRpbWVUeXBlSAASPgoEdXNlchgOIAEoCzIuLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5Vc2VyVHlwZUgAQgYKBHR5cGUiCgoIVGV4dFR5cGUiDAoKTnVtYmVyVHlwZSKXAQoIRW51bVR5cGUSSgoGdmFsdWVzGAEgAygLMjouY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLkVudW1UeXBlLlZhbHVlc0VudHJ5EhAKCG11bHRpcGxlGAIgASgIGi0KC1ZhbHVlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiGgoIVGltZVR5cGUSDgoGZm9ybWF0GAEgASgJIhwKCFVzZXJUeXBlEhAKCG11bHRpcGxlGAEgASgIIqcDChBDdXN0b21GaWVsZFZhbHVlEkAKCHByb3BlcnR5GAEgASgLMi4uY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLlByb3BlcnR5Ej8KBHRleHQYCiABKAsyLy5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uVGV4dFZhbHVlSAASQwoGbnVtYmVyGAsgASgLMjEuY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLk51bWJlclZhbHVlSAASQAoFZW51bXMYDCABKAsyLy5jb3NjZW5lLmRhdGFwbGF0Zm9ybS52MWFscGhhMy5jb21tb24uRW51bVZhbHVlSAASPwoEdGltZRgNIAEoCzIvLmNvc2NlbmUuZGF0YXBsYXRmb3JtLnYxYWxwaGEzLmNvbW1vbi5UaW1lVmFsdWVIABI/CgR1c2VyGA4gASgLMi8uY29zY2VuZS5kYXRhcGxhdGZvcm0udjFhbHBoYTMuY29tbW9uLlVzZXJWYWx1ZUgAQgcKBXZhbHVlIhoKCVRleHRWYWx1ZRINCgV2YWx1ZRgBIAEoCSIcCgtOdW1iZXJWYWx1ZRINCgV2YWx1ZRgBIAEoASIkCglFbnVtVmFsdWUSCgoCaWQYASABKAkSCwoDaWRzGAIgAygJIjYKCVRpbWVWYWx1ZRIpCgV2YWx1ZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGAoJVXNlclZhbHVlEgsKA2lkcxgBIAMoCUJYWlZnaXRodWIuY29tL2Nvc2NlbmUtaW8vY29zY2VuZWFwaXMvZGF0YXBsYXRmb3JtL2dlbnByb3RvL3YxYWxwaGEzL2NvbW1vbjtjb21tb252MWFscGhhM2IGcHJvdG8z",
     [file_google_api_field_behavior, file_google_protobuf_timestamp],
   );
 
@@ -33,12 +33,20 @@ export const CustomFieldGroupingRuleSchema =
   messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 1);
 
 /**
+ * Describes the message coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule.
+ * Use `create(CustomFieldTrackRuleSchema)` to create a new message.
+ */
+export const CustomFieldTrackRuleSchema =
+  /*@__PURE__*/
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 2);
+
+/**
  * Describes the message coscene.dataplatform.v1alpha3.common.Property.
  * Use `create(PropertySchema)` to create a new message.
  */
 export const PropertySchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 2);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 3);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.TextType.
@@ -46,7 +54,7 @@ export const PropertySchema =
  */
 export const TextTypeSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 3);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 4);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.NumberType.
@@ -54,7 +62,7 @@ export const TextTypeSchema =
  */
 export const NumberTypeSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 4);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 5);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.EnumType.
@@ -62,7 +70,7 @@ export const NumberTypeSchema =
  */
 export const EnumTypeSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 5);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 6);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.TimeType.
@@ -70,7 +78,7 @@ export const EnumTypeSchema =
  */
 export const TimeTypeSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 6);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 7);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.UserType.
@@ -78,7 +86,7 @@ export const TimeTypeSchema =
  */
 export const UserTypeSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 7);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 8);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.CustomFieldValue.
@@ -86,7 +94,7 @@ export const UserTypeSchema =
  */
 export const CustomFieldValueSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 8);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 9);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.TextValue.
@@ -94,7 +102,7 @@ export const CustomFieldValueSchema =
  */
 export const TextValueSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 9);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 10);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.NumberValue.
@@ -102,7 +110,7 @@ export const TextValueSchema =
  */
 export const NumberValueSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 10);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 11);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.EnumValue.
@@ -110,7 +118,7 @@ export const NumberValueSchema =
  */
 export const EnumValueSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 11);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 12);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.TimeValue.
@@ -118,7 +126,7 @@ export const EnumValueSchema =
  */
 export const TimeValueSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 12);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 13);
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.UserValue.
@@ -126,4 +134,4 @@ export const TimeValueSchema =
  */
 export const UserValueSchema =
   /*@__PURE__*/
-  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 13);
+  messageDesc(file_coscene_dataplatform_v1alpha3_common_custom_field, 14);

@@ -389,11 +389,17 @@ function EventTick({
       }}
       data-testid="timeline-event"
       data-event-name={eventName}
+      data-render-id={item.renderId ?? eventName}
+      data-track-id={item.trackId}
+      data-field-property-id={item.fieldPropertyId}
+      title={item.label ?? (item.event.event.displayName || eventName)}
       onPointerDown={(event) => {
         onBodyPointerDown(event, item);
       }}
     >
-      <span className={tickClasses.label}>{item.event.event.displayName || eventName}</span>
+      <span className={tickClasses.label}>
+        {item.label ?? (item.event.event.displayName || eventName)}
+      </span>
       <div
         className={tickClasses.startHandle}
         data-testid="timeline-event-start-handle"
@@ -807,6 +813,7 @@ type Props = {
 };
 
 type EventDragState = {
+  renderId?: string;
   anchor?: BodyDragAnchor;
   edge?: EventResizeEdge;
   initialClientX: number;
@@ -817,6 +824,11 @@ type EventDragState = {
   range: EventTimeRange;
   sourceEndSec: number;
   sourceStartSec: number;
+};
+
+type ProjectedRollingEditPair = RollingEditPair & {
+  previousRenderId?: string;
+  nextRenderId?: string;
 };
 
 function getEventLayoutWithRange(
@@ -1102,7 +1114,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     | {
         boundarySec: number;
         initialClientX: number;
-        pair: RollingEditPair;
+        pair: ProjectedRollingEditPair;
       }
     | undefined
   >(undefined);
@@ -1113,6 +1125,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     | {
         anchorPosition: PopoverPosition;
         event: TimelinePositionedEvent;
+        renderId?: string;
       }
     | undefined
   >(undefined);
@@ -1209,7 +1222,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           : undefined,
     );
   }, [eventDrag, rollingEdit, onTrackLayoutChange, renderLaneLayout]);
-  const [focusedEventName, setFocusedEventName] = useState<string | undefined>();
+  const [focusedRenderId, setFocusedRenderId] = useState<string | undefined>();
 
   const renderedLaneCount = Math.max(renderLaneLayout.laneCount, 1);
   const laneContentHeight = renderedLaneCount * EVENT_LANE_HEIGHT_PX;
@@ -1228,8 +1241,10 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   }, [eventDrag, rollingEdit, onPreviewLaneCountChange, renderLaneLayout.laneCount]);
 
   const laneByEventName = useMemo(() => {
-    return new Map(renderLaneLayout.items.map((item) => [item.event.event.name, item.lane]));
-  }, [renderLaneLayout.items]);
+    return new Map(
+      [...indexEventLanes(renderLaneLayout).byName].map(([name, item]) => [name, item.lane]),
+    );
+  }, [renderLaneLayout]);
 
   const [leftMark, rightMark] = eventMarks;
   const timelineStartSec = startTime != undefined ? toSec(startTime) : undefined;
@@ -1288,13 +1303,28 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       return [];
     }
 
-    return findRollingEditPairs({
-      laneByEventName,
-      events: events.value ?? [],
-      viewport,
-      width: width ?? 0,
+    const original = new Map(events.value?.map((entry) => [entry.event.name, entry]));
+    return indexEventLanes(renderLaneLayout).byLane.flatMap((items, lane) => {
+      const names = new Map(items.map((item) => [item.event.event.name, lane]));
+      const renderIds = new Map(items.map((item) => [item.event.event.name, item.renderId]));
+      const pairs = findRollingEditPairs({
+        laneByEventName: names,
+        events: [...names.keys()].flatMap((name) => {
+          const entry = original.get(name);
+          return entry == undefined ? [] : [entry];
+        }),
+        viewport,
+        width: width ?? 0,
+      });
+      return pairs.map((pair) => ({
+        ...pair,
+        key: JSON.stringify([items[0]?.trackId ?? lane, pair.key])!,
+        previousRenderId: renderIds.get(pair.previous.event.name),
+        nextRenderId: renderIds.get(pair.next.event.name),
+        lane,
+      }));
     });
-  }, [laneByEventName, events.value, rollingEditEnabled, startTime, viewport, width]);
+  }, [renderLaneLayout, events.value, rollingEditEnabled, startTime, viewport, width]);
 
   const timeRange = useMemo(() => {
     if (viewport.totalEndSec <= viewport.totalStartSec) {
@@ -1605,8 +1635,9 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
               });
         const currentLaneLayout = renderLaneLayoutRef.current;
         const activeLane =
-          indexEventLanes(currentLaneLayout).byName.get(currentDrag.event.event.name)?.lane ??
-          currentDrag.lane;
+          indexEventLanes(currentLaneLayout).byRenderId.get(
+            currentDrag.renderId ?? currentDrag.event.event.name,
+          )?.lane ?? currentDrag.lane;
         const snappedRange = rollingEditEnabled
           ? snapRangeToLaneBoundaries({
               activeEventName: currentDrag.event.event.name,
@@ -1731,6 +1762,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
 
       const pointerFraction = clientXToFraction(clientX, rootRef.current.getBoundingClientRect());
       const nextDrag: EventDragState = {
+        renderId: item.renderId,
         anchor: createBodyDragAnchor({
           endSec: item.endSec,
           pointerFraction,
@@ -1774,6 +1806,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       setEventMarks([]);
 
       const nextDrag: EventDragState = {
+        renderId: item.renderId,
         edge,
         initialClientX: clientX,
         kind: "edge",
@@ -2072,22 +2105,32 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const visibleItems = useMemo(() => {
     const index = indexEventLanes(renderLaneLayout);
     const items = index.byLane.slice(visibleLanes.first, visibleLanes.last + 1).flat();
-    const mounted = new Set(items.map((item) => item.event.event.name));
-    for (const name of [
-      eventDrag?.event.event.name,
-      rollingEdit?.pair.previous.event.name,
-      rollingEdit?.pair.next.event.name,
-      contextMenu?.event.event.name,
-      focusedEventName,
-      toModifyEventName,
-    ]) {
-      if (name == undefined || mounted.has(name)) {
-        continue;
-      }
-      const item = index.byName.get(name);
-      if (item != undefined) {
+    const mounted = new Set(items.map((item) => item.renderId ?? item.event.event.name));
+    const retained = [
+      eventDrag != undefined
+        ? index.byRenderId.get(eventDrag.renderId ?? eventDrag.event.event.name)
+        : undefined,
+      rollingEdit != undefined
+        ? (index.byRenderId.get(
+            rollingEdit.pair.previousRenderId ?? rollingEdit.pair.previous.event.name,
+          ) ?? index.byName.get(rollingEdit.pair.previous.event.name))
+        : undefined,
+      rollingEdit != undefined
+        ? (index.byRenderId.get(
+            rollingEdit.pair.nextRenderId ?? rollingEdit.pair.next.event.name,
+          ) ?? index.byName.get(rollingEdit.pair.next.event.name))
+        : undefined,
+      contextMenu != undefined
+        ? (index.byRenderId.get(contextMenu.renderId ?? contextMenu.event.event.name) ??
+          index.byName.get(contextMenu.event.event.name))
+        : undefined,
+      focusedRenderId != undefined ? index.byRenderId.get(focusedRenderId) : undefined,
+      toModifyEventName != undefined ? index.byName.get(toModifyEventName) : undefined,
+    ];
+    for (const item of retained) {
+      if (item != undefined && !mounted.has(item.renderId ?? item.event.event.name)) {
         items.push(item);
-        mounted.add(name);
+        mounted.add(item.renderId ?? item.event.event.name);
       }
     }
     // Keep the original chronological DOM order even when lane assignments change.
@@ -2099,15 +2142,15 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       if (a.endPosition !== b.endPosition) {
         return a.endPosition - b.endPosition;
       }
-      return a.event.event.name.localeCompare(b.event.event.name);
+      return (a.renderId ?? a.event.event.name).localeCompare(b.renderId ?? b.event.event.name);
     });
   }, [
     renderLaneLayout,
     visibleLanes,
-    eventDrag?.event.event.name,
-    rollingEdit?.pair,
-    contextMenu?.event.event.name,
-    focusedEventName,
+    eventDrag,
+    rollingEdit,
+    contextMenu,
+    focusedRenderId,
     toModifyEventName,
   ]);
   const laneContent = useMemo(
@@ -2172,7 +2215,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
               : item;
           return (
             <MemoEventTick
-              key={eventName}
+              key={item.renderId ?? eventName}
               tickClasses={tickClasses}
               item={renderItem}
               isDragging={draggedRange != undefined}
@@ -2188,7 +2231,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         {canWriteEvents &&
           rollingEditEnabled &&
           rollingEditPairs.map((pair) => {
-            const lane = laneByEventName.get(pair.previous.event.name) ?? 0;
+            const lane = pair.lane;
             if (
               (lane < visibleLanes.first || lane > visibleLanes.last) &&
               rollingEdit?.pair.key !== pair.key
@@ -2196,13 +2239,13 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
               return undefined;
             }
             const left = timelinePointToPercent(pair.boundarySec, viewport);
-            const top =
-              (laneByEventName.get(pair.previous.event.name) ?? 0) * EVENT_LANE_HEIGHT_PX + 2;
+            const top = lane * EVENT_LANE_HEIGHT_PX + 2;
             return left == undefined ? undefined : (
               <div
                 className={classes.rollingEditHandle}
                 data-testid="timeline-rolling-edit-handle"
                 data-event-name={pair.next.event.name}
+                data-render-id={pair.nextRenderId ?? pair.next.event.name}
                 key={pair.key}
                 style={{ left, top }}
                 onPointerDown={(event) => {
@@ -2230,7 +2273,6 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       tickClasses,
       contextMenu?.event.event.name,
       eventDrag,
-      laneByEventName,
       laneContentHeight,
       renderedLaneCount,
       trackOptions,
@@ -2254,10 +2296,13 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       data-testid="events-overlay"
       ref={mergedRootRef}
       onContextMenu={(event) => {
-        const name = (event.target as HTMLElement).closest<HTMLElement>("[data-event-name]")
-          ?.dataset.eventName;
+        const target = (event.target as HTMLElement).closest<HTMLElement>("[data-event-name]");
+        const identity = target?.dataset.renderId ?? target?.dataset.eventName;
         const item =
-          name != undefined ? indexEventLanes(renderLaneLayout).byName.get(name) : undefined;
+          identity != undefined
+            ? (indexEventLanes(renderLaneLayout).byRenderId.get(identity) ??
+              indexEventLanes(renderLaneLayout).byName.get(target?.dataset.eventName ?? ""))
+            : undefined;
         if (item == undefined) {
           return;
         }
@@ -2267,17 +2312,16 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         setContextMenu({
           anchorPosition: { top: event.clientY, left: event.clientX },
           event: item.event,
+          renderId: item.renderId,
         });
       }}
       onFocusCapture={(event) => {
-        setFocusedEventName(
-          (event.target as HTMLElement).closest<HTMLElement>("[data-event-name]")?.dataset
-            .eventName,
-        );
+        const target = (event.target as HTMLElement).closest<HTMLElement>("[data-event-name]");
+        setFocusedRenderId(target?.dataset.renderId ?? target?.dataset.eventName);
       }}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
-          setFocusedEventName(undefined);
+          setFocusedRenderId(undefined);
         }
       }}
     >

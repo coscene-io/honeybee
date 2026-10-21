@@ -2,9 +2,9 @@
 // @generated from file coscene/dataplatform/v1alpha3/common/custom_field.proto (package coscene.dataplatform.v1alpha3.common, syntax proto3)
 /* eslint-disable */
 
-import type { Message } from '@bufbuild/protobuf';
-import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv2';
-import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import type { Message } from "@bufbuild/protobuf";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file coscene/dataplatform/v1alpha3/common/custom_field.proto.
@@ -17,7 +17,7 @@ export declare const file_coscene_dataplatform_v1alpha3_common_custom_field: Gen
  * @generated from message coscene.dataplatform.v1alpha3.common.CustomFieldSchema
  */
 export declare type CustomFieldSchema =
-  Message<'coscene.dataplatform.v1alpha3.common.CustomFieldSchema'> & {
+  Message<"coscene.dataplatform.v1alpha3.common.CustomFieldSchema"> & {
     /**
      * Field properties.
      *
@@ -32,11 +32,26 @@ export declare type CustomFieldSchema =
      * enum properties (multiple = false) in this schema are supported.
      * An empty list means no grouping. Rules do not modify stored values or
      * define display ordering. Availability and configuration scope are defined
-     * by the service returning this schema.
+     * by the service returning this schema. A property cannot also be selected
+     * by track_rules.
      *
      * @generated from field: repeated coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule grouping_rules = 2;
      */
     groupingRules: CustomFieldGroupingRule[];
+
+    /**
+     * Output only. Fields projected onto additional Moment timeline tracks.
+     * All field types defined by Property.type are supported, including
+     * multi-select enums and multi-user fields. Each property ID may appear only
+     * once and must not appear in grouping_rules. Multiple rules are supported;
+     * the five-level grouping limit does not apply to these rules.
+     * An empty list means no additional field tracks. These rules select fields,
+     * not a hierarchy or display order. Availability and configuration scope are
+     * defined by the service returning this schema.
+     *
+     * @generated from field: repeated coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule track_rules = 3;
+     */
+    trackRules: CustomFieldTrackRule[];
   };
 
 /**
@@ -51,7 +66,7 @@ export declare const CustomFieldSchemaSchema: GenMessage<CustomFieldSchema>;
  * @generated from message coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule
  */
 export declare type CustomFieldGroupingRule =
-  Message<'coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule'> & {
+  Message<"coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule"> & {
     /**
      * Required. ID of a single-select enum property (multiple = false) in the
      * associated custom field schema.
@@ -69,11 +84,37 @@ export declare type CustomFieldGroupingRule =
 export declare const CustomFieldGroupingRuleSchema: GenMessage<CustomFieldGroupingRule>;
 
 /**
+ * Projects one custom field onto an additional track alongside the base Moment
+ * track. Projections share the original Moment identity and time range and do
+ * not create or modify stored Moments. Multiple values of a field are displayed
+ * together in its track, rather than creating a track per option or user.
+ *
+ * @generated from message coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule
+ */
+export declare type CustomFieldTrackRule =
+  Message<"coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule"> & {
+    /**
+     * Required. ID of a property with any field type defined by Property.type in
+     * the associated custom field schema. Field names are display text, not
+     * projection identities.
+     *
+     * @generated from field: string property_id = 1;
+     */
+    propertyId: string;
+  };
+
+/**
+ * Describes the message coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule.
+ * Use `create(CustomFieldTrackRuleSchema)` to create a new message.
+ */
+export declare const CustomFieldTrackRuleSchema: GenMessage<CustomFieldTrackRule>;
+
+/**
  * Field property.
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.Property
  */
-export declare type Property = Message<'coscene.dataplatform.v1alpha3.common.Property'> & {
+export declare type Property = Message<"coscene.dataplatform.v1alpha3.common.Property"> & {
   /**
    * Field identity.
    *
@@ -115,7 +156,7 @@ export declare type Property = Message<'coscene.dataplatform.v1alpha3.common.Pro
          * @generated from field: coscene.dataplatform.v1alpha3.common.TextType text = 10;
          */
         value: TextType;
-        case: 'text';
+        case: "text";
       }
     | {
         /**
@@ -124,7 +165,7 @@ export declare type Property = Message<'coscene.dataplatform.v1alpha3.common.Pro
          * @generated from field: coscene.dataplatform.v1alpha3.common.NumberType number = 11;
          */
         value: NumberType;
-        case: 'number';
+        case: "number";
       }
     | {
         /**
@@ -133,7 +174,7 @@ export declare type Property = Message<'coscene.dataplatform.v1alpha3.common.Pro
          * @generated from field: coscene.dataplatform.v1alpha3.common.EnumType enums = 12;
          */
         value: EnumType;
-        case: 'enums';
+        case: "enums";
       }
     | {
         /**
@@ -143,7 +184,7 @@ export declare type Property = Message<'coscene.dataplatform.v1alpha3.common.Pro
          * @generated from field: coscene.dataplatform.v1alpha3.common.TimeType time = 13;
          */
         value: TimeType;
-        case: 'time';
+        case: "time";
       }
     | {
         /**
@@ -152,7 +193,7 @@ export declare type Property = Message<'coscene.dataplatform.v1alpha3.common.Pro
          * @generated from field: coscene.dataplatform.v1alpha3.common.UserType user = 14;
          */
         value: UserType;
-        case: 'user';
+        case: "user";
       }
     | { case: undefined; value?: undefined };
 };
@@ -168,7 +209,7 @@ export declare const PropertySchema: GenMessage<Property>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.TextType
  */
-export declare type TextType = Message<'coscene.dataplatform.v1alpha3.common.TextType'> & {};
+export declare type TextType = Message<"coscene.dataplatform.v1alpha3.common.TextType"> & {};
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.TextType.
@@ -181,7 +222,7 @@ export declare const TextTypeSchema: GenMessage<TextType>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.NumberType
  */
-export declare type NumberType = Message<'coscene.dataplatform.v1alpha3.common.NumberType'> & {};
+export declare type NumberType = Message<"coscene.dataplatform.v1alpha3.common.NumberType"> & {};
 
 /**
  * Describes the message coscene.dataplatform.v1alpha3.common.NumberType.
@@ -194,7 +235,7 @@ export declare const NumberTypeSchema: GenMessage<NumberType>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.EnumType
  */
-export declare type EnumType = Message<'coscene.dataplatform.v1alpha3.common.EnumType'> & {
+export declare type EnumType = Message<"coscene.dataplatform.v1alpha3.common.EnumType"> & {
   /**
    * Enum id to candidate value.
    *
@@ -221,7 +262,7 @@ export declare const EnumTypeSchema: GenMessage<EnumType>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.TimeType
  */
-export declare type TimeType = Message<'coscene.dataplatform.v1alpha3.common.TimeType'> & {
+export declare type TimeType = Message<"coscene.dataplatform.v1alpha3.common.TimeType"> & {
   /**
    * The time format.
    *
@@ -241,7 +282,7 @@ export declare const TimeTypeSchema: GenMessage<TimeType>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.UserType
  */
-export declare type UserType = Message<'coscene.dataplatform.v1alpha3.common.UserType'> & {
+export declare type UserType = Message<"coscene.dataplatform.v1alpha3.common.UserType"> & {
   /**
    * Whether the field support multiple user.
    *
@@ -262,7 +303,7 @@ export declare const UserTypeSchema: GenMessage<UserType>;
  * @generated from message coscene.dataplatform.v1alpha3.common.CustomFieldValue
  */
 export declare type CustomFieldValue =
-  Message<'coscene.dataplatform.v1alpha3.common.CustomFieldValue'> & {
+  Message<"coscene.dataplatform.v1alpha3.common.CustomFieldValue"> & {
     /**
      * The property.
      *
@@ -283,7 +324,7 @@ export declare type CustomFieldValue =
            * @generated from field: coscene.dataplatform.v1alpha3.common.TextValue text = 10;
            */
           value: TextValue;
-          case: 'text';
+          case: "text";
         }
       | {
           /**
@@ -292,7 +333,7 @@ export declare type CustomFieldValue =
            * @generated from field: coscene.dataplatform.v1alpha3.common.NumberValue number = 11;
            */
           value: NumberValue;
-          case: 'number';
+          case: "number";
         }
       | {
           /**
@@ -301,7 +342,7 @@ export declare type CustomFieldValue =
            * @generated from field: coscene.dataplatform.v1alpha3.common.EnumValue enums = 12;
            */
           value: EnumValue;
-          case: 'enums';
+          case: "enums";
         }
       | {
           /**
@@ -311,7 +352,7 @@ export declare type CustomFieldValue =
            * @generated from field: coscene.dataplatform.v1alpha3.common.TimeValue time = 13;
            */
           value: TimeValue;
-          case: 'time';
+          case: "time";
         }
       | {
           /**
@@ -320,7 +361,7 @@ export declare type CustomFieldValue =
            * @generated from field: coscene.dataplatform.v1alpha3.common.UserValue user = 14;
            */
           value: UserValue;
-          case: 'user';
+          case: "user";
         }
       | { case: undefined; value?: undefined };
   };
@@ -336,7 +377,7 @@ export declare const CustomFieldValueSchema: GenMessage<CustomFieldValue>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.TextValue
  */
-export declare type TextValue = Message<'coscene.dataplatform.v1alpha3.common.TextValue'> & {
+export declare type TextValue = Message<"coscene.dataplatform.v1alpha3.common.TextValue"> & {
   /**
    * The string value.
    *
@@ -356,7 +397,7 @@ export declare const TextValueSchema: GenMessage<TextValue>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.NumberValue
  */
-export declare type NumberValue = Message<'coscene.dataplatform.v1alpha3.common.NumberValue'> & {
+export declare type NumberValue = Message<"coscene.dataplatform.v1alpha3.common.NumberValue"> & {
   /**
    * The double value.
    *
@@ -376,7 +417,7 @@ export declare const NumberValueSchema: GenMessage<NumberValue>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.EnumValue
  */
-export declare type EnumValue = Message<'coscene.dataplatform.v1alpha3.common.EnumValue'> & {
+export declare type EnumValue = Message<"coscene.dataplatform.v1alpha3.common.EnumValue"> & {
   /**
    * The enum id.
    *
@@ -403,7 +444,7 @@ export declare const EnumValueSchema: GenMessage<EnumValue>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.TimeValue
  */
-export declare type TimeValue = Message<'coscene.dataplatform.v1alpha3.common.TimeValue'> & {
+export declare type TimeValue = Message<"coscene.dataplatform.v1alpha3.common.TimeValue"> & {
   /**
    * The timestamp value.
    * api-linter: core::0142::time-field-names=disabled
@@ -424,7 +465,7 @@ export declare const TimeValueSchema: GenMessage<TimeValue>;
  *
  * @generated from message coscene.dataplatform.v1alpha3.common.UserValue
  */
-export declare type UserValue = Message<'coscene.dataplatform.v1alpha3.common.UserValue'> & {
+export declare type UserValue = Message<"coscene.dataplatform.v1alpha3.common.UserValue"> & {
   /**
    * The user ids.
    *

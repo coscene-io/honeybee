@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { EVENT_LANE_HEIGHT_PX } from "./constants";
-import type { MomentTrackLayout, MomentTrackView } from "./momentTracks";
+import { canHideMomentTrack, type MomentTrackLayout, type MomentTrackView } from "./momentTracks";
 import { useVisibleEventLanes } from "./useVisibleEventLanes";
 
 const useStyles = makeStyles()((theme) => ({
@@ -76,7 +76,10 @@ export function MomentTrackList({
                 : track.kind === "unknown"
                   ? t("unknownOption", { value: track.title })
                   : track.title;
-          const label = track.fieldName === "" ? title : `${track.fieldName}: ${title}`;
+          const label =
+            track.fieldName === "" || track.kind === "field"
+              ? title
+              : `${track.fieldName}: ${title}`;
           return (
             <div
               key={track.id}
@@ -117,7 +120,7 @@ export function MomentTrackList({
                   {label} ({track.count})
                 </span>
               </Tooltip>
-              {track.children.length === 0 && (
+              {canHideMomentTrack(track) && (
                 <Tooltip title={t(hidden ? "showTrack" : "hideTrack", { name: label })}>
                   <IconButton
                     size="small"
