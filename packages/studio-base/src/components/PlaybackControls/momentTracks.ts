@@ -106,6 +106,7 @@ function getGroupValue(entry: TimelinePositionedEvent, property: Property): Grou
 export function getMomentTracks(
   events: TimelinePositionedEvent[],
   schema?: MomentCustomFieldSchema,
+  projectName?: string,
 ): MomentTrack[] {
   const properties = getGroupingProperties(schema);
   if (properties.length === 0) {
@@ -124,7 +125,18 @@ export function getMomentTracks(
   }
   const roots: MomentTrack[] = [];
   const nodes = new Map<string, MomentTrack>();
+  const ungroupedEvents: TimelinePositionedEvent[] = [];
   for (const event of events) {
+    if (
+      projectName != undefined &&
+      !event.event.name.startsWith(`${projectName}/events/`) &&
+      !event.event.record.startsWith(`${projectName}/records/`)
+    ) {
+      // A playlist can span projects with unrelated field/option IDs. Keep foreign or
+      // unscoped Moments visible without interpreting them with this project's schema.
+      ungroupedEvents.push(event);
+      continue;
+    }
     let children = roots;
     let parent: MomentTrack | undefined;
     const path: string[][] = [];
@@ -176,7 +188,19 @@ export function getMomentTracks(
     }
     parent.events.push(event);
   }
-  const rank = { value: 0, unknown: 1, missing: 2, ungrouped: 0 };
+  if (ungroupedEvents.length > 0) {
+    roots.push({
+      id: '["moment-groups/v1","ungrouped-projects"]',
+      title: "",
+      fieldName: "",
+      depth: 0,
+      kind: "ungrouped",
+      count: ungroupedEvents.length,
+      children: [],
+      events: ungroupedEvents,
+    });
+  }
+  const rank = { value: 0, unknown: 1, missing: 2, ungrouped: 3 };
   const sort = (tracks: MomentTrack[]) => {
     tracks.sort((left, right) => {
       const kindOrder = rank[left.kind] - rank[right.kind];

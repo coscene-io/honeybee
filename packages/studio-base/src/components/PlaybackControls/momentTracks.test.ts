@@ -65,6 +65,38 @@ describe("project Moment grouping", () => {
     expect(new Set(result.items.map((item) => item.event.event.name)).size).toBe(entries.length);
   });
 
+  it("keeps foreign and unscoped Moments outside the active project's groups", () => {
+    const owner = "warehouses/one/projects/active";
+    const local = event(`${owner}/events/local`, { platform: "a" });
+    const foreign = event("warehouses/one/projects/other/events/foreign", { platform: "a" });
+    const otherWarehouse = event("warehouses/two/projects/active/events/foreign", {
+      platform: "a",
+    });
+    const unknown = event("events/unknown", { platform: "a" });
+    const missing = event(`${owner}/events/missing`);
+    const entries = [local, foreign, otherWarehouse, unknown, missing];
+    const tracks = getMomentTracks(entries, schema(), owner);
+    expect(tracks.find((track) => track.kind === "value")?.events).toEqual([local]);
+    expect(tracks.find((track) => track.kind === "missing")?.events).toEqual([missing]);
+    expect(tracks.find((track) => track.kind === "ungrouped")?.events).toEqual([
+      foreign,
+      otherWarehouse,
+      unknown,
+    ]);
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(entries.length);
+  });
+
+  it("uses the record owner when an older Moment name has no project prefix", () => {
+    const owner = "warehouses/one/projects/active";
+    const local = event("events/legacy", { platform: "a" });
+    local.event.record = `${owner}/records/record`;
+    const foreign = event("events/foreign", { platform: "a" });
+    foreign.event.record = "warehouses/one/projects/other/records/record";
+    const tracks = getMomentTracks([local, foreign], schema(), owner);
+    expect(tracks.find((track) => track.kind === "value")?.events).toEqual([local]);
+    expect(tracks.find((track) => track.kind === "ungrouped")?.events).toEqual([foreign]);
+  });
+
   it("decodes rules from the actual protocol JSON and remains compatible with old servers", () => {
     const current = fromJson(CustomFieldSchemaSchema, {
       properties: [{ id: "platform", enums: { values: { a: "Alpha" } } }],

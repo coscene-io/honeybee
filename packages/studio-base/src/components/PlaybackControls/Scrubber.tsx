@@ -479,6 +479,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
   const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
   const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
   const trackSettings = useWorkspaceStore(
     (store) => store.playbackControls.momentTimeline ?? DEFAULT_MOMENT_TIMELINE_SETTINGS,
   );
@@ -1085,9 +1086,12 @@ export default function Scrubber(props: Props): React.JSX.Element {
     [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
   );
 
-  const trackScope = project.value?.name ?? "";
+  const trackScope = schemaProjectName ?? project.value?.name ?? "";
   const trackView = trackSettings.views[trackScope] ?? EMPTY_TRACK_VIEW;
-  const tracks = useMemo(() => getMomentTracks(visibleEvents, schema), [visibleEvents, schema]);
+  const tracks = useMemo(
+    () => getMomentTracks(visibleEvents, schema, schemaProjectName),
+    [visibleEvents, schema, schemaProjectName],
+  );
   const trackOptions = useMemo(() => ({ tracks, view: trackView }), [tracks, trackView]);
   const trackLayout = useMemo(
     () =>

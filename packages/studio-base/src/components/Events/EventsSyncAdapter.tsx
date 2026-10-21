@@ -239,8 +239,9 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
   const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
   const visibleEvents = useVisibleEvents();
-  const trackScope = project.value?.name ?? "";
+  const trackScope = schemaProjectName ?? project.value?.name ?? "";
   const trackView = useWorkspaceStore(
     (store) => store.playbackControls.momentTimeline?.views[trackScope] ?? EMPTY_TRACK_VIEW,
   );
@@ -253,9 +254,9 @@ export function EventsSyncAdapter(): React.JSX.Element {
       track.events.forEach((entry) => names.add(entry.event.name));
       track.children.forEach(visit);
     };
-    getMomentTracks(visibleEvents, schema).forEach(visit);
+    getMomentTracks(visibleEvents, schema, schemaProjectName).forEach(visit);
     return visibleEvents.filter((entry) => names.has(entry.event.name));
-  }, [visibleEvents, schema, trackView]);
+  }, [visibleEvents, schema, schemaProjectName, trackView]);
 
   // Mirror Scrubber.tsx: editing/deleting moments requires the feature enabled, the matching
   // permission, and a non-archived project and record.
@@ -285,7 +286,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
         .getMomentCustomFieldSchema(projectName)
         .then((schema) => {
           if (active) {
-            setCustomFieldSchema(schema);
+            setCustomFieldSchema(schema, projectName);
           }
         })
         .catch((error: unknown) => {

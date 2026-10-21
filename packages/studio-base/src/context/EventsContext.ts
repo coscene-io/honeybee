@@ -111,6 +111,9 @@ export type EventsStore = {
   // customFieldValues: CustomFieldValue[];
   customFieldSchema?: MomentCustomFieldSchema;
 
+  /** Resource name of the project that owns the current schema. */
+  customFieldSchemaProjectName?: string;
+
   /** Refreshes events from api. */
   refreshEvents: () => void;
 
@@ -131,7 +134,7 @@ export type EventsStore = {
 
   setToModifyEvent: (toModifyEvent: ToModifyEvent | undefined) => void;
 
-  setCustomFieldSchema: (customFieldSchema?: MomentCustomFieldSchema) => void;
+  setCustomFieldSchema: (customFieldSchema?: MomentCustomFieldSchema, projectName?: string) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

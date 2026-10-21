@@ -6,6 +6,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create } from "@bufbuild/protobuf";
+import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 import { useContext, useEffect } from "react";
@@ -25,6 +27,7 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { CustomFieldSchemaSchema } from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
 import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
@@ -968,4 +971,52 @@ it("consumes a sidebar focus request through the shared store without seeking", 
   expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
   expect(screen.getByTestId("pending-sidebar-focus").textContent).toBe("none");
   expect(seek).not.toHaveBeenCalled();
+});
+
+function ProjectScopedTracksFixture(): ReactNull {
+  const setEvents = useEvents((store) => store.setEvents);
+  const setSchema = useEvents((store) => store.setCustomFieldSchema);
+  useEffect(() => {
+    const owner = "warehouses/one/projects/active";
+    const events = Array.from(
+      { length: 2 },
+      () => makeMomentFixture(1, "short", { sec: 0, nsec: 0 })[0]!,
+    );
+    events[0]!.event.name = `${owner}/events/local`;
+    events[1]!.event.name = "warehouses/one/projects/other/events/foreign";
+    for (const entry of events) {
+      entry.event.customFieldValues = [
+        create(CustomFieldValueSchema, {
+          property: { id: "platform" },
+          value: { case: "enums", value: { id: "a" } },
+        }),
+      ];
+    }
+    setEvents({ loading: false, value: events });
+    setSchema(
+      create(CustomFieldSchemaSchema, {
+        properties: [
+          { id: "platform", type: { case: "enums", value: { values: { a: "Alpha" } } } },
+        ],
+        groupingRules: [{ propertyId: "platform" }],
+      }),
+      owner,
+    );
+  }, [setEvents, setSchema]);
+  return ReactNull;
+}
+
+it("renders foreign-project Moments outside the active schema's groups", () => {
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={jest.fn()} />
+      <ProjectScopedTracksFixture />
+    </Wrapper>,
+  );
+  const tracks = mockEventsOverlayProps!.trackOptions!.tracks;
+  expect(tracks.find((track) => track.kind === "value")?.count).toBe(1);
+  expect(tracks.find((track) => track.kind === "ungrouped")?.events[0]?.event.name).toBe(
+    "warehouses/one/projects/other/events/foreign",
+  );
+  expect(screen.getAllByTestId("moment-track-title")).toHaveLength(2);
 });

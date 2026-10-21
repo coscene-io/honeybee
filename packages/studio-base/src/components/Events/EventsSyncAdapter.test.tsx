@@ -113,6 +113,7 @@ function makeEventsStore({
     eventMarks: eventMarks ?? [],
     toModifyEvent: undefined,
     customFieldSchema: undefined,
+    customFieldSchemaProjectName: undefined,
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
@@ -136,8 +137,8 @@ function makeEventsStore({
     setToModifyEvent: (toModifyEvent) => {
       set({ toModifyEvent });
     },
-    setCustomFieldSchema: (customFieldSchema) => {
-      set({ customFieldSchema });
+    setCustomFieldSchema: (customFieldSchema, projectName) => {
+      set({ customFieldSchema, customFieldSchemaProjectName: projectName });
     },
   }));
 }
@@ -282,7 +283,13 @@ function SeedSchemaProject({ id }: { id: string }): ReactNull {
   return ReactNull;
 }
 
-function CollapseFirstGroup({ collapsed = true }: { collapsed?: boolean }): ReactNull {
+function CollapseFirstGroup({
+  collapsed = true,
+  projectName,
+}: {
+  collapsed?: boolean;
+  projectName?: string;
+}): ReactNull {
   const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
   const events = useEvents((store) => store.events.value);
   const {
@@ -296,13 +303,13 @@ function CollapseFirstGroup({ collapsed = true }: { collapsed?: boolean }): Reac
       ],
       groupingRules: [{ propertyId: "platform" }, { propertyId: "detail" }],
     });
-    const group = getMomentTracks(events ?? [], schema)[0]!;
-    setCustomFieldSchema(schema);
+    const group = getMomentTracks(events ?? [], schema, projectName)[0]!;
+    setCustomFieldSchema(schema, projectName);
     setMomentTimeline((old) => ({
       ...old,
-      views: { "": { collapsed: { [group.id]: collapsed } } },
+      views: { [projectName ?? ""]: { collapsed: { [group.id]: collapsed } } },
     }));
-  }, [collapsed, events, setCustomFieldSchema, setMomentTimeline]);
+  }, [collapsed, events, projectName, setCustomFieldSchema, setMomentTimeline]);
   return ReactNull;
 }
 
@@ -417,6 +424,48 @@ describe("<EventsSyncAdapter />", () => {
     expect(eventsStore.getState().events.value).toEqual(events);
   });
 
+  it("keeps foreign-project Moments available when the active project's group is collapsed", async () => {
+    const owner = "warehouses/one/projects/active";
+    const events = [
+      makeEvent(`${owner}/events/local`, 1, 2),
+      makeEvent("warehouses/one/projects/other/events/foreign", 1, 2),
+    ];
+    for (const entry of events) {
+      entry.event.customFieldValues = ["platform", "detail"].map((id) =>
+        create(CustomFieldValueSchema, {
+          property: { id },
+          value: { case: "enums", value: { id: "a" } },
+        }),
+      );
+    }
+    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+    const interaction = makeTimelineInteractionStore();
+    render(
+      <Wrapper
+        eventsStore={eventsStore}
+        timelineInteractionStore={interaction}
+        currentTime={{ sec: 1, nsec: 0 }}
+      >
+        <EventsSyncAdapter />
+        <CollapseFirstGroup projectName={owner} />
+        <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+      </Wrapper>,
+    );
+    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+    expect(eventsStore.getState().selectedEventId).toBe(events[1]!.event.name);
+    act(() => {
+      interaction
+        .getState()
+        .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+    });
+    await waitFor(() => {
+      expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual([
+        events[1]!.event.name,
+      ]);
+    });
+    expect(eventsStore.getState().events.value).toHaveLength(2);
+  });
+
   it("clears the previous project schema and ignores its late response after navigation", async () => {
     let resolveOld: (schema: MomentCustomFieldSchema) => void = () => {};
     let resolveNew: (schema: MomentCustomFieldSchema) => void = () => {};
@@ -451,6 +500,7 @@ describe("<EventsSyncAdapter />", () => {
       expect(getMomentCustomFieldSchema).toHaveBeenCalledWith("warehouses/warehouse/projects/old");
     });
     expect(eventsStore.getState().customFieldSchema).toBeUndefined();
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBeUndefined();
     rerender(content("new"));
     await waitFor(() => {
       expect(getMomentCustomFieldSchema).toHaveBeenCalledWith("warehouses/warehouse/projects/new");
@@ -460,11 +510,17 @@ describe("<EventsSyncAdapter />", () => {
       await newRequest;
     });
     expect(eventsStore.getState().customFieldSchema).toBe(newSchema);
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
+      "warehouses/warehouse/projects/new",
+    );
     await act(async () => {
       resolveOld(oldSchema);
       await oldRequest;
     });
     expect(eventsStore.getState().customFieldSchema).toBe(newSchema);
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
+      "warehouses/warehouse/projects/new",
+    );
   });
 
   it.each([
