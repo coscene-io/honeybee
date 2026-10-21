@@ -12,6 +12,7 @@ import { useStore } from "zustand";
 import { useGuaranteedContext } from "@foxglove/hooks";
 import type { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import type { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
+import type { MomentTimelineSettings } from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import type { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import type { PlaybackSpeed } from "@foxglove/studio-base/players/types";
 
@@ -67,6 +68,7 @@ export type WorkspaceContextStore = {
     speed: PlaybackSpeed;
     timelineHeight: number;
     momentSubtitle: MomentSubtitleSettings;
+    momentTimeline?: MomentTimelineSettings;
   };
   sidebars: {
     left: {

@@ -1,0 +1,155 @@
+{
+  "date": "2026-10-19",
+  "environment": "Codex in-app browser, production synthetic fixture, desktop only",
+  "checks": [
+    {
+      "check": "collapsed-root",
+      "data": {
+        "barNames": [
+          "events/000003",
+          "events/000009",
+          "events/000018",
+          "events/000027",
+          "events/000033",
+          "events/000042",
+          "events/000051",
+          "events/000057",
+          "events/000066",
+          "events/000075"
+        ],
+        "expanded": "false"
+      }
+    },
+    {
+      "check": "five-level-doubtful",
+      "data": {
+        "bars": [
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000000"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000009"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000018"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000024"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000033"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000042"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000048"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000057"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000066"
+          },
+          {
+            "color": "rgb(255, 77, 79)",
+            "name": "events/000072"
+          }
+        ],
+        "barsHeight": 1120,
+        "barsTop": 555,
+        "labelHeight": 1120,
+        "labelTop": 555,
+        "labels": [
+          "Level 1: Option 000 (4)",
+          "Level 2: Option 001 (4)",
+          "Level 3: Option 002 (4)",
+          "Level 4: Option 003 (4)",
+          "Level 5: Option 004 (4)",
+          "Level 1: Option 001 (3)",
+          "Level 2: Option 002 (3)",
+          "Level 3: Option 003 (3)",
+          "Level 4: Option 004 (3)",
+          "Level 5: Option 005 (3)",
+          "Level 1: Option 002 (3)",
+          "Level 2: Option 003 (3)",
+          "Level 3: Option 004 (3)",
+          "Level 4: Option 005 (3)",
+          "Level 5: Option 006 (3)",
+          "Level 1: Option 003 (4)"
+        ],
+        "viewport": {
+          "height": 900,
+          "width": 1440
+        }
+      }
+    },
+    {
+      "check": "5000-moments-400-paths-after-scroll",
+      "data": {
+        "barCount": 39,
+        "barsHeight": 56000,
+        "barsTop": -4625,
+        "labelCount": 12,
+        "labelHeight": 56000,
+        "labelTop": -4625,
+        "labels": [
+          "Level 5: Option 041 (13)",
+          "Level 1: Option 038 (13)",
+          "Level 2: Option 039 (13)",
+          "Level 3: Option 040 (13)",
+          "Level 4: Option 041 (13)",
+          "Level 5: Option 042 (13)",
+          "Level 1: Option 039 (13)",
+          "Level 2: Option 040 (13)",
+          "Level 3: Option 041 (13)",
+          "Level 4: Option 042 (13)",
+          "Level 5: Option 043 (13)",
+          "Level 1: Option 040 (13)"
+        ],
+        "scrollTop": 5400,
+        "viewport": {
+          "height": 900,
+          "width": 1440
+        }
+      }
+    },
+    {
+      "check": "overlap-within-leaf",
+      "data": {
+        "labels": [
+          {
+            "height": 28,
+            "title": "Level 1: Option 000 (2500)"
+          },
+          {
+            "height": 28,
+            "title": "Level 2: Option 001 (2500)"
+          },
+          {
+            "height": 28,
+            "title": "Level 3: Option 000 (2500)"
+          },
+          {
+            "height": 28,
+            "title": "Level 4: Option 001 (2500)"
+          },
+          {
+            "height": 392,
+            "title": "Level 5: Option 000 (2500)"
+          }
+        ],
+        "uniqueBarRows": [669, 697, 725, 753, 781, 809, 837, 865, 893, 921, 949, 977]
+      }
+    }
+  ]
+}

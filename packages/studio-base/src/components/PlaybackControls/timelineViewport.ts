@@ -95,6 +95,22 @@ export function timeToFraction(timeSec: number, viewport: TimelineViewport): num
   return (timeSec - viewport.visibleStartSec) / getVisibleDuration(viewport);
 }
 
+export function focusTimelineViewport(
+  viewport: TimelineViewport,
+  startSec: number,
+  endSec: number,
+): TimelineViewport {
+  if (!Number.isFinite(startSec) || !Number.isFinite(endSec) || endSec < startSec) {
+    return viewport;
+  }
+  const padding = Math.max((endSec - startSec) * 0.2, 0.5);
+  return clampTimelineViewport({
+    ...viewport,
+    visibleStartSec: startSec - padding,
+    visibleEndSec: endSec + padding,
+  });
+}
+
 export function fractionToTime(fraction: number, viewport: TimelineViewport): number {
   return viewport.visibleStartSec + fraction * getVisibleDuration(viewport);
 }

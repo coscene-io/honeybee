@@ -154,3 +154,31 @@ describe("formatTime.getValidatedTimeAndMethodFromString", () => {
     });
   });
 });
+
+it("parses relative playback input in the selected mode without interpreting it as Unix seconds", () => {
+  expect(
+    formatTime.getValidatedTimeAndMethodFromString({
+      text: "14.605",
+      timeFormat: "REL",
+      playbackOrigin: { sec: 1700000000, nsec: 500000000 },
+    }),
+  ).toEqual({ time: { sec: 1700000015, nsec: 105000000 }, method: "REL" });
+  expect(
+    formatTime.getValidatedTimeAndMethodFromString({ text: "14.605", timeFormat: "REL" }),
+  ).toBeUndefined();
+});
+
+describe("formatTime.formatSourceTime", () => {
+  it.each([
+    { sec: 0, nsec: 0 },
+    { sec: 100, nsec: 123456789 },
+  ])("preserves simulation/source-relative time %o without a calendar date", (stamp) => {
+    expect(formatTime.formatSourceTime(stamp, "UTC")).toBe(
+      `${stamp.sec}.${String(stamp.nsec).padStart(9, "0")}`,
+    );
+  });
+  it("keeps calendar formatting for epoch-based timestamps", () => {
+    const stamp = { sec: 1700000000, nsec: 123000000 };
+    expect(formatTime.formatSourceTime(stamp, "UTC")).toBe(formatTime.format(stamp, "UTC"));
+  });
+});

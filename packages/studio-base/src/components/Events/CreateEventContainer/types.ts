@@ -10,6 +10,7 @@ import { Time } from "@foxglove/rostime";
 import { KeyValue } from "@foxglove/studio-base/context/EventsContext";
 
 export type CreateEventForm = {
+  isDoubtful?: boolean;
   eventName: string;
   startTime: undefined | Time;
   duration: undefined | number;

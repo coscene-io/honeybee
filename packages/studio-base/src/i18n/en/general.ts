@@ -76,4 +76,13 @@ export const general = {
   dropFileHere: "Drop a file here",
   dismiss: "Dismiss",
   unknownPanelType: "Unknown panel type: {{type}}.",
+  timelineHeight: "Timeline height",
+  timelineControls: "Timeline controls",
+  timelineMoreTools: "More timeline tools",
+  playbackTime: "Current playback time",
+  timeDisplayFormat: "Time display format",
+  dataSourceInfo: "Data source info",
+  totalDuration: "Total duration",
+  elapsedTime: "Elapsed time",
+  relativeTimeSeconds: "Relative time (seconds)",
 };

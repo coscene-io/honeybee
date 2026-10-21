@@ -5,9 +5,13 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create } from "@bufbuild/protobuf";
+
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 
 import CoSceneConsoleApi, { type ApiBaseInfo } from "./CoSceneConsoleApi";
+import { CustomFieldSchemaSchema } from "./moment-custom-field/generated/common/custom_field_pb";
+import { CustomFieldService as MomentCustomFieldService } from "./moment-custom-field/generated/services/custom_field_pb";
 
 jest.mock("@foxglove/studio-base/util/coscene", () => ({
   ...jest.requireActual("@foxglove/studio-base/util/coscene"),
@@ -64,6 +68,20 @@ describe("CoSceneConsoleApi", () => {
 
   afterAll(() => {
     global.fetch = originalFetch;
+  });
+
+  it("reads project grouping rules with the current descriptor through the existing transport", async () => {
+    const api = await createApi(completeBaseInfo);
+    const schema = create(CustomFieldSchemaSchema, { groupingRules: [{ propertyId: "platform" }] });
+    const getMomentCustomFieldSchema = jest.fn().mockResolvedValue(schema);
+    mockGetPromiseClient.mockReturnValue({ getMomentCustomFieldSchema } as never);
+    expect(
+      await api.getMomentCustomFieldSchema("warehouses/warehouse-id/projects/project-id"),
+    ).toBe(schema);
+    expect(getMomentCustomFieldSchema).toHaveBeenCalledWith(
+      expect.objectContaining({ project: "warehouses/warehouse-id/projects/project-id" }),
+    );
+    expect(mockGetPromiseClient).toHaveBeenLastCalledWith(MomentCustomFieldService, undefined);
   });
 
   it("adds Record-Name to request config when base info is complete", async () => {

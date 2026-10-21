@@ -6,16 +6,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Event } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
-import {
-  CustomFieldSchema,
-  CustomFieldValue,
-} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { createContext } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { StoreApi, useStore } from "zustand";
 
 import { useGuaranteedContext } from "@foxglove/hooks";
 import { Time } from "@foxglove/rostime";
+import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api/moment-custom-field/types";
 
 export type KeyValue = { key: string; value: string };
 
@@ -111,7 +109,10 @@ export type EventsStore = {
   toModifyEvent: ToModifyEvent | undefined;
 
   // customFieldValues: CustomFieldValue[];
-  customFieldSchema?: CustomFieldSchema;
+  customFieldSchema?: MomentCustomFieldSchema;
+
+  /** Resource name of the project that owns the current schema. */
+  customFieldSchemaProjectName?: string;
 
   /** Refreshes events from api. */
   refreshEvents: () => void;
@@ -133,7 +134,7 @@ export type EventsStore = {
 
   setToModifyEvent: (toModifyEvent: ToModifyEvent | undefined) => void;
 
-  setCustomFieldSchema: (customFieldSchema?: CustomFieldSchema) => void;
+  setCustomFieldSchema: (customFieldSchema?: MomentCustomFieldSchema, projectName?: string) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

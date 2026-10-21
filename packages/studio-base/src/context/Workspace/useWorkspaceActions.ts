@@ -15,6 +15,10 @@ import { useGuaranteedContext } from "@foxglove/hooks";
 import type { AppSettingsTab } from "@foxglove/studio-base/components/AppSettingsDialog/AppSettingsDialog";
 import type { DataSourceDialogItem } from "@foxglove/studio-base/components/DataSourceDialog";
 import { TIMELINE_MIN_HEIGHT_PX } from "@foxglove/studio-base/components/PlaybackControls/constants";
+import {
+  DEFAULT_MOMENT_TIMELINE_SETTINGS,
+  type MomentTimelineSettings,
+} from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import type { IDataSourceFactory } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import type { PlaybackSpeed } from "@foxglove/studio-base/players/types";
@@ -61,6 +65,7 @@ export type WorkspaceActions = {
     setRollingEditEnabled: Dispatch<SetStateAction<boolean>>;
     setSpeed: Dispatch<SetStateAction<PlaybackSpeed>>;
     setTimelineHeight: Dispatch<SetStateAction<number>>;
+    setMomentTimeline: Dispatch<SetStateAction<MomentTimelineSettings>>;
     setMomentSubtitleEnabled: Dispatch<SetStateAction<boolean>>;
     setMomentSubtitleFontSize: Dispatch<SetStateAction<number>>;
     setMomentSubtitlePosition: Dispatch<SetStateAction<undefined | MomentSubtitlePosition>>;
@@ -217,6 +222,14 @@ export function useWorkspaceActions(): WorkspaceActions {
           set((draft) => {
             const timelineHeight = setterValue(setter, draft.playbackControls.timelineHeight);
             draft.playbackControls.timelineHeight = timelineHeight;
+          });
+        },
+        setMomentTimeline: (setter: SetStateAction<MomentTimelineSettings>) => {
+          set((draft) => {
+            draft.playbackControls.momentTimeline = setterValue(
+              setter,
+              draft.playbackControls.momentTimeline ?? DEFAULT_MOMENT_TIMELINE_SETTINGS,
+            );
           });
         },
         setMomentSubtitleEnabled: (setter: SetStateAction<boolean>) => {

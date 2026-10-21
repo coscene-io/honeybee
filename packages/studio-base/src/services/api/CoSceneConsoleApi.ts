@@ -121,7 +121,6 @@ import type { Task } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1
 import {
   CustomFieldService,
   GetRecordCustomFieldSchemaRequestSchema,
-  GetMomentCustomFieldSchemaRequestSchema,
   GetDeviceCustomFieldSchemaRequestSchema,
   GetTaskCustomFieldSchemaRequestSchema,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/custom_field_pb";
@@ -202,6 +201,11 @@ import { timestampToTime } from "@foxglove/studio-base/util/time";
 import type { Auth } from "@foxglove/studio-desktop/src/common/types";
 
 import { HttpError } from "./HttpError";
+import {
+  CustomFieldService as MomentCustomFieldService,
+  GetMomentCustomFieldSchemaRequestSchema,
+} from "./moment-custom-field/generated/services/custom_field_pb";
+import type { MomentCustomFieldSchema } from "./moment-custom-field/types";
 
 const authBridge = (global as { authBridge?: Auth }).authBridge;
 
@@ -1673,9 +1677,9 @@ class CoSceneConsoleApi {
   );
 
   public getMomentCustomFieldSchema = Object.assign(
-    async (project: string): Promise<CustomFieldSchema> => {
+    async (project: string): Promise<MomentCustomFieldSchema> => {
       const req = create(GetMomentCustomFieldSchemaRequestSchema, { project });
-      return await this.#getPromiseClient(CustomFieldService).getMomentCustomFieldSchema(req);
+      return await this.#getPromiseClient(MomentCustomFieldService).getMomentCustomFieldSchema(req);
     },
     {
       permission: () => {

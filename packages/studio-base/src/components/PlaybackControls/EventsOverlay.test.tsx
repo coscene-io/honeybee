@@ -9,7 +9,7 @@
 import { create } from "@bufbuild/protobuf";
 import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 import * as _ from "lodash-es";
 import { useEffect } from "react";
@@ -22,6 +22,7 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useDialogs } from "@foxglove/studio-base/context/DialogsContext";
 import {
   EventsContext,
   useEvents,
@@ -36,6 +37,7 @@ import {
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
+import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
@@ -46,6 +48,7 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 
 import { EventsOverlay } from "./EventsOverlay";
 import Scrubber from "./Scrubber";
+import { getMomentTracks, layoutMomentTracks } from "./momentTracks";
 import { makeTimelineViewport } from "./timelineViewport";
 
 jest.mock("@foxglove/studio-base/components/Events/CreateEventContainer/index", () => ({
@@ -170,6 +173,10 @@ function makeTimelineInteractionStore(
     hoveredBag: undefined,
     hoverValue,
     loopedEvent: undefined,
+    eventToFocus: undefined,
+    setEventToFocus: (eventToFocus) => {
+      set({ eventToFocus });
+    },
 
     clearHoverValue: (componentId: string) => {
       set((store) => ({
@@ -207,34 +214,52 @@ function makeTimelineInteractionStore(
   }));
 }
 
+function TestDialogs(): React.JSX.Element {
+  const dialogs = useDialogs((store) => store.dialogs);
+  return (
+    <>
+      {Array.from(dialogs.entries()).map(([key, dialog]) => (
+        <div key={key}>{dialog}</div>
+      ))}
+    </>
+  );
+}
+
 function Wrapper({
   children,
   consoleApi = makeConsoleApiMock(),
   eventsStore,
   seekPlayback,
+  currentTime = { sec: 1, nsec: 0 },
   timelineInteractionStore,
 }: React.PropsWithChildren<{
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
   eventsStore: StoreApi<EventsStore>;
   seekPlayback?: (arg0: Time) => void;
+  currentTime?: Time;
   timelineInteractionStore: StoreApi<TimelineInteractionStateStore>;
 }>): React.JSX.Element {
   return (
     <ThemeProvider isDark>
-      <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
-        <CoSceneConsoleApiContext.Provider value={consoleApi}>
-          <MockMessagePipelineProvider
-            startTime={{ sec: 0, nsec: 0 }}
-            endTime={{ sec: 10, nsec: 0 }}
-            currentTime={{ sec: 1, nsec: 0 }}
-            seekPlayback={seekPlayback}
-          >
-            <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
-              <EventsContext.Provider value={eventsStore}>{children}</EventsContext.Provider>
-            </TimelineInteractionStateContext.Provider>
-          </MockMessagePipelineProvider>
-        </CoSceneConsoleApiContext.Provider>
-      </AppConfigurationContext.Provider>
+      <WorkspaceContextProvider disablePersistence>
+        <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+          <CoSceneConsoleApiContext.Provider value={consoleApi}>
+            <DialogsProvider>
+              <TestDialogs />
+              <MockMessagePipelineProvider
+                startTime={{ sec: 0, nsec: 0 }}
+                endTime={{ sec: 10, nsec: 0 }}
+                currentTime={currentTime}
+                seekPlayback={seekPlayback}
+              >
+                <TimelineInteractionStateContext.Provider value={timelineInteractionStore}>
+                  <EventsContext.Provider value={eventsStore}>{children}</EventsContext.Provider>
+                </TimelineInteractionStateContext.Provider>
+              </MockMessagePipelineProvider>
+            </DialogsProvider>
+          </CoSceneConsoleApiContext.Provider>
+        </AppConfigurationContext.Provider>
+      </WorkspaceContextProvider>
     </ThemeProvider>
   );
 }
@@ -508,6 +533,7 @@ describe("<EventsOverlay />", () => {
         <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
           <CoSceneConsoleApiContext.Provider
             value={makeConsoleApiMock({
+              deleteEvent: { permission: () => false },
               createEvent: { permission: () => false },
               updateEvent: { permission: () => true },
             })}
@@ -1337,5 +1363,323 @@ describe("<EventsOverlay />", () => {
 
     expect(onEventContextMenuHandled).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("Moment context menu migration", () => {
+  function mount({
+    writable = true,
+    deletable = true,
+    events = [makeEvent("events/current", 2, 4)],
+    updateEvent = jest.fn().mockResolvedValue({}),
+    deleteEvent = jest.fn().mockResolvedValue({}),
+    deleteFile = jest.fn().mockResolvedValue({}),
+  } = {}) {
+    const eventsStore = makeEventsStore({ events, eventMarks: [], setEventMarks: jest.fn() });
+    const seek = jest.fn();
+    const focus = jest.fn();
+    const timelineStore = makeTimelineInteractionStore();
+    const renderView = ({
+      canWrite = writable,
+      canDelete = deletable,
+      currentTime = fromSec(3),
+    } = {}) => (
+      <Wrapper
+        consoleApi={makeConsoleApiMock({ updateEvent, deleteEvent, deleteFile })}
+        eventsStore={eventsStore}
+        seekPlayback={seek}
+        currentTime={currentTime}
+        timelineInteractionStore={timelineStore}
+      >
+        <div
+          onPointerDown={(event) => {
+            if (event.button === 0) {
+              seek();
+            }
+          }}
+        >
+          <EventsOverlay
+            componentId="test-component"
+            canWriteEvents={canWrite}
+            canDeleteEvents={canDelete}
+            onSeek={seek}
+            onFocusEvent={focus}
+            isDragging={false}
+            eventContextMenuRequest={undefined}
+            onEventContextMenuHandled={jest.fn()}
+            setCursor={jest.fn()}
+            viewport={viewport}
+          />
+        </div>
+      </Wrapper>
+    );
+    const result = render(renderView());
+    const open = (target: "body" | "start" | "end" = "body") => {
+      const bar = screen.getAllByTestId("timeline-event")[0]!;
+      const hit =
+        target === "body" ? bar : within(bar).getByTestId(`timeline-event-${target}-handle`);
+      fireEvent(
+        hit,
+        new MouseEvent("pointerdown", { bubbles: true, button: 2, clientX: 240, clientY: 100 }),
+      );
+      fireEvent(
+        window,
+        new MouseEvent("pointerup", { bubbles: true, button: 2, clientX: 240, clientY: 100 }),
+      );
+      fireEvent.contextMenu(hit, {
+        clientX: 240,
+        clientY: 100,
+      });
+    };
+    return {
+      ...result,
+      eventsStore,
+      seek,
+      focus,
+      updateEvent,
+      deleteEvent,
+      deleteFile,
+      open,
+      renderView,
+    };
+  }
+
+  it("right-clicks the bar directly without seeking, then focuses without writing", () => {
+    const state = mount();
+    state.open();
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Edit Moment",
+      "Focus this moment",
+      "Align start to cursor",
+      "Align end to cursor",
+      "Delete",
+      "Loop Play",
+    ]);
+    expect(state.seek).not.toHaveBeenCalled();
+    fireEvent(
+      screen.getByRole("menuitem", { name: "Focus this moment" }),
+      new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 240 }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Focus this moment" }));
+    expect(state.focus).toHaveBeenCalledWith(state.eventsStore.getState().events.value![0]);
+    expect(state.seek).not.toHaveBeenCalled();
+    expect(state.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it.each(["body", "start", "end"] as const)(
+    "does not seek or clear editor marks when right-clicking the %s",
+    (target) => {
+      const state = mount();
+      const marks = [{ key: "mark", time: fromSec(2), position: 0.2 }];
+      act(() => {
+        state.eventsStore.getState().setEventMarks(marks);
+      });
+      state.open(target);
+      expect(state.seek).not.toHaveBeenCalled();
+      expect(state.eventsStore.getState().eventMarks).toBe(marks);
+      expect(state.updateEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("offers read-only details with public metadata and no editor or write actions", () => {
+    const event = makeEvent("events/current", 2, 4);
+    event.event.description = "Public description";
+    event.event.customizedFields = {
+      visible: "public value",
+      _source: "user-provided source",
+      _doubtful: "true",
+    };
+    const state = mount({ writable: false, deletable: false, events: [event] });
+    state.open();
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "View Moment",
+      "Focus this moment",
+      "Loop Play",
+    ]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "View Moment" }));
+    expect(screen.getByRole("dialog", { name: "View Moment" })).toBeTruthy();
+    expect(screen.getByText("Public description")).toBeTruthy();
+    expect(screen.getByText("public value")).toBeTruthy();
+    expect(screen.getByText("_source")).toBeTruthy();
+    expect(screen.getByText("user-provided source")).toBeTruthy();
+    expect(screen.queryByText("_doubtful")).toBeNull();
+    expect(state.eventsStore.getState().toModifyEvent).toBeUndefined();
+    expect(state.seek).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it.each([
+    ["start", 3, 3],
+    ["end", 2, 1],
+  ])(
+    "aligns %s with only timestamp and duration in the field mask",
+    async (edge, start, duration) => {
+      const state = mount();
+      state.open();
+      fireEvent.click(screen.getByRole("menuitem", { name: `Align ${edge} to cursor` }));
+      await waitFor(() => {
+        expect(state.updateEvent).toHaveBeenCalledTimes(1);
+      });
+      const request = state.updateEvent.mock.calls[0]![0];
+      expect(request.updateMask.paths).toEqual(["trigger_time", "duration_nanos", "duration"]);
+      expect(request.event.triggerTime.seconds).toBe(BigInt(start));
+      expect(request.event.duration.seconds).toBe(BigInt(duration));
+      expect(state.seek).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses the latest cursor and event while the menu is open", async () => {
+    const state = mount();
+    state.open();
+    state.rerender(state.renderView({ currentTime: fromSec(4.125) }));
+    act(() => {
+      state.eventsStore
+        .getState()
+        .setEvents({ loading: false, value: [makeEvent("events/current", 2, 5)] });
+    });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Align start to cursor" }));
+    await waitFor(() => {
+      expect(state.updateEvent).toHaveBeenCalledTimes(1);
+    });
+    expect(state.updateEvent.mock.calls[0]![0].event.triggerTime.nanos).toBe(125000000);
+    expect(state.updateEvent.mock.calls[0]![0].event.duration.seconds).toBe(2n);
+    expect(state.updateEvent.mock.calls[0]![0].event.duration.nanos).toBe(875000000);
+  });
+
+  it("disables invalid alignment and removes stale menus when a Moment disappears", () => {
+    const state = mount();
+    state.open();
+    state.rerender(state.renderView({ currentTime: fromSec(6) }));
+    expect(
+      screen.getByRole("menuitem", { name: "Align start to cursor" }).getAttribute("aria-disabled"),
+    ).toBe("true");
+    act(() => {
+      state.eventsStore.getState().setEvents({ loading: false, value: [] });
+    });
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("requires confirmation, respects cancellation and preserves file cleanup", async () => {
+    const event = makeEvent("events/current", 2, 4);
+    event.event.files = ["files/image"];
+    const state = mount({ events: [event] });
+    state.open();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    expect(state.deleteEvent).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await act(async () => {});
+    expect(state.deleteEvent).not.toHaveBeenCalled();
+    state.open();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => {
+      expect(state.deleteEvent).toHaveBeenCalledWith({ eventName: event.event.name });
+    });
+    expect(state.deleteFile).toHaveBeenCalledWith(expect.objectContaining({ name: "files/image" }));
+  });
+
+  it("checks delete permission again after confirmation and independently of edit permission", async () => {
+    const state = mount({ writable: false });
+    state.open();
+    expect(screen.queryByRole("menuitem", { name: "Edit Moment" })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    state.rerender(state.renderView({ canWrite: false, canDelete: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await act(async () => {});
+    expect(state.deleteEvent).not.toHaveBeenCalled();
+  });
+
+  it("rolls back a failed alignment and the open editor's time marks", async () => {
+    const pending = defer<unknown>();
+    const state = mount({ updateEvent: jest.fn().mockReturnValue(pending.promise) });
+    state.open();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
+    const marks = state.eventsStore.getState().eventMarks;
+    const events = state.eventsStore.getState().events.value;
+    state.open();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Align start to cursor" }));
+    expect(state.eventsStore.getState().eventMarks[0]?.time.sec).toBe(3);
+    expect(state.eventsStore.getState().events.value![0]!.secondsSinceStart).toBe(3);
+    const log = jest.spyOn(console, "error").mockImplementation(() => {});
+    await act(async () => {
+      pending.reject(new Error("alignment rejected"));
+      await pending.promise.catch(() => {});
+    });
+    expect(state.eventsStore.getState().events.value).toBe(events);
+    expect(state.eventsStore.getState().eventMarks).toBe(marks);
+    log.mockRestore();
+  });
+
+  it("locks duplicate time writes and does not restore an old record on late failure", async () => {
+    const pending = defer<unknown>();
+    const update = jest.fn().mockReturnValue(pending.promise);
+    const state = mount({ updateEvent: update });
+    state.open();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Align start to cursor" }));
+    state.open();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Align end to cursor" }));
+    expect(update).toHaveBeenCalledTimes(1);
+    const next = [makeEvent("events/new-record", 4, 3)];
+    act(() => {
+      state.eventsStore.getState().setEvents({ loading: false, value: next });
+    });
+    const log = jest.spyOn(console, "error").mockImplementation(() => {});
+    await act(async () => {
+      pending.reject(new Error("late failure"));
+      await pending.promise.catch(() => {});
+    });
+    expect(state.eventsStore.getState().events.value).toBe(next);
+    log.mockRestore();
+  });
+});
+
+it("limits time-based right clicks to the actual track row, including overlap sublanes", () => {
+  const events = [makeEvent("events/first", 2, 4), makeEvent("events/second", 2, 4)];
+  const eventsStore = makeEventsStore({ events, eventMarks: [], setEventMarks: jest.fn() });
+  const trackLayout = layoutMomentTracks({ tracks: getMomentTracks(events), view: {}, viewport });
+  const props = {
+    componentId: "test-component",
+    canWriteEvents: true,
+    isDragging: false,
+    eventContextMenuRequest: undefined,
+    onEventContextMenuHandled: jest.fn(),
+    setCursor: jest.fn(),
+    viewport,
+    trackLayout,
+  };
+  const state = render(
+    <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+      <EventsOverlay {...props} />
+    </Wrapper>,
+  );
+  mockTimelineRect();
+  state.rerender(
+    <Wrapper eventsStore={eventsStore} timelineInteractionStore={makeTimelineInteractionStore()}>
+      <EventsOverlay
+        {...props}
+        eventContextMenuRequest={{ playbackSeconds: 3, clientX: 300, clientY: 35 }}
+      />
+    </Wrapper>,
+  );
+  fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
+  expect(eventsStore.getState().toModifyEvent?.name).toBe("events/second");
+});
+
+it("does not align a Moment while its linked boundary update is still pending", async () => {
+  const pending = defer<unknown>();
+  const updateEvent = jest.fn().mockReturnValue(pending.promise);
+  renderOverlayWithSeek({
+    consoleApi: makeConsoleApiMock({ updateEvent }),
+    events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+  });
+  await dragRollingEditBoundary(600);
+  expect(updateEvent).toHaveBeenCalledTimes(2);
+  fireEvent.contextMenu(screen.getAllByTestId("timeline-event")[0]!, { clientX: 100, clientY: 40 });
+  fireEvent.click(screen.getByRole("menuitem", { name: "Align end to cursor" }));
+  expect(updateEvent).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    pending.resolve({});
+    await pending.promise;
   });
 });

@@ -39,7 +39,9 @@ export function getNormalizedLevel(
     case "foxglove.Log":
       return (raw as Partial<FoxgloveLog>).level ?? LogLevel.UNKNOWN;
     case "rosgraph_msgs/Log":
+    case "ros.rosgraph_msgs.Log":
     case "rcl_interfaces/msg/Log":
+    case "ros.rcl_interfaces.Log":
       return rosLevelToLogLevel((raw as Ros1RosgraphMsgs$Log).level);
   }
 
@@ -59,8 +61,10 @@ function getNormalizedStamp(datatype: string, raw: Partial<LogMessageEvent["mess
       return timestamp ?? { sec: 0, nsec: 0 };
     }
     case "rosgraph_msgs/Log":
+    case "ros.rosgraph_msgs.Log":
       return (raw as Ros1RosgraphMsgs$Log).header.stamp;
     case "rcl_interfaces/msg/Log":
+    case "ros.rcl_interfaces.Log":
       return (raw as Ros2RosgraphMsgs$Log).stamp;
   }
 

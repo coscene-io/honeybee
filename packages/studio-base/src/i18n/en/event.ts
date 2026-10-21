@@ -6,6 +6,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 export const event = {
+  viewMoment: "View Moment",
+  focusMoment: "Focus this moment",
+  alignStartToCursor: "Align start to cursor",
+  alignEndToCursor: "Align end to cursor",
+  close: "Close",
+
   addPhoto: "Add Photo",
   cancel: "Cancel",
   copiedMomentToClipboard: "Copied moment to clipboard",
@@ -94,4 +100,9 @@ export const event = {
   startTimeAndDurationRequired: "Start time and duration are required",
   fieldConfiguration: "Field configuration",
   save: "Save",
+  ungroupedValue: "Not filled",
+  unknownOption: "Unknown option: {{value}}",
+  toggleGroup: "Expand or collapse {{name}}",
+  trackListWidth: "Track list width",
+  doubtful: "Doubtful",
 };

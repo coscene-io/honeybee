@@ -1,2 +1,6 @@
 .github/**/*.md
 .yarn/**/*.cjs
+
+packages/studio-base/src/services/api/moment-custom-field/generated/
+
+**/.webpack-moments/

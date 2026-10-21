@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { subtract, toNanoSec, toDate } from "@foxglove/rostime";
+import { subtract, toNanoSec } from "@foxglove/rostime";
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import {
   MessagePipelineContext,
@@ -33,7 +33,7 @@ import {
 } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
 import { AppURLState } from "@foxglove/studio-base/util/appURLState";
 
@@ -205,7 +205,7 @@ function BagViewComponent(params: {
     confirm,
   } = params;
   const { classes, cx } = useStyles();
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime, formatDate } = usePlaybackTimeFormat();
   const { t } = useTranslation("playList");
   const [boxIsHovered, setBoxIsHovered] = useState<boolean>(false);
   const urlState = useMessagePipeline(selectUrlState);
@@ -398,9 +398,7 @@ function BagViewComponent(params: {
             >
               {!isLogFile && (
                 <HighlightedText
-                  text={`${dayjs(toDate(bag.startTime)).format("YYYY-MM-DD")} ${formatTime(
-                    bag.startTime,
-                  )}`}
+                  text={`${formatDate(bag.startTime)} ${formatTime(bag.startTime)}`.trim()}
                   highlight={filter}
                 />
               )}

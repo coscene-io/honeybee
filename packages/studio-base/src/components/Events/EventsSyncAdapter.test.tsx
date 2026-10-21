@@ -9,7 +9,8 @@
 import { create } from "@bufbuild/protobuf";
 import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
-import { act, render, waitFor } from "@testing-library/react";
+import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import * as _ from "lodash-es";
 import { useContext, useEffect } from "react";
 import type { AsyncState } from "react-use/lib/useAsyncFn";
@@ -19,6 +20,7 @@ import type { StoreApi } from "zustand";
 import { subtract, toSec } from "@foxglove/rostime";
 import { ContextInternal } from "@foxglove/studio-base/components/MessagePipeline";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
+import { getMomentTracks } from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
   type BagFileInfo,
@@ -28,6 +30,7 @@ import {
 import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import {
   EventsContext,
+  useEvents,
   type EventsStore,
   type TimelinePositionedEvent,
   type TimelinePositionedEventMark,
@@ -37,6 +40,7 @@ import {
   type SyncBounds,
   type TimelineInteractionStateStore,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
+import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
@@ -45,6 +49,8 @@ import type {
   EventList,
   SingleFileGetEventsRequest,
 } from "@foxglove/studio-base/services/api/CoSceneConsoleApi";
+import { CustomFieldSchemaSchema } from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
+import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api/moment-custom-field/types";
 
 import { EventsSyncAdapter } from "./EventsSyncAdapter";
 
@@ -107,6 +113,7 @@ function makeEventsStore({
     eventMarks: eventMarks ?? [],
     toModifyEvent: undefined,
     customFieldSchema: undefined,
+    customFieldSchemaProjectName: undefined,
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
@@ -130,8 +137,8 @@ function makeEventsStore({
     setToModifyEvent: (toModifyEvent) => {
       set({ toModifyEvent });
     },
-    setCustomFieldSchema: (customFieldSchema) => {
-      set({ customFieldSchema });
+    setCustomFieldSchema: (customFieldSchema, projectName) => {
+      set({ customFieldSchema, customFieldSchemaProjectName: projectName });
     },
   }));
 }
@@ -145,6 +152,10 @@ function makeTimelineInteractionStore(): StoreApi<TimelineInteractionStateStore>
     hoveredBag: undefined,
     hoverValue: undefined,
     loopedEvent: undefined,
+    eventToFocus: undefined,
+    setEventToFocus: (eventToFocus) => {
+      set({ eventToFocus });
+    },
 
     clearHoverValue: (componentId: string) => {
       set((store) => ({
@@ -217,6 +228,7 @@ function Wrapper({
   eventEnabled = false,
   eventsStore,
   rollingEditEnabled = true,
+  doubtfulOnly = false,
   timelineInteractionStore,
 }: React.PropsWithChildren<{
   consoleApi?: React.ContextType<typeof CoSceneConsoleApiContext>;
@@ -226,6 +238,7 @@ function Wrapper({
   eventEnabled?: boolean;
   eventsStore: StoreApi<EventsStore>;
   rollingEditEnabled?: boolean;
+  doubtfulOnly?: boolean;
   timelineInteractionStore: StoreApi<TimelineInteractionStateStore>;
 }>): React.JSX.Element {
   return (
@@ -233,7 +246,12 @@ function Wrapper({
       <CoreDataProvider>
         <WorkspaceContextProvider
           disablePersistence
-          initialState={{ playbackControls: { rollingEditEnabled } }}
+          initialState={{
+            playbackControls: {
+              rollingEditEnabled,
+              momentTimeline: { labelWidth: 220, views: {}, doubtfulOnly },
+            },
+          }}
         >
           <CoScenePlaylistProvider>
             <MockMessagePipelineProvider
@@ -257,7 +275,254 @@ function Wrapper({
   );
 }
 
+function SeedSchemaProject({ id }: { id: string }): ReactNull {
+  const setExternalInitConfig = useCoreData((store) => store.setExternalInitConfig);
+  useEffect(() => {
+    setExternalInitConfig({ warehouseId: "warehouse", projectId: id });
+  }, [id, setExternalInitConfig]);
+  return ReactNull;
+}
+
+function CollapseFirstGroup({
+  collapsed = true,
+  projectName,
+}: {
+  collapsed?: boolean;
+  projectName?: string;
+}): ReactNull {
+  const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
+  const events = useEvents((store) => store.events.value);
+  const {
+    playbackControlActions: { setMomentTimeline },
+  } = useWorkspaceActions();
+  useEffect(() => {
+    const schema = create(CustomFieldSchemaSchema, {
+      properties: [
+        { id: "platform", type: { case: "enums", value: { values: { a: "Alpha", b: "Beta" } } } },
+        { id: "detail", type: { case: "enums", value: { values: { a: "Detail" } } } },
+      ],
+      groupingRules: [{ propertyId: "platform" }, { propertyId: "detail" }],
+    });
+    const group = getMomentTracks(events ?? [], schema, projectName)[0]!;
+    setCustomFieldSchema(schema, projectName);
+    setMomentTimeline((old) => ({
+      ...old,
+      views: { [projectName ?? ""]: { collapsed: { [group.id]: collapsed } } },
+    }));
+  }, [collapsed, events, projectName, setCustomFieldSchema, setMomentTimeline]);
+  return ReactNull;
+}
+
 describe("<EventsSyncAdapter />", () => {
+  it("does not snap shortcut marks to filtered-out Moments", async () => {
+    const events = [makeEvent("hidden", 1, 1), makeEvent("visible", 5, 1)];
+    events[1]!.event.customizedFields = { _doubtful: "true" };
+    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+    render(
+      <Wrapper
+        doubtfulOnly
+        eventsStore={eventsStore}
+        timelineInteractionStore={makeTimelineInteractionStore()}
+        currentTime={{ sec: 1, nsec: 5_000_000 }}
+      >
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "1", code: "Digit1", altKey: true });
+    });
+    expect(eventsStore.getState().eventMarks[0]?.time).toEqual({ sec: 1, nsec: 5_000_000 });
+    expect(eventsStore.getState().events.value).toHaveLength(2);
+  });
+
+  it.each([false, true])(
+    "includes parent Moments and children only when expanded (collapsed=%s)",
+    async (collapsed) => {
+      const events = [makeEvent("parent", 1, 2), makeEvent("child", 1, 2), makeEvent("root", 1, 2)];
+      events.slice(0, 2).forEach((entry) => {
+        entry.event.customFieldValues = [
+          create(CustomFieldValueSchema, {
+            property: { id: "platform" },
+            value: { case: "enums", value: { id: "a" } },
+          }),
+        ];
+      });
+      events[1]!.event.customFieldValues.push(
+        create(CustomFieldValueSchema, {
+          property: { id: "detail" },
+          value: { case: "enums", value: { id: "a" } },
+        }),
+      );
+      const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+      const interaction = makeTimelineInteractionStore();
+      render(
+        <Wrapper
+          eventsStore={eventsStore}
+          timelineInteractionStore={interaction}
+          currentTime={{ sec: 1, nsec: 0 }}
+        >
+          <EventsSyncAdapter />
+          <CollapseFirstGroup collapsed={collapsed} />
+          <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+        </Wrapper>,
+      );
+      fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+      expect(eventsStore.getState().selectedEventId).toBe(collapsed ? "root" : "parent");
+      if (!collapsed) {
+        fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+        expect(eventsStore.getState().selectedEventId).toBe("child");
+      }
+      act(() => {
+        interaction
+          .getState()
+          .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+      });
+      await waitFor(() => {
+        expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(
+          collapsed ? ["root"] : ["parent", "child", "root"],
+        );
+      });
+      expect(eventsStore.getState().events.value).toHaveLength(3);
+    },
+  );
+
+  it("ignores saved leaf collapse flags for navigation, hover and shortcut snapping", async () => {
+    const events = [makeEvent("leaf", 1, 2), makeEvent("root", 5, 1)];
+    events[0]!.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: { id: "platform" },
+        value: { case: "enums", value: { id: "a" } },
+      }),
+    ];
+    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+    const interaction = makeTimelineInteractionStore();
+    render(
+      <Wrapper
+        eventsStore={eventsStore}
+        timelineInteractionStore={interaction}
+        currentTime={{ sec: 1, nsec: 5_000 }}
+      >
+        <EventsSyncAdapter />
+        <CollapseFirstGroup />
+        <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+      </Wrapper>,
+    );
+    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+    expect(eventsStore.getState().selectedEventId).toBe("leaf");
+    act(() => {
+      interaction
+        .getState()
+        .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+    });
+    await waitFor(() => {
+      expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(["leaf"]);
+    });
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "1", code: "Digit1", altKey: true });
+    });
+    expect(eventsStore.getState().eventMarks[0]?.time).toEqual({ sec: 1, nsec: 0 });
+    expect(eventsStore.getState().events.value).toEqual(events);
+  });
+
+  it("keeps foreign-project Moments available when the active project's group is collapsed", async () => {
+    const owner = "warehouses/one/projects/active";
+    const events = [
+      makeEvent(`${owner}/events/local`, 1, 2),
+      makeEvent("warehouses/one/projects/other/events/foreign", 1, 2),
+    ];
+    for (const entry of events) {
+      entry.event.customFieldValues = ["platform", "detail"].map((id) =>
+        create(CustomFieldValueSchema, {
+          property: { id },
+          value: { case: "enums", value: { id: "a" } },
+        }),
+      );
+    }
+    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+    const interaction = makeTimelineInteractionStore();
+    render(
+      <Wrapper
+        eventsStore={eventsStore}
+        timelineInteractionStore={interaction}
+        currentTime={{ sec: 1, nsec: 0 }}
+      >
+        <EventsSyncAdapter />
+        <CollapseFirstGroup projectName={owner} />
+        <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+      </Wrapper>,
+    );
+    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+    expect(eventsStore.getState().selectedEventId).toBe(events[1]!.event.name);
+    act(() => {
+      interaction
+        .getState()
+        .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+    });
+    await waitFor(() => {
+      expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual([
+        events[1]!.event.name,
+      ]);
+    });
+    expect(eventsStore.getState().events.value).toHaveLength(2);
+  });
+
+  it("clears the previous project schema and ignores its late response after navigation", async () => {
+    let resolveOld: (schema: MomentCustomFieldSchema) => void = () => {};
+    let resolveNew: (schema: MomentCustomFieldSchema) => void = () => {};
+    const oldRequest = new Promise<MomentCustomFieldSchema>((resolve) => {
+      resolveOld = resolve;
+    });
+    const newRequest = new Promise<MomentCustomFieldSchema>((resolve) => {
+      resolveNew = resolve;
+    });
+    const oldSchema = create(CustomFieldSchemaSchema, { groupingRules: [{ propertyId: "old" }] });
+    const newSchema = create(CustomFieldSchemaSchema, { groupingRules: [{ propertyId: "new" }] });
+    const getMomentCustomFieldSchema = jest.fn(async (project: string) =>
+      project.endsWith("/old") ? await oldRequest : await newRequest,
+    );
+    const eventsStore = makeEventsStore({ events: [], setEventMarks: jest.fn() });
+    eventsStore.getState().setCustomFieldSchema(oldSchema);
+    const timelineInteractionStore = makeTimelineInteractionStore();
+    const consoleApi = { getMomentCustomFieldSchema } as never;
+    const content = (id: string) => (
+      <Wrapper
+        consoleApi={consoleApi}
+        currentTime={{ sec: 0, nsec: 0 }}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineInteractionStore}
+      >
+        <SeedSchemaProject id={id} />
+        <EventsSyncAdapter />
+      </Wrapper>
+    );
+    const { rerender } = render(content("old"));
+    await waitFor(() => {
+      expect(getMomentCustomFieldSchema).toHaveBeenCalledWith("warehouses/warehouse/projects/old");
+    });
+    expect(eventsStore.getState().customFieldSchema).toBeUndefined();
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBeUndefined();
+    rerender(content("new"));
+    await waitFor(() => {
+      expect(getMomentCustomFieldSchema).toHaveBeenCalledWith("warehouses/warehouse/projects/new");
+    });
+    await act(async () => {
+      resolveNew(newSchema);
+      await newRequest;
+    });
+    expect(eventsStore.getState().customFieldSchema).toBe(newSchema);
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
+      "warehouses/warehouse/projects/new",
+    );
+    await act(async () => {
+      resolveOld(oldSchema);
+      await oldRequest;
+    });
+    expect(eventsStore.getState().customFieldSchema).toBe(newSchema);
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
+      "warehouses/warehouse/projects/new",
+    );
+  });
+
   it.each([
     ["NORMAL_FILE", 363_000_000],
     ["NORMAL_FILE", 2_000_000],

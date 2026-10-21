@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import {
   Button,
   ClickAwayListener,
@@ -13,7 +14,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -25,9 +26,10 @@ export const MIN_SEEK_STEP_MS = 1e-6 * 1000;
 export const MAX_SEEK_STEP_MS = 3600 * 1000;
 
 const useStyles = makeStyles()((theme) => ({
+  seekStepText: { fontVariantNumeric: "tabular-nums" },
   seekStepButton: {
     minWidth: "auto",
-    padding: theme.spacing(1, 1),
+    padding: theme.spacing(0.5),
     "&:hover": {
       backgroundColor: theme.palette.action.hover,
     },
@@ -61,9 +63,21 @@ export default function SeekStepControls({
   const [seekStepInput, setSeekStepInput] = useState<string>(String(effectiveSeekMs / 1000));
   const seekInputRef = useRef<HTMLInputElement | ReactNull>(ReactNull);
 
+  const seekButtonRef = useRef<HTMLButtonElement>(ReactNull);
+  const restoreButtonFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (!editingSeekStep && restoreButtonFocus.current) {
+      restoreButtonFocus.current = false;
+      seekButtonRef.current?.focus();
+    }
+  }, [editingSeekStep]);
+
   // Notify parent of editing state changes
   useEffect(() => {
     onEditingChange?.(editingSeekStep);
+    return () => {
+      onEditingChange?.(false);
+    };
   }, [editingSeekStep, onEditingChange]);
 
   // Update input when editing starts or effective value changes
@@ -71,8 +85,12 @@ export default function SeekStepControls({
     if (editingSeekStep) {
       setSeekStepInput(String(effectiveSeekMs / 1000));
       // Focus input next tick
-      setTimeout(() => seekInputRef.current?.focus(), 0);
+      const timer = setTimeout(() => seekInputRef.current?.focus(), 0);
+      return () => {
+        clearTimeout(timer);
+      };
     }
+    return undefined;
   }, [editingSeekStep, effectiveSeekMs]);
 
   const commitSeekStep = useCallback(() => {
@@ -129,16 +147,21 @@ export default function SeekStepControls({
             setSeekStepInput(e.target.value);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              commitSeekStep();
-            } else if (e.key === "Escape") {
-              cancelEditing();
+            if (e.key === "Enter" || e.key === "Escape") {
+              e.preventDefault();
+              restoreButtonFocus.current = true;
+              if (e.key === "Enter") {
+                commitSeekStep();
+              } else {
+                cancelEditing();
+              }
             }
             e.stopPropagation();
           }}
           style={{ width: 100 }}
           placeholder={t("sec", { ns: "general" })}
           slotProps={{
+            htmlInput: { "aria-label": t("seekStepDescription", { ns: "general" }) },
             input: {
               endAdornment: (
                 <InputAdornment position="end">{t("sec", { ns: "general" })}</InputAdornment>
@@ -153,16 +176,19 @@ export default function SeekStepControls({
   return (
     <Tooltip title={t("seekStepDescription", { ns: "general" })}>
       <Button
+        ref={seekButtonRef}
         className={classes.seekStepButton}
         size="small"
         disabled={disabled}
+        aria-label={t("seekStepDescription", { ns: "general" })}
         onClick={startEditing}
         variant="text"
         color="inherit"
       >
-        <Typography variant="body2" marginLeft="4px" fontWeight="bold">
+        <Typography variant="body2" fontSize={12} fontWeight={500} className={classes.seekStepText}>
           {(effectiveSeekMs / 1000).toFixed(9).replace(/\.?0+$/, "")} {t("sec", { ns: "general" })}
         </Typography>
+        <ArrowDropDownIcon fontSize="small" />
       </Button>
     </Tooltip>
   );

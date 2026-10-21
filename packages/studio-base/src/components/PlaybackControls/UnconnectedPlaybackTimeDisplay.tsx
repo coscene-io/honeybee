@@ -15,25 +15,42 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Tooltip,
+  Typography,
   filledInputClasses,
   iconButtonClasses,
   inputBaseClasses,
 } from "@mui/material";
-import { useState, useCallback, useMemo, useEffect, MouseEvent, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  MouseEvent,
+  useRef,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, isTimeInRangeInclusive } from "@foxglove/rostime";
+import { Time, isTimeInRangeInclusive, subtract } from "@foxglove/rostime";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { IAppTimeFormat } from "@foxglove/studio-base/hooks/useAppTimeFormat";
 import { TimeDisplayMethod } from "@foxglove/studio-base/types/panels";
 import {
   formatDate,
   formatTime,
+  formatSourceTime,
   getValidatedTimeAndMethodFromString,
 } from "@foxglove/studio-base/util/formatTime";
+import {
+  formatPlaybackDuration,
+  formatRelativeTime,
+} from "@foxglove/studio-base/util/relativeTime";
 import { formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 type PlaybackTimeDisplayMethodProps = {
+  compact?: boolean;
   appTimeFormat: IAppTimeFormat;
   currentTime?: Time;
   startTime?: Time;
@@ -44,65 +61,97 @@ type PlaybackTimeDisplayMethodProps = {
   isPlaying: boolean;
 };
 
-const useStyles = makeStyles<{ timeDisplayMethod: TimeDisplayMethod }>()(
-  (theme, { timeDisplayMethod }) => ({
-    textField: {
-      borderRadius: theme.shape.borderRadius,
+const useStyles = makeStyles<{
+  timeDisplayMethod: TimeDisplayMethod;
+  compact: boolean;
+  relativeTimeWidth: number;
+}>()((theme, { timeDisplayMethod, compact, relativeTimeWidth }) => ({
+  textField: {
+    borderRadius: theme.shape.borderRadius,
 
-      "&.Mui-disabled": {
-        [`.${filledInputClasses.root}`]: {
-          backgroundColor: "transparent",
-        },
-      },
-      "&:not(.Mui-disabled):hover": {
-        backgroundColor: theme.palette.action.hover,
-
-        [`.${iconButtonClasses.root}`]: {
-          visibility: "visible",
-        },
-      },
+    "&.Mui-disabled": {
       [`.${filledInputClasses.root}`]: {
         backgroundColor: "transparent",
+      },
+    },
+    "&:not(.Mui-disabled):hover": {
+      backgroundColor: theme.palette.action.hover,
 
-        ":hover": {
-          backgroundColor: "transparent",
-        },
-      },
-      [`.${inputBaseClasses.input}`]: {
-        fontFeatureSettings: `${theme.typography.fontFeatureSettings}, 'zero' !important`,
-        minWidth: timeDisplayMethod === "TOD" ? "28ch" : "20ch",
-      },
       [`.${iconButtonClasses.root}`]: {
-        borderTopLeftRadius: 0,
-        borderBottomLeftRadius: 0,
-        borderLeft: `1px solid ${theme.palette.background.paper}`,
-        visibility: "hidden",
-        marginRight: theme.spacing(-1),
+        visibility: "visible",
       },
     },
-    textFieldError: {
-      outline: `1px solid ${theme.palette.error.main}`,
-      outlineOffset: -1,
+    [`.${filledInputClasses.root}`]: {
+      backgroundColor: "transparent",
 
-      [`.${inputBaseClasses.root}`]: {
-        color: theme.palette.error.main,
-        borderLeftColor: theme.palette.error.main,
+      ":hover": {
+        backgroundColor: "transparent",
       },
     },
-  }),
-);
+    [`.${inputBaseClasses.input}`]: {
+      fontFeatureSettings: `${theme.typography.fontFeatureSettings}, 'zero' !important`,
+      fontFamily: theme.typography.fontMonospace,
+      fontVariantNumeric: "tabular-nums",
+      fontSize: 12,
+      minWidth: 0,
+      width:
+        timeDisplayMethod === "REL"
+          ? `${relativeTimeWidth}ch`
+          : compact
+            ? "12ch"
+            : timeDisplayMethod === "TOD"
+              ? "32ch"
+              : "20ch",
+      color:
+        timeDisplayMethod === "REL"
+          ? theme.palette.mode === "dark"
+            ? theme.palette.info.main
+            : theme.palette.primary.main
+          : undefined,
+      paddingBlock: 6,
+    },
+    [`.${iconButtonClasses.root}`]: {
+      borderTopLeftRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderLeft: `1px solid ${theme.palette.background.paper}`,
+      visibility: "visible",
+      marginRight: theme.spacing(-1),
+    },
+  },
+  totalDuration: {
+    color: theme.palette.text.secondary,
+    fontFamily: theme.typography.fontMonospace,
+    fontVariantNumeric: "tabular-nums",
+    fontSize: 12,
+    whiteSpace: "nowrap",
+    marginRight: theme.spacing(1),
+  },
+  textFieldError: {
+    outline: `1px solid ${theme.palette.error.main}`,
+    outlineOffset: -1,
+
+    [`.${inputBaseClasses.root}`]: {
+      color: theme.palette.error.main,
+      borderLeftColor: theme.palette.error.main,
+      [`& .${inputBaseClasses.input}`]: { color: theme.palette.error.main },
+    },
+  },
+}));
 
 function PlaybackTimeMethodMenu({
   timeFormat,
   timeRawString,
   timeOfDayString,
+  relativeTimeString,
   setTimeFormat,
 }: {
   timeFormat: TimeDisplayMethod;
   timeRawString?: string;
   timeOfDayString?: string;
+  relativeTimeString?: string;
   setTimeFormat: (format: TimeDisplayMethod) => Promise<void>;
 }): React.JSX.Element {
+  const { t } = useTranslation(["general", "appSettings"]);
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
 
@@ -118,6 +167,7 @@ function PlaybackTimeMethodMenu({
     <>
       <IconButton
         id="playback-time-display-toggle-button"
+        aria-label={t("timeDisplayFormat")}
         aria-controls={open ? "playback-time-display-toggle-menu" : undefined}
         aria-haspopup="true"
         aria-expanded={open ? "true" : undefined}
@@ -144,8 +194,9 @@ function PlaybackTimeMethodMenu({
         aria-labelledby="playback-time-display-toggle-button"
       >
         {[
-          { key: "TOD", label: timeOfDayString ?? "Time of Day" },
-          { key: "SEC", label: timeRawString ?? "Seconds" },
+          { key: "TOD", label: t("appSettings:dateTime"), preview: timeOfDayString },
+          { key: "SEC", label: t("appSettings:unixTime"), preview: timeRawString },
+          { key: "REL", label: t("appSettings:relativeTime"), preview: relativeTimeString },
         ].map((option) => (
           <MenuItem
             key={option.key}
@@ -163,6 +214,7 @@ function PlaybackTimeMethodMenu({
             <ListItemText
               inset={timeFormat !== option.key}
               primary={option.label}
+              secondary={option.preview}
               slotProps={{
                 primary: {
                   variant: "inherit",
@@ -177,6 +229,7 @@ function PlaybackTimeMethodMenu({
 }
 
 export function UnconnectedPlaybackTimeDisplay({
+  compact = false,
   appTimeFormat,
   currentTime,
   startTime,
@@ -186,7 +239,10 @@ export function UnconnectedPlaybackTimeDisplay({
   onPause,
   isPlaying,
 }: PlaybackTimeDisplayMethodProps): React.JSX.Element {
-  const { classes, cx } = useStyles({ timeDisplayMethod: appTimeFormat.timeFormat });
+  const { t } = useTranslation("general");
+  const inputRef = useRef<HTMLInputElement>(ReactNull);
+  const editingRef = useRef(false);
+  const originalInputRef = useRef<string>();
   const timeOutID = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const timeRawString = useMemo(
@@ -200,50 +256,84 @@ export function UnconnectedPlaybackTimeDisplay({
         : undefined,
     [currentTime, timezone],
   );
-  const currentTimeString = useMemo(
-    () => (appTimeFormat.timeFormat === "SEC" ? timeRawString : timeOfDayString),
-    [appTimeFormat.timeFormat, timeRawString, timeOfDayString],
+  const relativeTimeString = useMemo(
+    () => (currentTime ? formatRelativeTime(currentTime, startTime) : undefined),
+    [currentTime, startTime],
   );
+  const totalDuration = useMemo(
+    () =>
+      startTime && endTime ? formatPlaybackDuration(subtract(endTime, startTime)) : "--:--:--.---",
+    [startTime, endTime],
+  );
+  const { classes, cx } = useStyles({
+    timeDisplayMethod: appTimeFormat.timeFormat,
+    compact,
+    relativeTimeWidth: Math.max(12, totalDuration.length),
+  });
+  const currentTimeString =
+    appTimeFormat.timeFormat === "REL"
+      ? relativeTimeString
+      : appTimeFormat.timeFormat === "SEC"
+        ? timeRawString
+        : timeOfDayString;
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [inputText, setInputText] = useState<string | undefined>(currentTimeString ?? undefined);
   const [hasError, setHasError] = useState<boolean>(false);
 
-  const onSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
+  useLayoutEffect(() => {
+    if (isEditing) {
+      // Compact TOD expands on focus; select only after the complete value reaches the DOM.
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
 
-      if (inputText == undefined || inputText.length === 0) {
-        return;
-      }
-      if (!startTime || !currentTime || !endTime) {
-        return;
-      }
-
-      const validTimeAndMethod = getValidatedTimeAndMethodFromString({
-        text: inputText,
-        timezone,
-      });
-
-      if (validTimeAndMethod == undefined) {
-        setHasError(true);
-        return;
-      }
-
-      // If input is valid, clear error state, exit edit mode, and seek to input timestamp
+  const commitInput = useCallback(() => {
+    if (!editingRef.current) {
+      return true;
+    }
+    if (inputText === originalInputRef.current || !inputText?.trim()) {
+      editingRef.current = false;
       setHasError(false);
+      return true;
+    }
+    if (!startTime || !endTime) {
+      return false;
+    }
+    const parsed = getValidatedTimeAndMethodFromString({
+      text: inputText,
+      timezone,
+      timeFormat: appTimeFormat.timeFormat,
+      playbackOrigin: startTime,
+    });
+    if (!parsed?.time || !isTimeInRangeInclusive(parsed.time, startTime, endTime)) {
+      setHasError(true);
+      return false;
+    }
+    editingRef.current = false;
+    setHasError(false);
+    onSeek(parsed.time);
+    if (parsed.method !== appTimeFormat.timeFormat) {
+      void appTimeFormat.setTimeFormat(parsed.method);
+    }
+    return true;
+  }, [inputText, startTime, endTime, timezone, onSeek, appTimeFormat]);
 
-      if (
-        validTimeAndMethod.time &&
-        isTimeInRangeInclusive(validTimeAndMethod.time, startTime, endTime)
-      ) {
-        onSeek(validTimeAndMethod.time);
-        if (validTimeAndMethod.method !== appTimeFormat.timeFormat) {
-          void appTimeFormat.setTimeFormat(validTimeAndMethod.method);
-        }
+  const onSubmit = useCallback(
+    (event: React.FormEvent) => {
+      event.preventDefault();
+      if (commitInput()) {
+        setIsEditing(false);
+        inputRef.current?.blur();
       }
     },
-    [inputText, startTime, currentTime, endTime, timezone, onSeek, appTimeFormat],
+    [commitInput],
   );
+
+  useEffect(() => {
+    editingRef.current = false;
+    setIsEditing(false);
+    setHasError(false);
+  }, [appTimeFormat.timeFormat, startTime?.sec, startTime?.nsec]);
 
   useEffect(() => {
     // If user submits an empty input field or resumes playback, clear error state and show current timestamp
@@ -263,49 +353,102 @@ export function UnconnectedPlaybackTimeDisplay({
     <Stack direction="row" alignItems="center" flexGrow={0} gap={0.5}>
       {currentTime ? (
         <form onSubmit={onSubmit} style={{ width: "100%" }}>
-          <TextField
-            className={cx(classes.textField, { [classes.textFieldError]: hasError })}
-            aria-label="Playback Time Method"
-            data-testid="PlaybackTime-text"
-            value={isEditing ? inputText : currentTimeString}
-            error={hasError}
-            variant="filled"
-            size="small"
-            onFocus={(e) => {
-              onPause();
-              setHasError(false);
-              setIsEditing(true);
-              setInputText(currentTimeString);
-              e.target.select();
-            }}
-            onBlur={(e) => {
-              onSubmit(e);
-              setIsEditing(false);
-              timeOutID.current = setTimeout(() => {
+          <Tooltip
+            title={
+              !isEditing
+                ? appTimeFormat.timeFormat === "REL"
+                  ? formatSourceTime(currentTime, timezone)
+                  : currentTimeString
+                : ""
+            }
+          >
+            <TextField
+              className={cx(classes.textField, { [classes.textFieldError]: hasError })}
+              aria-label="Playback Time Method"
+              data-testid="PlaybackTime-text"
+              inputRef={inputRef}
+              value={
+                isEditing
+                  ? inputText
+                  : compact && appTimeFormat.timeFormat === "TOD"
+                    ? formatTime(currentTime, timezone)
+                    : currentTimeString
+              }
+              error={hasError}
+              variant="filled"
+              size="small"
+              onFocus={(event) => {
+                if (event.target !== inputRef.current) {
+                  return;
+                }
+                onPause();
+                if (timeOutID.current != undefined) {
+                  clearTimeout(timeOutID.current);
+                }
+                editingRef.current = true;
+                originalInputRef.current = currentTimeString;
                 setHasError(false);
-              }, 600);
-            }}
-            onChange={(event) => {
-              setInputText(event.target.value);
-            }}
-            slotProps={{
-              input: {
-                startAdornment: hasError ? <WarningIcon color="error" /> : undefined,
-                endAdornment: (
-                  <PlaybackTimeMethodMenu
-                    {...{
-                      currentTime,
-                      timezone,
-                      timeOfDayString,
-                      timeRawString,
-                      timeFormat: appTimeFormat.timeFormat,
-                      setTimeFormat: appTimeFormat.setTimeFormat,
-                    }}
-                  />
-                ),
-              },
-            }}
-          />
+                setIsEditing(true);
+                setInputText(currentTimeString);
+              }}
+              onBlur={(e) => {
+                e.preventDefault();
+                commitInput();
+                editingRef.current = false;
+                setIsEditing(false);
+                timeOutID.current = setTimeout(() => {
+                  setHasError(false);
+                }, 600);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  editingRef.current = false;
+                  setHasError(false);
+                  setIsEditing(false);
+                  inputRef.current?.blur();
+                }
+              }}
+              onChange={(event) => {
+                setInputText(event.target.value);
+              }}
+              slotProps={{
+                htmlInput: {
+                  "aria-label":
+                    appTimeFormat.timeFormat === "REL" ? t("elapsedTime") : t("playbackTime"),
+                },
+                input: {
+                  startAdornment: hasError ? <WarningIcon color="error" /> : undefined,
+                  endAdornment: (
+                    <>
+                      {appTimeFormat.timeFormat === "REL" && (
+                        <Typography
+                          component="span"
+                          className={classes.totalDuration}
+                          aria-label={t("totalDuration")}
+                          data-testid="playback-total-duration"
+                        >
+                          / {totalDuration}
+                        </Typography>
+                      )}
+                      <PlaybackTimeMethodMenu
+                        {...{
+                          currentTime,
+                          timezone,
+                          timeOfDayString,
+                          timeRawString,
+                          relativeTimeString,
+                          timeFormat: appTimeFormat.timeFormat,
+                          setTimeFormat: appTimeFormat.setTimeFormat,
+                        }}
+                      />
+                    </>
+                  ),
+                },
+              }}
+            />
+          </Tooltip>
         </form>
       ) : (
         <TextField
@@ -314,7 +457,11 @@ export function UnconnectedPlaybackTimeDisplay({
           variant="filled"
           size="small"
           defaultValue={
-            appTimeFormat.timeFormat === "SEC" ? "0000000000.000000000" : "0000-00-00 00:00:00.000"
+            appTimeFormat.timeFormat === "REL"
+              ? "--:--:--.--- / --:--:--.---"
+              : appTimeFormat.timeFormat === "SEC"
+                ? "0000000000.000000000"
+                : "0000-00-00 00:00:00.000"
           }
           slotProps={{
             input: {

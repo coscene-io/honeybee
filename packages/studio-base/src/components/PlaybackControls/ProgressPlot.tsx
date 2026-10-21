@@ -65,6 +65,7 @@ const useStyles = makeStyles()((theme) => ({
   },
   ruler: {
     label: "ProgressPlot-ruler",
+    boxSizing: "border-box",
     backgroundColor:
       theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.02)",
     borderBottom: `1px solid ${theme.palette.divider}`,
@@ -111,9 +112,9 @@ const useStyles = makeStyles()((theme) => ({
   minorTick: {
     label: "ProgressPlot-minorTick",
     backgroundColor: theme.palette.divider,
-    height: 4,
+    height: 2,
     position: "absolute",
-    top: 1,
+    bottom: 0,
     transform: "translateX(-50%)",
     width: 1,
     zIndex: 1,
@@ -121,9 +122,9 @@ const useStyles = makeStyles()((theme) => ({
   majorTick: {
     label: "ProgressPlot-majorTick",
     backgroundColor: theme.palette.divider,
-    height: 10,
+    height: 3,
     position: "absolute",
-    top: 1,
+    bottom: 0,
     transform: "translateX(-50%)",
     width: 1,
     zIndex: 2,
@@ -136,7 +137,7 @@ const useStyles = makeStyles()((theme) => ({
     fontVariantNumeric: "tabular-nums",
     lineHeight: "12px",
     position: "absolute",
-    top: 1,
+    top: 0,
     transform: "translateX(4px)",
     whiteSpace: "nowrap",
     zIndex: 3,

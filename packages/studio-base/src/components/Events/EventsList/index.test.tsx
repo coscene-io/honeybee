@@ -32,8 +32,11 @@ import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
+import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
+
+import { DOUBTFUL_FIELD_KEY } from "../momentDoubtful";
 
 jest.mock("react-hot-toast", () => ({
   __esModule: true,
@@ -137,13 +140,25 @@ function EventFetchCountProbe(): React.JSX.Element {
 
 function EventToModifyProbe(): React.JSX.Element {
   const startTime = useEvents((store: EventsStore) => store.toModifyEvent?.startTime);
-  return <div data-testid="event-to-modify-start">{`${startTime?.sec}:${startTime?.nsec}`}</div>;
+  const metadata = useEvents((store: EventsStore) => store.toModifyEvent?.metadataEntries);
+  return (
+    <>
+      <div data-testid="event-to-modify-start">{`${startTime?.sec}:${startTime?.nsec}`}</div>
+      <div data-testid="event-to-modify-metadata">{JSON.stringify(metadata)}</div>
+    </>
+  );
 }
 
 function HoverProbe(): React.JSX.Element {
   const name = useTimelineInteractionState((store) => store.hoveredEvent?.event.name);
+  const focus = useTimelineInteractionState((store) => store.eventToFocus);
   const hover = useTimelineInteractionState((store) => store.hoverValue);
-  return <div data-testid="hover-state">{`${name ?? ""}|${hover?.componentId ?? ""}`}</div>;
+  return (
+    <>
+      <div data-testid="hover-state">{`${name ?? ""}|${hover?.componentId ?? ""}`}</div>
+      <div data-testid="focused-event">{focus?.event.name}</div>
+    </>
+  );
 }
 
 function ScrollInteractionProbe({ event }: { event: TimelinePositionedEvent }): React.JSX.Element {
@@ -182,36 +197,38 @@ function Wrapper({
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
-      <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
-        <CoSceneConsoleApiContext.Provider value={consoleApi}>
-          <DialogsProvider>
-            <CoreDataProvider>
-              <EventsProvider>
-                <TimelineInteractionStateProvider>
-                  <MockMessagePipelineProvider
-                    seekPlayback={seekPlayback}
-                    startTime={{ sec: 0, nsec: 0 }}
-                    currentTime={{ sec: 0, nsec: 0 }}
-                    endTime={{ sec: 10, nsec: 0 }}
-                  >
-                    <SeedCoreData
-                      projectArchived={projectArchived}
-                      recordArchived={recordArchived}
-                    />
-                    <SeedEvents events={events} />
-                    <EventFetchCountProbe />
-                    <EventToModifyProbe />
-                    <HoverProbe />
-                    {externalHoverEvent && <ScrollInteractionProbe event={externalHoverEvent} />}
-                    {view === "sidebar" ? <EventsList /> : <MomentsList events={events} />}
-                    <TestDialogs />
-                  </MockMessagePipelineProvider>
-                </TimelineInteractionStateProvider>
-              </EventsProvider>
-            </CoreDataProvider>
-          </DialogsProvider>
-        </CoSceneConsoleApiContext.Provider>
-      </AppConfigurationContext.Provider>
+      <WorkspaceContextProvider disablePersistence>
+        <AppConfigurationContext.Provider value={makeMockAppConfiguration()}>
+          <CoSceneConsoleApiContext.Provider value={consoleApi}>
+            <DialogsProvider>
+              <CoreDataProvider>
+                <EventsProvider>
+                  <TimelineInteractionStateProvider>
+                    <MockMessagePipelineProvider
+                      seekPlayback={seekPlayback}
+                      startTime={{ sec: 0, nsec: 0 }}
+                      currentTime={{ sec: 0, nsec: 0 }}
+                      endTime={{ sec: 10, nsec: 0 }}
+                    >
+                      <SeedCoreData
+                        projectArchived={projectArchived}
+                        recordArchived={recordArchived}
+                      />
+                      <SeedEvents events={events} />
+                      <EventFetchCountProbe />
+                      <EventToModifyProbe />
+                      <HoverProbe />
+                      {externalHoverEvent && <ScrollInteractionProbe event={externalHoverEvent} />}
+                      {view === "sidebar" ? <EventsList /> : <MomentsList events={events} />}
+                      <TestDialogs />
+                    </MockMessagePipelineProvider>
+                  </TimelineInteractionStateProvider>
+                </EventsProvider>
+              </CoreDataProvider>
+            </DialogsProvider>
+          </CoSceneConsoleApiContext.Provider>
+        </AppConfigurationContext.Provider>
+      </WorkspaceContextProvider>
     </ThemeProvider>
   );
 }
@@ -233,6 +250,35 @@ function makeConsoleApi({
     updateEvent: Object.assign(jest.fn(), { permission: () => true }),
   } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
 }
+
+it("filters doubtful display with keyword AND semantics while Delete All retains the complete collection", async () => {
+  const first = makeEvent({ name: "Doubtful target", startSec: 1 });
+  first.event.customizedFields[DOUBTFUL_FIELD_KEY] = "true";
+  const second = makeEvent({ name: "Ordinary target", startSec: 2 });
+  const deleteEvent = jest.fn().mockResolvedValue({});
+  render(<Wrapper events={[first, second]} consoleApi={makeConsoleApi({ deleteEvent })} />);
+  fireEvent.click(screen.getByRole("button", { name: "Filter Moments" }));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Doubtful" }));
+  fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+  await waitFor(() => {
+    expect(screen.queryByText("Ordinary target")).toBeNull();
+  });
+  await waitFor(() => {
+    expect(document.body.textContent).toContain("Doubtful target");
+  });
+  const search = screen.getByPlaceholderText("Search moment");
+  fireEvent.change(search, { target: { value: "Ordinary" } });
+  expect(screen.queryByText("Doubtful target")).toBeNull();
+  fireEvent.change(search, { target: { value: "target" } });
+  await waitFor(() => {
+    expect(document.body.textContent).toContain("Doubtful target");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Delete All" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
+  await waitFor(() => {
+    expect(deleteEvent).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("<EventsList />", () => {
   beforeEach(() => {
@@ -624,4 +670,33 @@ describe("<EventsList />", () => {
       expect(screen.getByTestId("event-to-modify-start").textContent).toBe("1:123456789");
     });
   });
+});
+
+it("preserves the doubtful flag in the edit payload while hiding it from public metadata", async () => {
+  const event = makeEvent({ name: "events/doubtful", startSec: 1 });
+  event.event.customizedFields = { _doubtful: "true", public: "visible" };
+  render(<Wrapper consoleApi={makeConsoleApi()} events={[event]} />);
+  expect(screen.queryByText("_doubtful")).toBeNull();
+  fireEvent.click(await screen.findByTitle("Edit Moment"));
+  expect(JSON.parse(screen.getByTestId("event-to-modify-metadata").textContent)).toEqual([
+    { key: "_doubtful", value: "true" },
+    { key: "public", value: "visible" },
+  ]);
+});
+
+it("offers sidebar focus and read-only details without seeking or opening an editor", async () => {
+  const event = makeEvent({ name: "events/readonly", startSec: 1 });
+  const seek = jest.fn();
+  render(
+    <Wrapper consoleApi={makeConsoleApi()} projectArchived events={[event]} seekPlayback={seek} />,
+  );
+  fireEvent.click(await screen.findByTitle("Focus this moment"));
+  expect(screen.getByTestId("focused-event").textContent).toBe(event.event.name);
+  expect(seek).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByTitle("View Moment"));
+  expect(screen.getByRole("dialog", { name: "View Moment" })).toBeTruthy();
+  expect(screen.getByTestId("event-to-modify-start").textContent).toBe("undefined:undefined");
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(seek).not.toHaveBeenCalled();
 });

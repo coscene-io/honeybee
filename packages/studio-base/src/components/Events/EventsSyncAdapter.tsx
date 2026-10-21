@@ -17,6 +17,7 @@ import { scaleValue as scale } from "@foxglove/den/math";
 import Logger from "@foxglove/log";
 import { subtract, Time, toSec, fromNanoSec, add, isTimeInRangeInclusive } from "@foxglove/rostime";
 import { deleteEventWithFile } from "@foxglove/studio-base/components/Events/deleteEventWithFile";
+import { useVisibleEvents } from "@foxglove/studio-base/components/Events/momentDoubtful";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
 import {
   MessagePipelineContext,
@@ -26,10 +27,13 @@ import {
 import { getSnappedEventMark } from "@foxglove/studio-base/components/PlaybackControls/eventSnap";
 import { timelineDurationSeconds } from "@foxglove/studio-base/components/PlaybackControls/eventTimeContainment";
 import { buildEventTimeUpdate } from "@foxglove/studio-base/components/PlaybackControls/eventTimeEdit";
+import { getEventTimeIndex } from "@foxglove/studio-base/components/PlaybackControls/eventTimeIndex";
 import {
-  EMPTY_EVENTS,
-  getEventTimeIndex,
-} from "@foxglove/studio-base/components/PlaybackControls/eventTimeIndex";
+  getMomentTracks,
+  isMomentTrackCollapsed,
+  EMPTY_TRACK_VIEW,
+  type MomentTrack,
+} from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import { isTimelineKeyboardEvent } from "@foxglove/studio-base/components/PlaybackControls/timelineKeyboardFocus";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -156,7 +160,6 @@ export function positionEventMark({
 }
 
 const selectEventFetchCount = (store: EventsStore) => store.eventFetchCount;
-const selectEvents = (store: EventsStore) => store.events;
 const selectSetEvents = (store: EventsStore) => store.setEvents;
 const selectSetEventsAtHoverValue = (store: TimelineInteractionStateStore) =>
   store.setEventsAtHoverValue;
@@ -219,7 +222,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const hoverValue = useHoverValue({ componentId: hoverComponentId, isPlaybackSeconds: true });
   const startTime = useMessagePipeline(selectStartTime);
   const endTime = useMessagePipeline(selectEndTime);
-  const events = useEvents(selectEvents);
   const eventFetchCount = useEvents(selectEventFetchCount);
   const bagFiles = usePlaylist(selectBagFiles);
   const pause = useMessagePipeline(selectPause);
@@ -236,6 +238,25 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const enableList = useCoreData(selectEnableList);
   const project = useCoreData(selectProject);
   const record = useCoreData(selectRecord);
+  const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
+  const visibleEvents = useVisibleEvents();
+  const trackScope = schemaProjectName ?? project.value?.name ?? "";
+  const trackView = useWorkspaceStore(
+    (store) => store.playbackControls.momentTimeline?.views[trackScope] ?? EMPTY_TRACK_VIEW,
+  );
+  const navigationEvents = useMemo(() => {
+    const names = new Set<string>();
+    const visit = (track: MomentTrack) => {
+      if (isMomentTrackCollapsed(track, trackView)) {
+        return;
+      }
+      track.events.forEach((entry) => names.add(entry.event.name));
+      track.children.forEach(visit);
+    };
+    getMomentTracks(visibleEvents, schema, schemaProjectName).forEach(visit);
+    return visibleEvents.filter((entry) => names.has(entry.event.name));
+  }, [visibleEvents, schema, schemaProjectName, trackView]);
 
   // Mirror Scrubber.tsx: editing/deleting moments requires the feature enabled, the matching
   // permission, and a non-archived project and record.
@@ -256,30 +277,31 @@ export function EventsSyncAdapter(): React.JSX.Element {
     [consoleApi, enableList.event, project.value?.isArchived, record.value?.isArchived],
   );
 
-  const [, getMomentCustomFieldValues] = useAsyncFn(async () => {
-    if (!externalInitConfig?.warehouseId || !externalInitConfig.projectId) {
-      return;
+  useEffect(() => {
+    let active = true;
+    setCustomFieldSchema(undefined);
+    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
+      const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
+      void consoleApi
+        .getMomentCustomFieldSchema(projectName)
+        .then((schema) => {
+          if (active) {
+            setCustomFieldSchema(schema, projectName);
+          }
+        })
+        .catch((error: unknown) => {
+          log.error(error);
+        });
     }
-
-    const customFieldSchema = await consoleApi.getMomentCustomFieldSchema(
-      `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`,
-    );
-
-    setCustomFieldSchema(customFieldSchema);
+    return () => {
+      active = false;
+    };
   }, [
     consoleApi,
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
     setCustomFieldSchema,
   ]);
-
-  useEffect(() => {
-    if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
-      getMomentCustomFieldValues().catch((error: unknown) => {
-        log.error(error);
-      });
-    }
-  }, [externalInitConfig?.warehouseId, externalInitConfig?.projectId, getMomentCustomFieldValues]);
 
   const timeRange = useMemo(() => {
     if (!startTime || !endTime) {
@@ -376,7 +398,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
   // Sync hovered value and hovered events.
   useEffect(() => {
     if (hoverValue && startTime && endTime && timeRange != undefined && timeRange > 0) {
-      const index = getEventTimeIndex(events.value ?? EMPTY_EVENTS, startTime);
+      const index = getEventTimeIndex(navigationEvents, startTime);
       const hoveredEvents =
         hoverValue.absoluteSeconds != undefined
           ? index.atAbsoluteTime(hoverValue.absoluteSeconds, endTime)
@@ -385,14 +407,14 @@ export function EventsSyncAdapter(): React.JSX.Element {
     } else {
       setEventsAtHoverValue([]);
     }
-  }, [hoverValue, setEventsAtHoverValue, startTime, endTime, timeRange, events]);
+  }, [hoverValue, setEventsAtHoverValue, startTime, endTime, timeRange, navigationEvents]);
 
   const startTimeRef = useLatest(startTime);
   const endTimeRef = useLatest(endTime);
   const eventMarksRef = useLatest(eventMarks);
   const pauseRef = useLatest(pause);
   const selectedEventIdRef = useLatest(selectedEventId);
-  const eventsRef = useLatest(events.value);
+  const eventsRef = useLatest(navigationEvents);
   const seekRef = useLatest(seek);
 
   const handleDigit1 = useCallback(
@@ -413,7 +435,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
       const mark = positionEventMark({ currentTime: current, startTime: start, endTime: end });
       const nextMark = rollingEditEnabled
-        ? getSnappedEventMark({ mark, events: events.value ?? [] })
+        ? getSnappedEventMark({ mark, events: eventsRef.current })
         : mark;
       const nextMarks = [...marks, nextMark].sort((a, b) => a.position - b.position);
 
@@ -422,7 +444,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
     [
       endTimeRef,
       eventMarksRef,
-      events.value,
+      eventsRef,
       getMessagePipeline,
       pauseRef,
       rollingEditEnabled,
@@ -436,13 +458,13 @@ export function EventsSyncAdapter(): React.JSX.Element {
     if (id == undefined) {
       return undefined;
     }
-    return (eventsRef.current ?? []).find((e) => e.event.name === id);
+    return eventsRef.current.find((e) => e.event.name === id);
   }, [eventsRef, selectedEventIdRef]);
 
   // ↑ / ↓ : select the previous / next moment (events are sorted by start) and seek to it.
   const selectAdjacentEvent = useCallback(
     (direction: 1 | -1) => {
-      const list = eventsRef.current ?? [];
+      const list = eventsRef.current;
       if (list.length === 0) {
         return;
       }

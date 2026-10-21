@@ -23,8 +23,8 @@ import { type TimelineViewport, timelineRangeToStyle } from "./timelineViewport"
 
 export { BAG_OVERLAY_HEIGHT_PX } from "./constants";
 
-const BAG_TICK_HEIGHT_PX: number = 6;
-const BAG_TICK_HOVERED_HEIGHT_PX: number = 12;
+const BAG_TICK_HEIGHT_PX: number = 2;
+const BAG_TICK_HOVERED_HEIGHT_PX: number = BAG_OVERLAY_HEIGHT_PX;
 
 const useStyles = makeStyles()(({ transitions, palette }) => ({
   root: {

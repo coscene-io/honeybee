@@ -56,6 +56,10 @@ export type TimelineInteractionStateStore = Immutable<{
   /** The point in time hovered over by the user. */
   hoverValue: undefined | HoverValue;
 
+  /** A one-shot request to focus the timeline viewport without seeking. */
+  eventToFocus: undefined | TimelinePositionedEvent;
+  setEventToFocus: (event: undefined | TimelinePositionedEvent) => void;
+
   /** The event that is currently being looped over. */
   loopedEvent: undefined | TimelinePositionedEvent;
 
@@ -88,9 +92,9 @@ export type TimelineInteractionStateStore = Immutable<{
   setLoopedEvent: (loopEvent: undefined | TimelinePositionedEvent) => void;
 }>;
 
-export const TimelineInteractionStateContext = createContext<
+export const TimelineInteractionStateContext: React.Context<
   undefined | StoreApi<TimelineInteractionStateStore>
->(undefined);
+> = createContext<undefined | StoreApi<TimelineInteractionStateStore>>(undefined);
 const selectClearHoverValue = (store: TimelineInteractionStateStore) => store.clearHoverValue;
 
 export function useClearHoverValue(): TimelineInteractionStateStore["clearHoverValue"] {

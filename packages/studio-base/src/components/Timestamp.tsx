@@ -11,7 +11,8 @@ import { makeStyles } from "tss-react/mui";
 
 import { Time } from "@foxglove/rostime";
 import Stack from "@foxglove/studio-base/components/Stack";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
+import { formatSourceTime } from "@foxglove/studio-base/util/formatTime";
 import { isAbsoluteTime, formatTimeRaw } from "@foxglove/studio-base/util/time";
 
 type Props = {
@@ -30,12 +31,12 @@ const useStyles = makeStyles()((theme) => ({
 export default function Timestamp(props: Props): React.JSX.Element {
   const { classes } = useStyles();
   const { disableDate = false, horizontal = false, time, title } = props;
-  const { formatDate, formatTime } = useAppTimeFormat();
+  const { formatDate, formatTime, timeFormat, timeZone } = usePlaybackTimeFormat();
   const currentTimeStr = useMemo(() => formatTime(time), [time, formatTime]);
   const rawTimeStr = useMemo(() => formatTimeRaw(time), [time]);
   const date = useMemo(() => formatDate(time), [formatDate, time]);
 
-  if (!isAbsoluteTime(time)) {
+  if (timeFormat !== "REL" && !isAbsoluteTime(time)) {
     return (
       <Stack title={title} direction="row" alignItems="center" flexGrow={0}>
         <Typography className={classes.numericValue} variant="inherit">
@@ -47,14 +48,14 @@ export default function Timestamp(props: Props): React.JSX.Element {
 
   return (
     <Stack
-      title={title}
+      title={title ?? (timeFormat === "REL" ? formatSourceTime(time, timeZone) : undefined)}
       gap={horizontal ? 0 : 1}
       flexWrap={horizontal ? "nowrap" : "wrap"}
       direction={horizontal ? "row" : "column"}
       alignItems={horizontal ? "center" : "flex-start"}
       justifyContent={horizontal ? "flex-start" : "center"}
     >
-      {!disableDate && (
+      {!disableDate && timeFormat !== "REL" && (
         <>
           <Typography
             className={classes.numericValue}

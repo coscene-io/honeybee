@@ -1,0 +1,311 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "cases": [
+    {
+      "name": "all-eight-combinations",
+      "bars": [
+        {
+          "height": 24,
+          "name": "events/000000",
+          "top": 693
+        },
+        {
+          "height": 24,
+          "name": "events/000001",
+          "top": 497
+        },
+        {
+          "height": 24,
+          "name": "events/000002",
+          "top": 609
+        },
+        {
+          "height": 24,
+          "name": "events/000003",
+          "top": 525
+        },
+        {
+          "height": 24,
+          "name": "events/000004",
+          "top": 665
+        },
+        {
+          "height": 24,
+          "name": "events/000005",
+          "top": 581
+        },
+        {
+          "height": 24,
+          "name": "events/000006",
+          "top": 637
+        },
+        {
+          "height": 24,
+          "name": "events/000007",
+          "top": 553
+        }
+      ],
+      "labels": [
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 1: Option 000 (4)",
+          "padding": "0px",
+          "top": 495
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 2: Option 000 (2)",
+          "padding": "12px",
+          "top": 523
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "padding": "24px",
+          "top": 551
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "padding": "12px",
+          "top": 579
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 2: Option 000 (2)",
+          "padding": "0px",
+          "top": 607
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "padding": "12px",
+          "top": 635
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "padding": "0px",
+          "top": 663
+        },
+        {
+          "height": 28,
+          "id": "[\"moment-groups/v1\"]",
+          "label": "Not filled (1)",
+          "padding": "0px",
+          "top": 691
+        }
+      ]
+    },
+    {
+      "name": "parent-collapse",
+      "bars": [
+        "events/000000",
+        "events/000002",
+        "events/000004",
+        "events/000006"
+      ],
+      "labels": [
+        "Level 1: Option 000 (4)",
+        "Level 2: Option 000 (2)",
+        "Level 3: Option 000 (1)",
+        "Level 3: Option 000 (1)",
+        "Not filled (1)"
+      ]
+    },
+    {
+      "name": "five-level-overlap-scroll",
+      "bars": [
+        {
+          "height": 24,
+          "name": "events/000004",
+          "top": 921
+        },
+        {
+          "height": 24,
+          "name": "events/000010",
+          "top": 753
+        },
+        {
+          "height": 24,
+          "name": "events/000012",
+          "top": 977
+        },
+        {
+          "height": 24,
+          "name": "events/000018",
+          "top": 865
+        },
+        {
+          "height": 24,
+          "name": "events/000022",
+          "top": 697
+        },
+        {
+          "height": 24,
+          "name": "events/000026",
+          "top": 809
+        },
+        {
+          "height": 24,
+          "name": "events/000036",
+          "top": 949
+        },
+        {
+          "height": 24,
+          "name": "events/000042",
+          "top": 781
+        },
+        {
+          "height": 24,
+          "name": "events/000050",
+          "top": 893
+        },
+        {
+          "height": 24,
+          "name": "events/000054",
+          "top": 725
+        },
+        {
+          "height": 24,
+          "name": "events/000058",
+          "top": 837
+        },
+        {
+          "height": 24,
+          "name": "events/000062",
+          "top": 669
+        }
+      ],
+      "labels": [
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-3\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-4\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 5: Option 000 (2)",
+          "top": 639
+        },
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-4\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 5: Option 000 (2)",
+          "top": 695
+        },
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-3\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 4: Option 000 (4)",
+          "top": 751
+        },
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-3\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-4\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 5: Option 000 (2)",
+          "top": 807
+        },
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-4\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 5: Option 000 (2)",
+          "top": 863
+        },
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (8)",
+          "top": 919
+        },
+        {
+          "height": 56,
+          "id": "[\"moment-groups/v1\",[[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-3\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 4: Option 000 (4)",
+          "top": 975
+        }
+      ],
+      "scrollHeight": 1826,
+      "scrollTop": 1200
+    },
+    {
+      "name": "leaf-disclosure",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "bars": 8,
+      "rows": [
+        {
+          "expanded": "true",
+          "hasToggle": true,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 1: Option 000 (4)",
+          "top": 495
+        },
+        {
+          "expanded": "true",
+          "hasToggle": true,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 2: Option 000 (2)",
+          "top": 523
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 551
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-0\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 579
+        },
+        {
+          "expanded": "true",
+          "hasToggle": true,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 2: Option 000 (2)",
+          "top": 607
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-1\",\"[\\\"option\\\",[\\\"0\\\"]]\"],[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 635
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\",[[\"field-2\",\"[\\\"option\\\",[\\\"0\\\"]]\"]]]",
+          "label": "Level 3: Option 000 (1)",
+          "top": 663
+        },
+        {
+          "hasToggle": false,
+          "height": 28,
+          "id": "[\"moment-groups/v1\"]",
+          "label": "Not filled (1)",
+          "top": 691
+        }
+      ],
+      "leafClickBars": 8,
+      "parentCollapsedBars": 4,
+      "restoredBars": 8
+    }
+  ],
+  "console": []
+}

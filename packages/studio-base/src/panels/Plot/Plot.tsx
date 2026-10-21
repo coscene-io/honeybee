@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Button, Tooltip, Fade, buttonClasses, useTheme } from "@mui/material";
+import { Button, Tooltip, Fade, Typography, buttonClasses, useTheme } from "@mui/material";
 import Hammer from "hammerjs";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -46,7 +46,7 @@ import {
   useSetHoverValue,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { VerticalBars } from "@foxglove/studio-base/panels/Plot/VerticalBars";
 import { Bounds1D } from "@foxglove/studio-base/types/Bounds";
@@ -151,7 +151,7 @@ export function Plot(props: Props): React.JSX.Element {
 
   const { classes } = useStyles();
   const theme = useTheme();
-  const { t } = useTranslation("plot");
+  const { t } = useTranslation(["plot", "general"]);
 
   const { setMessagePathDropConfig } = usePanelContext();
   const draggingRef = useRef(false);
@@ -188,7 +188,7 @@ export function Plot(props: Props): React.JSX.Element {
   const [coordinator, setCoordinator] = useState<PlotCoordinator | undefined>(undefined);
   const coordinatorRef = useRef<PlotCoordinator | undefined>(undefined);
   coordinatorRef.current = coordinator;
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime, timeFormat } = usePlaybackTimeFormat();
 
   // When true the user can reset the plot back to the original view
   const [canReset, setCanReset] = useState(false);
@@ -487,8 +487,8 @@ export function Plot(props: Props): React.JSX.Element {
         return;
       }
 
-      // Get absolute time for timestamp-based charts
-      let absoluteTimeString: string | undefined = undefined;
+      // Format the hovered playback timestamp using the global display mode
+      let playbackTimeString: string | undefined = undefined;
       if (xAxisMode === "timestamp" && coordinator) {
         const {
           playerState: { activeData: { startTime: start } = {} },
@@ -498,7 +498,7 @@ export function Plot(props: Props): React.JSX.Element {
           const seconds = coordinator.getXValueAtPixel(args.canvasX);
           if (seconds >= 0) {
             const absoluteTime = addTimes(start, fromSec(seconds));
-            absoluteTimeString = formatTime(absoluteTime);
+            playbackTimeString = formatTime(absoluteTime);
           }
         }
       }
@@ -512,7 +512,7 @@ export function Plot(props: Props): React.JSX.Element {
         tooltipItems.push({
           configIndex: element.configIndex,
           value: tooltipValue,
-          absoluteTime: absoluteTimeString,
+          timeLabel: playbackTimeString,
         });
       }
 
@@ -968,6 +968,11 @@ export function Plot(props: Props): React.JSX.Element {
       position="relative"
     >
       <PanelToolbar />
+      {xAxisMode === "timestamp" && timeFormat === "REL" && (
+        <Typography variant="caption" color="text.secondary">
+          {t("general:relativeTimeSeconds")}
+        </Typography>
+      )}
       <Stack
         direction={legendDisplay === "top" ? "column" : "row"}
         flex="auto"

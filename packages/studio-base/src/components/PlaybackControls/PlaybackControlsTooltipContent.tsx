@@ -21,7 +21,8 @@ import {
   TimelineInteractionStateStore,
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
-import { useAppTimeFormat } from "@foxglove/studio-base/hooks";
+import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
+import { formatSourceTime } from "@foxglove/studio-base/util/formatTime";
 import {
   durationToNanoSeconds,
   formateTimeToReadableFormat,
@@ -65,7 +66,7 @@ export function PlaybackControlsTooltipContent(params: {
   stamp: Time;
 }): ReactNull | React.JSX.Element {
   const { stamp } = params;
-  const { timeFormat, formatTime, formatDate } = useAppTimeFormat();
+  const { timeFormat, formatTime, formatDate, timeZone } = usePlaybackTimeFormat();
   const startTime = useMessagePipeline(selectStartTime);
   const { classes } = useStyles();
   const { t } = useTranslation("event");
@@ -79,6 +80,14 @@ export function PlaybackControlsTooltipContent(params: {
   const tooltipItems: PlaybackControlsTooltipItem[] = [];
 
   switch (timeFormat) {
+    case "REL":
+      tooltipItems.push({ type: "item", title: t("elapsed"), value: formatTime(stamp) });
+      tooltipItems.push({
+        type: "item",
+        title: t("time"),
+        value: formatSourceTime(stamp, timeZone),
+      });
+      break;
     case "TOD":
       tooltipItems.push({ type: "item", title: t("time"), value: formatTime(stamp) });
       tooltipItems.push({ type: "item", title: t("date"), value: formatDate(stamp) });
@@ -88,11 +97,13 @@ export function PlaybackControlsTooltipContent(params: {
       break;
   }
 
-  tooltipItems.push({
-    type: "item",
-    title: t("elapsed"),
-    value: formateTimeToReadableFormat(timeFromStart),
-  });
+  if (timeFormat !== "REL") {
+    tooltipItems.push({
+      type: "item",
+      title: t("elapsed"),
+      value: formateTimeToReadableFormat(timeFromStart),
+    });
+  }
 
   return (
     <div className={classes.tooltipWrapper}>
@@ -135,7 +146,7 @@ function TooltipItems({ items }: { items: PlaybackControlsTooltipItem[] }): Reac
 
 const MemoMomentDetails = memo(function MomentDetails() {
   const hoveredEvents = useTimelineInteractionState(selectHoveredEvents);
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
   const { t } = useTranslation("event");
   const items = useMemo(() => {
     const tooltipItems: PlaybackControlsTooltipItem[] = [];
@@ -182,7 +193,7 @@ const MemoMomentDetails = memo(function MomentDetails() {
 
 const MemoBagDetails = memo(function BagDetails() {
   const hoveredBags = useTimelineInteractionState(selectHoveredBags);
-  const { formatTime } = useAppTimeFormat();
+  const { formatTime } = usePlaybackTimeFormat();
   const { t } = useTranslation("event");
   const items = useMemo(() => {
     const tooltipItems: PlaybackControlsTooltipItem[] = [];

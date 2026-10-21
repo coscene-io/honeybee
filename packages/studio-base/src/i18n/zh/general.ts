@@ -78,4 +78,13 @@ export const general: Partial<TypeOptions["resources"]["general"]> = {
   dropFileHere: "将文件拖放到此处",
   dismiss: "关闭",
   unknownPanelType: "未知面板类型：{{type}}。",
+  timelineHeight: "时间轴高度",
+  timelineControls: "时间轴控制",
+  timelineMoreTools: "更多时间轴工具",
+  playbackTime: "当前播放时间",
+  timeDisplayFormat: "时间显示格式",
+  dataSourceInfo: "数据源信息",
+  totalDuration: "总时长",
+  elapsedTime: "已播放时长",
+  relativeTimeSeconds: "相对时间（秒）",
 };

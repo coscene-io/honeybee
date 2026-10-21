@@ -6,6 +6,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { create } from "@bufbuild/protobuf";
+import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 import { useContext, useEffect } from "react";
@@ -15,7 +17,9 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { type CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
+import { useEvents } from "@foxglove/studio-base/context/EventsContext";
 import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
+import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useWorkspaceStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
@@ -23,6 +27,8 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { CustomFieldSchemaSchema } from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
+import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
@@ -58,6 +64,9 @@ let mockSliderProps:
       onHoverOut?: () => void;
     }
   | undefined;
+let mockEventsOverlayProps:
+  | React.ComponentProps<typeof import("./EventsOverlay").EventsOverlay>
+  | undefined;
 let mockRenderPortalledEventsOverlay = false;
 let mockShortcutsHelpButtonRenderCount = 0;
 
@@ -65,7 +74,10 @@ jest.mock("./EventsOverlay", () => {
   const { createPortal } = jest.requireActual<typeof import("react-dom")>("react-dom");
 
   return {
-    EventsOverlay: function MockEventsOverlay(): React.JSX.Element {
+    EventsOverlay: function MockEventsOverlay(
+      props: NonNullable<typeof mockEventsOverlayProps>,
+    ): React.JSX.Element {
+      mockEventsOverlayProps = props;
       if (mockRenderPortalledEventsOverlay) {
         return createPortal(
           <input aria-label="Portalled event form input" />,
@@ -193,6 +205,7 @@ function Wrapper({
           value={
             consoleApi ??
             ({
+              deleteEvent: { permission: () => false },
               createEvent: { permission: () => createEventAllowed },
               updateEvent: { permission: () => updateEventAllowed },
             } as never)
@@ -233,9 +246,9 @@ describe("<Scrubber />", () => {
     await i18n.changeLanguage("en");
   });
 
-  it("keeps the first moment lane at least 4px below the bag file bar", () => {
+  it("aligns group names and moment lanes directly below the compact ruler", () => {
     render(
-      <Wrapper>
+      <Wrapper eventEnabled>
         <Scrubber onSeek={jest.fn()} />
       </Wrapper>,
     );
@@ -244,8 +257,32 @@ describe("<Scrubber />", () => {
       getComputedStyle(screen.getByTestId("event-lane-layer")).top,
     );
 
-    expect(eventLaneLayerTop).toBeGreaterThanOrEqual(28);
+    expect(eventLaneLayerTop).toBe(20);
+    const trackList = screen.getByTestId("moment-track-list").parentElement!;
+    expect(Number.parseFloat(getComputedStyle(trackList).top)).toBe(eventLaneLayerTop);
+    expect(trackList.parentElement?.firstElementChild).toBe(trackList);
   });
+
+  it.each(["blur", "pointercancel", "pointerup"])(
+    "stops resizing the track column after %s",
+    (eventType) => {
+      render(
+        <Wrapper eventEnabled>
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      const resizer = screen.getByTestId("moment-track-resizer");
+      jest
+        .spyOn(resizer.parentElement!, "getBoundingClientRect")
+        .mockReturnValue(DOMRect.fromRect({ width: 220 }));
+      fireEvent(resizer, new MouseEvent("pointerdown", { bubbles: true, clientX: 220 }));
+      fireEvent(window, new MouseEvent("pointermove", { clientX: 260 }));
+      expect(resizer.getAttribute("aria-valuenow")).toBe("260");
+      fireEvent(window, new Event(eventType));
+      fireEvent(window, new MouseEvent("pointermove", { clientX: 300 }));
+      expect(resizer.getAttribute("aria-valuenow")).toBe("260");
+    },
+  );
 
   describe("queued wheel viewport updates", () => {
     let frames: Map<number, FrameRequestCallback>;
@@ -274,7 +311,7 @@ describe("<Scrubber />", () => {
         .getByTestId("timeline-content")
         .closest<HTMLElement>("[data-timeline-scrubber]")!;
       jest
-        .spyOn(scrubber, "getBoundingClientRect")
+        .spyOn(screen.getByTestId("timeline-content"), "getBoundingClientRect")
         .mockReturnValue(DOMRect.fromRect({ width: 1000, height: 200 }));
       return scrubber;
     };
@@ -382,6 +419,15 @@ describe("<Scrubber />", () => {
     });
   });
 
+  it("lets pointer events pass through the shared file and progress strip", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+    expect(getComputedStyle(screen.getByTestId("timeline-file-layer")).pointerEvents).toBe("none");
+  });
+
   it("does not reserve event-lane height when events are disabled", () => {
     render(
       <Wrapper>
@@ -390,8 +436,10 @@ describe("<Scrubber />", () => {
     );
 
     const timelineContent = screen.getByTestId("timeline-content");
-    expect(timelineContent.style.minHeight).toBe("30px");
-    expect(getComputedStyle(timelineContent.parentElement!).overflowY).toBe("auto");
+    expect(timelineContent.style.minHeight).toBe("20px");
+    expect(
+      getComputedStyle(timelineContent.closest("[data-timeline-scroll-container]")!).overflowY,
+    ).toBe("auto");
   });
 
   it("reserves only the rendered event-lane height when events are enabled", async () => {
@@ -402,7 +450,7 @@ describe("<Scrubber />", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("62px");
+      expect(screen.getByTestId("timeline-content").style.minHeight).toBe("48px");
     });
   });
 
@@ -528,6 +576,7 @@ describe("<Scrubber />", () => {
       <Wrapper
         consoleApi={
           {
+            deleteEvent: { permission: () => false },
             createEvent: { permission: createPermission },
             updateEvent: { permission: updatePermission },
           } as never
@@ -765,4 +814,209 @@ describe("<Scrubber />", () => {
 
     expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
   });
+  it.each(["pointerout", "mouseout", "blur", "visibilitychange"])(
+    "dismisses visible and pending timeline hover on %s and allows hovering again",
+    (eventType) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrameId = 0;
+      const requestFrame = jest.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+        const id = ++nextFrameId;
+        frames.set(id, cb);
+        return id;
+      });
+      const cancelFrame = jest.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+        frames.delete(id);
+      });
+      const visibility = jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+
+      try {
+        render(
+          <Wrapper>
+            <Scrubber onSeek={jest.fn()} />
+          </Wrapper>,
+        );
+        const timelineContent = screen.getByTestId("timeline-content");
+        jest.spyOn(timelineContent, "getBoundingClientRect").mockReturnValue({
+          bottom: 120,
+          height: 90,
+          left: 100,
+          right: 300,
+          top: 30,
+          width: 200,
+          x: 100,
+          y: 30,
+          toJSON: () => ({}),
+        });
+        const move = () => {
+          fireEvent(
+            timelineContent,
+            new MouseEvent("pointermove", { bubbles: true, clientX: 200, clientY: 60 }),
+          );
+        };
+        const flushFrames = () => {
+          const callbacks = [...frames.values()];
+          frames.clear();
+          callbacks.forEach((cb) => {
+            cb(performance.now());
+          });
+        };
+
+        act(() => {
+          mockSliderProps!.onHoverOver!({ playbackSeconds: 2, clientX: 140, clientY: 60 });
+          move();
+        });
+        expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
+
+        act(() => {
+          if (eventType === "visibilitychange") {
+            visibility.mockReturnValue("hidden");
+            fireEvent(document, new Event(eventType));
+          } else if (eventType === "blur") {
+            fireEvent(window, new Event(eventType));
+          } else {
+            // A fast viewport exit may skip the timeline's own leave handler.
+            fireEvent(document, new MouseEvent(eventType, { bubbles: true }));
+          }
+        });
+        expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
+        act(flushFrames);
+        expect(screen.queryByTestId("timeline-hover-tooltip")).toBeNull();
+
+        visibility.mockReturnValue("visible");
+        act(move);
+        act(flushFrames);
+        expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
+      } finally {
+        requestFrame.mockRestore();
+        cancelFrame.mockRestore();
+        visibility.mockRestore();
+      }
+    },
+  );
+
+  it("keeps timeline hover visible for transitions inside the document and visible-page events", () => {
+    render(
+      <Wrapper>
+        <Scrubber onSeek={jest.fn()} />
+      </Wrapper>,
+    );
+    act(() => {
+      mockSliderProps!.onHoverOver!({ playbackSeconds: 2, clientX: 140, clientY: 60 });
+      fireEvent(
+        document,
+        new MouseEvent("pointerout", { bubbles: true, relatedTarget: document.body }),
+      );
+      fireEvent(document, new Event("visibilitychange"));
+    });
+    expect(screen.getByTestId("timeline-hover-tooltip")).toBeTruthy();
+  });
+});
+
+it("focuses the Moment viewport without moving playback and fit restores the full recording", () => {
+  const seek = jest.fn();
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={seek} />
+    </Wrapper>,
+  );
+  act(() => {
+    mockEventsOverlayProps?.onFocusEvent?.({
+      startTime: { sec: 4, nsec: 0 },
+      endTime: { sec: 6, nsec: 0 },
+    } as never);
+  });
+  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(3.5);
+  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
+  expect(seek).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Zoom to fit" }));
+  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(0);
+  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(10);
+});
+
+function SidebarFocusFixture(): React.JSX.Element {
+  const setEvents = useEvents((store) => store.setEvents);
+  const requestFocus = useTimelineInteractionState((store) => store.setEventToFocus);
+  const pending = useTimelineInteractionState((store) => store.eventToFocus);
+  return (
+    <>
+      <button
+        onClick={() => {
+          const event = {
+            ...makeMomentFixture(1, "short", { sec: 0, nsec: 0 })[0]!,
+            startTime: { sec: 4, nsec: 0 },
+            endTime: { sec: 6, nsec: 0 },
+            secondsSinceStart: 4,
+          };
+          setEvents({ loading: false, value: [event] });
+          requestFocus(event);
+        }}
+      >
+        Focus sidebar fixture
+      </button>
+      <span data-testid="pending-sidebar-focus">{pending?.event.name ?? "none"}</span>
+    </>
+  );
+}
+
+it("consumes a sidebar focus request through the shared store without seeking", () => {
+  const seek = jest.fn();
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={seek} />
+      <SidebarFocusFixture />
+    </Wrapper>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Focus sidebar fixture" }));
+  expect(mockSliderProps?.viewport?.visibleStartSec).toBe(3.5);
+  expect(mockSliderProps?.viewport?.visibleEndSec).toBe(6.5);
+  expect(screen.getByTestId("pending-sidebar-focus").textContent).toBe("none");
+  expect(seek).not.toHaveBeenCalled();
+});
+
+function ProjectScopedTracksFixture(): ReactNull {
+  const setEvents = useEvents((store) => store.setEvents);
+  const setSchema = useEvents((store) => store.setCustomFieldSchema);
+  useEffect(() => {
+    const owner = "warehouses/one/projects/active";
+    const events = Array.from(
+      { length: 2 },
+      () => makeMomentFixture(1, "short", { sec: 0, nsec: 0 })[0]!,
+    );
+    events[0]!.event.name = `${owner}/events/local`;
+    events[1]!.event.name = "warehouses/one/projects/other/events/foreign";
+    for (const entry of events) {
+      entry.event.customFieldValues = [
+        create(CustomFieldValueSchema, {
+          property: { id: "platform" },
+          value: { case: "enums", value: { id: "a" } },
+        }),
+      ];
+    }
+    setEvents({ loading: false, value: events });
+    setSchema(
+      create(CustomFieldSchemaSchema, {
+        properties: [
+          { id: "platform", type: { case: "enums", value: { values: { a: "Alpha" } } } },
+        ],
+        groupingRules: [{ propertyId: "platform" }],
+      }),
+      owner,
+    );
+  }, [setEvents, setSchema]);
+  return ReactNull;
+}
+
+it("renders foreign-project Moments outside the active schema's groups", () => {
+  render(
+    <Wrapper eventEnabled>
+      <Scrubber onSeek={jest.fn()} />
+      <ProjectScopedTracksFixture />
+    </Wrapper>,
+  );
+  const tracks = mockEventsOverlayProps!.trackOptions!.tracks;
+  expect(tracks.find((track) => track.kind === "value")?.count).toBe(1);
+  expect(tracks.find((track) => track.kind === "ungrouped")?.events[0]?.event.name).toBe(
+    "warehouses/one/projects/other/events/foreign",
+  );
+  expect(screen.getAllByTestId("moment-track-title")).toHaveLength(2);
 });

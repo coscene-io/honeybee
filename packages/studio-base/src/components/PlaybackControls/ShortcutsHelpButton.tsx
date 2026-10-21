@@ -41,7 +41,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-export function ShortcutsHelpButton(): React.JSX.Element {
+export function ShortcutsHelpButton({ showLabel }: { showLabel?: boolean }): React.JSX.Element {
   const { classes } = useStyles();
   const { t } = useTranslation("general");
   const [open, setOpen] = useState(false);
@@ -91,7 +91,9 @@ export function ShortcutsHelpButton(): React.JSX.Element {
         onClick={() => {
           setOpen(true);
         }}
-      />
+      >
+        {showLabel === true && <span style={{ fontSize: 12 }}>{t("keyboardShortcuts")}</span>}
+      </HoverableIconButton>
       <Dialog
         open={open}
         onClose={() => {
