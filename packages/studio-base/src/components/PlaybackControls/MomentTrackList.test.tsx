@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
@@ -160,4 +160,51 @@ it("retains a dimmed hidden title and restores only that track's visibility pref
     collapsed: { parent: true },
     hidden: { "track/0": false, child: true },
   });
+});
+
+it("labels field tracks once and independently toggles their base and field visibility", () => {
+  const projected = layout(2);
+  const base = projected.rows[0]!.track;
+  const field = projected.rows[1]!.track;
+  base.children = [field];
+  field.kind = "field";
+  field.title = "Action type";
+  field.fieldName = "Action type";
+  field.depth = 1;
+  field.fieldPropertyId = "action";
+  const onViewChange = jest.fn();
+  const state = render(
+    <ThemeProvider isDark>
+      <MomentTrackList layout={projected} view={{}} onViewChange={onViewChange} />
+    </ThemeProvider>,
+  );
+  expect(screen.getByText("Action type (1)")).toBeTruthy();
+  expect(screen.queryByText("Action type: Action type (1)")).toBeNull();
+  const rows = screen.getAllByTestId("moment-track-title");
+  const baseToggle = within(rows[0]!).getByRole("button", {
+    name: "Expand or collapse Platform: Option 0",
+  });
+  expect(baseToggle.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(within(rows[0]!).getByRole("button", { name: "Hide track Platform: Option 0" }));
+  expect(onViewChange).toHaveBeenLastCalledWith({ hidden: { [base.id]: true } });
+  fireEvent.click(within(rows[1]!).getByRole("button", { name: "Hide track Action type" }));
+  expect(onViewChange).toHaveBeenLastCalledWith({ hidden: { [field.id]: true } });
+  fireEvent.click(baseToggle);
+  expect(onViewChange).toHaveBeenLastCalledWith({ collapsed: { [base.id]: true } });
+  state.rerender(
+    <ThemeProvider isDark>
+      <MomentTrackList
+        layout={{
+          ...projected,
+          rows: [{ ...projected.rows[0]!, hidden: true }, projected.rows[1]!],
+        }}
+        view={{ hidden: { [base.id]: true } }}
+        onViewChange={onViewChange}
+      />
+    </ThemeProvider>,
+  );
+  expect(screen.getAllByTestId("moment-track-title")[0]!.style.opacity).toBe("0.55");
+  expect(screen.getAllByTestId("moment-track-title")[1]!.style.opacity).toBe("1");
+  fireEvent.click(screen.getByRole("button", { name: "Hide track Action type" }));
+  expect(onViewChange).toHaveBeenLastCalledWith({ hidden: { [base.id]: true, [field.id]: true } });
 });

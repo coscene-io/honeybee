@@ -9,6 +9,7 @@
 import { create } from "@bufbuild/protobuf";
 import { DurationSchema, TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { EventSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/event_pb";
+import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 import * as _ from "lodash-es";
@@ -42,6 +43,10 @@ import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import {
+  CustomFieldSchemaSchema,
+  PropertySchema,
+} from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import type { HoverValue } from "@foxglove/studio-base/types/hoverValue";
 import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
@@ -49,6 +54,7 @@ import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockApp
 import { EventsOverlay } from "./EventsOverlay";
 import Scrubber from "./Scrubber";
 import { getMomentTracks, layoutMomentTracks } from "./momentTracks";
+import type { MomentTrackLayout } from "./momentTracks";
 import { makeTimelineViewport } from "./timelineViewport";
 
 jest.mock("@foxglove/studio-base/components/Events/CreateEventContainer/index", () => ({
@@ -1364,6 +1370,333 @@ describe("<EventsOverlay />", () => {
 
     expect(onEventContextMenuHandled).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("custom field Moment projections", () => {
+  beforeEach(() => {
+    animationFrames.clear();
+    jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      animationFrames.set(++animationFrameId, callback);
+      return animationFrameId;
+    });
+    jest.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+      animationFrames.delete(id);
+    });
+  });
+
+  function mount({
+    events = [makeEvent("events/source", 1, 2)],
+    fieldCount = 2,
+    scrollable = false,
+    baseOnlyEventNames = [] as string[],
+    isDragging = false,
+  } = {}) {
+    const schema = create(CustomFieldSchemaSchema, {
+      properties: Array.from({ length: fieldCount }, (_, i) =>
+        create(PropertySchema, {
+          id: `field-${i}`,
+          name: `Field ${String(i).padStart(2, "0")}`,
+          type: { case: "text", value: {} },
+        }),
+      ),
+      trackRules: Array.from({ length: fieldCount }, (_, i) => ({ propertyId: `field-${i}` })),
+    });
+    events.forEach((entry) => {
+      entry.event.customFieldValues = schema.properties
+        .filter(() => !baseOnlyEventNames.includes(entry.event.name))
+        .map((property) =>
+          create(CustomFieldValueSchema, {
+            property: { id: property.id },
+            value: {
+              case: "text",
+              value: { value: `${property.name} value for ${entry.event.name}` },
+            },
+          }),
+        );
+    });
+    const eventsStore = makeEventsStore({ events, eventMarks: [], setEventMarks: jest.fn() });
+    const updateEvent = jest.fn().mockResolvedValue({});
+    const deleteEvent = jest.fn().mockResolvedValue({});
+    const onTrackLayoutChange = jest.fn<void, [MomentTrackLayout | undefined]>();
+    const consoleApi = makeConsoleApiMock({ updateEvent, deleteEvent });
+    const timelineStore = makeTimelineInteractionStore();
+    function ProjectedOverlay(): React.JSX.Element {
+      const entries = useEvents((store) => store.events.value) ?? [];
+      const tracks = getMomentTracks(entries, schema);
+      const trackLayout = layoutMomentTracks({ tracks, viewport, view: {} });
+      return (
+        <EventsOverlay
+          componentId="projected-moments"
+          canWriteEvents
+          canDeleteEvents
+          isDragging={isDragging}
+          eventContextMenuRequest={undefined}
+          onEventContextMenuHandled={jest.fn()}
+          onTrackLayoutChange={onTrackLayoutChange}
+          setCursor={jest.fn()}
+          viewport={viewport}
+          trackLayout={trackLayout}
+          trackOptions={{ tracks, view: {} }}
+        />
+      );
+    }
+    const child = <ProjectedOverlay />;
+    render(
+      <Wrapper
+        consoleApi={consoleApi}
+        eventsStore={eventsStore}
+        timelineInteractionStore={timelineStore}
+      >
+        {scrollable ? (
+          <div data-timeline-scroll-container data-testid="projection-scroll">
+            {child}
+          </div>
+        ) : (
+          child
+        )}
+      </Wrapper>,
+    );
+    return { eventsStore, updateEvent, deleteEvent, onTrackLayoutChange, timelineStore };
+  }
+
+  function fieldBar(fieldId: string, name = "events/source"): HTMLElement {
+    return screen
+      .getAllByTestId("timeline-event")
+      .find(
+        (element) =>
+          element.dataset.fieldPropertyId === fieldId && element.dataset.eventName === name,
+      )!;
+  }
+
+  it("renders distinct field text and identities, selecting and editing the one source Moment", async () => {
+    const state = mount();
+    const bars = screen.getAllByTestId("timeline-event");
+    expect(bars.map((bar) => bar.title)).toEqual([
+      "events/source",
+      "Field 00 value for events/source",
+      "Field 01 value for events/source",
+    ]);
+    expect(new Set(bars.map((bar) => bar.dataset.renderId)).size).toBe(3);
+    expect(new Set(bars.map((bar) => bar.dataset.eventName))).toEqual(new Set(["events/source"]));
+    expect(state.eventsStore.getState().events.value).toHaveLength(1);
+    mockTimelineRect();
+    firePointerDown(fieldBar("field-0"), 100);
+    firePointerUp(100);
+    expect(state.eventsStore.getState().selectedEventId).toBe("events/source");
+    expect(state.updateEvent).not.toHaveBeenCalled();
+    fireEvent.contextMenu(fieldBar("field-1"), { clientX: 100, clientY: 70 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
+    expect(state.eventsStore.getState().toModifyEvent?.name).toBe("events/source");
+    expect(state.eventsStore.getState().toModifyEvent?.timelineRenderId).toBe(
+      fieldBar("field-1").dataset.renderId,
+    );
+    expect(state.eventsStore.getState().toModifyEvent?.customFieldValues).toHaveLength(2);
+    await act(async () => {});
+  });
+
+  it.each([
+    {
+      name: "ignores neighbors without the edited field",
+      events: [makeEvent("events/base-only", 0, 1), makeEvent("events/source", 1, 2)],
+      hover: 0.99,
+      expected: 0.99,
+    },
+    {
+      name: "snaps to field neighbors packed into a different base lane",
+      events: [
+        makeEvent("events/neighbor", 0, 0.8),
+        makeEvent("events/base-only", 0.8, 1.2),
+        makeEvent("events/source", 1, 2),
+      ],
+      hover: 0.79,
+      expected: 0.8,
+    },
+  ])("preserves the editor projection and $name", ({ events, hover, expected }) => {
+    const state = mount({ events, baseOnlyEventNames: ["events/base-only"], isDragging: true });
+    fireEvent.contextMenu(fieldBar("field-1"), { clientX: 100, clientY: 70 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
+    act(() => {
+      state.timelineStore.getState().setHoverValue({
+        componentId: "projected-moments",
+        type: "PLAYBACK_SECONDS",
+        value: hover,
+      });
+    });
+    expect(state.eventsStore.getState().eventMarks[0]?.time).toEqual(fromSec(expected));
+    expect(state.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("drags a field once, previews every projection, and writes the source only once", async () => {
+    const state = mount();
+    mockTimelineRect();
+    firePointerDown(fieldBar("field-1"), 100);
+    firePointerMove(400);
+    expect(screen.getAllByTestId("timeline-event").map((bar) => bar.style.left)).toEqual([
+      "40%",
+      "40%",
+      "40%",
+    ]);
+    const preview = state.onTrackLayoutChange.mock.calls.at(-1)?.[0];
+    expect(preview?.items).toHaveLength(3);
+    expect(preview?.items.every((item) => item.startSec === 4)).toBe(true);
+    expect(state.eventsStore.getState().events.value![0]!.secondsSinceStart).toBe(1);
+    await act(async () => {
+      firePointerUp(400);
+    });
+    expect(state.updateEvent).toHaveBeenCalledTimes(1);
+    expect(state.updateEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ event: expect.objectContaining({ name: "events/source" }) }),
+    );
+    expect(state.eventsStore.getState().events.value).toHaveLength(1);
+    expect(state.eventsStore.getState().events.value![0]!.secondsSinceStart).toBe(4);
+  });
+
+  it("deletes the original Moment from a field's context menu", async () => {
+    const state = mount();
+    fireEvent.contextMenu(fieldBar("field-1"), { clientX: 100, clientY: 70 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => {
+      expect(state.deleteEvent).toHaveBeenCalledWith({ eventName: "events/source" });
+    });
+    expect(state.deleteEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the dragged projection mounted when it leaves the virtual window", () => {
+    let scrollOffset = 0;
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const top = this.dataset.testid === "events-overlay" ? -scrollOffset : 0;
+      return {
+        x: 0,
+        y: top,
+        top,
+        bottom: top + 84,
+        left: 0,
+        right: 1000,
+        width: 1000,
+        height: 84,
+        toJSON: () => ({}),
+      };
+    });
+    const state = mount({ fieldCount: 40, scrollable: true });
+    const target = fieldBar("field-0");
+    const renderId = target.dataset.renderId;
+    expect(screen.getAllByTestId("timeline-event").length).toBeLessThan(10);
+    firePointerDown(target, 100);
+    firePointerMove(400);
+    act(() => {
+      scrollOffset = 840;
+      fireEvent.scroll(screen.getByTestId("projection-scroll"));
+    });
+    flushAnimationFrame();
+    expect(
+      screen.getAllByTestId("timeline-event").some((bar) => bar.dataset.renderId === renderId),
+    ).toBe(true);
+    expect(fieldBar("field-30")).toBeTruthy();
+    expect(screen.getAllByTestId("timeline-event").length).toBeLessThan(12);
+    fireEvent(window, new MouseEvent("pointercancel", { bubbles: true }));
+    expect(state.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("links adjacent Moments on every projection and writes each original once", async () => {
+    const state = mount({
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+    });
+    mockTimelineRect();
+    const handles = screen.getAllByTestId("timeline-rolling-edit-handle");
+    expect(handles).toHaveLength(3);
+    expect(handles.map((handle) => handle.style.top)).toEqual(["2px", "30px", "58px"]);
+    firePointerDown(handles[1]!, 500);
+    firePointerMove(600);
+    const first = screen
+      .getAllByTestId("timeline-event")
+      .filter((bar) => bar.dataset.eventName === "events/first");
+    const second = screen
+      .getAllByTestId("timeline-event")
+      .filter((bar) => bar.dataset.eventName === "events/second");
+    expect(first).toHaveLength(3);
+    expect(second.map((bar) => bar.style.left)).toEqual(["60%", "60%", "60%"]);
+    expect(first.map((bar) => bar.style.width)).toEqual([
+      "max(60%, 4px)",
+      "max(60%, 4px)",
+      "max(60%, 4px)",
+    ]);
+    await act(async () => {
+      firePointerUp(600);
+    });
+    expect(state.updateEvent).toHaveBeenCalledTimes(2);
+    expect(new Set(state.updateEvent.mock.calls.map(([update]) => update.event.name))).toEqual(
+      new Set(["events/first", "events/second"]),
+    );
+    expect(getEventRanges(state.eventsStore)).toEqual([
+      { startSec: 0, endSec: 6 },
+      { startSec: 6, endSec: 10 },
+    ]);
+  });
+
+  it("retains both field bars while their linked edit scrolls outside the virtual window", () => {
+    let scrollOffset = 0;
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const top = this.dataset.testid === "events-overlay" ? -scrollOffset : 0;
+      return {
+        x: 0,
+        y: top,
+        top,
+        bottom: top + 84,
+        left: 0,
+        right: 1000,
+        width: 1000,
+        height: 84,
+        toJSON: () => ({}),
+      };
+    });
+    const state = mount({
+      fieldCount: 40,
+      scrollable: true,
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+    });
+    const identities = [
+      fieldBar("field-0", "events/first"),
+      fieldBar("field-0", "events/second"),
+    ].map((bar) => bar.dataset.renderId);
+    const handle = screen
+      .getAllByTestId("timeline-rolling-edit-handle")
+      .find((entry) => entry.style.top === "30px")!;
+    firePointerDown(handle, 500);
+    firePointerMove(600);
+    act(() => {
+      scrollOffset = 840;
+      fireEvent.scroll(screen.getByTestId("projection-scroll"));
+    });
+    flushAnimationFrame();
+    const mounted = new Set(
+      screen.getAllByTestId("timeline-event").map((bar) => bar.dataset.renderId),
+    );
+    expect(identities.every((identity) => mounted.has(identity))).toBe(true);
+    expect(fieldBar("field-0", "events/second").style.left).toBe("60%");
+    expect(fieldBar("field-30", "events/second")).toBeTruthy();
+    expect(screen.getAllByTestId("timeline-event").length).toBeLessThan(24);
+    fireEvent(window, new MouseEvent("pointercancel", { bubbles: true }));
+    expect(state.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("opens the original Moment from a field projection's linked handle", () => {
+    const state = mount({
+      events: [makeEvent("events/first", 0, 5), makeEvent("events/second", 5, 5)],
+    });
+    const handle = screen.getAllByTestId("timeline-rolling-edit-handle")[1]!;
+    fireEvent.contextMenu(handle, { clientX: 500, clientY: 30 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
+    expect(state.eventsStore.getState().toModifyEvent?.name).toBe("events/second");
+    expect(state.eventsStore.getState().toModifyEvent?.timelineRenderId).toBe(
+      fieldBar("field-0", "events/second").dataset.renderId,
+    );
+    expect(state.updateEvent).not.toHaveBeenCalled();
   });
 });
 

@@ -18,6 +18,8 @@ import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 import {
   getGroupingProperties,
   getMomentTracks,
+  getTrackProperties,
+  canHideMomentTrack,
   layoutMomentTracks,
   type MomentTrack,
 } from "./momentTracks";
@@ -497,5 +499,252 @@ describe("project Moment grouping", () => {
         view: {},
       }).items.map((item) => item.event.event.name),
     ).toEqual(["start", "end"]);
+  });
+});
+
+describe("project Moment field tracks", () => {
+  function trackSchema() {
+    return create(CustomFieldSchemaSchema, {
+      properties: [
+        property("group"),
+        create(PropertySchema, { id: "notes", name: "Notes", type: { case: "text", value: {} } }),
+        create(PropertySchema, { id: "score", name: "Score", type: { case: "number", value: {} } }),
+        property("tags", { a: "Alpha", b: "Beta" }),
+      ],
+      groupingRules: [{ propertyId: "group" }],
+      trackRules: ["tags", "score", "notes"].map((propertyId) => ({ propertyId })),
+    });
+  }
+
+  function withFields(name: string, group?: string): TimelinePositionedEvent {
+    const entry = event(name, group == undefined ? {} : { group });
+    entry.event.customFieldValues.push(
+      create(CustomFieldValueSchema, {
+        property: { id: "notes" },
+        value: { case: "text", value: { value: "Pick up cup" } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: { id: "score" },
+        value: { case: "number", value: { value: 0 } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: { id: "tags" },
+        value: { case: "enums", value: { ids: ["b", "a"] } },
+      }),
+    );
+    return entry;
+  }
+
+  it("filters conflicting/deleted/duplicate/untyped rules and sorts field names with ID ties", () => {
+    const current = trackSchema();
+    current.properties.push(
+      create(PropertySchema, { id: "notes-two", name: "Notes", type: { case: "text", value: {} } }),
+      create(PropertySchema, { id: "untyped", name: "Untyped" }),
+    );
+    current.trackRules = [
+      "tags",
+      "notes-two",
+      "notes",
+      "notes",
+      "group",
+      "deleted",
+      "untyped",
+      "score",
+    ].map((propertyId) => ({
+      $typeName: "coscene.dataplatform.v1alpha3.common.CustomFieldTrackRule",
+      propertyId,
+    }));
+    expect(getTrackProperties(current).map((field) => field.id)).toEqual([
+      "notes",
+      "notes-two",
+      "score",
+      "tags",
+    ]);
+    current.groupingRules = [
+      {
+        $typeName: "coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule",
+        propertyId: "notes",
+      },
+    ];
+    expect(getTrackProperties(current).map((field) => field.id)).not.toContain("notes");
+  });
+
+  it("preserves group identities, source values and counts while projecting all selected fields", () => {
+    const current = trackSchema();
+    const entries = [withFields("one", "a"), withFields("two", "a")];
+    const before = structuredClone(entries);
+    const base = getMomentTracks(entries, { ...current, trackRules: [] });
+    const tracks = getMomentTracks(entries, current);
+    expect(tracks[0]?.id).toBe(base[0]?.id);
+    expect(tracks[0]?.count).toBe(2);
+    expect(tracks[0]?.events).toEqual(entries);
+    expect(tracks[0]?.children.map((track) => track.title)).toEqual(["Notes", "Score", "tags"]);
+    const layout = layoutMomentTracks({ tracks, viewport, view: {} });
+    expect(layout.items).toHaveLength(8);
+    expect(new Set(layout.items.map((item) => item.renderId)).size).toBe(8);
+    expect(
+      layout.items.filter((item) => item.fieldPropertyId === "score").map((item) => item.label),
+    ).toEqual(["0", "0"]);
+    expect(
+      layout.items.filter((item) => item.fieldPropertyId === "tags").map((item) => item.label),
+    ).toEqual(["Beta, Alpha", "Beta, Alpha"]);
+    expect(layout.items.every((item) => entries.includes(item.event))).toBe(true);
+    expect(entries).toEqual(before);
+    const renamed = trackSchema();
+    renamed.properties.find((field) => field.id === "notes")!.name = "Renamed";
+    expect(
+      allTracks(getMomentTracks(entries, renamed)).find(
+        (track) => track.fieldPropertyId === "notes",
+      )?.id,
+    ).toBe(tracks[0]?.children[0]?.id);
+  });
+
+  it("projects directly attached parent Moments separately from deeper groups", () => {
+    const current = trackSchema();
+    current.properties.push(property("subgroup"));
+    current.groupingRules.push({
+      $typeName: "coscene.dataplatform.v1alpha3.common.CustomFieldGroupingRule",
+      propertyId: "subgroup",
+    });
+    current.trackRules = current.trackRules.filter((rule) => rule.propertyId === "notes");
+    const parent = withFields("parent", "a");
+    const child = withFields("child", "a");
+    child.event.customFieldValues.push(
+      create(CustomFieldValueSchema, {
+        property: { id: "subgroup" },
+        value: { case: "enums", value: { id: "b" } },
+      }),
+    );
+    const tracks = getMomentTracks([parent, child], current);
+    expect(tracks[0]?.count).toBe(2);
+    expect(tracks[0]?.children.map((track) => [track.kind, track.count])).toEqual([
+      ["field", 1],
+      ["value", 1],
+    ]);
+    const layout = layoutMomentTracks({ tracks, viewport, view: {} });
+    expect(layout.rows.map((row) => row.track.kind)).toEqual(["value", "field", "value", "field"]);
+    expect(layout.items.map((item) => item.event.event.name)).toEqual([
+      "parent",
+      "parent",
+      "child",
+      "child",
+    ]);
+    expect(canHideMomentTrack(tracks[0]!)).toBe(false);
+    const collapsed = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { collapsed: { [tracks[0]!.id]: true } },
+    });
+    expect(collapsed.rows).toHaveLength(1);
+    expect(collapsed.items).toHaveLength(0);
+  });
+
+  it("keeps base and field visibility independent and collapses an entire projected group", () => {
+    const entries = [withFields("one", "a")];
+    const tracks = getMomentTracks(entries, trackSchema());
+    const base = tracks[0]!;
+    expect(canHideMomentTrack(base)).toBe(true);
+    const hideBase = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { hidden: { [base.id]: true } },
+    });
+    expect(hideBase.items).toHaveLength(3);
+    expect(hideBase.items.every((item) => item.fieldPropertyId != undefined)).toBe(true);
+    const hideField = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { hidden: { [base.children[0]!.id]: true } },
+    });
+    expect(hideField.items).toHaveLength(3);
+    expect(hideField.items.some((item) => item.fieldPropertyId === "notes")).toBe(false);
+    expect(hideField.items.some((item) => item.fieldPropertyId == undefined)).toBe(true);
+    expect(
+      layoutMomentTracks({ tracks, viewport, view: { collapsed: { [base.id]: true } } }).items,
+    ).toHaveLength(0);
+  });
+
+  it("does not project foreign project fields even when there are no grouping rules", () => {
+    const owner = "warehouses/one/projects/active";
+    const local = withFields(`${owner}/events/local`, "a");
+    const foreign = withFields("warehouses/one/projects/foreign/events/foreign", "a");
+    foreign.event.record = `${owner}/records/conflicting-record`;
+    const current = trackSchema();
+    for (const grouped of [false, true]) {
+      const tracks = getMomentTracks(
+        [local, foreign],
+        { ...current, groupingRules: grouped ? current.groupingRules : [] },
+        owner,
+      );
+      const layout = layoutMomentTracks({ tracks, viewport, view: {} });
+      expect(
+        layout.items.filter((item) => item.fieldPropertyId != undefined).map((item) => item.event),
+      ).toEqual([local, local, local]);
+      expect(layout.items.filter((item) => item.fieldPropertyId == undefined)).toHaveLength(2);
+    }
+  });
+
+  it("skips absent, empty and schema-mismatched values without dropping the base Moment", () => {
+    const current = trackSchema();
+    const empty = event("empty", { group: "a" });
+    empty.event.customFieldValues.push(
+      create(CustomFieldValueSchema, {
+        property: { id: "notes" },
+        value: { case: "text", value: { value: " " } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: { id: "score" },
+        value: { case: "text", value: { value: "legacy" } },
+      }),
+      create(CustomFieldValueSchema, {
+        property: { id: "tags" },
+        value: { case: "enums", value: {} },
+      }),
+    );
+    const tracks = getMomentTracks([empty], current);
+    expect(tracks[0]?.children).toEqual([]);
+    expect(
+      layoutMomentTracks({ tracks, viewport, view: {} }).items.map((item) => item.event),
+    ).toEqual([empty]);
+  });
+
+  it("supports more than five field tracks with shared source overrides and stable cached items", () => {
+    const current = create(CustomFieldSchemaSchema, {
+      properties: Array.from({ length: 7 }, (_, i) =>
+        create(PropertySchema, {
+          id: String(i),
+          name: `Field ${i}`,
+          type: { case: "text", value: {} },
+        }),
+      ),
+      trackRules: Array.from({ length: 7 }, (_, i) => ({ propertyId: String(i) })),
+    });
+    const entry = event("one");
+    entry.event.customFieldValues = current.properties.map((field) =>
+      create(CustomFieldValueSchema, {
+        property: { id: field.id },
+        value: { case: "text", value: { value: field.name } },
+      }),
+    );
+    const tracks = getMomentTracks([entry], current);
+    expect(tracks[0]?.children).toHaveLength(7);
+    const before = layoutMomentTracks({ tracks, viewport, view: {} });
+    const repeated = layoutMomentTracks({ tracks, viewport, view: {} });
+    expect(repeated.items.every((item, i) => item === before.items[i])).toBe(true);
+    const override = { ...entry, secondsSinceStart: 10 };
+    const preview = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: {},
+      overrides: new Map([[entry.event.name, override]]),
+    });
+    expect(preview.items).toHaveLength(8);
+    expect(preview.items.every((item) => item.event === override && item.startSec === 10)).toBe(
+      true,
+    );
+    expect(preview.items.map((item) => item.renderId)).toEqual(
+      before.items.map((item) => item.renderId),
+    );
+    expect(entry.secondsSinceStart).toBe(0);
   });
 });

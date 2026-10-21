@@ -25,6 +25,12 @@ export const EVENT_MIN_WIDTH_PX: number = 4;
 const EVENT_LANE_ADJACENCY_EPSILON_SEC = 2e-3;
 
 export type EventLaneLayoutItem = {
+  /** Distinguishes multiple views of the same source Moment. */
+  renderId?: string;
+  /** Projection text; the source Moment retains its display name and identity. */
+  label?: string;
+  trackId?: string;
+  fieldPropertyId?: string;
   endPosition: number;
   endSec: number;
   isZeroDuration: boolean;
@@ -174,23 +180,29 @@ const layoutIndexes = new WeakMap<
   EventLaneLayout,
   {
     byName: Map<string, EventLaneLayoutItem>;
+    byRenderId: Map<string, EventLaneLayoutItem>;
     byLane: EventLaneLayoutItem[][];
   }
 >();
 
 export function indexEventLanes(layout: EventLaneLayout): {
   byName: Map<string, EventLaneLayoutItem>;
+  byRenderId: Map<string, EventLaneLayoutItem>;
   byLane: EventLaneLayoutItem[][];
 } {
   let index = layoutIndexes.get(layout);
   if (index == undefined) {
     const byName = new Map<string, EventLaneLayoutItem>();
+    const byRenderId = new Map<string, EventLaneLayoutItem>();
     const byLane: EventLaneLayoutItem[][] = Array.from({ length: layout.laneCount }, () => []);
     for (const item of layout.items) {
-      byName.set(item.event.event.name, item);
+      if (!byName.has(item.event.event.name)) {
+        byName.set(item.event.event.name, item);
+      }
+      byRenderId.set(item.renderId ?? item.event.event.name, item);
       byLane[item.lane]!.push(item);
     }
-    index = { byName, byLane };
+    index = { byName, byRenderId, byLane };
     layoutIndexes.set(layout, index);
   }
   return index;
@@ -208,17 +220,21 @@ export function reuseEventLaneItems<T extends EventLaneLayout>(
   if (layout === previous) {
     return layout;
   }
-  const oldItems = indexEventLanes(previous).byName;
+  const oldItems = indexEventLanes(previous).byRenderId;
   return {
     ...layout,
     items: layout.items.map((item) => {
-      const old = oldItems.get(item.event.event.name);
+      const old = oldItems.get(item.renderId ?? item.event.event.name);
       return old?.event === item.event &&
         old.lane === item.lane &&
         old.startPosition === item.startPosition &&
         old.endPosition === item.endPosition &&
         old.startSec === item.startSec &&
-        old.endSec === item.endSec
+        old.endSec === item.endSec &&
+        old.renderId === item.renderId &&
+        old.label === item.label &&
+        old.trackId === item.trackId &&
+        old.fieldPropertyId === item.fieldPropertyId
         ? old
         : item;
     }),

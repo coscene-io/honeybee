@@ -13,7 +13,13 @@ import { add, fromSec } from "@foxglove/rostime";
 import type { TimelinePositionedEvent } from "@foxglove/studio-base/context/EventsContext";
 import { makeMomentFixture } from "@foxglove/studio-base/test/fixtures/moments";
 
-import { getEventLaneByName, getEventLaneRenderStyle, layoutEventLanes } from "./eventLanes";
+import {
+  getEventLaneByName,
+  getEventLaneRenderStyle,
+  indexEventLanes,
+  layoutEventLanes,
+  reuseEventLaneItems,
+} from "./eventLanes";
 import { referenceLayoutEventLanes } from "./eventLanes.testUtils";
 import { makeTimelineViewport } from "./timelineViewport";
 
@@ -47,6 +53,59 @@ function makeEvent(
 }
 
 describe("layoutEventLanes", () => {
+  it("indexes source identity to the first visible item and render identity to every projection", () => {
+    const source = makeEvent("events/one", 1, 2);
+    const base = layoutEventLanes({ events: [source], viewport: makeTimelineViewport(0, 10) });
+    const item = base.items[0]!;
+    const layout = {
+      laneCount: 3,
+      items: [
+        { ...item, renderId: "base", lane: 0 },
+        { ...item, renderId: "field-a", label: "Alpha", fieldPropertyId: "a", lane: 1 },
+        { ...item, renderId: "field-b", label: "Beta", fieldPropertyId: "b", lane: 2 },
+      ],
+    };
+    const index = indexEventLanes(layout);
+    expect(index.byName.get(source.event.name)).toBe(layout.items[0]);
+    expect(getEventLaneByName(layout, source.event.name)).toBe(0);
+    expect(index.byRenderId.get("field-a")).toBe(layout.items[1]);
+    expect(index.byRenderId.get("field-b")).toBe(layout.items[2]);
+    expect(indexEventLanes(base).byRenderId.get(source.event.name)).toBe(item);
+    const hiddenBase = { laneCount: 3, items: layout.items.slice(1) };
+    expect(getEventLaneByName(hiddenBase, source.event.name)).toBe(1);
+  });
+
+  it("reuses independent projections by render ID and invalidates changed field text", () => {
+    const source = makeEvent("events/one", 1, 2);
+    const item = layoutEventLanes({ events: [source], viewport: makeTimelineViewport(0, 10) })
+      .items[0]!;
+    const previous = {
+      laneCount: 2,
+      items: [
+        { ...item, renderId: "base", trackId: "moments", lane: 0 },
+        {
+          ...item,
+          renderId: "field",
+          trackId: "field",
+          label: "Alpha",
+          fieldPropertyId: "a",
+          lane: 1,
+        },
+      ],
+    };
+    const next = { ...previous, items: previous.items.map((entry) => ({ ...entry })) };
+    const reused = reuseEventLaneItems(next, previous);
+    expect(reused.items[0]).toBe(previous.items[0]);
+    expect(reused.items[1]).toBe(previous.items[1]);
+    const changed = {
+      ...next,
+      items: [next.items[0]!, { ...next.items[1]!, label: "Renamed" }],
+    };
+    const renamed = reuseEventLaneItems(changed, previous);
+    expect(renamed.items[0]).toBe(previous.items[0]);
+    expect(renamed.items[1]).toBe(changed.items[1]);
+  });
+
   it.each(["short", "continuous", "overlapping", "long"] as const)(
     "preserves legacy first-fit layout for %s moments and clipped viewports",
     (distribution) => {

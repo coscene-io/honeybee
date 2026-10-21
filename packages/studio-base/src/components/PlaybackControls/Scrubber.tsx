@@ -100,6 +100,7 @@ import {
   zoomViewportAtTime,
   type TimelineViewport,
 } from "./timelineViewport";
+import { useMomentFieldFormat } from "./useMomentFieldFormat";
 import { useTimelineHoverDismissal } from "./useTimelineHoverDismissal";
 import EventCreateInactiveIcon from "../../assets/event-create-inactive.svg";
 import MomentSubtitleActiveIcon from "../../assets/moment-subtitle-active.svg";
@@ -1088,9 +1089,10 @@ export default function Scrubber(props: Props): React.JSX.Element {
 
   const trackScope = schemaProjectName ?? project.value?.name ?? "";
   const trackView = trackSettings.views[trackScope] ?? EMPTY_TRACK_VIEW;
+  const fieldFormat = useMomentFieldFormat(visibleEvents, schema, schemaProjectName);
   const tracks = useMemo(
-    () => getMomentTracks(visibleEvents, schema, schemaProjectName),
-    [visibleEvents, schema, schemaProjectName],
+    () => getMomentTracks(visibleEvents, schema, schemaProjectName, fieldFormat),
+    [visibleEvents, schema, schemaProjectName, fieldFormat],
   );
   const trackOptions = useMemo(() => ({ tracks, view: trackView }), [tracks, trackView]);
   const trackLayout = useMemo(

@@ -15,6 +15,7 @@ import {
   type EventLaneLayout,
   type EventLaneLayoutItem,
 } from "./eventLanes";
+import { formatMomentFieldValue, type MomentFieldFormatOptions } from "./momentFieldValues";
 import type { TimelineViewport } from "./timelineViewport";
 
 export type MomentTrack = {
@@ -22,7 +23,10 @@ export type MomentTrack = {
   title: string;
   fieldName: string;
   depth: number;
-  kind: "value" | "unknown" | "missing" | "ungrouped";
+  kind: "value" | "unknown" | "missing" | "ungrouped" | "field";
+  /** Only present for a custom field projection of the directly attached Moments. */
+  fieldPropertyId?: string;
+  fieldLabels?: ReadonlyMap<string, string>;
   /** Includes this group's own Moments and all descendants. */
   count: number;
   children: MomentTrack[];
@@ -31,7 +35,7 @@ export type MomentTrack = {
 };
 export type MomentTrackView = {
   collapsed?: Record<string, boolean>;
-  /** Visibility applies only to current leaf tracks; saved parent flags are ignored. */
+  /** Visibility applies to field tracks and groups without child groups. */
   hidden?: Record<string, boolean>;
 };
 export type MomentTimelineSettings = {
@@ -59,7 +63,12 @@ export function isMomentTrackCollapsed(track: MomentTrack, view: MomentTrackView
 }
 
 export function isMomentTrackHidden(track: MomentTrack, view: MomentTrackView): boolean {
-  return track.children.length === 0 && view.hidden?.[track.id] === true;
+  return canHideMomentTrack(track) && view.hidden?.[track.id] === true;
+}
+
+/** Field projections do not turn their original Moment track into a grouping parent. */
+export function canHideMomentTrack(track: MomentTrack): boolean {
+  return track.children.every((child) => child.kind === "field");
 }
 
 // Explicit UTF-16 order is stable across browser languages and ICU versions.
@@ -83,6 +92,104 @@ export function getGroupingProperties(schema?: MomentCustomFieldSchema): Propert
     }
   }
   return result;
+}
+
+export function getTrackProperties(schema?: MomentCustomFieldSchema): Property[] {
+  const properties = new Map(schema?.properties.map((property) => [property.id, property]));
+  // Even a malformed grouping rule must not give a field two simultaneous purposes.
+  const seen = new Set(schema?.groupingRules?.map((rule) => rule.propertyId));
+  const result: Property[] = [];
+  for (const rule of schema?.trackRules ?? []) {
+    const property = properties.get(rule.propertyId);
+    if (property?.type.case == undefined || seen.has(property.id)) {
+      continue;
+    }
+    seen.add(property.id);
+    result.push(property);
+  }
+  return result.sort((left, right) => {
+    const nameOrder = compareText(left.name.normalize("NFC"), right.name.normalize("NFC"));
+    return nameOrder !== 0 ? nameOrder : compareText(left.id, right.id);
+  });
+}
+
+export function isMomentInProject(event: TimelinePositionedEvent, projectName?: string): boolean {
+  if (projectName == undefined) {
+    return true;
+  }
+  // A scoped Moment name is authoritative. Only legacy unscoped names use the
+  // record owner; conflicting metadata must not expose another project's values.
+  return event.event.name.includes("/projects/")
+    ? event.event.name.startsWith(`${projectName}/events/`)
+    : event.event.record.startsWith(`${projectName}/records/`);
+}
+
+/** Add one row per occupied field, retaining source identity and unique group counts. */
+function addFieldTracks(
+  tracks: MomentTrack[],
+  properties: Property[],
+  projectName?: string,
+  formatOptions?: MomentFieldFormatOptions,
+): MomentTrack[] {
+  if (properties.length === 0) {
+    return tracks;
+  }
+  const selectedProperties = new Map(properties.map((property) => [property.id, property]));
+  const addChildren = (track: MomentTrack) => {
+    // Visit existing groups first: projection rows are never projected recursively.
+    track.children.forEach(addChildren);
+    const fieldEvents = new Map<string, TimelinePositionedEvent[]>();
+    const fieldLabels = new Map<string, Map<string, string>>();
+    for (const entry of track.events) {
+      if (!isMomentInProject(entry, projectName)) {
+        continue;
+      }
+      const seen = new Set<string>();
+      for (const field of entry.event.customFieldValues) {
+        const id = field.property?.id;
+        const property = id == undefined ? undefined : selectedProperties.get(id);
+        if (property == undefined || seen.has(property.id)) {
+          continue;
+        }
+        seen.add(property.id);
+        const label = formatMomentFieldValue(field, property, formatOptions);
+        if (label == undefined) {
+          continue;
+        }
+        let entries = fieldEvents.get(property.id);
+        if (entries == undefined) {
+          entries = [];
+          fieldEvents.set(property.id, entries);
+          fieldLabels.set(property.id, new Map());
+        }
+        entries.push(entry);
+        fieldLabels.get(property.id)!.set(entry.event.name, label);
+      }
+    }
+    const children = properties.flatMap((property): MomentTrack[] => {
+      const events = fieldEvents.get(property.id);
+      return events == undefined
+        ? []
+        : [
+            {
+              id: JSON.stringify(["moment-tracks/v1", track.id, property.id])!,
+              title: property.name,
+              fieldName: property.name,
+              fieldPropertyId: property.id,
+              fieldLabels: fieldLabels.get(property.id),
+              depth: track.depth + 1,
+              kind: "field",
+              count: events.length,
+              children: [],
+              events,
+            },
+          ];
+    });
+    // Direct Moment projections precede this group's more deeply nested groups.
+    track.children = [...children, ...track.children];
+  };
+  tracks.forEach(addChildren);
+  return tracks;
 }
 
 type GroupValue = { key: string; title: string; kind: MomentTrack["kind"] };
@@ -116,31 +223,34 @@ export function getMomentTracks(
   events: TimelinePositionedEvent[],
   schema?: MomentCustomFieldSchema,
   projectName?: string,
+  formatOptions?: MomentFieldFormatOptions,
 ): MomentTrack[] {
   const properties = getGroupingProperties(schema);
+  const trackProperties = getTrackProperties(schema);
   if (properties.length === 0) {
-    return [
-      {
-        id: '["moment-groups/v1"]',
-        title: "",
-        fieldName: "",
-        depth: 0,
-        kind: "ungrouped",
-        count: events.length,
-        children: [],
-        events,
-      },
-    ];
+    return addFieldTracks(
+      [
+        {
+          id: '["moment-groups/v1"]',
+          title: "",
+          fieldName: "",
+          depth: 0,
+          kind: "ungrouped",
+          count: events.length,
+          children: [],
+          events,
+        },
+      ],
+      trackProperties,
+      projectName,
+      formatOptions,
+    );
   }
   const roots: MomentTrack[] = [];
   const nodes = new Map<string, MomentTrack>();
   const ungroupedEvents: TimelinePositionedEvent[] = [];
   for (const event of events) {
-    if (
-      projectName != undefined &&
-      !event.event.name.startsWith(`${projectName}/events/`) &&
-      !event.event.record.startsWith(`${projectName}/records/`)
-    ) {
+    if (!isMomentInProject(event, projectName)) {
       // A playlist can span projects with unrelated field/option IDs. Keep foreign or
       // unscoped Moments visible without interpreting them with this project's schema.
       ungroupedEvents.push(event);
@@ -209,7 +319,7 @@ export function getMomentTracks(
       events: ungroupedEvents,
     });
   }
-  const rank = { value: 0, unknown: 1, missing: 2, ungrouped: 3 };
+  const rank = { value: 0, unknown: 1, missing: 2, ungrouped: 3, field: 4 };
   const sort = (tracks: MomentTrack[]) => {
     tracks.sort((left, right) => {
       const kindOrder = rank[left.kind] - rank[right.kind];
@@ -224,18 +334,41 @@ export function getMomentTracks(
     });
   };
   sort(roots);
-  return roots;
+  return addFieldTracks(roots, trackProperties, projectName, formatOptions);
 }
 
-const projected = new WeakMap<EventLaneLayout, { lane: number; items: EventLaneLayoutItem[] }[]>();
-function offsetItems(layout: EventLaneLayout, lane: number): EventLaneLayoutItem[] {
-  const cached = projected.get(layout) ?? [];
+const projected = new WeakMap<
+  MomentTrack,
+  WeakMap<EventLaneLayout, { lane: number; items: EventLaneLayoutItem[] }[]>
+>();
+function offsetItems(
+  layout: EventLaneLayout,
+  lane: number,
+  track: MomentTrack,
+): EventLaneLayoutItem[] {
+  let layouts = projected.get(track);
+  if (layouts == undefined) {
+    layouts = new WeakMap();
+    projected.set(track, layouts);
+  }
+  const cached = layouts.get(layout) ?? [];
   const match = cached.find((entry) => entry.lane === lane);
   if (match) {
     return match.items;
   }
-  const items = layout.items.map((item) => ({ ...item, lane: item.lane + lane }));
-  projected.set(layout, [{ lane, items }, ...cached.slice(0, 1)]);
+  const items = layout.items.map((item) => ({
+    ...item,
+    lane: item.lane + lane,
+    renderId: JSON.stringify([track.id, item.event.event.name]),
+    trackId: track.id,
+    ...(track.kind === "field"
+      ? {
+          label: track.fieldLabels?.get(item.event.event.name),
+          fieldPropertyId: track.fieldPropertyId,
+        }
+      : {}),
+  }));
+  layouts.set(layout, [{ lane, items }, ...cached.slice(0, 1)]);
   return items;
 }
 
@@ -268,7 +401,7 @@ export function layoutMomentTracks({
     const lanes = Math.max(1, layout?.laneCount ?? 0);
     rows.push({ track, lane: laneCount, laneCount: lanes, collapsed, hidden });
     if (layout) {
-      for (const item of offsetItems(layout, laneCount)) {
+      for (const item of offsetItems(layout, laneCount, track)) {
         items.push(item);
       }
     }
