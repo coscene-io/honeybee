@@ -114,6 +114,10 @@ export type EventsStore = {
   /** Resource name of the project that owns the current schema. */
   customFieldSchemaProjectName?: string;
 
+  customFieldSchemaError?: { projectName: string; error: unknown };
+  customFieldSchemaFetchCount?: number;
+  refreshCustomFieldSchema: () => void;
+
   /** Refreshes events from api. */
   refreshEvents: () => void;
 
@@ -134,7 +138,11 @@ export type EventsStore = {
 
   setToModifyEvent: (toModifyEvent: ToModifyEvent | undefined) => void;
 
-  setCustomFieldSchema: (customFieldSchema?: MomentCustomFieldSchema, projectName?: string) => void;
+  setCustomFieldSchema: (
+    customFieldSchema?: MomentCustomFieldSchema,
+    projectName?: string,
+    error?: unknown,
+  ) => void;
 };
 
 export const EventsContext = createContext<undefined | StoreApi<EventsStore>>(undefined);

@@ -113,6 +113,9 @@ function makeEventsStore({
     eventMarks: eventMarks ?? [],
     toModifyEvent: undefined,
     customFieldSchema: undefined,
+    refreshCustomFieldSchema: () => {
+      set((old) => ({ customFieldSchemaFetchCount: (old.customFieldSchemaFetchCount ?? 0) + 1 }));
+    },
     customFieldSchemaProjectName: undefined,
 
     refreshEvents: () => {
@@ -137,8 +140,13 @@ function makeEventsStore({
     setToModifyEvent: (toModifyEvent) => {
       set({ toModifyEvent });
     },
-    setCustomFieldSchema: (customFieldSchema, projectName) => {
-      set({ customFieldSchema, customFieldSchemaProjectName: projectName });
+    setCustomFieldSchema: (customFieldSchema, projectName, error) => {
+      set({
+        customFieldSchema,
+        customFieldSchemaProjectName: projectName,
+        customFieldSchemaError:
+          error != undefined && projectName != undefined ? { projectName, error } : undefined,
+      });
     },
   }));
 }
@@ -521,6 +529,43 @@ describe("<EventsSyncAdapter />", () => {
     expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
       "warehouses/warehouse/projects/new",
     );
+  });
+
+  it("records schema failures and refetches after an explicit retry", async () => {
+    const error = new Error("schema unavailable");
+    const schema = create(CustomFieldSchemaSchema, { groupingRules: [{ propertyId: "restored" }] });
+    const getMomentCustomFieldSchema = jest
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue(schema);
+    const eventsStore = makeEventsStore({ events: [], setEventMarks: jest.fn() });
+    render(
+      <Wrapper
+        consoleApi={{ getMomentCustomFieldSchema } as never}
+        currentTime={{ sec: 0, nsec: 0 }}
+        eventsStore={eventsStore}
+        timelineInteractionStore={makeTimelineInteractionStore()}
+      >
+        <SeedSchemaProject id="retry" />
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(eventsStore.getState().customFieldSchemaError).toEqual({
+        projectName: "warehouses/warehouse/projects/retry",
+        error,
+      });
+    });
+    expect(console.error).toHaveBeenCalledWith(error);
+    (console.error as jest.Mock).mockClear();
+    act(() => {
+      eventsStore.getState().refreshCustomFieldSchema();
+    });
+    await waitFor(() => {
+      expect(eventsStore.getState().customFieldSchema).toBe(schema);
+    });
+    expect(getMomentCustomFieldSchema).toHaveBeenCalledTimes(2);
+    expect(eventsStore.getState().customFieldSchemaError).toBeUndefined();
   });
 
   it.each([

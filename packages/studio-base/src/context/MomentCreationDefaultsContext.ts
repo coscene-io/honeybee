@@ -13,6 +13,8 @@ import { useGuaranteedContext } from "@foxglove/hooks";
 
 export type MomentCreationDefaultsStore = {
   id: string;
+  isReady: boolean;
+  isCurrentScope: () => boolean;
   customFieldValues: CustomFieldValue[];
   rememberCustomFieldValues: (values: CustomFieldValue[]) => void;
 };

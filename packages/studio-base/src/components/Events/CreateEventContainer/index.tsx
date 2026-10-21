@@ -19,13 +19,14 @@ import {
   Checkbox,
   FormControlLabel,
   Link,
+  Alert,
 } from "@mui/material";
 import cloneDeep from "lodash-es/cloneDeep";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useAsync } from "react-use";
+import { useAsyncFn } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { areEqual, Time } from "@foxglove/rostime";
@@ -98,6 +99,17 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
 
 export function CreateEventContainer({ onClose }: { onClose: () => void }): React.ReactNode {
   const scopeId = useMomentCreationDefaults((store) => store.id);
+  const isReady = useMomentCreationDefaults((store) => store.isReady);
+  const { t } = useTranslation("event");
+  if (!isReady) {
+    return (
+      <Stack padding={3} gap={2}>
+        <CircularProgress size="1rem" />
+        <Typography>{t("loadingCreationContext")}</Typography>
+        <Button onClick={onClose}>{t("cancel")}</Button>
+      </Stack>
+    );
+  }
   return <CreateEventFormContainer key={scopeId} onClose={onClose} />;
 }
 
@@ -139,24 +151,33 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
   const rememberCustomFieldValues = useMomentCreationDefaults(
     (store) => store.rememberCustomFieldValues,
   );
+  const isCurrentScope = useMomentCreationDefaults((store) => store.isCurrentScope);
   const hasRememberedUsers = rememberedValues.some((value) => value.value.case === "user");
-  const activeUsers = useAsync(async () => {
-    if (isEditing || !hasRememberedUsers) {
-      return undefined;
-    }
+  const [activeUsers, loadActiveUsers] = useAsyncFn(async () => {
     const users = await consoleApi.listOrganizationUsers();
     return new Set(
       users.filter((user) => user.active).map((user) => user.name.split("/").pop() ?? ""),
     );
-  }, [consoleApi, isEditing, hasRememberedUsers]);
+  }, [consoleApi]);
+  useEffect(() => {
+    if (!isEditing && hasRememberedUsers) {
+      void loadActiveUsers();
+    }
+  }, [isEditing, hasRememberedUsers, loadActiveUsers]);
   const schema = useEvents((store) => store.customFieldSchema);
   const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
+  const schemaError = useEvents((store) => store.customFieldSchemaError);
+  const refreshCustomFieldSchema = useEvents((store) => store.refreshCustomFieldSchema);
+  const hasSchemaError = !isEditing && schemaError?.projectName === projectName;
+  const hasPeopleError = !isEditing && hasRememberedUsers && activeUsers.error != undefined;
+  const hasDefaultsError = hasSchemaError || hasPeopleError;
   const isRestoringDefaults =
     !isEditing &&
     rememberedValues.length > 0 &&
     (schema == undefined ||
       schemaProjectName !== projectName ||
-      (hasRememberedUsers && activeUsers.loading));
+      (hasRememberedUsers &&
+        (activeUsers.loading || activeUsers.value == undefined || hasPeopleError)));
   const restoredValues = useMemo(
     () =>
       restoreMomentCustomFieldValues(
@@ -349,8 +370,10 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
       }
 
       shouldResetSubmitting = false;
-      if (isMountedRef.current) {
+      if (isCurrentScope()) {
         refreshEvents();
+      }
+      if (isMountedRef.current) {
         onClose();
       }
     } catch (error) {
@@ -372,6 +395,31 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
         </Stack>
 
         <EventForm form={eventForm} onMetaDataKeyDown={onMetaDataKeyDown} />
+
+        {hasSchemaError && (
+          <Alert
+            severity="error"
+            action={<Button onClick={refreshCustomFieldSchema}>{t("retryCustomFields")}</Button>}
+          >
+            {t("restoreCustomFieldsFailed")}
+          </Alert>
+        )}
+        {hasPeopleError && (
+          <Alert
+            severity="error"
+            action={
+              <Button
+                onClick={() => {
+                  void loadActiveUsers();
+                }}
+              >
+                {t("retryPeople")}
+              </Button>
+            }
+          >
+            {t("restorePeopleFailed")}
+          </Alert>
+        )}
 
         {!isEditing && consoleApi.createTask.permission() && (
           <Stack paddingTop={2}>
@@ -416,7 +464,7 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
               disabled={isLoading || isRestoringDefaults}
               onClick={onSubmit}
             >
-              {(isLoading || isRestoringDefaults) && (
+              {(isLoading || (isRestoringDefaults && !hasDefaultsError)) && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
               )}
               {isEditing ? t("save") : t("createMoment")}

@@ -103,4 +103,9 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   toggleGroup: "展开或折叠 {{name}}",
   trackListWidth: "轨道列表宽度",
   doubtful: "存疑",
+  loadingCreationContext: "正在加载账号和项目信息…",
+  restoreCustomFieldsFailed: "自定义字段加载失败，请重试后再创建一刻。",
+  restorePeopleFailed: "人员字段恢复失败，请重试以保留上次选择的人员。",
+  retryCustomFields: "重试加载自定义字段",
+  retryPeople: "重试加载人员",
 };

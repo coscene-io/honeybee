@@ -105,4 +105,9 @@ export const event = {
   toggleGroup: "Expand or collapse {{name}}",
   trackListWidth: "Track list width",
   doubtful: "Doubtful",
+  loadingCreationContext: "Loading account and project information…",
+  restoreCustomFieldsFailed: "Unable to load custom fields. Retry before creating the Moment.",
+  restorePeopleFailed: "Unable to restore people fields. Retry to keep your previous selections.",
+  retryCustomFields: "Retry custom fields",
+  retryPeople: "Retry people",
 };

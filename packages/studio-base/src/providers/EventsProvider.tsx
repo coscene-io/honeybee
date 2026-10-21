@@ -31,6 +31,11 @@ function createEventsStore() {
     toModifyEvent: undefined,
     customFieldSchema: undefined,
     customFieldSchemaProjectName: undefined,
+    customFieldSchemaFetchCount: 0,
+
+    refreshCustomFieldSchema: () => {
+      set((old) => ({ customFieldSchemaFetchCount: (old.customFieldSchemaFetchCount ?? 0) + 1 }));
+    },
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
@@ -53,10 +58,16 @@ function createEventsStore() {
     setToModifyEvent: (toModifyEvent: undefined | ToModifyEvent) => {
       set({ toModifyEvent });
     },
-    setCustomFieldSchema: (customFieldSchema?: CustomFieldSchema, projectName?: string) => {
+    setCustomFieldSchema: (
+      customFieldSchema?: CustomFieldSchema,
+      projectName?: string,
+      error?: unknown,
+    ) => {
       set({
         customFieldSchema,
         customFieldSchemaProjectName: customFieldSchema == undefined ? undefined : projectName,
+        customFieldSchemaError:
+          error != undefined && projectName != undefined ? { projectName, error } : undefined,
       });
     },
   }));

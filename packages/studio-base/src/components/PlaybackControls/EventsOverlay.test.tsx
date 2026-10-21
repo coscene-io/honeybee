@@ -129,6 +129,9 @@ function makeEventsStore({
     eventMarks,
     toModifyEvent: undefined,
     customFieldSchema: undefined,
+    refreshCustomFieldSchema: () => {
+      set((old) => ({ customFieldSchemaFetchCount: (old.customFieldSchemaFetchCount ?? 0) + 1 }));
+    },
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));

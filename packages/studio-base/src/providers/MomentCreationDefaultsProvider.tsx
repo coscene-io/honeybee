@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import cloneDeep from "lodash-es/cloneDeep";
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { createStore } from "zustand";
 
@@ -28,6 +28,7 @@ export default function MomentCreationDefaultsProvider({
   const loginStatus = useCurrentUser((store) => store.loginStatus);
   const configuredBaseUrl = useCoreData((store) => store.baseUrl);
   const apiBaseUrl = consoleApi.getBaseUrl();
+  const activeScopeId = useRef<string>();
 
   // Replacing the store also isolates late create responses from a previous scope,
   // including navigating from A to B and then back to A. Nothing is persisted.
@@ -39,16 +40,30 @@ export default function MomentCreationDefaultsProvider({
       projectId != undefined &&
       userId != undefined &&
       loginStatus === "alreadyLogin";
+    const id = uuidv4();
+    const isCurrentScope = () => activeScopeId.current === id;
     return createStore<MomentCreationDefaultsStore>((set) => ({
-      id: uuidv4(),
+      id,
+      isReady: enabled,
+      isCurrentScope,
       customFieldValues: [],
       rememberCustomFieldValues: (values) => {
-        if (enabled) {
+        if (enabled && isCurrentScope()) {
           set({ customFieldValues: cloneDeep(values) });
         }
       },
     }));
   }, [apiBaseUrl, configuredBaseUrl, warehouseId, projectId, userId, loginStatus]);
+
+  useLayoutEffect(() => {
+    const id = store.getState().id;
+    activeScopeId.current = id;
+    return () => {
+      if (activeScopeId.current === id) {
+        activeScopeId.current = undefined;
+      }
+    };
+  }, [store]);
 
   return (
     <MomentCreationDefaultsContext.Provider value={store}>

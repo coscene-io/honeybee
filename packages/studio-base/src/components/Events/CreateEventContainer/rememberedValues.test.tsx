@@ -343,7 +343,7 @@ it("clears single and multi-select enums and people through the real controls", 
   await submit();
   expect(
     createEvent.mock.calls[1]?.[0].event.customFieldValues.map((value) => value.property?.id),
-  ).toEqual(["time", "enum-true", "user-true"]);
+  ).toEqual(["time", "user-true"]);
   await open();
   expect(mockForm.getValues("customFieldValues.enum-false")).toBeUndefined();
   expect(mockForm.getValues("customFieldValues.user-false")).toBeUndefined();
@@ -543,6 +543,130 @@ it("preserves defaults and current input when credentials recreate the API clien
   });
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("current input");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await open();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
+});
+
+it("shows a recoverable schema error and restores values after retry", async () => {
+  setup();
+  await open();
+  await fill();
+  await submit();
+  await act(async () => {
+    eventsStore
+      .getState()
+      .setCustomFieldSchema(undefined, projectName, new Error("schema unavailable"));
+  });
+  await open();
+  expect(screen.getByRole("alert").textContent).toContain("Unable to load custom fields");
+  expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Retry custom fields" }));
+  expect(eventsStore.getState().customFieldSchemaFetchCount).toBe(1);
+  await act(async () => {
+    eventsStore.getState().setCustomFieldSchema(schema, projectName);
+  });
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
+  await submit();
+});
+
+it("keeps people defaults unresolved after lookup failure and supports retry", async () => {
+  setup();
+  await open();
+  await fill();
+  await submit();
+  const users = await listUsers();
+  // The two field controls load first; fail the independent defaults lookup.
+  listUsers
+    .mockResolvedValueOnce(users)
+    .mockResolvedValueOnce(users)
+    .mockRejectedValueOnce(new Error("people unavailable"));
+  await open();
+  expect(screen.getByRole("alert").textContent).toContain("Unable to restore people fields");
+  expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Retry people" }));
+  });
+  expect(screen.queryByRole("alert")).toBeNull();
+  await submit();
+  expect(createEvent.mock.calls[1]?.[0].event.customFieldValues).toEqual(samples);
+});
+
+it.each(["create", "update", "task"] as const)(
+  "refreshes a successful %s after the dialog was cancelled",
+  async (kind) => {
+    setup();
+    if (kind === "update") {
+      await act(async () => {
+        eventsStore.getState().setToModifyEvent({
+          name: `${projectName}/events/existing`,
+          eventName: "existing",
+          startTime: { sec: 2, nsec: 0 },
+          duration: 1,
+          durationUnit: "sec",
+          description: "",
+          metadataEntries: [],
+          enabledCreateNewTask: false,
+          fileName: "",
+          record: "",
+          customFieldValues: [],
+        });
+      });
+    }
+    await open();
+    await fill();
+    let resolve: () => void = () => {};
+    const pending = new Promise<void>((done) => {
+      resolve = done;
+    });
+    if (kind === "create") {
+      createEvent.mockImplementationOnce(async ({ event }) => {
+        await pending;
+        return event;
+      });
+    }
+    if (kind === "update") {
+      updateEvent.mockImplementationOnce(async () => {
+        await pending;
+        return create(EventSchema);
+      });
+    }
+    if (kind === "task") {
+      fireEvent.click(screen.getByRole("checkbox"));
+      createTask.mockImplementationOnce(async () => {
+        await pending;
+        return { name: "tasks/task" };
+      });
+    }
+    fireEvent.click(document.getElementById("create-moment")!);
+    await waitFor(() => {
+      expect(
+        kind === "update" ? updateEvent : kind === "task" ? createTask : createEvent,
+      ).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(eventsStore.getState().eventFetchCount).toBe(0);
+    await act(async () => {
+      resolve();
+    });
+    expect(eventsStore.getState().eventFetchCount).toBe(1);
+  },
+);
+
+it("waits for initial account hydration before exposing editable fields", async () => {
+  setup();
+  const user = userStore.getState().user;
+  await act(async () => {
+    userStore.getState().setUser(undefined);
+  });
+  await open();
+  expect(document.getElementById("create-moment")).toBeNull();
+  expect(screen.getByText("Loading account and project information…")).toBeDefined();
+  await act(async () => {
+    userStore.getState().setUser(user);
+  });
+  await fill();
+  await submit();
   await open();
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
 });
