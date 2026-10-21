@@ -164,6 +164,7 @@ describe("WorkspaceContextProvider data-source-scoped stores", () => {
     timelineHeight: number;
     store: StoreApi<WorkspaceContextStore> | undefined;
     setDataSource: (dataSource: DataSource | undefined) => void;
+    unmount: () => void;
   };
 
   function renderScenario(): Harness {
@@ -171,6 +172,7 @@ describe("WorkspaceContextProvider data-source-scoped stores", () => {
       timelineHeight: -1,
       store: undefined,
       setDataSource: () => {},
+      unmount: () => {},
     };
     function Capture(): ReactNull {
       harness.store = useContext(WorkspaceContext);
@@ -178,15 +180,37 @@ describe("WorkspaceContextProvider data-source-scoped stores", () => {
       harness.timelineHeight = useWorkspaceStore((s) => s.playbackControls.timelineHeight);
       return ReactNull;
     }
-    render(
+    const { unmount } = render(
       <CoreDataProvider>
         <WorkspaceContextProvider>
           <Capture />
         </WorkspaceContextProvider>
       </CoreDataProvider>,
     );
+    harness.unmount = unmount;
     return harness;
   }
+
+  it("restores project-scoped track visibility and collapse settings after remount", () => {
+    window.history.replaceState(undefined, "", NORMAL_URL);
+    const first = renderScenario();
+    const settings = {
+      labelWidth: 220,
+      views: {
+        "projects/one": { hidden: { parent: false, child: true }, collapsed: { parent: true } },
+        "projects/two": { hidden: { parent: true } },
+      },
+    };
+    act(() => {
+      first.store!.setState((state) => ({
+        playbackControls: { ...state.playbackControls, momentTimeline: settings },
+      }));
+    });
+    expect(window.localStorage.getItem(NORMAL_KEY)).toContain('"hidden"');
+    first.unmount();
+    const restored = renderScenario();
+    expect(restored.store!.getState().playbackControls.momentTimeline).toEqual(settings);
+  });
 
   it("switches stores on data source change and does not inherit share adjustments", () => {
     window.localStorage.setItem(

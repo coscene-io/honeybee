@@ -350,6 +350,87 @@ describe("project Moment grouping", () => {
     expect(entries).toHaveLength(3);
   });
 
+  it("ignores saved parent visibility while retaining leaf visibility, counts and source data", () => {
+    const entries = [
+      event("parent-one", { a: "a" }),
+      event("parent-two", { a: "a" }),
+      event("child", { a: "a", b: "a" }),
+      event("grandchild", { a: "a", b: "a", c: "a" }),
+      event("sibling", { a: "b" }),
+    ];
+    const snapshot = structuredClone(entries);
+    const tracks = getMomentTracks(entries, schema(["a", "b", "c"]));
+    const parent = tracks[0]!;
+    const child = parent.children[0]!;
+    const leaf = child.children[0]!;
+    const leafView = { hidden: { [leaf.id]: true } };
+    const before = layoutMomentTracks({ tracks, viewport, view: leafView });
+    const result = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { hidden: { ...leafView.hidden, [parent.id]: true, [child.id]: true } },
+    });
+    expect(result).toEqual(before);
+    expect(result.rows.map((row) => row.hidden)).toEqual([false, false, true, false]);
+    expect(result.rows[0]!.track.count).toBe(4);
+    expect(result.items.map((item) => item.event.event.name)).toEqual([
+      "parent-one",
+      "parent-two",
+      "child",
+      "sibling",
+    ]);
+    expect(layoutMomentTracks({ tracks, viewport, view: {} }).items).toHaveLength(5);
+    expect(entries).toEqual(snapshot);
+  });
+
+  it.each([false, true])(
+    "folds and unfolds a formerly hidden parent while preserving leaf visibility (%s)",
+    (leafHidden) => {
+      const tracks = getMomentTracks(
+        [event("parent", { a: "a" }), event("child", { a: "a", b: "a" })],
+        schema(["a", "b"]),
+      );
+      const id = tracks[0]!.id;
+      const child = tracks[0]!.children[0]!;
+      const view = { collapsed: { [id]: true }, hidden: { [id]: true, [child.id]: leafHidden } };
+      const result = layoutMomentTracks({ tracks, viewport, view });
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0]).toMatchObject({ collapsed: true, hidden: false, laneCount: 1 });
+      expect(result.items).toHaveLength(0);
+      const expanded = layoutMomentTracks({ tracks, viewport, view: { ...view, collapsed: {} } });
+      expect(expanded.rows).toHaveLength(2);
+      expect(expanded.rows.map((row) => row.hidden)).toEqual([false, leafHidden]);
+      expect(expanded.items.map((item) => item.event.event.name)).toEqual(
+        leafHidden ? ["parent"] : ["parent", "child"],
+      );
+    },
+  );
+
+  it.each([undefined, schema()])("hides ungrouped and unfilled leaf tracks (%s)", (current) => {
+    const tracks = getMomentTracks([event("one"), event("two")], current);
+    const result = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: { hidden: { [tracks[0]!.id]: true } },
+    });
+    expect(result.items).toHaveLength(0);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ hidden: true, laneCount: 1 });
+    expect(result.rows[0]!.track.count).toBe(2);
+  });
+
+  it("applies visibility only while a node is a leaf as filtering changes the tree", () => {
+    const current = schema(["a", "b"]);
+    const parent = event("parent", { a: "a" });
+    const tracks = getMomentTracks([parent, event("child", { a: "a", b: "a" })], current);
+    const view = { hidden: { [tracks[0]!.id]: true } };
+    expect(layoutMomentTracks({ tracks, viewport, view }).items).toHaveLength(2);
+    const filtered = getMomentTracks([parent], current);
+    const result = layoutMomentTracks({ tracks: filtered, viewport, view });
+    expect(result.items).toHaveLength(0);
+    expect(result.rows[0]).toMatchObject({ hidden: true, collapsed: false, laneCount: 1 });
+  });
+
   it.each([undefined, schema()])(
     "ignores saved collapse flags on the ungrouped or all-empty root (%s)",
     (current) => {

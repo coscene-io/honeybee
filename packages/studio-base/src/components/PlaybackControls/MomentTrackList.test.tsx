@@ -21,6 +21,7 @@ function layout(count: number): MomentTrackLayout {
       lane,
       laneCount: 1,
       collapsed: false,
+      hidden: false,
       track: {
         id: `track/${lane}`,
         title: `Option ${lane}`,
@@ -62,7 +63,8 @@ it("virtualizes leaf labels against the shared scroll container", async () => {
     </ThemeProvider>,
   );
   expect(screen.getAllByTestId("moment-track-title").length).toBeLessThan(15);
-  expect(screen.queryByRole("button")).toBeNull();
+  expect(screen.getAllByRole("button").length).toBeLessThan(15);
+  expect(screen.queryByRole("button", { name: /Expand or collapse/ })).toBeNull();
   act(() => {
     scrollOffset = 2800;
     fireEvent.scroll(screen.getByTestId("scroll"));
@@ -74,7 +76,7 @@ it("virtualizes leaf labels against the shared scroll container", async () => {
   expect(screen.getAllByTestId("moment-track-title").length).toBeLessThan(15);
 });
 
-it("only offers a toggle on a group with children", () => {
+it("offers collapse only on parents and visibility only on leaves", () => {
   const grouped = layout(2);
   const parent = grouped.rows[0]!.track;
   const leaf = grouped.rows[1]!.track;
@@ -82,22 +84,36 @@ it("only offers a toggle on a group with children", () => {
   parent.count = 2;
   leaf.depth = 1;
   const onViewChange = jest.fn();
-  render(
+  const state = render(
     <ThemeProvider isDark>
       <MomentTrackList layout={grouped} view={{}} onViewChange={onViewChange} />
     </ThemeProvider>,
   );
-  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(screen.getAllByRole("button")).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Hide track Platform: Option 0" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Hide track Platform: Option 1" })).toBeTruthy();
   fireEvent.click(screen.getByText("Platform: Option 1 (1)"));
   expect(onViewChange).not.toHaveBeenCalled();
   const toggle = screen.getByRole("button", { name: "Expand or collapse Platform: Option 0" });
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   fireEvent.click(toggle);
   expect(onViewChange).toHaveBeenCalledWith({ collapsed: { [parent.id]: true } });
+  state.rerender(
+    <ThemeProvider isDark>
+      <MomentTrackList
+        layout={{ ...grouped, rows: [{ ...grouped.rows[0]!, collapsed: true }], laneCount: 1 }}
+        view={{ collapsed: { [parent.id]: true }, hidden: { [parent.id]: true } }}
+        onViewChange={onViewChange}
+      />
+    </ThemeProvider>,
+  );
+  expect(screen.getAllByRole("button")).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: /Show track|Hide track/ })).toBeNull();
+  expect(screen.getByTestId("moment-track-title").style.opacity).toBe("1");
 });
 
-it.each(["value", "missing", "ungrouped"] as const)(
-  "renders a %s leaf without an interactive toggle, including saved collapse state",
+it.each(["value", "missing", "ungrouped", "unknown"] as const)(
+  "offers visibility but no collapse on a %s leaf, including saved collapse state",
   (kind) => {
     const leafLayout = layout(1);
     leafLayout.rows[0]!.track.kind = kind;
@@ -113,8 +129,35 @@ it.each(["value", "missing", "ungrouped"] as const)(
       </ThemeProvider>,
     );
     const row = screen.getByTestId("moment-track-title");
-    expect(row.querySelector("button, [aria-expanded], [tabindex]")).toBeNull();
+    expect(row.querySelector("[aria-expanded]")).toBeNull();
     fireEvent.click(row);
     expect(onViewChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Hide track/ }));
+    expect(onViewChange).toHaveBeenCalledWith({
+      collapsed: { "track/0": true },
+      hidden: { "track/0": true },
+    });
   },
 );
+
+it("retains a dimmed hidden title and restores only that track's visibility preference", () => {
+  const hiddenLayout = layout(1);
+  hiddenLayout.rows[0]!.hidden = true;
+  const onViewChange = jest.fn();
+  render(
+    <ThemeProvider isDark>
+      <MomentTrackList
+        layout={hiddenLayout}
+        view={{ collapsed: { parent: true }, hidden: { "track/0": true, child: true } }}
+        onViewChange={onViewChange}
+      />
+    </ThemeProvider>,
+  );
+  expect(screen.getByText("Platform: Option 0 (1)")).toBeTruthy();
+  expect(screen.getByTestId("moment-track-title").style.opacity).toBe("0.55");
+  fireEvent.click(screen.getByRole("button", { name: "Show track Platform: Option 0" }));
+  expect(onViewChange).toHaveBeenCalledWith({
+    collapsed: { parent: true },
+    hidden: { "track/0": false, child: true },
+  });
+});
