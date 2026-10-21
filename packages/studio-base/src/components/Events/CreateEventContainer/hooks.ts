@@ -5,6 +5,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import type { CustomFieldValue } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import cloneDeep from "lodash-es/cloneDeep";
 import { useEffect, useState } from "react";
 
 import { subtract, isLessThan, isGreaterThan, toSec, Time } from "@foxglove/rostime";
@@ -45,7 +47,9 @@ export const useGetPassingFile = (): BagFileInfo[] | undefined => {
   });
 };
 
-export const useDefaultEventForm = (): CreateEventForm => {
+export const useDefaultEventForm = (
+  customFieldValues: Record<string, CustomFieldValue> = {},
+): CreateEventForm => {
   const eventMarks = useEvents(selectEventMarks);
   const toModifyEvent = useEvents(selectToModifyEvent);
 
@@ -88,7 +92,7 @@ export const useDefaultEventForm = (): CreateEventForm => {
     fileName: passingFile?.[0]?.name ?? "",
     files: [],
     record: "",
-    customFieldValues: {},
+    customFieldValues: cloneDeep(customFieldValues),
   };
 };
 

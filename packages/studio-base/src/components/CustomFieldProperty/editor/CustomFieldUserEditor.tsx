@@ -82,6 +82,10 @@ export function CustomFieldUserEditor({
       allowClear={allowClear}
       disabled={disabled}
       error={error}
+      onClear={() => {
+        customFieldValue.value = { case: undefined };
+        onChange(customFieldValue);
+      }}
       placeholder={customFieldValue.property?.description ?? t("pleaseSelect")}
       onChange={(user) => {
         if (!Array.isArray(user)) {

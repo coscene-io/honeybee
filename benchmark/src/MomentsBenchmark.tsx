@@ -34,6 +34,8 @@ import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlay
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
+import MockCoSceneCurrentUserProvider from "@foxglove/studio-base/providers/MockCoSceneCurrentUserProvider";
+import MomentCreationDefaultsProvider from "@foxglove/studio-base/providers/MomentCreationDefaultsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
@@ -52,12 +54,23 @@ const end = { sec: 3600, nsec: 0 };
 const configuration = makeMockAppConfiguration();
 const allowed = Object.assign(async () => ({}), { permission: () => true });
 const api = {
+  getBaseUrl: () => "https://benchmark.invalid",
   updateEvent: allowed,
   createEvent: allowed,
   deleteEvent: allowed,
   getDiagnosisRule: async () => ({ rules: [] }),
   batchGetUsers: async () => ({ users: [] }),
 } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
+
+function BenchmarkEventProviders({ children }: React.PropsWithChildren): React.JSX.Element {
+  return (
+    <MockCoSceneCurrentUserProvider>
+      <MomentCreationDefaultsProvider>
+        <EventsProvider>{children}</EventsProvider>
+      </MomentCreationDefaultsProvider>
+    </MockCoSceneCurrentUserProvider>
+  );
+}
 
 function Seed({
   events,
@@ -209,7 +222,7 @@ function MomentsBenchmark(): React.JSX.Element {
                     <PlaybackInteractionStateProvider>
                       <TimelineInteractionStateProvider>
                         <CoScenePlaylistProvider>
-                          <EventsProvider>
+                          <BenchmarkEventProviders>
                             <Seed events={events} extras={extras} groupingSchema={groupingSchema} />
                             <EventsSyncAdapter />
                             <div
@@ -260,7 +273,7 @@ function MomentsBenchmark(): React.JSX.Element {
                               />
                               {extras && <MomentSubtitleOverlay />}
                             </div>
-                          </EventsProvider>
+                          </BenchmarkEventProviders>
                         </CoScenePlaylistProvider>
                       </TimelineInteractionStateProvider>
                     </PlaybackInteractionStateProvider>

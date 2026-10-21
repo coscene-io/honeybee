@@ -20,10 +20,12 @@ import {
   FormControlLabel,
   Link,
 } from "@mui/material";
+import cloneDeep from "lodash-es/cloneDeep";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useAsync } from "react-use";
 import { v4 as uuidv4 } from "uuid";
 
 import { areEqual, Time } from "@foxglove/rostime";
@@ -35,10 +37,12 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { EventsStore, useEvents } from "@foxglove/studio-base/context/EventsContext";
+import { useMomentCreationDefaults } from "@foxglove/studio-base/context/MomentCreationDefaultsContext";
 import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 import { secondsToDuration } from "@foxglove/studio-base/util/time";
 
 import { buildMomentCustomizedFields } from "../momentDoubtful";
+import { restoreMomentCustomFieldValues } from "./customFieldDefaults";
 import { CreateEventForm, CreateTaskForm } from "./types";
 
 const selectRefreshEvents = (store: EventsStore) => store.refreshEvents;
@@ -93,6 +97,11 @@ function CreateTaskSuccessToast({ targetUrl }: { targetUrl: string }): React.Rea
 }
 
 export function CreateEventContainer({ onClose }: { onClose: () => void }): React.ReactNode {
+  const scopeId = useMomentCreationDefaults((store) => store.id);
+  return <CreateEventFormContainer key={scopeId} onClose={onClose} />;
+}
+
+function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.ReactNode {
   const [isComposition, setIsComposition] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [enabledCreateNewTask, setEnabledCreateNewTask] = useState(false);
@@ -112,17 +121,69 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
 
   const createMomentBtnRef = useRef<HTMLButtonElement>(ReactNull);
   const isSubmittingRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const refreshEvents = useEvents(selectRefreshEvents);
   const toModifyEvent = useEvents(selectToModifyEvent);
   const isEditing = toModifyEvent != undefined;
   const { t } = useTranslation("event");
 
-  const defaultEventForm = useDefaultEventForm();
+  const rememberedValues = useMomentCreationDefaults((store) => store.customFieldValues);
+  const rememberCustomFieldValues = useMomentCreationDefaults(
+    (store) => store.rememberCustomFieldValues,
+  );
+  const hasRememberedUsers = rememberedValues.some((value) => value.value.case === "user");
+  const activeUsers = useAsync(async () => {
+    if (isEditing || !hasRememberedUsers) {
+      return undefined;
+    }
+    const users = await consoleApi.listOrganizationUsers();
+    return new Set(
+      users.filter((user) => user.active).map((user) => user.name.split("/").pop() ?? ""),
+    );
+  }, [consoleApi, isEditing, hasRememberedUsers]);
+  const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
+  const isRestoringDefaults =
+    !isEditing &&
+    rememberedValues.length > 0 &&
+    (schema == undefined ||
+      schemaProjectName !== projectName ||
+      (hasRememberedUsers && activeUsers.loading));
+  const restoredValues = useMemo(
+    () =>
+      restoreMomentCustomFieldValues(
+        schemaProjectName === projectName ? (schema?.properties ?? []) : [],
+        rememberedValues,
+        activeUsers.value,
+      ),
+    [schema, schemaProjectName, projectName, rememberedValues, activeUsers.value],
+  );
+  const defaultEventForm = useDefaultEventForm(restoredValues);
 
   const eventForm = useForm<CreateEventForm>({
     defaultValues: defaultEventForm,
   });
+
+  useEffect(() => {
+    if (!isEditing) {
+      // A schema may arrive after the dialog opens. A cleared field is still a
+      // CustomFieldValue object, so it is never mistaken for an untouched field.
+      const current = eventForm.getValues("customFieldValues");
+      for (const [id, value] of Object.entries(restoredValues)) {
+        if (current?.[id] == undefined) {
+          eventForm.setValue(`customFieldValues.${id}`, cloneDeep(value));
+        }
+      }
+    }
+  }, [eventForm, isEditing, restoredValues]);
 
   const taskForm = useForm<CreateTaskForm>({
     defaultValues: {
@@ -144,20 +205,18 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   );
 
   useEffect(() => {
-    document.addEventListener("compositionstart", () => {
+    const onCompositionStart = () => {
       setIsComposition(true);
-    });
-    document.addEventListener("compositionend", () => {
+    };
+    const onCompositionEnd = () => {
       setIsComposition(false);
-    });
+    };
+    document.addEventListener("compositionstart", onCompositionStart);
+    document.addEventListener("compositionend", onCompositionEnd);
 
     return () => {
-      document.removeEventListener("compositionstart", () => {
-        setIsComposition(true);
-      });
-      document.removeEventListener("compositionend", () => {
-        setIsComposition(false);
-      });
+      document.removeEventListener("compositionstart", onCompositionStart);
+      document.removeEventListener("compositionend", onCompositionEnd);
     };
   }, []);
 
@@ -189,7 +248,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
   };
 
   const onSubmit = async () => {
-    if (isSubmittingRef.current) {
+    if (isSubmittingRef.current || isRestoringDefaults) {
       return;
     }
 
@@ -210,6 +269,9 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
       }
 
       const event = eventForm.getValues();
+      const customFieldValues = cloneDeep(
+        convertCustomFieldValuesMapToArray(event.customFieldValues ?? {}),
+      );
 
       if (event.startTime == undefined || event.duration == undefined) {
         toast.error(t("startTimeAndDurationRequired"));
@@ -256,7 +318,7 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
         duration: secondsToDuration(durationSeconds),
         description: event.description,
         files: imageFiles,
-        customFieldValues: convertCustomFieldValuesMapToArray(event.customFieldValues ?? {}),
+        customFieldValues,
         customizedFields: buildMomentCustomizedFields({
           fields: keyedMetadata,
           isDoubtful: event.isDoubtful === true,
@@ -278,20 +340,24 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
           recordName,
         });
 
+        rememberCustomFieldValues(newEvent.customFieldValues);
+
         toast.success(t("createMomentSuccess"));
         if (enabledCreateNewTask) {
           await handleCreateTask(res);
         }
       }
 
-      refreshEvents();
       shouldResetSubmitting = false;
-      onClose();
+      if (isMountedRef.current) {
+        refreshEvents();
+        onClose();
+      }
     } catch (error) {
       console.error(error);
       toast.error(t("createMomentFailed"));
     } finally {
-      if (shouldResetSubmitting) {
+      if (shouldResetSubmitting && isMountedRef.current) {
         isSubmittingRef.current = false;
         setIsLoading(false);
       }
@@ -347,10 +413,10 @@ export function CreateEventContainer({ onClose }: { onClose: () => void }): Reac
               variant="contained"
               id="create-moment"
               ref={createMomentBtnRef}
-              disabled={isLoading}
+              disabled={isLoading || isRestoringDefaults}
               onClick={onSubmit}
             >
-              {isLoading && (
+              {(isLoading || isRestoringDefaults) && (
                 <CircularProgress color="inherit" size="1rem" style={{ marginRight: "0.5rem" }} />
               )}
               {isEditing ? t("save") : t("createMoment")}

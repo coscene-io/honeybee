@@ -20,6 +20,7 @@ import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import CurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import GrowthBookUserProvider from "@foxglove/studio-base/providers/GrowthBookUserProvider";
+import MomentCreationDefaultsProvider from "@foxglove/studio-base/providers/MomentCreationDefaultsProvider";
 import { GrowthBookRecommendedLayoutProvider } from "@foxglove/studio-base/providers/RecommendedLayoutProvider";
 import { IdbLayoutStorage } from "@foxglove/studio-base/services/CoSceneIdbLayoutStorage";
 import { IdbUrdfStorage } from "@foxglove/studio-base/services/IdbUrdfStorage";
@@ -47,6 +48,7 @@ export function SharedProviders({
       <CoreDataProvider key="CoreDataProvider" />,
       <CoSceneUserProfileLocalStorageProvider key="CoSceneUserProfileLocalStorageProvider" />,
       <CoSceneCurrentUserProvider key="CoSceneUserProvider" loginStatusKey={loginStatusKey} />,
+      <MomentCreationDefaultsProvider key="MomentCreationDefaultsProvider" />,
       // dependent - CoSceneUserProvider
       <GrowthBookUserProvider key="GrowthBookUserProvider" />,
       <AnalyticsProvider key="AnalyticsProvider" />,

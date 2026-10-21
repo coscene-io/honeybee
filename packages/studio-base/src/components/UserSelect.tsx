@@ -29,6 +29,7 @@ const useStyles = makeStyles()(() => ({
 
 interface BaseUserSelectProps {
   allowClear?: boolean;
+  onClear?: () => void;
   value: string | string[];
   onMetaDataKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   disabled?: boolean;
@@ -54,6 +55,7 @@ export function UserSelect({
   onChange,
   onMetaDataKeyDown,
   allowClear,
+  onClear,
   disabled,
   error,
   multiple,
@@ -144,7 +146,7 @@ export function UserSelect({
   } else {
     // 单选模式
     const singleValue = Array.isArray(value) ? value[0] : value;
-    const selectedUser = activatedUsers.find((user) => user.name === singleValue) ?? undefined;
+    const selectedUser = activatedUsers.find((user) => user.name === singleValue) ?? ReactNull;
 
     return (
       <Autocomplete
@@ -171,6 +173,8 @@ export function UserSelect({
         onChange={(_event, option) => {
           if (option) {
             onChange(option);
+          } else {
+            onClear?.();
           }
         }}
         filterOptions={(options, { inputValue }) => {

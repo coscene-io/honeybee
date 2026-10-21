@@ -117,6 +117,9 @@ export function CustomFieldEnumEditor({
             value: create(EnumValueSchema, { id: newValue.value }),
           };
           onChange(customFieldValue);
+        } else {
+          customFieldValue.value = { case: undefined };
+          onChange(customFieldValue);
         }
       }}
       options={options}
@@ -127,7 +130,7 @@ export function CustomFieldEnumEditor({
           (option) =>
             customFieldValue.value.case === "enums" &&
             option.value === customFieldValue.value.value.id,
-        ) ?? undefined
+        ) ?? ReactNull
       }
       disabled={disabled}
       noOptionsText={t("noMatchingItemsFound")}
