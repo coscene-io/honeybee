@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { create } from "@bufbuild/protobuf";
-import { UserSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
 
@@ -97,42 +96,6 @@ describe("CoSceneConsoleApi", () => {
       "Record-Name": recordName,
       "X-Test": "1",
     });
-  });
-
-  it("loads every organization user page, including empty intermediate pages", async () => {
-    const api = await createApi(completeBaseInfo);
-    const first = Array.from({ length: 100 }, (_, index) =>
-      create(UserSchema, { name: `users/${index}`, active: true }),
-    );
-    const last = create(UserSchema, { name: "users/remembered-from-last-page", active: true });
-    const listOrganizationUsers = jest
-      .fn()
-      .mockResolvedValueOnce({ organizationUsers: first, nextPageToken: "second" })
-      .mockResolvedValueOnce({ organizationUsers: [], nextPageToken: "third" })
-      .mockResolvedValueOnce({ organizationUsers: [last], nextPageToken: "" });
-    mockGetPromiseClient.mockReturnValue({ listOrganizationUsers } as never);
-    expect(await api.listOrganizationUsers()).toEqual([...first, last]);
-    expect(listOrganizationUsers).toHaveBeenCalledTimes(3);
-    for (const [index, pageToken] of ["", "second", "third"].entries()) {
-      expect(listOrganizationUsers).toHaveBeenNthCalledWith(
-        index + 1,
-        expect.objectContaining({ pageToken }),
-      );
-    }
-  });
-
-  it("rejects an incomplete user directory rather than returning a partial active-user set", async () => {
-    const api = await createApi(completeBaseInfo);
-    const error = new Error("second page failed");
-    const listOrganizationUsers = jest
-      .fn()
-      .mockResolvedValueOnce({
-        organizationUsers: [create(UserSchema, { name: "users/first", active: true })],
-        nextPageToken: "second",
-      })
-      .mockRejectedValueOnce(error);
-    mockGetPromiseClient.mockReturnValue({ listOrganizationUsers } as never);
-    await expect(api.listOrganizationUsers()).rejects.toBe(error);
   });
 
   it("normalizes Headers and tuple inputs without exposing a Headers instance", async () => {

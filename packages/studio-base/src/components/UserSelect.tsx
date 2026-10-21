@@ -8,11 +8,15 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
-import { User } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
+import { create } from "@bufbuild/protobuf";
+import {
+  User,
+  UserSchema,
+} from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/user_pb";
 import PersonIcon from "@mui/icons-material/Person";
 import { Autocomplete, Box, TextField, Chip, Avatar } from "@mui/material";
 import PinyinMatch from "pinyin-match";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
@@ -74,18 +78,22 @@ export function UserSelect({
     });
   }, [getUsers]);
 
-  if (users.value == undefined) {
-    return;
-  }
-
-  const activatedUsers = users.value.filter((user) => user.active);
+  const activatedUsers = users.value?.filter((user) => user.active) ?? [];
+  const selectedUsers = useMemo(() => {
+    const usersByName = new Map(users.value?.map((user) => [user.name, user]));
+    const values = Array.isArray(value) ? value : [value];
+    const names = multiple === true ? values : values.slice(0, 1);
+    // Keep unresolved and inactive selections visible without making them options.
+    return names
+      .filter((name) => name.split("/").pop())
+      .map((name) => usersByName.get(name) ?? create(UserSchema, { name }));
+  }, [multiple, users.value, value]);
+  const getUserLabel = (user: User) =>
+    user.nickname != undefined && user.nickname !== "" ? user.nickname : user.name;
 
   // 处理单选和多选的值
   if (multiple === true) {
     // 多选模式
-    const valueArray = Array.isArray(value) ? value : [value];
-    const selectedUsers = activatedUsers.filter((user) => valueArray.includes(user.name));
-
     return (
       <Autocomplete
         size="small"
@@ -94,7 +102,7 @@ export function UserSelect({
         multiple
         disableCloseOnSelect={true}
         options={activatedUsers}
-        getOptionLabel={(option) => option.nickname ?? ""}
+        getOptionLabel={getUserLabel}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -110,7 +118,7 @@ export function UserSelect({
                 <PersonIcon color="secondary" />
               )}
             </Avatar>
-            {option.nickname}
+            {getUserLabel(option)}
           </Box>
         )}
         value={selectedUsers}
@@ -120,7 +128,7 @@ export function UserSelect({
             const { key: _key, ...tagProps } = getTagProps({ index });
             return (
               <Chip
-                label={option.nickname ?? ""}
+                label={getUserLabel(option)}
                 size="small"
                 {...tagProps}
                 key={`${option.name}-${index}`}
@@ -145,8 +153,7 @@ export function UserSelect({
     );
   } else {
     // 单选模式
-    const singleValue = Array.isArray(value) ? value[0] : value;
-    const selectedUser = activatedUsers.find((user) => user.name === singleValue) ?? ReactNull;
+    const selectedUser = selectedUsers[0] ?? ReactNull;
 
     return (
       <Autocomplete
@@ -154,7 +161,7 @@ export function UserSelect({
         disabled={disabled}
         disableClearable={allowClear === false}
         options={activatedUsers}
-        getOptionLabel={(option) => option.nickname ?? ""}
+        getOptionLabel={getUserLabel}
         renderInput={(params) => (
           <TextField {...params} variant="filled" error={error} placeholder={placeholder} />
         )}
@@ -165,7 +172,7 @@ export function UserSelect({
                 <PersonIcon color="secondary" />
               )}
             </Avatar>
-            {option.nickname}
+            {getUserLabel(option)}
           </Box>
         )}
         value={selectedUser}

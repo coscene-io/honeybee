@@ -11,11 +11,29 @@ import type {
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import cloneDeep from "lodash-es/cloneDeep";
 
+import type { MomentCreationScope } from "@foxglove/studio-base/context/EventsContext";
+
+// An initially unresolved endpoint/profile must not invalidate the same page's
+// snapshot when it finishes loading. API client identity is deliberately excluded.
+export function isSameMomentCreationScope(
+  previous: MomentCreationScope,
+  current: MomentCreationScope,
+): boolean {
+  return (
+    previous.projectName === current.projectName &&
+    (previous.baseUrl == undefined ||
+      current.baseUrl == undefined ||
+      previous.baseUrl === current.baseUrl) &&
+    (previous.userId == undefined ||
+      current.userId == undefined ||
+      previous.userId === current.userId)
+  );
+}
+
 /** Rebuild values with current definitions, preserving protobuf timestamps and numeric zero. */
 export function restoreMomentCustomFieldValues(
   properties: Property[],
   values: CustomFieldValue[],
-  activeUserIds?: ReadonlySet<string>,
 ): Record<string, CustomFieldValue> {
   const previousValues = new Map(values.map((value) => [value.property?.id, value]));
   const result: Record<string, CustomFieldValue> = {};
@@ -59,9 +77,6 @@ export function restoreMomentCustomFieldValues(
       ) {
         continue;
       }
-      value.value.value.ids = [...new Set(value.value.value.ids)].filter(
-        (id) => activeUserIds?.has(id) === true,
-      );
       if (value.value.value.ids.length === 0) {
         continue;
       }

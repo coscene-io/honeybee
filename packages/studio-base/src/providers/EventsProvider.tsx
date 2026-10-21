@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { CustomFieldSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
+import cloneDeep from "lodash-es/cloneDeep";
 import { ReactNode, useState } from "react";
 import { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
@@ -31,10 +32,8 @@ function createEventsStore() {
     toModifyEvent: undefined,
     customFieldSchema: undefined,
     customFieldSchemaProjectName: undefined,
-    customFieldSchemaFetchCount: 0,
-
-    refreshCustomFieldSchema: () => {
-      set((old) => ({ customFieldSchemaFetchCount: (old.customFieldSchemaFetchCount ?? 0) + 1 }));
+    setLastCreatedMomentDefaults: (defaults) => {
+      set({ lastCreatedMomentDefaults: cloneDeep(defaults) });
     },
 
     refreshEvents: () => {
@@ -58,16 +57,10 @@ function createEventsStore() {
     setToModifyEvent: (toModifyEvent: undefined | ToModifyEvent) => {
       set({ toModifyEvent });
     },
-    setCustomFieldSchema: (
-      customFieldSchema?: CustomFieldSchema,
-      projectName?: string,
-      error?: unknown,
-    ) => {
+    setCustomFieldSchema: (customFieldSchema?: CustomFieldSchema, projectName?: string) => {
       set({
         customFieldSchema,
         customFieldSchemaProjectName: customFieldSchema == undefined ? undefined : projectName,
-        customFieldSchemaError:
-          error != undefined && projectName != undefined ? { projectName, error } : undefined,
       });
     },
   }));

@@ -5,11 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { clone, create, fromJson } from "@bufbuild/protobuf";
+import { create, fromJson } from "@bufbuild/protobuf";
 import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createStore } from "zustand";
 
 import { fromSec, type Time } from "@foxglove/rostime";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
@@ -28,10 +27,6 @@ import {
   useEvents,
   type TimelinePositionedEvent,
 } from "@foxglove/studio-base/context/EventsContext";
-import {
-  MomentCreationDefaultsContext,
-  type MomentCreationDefaultsStore,
-} from "@foxglove/studio-base/context/MomentCreationDefaultsContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { initI18n } from "@foxglove/studio-base/i18n";
 import MomentsList from "@foxglove/studio-base/panels/MomentsBar/MomentsList";
@@ -57,33 +52,12 @@ const end = { sec: 3600, nsec: 0 };
 const configuration = makeMockAppConfiguration();
 const allowed = Object.assign(async () => ({}), { permission: () => true });
 const api = {
-  getBaseUrl: () => "https://benchmark.invalid",
   updateEvent: allowed,
   createEvent: allowed,
   deleteEvent: allowed,
   getDiagnosisRule: async () => ({ rules: [] }),
   batchGetUsers: async () => ({ users: [] }),
 } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
-
-function BenchmarkEventProviders({ children }: React.PropsWithChildren): React.JSX.Element {
-  // Synthetic events have no authenticated project; keep their editing controls available.
-  const [defaults] = useState(() =>
-    createStore<MomentCreationDefaultsStore>((set) => ({
-      id: "moment-benchmark",
-      isReady: true,
-      isCurrentScope: () => true,
-      customFieldValues: [],
-      rememberCustomFieldValues: (values) => {
-        set({ customFieldValues: values.map((value) => clone(CustomFieldValueSchema, value)) });
-      },
-    })),
-  );
-  return (
-    <MomentCreationDefaultsContext.Provider value={defaults}>
-      <EventsProvider>{children}</EventsProvider>
-    </MomentCreationDefaultsContext.Provider>
-  );
-}
 
 function Seed({
   events,
@@ -235,7 +209,7 @@ function MomentsBenchmark(): React.JSX.Element {
                     <PlaybackInteractionStateProvider>
                       <TimelineInteractionStateProvider>
                         <CoScenePlaylistProvider>
-                          <BenchmarkEventProviders>
+                          <EventsProvider>
                             <Seed events={events} extras={extras} groupingSchema={groupingSchema} />
                             <EventsSyncAdapter />
                             <div
@@ -286,7 +260,7 @@ function MomentsBenchmark(): React.JSX.Element {
                               />
                               {extras && <MomentSubtitleOverlay />}
                             </div>
-                          </BenchmarkEventProviders>
+                          </EventsProvider>
                         </CoScenePlaylistProvider>
                       </TimelineInteractionStateProvider>
                     </PlaybackInteractionStateProvider>

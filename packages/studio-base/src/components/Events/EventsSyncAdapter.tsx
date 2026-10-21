@@ -241,7 +241,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
   const record = useCoreData(selectRecord);
   const schema = useEvents((store) => store.customFieldSchema);
   const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
-  const schemaFetchCount = useEvents((store) => store.customFieldSchemaFetchCount ?? 0);
   const visibleEvents = useVisibleEvents();
   const trackScope = schemaProjectName ?? project.value?.name ?? "";
   const trackView = useWorkspaceStore(
@@ -292,10 +291,7 @@ export function EventsSyncAdapter(): React.JSX.Element {
           }
         })
         .catch((error: unknown) => {
-          if (active) {
-            setCustomFieldSchema(undefined, projectName, error);
-            log.error(error);
-          }
+          log.error(error);
         });
     }
     return () => {
@@ -306,7 +302,6 @@ export function EventsSyncAdapter(): React.JSX.Element {
     externalInitConfig?.warehouseId,
     externalInitConfig?.projectId,
     setCustomFieldSchema,
-    schemaFetchCount,
   ]);
 
   const timeRange = useMemo(() => {

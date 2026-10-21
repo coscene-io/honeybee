@@ -45,7 +45,6 @@ import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlay
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
 import MockCoSceneCurrentUserProvider from "@foxglove/studio-base/providers/MockCoSceneCurrentUserProvider";
-import MomentCreationDefaultsProvider from "@foxglove/studio-base/providers/MomentCreationDefaultsProvider";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import { CreateEventContainer } from ".";
@@ -150,6 +149,16 @@ function Seed(): ReactNull {
   eventsStore = useContext(EventsContext)!;
   userStore = useContext(CoSceneCurrentUserContext)!;
   useEffect(() => {
+    userStore.getState().setUser({
+      userId: "mock-user",
+      nickName: "Mock User",
+      avatarUrl: "",
+      phoneNumber: "",
+      agreedAgreement: "",
+      role: "",
+      email: "mock@example.com",
+      targetSite: "",
+    });
     coreStore.getState().setExternalInitConfig({
       warehouseId: "warehouse",
       projectId: "project",
@@ -195,9 +204,7 @@ function TestRoot({ consoleApi = api }: { consoleApi?: typeof api }) {
               <CoScenePlaylistProvider>
                 <MockCoSceneCurrentUserProvider>
                   <Seed />
-                  <MomentCreationDefaultsProvider>
-                    <Dialog />
-                  </MomentCreationDefaultsProvider>
+                  <Dialog />
                 </MockCoSceneCurrentUserProvider>
               </CoScenePlaylistProvider>
             </EventsProvider>
@@ -343,34 +350,13 @@ it("clears single and multi-select enums and people through the real controls", 
   await submit();
   expect(
     createEvent.mock.calls[1]?.[0].event.customFieldValues.map((value) => value.property?.id),
-  ).toEqual(["time", "user-true"]);
+  ).toEqual(["time"]);
   await open();
   expect(mockForm.getValues("customFieldValues.enum-false")).toBeUndefined();
   expect(mockForm.getValues("customFieldValues.user-false")).toBeUndefined();
+  expect(mockForm.getValues("customFieldValues.user-true")).toBeUndefined();
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
   expect(screen.getByPlaceholderText<HTMLInputElement>("Number value").value).toBe("");
-});
-
-it("waits for remembered people to load before allowing a new creation", async () => {
-  setup();
-  await open();
-  await fill();
-  await submit();
-  let resolve: (users: Awaited<ReturnType<typeof listUsers>>) => void = () => {};
-  const pendingUsers = new Promise<Awaited<ReturnType<typeof listUsers>>>((done) => {
-    resolve = done;
-  });
-  listUsers.mockReturnValue(pendingUsers);
-  await open();
-  expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(true);
-  await act(async () => {
-    resolve([create(UserSchema, { name: "users/alice", active: true })]);
-  });
-  expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(false);
-  expect(mockForm.getValues("customFieldValues.user-true").value).toMatchObject({
-    case: "user",
-    value: { ids: ["alice"] },
-  });
 });
 
 it("keeps defaults when an optional task fails after the Moment was created", async () => {
@@ -497,21 +483,23 @@ it("ignores a late success after leaving and returning to a project and keeps th
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
 });
 
-it("clears defaults when the account or API environment changes", async () => {
-  const view = setup();
+it("ignores remembered defaults from a different known account or endpoint", async () => {
+  setup();
+  await act(async () => {
+    coreStore.getState().setBaseUrl("https://api.test");
+  });
   await open();
   await fill();
   await submit();
-  await open();
   await act(async () => {
     userStore.getState().setUser({ ...userStore.getState().user!, userId: "other-user" });
   });
+  await open();
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
   await fill();
   await submit();
-  apiBaseUrl = "https://other-api.test";
   await act(async () => {
-    view.rerender(<TestRoot />);
+    coreStore.getState().setBaseUrl("https://other-api.test");
   });
   await open();
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
@@ -529,8 +517,12 @@ it("starts empty after the page providers are remounted", async () => {
   expect(screen.getByPlaceholderText<HTMLInputElement>("Number value").value).toBe("");
 });
 
-it("preserves defaults and current input when credentials recreate the API client", async () => {
+it("preserves input and defaults when the API client returns to its configured URL", async () => {
   const view = setup();
+  apiBaseUrl = "https://cluster-api.test";
+  await act(async () => {
+    coreStore.getState().setBaseUrl(apiBaseUrl);
+  });
   await open();
   await fill();
   await submit();
@@ -538,6 +530,7 @@ it("preserves defaults and current input when credentials recreate the API clien
   fireEvent.change(screen.getByPlaceholderText("Text value"), {
     target: { value: "current input" },
   });
+  apiBaseUrl = "https://configured-api.test";
   await act(async () => {
     view.rerender(<TestRoot consoleApi={{ ...apiMethods } as unknown as typeof api} />);
   });
@@ -547,49 +540,70 @@ it("preserves defaults and current input when credentials recreate the API clien
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
 });
 
-it("shows a recoverable schema error and restores values after retry", async () => {
+it("submits no hidden fields while schema is unavailable and preserves earlier defaults", async () => {
   setup();
   await open();
   await fill();
   await submit();
   await act(async () => {
-    eventsStore
-      .getState()
-      .setCustomFieldSchema(undefined, projectName, new Error("schema unavailable"));
+    eventsStore.getState().setCustomFieldSchema(undefined, projectName);
   });
   await open();
-  expect(screen.getByRole("alert").textContent).toContain("Unable to load custom fields");
-  expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: "Retry custom fields" }));
-  expect(eventsStore.getState().customFieldSchemaFetchCount).toBe(1);
+  await fill();
+  await submit();
+  expect(createEvent.mock.calls[1]?.[0].event.customFieldValues).toEqual([]);
   await act(async () => {
     eventsStore.getState().setCustomFieldSchema(schema, projectName);
   });
-  expect(screen.queryByRole("alert")).toBeNull();
-  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
-  await submit();
+  await open();
+  expect(Object.values(mockForm.getValues("customFieldValues") ?? {})).toEqual(samples);
 });
 
-it("keeps people defaults unresolved after lookup failure and supports retry", async () => {
+it("excludes fields removed from the schema while the dialog is open", async () => {
   setup();
   await open();
   await fill();
-  await submit();
-  const users = await listUsers();
-  // The two field controls load first; fail the independent defaults lookup.
-  listUsers
-    .mockResolvedValueOnce(users)
-    .mockResolvedValueOnce(users)
-    .mockRejectedValueOnce(new Error("people unavailable"));
-  await open();
-  expect(screen.getByRole("alert").textContent).toContain("Unable to restore people fields");
-  expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(true);
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Retry people" }));
+    eventsStore
+      .getState()
+      .setCustomFieldSchema(
+        create(CustomFieldSchemaSchema, { properties: [samples[0]!.property!] }),
+        projectName,
+      );
   });
-  expect(screen.queryByRole("alert")).toBeNull();
   await submit();
-  expect(createEvent.mock.calls[1]?.[0].event.customFieldValues).toEqual(samples);
+  expect(createEvent.mock.calls[0]?.[0].event.customFieldValues).toEqual([samples[0]]);
+});
+
+it("does not restore a cancelled pending create into a newly opened form", async () => {
+  setup();
+  await open();
+  await fill();
+  let resolve: (event: Event) => void = () => {};
+  createEvent.mockImplementationOnce(
+    async () =>
+      await new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  fireEvent.click(document.getElementById("create-moment")!);
+  await waitFor(() => {
+    expect(createEvent).toHaveBeenCalledTimes(1);
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await act(async () => {
+    eventsStore.getState().setCustomFieldSchema(undefined, projectName);
+  });
+  await open();
+  await act(async () => {
+    resolve(create(EventSchema));
+    eventsStore.getState().setCustomFieldSchema(schema, projectName);
+  });
+  expect(document.getElementById("create-moment")).not.toBeNull();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await open();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
 });
 
 it.each(["create", "update", "task"] as const)(
@@ -653,22 +667,59 @@ it.each(["create", "update", "task"] as const)(
   },
 );
 
-it("waits for initial account hydration before exposing editable fields", async () => {
+it("allows creation and editing when current-user information remains unavailable", async () => {
+  setup();
+  await act(async () => {
+    userStore.getState().setUser(undefined);
+  });
+  await open();
+  await fill();
+  await submit();
+  await act(async () => {
+    eventsStore.getState().setToModifyEvent({
+      name: `${projectName}/events/existing`,
+      eventName: "existing",
+      startTime: { sec: 2, nsec: 0 },
+      duration: 1,
+      durationUnit: "sec",
+      description: "",
+      metadataEntries: [],
+      enabledCreateNewTask: false,
+      fileName: "",
+      record: "",
+      customFieldValues: [samples[1]!],
+    });
+  });
+  await open();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("");
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Number value").value).toBe("0");
+  await submit();
+  expect(createEvent).toHaveBeenCalledTimes(1);
+  expect(updateEvent).toHaveBeenCalledTimes(1);
+  expect(userStore.getState().user).toBeUndefined();
+});
+
+it("keeps the current draft when account information arrives late", async () => {
   setup();
   const user = userStore.getState().user;
   await act(async () => {
     userStore.getState().setUser(undefined);
   });
   await open();
-  expect(document.getElementById("create-moment")).toBeNull();
-  expect(screen.getByText("Loading account and project information…")).toBeDefined();
+  fireEvent.change(screen.getByPlaceholderText("Text value"), {
+    target: { value: "typed before account hydration" },
+  });
   await act(async () => {
     userStore.getState().setUser(user);
   });
-  await fill();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe(
+    "typed before account hydration",
+  );
   await submit();
   await open();
-  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe(
+    "typed before account hydration",
+  );
 });
 
 it("preserves defaults and input when endpoint configuration hydrates with the current URL", async () => {
@@ -688,56 +739,3 @@ it("preserves defaults and input when endpoint configuration hydrates with the c
   await open();
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
 });
-
-it.each(["removed", "changed type", "changed selection mode", "cleared"])(
-  "does not load people for %s defaults",
-  async (change) => {
-    setup();
-    await open();
-    const cleared = cloneDeep(samples);
-    for (const value of cleared) {
-      if (value.value.case === "user") {
-        value.value.value.ids = [];
-      }
-    }
-    await fill(change === "cleared" ? cleared : samples);
-    await submit();
-    const nextSchema = cloneDeep(schema);
-    nextSchema.properties = nextSchema.properties.flatMap((property) => {
-      if (property.type.case !== "user") {
-        return [property];
-      }
-      if (change === "removed") {
-        return [];
-      }
-      if (change === "cleared") {
-        return [property];
-      }
-      property.type =
-        change === "changed type"
-          ? { case: "text", value: { $typeName: "coscene.dataplatform.v1alpha3.common.TextType" } }
-          : {
-              case: "user",
-              value: { ...property.type.value, multiple: !property.type.value.multiple },
-            };
-      return [property];
-    });
-    await act(async () => {
-      eventsStore.getState().setCustomFieldSchema(nextSchema, projectName);
-    });
-    listUsers.mockClear();
-    await open();
-    // Any remaining user controls can load their options independently, but defaults
-    // restoration must not add a directory dependency for obsolete values.
-    expect(listUsers).toHaveBeenCalledTimes(
-      change === "changed selection mode" || change === "cleared" ? 2 : 0,
-    );
-    expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(false);
-    await submit();
-    expect(
-      createEvent.mock.calls[1]?.[0].event.customFieldValues.some(
-        (value) => value.value.case === "user",
-      ),
-    ).toBe(false);
-  },
-);

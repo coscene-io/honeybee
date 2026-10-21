@@ -35,8 +35,6 @@ import { useEvents } from "@foxglove/studio-base/context/EventsContext";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
-import MockCoSceneCurrentUserProvider from "@foxglove/studio-base/providers/MockCoSceneCurrentUserProvider";
-import MomentCreationDefaultsProvider from "@foxglove/studio-base/providers/MomentCreationDefaultsProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
 import { CustomFieldSchemaSchema } from "@foxglove/studio-base/services/api/moment-custom-field/generated/common/custom_field_pb";
@@ -161,7 +159,6 @@ function setup({ keepAnother = false, withKind = true } = {}) {
     );
   });
   const consoleApi = {
-    getBaseUrl: () => "https://api.test",
     getEvents,
     getMomentCustomFieldSchema: jest.fn().mockResolvedValue(schema),
     updateEvent: Object.assign(updateEvent, { permission: () => true }),
@@ -177,22 +174,18 @@ function setup({ keepAnother = false, withKind = true } = {}) {
             <DialogsProvider>
               <CoreDataProvider>
                 <CoScenePlaylistContext.Provider value={playlistStore}>
-                  <MockCoSceneCurrentUserProvider>
-                    <MomentCreationDefaultsProvider>
-                      <EventsProvider>
-                        <TimelineInteractionStateProvider>
-                          <MockMessagePipelineProvider
-                            startTime={{ sec: 0, nsec: 0 }}
-                            currentTime={{ sec: 0, nsec: 0 }}
-                            endTime={{ sec: 3600, nsec: 0 }}
-                          >
-                            <SeedCoreData />
-                            <Views />
-                          </MockMessagePipelineProvider>
-                        </TimelineInteractionStateProvider>
-                      </EventsProvider>
-                    </MomentCreationDefaultsProvider>
-                  </MockCoSceneCurrentUserProvider>
+                  <EventsProvider>
+                    <TimelineInteractionStateProvider>
+                      <MockMessagePipelineProvider
+                        startTime={{ sec: 0, nsec: 0 }}
+                        currentTime={{ sec: 0, nsec: 0 }}
+                        endTime={{ sec: 3600, nsec: 0 }}
+                      >
+                        <SeedCoreData />
+                        <Views />
+                      </MockMessagePipelineProvider>
+                    </TimelineInteractionStateProvider>
+                  </EventsProvider>
                 </CoScenePlaylistContext.Provider>
               </CoreDataProvider>
             </DialogsProvider>

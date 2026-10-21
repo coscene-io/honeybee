@@ -1236,20 +1236,12 @@ class CoSceneConsoleApi {
   }
 
   public async listOrganizationUsers(): Promise<CoUser[]> {
-    const client = this.#getPromiseClient(UserService);
-    const users: CoUser[] = [];
-    let pageToken = "";
-    do {
-      const request = create(ListOrganizationUsersRequestSchema, {
-        parent: "organizations/current",
-        pageSize: 100,
-        pageToken,
-      });
-      const result = await client.listOrganizationUsers(request);
-      users.push(...result.organizationUsers);
-      pageToken = result.nextPageToken;
-    } while (pageToken !== "");
-    return users;
+    const request = create(ListOrganizationUsersRequestSchema, {
+      parent: "organizations/current",
+      pageSize: 100,
+    });
+    const result = await this.#getPromiseClient(UserService).listOrganizationUsers(request);
+    return result.organizationUsers;
   }
 
   public async getRecord({ recordName }: { recordName: string }): Promise<CoSceneRecord> {

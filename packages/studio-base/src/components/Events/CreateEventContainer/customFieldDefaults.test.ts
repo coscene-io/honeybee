@@ -11,7 +11,7 @@ import {
   PropertySchema,
 } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 
-import { restoreMomentCustomFieldValues } from "./customFieldDefaults";
+import { isSameMomentCreationScope, restoreMomentCustomFieldValues } from "./customFieldDefaults";
 
 const values = [
   create(CustomFieldValueSchema, {
@@ -43,10 +43,9 @@ const values = [
   ),
 ];
 const properties = values.map((value) => value.property!);
-const activeUsers = new Set(["alice", "bob"]);
 
 it.each(values)("restores $property.id with its complete value", (previous) => {
-  const restored = restoreMomentCustomFieldValues(properties, [previous], activeUsers);
+  const restored = restoreMomentCustomFieldValues(properties, [previous]);
   expect(restored[previous.property!.id]).toEqual(previous);
 });
 
@@ -74,7 +73,7 @@ it("drops removed fields and changed types or selection modes", () => {
     }),
     create(PropertySchema, { id: "user-true", type: { case: "user", value: { multiple: false } } }),
   ];
-  expect(restoreMomentCustomFieldValues(changed, values, activeUsers)).toEqual({});
+  expect(restoreMomentCustomFieldValues(changed, values)).toEqual({});
 });
 
 it("filters deleted enum options and keeps remaining multi-select options", () => {
@@ -86,16 +85,21 @@ it("filters deleted enum options and keeps remaining multi-select options", () =
         })
       : property,
   );
-  const restored = restoreMomentCustomFieldValues(current, values, activeUsers);
+  const restored = restoreMomentCustomFieldValues(current, values);
   expect(restored["enums-false"]).toBeUndefined();
   expect(restored["enums-true"]?.value).toMatchObject({ case: "enums", value: { ids: ["b"] } });
 });
 
-it("waits for current users and filters inactive or deleted people", () => {
-  expect(restoreMomentCustomFieldValues(properties, values)["user-true"]).toBeUndefined();
-  const restored = restoreMomentCustomFieldValues(properties, values, new Set(["bob"]));
-  expect(restored["user-false"]).toBeUndefined();
-  expect(restored["user-true"]?.value).toMatchObject({ case: "user", value: { ids: ["bob"] } });
+it("retains selected people IDs without a directory dependency", () => {
+  const restored = restoreMomentCustomFieldValues(properties, values);
+  expect(restored["user-false"]?.value).toMatchObject({
+    case: "user",
+    value: { ids: ["alice"] },
+  });
+  expect(restored["user-true"]?.value).toMatchObject({
+    case: "user",
+    value: { ids: ["alice", "bob"] },
+  });
 });
 
 it("preserves an explicitly cleared snapshot", () => {
@@ -105,4 +109,24 @@ it("preserves an explicitly cleared snapshot", () => {
       create(CustomFieldValueSchema, { property: properties[0] }),
     ]),
   ).toEqual({});
+});
+
+it("keeps one page scope through endpoint and account hydration", () => {
+  const unresolved = { projectName: "projects/one" };
+  const hydrated = { ...unresolved, baseUrl: "https://api.test", userId: "alice" };
+  expect(isSameMomentCreationScope(unresolved, hydrated)).toBe(true);
+  expect(isSameMomentCreationScope(hydrated, unresolved)).toBe(true);
+});
+
+it.each([
+  { projectName: "projects/two", baseUrl: "https://api.test", userId: "alice" },
+  { projectName: "projects/one", baseUrl: "https://other-api.test", userId: "alice" },
+  { projectName: "projects/one", baseUrl: "https://api.test", userId: "bob" },
+])("rejects a known scope change to %o", (current) => {
+  expect(
+    isSameMomentCreationScope(
+      { projectName: "projects/one", baseUrl: "https://api.test", userId: "alice" },
+      current,
+    ),
+  ).toBe(false);
 });

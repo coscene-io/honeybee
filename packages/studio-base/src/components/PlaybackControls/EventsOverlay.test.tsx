@@ -122,6 +122,7 @@ function makeEventsStore({
 }): StoreApi<EventsStore> {
   return createStore<EventsStore>((set) => ({
     eventFetchCount: 0,
+    setLastCreatedMomentDefaults: jest.fn(),
     events: { loading: false, value: events },
     filter: "",
     selectedEventId: undefined,
@@ -129,9 +130,6 @@ function makeEventsStore({
     eventMarks,
     toModifyEvent: undefined,
     customFieldSchema: undefined,
-    refreshCustomFieldSchema: () => {
-      set((old) => ({ customFieldSchemaFetchCount: (old.customFieldSchemaFetchCount ?? 0) + 1 }));
-    },
 
     refreshEvents: () => {
       set((old) => ({ eventFetchCount: old.eventFetchCount + 1 }));
