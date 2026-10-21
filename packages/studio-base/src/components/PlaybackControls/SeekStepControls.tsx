@@ -5,16 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import {
-  Button,
-  ClickAwayListener,
-  InputAdornment,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowBidirectionalLeftRight20Regular } from "@fluentui/react-icons";
+import { alpha, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import { visuallyHidden } from "@mui/utils";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
@@ -26,12 +20,40 @@ export const MIN_SEEK_STEP_MS = 1e-6 * 1000;
 export const MAX_SEEK_STEP_MS = 3600 * 1000;
 
 const useStyles = makeStyles()((theme) => ({
-  seekStepText: { fontVariantNumeric: "tabular-nums" },
-  seekStepButton: {
-    minWidth: "auto",
-    padding: theme.spacing(0.5),
-    "&:hover": {
-      backgroundColor: theme.palette.action.hover,
+  root: {
+    alignItems: "center",
+    borderRadius: 4,
+    display: "grid",
+    gridTemplateColumns: "18px minmax(0, 1fr) 88px",
+    gap: theme.spacing(1),
+    minHeight: 32,
+    paddingInline: 8,
+    "&:focus-within": { backgroundColor: theme.palette.action.hover },
+    "@media (pointer: coarse)": { minHeight: 48 },
+  },
+  icon: { color: theme.palette.text.secondary, height: 18, width: 18 },
+  label: { fontSize: 12, lineHeight: 1.25 },
+  input: {
+    minWidth: 0,
+    "& .MuiInputBase-root": {
+      backgroundColor: alpha(theme.palette.text.primary, 0.025),
+      borderRadius: 4,
+      fontSize: 12,
+      height: 26,
+      paddingRight: 7,
+    },
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: alpha(theme.palette.text.primary, 0.12),
+    },
+    "& input": {
+      fontVariantNumeric: "tabular-nums",
+      minWidth: 0,
+      padding: theme.spacing(0, 0, 0, 0.875),
+      textAlign: "right",
+    },
+    "& .MuiInputAdornment-root": { fontSize: 11, marginLeft: 4 },
+    "@media (pointer: coarse)": {
+      "& .MuiInputBase-root": { fontSize: 16, height: 44 },
     },
   },
 }));
@@ -49,7 +71,8 @@ export default function SeekStepControls({
   onEditingChange,
 }: SeekStepControlsProps): React.JSX.Element {
   const { classes } = useStyles();
-  const { t } = useTranslation(["general", "general"]);
+  const { t } = useTranslation("general");
+  const id = useId();
 
   // Seek step configuration
   const [seekStepMs, setSeekStepMs] = useAppConfigurationValue<number>(AppSetting.SEEK_STEP_MS);
@@ -58,19 +81,9 @@ export default function SeekStepControls({
       ? seekStepMs
       : 100;
 
-  // Editing state
-  const [editingSeekStep, setEditingSeekStep] = useState(false);
-  const [seekStepInput, setSeekStepInput] = useState<string>(String(effectiveSeekMs / 1000));
-  const seekInputRef = useRef<HTMLInputElement | ReactNull>(ReactNull);
-
-  const seekButtonRef = useRef<HTMLButtonElement>(ReactNull);
-  const restoreButtonFocus = useRef(false);
-  useLayoutEffect(() => {
-    if (!editingSeekStep && restoreButtonFocus.current) {
-      restoreButtonFocus.current = false;
-      seekButtonRef.current?.focus();
-    }
-  }, [editingSeekStep]);
+  // Keep the draft separate so typing does not change playback until it is committed.
+  const [seekStepInput, setSeekStepInput] = useState<string | undefined>();
+  const editingSeekStep = seekStepInput != undefined;
 
   // Notify parent of editing state changes
   useEffect(() => {
@@ -80,36 +93,24 @@ export default function SeekStepControls({
     };
   }, [editingSeekStep, onEditingChange]);
 
-  // Update input when editing starts or effective value changes
-  useEffect(() => {
-    if (editingSeekStep) {
-      setSeekStepInput(String(effectiveSeekMs / 1000));
-      // Focus input next tick
-      const timer = setTimeout(() => seekInputRef.current?.focus(), 0);
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-    return undefined;
-  }, [editingSeekStep, effectiveSeekMs]);
-
   const commitSeekStep = useCallback(() => {
+    if (seekStepInput == undefined) {
+      return;
+    }
     const trimmed = seekStepInput.trim();
     const minSec = MIN_SEEK_STEP_MS / 1000;
     const maxSec = MAX_SEEK_STEP_MS / 1000;
 
     if (trimmed === "") {
       void setSeekStepMs(100);
-      setSeekStepInput("0.1");
-      setEditingSeekStep(false);
+      setSeekStepInput(undefined);
       return;
     }
 
     const sec = Number(trimmed);
     if (!Number.isFinite(sec)) {
       void setSeekStepMs(100);
-      setSeekStepInput("0.1");
-      setEditingSeekStep(false);
+      setSeekStepInput(undefined);
       return;
     }
 
@@ -121,75 +122,61 @@ export default function SeekStepControls({
     }
 
     void setSeekStepMs(clampedSec * 1000);
-    setSeekStepInput(clampedSec.toFixed(9).replace(/\.?0+$/, ""));
-    setEditingSeekStep(false);
+    setSeekStepInput(undefined);
   }, [seekStepInput, setSeekStepMs]);
 
-  const startEditing = useCallback(() => {
-    setEditingSeekStep(true);
-  }, []);
-
-  const cancelEditing = useCallback(() => {
-    setEditingSeekStep(false);
-    setSeekStepInput(String(effectiveSeekMs / 1000));
-  }, [effectiveSeekMs]);
-
-  if (editingSeekStep) {
-    return (
-      <ClickAwayListener mouseEvent="onMouseDown" onClickAway={commitSeekStep}>
+  return (
+    <Tooltip title={t("seekStepHelp")} describeChild>
+      <div className={classes.root}>
+        <ArrowBidirectionalLeftRight20Regular className={classes.icon} aria-hidden />
+        <Typography
+          component="label"
+          htmlFor={id}
+          className={classes.label}
+          color={disabled ? "text.disabled" : "text.primary"}
+        >
+          {t("seekStep")}
+        </Typography>
         <TextField
-          inputRef={seekInputRef}
-          autoFocus
+          id={id}
+          className={classes.input}
+          disabled={disabled}
           size="small"
           variant="outlined"
-          value={seekStepInput}
+          value={seekStepInput ?? String(effectiveSeekMs / 1000)}
+          onFocus={() => {
+            setSeekStepInput(String(effectiveSeekMs / 1000));
+          }}
           onChange={(e) => {
             setSeekStepInput(e.target.value);
           }}
+          onBlur={commitSeekStep}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "Escape") {
+            if (e.key === "Enter") {
               e.preventDefault();
-              restoreButtonFocus.current = true;
-              if (e.key === "Enter") {
-                commitSeekStep();
-              } else {
-                cancelEditing();
-              }
+              e.stopPropagation();
+              commitSeekStep();
+            } else if (e.key === "Escape" && editingSeekStep) {
+              e.preventDefault();
+              e.stopPropagation();
+              setSeekStepInput(undefined);
             }
-            e.stopPropagation();
           }}
-          style={{ width: 100 }}
-          placeholder={t("sec", { ns: "general" })}
           slotProps={{
-            htmlInput: { "aria-label": t("seekStepDescription", { ns: "general" }) },
+            htmlInput: { "aria-describedby": `${id}-unit ${id}-help`, inputMode: "decimal" },
             input: {
               endAdornment: (
-                <InputAdornment position="end">{t("sec", { ns: "general" })}</InputAdornment>
+                <InputAdornment id={`${id}-unit`} position="end" disableTypography>
+                  {t("sec")}
+                </InputAdornment>
               ),
             },
           }}
         />
-      </ClickAwayListener>
-    );
-  }
-
-  return (
-    <Tooltip title={t("seekStepDescription", { ns: "general" })}>
-      <Button
-        ref={seekButtonRef}
-        className={classes.seekStepButton}
-        size="small"
-        disabled={disabled}
-        aria-label={t("seekStepDescription", { ns: "general" })}
-        onClick={startEditing}
-        variant="text"
-        color="inherit"
-      >
-        <Typography variant="body2" fontSize={12} fontWeight={500} className={classes.seekStepText}>
-          {(effectiveSeekMs / 1000).toFixed(9).replace(/\.?0+$/, "")} {t("sec", { ns: "general" })}
-        </Typography>
-        <ArrowDropDownIcon fontSize="small" />
-      </Button>
+        <span id={`${id}-help`} style={visuallyHidden}>
+          {t("seekStepHelp")}
+        </span>
+      </div>
     </Tooltip>
   );
 }
