@@ -238,23 +238,6 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
 
   return (
     <Stack>
-      <Controller
-        name="isDoubtful"
-        control={control}
-        render={({ field }) => (
-          <FormControlLabel
-            label={t("doubtful")}
-            control={
-              <Checkbox
-                checked={field.value === true}
-                onChange={(_event, checked) => {
-                  field.onChange(checked);
-                }}
-              />
-            }
-          />
-        )}
-      />
       <Stack paddingTop={2}>
         <Controller
           name="eventName"
@@ -517,6 +500,26 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
           />
         </Stack>
       )}
+
+      <Stack paddingTop={2}>
+        <Controller
+          name="isDoubtful"
+          control={control}
+          render={({ field }) => (
+            <FormControlLabel
+              label={t("doubtful")}
+              control={
+                <Checkbox
+                  checked={field.value === true}
+                  onChange={(_event, checked) => {
+                    field.onChange(checked);
+                  }}
+                />
+              }
+            />
+          )}
+        />
+      </Stack>
     </Stack>
   );
 }
