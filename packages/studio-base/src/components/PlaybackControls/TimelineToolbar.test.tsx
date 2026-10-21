@@ -9,8 +9,12 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import i18n from "i18next";
 
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
+import { makeMockAppConfiguration } from "@foxglove/studio-base/util/makeMockAppConfiguration";
 
+import SeekStepControls from "./SeekStepControls";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { TimelineToolbar } from "./TimelineToolbar";
 
@@ -23,10 +27,12 @@ function ToolbarFixture({
   onCreate = jest.fn(),
   onHeightChange,
   realHelp,
+  seekStep = <button>Step</button>,
 }: {
   onCreate?: () => void;
   onHeightChange?: (height: number) => void;
   realHelp?: boolean;
+  seekStep?: React.ReactNode;
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -40,7 +46,7 @@ function ToolbarFixture({
           </>
         }
         playbackOptions={<button>Repeat</button>}
-        seekStep={<button>Step</button>}
+        seekStep={seekStep}
         speed={<button>Speed</button>}
         time={({ compact }) => <input aria-label="Time" data-compact={compact} />}
         sourceInfo={<button>Source</button>}
@@ -63,7 +69,7 @@ describe("TimelineToolbar", () => {
   });
 
   it.each([1200, 1000, 999, 640])(
-    "keeps playback on the left and seek step immediately before more at %dpx",
+    "keeps playback on the left and seek step inside more at %dpx",
     (width) => {
       mockWidth = width;
       render(<ToolbarFixture />);
@@ -82,9 +88,17 @@ describe("TimelineToolbar", () => {
         "Create",
         ...(width >= 1000 ? ["Edit"] : []),
         "Fit",
-        "Step",
         "",
       ]);
+      expect(screen.queryByRole("button", { name: "Step" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
+      const more = screen.getByRole("dialog");
+      expect(
+        within(more)
+          .getAllByRole("button")
+          .slice(-2)
+          .map((button) => button.textContent),
+      ).toEqual(["Help", "Step"]);
       expect(screen.getAllByRole("button", { name: "Step" })).toHaveLength(1);
       expect(screen.getByLabelText("Time").dataset.compact).toBe(String(width < 1000));
     },
@@ -202,17 +216,23 @@ describe("TimelineToolbar", () => {
       fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
       const more = screen.getByRole("dialog");
       for (const name of [
-        "Step",
         "Repeat",
         "Source",
         "Create",
         "Edit",
         ...(width < 480 ? ["Fit"] : []),
         "Help",
+        "Step",
       ]) {
         expect(within(more).getByRole("button", { name })).toBeTruthy();
       }
       expect(screen.getAllByRole("button", { name: "Step" })).toHaveLength(1);
+      expect(
+        within(more)
+          .getAllByRole("button")
+          .slice(-2)
+          .map((button) => button.textContent),
+      ).toEqual(["Help", "Step"]);
       fireEvent.click(within(more).getByRole("button", { name: "Create" }));
       expect(onCreate).toHaveBeenCalledTimes(1);
       expect(
@@ -220,4 +240,43 @@ describe("TimelineToolbar", () => {
       ).toBe("false");
     },
   );
+
+  it.each([
+    { width: 1200, key: "Enter", expectedStep: 250 },
+    { width: 1200, key: "Escape", expectedStep: 100 },
+    { width: 375, key: "Enter", expectedStep: 250 },
+    { width: 375, key: "Escape", expectedStep: 100 },
+  ])("preserves $key editing inside more at $width px", async ({ width, key, expectedStep }) => {
+    mockWidth = width;
+    const configuration = makeMockAppConfiguration([[AppSetting.SEEK_STEP_MS, 100]]);
+    const onEditingChange = jest.fn();
+    render(
+      <AppConfigurationContext.Provider value={configuration}>
+        <ToolbarFixture seekStep={<SeekStepControls onEditingChange={onEditingChange} />} />
+      </AppConfigurationContext.Provider>,
+    );
+    const trigger = screen.getByRole("button", { name: "More timeline tools" });
+    fireEvent.click(trigger);
+    const more = screen.getByRole("dialog", { name: "More timeline tools" });
+    fireEvent.click(within(more).getByRole("button", { name: /Step size/ }));
+    expect(onEditingChange).toHaveBeenLastCalledWith(true);
+    const input = within(more).getByRole("textbox");
+    fireEvent.change(input, { target: { value: "0.25" } });
+    fireEvent.keyDown(input, { key });
+
+    expect(configuration.get(AppSetting.SEEK_STEP_MS)).toBe(expectedStep);
+    expect(document.activeElement).toBe(within(more).getByRole("button", { name: /Step size/ }));
+    expect(onEditingChange).toHaveBeenLastCalledWith(false);
+    expect(screen.getByRole("dialog", { name: "More timeline tools" })).toBeTruthy();
+
+    fireEvent.keyDown(more, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "More timeline tools" })).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+    });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("button", { name: /Step size/ }).textContent).toContain(
+      `${expectedStep / 1000} sec`,
+    );
+  });
 });

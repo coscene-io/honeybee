@@ -152,7 +152,6 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
         <div className={cx(classes.zoom, { [classes.minimalZoom]: minimal })}>{props.zoom}</div>
         <div className={classes.group}>
           {!minimal && props.fit({ showLabel: false })}
-          {!compact && props.seekStep}
           <HoverableIconButton
             size="small"
             icon={<MoreHorizIcon />}
@@ -190,7 +189,7 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
           },
         }}
       >
-        {((compact && (props.playbackOptions != undefined || props.seekStep != undefined)) ||
+        {((compact && props.playbackOptions != undefined) ||
           (condensed && props.sourceInfo != undefined)) && (
           <div className={classes.section}>
             <Typography variant="caption" className={classes.sectionTitle}>
@@ -198,7 +197,6 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
             </Typography>
             <div className={classes.group}>
               {compact && props.playbackOptions}
-              {compact && props.seekStep}
               {condensed && props.sourceInfo}
             </div>
           </div>
@@ -234,6 +232,7 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
               </div>
             )}
             {props.help({ showLabel: true })}
+            {props.seekStep}
           </div>
         </div>
       </Popover>
