@@ -291,11 +291,13 @@ function SeedSchemaProject({ id }: { id: string }): ReactNull {
   return ReactNull;
 }
 
-function CollapseFirstGroup({
+function FirstTrackView({
   collapsed = true,
+  hidden = false,
   projectName,
 }: {
   collapsed?: boolean;
+  hidden?: boolean;
   projectName?: string;
 }): ReactNull {
   const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
@@ -315,9 +317,24 @@ function CollapseFirstGroup({
     setCustomFieldSchema(schema, projectName);
     setMomentTimeline((old) => ({
       ...old,
-      views: { [projectName ?? ""]: { collapsed: { [group.id]: collapsed } } },
+      views: {
+        [projectName ?? ""]: {
+          collapsed: { [group.id]: collapsed },
+          hidden: { [group.id]: hidden },
+        },
+      },
     }));
-  }, [collapsed, events, projectName, setCustomFieldSchema, setMomentTimeline]);
+  }, [collapsed, events, hidden, projectName, setCustomFieldSchema, setMomentTimeline]);
+  return ReactNull;
+}
+
+function WritableRecord(): ReactNull {
+  const setProject = useCoreData((store) => store.setProject);
+  const setRecord = useCoreData((store) => store.setRecord);
+  useEffect(() => {
+    setProject({ loading: false, value: { isArchived: false } as never });
+    setRecord({ loading: false, value: { isArchived: false } as never });
+  }, [setProject, setRecord]);
   return ReactNull;
 }
 
@@ -370,7 +387,7 @@ describe("<EventsSyncAdapter />", () => {
           currentTime={{ sec: 1, nsec: 0 }}
         >
           <EventsSyncAdapter />
-          <CollapseFirstGroup collapsed={collapsed} />
+          <FirstTrackView collapsed={collapsed} hidden />
           <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
         </Wrapper>,
       );
@@ -411,7 +428,7 @@ describe("<EventsSyncAdapter />", () => {
         currentTime={{ sec: 1, nsec: 5_000 }}
       >
         <EventsSyncAdapter />
-        <CollapseFirstGroup />
+        <FirstTrackView />
         <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
       </Wrapper>,
     );
@@ -431,6 +448,102 @@ describe("<EventsSyncAdapter />", () => {
     expect(eventsStore.getState().eventMarks[0]?.time).toEqual({ sec: 1, nsec: 0 });
     expect(eventsStore.getState().events.value).toEqual(events);
   });
+
+  it("excludes hidden leaves from navigation, hover and snapping and restores their interactions", async () => {
+    const events = [makeEvent("leaf", 1, 2), makeEvent("root", 5, 1)];
+    events[0]!.event.customFieldValues = [
+      create(CustomFieldValueSchema, {
+        property: { id: "platform" },
+        value: { case: "enums", value: { id: "a" } },
+      }),
+    ];
+    const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+    const interaction = makeTimelineInteractionStore();
+    const content = ({ hidden }: { hidden: boolean }) => (
+      <Wrapper
+        eventsStore={eventsStore}
+        timelineInteractionStore={interaction}
+        currentTime={{ sec: 1, nsec: 5_000 }}
+      >
+        <EventsSyncAdapter />
+        <FirstTrackView collapsed={false} hidden={hidden} />
+        <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+      </Wrapper>
+    );
+    const { rerender } = render(content({ hidden: true }));
+    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+    expect(eventsStore.getState().selectedEventId).toBe("root");
+    act(() => {
+      interaction
+        .getState()
+        .setHoverValue({ componentId: "timeline", type: "PLAYBACK_SECONDS", value: 1.5 });
+    });
+    await waitFor(() => {
+      expect(interaction.getState().eventsAtHoverValue).toEqual({});
+    });
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "1", code: "Digit1", altKey: true });
+    });
+    expect(eventsStore.getState().eventMarks[0]?.time).toEqual({ sec: 1, nsec: 5_000 });
+
+    act(() => {
+      eventsStore.getState().selectEvent(undefined);
+      eventsStore.getState().setEventMarks([]);
+    });
+    rerender(content({ hidden: false }));
+    fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key: "ArrowDown" });
+    expect(eventsStore.getState().selectedEventId).toBe("leaf");
+    await waitFor(() => {
+      expect(Object.keys(interaction.getState().eventsAtHoverValue)).toEqual(["leaf"]);
+    });
+    await act(async () => {
+      fireEvent.keyDown(document, { key: "1", code: "Digit1", altKey: true });
+    });
+    expect(eventsStore.getState().eventMarks[0]?.time).toEqual({ sec: 1, nsec: 0 });
+    expect(eventsStore.getState().events.value).toBe(events);
+    rerender(content({ hidden: true }));
+    await waitFor(() => {
+      expect(interaction.getState().eventsAtHoverValue).toEqual({});
+    });
+  });
+
+  it.each(["i", "o"])(
+    "does not modify a selected hidden leaf through the %s shortcut",
+    async (key) => {
+      const events = [makeEvent("leaf", 1, 2)];
+      const eventsStore = makeEventsStore({ events, setEventMarks: jest.fn() });
+      eventsStore.getState().selectEvent("leaf");
+      const updateEvent = Object.assign(
+        jest.fn(async () => ({})),
+        { permission: () => true },
+      );
+      const content = ({ hidden }: { hidden: boolean }) => (
+        <Wrapper
+          eventEnabled
+          eventsStore={eventsStore}
+          timelineInteractionStore={makeTimelineInteractionStore()}
+          currentTime={{ sec: 2, nsec: 0 }}
+          consoleApi={{ updateEvent, deleteEvent: { permission: () => true } } as never}
+        >
+          <WritableRecord />
+          <EventsSyncAdapter />
+          <FirstTrackView collapsed={false} hidden={hidden} />
+          <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
+        </Wrapper>
+      );
+      const { rerender } = render(content({ hidden: true }));
+      await act(async () => {
+        fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key });
+      });
+      expect(updateEvent).not.toHaveBeenCalled();
+      expect(eventsStore.getState().events.value).toBe(events);
+      rerender(content({ hidden: false }));
+      await act(async () => {
+        fireEvent.keyDown(screen.getByTestId("keyboard-timeline"), { key });
+      });
+      expect(updateEvent).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("keeps foreign-project Moments available when the active project's group is collapsed", async () => {
     const owner = "warehouses/one/projects/active";
@@ -455,7 +568,7 @@ describe("<EventsSyncAdapter />", () => {
         currentTime={{ sec: 1, nsec: 0 }}
       >
         <EventsSyncAdapter />
-        <CollapseFirstGroup projectName={owner} />
+        <FirstTrackView projectName={owner} />
         <div data-timeline-scrubber tabIndex={0} data-testid="keyboard-timeline" />
       </Wrapper>,
     );

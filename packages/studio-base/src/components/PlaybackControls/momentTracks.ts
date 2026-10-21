@@ -29,7 +29,11 @@ export type MomentTrack = {
   /** Moments attached directly to this group, even when it also has children. */
   events: TimelinePositionedEvent[];
 };
-export type MomentTrackView = { collapsed?: Record<string, boolean> };
+export type MomentTrackView = {
+  collapsed?: Record<string, boolean>;
+  /** Visibility applies only to current leaf tracks; saved parent flags are ignored. */
+  hidden?: Record<string, boolean>;
+};
 export type MomentTimelineSettings = {
   doubtfulOnly?: boolean;
   labelWidth: number;
@@ -45,12 +49,17 @@ export type MomentTrackRow = {
   lane: number;
   laneCount: number;
   collapsed: boolean;
+  hidden: boolean;
 };
 export type MomentTrackLayout = EventLaneLayout & { rows: MomentTrackRow[] };
 
 /** Ignore saved collapse flags when a node is now a leaf, including after filtering. */
 export function isMomentTrackCollapsed(track: MomentTrack, view: MomentTrackView): boolean {
   return track.children.length > 0 && view.collapsed?.[track.id] === true;
+}
+
+export function isMomentTrackHidden(track: MomentTrack, view: MomentTrackView): boolean {
+  return track.children.length === 0 && view.hidden?.[track.id] === true;
 }
 
 // Explicit UTF-16 order is stable across browser languages and ICU versions.
@@ -247,14 +256,17 @@ export function layoutMomentTracks({
   let laneCount = 0;
   const visit = (track: MomentTrack) => {
     const collapsed = isMomentTrackCollapsed(track, view);
+    const hidden = isMomentTrackHidden(track, view);
     let events = track.events;
     if (overrides && events.some((entry) => overrides.has(entry.event.name))) {
       events = events.map((entry) => overrides.get(entry.event.name) ?? entry);
     }
     const layout =
-      events.length > 0 && !collapsed ? getCachedEventLaneLayout({ events, viewport }) : undefined;
+      events.length > 0 && !collapsed && !hidden
+        ? getCachedEventLaneLayout({ events, viewport })
+        : undefined;
     const lanes = Math.max(1, layout?.laneCount ?? 0);
-    rows.push({ track, lane: laneCount, laneCount: lanes, collapsed });
+    rows.push({ track, lane: laneCount, laneCount: lanes, collapsed, hidden });
     if (layout) {
       for (const item of offsetItems(layout, laneCount)) {
         items.push(item);

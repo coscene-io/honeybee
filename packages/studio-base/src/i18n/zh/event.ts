@@ -101,6 +101,8 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   ungroupedValue: "未填写",
   unknownOption: "未知选项：{{value}}",
   toggleGroup: "展开或折叠 {{name}}",
+  hideTrack: "隐藏轨道 {{name}}",
+  showTrack: "显示轨道 {{name}}",
   trackListWidth: "轨道列表宽度",
   doubtful: "存疑",
   loadingCreationContext: "正在加载账号和项目信息…",
