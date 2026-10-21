@@ -27,6 +27,8 @@ export type MomentCreationDefaults = MomentCreationScope & { values: CustomField
 
 export type ToModifyEvent = {
   name: string;
+  /** Timeline projection that opened this editor; absent for list-based editing. */
+  timelineRenderId?: string;
   eventName: string;
   startTime: undefined | Time;
   duration: undefined | number;

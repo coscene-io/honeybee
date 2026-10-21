@@ -1389,6 +1389,8 @@ describe("custom field Moment projections", () => {
     events = [makeEvent("events/source", 1, 2)],
     fieldCount = 2,
     scrollable = false,
+    baseOnlyEventNames = [] as string[],
+    isDragging = false,
   } = {}) {
     const schema = create(CustomFieldSchemaSchema, {
       properties: Array.from({ length: fieldCount }, (_, i) =>
@@ -1401,15 +1403,17 @@ describe("custom field Moment projections", () => {
       trackRules: Array.from({ length: fieldCount }, (_, i) => ({ propertyId: `field-${i}` })),
     });
     events.forEach((entry) => {
-      entry.event.customFieldValues = schema.properties.map((property) =>
-        create(CustomFieldValueSchema, {
-          property: { id: property.id },
-          value: {
-            case: "text",
-            value: { value: `${property.name} value for ${entry.event.name}` },
-          },
-        }),
-      );
+      entry.event.customFieldValues = schema.properties
+        .filter(() => !baseOnlyEventNames.includes(entry.event.name))
+        .map((property) =>
+          create(CustomFieldValueSchema, {
+            property: { id: property.id },
+            value: {
+              case: "text",
+              value: { value: `${property.name} value for ${entry.event.name}` },
+            },
+          }),
+        );
     });
     const eventsStore = makeEventsStore({ events, eventMarks: [], setEventMarks: jest.fn() });
     const updateEvent = jest.fn().mockResolvedValue({});
@@ -1426,7 +1430,7 @@ describe("custom field Moment projections", () => {
           componentId="projected-moments"
           canWriteEvents
           canDeleteEvents
-          isDragging={false}
+          isDragging={isDragging}
           eventContextMenuRequest={undefined}
           onEventContextMenuHandled={jest.fn()}
           onTrackLayoutChange={onTrackLayoutChange}
@@ -1453,7 +1457,7 @@ describe("custom field Moment projections", () => {
         )}
       </Wrapper>,
     );
-    return { eventsStore, updateEvent, deleteEvent, onTrackLayoutChange };
+    return { eventsStore, updateEvent, deleteEvent, onTrackLayoutChange, timelineStore };
   }
 
   function fieldBar(fieldId: string, name = "events/source"): HTMLElement {
@@ -1484,8 +1488,43 @@ describe("custom field Moment projections", () => {
     fireEvent.contextMenu(fieldBar("field-1"), { clientX: 100, clientY: 70 });
     fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
     expect(state.eventsStore.getState().toModifyEvent?.name).toBe("events/source");
+    expect(state.eventsStore.getState().toModifyEvent?.timelineRenderId).toBe(
+      fieldBar("field-1").dataset.renderId,
+    );
     expect(state.eventsStore.getState().toModifyEvent?.customFieldValues).toHaveLength(2);
     await act(async () => {});
+  });
+
+  it.each([
+    {
+      name: "ignores neighbors without the edited field",
+      events: [makeEvent("events/base-only", 0, 1), makeEvent("events/source", 1, 2)],
+      hover: 0.99,
+      expected: 0.99,
+    },
+    {
+      name: "snaps to field neighbors packed into a different base lane",
+      events: [
+        makeEvent("events/neighbor", 0, 0.8),
+        makeEvent("events/base-only", 0.8, 1.2),
+        makeEvent("events/source", 1, 2),
+      ],
+      hover: 0.79,
+      expected: 0.8,
+    },
+  ])("preserves the editor projection and $name", ({ events, hover, expected }) => {
+    const state = mount({ events, baseOnlyEventNames: ["events/base-only"], isDragging: true });
+    fireEvent.contextMenu(fieldBar("field-1"), { clientX: 100, clientY: 70 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
+    act(() => {
+      state.timelineStore.getState().setHoverValue({
+        componentId: "projected-moments",
+        type: "PLAYBACK_SECONDS",
+        value: hover,
+      });
+    });
+    expect(state.eventsStore.getState().eventMarks[0]?.time).toEqual(fromSec(expected));
+    expect(state.updateEvent).not.toHaveBeenCalled();
   });
 
   it("drags a field once, previews every projection, and writes the source only once", async () => {
@@ -1654,6 +1693,9 @@ describe("custom field Moment projections", () => {
     fireEvent.contextMenu(handle, { clientX: 500, clientY: 30 });
     fireEvent.click(screen.getByRole("menuitem", { name: "Edit Moment" }));
     expect(state.eventsStore.getState().toModifyEvent?.name).toBe("events/second");
+    expect(state.eventsStore.getState().toModifyEvent?.timelineRenderId).toBe(
+      fieldBar("field-0", "events/second").dataset.renderId,
+    );
     expect(state.updateEvent).not.toHaveBeenCalled();
   });
 });

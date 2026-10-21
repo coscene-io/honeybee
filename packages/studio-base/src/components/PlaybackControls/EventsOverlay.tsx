@@ -1061,6 +1061,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const toModifyEvent = useEvents(selectToModifyEvent);
   const setToModifyEvent = useEvents(selectSetToModifyEvent);
   const toModifyEventName = toModifyEvent?.name;
+  const toModifyRenderId = toModifyEvent?.timelineRenderId;
   const startTime = useMessagePipeline(selectStartTime);
   const seek = useMessagePipeline(selectSeek);
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
@@ -1134,6 +1135,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     | {
         anchorPosition: PopoverPosition;
         events: TimelinePositionedEvent[];
+        renderIds?: Map<string, string | undefined>;
       }
     | undefined
   >(undefined);
@@ -1154,9 +1156,13 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
         return;
       }
 
-      setContextMenu({ anchorPosition, event });
+      setContextMenu({
+        anchorPosition,
+        event,
+        renderId: selectionMenu?.renderIds?.get(event.event.name),
+      });
     },
-    [selectionMenu?.anchorPosition],
+    [selectionMenu],
   );
 
   const hoverTimePosition =
@@ -1245,6 +1251,14 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       [...indexEventLanes(renderLaneLayout).byName].map(([name, item]) => [name, item.lane]),
     );
   }, [renderLaneLayout]);
+  const toModifyLaneItem = useMemo(() => {
+    const index = indexEventLanes(renderLaneLayout);
+    return toModifyRenderId != undefined
+      ? index.byRenderId.get(toModifyRenderId)
+      : toModifyEventName != undefined
+        ? index.byName.get(toModifyEventName)
+        : undefined;
+  }, [renderLaneLayout, toModifyEventName, toModifyRenderId]);
 
   const [leftMark, rightMark] = eventMarks;
   const timelineStartSec = startTime != undefined ? toSec(startTime) : undefined;
@@ -1381,12 +1395,24 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
 
     if (matchingEvents.length === 1) {
       setSelectionMenu(undefined);
-      setContextMenu({ anchorPosition, event: matchingEvents[0]! });
+      setContextMenu({
+        anchorPosition,
+        event: matchingEvents[0]!,
+        renderId: rowItems?.find((item) => item.event.event.name === matchingEvents[0]!.event.name)
+          ?.renderId,
+      });
       return;
     }
 
     setContextMenu(undefined);
-    setSelectionMenu({ anchorPosition, events: matchingEvents });
+    setSelectionMenu({
+      anchorPosition,
+      events: matchingEvents,
+      renderIds:
+        rowItems != undefined
+          ? new Map(rowItems.map((item) => [item.event.event.name, item.renderId]))
+          : undefined,
+    });
   }, [
     eventContextMenuRequest,
     renderLaneLayout,
@@ -1923,18 +1949,18 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           time: add(startTime, fromSec(hoverValue.value)),
           position: hoverTimePosition,
         };
-        const toModifyEventLane =
-          toModifyEventName != undefined ? laneByEventName.get(toModifyEventName) : undefined;
         const eligibleEventNames =
-          toModifyEventLane != undefined
+          toModifyLaneItem != undefined
             ? new Set(
-                renderLaneLayout.items
-                  .filter((item) => item.lane === toModifyEventLane)
-                  .map((item) => item.event.event.name),
+                indexEventLanes(renderLaneLayout).byLane[toModifyLaneItem.lane]!.map(
+                  (item) => item.event.event.name,
+                ),
               )
-            : trackOptions != undefined
-              ? new Set(renderLaneLayout.items.map((item) => item.event.event.name))
-              : undefined;
+            : toModifyRenderId != undefined
+              ? new Set<string>()
+              : trackOptions != undefined
+                ? new Set(renderLaneLayout.items.map((item) => item.event.event.name))
+                : undefined;
         const nextMark = rollingEditEnabled
           ? getSnappedEventMark({
               excludedEventName: toModifyEventName,
@@ -1966,15 +1992,16 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     dragPointKey,
     hoverTimePosition,
     hoverValue,
-    laneByEventName,
     eventMarks,
     positionedEvents,
     trackOptions,
-    renderLaneLayout.items,
+    renderLaneLayout,
     rollingEditEnabled,
     setEventMarks,
     startTime,
     toModifyEventName,
+    toModifyLaneItem,
+    toModifyRenderId,
   ]);
 
   useEffect(() => {
@@ -2037,7 +2064,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   }, [commitRollingEdit, onSeek, rollingEditPair, rollingEditEnabled, viewport]);
 
   const editEvent = useCallback(
-    (targetEvent: TimelinePositionedEvent): void => {
+    (targetEvent: TimelinePositionedEvent, renderId?: string): void => {
       if (!permissions.current.canWriteEvents) {
         return;
       }
@@ -2059,6 +2086,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       ]);
       setToModifyEvent({
         name: targetEvent.event.name,
+        timelineRenderId: renderId,
         eventName: targetEvent.event.displayName,
         startTime: targetEvent.startTime,
         duration: eventDurationSec,
@@ -2125,7 +2153,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           index.byName.get(contextMenu.event.event.name))
         : undefined,
       focusedRenderId != undefined ? index.byRenderId.get(focusedRenderId) : undefined,
-      toModifyEventName != undefined ? index.byName.get(toModifyEventName) : undefined,
+      toModifyLaneItem,
     ];
     for (const item of retained) {
       if (item != undefined && !mounted.has(item.renderId ?? item.event.event.name)) {
@@ -2151,7 +2179,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
     rollingEdit,
     contextMenu,
     focusedRenderId,
-    toModifyEventName,
+    toModifyLaneItem,
   ]);
   const laneContent = useMemo(
     () => (
@@ -2349,7 +2377,9 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           canDeleteEvents={canDeleteEvents}
           event={contextMenuEvent}
           viewport={viewport}
-          onEdit={editEvent}
+          onEdit={(event) => {
+            editEvent(event, contextMenu.renderId);
+          }}
           onView={() => {
             setViewedEvent({ ...contextMenu, event: contextMenuEvent });
           }}
