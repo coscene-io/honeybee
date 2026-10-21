@@ -152,7 +152,26 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
     (store) => store.rememberCustomFieldValues,
   );
   const isCurrentScope = useMomentCreationDefaults((store) => store.isCurrentScope);
-  const hasRememberedUsers = rememberedValues.some((value) => value.value.case === "user");
+  const schema = useEvents((store) => store.customFieldSchema);
+  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
+  const hasRememberedUsers = useMemo(() => {
+    if (schemaProjectName !== projectName) {
+      return false;
+    }
+    const previous = new Map(rememberedValues.map((value) => [value.property?.id, value]));
+    return (
+      schema?.properties.some((property) => {
+        const value = previous.get(property.id);
+        return (
+          property.type.case === "user" &&
+          value?.value.case === "user" &&
+          value.value.value.ids.length > 0 &&
+          value.property?.type.case === "user" &&
+          value.property.type.value.multiple === property.type.value.multiple
+        );
+      }) === true
+    );
+  }, [schema, schemaProjectName, projectName, rememberedValues]);
   const [activeUsers, loadActiveUsers] = useAsyncFn(async () => {
     const users = await consoleApi.listOrganizationUsers();
     return new Set(
@@ -164,8 +183,6 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
       void loadActiveUsers();
     }
   }, [isEditing, hasRememberedUsers, loadActiveUsers]);
-  const schema = useEvents((store) => store.customFieldSchema);
-  const schemaProjectName = useEvents((store) => store.customFieldSchemaProjectName);
   const schemaError = useEvents((store) => store.customFieldSchemaError);
   const refreshCustomFieldSchema = useEvents((store) => store.refreshCustomFieldSchema);
   const hasSchemaError = !isEditing && schemaError?.projectName === projectName;

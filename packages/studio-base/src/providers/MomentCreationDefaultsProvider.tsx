@@ -28,6 +28,7 @@ export default function MomentCreationDefaultsProvider({
   const loginStatus = useCurrentUser((store) => store.loginStatus);
   const configuredBaseUrl = useCoreData((store) => store.baseUrl);
   const apiBaseUrl = consoleApi.getBaseUrl();
+  const projectBaseUrl = configuredBaseUrl ?? apiBaseUrl;
   const activeScopeId = useRef<string>();
 
   // Replacing the store also isolates late create responses from a previous scope,
@@ -35,7 +36,7 @@ export default function MomentCreationDefaultsProvider({
   const store = useMemo(() => {
     const enabled =
       apiBaseUrl.length > 0 &&
-      configuredBaseUrl !== "" &&
+      projectBaseUrl.length > 0 &&
       warehouseId != undefined &&
       projectId != undefined &&
       userId != undefined &&
@@ -53,7 +54,7 @@ export default function MomentCreationDefaultsProvider({
         }
       },
     }));
-  }, [apiBaseUrl, configuredBaseUrl, warehouseId, projectId, userId, loginStatus]);
+  }, [apiBaseUrl, projectBaseUrl, warehouseId, projectId, userId, loginStatus]);
 
   useLayoutEffect(() => {
     const id = store.getState().id;

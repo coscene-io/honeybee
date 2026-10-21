@@ -5,10 +5,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { create, fromJson } from "@bufbuild/protobuf";
+import { clone, create, fromJson } from "@bufbuild/protobuf";
 import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { createStore } from "zustand";
 
 import { fromSec, type Time } from "@foxglove/rostime";
 import CssBaseline from "@foxglove/studio-base/components/CssBaseline";
@@ -27,6 +28,10 @@ import {
   useEvents,
   type TimelinePositionedEvent,
 } from "@foxglove/studio-base/context/EventsContext";
+import {
+  MomentCreationDefaultsContext,
+  type MomentCreationDefaultsStore,
+} from "@foxglove/studio-base/context/MomentCreationDefaultsContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { initI18n } from "@foxglove/studio-base/i18n";
 import MomentsList from "@foxglove/studio-base/panels/MomentsBar/MomentsList";
@@ -34,8 +39,6 @@ import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlay
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
 import EventsProvider from "@foxglove/studio-base/providers/EventsProvider";
-import MockCoSceneCurrentUserProvider from "@foxglove/studio-base/providers/MockCoSceneCurrentUserProvider";
-import MomentCreationDefaultsProvider from "@foxglove/studio-base/providers/MomentCreationDefaultsProvider";
 import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import TimelineInteractionStateProvider from "@foxglove/studio-base/providers/TimelineInteractionStateProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
@@ -63,12 +66,22 @@ const api = {
 } as unknown as React.ContextType<typeof CoSceneConsoleApiContext>;
 
 function BenchmarkEventProviders({ children }: React.PropsWithChildren): React.JSX.Element {
+  // Synthetic events have no authenticated project; keep their editing controls available.
+  const [defaults] = useState(() =>
+    createStore<MomentCreationDefaultsStore>((set) => ({
+      id: "moment-benchmark",
+      isReady: true,
+      isCurrentScope: () => true,
+      customFieldValues: [],
+      rememberCustomFieldValues: (values) => {
+        set({ customFieldValues: values.map((value) => clone(CustomFieldValueSchema, value)) });
+      },
+    })),
+  );
   return (
-    <MockCoSceneCurrentUserProvider>
-      <MomentCreationDefaultsProvider>
-        <EventsProvider>{children}</EventsProvider>
-      </MomentCreationDefaultsProvider>
-    </MockCoSceneCurrentUserProvider>
+    <MomentCreationDefaultsContext.Provider value={defaults}>
+      <EventsProvider>{children}</EventsProvider>
+    </MomentCreationDefaultsContext.Provider>
   );
 }
 

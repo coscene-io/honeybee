@@ -670,3 +670,74 @@ it("waits for initial account hydration before exposing editable fields", async 
   await open();
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
 });
+
+it("preserves defaults and input when endpoint configuration hydrates with the current URL", async () => {
+  setup();
+  await open();
+  await fill();
+  await submit();
+  await open();
+  fireEvent.change(screen.getByPlaceholderText("Text value"), {
+    target: { value: "unsaved input" },
+  });
+  await act(async () => {
+    coreStore.getState().setBaseUrl(apiBaseUrl);
+  });
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("unsaved input");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await open();
+  expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
+});
+
+it.each(["removed", "changed type", "changed selection mode", "cleared"])(
+  "does not load people for %s defaults",
+  async (change) => {
+    setup();
+    await open();
+    const cleared = cloneDeep(samples);
+    for (const value of cleared) {
+      if (value.value.case === "user") {
+        value.value.value.ids = [];
+      }
+    }
+    await fill(change === "cleared" ? cleared : samples);
+    await submit();
+    const nextSchema = cloneDeep(schema);
+    nextSchema.properties = nextSchema.properties.flatMap((property) => {
+      if (property.type.case !== "user") {
+        return [property];
+      }
+      if (change === "removed") {
+        return [];
+      }
+      if (change === "cleared") {
+        return [property];
+      }
+      property.type =
+        change === "changed type"
+          ? { case: "text", value: { $typeName: "coscene.dataplatform.v1alpha3.common.TextType" } }
+          : {
+              case: "user",
+              value: { ...property.type.value, multiple: !property.type.value.multiple },
+            };
+      return [property];
+    });
+    await act(async () => {
+      eventsStore.getState().setCustomFieldSchema(nextSchema, projectName);
+    });
+    listUsers.mockClear();
+    await open();
+    // Any remaining user controls can load their options independently, but defaults
+    // restoration must not add a directory dependency for obsolete values.
+    expect(listUsers).toHaveBeenCalledTimes(
+      change === "changed selection mode" || change === "cleared" ? 2 : 0,
+    );
+    expect((document.getElementById("create-moment") as HTMLButtonElement).disabled).toBe(false);
+    await submit();
+    expect(
+      createEvent.mock.calls[1]?.[0].event.customFieldValues.some(
+        (value) => value.value.case === "user",
+      ),
+    ).toBe(false);
+  },
+);
