@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { makeStyles } from "tss-react/mui";
 
 import { EVENT_LANE_HEIGHT_PX } from "./constants";
+import { getMomentTrackBackground } from "./momentTimelineColors";
 import { canHideMomentTrack, type MomentTrackLayout, type MomentTrackView } from "./momentTracks";
 import { useVisibleEventLanes } from "./useVisibleEventLanes";
 
@@ -27,10 +28,9 @@ const useStyles = makeStyles()((theme) => ({
     display: "flex",
     alignItems: "flex-start",
     borderBottom: `1px solid ${theme.palette.divider}`,
-    background: theme.palette.background.paper,
     color: theme.palette.text.primary,
     fontSize: 12,
-    "&:hover": { backgroundColor: alpha(theme.palette.text.primary, 0.04) },
+    "&:hover": { boxShadow: `inset 0 0 0 1000px ${alpha(theme.palette.text.primary, 0.04)}` },
   },
   title: {
     flex: 1,
@@ -56,7 +56,7 @@ export function MomentTrackList({
 }): React.JSX.Element {
   const root = useRef<HTMLDivElement>(ReactNull);
   const visible = useVisibleEventLanes(root, layout.laneCount, "top");
-  const { classes } = useStyles();
+  const { classes, theme } = useStyles();
   const { t } = useTranslation("event");
   return (
     <div
@@ -91,6 +91,7 @@ export function MomentTrackList({
                 height: laneCount * EVENT_LANE_HEIGHT_PX,
                 paddingLeft: track.depth * 12,
                 opacity: hidden ? 0.55 : 1,
+                backgroundColor: getMomentTrackBackground(track.id, theme.palette.mode),
               }}
             >
               {track.children.length > 0 ? (
