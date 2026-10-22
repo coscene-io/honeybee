@@ -488,9 +488,11 @@ export default function Scrubber(props: Props): React.JSX.Element {
     enableList.event === "ENABLE" &&
     !project.loading &&
     project.value?.slug &&
+    !project.value.isArchived &&
     organizationSlug &&
-    consoleApi.getMomentCustomFieldSchema.permission()
-      ? `https://${getDomainConfig().webDomain}/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(project.value.slug)}/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1`
+    consoleApi.getMomentCustomFieldSchema.permission() &&
+    consoleApi.canConfigureMomentCustomFieldRules()
+      ? `https://${getDomainConfig().webDomain}/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(project.value.slug)}/manage/advanced-settings/custom-field/moment-custom-field`
       : undefined;
   const visibleEvents = useVisibleEvents();
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);

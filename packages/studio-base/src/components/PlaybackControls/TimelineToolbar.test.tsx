@@ -76,7 +76,7 @@ describe("TimelineToolbar", () => {
   it.each([1200, 375])("opens project rules from a link below step at %dpx", async (width) => {
     mockWidth = width;
     const url =
-      "https://console.example/org/project/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1";
+      "https://console.example/org/project/manage/advanced-settings/custom-field/moment-custom-field";
     render(<ToolbarFixture momentSettingsUrl={url} />);
     fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
     const more = screen.getByRole("dialog");

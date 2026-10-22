@@ -11,12 +11,13 @@ Open <http://127.0.0.1:8087/?count=8&distribution=continuous&groupLevels=1&group
 Add `&theme=light` to check the light theme. Increase the timeline height using its splitter to see every row.
 
 The timeline's More menu places **Moment grouping and tracks** below the seek step,
-separated from the playback tools. It opens the current project's console page in
-a new tab with `?momentRules=1`, which asks Mono to open its existing shared rules
-editor. Public projects use the data publisher's organization slug, including
-when it differs from the signed-in organization. The fixture uses synthetic
-organization/project slugs; its link is for
-visual inspection, not a deployed project configuration test.
+separated from the playback tools. It opens the project's existing Moment custom
+field page in a new tab. The entry requires both schema-read and
+`SetMomentCustomFieldRules` permissions and is hidden for archived projects;
+read-only users do not see it. Public projects use the data publisher's organization
+slug, including when it differs from the signed-in organization. The fixture uses
+synthetic organization/project slugs; its link is for visual inspection, not a
+deployed project configuration test.
 
 In a connected project, returning to the visible, focused studio reloads the
 project's Moment schema once per foreground transition. Existing rules remain in

@@ -57,6 +57,7 @@ const api = {
   createEvent: allowed,
   deleteEvent: allowed,
   getMomentCustomFieldSchema: allowed,
+  canConfigureMomentCustomFieldRules: () => true,
   getDiagnosisRule: async () => ({ rules: [] }),
   batchGetUsers: async (names: string[]) => ({
     users: names.map((name) => ({ name, nickname: name === "users/amy" ? "Amy" : "Lee" })),

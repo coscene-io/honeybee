@@ -148,10 +148,12 @@ function SeedEventFeature({ enabled }: { enabled: boolean }): ReactNull {
 
 function SeedSettingsProject({
   loading = false,
+  archived = false,
   organizationLoading = false,
   publisherSlug,
 }: {
   loading?: boolean;
+  archived?: boolean;
   organizationLoading?: boolean;
   publisherSlug?: string;
 }): ReactNull {
@@ -159,7 +161,7 @@ function SeedSettingsProject({
   const setOrganization = useCoreData((store) => store.setOrganization);
   const setExternalInitConfig = useCoreData((store) => store.setExternalInitConfig);
   useEffect(() => {
-    setProject({ loading, value: { slug: "project", isArchived: false } as never });
+    setProject({ loading, value: { slug: "project", isArchived: archived } as never });
     setOrganization({ loading: organizationLoading, value: { slug: "organization" } as never });
     setExternalInitConfig({
       warehouseId: "warehouse",
@@ -167,6 +169,7 @@ function SeedSettingsProject({
       organizationSlug: publisherSlug,
     });
   }, [
+    archived,
     loading,
     organizationLoading,
     publisherSlug,
@@ -295,13 +298,57 @@ describe("<Scrubber />", () => {
   });
 
   it.each([
-    { eventEnabled: true, canRead: true, loading: false, visible: true },
-    { eventEnabled: true, canRead: false, loading: false, visible: false },
-    { eventEnabled: true, canRead: true, loading: true, visible: false },
-    { eventEnabled: false, canRead: true, loading: false, visible: false },
+    {
+      eventEnabled: true,
+      canRead: true,
+      canConfigure: true,
+      loading: false,
+      archived: false,
+      visible: true,
+    },
+    {
+      eventEnabled: true,
+      canRead: true,
+      canConfigure: false,
+      loading: false,
+      archived: false,
+      visible: false,
+    },
+    {
+      eventEnabled: true,
+      canRead: false,
+      canConfigure: true,
+      loading: false,
+      archived: false,
+      visible: false,
+    },
+    {
+      eventEnabled: true,
+      canRead: true,
+      canConfigure: true,
+      loading: true,
+      archived: false,
+      visible: false,
+    },
+    {
+      eventEnabled: false,
+      canRead: true,
+      canConfigure: true,
+      loading: false,
+      archived: false,
+      visible: false,
+    },
+    {
+      eventEnabled: true,
+      canRead: true,
+      canConfigure: true,
+      loading: false,
+      archived: true,
+      visible: false,
+    },
   ])(
-    "scopes the rules link to the readable project (%j)",
-    ({ eventEnabled, canRead, loading, visible }) => {
+    "shows the rules link only with project schema read and rule configuration permissions (%j)",
+    ({ eventEnabled, canRead, canConfigure, loading, archived, visible }) => {
       render(
         <Wrapper
           eventEnabled={eventEnabled}
@@ -311,10 +358,11 @@ describe("<Scrubber />", () => {
               updateEvent: { permission: () => false },
               deleteEvent: { permission: () => false },
               getMomentCustomFieldSchema: { permission: () => canRead },
+              canConfigureMomentCustomFieldRules: () => canConfigure,
             } as never
           }
         >
-          <SeedSettingsProject loading={loading} />
+          <SeedSettingsProject loading={loading} archived={archived} />
           <Scrubber onSeek={jest.fn()} />
         </Wrapper>,
       );
@@ -323,7 +371,7 @@ describe("<Scrubber />", () => {
       expect(link != undefined).toBe(visible);
       if (visible) {
         expect(link?.getAttribute("href")).toBe(
-          "https://dev.coscene.cn/organization/project/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1",
+          "https://dev.coscene.cn/organization/project/manage/advanced-settings/custom-field/moment-custom-field",
         );
       }
     },
@@ -345,6 +393,7 @@ describe("<Scrubber />", () => {
               updateEvent: { permission: () => false },
               deleteEvent: { permission: () => false },
               getMomentCustomFieldSchema: { permission: () => true },
+              canConfigureMomentCustomFieldRules: () => true,
             } as never
           }
         >
@@ -359,7 +408,7 @@ describe("<Scrubber />", () => {
       const link = screen.queryByRole("link", { name: "Moment grouping and tracks" });
       if (expectedOrganization) {
         expect(link?.getAttribute("href")).toBe(
-          `https://dev.coscene.cn/${expectedOrganization}/project/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1`,
+          `https://dev.coscene.cn/${expectedOrganization}/project/manage/advanced-settings/custom-field/moment-custom-field`,
         );
       } else {
         expect(link).toBeNull();

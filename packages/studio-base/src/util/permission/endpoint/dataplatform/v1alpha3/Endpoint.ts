@@ -59,6 +59,7 @@ enum Endpoint {
   GetCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetCustomFieldSchema",
   GetDeviceCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetDeviceCustomFieldSchema",
   GetMomentCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetMomentCustomFieldSchema",
+  SetMomentCustomFieldRules = "coscene.dataplatform.v1alpha3.services.CustomFieldService.SetMomentCustomFieldRules",
   GetRecordCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetRecordCustomFieldSchema",
   GetTaskCustomFieldSchema = "coscene.dataplatform.v1alpha3.services.CustomFieldService.GetTaskCustomFieldSchema",
   RemoveCustomFieldProperties = "coscene.dataplatform.v1alpha3.services.CustomFieldService.RemoveCustomFieldProperties",
