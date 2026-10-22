@@ -9,7 +9,7 @@ import { fromJson } from "@bufbuild/protobuf";
 import { CustomFieldValueSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/common/custom_field_pb";
 import { getContrastRatio } from "@mui/material/styles";
 
-import { getMomentFieldColor, getMomentTrackBackground } from "./momentTimelineColors";
+import { getMomentFieldColor } from "./momentTimelineColors";
 
 const field = (value: Record<string, unknown>) =>
   fromJson(CustomFieldValueSchema, { property: { id: "action" }, ...value });
@@ -61,16 +61,3 @@ it("keeps a large set of field colors distinct and readable with dark text", () 
   expect(new Set(colors).size).toBe(colors.length);
   expect(colors.every((color) => getContrastRatio(color, "#000") >= 4.5)).toBe(true);
 });
-
-it.each(["light", "dark"] as const)(
-  "keeps track backgrounds distinct and stable in %s mode",
-  (mode) => {
-    const ids = Array.from({ length: 400 }, (_, index) => `track/${index}`);
-    const colors = ids.map((id) => getMomentTrackBackground(id, mode));
-    expect(new Set(colors).size).toBe(ids.length);
-    expect(getMomentTrackBackground(ids[10]!, mode)).toBe(colors[10]);
-    expect(getMomentTrackBackground(ids[10]!, mode === "dark" ? "light" : "dark")).not.toBe(
-      colors[10],
-    );
-  },
-);

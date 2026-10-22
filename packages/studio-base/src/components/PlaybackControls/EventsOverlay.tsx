@@ -81,7 +81,6 @@ import {
 import { getEventTimeIndex } from "./eventTimeIndex";
 import { frameInput } from "./frameInput";
 import { SHORTCUTS } from "./keyboardShortcuts";
-import { getMomentTrackBackground } from "./momentTimelineColors";
 import {
   layoutMomentTracks,
   type MomentTrackLayout,
@@ -155,13 +154,6 @@ const useStyles = makeStyles()(({ transitions, palette, zIndex }) => ({
   },
   tickDragging: {
     cursor: "grabbing",
-  },
-  laneRow: {
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
-    height: EVENT_LANE_HEIGHT_PX,
-    left: 0,
-    position: "absolute",
-    right: 0,
   },
   emptyEventHint: {
     alignItems: "center",
@@ -1073,7 +1065,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const hoverValue = useHoverValue({ componentId, isPlaybackSeconds: true });
-  const { classes, cx, theme } = useStyles();
+  const { classes, cx } = useStyles();
   // Share Emotion's serialized class combinations across every tick. Re-running the
   // complete style hook for thousands of items otherwise dominates viewport updates.
   const tickClasses = useMemo<EventTickClasses>(
@@ -2198,43 +2190,6 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           transform: trackOptions != undefined ? undefined : "translateY(-50%)",
         }}
       >
-        {renderLaneLayout.rows != undefined
-          ? renderLaneLayout.rows
-              .filter(
-                (row) =>
-                  row.lane <= visibleLanes.last && row.lane + row.laneCount > visibleLanes.first,
-              )
-              .map(({ track, lane, laneCount }) => (
-                <div
-                  className={classes.laneRow}
-                  key={track.id}
-                  data-testid="timeline-track-background"
-                  data-track-id={track.id}
-                  style={{
-                    top: lane * EVENT_LANE_HEIGHT_PX,
-                    height: laneCount * EVENT_LANE_HEIGHT_PX,
-                    backgroundColor: getMomentTrackBackground(track.id, theme.palette.mode),
-                  }}
-                />
-              ))
-          : Array.from(
-              {
-                length: Math.max(
-                  0,
-                  Math.min(renderedLaneCount - 1, visibleLanes.last) - visibleLanes.first + 1,
-                ),
-              },
-              (_value, index) => {
-                const lane = visibleLanes.first + index;
-                return (
-                  <div
-                    className={classes.laneRow}
-                    key={lane}
-                    style={{ top: lane * EVENT_LANE_HEIGHT_PX }}
-                  />
-                );
-              },
-            )}
         {showEmptyEventHint && (
           <div className={classes.emptyEventHint} data-testid="timeline-empty-event-hint">
             <span
@@ -2327,9 +2282,6 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       contextMenu?.event.event.name,
       eventDrag,
       laneContentHeight,
-      renderedLaneCount,
-      renderLaneLayout.rows,
-      theme.palette.mode,
       trackOptions,
       rollingEdit,
       rollingEditEnabled,

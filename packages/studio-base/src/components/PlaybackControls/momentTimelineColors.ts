@@ -18,11 +18,6 @@ function colorHash(key: string): number {
   return (hash ^ (hash >>> 16)) >>> 0;
 }
 
-export function getMomentTrackBackground(trackId: string, mode: "light" | "dark"): string {
-  const hue = ((colorHash(trackId) / 2 ** 32) * 360).toFixed(6);
-  return `hsla(${hue}, 65%, ${mode === "dark" ? 65 : 45}%, ${mode === "dark" ? 0.14 : 0.08})`;
-}
-
 /** Use raw identities, so renames, localization and multi-value order cannot change a color. */
 export function getMomentFieldColor(field: CustomFieldValue, projectName?: string): string {
   let value: unknown;

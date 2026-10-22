@@ -36,33 +36,6 @@ function layout(count: number): MomentTrackLayout {
   };
 }
 
-it.each([false, true])("retains background colors across reordering in dark mode %s", (isDark) => {
-  const tracks = layout(3);
-  const state = render(
-    <ThemeProvider isDark={isDark}>
-      <MomentTrackList layout={tracks} view={{}} onViewChange={jest.fn()} />
-    </ThemeProvider>,
-  );
-  const backgrounds = () =>
-    new Map(
-      screen
-        .getAllByTestId("moment-track-title")
-        .map((row) => [row.dataset.trackId, row.style.backgroundColor]),
-    );
-  const before = backgrounds();
-  expect(new Set(before.values()).size).toBe(3);
-  state.rerender(
-    <ThemeProvider isDark={isDark}>
-      <MomentTrackList
-        layout={{ ...tracks, rows: [...tracks.rows].reverse() }}
-        view={{}}
-        onViewChange={jest.fn()}
-      />
-    </ThemeProvider>,
-  );
-  expect(backgrounds()).toEqual(before);
-});
-
 it("virtualizes leaf labels against the shared scroll container", async () => {
   const onViewChange = jest.fn();
   let scrollOffset = 0;
