@@ -61,7 +61,7 @@ export function formatTime(stamp: Time, timezone?: string): string {
 export function formatDuration(stamp: Time): string {
   return moment
     .duration(Math.round(stamp.sec * 1000 + stamp.nsec / 1e6))
-    .format("h:mm:ss.SSS", { trim: false });
+    .format("hh:mm:ss.SSS", { trim: false });
 }
 
 export function parseTimeStr(str: string, timezone?: string): Time | undefined {
