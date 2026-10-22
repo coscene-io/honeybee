@@ -81,6 +81,7 @@ import {
 import { getEventTimeIndex } from "./eventTimeIndex";
 import { frameInput } from "./frameInput";
 import { SHORTCUTS } from "./keyboardShortcuts";
+import { getMomentTrackBackground } from "./momentTimelineColors";
 import {
   layoutMomentTracks,
   type MomentTrackLayout,
@@ -383,8 +384,13 @@ function EventTick({
       }
       style={{
         ...getEventLaneRenderStyle(item),
+        ...(item.fieldColor != undefined
+          ? { backgroundColor: item.fieldColor, color: "#000" }
+          : {}),
         ...(isMomentDoubtful(item.event.event.customizedFields)
-          ? { backgroundColor: DOUBTFUL_MOMENT_COLOR, color: "#000" }
+          ? item.fieldPropertyId != undefined
+            ? { boxShadow: `inset 0 0 0 2px ${DOUBTFUL_MOMENT_COLOR}` }
+            : { backgroundColor: DOUBTFUL_MOMENT_COLOR, color: "#000" }
           : {}),
       }}
       data-testid="timeline-event"
@@ -1067,7 +1073,7 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
   const hoverValue = useHoverValue({ componentId, isPlaybackSeconds: true });
-  const { classes, cx } = useStyles();
+  const { classes, cx, theme } = useStyles();
   // Share Emotion's serialized class combinations across every tick. Re-running the
   // complete style hook for thousands of items otherwise dominates viewport updates.
   const tickClasses = useMemo<EventTickClasses>(
@@ -2192,24 +2198,43 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
           transform: trackOptions != undefined ? undefined : "translateY(-50%)",
         }}
       >
-        {Array.from(
-          {
-            length: Math.max(
-              0,
-              Math.min(renderedLaneCount - 1, visibleLanes.last) - visibleLanes.first + 1,
-            ),
-          },
-          (_value, index) => {
-            const lane = visibleLanes.first + index;
-            return (
-              <div
-                className={classes.laneRow}
-                key={lane}
-                style={{ top: lane * EVENT_LANE_HEIGHT_PX }}
-              />
-            );
-          },
-        )}
+        {renderLaneLayout.rows != undefined
+          ? renderLaneLayout.rows
+              .filter(
+                (row) =>
+                  row.lane <= visibleLanes.last && row.lane + row.laneCount > visibleLanes.first,
+              )
+              .map(({ track, lane, laneCount }) => (
+                <div
+                  className={classes.laneRow}
+                  key={track.id}
+                  data-testid="timeline-track-background"
+                  data-track-id={track.id}
+                  style={{
+                    top: lane * EVENT_LANE_HEIGHT_PX,
+                    height: laneCount * EVENT_LANE_HEIGHT_PX,
+                    backgroundColor: getMomentTrackBackground(track.id, theme.palette.mode),
+                  }}
+                />
+              ))
+          : Array.from(
+              {
+                length: Math.max(
+                  0,
+                  Math.min(renderedLaneCount - 1, visibleLanes.last) - visibleLanes.first + 1,
+                ),
+              },
+              (_value, index) => {
+                const lane = visibleLanes.first + index;
+                return (
+                  <div
+                    className={classes.laneRow}
+                    key={lane}
+                    style={{ top: lane * EVENT_LANE_HEIGHT_PX }}
+                  />
+                );
+              },
+            )}
         {showEmptyEventHint && (
           <div className={classes.emptyEventHint} data-testid="timeline-empty-event-hint">
             <span
@@ -2303,6 +2328,8 @@ function UnmemoizedEventsOverlay(props: Props): React.JSX.Element | ReactNull {
       eventDrag,
       laneContentHeight,
       renderedLaneCount,
+      renderLaneLayout.rows,
+      theme.palette.mode,
       trackOptions,
       rollingEdit,
       rollingEditEnabled,

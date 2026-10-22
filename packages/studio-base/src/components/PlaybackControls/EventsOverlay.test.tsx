@@ -1495,6 +1495,35 @@ describe("custom field Moment projections", () => {
     await act(async () => {});
   });
 
+  it("retains value colors on doubtful field projections while the original Moment stays red", () => {
+    const event = makeEvent("events/source", 1, 2);
+    const state = mount({ events: [event] });
+    const original = screen
+      .getAllByTestId("timeline-event")
+      .find((bar) => bar.dataset.fieldPropertyId == undefined)!;
+    const color = fieldBar("field-0").style.backgroundColor;
+    expect(color).not.toBe("");
+    expect(fieldBar("field-1").style.backgroundColor).not.toBe(color);
+    act(() => {
+      state.eventsStore.getState().setEvents({
+        loading: false,
+        value: [{ ...event, event: { ...event.event, customizedFields: { _doubtful: "true" } } }],
+      });
+    });
+    expect(original.style.backgroundColor).toBe("rgb(255, 77, 79)");
+    expect(fieldBar("field-0").style.backgroundColor).toBe(color);
+    expect(fieldBar("field-0").style.boxShadow).toBe("inset 0 0 0 2px #FF4D4F");
+    expect(original.style.boxShadow).toBe("");
+  });
+
+  it("paints one background over every lane occupied by a track", () => {
+    mount({ events: [makeEvent("events/source", 1, 2), makeEvent("events/overlap", 1, 2)] });
+    const rows = screen.getAllByTestId("timeline-track-background");
+    expect(rows).toHaveLength(3);
+    expect(new Set(rows.map((row) => row.style.backgroundColor)).size).toBe(3);
+    expect(rows.map((row) => row.style.height)).toEqual(["56px", "56px", "56px"]);
+  });
+
   it.each([
     {
       name: "ignores neighbors without the edited field",

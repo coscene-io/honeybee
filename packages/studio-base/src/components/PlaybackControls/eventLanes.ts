@@ -31,6 +31,7 @@ export type EventLaneLayoutItem = {
   label?: string;
   trackId?: string;
   fieldPropertyId?: string;
+  fieldColor?: string;
   endPosition: number;
   endSec: number;
   isZeroDuration: boolean;
@@ -234,7 +235,8 @@ export function reuseEventLaneItems<T extends EventLaneLayout>(
         old.renderId === item.renderId &&
         old.label === item.label &&
         old.trackId === item.trackId &&
-        old.fieldPropertyId === item.fieldPropertyId
+        old.fieldPropertyId === item.fieldPropertyId &&
+        old.fieldColor === item.fieldColor
         ? old
         : item;
     }),

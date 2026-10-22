@@ -639,6 +639,45 @@ describe("project Moment field tracks", () => {
     expect(collapsed.items).toHaveLength(0);
   });
 
+  it("keeps field colors across groups, records, filtering, renames and drag previews", () => {
+    const current = trackSchema();
+    const entries = [withFields("one", "a"), withFields("two", "b"), withFields("three", "a")];
+    entries[1]!.event.record = "records/other";
+    const notes = entries[2]!.event.customFieldValues.find(
+      (value) => value.property?.id === "notes",
+    )!;
+    if (notes.value.case === "text") {
+      notes.value.value.value = "Place cup";
+    }
+    const colors = (events: TimelinePositionedEvent[]) =>
+      layoutMomentTracks({ tracks: getMomentTracks(events, current), viewport, view: {} })
+        .items.filter((item) => item.fieldPropertyId === "notes")
+        .map((item) => [item.event.event.name, item.fieldColor] as const);
+    const before = new Map(colors(entries));
+    expect(before.get("one")).toBeDefined();
+    expect(before.get("one")).toBe(before.get("two"));
+    expect(before.get("one")).not.toBe(before.get("three"));
+    current.properties.find((value) => value.id === "notes")!.name = "Renamed";
+    expect(new Map(colors([...entries].reverse()))).toEqual(before);
+    expect(colors([entries[1]!])).toEqual([["two", before.get("two")]]);
+    const tracks = getMomentTracks(entries, current);
+    const original = layoutMomentTracks({ tracks, viewport, view: {} });
+    const preview = layoutMomentTracks({
+      tracks,
+      viewport,
+      view: {},
+      overrides: new Map([["one", { ...entries[0]!, secondsSinceStart: 10 }]]),
+    });
+    expect(new Map(preview.items.map((item) => [item.renderId, item.fieldColor]))).toEqual(
+      new Map(original.items.map((item) => [item.renderId, item.fieldColor])),
+    );
+    expect(
+      original.items
+        .filter((item) => item.fieldPropertyId == undefined)
+        .every((item) => item.fieldColor == undefined),
+    ).toBe(true);
+  });
+
   it("keeps base and field visibility independent and collapses an entire projected group", () => {
     const entries = [withFields("one", "a")];
     const tracks = getMomentTracks(entries, trackSchema());

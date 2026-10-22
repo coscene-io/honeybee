@@ -16,6 +16,7 @@ import {
   type EventLaneLayoutItem,
 } from "./eventLanes";
 import { formatMomentFieldValue, type MomentFieldFormatOptions } from "./momentFieldValues";
+import { getMomentFieldColor } from "./momentTimelineColors";
 import type { TimelineViewport } from "./timelineViewport";
 
 export type MomentTrack = {
@@ -26,7 +27,7 @@ export type MomentTrack = {
   kind: "value" | "unknown" | "missing" | "ungrouped" | "field";
   /** Only present for a custom field projection of the directly attached Moments. */
   fieldPropertyId?: string;
-  fieldLabels?: ReadonlyMap<string, string>;
+  fieldDisplay?: ReadonlyMap<string, { label: string; color: string }>;
   /** Includes this group's own Moments and all descendants. */
   count: number;
   children: MomentTrack[];
@@ -139,7 +140,7 @@ function addFieldTracks(
     // Visit existing groups first: projection rows are never projected recursively.
     track.children.forEach(addChildren);
     const fieldEvents = new Map<string, TimelinePositionedEvent[]>();
-    const fieldLabels = new Map<string, Map<string, string>>();
+    const fieldDisplay = new Map<string, Map<string, { label: string; color: string }>>();
     for (const entry of track.events) {
       if (!isMomentInProject(entry, projectName)) {
         continue;
@@ -160,10 +161,13 @@ function addFieldTracks(
         if (entries == undefined) {
           entries = [];
           fieldEvents.set(property.id, entries);
-          fieldLabels.set(property.id, new Map());
+          fieldDisplay.set(property.id, new Map());
         }
         entries.push(entry);
-        fieldLabels.get(property.id)!.set(entry.event.name, label);
+        fieldDisplay.get(property.id)!.set(entry.event.name, {
+          label,
+          color: getMomentFieldColor(field, projectName),
+        });
       }
     }
     const children = properties.flatMap((property): MomentTrack[] => {
@@ -176,7 +180,7 @@ function addFieldTracks(
               title: property.name,
               fieldName: property.name,
               fieldPropertyId: property.id,
-              fieldLabels: fieldLabels.get(property.id),
+              fieldDisplay: fieldDisplay.get(property.id),
               depth: track.depth + 1,
               kind: "field",
               count: events.length,
@@ -363,7 +367,8 @@ function offsetItems(
     trackId: track.id,
     ...(track.kind === "field"
       ? {
-          label: track.fieldLabels?.get(item.event.event.name),
+          label: track.fieldDisplay?.get(item.event.event.name)?.label,
+          fieldColor: track.fieldDisplay?.get(item.event.event.name)?.color,
           fieldPropertyId: track.fieldPropertyId,
         }
       : {}),

@@ -75,36 +75,39 @@ describe("layoutEventLanes", () => {
     expect(getEventLaneByName(hiddenBase, source.event.name)).toBe(1);
   });
 
-  it("reuses independent projections by render ID and invalidates changed field text", () => {
-    const source = makeEvent("events/one", 1, 2);
-    const item = layoutEventLanes({ events: [source], viewport: makeTimelineViewport(0, 10) })
-      .items[0]!;
-    const previous = {
-      laneCount: 2,
-      items: [
-        { ...item, renderId: "base", trackId: "moments", lane: 0 },
-        {
-          ...item,
-          renderId: "field",
-          trackId: "field",
-          label: "Alpha",
-          fieldPropertyId: "a",
-          lane: 1,
-        },
-      ],
-    };
-    const next = { ...previous, items: previous.items.map((entry) => ({ ...entry })) };
-    const reused = reuseEventLaneItems(next, previous);
-    expect(reused.items[0]).toBe(previous.items[0]);
-    expect(reused.items[1]).toBe(previous.items[1]);
-    const changed = {
-      ...next,
-      items: [next.items[0]!, { ...next.items[1]!, label: "Renamed" }],
-    };
-    const renamed = reuseEventLaneItems(changed, previous);
-    expect(renamed.items[0]).toBe(previous.items[0]);
-    expect(renamed.items[1]).toBe(changed.items[1]);
-  });
+  it.each(["label", "fieldColor"] as const)(
+    "reuses projections and invalidates changed %s",
+    (property) => {
+      const source = makeEvent("events/one", 1, 2);
+      const item = layoutEventLanes({ events: [source], viewport: makeTimelineViewport(0, 10) })
+        .items[0]!;
+      const previous = {
+        laneCount: 2,
+        items: [
+          { ...item, renderId: "base", trackId: "moments", lane: 0 },
+          {
+            ...item,
+            renderId: "field",
+            trackId: "field",
+            label: "Alpha",
+            fieldPropertyId: "a",
+            lane: 1,
+          },
+        ],
+      };
+      const next = { ...previous, items: previous.items.map((entry) => ({ ...entry })) };
+      const reused = reuseEventLaneItems(next, previous);
+      expect(reused.items[0]).toBe(previous.items[0]);
+      expect(reused.items[1]).toBe(previous.items[1]);
+      const changed = {
+        ...next,
+        items: [next.items[0]!, { ...next.items[1]!, [property]: "Changed" }],
+      };
+      const renamed = reuseEventLaneItems(changed, previous);
+      expect(renamed.items[0]).toBe(previous.items[0]);
+      expect(renamed.items[1]).toBe(changed.items[1]);
+    },
+  );
 
   it.each(["short", "continuous", "overlapping", "long"] as const)(
     "preserves legacy first-fit layout for %s moments and clipped viewports",
