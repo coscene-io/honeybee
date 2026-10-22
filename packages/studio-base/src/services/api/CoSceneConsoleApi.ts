@@ -1676,6 +1676,13 @@ class CoSceneConsoleApi {
     },
   );
 
+  public canConfigureMomentCustomFieldRules(): boolean {
+    return checkUserPermission(
+      EndpointDataplatformV1alph3.SetMomentCustomFieldRules,
+      this.#permissionList,
+    );
+  }
+
   public getMomentCustomFieldSchema = Object.assign(
     async (project: string): Promise<MomentCustomFieldSchema> => {
       const req = create(GetMomentCustomFieldSchemaRequestSchema, { project });

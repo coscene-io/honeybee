@@ -29,11 +29,13 @@ function ToolbarFixture({
   onHeightChange,
   realHelp,
   seekStep = <button>Step</button>,
+  momentSettingsUrl,
 }: {
   onCreate?: () => void;
   onHeightChange?: (height: number) => void;
   realHelp?: boolean;
   seekStep?: React.ReactNode;
+  momentSettingsUrl?: string;
 }): React.JSX.Element {
   return (
     <ThemeProvider isDark>
@@ -48,6 +50,7 @@ function ToolbarFixture({
         }
         playbackOptions={<button>Repeat</button>}
         seekStep={seekStep}
+        momentSettingsUrl={momentSettingsUrl}
         speed={<button>Speed</button>}
         time={({ compact }) => <input aria-label="Time" data-compact={compact} />}
         sourceInfo={<button>Source</button>}
@@ -68,6 +71,36 @@ describe("TimelineToolbar", () => {
     mockWidth = 1200;
     mockHeight = 40;
     await i18n.changeLanguage("en");
+  });
+
+  it.each([1200, 375])("opens project rules from a link below step at %dpx", async (width) => {
+    mockWidth = width;
+    const url =
+      "https://console.example/org/project/manage/advanced-settings/custom-field/moment-custom-field";
+    render(<ToolbarFixture momentSettingsUrl={url} />);
+    fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
+    const more = screen.getByRole("dialog");
+    const step = within(more).getByRole("button", { name: "Step" });
+    const link = within(more).getByRole("link", { name: "Moment grouping and tracks" });
+    expect(step.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(link.getAttribute("href")).toBe(url);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(getComputedStyle(link).width).toBe("100%");
+    link.addEventListener(
+      "click",
+      (event) => {
+        event.preventDefault();
+      },
+      { once: true },
+    );
+    fireEvent.click(link);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "More timeline tools" }),
+      );
+    });
   });
 
   it.each([1200, 1000, 999, 640, 639, 480, 479, 375])(

@@ -55,6 +55,8 @@ export const event: Partial<TypeOptions["resources"]["event"]> = {
   allMomentsDeleted: "已删除 {{count}} 个一刻",
   momentName: "一刻名称",
   moments: "一刻",
+  momentRulesSettings: "一刻分组与分轨",
+  momentRulesSettingsHint: "在新标签页打开项目设置，配置对项目成员统一生效。",
   momentTips: "一刻是可视化记录中的关键帧",
   momentUpdated: "一刻已更新",
   name: "名称",

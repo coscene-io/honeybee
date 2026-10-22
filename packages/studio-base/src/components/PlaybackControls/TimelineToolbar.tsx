@@ -6,7 +6,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
-import { alpha, Popover } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import TuneIcon from "@mui/icons-material/Tune";
+import { alpha, Button, Divider, Popover, Tooltip } from "@mui/material";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useResizeDetector } from "react-resize-detector";
@@ -89,6 +91,17 @@ const useStyles = makeStyles()((theme) => ({
       "@media (pointer: coarse)": { height: 48 },
     },
   },
+  settingsLink: {
+    color: theme.palette.text.primary,
+    fontSize: 12,
+    height: 32,
+    justifyContent: "flex-start",
+    paddingInline: 8,
+    width: "100%",
+    "& .MuiButton-endIcon": { marginLeft: "auto" },
+    "@media (pointer: coarse)": { height: 48 },
+  },
+  settingsDivider: { marginBlock: 6 },
 }));
 
 export type TimelineToolbarProps = {
@@ -96,6 +109,7 @@ export type TimelineToolbarProps = {
   playback?: React.ReactNode;
   playbackOptions?: React.ReactNode;
   seekStep?: React.ReactNode;
+  momentSettingsUrl?: string;
   speed?: React.ReactNode;
   time?: (options: { compact: boolean }) => React.ReactNode;
   sourceInfo?: React.ReactNode;
@@ -125,6 +139,15 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
   useEffect(() => {
     onHeightChange?.(Math.max(TIMELINE_TOOLBAR_HEIGHT_PX, Math.ceil(height ?? 0)));
   }, [height, onHeightChange]);
+
+  const closeMoreTools = () => {
+    setAnchorEl(undefined);
+    window.requestAnimationFrame(() => {
+      if (anchorEl?.isConnected === true) {
+        anchorEl.focus();
+      }
+    });
+  };
 
   return (
     <>
@@ -173,14 +196,7 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
         id={id}
         open={anchorEl != undefined}
         anchorEl={anchorEl}
-        onClose={() => {
-          setAnchorEl(undefined);
-          window.requestAnimationFrame(() => {
-            if (anchorEl?.isConnected === true) {
-              anchorEl.focus();
-            }
-          });
-        }}
+        onClose={closeMoreTools}
         disableRestoreFocus
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
@@ -195,6 +211,24 @@ export function TimelineToolbar(props: TimelineToolbarProps): React.JSX.Element 
         <div className={classes.tools}>
           {props.help({ showLabel: true })}
           {props.seekStep}
+          {props.momentSettingsUrl && (
+            <>
+              <Divider className={classes.settingsDivider} />
+              <Tooltip describeChild title={t("momentRulesSettingsHint", { ns: "event" })}>
+                <Button
+                  className={classes.settingsLink}
+                  href={props.momentSettingsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  startIcon={<TuneIcon />}
+                  endIcon={<OpenInNewIcon />}
+                  onClick={closeMoreTools}
+                >
+                  {t("momentRulesSettings", { ns: "event" })}
+                </Button>
+              </Tooltip>
+            </>
+          )}
         </div>
       </Popover>
     </>

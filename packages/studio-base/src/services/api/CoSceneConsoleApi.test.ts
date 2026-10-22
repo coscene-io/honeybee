@@ -6,8 +6,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { create } from "@bufbuild/protobuf";
+import { Policy_Effect } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha1/resources/role_pb";
 
 import { getPromiseClient } from "@foxglove/studio-base/util/coscene";
+import { EndpointDataplatformV1alph3 } from "@foxglove/studio-base/util/permission/endpoint";
 
 import CoSceneConsoleApi, { type ApiBaseInfo } from "./CoSceneConsoleApi";
 import { CustomFieldSchemaSchema } from "./moment-custom-field/generated/common/custom_field_pb";
@@ -85,6 +87,56 @@ describe("CoSceneConsoleApi", () => {
       expect.objectContaining({ project: "warehouses/warehouse-id/projects/project-id" }),
     );
     expect(mockGetPromiseClient).toHaveBeenLastCalledWith(MomentCustomFieldService, undefined);
+  });
+
+  it.each([
+    { actions: [], denies: [], permitted: false },
+    {
+      actions: [EndpointDataplatformV1alph3.GetMomentCustomFieldSchema],
+      denies: [],
+      permitted: false,
+    },
+    {
+      actions: [
+        "coscene.dataplatform.v1alpha3.services.CustomFieldService.SetMomentCustomFieldRules",
+      ],
+      denies: [],
+      permitted: true,
+    },
+    {
+      actions: ["coscene.dataplatform.v1alpha3.services.CustomFieldService.*"],
+      denies: [
+        "coscene.dataplatform.v1alpha3.services.CustomFieldService.SetMomentCustomFieldRules",
+      ],
+      permitted: false,
+    },
+  ])(
+    "checks the project rule configuration permission (%j)",
+    async ({ actions, denies, permitted }) => {
+      listUserRolesMock.mockResolvedValue({
+        userRoles: [
+          {
+            policy: {
+              statements: [
+                { effect: Policy_Effect.ALLOW, actions },
+                { effect: Policy_Effect.DENY, actions: denies },
+              ],
+            },
+          },
+        ],
+      });
+      const api = await createApi(completeBaseInfo);
+      expect(api.canConfigureMomentCustomFieldRules()).toBe(permitted);
+    },
+  );
+
+  it("keeps rule configuration unavailable before project permissions load", () => {
+    const api = new CoSceneConsoleApi(
+      "https://console.example.com",
+      "https://bff.example.com",
+      "Bearer test-token",
+    );
+    expect(api.canConfigureMomentCustomFieldRules()).toBe(false);
   });
 
   it("adds Record-Name to request config when base info is complete", async () => {

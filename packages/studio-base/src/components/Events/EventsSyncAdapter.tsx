@@ -282,19 +282,44 @@ export function EventsSyncAdapter(): React.JSX.Element {
 
   useEffect(() => {
     let active = true;
+    let requestVersion = 0;
     setCustomFieldSchema(undefined);
     if (externalInitConfig?.warehouseId && externalInitConfig.projectId) {
       const projectName = `warehouses/${externalInitConfig.warehouseId}/projects/${externalInitConfig.projectId}`;
-      void consoleApi
-        .getMomentCustomFieldSchema(projectName)
-        .then((schema) => {
-          if (active) {
-            setCustomFieldSchema(schema, projectName);
-          }
-        })
-        .catch((error: unknown) => {
-          log.error(error);
-        });
+      const refreshSchema = () => {
+        const version = ++requestVersion;
+        void consoleApi
+          .getMomentCustomFieldSchema(projectName)
+          .then((nextSchema) => {
+            if (active && version === requestVersion) {
+              setCustomFieldSchema(nextSchema, projectName);
+            }
+          })
+          .catch((error: unknown) => {
+            log.error(error);
+          });
+      };
+      refreshSchema();
+
+      // A tab return may fire both visibilitychange and focus. Refresh once per return,
+      // keeping the current rules visible while the new project snapshot is loading.
+      let foreground = document.visibilityState === "visible" && document.hasFocus();
+      const onForegroundChange = () => {
+        const nextForeground = document.visibilityState === "visible" && document.hasFocus();
+        if (nextForeground && !foreground) {
+          refreshSchema();
+        }
+        foreground = nextForeground;
+      };
+      window.addEventListener("focus", onForegroundChange);
+      window.addEventListener("blur", onForegroundChange);
+      document.addEventListener("visibilitychange", onForegroundChange);
+      return () => {
+        active = false;
+        window.removeEventListener("focus", onForegroundChange);
+        window.removeEventListener("blur", onForegroundChange);
+        document.removeEventListener("visibilitychange", onForegroundChange);
+      };
     }
     return () => {
       active = false;
