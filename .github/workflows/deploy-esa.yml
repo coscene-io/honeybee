@@ -43,6 +43,11 @@ jobs:
           : "${ESA_SITE_NAME:?ESA_SITE_NAME variable is required}"
           : "${ESA_ROUTE_NAME:?ESA_ROUTE_NAME variable is required}"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
       - name: Enable corepack
         run: corepack enable yarn
 

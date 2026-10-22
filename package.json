@@ -17,7 +17,7 @@
   },
   "homepage": "https://www.coscene.cn/",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "clean": "tsc --build --clean $(git ls-files 'packages/**/tsconfig.json') && rimraf --glob .webpack \"*/.webpack\" dist",
@@ -73,7 +73,8 @@
     "@types/react": "18.3.27",
     "react-use": "patch:react-use@17.6.1#./patches/react-use.patch",
     "react-dnd": "patch:react-dnd@npm:16.0.1#./patches/react-dnd.patch",
-    "react-is": "18.3.1"
+    "react-is": "18.3.1",
+    "node-gyp/undici": "6.29.1"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",

@@ -4,7 +4,7 @@
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) v22 recommended (`package.json` currently allows `>=20`)
+- [Node.js](https://nodejs.org/en/) v24.22.1 (see [`.node-version`](.node-version)); `package.json` requires `>=24.22.1 <25`
 
 ## Getting started
 

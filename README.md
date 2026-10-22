@@ -22,7 +22,7 @@ It helps robotics teams visualize, debug, and analyze logs and live telemetry th
 
 **Dependencies:**
 
-- [Node.js](https://nodejs.org/en/) V22.12.0+
+- [Node.js](https://nodejs.org/en/) v24.22.1 (see [`.node-version`](.node-version))
 - [Cursor](https://www.cursor.com/) / [Visual Studio Code](https://code.visualstudio.com/) – Recommended
 
 ## Setup
