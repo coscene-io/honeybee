@@ -46,24 +46,24 @@ describe("formatTime.formatDate", () => {
 
 describe("formatTime.formatDuration", () => {
   it("uses milliseconds and pads values with zeros", () => {
-    expect(formatTime.formatDuration({ sec: 0, nsec: 0 })).toEqual("0:00:00.000");
-    expect(formatTime.formatDuration({ sec: 0, nsec: 999 })).toEqual("0:00:00.000");
-    expect(formatTime.formatDuration({ sec: 0, nsec: 1000 })).toEqual("0:00:00.000");
-    expect(formatTime.formatDuration({ sec: 0, nsec: 499999 })).toEqual("0:00:00.000");
-    expect(formatTime.formatDuration({ sec: 0, nsec: 500000 })).toEqual("0:00:00.001");
-    expect(formatTime.formatDuration({ sec: 0, nsec: 999e3 })).toEqual("0:00:00.001");
-    expect(formatTime.formatDuration({ sec: 0, nsec: 999e6 })).toEqual("0:00:00.999");
-    expect(formatTime.formatDuration({ sec: 1, nsec: 999e6 })).toEqual("0:00:01.999");
-    expect(formatTime.formatDuration({ sec: 1, nsec: 999999e3 })).toEqual("0:00:02.000");
-    expect(formatTime.formatDuration({ sec: 1, nsec: 999999999 })).toEqual("0:00:02.000");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 0 })).toEqual("00:00:00.000");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 999 })).toEqual("00:00:00.000");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 1000 })).toEqual("00:00:00.000");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 499999 })).toEqual("00:00:00.000");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 500000 })).toEqual("00:00:00.001");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 999e3 })).toEqual("00:00:00.001");
+    expect(formatTime.formatDuration({ sec: 0, nsec: 999e6 })).toEqual("00:00:00.999");
+    expect(formatTime.formatDuration({ sec: 1, nsec: 999e6 })).toEqual("00:00:01.999");
+    expect(formatTime.formatDuration({ sec: 1, nsec: 999999e3 })).toEqual("00:00:02.000");
+    expect(formatTime.formatDuration({ sec: 1, nsec: 999999999 })).toEqual("00:00:02.000");
     expect(formatTime.formatDuration({ sec: 3 * 60 * 60 + 2 * 60 + 1, nsec: 999e6 })).toEqual(
-      "3:02:01.999",
+      "03:02:01.999",
     );
     expect(formatTime.formatDuration({ sec: 3 * 60 * 60 + 59 * 60 + 59, nsec: 99e6 })).toEqual(
-      "3:59:59.099",
+      "03:59:59.099",
     );
-    expect(formatTime.formatDuration({ sec: -1, nsec: 0 })).toEqual("-0:00:01.000");
-    expect(formatTime.formatDuration({ sec: 0, nsec: -1000000 })).toEqual("-0:00:00.001");
+    expect(formatTime.formatDuration({ sec: -1, nsec: 0 })).toEqual("-00:00:01.000");
+    expect(formatTime.formatDuration({ sec: 0, nsec: -1000000 })).toEqual("-00:00:00.001");
   });
 });
 
