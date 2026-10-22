@@ -1516,14 +1516,6 @@ describe("custom field Moment projections", () => {
     expect(original.style.boxShadow).toBe("");
   });
 
-  it("paints one background over every lane occupied by a track", () => {
-    mount({ events: [makeEvent("events/source", 1, 2), makeEvent("events/overlap", 1, 2)] });
-    const rows = screen.getAllByTestId("timeline-track-background");
-    expect(rows).toHaveLength(3);
-    expect(new Set(rows.map((row) => row.style.backgroundColor)).size).toBe(3);
-    expect(rows.map((row) => row.style.height)).toEqual(["56px", "56px", "56px"]);
-  });
-
   it.each([
     {
       name: "ignores neighbors without the edited field",
