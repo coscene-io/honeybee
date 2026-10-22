@@ -146,13 +146,34 @@ function SeedEventFeature({ enabled }: { enabled: boolean }): ReactNull {
   return ReactNull;
 }
 
-function SeedSettingsProject({ loading = false }: { loading?: boolean }): ReactNull {
+function SeedSettingsProject({
+  loading = false,
+  organizationLoading = false,
+  publisherSlug,
+}: {
+  loading?: boolean;
+  organizationLoading?: boolean;
+  publisherSlug?: string;
+}): ReactNull {
   const setProject = useCoreData((store) => store.setProject);
   const setOrganization = useCoreData((store) => store.setOrganization);
+  const setExternalInitConfig = useCoreData((store) => store.setExternalInitConfig);
   useEffect(() => {
     setProject({ loading, value: { slug: "project", isArchived: false } as never });
-    setOrganization({ loading: false, value: { slug: "organization" } as never });
-  }, [loading, setOrganization, setProject]);
+    setOrganization({ loading: organizationLoading, value: { slug: "organization" } as never });
+    setExternalInitConfig({
+      warehouseId: "warehouse",
+      projectId: "project",
+      organizationSlug: publisherSlug,
+    });
+  }, [
+    loading,
+    organizationLoading,
+    publisherSlug,
+    setExternalInitConfig,
+    setOrganization,
+    setProject,
+  ]);
   return ReactNull;
 }
 
@@ -304,6 +325,44 @@ describe("<Scrubber />", () => {
         expect(link?.getAttribute("href")).toBe(
           "https://dev.coscene.cn/organization/project/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1",
         );
+      }
+    },
+  );
+
+  it.each([
+    { publisherSlug: "publisher", organizationLoading: false, expectedOrganization: "publisher" },
+    { publisherSlug: "publisher", organizationLoading: true, expectedOrganization: "publisher" },
+    { publisherSlug: undefined, organizationLoading: true, expectedOrganization: undefined },
+  ])(
+    "routes the rules link to the data-owning organization (%j)",
+    ({ publisherSlug, organizationLoading, expectedOrganization }) => {
+      render(
+        <Wrapper
+          eventEnabled
+          consoleApi={
+            {
+              createEvent: { permission: () => false },
+              updateEvent: { permission: () => false },
+              deleteEvent: { permission: () => false },
+              getMomentCustomFieldSchema: { permission: () => true },
+            } as never
+          }
+        >
+          <SeedSettingsProject
+            organizationLoading={organizationLoading}
+            publisherSlug={publisherSlug}
+          />
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
+      const link = screen.queryByRole("link", { name: "Moment grouping and tracks" });
+      if (expectedOrganization) {
+        expect(link?.getAttribute("href")).toBe(
+          `https://dev.coscene.cn/${expectedOrganization}/project/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1`,
+        );
+      } else {
+        expect(link).toBeNull();
       }
     },
   );

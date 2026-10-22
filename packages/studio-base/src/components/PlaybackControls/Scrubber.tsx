@@ -249,6 +249,7 @@ const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
 const selectOrganization = (store: CoreDataStore) => store.organization;
+const selectExternalInitConfig = (store: CoreDataStore) => store.externalInitConfig;
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.rollingEditEnabled;
@@ -478,15 +479,18 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const enableList = useCoreData(selectEnableList);
   const project = useCoreData(selectProject);
   const organization = useCoreData(selectOrganization);
+  const externalInitConfig = useCoreData(selectExternalInitConfig);
   const record = useCoreData(selectRecord);
+  const organizationSlug =
+    externalInitConfig?.organizationSlug ??
+    (organization.loading ? undefined : organization.value?.slug);
   const momentSettingsUrl =
     enableList.event === "ENABLE" &&
     !project.loading &&
-    !organization.loading &&
     project.value?.slug &&
-    organization.value?.slug &&
+    organizationSlug &&
     consoleApi.getMomentCustomFieldSchema.permission()
-      ? `https://${getDomainConfig().webDomain}/${encodeURIComponent(organization.value.slug)}/${encodeURIComponent(project.value.slug)}/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1`
+      ? `https://${getDomainConfig().webDomain}/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(project.value.slug)}/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1`
       : undefined;
   const visibleEvents = useVisibleEvents();
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);

@@ -13,7 +13,9 @@ Add `&theme=light` to check the light theme. Increase the timeline height using 
 The timeline's More menu places **Moment grouping and tracks** below the seek step,
 separated from the playback tools. It opens the current project's console page in
 a new tab with `?momentRules=1`, which asks Mono to open its existing shared rules
-editor. The fixture uses synthetic organization/project slugs; its link is for
+editor. Public projects use the data publisher's organization slug, including
+when it differs from the signed-in organization. The fixture uses synthetic
+organization/project slugs; its link is for
 visual inspection, not a deployed project configuration test.
 
 In a connected project, returning to the visible, focused studio reloads the
