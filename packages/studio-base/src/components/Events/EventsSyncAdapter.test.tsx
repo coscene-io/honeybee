@@ -17,6 +17,7 @@ import type { AsyncState } from "react-use/lib/useAsyncFn";
 import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
 
+import Logger from "@foxglove/log";
 import { subtract, toSec } from "@foxglove/rostime";
 import { ContextInternal } from "@foxglove/studio-base/components/MessagePipeline";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
@@ -354,6 +355,121 @@ function WritableRecord(): ReactNull {
 }
 
 describe("<EventsSyncAdapter />", () => {
+  it("refreshes once per foreground return, preserves rules in flight, and ignores older responses", async () => {
+    const hasFocus = jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    const visibility = jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const schemas = ["initial", "older", "latest"].map((propertyId) =>
+      create(CustomFieldSchemaSchema, { trackRules: [{ propertyId }] }),
+    );
+    let resolveOlder!: (schema: MomentCustomFieldSchema) => void;
+    let resolveLatest!: (schema: MomentCustomFieldSchema) => void;
+    const getMomentCustomFieldSchema = jest
+      .fn()
+      .mockResolvedValueOnce(schemas[0])
+      .mockImplementationOnce(
+        async () =>
+          await new Promise((resolve) => {
+            resolveOlder = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        async () =>
+          await new Promise((resolve) => {
+            resolveLatest = resolve;
+          }),
+      );
+    const eventsStore = makeEventsStore({ events: [], setEventMarks: jest.fn() });
+    const { unmount } = render(
+      <Wrapper
+        consoleApi={{ getMomentCustomFieldSchema } as never}
+        currentTime={{ sec: 0, nsec: 0 }}
+        eventsStore={eventsStore}
+        timelineInteractionStore={makeTimelineInteractionStore()}
+      >
+        <SeedSchemaProject id="current" />
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(eventsStore.getState().customFieldSchema).toBe(schemas[0]);
+    });
+
+    hasFocus.mockReturnValue(false);
+    visibility.mockReturnValue("hidden");
+    fireEvent.blur(window);
+    fireEvent(document, new Event("visibilitychange"));
+    fireEvent.focus(window);
+    expect(getMomentCustomFieldSchema).toHaveBeenCalledTimes(1);
+    hasFocus.mockReturnValue(true);
+    visibility.mockReturnValue("visible");
+    fireEvent(document, new Event("visibilitychange"));
+    fireEvent.focus(window);
+    expect(getMomentCustomFieldSchema).toHaveBeenCalledTimes(2);
+    expect(eventsStore.getState().customFieldSchema).toBe(schemas[0]);
+
+    hasFocus.mockReturnValue(false);
+    fireEvent.blur(window);
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+    expect(getMomentCustomFieldSchema).toHaveBeenCalledTimes(3);
+    await act(async () => {
+      resolveLatest(schemas[2]!);
+    });
+    await act(async () => {
+      resolveOlder(schemas[1]!);
+    });
+    expect(eventsStore.getState().customFieldSchema).toBe(schemas[2]);
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
+      "warehouses/warehouse/projects/current",
+    );
+    unmount();
+    hasFocus.mockReturnValue(false);
+    fireEvent.blur(window);
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+    expect(getMomentCustomFieldSchema).toHaveBeenCalledTimes(3);
+  });
+
+  it("retains the last rules when a return refresh fails", async () => {
+    const hasFocus = jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const error = new Error("schema request failed");
+    const logError = jest
+      .spyOn(Logger.getLogger(require.resolve("./EventsSyncAdapter")), "error")
+      .mockImplementation(() => {});
+    const schema = create(CustomFieldSchemaSchema, { groupingRules: [{ propertyId: "kept" }] });
+    const getMomentCustomFieldSchema = jest
+      .fn()
+      .mockResolvedValueOnce(schema)
+      .mockRejectedValueOnce(error);
+    const eventsStore = makeEventsStore({ events: [], setEventMarks: jest.fn() });
+    render(
+      <Wrapper
+        consoleApi={{ getMomentCustomFieldSchema } as never}
+        currentTime={{ sec: 0, nsec: 0 }}
+        eventsStore={eventsStore}
+        timelineInteractionStore={makeTimelineInteractionStore()}
+      >
+        <SeedSchemaProject id="current" />
+        <EventsSyncAdapter />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(eventsStore.getState().customFieldSchema).toBe(schema);
+    });
+    hasFocus.mockReturnValue(false);
+    fireEvent.blur(window);
+    hasFocus.mockReturnValue(true);
+    fireEvent.focus(window);
+    await waitFor(() => {
+      expect(logError).toHaveBeenCalledWith(error);
+    });
+    expect(eventsStore.getState().customFieldSchema).toBe(schema);
+    expect(eventsStore.getState().customFieldSchemaProjectName).toBe(
+      "warehouses/warehouse/projects/current",
+    );
+  });
+
   it("does not snap shortcut marks to filtered-out Moments", async () => {
     const events = [makeEvent("hidden", 1, 1), makeEvent("visible", 5, 1)];
     events[1]!.event.customizedFields = { _doubtful: "true" };

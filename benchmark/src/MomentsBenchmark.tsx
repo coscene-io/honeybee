@@ -56,6 +56,7 @@ const api = {
   updateEvent: allowed,
   createEvent: allowed,
   deleteEvent: allowed,
+  getMomentCustomFieldSchema: allowed,
   getDiagnosisRule: async () => ({ rules: [] }),
   batchGetUsers: async (names: string[]) => ({
     users: names.map((name) => ({ name, nickname: name === "users/amy" ? "Amy" : "Lee" })),
@@ -77,6 +78,7 @@ function Seed({
   const setCustomFieldSchema = useEvents((store) => store.setCustomFieldSchema);
   const setDataSource = useCoreData((store) => store.setDataSource);
   const setProject = useCoreData((store) => store.setProject);
+  const setOrganization = useCoreData((store) => store.setOrganization);
   const setRecord = useCoreData((store) => store.setRecord);
   const {
     playbackControlActions: { setMomentSubtitleEnabled },
@@ -86,8 +88,13 @@ function Seed({
     setDataSource({ id: "coscene-data-platform", type: "connection" });
     setProject({
       loading: false,
-      value: { name: fieldTracks ? fieldProject : undefined, isArchived: false } as never,
+      value: {
+        name: fieldTracks ? fieldProject : undefined,
+        slug: "moments",
+        isArchived: false,
+      } as never,
     });
+    setOrganization({ loading: false, value: { slug: "benchmark" } as never });
     setRecord({ loading: false, value: { isArchived: false } as never });
     setMomentSubtitleEnabled(extras);
   }, [
@@ -97,6 +104,7 @@ function Seed({
     setEvents,
     setDataSource,
     setProject,
+    setOrganization,
     setRecord,
     setMomentSubtitleEnabled,
   ]);

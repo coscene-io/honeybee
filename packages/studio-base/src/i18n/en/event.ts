@@ -56,6 +56,9 @@ export const event = {
   allMomentsDeleted: "Deleted {{count}} moments",
   momentName: "Moment Name",
   moments: "Moments",
+  momentRulesSettings: "Moment grouping and tracks",
+  momentRulesSettingsHint:
+    "Open project settings in a new tab. Changes apply to all project members.",
   momentTips: "A moment is a keyframe in visual records",
   momentUpdated: "Moment have been updated",
   name: "Name",

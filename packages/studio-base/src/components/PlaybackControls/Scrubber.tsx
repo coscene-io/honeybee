@@ -57,6 +57,7 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
+import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
@@ -247,6 +248,7 @@ const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activ
 const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectEnableList = (store: CoreDataStore) => store.getEnableList();
 const selectProject = (store: CoreDataStore) => store.project;
+const selectOrganization = (store: CoreDataStore) => store.organization;
 const selectRecord = (store: CoreDataStore) => store.record;
 const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
   store.playbackControls.rollingEditEnabled;
@@ -475,7 +477,17 @@ export default function Scrubber(props: Props): React.JSX.Element {
   const presence = useMessagePipeline(selectPresence);
   const enableList = useCoreData(selectEnableList);
   const project = useCoreData(selectProject);
+  const organization = useCoreData(selectOrganization);
   const record = useCoreData(selectRecord);
+  const momentSettingsUrl =
+    enableList.event === "ENABLE" &&
+    !project.loading &&
+    !organization.loading &&
+    project.value?.slug &&
+    organization.value?.slug &&
+    consoleApi.getMomentCustomFieldSchema.permission()
+      ? `https://${getDomainConfig().webDomain}/${encodeURIComponent(organization.value.slug)}/${encodeURIComponent(project.value.slug)}/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1`
+      : undefined;
   const visibleEvents = useVisibleEvents();
   const rollingEditEnabled = useWorkspaceStore(selectRollingEditEnabled);
   const momentSubtitleEnabled = useWorkspaceStore(selectMomentSubtitleEnabled);
@@ -1196,6 +1208,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
         playback={props.playback}
         playbackOptions={props.playbackOptions}
         seekStep={props.seekStep}
+        momentSettingsUrl={momentSettingsUrl}
         speed={props.speed}
         time={props.time}
         sourceInfo={props.sourceInfo}

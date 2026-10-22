@@ -146,6 +146,16 @@ function SeedEventFeature({ enabled }: { enabled: boolean }): ReactNull {
   return ReactNull;
 }
 
+function SeedSettingsProject({ loading = false }: { loading?: boolean }): ReactNull {
+  const setProject = useCoreData((store) => store.setProject);
+  const setOrganization = useCoreData((store) => store.setOrganization);
+  useEffect(() => {
+    setProject({ loading, value: { slug: "project", isArchived: false } as never });
+    setOrganization({ loading: false, value: { slug: "organization" } as never });
+  }, [loading, setOrganization, setProject]);
+  return ReactNull;
+}
+
 function MomentSubtitleStateProbe(): React.JSX.Element {
   const enabled = useWorkspaceStore(
     (store) =>
@@ -262,6 +272,41 @@ describe("<Scrubber />", () => {
     expect(Number.parseFloat(getComputedStyle(trackList).top)).toBe(eventLaneLayerTop);
     expect(trackList.parentElement?.firstElementChild).toBe(trackList);
   });
+
+  it.each([
+    { eventEnabled: true, canRead: true, loading: false, visible: true },
+    { eventEnabled: true, canRead: false, loading: false, visible: false },
+    { eventEnabled: true, canRead: true, loading: true, visible: false },
+    { eventEnabled: false, canRead: true, loading: false, visible: false },
+  ])(
+    "scopes the rules link to the readable project (%j)",
+    ({ eventEnabled, canRead, loading, visible }) => {
+      render(
+        <Wrapper
+          eventEnabled={eventEnabled}
+          consoleApi={
+            {
+              createEvent: { permission: () => false },
+              updateEvent: { permission: () => false },
+              deleteEvent: { permission: () => false },
+              getMomentCustomFieldSchema: { permission: () => canRead },
+            } as never
+          }
+        >
+          <SeedSettingsProject loading={loading} />
+          <Scrubber onSeek={jest.fn()} />
+        </Wrapper>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "More timeline tools" }));
+      const link = screen.queryByRole("link", { name: "Moment grouping and tracks" });
+      expect(link != undefined).toBe(visible);
+      if (visible) {
+        expect(link?.getAttribute("href")).toBe(
+          "https://dev.coscene.cn/organization/project/manage/advanced-settings/custom-field/moment-custom-field?momentRules=1",
+        );
+      }
+    },
+  );
 
   it.each(["blur", "pointercancel", "pointerup"])(
     "stops resizing the track column after %s",

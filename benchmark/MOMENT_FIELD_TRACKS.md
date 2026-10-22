@@ -10,6 +10,18 @@ python3 -m http.server 8087 --bind 127.0.0.1 --directory benchmark/.webpack-mome
 Open <http://127.0.0.1:8087/?count=8&distribution=continuous&groupLevels=1&groupCount=1&fieldTracks=true>.
 Add `&theme=light` to check the light theme. Increase the timeline height using its splitter to see every row.
 
+The timeline's More menu places **Moment grouping and tracks** below the seek step,
+separated from the playback tools. It opens the current project's console page in
+a new tab with `?momentRules=1`, which asks Mono to open its existing shared rules
+editor. The fixture uses synthetic organization/project slugs; its link is for
+visual inspection, not a deployed project configuration test.
+
+In a connected project, returning to the visible, focused studio reloads the
+project's Moment schema once per foreground transition. Existing rules remain in
+use while the request is pending or fails; late responses from previous requests
+or projects cannot replace the latest rules. Playback, zoom, and personal track
+visibility are not reset.
+
 The fixture enables seven field tracks: text, number (including zero), single and
 multiple enum values, timestamp, and single and multiple users. User names are
 resolved through the mock batch API. Each original Moment appears on its base row
