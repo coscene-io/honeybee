@@ -18,9 +18,11 @@ import { createStore } from "zustand";
 import type { StoreApi } from "zustand";
 
 import Logger from "@foxglove/log";
-import { subtract, toSec } from "@foxglove/rostime";
+import { fromSec, subtract, toSec } from "@foxglove/rostime";
 import { ContextInternal } from "@foxglove/studio-base/components/MessagePipeline";
-import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
+import MockMessagePipelineProvider, {
+  type MockMessagePipelineProps,
+} from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import { getMomentTracks } from "@foxglove/studio-base/components/PlaybackControls/momentTracks";
 import CoSceneConsoleApiContext from "@foxglove/studio-base/context/CoSceneConsoleApiContext";
 import {
@@ -42,6 +44,7 @@ import {
   type TimelineInteractionStateStore,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import CoScenePlaylistProvider from "@foxglove/studio-base/providers/CoScenePlaylistProvider";
 import CoreDataProvider from "@foxglove/studio-base/providers/CoreDataProvider";
 import DialogsProvider from "@foxglove/studio-base/providers/DialogsProvider";
@@ -56,11 +59,7 @@ import type { MomentCustomFieldSchema } from "@foxglove/studio-base/services/api
 import { EventsSyncAdapter } from "./EventsSyncAdapter";
 
 type MockPipelineStore = NonNullable<React.ContextType<typeof ContextInternal>>;
-type MockPipelineProps = {
-  startTime: { sec: number; nsec: number };
-  endTime: { sec: number; nsec: number };
-  currentTime: { sec: number; nsec: number };
-};
+type MockPipelineProps = MockMessagePipelineProps;
 type MockSetPropsDispatch = (action: {
   type: "set-mock-props";
   mockProps: MockPipelineProps;
@@ -229,6 +228,7 @@ function Wrapper({
   endTime = { sec: 10, nsec: 0 },
   eventEnabled = false,
   eventsStore,
+  pipelineProps,
   rollingEditEnabled = true,
   doubtfulOnly = false,
   timelineInteractionStore,
@@ -239,6 +239,7 @@ function Wrapper({
   endTime?: { sec: number; nsec: number };
   eventEnabled?: boolean;
   eventsStore: StoreApi<EventsStore>;
+  pipelineProps?: MockPipelineProps;
   rollingEditEnabled?: boolean;
   doubtfulOnly?: boolean;
   timelineInteractionStore: StoreApi<TimelineInteractionStateStore>;
@@ -257,6 +258,7 @@ function Wrapper({
         >
           <CoScenePlaylistProvider>
             <MockMessagePipelineProvider
+              {...pipelineProps}
               startTime={startTime}
               endTime={endTime}
               currentTime={currentTime}
@@ -355,6 +357,97 @@ function WritableRecord(): ReactNull {
 }
 
 describe("<EventsSyncAdapter />", () => {
+  describe("Moment loop playback", () => {
+    async function setupLoop() {
+      const event = makeEvent("events/loop", 1, 1);
+      const seekPlayback = jest.fn();
+      const timelineInteractionStore = makeTimelineInteractionStore();
+      timelineInteractionStore.getState().setLoopedEvent(event);
+      let pipelineStore: MockPipelineStore | undefined;
+      await act(async () => {
+        render(
+          <Wrapper
+            currentTime={fromSec(1.9)}
+            eventsStore={makeEventsStore({ events: [event], setEventMarks: jest.fn() })}
+            pipelineProps={{ seekPlayback, activeData: { lastSeekTime: 1 }, isPlaying: true }}
+            timelineInteractionStore={timelineInteractionStore}
+          >
+            <MessagePipelineStoreProbe
+              onStore={(store) => {
+                pipelineStore = store;
+              }}
+            />
+            <EventsSyncAdapter />
+          </Wrapper>,
+        );
+      });
+      return {
+        event,
+        seekPlayback,
+        timelineInteractionStore,
+        async update(time: number, lastSeekTime = 1, presence = PlayerPresence.PRESENT) {
+          await act(async () => {
+            dispatchMockPipelineProps(pipelineStore!, {
+              startTime: fromSec(0),
+              endTime: fromSec(10),
+              currentTime: fromSec(time),
+              activeData: { lastSeekTime },
+              presence,
+              seekPlayback,
+              isPlaying: true,
+            });
+          });
+        },
+      };
+    }
+
+    it.each([0.02, 0.15, 0.3, 0.8])(
+      "keeps looping when normal playback overshoots the end by %s seconds",
+      async (overshoot) => {
+        const loop = await setupLoop();
+        await loop.update(2 + overshoot);
+        expect(loop.timelineInteractionStore.getState().loopedEvent).toBe(loop.event);
+        expect(loop.seekPlayback).toHaveBeenCalledTimes(1);
+        expect(loop.seekPlayback).toHaveBeenCalledWith(loop.event.startTime);
+      },
+    );
+
+    it("keeps looping beyond six iterations and accepts its own completed seeks", async () => {
+      const loop = await setupLoop();
+      for (let iteration = 1; iteration <= 12; iteration++) {
+        await loop.update(2.15, iteration);
+        expect(loop.seekPlayback).toHaveBeenCalledTimes(iteration);
+        await loop.update(1, iteration + 1);
+        expect(loop.timelineInteractionStore.getState().loopedEvent).toBe(loop.event);
+      }
+    });
+
+    it.each([0.8, 2.2])("exits the loop after an explicit seek outside to %s", async (time) => {
+      const loop = await setupLoop();
+      await loop.update(time, 2);
+      expect(loop.timelineInteractionStore.getState().loopedEvent).toBeUndefined();
+      expect(loop.seekPlayback).not.toHaveBeenCalled();
+    });
+
+    it("keeps the loop after a seek within the Moment", async () => {
+      const loop = await setupLoop();
+      await loop.update(1.5, 2);
+      expect(loop.timelineInteractionStore.getState().loopedEvent).toBe(loop.event);
+      expect(loop.seekPlayback).not.toHaveBeenCalled();
+    });
+
+    it("waits for a buffering seek acknowledgement before deciding to loop", async () => {
+      const loop = await setupLoop();
+      // IterablePlayer acknowledges a slow seek before updating lastSeekTime.
+      await loop.update(3, 1, PlayerPresence.BUFFERING);
+      expect(loop.timelineInteractionStore.getState().loopedEvent).toBe(loop.event);
+      expect(loop.seekPlayback).not.toHaveBeenCalled();
+      await loop.update(3, 2);
+      expect(loop.timelineInteractionStore.getState().loopedEvent).toBeUndefined();
+      expect(loop.seekPlayback).not.toHaveBeenCalled();
+    });
+  });
+
   it("refreshes once per foreground return, preserves rules in flight, and ignores older responses", async () => {
     const hasFocus = jest.spyOn(document, "hasFocus").mockReturnValue(true);
     const visibility = jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
