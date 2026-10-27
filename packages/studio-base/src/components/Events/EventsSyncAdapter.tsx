@@ -7,7 +7,7 @@
 
 import { create } from "@bufbuild/protobuf";
 import { FileSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/resources/file_pb";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAsyncFn, useLatest } from "react-use";
@@ -58,6 +58,7 @@ import {
   type WorkspaceContextStore,
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import CoSceneConsoleApi, {
   SingleFileGetEventsRequest,
   EventList,
@@ -170,6 +171,9 @@ const selectBagFiles = (state: CoScenePlaylistStore) => state.bagFiles;
 const selectEventMarks = (store: EventsStore) => store.eventMarks;
 const selectSetEventMarks = (store: EventsStore) => store.setEventMarks;
 const selectCurrentTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.currentTime;
+const selectLastSeekTime = (ctx: MessagePipelineContext) =>
+  ctx.playerState.activeData?.lastSeekTime;
+const selectPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
 const selectPause = (ctx: MessagePipelineContext) => ctx.pausePlayback;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
 const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.loopedEvent;
@@ -187,24 +191,34 @@ const selectRollingEditEnabled = (store: WorkspaceContextStore) =>
 
 function LoopedEventPlaybackSync(): ReactNull {
   const currentTime = useMessagePipeline(selectCurrentTime);
+  const lastSeekTime = useMessagePipeline(selectLastSeekTime);
+  const presence = useMessagePipeline(selectPresence);
   const seek = useMessagePipeline(selectSeek);
   const loopedEvent = useTimelineInteractionState(selectLoopedEvent);
   const setLoopedEvent = useTimelineInteractionState(selectSetLoopedEvent);
+  const previousSeekTime = useRef(lastSeekTime);
 
   useEffect(() => {
+    // A slow seek can acknowledge its target before lastSeekTime changes.
+    // Wait for completion so a manual seek is not mistaken for playback overshoot.
+    if (presence === PlayerPresence.BUFFERING) {
+      return;
+    }
+
+    const hasSeeked = previousSeekTime.current !== lastSeekTime;
+    previousSeekTime.current = lastSeekTime;
+
     if (loopedEvent != undefined && currentTime != undefined && seek != undefined) {
-      if (
-        toSec(subtract(currentTime, loopedEvent.endTime)) > 0.1 ||
-        toSec(subtract(loopedEvent.startTime, currentTime)) > 0.1
-      ) {
-        setLoopedEvent(undefined);
-      } else {
-        if (!isTimeInRangeInclusive(currentTime, loopedEvent.startTime, loopedEvent.endTime)) {
+      if (!isTimeInRangeInclusive(currentTime, loopedEvent.startTime, loopedEvent.endTime)) {
+        // Playback can overshoot the boundary at high speed; only a seek exits the loop.
+        if (hasSeeked) {
+          setLoopedEvent(undefined);
+        } else {
           seek(loopedEvent.startTime);
         }
       }
     }
-  }, [currentTime, loopedEvent, seek, setLoopedEvent]);
+  }, [currentTime, lastSeekTime, presence, loopedEvent, seek, setLoopedEvent]);
 
   return ReactNull;
 }
