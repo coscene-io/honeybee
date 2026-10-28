@@ -326,6 +326,171 @@ describe("VideoGopCache", () => {
     expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, first, second, end]);
   });
 
+  it("does not replay copied overlap frames after a cold seek followed by a warm seek", () => {
+    const cache = new VideoGopCache();
+    const frames = [0, 1, 2, 3, 4].map((i) => h264Frame(i, i, i === 0 ? "key" : "delta"));
+    cache.addFrames(frames.slice(0, 3));
+    cache.handleSeek(t(4));
+
+    for (let read = 0; read < 3; read++) {
+      cache.addFrameRange([0, 1, 2, 3, 4].map((i) => h264Frame(i, i, i === 0 ? "key" : "delta")));
+      cache.handleSeek(t(2));
+      expect(cache.seekAndReturnFramesForReceiveTime(TOPIC, t(2))).toEqual(frames.slice(0, 3));
+      expect(cache.byteSize()).toBe(40);
+    }
+  });
+
+  it("merges separately deserialized historical overlap frames", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const middle = h264Frame(11, 101, "delta");
+    const target = h264Frame(12, 102, "delta");
+    cache.addFrameRange([middle, target]);
+    cache.handleSeek(t(10));
+    cache.addFrameRange([key, h264Frame(11, 101, "delta")]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, middle, target]);
+    expect(cache.byteSize()).toBe(24);
+  });
+
+  it("preserves repeated messages within a range when deduplicating copied overlap", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const repeated = h264Frame(11, 101, "delta");
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, repeated, repeated]);
+    cache.addFrameRange([
+      h264Frame(10, 100, "key"),
+      h264Frame(11, 101, "delta"),
+      h264Frame(11, 101, "delta"),
+      end,
+    ]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, repeated, repeated, end]);
+    expect(cache.byteSize()).toBe(32);
+  });
+
+  it("retains different same-size payloads at the same timestamps when merging", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const first = h264Frame(11, 101, "delta");
+    const second = h264Frame(11, 101, "delta");
+    (second.message as CompressedVideo).data[7] = 1;
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, first]);
+    cache.addFrameRange([second, end]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, first, second, end]);
+    expect(cache.byteSize()).toBe(32);
+  });
+
+  it.each(["shared", "copied"])(
+    "aligns a %s overlap after a different frame with the same timestamp",
+    (identity) => {
+      const cache = new VideoGopCache();
+      const key = h264Frame(10, 100, "key");
+      const first = h264Frame(11, 101, "delta");
+      const second = h264Frame(11, 101, "delta");
+      (second.message as CompressedVideo).data[7] = 1;
+      const secondCopy = h264Frame(11, 101, "delta");
+      (secondCopy.message as CompressedVideo).data[7] = 1;
+      const end = h264Frame(12, 102, "delta");
+      cache.addFrameRange([key, second]);
+      cache.addFrameRange([first, identity === "shared" ? second : secondCopy, end]);
+
+      expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, first, second, end]);
+      expect(cache.byteSize()).toBe(32);
+    },
+  );
+
+  it("preserves repeated messages around an overlapping same-time sequence", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const repeated = h264Frame(11, 101, "delta");
+    const middle = h264Frame(11, 101, "delta");
+    (middle.message as CompressedVideo).data[7] = 1;
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, repeated, middle, repeated]);
+    cache.addFrameRange([middle, repeated, end]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([
+      key,
+      repeated,
+      middle,
+      repeated,
+      end,
+    ]);
+    expect(cache.byteSize()).toBe(40);
+  });
+
+  it("uses a shared message to align otherwise identical same-time messages", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const first = h264Frame(11, 101, "delta");
+    const shared = h264Frame(11, 101, "delta");
+    const last = h264Frame(11, 101, "delta");
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, first, shared]);
+    cache.addFrameRange([shared, last, end]);
+
+    const replay = cache.framesForReceiveTime(TOPIC, t(12));
+    expect(replay).toEqual([key, first, shared, last, end]);
+    expect(replay?.[1]).toBe(first);
+    expect(replay?.[2]).toBe(shared);
+    expect(replay?.[3]).toBe(last);
+    expect(cache.byteSize()).toBe(40);
+  });
+
+  it("does not choose a longer content overlap that bypasses a shared message", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const frames = [1, 1, 2, 1, 1].map((value) => {
+      const event = h264Frame(11, 101, "delta");
+      (event.message as CompressedVideo).data[7] = value;
+      return event;
+    });
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, ...frames.slice(0, 3)]);
+    cache.addFrameRange([...frames.slice(2), end]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, ...frames, end]);
+    expect(cache.byteSize()).toBe(56);
+  });
+
+  it("retains shared messages once when neither equal-time range is contiguous", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const frames = [1, 2, 3].map((value) => {
+      const event = h264Frame(11, 101, "delta");
+      (event.message as CompressedVideo).data[7] = value;
+      return event;
+    });
+    const end = h264Frame(12, 102, "delta");
+    cache.addFrameRange([key, frames[0]!, frames[2]!]);
+    cache.addFrameRange([...frames, end]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, ...frames, end]);
+    expect(cache.byteSize()).toBe(40);
+  });
+
+  it.each(["forward", "backward"])("joins %s overlaps within an equal-time group", (direction) => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const frames = [1, 2, 3, 4].map((value) => {
+      const message = h264Frame(11, 101, "delta");
+      (message.message as CompressedVideo).data[7] = value;
+      return message;
+    });
+    const end = h264Frame(12, 102, "delta");
+    const early = frames.slice(0, 3);
+    const late = frames.slice(1);
+    cache.addFrameRange([key, ...(direction === "forward" ? early : late)]);
+    cache.addFrameRange([...(direction === "forward" ? late : early), end]);
+
+    expect(cache.framesForReceiveTime(TOPIC, t(12))).toEqual([key, ...frames, end]);
+    expect(cache.byteSize()).toBe(48);
+  });
+
   it("merges a historical range fetched later in stream chronology", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");
