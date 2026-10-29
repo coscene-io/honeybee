@@ -453,6 +453,32 @@ describe("awaited video tick scheduling", () => {
     controller.dispose();
   });
 
+  it("does not decode copied overlap frames again on a warm seek after lookback", async () => {
+    const { controller, renderer, display } = setup();
+    const frames = [0, 100, 200, 300].map((ms) =>
+      frame(ms * 1_000_000, ms === 0 ? "key" : "delta"),
+    );
+    await controller.enqueueVideoFrames(frames.slice(0, 3));
+    renderer.subscribeMessageRange = mockMessageRange(
+      [0, 100, 200, 300].map((ms) => frame(ms * 1_000_000, ms === 0 ? "key" : "delta")),
+    );
+    renderer.stopped = true;
+    renderer.currentTime = 350_000_000n;
+    controller.handleSeek();
+    await controller.enqueueVideoFrames([frame(300_000_000)]);
+    expect(display.mock.calls.at(-1)![0]).toEqual(frames);
+    expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+
+    for (const seekTime of [250_000_000n, 275_000_000n]) {
+      renderer.currentTime = seekTime;
+      controller.handleSeek();
+      await controller.enqueueVideoFrames([frame(200_000_000)]);
+      expect(display.mock.calls.at(-1)![0]).toEqual(frames.slice(0, 3));
+    }
+    expect(renderer.subscribeMessageRange).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
   it("looks back when cached physical order cannot reach the backfilled target", async () => {
     const { controller, renderer, display } = setup();
     const key = frame(0, "key");
