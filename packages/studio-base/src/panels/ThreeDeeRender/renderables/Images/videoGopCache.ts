@@ -532,32 +532,56 @@ class CachedVideoRange {
   }
 
   public merge(other: CachedVideoRange): void {
-    // Ranges can be fetched in reverse chronological order after a cold seek. Merge by
-    // receive time while retaining the physical order within each independently read range.
+    // Prefer receive time, but a monotonic decoder clock can align rereads when receive
+    // times regress. Never reorder a source whose publish clock already regresses.
+    const timeKey =
+      (hasFrameTimeRegression(this.frames, "receiveTimeNs") ||
+        hasFrameTimeRegression(other.frames, "receiveTimeNs")) &&
+      !hasFrameTimeRegression(this.frames, "publishTimeNs") &&
+      !hasFrameTimeRegression(other.frames, "publishTimeNs")
+        ? "publishTimeNs"
+        : "receiveTimeNs";
+    const maxCopies = frameCopyCounts(this.frames);
+    const sharedMessages = new Set<MessageEvent>();
+    for (const [message, count] of frameCopyCounts(other.frames)) {
+      if (maxCopies.has(message)) {
+        sharedMessages.add(message);
+      }
+      maxCopies.set(message, Math.max(maxCopies.get(message) ?? 0, count));
+    }
+    // Shared identities can occur later when receive times regress. Do not pair them
+    // with a different copied message before reaching that physical overlap.
+    const matches = (a: CachedVideoFrame, b: CachedVideoFrame): boolean =>
+      a.messageEvent === b.messageEvent ||
+      (!sharedMessages.has(a.messageEvent) &&
+        !sharedMessages.has(b.messageEvent) &&
+        sameVideoFrameMessage(a.messageEvent, b.messageEvent));
     const merged: CachedVideoFrame[] = [];
     let left = 0;
     let right = 0;
     while (left < this.frames.length && right < other.frames.length) {
       const a = this.frames[left]!;
       const b = other.frames[right]!;
+      const aTime = a[timeKey];
+      const bTime = b[timeKey];
       if (
-        a.receiveTimeNs === b.receiveTimeNs &&
-        this.frames[left + 1]?.receiveTimeNs !== a.receiveTimeNs &&
-        other.frames[right + 1]?.receiveTimeNs !== b.receiveTimeNs &&
-        sameVideoFrameMessage(a.messageEvent, b.messageEvent)
+        aTime === bTime &&
+        this.frames[left + 1]?.[timeKey] !== aTime &&
+        other.frames[right + 1]?.[timeKey] !== bTime &&
+        matches(a, b)
       ) {
         // A range reread deserializes the same message into a new object. Match one copy
         // from each range, preserving repeated messages within either individual range.
         merged.push(a);
         left++;
         right++;
-      } else if (a.receiveTimeNs === b.receiveTimeNs) {
+      } else if (aTime === bTime) {
         let leftEnd = left + 1;
         let rightEnd = right + 1;
-        while (this.frames[leftEnd]?.receiveTimeNs === a.receiveTimeNs) {
+        while (this.frames[leftEnd]?.[timeKey] === aTime) {
           leftEnd++;
         }
-        while (other.frames[rightEnd]?.receiveTimeNs === b.receiveTimeNs) {
+        while (other.frames[rightEnd]?.[timeKey] === bTime) {
           rightEnd++;
         }
         // A read can start earlier within an equal-time group. Align the overlapping
@@ -565,12 +589,13 @@ class CachedVideoRange {
         for (const frame of mergeSameTimeFrames(
           this.frames.slice(left, leftEnd),
           other.frames.slice(right, rightEnd),
+          matches,
         )) {
           merged.push(frame);
         }
         left = leftEnd;
         right = rightEnd;
-      } else if (a.receiveTimeNs < b.receiveTimeNs) {
+      } else if (aTime < bTime) {
         merged.push(a);
         left++;
       } else {
@@ -585,9 +610,17 @@ class CachedVideoRange {
       merged.push(other.frames[right++]!);
     }
     this.frames.length = 0;
-    for (const frame of merged) {
-      this.frames.push(frame);
+    // Nonmonotonic receive times can hide shared messages from cursor-local matching.
+    // Keep the last copies as before, without collapsing repeats within either source.
+    for (let i = merged.length - 1; i >= 0; i--) {
+      const frame = merged[i]!;
+      const remaining = maxCopies.get(frame.messageEvent)!;
+      if (remaining > 0) {
+        this.frames.push(frame);
+        maxCopies.set(frame.messageEvent, remaining - 1);
+      }
     }
+    this.frames.reverse();
     this.#recomputeSizeAndBounds();
   }
 
@@ -747,6 +780,35 @@ class CachedVideoRange {
   }
 }
 
+function hasFrameTimeRegression(
+  frames: readonly CachedVideoFrame[],
+  key: "receiveTimeNs" | "publishTimeNs",
+): boolean {
+  return frames.some((frame, i) => i > 0 && frame[key] < frames[i - 1]![key]);
+}
+
+function frameCopyCounts(frames: readonly CachedVideoFrame[]): Map<MessageEvent, number> {
+  const copies = new Map<MessageEvent, number>();
+  for (const frame of frames) {
+    copies.set(frame.messageEvent, (copies.get(frame.messageEvent) ?? 0) + 1);
+  }
+  return copies;
+}
+
+function containsFrameSubsequence(
+  frames: readonly CachedVideoFrame[],
+  pattern: readonly CachedVideoFrame[],
+  matches: (a: CachedVideoFrame, b: CachedVideoFrame) => boolean,
+): boolean {
+  let matched = 0;
+  for (const frame of frames) {
+    if (matched < pattern.length && matches(frame, pattern[matched]!)) {
+      matched++;
+    }
+  }
+  return matched === pattern.length;
+}
+
 /** Match a contained sequence or the longest suffix/prefix overlap in linear comparisons. */
 function frameSequenceOverlap(
   frames: readonly CachedVideoFrame[],
@@ -782,26 +844,22 @@ function frameSequenceOverlap(
 function mergeSameTimeFrames(
   a: readonly CachedVideoFrame[],
   b: readonly CachedVideoFrame[],
+  matches: (a: CachedVideoFrame, b: CachedVideoFrame) => boolean,
 ): readonly CachedVideoFrame[] {
+  // A complete reread can fill holes in an older cached group. Retain its physical
+  // sequence instead of appending copies of the sparse group's messages again.
+  if (containsFrameSubsequence(a, b, matches)) {
+    return a;
+  }
+  if (containsFrameSubsequence(b, a, matches)) {
+    return b;
+  }
   const messagesInA = new Set(a.map((frame) => frame.messageEvent));
   const sharedMessages = new Set(
     b.map((frame) => frame.messageEvent).filter((message) => messagesInA.has(message)),
   );
-  // Shared objects identify the physical overlap even when adjacent messages have
-  // identical contents. Do not match a copied neighbor across that stronger anchor.
-  const matches = (left: CachedVideoFrame, right: CachedVideoFrame): boolean =>
-    left.messageEvent === right.messageEvent ||
-    (!sharedMessages.has(left.messageEvent) &&
-      !sharedMessages.has(right.messageEvent) &&
-      sameVideoFrameMessage(left.messageEvent, right.messageEvent));
   let forward = frameSequenceOverlap(a, b, matches);
-  if (forward === b.length) {
-    return a;
-  }
   let backward = frameSequenceOverlap(b, a, matches);
-  if (backward === a.length) {
-    return b;
-  }
   const coversSharedMessages = (frames: readonly CachedVideoFrame[]): boolean => {
     const covered = new Set(frames.map((frame) => frame.messageEvent));
     return Array.from(sharedMessages).every((message) => covered.has(message));
@@ -831,28 +889,7 @@ function mergeSameTimeFrames(
       merged.push(b[right++]!);
     }
   }
-  // If the ranges disagree inside a time group, preserve the previous insertion-order
-  // fallback. Only shared object copies can be identified reliably in this case.
-  const maxCopies = new Map<MessageEvent, number>();
-  for (const frames of [a, b]) {
-    const copies = new Map<MessageEvent, number>();
-    for (const frame of frames) {
-      copies.set(frame.messageEvent, (copies.get(frame.messageEvent) ?? 0) + 1);
-    }
-    for (const [message, count] of copies) {
-      maxCopies.set(message, Math.max(maxCopies.get(message) ?? 0, count));
-    }
-  }
-  const retained: CachedVideoFrame[] = [];
-  for (let i = merged.length - 1; i >= 0; i--) {
-    const frame = merged[i]!;
-    const remaining = maxCopies.get(frame.messageEvent)!;
-    if (remaining > 0) {
-      retained.push(frame);
-      maxCopies.set(frame.messageEvent, remaining - 1);
-    }
-  }
-  return retained.reverse();
+  return merged;
 }
 
 function compareRangesByPublishTime(a: CachedVideoRange, b: CachedVideoRange): number {
