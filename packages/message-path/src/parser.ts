@@ -301,8 +301,7 @@ export function parseMessagePathWithDiagnostics(input: string): {
   };
 
   const parseFilterValue = ():
-    | { value: NonNullable<MessagePathFilter["value"]>; valueIsIdentifier?: boolean }
-    | undefined => {
+    { value: NonNullable<MessagePathFilter["value"]>; valueIsIdentifier?: boolean } | undefined => {
     if (peek() === "$") {
       const startLoc = pos;
       pos++;

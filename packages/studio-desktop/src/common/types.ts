@@ -17,10 +17,7 @@ export type ForwardedMenuEvent =
   | "open-help-slack";
 
 export type ForwardedWindowEvent =
-  | "enter-full-screen"
-  | "leave-full-screen"
-  | "maximize"
-  | "unmaximize";
+  "enter-full-screen" | "leave-full-screen" | "maximize" | "unmaximize";
 
 /** Registering an event listener returns a function that will un-register the listener */
 export type UnregisterFn = () => void;

@@ -50,5 +50,4 @@ export type NavSatFixMsg = {
 };
 
 export type MapPanelMessage =
-  | MessageEvent<FoxgloveMessages["foxglove.GeoJSON"]>
-  | MessageEvent<NavSatFixMsg>;
+  MessageEvent<FoxgloveMessages["foxglove.GeoJSON"]> | MessageEvent<NavSatFixMsg>;
