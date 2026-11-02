@@ -123,11 +123,7 @@ const showLanguageOptions =
 type SectionKey = "contact" | "legal";
 
 export type AppSettingsTab =
-  | "general"
-  | "privacy"
-  | "extensions"
-  | "experimental-features"
-  | "about";
+  "general" | "privacy" | "extensions" | "experimental-features" | "about";
 
 const selectWorkspaceInitialActiveTab = (store: WorkspaceContextStore) =>
   store.dialogs.preferences.initialTab;

@@ -124,9 +124,10 @@ function abortAwaitTargetFrame(): jest.Mock<
   Promise<AwaitTargetFrameResult>,
   [{ requestId: number }]
 > {
-  return jest.fn(
-    async ({ requestId }): Promise<AwaitTargetFrameResult> => ({ type: "Aborted", requestId }),
-  );
+  return jest.fn(async ({ requestId }): Promise<AwaitTargetFrameResult> => ({
+    type: "Aborted",
+    requestId,
+  }));
 }
 
 type TestDecodedImage = ImageBitmap | ImageData | VideoFrame;

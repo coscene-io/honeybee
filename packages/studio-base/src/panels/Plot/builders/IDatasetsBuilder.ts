@@ -124,7 +124,7 @@ export async function forEachCsvDatasetChunk(
   };
 
   for (const dataset of datasets) {
-    for (let offset = 0; offset < dataset.data.length; ) {
+    for (let offset = 0; offset < dataset.data.length;) {
       const count = Math.min(chunkSize - chunkDatums, dataset.data.length - offset);
       chunk.push({
         label: dataset.label,

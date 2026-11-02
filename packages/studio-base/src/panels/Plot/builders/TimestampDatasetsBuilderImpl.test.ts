@@ -361,15 +361,14 @@ describe("TimestampDatasetsBuilderImpl", () => {
     const impl = new TimestampDatasetsBuilderImpl();
     const series = makeSeries(`action-${order.join("-")}`, 0);
     const receiveTime = { sec: 4, nsec: 0 };
-    const actions = order.map(
-      (source): UpdateDataAction =>
-        append(source === "full" ? "append-full" : "append-current", series, [
-          {
-            ...makeItem(4, 4),
-            receiveTime,
-            value: source,
-          },
-        ]),
+    const actions = order.map((source): UpdateDataAction =>
+      append(source === "full" ? "append-full" : "append-current", series, [
+        {
+          ...makeItem(4, 4),
+          receiveTime,
+          value: source,
+        },
+      ]),
     );
     impl.applyActions([updateSeries([series]), ...actions]);
 

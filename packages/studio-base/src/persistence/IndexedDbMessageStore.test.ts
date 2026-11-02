@@ -52,8 +52,7 @@ async function getSessionMetadata(
   try {
     const tx = db.transaction("sessions", "readonly");
     const metadata = (await tx.objectStore("sessions").get(sessionId)) as
-      | CacheSessionMetadata
-      | undefined;
+      CacheSessionMetadata | undefined;
     await tx.done;
     return metadata;
   } finally {
