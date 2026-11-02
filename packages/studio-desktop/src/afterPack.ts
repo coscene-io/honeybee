@@ -5,7 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { exec } from "@actions/exec";
 import { downloadTool, extractZip } from "@actions/tool-cache";
 import type { MacPackager } from "app-builder-lib/out/macPackager";
 import { log, Arch } from "builder-util";
@@ -21,6 +20,25 @@ type PlistObject = Record<string, PlistValue>;
 // which cannot load plist v5's ESM-only export.
 // eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve native import() for plist's ESM-only export.
 const importPlist = new Function("return import('plist')") as () => Promise<typeof import("plist")>;
+
+// ts-node compiles this file as CommonJS, so a static import of @actions/exec becomes
+// require(), which cannot load the ESM-only package.
+// foxglove-depcheck-used: @actions/exec
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve native import() for @actions/exec's ESM-only export.
+const importExec = new Function("return import('@actions/exec')") as () => Promise<
+  typeof import("@actions/exec")
+>;
+
+type ExecFn = Awaited<ReturnType<typeof importExec>>["exec"];
+
+async function exec(
+  commandLine: string,
+  args?: Parameters<ExecFn>[1],
+  options?: Parameters<ExecFn>[2],
+): Promise<number> {
+  const { exec: run } = await importExec();
+  return await run(commandLine, args, options);
+}
 
 async function getKeychainFile(context: AfterPackContext): Promise<string | undefined> {
   const macPackager = context.packager as unknown as MacPackager;

@@ -5,15 +5,24 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { exec as execAction, ExecOptions } from "@actions/exec";
+// ts-node compiles this file as CommonJS, so a static import of @actions/exec becomes
+// require(), which cannot load the ESM-only package.
+// foxglove-depcheck-used: @actions/exec
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve native import() for @actions/exec's ESM-only export.
+const importExec = new Function("return import('@actions/exec')") as () => Promise<
+  typeof import("@actions/exec")
+>;
+
+type ExecFn = Awaited<ReturnType<typeof importExec>>["exec"];
 
 export async function execOutput(
   program: string,
-  args?: string[],
-  options?: ExecOptions,
+  args?: Parameters<ExecFn>[1],
+  options?: Parameters<ExecFn>[2],
 ): Promise<{ status: number; stdout: string }> {
+  const { exec } = await importExec();
   let stdout = "";
-  const status = await execAction(program, args, {
+  const status = await exec(program, args, {
     ...options,
     silent: true,
     listeners: {
