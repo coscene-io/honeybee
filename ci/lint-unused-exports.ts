@@ -5,9 +5,15 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { info } from "@actions/core";
 import path from "path";
 import tsUnusedExports from "ts-unused-exports";
+
+// ts-node compiles this file as CommonJS, so a static import of @actions/core becomes
+// require(), which cannot load the ESM-only package.
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve native import() for @actions/core's ESM-only export.
+const importActionsCore = new Function("return import('@actions/core')") as () => Promise<
+  typeof import("@actions/core")
+>;
 
 // Identify unused exports
 //
@@ -16,6 +22,7 @@ import tsUnusedExports from "ts-unused-exports";
 // Note: use the "// ts-unused-exports:disable-next-line" comment above an export if you would like to mark it
 // as used even though it appears unused. This might happen for exports which are injected via webpack.
 async function main(): Promise<void> {
+  const { info } = await importActionsCore();
   const results = tsUnusedExports(path.join(__dirname, "../packages/studio-base/tsconfig.json"), [
     "--findCompletelyUnusedFiles",
     "--ignoreLocallyUsed",
