@@ -86,8 +86,7 @@ export type Unsubscribe = {
   subscriptionIds: SubscriptionId[];
 };
 type ClientChannelSchemaInfo =
-  | { schema: string; schemaEncoding: string }
-  | { schema?: undefined; schemaEncoding?: undefined };
+  { schema: string; schemaEncoding: string } | { schema?: undefined; schemaEncoding?: undefined };
 type ClientChannelBase = {
   id: ClientChannelId;
   topic: string;
@@ -273,12 +272,7 @@ export type ClientPublish = {
   data: DataView;
 };
 export type ParameterValue =
-  | undefined
-  | number
-  | boolean
-  | string
-  | { [key: string]: ParameterValue }
-  | ParameterValue[];
+  undefined | number | boolean | string | { [key: string]: ParameterValue } | ParameterValue[];
 export type Parameter = {
   name: string;
   value: ParameterValue;

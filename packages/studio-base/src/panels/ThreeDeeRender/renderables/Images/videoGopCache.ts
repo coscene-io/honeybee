@@ -430,7 +430,7 @@ export class VideoGopCache {
 
     let merged = false;
     ranges.sort(compareRangesByPublishTime);
-    for (let i = 0; i < ranges.length - 1; ) {
+    for (let i = 0; i < ranges.length - 1;) {
       const current = ranges[i]!;
       const next = ranges[i + 1]!;
       if (current.overlapsRange(next)) {

@@ -29,8 +29,7 @@ import {
 } from "@foxglove/studio-base/util/time";
 
 type PlaybackControlsTooltipItem =
-  | { type: "divider" }
-  | { type: "item"; title: string; value: string };
+  { type: "divider" } | { type: "item"; title: string; value: string };
 
 const useStyles = makeStyles()((theme) => ({
   tooltipDivider: {

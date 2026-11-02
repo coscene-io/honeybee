@@ -1251,15 +1251,13 @@ describe("FoxQL timestamp paths", () => {
       builder.handlePlayerState(
         buildPlayerState({
           messages: [
-            ...[0, 1, 3].map(
-              (sec): MessageEvent => ({
-                topic: "/foo",
-                schemaName: "foo",
-                receiveTime: { sec, nsec: 0 },
-                sizeInBytes: 0,
-                message: { active: sec !== 1, header: { stamp: { sec: sec * 2, nsec: 0 } } },
-              }),
-            ),
+            ...[0, 1, 3].map((sec): MessageEvent => ({
+              topic: "/foo",
+              schemaName: "foo",
+              receiveTime: { sec, nsec: 0 },
+              sizeInBytes: 0,
+              message: { active: sec !== 1, header: { stamp: { sec: sec * 2, nsec: 0 } } },
+            })),
           ],
         }),
       );
@@ -1290,15 +1288,13 @@ describe("FoxQL timestamp paths", () => {
     builder.setSeries(buildSeriesItems([{ value }]));
     builder.handlePlayerState(
       buildPlayerState({
-        messages: [0, 1].map(
-          (sec): MessageEvent => ({
-            topic: "/foo",
-            schemaName: "foo",
-            receiveTime: { sec, nsec: 0 },
-            sizeInBytes: 0,
-            message: { val: sec * 2, enabled: true, label: String(sec * 2) },
-          }),
-        ),
+        messages: [0, 1].map((sec): MessageEvent => ({
+          topic: "/foo",
+          schemaName: "foo",
+          receiveTime: { sec, nsec: 0 },
+          sizeInBytes: 0,
+          message: { val: sec * 2, enabled: true, label: String(sec * 2) },
+        })),
       }),
     );
     const result = await builder.getViewportDatasets({
@@ -1325,15 +1321,13 @@ describe("FoxQL timestamp paths", () => {
             },
           ],
         ]),
-        messages: [0, 1, 3].map(
-          (sec): MessageEvent => ({
-            topic: "/foo",
-            schemaName: "foo",
-            receiveTime: { sec, nsec: 0 },
-            sizeInBytes: 0,
-            message: { status: sec === 1 ? 0 : 1 },
-          }),
-        ),
+        messages: [0, 1, 3].map((sec): MessageEvent => ({
+          topic: "/foo",
+          schemaName: "foo",
+          receiveTime: { sec, nsec: 0 },
+          sizeInBytes: 0,
+          message: { status: sec === 1 ? 0 : 1 },
+        })),
       }),
     );
     await builder.getViewportDatasets({ bounds: {}, size: { width: 1000, height: 1000 } });

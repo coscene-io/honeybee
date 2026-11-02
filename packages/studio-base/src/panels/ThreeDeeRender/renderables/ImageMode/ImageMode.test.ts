@@ -177,12 +177,10 @@ class SynchronizingCompressedVideoMessageHandler extends FakeMessageHandler {
     });
 
   public override readonly getRenderStateAndUpdateHUD: IMessageHandler["getRenderStateAndUpdateHUD"] =
-    jest.fn(
-      (): MessageRenderState => ({
-        image: this.#matchedTarget,
-        annotationsByTopic: new Map(),
-      }),
-    );
+    jest.fn((): MessageRenderState => ({
+      image: this.#matchedTarget,
+      annotationsByTopic: new Map(),
+    }));
 }
 
 class PlaybackCompressedVideoMessageHandler extends FakeMessageHandler {
@@ -927,8 +925,7 @@ describe("ImageMode compressed video seek replay", () => {
       const keyframe = makeVideoMessage(0n, "key");
       const delta = makeVideoMessage(10_000_000n, "delta");
       let onNewRangeIterator:
-        | Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"]
-        | undefined;
+        Parameters<SubscribeMessageRange>[0]["onNewRangeIterator"] | undefined;
       const subscribeMessageRange = jest.fn<
         ReturnType<SubscribeMessageRange>,
         Parameters<SubscribeMessageRange>

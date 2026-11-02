@@ -270,8 +270,7 @@ type BrowserLockManager = {
 
 function getBrowserLockManager(): BrowserLockManager | undefined {
   const runtimeNavigator = (globalThis as { navigator?: Navigator }).navigator as
-    | (Navigator & { locks?: BrowserLockManager })
-    | undefined;
+    (Navigator & { locks?: BrowserLockManager }) | undefined;
   return runtimeNavigator?.locks;
 }
 
@@ -1314,8 +1313,7 @@ export class IndexedDbMessageStore implements PersistentMessageCache {
     let budget = this.#globalBudgetBytes;
     const runtimeNavigator = (globalThis as { navigator?: Navigator }).navigator;
     const storageManager = runtimeNavigator?.storage as
-      | { estimate?: () => Promise<StorageEstimate> }
-      | undefined;
+      { estimate?: () => Promise<StorageEstimate> } | undefined;
     if (storageManager?.estimate != undefined) {
       try {
         const estimateOperation = storageManager.estimate();
