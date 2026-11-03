@@ -10,7 +10,7 @@
     "@rspack/cli": "2.2.9",
     "@rspack/core": "2.2.9",
     "@types/ws": "^8",
-    "electron": "35.0.3",
+    "electron": "45.2.1",
     "playwright": "1.60.0",
     "ws": "8.18.0"
   }
