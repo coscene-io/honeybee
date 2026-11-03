@@ -4366,7 +4366,7 @@ __metadata:
     "@protobufjs/base64": 1.1.2
     "@rspack/core": 2.2.9
     "@sentry/browser": 8.24.0
-    "@sentry/core": 8.24.0
+    "@sentry/core": 11.10.0
     "@sentry/types": 8.24.0
     "@svgr/webpack": 8.1.0
     "@tanstack/react-table": 8.21.3
@@ -7034,6 +7034,22 @@ __metadata:
   bin:
     sentry-cli: bin/sentry-cli
   checksum: 92e88688b5148e5abed2cc253290008da89029c5816d7f1bdb5fbed035305c0bcfb5f49e4976ff8ced5fbb876d28e655eef838d32c7a388d3582654ff67d65e0
+  languageName: node
+  linkType: hard
+
+"@sentry/conventions@npm:^0.29.0":
+  version: 0.29.0
+  resolution: "@sentry/conventions@npm:0.29.0"
+  checksum: ffa5da7cb9f587e00b92d27439cee021124b844f8637ea1783bd7199dd891e0040e73d857167e84aac868e6848d869ab11495875329ab146afb434c2334e33c6
+  languageName: node
+  linkType: hard
+
+"@sentry/core@npm:11.10.0":
+  version: 11.10.0
+  resolution: "@sentry/core@npm:11.10.0"
+  dependencies:
+    "@sentry/conventions": ^0.29.0
+  checksum: ca7ea85126d7979b7d4dfe20e907ed0667652ef7e160f36af454d462e75fc78fdaf8a2d3003b21499f4893a2be79c543961d1c4e973ced219aaacc40ebd3ced0
   languageName: node
   linkType: hard
 
