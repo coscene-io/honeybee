@@ -50,6 +50,12 @@ export class SceneSettings extends SceneExtension {
         input: "rgb",
         value: config.scene.backgroundColor,
       },
+      showOrbitTarget: {
+        label: t("threeDee:showOrbitTarget"),
+        help: t("threeDee:showOrbitTargetHelp"),
+        input: "boolean",
+        value: config.scene.showOrbitTarget ?? true,
+      },
       labelScaleFactor: {
         label: t("threeDee:labelScale"),
         help: t("threeDee:labelScaleHelp"),
