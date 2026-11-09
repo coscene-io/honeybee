@@ -190,6 +190,19 @@ describe("awaited video tick scheduling", () => {
     expect(display).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a decoded GOP when every stopped frame is still at the decoder frontier", async () => {
+    const { controller, renderer, display, reset } = setup();
+    await controller.enqueueVideoFrames([frame(1, "key"), frame(2)]);
+    expect(display).toHaveBeenCalledTimes(1);
+    renderer.stopped = true;
+    await controller.enqueueVideoFrames([frame(2)]);
+    renderer.stopped = false;
+    await controller.enqueueVideoFrames([frame(3)]);
+    expect(display).toHaveBeenCalledTimes(2);
+    expect(display.mock.calls[1]![0]).toEqual([frame(3)]);
+    expect(reset).not.toHaveBeenCalled();
+  });
+
   it("awaits the final EOF batch once and leaves empty stopped ticks idle", async () => {
     const { controller, renderer, display } = setup();
     renderer.stopped = true;
