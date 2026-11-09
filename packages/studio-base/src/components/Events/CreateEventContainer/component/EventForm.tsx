@@ -39,6 +39,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { BagFileInfo } from "@foxglove/studio-base/context/CoScenePlaylistContext";
 import { useEvents, EventsStore } from "@foxglove/studio-base/context/EventsContext";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
+import { ActiveMomentReference } from "@foxglove/studio-base/semanticSegmentation/components/ActiveMomentReference";
 
 import { CreateEventForm } from "../types";
 
@@ -67,13 +68,15 @@ const useStyles = makeStyles()((theme, _params) => ({
 
 interface EventFormProps {
   form: UseFormReturn<CreateEventForm>;
+  /** Record that is actually open. A reference is not written for any other record. */
+  recordId?: string;
   onMetaDataKeyDown?: (keyboardEvent: React.KeyboardEvent) => void;
 }
 
 const selectCustomFieldSchema = (store: EventsStore) => store.customFieldSchema;
 const selectToModifyEvent = (store: EventsStore) => store.toModifyEvent;
 
-export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.ReactNode {
+export function EventForm({ form, onMetaDataKeyDown, recordId }: EventFormProps): React.ReactNode {
   const { classes } = useStyles();
   const { t } = useTranslation("event");
   const { formatTime } = usePlaybackTimeFormat();
@@ -406,30 +409,40 @@ export function EventForm({ form, onMetaDataKeyDown }: EventFormProps): React.Re
                   name={`metadataEntries.${index}.value`}
                   control={control}
                   render={({ field: valueField }) => (
-                    <TextField
-                      {...valueField}
-                      size="small"
-                      variant="filled"
-                      placeholder={t("attributeValue")}
-                      error={hasDuplicate}
-                      onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
-                        if (
-                          (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
-                          keyboardEvent.key === "Enter" &&
-                          !isComposition &&
-                          onMetaDataKeyDown
-                        ) {
-                          onMetaDataKeyDown(keyboardEvent);
-                        }
-                      }}
-                      onChange={(evt) => {
-                        valueField.onChange(evt);
-                        // 延迟检查是否需要自动添加新行
-                        setTimeout(() => {
+                    <div>
+                      <TextField
+                        {...valueField}
+                        size="small"
+                        variant="filled"
+                        placeholder={t("attributeValue")}
+                        error={hasDuplicate}
+                        onKeyDown={(keyboardEvent: React.KeyboardEvent) => {
+                          if (
+                            (keyboardEvent.nativeEvent.target as HTMLInputElement).value !== "" &&
+                            keyboardEvent.key === "Enter" &&
+                            !isComposition &&
+                            onMetaDataKeyDown
+                          ) {
+                            onMetaDataKeyDown(keyboardEvent);
+                          }
+                        }}
+                        onChange={(evt) => {
+                          valueField.onChange(evt);
+                          // 延迟检查是否需要自动添加新行
+                          setTimeout(() => {
+                            handleAutoAppendRow(index);
+                          }, 0);
+                        }}
+                      />
+                      <ActiveMomentReference
+                        recordId={recordId}
+                        value={valueField.value}
+                        onChange={(value) => {
+                          valueField.onChange(value);
                           handleAutoAppendRow(index);
-                        }, 0);
-                      }}
-                    />
+                        }}
+                      />
+                    </div>
                   )}
                 />
                 <ButtonGroup>

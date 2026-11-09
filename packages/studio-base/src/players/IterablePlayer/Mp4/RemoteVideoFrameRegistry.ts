@@ -25,19 +25,44 @@ export interface RemoteVideoFrameProvider {
   getFrame(timestamp: Time): Promise<VideoFrame>;
 }
 
+/** Presentation metadata only: registration lifetime bounds this bridge, never decoded pixels. */
+export type RemoteVideoSourceMetadata = Readonly<{
+  sourceId: string;
+  topic: string;
+  frames: readonly Readonly<{ timestampNs: bigint; durationNs: bigint }>[];
+}>;
+
 const providers = new Map<string, RemoteVideoFrameProvider>();
+const sourceMetadata = new Map<string, RemoteVideoSourceMetadata>();
+
+export function getRemoteVideoSourceMetadata(
+  providerId: string,
+): RemoteVideoSourceMetadata | undefined {
+  return sourceMetadata.get(providerId);
+}
 
 export function registerRemoteVideoFrameProvider(
   id: string,
   provider: RemoteVideoFrameProvider,
+  metadata?: RemoteVideoSourceMetadata,
 ): () => void {
   if (providers.has(id)) {
     throw new Error(`A remote video frame provider is already registered for ${id}`);
   }
   providers.set(id, provider);
+  if (metadata) {
+    sourceMetadata.set(
+      id,
+      Object.freeze({
+        ...metadata,
+        frames: Object.freeze(metadata.frames.map((frame) => Object.freeze({ ...frame }))),
+      }),
+    );
+  }
   return () => {
     if (providers.get(id) === provider) {
       providers.delete(id);
+      sourceMetadata.delete(id);
     }
   };
 }

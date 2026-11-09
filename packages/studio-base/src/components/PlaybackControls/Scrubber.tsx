@@ -262,6 +262,9 @@ type Props = Pick<
 > & {
   onToolbarHeightChange?: (height: number) => void;
   onSeek: (seekTo: Time) => void;
+  /** Fires after the slider releases, with playback seconds from the start. Dragging itself keeps calling onSeek. */
+  onCommit?: (playbackSeconds: number) => void;
+  onScrubStart?: () => void;
 };
 
 export type EventContextMenuRequest = ContextMenuEvent;
@@ -460,7 +463,7 @@ function RollingEditIcon({ active }: { active: boolean }): React.JSX.Element {
 }
 
 export default function Scrubber(props: Props): React.JSX.Element {
-  const { onSeek } = props;
+  const { onSeek, onCommit, onScrubStart } = props;
   const { classes } = useStyles();
   const { t } = useTranslation("general");
   const consoleApi = useConsoleApi();
@@ -1409,6 +1412,8 @@ export default function Scrubber(props: Props): React.JSX.Element {
                   onHoverOver={onHoverOver}
                   onHoverOut={onHoverOut}
                   onChange={onChange}
+                  onCommit={onCommit}
+                  onScrubStart={onScrubStart}
                   cursor={cursor}
                   viewport={resolvedViewport}
                 />

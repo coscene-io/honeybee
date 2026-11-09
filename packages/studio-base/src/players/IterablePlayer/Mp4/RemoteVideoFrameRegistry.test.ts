@@ -10,6 +10,7 @@ import { fromNanoSec } from "@foxglove/rostime";
 import {
   RemoteVideoFrameReference,
   getRemoteVideoFrame,
+  getRemoteVideoSourceMetadata,
   registerRemoteVideoFrameProvider,
 } from "./RemoteVideoFrameRegistry";
 
@@ -49,5 +50,24 @@ describe("RemoteVideoFrameRegistry", () => {
     } finally {
       unregister();
     }
+  });
+
+  it("exposes immutable real presentation metadata only for the provider lifetime", () => {
+    const frames = [
+      { timestampNs: 0n, durationNs: 300n },
+      { timestampNs: 300n, durationNs: 600n },
+    ];
+    const unregister = registerRemoteVideoFrameProvider(
+      "metadata-provider",
+      { getFrame: jest.fn() },
+      { sourceId: "fixture.mp4", topic: "/camera", frames },
+    );
+    const metadata = getRemoteVideoSourceMetadata("metadata-provider");
+    expect(metadata?.frames).toEqual(frames);
+    frames.push({ timestampNs: 900n, durationNs: 100n });
+    expect(metadata?.frames).toHaveLength(2);
+    expect(Object.isFrozen(metadata?.frames)).toBe(true);
+    unregister();
+    expect(getRemoteVideoSourceMetadata("metadata-provider")).toBeUndefined();
   });
 });

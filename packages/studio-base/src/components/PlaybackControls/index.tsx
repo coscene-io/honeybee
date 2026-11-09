@@ -33,7 +33,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { useLatest, useWindowSize } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
+import { Time, add, areEqual, clampTime, compare, fromSec, toNanoSec } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -58,6 +58,10 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
+import {
+  segmentationCommitOffset,
+  segmentationFrameStep,
+} from "@foxglove/studio-base/semanticSegmentation/frameStep";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
@@ -298,6 +302,35 @@ export default function PlaybackControls(props: {
     [isKeyframeSearchActive, seek],
   );
 
+  const commitSeek = useCallback(
+    (seekTo: Time, mode: "pause" | "nearest") => {
+      const { startTime: start, endTime: end } = getTimeInfo();
+      if (!start || !end) {
+        seekIfAllowed(seekTo);
+        return;
+      }
+      const offsetSec = Number(toNanoSec(seekTo) - toNanoSec(start)) / 1e9;
+      const snapped = segmentationCommitOffset(offsetSec, mode);
+      if (snapped == undefined) {
+        const { currentTime } = getTimeInfo();
+        if (!currentTime || !areEqual(seekTo, currentTime)) {
+          seekIfAllowed(seekTo);
+        }
+        return;
+      }
+      seekIfAllowed(clampTime(add(start, fromSec(snapped)), start, end));
+    },
+    [getTimeInfo, seekIfAllowed],
+  );
+
+  // A drag seeks the nearest annotation frame. The same frame does not seek again.
+  const seekAnnotation = useCallback(
+    (seekTo: Time) => {
+      commitSeek(seekTo, "nearest");
+    },
+    [commitSeek],
+  );
+
   const togglePlayPause = useCallback(() => {
     if (isKeyframeSearchActive) {
       return;
@@ -305,6 +338,10 @@ export default function PlaybackControls(props: {
 
     if (isPlaying) {
       pause();
+      const { currentTime } = getTimeInfo();
+      if (currentTime) {
+        commitSeek(currentTime, "nearest");
+      }
     } else {
       const { startTime: start, endTime: end, currentTime: current } = getTimeInfo();
       // if we are at the end, we need to go back to start
@@ -313,7 +350,7 @@ export default function PlaybackControls(props: {
       }
       play();
     }
-  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, seekIfAllowed, play]);
+  }, [isKeyframeSearchActive, isPlaying, pause, getTimeInfo, seekIfAllowed, play, commitSeek]);
 
   // Track SeekStep editing state for KeyListener management
   const [seekStepEditing, setSeekStepEditing] = useState(false);
@@ -333,6 +370,15 @@ export default function PlaybackControls(props: {
 
       const { currentTime, startTime: start, endTime: end } = getTimeInfo();
       if (!currentTime || !start || !end) {
+        return;
+      }
+
+      // While annotating, forward goes to the next annotation frame.
+      const frameStep = segmentationFrameStep(1, ev?.shiftKey === true ? 10 : 1);
+      if (frameStep) {
+        if (frameStep.timestampSec != undefined) {
+          seekIfAllowed(clampTime(add(start, fromSec(frameStep.timestampSec)), start, end));
+        }
         return;
       }
 
@@ -367,8 +413,16 @@ export default function PlaybackControls(props: {
         return;
       }
 
-      const { currentTime } = getTimeInfo();
+      const { currentTime, startTime: start, endTime: end } = getTimeInfo();
       if (!currentTime) {
+        return;
+      }
+      // While annotating, back goes to the previous annotation frame.
+      const frameStep = segmentationFrameStep(-1, ev?.shiftKey === true ? 10 : 1);
+      if (frameStep) {
+        if (frameStep.timestampSec != undefined && start && end) {
+          seekIfAllowed(clampTime(add(start, fromSec(frameStep.timestampSec)), start, end));
+        }
         return;
       }
       seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
@@ -473,7 +527,14 @@ export default function PlaybackControls(props: {
           onPointerDown={startTimelineResize}
         />
         <Scrubber
-          onSeek={seekIfAllowed}
+          onSeek={seekAnnotation}
+          onScrubStart={pause}
+          onCommit={(playbackSeconds) => {
+            const { startTime: start } = getTimeInfo();
+            if (start) {
+              commitSeek(add(start, fromSec(playbackSeconds)), "nearest");
+            }
+          }}
           onToolbarHeightChange={setToolbarHeight}
           playback={
             <>
@@ -545,7 +606,13 @@ export default function PlaybackControls(props: {
           }
           speed={<PlaybackSpeedControls disabled={disableControls} />}
           time={({ compact }) => (
-            <PlaybackTimeDisplay compact={compact} onSeek={seekIfAllowed} onPause={pause} />
+            <PlaybackTimeDisplay
+              compact={compact}
+              onSeek={(seekTo) => {
+                commitSeek(seekTo, "nearest");
+              }}
+              onPause={pause}
+            />
           )}
           sourceInfo={
             <>
