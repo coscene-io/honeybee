@@ -26,6 +26,7 @@ import { previewWindowNeedsLoad, previewWindowStartSec } from "../annotationFram
 import {
   imageFrameIdentity,
   presentationFrameAt,
+  segmentationCachedFrames,
   segmentationImageSources,
   segmentationSourceKey,
   type SegmentationImage,
@@ -57,6 +58,77 @@ type Binding = {
   providerId?: string;
   sourceId?: string;
 };
+
+function cachedCanvasFrames(
+  container: HTMLElement | null,
+): ReturnType<NonNullable<ReturnType<typeof segmentationCachedFrames.get>>> {
+  const canvas = container?.querySelector("canvas");
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return [];
+  }
+  return segmentationCachedFrames.get(canvas)?.() ?? [];
+}
+
+function receivedFrameStamps(
+  messages: readonly {
+    topic: string;
+    message: unknown;
+    receiveTime: SegmentationImage["receiveTime"];
+  }[],
+  topic: string,
+): Map<string, { timestamp: SegmentationImage["timestamp"]; receiveTime: SegmentationImage["receiveTime"] }> {
+  const stamps = new Map<
+    string,
+    { timestamp: SegmentationImage["timestamp"]; receiveTime: SegmentationImage["receiveTime"] }
+  >();
+  for (const message of messages) {
+    if (message.topic !== topic) {
+      continue;
+    }
+    const value = message.message as {
+      timestamp?: SegmentationImage["timestamp"];
+      header?: { stamp: SegmentationImage["timestamp"] };
+    };
+    const stamp = {
+      timestamp: value.header?.stamp ?? value.timestamp ?? message.receiveTime,
+      receiveTime: message.receiveTime,
+    };
+    stamps.set(imageFrameIdentity(stamp), stamp);
+  }
+  return stamps;
+}
+
+// Forward propagation starts at the seed and walks later frames. The decoder cache ends at the
+// playhead, so those later frames have to be read. Cap the read: opening the editor must not pull
+// the rest of the recording.
+const LOOKAHEAD_NS = 2_000_000_000n;
+const LOOKAHEAD_MESSAGES = 40;
+
+function sourceFrames(
+  videoId: string,
+  startTime: SegmentationImage["receiveTime"],
+  stamps: Iterable<Pick<SegmentationImage, "timestamp" | "receiveTime">>,
+) {
+  const startNs = toNanoSec(startTime);
+  return [...stamps].map((stamp) => ({
+    id: `${videoId}:${imageFrameIdentity(stamp)}`,
+    videoId,
+    index: 0,
+    timestampSec: Number(toNanoSec(stamp.receiveTime) - startNs) / 1e9,
+    imageUrl: "",
+  }));
+}
+
+async function readAheadMessages<T>(iterator: AsyncIterable<readonly T[]>): Promise<T[]> {
+  const collected: T[] = [];
+  for await (const batch of iterator) {
+    collected.push(...batch);
+    if (collected.length >= LOOKAHEAD_MESSAGES) {
+      break;
+    }
+  }
+  return collected.slice(0, LOOKAHEAD_MESSAGES);
+}
 
 function propagationLocksContext(status: string): boolean {
   return status === "running" || status === "stopping";
@@ -114,6 +186,7 @@ export function SegmentationImageEntry({
   const pending = useRef<{ runtime: SegmentationRuntime; epoch: number }>();
   const blockedImage = useRef<object>();
   const lastSyncedImage = useRef<object>();
+  const lookahead = useRef<{ key: string; cancel?: () => void } | undefined>(undefined);
   const [error, setError] = useState<string>();
   const toolbarHosted = onActionsChange != undefined;
   const recordId = segmentationSourceKey({
@@ -329,6 +402,8 @@ export function SegmentationImageEntry({
   ]);
 
   const close = useCallback(() => {
+    lookahead.current?.cancel?.();
+    lookahead.current = undefined;
     ++generation.current;
     const binding = active.current;
     active.current = undefined;
@@ -431,6 +506,10 @@ export function SegmentationImageEntry({
       });
     };
     const data = getPipeline().playerState.activeData;
+    if (data?.isPlaying && lookahead.current) {
+      lookahead.current.cancel?.();
+      lookahead.current = undefined;
+    }
     // Observe seek generations before recording a newly decoded identity. A decode event can
     // arrive before React's clock layout effect; that fresh identity must not be blocked later.
     if (previousSeek.current !== data?.lastSeekTime) {
@@ -470,26 +549,93 @@ export function SegmentationImageEntry({
         toNanoSec(image.receiveTime) <= toNanoSec(data.currentTime) &&
         (!latest || toNanoSec(latest.receiveTime) === toNanoSec(image.receiveTime));
     }
-    if (!frame && matchesClock && !image.source && state.document) {
+    if (matchesClock && !image.source && state.document) {
       const video = state.document.videos.find((item) => item.id === binding.videoId);
       if (video) {
+        const pipeline = getPipeline();
+        const stamps = receivedFrameStamps(
+          [
+            ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
+              (block) => block?.messagesByTopic[topic] ?? [],
+            ) ?? []),
+            ...data.messages,
+            ...cachedCanvasFrames(containerRef.current),
+          ],
+          topic,
+        );
+        stamps.set(imageFrameIdentity(image), image);
+        const durationSec = Number(toNanoSec(data.endTime) - toNanoSec(data.startTime)) / 1e9;
         binding.runtime.registerSource({
-          videos: [
-            {
-              ...video,
-              durationSec: Number(toNanoSec(data.endTime) - toNanoSec(data.startTime)) / 1e9,
-            },
-          ],
-          frames: [
-            {
-              id: `${binding.videoId}:${imageFrameIdentity(image)}`,
-              videoId: binding.videoId,
-              index: 0,
-              timestampSec: Number(toNanoSec(image.receiveTime) - toNanoSec(data.startTime)) / 1e9,
-              imageUrl: "",
-            },
-          ],
+          videos: [{ ...video, durationSec }],
+          frames: sourceFrames(binding.videoId, data.startTime, stamps.values()),
         });
+        if (!data.isPlaying) {
+          const aheadKey = `${binding.videoId}:${imageFrameIdentity(image)}`;
+          if (lookahead.current?.key !== aheadKey) {
+            lookahead.current?.cancel?.();
+            const subscribe = pipeline.subscribeMessageRange;
+            const startNs = toNanoSec(image.receiveTime);
+            const endLimit = toNanoSec(data.endTime);
+            if (subscribe && startNs < endLimit) {
+              const end = fromNanoSec(
+                startNs + LOOKAHEAD_NS < endLimit ? startNs + LOOKAHEAD_NS : endLimit,
+              );
+              const handle: { cancel?: () => void } = {};
+              lookahead.current = { key: aheadKey, cancel: () => handle.cancel?.() };
+              const runtime = binding.runtime;
+              const videoId = binding.videoId;
+              const startTime = data.startTime;
+              handle.cancel =
+                subscribe({
+                  topic,
+                  timeRange: { start: image.receiveTime, end },
+                  onNewRangeIterator: (iterator) => {
+                    void (async () => {
+                      try {
+                        const messages = await readAheadMessages(iterator);
+                        if (lookahead.current?.key !== aheadKey) {
+                          return;
+                        }
+                        const ahead = receivedFrameStamps(messages, topic);
+                        const currentVideo = runtime.store
+                          .getState()
+                          .document?.videos.find((item) => item.id === videoId);
+                        if (
+                          !currentVideo ||
+                          ahead.size === 0 ||
+                          lookahead.current?.key !== aheadKey
+                        ) {
+                          return;
+                        }
+                        runtime.registerSource({
+                          videos: [
+                            {
+                              ...currentVideo,
+                              durationSec: Number(endLimit - toNanoSec(startTime)) / 1e9,
+                            },
+                          ],
+                          frames: sourceFrames(videoId, startTime, ahead.values()),
+                        });
+                      } catch (cause) {
+                        if (lookahead.current?.key === aheadKey) {
+                          setError(String(cause));
+                        }
+                      } finally {
+                        if (lookahead.current?.key === aheadKey) {
+                          handle.cancel?.();
+                        }
+                      }
+                    })();
+                  },
+                }) ?? undefined;
+              if (!handle.cancel) {
+                lookahead.current = undefined;
+              }
+            } else {
+              lookahead.current = { key: aheadKey };
+            }
+          }
+        }
         frame = binding.runtime.store
           .getState()
           .document?.frames.find(
@@ -662,23 +808,17 @@ export function SegmentationImageEntry({
           }
         } else {
           // Cache metadata is bounded by the player's cache; no frame/pixel synthesis or media copies.
-          const messages = [
-            ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
-              (block) => block?.messagesByTopic[imageTopic] ?? [],
-            ) ?? []),
-            ...data.messages,
-          ];
-          for (const message of messages) {
-            if (message.topic !== imageTopic) {
-              continue;
-            }
-            const value = message.message as {
-              timestamp?: SegmentationImage["timestamp"];
-              header?: { stamp: SegmentationImage["timestamp"] };
-            };
-            const timestamp = value.header?.stamp ?? value.timestamp ?? message.receiveTime;
-            const stamp = { timestamp, receiveTime: message.receiveTime };
-            stamps.set(imageFrameIdentity(stamp), stamp);
+          for (const [id, stamp] of receivedFrameStamps(
+            [
+              ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
+                (block) => block?.messagesByTopic[imageTopic] ?? [],
+              ) ?? []),
+              ...data.messages,
+              ...cachedCanvasFrames(containerRef.current),
+            ],
+            imageTopic,
+          )) {
+            stamps.set(id, stamp);
           }
           if (image) {
             stamps.set(imageFrameIdentity(image), image);

@@ -1354,6 +1354,18 @@ export class ImageMode
   #segmentationBlockedImage: object | undefined;
 
   /** Capture pixels and their displayed message together; pending decodes never relabel old pixels. */
+  /**
+   * The compressed frames this panel still holds for its image topic, in receive order. Only what
+   * the decoder cache has kept, so the list grows as playback and seeks bring frames in.
+   */
+  public cachedSegmentationFrames(): MessageEvent[] {
+    const topic = this.getImageModeSettings().imageTopic;
+    if (topic == undefined || this.#compressedVideoTopic !== topic) {
+      return [];
+    }
+    return this.#compressedVideoController?.cachedFrames() ?? [];
+  }
+
   public captureSegmentationImage(): SegmentationImage | undefined {
     const renderable = this.imageRenderable;
     const image = renderable?.getDecodedImage();

@@ -13,6 +13,12 @@ case "$when" in
   *) iso="$when" ;;
 esac
 
+# The time query does not move the playhead. This recording's mid time sits at 78% of the track.
+seek_frac="0"
+if [ "$when" = "mid" ]; then
+  seek_frac="0.78"
+fi
+
 mkdir -p "$(dirname "$shot")"
 time_param="${iso//:/%3A}"
 url="http://localhost:8081/?ds=coscene-data-platform&ds.key=KATEYpPwcXfb6kb_kbcOl&layoutId=recommended%3Aastribot-s1%3Ah264%3Ahttps%253A%252F%252Fhoneybee-public-layouts.coscene.io%252Fastribot-s1%252Fmanipulation_execution_review__viewer-h264.json&time=${time_param}"
@@ -27,6 +33,18 @@ const page = task.page("p1");
 await page.goto(${url_js});
 await page.waitForFunction(() => (document.body?.innerText ?? "").includes("astribot_camera"), undefined, { timeout: 60000 });
 await page.waitForTimeout(${wait_ms});
+const seekFrac = ${seek_frac};
+if (seekFrac > 0) {
+  const track = await page.evaluate(() => {
+    const el = [...document.querySelectorAll("div")].find((node) => String(node.className).includes("ProgressPlot"));
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return { x: rect.x, y: rect.y + rect.height / 2, w: rect.width };
+  });
+  if (!track) throw new Error("timeline track is not on screen");
+  await page.mouse.click(track.x + track.w * seekFrac, track.y, { label: "seek to mid" });
+  await page.waitForTimeout(4000);
+}
 const facts = await page.evaluate(() => {
   const clock = document.querySelector('input[aria-label="当前播放时间"], input[title="当前播放时间"]');
   const text = document.body.innerText;

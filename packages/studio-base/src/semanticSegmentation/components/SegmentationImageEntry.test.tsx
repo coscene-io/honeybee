@@ -11,6 +11,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { createRef } from "react";
 
 import { fromNanoSec } from "@foxglove/rostime";
+import type { Progress, SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import { segmentationImageSources, type SegmentationImage } from "../imageSource";
 import { segmentationSession } from "../runtime";
@@ -27,7 +28,7 @@ const pipeline = {
     playerId: "image-player",
     name: "Remote camera",
     urlState: { sourceId: "remote-mp4", parameters: { url: "fixture.mp4" } },
-    progress: {},
+    progress: { messageCache: { blocks: [], startTime: { sec: 0, nsec: 0 } } } as Progress,
     activeData: {
       startTime: fromNanoSec(0n),
       endTime: fromNanoSec(1_000_000_000n),
@@ -37,6 +38,7 @@ const pipeline = {
     },
   },
   pausePlayback: jest.fn(),
+  subscribeMessageRange: undefined as SubscribeMessageRange | undefined,
 };
 const getPipeline = () => pipeline;
 jest.mock("@foxglove/studio-base/components/MessagePipeline", () => ({
@@ -137,6 +139,8 @@ beforeEach(() => {
   pipeline.playerState.activeData.endTime = fromNanoSec(1_000_000_000n);
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
   pipeline.playerState.activeData.lastSeekTime = 0;
+  pipeline.playerState.progress = { messageCache: { blocks: [], startTime: { sec: 0, nsec: 0 } } };
+  pipeline.subscribeMessageRange = undefined;
   segmentationSession.setState({
     runtime: undefined,
     open: false,
@@ -245,8 +249,95 @@ it("uses real raw/compressed message stamps instead of inventing frame zero unde
   expect(runtime.store.getState().currentFrameId).toContain("123000000:650000000");
 });
 
+it("registers every cached frame of the canvas, not just the decoded one", async () => {
+  const f = fixture();
+  pipeline.playerState.progress = {
+    messageCache: {
+      startTime: { sec: 0, nsec: 0 },
+      blocks: [
+        {
+          sizeInBytes: 3,
+          messagesByTopic: {
+            "/camera": [0.1, 0.4, 0.7].map((seconds) => ({
+              topic: "/camera",
+              schemaName: "sensor_msgs/CompressedImage",
+              receiveTime: fromNanoSec(BigInt(seconds * 1e9)),
+              message: { timestamp: fromNanoSec(BigInt(seconds * 1e9)) },
+              sizeInBytes: 1,
+            })),
+            "/other": [
+              {
+                topic: "/other",
+                schemaName: "sensor_msgs/CompressedImage",
+                receiveTime: fromNanoSec(200_000_000n),
+                message: { timestamp: fromNanoSec(200_000_000n) },
+                sizeInBytes: 1,
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+  pipeline.playerState.activeData.currentTime = fromNanoSec(700_000_000n);
+  f.setImage(650_000_000n, { source: undefined, providerId: undefined });
+  const runtime = await open();
+  expect(runtime.store.getState().document?.frames.map((frame) => frame.timestampSec)).toEqual([
+    0.1, 0.4, 0.65, 0.7,
+  ]);
+  pipeline.playerState.progress.messageCache!.blocks = [
+    ...pipeline.playerState.progress.messageCache!.blocks,
+    {
+      sizeInBytes: 1,
+      messagesByTopic: {
+        "/camera": [
+          {
+            topic: "/camera",
+            schemaName: "sensor_msgs/CompressedImage",
+            receiveTime: fromNanoSec(950_000_000n),
+            message: { timestamp: fromNanoSec(950_000_000n) },
+            sizeInBytes: 1,
+          },
+        ],
+      },
+    },
+  ];
+  f.event();
+  expect(runtime.store.getState().document?.frames.map((frame) => frame.timestampSec)).toEqual([
+    0.1, 0.4, 0.65, 0.7, 0.95,
+  ]);
+  expect(runtime.store.getState().currentFrameId).toContain("650000000:650000000");
+});
+
+it("registers frames the player can read after the current one", async () => {
+  const f = fixture();
+  pipeline.playerState.activeData.currentTime = fromNanoSec(700_000_000n);
+  f.setImage(650_000_000n, { source: undefined, providerId: undefined });
+  pipeline.subscribeMessageRange = ({ onNewRangeIterator }) => {
+    void onNewRangeIterator(
+      (async function* () {
+        yield [0.8, 0.85, 0.9].map((seconds) => ({
+          topic: seconds === 0.85 ? "/other" : "/camera",
+          schemaName: "sensor_msgs/CompressedImage",
+          receiveTime: fromNanoSec(BigInt(seconds * 1e9)),
+          message: { timestamp: fromNanoSec(BigInt(seconds * 1e9)) },
+          sizeInBytes: 1,
+        }));
+      })(),
+    );
+    return () => undefined;
+  };
+  const runtime = await open();
+  await waitFor(() => {
+    expect(runtime.store.getState().document?.frames.map((frame) => frame.timestampSec)).toEqual([
+      0.65, 0.8, 0.9,
+    ]);
+  });
+});
+
 it("appends newly decoded feed frames and keeps frame identity across subsequent staged edits", async () => {
   const f = fixture();
+  pipeline.playerState.progress = { messageCache: { blocks: [], startTime: { sec: 0, nsec: 0 } } };
   pipeline.playerState.activeData.currentTime = fromNanoSec(700_000_000n);
   f.setImage(650_000_000n, { source: undefined, providerId: undefined });
   const runtime = await open();
