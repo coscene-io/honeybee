@@ -8,7 +8,7 @@
 import { useTheme } from "@mui/material";
 import { produce } from "immer";
 import type { CSSProperties } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLatest } from "react-use";
 import { v4 as uuid } from "uuid";
 
@@ -54,13 +54,14 @@ import {
   useDefaultPanelTitle,
   usePanelSettingsTreeUpdate,
 } from "@foxglove/studio-base/providers/PanelStateContextProvider";
+import { reportError } from "@foxglove/studio-base/reportError";
 import type { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
 import { assertNever } from "@foxglove/studio-base/util/assertNever";
 import { maybeCast } from "@foxglove/studio-base/util/maybeCast";
 
 import { PanelConfigVersionError } from "./PanelConfigVersionError";
-import type { RenderStateConfig } from "./renderState";
-import { initRenderStateBuilder } from "./renderState";
+import { PanelRenderLifecycle } from "./PanelRenderLifecycle";
+import type { BuilderRenderStateInput, RenderStateConfig } from "./renderState";
 import type { BuiltinPanelExtensionContext } from "./types";
 import { useSharedPanelState } from "./useSharedPanelState";
 
@@ -112,7 +113,39 @@ function selectInstalledMessageConverters(state: ExtensionCatalog) {
 const selectAcquireKeyframeSearchLock = (store: PlaybackInteractionStateStore) =>
   store.acquireKeyframeSearchLock;
 
-type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
+type PanelSession = {
+  active: boolean;
+  lifecycle: PanelRenderLifecycle;
+  watchedFields: Set<keyof RenderState>;
+  subscriptions: Subscription[];
+  appSettings: Map<string, AppSettingValue>;
+  advertisements: Map<string, AdvertiseOptions>;
+  disposers: Set<() => void>;
+  appSettingsDisposers: (() => void)[];
+};
+
+function trackResource(session: PanelSession, dispose: () => void): () => void {
+  let disposed = false;
+  const release = () => {
+    if (disposed) {
+      return;
+    }
+    disposed = true;
+    session.disposers.delete(release);
+    dispose();
+  };
+  if (session.active && session.lifecycle.isActive()) {
+    session.disposers.add(release);
+  } else {
+    // A subscription can synchronously call user code before returning its release function.
+    release();
+  }
+  return release;
+}
+
+function reportCleanupError(error: unknown): void {
+  reportError(error instanceof Error ? error : new Error(String(error)));
+}
 /**
  * PanelExtensionAdapter renders a panel extension via initPanel
  *
@@ -132,8 +165,7 @@ function PanelExtensionAdapter(
 
   const messagePipelineContext = useMessagePipeline(selectContext);
 
-  const { playerState, pauseFrame, setSubscriptions, seekPlayback, getMetadata, sortedTopics } =
-    messagePipelineContext;
+  const { playerState, setSubscriptions, seekPlayback, sortedTopics } = messagePipelineContext;
 
   const { capabilities, profile: dataSourceProfile, presence: playerPresence } = playerState;
 
@@ -142,16 +174,9 @@ function PanelExtensionAdapter(
   const [panelId] = useState(() => uuid());
   const isMounted = useSynchronousMountedState();
   const [error, setError] = useState<Error | undefined>();
-  const [watchedFields, setWatchedFields] = useState(new Set<keyof RenderState>());
   const messageConverters = useExtensionCatalog(selectInstalledMessageConverters);
 
-  const [localSubscriptions, setLocalSubscriptions] = useState<Subscription[]>([]);
-
-  const [appSettings, setAppSettings] = useState(new Map<string, AppSettingValue>());
-  const [subscribedAppSettings, setSubscribedAppSettings] = useState<string[]>([]);
-
-  const [renderFn, setRenderFn] = useState<RenderFn | undefined>();
-  const isPanelInitializedRef = useRef(false);
+  const sessionRef = useRef<PanelSession | undefined>(undefined);
 
   const [slowRender, setSlowRender] = useState(false);
   const [, setDefaultPanelTitle] = useDefaultPanelTitle();
@@ -164,10 +189,6 @@ function PanelExtensionAdapter(
   });
   const setHoverValue = useSetHoverValue();
   const clearHoverValue = useClearHoverValue();
-
-  // track the advertisements requested by the panel context
-  // topic -> advertisement
-  const advertisementsRef = useRef(new Map<string, AdvertiseOptions>());
 
   const {
     palette: { mode: colorScheme },
@@ -183,67 +204,21 @@ function PanelExtensionAdapter(
   const getMessagePipelineContext = useMessagePipelineGetter();
   const acquireKeyframeSearchLock = usePlaybackInteractionState(selectAcquireKeyframeSearchLock);
 
-  // initRenderStateBuilder render produces a function which computes the latest render state from a set of inputs
-  // Spiritually its like a reducer
-  const [buildRenderState, setBuildRenderState] = useState(() => initRenderStateBuilder());
-
   const [sharedPanelState, setSharedPanelState] = useSharedPanelState();
-
-  // Register handlers to update the app settings we subscribe to
-  useEffect(() => {
-    const handlers = new Map<string, (newValue: AppSettingValue) => void>();
-
-    for (const key of subscribedAppSettings) {
-      const handler = (newValue: AppSettingValue) => {
-        setAppSettings((old) => {
-          old.set(key, newValue);
-          return new Map(old);
-        });
-      };
-      handlers.set(key, handler);
-      appConfiguration.addChangeListener(key, handler);
-    }
-
-    const newAppSettings = new Map<string, AppSettingValue>();
-    for (const key of subscribedAppSettings) {
-      newAppSettings.set(key, appConfiguration.get(key));
-    }
-
-    setAppSettings(newAppSettings);
-
-    return () => {
-      for (const [key, handler] of handlers.entries()) {
-        appConfiguration.removeChangeListener(key, handler);
-      }
-    };
-  }, [appConfiguration, subscribedAppSettings]);
 
   const messageEvents = useMemo(
     () => messagePipelineContext.messageEventsBySubscriberId.get(panelId),
     [messagePipelineContext.messageEventsBySubscriberId, panelId],
   );
 
-  // The rendering ref is set when we've begin rendering the frame (calling the panel's render
-  // function)
-  //
-  // If another update arrives before the panel finishes rendering, we will update the
-  // slowRenderState to indicate that the panel could not keep up with rendering relative to
-  // updates.
-  const renderingRef = useRef<boolean>(false);
+  type SharedRenderInput = Omit<
+    BuilderRenderStateInput,
+    "appSettings" | "subscriptions" | "watchedFields"
+  >;
+  const committedInputRef = useRef<SharedRenderInput | undefined>(undefined);
+  // Only committed React values may be read by an asynchronous render or a newly mounted root.
   useLayoutEffect(() => {
-    /**
-     * We need to check that the panel has been initialized because the renderFn function is being
-     * called between the initPanel's useLayoutEffect cleanup and initPanel being called
-     * again even if setRenderFn(undefined) is called in the cleanup function. This causes
-     * the old renderFn to be called in this effect and pauseFrame to happen, but it is never
-     * resumed, thus causing a 5 second delay in all panels in the layout to be loaded.
-     */
-    if (!renderFn || !isPanelInitializedRef.current) {
-      return;
-    }
-
-    const renderState = buildRenderState({
-      appSettings,
+    committedInputRef.current = {
       colorScheme,
       currentFrame: messageEvents,
       globalVariables,
@@ -252,61 +227,10 @@ function PanelExtensionAdapter(
       playerState,
       sharedPanelState,
       sortedTopics,
-      subscriptions: localSubscriptions,
-      watchedFields,
       config: undefined,
       extensionData,
-    });
-
-    if (!renderState) {
-      return;
-    }
-
-    if (renderingRef.current) {
-      setSlowRender(true);
-      return;
-    }
-
-    setSlowRender(false);
-    const resumeFrame = pauseFrame(panelId);
-
-    // tell the panel to render and lockout future renders until rendering is complete
-    renderingRef.current = true;
-    try {
-      setError(undefined);
-      let doneCalled = false;
-      renderFn(renderState, () => {
-        // ignore any additional done calls from the panel
-        if (doneCalled) {
-          log.warn(`${panelId} called render done function twice`);
-          return;
-        }
-        doneCalled = true;
-        resumeFrame();
-        renderingRef.current = false;
-      });
-    } catch (err) {
-      setError(err);
-    }
-  }, [
-    appSettings,
-    buildRenderState,
-    colorScheme,
-    extensionData,
-    globalVariables,
-    hoverValue,
-    localSubscriptions,
-    messageConverters,
-    messageEvents,
-    panelId,
-    pauseFrame,
-    playerState,
-    renderFn,
-    sharedPanelState,
-    sortedTopics,
-    watchedFields,
-    initialState,
-  ]);
+    };
+  });
 
   const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
 
@@ -349,297 +273,349 @@ function PanelExtensionAdapter(
     [saveConfig],
   );
 
-  useEffect(() => {
-    latestPanelSettingsActionHandlerRef.current = undefined;
-  }, [panelId]);
-
   type PartialPanelExtensionContext = Omit<BuiltinPanelExtensionContext, "panelElement">;
 
-  const partialExtensionContext = useMemo<PartialPanelExtensionContext>(() => {
-    const layout: PanelExtensionContext["layout"] = {
-      addPanel({ position, type, updateIfExists, getState }) {
-        if (!isMounted()) {
-          return;
-        }
-        switch (position) {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          case "sibling":
-            openSiblingPanel({
-              panelType: type,
-              updateIfExists,
-              siblingConfigCreator: (existingConfig) => getState(existingConfig) as PanelConfig,
+  const createExtensionContext = useCallback(
+    (session: PanelSession): PartialPanelExtensionContext => {
+      const isActive = () => session.active && session.lifecycle.isActive() && isMounted();
+      const layout: PanelExtensionContext["layout"] = {
+        addPanel({ position, type, updateIfExists, getState }) {
+          if (!isActive()) {
+            return;
+          }
+          switch (position) {
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            case "sibling":
+              openSiblingPanel({
+                panelType: type,
+                updateIfExists,
+                siblingConfigCreator: (existingConfig) => getState(existingConfig) as PanelConfig,
+              });
+              return;
+            default:
+              assertNever(position, `Unsupported position for addPanel: ${position}`);
+          }
+        },
+      };
+
+      return {
+        initialState: initialState.current,
+
+        saveState: (state) => {
+          if (!isActive()) {
+            return;
+          }
+          saveConfig(state);
+        },
+
+        layout,
+
+        metadata: getMessagePipelineContext().getMetadata(),
+
+        seekPlayback: seekPlayback
+          ? (stamp: number | Time) => {
+              if (!isActive()) {
+                return;
+              }
+              const seekTarget = typeof stamp === "object" ? stamp : fromSec(stamp);
+              seekPlayback(seekTarget);
+            }
+          : undefined,
+
+        unstable_getPlaybackIsPlaying: () =>
+          isActive() && getMessagePipelineContext().playerState.activeData?.isPlaying === true,
+
+        unstable_acquireKeyframeSearchLock: (args) => {
+          if (!isActive()) {
+            return () => {};
+          }
+          return trackResource(session, acquireKeyframeSearchLock(args));
+        },
+
+        unstable_pausePlayback: () => {
+          if (!isActive()) {
+            return;
+          }
+          getMessagePipelineContext().pausePlayback?.();
+        },
+
+        unstable_startPlayback: () => {
+          if (!isActive()) {
+            return;
+          }
+          getMessagePipelineContext().startPlayback?.();
+        },
+
+        dataSourceProfile,
+
+        setParameter: (name: string, value: ParameterValue) => {
+          if (!isActive()) {
+            return;
+          }
+          getMessagePipelineContext().setParameter(name, value);
+        },
+
+        setVariable: (name: string, value: VariableValue) => {
+          if (!isActive()) {
+            return;
+          }
+          setGlobalVariables({ [name]: value });
+        },
+
+        setPreviewTime: (stamp: number | undefined) => {
+          if (!isActive()) {
+            return;
+          }
+          if (stamp == undefined) {
+            clearHoverValue("PanelExtensionAdatper");
+          } else {
+            const ctx = getMessagePipelineContext();
+            const startTime = ctx.playerState.activeData?.startTime;
+            // if we don't have a start time we cannot correctly set the playback seconds hover value
+            // this hover value needs seconds from start
+            if (!startTime) {
+              return;
+            }
+            const secondsFromStart = stamp - toSec(startTime);
+            setHoverValue({
+              type: "PLAYBACK_SECONDS",
+              componentId: "PanelExtensionAdatper",
+              value: secondsFromStart,
+              absoluteSeconds: stamp,
             });
-            return;
-          default:
-            assertNever(position, `Unsupported position for addPanel: ${position}`);
-        }
-      },
-    };
-
-    return {
-      initialState: initialState.current,
-
-      saveState: (state) => {
-        if (!isMounted()) {
-          return;
-        }
-        saveConfig(state);
-      },
-
-      layout,
-
-      metadata: getMetadata(),
-
-      seekPlayback: seekPlayback
-        ? (stamp: number | Time) => {
-            if (!isMounted()) {
-              return;
-            }
-            const seekTarget = typeof stamp === "object" ? stamp : fromSec(stamp);
-            seekPlayback(seekTarget);
           }
-        : undefined,
+        },
 
-      unstable_getPlaybackIsPlaying: () =>
-        getMessagePipelineContext().playerState.activeData?.isPlaying === true,
+        setSharedPanelState: (state) => {
+          if (isActive()) {
+            setSharedPanelState(state);
+          }
+        },
 
-      unstable_acquireKeyframeSearchLock: acquireKeyframeSearchLock,
-
-      unstable_pausePlayback: () => {
-        if (!isMounted()) {
-          return;
-        }
-        getMessagePipelineContext().pausePlayback?.();
-      },
-
-      unstable_startPlayback: () => {
-        if (!isMounted()) {
-          return;
-        }
-        getMessagePipelineContext().startPlayback?.();
-      },
-
-      dataSourceProfile,
-
-      setParameter: (name: string, value: ParameterValue) => {
-        if (!isMounted()) {
-          return;
-        }
-        getMessagePipelineContext().setParameter(name, value);
-      },
-
-      setVariable: (name: string, value: VariableValue) => {
-        if (!isMounted()) {
-          return;
-        }
-        setGlobalVariables({ [name]: value });
-      },
-
-      setPreviewTime: (stamp: number | undefined) => {
-        if (!isMounted()) {
-          return;
-        }
-        if (stamp == undefined) {
-          clearHoverValue("PanelExtensionAdatper");
-        } else {
-          const ctx = getMessagePipelineContext();
-          const startTime = ctx.playerState.activeData?.startTime;
-          // if we don't have a start time we cannot correctly set the playback seconds hover value
-          // this hover value needs seconds from start
-          if (!startTime) {
+        watch: (field: keyof RenderState) => {
+          if (!isActive()) {
             return;
           }
-          const secondsFromStart = stamp - toSec(startTime);
-          setHoverValue({
-            type: "PLAYBACK_SECONDS",
-            componentId: "PanelExtensionAdatper",
-            value: secondsFromStart,
-            absoluteSeconds: stamp,
-          });
-        }
-      },
-
-      setSharedPanelState,
-
-      watch: (field: keyof RenderState) => {
-        if (!isMounted()) {
-          return;
-        }
-        setWatchedFields((old) => {
-          if (old.has(field)) {
-            // In React 18 we noticed that this setter function would be called in an infinite loop
-            // even though watch() was not called repeatedly. Adding this early return of the old
-            // value fixed the issue.
-            return old;
+          if (!session.watchedFields.has(field)) {
+            session.watchedFields.add(field);
+            session.lifecycle.requestRender();
           }
-          const newWatchedFields = new Set(old);
-          newWatchedFields.add(field);
-          return newWatchedFields;
-        });
-      },
+        },
 
-      subscribe: (topics: ReadonlyArray<string | Subscription>) => {
-        if (!isMounted()) {
-          return;
-        }
-        const subscribePayloads = topics.map((item): SubscribePayload => {
-          if (typeof item === "string") {
-            // For backwards compatability with the topic-string-array api `subscribe(["/topic"])`
-            // results in a topic subscription with full preloading
-            return { topic: item, preloadType: "full" };
+        subscribe: (topics: ReadonlyArray<string | Subscription>) => {
+          if (!isActive()) {
+            return;
           }
-
-          return {
-            topic: item.topic,
-            preloadType: item.preload === true ? "full" : "partial",
-          };
-        });
-
-        // ExtensionPanel-Facing subscription type
-        const localSubs = topics.map((item): Subscription => {
-          if (typeof item === "string") {
-            return { topic: item, preload: true };
-          }
-
-          return item;
-        });
-
-        setLocalSubscriptions(localSubs);
-        setSubscriptions(panelId, subscribePayloads);
-      },
-
-      advertise: capabilities.includes(PlayerCapabilities.advertise)
-        ? (topic: string, datatype: string, options) => {
-            if (!isMounted()) {
-              return;
+          const subscribePayloads = topics.map((item): SubscribePayload => {
+            if (typeof item === "string") {
+              // For backwards compatability with the topic-string-array api `subscribe(["/topic"])`
+              // results in a topic subscription with full preloading
+              return { topic: item, preloadType: "full" };
             }
-            const payload: AdvertiseOptions = {
-              topic,
-              schemaName: datatype,
-              options,
+
+            return {
+              topic: item.topic,
+              preloadType: item.preload === true ? "full" : "partial",
             };
-            advertisementsRef.current.set(topic, payload);
+          });
 
-            getMessagePipelineContext().setPublishers(
-              panelId,
-              Array.from(advertisementsRef.current.values()),
+          // ExtensionPanel-Facing subscription type
+          const localSubs = topics.map((item): Subscription => {
+            if (typeof item === "string") {
+              return { topic: item, preload: true };
+            }
+
+            return item;
+          });
+
+          session.subscriptions = localSubs;
+          setSubscriptions(panelId, subscribePayloads);
+          session.lifecycle.requestRender();
+        },
+
+        advertise: capabilities.includes(PlayerCapabilities.advertise)
+          ? (topic: string, datatype: string, options) => {
+              if (!isActive()) {
+                return;
+              }
+              const payload: AdvertiseOptions = {
+                topic,
+                schemaName: datatype,
+                options,
+              };
+              session.advertisements.set(topic, payload);
+
+              getMessagePipelineContext().setPublishers(
+                panelId,
+                Array.from(session.advertisements.values()),
+              );
+            }
+          : undefined,
+
+        unadvertise: capabilities.includes(PlayerCapabilities.advertise)
+          ? (topic: string) => {
+              if (!isActive()) {
+                return;
+              }
+              session.advertisements.delete(topic);
+              getMessagePipelineContext().setPublishers(
+                panelId,
+                Array.from(session.advertisements.values()),
+              );
+            }
+          : undefined,
+
+        publish: capabilities.includes(PlayerCapabilities.advertise)
+          ? (topic, message) => {
+              if (!isActive()) {
+                return;
+              }
+              getMessagePipelineContext().publish({
+                topic,
+                msg: message as Record<string, unknown>,
+              });
+            }
+          : undefined,
+
+        callService: capabilities.includes(PlayerCapabilities.callServices)
+          ? async (service, request): Promise<unknown> => {
+              if (!isActive()) {
+                throw new Error("Service call after panel was unmounted");
+              }
+              return await getMessagePipelineContext().callService(service, request);
+            }
+          : undefined,
+
+        unstable_fetchAsset: async (uri, options) => {
+          if (!isActive()) {
+            throw new Error("Asset fetch after panel was unmounted");
+          }
+          return await getMessagePipelineContext().fetchAsset(uri, options);
+        },
+
+        unstable_subscribeMessageRange: (args) => {
+          if (!isActive()) {
+            return undefined;
+          }
+          const release = getMessagePipelineContext().subscribeMessageRange?.({
+            ...args,
+            onNewRangeIterator: (iterator) => {
+              if (isActive()) {
+                return args.onNewRangeIterator(iterator);
+              }
+            },
+          });
+          return release ? trackResource(session, release) : undefined;
+        },
+
+        unsubscribeAll: () => {
+          if (!isActive()) {
+            return;
+          }
+          session.subscriptions = [];
+          setSubscriptions(panelId, []);
+          session.lifecycle.requestRender();
+        },
+
+        subscribeAppSettings: (settings: string[]) => {
+          if (!isActive()) {
+            return;
+          }
+          for (const release of session.appSettingsDisposers) {
+            release();
+          }
+          session.appSettingsDisposers = [];
+          session.appSettings = new Map();
+          for (const key of new Set(settings)) {
+            session.appSettings.set(key, appConfiguration.get(key));
+            const handler = (value: AppSettingValue) => {
+              if (!isActive()) {
+                return;
+              }
+              session.appSettings = new Map(session.appSettings).set(key, value);
+              session.lifecycle.requestRender();
+            };
+            appConfiguration.addChangeListener(key, handler);
+            session.appSettingsDisposers.push(
+              trackResource(session, () => {
+                appConfiguration.removeChangeListener(key, handler);
+              }),
             );
           }
-        : undefined,
+          session.lifecycle.requestRender();
+        },
 
-      unadvertise: capabilities.includes(PlayerCapabilities.advertise)
-        ? (topic: string) => {
-            if (!isMounted()) {
-              return;
-            }
-            advertisementsRef.current.delete(topic);
-            getMessagePipelineContext().setPublishers(
-              panelId,
-              Array.from(advertisementsRef.current.values()),
-            );
+        updatePanelSettingsEditor: (settings: SettingsTree) => {
+          if (!isActive()) {
+            return;
           }
-        : undefined,
+          // Store the panel's action handler in ref for stable wrapper to call
+          latestPanelSettingsActionHandlerRef.current = settings.actionHandler;
+          // Use stable action handler to prevent unnecessary re-renders of settings tree
+          updatePanelSettingsTree({
+            ...settings,
+            actionHandler: (action) => {
+              if (isActive()) {
+                stableSettingsActionHandler(action);
+              }
+            },
+          });
+        },
 
-      publish: capabilities.includes(PlayerCapabilities.advertise)
-        ? (topic, message) => {
-            if (!isMounted()) {
-              return;
-            }
-            getMessagePipelineContext().publish({
-              topic,
-              msg: message as Record<string, unknown>,
-            });
+        setDefaultPanelTitle: (title: string) => {
+          if (!isActive()) {
+            return;
           }
-        : undefined,
+          setDefaultPanelTitle(title);
+        },
 
-      callService: capabilities.includes(PlayerCapabilities.callServices)
-        ? async (service, request): Promise<unknown> => {
-            if (!isMounted()) {
-              throw new Error("Service call after panel was unmounted");
-            }
-            return await getMessagePipelineContext().callService(service, request);
+        unstable_setMessagePathDropConfig(dropConfig) {
+          if (!isActive()) {
+            return;
           }
-        : undefined,
-
-      unstable_fetchAsset: async (uri, options) => {
-        if (!isMounted()) {
-          throw new Error("Asset fetch after panel was unmounted");
-        }
-        return await getMessagePipelineContext().fetchAsset(uri, options);
-      },
-
-      unstable_subscribeMessageRange: (args) => {
-        if (!isMounted()) {
-          return undefined;
-        }
-        return getMessagePipelineContext().subscribeMessageRange?.(args);
-      },
-
-      unsubscribeAll: () => {
-        if (!isMounted()) {
-          return;
-        }
-        setLocalSubscriptions([]);
-        setSubscriptions(panelId, []);
-      },
-
-      subscribeAppSettings: (settings: string[]) => {
-        if (!isMounted()) {
-          return;
-        }
-        setSubscribedAppSettings(settings);
-      },
-
-      updatePanelSettingsEditor: (settings: SettingsTree) => {
-        if (!isMounted()) {
-          return;
-        }
-        // Store the panel's action handler in ref for stable wrapper to call
-        latestPanelSettingsActionHandlerRef.current = settings.actionHandler;
-        // Use stable action handler to prevent unnecessary re-renders of settings tree
-        updatePanelSettingsTree({ ...settings, actionHandler: stableSettingsActionHandler });
-      },
-
-      setDefaultPanelTitle: (title: string) => {
-        if (!isMounted()) {
-          return;
-        }
-        setDefaultPanelTitle(title);
-      },
-
-      unstable_setMessagePathDropConfig(dropConfig) {
-        setMessagePathDropConfig(dropConfig);
-      },
-    };
-    // Disable this rule because the metadata function. If used, it will break.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    initialState,
-    seekPlayback,
-    dataSourceProfile,
-    setSharedPanelState,
-    capabilities,
-    isMounted,
-    openSiblingPanel,
-    saveConfig,
-    stableSettingsActionHandler,
-    getMessagePipelineContext,
-    acquireKeyframeSearchLock,
-    setGlobalVariables,
-    clearHoverValue,
-    setHoverValue,
-    setSubscriptions,
-    panelId,
-    updatePanelSettingsTree,
-    setDefaultPanelTitle,
-    setMessagePathDropConfig,
-  ]);
+          setMessagePathDropConfig(
+            dropConfig && {
+              getDropStatus: (paths) =>
+                isActive() ? dropConfig.getDropStatus(paths) : { canDrop: false },
+              handleDrop: (paths) => {
+                if (isActive()) {
+                  dropConfig.handleDrop(paths);
+                }
+              },
+            },
+          );
+        },
+      };
+    },
+    [
+      initialState,
+      appConfiguration,
+      seekPlayback,
+      dataSourceProfile,
+      setSharedPanelState,
+      capabilities,
+      isMounted,
+      openSiblingPanel,
+      saveConfig,
+      stableSettingsActionHandler,
+      getMessagePipelineContext,
+      acquireKeyframeSearchLock,
+      setGlobalVariables,
+      clearHoverValue,
+      setHoverValue,
+      setSubscriptions,
+      panelId,
+      updatePanelSettingsTree,
+      setDefaultPanelTitle,
+      setMessagePathDropConfig,
+    ],
+  );
 
   const panelContainerRef = useRef<HTMLDivElement>(ReactNull);
 
   useValueChangedDebugLog(initPanel, "initPanel");
   useValueChangedDebugLog(panelId, "panelId");
-  useValueChangedDebugLog(partialExtensionContext, "partialExtensionContext");
+  useValueChangedDebugLog(createExtensionContext, "createExtensionContext");
 
   const configTooNew = useMemo(() => {
     const latestConfig = initialState.current;
@@ -670,48 +646,114 @@ function PanelExtensionAdapter(
       return;
     }
 
-    // Reset local state when the panel element is mounted or changes
-    setRenderFn(undefined);
-    renderingRef.current = false;
     setSlowRender(false);
-
-    setBuildRenderState(() => initRenderStateBuilder());
-
+    setError(undefined);
     const panelElement = document.createElement("div");
     panelElement.style.width = "100%";
     panelElement.style.height = "100%";
     panelElement.style.overflow = "hidden";
     panelContainerRef.current.appendChild(panelElement);
 
-    log.info(`Init panel ${panelId}`);
-    const onUnmount = initPanel({
-      panelElement,
-      ...partialExtensionContext,
-
-      // eslint-disable-next-line no-restricted-syntax
-      set onRender(renderFunction: RenderFn | undefined) {
-        setRenderFn(() => renderFunction);
-      },
-    });
-    isPanelInitializedRef.current = true;
-
-    return () => {
-      if (onUnmount) {
-        onUnmount();
-      }
-      isPanelInitializedRef.current = false;
-      panelElement.remove();
-      getMessagePipelineContext().setSubscriptions(panelId, []);
-      getMessagePipelineContext().setPublishers(panelId, []);
+    const session: PanelSession = {
+      active: true,
+      watchedFields: new Set(),
+      subscriptions: [],
+      appSettings: new Map(),
+      advertisements: new Map(),
+      disposers: new Set(),
+      appSettingsDisposers: [],
+      lifecycle: new PanelRenderLifecycle({
+        getInput: () => ({
+          ...committedInputRef.current!,
+          watchedFields: session.watchedFields,
+          subscriptions: session.subscriptions,
+          appSettings: session.appSettings,
+        }),
+        pauseFrame: () => getMessagePipelineContext().pauseFrame(panelId),
+        onError: (err) => {
+          if (sessionRef.current === session) {
+            setError(err instanceof Error ? err : new Error(String(err)));
+          }
+        },
+        onSlowRender: (slow) => {
+          if (session.active && sessionRef.current === session) {
+            setSlowRender(slow === "busy");
+          }
+        },
+      }),
     };
+    sessionRef.current = session;
+    let onUnmount: void | (() => void);
+    const dispose = () => {
+      if (!session.active) {
+        return;
+      }
+      const releaseResource = (release: () => void) => {
+        try {
+          release();
+        } catch (err) {
+          reportCleanupError(err);
+        }
+      };
+      // Retire the public context before running any user cleanup. An old root or asynchronous
+      // callback must not publish, resubscribe, or overwrite the next instance's state.
+      session.active = false;
+      releaseResource(() => session.lifecycle.dispose());
+      if (sessionRef.current === session) {
+        sessionRef.current = undefined;
+        latestPanelSettingsActionHandlerRef.current = undefined;
+        releaseResource(() => setMessagePathDropConfig(undefined));
+      }
+      for (const release of session.disposers) {
+        releaseResource(release);
+      }
+      session.disposers.clear();
+      session.advertisements.clear();
+      releaseResource(() => getMessagePipelineContext().setSubscriptions(panelId, []));
+      releaseResource(() => getMessagePipelineContext().setPublishers(panelId, []));
+      // React roots cannot synchronously unmount inside another root's commit. Keep this at the
+      // adapter boundary so built-in panels and third-party React panels have identical behavior.
+      queueMicrotask(() => {
+        try {
+          onUnmount?.();
+        } catch (err) {
+          reportCleanupError(err);
+        } finally {
+          panelElement.remove();
+        }
+      });
+    };
+    log.info(`Init panel ${panelId}`);
+    try {
+      onUnmount = initPanel({
+        panelElement,
+        ...createExtensionContext(session),
+        // eslint-disable-next-line no-restricted-syntax
+        set onRender(renderFunction: PanelExtensionContext["onRender"]) {
+          if (session.active) {
+            session.lifecycle.setRenderFunction(renderFunction);
+          }
+        },
+      });
+      session.lifecycle.start();
+    } catch (err) {
+      dispose();
+      setError(err instanceof Error ? err : new Error(String(err)));
+    }
+    return dispose;
   }, [
     initPanel,
     panelId,
-    partialExtensionContext,
+    createExtensionContext,
     getMessagePipelineContext,
     configTooNew,
     playerIsInitializing,
+    setMessagePathDropConfig,
   ]);
+
+  useLayoutEffect(() => {
+    sessionRef.current?.lifecycle.requestRender();
+  });
 
   const style: CSSProperties = {};
   if (slowRender) {

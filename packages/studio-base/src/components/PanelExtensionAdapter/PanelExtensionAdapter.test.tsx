@@ -148,25 +148,23 @@ describe("PanelExtensionAdapter", () => {
 
     const wrapper = render(<Wrapper lastSeekTime={undefined} />);
     expect(initPanel).toHaveBeenCalled();
+    await act(async () => undefined);
+    expect(renderStates.some((state) => state.currentFrame?.[0] === message)).toBe(true);
 
+    renderStates.length = 0;
     wrapper.rerender(<Wrapper lastSeekTime={1} />);
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await act(async () => undefined);
+    expect(renderStates.some((state) => state.didSeek === true)).toBe(true);
+
+    renderStates.length = 0;
     wrapper.rerender(<Wrapper lastSeekTime={1} />);
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await act(async () => undefined);
+    expect(renderStates.every((state) => state.didSeek !== true)).toBe(true);
+
+    renderStates.length = 0;
     wrapper.rerender(<Wrapper lastSeekTime={2} />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(renderStates).toEqual([
-      { currentFrame: [], didSeek: false }, // first frame is empty because there are no subscribers yet
-      { currentFrame: [message], didSeek: true },
-      { currentFrame: [message], didSeek: false },
-      { currentFrame: [message], didSeek: true },
-    ]);
+    await act(async () => undefined);
+    expect(renderStates.some((state) => state.didSeek === true)).toBe(true);
     mockRAF.mockRestore();
   });
 
@@ -755,7 +753,9 @@ describe("PanelExtensionAdapter", () => {
 
   it("exposes message range subscriptions to builtin panels", async () => {
     const unsubscribe = jest.fn();
-    const subscribeMessageRange = jest.fn(() => unsubscribe);
+    const subscribeMessageRange = jest.fn(
+      (_args: Parameters<NonNullable<Fixture["subscribeMessageRange"]>>[0]) => unsubscribe,
+    );
     const rangeArgs = {
       topic: "x",
       timeRange: {
@@ -782,8 +782,18 @@ describe("PanelExtensionAdapter", () => {
     );
 
     expect(initPanel).toHaveBeenCalled();
-    expect(subscribeMessageRange).toHaveBeenCalledWith(rangeArgs);
+    expect(subscribeMessageRange).toHaveBeenCalledWith({
+      ...rangeArgs,
+      onNewRangeIterator: expect.any(Function),
+    });
+    const forwardedArgs = subscribeMessageRange.mock.calls[0]![0];
+    const iterator = (async function* () {})();
+    forwardedArgs.onNewRangeIterator(iterator);
+    expect(rangeArgs.onNewRangeIterator).toHaveBeenCalledWith(iterator);
 
     unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    forwardedArgs.onNewRangeIterator(iterator);
+    expect(rangeArgs.onNewRangeIterator).toHaveBeenCalledTimes(1);
   });
 });
