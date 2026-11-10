@@ -13,7 +13,6 @@ import { useStore } from "zustand";
 
 import { add, fromSec, toNanoSec } from "@foxglove/rostime";
 import { useMessagePipelineGetter } from "@foxglove/studio-base/components/MessagePipeline";
-import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
@@ -45,7 +44,6 @@ function ActiveWorkbench({
 }): React.JSX.Element {
   const loading = useStore(runtime.store, (state) => state.loading);
   const getPipeline = useMessagePipelineGetter();
-  const { enterFullscreen } = usePanelContext();
   const onFrameChange = useCallback(
     (timestampSec: number) => {
       const pipeline = getPipeline();
@@ -100,7 +98,6 @@ function ActiveWorkbench({
         decodedFrame={sourceReady ? decodedFrame : undefined}
         onFrameRendered={presentation.rendered}
         onFrameRenderError={presentation.failed}
-        onFullscreen={enterFullscreen}
         frameId={frameId}
         focused={focused}
         onClaimFocus={onClaimFocus}

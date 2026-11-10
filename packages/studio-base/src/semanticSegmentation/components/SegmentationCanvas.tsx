@@ -99,7 +99,6 @@ const useStyles = makeStyles()((theme) => ({
     "& [data-tool=fit-selection]": { gridRow: 2, gridColumn: 2 },
     "& [data-tool=actual]": { gridRow: 2, gridColumn: 3 },
     "& [data-tool=pan]": { gridRow: 3, gridColumn: 1 },
-    "& [data-tool=fullscreen]": { gridRow: 3, gridColumn: 2 },
     "& [data-tool=shortcuts]": { gridRow: 3, gridColumn: 3 },
     "&& select": {
       gridRow: 4,
@@ -182,7 +181,6 @@ export type SegmentationCanvasProps = {
   viewportRef?: RefObject<HTMLDivElement>;
   imageUrl?: string;
   disabled?: boolean;
-  onFullscreen?: () => void | Promise<void>;
   decodedFrame?: DecodedSegmentationFrame;
   onFrameRendered?: (frame: DecodedSegmentationFrame) => void;
   onFrameRenderError?: (frame: DecodedSegmentationFrame) => void;
@@ -289,7 +287,6 @@ export function SegmentationCanvas({
   viewportRef,
   imageUrl,
   disabled = false,
-  onFullscreen,
   decodedFrame,
   onFrameRendered,
   onFrameRenderError,
@@ -741,23 +738,6 @@ export function SegmentationCanvas({
     try {
       action();
       setError(undefined);
-    } catch (err) {
-      setError(String(err));
-    }
-  }
-  async function toggleFullscreen(): Promise<void> {
-    const fullscreenRoot: Partial<Pick<HTMLElement, "requestFullscreen">> | ReactNull =
-      root.current;
-    try {
-      if (onFullscreen) {
-        await onFullscreen();
-      } else if (globalThis.document.fullscreenElement) {
-        await globalThis.document.exitFullscreen();
-      } else if (fullscreenRoot?.requestFullscreen) {
-        await fullscreenRoot.requestFullscreen();
-      } else {
-        setError(text("Fullscreen is unavailable in this browser.", "此浏览器暂不支持全屏。"));
-      }
     } catch (err) {
       setError(String(err));
     }
@@ -1485,16 +1465,6 @@ export function SegmentationCanvas({
             }}
           >
             {text("Pan", "平移")}
-          </Button>
-          <Button
-            size="small"
-            data-tool="fullscreen"
-            disabled={navigationLocked}
-            onClick={() => {
-              void toggleFullscreen();
-            }}
-          >
-            {text("Fullscreen", "全屏")}
           </Button>
           <Typography variant="caption" data-tool="size">
             {size.width} × {size.height}

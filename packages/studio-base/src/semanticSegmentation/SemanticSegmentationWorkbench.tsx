@@ -31,7 +31,6 @@ export type SemanticSegmentationWorkbenchProps = {
   embedded?: boolean;
   sourceReady?: boolean;
   onClose?: () => void;
-  onFullscreen?: () => void | Promise<void>;
   onFrameChange?: (timestampSec: number) => void;
   onPresentFrame?: FramePresenter;
   decodedFrame?: DecodedSegmentationFrame;
@@ -53,7 +52,6 @@ export function SemanticSegmentationWorkbench({
   embedded = false,
   sourceReady = true,
   onClose,
-  onFullscreen,
   onFrameChange,
   onPresentFrame,
   decodedFrame,
@@ -334,7 +332,6 @@ export function SemanticSegmentationWorkbench({
                 store={store}
                 viewportRef={viewportRef}
                 imageUrl={imageUrl}
-                onFullscreen={onFullscreen}
                 decodedFrame={decodedFrame}
                 onFrameRendered={onFrameRendered}
                 onFrameRenderError={onFrameRenderError}

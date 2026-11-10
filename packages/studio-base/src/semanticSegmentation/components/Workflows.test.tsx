@@ -23,16 +23,7 @@ import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import { WorkflowControls } from "./WorkflowControls";
 
 jest.mock("./SegmentationCanvas", () => ({
-  SegmentationCanvas: ({ onFullscreen }: { onFullscreen?: () => void }) => (
-    <div>
-      Canvas
-      {onFullscreen && (
-        <button type="button" onClick={onFullscreen}>
-          Maximize embedded canvas
-        </button>
-      )}
-    </div>
-  ),
+  SegmentationCanvas: () => <div>Canvas</div>,
 }));
 jest.mock("./SpatialTree", () => ({ SpatialTree: () => <div>Space tree</div> }));
 
@@ -329,18 +320,6 @@ describe("workbench workflow integration", () => {
     });
     expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
     runtime.store.getState().dispose();
-  });
-
-  it("delegates embedded canvas maximize to the existing panel callback", async () => {
-    const runtime = await initializedRuntime();
-    const onFullscreen = jest.fn();
-    render(
-      <SemanticSegmentationWorkbench runtime={runtime} embedded onFullscreen={onFullscreen} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Maximize embedded canvas" }));
-    expect(onFullscreen).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("slider", { name: "视频帧时间轴" })).toBeNull();
-    runtime.dispose();
   });
 
   it("does not seek the real player again when metadata recreates the same streamed frame", async () => {

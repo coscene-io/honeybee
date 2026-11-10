@@ -43,9 +43,6 @@ jest.mock("@foxglove/studio-base/components/MessagePipeline", () => ({
   useMessagePipeline: (selector: (state: typeof pipeline) => unknown) => selector(pipeline),
   useMessagePipelineGetter: () => getPipeline,
 }));
-jest.mock("@foxglove/studio-base/components/PanelContext", () => ({
-  usePanelContext: () => ({ enterFullscreen: jest.fn() }),
-}));
 jest.mock("@foxglove/studio-base/components/PanelToolbar", () => ({
   PANEL_TOOLBAR_MIN_HEIGHT: 30,
 }));
