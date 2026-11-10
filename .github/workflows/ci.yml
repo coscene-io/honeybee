@@ -100,7 +100,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: coscene-io/create-coscene-extension
-          ref: ffba92ab9ee50044a11206ac91de2505f35b320d
+          ref: 91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2
           path: generator
       - uses: actions/setup-node@v7
         with:
@@ -128,4 +128,4 @@ jobs:
         run: yarn desktop:build:prod
       - name: Install and exercise the Desktop extension
         if: matrix.target == 'desktop'
-        run: xvfb-run -a yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/open-extension.test.ts --runInBand
+        run: xvfb-run -a yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/open-extension.test.ts desktop/integration-test/react19Resources.test.ts --runInBand

@@ -11,7 +11,9 @@ import { launchApp } from "./launchApp";
 import { createEmptyLayout } from "../../web/integration-test/reactUpgradeExtension";
 
 // Exercise production root activation and disposal with a real paused player. This bag does not
-// establish image/3D/GPS data correctness, or live service, teleop, and data-collection behavior.
+// establish image/3D/GPS data correctness, or live service and teleop behavior. Data Collection
+// intentionally has a no-op initializer without userInfo; its authenticated content is covered by
+// DataCollection.test.tsx with a fake user/API, not by pretending this anonymous app mounts it.
 it("mounts, seeks, closes, and reopens each built-in extension panel", async () => {
   await using app = await launchApp();
   const page = app.renderer;
@@ -51,7 +53,7 @@ it("mounts, seeks, closes, and reopens each built-in extension panel", async () 
       } else if (name === "Gauge") {
         await panel.locator('clipPath[id^="gauge-clip-path-"]').waitFor({ state: "attached" });
       } else if (name === "Indicator") {
-        await panel.locator("h1").waitFor();
+        await panel.getByText("False", { exact: true }).waitFor();
       } else if (name === "Map") {
         await panel.getByText("Waiting for first GPS point…", { exact: true }).waitFor();
       } else if (name === "Service Call") {
@@ -62,11 +64,7 @@ it("mounts, seeks, closes, and reopens each built-in extension panel", async () 
           .getByText("Connect to a data source that supports publishing", { exact: true })
           .waitFor();
       } else {
-        await panel
-          .getByText(
-            /This panel only supports real-time visualization|Please login to use this panel/,
-          )
-          .waitFor();
+        expect(await panel.getByText("Start collection", { exact: true }).count()).toBe(0);
       }
 
       const time = page.getByTestId("PlaybackTime-text").locator("input");
@@ -76,13 +74,37 @@ it("mounts, seeks, closes, and reopens each built-in extension panel", async () 
         throw new Error(`Playback scrubber has no bounds while testing ${name}`);
       }
       const ratio = cycle === 0 ? 0.25 : 0.75;
-      await page.mouse.click(bounds.x + bounds.width * ratio, bounds.y + bounds.height / 2);
-      await page.waitForFunction((previous) => {
-        const value = document.querySelector<HTMLInputElement>(
-          '[data-testid="PlaybackTime-text"] input',
-        )?.value;
-        return value != undefined && value !== previous;
-      }, before);
+      // Wait for the closing panel-picker overlay to stop intercepting pointer events. A raw
+      // mouse click can hit its fading backdrop when an already-warm panel mounts quickly.
+      await page.getByTestId("scrubber-slider").click({
+        position: { x: bounds.width * ratio, y: bounds.height / 2 },
+      });
+      try {
+        await page.waitForFunction(
+          (previous) => {
+            const value = document.querySelector<HTMLInputElement>(
+              '[data-testid="PlaybackTime-text"] input',
+            )?.value;
+            return value != undefined && value !== previous;
+          },
+          before,
+          { timeout: 5_000 },
+        );
+      } catch (error) {
+        console.error({
+          name,
+          cycle,
+          before,
+          after: await time.inputValue(),
+          position: await page.getByTestId("playback-current-time-indicator").getAttribute("style"),
+          activeElement: await page.evaluate(() => ({
+            tag: document.activeElement?.tagName,
+            id: document.activeElement?.id,
+          })),
+          panelText: await panel.innerText(),
+        });
+        throw error;
+      }
       expect(await panel.getByText(/This panel has encountered an error/).count()).toBe(0);
       await panel.getByTestId("panel-menu").click();
       await page.getByTestId("panel-menu-remove").click();

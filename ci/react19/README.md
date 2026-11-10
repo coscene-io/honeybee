@@ -1,16 +1,16 @@
 # React 19 extension and application acceptance
 
 The fixture uses `create-coscene-extension` commit
-`ffba92ab9ee50044a11206ac91de2505f35b320d` (version 1.1.0). Build its tarball from that
+`91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2` (version 1.1.0). Build its tarball from that
 revision, not from npm's currently published CLI. The builder verifies all archive
 paths and file bytes using the canonical payload SHA-256
-`43c1999322ce428eb0fad9b27128c125fdcda9775b080f614486877ca97d0b96`.
+`299a4cb466358d5478e356afad731a5b1219c7ebacf9be22cb4d0eb06daa6415`.
 Tar/gzip metadata and executable-bit differences do not alter that identity;
 the actual archive SHA-256 is separately recorded in provenance. Only regular
 files and directories are accepted. The builder uses the system `tar` on macOS/Linux.
 
 ```sh
-git -C ../create-coscene-extension checkout ffba92ab9ee50044a11206ac91de2505f35b320d
+git -C ../create-coscene-extension checkout 91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2
 (cd ../create-coscene-extension && yarn install --immutable && yarn build && yarn pack --out /tmp/create-coscene-extension-react19.tgz)
 node ci/react19/build-extension-fixture.cjs /tmp/create-coscene-extension-react19.tgz
 ```
@@ -34,6 +34,28 @@ Run Web once with each artifact (`/viz/` and standalone `/`). Set
 extension and state are restored, then checks two remove/re-add cycles with fresh
 state. The Desktop harness isolates both
 Electron user data and extension storage in temporary directories.
+
+The production resource regression and built-in root smoke checks use the same artifacts:
+
+```sh
+INTEGRATION_SKIP_BUILD=1 yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/react19Resources.test.ts desktop/integration-test/react19Builtins.test.ts --runInBand
+```
+
+The resource check warms up twice, then closes and reopens twelve panels. It checks paired lifecycle
+events and garbage collection of removed extension/root/host-panel DOM through weak references.
+Set `HONEYBEE_REACT_RESOURCE_OUTPUT` to choose the JSON output path. An optional
+`HONEYBEE_REACT_RESOURCE_HEAP_SNAPSHOT` captures a local diagnostic heap snapshot; do not publish
+heap snapshots from profiles containing real user data.
+
+After running the generator's `yarn test:e2e package.tgz --examples`, use its printed artifact
+directory to check all five React examples and the native Worker example in the real host:
+
+```sh
+INTEGRATION_SKIP_BUILD=1 HONEYBEE_REACT19_EXAMPLES_DIR=/path/to/verification-artifacts yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/react19Examples.test.ts --runInBand
+```
+
+The committed [validation record](../../docs/react-19-validation.md) distinguishes production smoke
+coverage from live device/media behavior and includes the measured resource/performance results.
 
 For performance, use the _same generated `.coe`_ with baseline and upgraded
 Desktop artifacts. Run them sequentially on the same machine without a build or

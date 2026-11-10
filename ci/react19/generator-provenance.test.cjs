@@ -15,7 +15,6 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-
 const { generatorDigests } = require("./generator-provenance.cjs");
 
 test("archive metadata varies without changing payload identity; content still changes it", () => {

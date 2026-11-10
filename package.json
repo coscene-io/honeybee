@@ -69,6 +69,7 @@
     ]
   },
   "resolutions": {
+    "@mui/material": "patch:@mui/material@npm:7.3.11#./patches/mui-material.patch",
     "@typescript/old": "npm:typescript@6.0.2",
     "@types/node": "24.13.1",
     "@types/react": "19.3.0",

@@ -55,6 +55,14 @@ export async function launchApp(): Promise<AppType> {
       app.setPath("home", homePath);
     }, userDataDir);
     const electronWindow = await launchedApp.firstWindow();
+    // Update availability is unrelated to panel acceptance and must not depend on public network
+    // access from CI. Keep renderer error assertions strict instead of ignoring failed requests.
+    await electronWindow.route(
+      "https://download.coscene.cn/coStudio/packages/latest.yml",
+      async (route) => {
+        await route.fulfill({ status: 200, contentType: "text/yaml", body: "version: 0.0.0\n" });
+      },
+    );
     await electronWindow.waitForLoadState("domcontentloaded");
     await electronWindow.evaluate(() => {
       localStorage.setItem("i18nextLng", "en");

@@ -76,6 +76,7 @@ for other removed APIs and type changes.
 | react-dnd 16.0.1             | Preserve reconnect fixes, read `props.ref`, and compose callback-ref cleanup.                                                                                                                           |
 | react-use 17.6.1             | Preserve project behavior patches in both ESM and CommonJS; update removed React declarations.                                                                                                          |
 | react-i18next 14.0.5         | Adapt React JSX declarations and React 19 child handling without a translation-library major upgrade.                                                                                                   |
+| @mui/material 7.3.11         | Prevent disabled ButtonBase ripples from retaining queued events and detached panel DOM. Cancel pending work on disable/unmount while preserving event callbacks and enabled pointer/focus ripples.     |
 | Other UI packages            | react-window 1.8.11, notistack 3.0.2, use-immer 0.11.0, Fluent icons 2.0.345, react-resizable-panels 2.1.9.                                                                                             |
 
 Some upstream peer ranges still omit React 19. These are project-tested patched
@@ -83,12 +84,20 @@ versions, not claims of upstream support. `typecheck:react19` checks real public
 dependency imports with `skipLibCheck: false` and separately checks the Desktop,
 Quicklook and benchmark entries. Existing whole-repository checks remain in place.
 
+The MUI fix addresses a pre-existing leak found during the required repeated-panel
+resource comparison on both React 18 and 19. An unresolved `LazyRipple.mounted`
+promise retained synthetic events and their `relatedTarget` panel DOM when the
+theme disabled ripples. The patch covers both module formats and invalidates
+queued callbacks when disabling or unmounting a button; re-enabling still permits
+new ripple animations. Keep this regression coverage when updating MUI.
+
 ## Acceptance and release
 
 The generator and host are validated together using a real bundled `.coe`, built
 from a pinned generator revision. The repeatable commands, artifact provenance,
 browser paths and fixed-data performance scenario are in
 [the acceptance instructions](../ci/react19/README.md).
+The [validation record](react-19-validation.md) records measured results and remaining coverage limits.
 
 Release the host after its stack and the generator PR pass their checks and joint
 acceptance, then publish generator 1.1.0. Migrate existing incompatible extensions
