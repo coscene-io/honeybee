@@ -2,8 +2,12 @@
 
 The fixture uses `create-coscene-extension` commit
 `ffba92ab9ee50044a11206ac91de2505f35b320d` (version 1.1.0). Build its tarball from that
-revision, not from npm's currently published CLI. The builder verifies the tarball
-SHA-256 (`9a4464b63bb111db2b9b35770c19957902074bda2c42dcd4e6d2662649cfcba3`):
+revision, not from npm's currently published CLI. The builder verifies all archive
+paths and file bytes using the canonical payload SHA-256
+`43c1999322ce428eb0fad9b27128c125fdcda9775b080f614486877ca97d0b96`.
+Tar/gzip metadata and executable-bit differences do not alter that identity;
+the actual archive SHA-256 is separately recorded in provenance. Only regular
+files and directories are accepted. The builder uses the system `tar` on macOS/Linux.
 
 ```sh
 git -C ../create-coscene-extension checkout ffba92ab9ee50044a11206ac91de2505f35b320d

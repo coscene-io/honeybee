@@ -15,14 +15,17 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
+const { generatorDigests } = require("./generator-provenance.cjs");
+
 const tarball = path.resolve(process.argv[2] ?? "");
 if (!process.argv[2] || !fs.statSync(tarball).isFile()) {
   throw new Error("Pass the current generator's npm tarball as the first argument");
 }
-const generatorTarballSha256 = createHash("sha256").update(fs.readFileSync(tarball)).digest("hex");
-if (generatorTarballSha256 !== "9a4464b63bb111db2b9b35770c19957902074bda2c42dcd4e6d2662649cfcba3") {
+const { archiveSha256: generatorTarballSha256, payloadSha256: generatorPayloadSha256 } =
+  generatorDigests(tarball);
+if (generatorPayloadSha256 !== "43c1999322ce428eb0fad9b27128c125fdcda9775b080f614486877ca97d0b96") {
   throw new Error(
-    "Generator tarball does not match pinned revision ffba92ab9ee50044a11206ac91de2505f35b320d",
+    `Generator payload ${generatorPayloadSha256} does not match pinned revision ffba92ab9ee50044a11206ac91de2505f35b320d (archive ${generatorTarballSha256})`,
   );
 }
 const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), "honeybee-react-extension-"));
@@ -80,6 +83,7 @@ fs.writeFileSync(
       generatorRevision: "ffba92ab9ee50044a11206ac91de2505f35b320d",
       generatorTarball: tarball,
       generatorTarballSha256,
+      generatorPayloadSha256,
       generatorVersion: require(
         path.join(runner, "node_modules/create-coscene-extension/package.json"),
       ).version,
