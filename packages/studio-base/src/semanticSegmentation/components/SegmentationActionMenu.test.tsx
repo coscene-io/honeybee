@@ -8,7 +8,6 @@
 
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
-import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { createSeedDocument } from "../mockService";
 import { createSegmentationRuntime, segmentationSession } from "../runtime";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
@@ -49,13 +48,13 @@ it("renders nothing unless a session is open for this panel", async () => {
   runtime.dispose();
 });
 
-it("shows undo, redo, propagation and submit as four header buttons", async () => {
+it("shows undo, redo and submit as three header buttons", async () => {
   const runtime = await open();
   render(<SegmentationActionMenu panelId="panel-1" />);
   const names = screen
     .getAllByRole("button")
     .map((button) => button.getAttribute("aria-label") ?? button.textContent);
-  expect(names).toEqual(["撤销标注", "重做标注", "传播", "提交"]);
+  expect(names).toEqual(["撤销标注", "重做标注", "提交"]);
   expect(screen.getByRole("button", { name: "撤销标注" })).toHaveProperty("disabled", true);
   expect(screen.getByRole("button", { name: "重做标注" })).toHaveProperty("disabled", true);
   runtime.dispose();
@@ -91,28 +90,5 @@ it("holds submission, version history and ending the session behind 提交", asy
   expect(within(menu).queryByRole("button", { name: "撤销" })).toBeNull();
   fireEvent.click(within(menu).getByRole("button", { name: "结束标注" }));
   expect(segmentationSession.getState().open).toBe(false);
-  runtime.dispose();
-});
-
-it("shows propagation shortcuts behind 传播 and toggles the side panel", async () => {
-  const runtime = await open();
-  render(
-    <>
-      <SegmentationActionMenu panelId="panel-1" />
-      <SemanticSegmentationWorkbench runtime={runtime} embedded />
-    </>,
-  );
-  expect(screen.queryByRole("complementary", { name: "工作流管理" })).toBeNull();
-  // The workbench draws no toolbar, status bar or hint footer of its own.
-  expect(screen.queryByLabelText("功能管理栏")).toBeNull();
-  expect(screen.queryByText("就绪")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /^传播/ }));
-  const menu = screen.getByRole("dialog", { name: "传播与任务" });
-  fireEvent.click(within(menu).getByRole("button", { name: "传播实例…" }));
-  expect(screen.getByRole("complementary", { name: "工作流管理" })).toBeDefined();
-  expect(segmentationSession.getState().workflow.open).toBe(true);
-  fireEvent.click(screen.getByRole("button", { name: /^传播/ }));
-  fireEvent.click(screen.getByRole("button", { name: "收起工作流面板" }));
-  expect(segmentationSession.getState().workflow.open).toBe(false);
   runtime.dispose();
 });

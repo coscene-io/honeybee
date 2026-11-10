@@ -181,8 +181,6 @@ function ActionButtons({
   const { classes, cx } = useStyles();
   const { store } = runtime;
   const state = useStore(store);
-  const workflowOpen = useStore(segmentationSession, (session) => session.workflow.open);
-  const [propagateAnchor, setPropagateAnchor] = useState<HTMLElement>();
   const [submitAnchor, setSubmitAnchor] = useState<HTMLElement>();
   const locked = ["running", "stopping"].includes(state.propagation.status);
   const frameReady =
@@ -190,15 +188,11 @@ function ActionButtons({
   const busy = !frameReady || state.loading;
   const staged = state.stagedOperations.length;
   const dirty = staged > 0;
-  const closePropagate = () => {
-    setPropagateAnchor(undefined);
-  };
   const closeSubmit = () => {
     setSubmitAnchor(undefined);
   };
   const goWorkflow = (target?: string) => {
     openWorkflowPanel(target);
-    closePropagate();
     closeSubmit();
   };
   return (
@@ -224,16 +218,6 @@ function ActionButtons({
       <button
         type="button"
         aria-haspopup="dialog"
-        aria-expanded={propagateAnchor != undefined}
-        onClick={(event) => {
-          setPropagateAnchor(event.currentTarget);
-        }}
-      >
-        传播
-      </button>
-      <button
-        type="button"
-        aria-haspopup="dialog"
         aria-expanded={submitAnchor != undefined}
         onClick={(event) => {
           setSubmitAnchor(event.currentTarget);
@@ -246,40 +230,6 @@ function ActionButtons({
           </span>
         )}
       </button>
-
-      <Popover
-        open={propagateAnchor != undefined}
-        anchorEl={propagateAnchor}
-        onClose={closePropagate}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { className: classes.paper } }}
-      >
-        <div className={classes.menu} role="dialog" aria-label="传播与任务">
-          <button
-            type="button"
-            className={classes.item}
-            onClick={() => {
-              goWorkflow("seg-propagation");
-            }}
-          >
-            传播实例…
-          </button>
-          <button
-            type="button"
-            className={classes.item}
-            aria-pressed={workflowOpen}
-            onClick={() => {
-              segmentationSession.setState((session) => ({
-                workflow: { open: !session.workflow.open, nonce: session.workflow.nonce + 1 },
-              }));
-              closePropagate();
-            }}
-          >
-            {workflowOpen ? "收起工作流面板" : "展开工作流面板"}
-          </button>
-        </div>
-      </Popover>
 
       <Popover
         open={submitAnchor != undefined}
@@ -324,7 +274,7 @@ function ActionButtons({
 }
 
 /**
- * Undo, redo, propagate and submit for the open record session.
+ * Undo, redo and submit for the open record session.
  * A panel id limits the menu to that canvas. The app bar omits it and shows the one record session.
  */
 export function SegmentationActionMenu({
