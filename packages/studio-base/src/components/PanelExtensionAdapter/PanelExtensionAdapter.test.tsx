@@ -82,7 +82,7 @@ describe("PanelExtensionAdapter", () => {
       });
       expect(JSON.parse(screen.getByTestId("extension-hover").textContent)).toEqual({
         type: "PLAYBACK_SECONDS",
-        componentId: "PanelExtensionAdatper",
+        componentId: expect.stringMatching(/^PanelExtensionAdapter:/),
         value: toSec(time) - toSec(startTime),
         absoluteSeconds: toSec(time),
       });
@@ -91,6 +91,83 @@ describe("PanelExtensionAdapter", () => {
       context.setPreviewTime(undefined);
     });
     expect(screen.getByTestId("extension-hover").textContent).toBe("undefined");
+  });
+
+  it("clears only the retiring session's preview and ignores its late callbacks", async () => {
+    const config = {};
+    const saveConfig = () => {};
+    const first = jest.fn((context: PanelExtensionContext) => () => {
+      context.setPreviewTime(undefined);
+    });
+    const second = jest.fn((context: PanelExtensionContext) => () => {
+      context.setPreviewTime(undefined);
+    });
+    const replacement = jest.fn((_context: PanelExtensionContext) => {});
+    function HoverProbe(): React.JSX.Element {
+      const hover = useHoverValue();
+      return <div data-testid="session-hover">{JSON.stringify(hover) ?? "undefined"}</div>;
+    }
+    function Wrapper({
+      showFirst,
+      replaceSecond = false,
+      showSecond = true,
+    }: {
+      showFirst: boolean;
+      replaceSecond?: boolean;
+      showSecond?: boolean;
+    }) {
+      return (
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup fixture={{ activeData: { startTime: { sec: 100, nsec: 0 } } }}>
+              {showFirst && (
+                <PanelExtensionAdapter config={config} saveConfig={saveConfig} initPanel={first} />
+              )}
+              {showSecond && (
+                <PanelExtensionAdapter
+                  config={config}
+                  saveConfig={saveConfig}
+                  initPanel={replaceSecond ? replacement : second}
+                />
+              )}
+              <HoverProbe />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>
+      );
+    }
+    const view = render(<Wrapper showFirst />);
+    const firstContext = first.mock.calls[0]![0];
+    const secondContext = second.mock.calls[0]![0];
+    act(() => {
+      firstContext.setPreviewTime(101);
+      secondContext.setPreviewTime(102);
+      firstContext.setPreviewTime(undefined);
+    });
+    const secondHover = screen.getByTestId("session-hover").textContent;
+    expect(JSON.parse(secondHover)).toMatchObject({ absoluteSeconds: 102 });
+    view.rerender(<Wrapper showFirst={false} />);
+    expect(screen.getByTestId("session-hover").textContent).toBe(secondHover);
+    await act(async () => undefined);
+    expect(screen.getByTestId("session-hover").textContent).toBe(secondHover);
+
+    // Retiring the owner clears the value synchronously, before deferred panel cleanup runs.
+    view.rerender(<Wrapper showFirst={false} replaceSecond />);
+    expect(screen.getByTestId("session-hover").textContent).toBe("undefined");
+    const replacementContext = replacement.mock.calls[0]![0];
+    act(() => {
+      replacementContext.setPreviewTime(103);
+      firstContext.setPreviewTime(104);
+      secondContext.setPreviewTime(undefined);
+    });
+    const replacementHover = screen.getByTestId("session-hover").textContent;
+    expect(JSON.parse(replacementHover)).toMatchObject({ absoluteSeconds: 103 });
+    expect(JSON.parse(replacementHover).componentId).not.toBe(JSON.parse(secondHover).componentId);
+    await act(async () => undefined);
+    expect(screen.getByTestId("session-hover").textContent).toBe(replacementHover);
+    view.rerender(<Wrapper showFirst={false} replaceSecond showSecond={false} />);
+    expect(screen.getByTestId("session-hover").textContent).toBe("undefined");
+    await act(async () => undefined);
   });
 
   it("sets didSeek=true when seeking", async () => {

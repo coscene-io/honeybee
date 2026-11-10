@@ -115,6 +115,7 @@ const selectAcquireKeyframeSearchLock = (store: PlaybackInteractionStateStore) =
 
 type PanelSession = {
   active: boolean;
+  previewOwnerId: string;
   lifecycle: PanelRenderLifecycle;
   watchedFields: Set<keyof RenderState>;
   subscriptions: Subscription[];
@@ -372,7 +373,7 @@ function PanelExtensionAdapter(
             return;
           }
           if (stamp == undefined) {
-            clearHoverValue("PanelExtensionAdatper");
+            clearHoverValue(session.previewOwnerId);
           } else {
             const ctx = getMessagePipelineContext();
             const startTime = ctx.playerState.activeData?.startTime;
@@ -384,7 +385,7 @@ function PanelExtensionAdapter(
             const secondsFromStart = stamp - toSec(startTime);
             setHoverValue({
               type: "PLAYBACK_SECONDS",
-              componentId: "PanelExtensionAdatper",
+              componentId: session.previewOwnerId,
               value: secondsFromStart,
               absoluteSeconds: stamp,
             });
@@ -656,6 +657,7 @@ function PanelExtensionAdapter(
 
     const session: PanelSession = {
       active: true,
+      previewOwnerId: `PanelExtensionAdapter:${uuid()}`,
       watchedFields: new Set(),
       subscriptions: [],
       appSettings: new Map(),
@@ -698,6 +700,9 @@ function PanelExtensionAdapter(
       // Retire the public context before running any user cleanup. An old root or asynchronous
       // callback must not publish, resubscribe, or overwrite the next instance's state.
       session.active = false;
+      releaseResource(() => {
+        clearHoverValue(session.previewOwnerId);
+      });
       releaseResource(() => {
         session.lifecycle.dispose();
       });
@@ -758,6 +763,7 @@ function PanelExtensionAdapter(
     playerIsInitializing,
     playerState.playerId,
     setMessagePathDropConfig,
+    clearHoverValue,
   ]);
 
   useLayoutEffect(() => {
