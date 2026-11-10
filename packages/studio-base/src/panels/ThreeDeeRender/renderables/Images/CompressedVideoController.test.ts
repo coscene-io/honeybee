@@ -836,6 +836,73 @@ describe("awaited video tick scheduling", () => {
     controller.dispose();
   });
 
+  it("previews the first keyframe after a paused seek that precedes every frame", async () => {
+    const { controller, renderer, display } = setup();
+    renderer.stopped = true;
+    renderer.currentTime = 0n;
+    const keyframe = frame(8_000_000, "key");
+    const next = frame(108_000_000);
+    const request = jest.fn<ReturnType<SubscribeMessageRange>, Parameters<SubscribeMessageRange>>(
+      (args) => {
+        const forward = toNanoSec(args.timeRange!.end) > renderer.currentTime;
+        void args.onNewRangeIterator(
+          (async function* () {
+            yield forward ? [keyframe, next] : [];
+          })(),
+        );
+        return jest.fn();
+      },
+    );
+    renderer.subscribeMessageRange = request;
+    controller.handleSeek();
+    await flush();
+    await flush();
+    expect(request.mock.calls.map(([args]) => args.timeRange)).toEqual([
+      { start: fromNanoSec(0n), end: fromNanoSec(0n) },
+      { start: fromNanoSec(0n), end: fromNanoSec(1_000_000_000n) },
+    ]);
+    expect(display).toHaveBeenCalledTimes(1);
+    expect(display.mock.calls[0]![0]).toEqual([keyframe]);
+    expect(display.mock.calls[0]![1]).toBe("seek");
+    expect(display.mock.calls[0]![2]).toMatchObject({ allowFrameAfterClock: true });
+
+    // The preview is ahead of the clock, so a later delta must not decode against it.
+    renderer.stopped = false;
+    renderer.currentTime = toNanoSec(next.receiveTime);
+    controller.updatePlaybackState();
+    void controller.enqueueVideoFrames([next]);
+    await flush();
+    expect(display).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
+  it("shows nothing when no keyframe follows a paused seek before every frame", async () => {
+    const { controller, renderer, display } = setup();
+    renderer.stopped = true;
+    renderer.currentTime = 0n;
+    const request = mockMessageRange([frame(8_000_000)]);
+    renderer.subscribeMessageRange = request;
+    controller.handleSeek();
+    await flush();
+    await flush();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(display).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("does not mark ordinary lookback seeks as ahead of the clock", async () => {
+    const { controller, renderer, display } = setup();
+    renderer.stopped = true;
+    renderer.currentTime = 2_000_000_000n;
+    const frames = [frame(1_500_000_000, "key"), frame(2_000_000_000)];
+    renderer.subscribeMessageRange = mockMessageRange(frames);
+    controller.handleSeek();
+    await flush();
+    expect(display.mock.calls[0]![0]).toEqual(frames);
+    expect(display.mock.calls[0]![2]).toMatchObject({ allowFrameAfterClock: false });
+    controller.dispose();
+  });
+
   it.each(["timeout", "exception"])(
     "falls back to a short window after a sparse-index wide range %s exhausts retries",
     async (failure) => {
