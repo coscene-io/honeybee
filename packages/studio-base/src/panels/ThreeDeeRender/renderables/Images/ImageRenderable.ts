@@ -121,6 +121,8 @@ export type SetCompressedVideoFramesOptions = {
   retainLateTarget?: boolean;
   canDisplayFrame?: (event: CompressedVideoFrameEvent) => boolean;
   isVideoFrameRequestCurrent?: () => boolean;
+  /** Show the decoded frame even though it is newer than the playback clock. */
+  allowFrameAfterClock?: boolean;
 };
 
 type PendingDecodedImage = {
@@ -132,6 +134,7 @@ type PendingDecodedImage = {
   isRequestCurrent?: () => boolean;
   onDecoded?: () => void;
   canDisplay?: () => boolean;
+  allowFrameAfterClock?: boolean;
 };
 
 type PendingImage = {
@@ -161,6 +164,7 @@ type VideoDecodeBatchOptions = Pick<
   | "retainLateTarget"
   | "isVideoFrameRequestCurrent"
   | "onLateTargetFrameSettled"
+  | "allowFrameAfterClock"
 >;
 
 type VideoDecodeBatch = {
@@ -482,6 +486,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
             result.decodedFrame != undefined
               ? () => options.canDisplayFrame?.(result.decodedFrame!) !== false
               : undefined,
+            { allowFrameAfterClock: options.allowFrameAfterClock },
           );
         })
         .catch((err: unknown) => {
@@ -504,6 +509,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
     isRequestCurrent?: () => boolean,
     event?: PendingDecodedImage["event"],
     canDisplay?: () => boolean,
+    display: Pick<PendingDecodedImage, "allowFrameAfterClock"> = {},
   ): void {
     if (!decoded.ok || decoded.image == undefined) {
       if (decoded.image != undefined) {
@@ -527,6 +533,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       isRequestCurrent,
       onDecoded,
       canDisplay,
+      allowFrameAfterClock: display.allowFrameAfterClock,
     };
     this.renderer.queueAnimationFrame();
     // Decode completion releases the controller, not the next GL render.
@@ -550,7 +557,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       candidate.isRequestCurrent?.() === false ||
       candidate.seq < this.#displayedImageSequenceNumber ||
       (receiveTime != undefined &&
-        (receiveTime > this.renderer.currentTime ||
+        ((receiveTime > this.renderer.currentTime && candidate.allowFrameAfterClock !== true) ||
           (this.userData.displayedFrameState != undefined &&
             receiveTime < this.userData.displayedFrameState.receiveTime)))
     ) {
@@ -831,6 +838,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
           onLateTargetFrameSettled: options.onLateTargetFrameSettled,
           targetFrameTimeoutMs: options.targetFrameTimeoutMs,
           anyFrameTimeoutMs: options.anyFrameTimeoutMs,
+          allowFrameAfterClock: options.allowFrameAfterClock,
         });
       }
       return;
@@ -864,6 +872,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
         onLateTargetFrameSettled: options.onLateTargetFrameSettled,
         targetFrameTimeoutMs: options.targetFrameTimeoutMs,
         anyFrameTimeoutMs: options.anyFrameTimeoutMs,
+        allowFrameAfterClock: options.allowFrameAfterClock,
       });
     }
   }
@@ -878,6 +887,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       | "onLateTargetFrameSettled"
       | "targetFrameTimeoutMs"
       | "anyFrameTimeoutMs"
+      | "allowFrameAfterClock"
     > = {},
   ): Promise<void> {
     this.#lateTargetRequestId = requestId;
@@ -935,6 +945,7 @@ export class ImageRenderable extends Renderable<ImageUserData> {
       decodedFrame != undefined
         ? () => targetEntry.canDisplayFrame?.(decodedFrame) !== false
         : undefined,
+      { allowFrameAfterClock: options.allowFrameAfterClock },
     );
   }
 

@@ -454,6 +454,27 @@ describe("ImageRenderable candidate scheduling", () => {
     renderable.dispose();
   });
 
+  it("displays a video frame ahead of the head only when the caller allows it", async () => {
+    mockRenderer.currentTime = 0n;
+    const blocked = new MockVideoFrame() as unknown as VideoFrame;
+    const allowed = new MockVideoFrame() as unknown as VideoFrame;
+    const renderable = new TestVideoBatchRenderable({
+      decodeVideoFrames: makeDecodeVideoFramesMock([blocked, allowed]),
+      terminate: jest.fn(),
+    } as unknown as WorkerImageDecoder);
+    const preview = videoFrameEvent(8_000_000n, 8_000_000, "key");
+    await renderable.setCompressedVideoFrames([preview]);
+    commit();
+    expect(renderable.getDecodedImage()).toBeUndefined();
+    expect((blocked as unknown as { close: jest.Mock }).close).toHaveBeenCalledTimes(1);
+
+    await renderable.setCompressedVideoFrames([preview], { allowFrameAfterClock: true });
+    commit();
+    expect(renderable.getDecodedImage()).toBe(allowed);
+    expect(renderable.userData.image).toBe(preview.message);
+    renderable.dispose();
+  });
+
   it("a missing annotation match retains one candidate without blocking decoder completion", async () => {
     const frame = new MockVideoFrame() as unknown as VideoFrame;
     const decodeVideoFrames = makeDecodeVideoFramesMock([frame]);
