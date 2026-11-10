@@ -198,7 +198,9 @@ it("registers its pause before the pipeline's zero-delay frame barrier samples p
   // MessagePipeline's renderDone samples pause requests in setTimeout(frameTime), where
   // frameTime may be zero. The asynchronous child-root registration must still beat that sample.
   const sampledReleases = await new Promise<jest.Mock[]>((resolve) => {
-    setTimeout(() => resolve([...view.releases]), 0);
+    setTimeout(() => {
+      resolve([...view.releases]);
+    }, 0);
   });
   expect(sampledReleases).toHaveLength(1);
   expect(sampledReleases[0]).not.toHaveBeenCalled();

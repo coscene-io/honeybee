@@ -12,15 +12,17 @@ import type { PropsWithChildren } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { PanelExtensionContext, SettingsTree } from "@foxglove/studio";
+import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
+import type { MockMessagePipelineProps } from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import MockPanelContextProvider from "@foxglove/studio-base/components/MockPanelContextProvider";
 import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
-import { PlayerCapabilities } from "@foxglove/studio-base/players/types";
+import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
 import * as errorReporting from "@foxglove/studio-base/reportError";
 import PanelSetup from "@foxglove/studio-base/test/PanelSetup";
 import type { Fixture } from "@foxglove/studio-base/test/PanelSetup";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
-import PanelExtensionAdapter from "./PanelExtensionAdapter";
+import PanelExtensionAdapter, { VERSION_CONFIG_KEY } from "./PanelExtensionAdapter";
 import type { BuiltinPanelExtensionContext } from "./types";
 
 jest.mock("@foxglove/studio-base/reportError", () => ({ reportError: jest.fn() }));
@@ -32,12 +34,23 @@ function Harness({
   children,
   fixture,
   pauseFrame,
-}: PropsWithChildren<{ fixture?: Fixture; pauseFrame?: (name: string) => () => void }>) {
+  pipeline,
+}: PropsWithChildren<{
+  fixture?: Fixture;
+  pauseFrame?: (name: string) => () => void;
+  pipeline?: MockMessagePipelineProps;
+}>) {
   return (
     <ThemeProvider isDark>
       <MockPanelContextProvider>
         <PanelSetup fixture={fixture} pauseFrame={pauseFrame}>
-          {children}
+          {pipeline ? (
+            <MockMessagePipelineProvider {...pipeline} pauseFrame={pauseFrame}>
+              {children}
+            </MockMessagePipelineProvider>
+          ) : (
+            children
+          )}
         </PanelSetup>
       </MockPanelContextProvider>
     </ThemeProvider>
@@ -48,6 +61,107 @@ beforeEach(() => {
   saveConfig.mockClear();
   (errorReporting.reportError as jest.Mock).mockClear();
 });
+
+it("retires a busy panel when its configuration becomes too new and can initialize it again", async () => {
+  const contexts: PanelExtensionContext[] = [];
+  const releases: jest.Mock[] = [];
+  const cleanup = jest.fn();
+  const initPanel = (context: PanelExtensionContext) => {
+    contexts.push(context);
+    context.watch("colorScheme");
+    context.onRender = () => {};
+    return cleanup;
+  };
+  const pauseFrame = () => {
+    const release = jest.fn();
+    releases.push(release);
+    return release;
+  };
+  const panel = (version: number) => (
+    <Harness pauseFrame={pauseFrame}>
+      <PanelExtensionAdapter
+        config={{ [VERSION_CONFIG_KEY]: version }}
+        highestSupportedConfigVersion={1}
+        saveConfig={saveConfig}
+        initPanel={initPanel}
+      />
+    </Harness>
+  );
+  const view = render(panel(1));
+  await act(async () => undefined);
+  expect(releases).toHaveLength(1);
+  view.rerender(panel(2));
+  await act(async () => undefined);
+  expect(contexts).toHaveLength(1);
+  expect(releases[0]).toHaveBeenCalledTimes(1);
+  expect(cleanup).toHaveBeenCalledTimes(1);
+  expect(contexts[0]!.panelElement.parentNode).toBeNull();
+  contexts[0]!.saveState({ retired: true });
+  expect(saveConfig).not.toHaveBeenCalled();
+  view.rerender(panel(1));
+  await act(async () => undefined);
+  expect(contexts).toHaveLength(2);
+  view.unmount();
+  await act(async () => undefined);
+  expect(cleanup).toHaveBeenCalledTimes(2);
+});
+
+it.each(["player switch", "initializing"] as const)(
+  "retires a busy session during %s even when capabilities and profile remain unchanged",
+  async (transition) => {
+    const contexts: PanelExtensionContext[] = [];
+    const completions: (() => void)[] = [];
+    const releases: jest.Mock[] = [];
+    const cleanup = jest.fn();
+    const capabilities = [PlayerCapabilities.advertise];
+    const publish = jest.fn();
+    const initPanel = (context: PanelExtensionContext) => {
+      contexts.push(context);
+      context.watch("colorScheme");
+      context.onRender = (_state, done) => completions.push(done);
+      return cleanup;
+    };
+    const pauseFrame = () => {
+      const release = jest.fn();
+      releases.push(release);
+      return release;
+    };
+    const panel = (playerId: string, presence: PlayerPresence) => (
+      <Harness
+        pauseFrame={pauseFrame}
+        pipeline={{ playerId, presence, capabilities, profile: "same-profile", publish }}
+      >
+        <PanelExtensionAdapter config={config} saveConfig={saveConfig} initPanel={initPanel} />
+      </Harness>
+    );
+    const view = render(panel("first", PlayerPresence.PRESENT));
+    await act(async () => undefined);
+    const oldDone = completions[0]!;
+    view.rerender(
+      transition === "player switch"
+        ? panel("second", PlayerPresence.PRESENT)
+        : panel("first", PlayerPresence.INITIALIZING),
+    );
+    await act(async () => undefined);
+    expect(releases[0]).toHaveBeenCalledTimes(1);
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    contexts[0]!.publish?.("retired", {});
+    contexts[0]!.saveState({ retired: true });
+    expect(publish).not.toHaveBeenCalled();
+    expect(saveConfig).not.toHaveBeenCalled();
+    if (transition === "initializing") {
+      expect(contexts).toHaveLength(1);
+      view.rerender(panel("first", PlayerPresence.PRESENT));
+      await act(async () => undefined);
+    }
+    expect(contexts).toHaveLength(2);
+    oldDone();
+    expect(releases.at(-1)).not.toHaveBeenCalled();
+    view.unmount();
+    await act(async () => undefined);
+    expect(releases.at(-1)).toHaveBeenCalledTimes(1);
+  },
+);
 
 it("keeps one settings handler per session while dispatching to the latest panel callback", async () => {
   let settingsHandler: SettingsTree["actionHandler"] | undefined;
@@ -132,7 +246,9 @@ it("mounts a real asynchronous root and retires its context before deferred Stri
         <Child context={context} />
       </StrictMode>,
     );
-    const cleanup = jest.fn(() => root.unmount());
+    const cleanup = jest.fn(() => {
+      root.unmount();
+    });
     cleanups.push(cleanup);
     return cleanup;
   };
@@ -155,7 +271,9 @@ it("mounts a real asynchronous root and retires its context before deferred Stri
   lastContext.subscribe([{ topic: "retired" }]);
   lastContext.publish?.("active", {});
   lastContext.saveState({ retired: true });
-  completions.forEach((done) => done());
+  completions.forEach((done) => {
+    done();
+  });
   expect(setSubscriptions).toHaveBeenCalledTimes(subscriptionCalls);
   expect(publish).not.toHaveBeenCalled();
   expect(saveConfig).not.toHaveBeenCalled();
@@ -291,7 +409,7 @@ it("releases a resource acquired while a synchronous callback retires the sessio
   const releaseRange = jest.fn();
   const fixture: Fixture = {
     subscribeMessageRange: (args) => {
-      args.onNewRangeIterator((async function* () {})());
+      void args.onNewRangeIterator((async function* () {})());
       return releaseRange;
     },
   };
@@ -308,7 +426,9 @@ it("releases a resource acquired while a synchronous callback retires the sessio
   act(() => {
     release = context!.unstable_subscribeMessageRange?.({
       topic: "test",
-      onNewRangeIterator: () => view.unmount(),
+      onNewRangeIterator: () => {
+        view.unmount();
+      },
     });
   });
   expect(releaseRange).toHaveBeenCalledTimes(1);

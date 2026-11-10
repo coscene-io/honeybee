@@ -788,12 +788,12 @@ describe("PanelExtensionAdapter", () => {
     });
     const forwardedArgs = subscribeMessageRange.mock.calls[0]![0];
     const iterator = (async function* () {})();
-    forwardedArgs.onNewRangeIterator(iterator);
+    await forwardedArgs.onNewRangeIterator(iterator);
     expect(rangeArgs.onNewRangeIterator).toHaveBeenCalledWith(iterator);
 
     unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
-    forwardedArgs.onNewRangeIterator(iterator);
+    await forwardedArgs.onNewRangeIterator(iterator);
     expect(rangeArgs.onNewRangeIterator).toHaveBeenCalledTimes(1);
   });
 });

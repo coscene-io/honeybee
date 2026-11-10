@@ -504,7 +504,7 @@ function PanelExtensionAdapter(
           }
           const release = getMessagePipelineContext().subscribeMessageRange?.({
             ...args,
-            onNewRangeIterator: (iterator) => {
+            onNewRangeIterator: (iterator): void | Promise<void> => {
               if (isActive()) {
                 return args.onNewRangeIterator(iterator);
               }
@@ -619,13 +619,12 @@ function PanelExtensionAdapter(
   useValueChangedDebugLog(createExtensionContext, "createExtensionContext");
 
   const configTooNew = useMemo(() => {
-    const latestConfig = initialState.current;
     return (
-      isVersionedPanelConfig(latestConfig) &&
+      isVersionedPanelConfig(config) &&
       highestSupportedConfigVersion != undefined &&
-      latestConfig[VERSION_CONFIG_KEY] > highestSupportedConfigVersion
+      config[VERSION_CONFIG_KEY] > highestSupportedConfigVersion
     );
-  }, [initialState, highestSupportedConfigVersion]);
+  }, [config, highestSupportedConfigVersion]);
 
   const playerIsInitializing = playerPresence === PlayerPresence.INITIALIZING;
 
@@ -699,19 +698,27 @@ function PanelExtensionAdapter(
       // Retire the public context before running any user cleanup. An old root or asynchronous
       // callback must not publish, resubscribe, or overwrite the next instance's state.
       session.active = false;
-      releaseResource(() => session.lifecycle.dispose());
+      releaseResource(() => {
+        session.lifecycle.dispose();
+      });
       if (sessionRef.current === session) {
         sessionRef.current = undefined;
         latestPanelSettingsActionHandlerRef.current = undefined;
-        releaseResource(() => setMessagePathDropConfig(undefined));
+        releaseResource(() => {
+          setMessagePathDropConfig(undefined);
+        });
       }
       for (const release of session.disposers) {
         releaseResource(release);
       }
       session.disposers.clear();
       session.advertisements.clear();
-      releaseResource(() => getMessagePipelineContext().setSubscriptions(panelId, []));
-      releaseResource(() => getMessagePipelineContext().setPublishers(panelId, []));
+      releaseResource(() => {
+        getMessagePipelineContext().setSubscriptions(panelId, []);
+      });
+      releaseResource(() => {
+        getMessagePipelineContext().setPublishers(panelId, []);
+      });
       // React roots cannot synchronously unmount inside another root's commit. Keep this at the
       // adapter boundary so built-in panels and third-party React panels have identical behavior.
       queueMicrotask(() => {
@@ -749,6 +756,7 @@ function PanelExtensionAdapter(
     getMessagePipelineContext,
     configTooNew,
     playerIsInitializing,
+    playerState.playerId,
     setMessagePathDropConfig,
   ]);
 
