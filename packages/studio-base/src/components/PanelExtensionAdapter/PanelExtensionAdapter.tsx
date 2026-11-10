@@ -278,6 +278,11 @@ function PanelExtensionAdapter(
   const createExtensionContext = useCallback(
     (session: PanelSession): PartialPanelExtensionContext => {
       const isActive = () => session.active && session.lifecycle.isActive() && isMounted();
+      const settingsActionHandler: SettingsTree["actionHandler"] = (action) => {
+        if (isActive()) {
+          stableSettingsActionHandler(action);
+        }
+      };
       const layout: PanelExtensionContext["layout"] = {
         addPanel({ position, type, updateIfExists, getState }) {
           if (!isActive()) {
@@ -554,11 +559,7 @@ function PanelExtensionAdapter(
           // Use stable action handler to prevent unnecessary re-renders of settings tree
           updatePanelSettingsTree({
             ...settings,
-            actionHandler: (action) => {
-              if (isActive()) {
-                stableSettingsActionHandler(action);
-              }
-            },
+            actionHandler: settingsActionHandler,
           });
         },
 

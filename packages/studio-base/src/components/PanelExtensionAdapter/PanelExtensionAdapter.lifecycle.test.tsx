@@ -11,8 +11,9 @@ import { Component, StrictMode, useLayoutEffect } from "react";
 import type { PropsWithChildren } from "react";
 import { createRoot } from "react-dom/client";
 
-import type { PanelExtensionContext } from "@foxglove/studio";
+import type { PanelExtensionContext, SettingsTree } from "@foxglove/studio";
 import MockPanelContextProvider from "@foxglove/studio-base/components/MockPanelContextProvider";
+import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
 import { PlayerCapabilities } from "@foxglove/studio-base/players/types";
 import * as errorReporting from "@foxglove/studio-base/reportError";
 import PanelSetup from "@foxglove/studio-base/test/PanelSetup";
@@ -46,6 +47,52 @@ function Harness({
 beforeEach(() => {
   saveConfig.mockClear();
   (errorReporting.reportError as jest.Mock).mockClear();
+});
+
+it("keeps one settings handler per session while dispatching to the latest panel callback", async () => {
+  let settingsHandler: SettingsTree["actionHandler"] | undefined;
+  function SettingsObserver() {
+    const tree = usePanelStateStore((state) => state.settingsTrees.bar);
+    useLayoutEffect(() => {
+      settingsHandler = tree?.actionHandler;
+    }, [tree]);
+    return ReactNull;
+  }
+  let context: PanelExtensionContext | undefined;
+  const initPanel = (value: PanelExtensionContext) => {
+    context = value;
+  };
+  const view = render(
+    <Harness>
+      <PanelExtensionAdapter config={config} saveConfig={saveConfig} initPanel={initPanel} />
+      <SettingsObserver />
+    </Harness>,
+  );
+  try {
+    const firstCallback = jest.fn();
+    const latestCallback = jest.fn();
+    act(() => {
+      context!.updatePanelSettingsEditor({ nodes: {}, actionHandler: firstCallback });
+    });
+    const firstHandler = settingsHandler!;
+    act(() => {
+      context!.updatePanelSettingsEditor({ nodes: {}, actionHandler: latestCallback });
+    });
+    expect(firstHandler).toBe(settingsHandler);
+    const action = {
+      action: "update" as const,
+      payload: { path: ["data", "label"], input: "string" as const, value: "updated" },
+    };
+    firstHandler(action);
+    expect(firstCallback).not.toHaveBeenCalled();
+    expect(latestCallback).toHaveBeenCalledWith(action);
+    view.unmount();
+    firstHandler(action);
+    expect(latestCallback).toHaveBeenCalledTimes(1);
+    await act(async () => undefined);
+  } finally {
+    view.unmount();
+  }
 });
 
 it("mounts a real asynchronous root and retires its context before deferred StrictMode cleanup", async () => {
