@@ -67,6 +67,11 @@ export async function launchApp(): Promise<AppType> {
     await electronWindow.evaluate(() => {
       localStorage.setItem("i18nextLng", "en");
     });
+    // firstWindow can resolve after the initial document has already started requests. Discard
+    // that document before observing the isolated test navigation, so its late failed update
+    // request cannot be mistaken for an error from the intercepted, tested document.
+    const rendererUrl = electronWindow.url();
+    await electronWindow.goto("about:blank");
     const rendererErrors: string[] = [];
     electronWindow.on("pageerror", (error) => rendererErrors.push(error.message));
     electronWindow.on("console", (message: ConsoleMessage) => {
@@ -75,7 +80,7 @@ export async function launchApp(): Promise<AppType> {
       }
       log.info(message.text());
     });
-    await electronWindow.reload();
+    await electronWindow.goto(rendererUrl);
 
     // A production renderer may log before firstWindow resolves. DOM readiness is observable even
     // after that point and does not rely on a fixed two-second delay or a lost console event.
