@@ -5,10 +5,18 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import AddIcon from "@mui/icons-material/Add";
+import AspectRatioIcon from "@mui/icons-material/AspectRatio";
+import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
+import FitScreenIcon from "@mui/icons-material/FitScreen";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
+import PanToolIcon from "@mui/icons-material/PanTool";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Alert,
   Box,
   Button,
+  Divider,
   IconButton,
   Menu,
   MenuItem,
@@ -29,6 +37,7 @@ import { useStore } from "zustand";
 import {
   SEGMENTATION_SHORTCUTS,
   ShortcutHint,
+  ShortcutKeys,
 } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcuts";
 import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
@@ -58,79 +67,83 @@ const useStyles = makeStyles()((theme) => ({
     "& circle:focus": { outline: "none" },
   },
   toolbar: { padding: theme.spacing(1), flexWrap: "wrap" },
+  // Mirrors the timeline ••• menu (TimelineToolbar): 240 px paper, 6 px padding, 32 px rows.
   toolsPanel: {
     position: "absolute",
     right: theme.spacing(1.5),
     bottom: theme.spacing(7),
     zIndex: 6,
-    width: 296,
+    width: 240,
     maxWidth: `calc(100% - ${theme.spacing(3)})`,
-    padding: theme.spacing(1.5),
+    padding: 6,
     backgroundColor: theme.palette.background.paper,
     color: theme.palette.text.primary,
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: 8,
     boxShadow: theme.shadows[8],
-    // Three equal columns; each control names its own cell so the layout does not depend on order.
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+  },
+  menuRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    height: 32,
+    paddingInline: 8,
+    fontSize: theme.typography.body2.fontSize,
+    "@media (pointer: coarse)": { height: 48 },
+  },
+  menuButton: {
     "&&": {
-      display: "grid",
-      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-      gap: theme.spacing(1),
-      alignItems: "center",
-    },
-    "& .MuiButton-root": {
+      justifyContent: "flex-start",
+      width: "100%",
       minWidth: 0,
-      height: 30,
-      padding: theme.spacing(0, 1),
+      borderRadius: 4,
       color: theme.palette.text.primary,
-      border: `1px solid ${theme.palette.divider}`,
-      backgroundColor: "transparent",
       textTransform: "none",
+      fontSize: theme.typography.body2.fontSize,
+      fontWeight: "inherit",
       whiteSpace: "nowrap",
-      "&:hover": { backgroundColor: theme.palette.action.hover },
-      "&[aria-pressed=true]": {
-        backgroundColor: theme.palette.action.selected,
-        borderColor: theme.palette.primary.main,
-      },
+      "& svg": { color: theme.palette.text.secondary },
+      "&[aria-pressed=true]": { backgroundColor: theme.palette.action.selected },
       "&.Mui-disabled": { color: theme.palette.text.disabled },
     },
-    "& .MuiTypography-root": { color: theme.palette.text.secondary },
-    "& [data-tool=zoom-out]": { gridRow: 1, gridColumn: 1 },
-    "& [data-tool=zoom-label]": { gridRow: 1, gridColumn: 2, textAlign: "center" },
-    "& [data-tool=zoom-in]": { gridRow: 1, gridColumn: 3 },
-    "& [data-tool=fit]": { gridRow: 2, gridColumn: 1 },
-    "& [data-tool=fit-selection]": { gridRow: 2, gridColumn: 2 },
-    "& [data-tool=actual]": { gridRow: 2, gridColumn: 3 },
-    "& [data-tool=pan]": { gridRow: 3, gridColumn: 1 },
-    "& [data-tool=shortcuts]": { gridRow: 3, gridColumn: 3 },
-    "&& select": {
-      gridRow: 4,
-      gridColumn: "1 / -1",
-      height: 30,
-      padding: theme.spacing(0, 1),
-      border: `1px solid ${theme.palette.divider}`,
-      borderRadius: theme.shape.borderRadius,
-      backgroundColor: theme.palette.background.default,
+  },
+  menuKeys: { marginLeft: "auto" },
+  stepper: { justifyContent: "space-between" },
+  stepperButton: {
+    "&&": {
+      borderRadius: 4,
       color: theme.palette.text.primary,
-      font: "inherit",
-      fontSize: theme.typography.body2.fontSize,
+      "& svg": { color: theme.palette.text.secondary },
     },
-    "& [data-tool=opacity]": {
-      gridRow: 5,
-      gridColumn: "1 / -1",
-      display: "flex",
-      alignItems: "center",
-      gap: theme.spacing(1.5),
-      color: theme.palette.text.secondary,
-      fontSize: theme.typography.body2.fontSize,
-      "& input": { flex: 1, minWidth: 0, accentColor: theme.palette.primary.main },
-    },
-    "& [data-tool=size]": {
-      gridRow: 6,
-      gridColumn: "1 / -1",
-      textAlign: "right",
-      fontVariantNumeric: "tabular-nums",
-    },
+  },
+  menuValue: {
+    marginLeft: "auto",
+    minWidth: 0,
+    maxWidth: 120,
+    height: 26,
+    padding: theme.spacing(0, 0.5),
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: 4,
+    backgroundColor: theme.palette.background.default,
+    color: theme.palette.text.primary,
+    font: "inherit",
+    fontSize: theme.typography.caption.fontSize,
+  },
+  menuSlider: {
+    marginLeft: "auto",
+    width: 100,
+    minWidth: 0,
+    accentColor: theme.palette.primary.main,
+  },
+  menuDivider: { marginBlock: 6 },
+  menuCaption: {
+    color: theme.palette.text.secondary,
+    fontVariantNumeric: "tabular-nums",
+    paddingInline: 8,
+    paddingBlock: 2,
   },
   toolsFab: {
     position: "absolute",
@@ -293,7 +306,7 @@ export function SegmentationCanvas({
   frameId: shownFrameId,
   onClaimFocus,
 }: SegmentationCanvasProps): React.JSX.Element {
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const state = useStore(store);
   const text = useEditorText();
   const root = useRef<HTMLDivElement>(ReactNull);
@@ -1161,6 +1174,16 @@ export function SegmentationCanvas({
     });
   }
 
+  const changeProfile = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const next = event.target.value === "trackpad" ? "trackpad" : "mouse";
+    setProfile(next);
+    try {
+      localStorage.setItem("bombus.segmentation.navigation.v1", next);
+    } catch {
+      /* Navigation remains usable without local persistence. */
+    }
+  };
+
   return (
     <Stack
       ref={root}
@@ -1370,21 +1393,12 @@ export function SegmentationCanvas({
         }
       }}
     >
-      {(!compact || toolsOpen) && (
+      {!compact && (
         <Stack
           direction="row"
-          spacing={compact ? 0 : 0.5}
+          spacing={0.5}
           alignItems="center"
-          className={compact ? classes.toolsPanel : classes.toolbar}
-          role={compact ? "group" : undefined}
-          aria-label={compact ? text("View tools", "视图工具") : undefined}
-          onKeyDown={(event) => {
-            if (compact && event.key === "Escape") {
-              event.stopPropagation();
-              setToolsOpen(false);
-              viewport.current?.focus({ preventScroll: true });
-            }
-          }}
+          className={classes.toolbar}
           onClick={(event) => {
             if (
               event.detail > 0 &&
@@ -1547,15 +1561,7 @@ export function SegmentationCanvas({
             data-tool="profile"
             disabled={navigationLocked}
             value={profile}
-            onChange={(event) => {
-              const next = event.target.value === "trackpad" ? "trackpad" : "mouse";
-              setProfile(next);
-              try {
-                localStorage.setItem("bombus.segmentation.navigation.v1", next);
-              } catch {
-                /* Navigation remains usable without local persistence. */
-              }
-            }}
+            onChange={changeProfile}
           >
             <option value="mouse">{text("Mouse: wheel zoom", "鼠标：滚轮缩放")}</option>
             <option value="trackpad">{text("Trackpad: scroll pan", "触控板：滑动平移")}</option>
@@ -1570,7 +1576,7 @@ export function SegmentationCanvas({
               max={0.7}
               step={0.05}
               value={opacity}
-              style={compact ? undefined : { width: 70 }}
+              style={{ width: 70 }}
               onChange={(event) => {
                 setOpacity(Number(event.target.value));
               }}
@@ -1588,6 +1594,167 @@ export function SegmentationCanvas({
             {text("Shortcuts", "快捷键")}
           </Button>
         </Stack>
+      )}
+      {compact && toolsOpen && (
+        <div
+          className={classes.toolsPanel}
+          role="group"
+          aria-label={text("View tools", "视图工具")}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              setToolsOpen(false);
+              viewport.current?.focus({ preventScroll: true });
+            }
+          }}
+          onClick={(event) => {
+            if (
+              event.detail > 0 &&
+              event.target instanceof Element &&
+              event.target.closest("button") != undefined &&
+              event.target.closest("[data-keep-control-focus]") == undefined
+            ) {
+              viewport.current?.focus({ preventScroll: true });
+            }
+          }}
+        >
+          <div className={cx(classes.menuRow, classes.stepper)}>
+            <IconButton
+              size="small"
+              className={classes.stepperButton}
+              disabled={navigationLocked}
+              aria-label="Zoom out"
+              data-tool="zoom-out"
+              onClick={() => {
+                zoomAt(zoom / 1.25);
+              }}
+            >
+              <RemoveIcon fontSize="small" />
+            </IconButton>
+            <Typography variant="body2" aria-live="polite" data-tool="zoom-label">
+              {zoom === 1 && pan.x === 0 && pan.y === 0 ? "Fit · " : ""}
+              {Math.round(screenScale * 100)}%
+            </Typography>
+            <IconButton
+              size="small"
+              className={classes.stepperButton}
+              disabled={navigationLocked}
+              aria-label="Zoom in"
+              data-tool="zoom-in"
+              onClick={() => {
+                zoomAt(zoom * 1.25);
+              }}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </div>
+          <Button
+            className={classes.menuButton}
+            startIcon={<FitScreenIcon />}
+            disabled={navigationLocked}
+            aria-label={text("Fit", "适应画布")}
+            data-tool="fit"
+            onClick={() => {
+              fit();
+            }}
+          >
+            {text("Fit", "适应画布")}
+            <span className={classes.menuKeys}>
+              <ShortcutKeys keys={SEGMENTATION_SHORTCUTS.fit} />
+            </span>
+          </Button>
+          <Button
+            className={classes.menuButton}
+            startIcon={<CenterFocusStrongIcon />}
+            disabled={navigationLocked || !state.focus}
+            aria-label={text("Fit selection", "适应选区")}
+            data-tool="fit-selection"
+            onClick={fitSelection}
+          >
+            {text("Fit selection", "适应选区")}
+            <span className={classes.menuKeys}>
+              <ShortcutKeys keys={SEGMENTATION_SHORTCUTS.fitSelection} />
+            </span>
+          </Button>
+          <Button
+            className={classes.menuButton}
+            startIcon={<AspectRatioIcon />}
+            disabled={navigationLocked}
+            aria-label="100%"
+            data-tool="actual"
+            onClick={() => {
+              zoomAt(zoom / screenScale);
+            }}
+          >
+            {text("Actual size 100%", "实际大小 100%")}
+            <span className={classes.menuKeys}>
+              <ShortcutKeys keys={SEGMENTATION_SHORTCUTS.actualSize} />
+            </span>
+          </Button>
+          <Button
+            className={classes.menuButton}
+            startIcon={<PanToolIcon />}
+            disabled={navigationLocked}
+            aria-label={text("Pan", "平移")}
+            aria-pressed={panTool}
+            data-tool="pan"
+            onClick={() => {
+              setPanTool((value) => !value);
+            }}
+          >
+            {text("Pan", "平移")}
+            <span className={classes.menuKeys}>
+              <ShortcutKeys keys={SEGMENTATION_SHORTCUTS.panTool} />
+            </span>
+          </Button>
+          <Divider className={classes.menuDivider} />
+          <label className={classes.menuRow}>
+            {text("Mouse mode", "鼠标模式")}
+            <select
+              className={classes.menuValue}
+              aria-label="Navigation profile"
+              data-tool="profile"
+              disabled={navigationLocked}
+              value={profile}
+              onChange={changeProfile}
+            >
+              <option value="mouse">{text("Mouse", "鼠标")}</option>
+              <option value="trackpad">{text("Trackpad", "触控板")}</option>
+            </select>
+          </label>
+          <label className={classes.menuRow} data-tool="opacity">
+            {text("Opacity", "透明度")}
+            <input
+              className={classes.menuSlider}
+              aria-label="Overlay opacity"
+              disabled={navigationLocked}
+              type="range"
+              min={0}
+              max={0.7}
+              step={0.05}
+              value={opacity}
+              onChange={(event) => {
+                setOpacity(Number(event.target.value));
+              }}
+            />
+          </label>
+          <Divider className={classes.menuDivider} />
+          <Button
+            className={classes.menuButton}
+            startIcon={<KeyboardIcon />}
+            data-keep-control-focus
+            data-tool="shortcuts"
+            aria-label={text("Keyboard shortcuts", "键盘快捷键")}
+            onClick={() => {
+              openKeyboardShortcuts();
+            }}
+          >
+            {text("Keyboard shortcuts", "键盘快捷键")}
+          </Button>
+          <Typography variant="caption" className={classes.menuCaption} data-tool="size">
+            {size.width} × {size.height}
+          </Typography>
+        </div>
       )}
       {compact && (
         <IconButton
