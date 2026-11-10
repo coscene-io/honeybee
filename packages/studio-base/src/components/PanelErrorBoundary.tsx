@@ -11,7 +11,6 @@ import { Trans, withTranslation, WithTranslation } from "react-i18next";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { reportError } from "@foxglove/studio-base/reportError";
-import { AppError } from "@foxglove/studio-base/util/errors";
 
 import ErrorDisplay from "./ErrorDisplay";
 
@@ -32,7 +31,7 @@ class PanelErrorBoundaryInner extends Component<PropsWithChildren<Props & WithTr
   };
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    reportError(new AppError(error, errorInfo));
+    reportError(error, errorInfo);
     this.setState({ currentError: { error, errorInfo } });
   }
 

@@ -270,7 +270,7 @@ export default function PlayerManager(
   const currentPlayerRef = useRef<{
     player: Player;
     dataSource: NonNullable<CoreDataStore["dataSource"]>;
-  }>();
+  }>(undefined);
   const setDataSource = useCoreData(selectSetDataSource);
 
   const { recents, addRecent } = useIndexedDbRecents();

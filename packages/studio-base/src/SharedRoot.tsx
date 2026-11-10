@@ -7,7 +7,6 @@
 
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import * as Sentry from "@sentry/browser";
 import dayjs from "dayjs";
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
@@ -16,12 +15,12 @@ import { createPortal } from "react-dom";
 import { Toaster } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 
-import Logger from "@foxglove/log";
 import GlobalCss from "@foxglove/studio-base/components/GlobalCss";
 import {
   ISharedRootContext,
   SharedRootContext,
 } from "@foxglove/studio-base/context/SharedRootContext";
+import { initializeSentryErrorReporting } from "@foxglove/studio-base/services/initializeSentryErrorReporting";
 import { sanitizePrivacySafeCaptureResult } from "@foxglove/studio-base/services/playbackPerformanceTelemetry";
 import { getAppConfig } from "@foxglove/studio-base/util/appConfig";
 import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
@@ -31,8 +30,6 @@ import CssBaseline from "./components/CssBaseline";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AppConfigurationContext from "./context/AppConfigurationContext";
 import { GrowthBookProvider } from "./providers/GrowthBookProvider";
-
-const log = Logger.getLogger(__filename);
 
 export function SharedRoot(
   props: ISharedRootContext & { children: React.JSX.Element },
@@ -76,35 +73,7 @@ export function SharedRoot(
   // first value stored in PostHog persistence.
   posthog.register({ release: appConfig.RELEASE_TAG });
 
-  if (
-    appConfig.VITE_APP_PROJECT_ENV !== "local" &&
-    appConfig.VITE_APP_PROJECT_ENV !== "aws" &&
-    appConfig.VITE_APP_PROJECT_ENV !== "gcp" &&
-    appConfig.SENTRY_ENABLED === true
-  ) {
-    log.info("initializing Sentry");
-    Sentry.init({
-      dsn: appConfig.SENTRY_HONEYBEE_DSN,
-      release: appConfig.RELEASE_TAG,
-      autoSessionTracking: true,
-      // Remove the default breadbrumbs integration - it does not accurately track breadcrumbs and
-      // creates more noise than benefit.
-      integrations: (integrations) => {
-        return integrations
-          .filter((integration) => integration.name !== "Breadcrumbs")
-          .concat([
-            Sentry.browserTracingIntegration({
-              instrumentNavigation: false,
-            }),
-          ]);
-      },
-      environment: appConfig.VITE_APP_PROJECT_ENV,
-
-      // We recommend adjusting this value in production, or using tracesSampler
-      // for finer control
-      tracesSampleRate: 0.1,
-    });
-  }
+  initializeSentryErrorReporting(appConfig);
 
   const adapterLocale = i18n.language === "zh" ? "zh-cn" : i18n.language === "ja" ? "ja" : "en";
 

@@ -41,6 +41,7 @@ jobs:
 
       - run: yarn run tsc --noEmit
       - run: yarn run typecheck:ci
+      - run: yarn run typecheck:react19
       - run: yarn run typecheck:tooling:ts6
       - run: yarn run typecheck:eslint-plugin
       - run: yarn run typecheck:message-path
@@ -69,3 +70,62 @@ jobs:
       - run: yarn install --immutable
 
       - run: yarn run test --ci
+
+  react19-integration:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: web
+            public-path: /viz/
+          - target: web
+            public-path: /
+          - target: desktop
+            public-path: /viz/
+    name: React 19 (${{ matrix.target }} ${{ matrix.public-path }})
+    defaults:
+      run:
+        working-directory: honeybee
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      HONEYBEE_WEB_PUBLIC_PATH: ${{ matrix.public-path }}
+      INTEGRATION_SKIP_BUILD: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: honeybee
+      - uses: actions/checkout@v7
+        with:
+          repository: coscene-io/create-coscene-extension
+          ref: ffba92ab9ee50044a11206ac91de2505f35b320d
+          path: generator
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: honeybee/.node-version
+      - run: corepack enable
+      - run: yarn install --immutable
+      - name: Pack the pinned generator
+        working-directory: generator
+        run: |
+          yarn install --immutable
+          yarn build
+          yarn pack --out "${RUNNER_TEMP}/react19-generator.tgz"
+      - name: Build a real self-contained React 19 extension
+        run: node ci/react19/build-extension-fixture.cjs "${RUNNER_TEMP}/react19-generator.tgz"
+      - name: Install browser dependencies
+        run: yarn workspace web playwright install --with-deps chromium
+      - name: Build Web
+        if: matrix.target == 'web'
+        run: yarn web:build:prod
+      - name: Install and exercise the Web extension
+        if: matrix.target == 'web'
+        run: yarn jest --config web/integration-test/jest.config.json web/integration-test/reactUpgradeExtension.test.ts --runInBand
+      - name: Build Desktop and Quicklook
+        if: matrix.target == 'desktop'
+        run: yarn desktop:build:prod
+      - name: Install and exercise the Desktop extension
+        if: matrix.target == 'desktop'
+        run: xvfb-run -a yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/open-extension.test.ts --runInBand

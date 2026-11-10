@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "types": ["node", "react", "react-dom"],
+    "skipLibCheck": false,
+    "noEmit": true
+  },
+  "include": ["ci/react19/compatibility.tsx"]
+}

@@ -240,7 +240,7 @@ export default React.memo(function LayoutRow({
   }, [layout, onExport]);
 
   const onSubmit = useCallback(
-    (event: React.FormEvent) => {
+    (event: React.SyntheticEvent) => {
       if (onRename == undefined) {
         throw new Error("onRename is not defined");
       }

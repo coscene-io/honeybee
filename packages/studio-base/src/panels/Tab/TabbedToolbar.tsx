@@ -16,7 +16,7 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import { ButtonBase } from "@mui/material";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { DropTargetMonitor, useDrop } from "react-dnd";
 import { makeStyles } from "tss-react/mui";
 
@@ -58,7 +58,7 @@ export function TabbedToolbar(props: Props): React.JSX.Element {
   const { panelId, actions, tabs, activeTabIdx, setDraggingTabState } = props;
   const { classes, theme } = useStyles();
 
-  const [{ isOver, item }, dropRef] = useDrop({
+  const [{ isOver, item }, drop] = useDrop({
     accept: TAB_DRAG_TYPE,
     collect: (monitor: DropTargetMonitor<DraggingTabItem>) => ({
       item: monitor.getItem(),
@@ -68,6 +68,13 @@ export function TabbedToolbar(props: Props): React.JSX.Element {
   useEffect(() => {
     setDraggingTabState({ item, isOver });
   }, [item, isOver, setDraggingTabState]);
+
+  const dropRef = useCallback(
+    (element: HTMLDivElement | ReactNull) => {
+      drop(element);
+    },
+    [drop],
+  );
 
   return (
     <Stack className={classes.root} flex="0 0" position="relative">

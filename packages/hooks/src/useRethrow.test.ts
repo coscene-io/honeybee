@@ -25,7 +25,7 @@ describe("useRethrow", () => {
           public override componentDidCatch(err: Error) {
             error = err;
           }
-          public override render() {
+          public override render(): React.ReactNode {
             return this.props.children;
           }
         },

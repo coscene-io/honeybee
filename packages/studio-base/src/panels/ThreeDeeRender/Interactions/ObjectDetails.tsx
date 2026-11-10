@@ -59,7 +59,7 @@ function ObjectDetails({ interactionData, selectedObject, timezone }: Props): Re
         invertTheme={false}
         theme={{ ...jsonTreeTheme, tree: { margin: 0, whiteSpace: "pre-line" } }}
         hideRoot
-        getItemString={(nodeType, data, itemType, itemString, keyPath) =>
+        getItemString={(nodeType, data, itemType, itemString, keyPath): React.ReactNode =>
           getItemString(nodeType, data, itemType, itemString, keyPath, timezone)
         }
         labelRenderer={(markerKeyPath, _p1, _p2, _hasChildren) => {

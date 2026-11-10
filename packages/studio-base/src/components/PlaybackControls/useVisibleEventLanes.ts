@@ -10,7 +10,7 @@ import { useLayoutEffect, useState, type RefObject } from "react";
 import { EVENT_LANE_HEIGHT_PX } from "./constants";
 
 export function useVisibleEventLanes(
-  root: RefObject<HTMLDivElement>,
+  root: RefObject<HTMLDivElement | ReactNull>,
   laneCount: number,
   alignment: "center" | "top" = "center",
 ): { first: number; last: number } {

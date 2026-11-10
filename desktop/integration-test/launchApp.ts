@@ -6,12 +6,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import electronPath from "electron";
-import { mkdtemp } from "fs/promises";
+import { mkdtemp, rm } from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 import { ConsoleMessage, _electron as electron, ElectronApplication, Page } from "playwright";
 
-import { signal } from "@foxglove/den/async";
 import Logger from "@foxglove/log";
 
 import { appPath } from "./build";
@@ -36,38 +35,66 @@ export type AppType = {
 export async function launchApp(): Promise<AppType> {
   // Create a new user data directory for each test, which bypasses the `app.requestSingleInstanceLock()`
   const userDataDir = await mkdtemp(path.join(os.tmpdir(), "integration-test-"));
-  const electronApp = await electron.launch({
-    args: [appPath, `--user-data-dir=${userDataDir}`],
-    // In node.js the electron import gives us the path to the electron binary
-    // Our type definitions don't realize this so cast the variable to a string
-    executablePath: electronPath as unknown as string,
-  });
+  let electronApp: ElectronApplication | undefined;
+  try {
+    electronApp = await electron.launch({
+      args: [
+        process.env.HONEYBEE_REACT_BENCHMARK_APP_DIR ?? appPath,
+        `--user-data-dir=${userDataDir}`,
+      ],
+      // In node.js the electron import gives us the path to the electron binary
+      // Our type definitions don't realize this so cast the variable to a string
+      executablePath: electronPath as unknown as string,
+    });
 
-  const electronWindow = await electronApp.firstWindow();
-  const appRendered = signal();
-  electronWindow.on("console", (message: ConsoleMessage) => {
-    if (message.type() === "error") {
-      throw new Error(message.text());
+    const launchedApp = electronApp;
+
+    // Extension storage uses app.getPath("home"), independently of userData. Isolate it before
+    // any test installs a package, then reload to discard extensions loaded during startup.
+    await launchedApp.evaluate(({ app }, homePath) => {
+      app.setPath("home", homePath);
+    }, userDataDir);
+    const electronWindow = await launchedApp.firstWindow();
+    await electronWindow.waitForLoadState("domcontentloaded");
+    await electronWindow.evaluate(() => {
+      localStorage.setItem("i18nextLng", "en");
+    });
+    const rendererErrors: string[] = [];
+    electronWindow.on("pageerror", (error) => rendererErrors.push(error.message));
+    electronWindow.on("console", (message: ConsoleMessage) => {
+      if (message.type() === "error") {
+        rendererErrors.push(message.text());
+      }
+      log.info(message.text());
+    });
+    await electronWindow.reload();
+
+    // A production renderer may log before firstWindow resolves. DOM readiness is observable even
+    // after that point and does not rely on a fixed two-second delay or a lost console event.
+    await electronWindow.waitForSelector("#root > *", { timeout: 30_000 });
+
+    return {
+      main: launchedApp,
+      renderer: electronWindow,
+
+      async [Symbol.asyncDispose]() {
+        try {
+          await launchedApp.close();
+        } finally {
+          await rm(userDataDir, { recursive: true, force: true });
+        }
+        // Throw within the test's awaited lifetime, not from an asynchronous event listener.
+        if (rendererErrors.length > 0) {
+          throw new Error(rendererErrors.join("\n"));
+        }
+      },
+    };
+  } catch (error) {
+    try {
+      await electronApp?.close();
+    } finally {
+      await rm(userDataDir, { recursive: true, force: true });
     }
-    log.info(message.text());
-
-    if (message.text().includes("App rendered")) {
-      // Wait for a few seconds for the app to render more components and detect if
-      // there are any errors after the initial app render
-      setTimeout(() => {
-        appRendered.resolve();
-      }, 2_000);
-    }
-  });
-
-  await appRendered;
-
-  return {
-    main: electronApp,
-    renderer: electronWindow,
-
-    async [Symbol.asyncDispose]() {
-      await electronApp.close();
-    },
-  };
+    throw error;
+  }
 }

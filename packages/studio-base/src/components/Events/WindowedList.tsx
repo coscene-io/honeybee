@@ -258,7 +258,7 @@ export function WindowedList({
     anchorKey: string | undefined;
     withinRow: number;
     offset: number;
-  }>();
+  }>(undefined);
   const previousMeasurement = useRef({ width: bounds.width, resetKey });
   useLayoutEffect(() => {
     const { anchorIndex = 0, anchorKey, withinRow = 0, offset = 0 } = anchorSnapshot.current ?? {};

@@ -169,7 +169,7 @@ export function DeepLinksSyncAdapter({
   // 处理状态标记
   const isSourceProcessed = useRef(false);
   const hasShownInvalidDomainToast = useRef(false);
-  const loginRedirectTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const loginRedirectTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // ========== 工具函数 ==========
   // 防抖的登录提示

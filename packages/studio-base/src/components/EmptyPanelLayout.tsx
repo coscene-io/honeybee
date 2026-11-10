@@ -82,9 +82,16 @@ export const EmptyPanelLayout = ({ tabId }: Props): React.JSX.Element => {
     [addPanel, tabId],
   );
 
+  const dropRef = useCallback(
+    (element: HTMLDivElement | ReactNull) => {
+      drop(element);
+    },
+    [drop],
+  );
+
   return (
     <div
-      ref={drop}
+      ref={dropRef}
       data-testid="empty-drop-target"
       className={cx(classes.dropTarget, { [classes.isOver]: isOver })}
     >

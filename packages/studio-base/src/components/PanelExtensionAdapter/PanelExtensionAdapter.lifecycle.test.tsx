@@ -442,7 +442,7 @@ class Boundary extends Component<PropsWithChildren, { failed: boolean }> {
   public static getDerivedStateFromError() {
     return { failed: true };
   }
-  public override render() {
+  public override render(): React.ReactNode {
     return this.state.failed ? <div>Failed panel</div> : this.props.children;
   }
 }
