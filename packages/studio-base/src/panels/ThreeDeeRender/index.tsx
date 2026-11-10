@@ -29,6 +29,7 @@ import {
   SegmentationImageEntry,
   type SegmentationImageEntryActions,
 } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry";
+import { SegmentationPropagateButton } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton";
 import { SegmentationWorkspace } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace";
 import { registerSegmentationCanvas } from "@foxglove/studio-base/semanticSegmentation/segmentationChrome";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
@@ -142,6 +143,10 @@ function ImagePanelAdapter(props: Props) {
     () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
     [topicMessageFrequencies],
   );
+  const propagateIcon = useMemo(
+    () => <SegmentationPropagateButton panelId={panel.id} />,
+    [panel.id],
+  );
   const onActionsChange = useCallback(
     (actions: SegmentationImageEntryActions | undefined) => {
       registration.current?.();
@@ -171,6 +176,7 @@ function ImagePanelAdapter(props: Props) {
         {...props}
         interfaceMode="image"
         extensionData={extensionData}
+        additionalToolbarIcons={propagateIcon}
       />
       <SegmentationImageEntry
         containerRef={containerRef}

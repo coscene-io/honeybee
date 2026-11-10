@@ -103,7 +103,7 @@ it("shows the record actions and closes the space from the app bar", async () =>
   const bar = screen.getByTestId("segmentation-app-bar");
   expect(within(bar).queryByTitle("编辑空间标注")).toBeNull();
   expect(within(bar).getByRole("button", { name: "撤销标注" })).toBeTruthy();
-  expect(within(bar).getByRole("button", { name: "传播" })).toBeTruthy();
+  expect(within(bar).queryByRole("button", { name: "传播" })).toBeNull();
   expect(within(bar).getByRole("button", { name: "提交" })).toBeTruthy();
   expect(within(bar).queryByRole("button", { name: "切换画布" })).toBeNull();
   fireEvent.click(within(bar).getByRole("button", { name: "结束标注" }));
