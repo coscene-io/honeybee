@@ -456,6 +456,18 @@ it("offers trackpad pan/pinch, actual pixel 100%, Fit and Fit selection in reado
   expect(store.getState().stagedOperations).toHaveLength(0);
 });
 
+it("fits, fits the selection and returns to 100% from F, Shift+F and 0 on the focused canvas", async () => {
+  const { viewport, transform, content } = await setup();
+  const scale = () => (content() as SVGGraphicsElement).getScreenCTM()!.a;
+  viewport.focus();
+  fireEvent.keyDown(viewport, { key: "0" });
+  expect(scale()).toBeCloseTo(1);
+  fireEvent.keyDown(viewport, { key: "F", shiftKey: true });
+  expect(scale()).toBeGreaterThan(0.5);
+  fireEvent.keyDown(viewport, { key: "f" });
+  expect(transform()).toBe("translate(0 0) scale(1)");
+});
+
 it("routes canvas undo/redo and the visible Redo button while leaving inputs and toolbar keys alone", async () => {
   const { store, viewport, points, handle } = await setup();
   const original = points();

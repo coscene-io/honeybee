@@ -9,6 +9,8 @@ import { alpha } from "@mui/material";
 import { Fragment } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import type { general } from "@foxglove/studio-base/i18n/en/general";
+
 export function isMacUserAgent(userAgent: string): boolean {
   return /Mac|iPhone|iPad/.test(userAgent);
 }
@@ -52,6 +54,95 @@ export const SHORTCUTS = {
   zoomOut: [`${MOD} + −`],
   zoomFit: ["Shift + Z"],
 } as const;
+
+type GeneralKey = keyof typeof general;
+
+export type SegmentationShortcutRow = {
+  labelKey: GeneralKey;
+  keys: readonly string[];
+};
+
+export type SegmentationShortcutSection = {
+  titleKey: GeneralKey;
+  rows: readonly SegmentationShortcutRow[];
+};
+
+/**
+ * Annotation-canvas bindings, matching what SegmentationCanvas handles. `drag` and `click` are the
+ * localized words used inside chords such as "Space + drag"; they cannot live in this table because
+ * the translation is only available at the call site.
+ */
+export function getSegmentationShortcuts(
+  currentUserAgent: string,
+  words: { drag: string; click: string } = { drag: "drag", click: "click" },
+): {
+  sections: readonly SegmentationShortcutSection[];
+  byAction: Record<
+    "fit" | "fitSelection" | "actualSize" | "zoomIn" | "zoomOut" | "panTool",
+    readonly string[]
+  >;
+} {
+  const mac = isMacUserAgent(currentUserAgent);
+  const mod = mac ? "⌘" : "Ctrl";
+  const byAction = {
+    fit: ["F"],
+    fitSelection: ["Shift + F"],
+    actualSize: ["0"],
+    zoomIn: ["+"],
+    zoomOut: ["−"],
+    panTool: ["H"],
+  } as const;
+  return {
+    byAction,
+    sections: [
+      {
+        titleKey: "segmentationSectionView",
+        rows: [
+          { labelKey: "segmentationFit", keys: byAction.fit },
+          { labelKey: "segmentationFitSelection", keys: byAction.fitSelection },
+          { labelKey: "segmentationActualSize", keys: byAction.actualSize },
+          { labelKey: "segmentationZoom", keys: [...byAction.zoomIn, ...byAction.zoomOut] },
+          { labelKey: "segmentationPanTool", keys: byAction.panTool },
+          { labelKey: "segmentationTemporaryPan", keys: [`Space + ${words.drag}`] },
+          { labelKey: "segmentationViewOriginal", keys: ["O"] },
+        ],
+      },
+      {
+        titleKey: "segmentationSectionEdit",
+        rows: [
+          { labelKey: "segmentationToggleEditing", keys: ["Enter"] },
+          { labelKey: "segmentationCancel", keys: ["Esc"] },
+          { labelKey: "segmentationDeleteVertices", keys: ["Delete", "Backspace"] },
+          {
+            labelKey: "segmentationDeleteVertex",
+            keys: [`${mac ? "Option" : "Alt"} + ${words.click}`],
+          },
+          { labelKey: "segmentationNudge", keys: ["←", "↑", "↓", "→"] },
+          { labelKey: "segmentationNudgeLarge", keys: ["Shift + ←↑↓→"] },
+        ],
+      },
+      {
+        titleKey: "segmentationSectionHistory",
+        rows: [
+          { labelKey: "segmentationUndo", keys: [`${mod} + Z`] },
+          {
+            labelKey: "segmentationRedo",
+            keys: mac ? [`${mod} + Shift + Z`] : [`${mod} + Shift + Z`, `${mod} + Y`],
+          },
+        ],
+      },
+      {
+        titleKey: "segmentationSectionFrames",
+        rows: [
+          { labelKey: "segmentationStepFrame", keys: ["←", "→"] },
+          { labelKey: "segmentationStepFrameLarge", keys: ["Shift + ←", "Shift + →"] },
+        ],
+      },
+    ],
+  };
+}
+
+export const SEGMENTATION_SHORTCUTS = getSegmentationShortcuts(userAgent).byAction;
 
 const useStyles = makeStyles()((theme) => ({
   keyGroup: {

@@ -10,6 +10,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 
+import { segmentationSession } from "@foxglove/studio-base/semanticSegmentation/runtime";
+
 import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { ShortcutsHelpButton } from "./ShortcutsHelpButton";
 import { closeKeyboardShortcuts, openKeyboardShortcuts } from "./keyboardShortcutsDialogStore";
@@ -47,6 +49,57 @@ describe("KeyboardShortcutsDialog", () => {
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
+  describe("空间标注 column", () => {
+    const originalUserAgent = navigator.userAgent;
+    const setUserAgent = (value: string) => {
+      Object.defineProperty(navigator, "userAgent", { configurable: true, value });
+    };
+    const openDialog = () => {
+      render(<KeyboardShortcutsDialog />);
+      act(() => {
+        openKeyboardShortcuts();
+      });
+    };
+
+    afterEach(() => {
+      setUserAgent(originalUserAgent);
+      act(() => {
+        segmentationSession.setState({ open: false });
+      });
+    });
+
+    it("is absent without an annotation session", () => {
+      openDialog();
+      expect(screen.queryByText("Spatial annotation")).toBeNull();
+      expect(screen.queryByText("Fit to selection")).toBeNull();
+    });
+
+    it("shows Mac keys under a Mac user agent", () => {
+      setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)");
+      act(() => {
+        segmentationSession.setState({ open: true });
+      });
+      openDialog();
+      expect(screen.getByText("Spatial annotation")).toBeTruthy();
+      expect(screen.getByText("⌘ + Z")).toBeTruthy();
+      expect(screen.getByText("⌘ + Shift + Z")).toBeTruthy();
+      expect(screen.getByText("Option + click")).toBeTruthy();
+      expect(screen.queryByText("Ctrl + Y")).toBeNull();
+    });
+
+    it("shows Ctrl and Alt keys elsewhere", () => {
+      setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+      act(() => {
+        segmentationSession.setState({ open: true });
+      });
+      openDialog();
+      expect(screen.getByText("Ctrl + Z")).toBeTruthy();
+      expect(screen.getByText("Ctrl + Shift + Z")).toBeTruthy();
+      expect(screen.getByText("Ctrl + Y")).toBeTruthy();
+      expect(screen.getByText("Alt + click")).toBeTruthy();
     });
   });
 });

@@ -5,7 +5,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Alert, Box, Button, IconButton, Menu, MenuItem, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   MouseEvent as ReactMouseEvent,
@@ -16,6 +26,10 @@ import { makeStyles } from "tss-react/mui";
 import type { StoreApi } from "zustand";
 import { useStore } from "zustand";
 
+import {
+  SEGMENTATION_SHORTCUTS,
+  ShortcutHint,
+} from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcuts";
 import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { isAnnotationCanvasTarget } from "../annotationInput";
@@ -1382,71 +1396,149 @@ export function SegmentationCanvas({
             }
           }}
         >
-          <Button
-            size="small"
-            disabled={navigationLocked}
-            aria-label="Zoom out"
-            data-tool="zoom-out"
-            onClick={() => {
-              zoomAt(zoom / 1.25);
-            }}
+          <Tooltip
+            title={
+              navigationLocked ? (
+                ""
+              ) : (
+                <ShortcutHint
+                  label={text("Zoom out", "缩小")}
+                  keys={SEGMENTATION_SHORTCUTS.zoomOut}
+                />
+              )
+            }
+            disableInteractive
           >
-            −
-          </Button>
+            <Button
+              size="small"
+              disabled={navigationLocked}
+              aria-label="Zoom out"
+              data-tool="zoom-out"
+              onClick={() => {
+                zoomAt(zoom / 1.25);
+              }}
+            >
+              −
+            </Button>
+          </Tooltip>
           <Typography variant="caption" aria-live="polite" data-tool="zoom-label">
             {zoom === 1 && pan.x === 0 && pan.y === 0 ? "Fit · " : ""}
             {Math.round(screenScale * 100)}%
           </Typography>
-          <Button
-            size="small"
-            disabled={navigationLocked}
-            aria-label="Zoom in"
-            data-tool="zoom-in"
-            onClick={() => {
-              zoomAt(zoom * 1.25);
-            }}
+          <Tooltip
+            title={
+              navigationLocked ? (
+                ""
+              ) : (
+                <ShortcutHint
+                  label={text("Zoom in", "放大")}
+                  keys={SEGMENTATION_SHORTCUTS.zoomIn}
+                />
+              )
+            }
+            disableInteractive
           >
-            +
-          </Button>
-          <Button
-            size="small"
-            data-tool="fit"
-            disabled={navigationLocked}
-            onClick={() => {
-              fit();
-            }}
+            <Button
+              size="small"
+              disabled={navigationLocked}
+              aria-label="Zoom in"
+              data-tool="zoom-in"
+              onClick={() => {
+                zoomAt(zoom * 1.25);
+              }}
+            >
+              +
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              navigationLocked ? (
+                ""
+              ) : (
+                <ShortcutHint label={text("Fit", "适应画布")} keys={SEGMENTATION_SHORTCUTS.fit} />
+              )
+            }
+            disableInteractive
           >
-            {text("Fit", "适应画布")}
-          </Button>
-          <Button
-            size="small"
-            data-tool="actual"
-            disabled={navigationLocked}
-            onClick={() => {
-              zoomAt(zoom / screenScale);
-            }}
+            <Button
+              size="small"
+              data-tool="fit"
+              disabled={navigationLocked}
+              onClick={() => {
+                fit();
+              }}
+            >
+              {text("Fit", "适应画布")}
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              navigationLocked ? (
+                ""
+              ) : (
+                <ShortcutHint
+                  label={text("Actual size", "实际大小")}
+                  keys={SEGMENTATION_SHORTCUTS.actualSize}
+                />
+              )
+            }
+            disableInteractive
           >
-            100%
-          </Button>
-          <Button
-            size="small"
-            data-tool="fit-selection"
-            disabled={navigationLocked || !state.focus}
-            onClick={fitSelection}
+            <Button
+              size="small"
+              data-tool="actual"
+              disabled={navigationLocked}
+              onClick={() => {
+                zoomAt(zoom / screenScale);
+              }}
+            >
+              100%
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              navigationLocked || !state.focus ? (
+                ""
+              ) : (
+                <ShortcutHint
+                  label={text("Fit selection", "适应选区")}
+                  keys={SEGMENTATION_SHORTCUTS.fitSelection}
+                />
+              )
+            }
+            disableInteractive
           >
-            {text("Fit selection", "适应选区")}
-          </Button>
-          <Button
-            size="small"
-            disabled={navigationLocked}
-            aria-pressed={panTool}
-            data-tool="pan"
-            onClick={() => {
-              setPanTool((value) => !value);
-            }}
+            <Button
+              size="small"
+              data-tool="fit-selection"
+              disabled={navigationLocked || !state.focus}
+              onClick={fitSelection}
+            >
+              {text("Fit selection", "适应选区")}
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              navigationLocked ? (
+                ""
+              ) : (
+                <ShortcutHint label={text("Pan", "平移")} keys={SEGMENTATION_SHORTCUTS.panTool} />
+              )
+            }
+            disableInteractive
           >
-            {text("Pan", "平移")}
-          </Button>
+            <Button
+              size="small"
+              disabled={navigationLocked}
+              aria-pressed={panTool}
+              data-tool="pan"
+              onClick={() => {
+                setPanTool((value) => !value);
+              }}
+            >
+              {text("Pan", "平移")}
+            </Button>
+          </Tooltip>
           <Typography variant="caption" data-tool="size">
             {size.width} × {size.height}
           </Typography>
