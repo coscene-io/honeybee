@@ -5,20 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Menu,
-  MenuItem,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, IconButton, Menu, MenuItem, Stack, Typography } from "@mui/material";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   MouseEvent as ReactMouseEvent,
@@ -28,6 +15,8 @@ import type {
 import { makeStyles } from "tss-react/mui";
 import type { StoreApi } from "zustand";
 import { useStore } from "zustand";
+
+import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { isAnnotationCanvasTarget } from "../annotationInput";
 import { segmentationSession, type DecodedSegmentationFrame } from "../runtime";
@@ -142,10 +131,6 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 8,
     boxShadow: theme.shadows[4],
     "&:hover": { backgroundColor: theme.palette.action.hover },
-  },
-  shortcutList: {
-    "& dt": { fontWeight: "bold", marginTop: theme.spacing(1) },
-    "& dd": { marginLeft: 0 },
   },
   hiddenImage: { display: "none" },
   viewport: {
@@ -318,7 +303,6 @@ export function SegmentationCanvas({
   const activeVertex = selectedVertices.at(-1);
   const [marquee, setMarquee] = useState<{ a: EditorPoint; b: EditorPoint }>();
   const [peekOriginal, setPeekOriginal] = useState(false);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -479,9 +463,6 @@ export function SegmentationCanvas({
     resetTemporaryInput();
     setSelectedVertices([]);
     setContextMenu(undefined);
-    if (navigationLocked) {
-      setShortcutsOpen(false);
-    }
     // Geometry edits may clone focus; only a meaningful scope change resets keyboard mode.
   }, [
     resetTemporaryInput,
@@ -1258,7 +1239,7 @@ export function SegmentationCanvas({
             return;
           }
           if (event.key === "?") {
-            setShortcutsOpen(true);
+            openKeyboardShortcuts();
             return;
           }
           if (event.key === "+" || event.key === "=") {
@@ -1509,7 +1490,7 @@ export function SegmentationCanvas({
             data-tool="shortcuts"
             disabled={navigationLocked}
             onClick={() => {
-              setShortcutsOpen(true);
+              openKeyboardShortcuts();
             }}
           >
             {text("Shortcuts", "快捷键")}
@@ -2175,71 +2156,13 @@ export function SegmentationCanvas({
         </MenuItem>
         <MenuItem
           onClick={() => {
-            setShortcutsOpen(true);
+            openKeyboardShortcuts();
             setContextMenu(undefined);
           }}
         >
           {text("Keyboard shortcuts", "键盘快捷键")}
         </MenuItem>
       </Menu>
-      <Dialog
-        data-segmentation-input="canvas"
-        open={shortcutsOpen}
-        onClose={() => {
-          setShortcutsOpen(false);
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>{text("Annotation controls", "标注操作")}</DialogTitle>
-        <DialogContent>
-          <Typography component="p">
-            {text(
-              "Focus the annotation viewport to use these shortcuts. Timeline and playback controls keep their own keyboard behavior.",
-              "聚焦标注画布后使用以下快捷键；时间轴和播放控件保留自身的键盘行为。",
-            )}
-          </Typography>
-          <Box component="dl" className={classes.shortcutList}>
-            <dt>{text("Navigate", "浏览")}</dt>
-            <dd>
-              {text(
-                "Wheel: zoom at pointer (Mouse profile). Trackpad profile: two-finger scroll pans; pinch/Ctrl-wheel zooms. Space + left drag, middle drag, or right drag: pan. H: toggle pan tool. + / −: zoom. F: fit image. 0: actual 100%. Shift+F: fit selection.",
-                "鼠标模式：滚轮以指针为中心缩放。触控板模式：双指滑动平移，捏合/Ctrl+滚动缩放。空格+左键、中键或右键拖动：平移。H：切换平移工具。+ / −：缩放。F：适应图像。0：实际 100%。Shift+F：适应选区。",
-              )}
-            </dd>
-            <dt>{text("Edit geometry", "编辑几何")}</dt>
-            <dd>
-              {text(
-                "Drag a vertex or polygon fill. Drag empty canvas: box-select points. Click an edge: insert a point. Delete/Backspace or Alt-click a selected point: delete (keep at least 3). Click to draw; Enter finishes; Esc cancels. Right-click without dragging opens annotation actions.",
-                "拖动顶点或多边形填充。拖动空白处：框选顶点。单击边：加点。Delete/Backspace 或 Alt+点击选中顶点：删点（至少保留 3 点）。点击绘制，Enter 完成，Esc 取消。右键单击打开标注菜单。",
-              )}
-            </dd>
-            <dt>{text("Keyboard points", "键盘顶点编辑")}</dt>
-            <dd>
-              {text(
-                "Tab enters/leaves the viewport once. Enter on a selected polygon starts editing; Enter again finishes. Click a point (Shift+click or drag a box on empty canvas to select several), then arrows move the selected points by 1 image pixel, Shift+arrows by 10. Dragging one selected point moves them all; Delete removes them. Esc clears the point selection. Space+arrows pans.",
-                "Tab 一次进入或离开画布。选中多边形后按 Enter 开始编辑，再按 Enter 完成。点击顶点（Shift+点击或在空白处拖出选框可多选）后，方向键移动选中顶点 1 图像像素，Shift+方向键移动 10 像素。拖动其中一个选中顶点会整体移动；Delete 删除。Esc 取消选择。空格+方向键平移。",
-              )}
-            </dd>
-            <dt>{text("History and appearance", "历史与显示")}</dt>
-            <dd>
-              {text(
-                "Ctrl/Cmd+Z: undo. Ctrl/Cmd+Shift+Z or Ctrl+Y: redo. Hold O: peek at original pixels. Use Opacity to adjust fills. Navigation never adds annotation history; read-only revisions remain navigable.",
-                "Ctrl/Cmd+Z：撤销。Ctrl/Cmd+Shift+Z 或 Ctrl+Y：重做。按住 O：查看原图。透明度滑块调整填充。浏览不产生标注历史；只读版本仍可缩放和平移。",
-              )}
-            </dd>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setShortcutsOpen(false);
-            }}
-          >
-            {text("Close", "关闭")}
-          </Button>
-        </DialogActions>
-      </Dialog>
       {!compact && (
         <Typography variant="caption" className={classes.footer} aria-live="polite">
           {selectedEditable.length > 1

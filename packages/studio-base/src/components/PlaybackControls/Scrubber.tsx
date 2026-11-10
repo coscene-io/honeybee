@@ -61,6 +61,7 @@ import { getDomainConfig } from "@foxglove/studio-base/util/appConfig";
 
 import { BagsOverlay } from "./BagsOverlay";
 import { EventsOverlay } from "./EventsOverlay";
+import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
 import { MomentTrackList } from "./MomentTrackList";
 import { PlaybackBarHoverTicks } from "./PlaybackBarHoverTicks";
 import { PlaybackControlsTooltipContent } from "./PlaybackControlsTooltipContent";
@@ -1212,6 +1213,7 @@ export default function Scrubber(props: Props): React.JSX.Element {
     >
       {isTimelineZoomEnabled() && <KeyListener global keyDownHandlers={zoomKeyDownHandlers} />}
       <TimelineHoverTooltip ref={hoverTooltipRef} />
+      <KeyboardShortcutsDialog />
       <TimelineToolbar
         onHeightChange={props.onToolbarHeightChange}
         playback={props.playback}
