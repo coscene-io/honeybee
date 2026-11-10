@@ -91,7 +91,6 @@ function fixture() {
         topic={topic}
         panelId="panel-1"
         onMaximize={maximize}
-        testDouble
       />
     </div>
   );

@@ -30,8 +30,9 @@ export function createSegmentationRuntime(
   options: {
     identity?: { userId: string; sessionId?: string };
     /**
-     * Test double, or the live client once `createLiveSemanticSegmentationService` returns one.
-     * Omitting it builds the mock. The image panel must not omit it and then treat the result as live.
+     * Live client once `createLiveSemanticSegmentationService` returns one.
+     * Omitting it keeps annotations for the captured recording in the browser.
+     * That store is not the published annotation service.
      */
     service?: SemanticSegmentationService;
   } = {},

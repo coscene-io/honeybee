@@ -26,8 +26,9 @@ import type { SemanticSegmentationService } from "@foxglove/studio-base/semantic
  *   import { AnnotationService } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha3/services/annotation_pb";
  *   getPromiseClient(AnnotationService)
  *
- * Until that import exists, this returns undefined. Callers must not substitute
- * the mock service and report the result as a live read or save.
+ * Until that import exists, this returns undefined. The image panel then keeps
+ * annotations for the open recording in the browser. That store is not a live read
+ * or save, and the app bar says so.
  */
 export function createLiveSemanticSegmentationService(): SemanticSegmentationService | undefined {
   return undefined;

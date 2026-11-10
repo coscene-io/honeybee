@@ -6,9 +6,11 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { ThemeProvider } from "@mui/material/styles";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import MockCurrentLayoutProvider from "@foxglove/studio-base/providers/CurrentLayoutProvider/MockCurrentLayoutProvider";
+import { createMuiTheme } from "@foxglove/theme";
 
 import { createSeedDocument } from "../mockService";
 import { createSegmentationRuntime, segmentationSession } from "../runtime";
@@ -18,6 +20,8 @@ import {
   type SegmentationCanvasEntry,
 } from "../segmentationChrome";
 import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
+
+const theme = createMuiTheme("light", "en");
 
 function canvas(
   panelId: string,
@@ -30,9 +34,11 @@ function canvas(
 
 function renderBar(): void {
   render(
-    <MockCurrentLayoutProvider>
-      <SegmentationAppBarControls />
-    </MockCurrentLayoutProvider>,
+    <ThemeProvider theme={theme}>
+      <MockCurrentLayoutProvider>
+        <SegmentationAppBarControls />
+      </MockCurrentLayoutProvider>
+    </ThemeProvider>,
   );
 }
 

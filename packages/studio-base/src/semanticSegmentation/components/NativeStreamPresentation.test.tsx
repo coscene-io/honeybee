@@ -112,7 +112,6 @@ async function fixture() {
         topic="/camera"
         panelId="native-panel"
         onMaximize={() => {}}
-        testDouble
       />
       {mode === "workspace" && <SegmentationWorkspace panelId="native-panel" />}
     </div>

@@ -70,7 +70,6 @@ export function SegmentationImageEntry({
   onActionsChange,
   onAvailabilityChange,
   service: injectedService,
-  testDouble = false,
 }: {
   containerRef: RefObject<HTMLDivElement>;
   topic?: string;
@@ -79,13 +78,11 @@ export function SegmentationImageEntry({
   /** When set, entry actions are hosted by the panel toolbar instead of a floating overlay. */
   onActionsChange?: (actions: SegmentationImageEntryActions | undefined) => void;
   onAvailabilityChange?: (state: "available" | "hidden") => void;
-  /** Test double. Production omits this; the live client is still unpublished. */
-  service?: SemanticSegmentationService;
   /**
-   * Tests only. Builds the mock from the captured source document.
-   * Production must leave this false; an unpublished client is not the mock.
+   * Published annotation client. Until that client exists, omit this. The panel then
+   * keeps annotations for the open recording in the browser. That store is not the live API.
    */
-  testDouble?: boolean;
+  service?: SemanticSegmentationService;
 }): React.JSX.Element | undefined {
   const { sidebarActions } = useWorkspaceActions();
   const getPipeline = useMessagePipelineGetter();
@@ -153,9 +150,6 @@ export function SegmentationImageEntry({
       : Number.NaN,
   );
   useEffect(() => {
-    if (annotationService == undefined && !testDouble) {
-      return;
-    }
     if (topic == undefined || sessionOpen || previewWindowStart == undefined) {
       return;
     }
@@ -332,7 +326,6 @@ export function SegmentationImageEntry({
     userId,
     userKey,
     annotationService,
-    testDouble,
   ]);
 
   const close = useCallback(() => {
@@ -608,10 +601,6 @@ export function SegmentationImageEntry({
   const enter = useCallback(
     async (mode: "inline" | "maximize") => {
       setError(undefined);
-      if (annotationService == undefined && !testDouble) {
-        setError("语义分割接口尚未发布，不能读取或保存标注。");
-        return;
-      }
       const bound = active.current;
       const live = segmentationSession.getState();
       if (bound && live.open && live.runtime === bound.runtime && bound.key === latestKey.current) {
@@ -828,7 +817,6 @@ export function SegmentationImageEntry({
       userId,
       userKey,
       annotationService,
-      testDouble,
     ],
   );
 
