@@ -6,7 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 // Usage: node ci/react19/build-extension-fixture.cjs /absolute/path/generator.tgz
-// Pack the generator at commit 91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2 before running.
+// Pack the generator at commit 067f303469454c7a192f231e1e3455f531e55722 before running.
 // See README.md for the exact reproducible commands.
 // Output is ignored build data, not a hand-written ZIP pretending to be an extension package.
 const { execFileSync } = require("node:child_process");
@@ -25,7 +25,7 @@ const { archiveSha256: generatorTarballSha256, payloadSha256: generatorPayloadSh
   generatorDigests(tarball);
 if (generatorPayloadSha256 !== "299a4cb466358d5478e356afad731a5b1219c7ebacf9be22cb4d0eb06daa6415") {
   throw new Error(
-    `Generator payload ${generatorPayloadSha256} does not match pinned revision 91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2 (archive ${generatorTarballSha256})`,
+    `Generator payload ${generatorPayloadSha256} does not match pinned revision 067f303469454c7a192f231e1e3455f531e55722 (archive ${generatorTarballSha256})`,
   );
 }
 const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), "honeybee-react-extension-"));
@@ -80,7 +80,7 @@ fs.writeFileSync(
   path.join(output, "provenance.json"),
   JSON.stringify(
     {
-      generatorRevision: "91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2",
+      generatorRevision: "067f303469454c7a192f231e1e3455f531e55722",
       generatorTarball: tarball,
       generatorTarballSha256,
       generatorPayloadSha256,

@@ -1,7 +1,7 @@
 # React 19 extension and application acceptance
 
 The fixture uses `create-coscene-extension` commit
-`91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2` (version 1.1.0). Build its tarball from that
+`067f303469454c7a192f231e1e3455f531e55722` (version 1.1.0). Build its tarball from that
 revision, not from npm's currently published CLI. The builder verifies all archive
 paths and file bytes using the canonical payload SHA-256
 `299a4cb466358d5478e356afad731a5b1219c7ebacf9be22cb4d0eb06daa6415`.
@@ -10,7 +10,7 @@ the actual archive SHA-256 is separately recorded in provenance. Only regular
 files and directories are accepted. The builder uses the system `tar` on macOS/Linux.
 
 ```sh
-git -C ../create-coscene-extension checkout 91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2
+git -C ../create-coscene-extension checkout 067f303469454c7a192f231e1e3455f531e55722
 (cd ../create-coscene-extension && yarn install --immutable && yarn build && yarn pack --out /tmp/create-coscene-extension-react19.tgz)
 node ci/react19/build-extension-fixture.cjs /tmp/create-coscene-extension-react19.tgz
 ```

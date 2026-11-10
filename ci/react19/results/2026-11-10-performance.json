@@ -8,7 +8,7 @@
   "baselineCommit": "68cf3381eca61d8aaec4b69bcd281328af165e60",
   "upgradedPullRequest": "https://github.com/coscene-io/honeybee/pull/1563",
   "generatorCommitUsedForMeasurements": "9776ba0f764133a4b4799c6df69455553f741c2e",
-  "finalGeneratorCommit": "91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2",
+  "finalGeneratorCommit": "067f303469454c7a192f231e1e3455f531e55722",
   "identicalFixtureBundleSha256": "6d84a2defe6ea96b6ee6fa03d516253c38d19445d7874e23a43985475705229b",
   "dataset": "packages/studio-base/src/test/fixtures/example.bag",
   "datasetSha256": "6f8b495a7215a03099836955e1ffbf80f2abaff7f8bd65a1bdf9e52c809cef5d",

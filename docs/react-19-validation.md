@@ -72,7 +72,7 @@ arbitrary heap-byte threshold, and rejects the unpatched React 18 artifact.
 ## Reproduction and remaining limits
 
 Use [the acceptance commands](../ci/react19/README.md) and the exact pinned generator commit.
-The final generator is `91df5ac86cec15e2f4fa07d69f7e5e714a62e5d2`; its regenerated fixture's
+The final generator is `067f303469454c7a192f231e1e3455f531e55722`; its regenerated fixture's
 production JavaScript is byte-identical to the fixture used for performance measurements.
 
 Live robot service calls, Teleop publishing to hardware, authenticated real-time collection,
