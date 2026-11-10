@@ -5,9 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
-// SPDX-License-Identifier: MPL-2.0
-
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import { Popover, Tooltip } from "@mui/material";
 import { useMemo, useState } from "react";
