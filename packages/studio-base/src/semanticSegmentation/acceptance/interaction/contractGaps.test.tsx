@@ -81,7 +81,7 @@ it("SEG-ONLINE-014 failure names the job and explicitly explains retained partia
     await runtime.store.getState().startPropagation({
       fromFrameId: "frame-0",
       instanceId: "instance-1",
-      frameCount: 2,
+      endTimeNs: "1700000000400000000",
     });
   });
   expect(runtime.store.getState().propagation.status).toBe("failed");

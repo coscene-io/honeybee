@@ -148,7 +148,9 @@ async function fixture() {
     }
   };
   const start = async () => {
-    await runtime.store.getState().startPropagation({ instanceId, fromFrameId, frameCount: 3 });
+    await runtime.store
+      .getState()
+      .startPropagation({ instanceId, fromFrameId, endTimeNs: "1700000000600000000" });
   };
   return {
     ...result,

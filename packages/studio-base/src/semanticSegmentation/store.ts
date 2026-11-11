@@ -1276,8 +1276,11 @@ export function createSemanticSegmentationStore(
         if (!sourceFrame || (!request.seeds && !source)) {
           throw new Error("Source annotation is not loaded");
         }
-        if (!Number.isInteger(request.frameCount) || request.frameCount < 1) {
-          throw new Error("Frame count must be a positive integer");
+        if (
+          !/^\d+$/.test(request.endTimeNs) ||
+          BigInt(request.endTimeNs) <= BigInt(sourceFrame.logTimeNs)
+        ) {
+          throw new Error("End time must be later than the seed frame");
         }
         const seeds = resolvePropagationSeeds(request, source?.polygons);
         for (const seed of seeds) {
@@ -1321,10 +1324,12 @@ export function createSemanticSegmentationStore(
         });
         const targets = initial.frames
           .filter(
-            (frame) => frame.videoId === sourceFrame.videoId && frame.index > sourceFrame.index,
+            (frame) =>
+              frame.videoId === sourceFrame.videoId &&
+              BigInt(frame.logTimeNs) > BigInt(sourceFrame.logTimeNs) &&
+              BigInt(frame.logTimeNs) <= BigInt(request.endTimeNs),
           )
-          .sort((a, b) => a.index - b.index)
-          .slice(0, request.frameCount);
+          .sort((a, b) => a.index - b.index);
         const targetIds = new Set(targets.map((frame) => frame.id));
         const received = new Set<string>();
         const receivedFrames = new Map<string, Set<string>>();

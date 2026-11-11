@@ -52,7 +52,7 @@ async function fixture(order = [1, 2, 3]) {
     await store.getState().startPropagation({
       instanceId: "instance-1",
       fromFrameId: "frame-0",
-      frameCount: 3,
+      endTimeNs: "1700000000600000000",
     });
   };
   return { service, store, pulls, waits, detach, start };

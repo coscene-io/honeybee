@@ -59,7 +59,7 @@ async function fixture() {
   const running = store.getState().startPropagation({
     instanceId: "instance-1",
     fromFrameId: "frame-0",
-    frameCount: 2,
+    endTimeNs: "1700000000400000000",
   });
   await accepted.promise;
   return { service, store, gate, running };

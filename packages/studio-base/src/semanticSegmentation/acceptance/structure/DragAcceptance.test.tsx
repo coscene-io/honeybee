@@ -294,7 +294,7 @@ describe("structure drag acceptance", () => {
           running = store.getState().startPropagation({
             instanceId: "I",
             fromFrameId: "frame-0",
-            frameCount: 2,
+            endTimeNs: "1700000000400000000",
           });
         });
         await waitFor(() => {

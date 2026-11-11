@@ -395,7 +395,7 @@ describe("semantic segmentation state", () => {
     const running = store.getState().startPropagation({
       instanceId: "instance-1",
       fromFrameId: "frame-0",
-      frameCount: 2,
+      endTimeNs: "1700000000400000000",
     });
     await firstConsumed.promise;
     expect(() => store.getState().addClass("Locked")).toThrow("Stop propagation");
@@ -427,7 +427,7 @@ describe("semantic segmentation state", () => {
     await store.getState().startPropagation({
       instanceId: "instance-1",
       fromFrameId: "frame-0",
-      frameCount: 2,
+      endTimeNs: "1700000000400000000",
     });
     expect(store.getState().currentFrameId).toBe("frame-2");
     expect(

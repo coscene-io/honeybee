@@ -238,7 +238,7 @@ it("identifies a failed stream request, unlocks controls and keeps accepted repl
     await runtime.store.getState().startPropagation({
       fromFrameId: "frame-0",
       instanceId: "instance-1",
-      frameCount: 2,
+      endTimeNs: "1700000000400000000",
     });
   });
   expect(screen.getByRole("alert").textContent).toContain(requestId);

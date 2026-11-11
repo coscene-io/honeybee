@@ -89,7 +89,7 @@ export function PropagationForm({
       ? {
           instanceId,
           fromFrameId: frame.id,
-          frameCount: afterFrames,
+          endTimeNs: videoFrames[seedIndex + effectiveAfter]?.logTimeNs ?? "0",
           ...(allowedResolutions.length > 0 ? { resolution } : {}),
           model,
           polygonIds: firstSeed.polygons.map((polygon) => polygon.id),
@@ -215,7 +215,7 @@ export function PropagationForm({
             !request ||
             !validRange ||
             !supportedParameters ||
-            request.frameCount < 1 ||
+            effectiveAfter < 1 ||
             busy
           }
           onClick={() => {

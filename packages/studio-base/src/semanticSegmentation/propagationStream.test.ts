@@ -56,7 +56,7 @@ function result(
 }
 
 function request(): PropagationRequest {
-  return { fromFrameId: "frame-5", instanceId: "instance-1", frameCount: 2 };
+  return { fromFrameId: "frame-5", instanceId: "instance-1", endTimeNs: "1700000001400000000" };
 }
 async function acknowledgedStop(
   store: ReturnType<typeof createSemanticSegmentationStore>,
@@ -293,7 +293,7 @@ it("keeps a valid legacy seed while ignoring an intentional empty placeholder si
     sent = submitted;
     yield result("frame-6", submitted.context);
   };
-  await store.getState().startPropagation({ ...request(), frameCount: 1 });
+  await store.getState().startPropagation({ ...request(), endTimeNs: "1700000001200000000" });
   expect(sent?.seedPolygons).toHaveLength(1);
   expect(sent?.seedPolygons?.[0]?.id).toBe("instance-1-polygon-5");
   expect(store.getState().propagation.processedFrames).toBe(1);
@@ -357,7 +357,9 @@ it("ignores a stopped controller and its context after another job has completed
   await accepted;
   store.getState().stopPropagation();
   await acknowledgedStop(store);
-  await store.getState().startPropagation({ ...request(), fromFrameId: "frame-6", frameCount: 1 });
+  await store
+    .getState()
+    .startPropagation({ ...request(), fromFrameId: "frame-6", endTimeNs: "1700000001400000000" });
   const before = store.getState().document;
   release();
   await old;
@@ -383,7 +385,9 @@ it("keeps playback geometry ready when streamed targets cross the initial ten-se
     yield result("frame-50", submitted.context);
     yield result("frame-51", submitted.context);
   };
-  await store.getState().startPropagation({ ...request(), fromFrameId: "frame-49" });
+  await store
+    .getState()
+    .startPropagation({ ...request(), fromFrameId: "frame-49", endTimeNs: "1700000010200000000" });
   expect(readiness).toEqual([true, true]);
   expect(store.getState().propagation.processedFrames).toBe(2);
   expect(reads).toHaveBeenCalledTimes(1);
@@ -431,7 +435,9 @@ it("ignores a complete window that resolves after STOP without overwriting retai
   service.propagate = async function* (submitted) {
     yield result("frame-51", submitted.context);
   };
-  const running = store.getState().startPropagation({ ...request(), fromFrameId: "frame-49" });
+  const running = store
+    .getState()
+    .startPropagation({ ...request(), fromFrameId: "frame-49", endTimeNs: "1700000010200000000" });
   await reading;
   expect(store.getState().stagedOperations).toHaveLength(1);
   expect(store.getState().isFrameReady("frame-51")).toBe(false);
@@ -465,7 +471,11 @@ it.each(["read-failed", "foreign-scope"] as const)(
     service.propagate = async function* (submitted) {
       yield result("frame-51", submitted.context);
     };
-    await store.getState().startPropagation({ ...request(), fromFrameId: "frame-49" });
+    await store.getState().startPropagation({
+      ...request(),
+      fromFrameId: "frame-49",
+      endTimeNs: "1700000010200000000",
+    });
     expect(store.getState().propagation.status).toBe("failed");
     expect(store.getState().isFrameReady("frame-51")).toBe(false);
     expect(store.getState().frameWindowError).toMatchObject({

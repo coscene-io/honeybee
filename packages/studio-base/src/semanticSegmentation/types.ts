@@ -183,8 +183,8 @@ export type PropagationCapabilities = {
 export type PropagationRequest = {
   instanceId: string;
   fromFrameId: string;
-  /** Propagation only follows later frames after the seed frame. */
-  frameCount: number;
+  /** Propagation only follows later frames. Inclusive end: the last frame's log_time (decimal ns). */
+  endTimeNs: string;
   polygonIds?: string[];
   model?: string;
   resolution?: number;

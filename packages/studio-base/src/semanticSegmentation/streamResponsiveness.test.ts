@@ -21,7 +21,7 @@ const key = (index: number, instanceId = "instance-1") =>
 const request = {
   fromFrameId: "submission-frame-0",
   instanceId: "instance-1",
-  frameCount: 100,
+  endTimeNs: "1700000020000000000",
 };
 
 async function fixture(mode: "initial" | "preloaded" = "initial") {

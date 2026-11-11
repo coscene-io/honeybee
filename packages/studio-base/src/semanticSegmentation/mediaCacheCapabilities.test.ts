@@ -12,7 +12,7 @@ import type { PropagationCapabilities, PropagationRequest } from "./types";
 const request: PropagationRequest = {
   instanceId: "instance-1",
   fromFrameId: "frame-0",
-  frameCount: 1,
+  endTimeNs: "1700000000200000000",
   model: "small",
   resolution: 720,
 };

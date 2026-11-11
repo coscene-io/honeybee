@@ -280,7 +280,7 @@ describe("workbench workflow integration", () => {
       streaming = runtime.store.getState().startPropagation({
         instanceId: "instance-1",
         fromFrameId: "frame-0",
-        frameCount: 10,
+        endTimeNs: "1700000002000000000",
       });
     });
     const stop = await screen.findByRole("button", { name: "STOP · 停止传播" });

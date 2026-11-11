@@ -572,13 +572,20 @@ export function createMockSemanticSegmentationService(
       }
       const seedAnnotation = document.annotations[frameInstanceKey(source.id, request.instanceId)];
       const seeds = resolvePropagationSeeds(request, seedAnnotation?.polygons);
-      if (!Number.isInteger(request.frameCount) || request.frameCount < 1) {
-        throw new Error("Frame count must be a positive integer");
+      if (
+        !/^\d+$/.test(request.endTimeNs) ||
+        BigInt(request.endTimeNs) <= BigInt(source.logTimeNs)
+      ) {
+        throw new Error("End time must be later than the seed frame");
       }
       const ordered = document.frames
-        .filter((frame) => frame.videoId === source.videoId && frame.index > source.index)
-        .sort((a, b) => a.index - b.index)
-        .slice(0, request.frameCount);
+        .filter(
+          (frame) =>
+            frame.videoId === source.videoId &&
+            BigInt(frame.logTimeNs) > BigInt(source.logTimeNs) &&
+            BigInt(frame.logTimeNs) <= BigInt(request.endTimeNs),
+        )
+        .sort((a, b) => a.index - b.index);
       for (const [frameOffset, frame] of ordered.entries()) {
         await delay(controls.streamDelayMs, signal);
         pool.touch(gpuSession.identity);
