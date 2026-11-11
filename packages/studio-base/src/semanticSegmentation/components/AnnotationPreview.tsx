@@ -12,7 +12,7 @@ import { useStore } from "zustand";
 import { toNanoSec } from "@foxglove/rostime";
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 
-import { annotationSampleTimes, snapAnnotationTime } from "../annotationFrames";
+import { snapAnnotationTime } from "../annotationFrames";
 import { segmentationSession, type SegmentationRuntime } from "../runtime";
 import { polygonPath } from "./editorGeometry";
 
@@ -51,7 +51,7 @@ function PreviewPolygons({
   const frames = document?.frames.filter((frame) => frame.videoId === video?.id) ?? [];
   const offsetSec =
     currentTime && startTime ? Number(toNanoSec(currentTime) - toNanoSec(startTime)) / 1e9 : 0;
-  const samples = annotationSampleTimes(frames.map((frame) => frame.timestampSec));
+  const samples = frames.map((frame) => frame.timestampSec);
   const landed =
     snapAnnotationTime(offsetSec, samples, "pause") ??
     samples.find((sample) => Math.abs(sample - offsetSec) <= 0.0005);

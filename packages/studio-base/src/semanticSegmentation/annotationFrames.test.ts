@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import {
-  annotationSampleTimes,
   previewWindowNeedsLoad,
   previewWindowStartSec,
   snapAnnotationTime,
@@ -19,22 +18,17 @@ import { createSemanticSegmentationStore } from "./store";
 const fps30 = Array.from({ length: 13 }, (_, index) => index / 30);
 
 describe("annotation samples", () => {
-  it("keeps the latest real message at or before each tenth of a second", () => {
-    expect(annotationSampleTimes(fps30).map((time) => Number(time.toFixed(4)))).toEqual([
-      0, 0.1, 0.2, 0.3, 0.4,
-    ]);
-  });
-
-  it("does not invent a time when that slot has no message", () => {
-    expect(annotationSampleTimes([0, 0.31])).toEqual([0, 0.31]);
-  });
-
-  it("pauses on the latest sample at or before the clock and seeks to the nearest", () => {
-    const samples = annotationSampleTimes(fps30);
-    expect(snapAnnotationTime(0.16, samples, "pause")).toBeCloseTo(0.1);
-    expect(snapAnnotationTime(0.16, samples, "nearest")).toBeCloseTo(0.2);
-    expect(snapAnnotationTime(0.1, samples, "pause")).toBeUndefined();
+  it("pauses on the latest real frame at or before the clock and seeks to the nearest", () => {
+    expect(snapAnnotationTime(0.16, fps30, "pause")).toBeCloseTo(4 / 30);
+    expect(snapAnnotationTime(0.16, fps30, "nearest")).toBeCloseTo(5 / 30);
+    expect(snapAnnotationTime(0.1, fps30, "pause")).toBeUndefined();
     expect(snapAnnotationTime(0.04, [], "nearest")).toBeUndefined();
+  });
+
+  it("follows uneven frame gaps instead of a fixed grid", () => {
+    const uneven = [0, 0.04, 0.31, 0.33];
+    expect(snapAnnotationTime(0.3, uneven, "pause")).toBeCloseTo(0.04);
+    expect(snapAnnotationTime(0.3, uneven, "nearest")).toBeCloseTo(0.31);
   });
 
   it("loads a window only from frames inside that window", () => {

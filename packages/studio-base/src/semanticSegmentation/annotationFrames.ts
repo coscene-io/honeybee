@@ -5,47 +5,10 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-/**
- * Annotation sample grid. Honeybee video frames already carry their own `durationNs`, and the
- * playback bar steps by `SEEK_STEP_MS` (100ms when unset). This is not that clock: while a
- * session is closed, arrows keep using the seek step. While a session is open, they step these
- * samples instead. There is no fixed frame interval on the record to copy.
- */
-export const ANNOTATION_FRAME_INTERVAL_SEC = 0.1;
-
 /** Geometry is fetched in this many seconds. The preview must not treat a neighbor window as loaded. */
 export const ANNOTATION_WINDOW_SEC = 10;
 
 const ON_SAMPLE_SEC = 0.0005;
-
-/**
- * One real message time per grid point: the latest message at or before that point,
- * and after the previous point. A grid point with no message is skipped.
- */
-export function annotationSampleTimes(
-  messageTimesSec: readonly number[],
-  intervalSec = ANNOTATION_FRAME_INTERVAL_SEC,
-): number[] {
-  if (intervalSec <= 0) {
-    return [];
-  }
-  const buckets = new Map<number, number>();
-  for (const time of messageTimesSec) {
-    if (!Number.isFinite(time) || time < -ON_SAMPLE_SEC) {
-      continue;
-    }
-    const index = Math.ceil(Math.max(0, time - ON_SAMPLE_SEC) / intervalSec);
-    const grid = index * intervalSec;
-    if (time > grid + ON_SAMPLE_SEC) {
-      continue;
-    }
-    const previous = buckets.get(index);
-    if (previous == undefined || time > previous) {
-      buckets.set(index, time);
-    }
-  }
-  return [...buckets.entries()].sort((left, right) => left[0] - right[0]).map(([, time]) => time);
-}
 
 /** Undefined means the clock is already on a sample, or there is nowhere to land. */
 export function snapAnnotationTime(

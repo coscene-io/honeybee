@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { annotationSampleTimes, snapAnnotationTime } from "./annotationFrames";
+import { snapAnnotationTime } from "./annotationFrames";
 import { segmentationSession } from "./runtime";
 
 /**
@@ -40,12 +40,7 @@ export function segmentationFrameStep(
   const videoFrames = document.frames
     .filter((frame) => frame.videoId === current.videoId)
     .sort((a, b) => a.index - b.index);
-  const samples = new Set(
-    annotationSampleTimes(videoFrames.map((frame) => frame.timestampSec)).map((time) =>
-      time.toFixed(6),
-    ),
-  );
-  const frames = videoFrames.filter((frame) => samples.has(frame.timestampSec.toFixed(6)));
+  const frames = videoFrames;
   const index = frames.findIndex((frame) => frame.id === current.id);
   if (index < 0) {
     return { timestampSec: undefined };
@@ -79,5 +74,5 @@ export function segmentationCommitOffset(
   const times = document.frames
     .filter((frame) => frame.videoId === current.videoId)
     .map((frame) => frame.timestampSec);
-  return snapAnnotationTime(currentOffsetSec, annotationSampleTimes(times), mode);
+  return snapAnnotationTime(currentOffsetSec, times, mode);
 }
