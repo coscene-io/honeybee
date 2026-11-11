@@ -49,9 +49,9 @@
 ## 验证与限制
 
 - 本地不可变安装、CI 类型检查、React 19 严格类型入口、TS6 工具链检查通过。
-- 全量单元测试已通过 3,846 项（1 项原有 skip）、38 个快照；另补 Cosel 24 保存过滤器兼容和真实 Chart.js / zoom fork 的 wheel/pan 桥接测试。
+- 全量单元测试通过 3,848 项（1 项原有 skip）、38 个快照，含 Cosel 24 保存过滤器兼容和真实 Chart.js / zoom fork 的 wheel/pan 桥接测试。串行 detectOpenHandles 也通过；多 worker 模式仍有非阻断的退出警告。
 - Web、Desktop（main/preload/renderer/Quicklook）、benchmark 生产构建通过；保留现有大包和 asn1.js 可选 vm 警告。
-- 真实 Chromium Web 扩展安装、保存/重载、移除/重加生命周期通过；真实 Electron 扩展和内置面板 smoke 通过。
+- 真实 Chromium Web（`/viz/` 与 `/`）扩展安装、保存/重载、移除/重加生命周期通过；真实 Electron 扩展和内置面板 smoke 通过。
 - Electron 资源回归：2 次预热 + 12 次测量开关。四个样本的扩展/宿主面板弱引用均收集；最后相对预热堆 -11,940 bytes、DOM -14、监听器 -3（只是此场景观察，非通用泄漏/性能承诺）。发现并修复新 V8 对最后一个 setter 闭包的保留：使用共享 setter + WeakMap，避免 allocation feedback 引用面板会话。GC 等待覆盖全部被断言的节点，没有放宽零保留断言。
 - 本地 macOS ARM64 directory 打包通过，验证新版 Actions/plist ESM 钩子、Quick Look 资源及 ad-hoc 沙盒签名、Spotlight 校验/提取。不涉及生产签名、发布或 notarization；Windows/Linux/universal 打包仍由对应环境验证。
 - Prettier 新版要求额外 48 个原有文件格式调整，仅自动格式变化；没有关闭 lint/类型规则。

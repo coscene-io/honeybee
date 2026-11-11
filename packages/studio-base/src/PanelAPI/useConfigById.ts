@@ -29,7 +29,8 @@ export default function useConfigById<Config extends Record<string, unknown>>(
       if (panelId == undefined) {
         return undefined;
       }
-      return maybeCast<Config>(state.selectedLayout?.data?.configById[panelId]);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Retain the previous guard for partially initialized/legacy layout data.
+      return maybeCast<Config>(state.selectedLayout?.data?.configById?.[panelId]);
     },
     [panelId],
   );
