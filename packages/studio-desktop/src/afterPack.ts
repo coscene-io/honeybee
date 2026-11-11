@@ -5,8 +5,6 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { exec } from "@actions/exec";
-import { downloadTool, extractZip } from "@actions/tool-cache";
 import type { MacPackager } from "app-builder-lib/out/macPackager";
 import { log, Arch } from "builder-util";
 import crypto from "crypto";
@@ -14,6 +12,15 @@ import { AfterPackContext } from "electron-builder";
 import fs from "fs/promises";
 import path from "path";
 import type { PlistValue } from "plist";
+
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- electron-builder's ts-node hook is CommonJS; Actions v3/v4 export ESM only.
+const importExec = new Function("return import('@actions/exec')") as () => Promise<
+  typeof import("@actions/exec")
+>;
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve the native ESM loader in this CommonJS hook.
+const importToolCache = new Function("return import('@actions/tool-cache')") as () => Promise<
+  typeof import("@actions/tool-cache")
+>;
 
 type PlistObject = Record<string, PlistValue>;
 
@@ -42,6 +49,7 @@ export default async function afterPack(context: AfterPackContext): Promise<void
  * to strip out other architectures so that lipo doesn't fail when it gets two copies of each slice.
  */
 async function extractTargetArchitecture(executablePath: string, context: AfterPackContext) {
+  const { exec } = await importExec();
   const arch = new Map([
     [Arch.arm64, "arm64"],
     [Arch.x64, "x86_64"],
@@ -74,6 +82,7 @@ async function copySpotlightImporter(context: AfterPackContext) {
   const zipURL =
     "https://github.com/foxglove/MCAPSpotlightImporter/releases/download/v1.0.2/MCAPSpotlightImporter.mdimporter.zip";
   const zipSHA = "26cafa3e3069fcbd294864ceeee1bc9899e94456e0d28079f966787b6f05c7a2";
+  const { downloadTool, extractZip } = await importToolCache();
   await downloadTool(zipURL, zipPath);
   const actualSHA = crypto
     .createHash("sha256")
@@ -168,6 +177,7 @@ async function configureQuickLookExtension(context: AfterPackContext) {
   // signing.
   const keychainFile = await getKeychainFile(context);
   if (keychainFile != undefined) {
+    const { exec } = await importExec();
     await exec("security", ["find-identity", "-v", "-p", "codesigning", keychainFile]);
   }
   const signingArgs =
@@ -175,6 +185,7 @@ async function configureQuickLookExtension(context: AfterPackContext) {
       ? ["--keychain", keychainFile, "--sign", "Developer ID Application"]
       : ["--sign", "-"];
 
+  const { exec } = await importExec();
   await exec("codesign", [
     ...signingArgs,
     "--force",

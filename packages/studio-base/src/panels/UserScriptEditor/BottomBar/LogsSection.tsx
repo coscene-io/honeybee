@@ -15,12 +15,20 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { UserScriptLog } from "@foxglove/studio-base/players/UserScriptPlayer/types";
 import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   list: {
     height: "100%",
     overflowY: "auto",
   },
-});
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): React.JSX.Element => {
   // Manage auto-scroll behavior when user is also manually scrolling the list.
@@ -70,10 +78,10 @@ const LogsSection = ({ logs }: { logs: readonly UserScriptLog[] }): React.JSX.El
   if (logs.length === 0) {
     return (
       <Stack gap={0.5} padding={2}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" className={classes.layout1}>
           {t("noLogs")}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" className={classes.layout2}>
           <Trans
             ns="userScriptEditor"
             i18nKey="invokeLogHint"

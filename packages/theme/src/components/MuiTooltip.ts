@@ -12,7 +12,7 @@ import { OverrideComponentReturn } from "../types";
 export const MuiTooltip: OverrideComponentReturn<"MuiTooltip"> = {
   defaultProps: {
     arrow: true,
-    TransitionComponent: Fade,
+    slots: { transition: Fade },
   },
   styleOverrides: {
     arrow: ({ theme }) => ({

@@ -447,7 +447,7 @@ export function logPlaybackPerformanceMetric(
 
 /** Final PostHog hook: SDK URL/referrer enrichment happens after capture() is called. */
 export const sanitizePlaybackPerformanceCaptureResult: BeforeSendFn = (result) => {
-  if (result?.event !== AppEvent.PLAYBACK_PERFORMANCE) {
+  if (result.event !== AppEvent.PLAYBACK_PERFORMANCE) {
     return result;
   }
 
@@ -464,5 +464,6 @@ export const sanitizePlaybackPerformanceCaptureResult: BeforeSendFn = (result) =
 
 /** Apply all privacy-safe event filters from one PostHog before_send hook. */
 export const sanitizePrivacySafeCaptureResult: BeforeSendFn = (result) => {
-  return sanitizePlaybackPerformanceCaptureResult(sanitizeAnalyticsCaptureResult(result));
+  const sanitized = sanitizeAnalyticsCaptureResult(result);
+  return sanitized == undefined ? sanitized : sanitizePlaybackPerformanceCaptureResult(sanitized);
 };

@@ -75,10 +75,12 @@ const useStyles = makeStyles()((theme) => ({
     height: "100%",
     width: "100%",
   },
+
   layoutContainer: {
     display: "flex",
     height: "100%",
   },
+
   sidebar: {
     padding: theme.spacing(2),
     width: "20%",
@@ -88,17 +90,20 @@ const useStyles = makeStyles()((theme) => ({
     flexDirection: "column",
     height: "100%",
   },
+
   contentArea: {
     width: "80%",
     padding: theme.spacing(2),
     flex: 1,
   },
+
   listItemIcon: {
     minWidth: 26,
     "& svg": {
       fontSize: "1rem",
     },
   },
+
   layoutNameBox: {
     display: "flex",
     alignItems: "center",
@@ -106,36 +111,43 @@ const useStyles = makeStyles()((theme) => ({
     flex: 1,
     minWidth: 0,
     overflow: "hidden",
-    textOverflow: "ellipsis",
+    sx: { textOverflow: "ellipsis" },
     textDecoration: "none",
     "& svg": {
       color: theme.palette.text.secondary,
     },
   },
+
   folderItem: {
     paddingLeft: theme.spacing(4),
   },
+
   breadcrumbContainer: {
     display: "flex",
   },
+
   breadcrumbs: {
     flex: 1,
     marginBottom: theme.spacing(1),
   },
+
   closeButton: {
     marginTop: theme.spacing(-1),
     marginRight: theme.spacing(-1),
     height: 0,
   },
+
   toolbar: {
     display: "flex",
     gap: theme.spacing(2),
     marginBottom: theme.spacing(2),
   },
+
   searchField: {
     flexGrow: 1,
     maxWidth: 300,
   },
+
   dataGrid: {
     border: "none",
     "& .MuiDataGrid-columnHeaders": {
@@ -160,27 +172,46 @@ const useStyles = makeStyles()((theme) => ({
       transition: "opacity 0.2s ease-in-out",
     },
   },
+
   boxPadding: {
     paddingBottom: theme.spacing(2),
   },
+
   listPadding: {
     paddingTop: 0,
   },
+
   overflowContainter: {
     overflow: "auto",
     flex: 1,
     minHeight: 0,
   },
+
   gridContainer: {
     height: "calc(100vh - 150px)",
     width: "100%",
   },
+
   workingIndicator: {
     width: 6,
     height: 6,
     borderRadius: "50%",
     backgroundColor: theme.palette.primary.main,
     flexShrink: 0,
+  },
+
+  layout1: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  layout2: {
+    textOverflow: "ellipsis",
+  },
+
+  layout3: {
+    textOverflow: "ellipsis",
   },
 }));
 
@@ -409,7 +440,7 @@ export function CoSceneLayoutContent({
           const isActive = currentLayoutId === (layout?.id ?? recommendedLayout?.id);
 
           return (
-            <Box display="flex" alignItems="center" justifyContent="center">
+            <Box className={classes.layout1}>
               {isActive ? (
                 <EqualizerIcon color="primary" />
               ) : (
@@ -456,7 +487,7 @@ export function CoSceneLayoutContent({
                 }}
               >
                 <FolderOutlinedIcon fontSize="small" />
-                <Typography variant="body2" noWrap textOverflow="ellipsis">
+                <Typography variant="body2" noWrap className={classes.layout2}>
                   {displayName}
                 </Typography>
               </Link>
@@ -480,7 +511,7 @@ export function CoSceneLayoutContent({
               ) : (
                 <BusinessCenterOutlinedIcon fontSize="small" />
               )}
-              <Typography variant="body2" noWrap textOverflow="ellipsis">
+              <Typography variant="body2" noWrap className={classes.layout3}>
                 {name}
               </Typography>
             </Link>
@@ -575,15 +606,17 @@ export function CoSceneLayoutContent({
       },
     ],
     [
-      currentLayoutId,
       t,
-      setSelectedFolder,
+      currentLayoutId,
+      classes.layout1,
+      classes.layoutNameBox,
+      classes.layout3,
+      classes.layout2,
+      classes.workingIndicator,
       onSelectLayout,
       onSelectRecommendedLayout,
       onCopyRecommendedLayout,
       handleMenuOpen,
-      classes.layoutNameBox,
-      classes.workingIndicator,
     ],
   );
 
@@ -687,7 +720,7 @@ export function CoSceneLayoutContent({
                           slotProps={{
                             primary: {
                               noWrap: true,
-                              textOverflow: "ellipsis",
+                              sx: { textOverflow: "ellipsis" },
                             },
                           }}
                         />

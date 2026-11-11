@@ -121,23 +121,21 @@ export class CompressedVideoController {
     }
     let frames = input
       .filter((event) => event.topic === this.#topic)
-      .map(
-        (event): VideoInputEvent => ({
-          ...event,
-          message: {
-            timestamp: {
-              sec: event.message.timestamp?.sec ?? 0,
-              nsec: event.message.timestamp?.nsec ?? 0,
-            },
-            frame_id: event.message.frame_id ?? "",
-            format: event.message.format ?? "",
-            data:
-              event.message.data instanceof Uint8Array || Array.isArray(event.message.data)
-                ? event.message.data
-                : [],
+      .map((event): VideoInputEvent => ({
+        ...event,
+        message: {
+          timestamp: {
+            sec: event.message.timestamp?.sec ?? 0,
+            nsec: event.message.timestamp?.nsec ?? 0,
           },
-        }),
-      );
+          frame_id: event.message.frame_id ?? "",
+          format: event.message.format ?? "",
+          data:
+            event.message.data instanceof Uint8Array || Array.isArray(event.message.data)
+              ? event.message.data
+              : [],
+        },
+      }));
     if (frames.length === 0 || this.#disposed) {
       await this.#work;
       return;

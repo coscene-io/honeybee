@@ -20,6 +20,7 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(0.75),
     marginRight: theme.spacing(0.75),
   },
+
   badge: {
     display: "inline-flex",
     alignItems: "center",
@@ -28,12 +29,21 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: theme.shape.borderRadius,
     backgroundColor: theme.palette.background.paper,
   },
+
   changeIndicator: {
     display: "inline-block",
     width: theme.spacing(0.75),
     height: theme.spacing(0.75),
     borderRadius: "50%",
     backgroundColor: theme.palette.warning.main,
+  },
+
+  layout1: {
+    color: theme.palette.success.main,
+  },
+
+  layout2: {
+    color: theme.palette.error.main,
   },
 }));
 
@@ -70,12 +80,12 @@ export default function DiffStats({
         {(counts[ADDED.labelText] !== 0 || counts[DELETED.labelText] !== 0) && (
           <div className={classes.badge}>
             {counts[ADDED.labelText] !== 0 && (
-              <Typography variant="caption" color="success.main">
+              <Typography variant="caption" className={classes.layout1}>
                 {`${diffLabels.ADDED.indicator}${counts[ADDED.labelText]}`}
               </Typography>
             )}
             {counts[DELETED.labelText] !== 0 && (
-              <Typography variant="caption" color="error.main">
+              <Typography variant="caption" className={classes.layout2}>
                 {`${diffLabels.DELETED.indicator}${counts[DELETED.labelText]}`}
               </Typography>
             )}

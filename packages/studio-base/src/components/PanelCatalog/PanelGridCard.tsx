@@ -18,12 +18,18 @@ const useStyles = makeStyles()((theme) => {
     fullHeight: {
       height: "100%",
     },
+
     imagePlaceholder: {
       paddingBottom: `${(200 / 280) * 100}%`,
       backgroundColor: theme.palette.background.default,
     },
+
     cardContent: {
       flex: "auto",
+    },
+
+    layout1: {
+      color: theme.palette.text.secondary,
     },
   };
 });
@@ -65,7 +71,7 @@ export function PanelGridCard(props: Props): React.JSX.Element {
                 <TextHighlight targetStr={targetString} searchText={searchQuery} />
               </span>
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" className={classes.layout1}>
               <TextHighlight targetStr={panel.description ?? ""} searchText={searchQuery} />
             </Typography>
           </CardContent>

@@ -9,6 +9,7 @@ import { ReOrderDotsVertical16Regular } from "@fluentui/react-icons";
 import { Badge, Typography } from "@mui/material";
 import { FzfResultItem } from "fzf";
 import { useCallback, useMemo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { quoteTopicNameIfNeeded } from "@foxglove/message-path";
 import { HighlightChars } from "@foxglove/studio-base/components/HighlightChars";
@@ -19,6 +20,12 @@ import { useMessagePathDrag } from "@foxglove/studio-base/services/messagePathDr
 
 import { TopicStatsChip } from "./TopicStatsChip";
 import { useTopicListStyles } from "./useTopicListStyles";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 export function TopicRow({
   topicResult,
@@ -33,7 +40,9 @@ export function TopicRow({
   onClick: React.MouseEventHandler<HTMLDivElement>;
   onContextMenu: React.MouseEventHandler<HTMLDivElement>;
 }): React.JSX.Element {
-  const { cx, classes } = useTopicListStyles();
+  const { classes } = useStyles();
+
+  const { cx, classes: topicClasses } = useTopicListStyles();
 
   const topic = topicResult.item;
 
@@ -64,23 +73,27 @@ export function TopicRow({
   return (
     <div
       ref={combinedRef}
-      className={cx(classes.row, {
-        [classes.isDragging]: isDragging,
-        [classes.selected]: selected,
+      className={cx(topicClasses.row, {
+        [topicClasses.isDragging]: isDragging,
+        [topicClasses.selected]: selected,
       })}
       style={{ ...style, cursor }}
       onClick={onClick}
       onContextMenu={onContextMenu}
     >
       {draggedItemCount > 1 && (
-        <Badge color="primary" className={classes.countBadge} badgeContent={draggedItemCount} />
+        <Badge
+          color="primary"
+          className={topicClasses.countBadge}
+          badgeContent={draggedItemCount}
+        />
       )}
       {/* Extra Stack wrapper to enable growing without the  */}
       <Stack flex="auto" alignItems="flex-start" overflow="hidden">
-        <Typography variant="body2" noWrap className={classes.textContent}>
+        <Typography variant="body2" noWrap className={topicClasses.textContent}>
           <HighlightChars str={topic.name} indices={topicResult.positions} />
           {topic.aliasedFromName != undefined && (
-            <Typography variant="caption" className={classes.aliasedTopicName}>
+            <Typography variant="caption" className={topicClasses.aliasedTopicName}>
               from {topic.aliasedFromName}
             </Typography>
           )}
@@ -88,9 +101,8 @@ export function TopicRow({
         {topic.schemaName != undefined && (
           <Typography
             variant="caption"
-            color="text.secondary"
             noWrap
-            className={classes.textContent}
+            className={cx(topicClasses.textContent, classes.layout1)}
           >
             <HighlightChars
               str={topic.schemaName}
@@ -106,7 +118,7 @@ export function TopicRow({
         messageFrequency={topic.messageFrequency ?? 0}
         messageCount={topic.messageCount ?? 0}
       />
-      <div data-testid="TopicListDragHandle" className={classes.dragHandle}>
+      <div data-testid="TopicListDragHandle" className={topicClasses.dragHandle}>
         <ReOrderDotsVertical16Regular />
       </div>
     </div>

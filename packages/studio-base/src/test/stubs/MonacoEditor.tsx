@@ -15,4 +15,5 @@
 //   You may not use this file except in compliance with the License.
 
 const MonacoEditor = (): React.JSX.Element => <div />;
+export const loader = { config: (): void => undefined };
 export default MonacoEditor;

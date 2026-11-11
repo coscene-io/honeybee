@@ -29,8 +29,7 @@ import {
 } from "@foxglove/studio-base/util/time";
 
 type PlaybackControlsTooltipItem =
-  | { type: "divider" }
-  | { type: "item"; title: string; value: string };
+  { type: "divider" } | { type: "item"; title: string; value: string };
 
 const useStyles = makeStyles()((theme) => ({
   tooltipDivider: {
@@ -38,6 +37,7 @@ const useStyles = makeStyles()((theme) => ({
     marginBlock: theme.spacing(0.5),
     opacity: 0.5,
   },
+
   tooltipWrapper: {
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
     fontFamily: theme.typography.body1.fontFamily,
@@ -50,11 +50,18 @@ const useStyles = makeStyles()((theme) => ({
     flexDirection: "column",
     wordBreak: "break-all",
   },
+
   itemKey: {
     fontSize: "0.7rem",
     opacity: 0.7,
     textAlign: "end",
     textTransform: "lowercase",
+  },
+
+  layout1: {
+    maxWidth: "230px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
 }));
 
@@ -129,12 +136,7 @@ function TooltipItems({ items }: { items: PlaybackControlsTooltipItem[] }): Reac
               {item.title}
             </Typography>
             {/* CoScene Line feeds are possible */}
-            <Typography
-              variant="subtitle2"
-              maxWidth="230px"
-              overflow="hidden"
-              textOverflow="ellipsis"
-            >
+            <Typography variant="subtitle2" className={classes.layout1}>
               {item.value}
             </Typography>
           </Fragment>

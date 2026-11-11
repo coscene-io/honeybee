@@ -20,11 +20,15 @@ import { makeStyles } from "tss-react/mui";
 
 import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   dialogContent: {
     minWidth: 400,
   },
-});
+
+  layout1: {
+    gap: theme.spacing(2),
+  },
+}));
 
 export function RenameLayoutDialog({
   open,
@@ -53,7 +57,7 @@ export function RenameLayoutDialog({
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("rename")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
-        <Stack gap={2}>
+        <Stack className={classes.layout1}>
           <Controller
             control={form.control}
             name="newName"

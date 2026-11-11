@@ -33,7 +33,7 @@ import { produce } from "immer";
 import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { AutoSizer } from "react-virtualized";
+import { AutoSizer } from "react-virtualized-auto-sizer";
 import { FixedSizeList as List } from "react-window";
 import { makeStyles } from "tss-react/mui";
 
@@ -277,21 +277,25 @@ function DiagnosticSummary(props: Props): React.JSX.Element {
       return ReactNull;
     }
     return (
-      <AutoSizer>
-        {({ height, width }) => (
-          <List
-            width={width}
-            height={height}
-            style={{ outline: "none" }}
-            itemSize={30}
-            itemData={nodes}
-            itemCount={nodes.length}
-            overscanCount={10}
-          >
-            {renderRow}
-          </List>
-        )}
-      </AutoSizer>
+      <AutoSizer
+        renderProp={({ height, width }) =>
+          width != undefined && height != undefined && width > 0 && height > 0 ? (
+            <List
+              width={width}
+              height={height}
+              style={{ outline: "none" }}
+              itemSize={30}
+              itemData={nodes}
+              itemCount={nodes.length}
+              overscanCount={10}
+            >
+              {renderRow}
+            </List>
+          ) : (
+            ReactNull
+          )
+        }
+      />
     );
   }, [
     diagnosticsWithOldMarkedAsStales,

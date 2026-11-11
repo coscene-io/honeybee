@@ -6,17 +6,17 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { createDragDropManager } from "dnd-core";
 import type { Backend, Identifier } from "dnd-core";
 import { createRef, StrictMode } from "react";
 import { Mosaic, MosaicWindow } from "react-mosaic-component";
 import {
   Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  ImperativePanelGroupHandle,
-  ImperativePanelHandle,
+  Group,
+  Separator,
+  GroupImperativeHandle,
+  PanelImperativeHandle,
 } from "react-resizable-panels";
 
 function createBackend() {
@@ -98,50 +98,51 @@ it("keeps Mosaic drag targets connected through StrictMode, moves, and layout ch
   expect(previews.size).toBe(0);
 });
 
-it("restores the resizable editor bottom bar after collapse without losing its contents", () => {
-  const group = createRef<ImperativePanelGroupHandle>();
-  const bottomBar = createRef<ImperativePanelHandle>();
-  const onCollapse = jest.fn();
-  const onExpand = jest.fn();
+it("restores the resizable editor bottom bar after collapse without losing its contents", async () => {
+  jest.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(1000);
+  jest.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1000);
+  jest
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockReturnValue(new DOMRect(0, 0, 1000, 1000));
+  const group = createRef<GroupImperativeHandle>();
+  const bottomBar = createRef<PanelImperativeHandle>();
   const onLayout = jest.fn();
   const view = render(
     <StrictMode>
-      <PanelGroup direction="vertical" ref={group} onLayout={onLayout}>
-        <Panel id="editor" defaultSize={70}>
+      <Group orientation="vertical" groupRef={group} onLayoutChange={onLayout}>
+        <Panel id="editor" defaultSize="70%">
           Editor
         </Panel>
-        <PanelResizeHandle />
+        <Separator />
         <Panel
           id="bottom-bar"
-          ref={bottomBar}
+          panelRef={bottomBar}
           collapsible
           collapsedSize={0}
-          minSize={10}
-          defaultSize={30}
-          onCollapse={onCollapse}
-          onExpand={onExpand}
+          minSize="10%"
+          defaultSize="30%"
         >
           <input aria-label="Saved log filter" defaultValue="initial" />
         </Panel>
-      </PanelGroup>
+      </Group>
     </StrictMode>,
   );
   const input = view.getByRole("textbox", { name: "Saved log filter" }) as HTMLInputElement;
   fireEvent.change(input, { target: { value: "retained filter" } });
-  expect(group.current!.getLayout()).toEqual([70, 30]);
-  onCollapse.mockClear();
-  onExpand.mockClear();
+  await waitFor(() => {
+    expect(group.current!.getLayout()).toEqual({ editor: 70, "bottom-bar": 30 });
+  });
   act(() => {
     bottomBar.current!.collapse();
   });
   expect(bottomBar.current!.isCollapsed()).toBe(true);
-  expect(group.current!.getLayout()).toEqual([100, 0]);
+  expect(group.current!.getLayout()).toEqual({ editor: 100, "bottom-bar": 0 });
   act(() => {
     bottomBar.current!.expand();
   });
-  expect(group.current!.getLayout()).toEqual([70, 30]);
+  expect(group.current!.getLayout()).toEqual({ editor: 70, "bottom-bar": 30 });
   act(() => {
-    bottomBar.current!.resize(45);
+    bottomBar.current!.resize("45%");
   });
   act(() => {
     bottomBar.current!.collapse();
@@ -149,12 +150,12 @@ it("restores the resizable editor bottom bar after collapse without losing its c
   act(() => {
     bottomBar.current!.expand();
   });
-  expect(group.current!.getLayout()).toEqual([55, 45]);
+  expect(group.current!.getLayout()).toEqual({ editor: 55, "bottom-bar": 45 });
   expect(input.value).toBe("retained filter");
   expect(input.isConnected).toBe(true);
-  expect(onCollapse).toHaveBeenCalledTimes(2);
-  expect(onExpand).toHaveBeenCalledTimes(2);
-  expect(onLayout).toHaveBeenLastCalledWith([55, 45]);
+  expect(bottomBar.current!.getSize().asPercentage).toBe(45);
+  expect(onLayout).toHaveBeenCalledWith({ editor: 100, "bottom-bar": 0 });
+  expect(onLayout).toHaveBeenLastCalledWith({ editor: 55, "bottom-bar": 45 });
   view.unmount();
   expect(bottomBar.current).toBeNull();
   expect(group.current).toBeNull();

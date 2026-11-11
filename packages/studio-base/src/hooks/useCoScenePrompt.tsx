@@ -9,8 +9,19 @@ import { Button, Dialog, DialogActions, DialogContent, TextField, Typography } f
 import { SubmitEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useKeyPressEvent } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    fontWeight: 600,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 type PromptOptions = {
   title: string;
@@ -40,6 +51,8 @@ function ModalPrompt({
   label,
   transformer,
 }: ModalPromptProps) {
+  const { classes } = useStyles();
+
   const [value, setValue] = useState(initialValue ?? "");
   const { t } = useTranslation("general");
   const errorMessage = useMemo<string | undefined>(() => {
@@ -98,11 +111,11 @@ function ModalPrompt({
     >
       <form onSubmit={onSubmitAction}>
         <Stack paddingX={3} paddingTop={2}>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
+          <Typography variant="h4" gutterBottom className={classes.layout1}>
             {title}
           </Typography>
           {subText && (
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" className={classes.layout2}>
               {subText}
             </Typography>
           )}

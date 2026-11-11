@@ -160,7 +160,10 @@ describe("pause/resume message continuity", () => {
       };
       const displays = TOPICS.map(() =>
         jest.fn(
-          async (_batch: readonly MessageEvent<CompressedVideo>[]) => ({ ok: true }) as const,
+          async (_batch: readonly MessageEvent<CompressedVideo>[]) =>
+            ({
+              ok: true,
+            }) as const,
         ),
       );
       const controllers = TOPICS.map(

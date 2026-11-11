@@ -20,21 +20,36 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(2),
     overflowY: "auto",
   },
+
   errorDetailStack: {
     fontSize: theme.typography.body2.fontSize,
     lineHeight: "1.3em",
     paddingLeft: theme.spacing(2),
   },
+
   errorDetailContainer: {
     overflowY: "auto",
     background: theme.palette.background.paper,
     padding: theme.spacing(1),
     minHeight: theme.spacing(10),
   },
+
   actions: {
     flex: "auto",
     paddingTop: theme.spacing(2),
     textAlign: "right",
+  },
+
+  layout1: {
+    fontWeight: theme.typography.fontWeightBold,
+  },
+
+  layout2: {
+    fontWeight: theme.typography.fontWeightBold,
+  },
+
+  layout3: {
+    fontWeight: theme.typography.fontWeightBold,
   },
 }));
 /**
@@ -106,14 +121,14 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
 
     return (
       <div>
-        <Typography fontWeight="bold">{t("errorStack")}</Typography>
+        <Typography className={classes.layout1}>{t("errorStack")}</Typography>
         <ErrorStacktrace
           stack={stackWithoutMessage}
           hideSourceLocations={hideErrorSourceLocations}
         />
         {errorInfo && (
           <>
-            <Typography fontWeight="bold">{t("componentStack")}</Typography>
+            <Typography className={classes.layout2}>{t("componentStack")}</Typography>
             <ErrorStacktrace
               stack={errorInfo.componentStack ?? ""}
               hideSourceLocations={hideErrorSourceLocations}
@@ -122,7 +137,15 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
         )}
       </div>
     );
-  }, [error, errorInfo, hideErrorSourceLocations, showErrorDetails, t]);
+  }, [
+    classes.layout1,
+    classes.layout2,
+    error,
+    errorInfo,
+    hideErrorSourceLocations,
+    showErrorDetails,
+    t,
+  ]);
 
   return (
     <div className={classes.grid}>
@@ -134,7 +157,7 @@ function ErrorDisplay(props: ErrorDisplayProps): React.JSX.Element {
           <Typography variant="body1">{props.content}</Typography>
         </Stack>
         <Divider />
-        <Typography variant="subtitle2" component="code" fontWeight="bold">
+        <Typography variant="subtitle2" component="code" className={classes.layout3}>
           {error?.message}
         </Typography>
         <Link

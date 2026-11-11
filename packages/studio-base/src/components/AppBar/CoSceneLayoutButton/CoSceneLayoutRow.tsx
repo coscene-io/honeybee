@@ -33,11 +33,19 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useMountedState } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { HighlightedText } from "@foxglove/studio-base/components/HighlightedText";
 import { useLayoutManager } from "@foxglove/studio-base/context/CoSceneLayoutManagerContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsProject } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
+
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+}));
 
 const StyledListItem = muiStyled(ListItem, {
   shouldForwardProp: (prop) =>
@@ -153,6 +161,8 @@ export default React.memo(function LayoutRow({
   onRevert?: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
 }): React.JSX.Element {
+  const { classes } = useStyles();
+
   const isMounted = useMountedState();
   const confirm = useConfirm();
   const layoutManager = useLayoutManager();
@@ -505,7 +515,7 @@ export default React.memo(function LayoutRow({
             noWrap
             style={{ display: editingName ? "none" : "block" }}
           >
-            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+            <Stack direction="row" spacing={2} className={classes.layout1}>
               <HighlightedText text={layout.name} highlight={searchQuery} />
             </Stack>
           </Typography>

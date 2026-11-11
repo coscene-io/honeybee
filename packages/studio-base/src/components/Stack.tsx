@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { CSSProperties, PropsWithChildren, forwardRef } from "react";
-import type { CSSObject } from "tss-react";
 import { makeStyles } from "tss-react/mui";
 
 const useStyles = makeStyles<StackProps>({ name: "FoxgloveStack" })((theme, props) => ({
@@ -24,8 +23,8 @@ const useStyles = makeStyles<StackProps>({ name: "FoxgloveStack" })((theme, prop
     alignSelf: props.alignSelf,
     order: props.order,
     overflow: props.overflow,
-    overflowX: props.overflowX as CSSObject["overflowX"],
-    overflowY: props.overflowY as CSSObject["overflowY"],
+    overflowX: props.overflowX,
+    overflowY: props.overflowY,
     position: props.position,
 
     ...(props.zeroMinWidth === true && {

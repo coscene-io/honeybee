@@ -16,16 +16,29 @@ import { PlayerProblem } from "@foxglove/studio-base/players/types";
 
 import WssErrorModalScreenshot from "./WssErrorModal.png";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   image: {
     maxWidth: "24rem",
   },
+
   dialogTitle: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
   },
-});
+
+  layout1: {
+    gap: theme.spacing(2),
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout3: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 export default function WssErrorModal(
   props: Immutable<{ playerProblems?: PlayerProblem[] }>,
@@ -65,8 +78,8 @@ export default function WssErrorModal(
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <Stack gap={2}>
-          <Typography variant="body1" color="text.secondary">
+        <Stack className={classes.layout1}>
+          <Typography variant="body1" className={classes.layout2}>
             <Trans
               t={t}
               i18nKey="websocketSSLErrorDesc"
@@ -75,7 +88,7 @@ export default function WssErrorModal(
               }}
             />
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body1" className={classes.layout3}>
             {t("websocketSSLErrorDesc2")}
           </Typography>
           <img src={WssErrorModalScreenshot} alt="WSS screenshot" className={classes.image} />

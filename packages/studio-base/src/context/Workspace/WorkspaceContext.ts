@@ -87,6 +87,16 @@ export type WorkspaceContextStore = {
   };
 };
 
+// Factory instances are atomic services, not partially initialized preference objects.
+export type WorkspaceInitialState = import("ts-essentials").DeepPartial<
+  Omit<WorkspaceContextStore, "dialogs">
+> & {
+  dialogs?: {
+    dataSource?: Partial<WorkspaceContextStore["dialogs"]["dataSource"]>;
+    preferences?: Partial<WorkspaceContextStore["dialogs"]["preferences"]>;
+  };
+};
+
 export const WorkspaceContext = createContext<undefined | StoreApi<WorkspaceContextStore>>(
   undefined,
 );

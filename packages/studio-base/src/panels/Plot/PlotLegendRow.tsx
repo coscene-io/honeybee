@@ -60,12 +60,14 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
       },
     },
   },
+
   showPlotValue: {
     [`.${classes.plotName}`]: {
       gridColumn: "span 1",
       padding: theme.spacing(0, 1.5, 0, 0.5),
     },
   },
+
   listIcon: {
     display: "flex",
     alignItems: "center",
@@ -73,6 +75,7 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
     height: ROW_HEIGHT,
     left: 0,
   },
+
   checkbox: {
     height: ROW_HEIGHT,
     width: ROW_HEIGHT,
@@ -82,9 +85,11 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
       backgroundColor: theme.palette.action.hover,
     },
   },
+
   disabledPathLabel: {
     opacity: 0.5,
   },
+
   plotName: {
     display: "flex",
     alignItems: "center",
@@ -100,6 +105,7 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
       whiteSpace: "nowrap",
     },
   },
+
   plotValue: {
     display: "flex",
     alignItems: "center",
@@ -108,9 +114,11 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
     padding: theme.spacing(0.25, 1, 0.25, 0.25),
     whiteSpace: "pre-wrap",
   },
+
   errorIcon: {
     color: theme.palette.error.main,
   },
+
   actionButton: {
     display: "flex",
     justifyContent: "center",
@@ -126,6 +134,10 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
         backgroundColor: theme.palette.action.hover,
       },
     },
+  },
+
+  layout1: {
+    flex: "auto",
   },
 }));
 
@@ -222,9 +234,8 @@ export function PlotLegendRow({
       >
         <Typography
           noWrap={showPlotValuesInLegend}
-          flex="auto"
           variant="body2"
-          className={cx({ [classes.disabledPathLabel]: !path.enabled })}
+          className={cx(cx({ [classes.disabledPathLabel]: !path.enabled }), classes.layout1)}
         >
           {isAddSeriesRow ? t("clickToAddASeries") : plotPathDisplayName(path, index, t)}
         </Typography>

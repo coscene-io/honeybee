@@ -19,11 +19,6 @@ declare module "@mui/material/Alert" {
   interface AlertPropsColorOverrides {
     primary: true;
   }
-  interface AlertClasses {
-    standardPrimary: string;
-    outlinedPrimary: string;
-    filledPrimary: string;
-  }
 }
 
 // Attempt to replicate MUI theme color variations
@@ -51,43 +46,36 @@ export const MuiAlert: OverrideComponentReturn<"MuiAlert"> = {
     message: {
       lineHeight: "1.5",
     },
-    filledPrimary: ({ theme }) => ({
-      backgroundColor:
-        theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.primary.main,
-      color: theme.palette.primary.contrastText,
-      fontWeight: theme.typography.fontWeightMedium,
-    }),
-    outlinedPrimary: ({ theme }) => ({
-      color: getColor(theme.palette.mode, theme.palette.primary.light, 0.6),
-      border: `1px solid ${theme.palette.primary.light}`,
-
-      [`& .${alertClasses.icon}`]: {
-        color: theme.palette.primary.main,
-      },
+    root: ({ theme, ownerState }) => ({
+      ...(ownerState.color === "primary" &&
+        ownerState.variant === "filled" && {
+          backgroundColor:
+            theme.palette.mode === "dark" ? theme.palette.primary.dark : theme.palette.primary.main,
+          color: theme.palette.primary.contrastText,
+          fontWeight: theme.typography.fontWeightMedium,
+        }),
+      ...(ownerState.color === "primary" &&
+        ownerState.variant === "outlined" && {
+          color: getColor(theme.palette.mode, theme.palette.primary.light, 0.6),
+          border: `1px solid ${theme.palette.primary.light}`,
+          [`& .${alertClasses.icon}`]: { color: theme.palette.primary.main },
+        }),
+      ...(ownerState.color === "primary" &&
+        ownerState.variant === "standard" && {
+          borderColor: theme.palette.primary.main,
+          color: getColor(theme.palette.mode, theme.palette.primary.main, 0.6),
+          backgroundColor: getBackgroundColor(theme.palette.mode, theme.palette.primary.main, 0.9),
+          [`& .${alertClasses.icon}`]: { color: theme.palette.primary.main },
+        }),
+      ...(ownerState.variant === "standard" && {
+        [`&.${alertClasses.colorWarning}`]: { borderColor: theme.palette.warning.main },
+        [`&.${alertClasses.colorError}`]: { borderColor: theme.palette.error.main },
+        [`&.${alertClasses.colorInfo}`]: { borderColor: theme.palette.info.main },
+        [`&.${alertClasses.colorSuccess}`]: { borderColor: theme.palette.success.main },
+      }),
     }),
     standard: {
       border: "1px solid",
     },
-    standardPrimary: ({ theme }) => ({
-      borderColor: theme.palette.primary.main,
-      color: getColor(theme.palette.mode, theme.palette.primary.main, 0.6),
-      backgroundColor: getBackgroundColor(theme.palette.mode, theme.palette.primary.main, 0.9),
-
-      [`& .${alertClasses.icon}`]: {
-        color: theme.palette.primary.main,
-      },
-    }),
-    standardWarning: ({ theme }) => ({
-      borderColor: theme.palette.warning.main,
-    }),
-    standardError: ({ theme }) => ({
-      borderColor: theme.palette.error.main,
-    }),
-    standardInfo: ({ theme }) => ({
-      borderColor: theme.palette.info.main,
-    }),
-    standardSuccess: ({ theme }) => ({
-      borderColor: theme.palette.success.main,
-    }),
   },
 };

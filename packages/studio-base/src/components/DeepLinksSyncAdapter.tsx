@@ -69,7 +69,7 @@ export function getWebLoginRedirectUrl(
 
 function ExpiredShareManifestDialog(): React.JSX.Element {
   return (
-    <Dialog open disableEscapeKeyDown>
+    <Dialog open>
       <DialogTitle>分享链接已过期</DialogTitle>
       <DialogContent>
         <Typography>该分享链接已过期，请联系分享者获取新的链接。</Typography>

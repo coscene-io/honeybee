@@ -27,10 +27,7 @@ import {
   PaginationState,
   createColumnHelper,
   flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
   CellContext,
 } from "@tanstack/react-table";
 import memoizeWeak from "memoize-weak";
@@ -42,6 +39,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 
 import TableCell from "./TableCell";
 import { sanitizeAccessorPath } from "./sanitizeAccessorPath";
+import { features } from "./tableFeatures";
 import { CellValue } from "./types";
 
 type TypedArray =
@@ -76,6 +74,7 @@ const useStyles = makeStyles<void, "tableData" | "tableHeader">()((theme, _param
     borderCollapse: "collapse",
     borderSpacing: 0,
   },
+
   tableRow: {
     svg: { opacity: 0.6 },
 
@@ -97,12 +96,14 @@ const useStyles = makeStyles<void, "tableData" | "tableHeader">()((theme, _param
       paddingBottom: theme.spacing(0.5),
     },
   },
+
   tableData: {
     border: `1px solid ${theme.palette.divider}`,
     lineHeight: "1.3em",
     padding: `${theme.spacing(0.5)} !important`,
     verticalAlign: "top",
   },
+
   tableHeader: {
     color: theme.palette.text.primary,
     verticalAlign: "top",
@@ -118,12 +119,15 @@ const useStyles = makeStyles<void, "tableData" | "tableHeader">()((theme, _param
 
     "&#expander": { width: 28 },
   },
+
   sortAsc: {
     borderBottomColor: theme.palette.primary.main,
   },
+
   sortDesc: {
     borderTopColor: theme.palette.primary.main,
   },
+
   iconButton: {
     margin: theme.spacing(-0.5),
 
@@ -131,18 +135,23 @@ const useStyles = makeStyles<void, "tableData" | "tableHeader">()((theme, _param
       backgroundColor: "transparent",
     },
   },
+
   textContent: {
     maxWidth: "75vw",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+
+  layout1: {
+    flex: "auto",
+  },
 }));
 
-const columnHelper = createColumnHelper<CellValue>();
+const columnHelper = createColumnHelper<typeof features, CellValue>();
 
 const memoizedCellRenderer = memoizeWeak((accessorPath: string, id: string) => {
-  return function ValueCell(info: CellContext<CellValue, unknown>) {
+  return function ValueCell(info: CellContext<typeof features, CellValue>) {
     const value = info.getValue();
     const row = info.row;
     if (Array.isArray(value) && typeof value[0] !== "object") {
@@ -162,7 +171,7 @@ const memoizedCellRenderer = memoizeWeak((accessorPath: string, id: string) => {
   };
 });
 
-function Expander(info: CellContext<CellValue, unknown>) {
+function Expander(info: CellContext<typeof features, CellValue>) {
   const { classes } = useStyles();
   const { row } = info;
   return (
@@ -179,17 +188,20 @@ function Expander(info: CellContext<CellValue, unknown>) {
   );
 }
 
-function getColumnsFromObject(val: CellValue, accessorPath: string) {
+function getColumnsFromObject(
+  val: CellValue,
+  accessorPath: string,
+): ColumnDef<typeof features, CellValue>[] {
   if (isTypedArray(val)) {
     return [
-      columnHelper.accessor((row) => row, {
+      columnHelper.accessor((row): unknown => row, {
         id: "typedArray",
         header: "",
-        cell: (info) => info.getValue(),
+        cell: (info) => JSON.stringify(info.getValue()),
       }),
     ];
   }
-  const columns: ColumnDef<CellValue>[] = Object.keys(val).map((accessor) => {
+  const columns: ColumnDef<typeof features, CellValue>[] = Object.keys(val).map((accessor) => {
     const id = accessorPath.length !== 0 ? `${accessorPath}.${accessor}` : accessor;
     return columnHelper.accessor(accessor, {
       header: accessor,
@@ -263,13 +275,13 @@ export default function Table({
 
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     autoResetExpanded: false,
+    // Nested cells render their own tables rather than TanStack subRows.
+    getRowCanExpand: () => true,
     columns,
     data: data.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     initialState: { pagination },
     onExpandedChange: setExpanded,
     manualPagination: true,
@@ -360,10 +372,10 @@ export default function Table({
             >
               <KeyboardArrowLeftIcon fontSize="small" />
             </IconButton>
-            <Typography flex="auto" variant="inherit" align="center" noWrap>
+            <Typography variant="inherit" align="center" noWrap className={classes.layout1}>
               Page{" "}
               <strong>
-                {table.getState().pagination.pageIndex + 1} of {table.getPageOptions().length}
+                {table.state.pagination.pageIndex + 1} of {table.getPageOptions().length}
               </strong>
             </Typography>
             <IconButton

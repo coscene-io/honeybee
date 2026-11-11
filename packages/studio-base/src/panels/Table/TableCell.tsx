@@ -23,6 +23,7 @@ import { makeStyles } from "tss-react/mui";
 import { CellValue } from "@foxglove/studio-base/panels/Table/types";
 
 import { sanitizeAccessorPath } from "./sanitizeAccessorPath";
+import { features } from "./tableFeatures";
 
 const useStyles = makeStyles()((theme) => ({
   objectCell: {
@@ -40,7 +41,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 type TableCellProps = {
-  row: Row<CellValue>;
+  row: Row<typeof features, CellValue>;
   accessorPath: string;
 };
 

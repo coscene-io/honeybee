@@ -7,21 +7,25 @@
     "@foxglove/studio-base": "workspace:*"
   },
   "devDependencies": {
-    "@fluentui/react-icons": "2.0.345",
+    "@emotion/react": "11.14.0",
     "@foxglove/log": "workspace:*",
     "@foxglove/theme": "workspace:*",
-    "@foxglove/tsconfig": "3.2.0",
-    "@mui/material": "7.3.11",
-    "@rspack/core": "2.2.9",
+    "@mui/icons-material": "9.5.0",
+    "@mui/material": "9.5.0",
+    "@rspack/core": "2.3.2",
     "@rspack/plugin-react-refresh": "2.0.2",
-    "@sentry/webpack-plugin": "2.22.0",
-    "@types/react-refresh": "^0",
+    "@sentry/webpack-plugin": "11.12.0",
+    "@types/react": "19.3.0",
+    "@types/react-refresh": "0.14.7",
     "assert": "2.1.0",
+    "i18next": "27.1.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-i18next": "14.0.5",
-    "react-refresh": "0.18.0",
+    "react-hot-toast": "2.6.1",
+    "react-i18next": "18.0.1",
+    "react-refresh": "0.19.0",
+    "react-use": "17.6.1",
     "tss-react": "4.9.21",
-    "webpack": "5.97.1"
+    "webpack": "5.112.2"
   }
 }

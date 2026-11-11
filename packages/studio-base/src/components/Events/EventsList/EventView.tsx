@@ -65,35 +65,157 @@ const useStyles = makeStyles<void, "eventSelected">()((theme, _params) => ({
     },
     gap: "4px",
   },
+
   eventSelected: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.activatedOpacity),
     boxShadow: `0 0 0 1px ${theme.palette.info.main}`,
   },
+
   eventHovered: {
     backgroundColor: alpha(theme.palette.info.main, theme.palette.action.hoverOpacity),
   },
+
   eventTitle: {
     padding: "12px 0 0 0",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
   },
+
   eventTitleIcons: {
     display: "flex",
     gap: "5px",
     alignItems: "start",
   },
+
   eventImg: {
     maxWidth: "100%",
   },
+
   line: {
     backgroundColor: theme.palette.divider,
   },
+
   ring: {
     height: "8px",
     width: "8px",
     borderRadius: "14px",
     border: "2px solid",
+  },
+
+  layout1: {
+    flexDirection: "row",
+    paddingRight: theme.spacing(2),
+  },
+
+  layout2: {
+    marginLeft: theme.spacing(2.5),
+    marginRight: theme.spacing(1.5),
+    gap: theme.spacing(0.5),
+    alignItems: "center",
+  },
+
+  layout3: {
+    width: "1px",
+    height: "15px",
+  },
+
+  layout4: {
+    width: "1px",
+    flex: "1",
+  },
+
+  layout5: {
+    flex: 1,
+    gap: theme.spacing(1),
+    width: "0",
+  },
+
+  layout6: {
+    flexDirection: "row",
+    fontSize: "14px",
+    justifyContent: "space-between",
+  },
+
+  layout7: {
+    fontWeight: "400",
+  },
+
+  layout8: {
+    minWidth: "75px",
+    flexDirection: "row",
+    gap: theme.spacing(0.5),
+  },
+
+  layout9: {
+    gap: theme.spacing(1),
+    fontSize: "12px",
+  },
+
+  layout10: {
+    lineHeight: "1.5",
+  },
+
+  layout11: {
+    gap: theme.spacing(1),
+  },
+
+  layout12: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+
+  layout13: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+  },
+
+  layout14: {
+    width: "4px",
+    height: "4px",
+    minWidth: "4px",
+    minHeight: "4px",
+    borderRadius: "100%",
+  },
+
+  layout15: {
+    marginRight: theme.spacing(1),
+  },
+
+  layout16: {
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    fontSize: "12px",
+  },
+
+  layout17: {
+    justifyContent: "center",
+  },
+
+  layout18: {
+    alignItems: "center",
+    flexDirection: "row",
+    fontSize: "12px",
+  },
+
+  layout19: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+  },
+
+  layout20: {
+    justifyContent: "center",
+  },
+
+  layout21: {
+    marginRight: theme.spacing(1),
+  },
+
+  layout22: {
+    paddingTop: theme.spacing(2),
+    gap: theme.spacing(2),
   },
 }));
 
@@ -324,9 +446,9 @@ function EventViewComponent(params: {
   }, [getHumanCreator]);
 
   return (
-    <Stack flexDirection="row" paddingRight={2} ref={scrollRef}>
-      <Stack marginLeft={2.5} marginRight={1.5} gap={0.5} alignItems="center">
-        <Stack width="1px" height="15px" className={classes.line} />
+    <Stack ref={scrollRef} className={classes.layout1}>
+      <Stack className={classes.layout2}>
+        <Stack className={cx(classes.line, classes.layout3)} />
         <div
           className={classes.ring}
           style={{
@@ -335,7 +457,7 @@ function EventViewComponent(params: {
               : event.color,
           }}
         />
-        <Stack width="1px" flex="1" className={classes.line} />
+        <Stack className={cx(classes.line, classes.layout4)} />
       </Stack>
 
       {viewPosition && (
@@ -347,7 +469,7 @@ function EventViewComponent(params: {
           }}
         />
       )}
-      <Stack flex={1} gap={1} width="0">
+      <Stack className={classes.layout5}>
         <div className={classes.eventTitle}>
           <div>
             <HighlightedText text={triggerTime} highlight={filter} />
@@ -422,16 +544,21 @@ function EventViewComponent(params: {
             onHoverEnd(event);
           }}
         >
-          <Stack flexDirection="row" fontSize="14px" justifyContent="space-between">
-            <Stack fontWeight="400" color={theme.palette.text.primary}>
+          <Stack className={classes.layout6}>
+            <Stack
+              className={classes.layout7}
+              style={{
+                color: theme.palette.text.primary,
+              }}
+            >
               <HighlightedText text={displayName} highlight={filter} />
             </Stack>
 
             <Stack
-              color={theme.palette.text.secondary}
-              minWidth="75px"
-              flexDirection="row"
-              gap={0.5}
+              className={classes.layout8}
+              style={{
+                color: theme.palette.text.secondary,
+              }}
             >
               <TimerOutlinedIcon fontSize="small" />
               <HighlightedText text={duration} highlight={filter} />
@@ -441,13 +568,14 @@ function EventViewComponent(params: {
           {variant === "learge" && (
             <>
               <Stack
-                gap={1}
-                fontSize="12px"
-                color={theme.palette.text.secondary}
-                marginTop={description || imgUrl || metadataMap.length > 0 ? "8px" : undefined}
+                className={classes.layout9}
+                style={{
+                  color: theme.palette.text.secondary,
+                  marginTop: description || imgUrl || metadataMap.length > 0 ? "8px" : undefined,
+                }}
               >
                 {description && (
-                  <Stack lineHeight="1.5">
+                  <Stack className={classes.layout10}>
                     <HighlightedText text={description} highlight={filter} />
                   </Stack>
                 )}
@@ -456,23 +584,19 @@ function EventViewComponent(params: {
                     <img src={imgUrl} className={classes.eventImg} />
                   </Fragment>
                 )}
-                <Stack gap={1}>
+                <Stack className={classes.layout11}>
                   {metadataMap.map(([key, value]: string[], index) => (
-                    <Stack key={index} alignItems="center" flexDirection="row">
-                      <Stack flexDirection="row" alignItems="center" gap={0.5}>
+                    <Stack key={index} className={classes.layout12}>
+                      <Stack className={classes.layout13}>
                         <Stack
-                          width="4px"
-                          height="4px"
-                          minWidth="4px"
-                          minHeight="4px"
-                          borderRadius="100%"
                           style={{ backgroundColor: theme.palette.text.secondary }}
+                          className={classes.layout14}
                         />
                         <span>
                           <HighlightedText text={key ?? ""} highlight={filter} />
                         </span>
                       </Stack>
-                      <Stack marginRight={1}>:</Stack>
+                      <Stack className={classes.layout15}>:</Stack>
                       <Stack>
                         <HighlightedText text={value ?? ""} highlight={filter} />
                       </Stack>
@@ -483,12 +607,12 @@ function EventViewComponent(params: {
 
               {ruleNavAddress != undefined && (
                 <Stack
-                  flexDirection="row"
-                  gap={1}
-                  fontSize="12px"
-                  color={theme.palette.text.secondary}
+                  className={classes.layout16}
+                  style={{
+                    color: theme.palette.text.secondary,
+                  }}
                 >
-                  <Stack justifyContent="center">{t("rule")}:</Stack>
+                  <Stack className={classes.layout17}>{t("rule")}:</Stack>
                   <Stack
                     onClick={(e) => {
                       e.stopPropagation();
@@ -500,21 +624,21 @@ function EventViewComponent(params: {
               )}
 
               <Stack
-                alignItems="center"
-                flexDirection="row"
-                fontSize="12px"
-                color={theme.palette.text.secondary}
+                className={classes.layout18}
+                style={{
+                  color: theme.palette.text.secondary,
+                }}
               >
-                <Stack flexDirection="row" alignItems="center" gap={0.5}>
-                  <Stack justifyContent="center">{t("creator")}</Stack>
+                <Stack className={classes.layout19}>
+                  <Stack className={classes.layout20}>{t("creator")}</Stack>
                 </Stack>
-                <Stack marginRight={1}>:</Stack>
+                <Stack className={classes.layout21}>:</Stack>
                 <Stack>
                   <Typography noWrap>{deviceCreator ?? humanCreator.value}</Typography>
                 </Stack>
               </Stack>
 
-              <Stack paddingTop={2} gap={2}>
+              <Stack className={classes.layout22}>
                 {/* custom field */}
                 <CustomFieldValuesFields
                   variant="secondary"

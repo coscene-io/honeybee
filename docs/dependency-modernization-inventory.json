@@ -1,0 +1,1708 @@
+{
+  "date": "2026-11-11",
+  "baseline": "095e7abeeb49ad0bbcd46c013586be970b5baba8",
+  "note": "Original direct dependency inventory including aliases; after contains declarations across workspaces. yarn.lock is authoritative for transitive versions.",
+  "dependencies": [
+    {
+      "name": "@actions/core",
+      "before": ["1.10.1"],
+      "after": ["3.0.1"],
+      "auditLatest": "3.0.1",
+      "action": "升级"
+    },
+    {
+      "name": "@actions/exec",
+      "before": ["1.1.1"],
+      "after": ["3.0.0"],
+      "auditLatest": "3.0.0",
+      "action": "升级"
+    },
+    {
+      "name": "@actions/tool-cache",
+      "before": ["2.0.1"],
+      "after": ["4.0.0"],
+      "auditLatest": "4.0.0",
+      "action": "升级"
+    },
+    {
+      "name": "@aws-sdk/client-s3",
+      "before": ["3.826.0"],
+      "after": ["3.1166.0"],
+      "auditLatest": "3.1166.0",
+      "action": "升级"
+    },
+    {
+      "name": "@bufbuild/protobuf",
+      "before": ["2.10.1"],
+      "after": ["2.17.0"],
+      "auditLatest": "2.17.0",
+      "action": "升级"
+    },
+    {
+      "name": "@connectrpc/connect",
+      "before": ["2.1.1"],
+      "after": ["2.3.0"],
+      "auditLatest": "2.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "@connectrpc/connect-web",
+      "before": ["2.1.1"],
+      "after": ["2.3.0"],
+      "auditLatest": "2.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "@coscene-io/comlink",
+      "before": ["4.4.1"],
+      "after": ["4.4.1"],
+      "auditLatest": "4.4.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@coscene-io/cosceneapis-es-v2",
+      "before": ["0.0.458"],
+      "after": ["0.0.488"],
+      "auditLatest": "0.0.488",
+      "action": "升级"
+    },
+    {
+      "name": "@coscene-io/cosel",
+      "before": ["24.14.0"],
+      "after": ["25.31.0"],
+      "auditLatest": "25.31.0",
+      "action": "升级"
+    },
+    {
+      "name": "@emotion/cache",
+      "before": ["11.14.0"],
+      "after": ["11.14.0"],
+      "auditLatest": "11.14.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@emotion/react",
+      "before": ["11.14.0"],
+      "after": ["11.14.0"],
+      "auditLatest": "11.14.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@emotion/styled",
+      "before": ["11.14.1"],
+      "after": ["11.14.1"],
+      "auditLatest": "11.14.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@eslint-community/regexpp",
+      "before": ["4.12.2"],
+      "after": ["4.12.3"],
+      "auditLatest": "4.12.3",
+      "action": "升级"
+    },
+    {
+      "name": "@fluentui/react-icons",
+      "before": ["2.0.345"],
+      "after": ["2.0.345"],
+      "auditLatest": "2.0.345",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/avl",
+      "before": ["1.0.0"],
+      "after": ["1.0.0"],
+      "auditLatest": "1.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/chartjs-plugin-zoom",
+      "before": ["2.1.0"],
+      "after": ["2.1.0"],
+      "auditLatest": "2.1.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "@foxglove/crc",
+      "before": ["1.0.1"],
+      "after": ["1.0.1"],
+      "auditLatest": "1.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/electron-socket",
+      "before": ["2.1.1"],
+      "after": ["2.1.1"],
+      "auditLatest": "2.1.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/message-definition",
+      "before": ["0.5.0"],
+      "after": ["0.5.0"],
+      "auditLatest": "0.5.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/omgidl-parser",
+      "before": ["1.2.2"],
+      "after": ["1.2.2"],
+      "auditLatest": "1.2.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/omgidl-serialization",
+      "before": ["1.2.5"],
+      "after": ["1.2.5"],
+      "auditLatest": "1.2.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/ros1",
+      "before": ["3.0.1"],
+      "after": ["3.0.1"],
+      "auditLatest": "3.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/ros2idl-parser",
+      "before": ["0.3.6"],
+      "after": ["0.3.6"],
+      "auditLatest": "0.3.6",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/rosbag",
+      "before": ["0.4.1"],
+      "after": ["0.4.2"],
+      "auditLatest": "0.4.2",
+      "action": "升级"
+    },
+    {
+      "name": "@foxglove/rosbag2-web",
+      "before": ["5.0.0"],
+      "after": ["5.0.0"],
+      "auditLatest": "5.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/roslibjs",
+      "before": ["0.0.4"],
+      "after": ["0.0.4"],
+      "auditLatest": "0.0.4",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/rosmsg",
+      "before": ["5.0.5"],
+      "after": ["5.0.5"],
+      "auditLatest": "5.0.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/rosmsg-msgs-common",
+      "before": ["3.2.3"],
+      "after": ["3.3.0"],
+      "auditLatest": "3.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "@foxglove/rosmsg-serialization",
+      "before": ["2.1.1"],
+      "after": ["2.1.3"],
+      "auditLatest": "2.1.3",
+      "action": "升级"
+    },
+    {
+      "name": "@foxglove/rosmsg2-serialization",
+      "before": ["3.1.2"],
+      "after": ["3.1.2"],
+      "auditLatest": "3.1.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/rostime",
+      "before": ["1.1.3"],
+      "after": ["1.1.3"],
+      "auditLatest": "1.1.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/schemas",
+      "before": ["2.0.0"],
+      "after": ["2.3.1"],
+      "auditLatest": "2.3.1",
+      "action": "升级"
+    },
+    {
+      "name": "@foxglove/three-text",
+      "before": ["0.6.0"],
+      "after": ["0.6.1"],
+      "auditLatest": "0.6.1",
+      "action": "升级"
+    },
+    {
+      "name": "@foxglove/tsconfig",
+      "before": ["3.2.0"],
+      "after": ["3.2.0"],
+      "auditLatest": "3.2.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/ulog",
+      "before": ["2.3.2"],
+      "after": ["2.3.2"],
+      "auditLatest": "2.3.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/velodyne-cloud",
+      "before": ["1.0.1"],
+      "after": ["1.0.1"],
+      "auditLatest": "1.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/wasm-bz2",
+      "before": ["0.3.0"],
+      "after": ["0.3.0"],
+      "auditLatest": "0.3.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/wasm-lz4",
+      "before": ["1.0.2"],
+      "after": ["1.0.2"],
+      "auditLatest": "1.0.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/wasm-zstd",
+      "before": ["1.0.1"],
+      "after": ["1.0.1"],
+      "auditLatest": "1.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "@foxglove/ws-protocol",
+      "before": ["0.0.0-use.local"],
+      "after": ["workspace:*"],
+      "auditLatest": "0.8.0",
+      "action": "升级"
+    },
+    {
+      "name": "@growthbook/growthbook-react",
+      "before": ["1.6.5"],
+      "after": ["2.0.0"],
+      "auditLatest": "2.0.0",
+      "action": "升级"
+    },
+    {
+      "name": "@mcap/core",
+      "before": ["2.1.7"],
+      "after": ["2.4.0"],
+      "auditLatest": "2.4.0",
+      "action": "升级"
+    },
+    {
+      "name": "@mui/icons-material",
+      "before": ["7.3.11"],
+      "after": ["9.5.0"],
+      "auditLatest": "9.5.0",
+      "action": "升级"
+    },
+    {
+      "name": "@mui/lab",
+      "before": ["7.0.0-beta.17"],
+      "after": [],
+      "auditLatest": "9.0.0-beta.10",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@mui/material",
+      "before": ["7.3.11"],
+      "after": ["9.5.0"],
+      "auditLatest": "9.5.0",
+      "action": "升级"
+    },
+    {
+      "name": "@mui/x-data-grid",
+      "before": ["9.12.0"],
+      "after": ["9.17.0"],
+      "auditLatest": "9.17.0",
+      "action": "升级"
+    },
+    {
+      "name": "@mui/x-date-pickers",
+      "before": ["8.8.0"],
+      "after": ["9.17.0"],
+      "auditLatest": "9.17.0",
+      "action": "升级"
+    },
+    {
+      "name": "@popperjs/core",
+      "before": ["2.11.8"],
+      "after": [],
+      "auditLatest": "2.11.8",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@protobufjs/base64",
+      "before": ["1.1.2"],
+      "after": ["1.1.2"],
+      "auditLatest": "1.1.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "@rspack/cli",
+      "before": ["2.2.9"],
+      "after": ["2.3.2"],
+      "auditLatest": "2.3.2",
+      "action": "升级"
+    },
+    {
+      "name": "@rspack/core",
+      "before": ["2.2.9"],
+      "after": ["2.3.2"],
+      "auditLatest": "2.3.2",
+      "action": "升级"
+    },
+    {
+      "name": "@rspack/dev-server",
+      "before": ["2.1.0"],
+      "after": ["2.2.2"],
+      "auditLatest": "2.2.2",
+      "action": "升级"
+    },
+    {
+      "name": "@rspack/plugin-react-refresh",
+      "before": ["2.0.2"],
+      "after": ["2.0.2"],
+      "auditLatest": "2.0.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "@sentry/browser",
+      "before": ["8.24.0"],
+      "after": ["8.55.2"],
+      "auditLatest": "11.12.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "@sentry/core",
+      "before": ["8.24.0"],
+      "after": ["8.55.2"],
+      "auditLatest": "11.12.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "@sentry/types",
+      "before": ["8.24.0"],
+      "after": [],
+      "auditLatest": "10.75.2",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@sentry/webpack-plugin",
+      "before": ["2.22.0"],
+      "after": ["11.12.0"],
+      "auditLatest": "11.12.0",
+      "action": "升级"
+    },
+    {
+      "name": "@svgr/webpack",
+      "before": ["8.1.0"],
+      "after": ["8.1.0"],
+      "auditLatest": "8.1.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@swc/core",
+      "before": ["1.16.2"],
+      "after": ["1.16.22"],
+      "auditLatest": "1.16.22",
+      "action": "升级"
+    },
+    {
+      "name": "@swc/jest",
+      "before": ["0.2.39"],
+      "after": ["0.2.39"],
+      "auditLatest": "0.2.39",
+      "action": "保持当前"
+    },
+    {
+      "name": "@tanstack/react-table",
+      "before": ["8.21.3"],
+      "after": ["9.3.1"],
+      "auditLatest": "9.3.1",
+      "action": "升级"
+    },
+    {
+      "name": "@testing-library/dom",
+      "before": ["10.4.1"],
+      "after": ["10.4.2"],
+      "auditLatest": "10.4.2",
+      "action": "升级"
+    },
+    {
+      "name": "@testing-library/react",
+      "before": ["16.3.3"],
+      "after": ["16.3.3"],
+      "auditLatest": "16.3.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/base16",
+      "before": ["1.0.5"],
+      "after": ["^1.0.5"],
+      "auditLatest": "1.0.5",
+      "action": "升级"
+    },
+    {
+      "name": "@types/case-sensitive-paths-webpack-plugin",
+      "before": ["2.1.9"],
+      "after": [],
+      "auditLatest": "2.1.9",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/cytoscape",
+      "before": ["3.21.9"],
+      "after": [],
+      "auditLatest": "3.31.0",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/electron-devtools-installer",
+      "before": ["2.2.3"],
+      "after": [],
+      "auditLatest": "4.0.0",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/geojson",
+      "before": ["7946.0.14"],
+      "after": ["7946.0.16"],
+      "auditLatest": "7946.0.16",
+      "action": "升级"
+    },
+    {
+      "name": "@types/gl-matrix",
+      "before": ["3.2.0"],
+      "after": [],
+      "auditLatest": "3.2.0",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/hammerjs",
+      "before": ["2.0.45"],
+      "after": ["2.0.46"],
+      "auditLatest": "2.0.46",
+      "action": "升级"
+    },
+    {
+      "name": "@types/jest",
+      "before": ["30.0.0"],
+      "after": ["30.0.0", "^30.0.0"],
+      "auditLatest": "30.0.0",
+      "action": "升级"
+    },
+    {
+      "name": "@types/leaflet",
+      "before": ["1.9.22"],
+      "after": ["1.9.22"],
+      "auditLatest": "1.9.22",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/license-checker",
+      "before": ["25.0.6"],
+      "after": ["^25.0.6"],
+      "auditLatest": "25.0.6",
+      "action": "升级"
+    },
+    {
+      "name": "@types/lodash",
+      "before": ["4.17.15"],
+      "after": [],
+      "auditLatest": "4.17.27",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/lodash-es",
+      "before": ["4.17.9"],
+      "after": ["4.17.12"],
+      "auditLatest": "4.17.12",
+      "action": "升级"
+    },
+    {
+      "name": "@types/moment-duration-format",
+      "before": ["2.2.6"],
+      "after": ["2.2.7"],
+      "auditLatest": "2.2.7",
+      "action": "升级"
+    },
+    {
+      "name": "@types/node",
+      "before": ["24.13.1"],
+      "after": ["26.6.6"],
+      "auditLatest": "26.6.6",
+      "action": "升级"
+    },
+    {
+      "name": "@types/plist",
+      "before": ["3.0.5"],
+      "after": [],
+      "auditLatest": "3.0.5",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/pngjs",
+      "before": ["6.0.5"],
+      "after": ["^6.0.2"],
+      "auditLatest": "6.0.5",
+      "action": "升级"
+    },
+    {
+      "name": "@types/ramda",
+      "before": ["0.29.10"],
+      "after": ["0.32.0"],
+      "auditLatest": "0.32.0",
+      "action": "升级"
+    },
+    {
+      "name": "@types/react",
+      "before": ["19.3.0"],
+      "after": ["19.3.0"],
+      "auditLatest": "19.3.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/react-dom",
+      "before": ["19.3.0"],
+      "after": ["19.3.0"],
+      "auditLatest": "19.3.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/react-refresh",
+      "before": ["0.14.6"],
+      "after": ["0.14.7"],
+      "auditLatest": "0.14.7",
+      "action": "升级"
+    },
+    {
+      "name": "@types/react-transition-group",
+      "before": ["4.4.8"],
+      "after": ["4.4.12"],
+      "auditLatest": "4.4.12",
+      "action": "升级"
+    },
+    {
+      "name": "@types/react-virtualized",
+      "before": ["9.22.0"],
+      "after": [],
+      "auditLatest": "9.22.4",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/react-window",
+      "before": ["1.8.8"],
+      "after": ["^1.8.8"],
+      "auditLatest": "2.0.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "@types/sanitize-html",
+      "before": ["2.9.3"],
+      "after": ["2.16.2"],
+      "auditLatest": "2.16.2",
+      "action": "升级"
+    },
+    {
+      "name": "@types/seedrandom",
+      "before": ["3.0.8"],
+      "after": ["3.0.8"],
+      "auditLatest": "3.0.8",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/semver",
+      "before": ["7.8.0"],
+      "after": [],
+      "auditLatest": "7.8.0",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/serve-handler",
+      "before": ["6.1.2"],
+      "after": ["6.1.4"],
+      "auditLatest": "6.1.4",
+      "action": "升级"
+    },
+    {
+      "name": "@types/shallowequal",
+      "before": ["1.1.5"],
+      "after": ["1.1.5"],
+      "auditLatest": "1.1.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/string-hash",
+      "before": ["1.1.3"],
+      "after": ["1.1.3"],
+      "auditLatest": "1.1.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/three",
+      "before": ["0.166.0"],
+      "after": ["0.166.0"],
+      "auditLatest": "0.187.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "@types/tinycolor2",
+      "before": ["1.4.6"],
+      "after": ["1.4.6"],
+      "auditLatest": "1.4.6",
+      "action": "保持当前"
+    },
+    {
+      "name": "@types/use-sync-external-store",
+      "before": ["1.5.0"],
+      "after": ["1.7.0"],
+      "auditLatest": "1.7.0",
+      "action": "升级"
+    },
+    {
+      "name": "@types/utif",
+      "before": ["3.0.6"],
+      "after": ["^3.0.6"],
+      "auditLatest": "3.0.6",
+      "action": "升级"
+    },
+    {
+      "name": "@types/uuid",
+      "before": ["9.0.7"],
+      "after": [],
+      "auditLatest": "11.0.0",
+      "action": "移除/替换"
+    },
+    {
+      "name": "@types/wicg-file-system-access",
+      "before": ["2020.9.6"],
+      "after": ["2023.10.7"],
+      "auditLatest": "2023.10.7",
+      "action": "升级"
+    },
+    {
+      "name": "@types/ws",
+      "before": ["8.5.12"],
+      "after": ["8.18.2"],
+      "auditLatest": "8.18.2",
+      "action": "升级"
+    },
+    {
+      "name": "@typescript-eslint/parser",
+      "before": ["8.63.0"],
+      "after": ["8.72.2"],
+      "auditLatest": "8.72.2",
+      "action": "升级"
+    },
+    {
+      "name": "@typescript-eslint/rule-tester",
+      "before": ["8.63.0"],
+      "after": ["8.72.2"],
+      "auditLatest": "8.72.2",
+      "action": "升级"
+    },
+    {
+      "name": "@typescript-eslint/utils",
+      "before": ["8.63.0"],
+      "after": ["8.72.2"],
+      "auditLatest": "8.72.2",
+      "action": "升级"
+    },
+    {
+      "name": "@typescript/native",
+      "before": ["7.0.2"],
+      "after": ["npm:typescript@7.0.2"],
+      "auditLatest": "7.0.2",
+      "action": "升级"
+    },
+    {
+      "name": "@uiw/react-textarea-code-editor",
+      "before": ["3.0.2"],
+      "after": ["3.1.3"],
+      "auditLatest": "3.1.3",
+      "action": "升级"
+    },
+    {
+      "name": "@xmldom/xmldom",
+      "before": ["0.8.10"],
+      "after": ["0.9.12"],
+      "auditLatest": "0.9.12",
+      "action": "升级"
+    },
+    {
+      "name": "app-builder-lib",
+      "before": ["26.15.3"],
+      "after": ["26.18.0"],
+      "auditLatest": "26.18.0",
+      "action": "升级"
+    },
+    {
+      "name": "arch",
+      "before": ["3.0.0"],
+      "after": ["3.0.0"],
+      "auditLatest": "3.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "assert",
+      "before": ["2.1.0"],
+      "after": ["2.1.0"],
+      "auditLatest": "2.1.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "async-mutex",
+      "before": ["0.4.1"],
+      "after": ["0.5.0"],
+      "auditLatest": "0.5.0",
+      "action": "升级"
+    },
+    {
+      "name": "axios",
+      "before": ["1.11.0"],
+      "after": ["1.21.1"],
+      "auditLatest": "1.21.1",
+      "action": "升级"
+    },
+    {
+      "name": "browserify-zlib",
+      "before": ["0.2.0"],
+      "after": ["0.2.0"],
+      "auditLatest": "0.2.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "builder-util",
+      "before": ["26.15.3"],
+      "after": ["26.16.0"],
+      "auditLatest": "26.16.0",
+      "action": "升级"
+    },
+    {
+      "name": "chart.js",
+      "before": ["4.5.1"],
+      "after": ["4.6.1"],
+      "auditLatest": "4.6.1",
+      "action": "升级"
+    },
+    {
+      "name": "chartjs-plugin-annotation",
+      "before": ["3.1.0"],
+      "after": ["3.1.0"],
+      "auditLatest": "3.1.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "chartjs-plugin-datalabels",
+      "before": ["2.2.0"],
+      "after": ["2.2.0"],
+      "auditLatest": "2.2.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "cross-env",
+      "before": ["7.0.3"],
+      "after": ["10.1.0"],
+      "auditLatest": "10.1.0",
+      "action": "升级"
+    },
+    {
+      "name": "crypto-browserify",
+      "before": ["3.12.0"],
+      "after": ["3.12.1"],
+      "auditLatest": "3.12.1",
+      "action": "升级"
+    },
+    {
+      "name": "css-loader",
+      "before": ["7.1.5"],
+      "after": ["7.1.5"],
+      "auditLatest": "7.1.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "cytoscape",
+      "before": ["3.31.0"],
+      "after": ["3.35.0"],
+      "auditLatest": "3.35.0",
+      "action": "升级"
+    },
+    {
+      "name": "cytoscape-dagre",
+      "before": ["4.0.0"],
+      "after": ["4.1.0"],
+      "auditLatest": "4.1.0",
+      "action": "升级"
+    },
+    {
+      "name": "dayjs",
+      "before": ["1.11.21"],
+      "after": ["1.11.23"],
+      "auditLatest": "1.11.23",
+      "action": "升级"
+    },
+    {
+      "name": "depcheck",
+      "before": ["1.4.7"],
+      "after": [],
+      "auditLatest": "1.4.7",
+      "action": "移除/替换"
+    },
+    {
+      "name": "dmg-builder",
+      "before": ["26.15.3"],
+      "after": ["26.18.0"],
+      "auditLatest": "26.18.0",
+      "action": "升级"
+    },
+    {
+      "name": "electron",
+      "before": ["35.0.3"],
+      "after": ["45.3.0"],
+      "auditLatest": "45.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "electron-builder",
+      "before": ["26.15.3"],
+      "after": ["26.18.0"],
+      "auditLatest": "26.18.0",
+      "action": "升级"
+    },
+    {
+      "name": "electron-builder-squirrel-windows",
+      "before": ["26.15.3"],
+      "after": ["26.18.0"],
+      "auditLatest": "26.18.0",
+      "action": "升级"
+    },
+    {
+      "name": "electron-devtools-installer",
+      "before": ["4.0.0"],
+      "after": ["4.0.0"],
+      "auditLatest": "4.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "electron-squirrel-startup",
+      "before": ["1.0.1"],
+      "after": ["1.0.1"],
+      "auditLatest": "1.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "electron-updater",
+      "before": ["6.3.9"],
+      "after": ["6.8.11"],
+      "auditLatest": "6.8.11",
+      "action": "升级"
+    },
+    {
+      "name": "esa-cli",
+      "before": ["1.0.10"],
+      "after": ["1.0.13"],
+      "auditLatest": "1.0.13",
+      "action": "升级"
+    },
+    {
+      "name": "eslint",
+      "before": ["9.39.4"],
+      "after": ["9.39.5", "^9.39.5"],
+      "auditLatest": "10.14.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "eslint-import-resolver-typescript",
+      "before": ["4.4.5"],
+      "after": ["4.4.5"],
+      "auditLatest": "4.4.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "eslint-plugin-import",
+      "before": ["2.32.0"],
+      "after": ["2.32.0"],
+      "auditLatest": "2.32.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "eslint-plugin-jest",
+      "before": ["28.9.0"],
+      "after": ["29.17.0"],
+      "auditLatest": "29.17.0",
+      "action": "升级"
+    },
+    {
+      "name": "eslint-plugin-react",
+      "before": ["7.37.2"],
+      "after": ["7.37.5"],
+      "auditLatest": "7.37.5",
+      "action": "升级"
+    },
+    {
+      "name": "eslint-plugin-react-hooks",
+      "before": ["5.1.0"],
+      "after": ["7.1.1"],
+      "auditLatest": "7.1.1",
+      "action": "升级"
+    },
+    {
+      "name": "eslint-plugin-tss-unused-classes",
+      "before": ["1.0.4"],
+      "after": ["1.0.4"],
+      "auditLatest": "1.0.4",
+      "action": "保持当前"
+    },
+    {
+      "name": "eventemitter3",
+      "before": ["5.0.1"],
+      "after": ["5.0.4"],
+      "auditLatest": "5.0.4",
+      "action": "升级"
+    },
+    {
+      "name": "fake-indexeddb",
+      "before": ["4.0.2"],
+      "after": ["6.2.8"],
+      "auditLatest": "6.2.8",
+      "action": "升级"
+    },
+    {
+      "name": "flatbuffers",
+      "before": ["23.5.26"],
+      "after": ["25.9.23"],
+      "auditLatest": "25.9.23",
+      "action": "升级"
+    },
+    {
+      "name": "flatbuffers_reflection",
+      "before": ["1.3.0"],
+      "after": ["1.3.0"],
+      "auditLatest": "1.3.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "fuzzysort",
+      "before": ["3.1.0"],
+      "after": ["4.0.2"],
+      "auditLatest": "4.0.2",
+      "action": "升级"
+    },
+    {
+      "name": "fzf",
+      "before": ["0.5.2"],
+      "after": ["0.5.2"],
+      "auditLatest": "0.5.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "geojson",
+      "before": ["0.5.0"],
+      "after": ["0.5.0"],
+      "auditLatest": "0.5.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "gl-matrix",
+      "before": ["3.4.3"],
+      "after": ["3.4.4"],
+      "auditLatest": "3.4.4",
+      "action": "升级"
+    },
+    {
+      "name": "glob",
+      "before": ["13.0.6"],
+      "after": [],
+      "auditLatest": "14.0.4",
+      "action": "移除/替换"
+    },
+    {
+      "name": "globals",
+      "before": ["17.6.0"],
+      "after": ["17.14.0"],
+      "auditLatest": "17.14.0",
+      "action": "升级"
+    },
+    {
+      "name": "hammerjs",
+      "before": ["2.0.8"],
+      "after": ["2.0.8"],
+      "auditLatest": "2.0.8",
+      "action": "保持当前"
+    },
+    {
+      "name": "i18next",
+      "before": ["26.3.1"],
+      "after": ["27.1.1"],
+      "auditLatest": "27.1.1",
+      "action": "升级"
+    },
+    {
+      "name": "i18next-browser-languagedetector",
+      "before": ["8.0.2"],
+      "after": ["8.3.0"],
+      "auditLatest": "8.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "idb",
+      "before": ["8.0.3"],
+      "after": ["8.0.4"],
+      "auditLatest": "8.0.4",
+      "action": "升级"
+    },
+    {
+      "name": "idb-keyval",
+      "before": ["6.2.1"],
+      "after": ["6.3.0"],
+      "auditLatest": "6.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "immer",
+      "before": ["10.0.3"],
+      "after": ["11.2.10"],
+      "auditLatest": "11.2.10",
+      "action": "升级"
+    },
+    {
+      "name": "intervals-fn",
+      "before": ["3.0.3"],
+      "after": ["3.0.3"],
+      "auditLatest": "3.0.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "jest",
+      "before": ["30.5.1"],
+      "after": ["30.5.2"],
+      "auditLatest": "30.5.2",
+      "action": "升级"
+    },
+    {
+      "name": "jest-canvas-mock",
+      "before": ["2.5.8"],
+      "after": ["2.5.8"],
+      "auditLatest": "2.5.8",
+      "action": "保持当前"
+    },
+    {
+      "name": "jest-environment-jsdom",
+      "before": ["30.5.1"],
+      "after": ["30.5.2"],
+      "auditLatest": "30.5.2",
+      "action": "升级"
+    },
+    {
+      "name": "jszip",
+      "before": ["3.10.2"],
+      "after": ["3.10.2"],
+      "auditLatest": "3.10.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "just-diff",
+      "before": ["6.0.2"],
+      "after": ["6.0.2"],
+      "auditLatest": "6.0.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "leaflet",
+      "before": ["1.9.4"],
+      "after": ["1.9.4"],
+      "auditLatest": "1.9.4",
+      "action": "保持当前"
+    },
+    {
+      "name": "leaflet-ellipse",
+      "before": ["0.9.1"],
+      "after": ["0.9.1"],
+      "auditLatest": "0.9.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "license-checker",
+      "before": ["25.0.1"],
+      "after": ["25.0.1"],
+      "auditLatest": "25.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "lodash-es",
+      "before": ["4.17.21"],
+      "after": ["4.18.1"],
+      "auditLatest": "4.18.1",
+      "action": "升级"
+    },
+    {
+      "name": "mathjs",
+      "before": ["11.11.1"],
+      "after": ["15.2.0"],
+      "auditLatest": "15.2.0",
+      "action": "升级"
+    },
+    {
+      "name": "mediabunny",
+      "before": ["1.52.2"],
+      "after": ["1.65.2"],
+      "auditLatest": "1.65.2",
+      "action": "升级"
+    },
+    {
+      "name": "memoize-weak",
+      "before": ["1.0.2"],
+      "after": ["1.0.2"],
+      "auditLatest": "1.0.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "meshoptimizer",
+      "before": ["0.21.0"],
+      "after": ["1.3.0"],
+      "auditLatest": "1.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "moize",
+      "before": ["6.1.7"],
+      "after": [],
+      "auditLatest": "6.1.7",
+      "action": "移除/替换"
+    },
+    {
+      "name": "moment",
+      "before": ["2.30.1"],
+      "after": ["2.31.0"],
+      "auditLatest": "2.31.0",
+      "action": "升级"
+    },
+    {
+      "name": "moment-duration-format",
+      "before": ["2.3.2"],
+      "after": ["2.3.2"],
+      "auditLatest": "2.3.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "moment-timezone",
+      "before": ["0.5.45"],
+      "after": ["0.6.6"],
+      "auditLatest": "0.6.6",
+      "action": "升级"
+    },
+    {
+      "name": "monaco-editor",
+      "before": ["0.55.1"],
+      "after": ["0.55.1"],
+      "auditLatest": "0.57.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "monaco-editor-webpack-plugin",
+      "before": ["7.1.1"],
+      "after": ["7.1.1"],
+      "auditLatest": "7.1.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "natsort",
+      "before": ["2.0.3"],
+      "after": ["2.0.3"],
+      "auditLatest": "2.0.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "notistack",
+      "before": ["3.0.2"],
+      "after": ["3.0.2"],
+      "auditLatest": "3.0.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "oxlint",
+      "before": ["1.82.0"],
+      "after": ["1.93.0"],
+      "auditLatest": "1.93.0",
+      "action": "升级"
+    },
+    {
+      "name": "oxlint-tsgolint",
+      "before": ["7.0.2001"],
+      "after": ["7.0.2006"],
+      "auditLatest": "7.0.2006",
+      "action": "升级"
+    },
+    {
+      "name": "path-browserify",
+      "before": ["1.0.1"],
+      "after": ["1.0.1"],
+      "auditLatest": "1.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "pinyin-match",
+      "before": ["1.2.4"],
+      "after": ["1.2.10"],
+      "auditLatest": "1.2.10",
+      "action": "升级"
+    },
+    {
+      "name": "playwright",
+      "before": ["1.60.0"],
+      "after": ["1.65.0"],
+      "auditLatest": "1.65.0",
+      "action": "升级"
+    },
+    {
+      "name": "plist",
+      "before": ["5.0.0"],
+      "after": ["5.1.1"],
+      "auditLatest": "5.1.1",
+      "action": "升级"
+    },
+    {
+      "name": "pngjs",
+      "before": ["7.0.0"],
+      "after": ["7.0.0"],
+      "auditLatest": "7.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "posthog-js",
+      "before": ["1.205.0"],
+      "after": ["1.447.12"],
+      "auditLatest": "1.447.12",
+      "action": "升级"
+    },
+    {
+      "name": "prettier",
+      "before": ["3.8.4"],
+      "after": ["3.9.10"],
+      "auditLatest": "3.9.10",
+      "action": "升级"
+    },
+    {
+      "name": "protobufjs",
+      "before": ["7.2.4"],
+      "after": ["patch:protobufjs@7.6.6#../../patches/protobufjs.patch"],
+      "auditLatest": "8.8.1",
+      "action": "升级"
+    },
+    {
+      "name": "quicklookjs",
+      "before": ["1.0.1"],
+      "after": ["1.0.1"],
+      "auditLatest": "1.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "race-as-promised",
+      "before": ["0.0.3"],
+      "after": ["0.0.3"],
+      "auditLatest": "0.0.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "ramda",
+      "before": ["0.29.1"],
+      "after": ["0.32.0"],
+      "auditLatest": "0.32.0",
+      "action": "升级"
+    },
+    {
+      "name": "react",
+      "before": ["19.3.1"],
+      "after": ["19.3.1", "^19.3.1"],
+      "auditLatest": "19.3.1",
+      "action": "升级"
+    },
+    {
+      "name": "react-colorful",
+      "before": ["5.7.0"],
+      "after": ["5.8.1"],
+      "auditLatest": "5.8.1",
+      "action": "升级"
+    },
+    {
+      "name": "react-dnd",
+      "before": ["16.0.1"],
+      "after": ["16.0.1"],
+      "auditLatest": "16.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "react-dnd-html5-backend",
+      "before": ["16.0.1"],
+      "after": ["16.0.1"],
+      "auditLatest": "16.0.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "react-dom",
+      "before": ["19.3.1"],
+      "after": ["19.3.1"],
+      "auditLatest": "19.3.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "react-hook-form",
+      "before": ["7.58.1"],
+      "after": ["7.91.0"],
+      "auditLatest": "7.91.0",
+      "action": "升级"
+    },
+    {
+      "name": "react-hot-toast",
+      "before": ["2.4.0"],
+      "after": ["2.6.1"],
+      "auditLatest": "2.6.1",
+      "action": "升级"
+    },
+    {
+      "name": "react-i18next",
+      "before": ["14.0.5"],
+      "after": ["18.0.1"],
+      "auditLatest": "18.0.1",
+      "action": "升级"
+    },
+    {
+      "name": "react-json-tree",
+      "before": ["0.15.1"],
+      "after": ["patch:react-json-tree@npm:0.15.1#../../patches/react-json-tree.patch"],
+      "auditLatest": "0.20.1",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "react-markdown",
+      "before": ["9.1.0"],
+      "after": ["10.1.0"],
+      "auditLatest": "10.1.0",
+      "action": "升级"
+    },
+    {
+      "name": "react-monaco-editor",
+      "before": ["0.59.0"],
+      "after": [],
+      "auditLatest": "0.59.0",
+      "action": "移除/替换"
+    },
+    {
+      "name": "react-mosaic-component",
+      "before": ["6.2.0"],
+      "after": ["6.2.0"],
+      "auditLatest": "7.2.1",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "react-refresh",
+      "before": ["0.18.0"],
+      "after": ["0.19.0"],
+      "auditLatest": "0.19.0",
+      "action": "升级"
+    },
+    {
+      "name": "react-resizable-panels",
+      "before": ["2.1.9"],
+      "after": ["4.21.0"],
+      "auditLatest": "4.21.0",
+      "action": "升级"
+    },
+    {
+      "name": "react-resize-detector",
+      "before": ["12.0.2"],
+      "after": ["12.3.0"],
+      "auditLatest": "12.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "react-transition-group",
+      "before": ["4.4.5"],
+      "after": ["4.4.5"],
+      "auditLatest": "4.4.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "react-use",
+      "before": ["17.6.1"],
+      "after": ["17.6.1"],
+      "auditLatest": "17.6.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "react-virtualized",
+      "before": ["9.22.6"],
+      "after": [],
+      "auditLatest": "10.0.1",
+      "action": "移除/替换"
+    },
+    {
+      "name": "react-window",
+      "before": ["1.8.11"],
+      "after": ["1.8.11"],
+      "auditLatest": "2.5.3",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "readable-stream",
+      "before": ["4.7.0"],
+      "after": ["4.8.0"],
+      "auditLatest": "4.8.0",
+      "action": "升级"
+    },
+    {
+      "name": "rehype-raw",
+      "before": ["7.0.0"],
+      "after": ["7.0.0"],
+      "auditLatest": "7.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "reselect",
+      "before": ["5.3.0"],
+      "after": ["5.3.0"],
+      "auditLatest": "5.3.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "rimraf",
+      "before": ["6.1.3"],
+      "after": ["6.1.4"],
+      "auditLatest": "6.1.4",
+      "action": "升级"
+    },
+    {
+      "name": "sanitize-html",
+      "before": ["2.11.0"],
+      "after": ["2.18.1"],
+      "auditLatest": "2.18.1",
+      "action": "升级"
+    },
+    {
+      "name": "seedrandom",
+      "before": ["3.0.5"],
+      "after": ["3.0.5"],
+      "auditLatest": "3.0.5",
+      "action": "保持当前"
+    },
+    {
+      "name": "semver",
+      "before": ["7.8.5"],
+      "after": [],
+      "auditLatest": "7.8.6",
+      "action": "移除/替换"
+    },
+    {
+      "name": "serve-handler",
+      "before": ["6.1.5"],
+      "after": ["6.1.8"],
+      "auditLatest": "6.1.8",
+      "action": "升级"
+    },
+    {
+      "name": "shallowequal",
+      "before": ["1.1.0"],
+      "after": ["1.1.0"],
+      "auditLatest": "1.1.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "string-hash",
+      "before": ["1.1.3"],
+      "after": ["1.1.3"],
+      "auditLatest": "1.1.3",
+      "action": "保持当前"
+    },
+    {
+      "name": "string-replace-loader",
+      "before": ["3.1.0"],
+      "after": ["3.3.0"],
+      "auditLatest": "3.3.0",
+      "action": "升级"
+    },
+    {
+      "name": "style-loader",
+      "before": ["4.0.0"],
+      "after": ["4.0.0"],
+      "auditLatest": "4.0.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "text-metrics",
+      "before": ["3.0.0"],
+      "after": ["4.0.1"],
+      "auditLatest": "4.0.1",
+      "action": "升级"
+    },
+    {
+      "name": "three",
+      "before": ["0.166.1"],
+      "after": ["patch:three@0.166.1#../../patches/three.patch"],
+      "auditLatest": "0.187.0",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "tinycolor2",
+      "before": ["1.6.0"],
+      "after": ["1.6.0"],
+      "auditLatest": "1.6.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "ts-checker-rspack-plugin",
+      "before": ["1.6.0"],
+      "after": ["1.8.0"],
+      "auditLatest": "1.8.0",
+      "action": "升级"
+    },
+    {
+      "name": "ts-essentials",
+      "before": ["10.0.4"],
+      "after": ["10.2.1"],
+      "auditLatest": "10.2.1",
+      "action": "升级"
+    },
+    {
+      "name": "ts-jest",
+      "before": ["29.4.11"],
+      "after": ["29.4.15"],
+      "auditLatest": "29.4.15",
+      "action": "升级"
+    },
+    {
+      "name": "ts-key-enum",
+      "before": ["3.0.13"],
+      "after": ["3.0.13"],
+      "auditLatest": "3.0.13",
+      "action": "保持当前"
+    },
+    {
+      "name": "ts-node",
+      "before": ["10.9.2"],
+      "after": ["10.9.2"],
+      "auditLatest": "10.9.2",
+      "action": "保持当前"
+    },
+    {
+      "name": "ts-unused-exports",
+      "before": ["10.0.1"],
+      "after": ["11.0.1"],
+      "auditLatest": "11.0.1",
+      "action": "升级"
+    },
+    {
+      "name": "tslib",
+      "before": ["2.8.1"],
+      "after": ["2.9.1"],
+      "auditLatest": "2.9.1",
+      "action": "升级"
+    },
+    {
+      "name": "tss-react",
+      "before": ["4.9.21"],
+      "after": ["4.9.21"],
+      "auditLatest": "4.9.21",
+      "action": "保持当前"
+    },
+    {
+      "name": "typescript",
+      "before": ["6.0.2"],
+      "after": ["6.0.2", "npm:@typescript/typescript6@6.0.2"],
+      "auditLatest": "6.0.2",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "typescript-eslint",
+      "before": ["8.63.0"],
+      "after": ["8.72.2"],
+      "auditLatest": "8.72.2",
+      "action": "升级"
+    },
+    {
+      "name": "typescript-for-user-script",
+      "before": ["5.9.3"],
+      "after": ["npm:typescript@5.9.3"],
+      "auditLatest": "7.0.2",
+      "action": "暂缓最新版"
+    },
+    {
+      "name": "use-debounce",
+      "before": ["10.1.1"],
+      "after": ["10.1.1"],
+      "auditLatest": "10.1.1",
+      "action": "保持当前"
+    },
+    {
+      "name": "use-immer",
+      "before": ["0.11.0"],
+      "after": ["0.11.0"],
+      "auditLatest": "0.11.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "use-sync-external-store",
+      "before": ["1.6.0"],
+      "after": ["1.7.0"],
+      "auditLatest": "1.7.0",
+      "action": "升级"
+    },
+    {
+      "name": "utif",
+      "before": ["3.1.0"],
+      "after": ["3.1.0"],
+      "auditLatest": "3.1.0",
+      "action": "保持当前"
+    },
+    {
+      "name": "uuid",
+      "before": ["11.0.5"],
+      "after": ["14.0.3"],
+      "auditLatest": "14.0.3",
+      "action": "升级"
+    },
+    {
+      "name": "webpack",
+      "before": ["5.97.1"],
+      "after": ["5.112.2"],
+      "auditLatest": "5.112.2",
+      "action": "升级"
+    },
+    {
+      "name": "ws",
+      "before": ["8.18.0"],
+      "after": ["8.22.2"],
+      "auditLatest": "8.22.2",
+      "action": "升级"
+    },
+    {
+      "name": "xacro-parser",
+      "before": ["0.3.9"],
+      "after": ["0.3.11"],
+      "auditLatest": "0.3.11",
+      "action": "升级"
+    },
+    {
+      "name": "zustand",
+      "before": ["5.0.8"],
+      "after": ["5.1.0"],
+      "auditLatest": "5.1.0",
+      "action": "升级"
+    }
+  ]
+}

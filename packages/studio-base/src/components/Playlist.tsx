@@ -75,15 +75,18 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     marginLeft: "-1px",
   },
+
   root: {
     backgroundColor: theme.palette.background.paper,
     maxHeight: "100%",
   },
+
   addFileButton: {
     display: "flex",
     gap: theme.spacing(0.5),
     whiteSpace: "nowrap",
   },
+
   accordionTitle: {
     display: "flex",
     overflow: "hidden",
@@ -92,6 +95,7 @@ const useStyles = makeStyles()((theme) => ({
     textWrap: "nowrap",
     width: "100%",
   },
+
   accordion: {
     padding: 0,
 
@@ -106,11 +110,13 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: theme.palette.divider,
     },
   },
+
   accordionRoot: {
     "&.MuiAccordion-root": {
       boxShadow: "none !important",
     },
   },
+
   colorBlock: {
     width: "8px",
     minWidth: "8px",
@@ -118,6 +124,7 @@ const useStyles = makeStyles()((theme) => ({
     minHeight: "8px",
     borderRadius: "2px",
   },
+
   accordionSummary: {
     height: 44,
     minHeight: "44px !important",
@@ -131,9 +138,21 @@ const useStyles = makeStyles()((theme) => ({
       width: 0,
     },
   },
+
   infoIcon: {
     width: "16px",
     height: "16px",
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    maxWidth: "calc(100% - 50px)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    display: "block",
   },
 }));
 
@@ -322,7 +341,7 @@ export function Playlist(): React.JSX.Element {
       )}
       {bagFiles.value?.length === 0 && (
         <Stack flex="auto" padding={2} fullHeight alignItems="center" justifyContent="center">
-          <Typography align="center" color="text.secondary">
+          <Typography align="center" className={classes.layout1}>
             {t("noBag")}
           </Typography>
         </Stack>
@@ -345,14 +364,7 @@ export function Playlist(): React.JSX.Element {
                         backgroundColor: bags[recordDisplayName]?.color,
                       }}
                     />
-                    <MuiStack
-                      maxWidth="calc(100% - 50px)"
-                      overflow="hidden"
-                      textOverflow="ellipsis"
-                      display="block"
-                    >
-                      {recordDisplayName}
-                    </MuiStack>
+                    <MuiStack className={classes.layout2}>{recordDisplayName}</MuiStack>
                     <Tooltip
                       title={t("projectFrom", {
                         projectName: bags[recordDisplayName]?.projectDisplayName,

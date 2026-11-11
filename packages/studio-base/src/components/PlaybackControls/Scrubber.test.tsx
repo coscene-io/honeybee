@@ -65,8 +65,7 @@ let mockSliderProps:
     }
   | undefined;
 let mockEventsOverlayProps:
-  | React.ComponentProps<typeof import("./EventsOverlay").EventsOverlay>
-  | undefined;
+  React.ComponentProps<typeof import("./EventsOverlay").EventsOverlay> | undefined;
 let mockRenderPortalledEventsOverlay = false;
 let mockShortcutsHelpButtonRenderCount = 0;
 

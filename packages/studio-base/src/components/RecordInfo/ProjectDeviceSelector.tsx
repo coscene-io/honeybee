@@ -10,6 +10,7 @@ import { UpdateRecordRequestSchema } from "@coscene-io/cosceneapis-es-v2/coscene
 import { MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
 import { ReactElement, useCallback, useEffect, useMemo } from "react";
 import { useAsyncFn } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import Logger from "@foxglove/log";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -17,6 +18,12 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { CoreDataStore, useCoreData } from "@foxglove/studio-base/context/CoreDataContext";
 import { BinaryOperator, CosQuery } from "@foxglove/studio-base/util/coscene";
 import { QueryFields } from "@foxglove/studio-base/util/queries";
+
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+}));
 
 export const MAX_DEVICE_LIST_LENGTH = 99999;
 const log = Logger.getLogger(__filename);
@@ -29,6 +36,8 @@ export default function ProjectDeviceSelector({
 }: {
   updateRecord: (payload: MessageInitShape<typeof UpdateRecordRequestSchema>) => Promise<void>;
 }): ReactElement {
+  const { classes } = useStyles();
+
   const consoleApi = useConsoleApi();
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const record = useCoreData(selectRecord);
@@ -101,7 +110,7 @@ export default function ProjectDeviceSelector({
           <MenuItem key={device.name} value={device.name}>
             <Stack>
               {device.displayName}
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" className={classes.layout1}>
                 {device.serialNumber}
               </Typography>
             </Stack>

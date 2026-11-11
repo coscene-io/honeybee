@@ -38,6 +38,7 @@ const useStyles = makeStyles()((theme) => ({
       gridTemplateColumns: `1fr 250px`,
     },
   },
+
   header: {
     padding: theme.spacing(6, 0, 2, 6),
     gridArea: "header",
@@ -49,6 +50,7 @@ const useStyles = makeStyles()((theme) => ({
       display: "none",
     },
   },
+
   content: {
     padding: theme.spacing(0, 6, 6),
     overflow: "hidden",
@@ -62,6 +64,7 @@ const useStyles = makeStyles()((theme) => ({
       paddingTop: theme.spacing(6),
     },
   },
+
   spacer: {
     gridArea: "spacer",
     backgroundColor: tinycolor(theme.palette.text.primary).setAlpha(0.04).toRgbString(),
@@ -70,6 +73,7 @@ const useStyles = makeStyles()((theme) => ({
       display: "none",
     },
   },
+
   sidebar: {
     gridArea: "sidebar",
     backgroundColor: tinycolor(theme.palette.text.primary).setAlpha(0.04).toRgbString(),
@@ -82,11 +86,13 @@ const useStyles = makeStyles()((theme) => ({
       paddingTop: theme.spacing(6),
     },
   },
+
   button: {
     whiteSpace: "nowrap",
     textOverflow: "ellipsis",
     overflow: "hidden",
   },
+
   connectionButton: {
     textAlign: "left",
     justifyContent: "flex-start",
@@ -98,6 +104,7 @@ const useStyles = makeStyles()((theme) => ({
       fontSize: 28,
     },
   },
+
   recentListItemButton: {
     overflow: "hidden",
     color: theme.palette.primary.main,
@@ -107,9 +114,11 @@ const useStyles = makeStyles()((theme) => ({
       color: theme.palette.primary[theme.palette.mode === "dark" ? "light" : "dark"],
     },
   },
+
   recentSourceSecondary: {
     color: "inherit",
   },
+
   featureList: {
     paddingLeft: theme.spacing(1.5),
 
@@ -117,11 +126,24 @@ const useStyles = makeStyles()((theme) => ({
       marginBottom: theme.spacing(0.5),
     },
   },
+
   recentList: {
     border: `1px solid ${theme.palette.divider}`,
     borderRadius: theme.shape.borderRadius,
     height: "100%",
     padding: theme.spacing(1),
+  },
+
+  layout1: {
+    color: theme.palette.text.primary,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout3: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -147,10 +169,10 @@ function DataSourceOption(props: DataSourceOptionProps): React.JSX.Element {
       onClick={onClick}
     >
       <Stack flex="auto" zeroMinWidth>
-        <Typography variant="subtitle1" color="text.primary">
+        <Typography variant="subtitle1" className={classes.layout1}>
           {text}
         </Typography>
-        <Typography variant="body2" color="text.secondary" noWrap>
+        <Typography variant="body2" noWrap className={classes.layout2}>
           {secondaryText}
         </Typography>
       </Stack>
@@ -223,7 +245,7 @@ function SidebarItems(): React.JSX.Element {
           <Typography variant="h5" gutterBottom>
             {item.title}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" className={classes.layout3}>
             {item.text}
           </Typography>
           {item.actions != undefined && (

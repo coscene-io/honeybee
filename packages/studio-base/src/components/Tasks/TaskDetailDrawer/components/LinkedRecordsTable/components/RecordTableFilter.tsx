@@ -50,31 +50,46 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: theme.spacing(1),
     marginBottom: theme.spacing(1),
   },
+
   filterBox: {
     flex: "0 0 auto",
     minWidth: "200px",
     maxWidth: "300px",
   },
+
   searchIcon: {
     marginRight: theme.spacing(1),
     color: theme.palette.text.secondary,
   },
+
   clearButton: {
     marginRight: theme.spacing(-0.5),
   },
+
   clearAllContainer: {
     marginTop: theme.spacing(2),
     display: "flex",
     justifyContent: "flex-end",
   },
+
   clearAllButton: {
     color: theme.palette.text.secondary,
   },
+
   clearAllText: {
     marginLeft: theme.spacing(0.5),
   },
+
   formControl: {
     width: "250px",
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -334,7 +349,7 @@ export default function RecordTableFilter({
               renderValue={(selected) => {
                 if (selected.length === 0) {
                   return (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" className={classes.layout1}>
                       {t("deviceId")}
                     </Typography>
                   );
@@ -382,7 +397,7 @@ export default function RecordTableFilter({
                       <Typography variant="body2">
                         {device.displayName || device.serialNumber}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" className={classes.layout2}>
                         {device.serialNumber}
                       </Typography>
                     </Stack>

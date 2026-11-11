@@ -51,6 +51,11 @@ const useStyles = makeStyles()((theme) => ({
     left: 0,
     zIndex: theme.zIndex.appBar,
   },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+    flex: "auto",
+  },
 }));
 
 // Panel toolbar should be added to any panel that's part of the
@@ -115,7 +120,7 @@ export default React.memo<Props>(function PanelToolbar({
     >
       {children ??
         (title && (
-          <Typography noWrap variant="body2" color="text.secondary" flex="auto">
+          <Typography noWrap variant="body2" className={classes.layout1}>
             {title}
           </Typography>
         ))}

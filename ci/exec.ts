@@ -5,13 +5,19 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { exec as execAction, ExecOptions } from "@actions/exec";
+import type { ExecOptions } from "@actions/exec";
+
+// eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval -- Preserve native import for Actions v3 in CommonJS tooling.
+const importExec = new Function("return import('@actions/exec')") as () => Promise<
+  typeof import("@actions/exec")
+>;
 
 export async function execOutput(
   program: string,
   args?: string[],
   options?: ExecOptions,
 ): Promise<{ status: number; stdout: string }> {
+  const { exec: execAction } = await importExec();
   let stdout = "";
   const status = await execAction(program, args, {
     ...options,

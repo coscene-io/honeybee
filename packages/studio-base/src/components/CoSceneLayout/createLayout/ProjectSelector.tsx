@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Star as StarIcon, StarOutline as StarOutlineIcon } from "@mui/icons-material";
+import { Star as StarIcon, StarOutlined as StarOutlineIcon } from "@mui/icons-material";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,9 +17,19 @@ import { useConsoleApi } from "@foxglove/studio-base/context/CoSceneConsoleApiCo
 import { useCurrentUser } from "@foxglove/studio-base/context/CoSceneCurrentUserContext";
 import { MAX_PROJECTS_PAGE_SIZE } from "@foxglove/studio-base/panels/DataCollection/constants";
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   root: {
     WebkitAppRegion: "no-drag", // make input clickable for desktop app
+  },
+
+  layout1: {
+    textOverflow: "ellipsis",
+  },
+
+  layout2: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
   },
 }));
 
@@ -80,10 +90,10 @@ export function ProjectSelector({
           key={option.value}
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
         >
-          <Typography variant="body2" noWrap textOverflow="ellipsis">
+          <Typography variant="body2" noWrap className={classes.layout1}>
             {option.label}
           </Typography>
-          <Box display="flex" alignItems="center" gap={0.5}>
+          <Box className={classes.layout2}>
             {option.project.isStarred ? (
               <StarIcon style={{ color: "#fbbf24" }} />
             ) : (

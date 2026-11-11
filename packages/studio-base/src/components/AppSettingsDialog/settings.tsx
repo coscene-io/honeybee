@@ -229,7 +229,8 @@ export function TimezoneSettings(): React.ReactElement {
           <TextField
             {...params}
             slotProps={{
-              htmlInput: { ...params.inputProps, className: classes.autocompleteInput },
+              ...params.slotProps,
+              htmlInput: { ...params.slotProps.htmlInput, className: classes.autocompleteInput },
             }}
           />
         )}

@@ -38,7 +38,7 @@ import Radar from "@mui/icons-material/Radar";
 import Settings from "@mui/icons-material/Settings";
 import Share from "@mui/icons-material/Share";
 import SouthEast from "@mui/icons-material/SouthEast";
-import Star from "@mui/icons-material/StarOutline";
+import Star from "@mui/icons-material/StarOutlined";
 import Timeline from "@mui/icons-material/Timeline";
 import Topic from "@mui/icons-material/Topic";
 import Collapse from "@mui/icons-material/UnfoldLess";

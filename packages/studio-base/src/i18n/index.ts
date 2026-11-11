@@ -47,6 +47,10 @@ export async function initI18n(options?: { context?: "browser" | "electron-main"
         ? { order: ["localStorage"], caches: ["localStorage"] }
         : undefined,
     fallbackLng: appConfig.LANGUAGE?.default,
+    // Preserve the pre-v27 behavior for intentionally empty translations.
+    returnEmptyString: true,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Preserve existing language-code handling during the v27 migration.
+    cleanCode: false,
     defaultNS,
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default

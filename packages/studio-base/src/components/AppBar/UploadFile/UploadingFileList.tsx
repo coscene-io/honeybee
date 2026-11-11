@@ -21,10 +21,32 @@ const selectUploadingFiles = (store: UploadFilesStore) => store.uploadingFiles;
 const selectCurrentUser = (store: UserStore) => store.user;
 const selectOrganization = (store: CoreDataStore) => store.organization;
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   linearProgress: {
     minWidth: "200px",
     width: "100%",
+  },
+
+  layout1: {
+    alignItems: "center",
+    gap: theme.spacing(1),
+    width: "",
+  },
+
+  layout2: {
+    alignItems: "center",
+    gap: theme.spacing(1),
+    display: "flex",
+    flex: 1,
+  },
+
+  layout3: {
+    flex: 1,
+  },
+
+  layout4: {
+    alignItems: "center",
+    gap: theme.spacing(1),
   },
 }));
 
@@ -46,9 +68,9 @@ export function UploadingFileList({
     <List>
       {Object.entries(uploadingFiles).map(([name, status]) => (
         <ListItem key={name}>
-          <Stack direction="row" alignItems="center" gap={1} width="">
-            <Stack alignItems="center" gap={1} display="flex" flex={1}>
-              <Stack flex={1}>{name}</Stack>
+          <Stack direction="row" className={classes.layout1}>
+            <Stack className={classes.layout2}>
+              <Stack className={classes.layout3}>{name}</Stack>
               <LinearProgress
                 className={classes.linearProgress}
                 variant="determinate"
@@ -62,7 +84,7 @@ export function UploadingFileList({
                 value={status.progress}
               />
             </Stack>
-            <Stack direction="row" alignItems="center" gap={1}>
+            <Stack direction="row" className={classes.layout4}>
               <Tooltip title={t("copyRecordLink")}>
                 <span>
                   <IconButton

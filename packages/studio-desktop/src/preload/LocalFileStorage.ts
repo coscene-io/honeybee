@@ -66,7 +66,7 @@ export default class LocalFileStorage implements Storage {
     options?: { encoding?: "utf8" },
   ): Promise<StorageContent | undefined> {
     const filePath = await this.#makeFilePath(datastore, key);
-    const content = await fs.readFile(filePath, options).catch((err: unknown) => {
+    const content = await fs.readFile(filePath, options ?? {}).catch((err: unknown) => {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
         throw err;
       }

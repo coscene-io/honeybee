@@ -31,6 +31,15 @@ const useStyles = makeStyles()(() => ({
     display: "flex",
     flexDirection: "column",
   },
+
+  layout1: {
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  layout2: {
+    flex: 1,
+  },
 }));
 
 const selectProject = (store: CoreDataStore) => store.project;
@@ -88,8 +97,8 @@ export default function LinkedDevicesTable({
 
   return (
     <Box className={classes.container}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Stack direction="row" flex={1}>
+      <Stack direction="row" className={classes.layout1}>
+        <Stack direction="row" className={classes.layout2}>
           <DeviceTableFilter filter={filter} setFilter={setFilter} />
         </Stack>
         {consoleApi.linkTasks.permission() && (

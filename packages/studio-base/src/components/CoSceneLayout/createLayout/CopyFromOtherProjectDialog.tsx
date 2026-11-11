@@ -17,11 +17,15 @@ import { ProjectSelector } from "@foxglove/studio-base/components/CoSceneLayout/
 import { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { CreateLayoutParams } from "@foxglove/studio-base/services/CoSceneILayoutManager";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   dialogContent: {
     minWidth: 600,
   },
-});
+
+  layout1: {
+    gap: theme.spacing(2),
+  },
+}));
 
 export function CopyFromOtherProjectDialog({
   open,
@@ -58,7 +62,7 @@ export function CopyFromOtherProjectDialog({
         </IconButton>
       </DialogTitle>
       <DialogContent className={classes.dialogContent}>
-        <Stack gap={2}>
+        <Stack className={classes.layout1}>
           <ProjectSelector value={projectName} onChange={setProjectName} />
           {projectName && (
             <ProjectLayoutList

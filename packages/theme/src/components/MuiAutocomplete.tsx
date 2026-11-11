@@ -13,7 +13,7 @@ import { OverrideComponentReturn } from "../types";
 export const MuiAutocomplete: OverrideComponentReturn<"MuiAutocomplete"> = {
   defaultProps: {
     clearIcon: <CancelIcon fontSize="inherit" />,
-    componentsProps: {
+    slotProps: {
       clearIndicator: {
         size: "small",
       },

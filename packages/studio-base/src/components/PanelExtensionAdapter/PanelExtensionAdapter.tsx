@@ -83,8 +83,7 @@ function isVersionedPanelConfig(config: unknown): config is VersionedPanelConfig
 type PanelExtensionAdapterProps = {
   /** function that initializes the panel extension */
   initPanel:
-    | ExtensionPanelRegistration["initPanel"]
-    | ((context: BuiltinPanelExtensionContext) => void);
+    ExtensionPanelRegistration["initPanel"] | ((context: BuiltinPanelExtensionContext) => void);
   /**
    * If defined, the highest supported version of config the panel supports.
    * Used to prevent older implementations of a panel from trying to access
@@ -124,6 +123,18 @@ type PanelSession = {
   disposers: Set<() => void>;
   appSettingsDisposers: (() => void)[];
 };
+
+const contextSessions = new WeakMap<BuiltinPanelExtensionContext, PanelSession>();
+
+function setContextRenderFunction(
+  this: BuiltinPanelExtensionContext,
+  renderFunction: PanelExtensionContext["onRender"],
+): void {
+  const session = contextSessions.get(this);
+  if (session?.active === true) {
+    session.lifecycle.setRenderFunction(renderFunction);
+  }
+}
 
 function trackResource(session: PanelSession, dispose: () => void): () => void {
   let disposed = false;
@@ -408,6 +419,7 @@ function PanelExtensionAdapter(
           }
         },
 
+        // eslint-disable-next-line @typescript-eslint/no-deprecated -- Implement both extension API overloads for existing extensions.
         subscribe: (topics: ReadonlyArray<string | Subscription>) => {
           if (!isActive()) {
             return;
@@ -738,16 +750,19 @@ function PanelExtensionAdapter(
     };
     log.info(`Init panel ${panelId}`);
     try {
-      onUnmount = initPanel({
+      const extensionContext: BuiltinPanelExtensionContext = {
         panelElement,
         ...createExtensionContext(session),
-        // eslint-disable-next-line no-restricted-syntax
-        set onRender(renderFunction: PanelExtensionContext["onRender"]) {
-          if (session.active) {
-            session.lifecycle.setRenderFunction(renderFunction);
-          }
-        },
+      };
+      // V8 can retain an accessor in allocation feedback after unmount. A shared setter and
+      // weakly keyed session keep that feedback from retaining a per-panel closure and DOM.
+      contextSessions.set(extensionContext, session);
+      Object.defineProperty(extensionContext, "onRender", {
+        enumerable: true,
+        configurable: true,
+        set: setContextRenderFunction,
       });
+      onUnmount = initPanel(extensionContext);
       session.lifecycle.start();
     } catch (err) {
       dispose();

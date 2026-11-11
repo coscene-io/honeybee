@@ -53,6 +53,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     overflow: "hidden",
     color: theme.palette.appBar.text,
   },
+
   adornment: {
     display: "flex",
     flex: "none",
@@ -63,9 +64,11 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     width: ICON_SIZE,
     height: ICON_SIZE,
   },
+
   adornmentError: {
     color: theme.palette.error.main,
   },
+
   spinner: {
     position: "absolute",
     top: 0,
@@ -74,6 +77,7 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     bottom: 0,
     margin: "auto",
   },
+
   ellipsis: {
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -81,9 +85,11 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
     minWidth: 0,
     maxWidth: "240px",
   },
+
   uploadFileIcon: {
     flexShrink: 0,
   },
+
   iconButton: {
     padding: 0,
     position: "relative",
@@ -95,25 +101,61 @@ const useStyles = makeStyles<void, "adornmentError">()((theme, _params, _classes
       fontSize: "1rem",
     },
   },
+
   networkStatusPopover: {
     padding: theme.spacing(2),
     minWidth: 200,
     maxWidth: 300,
   },
+
   statusHeader: {
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1),
   },
+
   fluentIconPrimary: {
     color: theme.palette.primary.main,
   },
+
   networkStatus: {
     marginTop: theme.spacing(1),
     paddingTop: theme.spacing(1),
     borderTop: 1,
     borderColor: "divider",
+  },
+
+  layout1: {
+    fontWeight: theme.typography.fontWeightMedium,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout3: {
+    fontWeight: theme.typography.fontWeightMedium,
+  },
+
+  layout4: {
+    color: theme.palette.text.secondary,
+    fontSize: "0.8rem",
+  },
+
+  layout5: {
+    color: theme.palette.text.secondary,
+    fontSize: "0.8rem",
+  },
+
+  layout6: {
+    color: theme.palette.text.secondary,
+    fontSize: "0.8rem",
+  },
+
+  layout7: {
+    color: theme.palette.text.secondary,
+    fontSize: "0.8rem",
   },
 }));
 
@@ -238,12 +280,12 @@ const RealTimeVizLinkState = () => {
             ) : (
               <LinkMultipleFilled fontSize={16} className={classes.fluentIconPrimary} />
             )}
-            <Typography variant="subtitle2" fontWeight="medium">
+            <Typography variant="subtitle2" className={classes.layout1}>
               {t("networkConnection")}
             </Typography>
           </Box>
 
-          <Typography variant="body2" color="text.secondary" gutterBottom>
+          <Typography variant="body2" gutterBottom className={classes.layout2}>
             {linkType === "colink" && <>{t("colinkRemoteConnection")}</>}
             {linkType === "other" && (
               <>
@@ -254,7 +296,7 @@ const RealTimeVizLinkState = () => {
 
           <Box className={classes.networkStatus}>
             <Stack direction="row" alignItems="center" gap={0.5} paddingBottom={0.5}>
-              <Typography variant="subtitle2" fontWeight="medium">
+              <Typography variant="subtitle2" className={classes.layout3}>
                 {t("networkStatus")}
               </Typography>
               <Tooltip title={t("networkStatusHelp")}>
@@ -262,7 +304,7 @@ const RealTimeVizLinkState = () => {
               </Tooltip>
             </Stack>
 
-            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+            <Typography variant="body2" className={classes.layout4}>
               <Stack direction="row" justifyContent="space-between">
                 <span>{t("networkDelay")}:</span>
                 {networkStatus?.networkDelay != undefined ? (
@@ -272,7 +314,7 @@ const RealTimeVizLinkState = () => {
                 )}
               </Stack>
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+            <Typography variant="body2" className={classes.layout5}>
               <Stack direction="row" justifyContent="space-between">
                 <span>{t("networkSpeed")}:</span>
                 {networkStatus?.curSpeed != undefined ? (
@@ -282,7 +324,7 @@ const RealTimeVizLinkState = () => {
                 )}
               </Stack>
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+            <Typography variant="body2" className={classes.layout6}>
               <Stack direction="row" justifyContent="space-between">
                 <span>{t("droppedMessages")}:</span>
                 {networkStatus?.droppedMsgs != undefined ? (
@@ -292,7 +334,7 @@ const RealTimeVizLinkState = () => {
                 )}
               </Stack>
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
+            <Typography variant="body2" className={classes.layout7}>
               <Stack direction="row" justifyContent="space-between">
                 <span>{t("packetLoss")}:</span>
                 {networkStatus?.packageLoss != undefined ? (

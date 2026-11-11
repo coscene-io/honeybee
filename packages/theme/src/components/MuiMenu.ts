@@ -14,7 +14,7 @@ import { OverrideComponentReturn } from "../types";
 
 export const MuiMenu: OverrideComponentReturn<"MuiMenu"> = {
   defaultProps: {
-    TransitionComponent: Fade,
+    slots: { transition: Fade },
   },
   styleOverrides: {
     paper: ({ theme }) => ({

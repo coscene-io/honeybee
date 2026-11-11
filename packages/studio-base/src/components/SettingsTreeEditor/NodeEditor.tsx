@@ -54,6 +54,7 @@ const useStyles = makeStyles()((theme) => ({
   actionButton: {
     padding: theme.spacing(0.5),
   },
+
   editNameField: {
     font: "inherit",
     gridColumn: "span 2",
@@ -64,6 +65,7 @@ const useStyles = makeStyles()((theme) => ({
       padding: theme.spacing(0.75, 1),
     },
   },
+
   focusedNode: {
     animation: `
       ${keyframes`
@@ -76,10 +78,12 @@ const useStyles = makeStyles()((theme) => ({
       0.5s ease-in-out
     `,
   },
+
   fieldPadding: {
     gridColumn: "span 2",
     height: theme.spacing(0.5),
   },
+
   iconWrapper: {
     position: "absolute",
     display: "flex",
@@ -126,6 +130,7 @@ const useStyles = makeStyles()((theme) => ({
       },
     },
   },
+
   nodeHeaderVisible: {
     "@media (pointer: fine)": {
       ".MuiCheckbox-root": {
@@ -148,16 +153,23 @@ const useStyles = makeStyles()((theme) => ({
     userSelect: "none",
     width: "100%",
   },
+
   nodeHeaderToggleHasProperties: {
     cursor: "pointer",
   },
+
   nodeHeaderToggleVisible: {
     opacity: 1,
   },
+
   errorTooltip: {
     whiteSpace: "pre-line",
     maxHeight: "15vh",
     overflowY: "auto",
+  },
+
+  layout1: {
+    flex: "auto",
   },
 }));
 
@@ -490,10 +502,12 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
           ) : (
             <Typography
               noWrap={true}
-              flex="auto"
               variant="subtitle2"
-              fontWeight={indent < 2 ? 600 : 400}
               color={visible ? "text.primary" : "text.disabled"}
+              className={classes.layout1}
+              style={{
+                fontWeight: indent < 2 ? 600 : 400,
+              }}
             >
               <HighlightedText text={settings.label ?? t("general")} highlight={filter} />
             </Typography>

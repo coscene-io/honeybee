@@ -44,6 +44,7 @@ const useStyles = makeStyles<void, "copyButton">()((theme, _params, classes) => 
       },
     },
   },
+
   copyButton: {
     top: 0,
     right: 0,
@@ -57,6 +58,7 @@ const useStyles = makeStyles<void, "copyButton">()((theme, _params, classes) => 
       minWidth: "auto",
     },
   },
+
   input: {
     font: "inherit",
     flex: "auto",
@@ -68,13 +70,16 @@ const useStyles = makeStyles<void, "copyButton">()((theme, _params, classes) => 
       color: theme.palette.error.main,
     },
   },
+
   edgeEnd: {
     marginRight: theme.spacing(-1.625),
   },
+
   editorWrapper: {
     position: "relative",
     backgroundColor: theme.palette.grey[50],
   },
+
   listItemButton: {
     "&:focus-within": {
       backgroundColor: "transparent",
@@ -84,9 +89,14 @@ const useStyles = makeStyles<void, "copyButton">()((theme, _params, classes) => 
       transition: `background-color 300ms ease-in-out`,
     },
   },
+
   listItemText: {
     marginTop: theme.spacing(0.125),
     marginBottom: theme.spacing(0.125),
+  },
+
+  layout1: {
+    color: theme.palette.error.main,
   },
 }));
 
@@ -202,7 +212,7 @@ export default function Variable(props: {
               slotProps={{ list: { dense: true } }}
             >
               <MenuItem onClick={deleteVariable}>
-                <Typography color="error.main" variant="inherit">
+                <Typography variant="inherit" className={classes.layout1}>
                   {t("deleteVariable")}
                 </Typography>
               </MenuItem>
@@ -256,7 +266,7 @@ export default function Variable(props: {
             slotProps={{
               primary: {
                 component: "div",
-                fontWeight: 600,
+                sx: { fontWeight: 600 },
                 variant: "body2",
               },
             }}

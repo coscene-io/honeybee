@@ -1,5 +1,5 @@
 # Build stage
-FROM node:24.22.1 as build
+FROM node:26.13.0 as build
 WORKDIR /src
 ARG CURRENT_IMAGE_TAG
 ARG GITHUB_SHA

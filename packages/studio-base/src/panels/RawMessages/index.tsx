@@ -85,9 +85,14 @@ const useStyles = makeStyles()((theme) => ({
     fontFamily: theme.typography.body1.fontFamily,
     fontFeatureSettings: `${theme.typography.fontFeatureSettings}, "zero"`,
   },
+
   hoverObserver: {
     display: "inline-flex",
     alignItems: "center",
+  },
+
+  layout1: {
+    whiteSpace: "pre-wrap",
   },
 }));
 
@@ -461,9 +466,11 @@ function RawMessages(props: Props) {
         {shouldDisplaySingleVal ? (
           <Typography
             variant="h1"
-            fontSize={fontSize}
-            whiteSpace="pre-wrap"
-            style={{ wordWrap: "break-word" }}
+            style={{
+              fontSize,
+              ...{ wordWrap: "break-word" },
+            }}
+            className={classes.layout1}
           >
             <MaybeCollapsedValue itemLabel={String(singleVal)} />
           </Typography>
@@ -651,26 +658,27 @@ function RawMessages(props: Props) {
       </Stack>
     );
   }, [
-    baseItem,
-    classes.topic,
-    fontSize,
+    topicPath,
     diffEnabled,
-    diffItem,
     diffMethod,
-    diffTopicPath,
-    expansion,
+    baseItem,
+    diffItem,
+    showFullMessageForDiff,
+    classes.topic,
+    classes.layout1,
+    topic,
+    fontSize,
+    t,
     getItemString,
     jsonTreeTheme,
-    onLabelClick,
-    renderDiffLabel,
-    rootStructureItem,
+    expansion,
+    diffTopicPath,
     saveConfig,
-    showFullMessageForDiff,
-    themePreference,
-    t,
-    topic,
-    topicPath,
+    onLabelClick,
     valueRenderer,
+    rootStructureItem,
+    renderDiffLabel,
+    themePreference,
   ]);
 
   const actionHandler = useCallback(

@@ -14,6 +14,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import MonacoEditor, { BeforeMount, OnMount, loader } from "@monaco-editor/react";
 import { useTheme } from "@mui/material";
 // @ts-expect-error ICodeEditorService does not have type information in the monaco-editor package
 import { ICodeEditorService } from "monaco-editor/esm/vs/editor/browser/services/codeEditorService.js";
@@ -25,7 +26,6 @@ import * as monacoTypescript from "monaco-editor/esm/vs/language/typescript/mona
 import * as path from "path";
 import React, { Suspense, ReactElement, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import MonacoEditor, { EditorDidMount, EditorWillMount } from "react-monaco-editor";
 import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
 // Keep these enum values on the same TypeScript version as Monaco's embedded language service.
@@ -44,6 +44,9 @@ const codeEditorService = StandaloneServices.get(ICodeEditorService);
 // Monaco 0.55's per-language contribution declarations are empty, but editor.main exposes the
 // same TypeScript contribution shape.
 const monacoTypescriptContribution = monacoTypescript as unknown as typeof monacoMain.typescript;
+
+// Use the bundled editor and workers; the loader must never fetch Monaco from a CDN.
+loader.config({ monaco: monacoApi });
 
 type CodeEditor = monacoApi.editor.ICodeEditor;
 
@@ -175,31 +178,42 @@ const Editor = ({
     return () => disposable.dispose();
   }, [script, setScriptOverride]);
 
+  const synchronizeScript = useCallback(
+    (editor: CodeEditor) => {
+      if (!script) {
+        return;
+      }
+
+      // For nodes, the name becomes the filePath.
+      // For the editor to resolve relative imports of the utilities (i.e. ./types), we need the
+      // user's code to be in a file next to the utility files. For this we grab the basename
+      // of the user's entered node name to remove any path-like sections.
+      const basename = path.basename(script.filePath);
+      const filePath = monacoApi.Uri.parse(`file://${DEFAULT_STUDIO_SCRIPT_PREFIX}${basename}`);
+      const model =
+        monacoApi.editor.getModel(filePath) ??
+        monacoApi.editor.createModel(script.code, "typescript", filePath);
+
+      model.updateOptions({ tabSize: 2 });
+
+      // Update the model's code if it was updated outside the Editor.
+      // Without this, monaco can continue to show old code if the userScripts are changed outside of the Editor
+      if (model.getValue() !== script.code) {
+        model.setValue(script.code);
+      }
+
+      editor.setModel(model);
+      gotoSelection(editor, script.selection);
+    },
+    [script],
+  );
+  const latestSynchronizeScript = useLatest(synchronizeScript);
+
   React.useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor || !script) {
-      return;
+    if (editorRef.current) {
+      synchronizeScript(editorRef.current);
     }
-
-    // For nodes, the name becomes the filePath.
-    // For the editor to resolve relative imports of the utilities (i.e. ./types), we need the
-    // user's code to be in a file next to the utility files. For this we grab the basename
-    // of the user's entered node name to remove any path-like sections.
-    const basename = path.basename(script.filePath);
-    const filePath = monacoApi.Uri.parse(`file://${DEFAULT_STUDIO_SCRIPT_PREFIX}${basename}`);
-    const model =
-      monacoApi.editor.getModel(filePath) ??
-      monacoApi.editor.createModel(script.code, "typescript", filePath);
-
-    // Update the model's code if it was updated outside the Editor.
-    // Without this, monaco can continue to show old code if the userScripts are changed outside of the Editor
-    if (model.getValue() !== script.code) {
-      model.setValue(script.code);
-    }
-
-    editor.setModel(model);
-    gotoSelection(editor, script.selection);
-  }, [script]);
+  }, [synchronizeScript]);
 
   const options = React.useMemo<monacoApi.editor.IStandaloneEditorConstructionOptions>(() => {
     return {
@@ -211,7 +225,7 @@ const Editor = ({
     };
   }, [script]);
 
-  const willMount = React.useCallback<EditorWillMount>(
+  const willMount = React.useCallback<BeforeMount>(
     (monaco) => {
       if (!script) {
         return;
@@ -300,10 +314,6 @@ const Editor = ({
 
       // Because anything else is blasphemy.
       model.updateOptions({ tabSize: 2 });
-
-      return {
-        model,
-      };
     },
     [script],
   );
@@ -321,9 +331,11 @@ const Editor = ({
 
   const saveCodeRef = useRef(saveCode);
   saveCodeRef.current = saveCode;
-  const didMount = React.useCallback<EditorDidMount>(
+  const didMount = React.useCallback<OnMount>(
     (editor) => {
       editorRef.current = editor;
+      // The wrapper initializes asynchronously. Script/selection may have changed while loading.
+      latestSynchronizeScript.current(editor);
       editor.addAction({
         id: "ctrl-s",
         label: t("saveCurrentNode"),
@@ -336,15 +348,17 @@ const Editor = ({
         },
       });
     },
-    [t],
+    [t, latestSynchronizeScript],
   );
 
   // Refer to setScriptCode by reference so that the onChange callback isn't invalidated
   // on every edit.
   const latestSetScriptCode = useLatest(setScriptCode);
   const onChange = useCallback(
-    (srcCode: string) => {
-      latestSetScriptCode.current(srcCode);
+    (srcCode: string | undefined) => {
+      if (srcCode != undefined) {
+        latestSetScriptCode.current(srcCode);
+      }
     },
     [latestSetScriptCode],
   );
@@ -381,9 +395,12 @@ const Editor = ({
         <Suspense fallback={<p>{t("loadingEditor")}</p>}>
           <MonacoEditor
             language="typescript"
+            path={`file://${DEFAULT_STUDIO_SCRIPT_PREFIX}${path.basename(script.filePath)}`}
+            defaultValue={script.code}
+            keepCurrentModel
             theme={editorTheme}
-            editorWillMount={willMount}
-            editorDidMount={didMount}
+            beforeMount={willMount}
+            onMount={didMount}
             options={options}
             onChange={onChange}
           />
