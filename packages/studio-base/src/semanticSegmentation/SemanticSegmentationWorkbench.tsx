@@ -125,25 +125,32 @@ export function SemanticSegmentationWorkbench({
     if (!playing || locked) {
       return;
     }
-    const timer = setInterval(
-      () => {
-        const current = store.getState();
-        const allFrames = current.document?.frames ?? [];
-        const index = allFrames.findIndex((item) => item.id === current.currentFrameId);
-        const next = allFrames[index + playDirection];
-        if (!next) {
-          setPlaying(false);
-          return;
-        }
-        current.setCurrentFrame(next.id);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Wait as long as the recorded gap to the next frame; frame times are uneven.
+    const scheduleNext = () => {
+      const current = store.getState();
+      const allFrames = current.document?.frames ?? [];
+      const index = allFrames.findIndex((item) => item.id === current.currentFrameId);
+      const here = allFrames[index];
+      const next = allFrames[index + playDirection];
+      if (!here || !next) {
+        setPlaying(false);
+        return;
+      }
+      const gapMs = Math.abs(next.timestampSec - here.timestampSec) * 1000;
+      timer = setTimeout(() => {
+        store.getState().setCurrentFrame(next.id);
         onFrameChange?.(next.timestampSec);
-      },
-      1000 / (video?.fps ?? 5),
-    );
-    return () => {
-      clearInterval(timer);
+        scheduleNext();
+      }, gapMs);
     };
-  }, [playing, locked, playDirection, video?.fps, store, onFrameChange]);
+    scheduleNext();
+    return () => {
+      if (timer != undefined) {
+        clearTimeout(timer);
+      }
+    };
+  }, [playing, locked, playDirection, store, onFrameChange]);
   // Seek once per streamed timestamp, even when source metadata recreates frame objects.
   const streamedTimestamp = frame?.timestampSec;
   useLayoutEffect(() => {
