@@ -36,6 +36,8 @@ export type SegmentationFrame = {
   videoId: string;
   index: number;
   timestampSec: number;
+  /** Absolute MCAP log_time in nanoseconds (decimal string). With the topic, this is the frame's identity on the wire. */
+  logTimeNs: string;
   imageUrl: string;
 };
 export type FrameInstance = {

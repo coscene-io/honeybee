@@ -59,6 +59,7 @@ it("appends real message/camera metadata without losing drafts, committed geomet
     videoId: second.id,
     index: 0,
     timestampSec: 0.65,
+    logTimeNs: "1700000000650000000",
     imageUrl: "",
   };
   const classId = runtime.store.getState().addClass("shared camera class");
@@ -129,6 +130,7 @@ it("projects source metadata into an older camera history without changing histo
     videoId: second.id,
     index: 0,
     timestampSec: 0.7,
+    logTimeNs: "1700000000700000000",
     imageUrl: "",
   };
   runtime.registerSource({ videos: [second], frames: [frame] });

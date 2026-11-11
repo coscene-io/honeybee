@@ -23,7 +23,8 @@ it("stores the workshop seed as one commit shared by both camera topics", () => 
     commit?.catalog.instances.length ?? 0,
   );
   const front = commit?.frames.find(
-    (frame) => frame.topic === "/camera/front" && frame.frameIndex === "0",
+    (frame) =>
+      frame.topic === "/camera/front" && frame.frameTime === "2023-11-14T22:13:20.000000000Z",
   );
   expect(front?.annotations[0]?.polygons.polygons[0]?.points[0]?.x).toBeCloseTo(0.17 * 960);
   expect(service.contractCommits[0]?.commit.baseCommit).toContain("/commits/genesis");

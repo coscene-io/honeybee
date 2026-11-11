@@ -22,6 +22,7 @@ export function createSubmissionFixture(targetFrames = 1000): SegmentationDocume
     id: `submission-frame-${index}`,
     index,
     timestampSec: index / 5,
+    logTimeNs: String(1_700_000_000_000_000_000n + BigInt(index) * 200_000_000n),
   }));
   document.videos = document.videos.map((video) => ({
     ...video,

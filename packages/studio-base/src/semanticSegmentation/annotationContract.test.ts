@@ -28,6 +28,7 @@ function workshop(): SegmentationDocument {
     videoId: "video-front",
     index: 0,
     timestampSec: 0,
+    logTimeNs: "1700000000000000000",
     imageUrl: "",
   };
   const sideFrame = {
@@ -35,6 +36,7 @@ function workshop(): SegmentationDocument {
     videoId: "video-side",
     index: 0,
     timestampSec: 0,
+    logTimeNs: "1700000000000000000",
     imageUrl: "",
   };
   return {
@@ -135,7 +137,8 @@ it("projects two camera topics into one catalog commit with original-image pixel
   expect(byName["Person side"]).toMatchObject({ class: `${record}/classes/${personClass}` });
   expect(JSON.stringify(commit.catalog.instances)).not.toContain("topic");
   const front = commit.frames.find(
-    (frame) => frame.topic === "/camera/front" && frame.frameIndex === "0",
+    (frame) =>
+      frame.topic === "/camera/front" && frame.frameTime === "2023-11-14T22:13:20.000000000Z",
   );
   expect(front?.annotations).toHaveLength(1);
   expect(front?.annotations[0]?.polygons.polygons[0]).not.toHaveProperty("topic");

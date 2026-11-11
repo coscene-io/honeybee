@@ -38,13 +38,13 @@ export type AnnotationInstance = {
 
 export type AnnotationObservation = {
   instance: string;
-  frameIndex: string;
+  frameTime: string;
   polygons: { polygons: AnnotationPolygon[] };
 };
 
 export type AnnotationFrameSnapshot = {
   topic: string;
-  frameIndex: string;
+  frameTime: string;
   annotations: AnnotationObservation[];
 };
 
@@ -152,6 +152,24 @@ function projectPolygon(
   };
 }
 
+/** Absolute log_time (decimal ns) as a protobuf JSON Timestamp, keeping nanosecond precision. */
+export function nsToTimestamp(ns: string): string {
+  const value = BigInt(ns);
+  const seconds = value / 1_000_000_000n;
+  const fraction = (value % 1_000_000_000n).toString().padStart(9, "0");
+  return `${new Date(Number(seconds) * 1000).toISOString().slice(0, 19)}.${fraction}Z`;
+}
+
+/** Inverse of nsToTimestamp, as a decimal ns string. */
+export function timestampToNs(timestamp: string): bigint {
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$/.exec(timestamp);
+  if (!match) {
+    throw new Error(`Invalid frame_time ${timestamp}`);
+  }
+  const seconds = BigInt(Date.parse(`${match[1]}Z`) / 1000);
+  return seconds * 1_000_000_000n + BigInt((match[2] ?? "").padEnd(9, "0") || "0");
+}
+
 export function projectCommit(
   document: SegmentationDocument,
   args: {
@@ -203,15 +221,15 @@ export function projectCommit(
       throw new Error(`Annotation ${annotation.frameId} is missing its instance`);
     }
     const binding = requireBinding(args.topics, frame.videoId);
-    const key = `${binding.topic}\u0000${frame.index}`;
+    const key = `${binding.topic}\u0000${frame.logTimeNs}`;
     const snapshot = snapshots.get(key) ?? {
       topic: binding.topic,
-      frameIndex: String(frame.index),
+      frameTime: nsToTimestamp(frame.logTimeNs),
       annotations: [],
     };
     snapshot.annotations.push({
       instance: instance.name,
-      frameIndex: String(frame.index),
+      frameTime: nsToTimestamp(frame.logTimeNs),
       polygons: {
         polygons: annotation.polygons.map((polygon) =>
           projectPolygon(polygon, args.record, instance.name, binding, editorIdByName),
@@ -226,7 +244,8 @@ export function projectCommit(
       if (topicOrder !== 0) {
         return topicOrder;
       }
-      return Number(left.frameIndex) - Number(right.frameIndex);
+      const delta = timestampToNs(left.frameTime) - timestampToNs(right.frameTime);
+      return delta < 0n ? -1 : delta > 0n ? 1 : 0;
     })
     .map((snapshot) => ({
       ...snapshot,
@@ -309,7 +328,7 @@ export function documentFromCommit(
     };
   });
   const frameIdByVideoIndex = new Map(
-    source.frames.map((frame) => [`${frame.videoId}\u0000${frame.index}`, frame.id]),
+    source.frames.map((frame) => [`${frame.videoId}\u0000${frame.logTimeNs}`, frame.id]),
   );
   const annotations: Record<string, FrameInstance> = {};
   for (const snapshot of commit.frames) {
@@ -318,10 +337,10 @@ export function documentFromCommit(
     if (videoId == undefined || binding == undefined) {
       throw new Error(`Commit topic ${snapshot.topic} is not in the media catalog`);
     }
-    const frameId = frameIdByVideoIndex.get(`${videoId}\u0000${snapshot.frameIndex}`);
+    const frameId = frameIdByVideoIndex.get(`${videoId}\u0000${timestampToNs(snapshot.frameTime)}`);
     if (frameId == undefined) {
       throw new Error(
-        `Commit frame ${snapshot.topic}#${snapshot.frameIndex} is not in the media catalog`,
+        `Commit frame ${snapshot.topic}@${snapshot.frameTime} is not in the media catalog`,
       );
     }
     for (const observation of snapshot.annotations) {

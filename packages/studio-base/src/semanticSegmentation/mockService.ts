@@ -59,6 +59,7 @@ export function createSeedDocument(): SegmentationDocument {
       videoId: "video-1",
       index,
       timestampSec: index / 5,
+      logTimeNs: String(1_700_000_000_000_000_000n + BigInt(index) * 200_000_000n),
       imageUrl: `data:image/svg+xml,${encodeURIComponent(svg)}`,
     };
   });
@@ -96,6 +97,7 @@ export function createSeedDocument(): SegmentationDocument {
       videoId: "video-side",
       index,
       timestampSec: index / 5,
+      logTimeNs: String(1_700_000_000_000_000_000n + BigInt(index) * 200_000_000n),
       imageUrl: `data:image/svg+xml,${encodeURIComponent(svg)}`,
     };
   });
