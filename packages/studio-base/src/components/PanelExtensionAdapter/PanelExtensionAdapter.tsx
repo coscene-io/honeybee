@@ -238,7 +238,7 @@ function PanelExtensionAdapter(
   const extensionsSettings = useExtensionCatalog(getExtensionPanelSettings);
 
   // Use refs to store values that change frequently, avoiding dependency chain issues
-  const latestPanelSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"]>();
+  const latestPanelSettingsActionHandlerRef = useRef<SettingsTree["actionHandler"]>(undefined);
   const extensionsSettingsRef = useRef(extensionsSettings);
   const panelNameRef = useRef(panelName);
 

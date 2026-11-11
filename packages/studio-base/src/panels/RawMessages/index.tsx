@@ -17,7 +17,6 @@
 import { Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
 import * as _ from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ReactHoverObserver from "react-hover-observer";
 import { useTranslation } from "react-i18next";
 import Tree from "react-json-tree";
 import { makeStyles } from "tss-react/mui";
@@ -53,6 +52,7 @@ import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
 
 import { DiffSpan } from "./DiffSpan";
 import DiffStats from "./DiffStats";
+import { HoverValue } from "./HoverValue";
 import MaybeCollapsedValue from "./MaybeCollapsedValue";
 import Metadata from "./Metadata";
 import Value from "./Value";
@@ -337,8 +337,8 @@ function RawMessages(props: Props) {
       itemValue: unknown,
       ...keyPath: (number | string)[]
     ) => (
-      <ReactHoverObserver className={classes.hoverObserver}>
-        {({ isHovering }: { isHovering: boolean }) => {
+      <HoverValue className={classes.hoverObserver}>
+        {({ isHovering }) => {
           const lastKeyPath = _.last(keyPath) as number;
           let valueAction: ValueAction | undefined;
           if (isHovering) {
@@ -386,7 +386,7 @@ function RawMessages(props: Props) {
             />
           );
         }}
-      </ReactHoverObserver>
+      </HoverValue>
     ),
     [classes.hoverObserver, enumMapping, getValueLabels, onTopicPathChange, openSiblingPanel],
   );

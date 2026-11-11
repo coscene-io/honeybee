@@ -7,7 +7,7 @@
     "@foxglove/studio-base": "workspace:*"
   },
   "devDependencies": {
-    "@fluentui/react-icons": "2.0.227",
+    "@fluentui/react-icons": "2.0.345",
     "@foxglove/log": "workspace:*",
     "@foxglove/theme": "workspace:*",
     "@foxglove/tsconfig": "3.2.0",
@@ -17,8 +17,8 @@
     "@sentry/webpack-plugin": "2.22.0",
     "@types/react-refresh": "^0",
     "assert": "2.1.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-i18next": "14.0.5",
     "react-refresh": "0.18.0",
     "tss-react": "4.9.21",

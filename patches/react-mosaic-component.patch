@@ -1,0 +1,230 @@
+diff --git a/lib/Mosaic.d.ts b/lib/Mosaic.d.ts
+--- a/lib/Mosaic.d.ts
++++ b/lib/Mosaic.d.ts
+@@ -4,5 +4,5 @@
+ export interface MosaicBaseProps<T extends MosaicKey> {
+     /**
+-     * Lookup function to convert `T` to a displayable `JSX.Element`
++     * Lookup function to convert `T` to a displayable `React.JSX.Element`
+      */
+     renderTile: TileRenderer<T>;
+@@ -29,5 +29,5 @@
+      * default: Simple NonIdealState view
+      */
+-    zeroStateView?: JSX.Element;
++    zeroStateView?: React.JSX.Element;
+     /**
+      * Override the mosaicId passed to `react-dnd` to control how drag and drop works with other components
+@@ -69,5 +69,5 @@
+     static defaultProps: {
+         onChange: () => undefined;
+-        zeroStateView: JSX.Element;
++        zeroStateView: React.JSX.Element;
+         className: string;
+         blueprintNamespace: string;
+@@ -75,5 +75,5 @@
+     static getDerivedStateFromProps(nextProps: Readonly<MosaicProps<MosaicKey>>, prevState: MosaicState<MosaicKey>): Partial<MosaicState<MosaicKey>> | null;
+     state: MosaicState<T>;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private getRoot;
+     private updateRoot;
+@@ -85,4 +85,4 @@
+ }
+ export declare class Mosaic<T extends MosaicKey = string> extends React.PureComponent<MosaicProps<T>> {
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+ }
+diff --git a/lib/MosaicDropTarget.d.ts b/lib/MosaicDropTarget.d.ts
+--- a/lib/MosaicDropTarget.d.ts
++++ b/lib/MosaicDropTarget.d.ts
+@@ -6,3 +6,3 @@
+     path: MosaicPath;
+ }
+-export declare function MosaicDropTarget({ path, position }: MosaicDropTargetProps): JSX.Element;
++export declare function MosaicDropTarget({ path, position }: MosaicDropTargetProps): React.JSX.Element;
+diff --git a/lib/MosaicRoot.d.ts b/lib/MosaicRoot.d.ts
+--- a/lib/MosaicRoot.d.ts
++++ b/lib/MosaicRoot.d.ts
+@@ -10,5 +10,5 @@
+     static contextType: React.Context<MosaicContext<MosaicKey>>;
+     context: MosaicContext<T>;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private renderRecursively;
+     private renderSplit;
+diff --git a/lib/MosaicWindow.d.ts b/lib/MosaicWindow.d.ts
+--- a/lib/MosaicWindow.d.ts
++++ b/lib/MosaicWindow.d.ts
+@@ -15,6 +15,6 @@
+     draggable?: boolean;
+     createNode?: CreateNode<T>;
+-    renderPreview?: (props: MosaicWindowProps<T>) => JSX.Element;
+-    renderToolbar?: ((props: MosaicWindowProps<T>, draggable: boolean | undefined) => JSX.Element) | null;
++    renderPreview?: (props: MosaicWindowProps<T>) => React.JSX.Element;
++    renderToolbar?: ((props: MosaicWindowProps<T>, draggable: boolean | undefined) => React.JSX.Element) | null;
+     onDragStart?: () => void;
+     onDragEnd?: (type: 'drop' | 'reset') => void;
+@@ -39,5 +39,5 @@
+     state: InternalMosaicWindowState;
+     private rootElement;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private getToolbarControls;
+     private renderToolbar;
+@@ -52,4 +52,4 @@
+ }
+ export declare class MosaicWindow<T extends MosaicKey = string> extends React.PureComponent<MosaicWindowProps<T>> {
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+ }
+diff --git a/lib/MosaicZeroState.d.ts b/lib/MosaicZeroState.d.ts
+--- a/lib/MosaicZeroState.d.ts
++++ b/lib/MosaicZeroState.d.ts
+@@ -8,5 +8,5 @@
+     static contextType: React.Context<MosaicContext<MosaicKey>>;
+     context: MosaicContext<T>;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private replace;
+ }
+diff --git a/lib/RootDropTargets.d.ts b/lib/RootDropTargets.d.ts
+--- a/lib/RootDropTargets.d.ts
++++ b/lib/RootDropTargets.d.ts
+@@ -1,2 +1,2 @@
+ import React from 'react';
+-export declare const RootDropTargets: React.MemoExoticComponent<() => JSX.Element>;
++export declare const RootDropTargets: React.MemoExoticComponent<() => React.JSX.Element>;
+diff --git a/lib/Split.d.ts b/lib/Split.d.ts
+--- a/lib/Split.d.ts
++++ b/lib/Split.d.ts
+@@ -17,5 +17,5 @@
+         minimumPaneSizePercentage: number;
+     };
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     componentDidMount(): void;
+     componentWillUnmount(): void;
+diff --git a/lib/buttons/ExpandButton.d.ts b/lib/buttons/ExpandButton.d.ts
+--- a/lib/buttons/ExpandButton.d.ts
++++ b/lib/buttons/ExpandButton.d.ts
+@@ -5,5 +5,5 @@
+     static contextType: React.Context<MosaicWindowContext>;
+     context: MosaicWindowContext;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private createExpand;
+ }
+diff --git a/lib/buttons/MosaicButton.d.ts b/lib/buttons/MosaicButton.d.ts
+--- a/lib/buttons/MosaicButton.d.ts
++++ b/lib/buttons/MosaicButton.d.ts
+@@ -5,9 +5,9 @@
+     onClick: (event: React.MouseEvent<any>) => any;
+     text?: string | undefined;
+-}) => JSX.Element;
++}) => React.JSX.Element;
+ /**
+  * @deprecated: see @DefaultToolbarButton
+  */
+-export declare const createDefaultToolbarButton: (title: string, className: string, onClick: (event: React.MouseEvent<any>) => any, text?: string) => JSX.Element;
++export declare const createDefaultToolbarButton: (title: string, className: string, onClick: (event: React.MouseEvent<any>) => any, text?: string) => React.JSX.Element;
+ export interface MosaicButtonProps {
+     onClick?: () => void;
+diff --git a/lib/buttons/RemoveButton.d.ts b/lib/buttons/RemoveButton.d.ts
+--- a/lib/buttons/RemoveButton.d.ts
++++ b/lib/buttons/RemoveButton.d.ts
+@@ -5,5 +5,5 @@
+     static contextType: React.Context<MosaicWindowContext>;
+     context: MosaicWindowContext;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private createRemove;
+ }
+diff --git a/lib/buttons/ReplaceButton.d.ts b/lib/buttons/ReplaceButton.d.ts
+--- a/lib/buttons/ReplaceButton.d.ts
++++ b/lib/buttons/ReplaceButton.d.ts
+@@ -5,5 +5,5 @@
+     static contextType: React.Context<MosaicWindowContext>;
+     context: MosaicWindowContext;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private replace;
+ }
+diff --git a/lib/buttons/Separator.d.ts b/lib/buttons/Separator.d.ts
+--- a/lib/buttons/Separator.d.ts
++++ b/lib/buttons/Separator.d.ts
+@@ -1,4 +1,4 @@
+ import React from 'react';
+ export declare class Separator extends React.PureComponent {
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+ }
+diff --git a/lib/buttons/SplitButton.d.ts b/lib/buttons/SplitButton.d.ts
+--- a/lib/buttons/SplitButton.d.ts
++++ b/lib/buttons/SplitButton.d.ts
+@@ -5,5 +5,5 @@
+     static contextType: React.Context<MosaicWindowContext>;
+     context: MosaicWindowContext;
+-    render(): JSX.Element;
++    render(): React.JSX.Element;
+     private split;
+ }
+diff --git a/lib/buttons/defaultToolbarControls.d.ts b/lib/buttons/defaultToolbarControls.d.ts
+--- a/lib/buttons/defaultToolbarControls.d.ts
++++ b/lib/buttons/defaultToolbarControls.d.ts
+@@ -1,3 +1,3 @@
+ import React from 'react';
+-export declare const DEFAULT_CONTROLS_WITH_CREATION: (string | number | React.ReactElement<any, string | React.JSXElementConstructor<any>> | React.ReactFragment | React.ReactPortal)[];
+-export declare const DEFAULT_CONTROLS_WITHOUT_CREATION: (string | number | React.ReactElement<any, string | React.JSXElementConstructor<any>> | React.ReactFragment | React.ReactPortal)[];
++export declare const DEFAULT_CONTROLS_WITH_CREATION: (string | number | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal)[];
++export declare const DEFAULT_CONTROLS_WITHOUT_CREATION: (string | number | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal)[];
+diff --git a/lib/types.d.ts b/lib/types.d.ts
+--- a/lib/types.d.ts
++++ b/lib/types.d.ts
+@@ -35,5 +35,5 @@
+  * This provides a way to render them.
+  */
+-export type TileRenderer<T extends MosaicKey> = (t: T, path: MosaicBranch[]) => JSX.Element;
++export type TileRenderer<T extends MosaicKey> = (t: T, path: MosaicBranch[]) => React.JSX.Element;
+ /**
+  * Function that provides a new node to put into the tree
+diff --git a/lib/util/OptionalBlueprint.d.ts b/lib/util/OptionalBlueprint.d.ts
+--- a/lib/util/OptionalBlueprint.d.ts
++++ b/lib/util/OptionalBlueprint.d.ts
+@@ -7,5 +7,5 @@
+         className?: string | undefined;
+         size?: "standard" | "large" | undefined;
+-    }) => JSX.Element;
++    }) => React.JSX.Element;
+     type BlueprintClass = {
+         [K in keyof typeof Classes]: (typeof Classes)[K] extends string ? K : never;
+diff --git a/lib/buttons/defaultToolbarControls.js b/lib/buttons/defaultToolbarControls.js
+--- a/lib/buttons/defaultToolbarControls.js
++++ b/lib/buttons/defaultToolbarControls.js
+@@ -13,4 +13,4 @@
+-    react_1.default.createElement(ReplaceButton_1.ReplaceButton, null),
+-    react_1.default.createElement(SplitButton_1.SplitButton, null),
+-    react_1.default.createElement(ExpandButton_1.ExpandButton, null),
+-    react_1.default.createElement(RemoveButton_1.RemoveButton, null),
++    react_1.default.createElement(ReplaceButton_1.ReplaceButton, { key: "replace" }),
++    react_1.default.createElement(SplitButton_1.SplitButton, { key: "split" }),
++    react_1.default.createElement(ExpandButton_1.ExpandButton, { key: "expand" }),
++    react_1.default.createElement(RemoveButton_1.RemoveButton, { key: "remove" }),
+@@ -18 +18 @@
+-exports.DEFAULT_CONTROLS_WITHOUT_CREATION = react_1.default.Children.toArray([react_1.default.createElement(ExpandButton_1.ExpandButton, null), react_1.default.createElement(RemoveButton_1.RemoveButton, null)]);
++exports.DEFAULT_CONTROLS_WITHOUT_CREATION = react_1.default.Children.toArray([react_1.default.createElement(ExpandButton_1.ExpandButton, { key: "expand" }), react_1.default.createElement(RemoveButton_1.RemoveButton, { key: "remove" })]);
+diff --git a/src/buttons/defaultToolbarControls.tsx b/src/buttons/defaultToolbarControls.tsx
+--- a/src/buttons/defaultToolbarControls.tsx
++++ b/src/buttons/defaultToolbarControls.tsx
+@@ -8,4 +8,4 @@
+-  <ReplaceButton />,
+-  <SplitButton />,
+-  <ExpandButton />,
+-  <RemoveButton />,
++  <ReplaceButton key="replace" />,
++  <SplitButton key="split" />,
++  <ExpandButton key="expand" />,
++  <RemoveButton key="remove" />,
+@@ -13 +13 @@
+-export const DEFAULT_CONTROLS_WITHOUT_CREATION = React.Children.toArray([<ExpandButton />, <RemoveButton />]);
++export const DEFAULT_CONTROLS_WITHOUT_CREATION = React.Children.toArray([<ExpandButton key="expand" />, <RemoveButton key="remove" />]);

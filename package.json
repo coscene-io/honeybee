@@ -56,7 +56,8 @@
     "package": "cross-env NODE_OPTIONS='-r ts-node/register' electron-builder build --config desktop/electronBuilderConfig.js --publish never",
     "package:e2e": "yarn && yarn clean && yarn desktop:build:prod && yarn package",
     "release:bump-nightly-version": "node -r ts-node/register ./ci/bump-nightly-version.ts",
-    "version:all": "yarn workspaces foreach version"
+    "version:all": "yarn workspaces foreach version",
+    "typecheck:react19": "tsc --noEmit -p tsconfig.react19.json && tsc --noEmit -p tsconfig.react19-entrypoints.json"
   },
   "workspaces": {
     "packages": [
@@ -68,13 +69,17 @@
     ]
   },
   "resolutions": {
+    "@mui/material": "patch:@mui/material@npm:7.3.11#./patches/mui-material.patch",
     "@typescript/old": "npm:typescript@6.0.2",
     "@types/node": "24.13.1",
-    "@types/react": "18.3.27",
+    "@types/react": "19.3.0",
     "react-use": "patch:react-use@17.6.1#./patches/react-use.patch",
     "react-dnd": "patch:react-dnd@npm:16.0.1#./patches/react-dnd.patch",
-    "react-is": "18.3.1",
-    "node-gyp/undici": "6.29.1"
+    "react-is": "19.3.1",
+    "node-gyp/undici": "6.29.1",
+    "@types/react-dom": "19.3.0",
+    "react-mosaic-component": "patch:react-mosaic-component@npm:6.2.0#./patches/react-mosaic-component.patch",
+    "react-i18next": "patch:react-i18next@npm:14.0.5#./patches/react-i18next.patch"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",

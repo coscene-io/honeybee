@@ -242,7 +242,7 @@ export function UnconnectedPlaybackTimeDisplay({
   const { t } = useTranslation("general");
   const inputRef = useRef<HTMLInputElement>(ReactNull);
   const editingRef = useRef(false);
-  const originalInputRef = useRef<string>();
+  const originalInputRef = useRef<string>(undefined);
   const timeOutID = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const timeRawString = useMemo(
@@ -319,7 +319,7 @@ export function UnconnectedPlaybackTimeDisplay({
   }, [inputText, startTime, endTime, timezone, onSeek, appTimeFormat]);
 
   const onSubmit = useCallback(
-    (event: React.FormEvent) => {
+    (event: React.SubmitEvent) => {
       event.preventDefault();
       if (commitInput()) {
         setIsEditing(false);

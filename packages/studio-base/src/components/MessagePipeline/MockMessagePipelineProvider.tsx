@@ -16,7 +16,7 @@
 
 import type { Immutable } from "immer";
 import * as _ from "lodash-es";
-import type { MutableRefObject } from "react";
+import type { RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import shallowequal from "shallowequal";
 import type { Writable } from "ts-essentials";
@@ -105,7 +105,7 @@ function getPublicState(
   prevState: MockMessagePipelineState | undefined,
   props: MockMessagePipelineProps,
   dispatch: MockMessagePipelineState["dispatch"],
-  promisesToWaitForRef: MutableRefObject<FramePromise[]>,
+  promisesToWaitForRef: RefObject<FramePromise[]>,
 ): Omit<MessagePipelineInternalState["public"], "messageEventsBySubscriberId"> {
   let startTime = prevState?.public.playerState.activeData?.startTime;
   let currentTime = props.currentTime;
@@ -211,7 +211,7 @@ export default function MockMessagePipelineProvider(
   props: React.PropsWithChildren<MockMessagePipelineProps>,
 ): React.ReactElement {
   const promisesToWaitForRef = useRef<FramePromise[]>([]);
-  const startTime = useRef<Time | undefined>();
+  const startTime = useRef<Time | undefined>(undefined);
   let currentTime = props.currentTime;
   if (!currentTime) {
     for (const message of props.messages ?? []) {

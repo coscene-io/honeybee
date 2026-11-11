@@ -92,7 +92,7 @@ let mockBeforeRenderer: (() => void) | undefined;
 jest.mock("./RendererOverlay", () => ({ RendererOverlay: () => ReactNull }));
 jest.mock("@foxglove/studio-base/theme/ThemeProvider", () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => children,
+  default: ({ children }: { children: React.ReactNode }): React.ReactNode => children,
 }));
 jest.mock("@foxglove/studio-base/context/AnalyticsContext", () => ({
   useAnalytics: () => undefined,

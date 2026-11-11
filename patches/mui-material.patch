@@ -1,0 +1,300 @@
+diff --git a/ButtonBase/ButtonBase.js b/ButtonBase/ButtonBase.js
+--- a/ButtonBase/ButtonBase.js
++++ b/ButtonBase/ButtonBase.js
+@@ -136,16 +136,25 @@
+       buttonRef.current.focus();
+     }
+   }), []);
+-  const enableTouchRipple = ripple.shouldMount && !disableRipple && !disabled;
++  const rippleEnabled = !disableRipple && !disabled;
++  const enableTouchRipple = ripple.shouldMount && rippleEnabled;
+   React.useEffect(() => {
+-    if (focusVisible && focusRipple && !disableRipple) {
++    // A user event callback can disable the button before a queued ripple mounts. Settle that
++    // request without retaining the event (and its relatedTarget) or replaying it on a later ref.
++    if (!rippleEnabled) {
++      ripple.cancel();
++    }
++    return () => ripple.cancel();
++  }, [ripple, rippleEnabled]);
++  React.useEffect(() => {
++    if (focusVisible && focusRipple && rippleEnabled) {
+       ripple.pulsate();
+     }
+-  }, [disableRipple, focusRipple, focusVisible, ripple]);
+-  const handleMouseDown = useRippleHandler(ripple, 'start', onMouseDown, disableTouchRipple);
+-  const handleContextMenu = useRippleHandler(ripple, 'stop', onContextMenu, disableTouchRipple);
+-  const handleDragLeave = useRippleHandler(ripple, 'stop', onDragLeave, disableTouchRipple);
+-  const handleMouseUp = useRippleHandler(ripple, 'stop', onMouseUp, disableTouchRipple);
++  }, [rippleEnabled, focusRipple, focusVisible, ripple]);
++  const handleMouseDown = useRippleHandler(ripple, 'start', onMouseDown, disableTouchRipple || !rippleEnabled);
++  const handleContextMenu = useRippleHandler(ripple, 'stop', onContextMenu, disableTouchRipple || !rippleEnabled);
++  const handleDragLeave = useRippleHandler(ripple, 'stop', onDragLeave, disableTouchRipple || !rippleEnabled);
++  const handleMouseUp = useRippleHandler(ripple, 'stop', onMouseUp, disableTouchRipple || !rippleEnabled);
+   const handleMouseLeave = useRippleHandler(ripple, 'stop', event => {
+     if (focusVisible) {
+       event.preventDefault();
+@@ -153,10 +162,10 @@
+     if (onMouseLeave) {
+       onMouseLeave(event);
+     }
+-  }, disableTouchRipple);
+-  const handleTouchStart = useRippleHandler(ripple, 'start', onTouchStart, disableTouchRipple);
+-  const handleTouchEnd = useRippleHandler(ripple, 'stop', onTouchEnd, disableTouchRipple);
+-  const handleTouchMove = useRippleHandler(ripple, 'stop', onTouchMove, disableTouchRipple);
++  }, disableTouchRipple || !rippleEnabled);
++  const handleTouchStart = useRippleHandler(ripple, 'start', onTouchStart, disableTouchRipple || !rippleEnabled);
++  const handleTouchEnd = useRippleHandler(ripple, 'stop', onTouchEnd, disableTouchRipple || !rippleEnabled);
++  const handleTouchMove = useRippleHandler(ripple, 'stop', onTouchMove, disableTouchRipple || !rippleEnabled);
+   const handleBlur = useRippleHandler(ripple, 'stop', event => {
+     if (!(0, _isFocusVisible.default)(event.target)) {
+       setFocusVisible(false);
+@@ -164,7 +173,7 @@
+     if (onBlur) {
+       onBlur(event);
+     }
+-  }, false);
++  }, !rippleEnabled);
+   const handleFocus = (0, _useEventCallback.default)(event => {
+     // Fix for https://github.com/facebook/react/issues/7769
+     if (!buttonRef.current) {
+@@ -192,7 +201,7 @@
+   };
+   const handleKeyDown = (0, _useEventCallback.default)(event => {
+     // Check if key is already down to avoid repeats being counted as multiple activations
+-    if (focusRipple && !event.repeat && focusVisible && event.key === ' ') {
++    if (rippleEnabled && focusRipple && !event.repeat && focusVisible && event.key === ' ') {
+       ripple.stop(event, () => {
+         ripple.start(event);
+       });
+@@ -215,7 +224,7 @@
+   const handleKeyUp = (0, _useEventCallback.default)(event => {
+     // calling preventDefault in keyUp on a <button> will not dispatch a click event if Space is pressed
+     // https://codesandbox.io/p/sandbox/button-keyup-preventdefault-dn7f0
+-    if (focusRipple && event.key === ' ' && focusVisible && !event.defaultPrevented) {
++    if (rippleEnabled && focusRipple && event.key === ' ' && focusVisible && !event.defaultPrevented) {
+       ripple.stop(event, () => {
+         ripple.pulsate(event);
+       });
+diff --git a/useLazyRipple/useLazyRipple.js b/useLazyRipple/useLazyRipple.js
+--- a/useLazyRipple/useLazyRipple.js
++++ b/useLazyRipple/useLazyRipple.js
+@@ -43,6 +43,7 @@
+     this.ref = {
+       current: null
+     };
++    this.generation = 0;
+     this.mounted = null;
+     this.didMount = false;
+     this.shouldMount = false;
+@@ -65,16 +66,38 @@
+     }
+   };
+ 
++  // Settling rather than replacing the promise releases queued event arguments. Keep shouldMount
++  // so re-enabling the button mounts its ripple ref before the next interaction.
++  cancel() {
++    this.generation++;
++    this.mounted?.resolve();
++  }
++
+   /* Ripple API */
+ 
+   start(...args) {
+-    this.mount().then(() => this.ref.current?.start(...args));
++    const generation = this.generation;
++    this.mount().then(() => {
++      if (generation === this.generation) {
++        this.ref.current?.start(...args);
++      }
++    });
+   }
+   stop(...args) {
+-    this.mount().then(() => this.ref.current?.stop(...args));
++    const generation = this.generation;
++    this.mount().then(() => {
++      if (generation === this.generation) {
++        this.ref.current?.stop(...args);
++      }
++    });
+   }
+   pulsate(...args) {
+-    this.mount().then(() => this.ref.current?.pulsate(...args));
++    const generation = this.generation;
++    this.mount().then(() => {
++      if (generation === this.generation) {
++        this.ref.current?.pulsate(...args);
++      }
++    });
+   }
+ }
+ exports.LazyRipple = LazyRipple;
+diff --git a/useLazyRipple/useLazyRipple.d.ts b/useLazyRipple/useLazyRipple.d.ts
+--- a/useLazyRipple/useLazyRipple.d.ts
++++ b/useLazyRipple/useLazyRipple.d.ts
+@@ -15,6 +15,7 @@
+   shouldMount: boolean;
+   /** Promise that resolves when the ripple component is mounted */
+   private mounted;
++  private generation;
+   /** If the ripple component has been mounted */
+   private didMount;
+   /** React state hook setter */
+@@ -22,6 +23,7 @@
+   static create(): LazyRipple;
+   static use(): LazyRipple;
+   constructor();
++  cancel(): void;
+   mount(): ControlledPromise<unknown>;
+   mountEffect: () => void;
+   start(...args: Parameters<TouchRippleActions['start']>): void;
+diff --git a/esm/ButtonBase/ButtonBase.js b/esm/ButtonBase/ButtonBase.js
+--- a/esm/ButtonBase/ButtonBase.js
++++ b/esm/ButtonBase/ButtonBase.js
+@@ -129,16 +129,25 @@
+       buttonRef.current.focus();
+     }
+   }), []);
+-  const enableTouchRipple = ripple.shouldMount && !disableRipple && !disabled;
++  const rippleEnabled = !disableRipple && !disabled;
++  const enableTouchRipple = ripple.shouldMount && rippleEnabled;
+   React.useEffect(() => {
+-    if (focusVisible && focusRipple && !disableRipple) {
++    // A user event callback can disable the button before a queued ripple mounts. Settle that
++    // request without retaining the event (and its relatedTarget) or replaying it on a later ref.
++    if (!rippleEnabled) {
++      ripple.cancel();
++    }
++    return () => ripple.cancel();
++  }, [ripple, rippleEnabled]);
++  React.useEffect(() => {
++    if (focusVisible && focusRipple && rippleEnabled) {
+       ripple.pulsate();
+     }
+-  }, [disableRipple, focusRipple, focusVisible, ripple]);
+-  const handleMouseDown = useRippleHandler(ripple, 'start', onMouseDown, disableTouchRipple);
+-  const handleContextMenu = useRippleHandler(ripple, 'stop', onContextMenu, disableTouchRipple);
+-  const handleDragLeave = useRippleHandler(ripple, 'stop', onDragLeave, disableTouchRipple);
+-  const handleMouseUp = useRippleHandler(ripple, 'stop', onMouseUp, disableTouchRipple);
++  }, [rippleEnabled, focusRipple, focusVisible, ripple]);
++  const handleMouseDown = useRippleHandler(ripple, 'start', onMouseDown, disableTouchRipple || !rippleEnabled);
++  const handleContextMenu = useRippleHandler(ripple, 'stop', onContextMenu, disableTouchRipple || !rippleEnabled);
++  const handleDragLeave = useRippleHandler(ripple, 'stop', onDragLeave, disableTouchRipple || !rippleEnabled);
++  const handleMouseUp = useRippleHandler(ripple, 'stop', onMouseUp, disableTouchRipple || !rippleEnabled);
+   const handleMouseLeave = useRippleHandler(ripple, 'stop', event => {
+     if (focusVisible) {
+       event.preventDefault();
+@@ -146,10 +155,10 @@
+     if (onMouseLeave) {
+       onMouseLeave(event);
+     }
+-  }, disableTouchRipple);
+-  const handleTouchStart = useRippleHandler(ripple, 'start', onTouchStart, disableTouchRipple);
+-  const handleTouchEnd = useRippleHandler(ripple, 'stop', onTouchEnd, disableTouchRipple);
+-  const handleTouchMove = useRippleHandler(ripple, 'stop', onTouchMove, disableTouchRipple);
++  }, disableTouchRipple || !rippleEnabled);
++  const handleTouchStart = useRippleHandler(ripple, 'start', onTouchStart, disableTouchRipple || !rippleEnabled);
++  const handleTouchEnd = useRippleHandler(ripple, 'stop', onTouchEnd, disableTouchRipple || !rippleEnabled);
++  const handleTouchMove = useRippleHandler(ripple, 'stop', onTouchMove, disableTouchRipple || !rippleEnabled);
+   const handleBlur = useRippleHandler(ripple, 'stop', event => {
+     if (!isFocusVisible(event.target)) {
+       setFocusVisible(false);
+@@ -157,7 +166,7 @@
+     if (onBlur) {
+       onBlur(event);
+     }
+-  }, false);
++  }, !rippleEnabled);
+   const handleFocus = useEventCallback(event => {
+     // Fix for https://github.com/facebook/react/issues/7769
+     if (!buttonRef.current) {
+@@ -185,7 +194,7 @@
+   };
+   const handleKeyDown = useEventCallback(event => {
+     // Check if key is already down to avoid repeats being counted as multiple activations
+-    if (focusRipple && !event.repeat && focusVisible && event.key === ' ') {
++    if (rippleEnabled && focusRipple && !event.repeat && focusVisible && event.key === ' ') {
+       ripple.stop(event, () => {
+         ripple.start(event);
+       });
+@@ -208,7 +217,7 @@
+   const handleKeyUp = useEventCallback(event => {
+     // calling preventDefault in keyUp on a <button> will not dispatch a click event if Space is pressed
+     // https://codesandbox.io/p/sandbox/button-keyup-preventdefault-dn7f0
+-    if (focusRipple && event.key === ' ' && focusVisible && !event.defaultPrevented) {
++    if (rippleEnabled && focusRipple && event.key === ' ' && focusVisible && !event.defaultPrevented) {
+       ripple.stop(event, () => {
+         ripple.pulsate(event);
+       });
+diff --git a/esm/useLazyRipple/useLazyRipple.js b/esm/useLazyRipple/useLazyRipple.js
+--- a/esm/useLazyRipple/useLazyRipple.js
++++ b/esm/useLazyRipple/useLazyRipple.js
+@@ -35,6 +35,7 @@
+     this.ref = {
+       current: null
+     };
++    this.generation = 0;
+     this.mounted = null;
+     this.didMount = false;
+     this.shouldMount = false;
+@@ -57,16 +58,38 @@
+     }
+   };
+ 
++  // Settling rather than replacing the promise releases queued event arguments. Keep shouldMount
++  // so re-enabling the button mounts its ripple ref before the next interaction.
++  cancel() {
++    this.generation++;
++    this.mounted?.resolve();
++  }
++
+   /* Ripple API */
+ 
+   start(...args) {
+-    this.mount().then(() => this.ref.current?.start(...args));
++    const generation = this.generation;
++    this.mount().then(() => {
++      if (generation === this.generation) {
++        this.ref.current?.start(...args);
++      }
++    });
+   }
+   stop(...args) {
+-    this.mount().then(() => this.ref.current?.stop(...args));
++    const generation = this.generation;
++    this.mount().then(() => {
++      if (generation === this.generation) {
++        this.ref.current?.stop(...args);
++      }
++    });
+   }
+   pulsate(...args) {
+-    this.mount().then(() => this.ref.current?.pulsate(...args));
++    const generation = this.generation;
++    this.mount().then(() => {
++      if (generation === this.generation) {
++        this.ref.current?.pulsate(...args);
++      }
++    });
+   }
+ }
+ export default function useLazyRipple() {
+diff --git a/esm/useLazyRipple/useLazyRipple.d.ts b/esm/useLazyRipple/useLazyRipple.d.ts
+--- a/esm/useLazyRipple/useLazyRipple.d.ts
++++ b/esm/useLazyRipple/useLazyRipple.d.ts
+@@ -15,6 +15,7 @@
+   shouldMount: boolean;
+   /** Promise that resolves when the ripple component is mounted */
+   private mounted;
++  private generation;
+   /** If the ripple component has been mounted */
+   private didMount;
+   /** React state hook setter */
+@@ -22,6 +23,7 @@
+   static create(): LazyRipple;
+   static use(): LazyRipple;
+   constructor();
++  cancel(): void;
+   mount(): ControlledPromise<unknown>;
+   mountEffect: () => void;
+   start(...args: Parameters<TouchRippleActions['start']>): void;

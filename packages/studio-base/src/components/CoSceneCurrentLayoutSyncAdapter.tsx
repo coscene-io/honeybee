@@ -62,7 +62,7 @@ export function CurrentLayoutSyncAdapter(): ReactNull {
   const [unsavedLayouts, setUnsavedLayouts] = useState(EMPTY_UNSAVED_LAYOUTS);
   const unsavedLayoutsRef = useRef(unsavedLayouts);
   const previousSelectedLayoutIdRef = useRef(selectedLayout?.id);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const retryDelayMsRef = useRef(SAVE_INTERVAL_MS);
   const [retryToken, setRetryToken] = useState(0);
   useEffect(() => {

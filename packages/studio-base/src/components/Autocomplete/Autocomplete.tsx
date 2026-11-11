@@ -227,7 +227,7 @@ export const Autocomplete = React.forwardRef(function Autocomplete(
           size="small"
         />
       )}
-      renderOption={(optProps, option: FzfResultItem, state) => {
+      renderOption={(optProps, option: FzfResultItem, state): React.ReactNode => {
         // The return values of renderOption are passed as the _child_ argument to the ListboxComponent.
         // Our ReactWindowListboxAdapter expects a tuple for each item in the list and will itself manage
         // when and which items to render using virtualization.

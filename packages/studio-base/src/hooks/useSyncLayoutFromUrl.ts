@@ -49,7 +49,7 @@ export function useSyncLayoutFromUrl(targetUrlState: AppURLState | undefined): v
   const { t } = useTranslation("layout");
 
   const isLayoutIdProcessed = useRef(false);
-  const appliedRemoteMp4TopicRef = useRef<string | undefined>();
+  const appliedRemoteMp4TopicRef = useRef<string | undefined>(undefined);
   const hasSeenDataSourceRef = useRef(false);
   if (dataSource != undefined) {
     hasSeenDataSourceRef.current = true;

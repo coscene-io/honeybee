@@ -48,6 +48,7 @@ import {
   useTimelineInteractionState,
 } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
+import { mergeRefs } from "@foxglove/studio-base/util/mergeRefs";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 import { EVENT_LANE_HEIGHT_PX } from "./constants";
@@ -306,18 +307,6 @@ const selectLoopedEvent = (store: TimelineInteractionStateStore) => store.looped
 const selectSetLoopedEvent = (store: TimelineInteractionStateStore) => store.setLoopedEvent;
 const selectStartTime = (ctx: MessagePipelineContext) => ctx.playerState.activeData?.startTime;
 const selectSeek = (ctx: MessagePipelineContext) => ctx.seekPlayback;
-
-function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
-  return (value) => {
-    for (const ref of refs) {
-      if (typeof ref === "function") {
-        ref(value);
-      } else if (ref != undefined) {
-        (ref as React.MutableRefObject<T | ReactNull>).current = value;
-      }
-    }
-  };
-}
 
 type EventTickClasses = {
   states: string[];

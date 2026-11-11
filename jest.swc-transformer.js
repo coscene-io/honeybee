@@ -16,7 +16,7 @@ module.exports = createTransformer({
     },
     transform: {
       react: {
-        runtime: "classic",
+        runtime: "automatic",
       },
     },
     externalHelpers: false,

@@ -28,7 +28,7 @@ export default function useGetItemStringWithTimezone(): (
 ) => ReactNode {
   const [timezone] = useAppConfigurationValue<string>(AppSetting.TIMEZONE);
   return useCallback(
-    (type: string, data: unknown, itemType: ReactNode, itemString: string) =>
+    (type: string, data: unknown, itemType: ReactNode, itemString: string): ReactNode =>
       getItemString(type, data, itemType, itemString, [], timezone),
     [timezone],
   );

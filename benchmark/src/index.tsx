@@ -22,7 +22,7 @@ if (!rootEl) {
   throw new Error("missing #root element");
 }
 
-async function main() {
+async function main(container: HTMLElement) {
   const { overwriteFetch, waitForFonts } = await import("@foxglove/studio-base");
   overwriteFetch();
   // consider moving waitForFonts into App to display an app loading screen
@@ -32,7 +32,7 @@ async function main() {
 
   const { Root } = await import("./Root");
 
-  createRoot(rootEl).render(<Root />);
+  createRoot(container).render(<Root />);
 }
 
-void main();
+void main(rootEl);
