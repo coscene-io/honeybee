@@ -495,6 +495,10 @@ export type ExtensionPanelRegistration = {
   /**
    * This function is invoked when your panel is initialized
    * @return: (optional) A function which is called when the panel is removed or replaced. Typically intended for cleanup logic to gracefully teardown your panel.
+   * The context becomes inactive immediately on removal or replacement. Cleanup runs in a
+   * microtask after the host's React commit, before its panel container is removed. Release
+   * resources owned by the panel here; do not rely on context writes such as publish or saveState
+   * during cleanup. React panels can return a function that calls root.unmount().
    */
   initPanel: (context: PanelExtensionContext) => void | (() => void);
 };

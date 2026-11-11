@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode, useMemo } from "react";
-import ReactDOM from "react-dom";
 import { DeepPartial } from "ts-essentials";
 
 import { useCrash } from "@foxglove/hooks";
@@ -21,6 +20,7 @@ import {
   BuiltinPanelExtensionContext,
   PanelExtensionAdapter,
 } from "@foxglove/studio-base/components/PanelExtensionAdapter";
+import { mountPanel } from "@foxglove/studio-base/components/PanelExtensionAdapter/mountPanel";
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
@@ -41,8 +41,8 @@ type InitPanelArgs = {
 
 function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
   const { crash, forwardedAnalytics, interfaceMode, testOptions, customSceneExtensions } = args;
-  // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
-  ReactDOM.render(
+  return mountPanel(
+    context.panelElement,
     <StrictMode>
       <CaptureErrorBoundary onError={crash}>
         <ForwardAnalyticsContextProvider forwardedAnalytics={forwardedAnalytics}>
@@ -55,12 +55,7 @@ function initPanel(args: InitPanelArgs, context: BuiltinPanelExtensionContext) {
         </ForwardAnalyticsContextProvider>
       </CaptureErrorBoundary>
     </StrictMode>,
-    context.panelElement,
   );
-  return () => {
-    // eslint-disable-next-line react/no-deprecated, @typescript-eslint/no-deprecated
-    ReactDOM.unmountComponentAtNode(context.panelElement);
-  };
 }
 
 type Props = {
