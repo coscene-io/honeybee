@@ -37,7 +37,6 @@ import {
   type SegmentationRuntime,
   type SegmentationSurface,
 } from "../runtime";
-import { segmentationChrome } from "../segmentationChrome";
 import type { SemanticSegmentationService } from "../service";
 import type { SegmentationDocument } from "../types";
 import { AnnotationPreview } from "./AnnotationPreview";
@@ -791,14 +790,6 @@ export function SegmentationImageEntry({
       sidebarActions.left.selectItem("space");
       if (mode === "maximize") {
         onMaximize();
-      }
-      if (!joining) {
-        const others = segmentationChrome.getState().canvases.filter((canvas) => {
-          return canvas.panelId !== panelId;
-        });
-        for (const canvas of others) {
-          canvas.enterInline();
-        }
       }
     },
     [

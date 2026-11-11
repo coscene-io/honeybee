@@ -52,37 +52,16 @@ afterEach(() => {
   });
 });
 
-it("stays hidden until an image panel can enter annotation", () => {
+it("stays hidden until a session is open, even with image panels registered", () => {
   renderBar();
   expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();
-});
-
-it("opens and maximizes the only canvas from the app bar", () => {
-  const only = canvas("panel-1", "/astribot_camera/head_rgbd/color_compress/compressed/h264");
-  const unregister = registerSegmentationCanvas(only);
-  renderBar();
-  fireEvent.click(screen.getByTitle("编辑空间标注"));
-  fireEvent.click(screen.getByLabelText("放大并编辑空间标注"));
-  expect(only.inline).toHaveBeenCalledTimes(1);
-  expect(only.maximize).toHaveBeenCalledTimes(1);
-  expect(screen.getByTitle("编辑空间标注").textContent).toBe("✎ 编辑空间标注");
+  registerSegmentationCanvas(canvas("head", "/camera/head"));
+  registerSegmentationCanvas(canvas("torso", "/camera/torso"));
   act(() => {
-    unregister();
+    segmentationChrome.setState((state) => ({ canvases: [...state.canvases] }));
   });
+  expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();
   expect(screen.queryByTitle("编辑空间标注")).toBeNull();
-});
-
-it("enters annotation on one click when several image panels are open", () => {
-  const head = canvas("head", "/astribot_camera/head_rgbd/color_compress/compressed/h264");
-  const torso = canvas("torso", "/astribot_camera/torso_rgbd/color_compress/compressed/h264");
-  registerSegmentationCanvas(head);
-  registerSegmentationCanvas(torso);
-  renderBar();
-  expect(screen.queryByRole("button", { name: "放大并编辑空间标注" })).toBeNull();
-  fireEvent.click(screen.getByTitle("编辑空间标注"));
-  expect(screen.queryByRole("dialog", { name: "选择画布" })).toBeNull();
-  expect(head.inline).toHaveBeenCalledTimes(1);
-  expect(torso.inline).not.toHaveBeenCalled();
 });
 
 it("shows the record actions and closes the space from the app bar", async () => {
