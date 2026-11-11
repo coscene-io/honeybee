@@ -74,24 +74,9 @@ export class MediaCacheMissError extends Error {
 export function validatePropagationCapabilities(
   request: PropagationRequest,
   capabilities?: PropagationCapabilities,
-  range?: { beforeFrames: number; afterFrames: number },
 ): void {
   if (!capabilities) {
     return;
-  }
-  const directions = range
-    ? [
-        ...(range.beforeFrames > 0 ? ["backward" as const] : []),
-        ...(range.afterFrames > 0 ? ["forward" as const] : []),
-      ]
-    : [request.direction];
-  for (const direction of directions) {
-    if (!capabilities.directions.includes(direction)) {
-      throw new Error(
-        capabilities.directionReasons?.[direction] ??
-          `Propagation direction ${direction} is not supported by this adapter`,
-      );
-    }
   }
   if (request.model != undefined && !capabilities.models.includes(request.model)) {
     throw new Error("Selected propagation model is not supported by this adapter");

@@ -37,7 +37,6 @@ it("SEG-ONLINE-009/013/SEG-SAVE-002 restart uses corrected stopped-frame seed an
   const running = store.getState().startPropagation({
     instanceId: "instance-1",
     fromFrameId: "frame-0",
-    direction: "forward",
     frameCount: 2,
   });
   await entered.promise;
@@ -52,7 +51,6 @@ it("SEG-ONLINE-009/013/SEG-SAVE-002 restart uses corrected stopped-frame seed an
   await store.getState().startPropagation({
     instanceId: "instance-1",
     fromFrameId: "frame-1",
-    direction: "forward",
     frameCount: 1,
   });
   expect(requests[1]!.seedPolygons).toEqual([corrected]);

@@ -395,7 +395,6 @@ describe("semantic segmentation state", () => {
     const running = store.getState().startPropagation({
       instanceId: "instance-1",
       fromFrameId: "frame-0",
-      direction: "forward",
       frameCount: 2,
     });
     await firstConsumed.promise;
@@ -421,14 +420,13 @@ describe("semantic segmentation state", () => {
     expect(store.getState().document!.classes.some((item) => item.id === classId)).toBe(true);
   });
 
-  it("streams later frames from the current unsubmitted seed and rejects backward", async () => {
+  it("streams later frames from the current unsubmitted seed", async () => {
     const { store } = await setup();
     const polygonId = store.getState().document!.annotations[key]!.polygons[0]!.id;
     store.getState().setPolygonPoints(polygonId, triangle);
     await store.getState().startPropagation({
       instanceId: "instance-1",
       fromFrameId: "frame-0",
-      direction: "forward",
       frameCount: 2,
     });
     expect(store.getState().currentFrameId).toBe("frame-2");
@@ -436,14 +434,6 @@ describe("semantic segmentation state", () => {
       store.getState().document!.annotations[frameInstanceKey("frame-2", "instance-1")]!
         .polygons[0]!.points,
     ).toEqual(shifted(triangle, 2));
-    await expect(
-      store.getState().startPropagation({
-        instanceId: "instance-1",
-        fromFrameId: "frame-2",
-        direction: "backward",
-        frameCount: 2,
-      }),
-    ).rejects.toThrow(/后续帧/);
   });
 
   it("prevents late initialization from changing a disposed store", async () => {

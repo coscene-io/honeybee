@@ -21,7 +21,6 @@ const key = (index: number, instanceId = "instance-1") =>
 const request = {
   fromFrameId: "submission-frame-0",
   instanceId: "instance-1",
-  direction: "forward" as const,
   frameCount: 100,
 };
 

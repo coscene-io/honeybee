@@ -27,18 +27,13 @@ async function flush() {
     realSetTimeout(resolve, 0);
   });
 }
-async function fixture(order = [1, 2, 3], direction: "forward" | "backward" = "forward") {
+async function fixture(order = [1, 2, 3]) {
   const service = createMockSemanticSegmentationService({
     controls: { delayMs: 0, cancelDelayMs: 0 },
   });
   const store = createSemanticSegmentationStore(service);
   await store.getState().initialize();
   const seed = store.getState().document!.annotations[frameInstanceKey("frame-0", "instance-1")]!;
-  if (direction === "backward") {
-    store.getState().setCurrentFrame("frame-4");
-    await flush();
-    store.getState().addPolygon("instance-1", seed.polygons[0]!.points);
-  }
   const pulls: number[] = [];
   service.propagate = async function* (request) {
     for (const frame of order) {
@@ -56,8 +51,7 @@ async function fixture(order = [1, 2, 3], direction: "forward" | "backward" = "f
   const start = async () => {
     await store.getState().startPropagation({
       instanceId: "instance-1",
-      fromFrameId: direction === "backward" ? "frame-4" : "frame-0",
-      direction,
+      fromFrameId: "frame-0",
       frameCount: 3,
     });
   };
@@ -65,14 +59,14 @@ async function fixture(order = [1, 2, 3], direction: "forward" | "backward" = "f
 }
 
 it.each([
-  { order: [1, 2, 3], expected: [1, 2, 3], reverse: false },
-  { order: [3, 2, 1, 1], expected: [1, 2, 3], reverse: false },
-  { order: [1, 3, 2, 2], expected: [1, 2, 3], reverse: false },
-  { order: [3, 1], expected: [1, 3], reverse: false },
+  { order: [1, 2, 3], expected: [1, 2, 3] },
+  { order: [3, 2, 1, 1], expected: [1, 2, 3] },
+  { order: [1, 3, 2, 2], expected: [1, 2, 3] },
+  { order: [3, 1], expected: [1, 3] },
 ])(
   "serializes contiguous/terminal display independently of arrival order: $order",
-  async ({ order, expected, reverse }) => {
-    const f = await fixture(order, reverse ? "backward" : "forward");
+  async ({ order, expected }) => {
+    const f = await fixture(order);
     const running = f.start();
     for (const [index, frame] of expected.entries()) {
       await flush();

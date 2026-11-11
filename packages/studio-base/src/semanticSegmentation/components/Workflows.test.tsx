@@ -280,7 +280,6 @@ describe("workbench workflow integration", () => {
       streaming = runtime.store.getState().startPropagation({
         instanceId: "instance-1",
         fromFrameId: "frame-0",
-        direction: "forward",
         frameCount: 10,
       });
     });

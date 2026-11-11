@@ -294,7 +294,6 @@ describe("structure drag acceptance", () => {
           running = store.getState().startPropagation({
             instanceId: "I",
             fromFrameId: "frame-0",
-            direction: "forward",
             frameCount: 2,
           });
         });

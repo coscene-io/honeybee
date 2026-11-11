@@ -20,10 +20,8 @@ it("uses injected increasing-only choices and sends the supported model and reso
   const service = createMockSemanticSegmentationService({
     controls: { delayMs: 0, streamDelayMs: 0 },
     capabilities: {
-      directions: ["forward"],
       models: ["small"],
       resolutions: [720],
-      directionReasons: { backward: "Only increasing timestamps supported" },
     },
   });
   const store = createSemanticSegmentationStore(service);
@@ -31,15 +29,10 @@ it("uses injected increasing-only choices and sends the supported model and reso
   store.getState().setFocus({ type: "instance", id: "instance-1" });
   const online = jest.spyOn(service, "propagate");
   render(<WorkflowControls store={store} />);
-  expect(screen.getByRole("option", { name: /时间减少/ })).toHaveProperty("disabled", true);
-  expect(screen.getByText(/Only increasing timestamps supported/)).toBeTruthy();
-  expect(screen.getByRole("spinbutton", { name: "前帧数" })).toHaveProperty("disabled", true);
-  expect(screen.getByRole("spinbutton", { name: "前帧数" })).toHaveProperty("value", "0");
   expect(screen.getByRole("combobox", { name: "传播模型" })).toHaveProperty("value", "small");
   expect(screen.getByRole("combobox", { name: "传播分辨率" })).toHaveProperty("value", "720");
   fireEvent.change(screen.getByRole("spinbutton", { name: "后帧数" }), { target: { value: "1" } });
   const expected = {
-    direction: "forward",
     model: "small",
     resolution: 720,
   };

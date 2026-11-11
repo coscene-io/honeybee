@@ -81,7 +81,6 @@ it("SEG-ONLINE-014 failure names the job and explicitly explains retained partia
     await runtime.store.getState().startPropagation({
       fromFrameId: "frame-0",
       instanceId: "instance-1",
-      direction: "forward",
       frameCount: 2,
     });
   });
@@ -147,12 +146,8 @@ it("SEG-ONLINE-001 propagation entry opens online/offline choices and common sup
   const panel = screen.getByRole("complementary", { name: "工作流管理" });
   expect(within(panel).getByRole("button", { name: "在线传播" })).toBeDefined();
   expect(within(panel).queryByRole("button", { name: "加入离线队列" })).toBeNull();
-  for (const name of ["前帧数", "后帧数"]) {
-    expect(within(panel).getByRole("spinbutton", { name })).toBeDefined();
-  }
-  for (const name of ["传播方向", "传播模型"]) {
-    expect(within(panel).getByRole("combobox", { name })).toBeDefined();
-  }
+  expect(within(panel).getByRole("spinbutton", { name: "后帧数" })).toBeDefined();
+  expect(within(panel).getByRole("combobox", { name: "传播模型" })).toBeDefined();
   expect(within(panel).queryByRole("combobox", { name: "传播分辨率" })).toBeNull();
   expect(
     [...within(panel).getByRole<HTMLSelectElement>("combobox", { name: "传播模型" }).options].map(

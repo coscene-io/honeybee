@@ -175,15 +175,13 @@ export type PropagationCancellation = { requestId: string; status: "cancelled" }
 export type PropagationSeed = { instanceId: string; polygons: SegmentationPolygon[] };
 export type MediaCacheSource = { recordId: string; videoId: string; sourceKey?: string };
 export type PropagationCapabilities = {
-  directions: ("forward" | "backward")[];
   models: string[];
   resolutions: number[];
-  directionReasons?: Partial<Record<"forward" | "backward", string>>;
 };
 export type PropagationRequest = {
   instanceId: string;
   fromFrameId: string;
-  direction: "forward" | "backward";
+  /** Propagation only follows later frames after the seed frame. */
   frameCount: number;
   polygonIds?: string[];
   model?: string;

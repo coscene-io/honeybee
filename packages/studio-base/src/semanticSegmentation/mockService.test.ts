@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { createMockSemanticSegmentationService, createSeedDocument } from "./mockService";
-import type { PropagationResult } from "./types";
 
 it("stores the workshop seed as one commit shared by both camera topics", () => {
   const service = createMockSemanticSegmentationService({ controls: { delayMs: 0 } });
@@ -31,36 +30,4 @@ it("stores the workshop seed as one commit shared by both camera topics", () => 
   const document = createSeedDocument();
   expect(document.instances.map((instance) => instance.id)).toContain("instance-1");
   expect(document.videos.map((video) => video.id)).toEqual(["video-1", "video-side"]);
-});
-
-it("rejects backward propagation because the contract only moves to later frames", async () => {
-  const service = createMockSemanticSegmentationService({
-    controls: { delayMs: 0, streamDelayMs: 0 },
-  });
-  const frames: PropagationResult[] = [];
-  const stream = service.propagate(
-    {
-      instanceId: "instance-1",
-      fromFrameId: "frame-10",
-      direction: "backward",
-      frameCount: 1,
-      seedPolygons: [
-        {
-          id: "instance-1-polygon-10",
-          points: [
-            { x: 0.2, y: 0.2 },
-            { x: 0.4, y: 0.2 },
-            { x: 0.4, y: 0.4 },
-          ],
-        },
-      ],
-    },
-    new AbortController().signal,
-  );
-  await expect(async () => {
-    for await (const frame of stream) {
-      frames.push(frame);
-    }
-  }).rejects.toThrow(/later source frames/);
-  expect(frames).toEqual([]);
 });

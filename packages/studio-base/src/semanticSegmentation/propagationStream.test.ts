@@ -55,8 +55,8 @@ function result(
   };
 }
 
-function request(direction: PropagationRequest["direction"] = "forward"): PropagationRequest {
-  return { fromFrameId: "frame-5", instanceId: "instance-1", direction, frameCount: 2 };
+function request(): PropagationRequest {
+  return { fromFrameId: "frame-5", instanceId: "instance-1", frameCount: 2 };
 }
 async function acknowledgedStop(
   store: ReturnType<typeof createSemanticSegmentationStore>,
@@ -75,9 +75,9 @@ async function acknowledgedStop(
   });
 }
 
-it.each([["forward", "frame-7", "frame-6", ["frame-6", "frame-7"]]] as const)(
-  "SEG-ONLINE-010 stages out-of-order %s frames once and plays in timeline direction",
-  async (direction, late, early, expected) => {
+it.each([["frame-7", "frame-6", ["frame-6", "frame-7"]]] as const)(
+  "SEG-ONLINE-010 stages out-of-order frames once and plays in timeline direction",
+  async (late, early, expected) => {
     const { service, store } = await fixture();
     const playback: string[] = [];
     let afterFirstArrival: string | undefined;
@@ -92,7 +92,7 @@ it.each([["forward", "frame-7", "frame-6", ["frame-6", "frame-7"]]] as const)(
       yield result(early, submitted.context);
       yield result(early, submitted.context);
     };
-    await store.getState().startPropagation(request(direction));
+    await store.getState().startPropagation(request());
     expect(afterFirstArrival).toBe("frame-5");
     expect(playback).toEqual(expected);
     expect(store.getState().propagation.processedFrames).toBe(2);

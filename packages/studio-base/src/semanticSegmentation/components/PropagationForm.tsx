@@ -29,10 +29,7 @@ export function PropagationForm({
   sourceReady?: boolean;
 }): React.JSX.Element {
   const state = useStore(store);
-  const [direction, setDirection] = useState<"forward" | "backward">("forward");
-  const [beforeInput, setBeforeInput] = useState("10");
   const [afterInput, setAfterInput] = useState("30");
-  const beforeFrames = Number(beforeInput);
   const afterFrames = Number(afterInput);
   const rangeId = useId();
   const [resolution, setResolution] = useState(1080);
@@ -45,15 +42,11 @@ export function PropagationForm({
   const document = state.document;
   const frame = document?.frames.find((item) => item.id === scope?.frameId);
   const capabilities = state.propagationCapabilities;
-  const allowedDirections = capabilities?.directions ?? ["forward", "backward"];
   const allowedModels = capabilities?.models ?? ["large", "small"];
   const allowedResolutions = capabilities?.resolutions ?? [540, 720, 1080, 2160];
-  const allowBefore = allowedDirections.includes("backward");
-  const allowAfter = allowedDirections.includes("forward");
   const resolutionReady =
     allowedResolutions.length === 0 || allowedResolutions.includes(resolution);
   const supportedParameters =
-    allowedDirections.includes(direction) &&
     allowedModels.includes(model) &&
     resolutionReady &&
     !state.propagationCapabilitiesError &&
@@ -61,9 +54,6 @@ export function PropagationForm({
   useEffect(() => {
     if (!capabilities) {
       return;
-    }
-    if (!capabilities.directions.includes(direction) && capabilities.directions[0]) {
-      setDirection(capabilities.directions[0]);
     }
     if (!capabilities.models.includes(model) && capabilities.models[0]) {
       setModel(capabilities.models[0]);
@@ -74,47 +64,32 @@ export function PropagationForm({
     ) {
       setResolution(capabilities.resolutions[0]);
     }
-    if (!capabilities.directions.includes("backward")) {
-      setBeforeInput("0");
-    }
-    if (!capabilities.directions.includes("forward")) {
-      setAfterInput("0");
-    }
-  }, [capabilities, direction, model, resolution]);
+  }, [capabilities, model, resolution]);
   const seeds = scope?.seeds ?? [];
   const firstSeed = seeds[0];
   const instanceId = firstSeed?.instanceId;
   const hasSeed = seeds.length > 0;
-  const validBefore =
-    beforeInput.trim() !== "" &&
-    Number.isInteger(beforeFrames) &&
-    beforeFrames >= 0 &&
-    beforeFrames <= 10000;
   const validAfter =
     afterInput.trim() !== "" &&
     Number.isInteger(afterFrames) &&
     afterFrames >= 0 &&
     afterFrames <= 10000;
-  const validRange = validBefore && validAfter && beforeFrames + afterFrames > 0;
+  const validRange = validAfter && afterFrames > 0;
   const videoFrames =
     document?.frames
       .filter((item) => item.videoId === frame?.videoId)
       .sort((a, b) => a.index - b.index) ?? [];
   const seedIndex = videoFrames.findIndex((item) => item.id === frame?.id);
-  const effectiveBefore = validRange ? Math.min(beforeFrames, Math.max(0, seedIndex)) : 0;
   const effectiveAfter = validRange
     ? Math.min(afterFrames, Math.max(0, videoFrames.length - seedIndex - 1))
     : 0;
-  const clippedRange =
-    validRange && (effectiveBefore !== beforeFrames || effectiveAfter !== afterFrames);
-  const effectiveRange = `前 ${effectiveBefore} 帧${effectiveBefore > 0 ? `（${seedIndex - effectiveBefore + 1}–${seedIndex}）` : "（无）"} / 后 ${effectiveAfter} 帧${effectiveAfter > 0 ? `（${seedIndex + 2}–${seedIndex + effectiveAfter + 1}）` : "（无）"}`;
+  const clippedRange = validRange && effectiveAfter !== afterFrames;
   const request: PropagationRequest | undefined =
     frame && instanceId
       ? {
           instanceId,
           fromFrameId: frame.id,
-          direction,
-          frameCount: direction === "forward" ? afterFrames : beforeFrames,
+          frameCount: afterFrames,
           ...(allowedResolutions.length > 0 ? { resolution } : {}),
           model,
           polygonIds: firstSeed.polygons.map((polygon) => polygon.id),
@@ -147,23 +122,6 @@ export function PropagationForm({
           ? `${seeds.length} 个实例 · ${seeds.reduce((count, seed) => count + seed.polygons.length, 0)} 个多边形`
           : "当前帧没有可传播的实例"}
       </p>
-      <label>
-        方向
-        <select
-          aria-label="传播方向"
-          value={direction}
-          onChange={(event) => {
-            setDirection(event.target.value as "forward" | "backward");
-          }}
-        >
-          <option value="forward" disabled={!allowAfter}>
-            向后（时间增加）→{!allowAfter ? "（不支持）" : ""}
-          </option>
-          <option value="backward" disabled={!allowBefore}>
-            向前（时间减少）←{!allowBefore ? "（不支持）" : ""}
-          </option>
-        </select>
-      </label>
       {!capabilities &&
         !state.propagationCapabilitiesError &&
         state.propagationCapabilitiesLoading !== true && (
@@ -184,40 +142,6 @@ export function PropagationForm({
           </button>
         </>
       )}
-      {capabilities && !allowBefore && (
-        <p className="seg-muted">
-          时间减少方向不可用：
-          {capabilities.directionReasons?.backward ?? "当前适配器不支持此方向"}。
-        </p>
-      )}
-      {capabilities && !allowAfter && (
-        <p className="seg-muted">
-          时间增加方向不可用：{capabilities.directionReasons?.forward ?? "当前适配器不支持此方向"}。
-        </p>
-      )}
-      <label>
-        前帧数
-        <input
-          aria-label="前帧数"
-          type="number"
-          min={0}
-          max={10000}
-          value={beforeInput}
-          disabled={!allowBefore}
-          aria-invalid={!validBefore}
-          aria-describedby={!validBefore ? `${rangeId}-before-error` : undefined}
-          onChange={(event) => {
-            if (allowBefore) {
-              setBeforeInput(event.target.value);
-            }
-          }}
-        />
-        {!validBefore && (
-          <small id={`${rangeId}-before-error`} role="alert">
-            前帧数必须是 0–10000 的有限整数。
-          </small>
-        )}
-      </label>
       <label>
         后帧数
         <input
@@ -226,13 +150,10 @@ export function PropagationForm({
           min={0}
           max={10000}
           value={afterInput}
-          disabled={!allowAfter}
           aria-invalid={!validAfter}
           aria-describedby={!validAfter ? `${rangeId}-after-error` : undefined}
           onChange={(event) => {
-            if (allowAfter) {
-              setAfterInput(event.target.value);
-            }
+            setAfterInput(event.target.value);
           }}
         />
         {!validAfter && (
@@ -241,18 +162,14 @@ export function PropagationForm({
           </small>
         )}
       </label>
-      {validBefore && validAfter && beforeFrames + afterFrames === 0 && (
-        <p role="alert">前帧数和后帧数不能同时为 0。</p>
-      )}
+      {validAfter && afterFrames === 0 && <p role="alert">后帧数必须大于 0。</p>}
       {validRange && frame && (
         <p aria-label="有效传播范围" className="seg-muted">
-          源帧 {frame.index + 1} [{frame.id}] · 有效范围：{effectiveRange}
+          源帧 {frame.index + 1} [{frame.id}] · 有效范围：后 {effectiveAfter} 帧
           {clippedRange ? " · 已按片段边界裁剪。" : ""}
         </p>
       )}
-      {validRange && effectiveBefore + effectiveAfter === 0 && (
-        <p role="alert">当前范围内没有可传播的其他帧。</p>
-      )}
+      {validRange && effectiveAfter === 0 && <p role="alert">当前范围内没有可传播的其他帧。</p>}
       {allowedResolutions.length > 0 && (
         <label>
           分辨率

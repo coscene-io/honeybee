@@ -226,10 +226,8 @@ export function createMockSemanticSegmentationService(
     ...options.controls,
   };
   const capabilities = cloneSegmentation<PropagationCapabilities>({
-    directions: ["forward"],
     models: ["sam2.1-motion", "sam3.1"],
     resolutions: [],
-    directionReasons: { backward: "标注契约只从种子帧向后续帧传播" },
     ...options.capabilities,
   });
   let document = cloneSegmentation(seed);
@@ -565,9 +563,6 @@ export function createMockSemanticSegmentationService(
     async *propagate(request, signal) {
       const context = cloneSegmentation(request.context);
       await before(signal);
-      if (request.direction !== "forward") {
-        throw new Error("Propagation only follows later source frames");
-      }
       validatePropagationCapabilities(request, capabilities);
       const source = document.frames.find((frame) => frame.id === request.fromFrameId);
       if (!source) {

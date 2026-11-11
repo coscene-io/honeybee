@@ -347,7 +347,6 @@ it("invalidates redo when a streamed propagation result is accepted", async () =
   await store.getState().startPropagation({
     instanceId: "instance-1",
     fromFrameId: "frame-0",
-    direction: "forward",
     frameCount: 1,
   });
   expect(store.getState().propagation.processedFrames).toBe(1);

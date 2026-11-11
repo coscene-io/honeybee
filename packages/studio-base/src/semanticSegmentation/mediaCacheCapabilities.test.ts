@@ -12,7 +12,6 @@ import type { PropagationCapabilities, PropagationRequest } from "./types";
 const request: PropagationRequest = {
   instanceId: "instance-1",
   fromFrameId: "frame-0",
-  direction: "forward",
   frameCount: 1,
   model: "small",
   resolution: 720,
@@ -28,22 +27,16 @@ async function prepared(capabilities?: Partial<PropagationCapabilities>) {
   return { service, store };
 }
 
-it("blocks unsupported direction, model and resolution before inference", async () => {
+it("blocks unsupported model and resolution before inference", async () => {
   const { service, store } = await prepared({
-    directions: ["forward"],
     models: ["small"],
     resolutions: [720],
-    directionReasons: { backward: "This mock supports increasing frame indices only" },
   });
   const online = jest.spyOn(service, "propagate");
   expect(store.getState().propagationCapabilities).toMatchObject({
-    directions: ["forward"],
     models: ["small"],
     resolutions: [720],
   });
-  await expect(
-    store.getState().startPropagation({ ...request, direction: "backward" }),
-  ).rejects.toThrow("increasing");
   await expect(store.getState().startPropagation({ ...request, model: "large" })).rejects.toThrow(
     "model",
   );
@@ -53,13 +46,12 @@ it("blocks unsupported direction, model and resolution before inference", async 
   expect(online).not.toHaveBeenCalled();
   await store.getState().startPropagation(request);
   expect(online.mock.calls[0]![0]).toMatchObject({
-    direction: "forward",
     model: "small",
     resolution: 720,
   });
   const queried = await service.getPropagationCapabilities!();
-  queried.directions.push("backward");
-  expect((await service.getPropagationCapabilities!()).directions).toEqual(["forward"]);
+  queried.models.push("large");
+  expect((await service.getPropagationCapabilities!()).models).toEqual(["small"]);
   store.getState().dispose();
 });
 
@@ -108,7 +100,7 @@ it("keeps document editing independent from a pending query and retries capabili
     throw new Error("Retry query failed");
   };
   await store.getState().refreshPropagationCapabilities();
-  release({ directions: ["forward"], models: ["small"], resolutions: [720] });
+  release({ models: ["small"], resolutions: [720] });
   await Promise.resolve();
   await Promise.resolve();
   expect(store.getState().propagationCapabilitiesError).toBe("Retry query failed");

@@ -34,7 +34,7 @@ it("identifies negative, fractional, empty and both-zero forward ranges without 
     expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
   }
   fireEvent.change(after, { target: { value: "0" } });
-  expect(screen.getByText("前帧数和后帧数不能同时为 0。")).toBeTruthy();
+  expect(screen.getByText("后帧数必须大于 0。")).toBeTruthy();
   expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
   runtime.dispose();
 });

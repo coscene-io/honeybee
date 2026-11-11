@@ -100,7 +100,6 @@ it("sends one request with every seeded instance of the canvas's video", async (
   const online = jest.spyOn(runtime.service, "propagate");
   fireEvent.click(screen.getByRole("button", { name: "传播" }));
   expect(screen.getByText("2 个实例 · 3 个多边形")).toBeTruthy();
-  fireEvent.change(screen.getByRole("spinbutton", { name: "前帧数" }), { target: { value: "0" } });
   fireEvent.change(screen.getByRole("spinbutton", { name: "后帧数" }), { target: { value: "1" } });
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", false);

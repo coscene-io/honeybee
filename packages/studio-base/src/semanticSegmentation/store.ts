@@ -1321,13 +1321,9 @@ export function createSemanticSegmentationStore(
         });
         const targets = initial.frames
           .filter(
-            (frame) =>
-              frame.videoId === sourceFrame.videoId &&
-              (request.direction === "forward"
-                ? frame.index > sourceFrame.index
-                : frame.index < sourceFrame.index),
+            (frame) => frame.videoId === sourceFrame.videoId && frame.index > sourceFrame.index,
           )
-          .sort((a, b) => (request.direction === "forward" ? a.index - b.index : b.index - a.index))
+          .sort((a, b) => a.index - b.index)
           .slice(0, request.frameCount);
         const targetIds = new Set(targets.map((frame) => frame.id));
         const received = new Set<string>();
