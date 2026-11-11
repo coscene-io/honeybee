@@ -58,3 +58,34 @@ it("retains the upstream protection for special map property names", () => {
   expect(decoded.byName.__proto__).toBe(99n);
   expect(Object.getPrototypeOf(decoded.byName)).toBe(Object.prototype);
 });
+
+it.each<[string, bigint]>([
+  ["int64", -(2n ** 63n)],
+  ["uint64", 2n ** 64n - 1n],
+  ["sint64", -(2n ** 53n) - 1n],
+  ["fixed64", 2n ** 64n - 1n],
+  ["sfixed64", -(2n ** 63n)],
+])("preserves proto3 optional %s presence and exact values", (scalar, boundary) => {
+  const root = protobufjs.parse(`syntax = "proto3";
+    message Optional { optional ${scalar} value = 1; }`).root;
+  root.resolveAll();
+  const type = root.lookupType("Optional");
+  const options = { defaults: true, oneofs: true };
+  const absent = type.decode(new Uint8Array());
+  expect(Reflect.get(absent, "value")).toBeNull();
+  expect(type.toObject(absent, options)).toEqual({});
+
+  for (const value of [0n, boundary]) {
+    const wire = type.encode({ value: value.toString() }).finish();
+    expect(type.toObject(type.decode(wire), options)).toEqual({ value, _value: "value" });
+  }
+});
+
+it("preserves a nullable 64-bit default in reflection JSON without a oneof", () => {
+  const type = protobufjs.Type.fromJSON("Optional", {
+    fields: { value: { type: "int64", id: 1, options: { proto3_optional: true } } },
+  });
+  const object = type.toObject(type.decode(new Uint8Array()), { defaults: true });
+  expect(object).toHaveProperty("value");
+  expect(object.value).toBeNull();
+});

@@ -48,8 +48,12 @@
 
 ## 验证与限制
 
+- PR 复审修复：Node 26 Docker 显式安装固定版本 Corepack；Table 浮点 typed array 保留 NaN/Infinity；Protobuf proto3 optional 64 位字段保留 null 默认值；MUI 动态/诊断颜色使用新版支持的属性；AutoSizer 恢复零宽高根节点，允许虚拟列表随父面板缩小；fuzzysort 显式不限量，保留超过 10 项的面板搜索结果。
+- 恢复 tss 中原生 textOverflow 样式和 SvgIcon 的 small 属性，避免把组件 API 误转为无效嵌套样式或不同含义的 CSS 关键字。
+- 新增真实 Chromium 回归：三类列表父容器缩小、隐藏后恢复、滚动到底；Indicator 三种样式的匹配/回退色与诊断四种级别在深浅主题的计算颜色。此测试与 Web 扩展集成测试一同在 CI 执行。
+- 用实际 Docker `node:26.13.0` 基础镜像验证 Corepack 0.36.0 与项目 Yarn 4.18.1 的全新引导安装通过；未构建需要私有依赖凭据的完整生产镜像。
 - 本地不可变安装、CI 类型检查、React 19 严格类型入口、TS6 工具链检查通过。
-- 全量单元测试通过 3,848 项（1 项原有 skip）、38 个快照，含 Cosel 24 保存过滤器兼容和真实 Chart.js / zoom fork 的 wheel/pan 桥接测试。串行 detectOpenHandles 也通过；多 worker 模式仍有非阻断的退出警告。
+- 全量单元测试通过 3,857 项（1 项原有 skip）、38 个快照，含 Cosel 24 保存过滤器兼容和真实 Chart.js / zoom fork 的 wheel/pan 桥接测试。串行 detectOpenHandles 也通过；多 worker 模式仍有非阻断的退出警告。
 - Web、Desktop（main/preload/renderer/Quicklook）、benchmark 生产构建通过；保留现有大包和 asn1.js 可选 vm 警告。
 - 真实 Chromium Web（`/viz/` 与 `/`）扩展安装、保存/重载、移除/重加生命周期通过；真实 Electron 扩展和内置面板 smoke 通过。
 - Electron 资源回归：2 次预热 + 12 次测量开关。四个样本的扩展/宿主面板弱引用均收集；最后相对预热堆 -11,940 bytes、DOM -14、监听器 -3（只是此场景观察，非通用泄漏/性能承诺）。发现并修复新 V8 对最后一个 setter 闭包的保留：使用共享 setter + WeakMap，避免 allocation feedback 引用面板会话。GC 等待覆盖全部被断言的节点，没有放宽零保留断言。

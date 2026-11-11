@@ -8,9 +8,11 @@ ARG SENTRY_AUTH_TOKEN
 ENV IMAGE_TAG=${CURRENT_IMAGE_TAG}
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
+# Node 25+ no longer bundles Corepack. Pin the bootstrap tool for reproducible builds.
+RUN npm install --global corepack@0.36.0 && corepack enable
+
 COPY . ./
 
-RUN corepack enable
 RUN yarn install --immutable
 
 RUN yarn run web:build:prod

@@ -111,7 +111,7 @@ const useStyles = makeStyles()((theme) => ({
     flex: 1,
     minWidth: 0,
     overflow: "hidden",
-    sx: { textOverflow: "ellipsis" },
+    textOverflow: "ellipsis",
     textDecoration: "none",
     "& svg": {
       color: theme.palette.text.secondary,

@@ -24,6 +24,7 @@ import {
   TableRow,
   IconButton,
   Typography,
+  TypographyProps,
   tableRowClasses,
   iconButtonClasses,
 } from "@mui/material";
@@ -314,11 +315,11 @@ export default function DiagnosticStatus(props: Props): React.JSX.Element {
     });
   }, [classes.iconButton, info.status, openSiblingPanel, renderKeyValueCell, topicToRender]);
 
-  const STATUS_COLORS: Record<number, string> = {
-    [LEVELS.OK]: "success.main",
-    [LEVELS.ERROR]: "error.main",
-    [LEVELS.WARN]: "warning.main",
-    [LEVELS.STALE]: "text.secondary",
+  const STATUS_COLORS: Record<number, TypographyProps["color"]> = {
+    [LEVELS.OK]: "success",
+    [LEVELS.ERROR]: "error",
+    [LEVELS.WARN]: "warning",
+    [LEVELS.STALE]: "textSecondary",
   };
 
   return (

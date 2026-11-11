@@ -632,7 +632,6 @@ export function RetentionWindowMs(): React.ReactElement {
   const [showTips, setShowTips] = useState(false);
   const { reloadCurrentSource } = usePlayerSelection();
 
-  const { theme } = useStyles();
   const getDurationText = useCallback(
     (ms: number) => {
       switch (ms) {
@@ -699,7 +698,7 @@ export function RetentionWindowMs(): React.ReactElement {
       </SmartSelect>
       {showTips && (
         <Stack>
-          <Typography color={theme.palette.warning.main}>
+          <Typography color="warning">
             <Trans
               t={t}
               i18nKey="retentionWindowNextEffectiveNotice"
@@ -732,7 +731,6 @@ export function RequestWindow(): React.ReactElement {
   const dataSource = useCoreData(selectDataSource);
   const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
   const { reloadCurrentSource } = usePlayerSelection();
-  const { theme } = useStyles();
   const [showTips, setShowTips] = useState(false);
 
   const onChangeRequestWindow = useCallback(
@@ -770,7 +768,7 @@ export function RequestWindow(): React.ReactElement {
       />
       {shouldShowReloadTip && showTips && (
         <Stack>
-          <Typography color={theme.palette.warning.main}>
+          <Typography color="warning">
             <Trans
               t={t}
               i18nKey="requestWindowNextEffectiveNotice"
@@ -804,7 +802,6 @@ export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull 
   const dataSource = useCoreData(selectDataSource);
   const { reloadCurrentSource } = usePlayerSelection();
   const consoleApi = useConsoleApi();
-  const { theme } = useStyles();
   const [showTips, setShowTips] = useState(false);
   const fixedAvailabilityRequest = useRef(0);
   const [fixedAvailability, setFixedAvailability] = useState<FixedManifestAvailability>("idle");
@@ -910,7 +907,7 @@ export function ManifestStorageSourceSettings(): React.ReactElement | ReactNull 
       </FormControl>
       {showTips && (
         <Stack>
-          <Typography color={theme.palette.warning.main}>
+          <Typography color="warning">
             <Trans
               t={t}
               i18nKey="manifestStorageSourceNextEffectiveNotice"
@@ -942,7 +939,6 @@ export function ReadAheadDuration(): React.ReactElement {
   const dataSource = useCoreData(selectDataSource);
   const shouldShowReloadTip = dataSource?.id === "coscene-data-platform";
   const { reloadCurrentSource } = usePlayerSelection();
-  const { theme } = useStyles();
   const [showTips, setShowTips] = useState(false);
 
   const onChangeReadAheadDuration = useCallback(
@@ -980,7 +976,7 @@ export function ReadAheadDuration(): React.ReactElement {
       />
       {shouldShowReloadTip && showTips && (
         <Stack>
-          <Typography color={theme.palette.warning.main}>
+          <Typography color="warning">
             <Trans
               t={t}
               i18nKey="readAheadDurationNextEffectiveNotice"
@@ -1016,7 +1012,6 @@ export function PlaybackSpillCache({
     AppSetting.PLAYBACK_SPILL_CACHE_ENABLED,
   );
   const [showReloadNotice, setShowReloadNotice] = useState(false);
-  const { theme } = useStyles();
 
   return (
     <Stack>
@@ -1047,7 +1042,7 @@ export function PlaybackSpillCache({
       </ToggleButtonGroup>
       {showReloadNotice && (
         <Stack direction="row" alignItems="center" gap={1}>
-          <Typography variant="body2" color={theme.palette.warning.main}>
+          <Typography variant="body2" color="warning">
             {t("playbackSpillCacheNextEffectiveNotice")}
           </Typography>
           <Button size="small" onClick={onReload}>

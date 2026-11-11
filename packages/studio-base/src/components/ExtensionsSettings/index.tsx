@@ -81,10 +81,6 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.text.primary,
   },
 
-  layout5: {
-    fontSize: "small",
-  },
-
   layout6: {
     color: theme.palette.text.secondary,
   },
@@ -341,11 +337,11 @@ export function ExtensionsSettingsMore(): React.ReactElement {
       {
         key: "install-url",
         text: t("installFromUrl"),
-        icon: <LinkIcon className={classes.layout5} />,
+        icon: <LinkIcon fontSize="small" />,
         onClick: handleOpenUrlDialog,
       },
     ],
-    [t, handleInstallFromLocal, handleOpenProjectFileDialog, classes.layout5, handleOpenUrlDialog],
+    [t, handleInstallFromLocal, handleOpenProjectFileDialog, handleOpenUrlDialog],
   );
 
   return (

@@ -197,7 +197,7 @@ function getColumnsFromObject(
       columnHelper.accessor((row): unknown => row, {
         id: "typedArray",
         header: "",
-        cell: (info) => JSON.stringify(info.getValue()),
+        cell: (info) => String(info.getValue()),
       }),
     ];
   }

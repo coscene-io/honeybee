@@ -92,7 +92,7 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
               secondary={`${source} ${errorLoc}`}
               slotProps={{
                 secondary: {
-                  color: "text.secondary",
+                  color: "textSecondary",
                 },
               }}
             />

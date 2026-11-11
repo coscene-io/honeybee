@@ -20,10 +20,10 @@ import { Fab } from "@mui/material";
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useResizeDetector } from "react-resize-detector";
 import { useLatest } from "react-use";
-import { AutoSizer } from "react-virtualized-auto-sizer";
 import { VariableSizeList as List } from "react-window";
 import { makeStyles } from "tss-react/mui";
 
+import AutoSizer from "@foxglove/studio-base/components/AutoSizer";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { NormalizedLogMessage } from "@foxglove/studio-base/panels/Log/types";
 

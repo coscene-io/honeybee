@@ -140,7 +140,7 @@ export function EventDetails({
               ignoreProperties
             />
             {isMomentDoubtful(event.event.customizedFields) && (
-              <Typography color={DOUBTFUL_MOMENT_COLOR}>{t("doubtful")}</Typography>
+              <Typography style={{ color: DOUBTFUL_MOMENT_COLOR }}>{t("doubtful")}</Typography>
             )}
             <Button autoFocus onClick={onClose}>
               {t("close")}

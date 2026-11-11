@@ -16926,7 +16926,7 @@ __metadata:
 
 "protobufjs@patch:protobufjs@7.6.6#../../patches/protobufjs.patch::locator=%40foxglove%2Fmcap-support%40workspace%3Apackages%2Fmcap-support":
   version: 7.6.6
-  resolution: "protobufjs@patch:protobufjs@npm%3A7.6.6#../../patches/protobufjs.patch::version=7.6.6&hash=d4fac7&locator=%40foxglove%2Fmcap-support%40workspace%3Apackages%2Fmcap-support"
+  resolution: "protobufjs@patch:protobufjs@npm%3A7.6.6#../../patches/protobufjs.patch::version=7.6.6&hash=6ace0c&locator=%40foxglove%2Fmcap-support%40workspace%3Apackages%2Fmcap-support"
   dependencies:
     "@protobufjs/aspromise": "npm:^1.1.2"
     "@protobufjs/base64": "npm:^1.1.2"
@@ -16939,7 +16939,7 @@ __metadata:
     "@protobufjs/utf8": "npm:^1.1.1"
     "@types/node": "npm:>=13.7.0"
     long: "npm:^5.3.2"
-  checksum: 10/50cbdeabe8f2543c534fd96b5589c3d4035bbc0f5fec4ba9890c70e8c7078db33e838eaaa8efaa397cef14db553de71a4fa928e85908979f27f1a08c28a32f25
+  checksum: 10/b5ed3eeb7e7187f91fd6fd6faa4f406ffeca70e10c8f51f1952bc504204a9d10ebbf002e85b87c74fd8d6516659427a6aea9609b22d4fa1dbb7b2b3e80ec1436
   languageName: node
   linkType: hard
 

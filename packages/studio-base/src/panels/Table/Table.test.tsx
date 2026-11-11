@@ -46,3 +46,19 @@ it("expands nested message objects without losing typed-array values", () => {
   expect(screen.getByText("1")).toBeDefined();
   expect(screen.getByText("2")).toBeDefined();
 });
+
+it.each([Float32Array, Float64Array])("preserves non-finite values in %p cells", (ArrayType) => {
+  render(
+    <ThemeProvider isDark>
+      <Table
+        value={[{ samples: new ArrayType([NaN, Infinity, -Infinity, 1.25]) }]}
+        accessorPath=""
+      />
+    </ThemeProvider>,
+  );
+  fireEvent.click(screen.getByTestId("expand-row-0"));
+  for (const value of ["NaN", "Infinity", "-Infinity", "1.25"]) {
+    expect(screen.getByText(value, { exact: true })).toBeDefined();
+  }
+  expect(screen.queryByText("null", { exact: true })).toBe(ReactNull);
+});

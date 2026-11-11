@@ -253,7 +253,7 @@ export function PlotLegendRow({
           <Typography
             variant="body2"
             align="right"
-            color={valueSource === "hover" ? "warning.main" : "text.secondary"}
+            color={valueSource === "hover" ? "warning" : "textSecondary"}
           >
             {renderValue(value)}
           </Typography>

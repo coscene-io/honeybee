@@ -81,7 +81,7 @@ export default function NotificationModal({
 
   return (
     <Dialog classes={{ paper: classes.paper }} fullWidth open onClose={() => onRequestClose?.()}>
-      <DialogTitle color={displayPropsBySeverity[severity]}>{message}</DialogTitle>
+      <DialogTitle style={{ color: displayPropsBySeverity[severity] }}>{message}</DialogTitle>
       <div className={classes.container}>
         {subText && <Typography className={classes.layout1}>{subText}</Typography>}
         {detailsElement}

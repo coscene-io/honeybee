@@ -268,13 +268,14 @@ export function Indicator({ context }: Props): React.JSX.Element {
             />
           )}
           <Typography
-            color={
-              style === "background"
-                ? augmentColor({
-                    color: { main: matchingRule?.color ?? fallbackColor },
-                  }).contrastText
-                : (matchingRule?.color ?? fallbackColor)
-            }
+            style={{
+              color:
+                style === "background"
+                  ? augmentColor({
+                      color: { main: matchingRule?.color ?? fallbackColor },
+                    }).contrastText
+                  : (matchingRule?.color ?? fallbackColor),
+            }}
             variant="h1"
             className={classes.layout1}
           >

@@ -24,6 +24,7 @@ import {
   MenuItem,
   Select,
   Typography,
+  TypographyProps,
   iconButtonClasses,
   inputBaseClasses,
   listItemTextClasses,
@@ -33,13 +34,13 @@ import { produce } from "immer";
 import * as _ from "lodash-es";
 import { CSSProperties, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { AutoSizer } from "react-virtualized-auto-sizer";
 import { FixedSizeList as List } from "react-window";
 import { makeStyles } from "tss-react/mui";
 
 import { filterMap } from "@foxglove/den/collection";
 import { SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
+import AutoSizer from "@foxglove/studio-base/components/AutoSizer";
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import Panel from "@foxglove/studio-base/components/Panel";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
@@ -70,11 +71,11 @@ type NodeRowProps = {
   onClickPin: (info: DiagnosticInfo) => void;
 };
 
-const MESSAGE_COLORS: { [key: string]: string } = {
-  ok: "success.main",
-  warn: "warning.main",
-  error: "error.main",
-  stale: "text.secondary",
+const MESSAGE_COLORS: Record<string, TypographyProps["color"]> = {
+  ok: "success",
+  warn: "warning",
+  error: "error",
+  stale: "textSecondary",
 };
 
 const useStyles = makeStyles()((theme) => ({

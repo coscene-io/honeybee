@@ -503,7 +503,7 @@ function NodeEditorComponent(props: NodeEditorProps): React.JSX.Element {
             <Typography
               noWrap={true}
               variant="subtitle2"
-              color={visible ? "text.primary" : "text.disabled"}
+              color={visible ? "textPrimary" : "textDisabled"}
               className={classes.layout1}
               style={{
                 fontWeight: indent < 2 ? 600 : 400,
