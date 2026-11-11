@@ -165,7 +165,7 @@ export function PropagationForm({
       {validAfter && afterFrames === 0 && <p role="alert">后帧数必须大于 0。</p>}
       {validRange && frame && (
         <p aria-label="有效传播范围" className="seg-muted">
-          源帧 {frame.index + 1} [{frame.id}] · 有效范围：后 {effectiveAfter} 帧
+          源帧 {frame.index + 1} · 有效范围：后 {effectiveAfter} 帧
           {clippedRange ? " · 已按片段边界裁剪。" : ""}
         </p>
       )}

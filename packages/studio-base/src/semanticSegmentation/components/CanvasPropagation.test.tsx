@@ -117,6 +117,14 @@ it("sends one request with every seeded instance of the canvas's video", async (
   });
 });
 
+it("describes the source frame by its number, not its internal id", async () => {
+  await setup();
+  fireEvent.click(screen.getByRole("button", { name: "传播" }));
+  const range = screen.getByLabelText("有效传播范围");
+  expect(range.textContent).toContain("源帧 1");
+  expect(range.textContent).not.toContain("frame-0");
+});
+
 it("the app bar no longer offers 传播", async () => {
   const runtime = await setup();
   cleanup();
