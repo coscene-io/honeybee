@@ -786,6 +786,13 @@ export function SegmentationImageEntry({
         panelId: joining ? (segmentationSession.getState().panelId ?? panelId) : panelId,
         ...(joining ? {} : { imageUrl: undefined, decodedFrame: undefined, sourceReady: false }),
       });
+      // The picture on screen can be later than the clock: a paused seek before the first message
+      // still shows that message. Move the clock onto the frame being annotated so the two agree.
+      const shownAt = image?.receiveTime;
+      const clock = getPipeline().playerState.activeData?.currentTime;
+      if (shownAt && clock && toNanoSec(shownAt) !== toNanoSec(clock)) {
+        getPipeline().seekPlayback?.(shownAt);
+      }
       sync();
       if (!joining && !runtime.store.getState().readonly) {
         runtime.store.getState().setEditing(true);
