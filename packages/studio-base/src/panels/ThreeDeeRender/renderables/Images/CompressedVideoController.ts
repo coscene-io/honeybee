@@ -215,8 +215,17 @@ export class CompressedVideoController {
     const keyframe = parseVideoFrameInfo(selected[0]!)?.isKeyframe === true;
     await this.#serialize(async (generation) => {
       if (this.#renderer.isPlaybackStopped() && playbackBoundary !== "end") {
-        this.#continuous = false;
-        this.#decoderFrontier = undefined;
+        // A delta that arrives while stopped must not bridge the next play.
+        // A GOP already decoded at this clock has to stay, or resume waits for the next keyframe.
+        const frontier = this.#decoderFrontier;
+        const keepsDecodedGop =
+          this.#continuous &&
+          frontier != undefined &&
+          frames.every((frame) => toNanoSec(frame.receiveTime) <= toNanoSec(frontier.receiveTime));
+        if (!keepsDecodedGop) {
+          this.#continuous = false;
+          this.#decoderFrontier = undefined;
+        }
         return;
       }
       if (!keyframe && (!this.#continuous || this.#decoderFrontier == undefined)) {
