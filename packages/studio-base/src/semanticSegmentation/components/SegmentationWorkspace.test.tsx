@@ -55,7 +55,7 @@ it("sits below the panel header and withholds mismatched pixels", async () => {
   });
 });
 
-it("mounts a workbench only on the editing camera", async () => {
+it("mounts a workbench on every open camera, not only the focused one", async () => {
   const runtime = createSegmentationRuntime();
   runtime.service.setControls({ delayMs: 0 });
   await runtime.initialize();
@@ -77,7 +77,7 @@ it("mounts a workbench only on the editing camera", async () => {
   const images = screen.getAllByRole("img", { name: "Workbench" }).map((button) => {
     return button.getAttribute("data-image");
   });
-  expect(images).toEqual([expect.stringContaining("left")]);
+  expect(images).toEqual([expect.stringContaining("left"), expect.stringContaining("right")]);
   unmount();
   runtime.dispose();
   segmentationSession.setState({

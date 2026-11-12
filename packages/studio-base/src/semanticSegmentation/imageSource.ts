@@ -13,8 +13,11 @@ import type { MessageEvent } from "@foxglove/studio";
 import type { RemoteVideoSourceMetadata } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import type { PlayerURLState } from "@foxglove/studio-base/players/types";
 
+import type { NativeImageView } from "./nativeImageTransform";
+
 export type SegmentationImage = Readonly<{
   imageUrl: string;
+  nativeView?: NativeImageView;
   topic: string;
   /** Both stamps belong to the message whose pixels have actually been displayed. */
   timestamp: Time;

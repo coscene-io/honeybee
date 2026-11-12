@@ -1,6 +1,6 @@
 # Enter and leave annotation
 
-A user opens spatial annotation from the camera toolbar, sees that edits are stored only in this browser, creates classes once the current annotation frame has loaded, and leaves annotation from the camera toolbar.
+A user opens spatial annotation from the global app bar, sees that edits are stored only in this browser, creates classes once the current annotation frame has loaded, and leaves annotation from the global app bar.
 
 ## Sub-features
 
@@ -11,7 +11,7 @@ A user opens spatial annotation from the camera toolbar, sees that edits are sto
 
 ## How to get to it (user POV)
 
-- Choose `✎ 编辑空间标注` in the chosen camera toolbar.
+- Choose `✎ 编辑空间标注` in the global app bar.
 - Read the hint in the left sidebar 空间 tab, which points at the same button.
 
 ## Driving it with ego-browser
@@ -20,14 +20,16 @@ Preconditions:
 
 - The record is open at `mid` through `scripts/open-record.sh mid ...`.
 
-- **Enter.** Click the chosen canvas button with `aria-label="编辑空间标注"`, then wait for the text `结束标注`. The editing canvas toolbar shows `本机标注`, `传播` or the per-canvas propagation entry, `提交`, and `结束标注`.
+- **Enter.** Click `✎ 编辑空间标注` inside `[data-testid="segmentation-app-bar"]`. The clock must stay unchanged. Global undo/redo, submit and end controls appear; propagation remains on each camera. All camera overlays join the session.
 - **Frame gate.** Poll `[...document.querySelectorAll("button")].find(b => b.textContent.trim() === "新建")?.disabled` every second for up to 20 s. It turns false once the frame window loads. Screenshot `/tmp/verify-seg/session-ready.png`.
 - **Create dialog.** Click `新建`. A `类别名称` field appears. Press Escape to cancel without writing anything.
-- **Leave.** Click `结束标注`. All camera toolbars show their edit buttons again. The tree is labeled as the last edited camera snapshot and is read-only.
+- **Leave.** Click `结束标注`. The global app bar shows its edit button again. The read-only tree and polygon previews continue following every camera's currently displayed frame; seeking away and back hides and restores the matching polygons.
 
 ## Gotchas
 
 - Plain `text=编辑空间标注` also matches sidebar prose. Use the button text with the pencil.
-- At the record start, entry aligns the clock to the shown source frame. `新建` should enable once its annotation window loads.
-- In light theme the canvas controls must be dark text. Check computed color when theme matters.
+- Before the first native image, editing stays unavailable. Entry must never seek or pause playback. Dragging, pausing and explicit timeline controls retain native behavior.
+- In light theme the global controls must be dark text. Check computed color when theme matters.
 - Creating a class writes to this browser's storage for the record. Cancel with Escape unless the journey needs a class, and say so if you keep one.
+
+- Verify two cameras with different `data-log-time-ns`: polygons belong to each camera's displayed log time. During pending decode or playback, editing is disabled. Test native wheel zoom and blank-canvas drag; the transparent polygon overlay must follow the native image. Non-affine calibration shows an explicit unavailable message.

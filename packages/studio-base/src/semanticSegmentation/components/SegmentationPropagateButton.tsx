@@ -31,17 +31,26 @@ export function SegmentationPropagateButton({
 }): React.JSX.Element | undefined {
   const session = useStore(segmentationSession);
   const surface = session.surfaces[panelId];
-  return session.open && session.panelId === panelId && session.runtime && surface ? (
-    <CanvasPropagate runtime={session.runtime} surface={surface} />
+  return session.open && session.runtime && surface ? (
+    <CanvasPropagate
+      runtime={session.runtime}
+      panelId={panelId}
+      surface={surface}
+      focused={session.panelId === panelId}
+    />
   ) : undefined;
 }
 
 function CanvasPropagate({
   runtime,
+  panelId,
   surface,
+  focused,
 }: {
   runtime: SegmentationRuntime;
+  panelId: string;
   surface: SegmentationSurface;
+  focused: boolean;
 }): React.JSX.Element {
   const [anchor, setAnchor] = useState<HTMLElement>();
   const state = useStore(runtime.store);
@@ -77,6 +86,10 @@ function CanvasPropagate({
             disabled={reason != undefined && !(locked && open)}
             onClick={(event) => {
               const target = event.currentTarget;
+              if (!focused && surface.frameId != undefined) {
+                segmentationSession.setState({ panelId });
+                state.setCurrentFrame(surface.frameId);
+              }
               setAnchor(target);
             }}
           >

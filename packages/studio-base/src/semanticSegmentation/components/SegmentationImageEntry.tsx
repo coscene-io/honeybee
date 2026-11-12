@@ -38,6 +38,7 @@ import {
   type SegmentationRuntime,
   type SegmentationSurface,
 } from "../runtime";
+import { segmentationChrome } from "../segmentationChrome";
 import type { SemanticSegmentationService } from "../service";
 import {
   SOURCE_FRAME_WINDOW_NS,
@@ -410,26 +411,50 @@ export function SegmentationImageEntry({
       binding != undefined &&
       segmentationSession.getState().runtime === binding.runtime &&
       segmentationSession.getState().panelId === panelId;
-    if (ownsSession) {
+    const remaining = { ...segmentationSession.getState().surfaces };
+    delete remaining[panelId];
+    const nextPanelId = Object.keys(remaining)[0];
+    const handoff = ownsSession && nextPanelId != undefined;
+    if (binding != undefined && ownsSession && !handoff) {
       if (propagationLocksContext(binding.runtime.store.getState().propagation.status)) {
         binding.runtime.store.getState().stopPropagation();
       }
       binding.runtime.store.setState({ editing: false, drawingPolygonId: undefined });
-      segmentationSession.setState({
-        open: false,
-        panelId: undefined,
-        surfaces: {},
-        imageUrl: undefined,
-        decodedFrame: undefined,
-        sourceReady: false,
-      });
-    } else {
-      segmentationSession.setState((session) => {
-        const surfaces = { ...session.surfaces };
-        delete surfaces[panelId];
-        return { surfaces };
-      });
+    } else if (
+      binding != undefined &&
+      handoff &&
+      binding.runtime.store.getState().drawingPolygonId != undefined
+    ) {
+      binding.runtime.store.setState({ drawingPolygonId: undefined });
     }
+    if (!ownsSession && segmentationSession.getState().surfaces[panelId] == undefined) {
+      return;
+    }
+    segmentationSession.setState((session) => {
+      const surfaces = { ...session.surfaces };
+      delete surfaces[panelId];
+      const successor = Object.keys(surfaces)[0];
+      if (!ownsSession || successor == undefined) {
+        return ownsSession
+          ? {
+              open: false,
+              imageUrl: undefined,
+              decodedFrame: undefined,
+              panelId: undefined,
+              sourceReady: false,
+              surfaces: {},
+            }
+          : { surfaces };
+      }
+      const next = surfaces[successor]!;
+      return {
+        surfaces,
+        panelId: successor,
+        imageUrl: next.imageUrl,
+        decodedFrame: next.decodedFrame,
+        sourceReady: next.sourceReady,
+      };
+    });
   }, [panelId]);
 
   // Fence before paint: no new-source callback may write into the previous record's runtime.
@@ -556,10 +581,7 @@ export function SegmentationImageEntry({
         });
     }
     if (!frame || !matchesClock) {
-      // Leave the current picture up while the player is moving. A seek can finish on the next tick.
-      if (data.isPlaying) {
-        return;
-      }
+      // Uncertain identity never leaves a writable overlay on the advancing native image.
       publish({ sourceReady: false });
       if (!frame) {
         setError("当前帧尚无来源元数据，请关闭后重新进入以载入已接收的真实帧。");
@@ -585,6 +607,7 @@ export function SegmentationImageEntry({
     const previous = session.surfaces[panelId]?.decodedFrame ?? session.decodedFrame;
     const decodedFrame =
       previous?.decodedIdentity === image.decodedIdentity &&
+      previous.nativeView === image.nativeView &&
       previous.frameId === frame.id &&
       previous.seekTime === data.lastSeekTime &&
       previous.bindingKey === binding.key &&
@@ -601,6 +624,8 @@ export function SegmentationImageEntry({
             seekTime: data.lastSeekTime,
             decodedIdentity: image.decodedIdentity,
             imageUrl: image.imageUrl,
+            nativeView: image.nativeView,
+            nativeCanvas: containerRef.current?.querySelector("canvas") ?? undefined,
             presentation: session.presentation,
           };
     publish({
@@ -608,7 +633,7 @@ export function SegmentationImageEntry({
       imageUrl: image.imageUrl,
       decodedFrame,
       sourceReady: data.isPlaying
-        ? matchesClock
+        ? false
         : (focused ? currentMatches : true) &&
           binding.runtime.store.getState().isFrameReady(frame.id) &&
           !binding.runtime.store.getState().loading,
@@ -661,10 +686,6 @@ export function SegmentationImageEntry({
       setError(undefined);
       const bound = active.current;
       const live = segmentationSession.getState();
-      if (live.open && live.panelId !== panelId) {
-        setError("请先结束当前画布的标注，再编辑另一路相机。");
-        return;
-      }
       if (bound && live.open && live.runtime === bound.runtime && bound.key === latestKey.current) {
         const storeState = bound.runtime.store.getState();
         if (storeState.drawingPolygonId != undefined && live.panelId !== panelId) {
@@ -690,7 +711,6 @@ export function SegmentationImageEntry({
         return;
       }
       const imageTopic = image?.topic ?? topic;
-      pipeline.pausePlayback?.();
       const epoch = ++generation.current;
       const keyAtStart = latestKey.current;
       const stableRecordId = segmentationSourceKey({
@@ -816,11 +836,6 @@ export function SegmentationImageEntry({
         setError("请等待传播停止确认后再进入标注。");
         return;
       }
-      const latestSession = segmentationSession.getState();
-      if (latestSession.open && latestSession.panelId !== panelId) {
-        setError("请先结束当前画布的标注，再编辑另一路相机。");
-        return;
-      }
       const activation = { runtime, epoch };
       pending.current = activation;
       if (epoch !== generation.current || keyAtStart !== latestKey.current) {
@@ -872,13 +887,6 @@ export function SegmentationImageEntry({
         panelId: joining ? (segmentationSession.getState().panelId ?? panelId) : panelId,
         ...(joining ? {} : { imageUrl: undefined, decodedFrame: undefined, sourceReady: false }),
       });
-      // The picture on screen can be later than the clock: a paused seek before the first message
-      // still shows that message. Move the clock onto the frame being annotated so the two agree.
-      const shownAt = image?.receiveTime;
-      const clock = getPipeline().playerState.activeData?.currentTime;
-      if (shownAt && clock && toNanoSec(shownAt) !== toNanoSec(clock)) {
-        getPipeline().seekPlayback?.(shownAt);
-      }
       sync();
       if (!joining && !runtime.store.getState().readonly) {
         runtime.store.getState().setEditing(true);
@@ -886,6 +894,13 @@ export function SegmentationImageEntry({
       sidebarActions.left.selectItem("space");
       if (mode === "maximize") {
         onMaximize();
+      }
+      if (!joining) {
+        for (const canvas of segmentationChrome.getState().canvases) {
+          if (canvas.panelId !== panelId) {
+            canvas.enterInline();
+          }
+        }
       }
     },
     [

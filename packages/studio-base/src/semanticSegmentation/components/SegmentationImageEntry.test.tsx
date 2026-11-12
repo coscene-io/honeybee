@@ -34,10 +34,12 @@ const pipeline = {
       endTime: fromNanoSec(1_000_000_000n),
       currentTime: fromNanoSec(99_999_999n),
       lastSeekTime: 0,
+      isPlaying: false,
       messages: [],
     },
   },
   pausePlayback: jest.fn(),
+  seekPlayback: jest.fn(),
   subscribeMessageRange: undefined as SubscribeMessageRange | undefined,
 };
 const getPipeline = () => pipeline;
@@ -139,6 +141,7 @@ beforeEach(() => {
   pipeline.playerState.activeData.endTime = fromNanoSec(1_000_000_000n);
   pipeline.playerState.activeData.currentTime = fromNanoSec(99_999_999n);
   pipeline.playerState.activeData.lastSeekTime = 0;
+  pipeline.playerState.activeData.isPlaying = false;
   pipeline.playerState.progress = { messageCache: { blocks: [], startTime: { sec: 0, nsec: 0 } } };
   pipeline.subscribeMessageRange = undefined;
   segmentationSession.setState({
@@ -458,5 +461,40 @@ it("withholds decoded-frame navigation and cached reentry until terminal stop ac
   });
   expect(await open()).toBe(runtime);
   expect(runtime.store.getState().currentFrameId).toBe(first);
+  expect(segmentationSession.getState().sourceReady).toBe(true);
+});
+
+it("entry leaves the native clock and playback alone and binds the displayed log time", async () => {
+  fixture();
+  const runtime = await open();
+  expect(pipeline.pausePlayback).not.toHaveBeenCalled();
+  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
+  expect(pipeline.playerState.activeData.currentTime).toEqual(fromNanoSec(99_999_999n));
+  const state = runtime.store.getState();
+  expect(state.document?.frames.find((frame) => frame.id === state.currentFrameId)?.logTimeNs).toBe(
+    "0",
+  );
+});
+
+it("does not annotate a future native image before its timestamp or seek to make it valid", async () => {
+  const f = fixture();
+  f.setImage(300_000_000n);
+  await open();
+  expect(segmentationSession.getState().sourceReady).toBe(false);
+  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
+  pipeline.playerState.activeData.currentTime = fromNanoSec(300_000_000n);
+  f.event();
+  expect(segmentationSession.getState().sourceReady).toBe(true);
+  expect(segmentationSession.getState().decodedFrame?.frameId).toContain("300000000");
+});
+
+it("keeps native playback running while editing is gated", async () => {
+  const f = fixture();
+  pipeline.playerState.activeData.isPlaying = true;
+  await open();
+  expect(pipeline.pausePlayback).not.toHaveBeenCalled();
+  expect(segmentationSession.getState().sourceReady).toBe(false);
+  pipeline.playerState.activeData.isPlaying = false;
+  f.event();
   expect(segmentationSession.getState().sourceReady).toBe(true);
 });

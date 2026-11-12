@@ -8,7 +8,6 @@
 import Logger from "@foxglove/log";
 import {
   Time,
-  add,
   clampTime,
   compare,
   fromNanoSec,
@@ -41,10 +40,6 @@ const log = Logger.getLogger(__filename);
 const LOOKBACK_WINDOWS_SEC = [1, 2, 5, 10, 20, 40, 60] as const;
 const LOOKBACK_RANGE_RETRY_DELAYS_MS = [50, 250, 1000] as const;
 const LOOKBACK_RANGE_READ_TIMEOUT_MS = 5_000;
-// A recording usually starts a few milliseconds before its first camera frame. When nothing
-// decodable exists at or before a paused seek, preview the first keyframe this soon after it.
-const FIRST_KEYFRAME_LOOKAHEAD_SEC = 1;
-const NO_FRAME_AT_OR_BEFORE_TARGET = Symbol("no frame at or before target");
 type RangeReadResolution = "success" | "cancelled" | "exception" | "timeout" | "unavailable";
 export type VideoDisplayMode = "playback" | "seek";
 export type CompressedVideoDisplayFrames = (
@@ -360,15 +355,8 @@ export class CompressedVideoController {
         backfillTarget != undefined
           ? this.#seekReplayFrames
           : this.#cache.seekAndReturnFramesForReceiveTime(this.#topic, targetTime);
-      let previewAfterTarget = false;
       if (frames == undefined && this.#renderer.subscribeMessageRange != undefined) {
-        const lookback = await this.#lookbackFrames(generation, targetTime);
-        if (lookback === NO_FRAME_AT_OR_BEFORE_TARGET) {
-          frames = await this.#firstKeyframeAfter(generation, targetTime);
-          previewAfterTarget = frames != undefined;
-        } else {
-          frames = lookback;
-        }
+        frames = await this.#lookbackFrames(generation, targetTime);
       }
       if (
         generation !== this.#generation ||
@@ -385,13 +373,11 @@ export class CompressedVideoController {
         retainLateTarget: true,
         targetFrameTimeoutMs: 200,
         anyFrameTimeoutMs: 2000,
-        allowFrameAfterClock: previewAfterTarget,
         isVideoFrameRequestCurrent: () =>
           generation === this.#generation && this.#renderer.currentTime === targetNs,
       });
       if (generation === this.#generation) {
-        // Playback reaches the previewed keyframe itself, so it restarts decoding from there.
-        this.#continuous = !previewAfterTarget && (result.ok || result.reason === "timeout");
+        this.#continuous = result.ok || result.reason === "timeout";
         this.#decoderFrontier = this.#continuous ? normalized.at(-1) : undefined;
       }
     } finally {
@@ -404,32 +390,7 @@ export class CompressedVideoController {
     }
   }
 
-  /**
-   * Read forward from a paused target that has nothing decodable at or before it, and return the
-   * first keyframe alone. Used when the target precedes the topic's first frame.
-   */
-  async #firstKeyframeAfter(
-    generation: number,
-    targetTime: Time,
-  ): Promise<MessageEvent[] | undefined> {
-    if (!this.#isCurrentLookback(generation)) {
-      return undefined;
-    }
-    const endTime = add(targetTime, fromSec(FIRST_KEYFRAME_LOOKAHEAD_SEC));
-    const frames = await this.#readRangeWithRetries(generation, targetTime, endTime, undefined);
-    if (frames == undefined || !this.#isCurrentLookback(generation)) {
-      return undefined;
-    }
-    const keyframe = frames.find(
-      (frame) => frame.topic === this.#topic && parseVideoFrameInfo(frame)?.isKeyframe === true,
-    );
-    return keyframe != undefined ? [keyframe] : undefined;
-  }
-
-  async #lookbackFrames(
-    generation: number,
-    targetTime: Time,
-  ): Promise<MessageEvent[] | typeof NO_FRAME_AT_OR_BEFORE_TARGET | undefined> {
+  async #lookbackFrames(generation: number, targetTime: Time): Promise<MessageEvent[] | undefined> {
     this.#state.lookbackGeneration = generation;
     const metricsSeekId = playbackPerformanceMetrics.captureActiveSeek();
     // Track the recovery that this panel tick is awaiting.
@@ -481,8 +442,7 @@ export class CompressedVideoController {
           return gop;
         }
         if (compare(start, startTime) === 0) {
-          // Everything from the recording start to the target was read without a keyframe.
-          return NO_FRAME_AT_OR_BEFORE_TARGET;
+          break;
         }
       }
       return undefined;

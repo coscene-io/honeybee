@@ -66,7 +66,11 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "space-between",
     gap: theme.spacing(1),
   },
-  headerCount: { color: theme.palette.text.secondary, fontSize: 12, whiteSpace: "nowrap" },
+  headerCount: {
+    color: theme.palette.text.secondary,
+    fontSize: 12,
+    whiteSpace: "nowrap",
+  },
   viewModes: {
     width: "100%",
     display: "flex",
@@ -125,7 +129,12 @@ const useStyles = makeStyles()((theme) => ({
     paddingLeft: theme.spacing(1.5),
     borderLeft: `1px solid ${theme.palette.divider}`,
   },
-  disclosure: { width: 28, flexShrink: 0, display: "flex", justifyContent: "center" },
+  disclosure: {
+    width: 28,
+    flexShrink: 0,
+    display: "flex",
+    justifyContent: "center",
+  },
   // Class and instance rows pin to the top of the scrolling tree while their children are in
   // view (the sticky element is bounded by its own treeitem). Instance rows pin just below the
   // class row, whose measured height is published as --seg-class-row-h. Backgrounds must be
@@ -146,7 +155,13 @@ const useStyles = makeStyles()((theme) => ({
   selected: { backgroundColor: theme.palette.action.selected },
   drop: { backgroundColor: theme.palette.action.hover },
   // Design uses small color squares on class/polygon rows; keep dots for compact density.
-  dot: { width: 10, height: 10, flexShrink: 0, borderRadius: 2, marginRight: 6 },
+  dot: {
+    width: 10,
+    height: 10,
+    flexShrink: 0,
+    borderRadius: 2,
+    marginRight: 6,
+  },
   presenceText: {
     position: "absolute",
     width: 1,
@@ -168,7 +183,10 @@ const useStyles = makeStyles()((theme) => ({
   emptyClass: { paddingLeft: theme.spacing(3) },
   emptyInstance: { paddingLeft: theme.spacing(5) },
   presence: { marginTop: theme.spacing(0.25) },
-  presenceCell: { width: 3, backgroundColor: theme.palette.action.disabledBackground },
+  presenceCell: {
+    width: 3,
+    backgroundColor: theme.palette.action.disabledBackground,
+  },
   addButton: {
     width: 24,
     height: 24,
@@ -229,10 +247,28 @@ export function SpatialTree({
 }: SpatialTreeProps): React.JSX.Element {
   const { classes, cx, theme } = useStyles();
   const state = useStore(store);
+  const surfaces = useStore(segmentationSession, (session) => session.surfaces);
+  const sessionOpen = useStore(segmentationSession, (session) => session.open);
+  const previewFrames = useStore(segmentationSession, (session) => session.previewFrames);
   const strokeFrameId = useStore(segmentationSession, (session) => session.strokeFrameId);
   const text = useEditorText();
   const document = state.document;
-  const treeFrameIds = state.currentFrameId ? [state.currentFrameId] : [];
+  const listedFrameIds = [
+    ...new Set(
+      (sessionOpen
+        ? Object.values(surfaces).map((surface) => surface.frameId)
+        : Object.values(previewFrames)
+      ).filter((id): id is string => id != undefined),
+    ),
+  ].filter((id) => document?.frames.some((frame) => frame.id === id) === true);
+  const treeFrameIds =
+    listedFrameIds.length > 0
+      ? listedFrameIds
+      : !sessionOpen && Object.keys(previewFrames).length > 0
+        ? []
+        : state.currentFrameId
+          ? [state.currentFrameId]
+          : [];
   const selection = document
     ? filterSegmentationSelection(document, state.selection, state.currentFrameId)
     : [];
@@ -241,7 +277,11 @@ export function SpatialTree({
     disabled || state.readonly || ["running", "stopping"].includes(state.propagation.status);
   const [selecting, setSelecting] = useState(false);
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const [menu, setMenu] = useState<{ node: SegmentationNodeRef; x: number; y: number }>();
+  const [menu, setMenu] = useState<{
+    node: SegmentationNodeRef;
+    x: number;
+    y: number;
+  }>();
   const [dialog, setDialog] = useState<TreeDialog>();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -260,7 +300,10 @@ export function SpatialTree({
   const dialogContext = useRef<{ key: string; document: typeof document }>();
   const videoId = document?.frames.find((frame) => frame.id === state.currentFrameId)?.videoId;
   const contextKey = `${document?.record.id}:${videoId}:${state.currentFrameId}:${state.viewingRevisionId}:${state.revisions[0]?.id}:${state.viewMode}:${state.readonly}:${state.focus?.type}:${state.focus?.id}`;
-  const previousReset = useRef({ store, version: state.interactionResetVersion });
+  const previousReset = useRef({
+    store,
+    version: state.interactionResetVersion,
+  });
   const treeRef = useRef<HTMLDivElement>(ReactNull);
 
   // Publish the class row height so pinned instance rows sit directly beneath the pinned class.
@@ -376,14 +419,13 @@ export function SpatialTree({
       );
       return false;
     }
-    // Editing never claims a frame from another camera through a tree row.
-    const currentVideo = document.frames.find(
-      (frame) => frame.id === state.currentFrameId,
-    )?.videoId;
-    if (document.frames.find((frame) => frame.id === owner.frameId)?.videoId !== currentVideo) {
-      return false;
-    }
+    const panelId = Object.entries(surfaces).find(
+      ([, surface]) => surface.frameId === owner.frameId,
+    )?.[0];
     state.setCurrentFrame(owner.frameId);
+    if (panelId != undefined) {
+      segmentationSession.setState({ panelId });
+    }
     return true;
   }
   function choose(node: SegmentationNodeRef): void {
@@ -1075,11 +1117,12 @@ export function SpatialTree({
             const instances = document.instances.filter(
               (instance) => instance.classId === category.id,
             );
-            const present = instances.filter(
-              (instance) =>
-                (document.annotationSummaries[
-                  frameInstanceKey(state.currentFrameId ?? "", instance.id)
-                ]?.pointCount ?? 0) > 0,
+            const present = instances.filter((instance) =>
+              treeFrameIds.some(
+                (id) =>
+                  (document.annotationSummaries[frameInstanceKey(id, instance.id)]?.pointCount ??
+                    0) > 0,
+              ),
             ).length;
             return row(
               { type: "class", id: category.id },
@@ -1087,7 +1130,7 @@ export function SpatialTree({
               category.color,
               text(
                 `${present} present / ${instances.length} total`,
-                `本帧 ${present} / 共 ${instances.length} 个实例`,
+                `当前画面 ${present} / 共 ${instances.length} 个实例`,
               ),
               1,
               () => {
@@ -1120,10 +1163,6 @@ export function SpatialTree({
                     const videoFrames = document.frames.filter(
                       (item) => item.videoId === currentFrame?.videoId,
                     );
-                    const isPresent =
-                      (document.annotationSummaries[
-                        frameInstanceKey(state.currentFrameId ?? "", instance.id)
-                      ]?.pointCount ?? 0) > 0;
                     const framesPresent = videoFrames.filter(
                       (item) =>
                         (document.annotationSummaries[frameInstanceKey(item.id, instance.id)]
@@ -1164,19 +1203,39 @@ export function SpatialTree({
                         })}
                       </Stack>
                     );
+                    const visibleAnnotations = Object.values(document.annotations).filter(
+                      (item) =>
+                        treeFrameIds.includes(item.frameId) && item.instanceId === instance.id,
+                    );
+                    const polygonCount = visibleAnnotations.reduce(
+                      (sum, item) => sum + item.polygons.length,
+                      0,
+                    );
+                    const camerasPresent = visibleAnnotations.filter(
+                      (item) => item.polygons.length > 0,
+                    ).length;
+                    const isPresent = treeFrameIds.some(
+                      (id) =>
+                        (document.annotationSummaries[frameInstanceKey(id, instance.id)]
+                          ?.pointCount ?? 0) > 0,
+                    );
                     return row(
                       { type: "instance", id: instance.id },
                       `${isPresent ? "●" : "○"} ${instance.name || instance.id}`,
                       category.color,
                       text(
-                        `${framesPresent}/${videoFrames.length} frames · ${annotation?.polygons.length ?? 0} polygons`,
-                        `${framesPresent}/${videoFrames.length} 帧 · ${annotation?.polygons.length ?? 0} 块`,
+                        sessionOpen || Object.keys(previewFrames).length > 0
+                          ? `${camerasPresent} visible cameras · ${polygonCount} polygons`
+                          : `${framesPresent}/${videoFrames.length} frames · ${annotation?.polygons.length ?? 0} polygons`,
+                        sessionOpen || Object.keys(previewFrames).length > 0
+                          ? `当前 ${camerasPresent} 路相机 · ${polygonCount} 块`
+                          : `${framesPresent}/${videoFrames.length} 帧 · ${annotation?.polygons.length ?? 0} 块`,
                       ),
                       2,
                       () => {
                         addPolygon(instance.id);
                       },
-                      presence,
+                      sessionOpen || Object.keys(previewFrames).length > 0 ? undefined : presence,
                       isPresent ? "present" : "absent",
                       !collapsed.includes(`instance:${instance.id}`) && (
                         <Box role="group" className={classes.children}>

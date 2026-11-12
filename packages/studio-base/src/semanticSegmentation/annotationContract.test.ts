@@ -174,8 +174,10 @@ it("rejects a saved polygon that still has only two vertices", () => {
   ).toThrow(/at least three vertices/);
 });
 
-it("keeps one instance when its polygons sit on two camera topics", () => {
+it("round-trips one instance across two cameras with distinct nanosecond log times", () => {
   const document = workshop();
+  document.frames.find((frame) => frame.id === "front-0")!.logTimeNs = "1774926583567900570";
+  document.frames.find((frame) => frame.id === "side-0")!.logTimeNs = "1774926583574706599";
   const sideKey = frameInstanceKey("side-0", sideInstance);
   document.annotations[frameInstanceKey("side-0", frontInstance)] = {
     ...document.annotations[sideKey]!,
@@ -195,14 +197,32 @@ it("keeps one instance when its polygons sit on two camera topics", () => {
       .filter((annotation) => annotation.instance === name)
       .map((annotation) => ({
         topic: frame.topic,
+        frameTime: frame.frameTime,
         polygonKeys: Object.keys(annotation.polygons.polygons[0] ?? {}).sort(),
       })),
   );
   expect(observations).toEqual([
-    { topic: "/camera/front", polygonKeys: ["id", "points"] },
-    { topic: "/camera/side", polygonKeys: ["id", "points"] },
+    {
+      topic: "/camera/front",
+      frameTime: "2026-03-31T03:09:43.567900570Z",
+      polygonKeys: ["id", "points"],
+    },
+    {
+      topic: "/camera/side",
+      frameTime: "2026-03-31T03:09:43.574706599Z",
+      polygonKeys: ["id", "points"],
+    },
   ]);
   const restored = documentFromCommit(document, projection, topics);
+  expect(
+    restored.annotations[frameInstanceKey("front-0", frontInstance)]?.polygons[0]?.points[0],
+  ).toEqual({ x: 0.5, y: 0.25 });
+  expect(restored.frames.find((frame) => frame.id === "front-0")?.logTimeNs).toBe(
+    "1774926583567900570",
+  );
+  expect(restored.frames.find((frame) => frame.id === "side-0")?.logTimeNs).toBe(
+    "1774926583574706599",
+  );
   expect(restored.annotations[frameInstanceKey("side-0", frontInstance)]?.polygons[0]?.topic).toBe(
     "/camera/side",
   );

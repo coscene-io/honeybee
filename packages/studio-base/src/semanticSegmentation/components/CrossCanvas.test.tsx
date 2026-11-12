@@ -7,7 +7,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
 import { segmentationSession } from "../runtime";
@@ -31,12 +31,13 @@ afterEach(() => {
     open: false,
     panelId: undefined,
     surfaces: {},
+    previewFrames: {},
     runtime: undefined,
     strokeFrameId: undefined,
   });
 });
 
-it("lists only the editing camera polygons even when other surfaces exist", async () => {
+it("lists polygons from every open camera in the same instance tree", async () => {
   const store = await storeWithSeed();
   segmentationSession.setState({
     open: true,
@@ -46,12 +47,29 @@ it("lists only the editing camera polygons even when other surfaces exist", asyn
     },
   });
   render(<SpatialTree store={store} />);
-  expect(screen.queryByRole("treeitem", { name: "side · Polygon 1" })).toBeNull();
-  expect(screen.getAllByRole("treeitem", { name: "Polygon 1" }).length).toBeGreaterThan(0);
+  expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
+  expect(screen.getAllByRole("treeitem", { name: "front · Polygon 1" }).length).toBeGreaterThan(0);
   store.getState().dispose();
 });
 
-it("rejects a first vertex on another camera during an editing session", async () => {
+it("uses current preview frames outside editing and clears unknown images instead of showing the old edit frame", async () => {
+  const store = await storeWithSeed();
+  segmentationSession.setState({
+    open: false,
+    previewFrames: { front: "frame-0", side: "side-0" },
+  });
+  render(<SpatialTree store={store} />);
+  expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
+  expect(screen.getAllByText("1 visible cameras · 1 polygons")).toHaveLength(3);
+  act(() => {
+    segmentationSession.setState({ previewFrames: { front: undefined, side: undefined } });
+  });
+  expect(screen.queryByRole("treeitem", { name: /Polygon 1/ })).toBeNull();
+  expect(screen.getByText("Person 1")).toBeDefined();
+  store.getState().dispose();
+});
+
+it("lets the first vertex choose either canvas, then keeps the stroke there", async () => {
   const store = await storeWithSeed();
   const polygonId = store.getState().addPolygon("instance-1");
   store.getState().setDrawingPolygonId(polygonId);
@@ -78,10 +96,10 @@ it("rejects a first vertex on another camera during an editing session", async (
   const owner = Object.values(store.getState().document!.annotations).find((item) =>
     item.polygons.some((polygon) => polygon.id === polygonId),
   );
-  expect(owner?.frameId).toBe("frame-0");
-  expect(store.getState().currentFrameId).toBe("frame-0");
+  expect(owner?.frameId).toBe("side-0");
+  expect(store.getState().currentFrameId).toBe("side-0");
   expect(store.getState().drawingPolygonId).toBe(polygonId);
-  expect(segmentationSession.getState().strokeFrameId).toBeUndefined();
+  expect(segmentationSession.getState().strokeFrameId).toBe("side-0");
   store.getState().dispose();
 });
 
@@ -114,7 +132,8 @@ it("does not leave the canvas after the first vertex is placed", async () => {
     clientY: 20,
     button: 0,
   });
-  expect(screen.queryByRole("treeitem", { name: "side · Polygon 1" })).toBeNull();
+  const sideRow = screen.getByRole("treeitem", { name: "side · Polygon 1" });
+  fireEvent.click(sideRow.querySelector("[data-tree-primary]")!);
   expect(store.getState().currentFrameId).toBe("frame-0");
   expect(store.getState().drawingPolygonId).toBe(polygonId);
   store.getState().dispose();

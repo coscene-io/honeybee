@@ -148,6 +148,8 @@ export type DecodedSegmentationFrame = {
   seekTime: number;
   decodedIdentity: object;
   imageUrl: string;
+  nativeView?: import("./nativeImageTransform").NativeImageView;
+  nativeCanvas?: HTMLCanvasElement;
   presentation?: { id: number; signal: AbortSignal };
 };
 
@@ -164,6 +166,8 @@ export const segmentationSession = createStore<{
   /** Read-only annotations for the open recording. Editing still uses `runtime`. */
   previewRuntime: SegmentationRuntime | undefined;
   previewLoading: boolean;
+  /** Exact displayed frame per topic for the read-only overview. */
+  previewFrames: Record<string, string | undefined>;
   open: boolean;
   maximized: boolean;
   imageUrl: string | undefined;
@@ -182,6 +186,7 @@ export const segmentationSession = createStore<{
   runtime: undefined,
   previewRuntime: undefined,
   previewLoading: false,
+  previewFrames: {},
   open: false,
   maximized: false,
   imageUrl: undefined,

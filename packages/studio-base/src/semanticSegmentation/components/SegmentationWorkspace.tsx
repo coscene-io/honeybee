@@ -8,15 +8,11 @@
 // SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
 // SPDX-License-Identifier: MPL-2.0
 
-import { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
 
-import { add, fromSec, toNanoSec } from "@foxglove/rostime";
-import { useMessagePipelineGetter } from "@foxglove/studio-base/components/MessagePipeline";
 import { PANEL_TOOLBAR_MIN_HEIGHT } from "@foxglove/studio-base/components/PanelToolbar";
 
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
-import { createNativeFramePresentation } from "../nativeFramePresentation";
 import {
   segmentationSession,
   type DecodedSegmentationFrame,
@@ -43,61 +39,25 @@ function ActiveWorkbench({
   onClaimFocus: () => void;
 }): React.JSX.Element {
   const loading = useStore(runtime.store, (state) => state.loading);
-  const getPipeline = useMessagePipelineGetter();
-  const onFrameChange = useCallback(
-    (timestampSec: number) => {
-      const pipeline = getPipeline();
-      const start = pipeline.playerState.activeData?.startTime;
-      if (start) {
-        segmentationSession.setState({ sourceReady: false });
-        pipeline.pausePlayback?.();
-        pipeline.seekPlayback?.(add(start, fromSec(timestampSec)));
-      }
-    },
-    [getPipeline],
-  );
-  const presentation = useMemo(
-    () =>
-      createNativeFramePresentation(runtime, panelId, {
-        seek: (timestampSec) => {
-          const pipeline = getPipeline();
-          const start = pipeline.playerState.activeData?.startTime;
-          if (!start || !pipeline.seekPlayback) {
-            throw new Error("Native player is unavailable; reopen the Image Panel.");
-          }
-          pipeline.pausePlayback?.();
-          pipeline.seekPlayback(add(start, fromSec(timestampSec)));
-        },
-        seekTime: () => getPipeline().playerState.activeData?.lastSeekTime,
-        atTime: (timestampSec) => {
-          const data = getPipeline().playerState.activeData;
-          return (
-            data != undefined &&
-            toNanoSec(data.currentTime) === toNanoSec(add(data.startTime, fromSec(timestampSec)))
-          );
-        },
-      }),
-    [runtime, panelId, getPipeline],
-  );
-  useEffect(
-    () => () => {
-      presentation.dispose();
-    },
-    [presentation],
-  );
+  const document = useStore(runtime.store, (state) => state.document);
+  const frame = document?.frames.find((item) => item.id === frameId);
+  const topic = document?.videos.find((item) => item.id === frame?.videoId)?.topic;
   return (
-    <div style={{ position: "absolute", inset: `${PANEL_TOOLBAR_MIN_HEIGHT}px 0 0`, zIndex: 5 }}>
+    <div
+      style={{ position: "absolute", inset: `${PANEL_TOOLBAR_MIN_HEIGHT}px 0 0`, zIndex: 5 }}
+      data-testid="segmentation-native-overlay"
+      data-panel-id={panelId}
+      data-log-time-ns={frame?.logTimeNs}
+      data-topic={topic}
+      data-source-ready={sourceReady && !loading}
+    >
       <SemanticSegmentationWorkbench
         runtime={runtime}
         imageUrl={sourceReady ? imageUrl : undefined}
         embedded
         sourceReady={sourceReady && !loading}
         showTree={false}
-        onFrameChange={onFrameChange}
-        onPresentFrame={presentation.present}
-        decodedFrame={sourceReady ? decodedFrame : undefined}
-        onFrameRendered={presentation.rendered}
-        onFrameRenderError={presentation.failed}
+        decodedFrame={decodedFrame}
         frameId={frameId}
         focused={focused}
         onClaimFocus={onClaimFocus}
@@ -122,7 +82,6 @@ export function SegmentationWorkspace({
   const shownUrl = surface ? surface.imageUrl : legacy ? session.imageUrl : undefined;
   if (
     !session.open ||
-    !focused ||
     !session.runtime ||
     shownUrl == undefined ||
     (surface == undefined && !legacy)
@@ -138,7 +97,12 @@ export function SegmentationWorkspace({
       decodedFrame={surface ? surface.decodedFrame : session.decodedFrame}
       frameId={surface?.frameId}
       focused={focused}
-      onClaimFocus={() => {}}
+      onClaimFocus={() => {
+        const live = segmentationSession.getState();
+        if (live.panelId !== panelId) {
+          segmentationSession.setState({ panelId });
+        }
+      }}
     />
   );
 }

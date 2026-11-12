@@ -699,3 +699,6 @@
 .seg-app-bar-menu button:hover {
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
+
+/* The native Image panel owns the pixels; embedded annotation is only an overlay. */
+.seg-embedded, .seg-embedded .seg-body, .seg-embedded .seg-canvas { background: transparent; }

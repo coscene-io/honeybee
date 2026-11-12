@@ -11,13 +11,15 @@ import { useStore } from "zustand";
 import { createLiveSemanticSegmentationService } from "@foxglove/studio-base/util/coscene/annotation";
 
 import { segmentationSession } from "../runtime";
+import { segmentationChrome } from "../segmentationChrome";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 
 import "./workbench.css";
 
 const useStyles = makeStyles()((theme) => ({
+  // The app bar forces white text. Inherit that and these controls disappear on the light bar.
   root: {
-    color: theme.palette.text.primary,
+    color: theme.palette.appBar.text,
     "& .seg-muted": {
       color: theme.palette.text.secondary,
     },
@@ -32,23 +34,20 @@ function endAnnotation(): void {
   });
 }
 
-/** Annotation actions belong to the canvas that opened the session. */
-export function SegmentationCanvasControls({
-  panelId,
-}: {
-  panelId: string;
-}): React.JSX.Element | undefined {
+/** Record-level annotation controls. They sit in the app bar, once, beside layout save and revert. */
+export function SegmentationAppBarControls(): React.JSX.Element | undefined {
   const { classes, cx } = useStyles();
+  const canvases = useStore(segmentationChrome, (state) => state.canvases);
   const open = useStore(segmentationSession, (state) => state.open);
-  const activePanel = useStore(segmentationSession, (state) => state.panelId);
   const localBackend = createLiveSemanticSegmentationService() == undefined;
+  const first = canvases[0];
 
-  if (!open || activePanel !== panelId) {
+  if (!open && first == undefined) {
     return undefined;
   }
 
   return (
-    <div className={cx("seg-app-bar", classes.root)} data-testid="segmentation-canvas-controls">
+    <div className={cx("seg-app-bar", classes.root)} data-testid="segmentation-app-bar">
       {localBackend && (
         <span
           className="seg-muted"
@@ -57,10 +56,30 @@ export function SegmentationCanvasControls({
           本机标注
         </span>
       )}
-      <SegmentationActionMenu panelId={panelId} />
-      <button type="button" onClick={endAnnotation}>
-        结束标注
-      </button>
+      {open ? (
+        <>
+          <SegmentationActionMenu />
+          <button type="button" onClick={endAnnotation}>
+            结束标注
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" title="编辑空间标注" onClick={first?.enterInline}>
+            ✎ 编辑空间标注
+          </button>
+          {canvases.length === 1 && (
+            <button
+              type="button"
+              title="放大并编辑空间标注"
+              aria-label="放大并编辑空间标注"
+              onClick={first?.enterMaximize}
+            >
+              ⛶
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }

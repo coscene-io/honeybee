@@ -25,13 +25,11 @@ import {
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
-import { SegmentationCanvasControls } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationCanvasControls";
 import {
   SegmentationImageEntry,
   type SegmentationImageEntryActions,
 } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry";
 import { SegmentationPropagateButton } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton";
-import { SegmentationStartButton } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationStartButton";
 import { SegmentationWorkspace } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace";
 import { registerSegmentationCanvas } from "@foxglove/studio-base/semanticSegmentation/segmentationChrome";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
@@ -148,8 +146,6 @@ function ImagePanelAdapter(props: Props) {
   const propagateIcon = useMemo(
     () => (
       <>
-        <SegmentationStartButton panelId={panel.id} />
-        <SegmentationCanvasControls panelId={panel.id} />
         <SegmentationPropagateButton panelId={panel.id} />
       </>
     ),

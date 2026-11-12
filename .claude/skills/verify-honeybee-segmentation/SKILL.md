@@ -53,9 +53,10 @@ Stable handles:
 
 - Playback clock: `input[aria-label="当前播放时间"], input[title="当前播放时间"]`. Its value looks like `2026-03-31 11:09:03.719 AM +08`. Typing into it fails validation because the zone is `+08`. Seek by clicking the timeline track instead.
 - Play and pause: `page.keyboard.press("Space")` with focus outside an input.
-- Enter annotation: the chosen canvas toolbar button with `aria-label="编辑空间标注"`. Only that canvas enters editing.
-- Leave annotation: `结束标注` inside `[data-testid="segmentation-canvas-controls"]`.
-- Storage badge: canvas toolbar text `本机标注` means the annotation service is unpublished and edits stay in this browser.
+- Enter annotation: `✎ 编辑空间标注` in `[data-testid="segmentation-app-bar"]`. All camera surfaces join the global session; the clock does not move.
+- Leave annotation: `结束标注` inside `[data-testid="segmentation-app-bar"]`.
+- Storage badge: app-bar text `本机标注` means the annotation service is unpublished and edits stay in this browser.
+- Frame diagnostics: `[data-testid="segmentation-native-overlay"]` exposes `data-topic`, `data-log-time-ns`, `data-source-ready` for each camera. These identify the actual decoded image, not the playhead.
 - Hidden file input for local files: `input[data-puppeteer-file-upload]`.
 
 Feature recipes are in [`features/README.md`](features/README.md). Read the index, then the matching file.

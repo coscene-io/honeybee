@@ -46,10 +46,6 @@ type PendingHoverEvent = {
 type Props = {
   disabled?: boolean;
   onChange: (playbackSeconds: number) => void;
-  /** Called after the pointer-up flush, with the released playback seconds. */
-  onCommit?: (playbackSeconds: number) => void;
-  /** Called once when a drag starts, before the first seek. */
-  onScrubStart?: () => void;
   onContextMenu?: (event: ContextMenuEvent) => void;
   onHoverOver?: (event: HoverOverEvent) => void;
   onHoverOut?: () => void;
@@ -112,8 +108,6 @@ function Slider(props: Props): React.JSX.Element {
     onHoverOver,
     onHoverOut,
     onChange,
-    onCommit,
-    onScrubStart,
     cursor,
     viewport,
   } = props;
@@ -234,7 +228,6 @@ function Slider(props: Props): React.JSX.Element {
   const onPointerUp = useCallback(
     (event: PointerEvent): void => {
       seekInput.flush(event.clientX);
-      onCommit?.(getPlaybackSecondsAtClientX(event.clientX));
       mouseDownRef.current = false;
       setMouseDown(false);
       if (!mouseInsideRef.current) {
@@ -242,7 +235,7 @@ function Slider(props: Props): React.JSX.Element {
         onHoverOut?.();
       }
     },
-    [cancelPendingHover, getPlaybackSecondsAtClientX, onCommit, onHoverOut, seekInput],
+    [cancelPendingHover, onHoverOut, seekInput],
   );
 
   const onPointerCancel = useCallback(() => {
@@ -283,14 +276,13 @@ function Slider(props: Props): React.JSX.Element {
         document.activeElement.blur();
       }
       ev.preventDefault();
-      onScrubStart?.();
       const seconds = getPlaybackSecondsAtMouse(ev);
       lastSeekSeconds.current = seconds;
       onChange(seconds);
       mouseDownRef.current = true;
       setMouseDown(true);
     },
-    [disabled, getPlaybackSecondsAtMouse, onChange, onScrubStart],
+    [disabled, getPlaybackSecondsAtMouse, onChange],
   );
 
   const handleContextMenu = useCallback(

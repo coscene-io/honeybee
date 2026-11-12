@@ -92,6 +92,7 @@ import {
   type RemoteVideoFrameReference,
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import type { SegmentationImage } from "@foxglove/studio-base/semanticSegmentation/imageSource";
+import { nativeImageView } from "@foxglove/studio-base/semanticSegmentation/nativeImageTransform";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadFiles } from "@foxglove/studio-base/util/download";
 
@@ -1378,12 +1379,27 @@ export class ImageMode
     ) {
       return undefined;
     }
+    const { width, height } = getDecodedImageDimensions(image);
+    const mesh = renderable.userData.mesh;
+    const view = mesh
+      ? nativeImageView(
+          mesh,
+          this.#camera,
+          this.renderer.input.canvasSize.width,
+          this.renderer.input.canvasSize.height,
+          width,
+          height,
+        )
+      : undefined;
     if (this.#segmentationCapture?.decodedIdentity === image) {
+      const previous = this.#segmentationCapture.nativeView;
+      if (JSON.stringify(previous) !== JSON.stringify(view)) {
+        this.#segmentationCapture = { ...this.#segmentationCapture, nativeView: view };
+      }
       return this.#segmentationCapture;
     }
     this.#segmentationBlockedImage = undefined;
     const message = displayed.image;
-    const { width, height } = getDecodedImageDimensions(image);
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -1398,6 +1414,7 @@ export class ImageMode
     }
     this.#segmentationCapture = {
       imageUrl: canvas.toDataURL("image/png"),
+      nativeView: view,
       topic: renderable.userData.topic,
       timestamp: "header" in message ? message.header.stamp : message.timestamp,
       receiveTime: fromNanoSec(displayed.receiveTime),

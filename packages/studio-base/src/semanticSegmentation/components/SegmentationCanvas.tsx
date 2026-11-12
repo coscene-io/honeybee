@@ -363,6 +363,12 @@ export function SegmentationCanvas({
   const frameId = shownFrameId ?? activeFrameId;
   const frame = state.document?.frames.find((item) => item.id === frameId);
   const source = imageUrl ?? frame?.imageUrl;
+  const nativeView = decodedFrame?.nativeView;
+  useLayoutEffect(() => {
+    if (nativeView) {
+      setSize({ width: nativeView.imageWidth, height: nativeView.imageHeight });
+    }
+  }, [nativeView]);
   const strokeFrameId = useStore(segmentationSession, (session) => session.strokeFrameId);
   const draftElsewhere =
     shownFrameId != undefined && strokeFrameId != undefined && shownFrameId !== strokeFrameId;
@@ -373,7 +379,8 @@ export function SegmentationCanvas({
     draftElsewhere ||
     ["running", "stopping"].includes(state.propagation.status) ||
     !source ||
-    imageError;
+    imageError ||
+    (compact && !nativeView);
   const drawingId = state.drawingPolygonId;
   const document = state.document;
 
@@ -616,6 +623,9 @@ export function SegmentationCanvas({
     };
   }, [cancelGesture, resetTemporaryInput]);
   function zoomAt(next: number, client?: EditorPoint): void {
+    if (compact) {
+      return;
+    }
     if (navigationLocked) {
       return;
     }
@@ -709,6 +719,10 @@ export function SegmentationCanvas({
       }
       event.preventDefault();
       event.stopPropagation();
+      if (compact) {
+        decodedFrame?.nativeCanvas?.dispatchEvent(new WheelEvent("wheel", event));
+        return;
+      }
       if (navigationLocked) {
         return;
       }
@@ -758,16 +772,6 @@ export function SegmentationCanvas({
       return !draftElsewhere;
     }
     const live = store.getState();
-    const session = segmentationSession.getState();
-    if (session.open && session.panelId != undefined) {
-      const activeVideo = live.document?.frames.find(
-        (frame) => frame.id === activeFrameId,
-      )?.videoId;
-      const shownVideo = live.document?.frames.find((frame) => frame.id === shownFrameId)?.videoId;
-      if (activeVideo !== shownVideo) {
-        return false;
-      }
-    }
     try {
       if (live.drawingPolygonId != undefined) {
         if (segmentationSession.getState().strokeFrameId != undefined) {
@@ -1797,10 +1801,30 @@ export function SegmentationCanvas({
       <Box
         ref={viewport}
         className={classes.viewport}
+        style={compact ? { background: "transparent" } : undefined}
         data-testid="segmentation-viewport"
         tabIndex={0}
         role="group"
         aria-label="Annotation viewport"
+        onPointerDownCapture={(event) => {
+          if (
+            compact &&
+            (event.button === 1 || space.current || panTool || (!drawingId && !hitTarget(event)))
+          ) {
+            event.stopPropagation();
+          }
+        }}
+        onMouseDownCapture={(event) => {
+          if (
+            compact &&
+            (event.button === 1 || space.current || panTool || (!drawingId && !hitTarget(event)))
+          ) {
+            decodedFrame?.nativeCanvas?.dispatchEvent(
+              new MouseEvent("mousedown", event.nativeEvent),
+            );
+            event.stopPropagation();
+          }
+        }}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             resetTemporaryInput();
@@ -1808,6 +1832,9 @@ export function SegmentationCanvas({
         }}
       >
         <Stack className={classes.notices} spacing={1} data-testid="canvas-notices">
+          {compact && !nativeView && (
+            <Alert severity="info">当前画面变换尚未就绪或包含非线性校正，暂时无法精确标注。</Alert>
+          )}
           {draftElsewhere && (
             <Alert severity="info" role="status">
               {text(
@@ -1883,7 +1910,8 @@ export function SegmentationCanvas({
           aria-label="Frame polygons"
           width="100%"
           height="100%"
-          viewBox={`0 0 ${size.width} ${size.height}`}
+          viewBox={`0 0 ${nativeView?.width ?? size.width} ${nativeView?.height ?? size.height}`}
+          preserveAspectRatio={nativeView ? "none" : "xMidYMid meet"}
           style={{
             position: "absolute",
             inset: 0,
@@ -2142,8 +2170,15 @@ export function SegmentationCanvas({
             }
           }}
         >
-          <g ref={content} transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
-            {source && !imageError && (
+          <g
+            ref={content}
+            transform={
+              nativeView
+                ? `matrix(${nativeView.matrix.join(" ")})`
+                : `translate(${pan.x} ${pan.y}) scale(${zoom})`
+            }
+          >
+            {!compact && source && !imageError && (
               /* eslint-disable @coscene-io/link-target, react/no-unknown-property -- SVG image embeds pixels and supports its own load/error events. */
               <image
                 key={decodedFrame ? imageKey.current.value : source}
@@ -2162,7 +2197,8 @@ export function SegmentationCanvas({
               />
               /* eslint-enable @coscene-io/link-target, react/no-unknown-property */
             )}
-            {state.viewMode !== "original" &&
+            {(!compact || (nativeView != undefined && !disabled)) &&
+              state.viewMode !== "original" &&
               !peekOriginal &&
               document?.instances.map((instance) => {
                 const color =
@@ -2176,7 +2212,12 @@ export function SegmentationCanvas({
                   (polygon) => state.viewMode === "all" || inFocus(instance.id, polygon.id),
                 );
                 return (
-                  <g key={instance.id} data-instance-id={instance.id}>
+                  <g
+                    key={instance.id}
+                    data-instance-id={instance.id}
+                    data-frame-id={frameId}
+                    data-log-time-ns={frame?.logTimeNs}
+                  >
                     <g opacity={opacity} fill={color} data-testid="instance-union-fill">
                       {visible.map((polygon) => (
                         <path
