@@ -38,6 +38,7 @@ import { segmentationCanvasLabel } from "../segmentationChrome";
 import { frameInstanceKey } from "../service";
 import { filterSegmentationSelection } from "../store";
 import type { SemanticSegmentationStore, SegmentationNodeRef } from "../types";
+import { CameraFrameStrip } from "./CameraFrameStrip";
 import { useEditorText } from "./editorMessages";
 import {
   canDropNode,
@@ -269,6 +270,8 @@ export function SpatialTree({
         : state.currentFrameId
           ? [state.currentFrameId]
           : [];
+  /** The global multi-camera tree, as opposed to the standalone single-video workbench. */
+  const embeddedOverview = sessionOpen || Object.keys(previewFrames).length > 0;
   const selection = document
     ? filterSegmentationSelection(document, state.selection, state.currentFrameId)
     : [];
@@ -1249,7 +1252,7 @@ export function SpatialTree({
                               Object.values(document.annotations).find(
                                 (item) => item.frameId === id && item.instanceId === instance.id,
                               )?.polygons ?? [];
-                            return polygons.map((polygon, index) =>
+                            const rows = polygons.map((polygon, index) =>
                               row(
                                 { type: "polygon", id: polygon.id },
                                 treeFrameIds.length > 1 &&
@@ -1269,6 +1272,20 @@ export function SpatialTree({
                                 3,
                               ),
                             );
+                            return embeddedOverview
+                              ? [
+                                  ...rows,
+                                  <CameraFrameStrip
+                                    key={`strip:${id}`}
+                                    document={document}
+                                    instanceId={instance.id}
+                                    frameId={id}
+                                    camera={camera}
+                                    color={category.color}
+                                    disabled={disabled || state.drawingPolygonId != undefined}
+                                  />,
+                                ]
+                              : rows;
                           })}
                           {treeFrameIds.every(
                             (id) =>

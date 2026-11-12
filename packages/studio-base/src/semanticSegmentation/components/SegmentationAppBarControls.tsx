@@ -11,7 +11,7 @@ import { useStore } from "zustand";
 import { createLiveSemanticSegmentationService } from "@foxglove/studio-base/util/coscene/annotation";
 
 import { segmentationSession } from "../runtime";
-import { segmentationChrome } from "../segmentationChrome";
+import { mainSegmentationCanvas, segmentationChrome } from "../segmentationChrome";
 import { SegmentationActionMenu } from "./SegmentationActionMenu";
 
 import "./workbench.css";
@@ -40,7 +40,7 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
   const canvases = useStore(segmentationChrome, (state) => state.canvases);
   const open = useStore(segmentationSession, (state) => state.open);
   const localBackend = createLiveSemanticSegmentationService() == undefined;
-  const first = canvases[0];
+  const first = mainSegmentationCanvas(canvases);
 
   if (!open && first == undefined) {
     return undefined;

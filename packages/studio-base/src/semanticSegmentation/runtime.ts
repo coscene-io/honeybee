@@ -182,6 +182,8 @@ export const segmentationSession = createStore<{
   presentation?: { id: number; signal: AbortSignal };
   /** The side workflow panel of the in-panel workbench, driven from the panel header menu. */
   workflow: { open: boolean; target?: string; nonce: number };
+  /** Moves the player clock to an exact log time. Set by mounted image panels. */
+  seek?: (logTimeNs: bigint) => void;
 }>(() => ({
   runtime: undefined,
   previewRuntime: undefined,

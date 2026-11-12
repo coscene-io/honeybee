@@ -163,6 +163,10 @@ function ImagePanelAdapter(props: Props) {
         topic: imageTopic,
         enterInline: actions.enterInline,
         enterMaximize: actions.enterMaximize,
+        area: () => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          return rect ? rect.width * rect.height : 0;
+        },
       });
     },
     [imageTopic, panel.id],

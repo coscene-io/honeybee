@@ -27,6 +27,11 @@ export type SourceFrameLoader = {
   ensureRange: (fromNs: bigint, toNs: bigint) => Promise<void>;
   /** Reads later windows until `count` frames after `fromNs` are known or the recording ends. */
   ensureFollowing: (fromNs: bigint, count: number) => Promise<void>;
+  /**
+   * True when every window overlapping `[fromNs, toNs]` has been read, so the document lists all
+   * frames there. Times outside the recording count as read: there is nothing more to list.
+   */
+  isLoaded: (fromNs: bigint, toNs: bigint) => boolean;
   dispose: () => void;
 };
 
@@ -53,6 +58,7 @@ export function createSourceFrameLoader({
 }): SourceFrameLoader {
   const abort = new AbortController();
   const windows = new Map<bigint, Promise<void>>();
+  const loaded = new Set<bigint>();
   const lastWindow = endNs > startNs ? (endNs - startNs) / SOURCE_FRAME_WINDOW_NS : 0n;
   const loadWindow = async (index: bigint): Promise<void> => {
     if (index < 0n || index > lastWindow) {
@@ -72,7 +78,12 @@ export function createSourceFrameLoader({
       fromNanoSec(to < endNs ? to : endNs),
       abort.signal,
     ).then((stamps) => {
-      if (abort.signal.aborted || stamps.length === 0) {
+      if (abort.signal.aborted) {
+        return;
+      }
+      // Marked before registering, so views that re-render on the new frames see the window as read.
+      loaded.add(index);
+      if (stamps.length === 0) {
         return;
       }
       register(
@@ -120,6 +131,16 @@ export function createSourceFrameLoader({
           return;
         }
       }
+    },
+    isLoaded: (fromNs, toNs) => {
+      const first = fromNs < startNs ? 0n : windowOf(fromNs);
+      const last = toNs > endNs ? lastWindow : windowOf(toNs);
+      for (let index = first; index <= last; index++) {
+        if (!loaded.has(index)) {
+          return false;
+        }
+      }
+      return true;
     },
     dispose: () => {
       abort.abort();

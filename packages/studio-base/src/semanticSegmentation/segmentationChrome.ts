@@ -13,6 +13,8 @@ export type SegmentationCanvasEntry = {
   topic?: string;
   enterInline: () => void;
   enterMaximize: () => void;
+  /** On-screen area in CSS pixels, used to pick the main canvas. */
+  area?: () => number;
 };
 
 type SegmentationChromeState = {
@@ -48,4 +50,20 @@ export function registerSegmentationCanvas(entry: SegmentationCanvasEntry): () =
 export function segmentationCanvasLabel(topic: string | undefined): string {
   const parts = topic?.split("/").filter((part) => part.length > 0) ?? [];
   return parts[1] ?? parts[0] ?? "图像";
+}
+
+/** The largest canvas on screen, where a new session starts. The first one wins a tie. */
+export function mainSegmentationCanvas(
+  canvases: readonly SegmentationCanvasEntry[],
+): SegmentationCanvasEntry | undefined {
+  let main: SegmentationCanvasEntry | undefined;
+  let mainArea = -1;
+  for (const canvas of canvases) {
+    const area = canvas.area?.() ?? 0;
+    if (area > mainArea) {
+      main = canvas;
+      mainArea = area;
+    }
+  }
+  return main;
 }

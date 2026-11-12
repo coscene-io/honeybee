@@ -217,6 +217,18 @@ export function SegmentationImageEntry({
       : Number.NaN,
   );
   useEffect(() => {
+    // Lets the tree's mini timelines move the shared clock. Any mounted panel can provide it.
+    const seek = (logTimeNs: bigint) => {
+      getPipeline().seekPlayback?.(fromNanoSec(logTimeNs));
+    };
+    segmentationSession.setState({ seek });
+    return () => {
+      if (segmentationSession.getState().seek === seek) {
+        segmentationSession.setState({ seek: undefined });
+      }
+    };
+  }, [getPipeline]);
+  useEffect(() => {
     if (topic == undefined || sessionOpen || previewWindowStart == undefined) {
       return;
     }
@@ -677,9 +689,17 @@ export function SegmentationImageEntry({
       container?.removeEventListener("segmentation-frame", onFrame);
     };
   }, [containerRef, sync]);
+  // `isPlaying` too: a fixed step plays until its target and then only stops, without moving
+  // the clock again. The readiness computed while playing must be recomputed then.
   useLayoutEffect(() => {
     sync();
-  }, [player.activeData?.currentTime, player.activeData?.lastSeekTime, rawCapture, sync]);
+  }, [
+    player.activeData?.currentTime,
+    player.activeData?.lastSeekTime,
+    player.activeData?.isPlaying,
+    rawCapture,
+    sync,
+  ]);
 
   const enter = useCallback(
     async (mode: "inline" | "maximize") => {

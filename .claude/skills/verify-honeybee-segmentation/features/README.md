@@ -36,3 +36,4 @@ Each feature file starts with an H1 title and one paragraph of user-visible beha
 - [Keyboard shortcuts panel](./keyboard-shortcuts.md) covers the Studio shortcuts dialog and its spatial-annotation column.
 - [Canvas view popover](./canvas-view-popover.md) covers zoom, fit, pan, opacity, and the navigation profile on one canvas.
 - [Per-canvas propagation](./canvas-propagation.md) covers propagating every instance on one canvas from its panel toolbar.
+- [Per-camera frame strip and stepping](./camera-frame-steps.md) covers the ±20 frame strip under each polygon row and stepping the edited camera by real source frames.
