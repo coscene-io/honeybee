@@ -3163,7 +3163,7 @@ __metadata:
     "@protobufjs/base64": "npm:1.1.2"
     "@rspack/core": "npm:2.3.2"
     "@sentry/browser": "npm:8.55.2"
-    "@sentry/core": "npm:8.55.2"
+    "@sentry/core": "npm:11.11.0"
     "@svgr/webpack": "npm:8.1.0"
     "@tanstack/react-table": "npm:9.3.1"
     "@testing-library/dom": "npm:10.4.2"
@@ -5922,10 +5922,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sentry/conventions@npm:^0.30.0":
+  version: 0.30.0
+  resolution: "@sentry/conventions@npm:0.30.0"
+  checksum: 10/020270c022301568a07859146ac23efc6830ce6e4096e668dfd82c9a5de928a70eb48bed6fcf468db725a8955f10e4ac42506bd5ca8e19300050308daeacc7b9
+  languageName: node
+  linkType: hard
+
 "@sentry/conventions@npm:^0.32.0":
   version: 0.32.0
   resolution: "@sentry/conventions@npm:0.32.0"
   checksum: 10/e23d0b46e7a8e3131fd06489dbe6d2917b15be6f26d9796db05dab4aa2d42097464c926a91e90aefc6525cf9a41a984359519c698dea7d047f7d1c23569a66db
+  languageName: node
+  linkType: hard
+
+"@sentry/core@npm:11.11.0":
+  version: 11.11.0
+  resolution: "@sentry/core@npm:11.11.0"
+  dependencies:
+    "@sentry/conventions": "npm:^0.30.0"
+  checksum: 10/3de9d206a8917bde5f4062dc811c64578e03cbe1f80fcb6f17a0fd34100608aa753e726b2887d7ab93adb47b9ebe6f216ef72174a073859834d692431a95f412
   languageName: node
   linkType: hard
 
