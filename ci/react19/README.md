@@ -33,7 +33,9 @@ CI builds this fixture once and shares the exact `.coe`, lock, and provenance ac
 Web `/viz/`, Web `/`, and Desktop. The standalone browser dependency checks run only
 in the `/viz/` job because their page does not use the application's public path.
 Desktop also runs built-in panel smoke and the resource regression, and uploads its
-resource JSON even if a test fails. These jobs and static/unit checks feed the existing
+resource JSON even if a test fails. Its controlled fixtures opt into SwiftShader with
+`HONEYBEE_TEST_SOFTWARE_GL=1` on GPU-less CI runners; this is not a GPU performance test.
+These jobs and static/unit checks feed the existing
 required `lint` check; a failed or skipped prerequisite cannot produce a passing gate.
 Draft PRs skip validation; newer commits cancel earlier runs of the same PR or branch.
 Main-branch pushes call CD only after the gate passes, using the same commit context.

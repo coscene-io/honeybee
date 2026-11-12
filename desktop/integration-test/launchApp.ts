@@ -41,6 +41,10 @@ export async function launchApp(): Promise<AppType> {
       args: [
         process.env.HONEYBEE_REACT_BENCHMARK_APP_DIR ?? appPath,
         `--user-data-dir=${userDataDir}`,
+        // CI runners have no GPU. Opt in only for controlled integration fixtures.
+        ...(process.env.HONEYBEE_TEST_SOFTWARE_GL === "1"
+          ? ["--use-gl=angle", "--use-angle=swiftshader-webgl", "--enable-unsafe-swiftshader"]
+          : []),
       ],
       // In node.js the electron import gives us the path to the electron binary
       // Our type definitions don't realize this so cast the variable to a string

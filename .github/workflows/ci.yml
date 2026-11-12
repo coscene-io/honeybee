@@ -178,6 +178,8 @@ jobs:
         run: yarn desktop:build:prod
       - name: Exercise Desktop extensions, built-in panels, and resource cleanup
         if: matrix.target == 'desktop'
+        env:
+          HONEYBEE_TEST_SOFTWARE_GL: "1"
         run: xvfb-run -a yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/open-extension.test.ts desktop/integration-test/react19Builtins.test.ts desktop/integration-test/react19Resources.test.ts --runInBand
       - name: Preserve resource diagnostics
         if: always() && matrix.target == 'desktop'
