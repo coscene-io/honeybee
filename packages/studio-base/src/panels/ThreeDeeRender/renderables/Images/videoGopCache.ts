@@ -279,6 +279,29 @@ export class VideoGopCache {
     }
   }
 
+  /**
+   * Every frame currently held for a topic, in receive order. Unlike the replay lookups this is
+   * not bounded to one GOP, so callers that need the frames around the playhead (the annotation
+   * frame window) can read them without decoding. Eviction still applies: the list is only what
+   * the cache has kept.
+   */
+  public framesForTopic(topic: string): MessageEvent[] {
+    const ranges = this.#rangesByTopic.get(topic);
+    if (ranges == undefined || ranges.length === 0) {
+      return [];
+    }
+    return ranges
+      .flatMap((range) => range.frames)
+      .sort((left, right) =>
+        left.receiveTimeNs < right.receiveTimeNs
+          ? -1
+          : left.receiveTimeNs > right.receiveTimeNs
+            ? 1
+            : 0,
+      )
+      .map((frame) => frame.messageEvent);
+  }
+
   public framesForReceiveTime(topic: string, targetTime: Time): MessageEvent[] | undefined {
     const targetNs = toNanoSec(targetTime);
     const ranges = this.#rangesByTopic.get(topic);

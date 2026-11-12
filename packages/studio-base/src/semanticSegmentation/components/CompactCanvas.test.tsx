@@ -44,7 +44,7 @@ it("compact canvas shows only the view tools button until it is opened", async (
   expect(within(tools).getByRole("button", { name: "Zoom out" })).toBeTruthy();
   expect(within(tools).getByRole("button", { name: "Pan" })).toBeTruthy();
   expect(within(tools).getByLabelText("Overlay opacity")).toBeTruthy();
-  expect(within(tools).getByRole("button", { name: "Shortcuts" })).toBeTruthy();
+  expect(within(tools).getByRole("button", { name: "Keyboard shortcuts" })).toBeTruthy();
   fireEvent.keyDown(within(tools).getByRole("button", { name: "Zoom out" }), { key: "Escape" });
   expect(screen.queryByRole("group", { name: "View tools" })).toBeNull();
   expect(fab.getAttribute("aria-expanded")).toBe("false");

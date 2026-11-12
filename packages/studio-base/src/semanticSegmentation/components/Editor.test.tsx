@@ -16,10 +16,7 @@ import type { SegmentationDocument } from "../types";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { SpatialTree } from "./SpatialTree";
 
-async function setup(
-  onFullscreen?: () => void | Promise<void>,
-  configure?: (document: SegmentationDocument) => void,
-) {
+async function setup(configure?: (document: SegmentationDocument) => void) {
   const document = createSeedDocument();
   document.frames = document.frames.slice(0, 2);
   document.annotations = Object.fromEntries(
@@ -47,7 +44,7 @@ async function setup(
         store={store}
         onPointerActivate={() => viewportRef.current?.focus({ preventScroll: true })}
       />
-      <SegmentationCanvas store={store} viewportRef={viewportRef} onFullscreen={onFullscreen} />
+      <SegmentationCanvas store={store} viewportRef={viewportRef} />
     </>,
   );
   return { store, ...result };
@@ -687,24 +684,14 @@ describe("segmentation editor", () => {
     expect(point.x).toBeCloseTo(0.171);
     expect(point.y).toBe(0.3);
   });
-  it("reports unsupported fullscreen without crashing the editor", async () => {
+  it("offers no fullscreen control in the view popover", async () => {
     await setup();
-    fireEvent.click(screen.getByRole("button", { name: "Fullscreen" }));
-    expect(screen.getByText("Fullscreen is unavailable in this browser.")).toBeDefined();
-  });
-
-  it("delegates fullscreen to the containing Image Panel when supplied", async () => {
-    const onFullscreen = jest.fn();
-    await setup(onFullscreen);
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Fullscreen" }));
-    });
-    expect(onFullscreen).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText("Fullscreen is unavailable in this browser.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Fullscreen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "全屏" })).toBeNull();
   });
 
   it("switches the independent green presence marker and accessible description from frame 10 to 11", async () => {
-    const { store, container } = await setup(undefined, (document) => {
+    const { store, container } = await setup((document) => {
       const full = createSeedDocument();
       document.frames = full.frames;
       document.annotations = full.annotations;

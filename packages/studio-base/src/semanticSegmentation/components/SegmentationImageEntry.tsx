@@ -26,6 +26,7 @@ import { previewWindowNeedsLoad, previewWindowStartSec } from "../annotationFram
 import {
   imageFrameIdentity,
   presentationFrameAt,
+  segmentationCachedFrames,
   segmentationImageSources,
   segmentationSourceKey,
   type SegmentationImage,
@@ -64,6 +65,64 @@ type Binding = {
   /** Lists this camera's frames from the data source. Absent for remote video files. */
   frames?: SourceFrameLoader;
 };
+
+function cachedCanvasFrames(
+  container: HTMLElement | ReactNull,
+): ReturnType<NonNullable<ReturnType<typeof segmentationCachedFrames.get>>> {
+  const canvas = container?.querySelector("canvas");
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return [];
+  }
+  return segmentationCachedFrames.get(canvas)?.() ?? [];
+}
+
+function receivedFrameStamps(
+  messages: readonly {
+    topic: string;
+    message: unknown;
+    receiveTime: SegmentationImage["receiveTime"];
+  }[],
+  topic: string,
+): Map<
+  string,
+  { timestamp: SegmentationImage["timestamp"]; receiveTime: SegmentationImage["receiveTime"] }
+> {
+  const stamps = new Map<
+    string,
+    { timestamp: SegmentationImage["timestamp"]; receiveTime: SegmentationImage["receiveTime"] }
+  >();
+  for (const message of messages) {
+    if (message.topic !== topic) {
+      continue;
+    }
+    const value = message.message as {
+      timestamp?: SegmentationImage["timestamp"];
+      header?: { stamp: SegmentationImage["timestamp"] };
+    };
+    const stamp = {
+      timestamp: value.header?.stamp ?? value.timestamp ?? message.receiveTime,
+      receiveTime: message.receiveTime,
+    };
+    stamps.set(imageFrameIdentity(stamp), stamp);
+  }
+  return stamps;
+}
+
+function sourceFrames(
+  videoId: string,
+  startTime: SegmentationImage["receiveTime"],
+  stamps: Iterable<Pick<SegmentationImage, "timestamp" | "receiveTime">>,
+) {
+  const startNs = toNanoSec(startTime);
+  return [...stamps].map((stamp) => ({
+    id: `${videoId}:${imageFrameIdentity(stamp)}`,
+    videoId,
+    index: 0,
+    timestampSec: Number(toNanoSec(stamp.receiveTime) - startNs) / 1e9,
+    logTimeNs: toNanoSec(stamp.receiveTime).toString(),
+    imageUrl: "",
+  }));
+}
 
 function propagationLocksContext(status: string): boolean {
   return status === "running" || status === "stopping";
@@ -484,26 +543,25 @@ export function SegmentationImageEntry({
         toNanoSec(image.receiveTime) <= toNanoSec(data.currentTime) &&
         (!latest || toNanoSec(latest.receiveTime) === toNanoSec(image.receiveTime));
     }
-    if (!frame && matchesClock && !image.source && state.document) {
+    if (matchesClock && !image.source && state.document) {
       const video = state.document.videos.find((item) => item.id === binding.videoId);
       if (video) {
+        const pipeline = getPipeline();
+        const stamps = receivedFrameStamps(
+          [
+            ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
+              (block) => block?.messagesByTopic[topic] ?? [],
+            ) ?? []),
+            ...data.messages,
+            ...cachedCanvasFrames(containerRef.current),
+          ],
+          topic,
+        );
+        stamps.set(imageFrameIdentity(image), image);
+        const durationSec = Number(toNanoSec(data.endTime) - toNanoSec(data.startTime)) / 1e9;
         binding.runtime.registerSource({
-          videos: [
-            {
-              ...video,
-              durationSec: Number(toNanoSec(data.endTime) - toNanoSec(data.startTime)) / 1e9,
-            },
-          ],
-          frames: [
-            {
-              id: `${binding.videoId}:${imageFrameIdentity(image)}`,
-              videoId: binding.videoId,
-              index: 0,
-              timestampSec: Number(toNanoSec(image.receiveTime) - toNanoSec(data.startTime)) / 1e9,
-              logTimeNs: toNanoSec(image.receiveTime).toString(),
-              imageUrl: "",
-            },
-          ],
+          videos: [{ ...video, durationSec }],
+          frames: sourceFrames(binding.videoId, data.startTime, stamps.values()),
         });
         frame = binding.runtime.store
           .getState()
@@ -579,7 +637,7 @@ export function SegmentationImageEntry({
           binding.runtime.store.getState().isFrameReady(frame.id) &&
           !binding.runtime.store.getState().loading,
     });
-  }, [capture, close, getPipeline, panelId, topic]);
+  }, [capture, close, containerRef, getPipeline, panelId, topic]);
 
   useEffect(
     () =>
@@ -686,23 +744,17 @@ export function SegmentationImageEntry({
           }
         } else {
           // Cache metadata is bounded by the player's cache; no frame/pixel synthesis or media copies.
-          const messages = [
-            ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
-              (block) => block?.messagesByTopic[imageTopic] ?? [],
-            ) ?? []),
-            ...data.messages,
-          ];
-          for (const message of messages) {
-            if (message.topic !== imageTopic) {
-              continue;
-            }
-            const value = message.message as {
-              timestamp?: SegmentationImage["timestamp"];
-              header?: { stamp: SegmentationImage["timestamp"] };
-            };
-            const timestamp = value.header?.stamp ?? value.timestamp ?? message.receiveTime;
-            const stamp = { timestamp, receiveTime: message.receiveTime };
-            stamps.set(imageFrameIdentity(stamp), stamp);
+          for (const [id, stamp] of receivedFrameStamps(
+            [
+              ...(pipeline.playerState.progress.messageCache?.blocks.flatMap(
+                (block) => block?.messagesByTopic[imageTopic] ?? [],
+              ) ?? []),
+              ...data.messages,
+              ...cachedCanvasFrames(containerRef.current),
+            ],
+            imageTopic,
+          )) {
+            stamps.set(id, stamp);
           }
           if (image) {
             stamps.set(imageFrameIdentity(image), image);

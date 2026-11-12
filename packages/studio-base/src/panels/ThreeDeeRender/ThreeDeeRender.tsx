@@ -31,7 +31,10 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
-import { segmentationImageSources } from "@foxglove/studio-base/semanticSegmentation/imageSource";
+import {
+  segmentationCachedFrames,
+  segmentationImageSources,
+} from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import type {
@@ -952,6 +955,12 @@ export function ThreeDeeRender(props: {
     if (!canvas || !renderer || interfaceMode !== "image") {
       return;
     }
+    segmentationCachedFrames.set(canvas, () => {
+      const imageMode = [...renderer.sceneExtensions.values()].find(
+        (extension) => extension instanceof ImageMode,
+      );
+      return imageMode instanceof ImageMode ? imageMode.cachedSegmentationFrames() : [];
+    });
     segmentationImageSources.set(canvas, () => {
       const imageMode = [...renderer.sceneExtensions.values()].find(
         (extension) => extension instanceof ImageMode,
@@ -963,6 +972,7 @@ export function ThreeDeeRender(props: {
     };
     renderer.on("endFrame", onFrame);
     return () => {
+      segmentationCachedFrames.delete(canvas);
       segmentationImageSources.delete(canvas);
       renderer.off("endFrame", onFrame);
     };

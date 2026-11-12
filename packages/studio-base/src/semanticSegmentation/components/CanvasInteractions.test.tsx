@@ -7,8 +7,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import i18n from "i18next";
 
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
+import { KeyboardShortcutsDialog } from "@foxglove/studio-base/components/PlaybackControls/KeyboardShortcutsDialog";
+import { closeKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
 import { frameInstanceKey } from "../service";
@@ -453,6 +456,18 @@ it("offers trackpad pan/pinch, actual pixel 100%, Fit and Fit selection in reado
   expect(store.getState().stagedOperations).toHaveLength(0);
 });
 
+it("fits, fits the selection and returns to 100% from F, Shift+F and 0 on the focused canvas", async () => {
+  const { viewport, transform, content } = await setup();
+  const scale = () => (content() as SVGGraphicsElement).getScreenCTM()!.a;
+  viewport.focus();
+  fireEvent.keyDown(viewport, { key: "0" });
+  expect(scale()).toBeCloseTo(1);
+  fireEvent.keyDown(viewport, { key: "F", shiftKey: true });
+  expect(scale()).toBeGreaterThan(0.5);
+  fireEvent.keyDown(viewport, { key: "f" });
+  expect(transform()).toBe("translate(0 0) scale(1)");
+});
+
 it("routes canvas undo/redo and the visible Redo button while leaving inputs and toolbar keys alone", async () => {
   const { store, viewport, points, handle } = await setup();
   const original = points();
@@ -534,7 +549,7 @@ it.each(["fill", "edge", "background"])(
   },
 );
 
-it("keeps annotation Help and context menu portal events out of global playback", async () => {
+it("keeps annotation context menu portal events out of global playback", async () => {
   const { canvas, handle, points, store } = await setup();
   const playback = jest.fn();
   render(
@@ -544,21 +559,6 @@ it("keeps annotation Help and context menu portal events out of global playback"
       keyUpHandlers={{ " ": playback }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }), { detail: 1 });
-  const dialog = screen.getByRole("dialog");
-  const close = screen.getByRole("button", { name: "Close" });
-  await act(async () => {
-    close.focus();
-    await Promise.resolve();
-  });
-  expect(document.activeElement).toBe(close);
-  fireEvent.keyDown(close, { key: " " });
-  fireEvent.keyUp(close, { key: " " });
-  expect(playback).not.toHaveBeenCalled();
-  fireEvent.keyDown(dialog, { key: "Escape" });
-  await waitFor(() => {
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
   const x = points()[0]!.x * 480 + 100,
     y = points()[0]!.y * 270 + 50;
   pointer(handle(), "pointerdown", x, y, 2);
@@ -590,20 +590,63 @@ it.each([
 );
 
 it("closes annotation portals and disables navigation when propagation locks the editor", async () => {
-  const { store, canvas, transform } = await setup();
-  fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }));
-  expect(screen.getByRole("dialog")).toBeTruthy();
+  const { store, canvas, handle, points, transform } = await setup();
+  const x = points()[0]!.x * 480 + 100,
+    y = points()[0]!.y * 270 + 50;
+  pointer(handle(), "pointerdown", x, y, 2);
+  pointer(canvas, "pointerup", x, y, 2);
+  expect(screen.getByRole("menu")).toBeTruthy();
   act(() => {
     store.setState({ propagation: { status: "running", processedFrames: 0 } });
   });
   await waitFor(() => {
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("menu")).toBeNull();
   });
   expect(screen.getByRole("button", { name: "Pan" })).toHaveProperty("disabled", true);
   expect(screen.getByLabelText("Navigation profile")).toHaveProperty("disabled", true);
   fireEvent.wheel(canvas, { deltaY: -100, clientX: 200, clientY: 150 });
   expect(transform()).toBe("translate(0 0) scale(1)");
   expect(store.getState().stagedOperations).toHaveLength(0);
+});
+
+describe("Studio keyboard shortcuts dialog", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+  afterEach(() => {
+    act(() => {
+      closeKeyboardShortcuts();
+    });
+  });
+
+  it("opens from ? on the focused canvas without any annotation-owned dialog", async () => {
+    const { viewport } = await setup();
+    render(<KeyboardShortcutsDialog />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    viewport.focus();
+    fireEvent.keyDown(viewport, { key: "?" });
+    expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeTruthy();
+    expect(screen.queryByText("标注操作")).toBeNull();
+  });
+
+  it("opens from the view popover and the canvas context menu", async () => {
+    const { canvas, handle, points } = await setup();
+    render(<KeyboardShortcutsDialog />);
+    fireEvent.click(screen.getByRole("button", { name: "Shortcuts" }));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    act(() => {
+      closeKeyboardShortcuts();
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    const x = points()[0]!.x * 480 + 100,
+      y = points()[0]!.y * 270 + 50;
+    pointer(handle(), "pointerdown", x, y, 2);
+    pointer(canvas, "pointerup", x, y, 2);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Keyboard shortcuts" }));
+    expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeTruthy();
+  });
 });
 
 describe("polygon editing keys and multi-point selection", () => {

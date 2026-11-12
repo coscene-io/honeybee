@@ -1,0 +1,164 @@
+// SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+// SPDX-License-Identifier: MPL-2.0
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/
+
+import { Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
+import { useStore } from "zustand";
+
+import { segmentationSession } from "@foxglove/studio-base/semanticSegmentation/runtime";
+
+import {
+  MOD,
+  SHORTCUTS,
+  ShortcutKeys,
+  getSegmentationShortcuts,
+  type SegmentationShortcutRow,
+  type SegmentationShortcutSection,
+} from "./keyboardShortcuts";
+import {
+  closeKeyboardShortcuts,
+  useKeyboardShortcutsDialogStore,
+} from "./keyboardShortcutsDialogStore";
+
+type Row = { labelKey: SegmentationShortcutRow["labelKey"]; keys: readonly string[] };
+
+const useStyles = makeStyles()((theme) => ({
+  section: {
+    marginTop: theme.spacing(2),
+    "&:first-of-type": {
+      marginTop: 0,
+    },
+  },
+  sectionTitle: {
+    color: theme.palette.text.secondary,
+    fontWeight: 600,
+    marginBottom: theme.spacing(1),
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+  },
+  row: {
+    alignItems: "center",
+    display: "flex",
+    gap: theme.spacing(2),
+    justifyContent: "space-between",
+    paddingBlock: theme.spacing(0.5),
+  },
+  label: {
+    color: theme.palette.text.primary,
+  },
+  columns: {
+    display: "grid",
+    gap: theme.spacing(3),
+    gridTemplateColumns: "1fr 1fr",
+    [theme.breakpoints.down("sm")]: {
+      gridTemplateColumns: "1fr",
+    },
+  },
+  columnTitle: {
+    fontWeight: 600,
+    marginBottom: theme.spacing(1),
+  },
+}));
+
+/** The one keyboard shortcuts dialog; mount it once and open it with `openKeyboardShortcuts()`. */
+export function KeyboardShortcutsDialog(): React.JSX.Element {
+  const { classes } = useStyles();
+  const { t } = useTranslation("general");
+  const open = useKeyboardShortcutsDialogStore((state) => state.open);
+  const annotating = useStore(segmentationSession, (state) => state.open);
+
+  // Rows reference the shared SHORTCUTS definitions so the dialog stays in sync with the per-control
+  // tooltips. The zoom-at-cursor row interpolates the localized "scroll" word, so it's built here.
+  const sections = useMemo(
+    () =>
+      [
+        {
+          titleKey: "shortcutsSectionPlayback",
+          rows: [
+            { keys: SHORTCUTS.playPause, labelKey: "shortcutPlayPause" },
+            { keys: SHORTCUTS.seekStep, labelKey: "shortcutSeekStep" },
+            { keys: SHORTCUTS.playbackSpeed, labelKey: "shortcutPlaybackSpeed" },
+          ],
+        },
+        {
+          titleKey: "shortcutsSectionMoments",
+          rows: [
+            { keys: SHORTCUTS.selectMoment, labelKey: "shortcutSelectMoment" },
+            { keys: SHORTCUTS.seekToMoment, labelKey: "shortcutSeekToMoment" },
+            { keys: SHORTCUTS.createMoment, labelKey: "shortcutCreateMoment" },
+            { keys: SHORTCUTS.setInOut, labelKey: "shortcutSetInOut" },
+            { keys: SHORTCUTS.deleteMoment, labelKey: "shortcutDeleteMoment" },
+          ],
+        },
+        {
+          titleKey: "shortcutsSectionTimeline",
+          rows: [
+            { keys: SHORTCUTS.zoom, labelKey: "shortcutZoom" },
+            { keys: SHORTCUTS.zoomFit, labelKey: "shortcutZoomFit" },
+            { keys: [`${MOD} + ${t("mouseWheel")}`], labelKey: "shortcutZoomCursor" },
+          ],
+        },
+      ] as const,
+    [t],
+  );
+
+  const segmentationSections = useMemo(
+    () =>
+      getSegmentationShortcuts(navigator.userAgent, {
+        drag: t("shortcutDrag"),
+        click: t("shortcutClick"),
+      }).sections,
+    [t],
+  );
+
+  const renderSections = (
+    list: readonly { titleKey: SegmentationShortcutSection["titleKey"]; rows: readonly Row[] }[],
+  ) =>
+    list.map((section) => (
+      <div key={section.titleKey} className={classes.section}>
+        <Typography variant="caption" component="div" className={classes.sectionTitle}>
+          {t(section.titleKey)}
+        </Typography>
+        {section.rows.map((row) => (
+          <div key={row.labelKey} className={classes.row}>
+            <Typography variant="body2" className={classes.label}>
+              {t(row.labelKey)}
+            </Typography>
+            <ShortcutKeys keys={row.keys} />
+          </div>
+        ))}
+      </div>
+    ));
+
+  return (
+    <Dialog
+      open={open}
+      onClose={closeKeyboardShortcuts}
+      maxWidth={annotating ? "md" : "xs"}
+      fullWidth
+    >
+      <DialogTitle>{t("keyboardShortcuts")}</DialogTitle>
+      <DialogContent>
+        {annotating ? (
+          <div className={classes.columns}>
+            <div>{renderSections(sections)}</div>
+            <div>
+              <Typography variant="subtitle2" className={classes.columnTitle}>
+                {t("segmentationColumnTitle")}
+              </Typography>
+              {renderSections(segmentationSections)}
+            </div>
+          </div>
+        ) : (
+          renderSections(sections)
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

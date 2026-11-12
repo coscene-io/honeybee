@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { toNanoSec, type Time } from "@foxglove/rostime";
+import type { MessageEvent } from "@foxglove/studio";
 import type { RemoteVideoSourceMetadata } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
 import type { PlayerURLState } from "@foxglove/studio-base/players/types";
 
@@ -23,11 +24,13 @@ export type SegmentationImage = Readonly<{
   source?: RemoteVideoSourceMetadata;
 }>;
 
+export type SegmentationImageSource = () => SegmentationImage | undefined;
+
 /** Bridges the Image renderer's separate React root to its enclosing coStudio panel. */
-export const segmentationImageSources = new WeakMap<
-  HTMLCanvasElement,
-  () => SegmentationImage | undefined
->();
+export const segmentationImageSources = new WeakMap<HTMLCanvasElement, SegmentationImageSource>();
+
+/** Frames the panel's decoder cache still holds, keyed by the same canvas as the capture. */
+export const segmentationCachedFrames = new WeakMap<HTMLCanvasElement, () => MessageEvent[]>();
 
 export function imageFrameIdentity(
   image: Pick<SegmentationImage, "timestamp" | "receiveTime">,
