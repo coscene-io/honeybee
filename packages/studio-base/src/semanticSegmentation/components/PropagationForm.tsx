@@ -12,6 +12,7 @@ import { useEffect, useId, useState } from "react";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
+import { sourceFrameLoaders } from "../sourceFrames";
 import type { PropagationRequest, SemanticSegmentationStore } from "../types";
 import type { CanvasPropagationScope } from "./propagationSeeds";
 
@@ -84,6 +85,34 @@ export function PropagationForm({
     ? Math.min(afterFrames, Math.max(0, videoFrames.length - seedIndex - 1))
     : 0;
   const clippedRange = validRange && effectiveAfter !== afterFrames;
+  // The document lists only the frames read so far. Read later windows before clipping the range.
+  const loader = frame ? sourceFrameLoaders.get(frame.videoId) : undefined;
+  const seedLogTime = frame?.logTimeNs;
+  const [framesLoading, setFramesLoading] = useState(false);
+  const [framesError, setFramesError] = useState<string>();
+  useEffect(() => {
+    if (!loader || seedLogTime == undefined || !clippedRange) {
+      return;
+    }
+    let current = true;
+    setFramesLoading(true);
+    setFramesError(undefined);
+    loader
+      .ensureFollowing(BigInt(seedLogTime), afterFrames)
+      .catch((error: unknown) => {
+        if (current) {
+          setFramesError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
+        if (current) {
+          setFramesLoading(false);
+        }
+      });
+    return () => {
+      current = false;
+    };
+  }, [loader, seedLogTime, clippedRange, afterFrames]);
   const request: PropagationRequest | undefined =
     frame && instanceId
       ? {
@@ -166,10 +195,13 @@ export function PropagationForm({
       {validRange && frame && (
         <p aria-label="有效传播范围" className="seg-muted">
           源帧 {frame.index + 1} · 有效范围：后 {effectiveAfter} 帧
-          {clippedRange ? " · 已按片段边界裁剪。" : ""}
+          {framesLoading ? " · 正在读取后续帧…" : clippedRange ? " · 已按录制结尾裁剪。" : ""}
         </p>
       )}
-      {validRange && effectiveAfter === 0 && <p role="alert">当前范围内没有可传播的其他帧。</p>}
+      {framesError && <p role="alert">后续帧读取失败：{framesError}</p>}
+      {validRange && effectiveAfter === 0 && !framesLoading && (
+        <p role="alert">当前范围内没有可传播的其他帧。</p>
+      )}
       {allowedResolutions.length > 0 && (
         <label>
           分辨率
@@ -216,6 +248,7 @@ export function PropagationForm({
             !validRange ||
             !supportedParameters ||
             effectiveAfter < 1 ||
+            framesLoading ||
             busy
           }
           onClick={() => {

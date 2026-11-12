@@ -38,6 +38,12 @@ import {
   type SegmentationSurface,
 } from "../runtime";
 import type { SemanticSegmentationService } from "../service";
+import {
+  SOURCE_FRAME_WINDOW_NS,
+  createSourceFrameLoader,
+  sourceFrameLoaders,
+  type SourceFrameLoader,
+} from "../sourceFrames";
 import type { SegmentationDocument } from "../types";
 import { AnnotationPreview } from "./AnnotationPreview";
 
@@ -55,6 +61,8 @@ type Binding = {
   videoId: string;
   providerId?: string;
   sourceId?: string;
+  /** Lists this camera's frames from the data source. Absent for remote video files. */
+  frames?: SourceFrameLoader;
 };
 
 function propagationLocksContext(status: string): boolean {
@@ -333,6 +341,12 @@ export function SegmentationImageEntry({
     const binding = active.current;
     active.current = undefined;
     pending.current = undefined;
+    if (binding?.frames) {
+      binding.frames.dispose();
+      if (sourceFrameLoaders.get(binding.videoId) === binding.frames) {
+        sourceFrameLoaders.delete(binding.videoId);
+      }
+    }
     const ownsSession =
       binding != undefined &&
       segmentationSession.getState().runtime === binding.runtime &&
@@ -497,6 +511,15 @@ export function SegmentationImageEntry({
             (item) => item.id === `${binding.videoId}:${imageFrameIdentity(image)}`,
           );
       }
+    }
+    if (focused && binding.frames) {
+      // Keep the windows around the clock listed, so stepping across a window edge has a target.
+      const clockNs = toNanoSec(data.currentTime);
+      void binding.frames
+        .ensureRange(clockNs - SOURCE_FRAME_WINDOW_NS, clockNs + SOURCE_FRAME_WINDOW_NS)
+        .catch(() => {
+          // A failed window is retried on the next clock change; frames seen on screen still register.
+        });
     }
     if (!frame || !matchesClock) {
       // Leave the current picture up while the player is moving. A seek can finish on the next tick.
@@ -770,13 +793,39 @@ export function SegmentationImageEntry({
         return;
       }
       pending.current = undefined;
+      const subscribeMessageRange = getPipeline().subscribeMessageRange;
+      const boundRuntime = runtime;
+      const frames =
+        image?.source == undefined && subscribeMessageRange != undefined
+          ? createSourceFrameLoader({
+              subscribeMessageRange,
+              topic: imageTopic,
+              videoId,
+              startNs: toNanoSec(data.startTime),
+              endNs: toNanoSec(data.endTime),
+              register: (source) => {
+                if (active.current?.runtime === boundRuntime) {
+                  boundRuntime.registerSource({ videos: [], frames: source });
+                }
+              },
+              knownLogTimes: () =>
+                (boundRuntime.store.getState().document?.frames ?? [])
+                  .filter((item) => item.videoId === videoId)
+                  .map((item) => BigInt(item.logTimeNs)),
+            })
+          : undefined;
+      active.current?.frames?.dispose();
       active.current = {
         runtime,
         key: keyAtStart,
         videoId,
         providerId: image?.providerId,
         sourceId: image?.source?.sourceId,
+        frames,
       };
+      if (frames) {
+        sourceFrameLoaders.set(videoId, frames);
+      }
       activateSegmentationRuntime(runtime);
       const joining =
         segmentationSession.getState().open && segmentationSession.getState().runtime === runtime;
