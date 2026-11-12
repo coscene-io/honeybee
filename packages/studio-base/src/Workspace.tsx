@@ -87,6 +87,8 @@ import {
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { PanelStateContextProvider } from "@foxglove/studio-base/providers/PanelStateContextProvider";
 import WorkspaceContextProvider from "@foxglove/studio-base/providers/WorkspaceContextProvider";
+import { GlobalPropagationLock } from "@foxglove/studio-base/semanticSegmentation/components/GlobalPropagationLock";
+import { SpatialSidebar } from "@foxglove/studio-base/semanticSegmentation/components/SpatialSidebar";
 import { logMessageCacheMetric } from "@foxglove/studio-base/services/messageCacheTelemetry";
 import {
   logPlaybackPerformanceMetric,
@@ -287,6 +289,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           hidden: enableList.event === "DISABLE",
         },
       ],
+      ["space", { title: "空间", component: SpatialSidebar }],
       [
         "tasks",
         {
@@ -448,6 +451,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       {dataSourceDialog.open && <DataSourceDialog />}
       <DocumentDropListener onDrop={dropHandler} allowedExtensions={allowedDropExtensions} />
       <SyncAdapters />
+      <GlobalPropagationLock />
       <DeepLinksSyncAdapter deepLinks={props.deepLinks} />
       <KeyListener global keyDownHandlers={keyDownHandlers} />
       <div className={classes.container} ref={containerRef} tabIndex={0}>
@@ -466,7 +470,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         >
           {/* To ensure no stale player state remains, we unmount all panels when players change */}
           <RemountOnValueChange value={playerId}>
-            <Stack>
+            <Stack style={{ position: "relative" }}>
               <PanelLayout />
             </Stack>
           </RemountOnValueChange>

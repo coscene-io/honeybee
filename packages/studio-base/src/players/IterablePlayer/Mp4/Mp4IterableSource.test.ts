@@ -8,6 +8,7 @@
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 
 import { Mp4IterableSource } from "./Mp4IterableSource";
+import { getRemoteVideoSourceMetadata } from "./RemoteVideoFrameRegistry";
 
 describe("Mp4IterableSource", () => {
   it("emits presentation-ordered VFR references and seeks with backfill", async () => {
@@ -37,6 +38,11 @@ describe("Mp4IterableSource", () => {
     });
 
     const initialization = await source.initialize();
+    expect(getRemoteVideoSourceMetadata("test-provider")).toMatchObject({
+      sourceId: "https://example.com/video.mp4",
+      topic: "/camera/h264",
+      frames: [{ timestampNs: 0n }, { timestampNs: 100_000_000n }, { timestampNs: 400_000_000n }],
+    });
     expect(initialization.end).toEqual(fromNanoSec(1_000_000_000n));
     expect(initialization.problems).toEqual([]);
 
@@ -66,6 +72,7 @@ describe("Mp4IterableSource", () => {
     });
 
     await source.terminate();
+    expect(getRemoteVideoSourceMetadata("test-provider")).toBeUndefined();
     expect(controller.dispose).toHaveBeenCalledTimes(1);
   });
 });

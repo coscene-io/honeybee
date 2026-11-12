@@ -447,6 +447,50 @@ describe("ImageMode compressed video seek replay", () => {
     );
   });
 
+  it("captures original decoded frame pixels for segmentation independently of viewport transforms", async () => {
+    const imageMode = new TestImageMode(makeRenderer());
+    expect(imageMode.captureSegmentationImage()).toBeUndefined();
+    void compressedVideoSubscription(imageMode).processQueue?.(
+      [makeVideoMessage(0n, "key")],
+      PLAYBACK_CONTEXT,
+    );
+    await flushAsyncWork();
+    const renderable = imageMode.currentImageRenderable()!;
+    const pixels = new ImageData(8, 4);
+    const decoded = jest.spyOn(renderable, "getDecodedImage").mockReturnValue(pixels);
+    renderable.userData.displayedFrameState = {
+      image: makeVideoMessage(0n, "key").message,
+      receiveTime: 0n,
+    };
+    const encode = jest
+      .spyOn(HTMLCanvasElement.prototype, "toDataURL")
+      .mockImplementation(function (this: HTMLCanvasElement) {
+        expect(this.width).toBe(8);
+        expect(this.height).toBe(4);
+        return "data:image/png;base64,original-decoded-frame";
+      });
+    expect(imageMode.captureSegmentationImage()).toMatchObject({
+      imageUrl: "data:image/png;base64,original-decoded-frame",
+      timestamp: { sec: 0, nsec: 0 },
+      receiveTime: { sec: 0, nsec: 0 },
+      topic: "/camera",
+      decodedIdentity: pixels,
+    });
+    // A newer requested message must not relabel the old displayed pixels.
+    renderable.userData.image = makeVideoMessage(900n, "delta").message;
+    expect(imageMode.captureSegmentationImage()?.timestamp).toEqual({ sec: 0, nsec: 0 });
+    imageMode.handleSeek();
+    expect(imageMode.captureSegmentationImage()).toBeUndefined();
+    decoded.mockReturnValue(new ImageData(8, 4));
+    renderable.userData.displayedFrameState = {
+      image: makeVideoMessage(900n, "key").message,
+      receiveTime: 900n,
+    };
+    expect(imageMode.captureSegmentationImage()?.timestamp).toEqual({ sec: 0, nsec: 900 });
+    expect(encode).toHaveBeenCalledWith("image/png");
+    imageMode.dispose();
+  });
+
   it("retains the displayed video when synchronization changes while paused", async () => {
     const renderer = makeRenderer();
     const imageMode = new TestImageMode(renderer);

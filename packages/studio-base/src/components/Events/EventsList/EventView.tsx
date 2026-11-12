@@ -47,6 +47,7 @@ import {
 import { useTimelineInteractionState } from "@foxglove/studio-base/context/TimelineInteractionStateContext";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
 import { confirmTypes } from "@foxglove/studio-base/hooks/useConfirm";
+import { SpatialReferenceValue } from "@foxglove/studio-base/semanticSegmentation/components/ActiveMomentReference";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 import { eventListDetails } from "./eventListModel";
@@ -474,7 +475,11 @@ function EventViewComponent(params: {
                       </Stack>
                       <Stack marginRight={1}>:</Stack>
                       <Stack>
-                        <HighlightedText text={value ?? ""} highlight={filter} />
+                        {value?.startsWith("spatial://") === true ? (
+                          <SpatialReferenceValue value={value} />
+                        ) : (
+                          <HighlightedText text={value ?? ""} highlight={filter} />
+                        )}
                       </Stack>
                     </Stack>
                   ))}

@@ -31,6 +31,10 @@ import {
   DEFAULT_SCENE_EXTENSION_CONFIG,
   SceneExtensionConfig,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
+import {
+  segmentationCachedFrames,
+  segmentationImageSources,
+} from "@foxglove/studio-base/semanticSegmentation/imageSource";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
 import type {
@@ -55,6 +59,7 @@ import {
   makePoseMessage,
 } from "./publish";
 import type { LayerSettingsTransform } from "./renderables/FrameAxes";
+import { ImageMode } from "./renderables/ImageMode/ImageMode";
 import { PublishClickEventMap, PublishClickType } from "./renderables/PublishClickTool";
 import { DEFAULT_PUBLISH_SETTINGS } from "./renderables/PublishSettings";
 import { getTopicMessageFrequencies } from "./topicMessageFrequencies";
@@ -945,6 +950,33 @@ export function ThreeDeeRender(props: {
     },
     [renderer],
   );
+
+  useEffect(() => {
+    if (!canvas || !renderer || interfaceMode !== "image") {
+      return;
+    }
+    segmentationCachedFrames.set(canvas, () => {
+      const imageMode = [...renderer.sceneExtensions.values()].find(
+        (extension) => extension instanceof ImageMode,
+      );
+      return imageMode instanceof ImageMode ? imageMode.cachedSegmentationFrames() : [];
+    });
+    segmentationImageSources.set(canvas, () => {
+      const imageMode = [...renderer.sceneExtensions.values()].find(
+        (extension) => extension instanceof ImageMode,
+      );
+      return imageMode instanceof ImageMode ? imageMode.captureSegmentationImage() : undefined;
+    });
+    const onFrame = () => {
+      canvas.dispatchEvent(new Event("segmentation-frame", { bubbles: true }));
+    };
+    renderer.on("endFrame", onFrame);
+    return () => {
+      segmentationCachedFrames.delete(canvas);
+      segmentationImageSources.delete(canvas);
+      renderer.off("endFrame", onFrame);
+    };
+  }, [canvas, renderer, interfaceMode]);
 
   const selectedImageTopic = interfaceMode === "image" ? config.imageMode.imageTopic : undefined;
   const selectedImageTopicMessageFrequency = useMemo(

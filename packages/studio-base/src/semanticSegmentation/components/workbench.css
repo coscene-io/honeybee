@@ -1,0 +1,704 @@
+/* SPDX-FileCopyrightText: Copyright (C) 2022-2024 Shanghai coScene Information Technology Co., Ltd.<hi@coscene.io>
+ * SPDX-License-Identifier: MPL-2.0 */
+.seg-workbench {
+  position: relative;
+  /* Design reference palette (Feishu rev 1956) adapted to CoStudio dark chrome — DEC-010 */
+  --seg-line: #303b50;
+  --seg-muted: #9faec5;
+  --seg-primary: #3b66f5;
+  --seg-primary-border: #5b82f7;
+  --seg-dirty: #e6a23c;
+  --seg-dirty-text: #1a1206;
+  color: #e5edf9;
+  background: #0e1420;
+  height: 100%;
+  min-height: 540px;
+  display: flex;
+  flex-direction: column;
+  font:
+    13px/1.5 Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+.seg-workbench * {
+  box-sizing: border-box;
+}
+.seg-workbench button:not(.MuiButtonBase-root),
+.seg-workbench select,
+.seg-workbench input {
+  font: inherit;
+  color: inherit;
+  background: #1b2638;
+  border: 1px solid #3a4961;
+  border-radius: 5px;
+  padding: 6px 10px;
+}
+.seg-workbench button:not(.MuiButtonBase-root) {
+  cursor: pointer;
+}
+.seg-workbench button:not(.MuiButtonBase-root):hover:not(:disabled) {
+  background: #293a54;
+  border-color: #739bf0;
+}
+.seg-workbench :focus-visible {
+  outline: 2px solid #82b4ff;
+  outline-offset: 2px;
+}
+.seg-workbench button:not(.MuiButtonBase-root):disabled,
+.seg-workbench input:disabled,
+.seg-workbench select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.seg-workbench button.seg-primary {
+  background: var(--seg-primary);
+  border-color: var(--seg-primary-border);
+  color: #fff;
+}
+.seg-workbench button.seg-dirty {
+  background: var(--seg-dirty);
+  border-color: #f0b75a;
+  color: var(--seg-dirty-text);
+  font-weight: 600;
+}
+.seg-workbench button.seg-submit {
+  min-width: 72px;
+  padding-inline: 14px;
+}
+.seg-mgmt-bar {
+  gap: 6px;
+}
+.seg-mgmt-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.seg-mgmt-chip {
+  padding: 4px 8px !important;
+  font-size: 12px;
+  border-radius: 4px !important;
+  background: #1a2536 !important;
+}
+.seg-gpu-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid #3a4961;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--seg-muted);
+  white-space: nowrap;
+}
+.seg-gpu-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b778c;
+  flex-shrink: 0;
+}
+.seg-gpu-ready .seg-gpu-dot {
+  background: #2ec27e;
+}
+.seg-gpu-starting .seg-gpu-dot,
+.seg-gpu-connecting .seg-gpu-dot {
+  background: var(--seg-dirty);
+}
+.seg-gpu-error .seg-gpu-dot,
+.seg-gpu-disconnected .seg-gpu-dot {
+  background: #d94b54;
+}
+.seg-queue-details > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid #3a4961;
+  border-radius: 999px;
+  background: #1a2536;
+  font-size: 12px;
+}
+.seg-queue-details > summary::-webkit-details-marker {
+  display: none;
+}
+.seg-queue-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2ec27e;
+  flex-shrink: 0;
+}
+.seg-workbench button.seg-stop {
+  background: #d94b54;
+  border-color: #f6858c;
+  color: white;
+  font-weight: 700;
+}
+.seg-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--seg-line);
+  background: #151e2e;
+}
+.seg-brand {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: #2874e8;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 19px;
+}
+.seg-header h1 {
+  font-size: 16px;
+  margin: 0;
+}
+.seg-muted {
+  color: var(--seg-muted);
+  font-size: 12px;
+}
+.seg-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #243b35;
+  color: #8ae0b4;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.seg-spacer {
+  flex: 1;
+}
+.seg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--seg-line);
+  background: #172131;
+}
+.seg-toolbar details {
+  position: relative;
+}
+.seg-toolbar summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid #3a4961;
+  border-radius: 5px;
+}
+.seg-popover {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 320px;
+  max-height: 300px;
+  overflow: auto;
+  background: #202d42;
+  border: 1px solid #52647f;
+  padding: 14px;
+  z-index: 10;
+  box-shadow: 0 8px 24px #0008;
+}
+.seg-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 290px minmax(320px, 1fr) 320px;
+  min-height: 0;
+}
+.seg-tree {
+  min-width: 0;
+  overflow: auto;
+  background: #151e2c;
+  border-right: 1px solid var(--seg-line);
+}
+.seg-tree-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--seg-line);
+  font-weight: 700;
+}
+.seg-editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.seg-canvas {
+  flex: 1;
+  min-height: 320px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.seg-canvas > * {
+  flex: 1;
+}
+.seg-timeline {
+  padding: 12px 16px;
+  border-top: 1px solid var(--seg-line);
+  background: #141e2d;
+}
+.seg-timeline input[type="range"] {
+  width: 100%;
+  padding: 0;
+  accent-color: #5c9afa;
+}
+.seg-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.seg-controls {
+  overflow: auto;
+  border-left: 1px solid var(--seg-line);
+  background: #151e2c;
+}
+.seg-section {
+  padding: 14px;
+  border-bottom: 1px solid var(--seg-line);
+}
+.seg-section h2 {
+  font-size: 13px;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.seg-section label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 7px 0;
+  color: #bdc9db;
+}
+.seg-section input[type="number"] {
+  width: 82px;
+}
+.seg-section select {
+  max-width: 160px;
+}
+.seg-section progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #5d9af5;
+}
+.seg-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.seg-card {
+  background: #1c293b;
+  border: 1px solid var(--seg-line);
+  border-radius: 5px;
+  padding: 9px;
+}
+.seg-card p {
+  margin: 4px 0;
+}
+.seg-status {
+  padding: 8px 16px;
+  background: #213c38;
+  color: #a5edce;
+  border-bottom: 1px solid #34584d;
+}
+.seg-notifications {
+  position: absolute;
+  inset: auto 8px 36px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-height: calc(100% - 64px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+.seg-notifications > .seg-status {
+  max-width: min(640px, 100%);
+  border: 1px solid var(--seg-line);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px #0005;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+}
+.seg-error {
+  background: #48252d;
+  color: #ffb8bf;
+}
+.seg-readonly {
+  background: #33305a;
+  color: #d4cfff;
+}
+.seg-disabled {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.seg-footer {
+  padding: 7px 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--seg-line);
+  color: var(--seg-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.seg-footer > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seg-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: #080d17e8;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.seg-modal {
+  width: min(520px, 100%);
+  background: #1a2639;
+  border: 1px solid #52647f;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 12px 60px #0009;
+}
+.seg-modal h2 {
+  margin: 0 0 16px;
+  font-size: 17px;
+}
+.seg-reference {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.seg-reference small {
+  color: #6096e9;
+}
+.seg-reference-picker {
+  font: 13px/1.5 sans-serif;
+  color: #e5edf9;
+}
+.seg-reference-picker button,
+.seg-reference-picker select {
+  font: inherit;
+  padding: 8px;
+  border: 1px solid #4b607e;
+  border-radius: 4px;
+  background: #263750;
+  color: inherit;
+}
+.seg-reference-picker select {
+  width: 100%;
+  margin-bottom: 16px;
+}
+.seg-entry {
+  position: absolute;
+  top: 38px;
+  right: 10px;
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+}
+.seg-entry button,
+.seg-entry-toolbar button {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.seg-entry button:hover,
+.seg-entry-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.seg-entry-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+}
+.seg-entry-toolbar button {
+  height: 24px;
+  min-width: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+.seg-entry-error {
+  position: absolute;
+  top: 34px;
+  right: 10px;
+  z-index: 6;
+  max-width: min(420px, calc(100% - 20px));
+  border: 1px solid #8a4b4b;
+  border-radius: 4px;
+  background: #3a1f1fe8;
+  color: #ffd7d7;
+  padding: 6px 9px;
+}
+.seg-demo {
+  position: fixed;
+  inset: 0;
+}
+@media (max-width: 1150px) {
+  .seg-body {
+    grid-template-columns: 240px minmax(280px, 1fr) 280px;
+  }
+}
+@media (max-width: 850px) {
+  .seg-body {
+    grid-template-columns: 220px minmax(280px, 1fr);
+    overflow: auto;
+  }
+  .seg-controls {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.seg-workbench .MuiTypography-root,
+.seg-workbench .MuiButtonBase-root {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+.seg-reference input {
+  min-width: 0;
+}
+.seg-section > label input[type="text"],
+.seg-section > label input:not([type]) {
+  min-width: 0;
+  width: 180px;
+}
+
+.seg-global-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  background: #0b14231a;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px;
+}
+.seg-global-stop {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: #1b293e;
+  border: 1px solid #a5bddf;
+  border-radius: 8px;
+  padding: 14px 20px;
+  box-shadow: 0 6px 30px #0008;
+  color: #e6eefb;
+  font:
+    13px/1.5 Inter,
+    sans-serif;
+}
+.seg-global-stop button {
+  background: #cf3549;
+  border: 1px solid #ff8998;
+  color: white;
+  padding: 9px 18px;
+  border-radius: 5px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seg-embedded {
+  min-height: 0;
+}
+.seg-embedded .seg-body {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.seg-embedded .seg-controls {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(340px, 100%);
+  z-index: 12;
+  box-shadow: -8px 0 24px #0007;
+}
+.seg-controls[hidden] {
+  display: none;
+}
+.seg-embedded .seg-toolbar {
+  gap: 5px;
+  padding: 6px 10px;
+}
+.seg-embedded .seg-toolbar input {
+  width: 140px;
+}
+.seg-embedded .seg-toolbar button {
+  padding: 4px 7px;
+}
+.seg-embedded .seg-canvas {
+  min-height: 0;
+}
+.seg-canvas-focused {
+  box-shadow: inset 0 0 0 2px #55b8de;
+}
+
+.seg-workbench a {
+  color: #9bc4ff;
+  text-underline-offset: 2px;
+}
+.seg-reference {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.seg-reference small {
+  overflow-wrap: anywhere;
+}
+.seg-workbench .seg-modal select {
+  width: 100%;
+  max-width: none;
+}
+.seg-card {
+  overflow-wrap: anywhere;
+}
+
+.seg-section p {
+  overflow-wrap: anywhere;
+}
+.seg-workbench input[aria-invalid="true"] {
+  border-color: #ed8e8e;
+}
+.seg-controls small[role="alert"] {
+  color: #ffb3b3;
+}
+
+/* Panel header action buttons share the entry button look. */
+.seg-entry-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.seg-entry-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.seg-entry-toolbar button:disabled:hover {
+  background: transparent;
+  border-color: transparent;
+}
+.seg-preview {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+}
+.seg-preview-status {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #1b293ee6;
+  color: #d5e4f7;
+  pointer-events: none;
+}
+
+.seg-app-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  -webkit-app-region: no-drag;
+}
+
+.seg-app-bar > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.seg-app-bar > button:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.seg-app-bar > button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.seg-app-bar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  padding: 6px;
+}
+
+.seg-app-bar-menu-row {
+  display: flex;
+  gap: 4px;
+}
+
+.seg-app-bar-menu button {
+  flex: 1;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.seg-app-bar-menu-row button:last-child {
+  flex: 0;
+}
+
+.seg-app-bar-menu button:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+/* The native Image panel owns the pixels; embedded annotation is only an overlay. */
+.seg-embedded, .seg-embedded .seg-body, .seg-embedded .seg-canvas { background: transparent; }

@@ -120,6 +120,7 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
   const consoleApi = useConsoleApi();
   const domainConfig = getDomainConfig();
 
+  const openRecordName = useCoreData((store) => store.record.value?.name);
   const externalInitConfig = useCoreData(selectExternalInitConfig);
   const project = useCoreData(selectProject);
   const organization = useCoreData(selectOrganization);
@@ -399,7 +400,11 @@ function CreateEventFormContainer({ onClose }: { onClose: () => void }): React.R
           <Typography variant="h4">{isEditing ? t("editMoment") : t("createMoment")}</Typography>
         </Stack>
 
-        <EventForm form={eventForm} onMetaDataKeyDown={onMetaDataKeyDown} />
+        <EventForm
+          form={eventForm}
+          recordId={openRecordName}
+          onMetaDataKeyDown={onMetaDataKeyDown}
+        />
 
         {!isEditing && consoleApi.createTask.permission() && (
           <Stack paddingTop={2}>

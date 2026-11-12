@@ -36,6 +36,18 @@ function h264Frame(
 }
 
 describe("VideoGopCache", () => {
+  it("lists every cached frame of a topic in receive order", () => {
+    const cache = new VideoGopCache();
+    const key = h264Frame(10, 100, "key");
+    const delta1 = h264Frame(11, 101, "delta");
+    const delta2 = h264Frame(12, 102, "delta");
+    cache.addFrames([key, delta2, delta1]);
+    cache.addFrames([h264Frame(13, 103, "key", 8, "/other")]);
+
+    expect(cache.framesForTopic(TOPIC)).toEqual([key, delta1, delta2]);
+    expect(cache.framesForTopic("/missing")).toEqual([]);
+  });
+
   it("replays the GOP covering a receiveTime seek in physical insertion order", () => {
     const cache = new VideoGopCache();
     const key = h264Frame(10, 100, "key");

@@ -54,6 +54,7 @@ export class Mp4IterableSource implements IDeserializedIterableSource {
   readonly #controller: Mp4Controller;
   readonly #providerId: string;
   readonly #topic: string;
+  readonly #url: string;
   #info?: Mp4MediabunnyInfo;
   #unregisterProvider?: () => void;
 
@@ -73,13 +74,22 @@ export class Mp4IterableSource implements IDeserializedIterableSource {
     this.#controller = controller ?? new WorkerMp4MediabunnyController(url);
     this.#providerId = providerId;
     this.#topic = topic;
+    this.#url = url;
   }
 
   public async initialize(): Promise<Initalization> {
     const info = await this.#controller.initialize();
     this.#info = info;
     this.#unregisterProvider?.();
-    this.#unregisterProvider = registerRemoteVideoFrameProvider(this.#providerId, this.#controller);
+    this.#unregisterProvider = registerRemoteVideoFrameProvider(
+      this.#providerId,
+      this.#controller,
+      {
+        sourceId: this.#url,
+        topic: this.#topic,
+        frames: info.frames,
+      },
+    );
 
     return {
       start: fromNanoSec(0n),

@@ -13,7 +13,7 @@ import { Writable } from "ts-essentials";
 import { filterMap } from "@foxglove/den/collection";
 import { PinholeCameraModel } from "@foxglove/den/image";
 import Logger from "@foxglove/log";
-import { toNanoSec } from "@foxglove/rostime";
+import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import {
   Immutable,
   MessageEvent,
@@ -87,8 +87,12 @@ import { t3D } from "@foxglove/studio-base/panels/ThreeDeeRender/t3D";
 import { makePose } from "@foxglove/studio-base/panels/ThreeDeeRender/transforms";
 import {
   REMOTE_VIDEO_FRAME_REFERENCE_DATATYPES,
+  getRemoteVideoSourceMetadata,
+  isRemoteVideoFrameReference,
   type RemoteVideoFrameReference,
 } from "@foxglove/studio-base/players/IterablePlayer/Mp4/RemoteVideoFrameRegistry";
+import type { SegmentationImage } from "@foxglove/studio-base/semanticSegmentation/imageSource";
+import { nativeImageView } from "@foxglove/studio-base/semanticSegmentation/nativeImageTransform";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadFiles } from "@foxglove/studio-base/util/download";
 
@@ -326,6 +330,8 @@ export class ImageMode
   }
 
   public override dispose(): void {
+    this.#segmentationCapture = undefined;
+    this.#segmentationBlockedImage = undefined;
     i18n.off("languageChanged", this.#handleLanguageChanged);
     this.renderer.settings.errors.off("update", this.#handleErrorChange);
     this.renderer.settings.errors.off("clear", this.#handleErrorChange);
@@ -342,6 +348,8 @@ export class ImageMode
   }
 
   public override handleSeek(): void {
+    this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
+    this.#segmentationCapture = undefined;
     this.imageRenderable?.invalidateImage();
     this.#clearVideoDelayHUD();
     const topic = this.#compressedVideoTopic;
@@ -352,6 +360,8 @@ export class ImageMode
   }
 
   public override removeAllRenderables(): void {
+    this.#segmentationBlockedImage = this.imageRenderable?.getDecodedImage();
+    this.#segmentationCapture = undefined;
     // To avoid flickering while seeking or changing subscriptions, we avoid clearing the
     // ImageRenderable for a short timeout. When a new image message arrives, we cancel the timeout,
     // so the old image will continue displaying until the new one has been decoded.
@@ -373,6 +383,8 @@ export class ImageMode
   }
 
   #removeImageRenderable(): void {
+    this.#segmentationCapture = undefined;
+    this.#segmentationBlockedImage = undefined;
     const hadImage = this.imageRenderable != undefined;
     this.imageRenderable?.dispose();
     this.imageRenderable?.removeFromParent();
@@ -1338,6 +1350,84 @@ export class ImageMode
   #handleErrorChange = (): void => {
     this.updateSettingsTree();
   };
+
+  #segmentationCapture: SegmentationImage | undefined;
+  #segmentationBlockedImage: object | undefined;
+
+  /** Capture pixels and their displayed message together; pending decodes never relabel old pixels. */
+  /**
+   * The compressed frames this panel still holds for its image topic, in receive order. Only what
+   * the decoder cache has kept, so the list grows as playback and seeks bring frames in.
+   */
+  public cachedSegmentationFrames(): MessageEvent[] {
+    const topic = this.getImageModeSettings().imageTopic;
+    if (topic == undefined || this.#compressedVideoTopic !== topic) {
+      return [];
+    }
+    return this.#compressedVideoController?.cachedFrames() ?? [];
+  }
+
+  public captureSegmentationImage(): SegmentationImage | undefined {
+    const renderable = this.imageRenderable;
+    const image = renderable?.getDecodedImage();
+    const displayed = renderable?.userData.displayedFrameState;
+    if (
+      !image ||
+      image === this.#segmentationBlockedImage ||
+      !displayed ||
+      renderable.userData.topic !== this.getImageModeSettings().imageTopic
+    ) {
+      return undefined;
+    }
+    const { width, height } = getDecodedImageDimensions(image);
+    const mesh = renderable.userData.mesh;
+    const view = mesh
+      ? nativeImageView(
+          mesh,
+          this.#camera,
+          this.renderer.input.canvasSize.width,
+          this.renderer.input.canvasSize.height,
+          width,
+          height,
+        )
+      : undefined;
+    if (this.#segmentationCapture?.decodedIdentity === image) {
+      const previous = this.#segmentationCapture.nativeView;
+      if (JSON.stringify(previous) !== JSON.stringify(view)) {
+        this.#segmentationCapture = { ...this.#segmentationCapture, nativeView: view };
+      }
+      return this.#segmentationCapture;
+    }
+    this.#segmentationBlockedImage = undefined;
+    const message = displayed.image;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return undefined;
+    }
+    if (image instanceof ImageData) {
+      context.putImageData(image, 0, 0);
+    } else {
+      context.drawImage(image, 0, 0);
+    }
+    this.#segmentationCapture = {
+      imageUrl: canvas.toDataURL("image/png"),
+      nativeView: view,
+      topic: renderable.userData.topic,
+      timestamp: "header" in message ? message.header.stamp : message.timestamp,
+      receiveTime: fromNanoSec(displayed.receiveTime),
+      decodedIdentity: image,
+      ...(isRemoteVideoFrameReference(message)
+        ? {
+            providerId: message.provider_id,
+            source: getRemoteVideoSourceMetadata(message.provider_id),
+          }
+        : {}),
+    };
+    return this.#segmentationCapture;
+  }
 
   #getDownloadImageCallback = (): (() => Promise<void>) => {
     return async () => {
