@@ -11,13 +11,12 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { SemanticSegmentationWorkbench } from "../SemanticSegmentationWorkbench";
 import { createSegmentationRuntime } from "../runtime";
 
-it("keeps workbench notices outside the layout and editing lock while preserving STOP and retry guards", async () => {
+it("keeps workbench notices outside the layout and editing lock while leaving STOP to the global lock and keeping retry guards", async () => {
   const runtime = createSegmentationRuntime();
   runtime.service.setControls({ delayMs: 0 });
   await runtime.initialize();
-  const stop = jest.fn();
   const retry = jest.fn<Promise<void>, []>().mockResolvedValue(undefined);
-  runtime.store.setState({ stopPropagation: stop, retryCurrentFrameWindow: retry });
+  runtime.store.setState({ retryCurrentFrameWindow: retry });
   const { unmount } = render(<SemanticSegmentationWorkbench runtime={runtime} embedded />);
   act(() => {
     runtime.store.setState({
@@ -32,10 +31,8 @@ it("keeps workbench notices outside the layout and editing lock while preserving
   const fieldset = screen.getByTestId("semantic-segmentation-workbench").querySelector("fieldset")!;
   expect(fieldset.disabled).toBe(true);
   expect(fieldset.hasAttribute("inert")).toBe(true);
-  const stopButton = within(notices).getByRole("button", { name: "STOP · 停止传播" });
-  expect(stopButton).toHaveProperty("disabled", false);
-  fireEvent.click(stopButton);
-  expect(stop).toHaveBeenCalledTimes(1);
+  // The embedded canvas leaves STOP to the global lock's top banner.
+  expect(screen.queryByRole("button", { name: "STOP · 停止传播" })).toBeNull();
   const retryButton = within(notices).getByRole("button", { name: "重试当前标注窗口" });
   expect(retryButton).toHaveProperty("disabled", true);
   act(() => {

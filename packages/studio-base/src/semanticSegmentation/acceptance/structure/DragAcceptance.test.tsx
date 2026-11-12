@@ -300,7 +300,8 @@ describe("structure drag acceptance", () => {
         await waitFor(() => {
           expect(store.getState().propagation.status).toBe("running");
         });
-        expect(screen.getByText(/在线传播中/)).toBeDefined();
+        // The embedded canvas is inert; the global lock banner owns the reason and STOP.
+        expect(screen.queryByRole("button", { name: "STOP · 停止传播" })).toBeNull();
       }
       const before = store.getState().document;
       const transfer = { setData: jest.fn(), effectAllowed: "" };

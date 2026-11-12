@@ -263,20 +263,11 @@ export function PropagationForm({
         </button>
       </div>
       <p className="seg-muted">
-        在线传播只走向后续帧。播放期间只有 STOP 可用。停止后可修改种子并重新传播。
+        在线传播只走向后续帧。传播期间界面锁定，只能用顶部 STOP 停止；停止后可修改种子并重新传播。
       </p>
       <p aria-live="polite">
         传播状态：{state.propagation.status} · 已接收 {state.propagation.processedFrames} 帧
       </p>
-      {["running", "stopping"].includes(state.propagation.status) && (
-        <button
-          type="button"
-          disabled={state.propagation.status === "stopping"}
-          onClick={state.stopPropagation}
-        >
-          停止
-        </button>
-      )}
     </section>
   );
 }

@@ -188,7 +188,8 @@ export function SemanticSegmentationWorkbench({
       data-testid="semantic-segmentation-workbench"
     >
       <div className="seg-notifications" data-testid="workbench-notices">
-        {locked && (
+        {/* Embedded canvases sit under the global lock; its top banner is the only STOP. */}
+        {locked && !embedded && (
           <div className="seg-status seg-row" role="status">
             <strong>
               {state.propagation.status === "stopping"
