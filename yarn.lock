@@ -1961,6 +1961,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@buf/googleapis_googleapis.bufbuild_es@npm:2.16.0-20261015202054-8ac61b9e5023.1":
+  version: 2.16.0-20261015202054-8ac61b9e5023.1
+  resolution: "@buf/googleapis_googleapis.bufbuild_es@npm:2.16.0-20261015202054-8ac61b9e5023.1"
+  peerDependencies:
+    "@bufbuild/protobuf": ^2.16.0
+  checksum: 10/6a9b91cfd66f3e41db2dc233bbe2177ca62039e822dd1a315e2c67659a4231c26ae71578c7faf8d780e31c8e7e4d54b9644376b9ee9205063667c3fd9aaf7132
+  languageName: node
+  linkType: hard
+
 "@bufbuild/protobuf@npm:2.17.0":
   version: 2.17.0
   resolution: "@bufbuild/protobuf@npm:2.17.0"
@@ -3109,7 +3118,7 @@ __metadata:
   resolution: "@foxglove/studio-base@workspace:packages/studio-base"
   dependencies:
     "@aws-sdk/client-s3": "npm:3.1166.0"
-    "@buf/googleapis_googleapis.bufbuild_es": "npm:2.16.0-20260414192239-c17df5b2beca.1"
+    "@buf/googleapis_googleapis.bufbuild_es": "npm:2.16.0-20261015202054-8ac61b9e5023.1"
     "@bufbuild/protobuf": "npm:2.17.0"
     "@connectrpc/connect": "npm:2.3.0"
     "@connectrpc/connect-web": "npm:2.3.0"
