@@ -29,24 +29,30 @@ if (generatorPayloadSha256 !== "299a4cb466358d5478e356afad731a5b1219c7ebacf9be22
   );
 }
 const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), "honeybee-react-extension-"));
-const runner = path.join(buildDir, "runner");
-fs.mkdirSync(runner);
-fs.writeFileSync(path.join(runner, "package.json"), JSON.stringify({ private: true }));
+const project = path.join(buildDir, "react-upgrade-fixture");
 function run(command, args, cwd) {
   execFileSync(command, args, { cwd, stdio: "inherit" });
 }
-run("npm", ["install", "--no-audit", "--no-fund", tarball], runner);
-run(
-  process.execPath,
-  [
-    path.join(runner, "node_modules/create-coscene-extension/dist/bin/create-coscene-extension.js"),
-    "react-upgrade-fixture",
-  ],
-  buildDir,
-);
-const project = path.join(buildDir, "react-upgrade-fixture");
-// create installs the current published CLI; explicitly use the same audited tarball for packaging.
-run("npm", ["install", "--save-dev", "--save-exact", "--no-audit", "--no-fund", tarball], project);
+// The generator's create command resolves npm ranges on each invocation. Instantiate its pinned
+// template with a committed dependency tree instead; generator create/example verification lives
+// in the generator repository. The real generator still builds and packages this fixture.
+fs.copyFileSync(tarball, path.join(buildDir, "generator.tgz"));
+fs.cpSync(path.join(__dirname, "fixture"), project, { recursive: true });
+run("npm", ["ci", "--no-audit", "--no-fund"], project);
+const generator = path.join(project, "node_modules/create-coscene-extension");
+const template = path.join(generator, "template");
+for (const name of fs.readdirSync(template, { recursive: true })) {
+  const source = path.join(template, name);
+  if (name === "package.json" || !fs.statSync(source).isFile()) {
+    continue;
+  }
+  const destination = path.join(project, name);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(
+    destination,
+    fs.readFileSync(source, "utf8").replaceAll("${NAME}", "react-upgrade-fixture"),
+  );
+}
 fs.copyFileSync(
   path.join(__dirname, "ExamplePanel.tsx.fixture"),
   path.join(project, "src/ExamplePanel.tsx"),
@@ -84,10 +90,14 @@ fs.writeFileSync(
       generatorTarball: tarball,
       generatorTarballSha256,
       generatorPayloadSha256,
-      generatorVersion: require(
-        path.join(runner, "node_modules/create-coscene-extension/package.json"),
-      ).version,
+      generatorVersion: require(path.join(generator, "package.json")).version,
       reactVersion: require(path.join(project, "node_modules/react/package.json")).version,
+      fixtureSha256: createHash("sha256")
+        .update(fs.readFileSync(path.join(output, "fixture.coe")))
+        .digest("hex"),
+      dependencyLockSha256: createHash("sha256")
+        .update(fs.readFileSync(path.join(project, "package-lock.json")))
+        .digest("hex"),
       fixtureSourceSha256: createHash("sha256")
         .update(fs.readFileSync(path.join(__dirname, "ExamplePanel.tsx.fixture")))
         .digest("hex"),

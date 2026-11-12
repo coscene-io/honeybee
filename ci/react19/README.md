@@ -15,11 +15,34 @@ git -C ../create-coscene-extension checkout 067f303469454c7a192f231e1e3455f531e5
 node ci/react19/build-extension-fixture.cjs /tmp/create-coscene-extension-react19.tgz
 ```
 
-The builder invokes the generator's real `create`, `build`, and `package` commands.
-It replaces the sample panel with `ExamplePanel.tsx.fixture` to expose lifecycle
-observations. React 19 is bundled by the generator; tests do not inject React or
-add host `require` mappings. The generated `.coe` and provenance are written under
-ignored `temp/react19-extension/`.
+The builder instantiates the pinned generator's template, installs the committed
+`fixture/package-lock.json` with `npm ci`, and invokes its real `build` and `package`
+commands. It replaces the sample panel with `ExamplePanel.tsx.fixture` to expose lifecycle
+observations. The generator's `create` command and example packages are validated in
+the generator repository; the host regression does not resolve fresh npm ranges.
+React 19 is bundled by the generator; tests do not inject React or add host `require`
+mappings. The generated `.coe` and provenance are written under
+ignored `temp/react19-extension/`. The generator tarball entry deliberately omits
+npm's archive integrity: tar/gzip metadata varies by platform, so the builder verifies
+the canonical payload hash before installation. Registry packages retain their locked
+versions and integrity hashes. To refresh dependencies, copy the fixture manifests
+into an ignored temporary directory beside a verified `generator.tgz`, update the
+lock there, and review/copy both manifests back to `fixture/`.
+
+CI builds this fixture once and shares the exact `.coe`, lock, and provenance across
+Web `/viz/`, Web `/`, and Desktop. The standalone browser dependency checks run only
+in the `/viz/` job because their page does not use the application's public path.
+Desktop also runs built-in panel smoke and the resource regression, and uploads its
+resource JSON even if a test fails. Its controlled fixtures opt into SwiftShader with
+`HONEYBEE_TEST_SOFTWARE_GL=1` on GPU-less CI runners; this is not a GPU performance test.
+These jobs and static/unit checks feed the existing
+required `lint` check; a failed or skipped prerequisite cannot produce a passing gate.
+Draft PRs skip validation; newer commits cancel earlier runs of the same PR or branch.
+Main-branch pushes call CD only after the gate passes, using the same commit context.
+CD retains manual/release triggers and uses a distinct concurrency group so it cannot
+cancel its calling CI workflow. Generator examples remain an explicit acceptance
+command below, and paired performance sampling
+remains a same-machine acceptance task rather than a shared-runner timing gate.
 
 With the corresponding production artifacts built:
 
