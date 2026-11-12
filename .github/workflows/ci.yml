@@ -6,8 +6,29 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Keep the existing required check name while gating every validation job.
   lint:
+    if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
+    needs: [static-checks, unit-test, integration]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      STATIC_CHECKS_RESULT: ${{ needs.static-checks.result }}
+      UNIT_TEST_RESULT: ${{ needs.unit-test.result }}
+      INTEGRATION_RESULT: ${{ needs.integration.result }}
+    steps:
+      - name: Require all checks to pass
+        run: |
+          test "$STATIC_CHECKS_RESULT" = success
+          test "$UNIT_TEST_RESULT" = success
+          test "$INTEGRATION_RESULT" = success
+
+  static-checks:
     if: github.event.pull_request.draft == false
     runs-on: cos-m
     timeout-minutes: 30
@@ -36,8 +57,6 @@ jobs:
           key: ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}
           restore-keys: |
             ${{ runner.os }}-lint-v2-${{ hashFiles('yarn.lock', '.oxlintrc*.json', 'eslint.config*.cjs', 'packages/eslint-plugin/**', 'tsconfig.json', 'tsconfig.eslint.json') }}-
-
-      - run: set -x
 
       - run: yarn run tsc --noEmit
       - run: yarn run typecheck:ci
@@ -71,28 +90,10 @@ jobs:
 
       - run: yarn run test --ci
 
-  react19-integration:
+  extension-fixture:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: web
-            public-path: /viz/
-          - target: web
-            public-path: /
-          - target: desktop
-            public-path: /viz/
-    name: React 19 (${{ matrix.target }} ${{ matrix.public-path }})
-    defaults:
-      run:
-        working-directory: honeybee
-    env:
-      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
-      HONEYBEE_WEB_PUBLIC_PATH: ${{ matrix.public-path }}
-      INTEGRATION_SKIP_BUILD: "1"
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -106,26 +107,89 @@ jobs:
         with:
           node-version-file: honeybee/.node-version
       - run: corepack enable
-      - run: yarn install --immutable
       - name: Pack the pinned generator
         working-directory: generator
         run: |
           yarn install --immutable
           yarn build
           yarn pack --out "${RUNNER_TEMP}/react19-generator.tgz"
-      - name: Build a real self-contained React 19 extension
-        run: node ci/react19/build-extension-fixture.cjs "${RUNNER_TEMP}/react19-generator.tgz"
+      - name: Build the locked extension fixture
+        run: node honeybee/ci/react19/build-extension-fixture.cjs "${RUNNER_TEMP}/react19-generator.tgz"
+      - name: Share the extension and its provenance
+        uses: actions/upload-artifact@v7
+        with:
+          name: react19-extension
+          path: honeybee/temp/react19-extension/
+          if-no-files-found: error
+          retention-days: 7
+
+  integration:
+    if: github.event.pull_request.draft == false
+    needs: extension-fixture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: web
+            public-path: /viz/
+          - target: web
+            public-path: /
+          - target: desktop
+            public-path: /viz/
+    name: Integration (${{ matrix.target }} ${{ matrix.public-path }})
+    env:
+      GH_PACKAGES_ORG_TOKEN: ${{ secrets.GH_PACKAGES_ORG_TOKEN }}
+      HONEYBEE_WEB_PUBLIC_PATH: ${{ matrix.public-path }}
+      INTEGRATION_SKIP_BUILD: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          mkdir -p "$RUNNER_TEMP/corepack-bin"
+          corepack enable yarn --install-directory "$RUNNER_TEMP/corepack-bin"
+          echo "$RUNNER_TEMP/corepack-bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: yarn
+      - run: yarn install --immutable
+      - uses: actions/download-artifact@v8
+        with:
+          name: react19-extension
+          path: temp/react19-extension
       - name: Install browser dependencies
+        if: matrix.target == 'web'
         run: yarn workspace web playwright install --with-deps chromium
+      - name: Install Electron system dependencies
+        if: matrix.target == 'desktop'
+        run: yarn workspace web playwright install-deps chromium
       - name: Build Web
         if: matrix.target == 'web'
         run: yarn web:build:prod
-      - name: Install and exercise the Web extension
+      - name: Exercise the Web extension
         if: matrix.target == 'web'
-        run: yarn jest --config web/integration-test/jest.config.json web/integration-test/reactUpgradeExtension.test.ts web/integration-test/dependencyCompatibility.test.ts --runInBand
+        run: yarn jest --config web/integration-test/jest.config.json web/integration-test/reactUpgradeExtension.test.ts --runInBand
+      - name: Check browser dependency compatibility once
+        if: matrix.target == 'web' && matrix.public-path == '/viz/'
+        run: yarn jest --config web/integration-test/jest.config.json web/integration-test/dependencyCompatibility.test.ts --runInBand
       - name: Build Desktop and Quicklook
         if: matrix.target == 'desktop'
         run: yarn desktop:build:prod
-      - name: Install and exercise the Desktop extension
+      - name: Exercise Desktop extensions, built-in panels, and resource cleanup
         if: matrix.target == 'desktop'
-        run: xvfb-run -a yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/open-extension.test.ts desktop/integration-test/react19Resources.test.ts --runInBand
+        run: xvfb-run -a yarn jest --config desktop/integration-test/jest.config.json desktop/integration-test/open-extension.test.ts desktop/integration-test/react19Builtins.test.ts desktop/integration-test/react19Resources.test.ts --runInBand
+      - name: Preserve resource diagnostics
+        if: always() && matrix.target == 'desktop'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-resources
+          path: temp/react19-resources.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: lint
+    uses: ./.github/workflows/cd.yml
+    secrets: inherit
