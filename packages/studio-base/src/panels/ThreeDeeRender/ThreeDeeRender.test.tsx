@@ -187,32 +187,16 @@ describe("onRender awaited presentation", () => {
     mockEnqueue.mockReset();
   });
 
-  it("connects video seek locks to the global playback controls with live playback state", () => {
+  it("connects video seek locks to the global playback controls", () => {
     const release = jest.fn();
     const acquire = jest.fn(() => release);
-    const pausePlayback = jest.fn();
-    const startPlayback = jest.fn();
-    const { context, view } = mountPanel((panel) => {
+    const { view } = mountPanel((panel) => {
       panel.unstable_acquireKeyframeSearchLock = acquire;
-      panel.unstable_pausePlayback = pausePlayback;
-      panel.unstable_startPlayback = startPlayback;
     });
     const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
 
     expect(renderer.acquireKeyframeSearchLock?.()).toBe(release);
-    expect(acquire).toHaveBeenLastCalledWith({
-      isPlaying: true,
-      pausePlayback,
-      startPlayback,
-    });
-
-    context.unstable_getPlaybackIsPlaying = () => false;
-    renderer.acquireKeyframeSearchLock?.();
-    expect(acquire).toHaveBeenLastCalledWith({
-      isPlaying: false,
-      pausePlayback,
-      startPlayback,
-    });
+    expect(acquire).toHaveBeenCalledWith();
     view.unmount();
   });
 

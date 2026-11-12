@@ -98,25 +98,13 @@ describe("awaited video tick scheduling", () => {
     jest.restoreAllMocks();
   });
 
-  it("blocks playback until every panel finishes its seek decode", async () => {
+  it("holds the playback controls until every panel finishes its seek decode", async () => {
     const store = createPlaybackInteractionStateStore();
     const first = setup();
     const second = setup();
     const firstDecode = deferred();
     const secondDecode = deferred();
-    let playing = true;
-    const pausePlayback = jest.fn(() => {
-      playing = false;
-    });
-    const startPlayback = jest.fn(() => {
-      playing = true;
-    });
-    const acquireKeyframeSearchLock = () =>
-      store.getState().acquireKeyframeSearchLock({
-        isPlaying: playing,
-        pausePlayback,
-        startPlayback,
-      });
+    const acquireKeyframeSearchLock = () => store.getState().acquireKeyframeSearchLock();
     for (const panel of [first, second]) {
       panel.renderer.acquireKeyframeSearchLock = acquireKeyframeSearchLock;
       panel.renderer.subscribeMessageRange = mockMessageRange([frame(0, "key"), frame(1000)]);
@@ -128,7 +116,6 @@ describe("awaited video tick scheduling", () => {
     second.controller.handleSeek();
 
     expect(store.getState().keyframeSearchLockCount).toBe(2);
-    expect(playing).toBe(false);
     await flush();
     expect(first.display).toHaveBeenCalledTimes(1);
     expect(second.display).toHaveBeenCalledTimes(1);
@@ -136,17 +123,15 @@ describe("awaited video tick scheduling", () => {
     firstDecode.resolve({ ok: true });
     await flush();
     expect(store.getState().keyframeSearchLockCount).toBe(1);
-    expect(startPlayback).not.toHaveBeenCalled();
 
     secondDecode.resolve({ ok: true });
     await flush();
     expect(store.getState().keyframeSearchLockCount).toBe(0);
-    expect(startPlayback).toHaveBeenCalledTimes(1);
     first.controller.dispose();
     second.controller.dispose();
   });
 
-  it("keeps playback blocked during cached GOP replay and a superseding seek", async () => {
+  it("keeps controls blocked during cached GOP replay and a superseding seek", async () => {
     const { controller, renderer, display } = setup();
     const store = createPlaybackInteractionStateStore();
     const observedCounts: number[] = [];

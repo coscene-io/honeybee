@@ -245,16 +245,8 @@ export function ThreeDeeRender(props: {
       newRenderer.subscribeMessageRange = subscribeMessageRangeRef.current;
       newRenderer.getPlaybackIsPlaying = () =>
         playbackContextRef.current.unstable_getPlaybackIsPlaying?.() ?? false;
-      newRenderer.acquireKeyframeSearchLock = () => {
-        const playback = playbackContextRef.current;
-        return (
-          playback.unstable_acquireKeyframeSearchLock?.({
-            isPlaying: playback.unstable_getPlaybackIsPlaying?.(),
-            pausePlayback: playback.unstable_pausePlayback,
-            startPlayback: playback.unstable_startPlayback,
-          }) ?? (() => {})
-        );
-      };
+      newRenderer.acquireKeyframeSearchLock = () =>
+        playbackContextRef.current.unstable_acquireKeyframeSearchLock?.() ?? (() => {});
       const latest = latestRenderStateRef.current;
       if (latest != undefined) {
         rendererWorkRef.current = processRenderState(newRenderer, {

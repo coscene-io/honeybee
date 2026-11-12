@@ -16,7 +16,9 @@ import MockMessagePipelineProvider from "@foxglove/studio-base/components/Messag
 import type { MockMessagePipelineProps } from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import MockPanelContextProvider from "@foxglove/studio-base/components/MockPanelContextProvider";
 import { usePanelStateStore } from "@foxglove/studio-base/context/PanelStateContext";
+import { usePlaybackInteractionState } from "@foxglove/studio-base/context/PlaybackInteractionStateContext";
 import { PlayerCapabilities, PlayerPresence } from "@foxglove/studio-base/players/types";
+import PlaybackInteractionStateProvider from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import * as errorReporting from "@foxglove/studio-base/reportError";
 import PanelSetup from "@foxglove/studio-base/test/PanelSetup";
 import type { Fixture } from "@foxglove/studio-base/test/PanelSetup";
@@ -61,6 +63,118 @@ beforeEach(() => {
   saveConfig.mockClear();
   (errorReporting.reportError as jest.Mock).mockClear();
 });
+
+function KeyframeLockCount() {
+  const count = usePlaybackInteractionState((state) => state.keyframeSearchLockCount);
+  return <output data-testid="keyframe-lock-count">{count}</output>;
+}
+
+it("releases only the closed panel's recovery locks without changing playback intent", async () => {
+  const contexts: BuiltinPanelExtensionContext[] = [];
+  let playing = true;
+  const pausePlayback = jest.fn(() => {
+    playing = false;
+  });
+  const startPlayback = jest.fn(() => {
+    playing = true;
+  });
+  const firstInit = (context: BuiltinPanelExtensionContext) => {
+    contexts[0] = context;
+  };
+  const secondInit = (context: BuiltinPanelExtensionContext) => {
+    contexts[1] = context;
+  };
+  const panel = (visiblePanels: "both" | "second") => (
+    <PlaybackInteractionStateProvider>
+      <KeyframeLockCount />
+      <Harness pipeline={{ playerId: "first", isPlaying: true, pausePlayback, startPlayback }}>
+        {visiblePanels === "both" && (
+          <PanelExtensionAdapter
+            key="first"
+            config={config}
+            saveConfig={saveConfig}
+            initPanel={firstInit}
+          />
+        )}
+        <PanelExtensionAdapter
+          key="second"
+          config={config}
+          saveConfig={saveConfig}
+          initPanel={secondInit}
+        />
+      </Harness>
+    </PlaybackInteractionStateProvider>
+  );
+  const view = render(panel("both"));
+  try {
+    let releaseSecond: (() => void) | undefined;
+    act(() => {
+      contexts[0]!.unstable_acquireKeyframeSearchLock?.();
+      releaseSecond = contexts[1]!.unstable_acquireKeyframeSearchLock?.();
+    });
+    expect(view.getByTestId("keyframe-lock-count").textContent).toBe("2");
+    expect(pausePlayback).not.toHaveBeenCalled();
+    expect(playing).toBe(true);
+    // Manual pause from time editing, frame navigation or Moment marking must remain effective.
+    act(() => {
+      contexts[0]!.unstable_pausePlayback?.();
+    });
+    expect(playing).toBe(false);
+    view.rerender(panel("second"));
+    await act(async () => undefined);
+    expect(view.getByTestId("keyframe-lock-count").textContent).toBe("1");
+    expect(startPlayback).not.toHaveBeenCalled();
+
+    act(() => {
+      releaseSecond?.();
+    });
+    expect(view.getByTestId("keyframe-lock-count").textContent).toBe("0");
+    expect(startPlayback).not.toHaveBeenCalled();
+    expect(playing).toBe(false);
+  } finally {
+    view.unmount();
+    await act(async () => undefined);
+  }
+});
+
+it.each(["player switch", "initializing"] as const)(
+  "releases retired recovery locks without resuming playback during %s",
+  async (transition) => {
+    let context: BuiltinPanelExtensionContext | undefined;
+    const startPlayback = jest.fn();
+    const pausePlayback = jest.fn();
+    const initPanel = (value: BuiltinPanelExtensionContext) => {
+      context = value;
+    };
+    const panel = (playerId: string, presence: PlayerPresence) => (
+      <PlaybackInteractionStateProvider>
+        <KeyframeLockCount />
+        <Harness pipeline={{ playerId, presence, isPlaying: true, pausePlayback, startPlayback }}>
+          <PanelExtensionAdapter config={config} saveConfig={saveConfig} initPanel={initPanel} />
+        </Harness>
+      </PlaybackInteractionStateProvider>
+    );
+    const view = render(panel("first", PlayerPresence.PRESENT));
+    try {
+      act(() => {
+        context!.unstable_acquireKeyframeSearchLock?.();
+      });
+      expect(view.getByTestId("keyframe-lock-count").textContent).toBe("1");
+      expect(pausePlayback).not.toHaveBeenCalled();
+      view.rerender(
+        transition === "player switch"
+          ? panel("second", PlayerPresence.PRESENT)
+          : panel("first", PlayerPresence.INITIALIZING),
+      );
+      await act(async () => undefined);
+      expect(view.getByTestId("keyframe-lock-count").textContent).toBe("0");
+      expect(startPlayback).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      await act(async () => undefined);
+    }
+  },
+);
 
 it("retires a busy panel when its configuration becomes too new and can initialize it again", async () => {
   const contexts: PanelExtensionContext[] = [];

@@ -269,8 +269,8 @@ export class CompressedVideoController {
     if (this.#disposed) {
       return;
     }
-    // Acquire the replacement before cancelling the old seek so playback never resumes
-    // between two seeks. Each controller keeps its own lock until its target is decoded.
+    // Acquire the replacement before cancelling the old seek so controls never unlock
+    // between two seeks. Each controller holds its lock until recovery settles or is cancelled.
     const release = this.#renderer.acquireKeyframeSearchLock?.();
     this.resetPlaybackState();
     this.#releaseSeekPlaybackLock = release;
