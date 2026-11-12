@@ -252,7 +252,7 @@ export function SegmentationImageEntry({
         if (!runtime) {
           runtime = createSegmentationRuntime(
             document,
-            { storageKey: `coStudio.semanticSegmentation.source.v1:${sessionKey}` },
+            { storageKey: `coStudio.semanticSegmentation.source.v2:${sessionKey}` },
             {
               ...(userId
                 ? {
@@ -730,7 +730,7 @@ export function SegmentationImageEntry({
           runtime = createSegmentationRuntime(
             document,
             {
-              storageKey: `coStudio.semanticSegmentation.source.v1:${sessionKey}`,
+              storageKey: `coStudio.semanticSegmentation.source.v2:${sessionKey}`,
             },
             {
               ...(userId
