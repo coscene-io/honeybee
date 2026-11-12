@@ -63,6 +63,7 @@ const useStyles = makeStyles()(() => ({
     fontWeight: "bold",
     display: "-webkit-box",
     WebkitLineClamp: 2,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Required with -webkit-line-clamp in supported Chromium.
     WebkitBoxOrient: "vertical",
     wordBreak: "break-all",
     overflow: "hidden",

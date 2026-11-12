@@ -24,6 +24,7 @@ import {
   TableRow,
   IconButton,
   Typography,
+  TypographyProps,
   tableRowClasses,
   iconButtonClasses,
 } from "@mui/material";
@@ -111,15 +112,18 @@ const useStyles = makeStyles()((theme) => ({
       },
     },
   },
+
   table: {
     "@media (pointer: fine)": {
       [`.${tableRowClasses.root} .${iconButtonClasses.root}`]: { visibility: "hidden" },
       [`.${tableRowClasses.root}:hover .${iconButtonClasses.root}`]: { visibility: "visible" },
     },
   },
+
   tableHeaderRow: {
     backgroundColor: theme.palette.background.paper,
   },
+
   htmlTableCell: {
     "h1, h2, h3, h4, h5, h6": {
       fontFamily: theme.typography.subtitle2.fontFamily,
@@ -130,10 +134,20 @@ const useStyles = makeStyles()((theme) => ({
       margin: 0,
     },
   },
+
   iconButton: {
     "&:hover, &:active, &:focus": {
       backgroundColor: "transparent",
     },
+  },
+
+  layout1: {
+    fontWeight: 800,
+  },
+
+  layout2: {
+    flex: "auto",
+    fontWeight: 800,
   },
 }));
 
@@ -301,11 +315,11 @@ export default function DiagnosticStatus(props: Props): React.JSX.Element {
     });
   }, [classes.iconButton, info.status, openSiblingPanel, renderKeyValueCell, topicToRender]);
 
-  const STATUS_COLORS: Record<number, string> = {
-    [LEVELS.OK]: "success.main",
-    [LEVELS.ERROR]: "error.main",
-    [LEVELS.WARN]: "warning.main",
-    [LEVELS.STALE]: "text.secondary",
+  const STATUS_COLORS: Record<number, TypographyProps["color"]> = {
+    [LEVELS.OK]: "success",
+    [LEVELS.ERROR]: "error",
+    [LEVELS.WARN]: "warning",
+    [LEVELS.STALE]: "textSecondary",
   };
 
   return (
@@ -346,7 +360,7 @@ export default function DiagnosticStatus(props: Props): React.JSX.Element {
                 <Typography
                   color={STATUS_COLORS[info.status.level]}
                   variant="subtitle1"
-                  fontWeight={800}
+                  className={classes.layout1}
                 >
                   {info.displayName}
                 </Typography>
@@ -363,10 +377,9 @@ export default function DiagnosticStatus(props: Props): React.JSX.Element {
                 gap={1}
               >
                 <Typography
-                  flex="auto"
                   color={STATUS_COLORS[info.status.level]}
                   variant="inherit"
-                  fontWeight={800}
+                  className={classes.layout2}
                 >
                   {info.status.message}
                 </Typography>

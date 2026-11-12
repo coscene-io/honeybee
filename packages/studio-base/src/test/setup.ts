@@ -14,9 +14,9 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import { setImmediate } from "node:timers";
+import { deserialize, serialize } from "node:v8";
 import util from "util";
-
-import setImmediate from "@foxglove/studio-base/util/setImmediate";
 
 process.env.WASM_LZ4_ENVIRONMENT = "NODE";
 
@@ -25,7 +25,7 @@ function noOp() {
 }
 
 if (typeof window !== "undefined") {
-  global.TextDecoder = util.TextDecoder as typeof TextDecoder;
+  global.TextDecoder = util.TextDecoder;
 
   if (typeof window.URL.createObjectURL === "undefined") {
     Object.defineProperty(window.URL, "createObjectURL", { value: noOp });
@@ -37,6 +37,12 @@ if (typeof window !== "undefined") {
 }
 
 global.TextEncoder = util.TextEncoder;
+
+// fake-indexeddb 6 uses structuredClone; jsdom does not expose Node's implementation.
+// Test records contain serializable messages (including bigint and typed arrays).
+if (typeof global.structuredClone === "undefined") {
+  global.structuredClone = (value) => deserialize(serialize(value));
+}
 
 // React available everywhere (matches webpack config)
 // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -65,7 +65,7 @@ type Props = {
 // place the dropped item as a sibling of the Tab), as well as the "root drop targets" inside the
 // nested mosaic (that would place the dropped item as a direct child of the Tab). Makes it easier
 // to drop panels into a tab layout.
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   hideTopLevelDropTargets: {
     margin: 0,
 
@@ -76,7 +76,12 @@ const useStyles = makeStyles()({
       display: "none !important",
     },
   },
-});
+
+  layout1: {
+    display: "block",
+    color: theme.palette.text.primary,
+  },
+}));
 
 const lazyPanelComponents = new WeakMap<
   PanelInfo["module"],
@@ -231,6 +236,8 @@ const selectedLayoutExistsSelector = (state: LayoutState) =>
 const selectedLayoutMosaicSelector = (state: LayoutState) => state.selectedLayout?.data?.layout;
 
 export default function PanelLayout(): React.JSX.Element {
+  const { classes } = useStyles();
+
   const { layoutEmptyState } = useAppContext();
   const { changePanelLayout, setSelectedLayoutId } = useCurrentLayoutActions();
   const layoutManager = useLayoutManager();
@@ -273,7 +280,7 @@ export default function PanelLayout(): React.JSX.Element {
 
   return (
     <EmptyState>
-      <Typography display="block" variant="body1" color="text.primary">
+      <Typography variant="body1" className={classes.layout1}>
         {t("notLayoutDesc")}
       </Typography>
       <Stack gap={1} direction="row">

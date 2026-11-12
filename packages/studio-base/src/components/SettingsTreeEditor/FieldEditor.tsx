@@ -43,6 +43,7 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => ({
       paddingBlock: theme.spacing(0.3125),
     },
   },
+
   clearIndicator: {
     marginRight: theme.spacing(-0.25),
     opacity: theme.palette.action.disabledOpacity,
@@ -52,13 +53,16 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => ({
       opacity: 1,
     },
   },
+
   error: {},
+
   fieldLabel: {
     color: theme.palette.text.secondary,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+
   fieldWrapper: {
     minWidth: theme.spacing(14),
     marginRight: theme.spacing(0.5),
@@ -67,6 +71,7 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => ({
       outlineOffset: -1,
     },
   },
+
   multiLabelWrapper: {
     display: "grid",
     gridTemplateColumns: "1fr auto",
@@ -76,6 +81,7 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => ({
     alignItems: "center",
     textAlign: "end",
   },
+
   styledToggleButtonGroup: {
     backgroundColor: theme.palette.action.hover,
     gap: theme.spacing(0.25),
@@ -104,6 +110,26 @@ const useStyles = makeStyles<void, "error">()((theme, _params, classes) => ({
         borderRadius: theme.shape.borderRadius,
       },
     },
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+    flex: "auto",
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+    flex: "auto",
+  },
+
+  layout3: {
+    color: theme.palette.text.secondary,
+    flex: "auto",
+  },
+
+  layout4: {
+    color: theme.palette.text.secondary,
+    flex: "auto",
   },
 }));
 
@@ -552,13 +578,7 @@ function FieldLabel({ field }: { field: Immutable<SettingsTreeField> }): React.J
     return (
       <>
         <div className={classes.multiLabelWrapper}>
-          <Typography
-            title={field.label}
-            variant="subtitle2"
-            color="text.secondary"
-            noWrap
-            flex="auto"
-          >
+          <Typography title={field.label} variant="subtitle2" noWrap className={classes.layout1}>
             {field.label}
           </Typography>
           {labels.map((label, index) => (
@@ -566,10 +586,9 @@ function FieldLabel({ field }: { field: Immutable<SettingsTreeField> }): React.J
               key={label}
               title={field.label}
               variant="subtitle2"
-              color="text.secondary"
               noWrap
               style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
-              flex="auto"
+              className={classes.layout2}
             >
               {label}
             </Typography>
@@ -582,13 +601,7 @@ function FieldLabel({ field }: { field: Immutable<SettingsTreeField> }): React.J
     return (
       <>
         <div className={classes.multiLabelWrapper}>
-          <Typography
-            title={field.label}
-            variant="subtitle2"
-            color="text.secondary"
-            noWrap
-            flex="auto"
-          >
+          <Typography title={field.label} variant="subtitle2" noWrap className={classes.layout3}>
             {field.label}
           </Typography>
           {labels.map((label, index) => (
@@ -596,10 +609,9 @@ function FieldLabel({ field }: { field: Immutable<SettingsTreeField> }): React.J
               key={label}
               title={field.label}
               variant="subtitle2"
-              color="text.secondary"
               noWrap
               style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
-              flex="auto"
+              className={classes.layout4}
             >
               {label}
             </Typography>

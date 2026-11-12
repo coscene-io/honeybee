@@ -23,6 +23,10 @@ const useStyles = makeStyles()((theme) => ({
   filesListContainer: {
     borderLeft: `1px solid ${theme.palette.divider}`,
   },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
 }));
 
 interface FilesListProps {
@@ -63,7 +67,7 @@ export const FilesList = memo<FilesListProps>(({ files, setFiles }) => {
                 {file.file.filename}
               </Typography>
             </Stack>
-            <Typography variant="body2" color="text.secondary" noWrap>
+            <Typography variant="body2" noWrap className={classes.layout1}>
               {file.projectDisplayName} / {file.recordDisplayName}
             </Typography>
           </Stack>

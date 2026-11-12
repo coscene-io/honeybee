@@ -75,6 +75,7 @@ const useStyles = makeStyles()((theme) => ({
       },
     },
   },
+
   customFooter: {
     display: "flex",
     alignItems: "center",
@@ -88,11 +89,13 @@ const useStyles = makeStyles()((theme) => ({
       display: "none",
     },
   },
+
   selectionInfo: {
     display: "flex",
     alignItems: "center",
     gap: theme.spacing(1),
   },
+
   playButton: {
     marginLeft: theme.spacing(1),
     opacity: 0,
@@ -105,17 +108,33 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: alpha(theme.palette.grey[400], 0.8),
     },
   },
+
   deviceId: {
     position: "relative",
     width: "100%",
     overflow: "hidden",
   },
+
   vizButton: {
     position: "absolute",
     right: 0,
     top: 0,
     bottom: 0,
     margin: "auto",
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout2: {
+    alignItems: "center",
+    gap: theme.spacing(1),
+  },
+
+  layout3: {
+    flexWrap: "nowrap",
+    gap: theme.spacing(0.5),
   },
 }));
 
@@ -146,7 +165,7 @@ function CustomFooter({
     <GridFooterContainer className={classes.customFooter}>
       <Box className={classes.selectionInfo}>
         {selectedCount > 0 && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" className={classes.layout1}>
             {t("selectedRowsCount", { count: selectedCount })}
           </Typography>
         )}
@@ -165,6 +184,8 @@ function CustomFooter({
 
 // 创建者单元格组件
 function CreatorCell({ params }: { params: GridRenderCellParams }) {
+  const { classes } = useStyles();
+
   const consoleApi = useConsoleApi();
   const [creator, getCreator] = useAsyncFn(async () => {
     if (params.value == undefined) {
@@ -188,7 +209,7 @@ function CreatorCell({ params }: { params: GridRenderCellParams }) {
   }
 
   return (
-    <Stack direction="row" alignItems="center" gap={1}>
+    <Stack direction="row" className={classes.layout2}>
       <Avatar
         src={creator.value.avatar ?? undefined}
         variant="circular"
@@ -201,6 +222,8 @@ function CreatorCell({ params }: { params: GridRenderCellParams }) {
 
 // 标签单元格组件
 function LabelsCell({ params }: { params: GridRenderCellParams }) {
+  const { classes } = useStyles();
+
   const labels = params.value as Array<{ name: string; displayName: string }> | undefined;
 
   if (labels == undefined || labels.length === 0) {
@@ -208,7 +231,7 @@ function LabelsCell({ params }: { params: GridRenderCellParams }) {
   }
 
   return (
-    <Stack direction="row" spacing={0.5} flexWrap="nowrap" gap={0.5}>
+    <Stack direction="row" spacing={0.5} className={classes.layout3}>
       {labels.map((label, index) => (
         <Chip
           key={`${label.name}-${index}`}

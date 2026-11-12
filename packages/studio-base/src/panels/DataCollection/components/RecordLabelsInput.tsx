@@ -9,8 +9,15 @@ import { Label } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alph
 import { FormControl, InputLabel, Box } from "@mui/material";
 import { TFunction } from "i18next";
 import { memo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import RecordLabelSelector from "@foxglove/studio-base/components/RecordInfo/RecordLabelSelector";
+
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    minWidth: 200,
+  },
+}));
 
 interface RecordLabelsInputProps {
   recordLabels: Label[];
@@ -27,8 +34,10 @@ export const RecordLabelsInput = memo(function RecordLabelsInput({
   disabled = false,
   t,
 }: RecordLabelsInputProps) {
+  const { classes } = useStyles();
+
   return (
-    <Box minWidth={200}>
+    <Box className={classes.layout1}>
       <FormControl fullWidth size="small" disabled={disabled}>
         <InputLabel id="record-labels-select-label">{t("recordLabels")}</InputLabel>
         <RecordLabelSelector

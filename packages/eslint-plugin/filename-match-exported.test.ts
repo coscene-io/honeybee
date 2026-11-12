@@ -18,6 +18,10 @@ new RuleTester({
   languageOptions: { ecmaVersion: "latest", sourceType: "module" },
 }).run("filename-match-exported", rule, {
   valid: [
+    {
+      code: "const Widget = 1;\n/* eslint-disable @rule-tester/filename-match-exported */\nexport default Widget;",
+      filename: "/src/Other.ts",
+    },
     { code: "const Widget = 1; export default Widget;", filename: "/src/Widget.ts" },
     { code: "export default function Widget() {}", filename: "/src/Widget.js" },
     { code: "export default () => 1;", filename: "/src/anything.js" },

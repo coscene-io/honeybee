@@ -36,15 +36,21 @@ const useStyles = makeStyles()((theme) => ({
     paddingBottom: 0,
     marginBlock: theme.spacing(0.5),
   },
+
   listItemText: {
     display: "flex",
     flexDirection: "row",
     margin: 0,
     gap: theme.spacing(1),
   },
+
   listItemIcon: {
     alignSelf: "flex-start",
     minWidth: theme.spacing(3),
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -55,7 +61,7 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
   if (diagnostics.length === 0) {
     return (
       <Stack gap={0.5} padding={2}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" className={classes.layout1}>
           {t("noAlerts")}
         </Typography>
       </Stack>
@@ -86,7 +92,7 @@ const DiagnosticsSection = ({ diagnostics }: Props): ReactElement => {
               secondary={`${source} ${errorLoc}`}
               slotProps={{
                 secondary: {
-                  color: "text.secondary",
+                  color: "textSecondary",
                 },
               }}
             />

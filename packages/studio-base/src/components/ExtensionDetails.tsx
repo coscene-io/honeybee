@@ -36,8 +36,25 @@ const useStyles = makeStyles()((theme) => ({
     marginLeft: theme.spacing(-1.5),
     marginBottom: theme.spacing(1),
   },
+
   installButton: {
     minWidth: 100,
+  },
+
+  layout1: {
+    fontWeight: 500,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout3: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout4: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -123,7 +140,7 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
         >
           {t("back")}
         </Button>
-        <Typography variant="h3" fontWeight={500}>
+        <Typography variant="h3" className={classes.layout1}>
           {extension.name}
         </Typography>
       </div>
@@ -131,14 +148,14 @@ export function ExtensionDetails({ extension, onClose, installed }: Props): Reac
       <Stack gap={1} alignItems="flex-start">
         <Stack gap={0.5} paddingBottom={1}>
           <Stack direction="row" gap={1} alignItems="baseline">
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" className={classes.layout2}>
               {extension.id}
             </Typography>
             <Typography
               variant="caption"
-              color="text.secondary"
+              className={classes.layout3}
             >{`v${extension.version}`}</Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" className={classes.layout4}>
               {extension.license}
             </Typography>
           </Stack>

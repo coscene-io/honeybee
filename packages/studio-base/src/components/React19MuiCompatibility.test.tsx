@@ -61,8 +61,11 @@ it.each(["disableRipple", "disabled"] as const)(
       fireEvent.keyUp(button, { key: " " });
       fireEvent.blur(button, { relatedTarget: document.createElement("button") });
     });
-    for (const handler of Object.values(handlers)) {
-      expect(handler).toHaveBeenCalledTimes(1);
+    for (const [name, handler] of Object.entries(handlers)) {
+      // MUI 9 suppresses keyboard handlers on disabled non-native buttons.
+      const suppressed =
+        disabledProp === "disabled" && (name === "onKeyDown" || name === "onKeyUp");
+      expect(handler).toHaveBeenCalledTimes(suppressed ? 0 : 1);
     }
     expect(mount).not.toHaveBeenCalled();
     expect(view.container.querySelector(".MuiTouchRipple-root")).toBeNull();

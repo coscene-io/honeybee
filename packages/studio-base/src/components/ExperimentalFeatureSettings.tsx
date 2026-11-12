@@ -24,14 +24,27 @@ import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   checkbox: {
     paddingTop: 0,
   },
+
   formControlLabel: {
     alignItems: "start",
   },
-});
+
+  layout1: {
+    fontWeight: 600,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout3: {
+    fontStyle: "italic",
+  },
+}));
 
 type Feature = {
   key: AppSetting;
@@ -85,8 +98,8 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
       }
       label={
         <Stack gap={0.25} paddingLeft={0.5}>
-          <Typography fontWeight={600}>{feature.name}</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography className={classes.layout1}>{feature.name}</Typography>
+          <Typography variant="body2" className={classes.layout2}>
             {feature.description}
           </Typography>
         </Stack>
@@ -96,12 +109,14 @@ function ExperimentalFeatureItem(props: { feature: Feature }) {
 }
 
 export const ExperimentalFeatureSettings = (): React.ReactElement => {
+  const { classes } = useStyles();
+
   const features = useFeatures();
   const { t } = useTranslation("appSettings");
   return (
     <Stack gap={2}>
       {features.length === 0 && (
-        <Typography fontStyle="italic">{t("noExperimentalFeatures")}</Typography>
+        <Typography className={classes.layout3}>{t("noExperimentalFeatures")}</Typography>
       )}
       {features.map((feature) => (
         <ExperimentalFeatureItem key={feature.key} feature={feature} />

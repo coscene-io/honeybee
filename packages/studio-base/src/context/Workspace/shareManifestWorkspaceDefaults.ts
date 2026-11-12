@@ -5,11 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import type { DeepPartial } from "ts-essentials";
-
 import { TIMELINE_MIN_HEIGHT_PX } from "@foxglove/studio-base/components/PlaybackControls/constants";
 
-import type { WorkspaceContextStore } from "./WorkspaceContext";
+import type { WorkspaceInitialState } from "./WorkspaceContext";
 
 /**
  * Persistence key for the workspace store when running in share-manifest mode.
@@ -27,7 +25,7 @@ export const SHARE_MANIFEST_WORKSPACE_PERSIST_KEY = "fox.workspace.shareManifest
  * Scope: panel visibility + size only. Sidebar tab selection (`item`) and other
  * playback settings are intentionally left untouched.
  */
-export const SHARE_MANIFEST_PANEL_DEFAULTS: DeepPartial<WorkspaceContextStore> = {
+export const SHARE_MANIFEST_PANEL_DEFAULTS: WorkspaceInitialState = {
   sidebars: {
     left: {
       open: false,

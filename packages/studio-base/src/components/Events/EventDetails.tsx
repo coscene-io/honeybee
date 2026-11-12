@@ -33,6 +33,7 @@ import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 const useStyles = makeStyles()((theme) => ({
   popper: { zIndex: theme.zIndex.modal },
+
   details: {
     padding: theme.spacing(2),
     width: 400,
@@ -40,7 +41,12 @@ const useStyles = makeStyles()((theme) => ({
     maxHeight: "70vh",
     overflow: "auto",
   },
+
   value: { overflowWrap: "anywhere", whiteSpace: "pre-wrap" },
+
+  layout1: {
+    color: theme.palette.text.secondary,
+  },
 }));
 
 export function EventDetails({
@@ -120,7 +126,7 @@ export function EventDetails({
               .filter(([, value]) => value)
               .map(([label, value], index) => (
                 <Stack key={index}>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" className={classes.layout1}>
                     {label}
                   </Typography>
                   <Typography className={classes.value}>{value}</Typography>
@@ -134,7 +140,7 @@ export function EventDetails({
               ignoreProperties
             />
             {isMomentDoubtful(event.event.customizedFields) && (
-              <Typography color={DOUBTFUL_MOMENT_COLOR}>{t("doubtful")}</Typography>
+              <Typography style={{ color: DOUBTFUL_MOMENT_COLOR }}>{t("doubtful")}</Typography>
             )}
             <Button autoFocus onClick={onClose}>
               {t("close")}

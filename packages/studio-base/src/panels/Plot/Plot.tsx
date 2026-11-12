@@ -77,6 +77,7 @@ const useStyles = makeStyles()((theme) => ({
   tooltip: {
     maxWidth: "none",
   },
+
   resetZoomButton: {
     pointerEvents: "none",
     position: "absolute",
@@ -93,12 +94,18 @@ const useStyles = makeStyles()((theme) => ({
       pointerEvents: "auto",
     },
   },
+
   canvasDiv: { width: "100%", height: "100%", overflow: "hidden", cursor: "crosshair" },
+
   verticalBarWrapper: {
     width: "100%",
     height: "100%",
     overflow: "hidden",
     position: "relative",
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -969,7 +976,7 @@ export function Plot(props: Props): React.JSX.Element {
     >
       <PanelToolbar />
       {xAxisMode === "timestamp" && timeFormat === "REL" && (
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" className={classes.layout1}>
           {t("general:relativeTimeSeconds")}
         </Typography>
       )}

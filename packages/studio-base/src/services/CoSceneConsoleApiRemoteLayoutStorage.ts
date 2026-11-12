@@ -13,7 +13,7 @@ import type { User as CoUser } from "@coscene-io/cosceneapis-es-v2/coscene/datap
 import { LayoutScopeEnum_LayoutScope } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/enums/layout_scope_pb";
 import { LayoutSchema } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
 import type { Layout } from "@coscene-io/cosceneapis-es-v2/coscene/dataplatform/v1alpha2/resources/layout_pb";
-import _uniq from "lodash/uniq";
+import _uniq from "lodash-es/uniq";
 
 import Logger from "@foxglove/log";
 import type { LayoutID } from "@foxglove/studio-base/context/CurrentLayoutContext";

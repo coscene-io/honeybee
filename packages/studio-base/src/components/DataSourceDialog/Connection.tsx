@@ -45,22 +45,27 @@ const useStyles = makeStyles()((theme) => ({
       gridTemplateRows: "auto auto",
     },
   },
+
   header: {
     gridArea: "header",
   },
+
   form: {
     gridArea: "form",
     overflowY: "auto",
   },
+
   formInner: {
     [theme.breakpoints.up("md")]: {
       height: theme.spacing(43), // this is aproximately the height of the tallest form
     },
   },
+
   sidebar: {
     gridArea: "sidebar",
     overflowY: "auto",
   },
+
   tab: {
     "> svg:not(.MuiSvgIcon-root)": {
       display: "flex",
@@ -78,6 +83,7 @@ const useStyles = makeStyles()((theme) => ({
       paddingBottom: theme.spacing(1.5),
     },
   },
+
   indicator: {
     transition: theme.transitions.create("inset"),
 
@@ -87,6 +93,10 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: theme.palette.action.hover,
       borderRadius: theme.shape.borderRadius,
     },
+  },
+
+  layout1: {
+    fontWeight: 600,
   },
 }));
 
@@ -218,7 +228,7 @@ export default function Connection(): React.JSX.Element {
     <View onOpen={disableOpen ? undefined : onOpen}>
       <Stack className={classes.grid} data-testid="OpenConnection">
         <header className={classes.header}>
-          <Typography variant="h3" fontWeight={600} gutterBottom>
+          <Typography variant="h3" gutterBottom className={classes.layout1}>
             {t("openNewConnection")}
           </Typography>
         </header>

@@ -171,9 +171,7 @@ function makeTimelineInteractionStore(): StoreApi<TimelineInteractionStateStore>
     },
     setGlobalBounds: (
       newBounds:
-        | undefined
-        | SyncBounds
-        | ((oldValue: undefined | SyncBounds) => undefined | SyncBounds),
+        undefined | SyncBounds | ((oldValue: undefined | SyncBounds) => undefined | SyncBounds),
     ) => {
       set((store) => ({
         globalBounds: typeof newBounds === "function" ? newBounds(store.globalBounds) : newBounds,

@@ -2,6 +2,7 @@
   "extends": "../../../../tsconfig.base.json",
   "include": ["./**/*", "../common/*", "../../package.json"],
   "compilerOptions": {
+    "lib": ["es2022", "dom", "dom.iterable", "ESNext.Disposable"],
     "rootDir": "../../",
     "jsx": "react-jsx",
     "noEmit": true

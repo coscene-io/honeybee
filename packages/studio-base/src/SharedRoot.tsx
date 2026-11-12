@@ -60,6 +60,15 @@ export function SharedRoot(
   ) {
     posthog.init(appConfig.POSTHOG.token, {
       api_host: appConfig.POSTHOG.api_host,
+      // Keep the existing capture/storage behavior; do not opt into newer SDK defaults.
+      defaults: "unset",
+      autocapture: true,
+      capture_pageview: true,
+      capture_pageleave: "if_capture_pageview",
+      persistence: "localStorage+cookie",
+      disable_conversations: true,
+      disable_product_tours: true,
+      session_recording: { streamNetworkBody: false, captureJsonLd: false },
       person_profiles: "always",
       before_send: sanitizePrivacySafeCaptureResult,
     });

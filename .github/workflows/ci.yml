@@ -122,7 +122,7 @@ jobs:
         run: yarn web:build:prod
       - name: Install and exercise the Web extension
         if: matrix.target == 'web'
-        run: yarn jest --config web/integration-test/jest.config.json web/integration-test/reactUpgradeExtension.test.ts --runInBand
+        run: yarn jest --config web/integration-test/jest.config.json web/integration-test/reactUpgradeExtension.test.ts web/integration-test/dependencyCompatibility.test.ts --runInBand
       - name: Build Desktop and Quicklook
         if: matrix.target == 'desktop'
         run: yarn desktop:build:prod

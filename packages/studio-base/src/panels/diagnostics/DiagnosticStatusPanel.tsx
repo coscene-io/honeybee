@@ -211,7 +211,8 @@ function DiagnosticStatusPanel(props: Props) {
               {...params}
               placeholder={selectedDisplayName ?? "Filter"}
               slotProps={{
-                input: { ...params.InputProps, disableUnderline: true },
+                ...params.slotProps,
+                input: { ...params.slotProps.input, disableUnderline: true },
               }}
             />
           )}

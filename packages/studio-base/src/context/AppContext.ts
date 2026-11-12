@@ -13,7 +13,10 @@ import type { Immutable, SettingsTreeField, SettingsTreeNode } from "@foxglove/s
 import type { AppBarMenuItem } from "@foxglove/studio-base/components/AppBar/types";
 import type { LayoutData } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import type { PanelInfo } from "@foxglove/studio-base/context/PanelCatalogContext";
-import type { WorkspaceContextStore } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
+import type {
+  WorkspaceContextStore,
+  WorkspaceInitialState,
+} from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import type { SceneExtensionConfig } from "@foxglove/studio-base/panels/ThreeDeeRender/SceneExtensionConfig";
 
 interface IAppContext {
@@ -35,7 +38,7 @@ interface IAppContext {
     nodeOrField: Immutable<SettingsTreeNode | SettingsTreeField>,
   ) => React.JSX.Element | undefined;
   workspaceStoreCreator?: (
-    initialState?: DeepPartial<WorkspaceContextStore>,
+    initialState?: WorkspaceInitialState,
     options?: { disablePersistence?: boolean },
   ) => StoreApi<WorkspaceContextStore>;
   PerformanceSidebarComponent?: React.ComponentType;

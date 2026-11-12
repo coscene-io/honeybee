@@ -12,7 +12,7 @@ import { useDrag } from "react-dnd";
 import { Trans, useTranslation } from "react-i18next";
 import JSONTree from "react-json-tree";
 import { Mosaic, MosaicWindow } from "react-mosaic-component";
-import { Panel, PanelGroup } from "react-resizable-panels";
+import { Panel, Group } from "react-resizable-panels";
 import { useThrottle } from "react-use";
 import { FixedSizeList } from "react-window";
 import { useImmer } from "use-immer";
@@ -26,7 +26,7 @@ export function React19Compatibility(): React.JSX.Element {
   const count = useThrottle(value.count);
   const [, connectDrag] = useDrag(() => ({ type: "typecheck", item: { count } }), [count]);
   return (
-    <PanelGroup direction="vertical">
+    <Group orientation="vertical">
       <Panel>
         <Mosaic<string>
           initialValue="tree"
@@ -63,6 +63,6 @@ export function React19Compatibility(): React.JSX.Element {
           {({ index, style }) => <div style={style}>{index}</div>}
         </FixedSizeList>
       </Panel>
-    </PanelGroup>
+    </Group>
   );
 }

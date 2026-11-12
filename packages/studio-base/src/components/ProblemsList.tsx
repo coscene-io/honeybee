@@ -158,7 +158,9 @@ export function ProblemsList(): React.JSX.Element {
       message: problem.messageKey
         ? tError(problem.messageKey, { defaultValue: problem.message })
         : problem.message,
-      tip: problem.tipKey ? tError(problem.tipKey, problem.tipParams) : problem.tip,
+      tip: problem.tipKey
+        ? tError(problem.tipKey, { ...problem.tipParams, defaultValue: problem.tipKey })
+        : problem.tip,
       // Keep expansion state stable when the translated message changes.
       originalMessage: problem.message,
     }));

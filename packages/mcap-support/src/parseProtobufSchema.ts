@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import protobufjs from "protobufjs";
+// foxglove-depcheck-used: @types/protobufjs
 import { FileDescriptorSet } from "protobufjs/ext/descriptor";
 
 import { protobufDefinitionsToDatatypes, stripLeadingDot } from "./protobufDefinitionsToDatatypes";

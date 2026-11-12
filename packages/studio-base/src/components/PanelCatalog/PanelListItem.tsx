@@ -28,10 +28,15 @@ const useStyles = makeStyles<void, "dragIcon">()((theme, _params, classes) => {
         visibility: "hidden",
       },
     },
+
     dragIcon: {
       cursor: "grab",
       marginRight: theme.spacing(-1),
       color: theme.palette.text.disabled,
+    },
+
+    layout1: {
+      fontWeight: theme.typography.fontWeightBold,
     },
   };
 });
@@ -146,7 +151,7 @@ export function PanelListItem(props: Props): React.JSX.Element {
         <Stack paddingTop={0.25} style={{ width: 200 }}>
           {panel.thumbnail != undefined && <img src={panel.thumbnail} alt={panel.title} />}
           <Stack padding={1} gap={0.5}>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" className={classes.layout1}>
               {panel.title}
             </Typography>
             <Typography variant="body2" style={{ opacity: 0.6 }}>

@@ -82,6 +82,7 @@ const useStyles = makeStyles<{ minTimelineHeight: number }>()((theme, { minTimel
     position: "relative",
     zIndex: theme.zIndex.appBar,
   },
+
   resizeHandle: {
     cursor: "ns-resize",
     height: 8,
@@ -120,22 +121,34 @@ const useStyles = makeStyles<{ minTimelineHeight: number }>()((theme, { minTimel
       opacity: 0.5,
     },
   },
+
   realtimeRoot: {
     maxHeight: "none",
     minHeight: 0,
     overflowX: "auto",
     padding: theme.spacing(0.5, 1, 1, 1),
   },
+
   disabled: {
     opacity: theme.palette.action.disabledOpacity,
   },
+
   popper: {
     "&[data-popper-placement*=top] .MuiTooltip-tooltip": {
       margin: theme.spacing(0.5, 0.5, 0.75),
     },
   },
+
   dataSourceInfoButton: {
     cursor: "default",
+  },
+
+  layout1: {
+    marginLeft: "4px",
+  },
+
+  layout2: {
+    marginLeft: "4px",
   },
 }));
 
@@ -592,7 +605,7 @@ export default function PlaybackControls(props: {
                         }
                       }}
                     >
-                      <Typography variant="body2" marginLeft="4px">
+                      <Typography variant="body2" className={classes.layout1}>
                         {t("switchToRealTime", { ns: "websocket" })}
                       </Typography>
                     </IconButton>
@@ -737,7 +750,7 @@ export function RealtimeVizPlaybackControls(): React.JSX.Element {
                 }}
                 disabled={!cacheReady}
               >
-                <Typography variant="body2" marginLeft="4px">
+                <Typography variant="body2" className={classes.layout2}>
                   {t("switchToPlayback")}
                 </Typography>
               </IconButton>

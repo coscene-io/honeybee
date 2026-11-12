@@ -262,7 +262,7 @@ it("carries all supported field values through two creations, including zero and
   await submit();
   await open();
   await waitFor(() => {
-    expect(mockForm.getValues("customFieldValues.user-true").value.case).toBe("user");
+    expect(mockForm.getValues("customFieldValues.user-true")?.value.case).toBe("user");
   });
   expect(screen.getByPlaceholderText<HTMLInputElement>("Text value").value).toBe("remember me");
   expect(screen.getByPlaceholderText<HTMLInputElement>("Number value").value).toBe("0");
@@ -279,7 +279,7 @@ it("does not let cancelled edits mutate the remembered snapshot", async () => {
   await submit();
   await open();
   await waitFor(() => {
-    expect(mockForm.getValues("customFieldValues.user-true").value.case).toBe("user");
+    expect(mockForm.getValues("customFieldValues.user-true")?.value.case).toBe("user");
   });
   fireEvent.change(screen.getByPlaceholderText("Text value"), { target: { value: "cancelled" } });
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -316,7 +316,7 @@ it("records clearing every custom field as the next empty default", async () => 
   await submit();
   await open();
   await waitFor(() => {
-    expect(mockForm.getValues("customFieldValues.user-true").value.case).toBe("user");
+    expect(mockForm.getValues("customFieldValues.user-true")?.value.case).toBe("user");
   });
   await act(async () => {
     for (const sample of samples) {

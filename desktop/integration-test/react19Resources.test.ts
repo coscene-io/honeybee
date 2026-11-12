@@ -55,10 +55,12 @@ async function sampleResources(
     });
     await cdp.send("HeapProfiler.collectGarbage");
     if (
-      await page.evaluate(() =>
-        window.react19ResourceHostNodes.every(
-          ({ kind, node }) => kind !== "host-panel" || node.deref() == undefined,
-        ),
+      await page.evaluate(
+        () =>
+          window.react19ResourceNodes.every((node) => node.deref() == undefined) &&
+          window.react19ResourceHostNodes.every(
+            ({ kind, node }) => kind !== "host-panel" || node.deref() == undefined,
+          ),
       )
     ) {
       break;

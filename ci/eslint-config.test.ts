@@ -99,8 +99,7 @@ function oxlintOverride(files: string): OxlintOverride {
 
 async function residualConfigFor(relativePath: string): Promise<Linter.Config> {
   const config = (await residualEslint.calculateConfigForFile(path.join(rootDir, relativePath))) as
-    | Linter.Config
-    | undefined;
+    Linter.Config | undefined;
   if (config == undefined) {
     throw new Error(`No residual ESLint configuration matched ${relativePath}`);
   }
@@ -270,8 +269,7 @@ describe("hybrid Oxlint and ESLint configuration", () => {
     const reactConfig = oxlintOverride("packages/studio-base/src/**/*.tsx");
     const restrictedImportNames = (config: OxlintOverride): Array<string | undefined> => {
       const restrictedImportsRule = config.rules["no-restricted-imports"] as
-        | [string, { paths?: Array<{ name?: string }> }]
-        | undefined;
+        [string, { paths?: Array<{ name?: string }> }] | undefined;
 
       return restrictedImportsRule?.[1].paths?.map((entry) => entry.name) ?? [];
     };

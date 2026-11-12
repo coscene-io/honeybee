@@ -53,13 +53,39 @@ const useStyles = makeStyles()((theme) => ({
   listItemButton: {
     "&:hover": { color: theme.palette.primary.main },
   },
+
   menuItem: {
     display: "flex",
     gap: theme.spacing(1),
     alignItems: "center",
   },
+
   menuIcon: {
     minWidth: "auto",
+    color: theme.palette.text.secondary,
+  },
+
+  layout1: {
+    fontWeight: 600,
+  },
+
+  layout2: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout3: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout4: {
+    color: theme.palette.text.primary,
+  },
+
+  layout6: {
+    color: theme.palette.text.secondary,
+  },
+
+  layout7: {
     color: theme.palette.text.secondary,
   },
 }));
@@ -94,20 +120,20 @@ function ExtensionListEntry(props: {
           disableTypography
           primary={
             <Stack direction="row" alignItems="baseline" gap={0.5}>
-              <Typography variant="subtitle2" fontWeight={600}>
+              <Typography variant="subtitle2" className={classes.layout1}>
                 {name}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" className={classes.layout2}>
                 {version}
               </Typography>
             </Stack>
           }
           secondary={
             <Stack gap={0.5}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" className={classes.layout3}>
                 {description}
               </Typography>
-              <Typography color="text.primary" variant="body2">
+              <Typography variant="body2" className={classes.layout4}>
                 {publisher}
               </Typography>
             </Stack>
@@ -315,7 +341,7 @@ export function ExtensionsSettingsMore(): React.ReactElement {
         onClick: handleOpenUrlDialog,
       },
     ],
-    [handleInstallFromLocal, handleOpenUrlDialog, handleOpenProjectFileDialog, t],
+    [t, handleInstallFromLocal, handleOpenProjectFileDialog, handleOpenUrlDialog],
   );
 
   return (
@@ -438,6 +464,8 @@ export function ExtensionsSettingsMore(): React.ReactElement {
 }
 
 export default function ExtensionsSettings(): React.ReactElement {
+  const { classes } = useStyles();
+
   const { t } = useTranslation("extensions");
   const { enqueueSnackbar } = useSnackbar();
   const [focusedExtension, setFocusedExtension] = useState<
@@ -500,7 +528,7 @@ export default function ExtensionsSettings(): React.ReactElement {
         <div role="status">
           <Stack direction="row" alignItems="center" gap={1} paddingX={2} paddingY={1}>
             <CircularProgress size={16} />
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" className={classes.layout6}>
               {t("loadingExtensions")}
             </Typography>
           </Stack>
@@ -522,7 +550,7 @@ export default function ExtensionsSettings(): React.ReactElement {
         Object.entries(namespacedEntries).map(([namespace, entries]) => (
           <List key={namespace}>
             <Stack paddingY={0.25} paddingX={2}>
-              <Typography component="li" variant="overline" color="text.secondary">
+              <Typography component="li" variant="overline" className={classes.layout7}>
                 {displayNameForNamespace(namespace, t)}
               </Typography>
             </Stack>

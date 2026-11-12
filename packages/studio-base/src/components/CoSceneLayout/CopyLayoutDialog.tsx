@@ -30,11 +30,20 @@ import { Layout } from "@foxglove/studio-base/services/CoSceneILayoutStorage";
 
 import { SelectFolder } from "./createLayout/SelectFolder";
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   dialogContent: {
     minWidth: 400,
   },
-});
+
+  layout1: {
+    gap: theme.spacing(2),
+  },
+
+  layout2: {
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+  },
+}));
 
 export function CopyLayoutDialog({
   open,
@@ -95,7 +104,7 @@ export function CopyLayoutDialog({
     >
       <DialogTitle>{t("copyLayout")}</DialogTitle>
       <DialogContent className={classes.dialogContent}>
-        <Stack gap={2}>
+        <Stack className={classes.layout1}>
           <Controller
             control={form.control}
             name="name"
@@ -116,7 +125,7 @@ export function CopyLayoutDialog({
 
           <Stack>
             <FormLabel>
-              <Stack direction="row" alignItems="center" gap={0.5}>
+              <Stack direction="row" className={classes.layout2}>
                 {t("type")}
               </Stack>
             </FormLabel>

@@ -18,6 +18,7 @@ import dayjs from "dayjs";
 import { Dispatch, SetStateAction, useCallback, useEffect, useState, memo } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 import { useDebouncedCallback } from "use-debounce";
 import { useImmer } from "use-immer";
 
@@ -55,6 +56,21 @@ import {
   handleServiceResponse,
 } from "./utils";
 
+const useStyles = makeStyles()((theme) => ({
+  layout1: {
+    gap: theme.spacing(1),
+    display: "flex",
+    border: "1px solid",
+    overflow: "auto",
+    borderRadius: theme.shape.borderRadius,
+    padding: theme.spacing(1),
+  },
+
+  layout2: {
+    minHeight: 20,
+  },
+}));
+
 type Props = {
   context: PanelExtensionContext;
 };
@@ -64,6 +80,8 @@ const log = Log.getLogger(__dirname);
 function DataCollectionContent(
   props: Props & { setColorScheme: Dispatch<SetStateAction<Palette["mode"]>> },
 ): React.JSX.Element {
+  const { classes } = useStyles();
+
   const domainConfig = getDomainConfig();
   const { context, setColorScheme } = props;
   const { userInfo, consoleApi, deviceLink } = useDataCollectionContext();
@@ -405,7 +423,7 @@ function DataCollectionContent(
         <Typography variant="caption" noWrap>
           {t("dataSaveLocation")}
         </Typography>
-        <Box gap={1} display="flex" border="1px solid" overflow="auto" borderRadius={1} padding={1}>
+        <Box className={classes.layout1}>
           <ProjectSelector
             projectName={projectState.projectName}
             projectOptions={projectOptions}
@@ -493,7 +511,7 @@ function DataCollectionContent(
                 noWrap
                 key={index}
                 color={logLine.startsWith("[ERROR]") ? "error" : undefined}
-                minHeight={20}
+                className={classes.layout2}
               >
                 {logLine.split(/(https?:\/\/[^\s]+)/).map((part, i) => {
                   if (part.match(/^https?:\/\//)) {

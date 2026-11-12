@@ -60,8 +60,10 @@ export default function Timestamp(props: Props): React.JSX.Element {
           <Typography
             className={classes.numericValue}
             noWrap
-            fontWeight={!horizontal ? 700 : undefined}
             variant="inherit"
+            style={{
+              fontWeight: !horizontal ? 700 : undefined,
+            }}
           >
             {date}
           </Typography>

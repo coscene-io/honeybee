@@ -40,7 +40,7 @@ const defaultConfig: Config = {
   rules: [{ operator: "=", rawValue: "true", color: "#68e24a", label: "True" }],
 };
 
-const useStyles = makeStyles()({
+const useStyles = makeStyles()((theme) => ({
   root: {
     width: 40,
     height: 40,
@@ -52,7 +52,12 @@ const useStyles = makeStyles()({
       `radial-gradient(circle at 46% 44%, transparent, transparent 61%, rgba(0,0,0,0.7) 74%, rgba(0,0,0,0.7))`,
     ].join(","),
   },
-});
+
+  layout1: {
+    fontFamily: theme.typography.fontMonospace,
+    whiteSpace: "pre",
+  },
+}));
 
 type State = {
   path: string;
@@ -159,18 +164,14 @@ export function Indicator({ context }: Props): React.JSX.Element {
     ...(context.initialState as Partial<Config>),
   }));
 
-  const [state, dispatch] = useReducer(
-    reducer,
-    config,
-    ({ path }): State => ({
-      path,
-      parsedPath: parseMessagePath(path),
-      latestMessage: undefined,
-      latestMatchingQueriedData: undefined,
-      pathParseError: undefined,
-      error: undefined,
-    }),
-  );
+  const [state, dispatch] = useReducer(reducer, config, ({ path }): State => ({
+    path,
+    parsedPath: parseMessagePath(path),
+    latestMessage: undefined,
+    latestMatchingQueriedData: undefined,
+    pathParseError: undefined,
+    error: undefined,
+  }));
 
   useLayoutEffect(() => {
     dispatch({ type: "path", path: config.path });
@@ -267,16 +268,16 @@ export function Indicator({ context }: Props): React.JSX.Element {
             />
           )}
           <Typography
-            color={
-              style === "background"
-                ? augmentColor({
-                    color: { main: matchingRule?.color ?? fallbackColor },
-                  }).contrastText
-                : (matchingRule?.color ?? fallbackColor)
-            }
-            fontFamily="fontMonospace"
+            style={{
+              color:
+                style === "background"
+                  ? augmentColor({
+                      color: { main: matchingRule?.color ?? fallbackColor },
+                    }).contrastText
+                  : (matchingRule?.color ?? fallbackColor),
+            }}
             variant="h1"
-            whiteSpace="pre"
+            className={classes.layout1}
           >
             {matchingRule?.label ?? fallbackLabel}
           </Typography>

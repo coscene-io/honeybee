@@ -6,12 +6,17 @@
     "@foxglove/log": "workspace:*",
     "@foxglove/studio-base": "workspace:*",
     "@foxglove/studio-desktop": "workspace:*",
-    "@foxglove/ws-protocol": "0.1.2",
-    "@rspack/cli": "2.2.9",
-    "@rspack/core": "2.2.9",
-    "@types/ws": "^8",
-    "electron": "35.0.3",
-    "playwright": "1.60.0",
-    "ws": "8.18.0"
+    "@foxglove/ws-protocol": "workspace:*",
+    "@rspack/cli": "2.3.2",
+    "@rspack/core": "2.3.2",
+    "@svgr/webpack": "8.1.0",
+    "@types/ws": "8.18.2",
+    "css-loader": "7.1.5",
+    "electron": "45.3.0",
+    "playwright": "1.65.0",
+    "string-replace-loader": "3.3.0",
+    "style-loader": "4.0.0",
+    "webpack": "5.112.2",
+    "ws": "8.22.2"
   }
 }

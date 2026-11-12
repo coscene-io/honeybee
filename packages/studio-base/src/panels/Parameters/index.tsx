@@ -72,18 +72,23 @@ function selectParameters(ctx: MessagePipelineContext) {
   return ctx.playerState.activeData?.parameters ?? EMPTY_PARAMETERS;
 }
 
-const useStyles = makeStyles<void, "copyIcon">()((_theme, _params, classes) => ({
+const useStyles = makeStyles<void, "copyIcon">()((theme, _params, classes) => ({
   tableRow: {
     [`&:hover .${classes.copyIcon}`]: {
       visibility: "visible",
     },
   },
+
   copyIcon: {
     visibility: "hidden",
 
     "&:hover": {
       backgroundColor: "transparent",
     },
+  },
+
+  layout1: {
+    color: theme.palette.text.secondary,
   },
 }));
 
@@ -286,7 +291,7 @@ function Parameters(): ReactElement {
                         noWrap
                         title={displayValue}
                         variant="inherit"
-                        color="text.secondary"
+                        className={classes.layout1}
                       >
                         {displayValue}
                       </Typography>

@@ -22,7 +22,9 @@ export function useOpenFile(sources: readonly IDataSourceFactory[]): () => Promi
       }
       return [...all, ...source.supportedFileTypes];
     }, []);
-    return [...new Set(extensions)];
+    return [...new Set(extensions)].filter(
+      (extension): extension is `.${string}` => extension.startsWith(".") && extension.length > 1,
+    );
   }, [sources]);
 
   return useCallback(async () => {

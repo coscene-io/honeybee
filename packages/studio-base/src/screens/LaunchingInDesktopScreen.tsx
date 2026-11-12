@@ -8,13 +8,26 @@
 import { Link, Typography } from "@mui/material";
 import { ReactElement, useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { makeStyles } from "tss-react/mui";
 
 import { useSessionStorageValue } from "@foxglove/hooks";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { LaunchPreferenceValue } from "@foxglove/studio-base/types/LaunchPreferenceValue";
 
+const useStyles = makeStyles()(() => ({
+  layout1: {
+    fontWeight: 600,
+  },
+
+  layout2: {
+    fontWeight: 600,
+  },
+}));
+
 export function LaunchingInDesktopScreen(): ReactElement {
+  const { classes } = useStyles();
+
   const { t } = useTranslation("openDialog");
   const [, setLaunchPreference] = useSessionStorageValue(AppSetting.LAUNCH_PREFERENCE);
 
@@ -72,10 +85,10 @@ export function LaunchingInDesktopScreen(): ReactElement {
         gap={2.5}
         style={{ maxWidth: 480 }}
       >
-        <Typography align="center" variant="h2" fontWeight={600}>
+        <Typography align="center" variant="h2" className={classes.layout1}>
           {t("launchingCoSceneStudio")}
         </Typography>
-        <Typography align="center" fontWeight={600}>
+        <Typography align="center" className={classes.layout2}>
           {t("directedToDesktopApp")}
         </Typography>
         <Stack gap={0.5}>
