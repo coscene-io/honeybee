@@ -16,6 +16,7 @@ import { pauseFrameForPromises } from "@foxglove/studio-base/components/MessageP
 import type { BuiltinPanelExtensionContext } from "@foxglove/studio-base/components/PanelExtensionAdapter";
 
 import type { RendererConfig } from "./IRenderer";
+import { Renderer } from "./Renderer";
 import { currentFrameForRenderTick, snapshotRenderState, ThreeDeeRender } from "./ThreeDeeRender";
 
 jest.mock("three/examples/jsm/libs/draco/draco_decoder.wasm", () => "");
@@ -184,6 +185,19 @@ describe("onRender awaited presentation", () => {
     mockQueueRAF.mockReset();
     mockDraw.mockReset();
     mockEnqueue.mockReset();
+  });
+
+  it("connects video seek locks to the global playback controls", () => {
+    const release = jest.fn();
+    const acquire = jest.fn(() => release);
+    const { view } = mountPanel((panel) => {
+      panel.unstable_acquireKeyframeSearchLock = acquire;
+    });
+    const renderer = jest.mocked(Renderer).mock.results.at(-1)!.value as Renderer;
+
+    expect(renderer.acquireKeyframeSearchLock?.()).toBe(release);
+    expect(acquire).toHaveBeenCalledWith();
+    view.unmount();
   });
 
   it("waits for decode, draws, and only then acknowledges the tick", async () => {

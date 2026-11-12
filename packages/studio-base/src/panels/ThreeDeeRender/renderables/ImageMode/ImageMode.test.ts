@@ -26,6 +26,7 @@ import {
   type SetCompressedVideoFramesOptions,
 } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/Images/ImageRenderable";
 import { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { createPlaybackInteractionStateStore } from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 
 import { ImageMode } from "./ImageMode";
 import {
@@ -959,6 +960,35 @@ describe("ImageMode compressed video seek replay", () => {
       expect(displayedBatches).toEqual([[keyframe.message.timestamp, delta.message.timestamp]]);
     } finally {
       jest.useRealTimers();
+    }
+  });
+
+  it("keeps the playback lock across the renderer's seek-clear lifecycle", async () => {
+    const store = createPlaybackInteractionStateStore();
+    const renderer = makeRenderer();
+    renderer.acquireKeyframeSearchLock = () => store.getState().acquireKeyframeSearchLock();
+    renderer.subscribeMessageRange = jest.fn(() => jest.fn());
+    const imageMode = new TestImageMode(renderer);
+    const counts: number[] = [];
+    const unsubscribe = store.subscribe((state) => {
+      counts.push(state.keyframeSearchLockCount);
+    });
+    try {
+      imageMode.handleSeek();
+      await flushAsyncWork();
+      expect(store.getState().keyframeSearchLockCount).toBe(1);
+
+      // Renderer.handleSeek clears extensions with this reason before starting the new seek.
+      imageMode.removeAllRenderables({ reason: "seek" });
+      imageMode.handleSeek();
+      await flushAsyncWork();
+      expect(counts).not.toContain(0);
+
+      imageMode.removeAllRenderables();
+      expect(store.getState().keyframeSearchLockCount).toBe(0);
+    } finally {
+      unsubscribe();
+      imageMode.dispose();
     }
   });
 

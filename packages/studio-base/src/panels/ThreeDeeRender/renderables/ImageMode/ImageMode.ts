@@ -101,7 +101,11 @@ import type {
   ImageModeConfig,
   RendererConfig,
 } from "../../IRenderer";
-import { PartialMessageEvent, SceneExtension } from "../../SceneExtension";
+import {
+  PartialMessageEvent,
+  type RemoveAllRenderablesOptions,
+  SceneExtension,
+} from "../../SceneExtension";
 import { SettingsTreeEntry } from "../../SettingsManager";
 import {
   IMAGE_DATATYPES as ROS_IMAGE_DATATYPES,
@@ -351,7 +355,7 @@ export class ImageMode
     this.#compressedVideoControllerForTopic(topic).handleSeek();
   }
 
-  public override removeAllRenderables(): void {
+  public override removeAllRenderables(options: RemoveAllRenderablesOptions = {}): void {
     // To avoid flickering while seeking or changing subscriptions, we avoid clearing the
     // ImageRenderable for a short timeout. When a new image message arrives, we cancel the timeout,
     // so the old image will continue displaying until the new one has been decoded.
@@ -362,14 +366,18 @@ export class ImageMode
         this.renderer.queueAnimationFrame();
       }, REMOVE_IMAGE_TIMEOUT_MS);
     }
-    this.#compressedVideoController?.resetPlaybackState();
+    // A seek immediately replaces this recovery in handleSeek, which must acquire
+    // the new playback lock before releasing the previous one.
+    if (options.reason !== "seek") {
+      this.#compressedVideoController?.resetPlaybackState();
+    }
     // fallback camera model shouldn't ever be stale so we don't need to clear it
     if (!this.#fallbackCameraModelActive()) {
       this.#clearCameraModel();
     }
     this.#annotations.removeAllRenderables();
     this.messageHandler.clear();
-    super.removeAllRenderables();
+    super.removeAllRenderables(options);
   }
 
   #removeImageRenderable(): void {

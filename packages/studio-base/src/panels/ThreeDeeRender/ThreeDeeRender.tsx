@@ -206,7 +206,7 @@ export function ThreeDeeRender(props: {
   );
   const latestRenderStateRef = useRef<Immutable<RenderState> | undefined>(undefined);
   const subscribeMessageRangeRef = useLatest(subscribeMessageRange);
-  const playbackIsPlayingRef = useLatest(context.unstable_getPlaybackIsPlaying);
+  const playbackContextRef = useLatest(context);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -243,7 +243,10 @@ export function ThreeDeeRender(props: {
     newRenderer?.on("configChange", propagateConfig);
     if (newRenderer != undefined) {
       newRenderer.subscribeMessageRange = subscribeMessageRangeRef.current;
-      newRenderer.getPlaybackIsPlaying = () => playbackIsPlayingRef.current?.() ?? false;
+      newRenderer.getPlaybackIsPlaying = () =>
+        playbackContextRef.current.unstable_getPlaybackIsPlaying?.() ?? false;
+      newRenderer.acquireKeyframeSearchLock = () =>
+        playbackContextRef.current.unstable_acquireKeyframeSearchLock?.() ?? (() => {});
       const latest = latestRenderStateRef.current;
       if (latest != undefined) {
         rendererWorkRef.current = processRenderState(newRenderer, {
@@ -288,7 +291,7 @@ export function ThreeDeeRender(props: {
     testOptions,
     displayTemporaryError,
     subscribeMessageRangeRef,
-    playbackIsPlayingRef,
+    playbackContextRef,
   ]);
 
   // Combined effect for renderer setup operations
