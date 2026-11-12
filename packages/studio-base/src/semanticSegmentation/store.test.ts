@@ -436,6 +436,31 @@ describe("semantic segmentation state", () => {
     ).toEqual(shifted(triangle, 2));
   });
 
+  it("keeps mock polygons inside the image without collapsing their shape", async () => {
+    const { store } = await setup();
+    const polygonId = store.getState().document!.annotations[key]!.polygons[0]!.id;
+    const edge = [
+      { x: 0.8, y: 0.8 },
+      { x: 0.99, y: 0.8 },
+      { x: 0.8, y: 0.99 },
+    ];
+    store.getState().setPolygonPoints(polygonId, edge);
+    await store.getState().startPropagation({
+      instanceId: "instance-1",
+      fromFrameId: "frame-0",
+      endTimeNs: "1700000000400000000",
+    });
+    const points =
+      store.getState().document!.annotations[frameInstanceKey("frame-2", "instance-1")]!
+        .polygons[0]!.points;
+    expect(
+      points.every((point) => point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1),
+    ).toBe(true);
+    expect(points[1]!.x - points[0]!.x).toBeCloseTo(0.19);
+    expect(points[2]!.y - points[0]!.y).toBeCloseTo(0.19);
+    store.getState().dispose();
+  });
+
   it("prevents late initialization from changing a disposed store", async () => {
     const service = createMockSemanticSegmentationService({ controls: { delayMs: 0 } });
     const store = createSemanticSegmentationStore(service);

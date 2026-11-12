@@ -122,6 +122,7 @@ export function SegmentationWorkspace({
   const shownUrl = surface ? surface.imageUrl : legacy ? session.imageUrl : undefined;
   if (
     !session.open ||
+    !focused ||
     !session.runtime ||
     shownUrl == undefined ||
     (surface == undefined && !legacy)
@@ -137,12 +138,7 @@ export function SegmentationWorkspace({
       decodedFrame={surface ? surface.decodedFrame : session.decodedFrame}
       frameId={surface?.frameId}
       focused={focused}
-      onClaimFocus={() => {
-        const live = segmentationSession.getState();
-        if (live.panelId !== panelId) {
-          segmentationSession.setState({ panelId });
-        }
-      }}
+      onClaimFocus={() => {}}
     />
   );
 }

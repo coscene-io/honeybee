@@ -160,10 +160,12 @@ export function WorkflowControls({
   store,
   sourceReady = true,
   hidden = false,
+  showPropagation = true,
 }: {
   store: StoreApi<SemanticSegmentationStore>;
   sourceReady?: boolean;
   hidden?: boolean;
+  showPropagation?: boolean;
 }): React.JSX.Element {
   const state = useStore(store);
   const [localError, setLocalError] = useState<string>();
@@ -199,11 +201,13 @@ export function WorkflowControls({
           {localError}
         </div>
       )}
-      <PropagationForm
-        store={store}
-        scope={buildCanvasPropagationScope(document, state.currentFrameId)}
-        sourceReady={sourceReady}
-      />
+      {showPropagation && (
+        <PropagationForm
+          store={store}
+          scope={buildCanvasPropagationScope(document, state.currentFrameId)}
+          sourceReady={sourceReady}
+        />
+      )}
       <section className="seg-section">
         <h2 id="seg-submissions">
           ⇧ 提交队列 <span className="seg-muted">{state.submissionQueue.length}</span>

@@ -18,29 +18,37 @@ import { SpatialTree } from "./SpatialTree";
 function BoundTree({
   store,
   sourceReady,
+  open,
 }: {
   store: StoreApi<SemanticSegmentationStore>;
   sourceReady: boolean;
+  open: boolean;
 }): React.JSX.Element {
   const unavailable = useStore(
     store,
     (state) =>
       state.loading || state.readonly || ["running", "stopping"].includes(state.propagation.status),
   );
-  return <SpatialTree store={store} disabled={!sourceReady || unavailable} />;
+  return <SpatialTree store={store} disabled={!open || !sourceReady || unavailable} />;
 }
 
 export function SpatialSidebar(): React.JSX.Element {
+  const open = useStore(segmentationSession, (state) => state.open);
   const runtime = useStore(segmentationSession, (state) => state.runtime);
   const sourceReady = useStore(
     segmentationSession,
     (state) => !("sourceReady" in state) || state.sourceReady,
   );
   return runtime ? (
-    <BoundTree store={runtime.store} sourceReady={sourceReady} />
+    <>
+      <div style={{ padding: 8 }}>
+        {open ? "当前编辑相机 · 类别和实例为记录共享" : "上次编辑的相机快照 · 只读"}
+      </div>
+      <BoundTree store={runtime.store} sourceReady={sourceReady} open={open} />
+    </>
   ) : (
     <div style={{ padding: 16 }}>
-      在顶栏点击「编辑空间标注」进入空间工作台。同一实例可以画在这段记录的各个相机上。
+      在相机画布工具栏点击「编辑空间标注」。类别和实例在记录内共享，多边形属于各相机的具体帧。
     </div>
   );
 }

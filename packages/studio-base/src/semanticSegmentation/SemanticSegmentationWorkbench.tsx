@@ -415,6 +415,7 @@ export function SemanticSegmentationWorkbench({
             )}
           </main>
           <WorkflowControls
+            showPropagation={!embedded}
             store={store}
             sourceReady={frameReady && !state.loading}
             hidden={embedded && !workflow.open}

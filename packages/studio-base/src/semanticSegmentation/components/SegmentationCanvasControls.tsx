@@ -16,9 +16,8 @@ import { SegmentationActionMenu } from "./SegmentationActionMenu";
 import "./workbench.css";
 
 const useStyles = makeStyles()((theme) => ({
-  // The app bar forces white text. Inherit that and these controls disappear on the light bar.
   root: {
-    color: theme.palette.appBar.text,
+    color: theme.palette.text.primary,
     "& .seg-muted": {
       color: theme.palette.text.secondary,
     },
@@ -33,19 +32,23 @@ function endAnnotation(): void {
   });
 }
 
-/** Record-level annotation controls. They sit in the app bar, once, beside layout save and revert. */
-export function SegmentationAppBarControls(): React.JSX.Element | undefined {
+/** Annotation actions belong to the canvas that opened the session. */
+export function SegmentationCanvasControls({
+  panelId,
+}: {
+  panelId: string;
+}): React.JSX.Element | undefined {
   const { classes, cx } = useStyles();
   const open = useStore(segmentationSession, (state) => state.open);
+  const activePanel = useStore(segmentationSession, (state) => state.panelId);
   const localBackend = createLiveSemanticSegmentationService() == undefined;
 
-  // Starting annotation lives on each canvas toolbar; the app bar only shows an open session.
-  if (!open) {
+  if (!open || activePanel !== panelId) {
     return undefined;
   }
 
   return (
-    <div className={cx("seg-app-bar", classes.root)} data-testid="segmentation-app-bar">
+    <div className={cx("seg-app-bar", classes.root)} data-testid="segmentation-canvas-controls">
       {localBackend && (
         <span
           className="seg-muted"
@@ -54,7 +57,7 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
           本机标注
         </span>
       )}
-      <SegmentationActionMenu />
+      <SegmentationActionMenu panelId={panelId} />
       <button type="button" onClick={endAnnotation}>
         结束标注
       </button>

@@ -44,7 +44,6 @@ import {
 } from "@foxglove/studio-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
-import { SegmentationAppBarControls } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationAppBarControls";
 import {
   checkSupportCoStudioDownload,
   downloadLatestStudio,
@@ -331,7 +330,6 @@ export function AppBar(props: AppBarProps): React.JSX.Element {
           <div className={classes.end}>
             <div className={classes.endInner} onDoubleClick={handleStopDoubleClick}>
               {!isShareManifestSource && appBarLayoutButton}
-              <SegmentationAppBarControls />
               <ShardProfileSelector />
               {/* <CoSceneLayoutButtonOld /> */}
               {!isShareManifestSource && <CoSceneLayoutButton />}

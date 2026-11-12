@@ -138,8 +138,7 @@ it("SEG-ONLINE-001 propagation entry opens online/offline choices and common sup
     configurable: true,
     value: () => {},
   });
-  render(<SemanticSegmentationWorkbench runtime={runtime} embedded />);
-  expect(screen.queryByRole("complementary", { name: "工作流管理" })).toBeNull();
+  render(<SemanticSegmentationWorkbench runtime={runtime} />);
   act(() => {
     openWorkflowPanel("seg-propagation");
   });

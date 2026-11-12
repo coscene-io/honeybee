@@ -758,6 +758,16 @@ export function SegmentationCanvas({
       return !draftElsewhere;
     }
     const live = store.getState();
+    const session = segmentationSession.getState();
+    if (session.open && session.panelId != undefined) {
+      const activeVideo = live.document?.frames.find(
+        (frame) => frame.id === activeFrameId,
+      )?.videoId;
+      const shownVideo = live.document?.frames.find((frame) => frame.id === shownFrameId)?.videoId;
+      if (activeVideo !== shownVideo) {
+        return false;
+      }
+    }
     try {
       if (live.drawingPolygonId != undefined) {
         if (segmentationSession.getState().strokeFrameId != undefined) {
@@ -791,7 +801,9 @@ export function SegmentationCanvas({
     ) {
       return;
     }
-    claimShownFrame();
+    if (!claimShownFrame()) {
+      return;
+    }
     event.stopPropagation();
     event.preventDefault();
     setHover(undefined);

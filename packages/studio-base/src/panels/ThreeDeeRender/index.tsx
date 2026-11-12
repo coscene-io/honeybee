@@ -25,6 +25,7 @@ import {
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import { SegmentationCanvasControls } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationCanvasControls";
 import {
   SegmentationImageEntry,
   type SegmentationImageEntryActions,
@@ -148,6 +149,7 @@ function ImagePanelAdapter(props: Props) {
     () => (
       <>
         <SegmentationStartButton panelId={panel.id} />
+        <SegmentationCanvasControls panelId={panel.id} />
         <SegmentationPropagateButton panelId={panel.id} />
       </>
     ),

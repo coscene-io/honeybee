@@ -36,7 +36,7 @@ afterEach(() => {
   });
 });
 
-it("lists polygons from every open camera in the same instance tree", async () => {
+it("lists only the editing camera polygons even when other surfaces exist", async () => {
   const store = await storeWithSeed();
   segmentationSession.setState({
     open: true,
@@ -46,12 +46,12 @@ it("lists polygons from every open camera in the same instance tree", async () =
     },
   });
   render(<SpatialTree store={store} />);
-  expect(screen.getByRole("treeitem", { name: "side · Polygon 1" })).toBeDefined();
-  expect(screen.getAllByRole("treeitem", { name: "front · Polygon 1" }).length).toBeGreaterThan(0);
+  expect(screen.queryByRole("treeitem", { name: "side · Polygon 1" })).toBeNull();
+  expect(screen.getAllByRole("treeitem", { name: "Polygon 1" }).length).toBeGreaterThan(0);
   store.getState().dispose();
 });
 
-it("lets the first vertex choose either canvas, then keeps the stroke there", async () => {
+it("rejects a first vertex on another camera during an editing session", async () => {
   const store = await storeWithSeed();
   const polygonId = store.getState().addPolygon("instance-1");
   store.getState().setDrawingPolygonId(polygonId);
@@ -78,10 +78,10 @@ it("lets the first vertex choose either canvas, then keeps the stroke there", as
   const owner = Object.values(store.getState().document!.annotations).find((item) =>
     item.polygons.some((polygon) => polygon.id === polygonId),
   );
-  expect(owner?.frameId).toBe("side-0");
-  expect(store.getState().currentFrameId).toBe("side-0");
+  expect(owner?.frameId).toBe("frame-0");
+  expect(store.getState().currentFrameId).toBe("frame-0");
   expect(store.getState().drawingPolygonId).toBe(polygonId);
-  expect(segmentationSession.getState().strokeFrameId).toBe("side-0");
+  expect(segmentationSession.getState().strokeFrameId).toBeUndefined();
   store.getState().dispose();
 });
 
@@ -114,8 +114,7 @@ it("does not leave the canvas after the first vertex is placed", async () => {
     clientY: 20,
     button: 0,
   });
-  const sideRow = screen.getByRole("treeitem", { name: "side · Polygon 1" });
-  fireEvent.click(sideRow.querySelector("[data-tree-primary]")!);
+  expect(screen.queryByRole("treeitem", { name: "side · Polygon 1" })).toBeNull();
   expect(store.getState().currentFrameId).toBe("frame-0");
   expect(store.getState().drawingPolygonId).toBe(polygonId);
   store.getState().dispose();

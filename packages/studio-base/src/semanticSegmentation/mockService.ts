@@ -45,8 +45,14 @@ const MOCK_PROPAGATION_STEP_PX = 10;
 
 /** Mock propagation: shifts points right and down by 10px for each frame away from the seed. */
 function shiftPolygonPoints(points: NormalizedPoint[], steps: number): NormalizedPoint[] {
-  const dx = (steps * MOCK_PROPAGATION_STEP_PX) / MOCK_FRAME_WIDTH_PX;
-  const dy = (steps * MOCK_PROPAGATION_STEP_PX) / MOCK_FRAME_HEIGHT_PX;
+  const dx = Math.min(
+    (steps * MOCK_PROPAGATION_STEP_PX) / MOCK_FRAME_WIDTH_PX,
+    1 - Math.max(0, ...points.map((point) => point.x)),
+  );
+  const dy = Math.min(
+    (steps * MOCK_PROPAGATION_STEP_PX) / MOCK_FRAME_HEIGHT_PX,
+    1 - Math.max(0, ...points.map((point) => point.y)),
+  );
   return points.map((point) => ({ x: point.x + dx, y: point.y + dy }));
 }
 

@@ -250,19 +250,14 @@ it("identifies a failed stream request, unlocks controls and keeps accepted repl
   runtime.dispose();
 });
 
-it("opens supported propagation parameters repeatedly and exposes future tasks only as disabled actions", async () => {
+it("does not mount a duplicate propagation form when opening embedded workflow controls", async () => {
   const runtime = await fixture();
   render(<SemanticSegmentationWorkbench runtime={runtime} embedded />);
   act(() => {
     openWorkflowPanel("seg-propagation");
   });
-  expect(screen.getByRole("region", { name: "传播参数" })).toBeDefined();
-  act(() => {
-    openWorkflowPanel("seg-propagation");
-  });
-  expect(screen.getByRole("combobox", { name: "传播模型" })).toBeDefined();
-  expect(screen.getByRole("button", { name: "在线传播" })).toBeDefined();
-  expect(screen.queryByRole("button", { name: "加入离线队列" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "传播参数" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "在线传播" })).toBeNull();
   runtime.dispose();
 });
 

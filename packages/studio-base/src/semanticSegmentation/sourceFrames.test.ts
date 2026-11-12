@@ -6,7 +6,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
-import type { MessageEvent } from "@foxglove/studio";
 import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
 
 import { createSourceFrameLoader, readStamps, SOURCE_FRAME_WINDOW_NS } from "./sourceFrames";

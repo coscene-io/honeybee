@@ -137,7 +137,8 @@ export async function readStamps(
 ): Promise<Stamp[]> {
   return await new Promise<Stamp[]>((resolve, reject) => {
     let settled = false;
-    let unsubscribe: (() => void) | undefined;
+    // The callback can finish before subscription setup returns.
+    const subscription: { unsubscribe?: () => void } = {};
     const listeners = { abort: () => {} };
     const finish = (settle: () => void) => {
       if (settled) {
@@ -145,7 +146,7 @@ export async function readStamps(
       }
       settled = true;
       signal.removeEventListener("abort", listeners.abort);
-      unsubscribe?.();
+      subscription.unsubscribe?.();
       settle();
     };
     listeners.abort = () => {
@@ -160,7 +161,7 @@ export async function readStamps(
     signal.addEventListener("abort", listeners.abort);
     const startNs = toNanoSec(start);
     const endNs = toNanoSec(end);
-    unsubscribe = subscribeMessageRange({
+    subscription.unsubscribe = subscribeMessageRange({
       topic,
       timeRange: { start, end },
       onNewRangeIterator: async (iterator) => {
@@ -195,7 +196,7 @@ export async function readStamps(
         }
       },
     });
-    if (unsubscribe == undefined) {
+    if (subscription.unsubscribe == undefined) {
       finish(() => {
         reject(new Error("当前数据源不支持按时间段读取帧"));
       });

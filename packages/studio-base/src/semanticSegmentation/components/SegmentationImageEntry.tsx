@@ -410,50 +410,26 @@ export function SegmentationImageEntry({
       binding != undefined &&
       segmentationSession.getState().runtime === binding.runtime &&
       segmentationSession.getState().panelId === panelId;
-    const remaining = { ...segmentationSession.getState().surfaces };
-    delete remaining[panelId];
-    const nextPanelId = Object.keys(remaining)[0];
-    const handoff = ownsSession && nextPanelId != undefined;
-    if (binding != undefined && ownsSession && !handoff) {
+    if (ownsSession) {
       if (propagationLocksContext(binding.runtime.store.getState().propagation.status)) {
         binding.runtime.store.getState().stopPropagation();
       }
       binding.runtime.store.setState({ editing: false, drawingPolygonId: undefined });
-    } else if (
-      binding != undefined &&
-      handoff &&
-      binding.runtime.store.getState().drawingPolygonId != undefined
-    ) {
-      binding.runtime.store.setState({ drawingPolygonId: undefined });
+      segmentationSession.setState({
+        open: false,
+        panelId: undefined,
+        surfaces: {},
+        imageUrl: undefined,
+        decodedFrame: undefined,
+        sourceReady: false,
+      });
+    } else {
+      segmentationSession.setState((session) => {
+        const surfaces = { ...session.surfaces };
+        delete surfaces[panelId];
+        return { surfaces };
+      });
     }
-    if (!ownsSession && segmentationSession.getState().surfaces[panelId] == undefined) {
-      return;
-    }
-    segmentationSession.setState((session) => {
-      const surfaces = { ...session.surfaces };
-      delete surfaces[panelId];
-      const successor = Object.keys(surfaces)[0];
-      if (!ownsSession || successor == undefined) {
-        return ownsSession
-          ? {
-              open: false,
-              imageUrl: undefined,
-              decodedFrame: undefined,
-              panelId: undefined,
-              sourceReady: false,
-              surfaces: {},
-            }
-          : { surfaces };
-      }
-      const next = surfaces[successor]!;
-      return {
-        surfaces,
-        panelId: successor,
-        imageUrl: next.imageUrl,
-        decodedFrame: next.decodedFrame,
-        sourceReady: next.sourceReady,
-      };
-    });
   }, [panelId]);
 
   // Fence before paint: no new-source callback may write into the previous record's runtime.
@@ -685,6 +661,10 @@ export function SegmentationImageEntry({
       setError(undefined);
       const bound = active.current;
       const live = segmentationSession.getState();
+      if (live.open && live.panelId !== panelId) {
+        setError("请先结束当前画布的标注，再编辑另一路相机。");
+        return;
+      }
       if (bound && live.open && live.runtime === bound.runtime && bound.key === latestKey.current) {
         const storeState = bound.runtime.store.getState();
         if (storeState.drawingPolygonId != undefined && live.panelId !== panelId) {
@@ -834,6 +814,11 @@ export function SegmentationImageEntry({
       }
       if (propagationLocksContext(runtime.store.getState().propagation.status)) {
         setError("请等待传播停止确认后再进入标注。");
+        return;
+      }
+      const latestSession = segmentationSession.getState();
+      if (latestSession.open && latestSession.panelId !== panelId) {
+        setError("请先结束当前画布的标注，再编辑另一路相机。");
         return;
       }
       const activation = { runtime, epoch };

@@ -19,7 +19,7 @@ import {
   segmentationChrome,
   type SegmentationCanvasEntry,
 } from "../segmentationChrome";
-import { SegmentationAppBarControls } from "./SegmentationAppBarControls";
+import { SegmentationCanvasControls } from "./SegmentationCanvasControls";
 
 const theme = createMuiTheme("light", "en");
 
@@ -36,7 +36,7 @@ function renderBar(): void {
   render(
     <ThemeProvider theme={theme}>
       <MockCurrentLayoutProvider>
-        <SegmentationAppBarControls />
+        <SegmentationCanvasControls panelId="head" />
       </MockCurrentLayoutProvider>
     </ThemeProvider>,
   );
@@ -54,17 +54,17 @@ afterEach(() => {
 
 it("stays hidden until a session is open, even with image panels registered", () => {
   renderBar();
-  expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();
+  expect(screen.queryByTestId("segmentation-canvas-controls")).toBeNull();
   registerSegmentationCanvas(canvas("head", "/camera/head"));
   registerSegmentationCanvas(canvas("torso", "/camera/torso"));
   act(() => {
     segmentationChrome.setState((state) => ({ canvases: [...state.canvases] }));
   });
-  expect(screen.queryByTestId("segmentation-app-bar")).toBeNull();
+  expect(screen.queryByTestId("segmentation-canvas-controls")).toBeNull();
   expect(screen.queryByTitle("编辑空间标注")).toBeNull();
 });
 
-it("shows the record actions and closes the space from the app bar", async () => {
+it("shows the record actions and closes the space from the editing canvas", async () => {
   const document = createSeedDocument();
   const runtime = createSegmentationRuntime(document);
   runtime.service.setControls({ delayMs: 0 });
@@ -79,7 +79,7 @@ it("shows the record actions and closes the space from the app bar", async () =>
     workflow: { open: false, nonce: 0 },
   });
   renderBar();
-  const bar = screen.getByTestId("segmentation-app-bar");
+  const bar = screen.getByTestId("segmentation-canvas-controls");
   expect(within(bar).queryByTitle("编辑空间标注")).toBeNull();
   expect(within(bar).getByRole("button", { name: "撤销标注" })).toBeTruthy();
   expect(within(bar).queryByRole("button", { name: "传播" })).toBeNull();

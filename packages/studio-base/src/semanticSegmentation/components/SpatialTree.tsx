@@ -229,19 +229,10 @@ export function SpatialTree({
 }: SpatialTreeProps): React.JSX.Element {
   const { classes, cx, theme } = useStyles();
   const state = useStore(store);
-  const surfaces = useStore(segmentationSession, (session) => session.surfaces);
   const strokeFrameId = useStore(segmentationSession, (session) => session.strokeFrameId);
   const text = useEditorText();
   const document = state.document;
-  const listedFrameIds = [
-    ...new Set(
-      Object.values(surfaces)
-        .map((surface) => surface.frameId)
-        .filter((id): id is string => id != undefined),
-    ),
-  ].filter((id) => document?.frames.some((frame) => frame.id === id) === true);
-  const treeFrameIds =
-    listedFrameIds.length > 0 ? listedFrameIds : state.currentFrameId ? [state.currentFrameId] : [];
+  const treeFrameIds = state.currentFrameId ? [state.currentFrameId] : [];
   const selection = document
     ? filterSegmentationSelection(document, state.selection, state.currentFrameId)
     : [];
@@ -385,13 +376,14 @@ export function SpatialTree({
       );
       return false;
     }
-    const panelId = Object.entries(surfaces).find(
-      ([, surface]) => surface.frameId === owner.frameId,
-    )?.[0];
-    state.setCurrentFrame(owner.frameId);
-    if (panelId != undefined) {
-      segmentationSession.setState({ panelId });
+    // Editing never claims a frame from another camera through a tree row.
+    const currentVideo = document.frames.find(
+      (frame) => frame.id === state.currentFrameId,
+    )?.videoId;
+    if (document.frames.find((frame) => frame.id === owner.frameId)?.videoId !== currentVideo) {
+      return false;
     }
+    state.setCurrentFrame(owner.frameId);
     return true;
   }
   function choose(node: SegmentationNodeRef): void {

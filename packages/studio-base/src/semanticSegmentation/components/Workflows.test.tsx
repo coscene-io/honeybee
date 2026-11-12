@@ -317,7 +317,7 @@ describe("workbench workflow integration", () => {
     act(() => {
       openWorkflowPanel();
     });
-    expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
+    expect(screen.queryByRole("button", { name: "在线传播" })).toBeNull();
     runtime.store.getState().dispose();
   });
 
