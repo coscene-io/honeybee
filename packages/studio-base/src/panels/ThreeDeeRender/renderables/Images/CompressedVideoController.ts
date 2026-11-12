@@ -52,7 +52,11 @@ export type SeekKeyframeSearchChange = (state: SeekKeyframeSearchState) => void;
 type VideoInputEvent = MessageEvent<VideoFrameInfo["frame"]>;
 type ControllerRenderer = Pick<
   IRenderer,
-  "currentTime" | "startTime" | "subscribeMessageRange" | "isPlaybackStopped"
+  | "currentTime"
+  | "startTime"
+  | "subscribeMessageRange"
+  | "isPlaybackStopped"
+  | "acquireKeyframeSearchLock"
 >;
 
 export class CompressedVideoController {
@@ -71,6 +75,7 @@ export class CompressedVideoController {
   #decoderFrontier: VideoInputEvent | undefined;
   #continuous = false;
   #seekTargetNs: bigint | undefined;
+  #releaseSeekPlaybackLock: (() => void) | undefined;
   #seekReplayFrames: MessageEvent[] | undefined;
   #cacheNeedsKeyframe = false;
   #lastInputPublishTimeNs: bigint | undefined;
@@ -261,7 +266,14 @@ export class CompressedVideoController {
   }
 
   public handleSeek(): void {
+    if (this.#disposed) {
+      return;
+    }
+    // Acquire the replacement before cancelling the old seek so playback never resumes
+    // between two seeks. Each controller keeps its own lock until its target is decoded.
+    const release = this.#renderer.acquireKeyframeSearchLock?.();
     this.resetPlaybackState();
+    this.#releaseSeekPlaybackLock = release;
     this.#seekTargetNs = this.#renderer.currentTime;
     this.#cacheNeedsKeyframe = true;
     this.#cache.handleSeek(fromNanoSec(this.#renderer.currentTime));
@@ -285,6 +297,9 @@ export class CompressedVideoController {
     this.#lastInputPublishTimeNs = undefined;
     this.#cancelLateTarget?.();
     this.#resetDecoder?.();
+    const release = this.#releaseSeekPlaybackLock;
+    this.#releaseSeekPlaybackLock = undefined;
+    release?.();
   }
 
   public handleTimestampRegression(): void {
@@ -370,6 +385,9 @@ export class CompressedVideoController {
         this.#seekReplayFrames = undefined;
         this.#state.lookbackGeneration = undefined;
         this.#onSeekKeyframeSearchChange?.({ active: false });
+        const release = this.#releaseSeekPlaybackLock;
+        this.#releaseSeekPlaybackLock = undefined;
+        release?.();
       }
     }
   }

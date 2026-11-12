@@ -11,6 +11,7 @@ import { H264 } from "@foxglove/den/video";
 import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
 import { MessageEvent } from "@foxglove/studio";
 import type { SubscribeMessageRange } from "@foxglove/studio-base/players/types";
+import { createPlaybackInteractionStateStore } from "@foxglove/studio-base/providers/PlaybackInteractionStateProvider";
 import {
   PlaybackPerformanceMetrics,
   playbackPerformanceMetrics,
@@ -45,6 +46,7 @@ function setup() {
     stopped: false,
     isPlaybackStopped: () => renderer.stopped,
     subscribeMessageRange: undefined as SubscribeMessageRange | undefined,
+    acquireKeyframeSearchLock: undefined as (() => () => void) | undefined,
   };
   const display = jest.fn<
     ReturnType<CompressedVideoDisplayFrames>,
@@ -94,6 +96,127 @@ describe("awaited video tick scheduling", () => {
   });
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it("blocks playback until every panel finishes its seek decode", async () => {
+    const store = createPlaybackInteractionStateStore();
+    const first = setup();
+    const second = setup();
+    const firstDecode = deferred();
+    const secondDecode = deferred();
+    let playing = true;
+    const pausePlayback = jest.fn(() => {
+      playing = false;
+    });
+    const startPlayback = jest.fn(() => {
+      playing = true;
+    });
+    const acquireKeyframeSearchLock = () =>
+      store.getState().acquireKeyframeSearchLock({
+        isPlaying: playing,
+        pausePlayback,
+        startPlayback,
+      });
+    for (const panel of [first, second]) {
+      panel.renderer.acquireKeyframeSearchLock = acquireKeyframeSearchLock;
+      panel.renderer.subscribeMessageRange = mockMessageRange([frame(0, "key"), frame(1000)]);
+    }
+    first.display.mockReturnValueOnce(firstDecode.promise);
+    second.display.mockReturnValueOnce(secondDecode.promise);
+
+    first.controller.handleSeek();
+    second.controller.handleSeek();
+
+    expect(store.getState().keyframeSearchLockCount).toBe(2);
+    expect(playing).toBe(false);
+    await flush();
+    expect(first.display).toHaveBeenCalledTimes(1);
+    expect(second.display).toHaveBeenCalledTimes(1);
+
+    firstDecode.resolve({ ok: true });
+    await flush();
+    expect(store.getState().keyframeSearchLockCount).toBe(1);
+    expect(startPlayback).not.toHaveBeenCalled();
+
+    secondDecode.resolve({ ok: true });
+    await flush();
+    expect(store.getState().keyframeSearchLockCount).toBe(0);
+    expect(startPlayback).toHaveBeenCalledTimes(1);
+    first.controller.dispose();
+    second.controller.dispose();
+  });
+
+  it("keeps playback blocked during cached GOP replay and a superseding seek", async () => {
+    const { controller, renderer, display } = setup();
+    const store = createPlaybackInteractionStateStore();
+    const observedCounts: number[] = [];
+    const unsubscribe = store.subscribe((state) => {
+      observedCounts.push(state.keyframeSearchLockCount);
+    });
+    renderer.acquireKeyframeSearchLock = () => store.getState().acquireKeyframeSearchLock();
+    await controller.enqueueVideoFrames([frame(0, "key"), frame(1000)]);
+    const oldDecode = deferred();
+    const newDecode = deferred();
+    display.mockReturnValueOnce(oldDecode.promise).mockReturnValueOnce(newDecode.promise);
+    controller.handleSeek();
+    await flush();
+    expect(store.getState().keyframeSearchLockCount).toBe(1);
+
+    renderer.currentTime = 500n;
+    controller.handleSeek();
+    expect(observedCounts).not.toContain(0);
+    oldDecode.resolve({ ok: true });
+    await flush();
+    expect(store.getState().keyframeSearchLockCount).toBe(1);
+
+    newDecode.resolve({ ok: true });
+    await flush();
+    expect(store.getState().keyframeSearchLockCount).toBe(0);
+    unsubscribe();
+    controller.dispose();
+  });
+
+  it.each(["clear", "handleTimestampRegression", "dispose"] as const)(
+    "releases only its own pending seek lock on %s",
+    async (reset) => {
+      const { controller, renderer } = setup();
+      const store = createPlaybackInteractionStateStore();
+      renderer.acquireKeyframeSearchLock = () => store.getState().acquireKeyframeSearchLock();
+      renderer.subscribeMessageRange = jest.fn(() => jest.fn());
+      const releaseOtherPanel = store.getState().acquireKeyframeSearchLock();
+      controller.handleSeek();
+      await flush();
+      expect(store.getState().keyframeSearchLockCount).toBe(2);
+
+      controller[reset]();
+      await flush();
+      expect(store.getState().keyframeSearchLockCount).toBe(1);
+      controller.dispose();
+      expect(store.getState().keyframeSearchLockCount).toBe(1);
+      releaseOtherPanel();
+      expect(store.getState().keyframeSearchLockCount).toBe(0);
+    },
+  );
+
+  it("releases the seek lock when no keyframe can be recovered", async () => {
+    const { controller, renderer } = setup();
+    const release = jest.fn();
+    renderer.acquireKeyframeSearchLock = jest.fn(() => release);
+    renderer.subscribeMessageRange = mockMessageRange([]);
+    controller.handleSeek();
+    await flush();
+    expect(renderer.acquireKeyframeSearchLock).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
+    controller.dispose();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not acquire a new seek lock after disposal", () => {
+    const { controller, renderer } = setup();
+    renderer.acquireKeyframeSearchLock = jest.fn(() => jest.fn());
+    controller.dispose();
+    controller.handleSeek();
+    expect(renderer.acquireKeyframeSearchLock).not.toHaveBeenCalled();
   });
 
   it("returns a decode promise and clips only the last keyframe suffix", async () => {

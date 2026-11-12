@@ -246,6 +246,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   public startTime: bigint | undefined;
   public subscribeMessageRange: SubscribeMessageRange | undefined;
   public getPlaybackIsPlaying?: () => boolean;
+  public acquireKeyframeSearchLock?: () => () => void;
   public endTime?: bigint;
 
   public isPlaybackStopped(): boolean {
