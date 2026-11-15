@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { StrictMode, useMemo } from "react";
+import { StrictMode, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import ReactDOM from "react-dom";
 import { DeepPartial } from "ts-essentials";
 
@@ -17,6 +17,7 @@ import {
   useForwardAnalytics,
 } from "@foxglove/studio-base/components/ForwardAnalyticsContextProvider";
 import Panel from "@foxglove/studio-base/components/Panel";
+import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
 import {
   BuiltinPanelExtensionContext,
   PanelExtensionAdapter,
@@ -24,7 +25,16 @@ import {
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@foxglove/studio-base/context/AppContext";
 import { useTopicPublishFrequencies } from "@foxglove/studio-base/hooks/useTopicPublishFrequences";
 import { TestOptions } from "@foxglove/studio-base/panels/ThreeDeeRender/IRenderer";
+import {
+  SegmentationImageEntry,
+  type SegmentationImageEntryActions,
+} from "@foxglove/studio-base/semanticSegmentation/components/SegmentationImageEntry";
+import { SegmentationPropagateButton } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationPropagateButton";
+import { SegmentationWorkspace } from "@foxglove/studio-base/semanticSegmentation/components/SegmentationWorkspace";
+import { registerSegmentationCanvas } from "@foxglove/studio-base/semanticSegmentation/segmentationChrome";
 import { SaveConfig } from "@foxglove/studio-base/types/panels";
+
+import "@foxglove/studio-base/semanticSegmentation/components/workbench.css";
 
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ThreeDeeRender } from "./ThreeDeeRender";
@@ -73,10 +83,11 @@ type Props = {
 type AdapterContentProps = Props & {
   extensionData?: Record<string, unknown>;
   interfaceMode: InterfaceMode;
+  additionalToolbarIcons?: ReactNode;
 };
 
 function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
-  const { interfaceMode } = props;
+  const { interfaceMode, additionalToolbarIcons } = props;
   const crash = useCrash();
 
   const forwardedAnalytics = useForwardAnalytics();
@@ -117,19 +128,73 @@ function ThreeDeeRenderAdapterContent(props: AdapterContentProps) {
       highestSupportedConfigVersion={1}
       saveConfig={props.saveConfig}
       initPanel={boundInitPanel}
+      additionalToolbarIcons={additionalToolbarIcons}
     />
   );
 }
 
 function ImagePanelAdapter(props: Props) {
+  const containerRef = useRef<HTMLDivElement>(ReactNull);
+  const panel = usePanelContext();
+  const registration = useRef<(() => void) | undefined>();
+  const imageTopic = (props.config.imageMode as { imageTopic?: string } | undefined)?.imageTopic;
   const topicMessageFrequencies = useTopicPublishFrequencies();
   const extensionData = useMemo(
     () => ({ [TOPIC_MESSAGE_FREQUENCIES_EXTENSION_DATA_KEY]: topicMessageFrequencies }),
     [topicMessageFrequencies],
   );
+  const propagateIcon = useMemo(
+    () => (
+      <>
+        <SegmentationPropagateButton panelId={panel.id} />
+      </>
+    ),
+    [panel.id],
+  );
+  const onActionsChange = useCallback(
+    (actions: SegmentationImageEntryActions | undefined) => {
+      registration.current?.();
+      registration.current = undefined;
+      if (!actions) {
+        return;
+      }
+      registration.current = registerSegmentationCanvas({
+        panelId: panel.id,
+        topic: imageTopic,
+        enterInline: actions.enterInline,
+        enterMaximize: actions.enterMaximize,
+        area: () => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          return rect ? rect.width * rect.height : 0;
+        },
+      });
+    },
+    [imageTopic, panel.id],
+  );
+  useEffect(
+    () => () => {
+      registration.current?.();
+    },
+    [],
+  );
 
   return (
-    <ThreeDeeRenderAdapterContent {...props} interfaceMode="image" extensionData={extensionData} />
+    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%" }}>
+      <ThreeDeeRenderAdapterContent
+        {...props}
+        interfaceMode="image"
+        extensionData={extensionData}
+        additionalToolbarIcons={propagateIcon}
+      />
+      <SegmentationImageEntry
+        containerRef={containerRef}
+        topic={imageTopic}
+        panelId={panel.id}
+        onMaximize={panel.enterFullscreen}
+        onActionsChange={onActionsChange}
+      />
+      <SegmentationWorkspace panelId={panel.id} />
+    </div>
   );
 }
 

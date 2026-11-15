@@ -109,6 +109,11 @@ export class CompressedVideoController {
     this.#onBFramesDetected = args.onBFramesDetected ?? this.#onBFramesDetected;
   }
 
+  /** Every frame the cache still holds for this topic, in receive order. */
+  public cachedFrames(): MessageEvent[] {
+    return this.#cache.framesForTopic(this.#topic);
+  }
+
   /** Process one complete tick, serialized after the preceding decode. Playback never reads the cache. */
   public async enqueueVideoFrames(
     input: readonly PartialMessageEvent<CompressedVideo>[],

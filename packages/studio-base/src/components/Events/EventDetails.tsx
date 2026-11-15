@@ -29,6 +29,7 @@ import {
   type TimelinePositionedEvent,
 } from "@foxglove/studio-base/context/EventsContext";
 import { usePlaybackTimeFormat } from "@foxglove/studio-base/hooks";
+import { SpatialReferenceValue } from "@foxglove/studio-base/semanticSegmentation/components/ActiveMomentReference";
 import { durationToSeconds } from "@foxglove/studio-base/util/time";
 
 const useStyles = makeStyles()((theme) => ({
@@ -123,7 +124,13 @@ export function EventDetails({
                   <Typography variant="caption" color="text.secondary">
                     {label}
                   </Typography>
-                  <Typography className={classes.value}>{value}</Typography>
+                  <Typography className={classes.value}>
+                    {typeof value === "string" && value.startsWith("spatial://") ? (
+                      <SpatialReferenceValue value={value} />
+                    ) : (
+                      value
+                    )}
+                  </Typography>
                 </Stack>
               ))}
             <CustomFieldValuesFields

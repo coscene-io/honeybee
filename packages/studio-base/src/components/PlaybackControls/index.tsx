@@ -33,7 +33,7 @@ import { useTranslation, Trans } from "react-i18next";
 import { useLatest, useWindowSize } from "react-use";
 import { makeStyles } from "tss-react/mui";
 
-import { Time, areEqual, clampTime, compare } from "@foxglove/rostime";
+import { Time, areEqual, clampTime, compare, fromNanoSec } from "@foxglove/rostime";
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import { DataSourceInfoView } from "@foxglove/studio-base/components/DataSourceInfoView";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -58,6 +58,10 @@ import {
 import { useWorkspaceActions } from "@foxglove/studio-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { Player, PlayerPresence } from "@foxglove/studio-base/players/types";
+import {
+  segmentationPlaybackStep,
+  useSegmentationStepLabel,
+} from "@foxglove/studio-base/semanticSegmentation/cameraFrames";
 
 import PlaybackTimeDisplay from "./PlaybackTimeDisplay";
 import Scrubber from "./Scrubber";
@@ -335,6 +339,13 @@ export default function PlaybackControls(props: {
       if (!currentTime || !start || !end) {
         return;
       }
+      // While annotating, the buttons step the target camera's frames instead.
+      const step = segmentationPlaybackStep(1, ev, (ns) => {
+        seekIfAllowed(fromNanoSec(ns));
+      });
+      if (step.handled) {
+        return;
+      }
 
       // If playUntil is available, we prefer to use that rather than seek, which performs a jump
       // seek.
@@ -345,7 +356,7 @@ export default function PlaybackControls(props: {
       //
       // i.e. Skipping coordinate frame messages may result in incorrectly rendered markers or
       // missing markers altogther.
-      const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, ev, effectiveSeekMs);
+      const targetTime = jumpSeek(DIRECTION.FORWARD, currentTime, step.modifiers, effectiveSeekMs);
       const clampedTargetTime = clampTime(targetTime, start, end);
 
       if (areEqual(clampedTargetTime, currentTime)) {
@@ -371,7 +382,13 @@ export default function PlaybackControls(props: {
       if (!currentTime) {
         return;
       }
-      seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, ev, effectiveSeekMs));
+      const step = segmentationPlaybackStep(-1, ev, (ns) => {
+        seekIfAllowed(fromNanoSec(ns));
+      });
+      if (step.handled) {
+        return;
+      }
+      seekIfAllowed(jumpSeek(DIRECTION.BACKWARD, currentTime, step.modifiers, effectiveSeekMs));
     },
     [isKeyframeSearchActive, getTimeInfo, seekIfAllowed, effectiveSeekMs],
   );
@@ -438,6 +455,11 @@ export default function PlaybackControls(props: {
   );
 
   const disableControls = presence === PlayerPresence.ERROR || isKeyframeSearchActive;
+  const stepCamera = useSegmentationStepLabel();
+  const seekBackwardLabel =
+    stepCamera == undefined ? t("seekBackward", { ns: "general" }) : `上一帧（${stepCamera}）`;
+  const seekForwardLabel =
+    stepCamera == undefined ? t("seekForward", { ns: "general" }) : `下一帧（${stepCamera}）`;
 
   return (
     <>
@@ -480,13 +502,8 @@ export default function PlaybackControls(props: {
               <HoverableIconButton
                 disabled={disableControls}
                 size="small"
-                aria-label={t("seekBackward", { ns: "general" })}
-                title={
-                  <ShortcutHint
-                    label={t("seekBackward", { ns: "general" })}
-                    keys={SHORTCUTS.seekBackward}
-                  />
-                }
+                aria-label={seekBackwardLabel}
+                title={<ShortcutHint label={seekBackwardLabel} keys={SHORTCUTS.seekBackward} />}
                 icon={<Previous20Regular />}
                 activeIcon={<Previous20Filled />}
                 onClick={() => {
@@ -513,13 +530,8 @@ export default function PlaybackControls(props: {
               <HoverableIconButton
                 disabled={disableControls}
                 size="small"
-                aria-label={t("seekForward", { ns: "general" })}
-                title={
-                  <ShortcutHint
-                    label={t("seekForward", { ns: "general" })}
-                    keys={SHORTCUTS.seekForward}
-                  />
-                }
+                aria-label={seekForwardLabel}
+                title={<ShortcutHint label={seekForwardLabel} keys={SHORTCUTS.seekForward} />}
                 icon={<Next20Regular />}
                 activeIcon={<Next20Filled />}
                 onClick={() => {

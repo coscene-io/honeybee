@@ -7,7 +7,7 @@
 
 import { useTheme } from "@mui/material";
 import { produce } from "immer";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLatest } from "react-use";
 import { v4 as uuid } from "uuid";
@@ -99,6 +99,8 @@ type PanelExtensionAdapterProps = {
    * recommend use useMemo to stable extensionData object reference
    */
   extensionData?: Record<string, unknown>;
+  /** Optional icons rendered in the panel toolbar before settings/actions. */
+  additionalToolbarIcons?: ReactNode;
 };
 
 function selectContext(ctx: MessagePipelineContext) {
@@ -121,7 +123,14 @@ type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
 function PanelExtensionAdapter(
   props: React.PropsWithChildren<PanelExtensionAdapterProps>,
 ): React.JSX.Element {
-  const { initPanel, config, saveConfig, highestSupportedConfigVersion, extensionData } = props;
+  const {
+    initPanel,
+    config,
+    saveConfig,
+    highestSupportedConfigVersion,
+    extensionData,
+    additionalToolbarIcons,
+  } = props;
 
   // Unlike the react data flow, the config is only provided to the panel once on setup.
   // The panel is meant to manage the config and call saveConfig on its own.
@@ -737,7 +746,7 @@ function PanelExtensionAdapter(
         ...style,
       }}
     >
-      <PanelToolbar />
+      <PanelToolbar additionalIcons={additionalToolbarIcons} />
       {configTooNew && <PanelConfigVersionError />}
       {props.children}
       <div style={{ flex: 1, overflow: "hidden" }} ref={panelContainerRef} />

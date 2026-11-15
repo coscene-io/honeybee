@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Immutable } from "@foxglove/studio";
 import { PANEL_ROOT_CLASS_NAME } from "@foxglove/studio-base/components/PanelRoot";
+import { isAnnotationViewportTarget } from "@foxglove/studio-base/semanticSegmentation/annotationInput";
 
 /**
  * Types of items that can be included in a context menu. Either a clickable item
@@ -65,7 +66,18 @@ function PanelContextMenuComponent(props: PanelContextMenuProps): React.JSX.Elem
     // Trigger the menu when the right mouse button is released, but not if the mouse moved in
     // between press & release
     let rightClickState: "none" | "down" | "canceled" = "none";
+    // The annotation canvas owns right clicks (vertex menu); never open the panel menu over it.
+    const inAnnotationViewport = (event: MouseEvent) => {
+      if (isAnnotationViewportTarget(event.target)) {
+        rightClickState = "none";
+        return true;
+      }
+      return false;
+    };
     const handleMouseUp = (event: MouseEvent) => {
+      if (inAnnotationViewport(event)) {
+        return;
+      }
       if (event.button === 2 && rightClickState === "down") {
         setPosition({ x: event.clientX, y: event.clientY });
         setItems(getItems());
@@ -76,11 +88,17 @@ function PanelContextMenuComponent(props: PanelContextMenuProps): React.JSX.Elem
       rightClickState = "canceled";
     };
     const handleMouseDown = (event: MouseEvent) => {
+      if (inAnnotationViewport(event)) {
+        return;
+      }
       if (event.button === 2) {
         rightClickState = "down";
       }
     };
     const handleContextMenu = (event: MouseEvent) => {
+      if (inAnnotationViewport(event)) {
+        return;
+      }
       event.preventDefault();
     };
 
