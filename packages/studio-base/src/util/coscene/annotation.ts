@@ -54,15 +54,30 @@ export function resolveAnnotationBackend(recordName: string | undefined): Active
  */
 export const PROPAGATION_URL_KEY = "coStudio.semanticSegmentation.propagationUrl";
 
-export function localPropagationUrl(): string | undefined {
+/**
+ * Quick annotation (click-to-mask) on the same sidecar, without routing propagation there:
+ * `localStorage.setItem("coStudio.semanticSegmentation.segmentUrl", "http://127.0.0.1:18876")`.
+ * When unset, quick annotation follows the propagation URL.
+ */
+export const SEGMENT_URL_KEY = "coStudio.semanticSegmentation.segmentUrl";
+
+function loopbackUrl(key: string): string | undefined {
   try {
-    const url = globalThis.localStorage.getItem(PROPAGATION_URL_KEY)?.trim();
+    const url = globalThis.localStorage.getItem(key)?.trim();
     return url != undefined && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url)
       ? url.replace(/\/$/, "")
       : undefined;
   } catch {
     return undefined;
   }
+}
+
+export function localPropagationUrl(): string | undefined {
+  return loopbackUrl(PROPAGATION_URL_KEY);
+}
+
+export function localSegmentUrl(): string | undefined {
+  return loopbackUrl(SEGMENT_URL_KEY) ?? localPropagationUrl();
 }
 
 /**

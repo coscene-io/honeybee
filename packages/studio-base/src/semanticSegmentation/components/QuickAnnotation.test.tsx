@@ -8,7 +8,11 @@
 
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
-import { PROPAGATION_URL_KEY } from "@foxglove/studio-base/util/coscene/annotation";
+import {
+  localPropagationUrl,
+  PROPAGATION_URL_KEY,
+  SEGMENT_URL_KEY,
+} from "@foxglove/studio-base/util/coscene/annotation";
 
 import { editor, fixture, pointer } from "../acceptance/interaction/fixtures";
 import { countsFromRuns, runsFromIntervals } from "../maskCodec";
@@ -107,4 +111,23 @@ it("merges the clicked mask with the instance's existing polygons on that frame"
   const merged = store.getState().document!.annotations[key]!;
   expect(merged.polygons).toEqual([]);
   expect(merged.mask?.counts).not.toBe(rect(960, 540, 100, 300, 50, 150));
+});
+
+it("uses the segment URL for clicks while propagation stays on the backend", async () => {
+  localStorage.removeItem(PROPAGATION_URL_KEY);
+  localStorage.setItem(SEGMENT_URL_KEY, "http://127.0.0.1:18876");
+  try {
+    expect(localPropagationUrl()).toBeUndefined();
+    const { store } = await editor(fixture());
+    const canvas = screen.getByRole("img", { name: "Frame polygons" });
+    act(() => {
+      store.getState().addPolygon("instance-1");
+    });
+    pointer(canvas, "pointerdown", 200, 100);
+    await waitFor(() => {
+      expect(requests).toHaveLength(1);
+    });
+  } finally {
+    localStorage.removeItem(SEGMENT_URL_KEY);
+  }
 });

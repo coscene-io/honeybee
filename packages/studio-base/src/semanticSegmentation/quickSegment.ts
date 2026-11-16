@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { localPropagationUrl } from "@foxglove/studio-base/util/coscene/annotation";
+import { localSegmentUrl } from "@foxglove/studio-base/util/coscene/annotation";
 
 import { truncateToMicros } from "./frameTime";
 import type { SegmentationMask } from "./types";
@@ -28,14 +28,14 @@ export type QuickSegmentResult = { mask: SegmentationMask; score: number };
  * Not part of the AnnotationService contract. Undefined when no sidecar is configured.
  */
 export function quickSegmentAvailable(): boolean {
-  return localPropagationUrl() != undefined;
+  return localSegmentUrl() != undefined;
 }
 
 export async function quickSegment(
   request: QuickSegmentRequest,
   signal?: AbortSignal,
 ): Promise<QuickSegmentResult> {
-  const base = localPropagationUrl();
+  const base = localSegmentUrl();
   if (base == undefined) {
     throw new Error("快速标注需要本机 SAM2 服务（tools/seg-local-propagation）");
   }

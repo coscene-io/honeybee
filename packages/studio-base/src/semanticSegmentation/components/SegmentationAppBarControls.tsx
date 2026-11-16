@@ -11,6 +11,7 @@ import { useStore } from "zustand";
 import {
   isAnnotationRecordName,
   localPropagationUrl,
+  localSegmentUrl,
   resolveAnnotationBackend,
 } from "@foxglove/studio-base/util/coscene/annotation";
 
@@ -77,7 +78,11 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
               : ""
           }`}
         >
-          {localPropagationUrl() != undefined ? "正式服务 · 本机传播" : "正式服务"}
+          {localPropagationUrl() != undefined
+            ? "正式服务 · 本机传播"
+            : localSegmentUrl() != undefined
+              ? "正式服务 · 本机点选"
+              : "正式服务"}
         </span>
       ) : (
         <span

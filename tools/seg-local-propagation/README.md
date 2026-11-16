@@ -43,6 +43,16 @@ localStorage.setItem("coStudio.semanticSegmentation.propagationUrl", "http://127
 
 Reload. The app bar shows `正式服务 · 本机传播`. Remove the key to go back to the backend.
 
+Once the backend propagates (data-platform-server #2403, verified on dev 2026-11-16), keep only
+quick annotation local and send propagation to the backend:
+
+```js
+localStorage.removeItem("coStudio.semanticSegmentation.propagationUrl");
+localStorage.setItem("coStudio.semanticSegmentation.segmentUrl", "http://127.0.0.1:18876");
+```
+
+The app bar then shows `正式服务 · 本机点选`.
+
 Measured on an M4 Max: 30 head_rgbd frames (1280×720, 1 s) in 9–10 s.
 
 `gen/` is `protoc --python_out` of cosceneapis #866 @ 9601538
