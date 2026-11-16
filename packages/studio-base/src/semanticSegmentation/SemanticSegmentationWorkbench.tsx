@@ -59,6 +59,23 @@ export function SemanticSegmentationWorkbench({
   const locked = ["running", "stopping"].includes(state.propagation.status);
   const shownFrameId = frameId ?? state.currentFrameId;
   const frameReady = sourceReady && shownFrameId != undefined && state.isFrameReady(shownFrameId);
+  // Only the canvas holding the edit reports errors; the others share the same store.
+  const active = focused !== false;
+  // A short wait (a frame step, playback, a streamed propagation frame) shows nothing; only a
+  // load that lasts gets a small marker.
+  const [slowLoad, setSlowLoad] = useState(false);
+  useEffect(() => {
+    if (frameReady) {
+      setSlowLoad(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSlowLoad(true);
+    }, 600);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [frameReady, shownFrameId]);
   const generalError =
     (state.error !== state.frameWindowError?.message ? state.error : undefined) ??
     initializationError;
@@ -95,7 +112,7 @@ export function SemanticSegmentationWorkbench({
       data-testid="semantic-segmentation-workbench"
     >
       <div className="seg-notifications" data-testid="workbench-notices">
-        {state.frameWindowError && (
+        {state.frameWindowError && active && (
           <div role="alert" className="seg-status seg-error seg-row">
             当前标注窗口读取失败：{state.frameWindowError.message}
             <button
@@ -111,7 +128,7 @@ export function SemanticSegmentationWorkbench({
             </button>
           </div>
         )}
-        {generalError && (
+        {generalError && active && (
           <div role="alert" className="seg-status seg-error seg-row">
             {generalError}
             <button
@@ -125,9 +142,13 @@ export function SemanticSegmentationWorkbench({
             </button>
           </div>
         )}
-        {!frameReady && (
-          <div className="seg-status" role="status">
-            正在等待当前视频帧和标注数据，完成后可继续编辑。
+        {!frameReady && slowLoad && (
+          <div
+            className="seg-loading"
+            role="status"
+            title="正在等待当前视频帧和标注数据，完成后可继续编辑。"
+          >
+            加载中…
           </div>
         )}
       </div>
@@ -163,6 +184,7 @@ export function SemanticSegmentationWorkbench({
                 compact
                 frameId={frameId}
                 onClaimFocus={onClaimFocus}
+                active={active}
               />
             </div>
           </main>

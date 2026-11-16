@@ -188,6 +188,22 @@ const useStyles = makeStyles()((theme) => ({
     pointerEvents: "none",
     "& > *": { pointerEvents: "auto", maxWidth: "min(600px, 100%)" },
   },
+  chip: {
+    alignSelf: "flex-start",
+    padding: theme.spacing(0.25, 1),
+    borderRadius: theme.shape.borderRadius,
+    background: "rgba(0, 0, 0, 0.55)",
+    color: "#fff",
+    lineHeight: 1.6,
+  },
+  hint: {
+    paddingBlock: 0,
+    fontSize: theme.typography.caption.fontSize,
+    background: "rgba(0, 0, 0, 0.6)",
+    color: "#fff",
+    "& .MuiAlert-message": { paddingBlock: theme.spacing(0.5) },
+    "& .MuiAlert-action": { paddingTop: 0, color: "#fff" },
+  },
   footer: {
     paddingInline: theme.spacing(1),
     flexShrink: 0,
@@ -199,6 +215,8 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 export type SegmentationCanvasProps = {
+  /** False on canvases that do not hold the edit: they show no errors or drawing help. */
+  active?: boolean;
   store: StoreApi<SemanticSegmentationStore>;
   viewportRef?: RefObject<HTMLDivElement>;
   imageUrl?: string;
@@ -315,6 +333,7 @@ export function SegmentationCanvas({
   compact = false,
   frameId: shownFrameId,
   onClaimFocus,
+  active = true,
 }: SegmentationCanvasProps): React.JSX.Element {
   const { classes, cx } = useStyles();
   const state = useStore(store);
@@ -369,7 +388,22 @@ export function SegmentationCanvas({
   const [quickBusy, setQuickBusy] = useState(false);
   const quickRequest = useRef<AbortController>();
   const [preview, setPreview] = useState<Preview>();
-  const [showHelp, setShowHelp] = useState(true);
+  // Dismissing the drawing help is remembered; it is a one-line hint, not a per-drawing banner.
+  const [showHelp, setShowHelpState] = useState(() => {
+    try {
+      return globalThis.localStorage.getItem("coStudio.semanticSegmentation.drawingHelp") !== "hidden";
+    } catch {
+      return true;
+    }
+  });
+  const setShowHelp = (value: "shown" | "hidden") => {
+    setShowHelpState(value === "shown");
+    try {
+      globalThis.localStorage.setItem("coStudio.semanticSegmentation.drawingHelp", value);
+    } catch {
+      // Storage may be disabled; the choice still applies to this canvas.
+    }
+  };
   const [imageError, setImageError] = useState(false);
   const [error, setError] = useState<string>();
   const [loadedFrame, setLoadedFrame] = useState<DecodedSegmentationFrame>();
@@ -2001,14 +2035,19 @@ export function SegmentationCanvas({
             <Alert severity="info">当前画面变换尚未就绪或包含非线性校正，暂时无法精确标注。</Alert>
           )}
           {draftElsewhere && (
-            <Alert severity="info" role="status">
-              {text(
+            <Typography
+              variant="caption"
+              role="status"
+              className={classes.chip}
+              title={text(
                 "Finish the polygon on the other canvas before drawing here.",
                 "这一笔还在另一路画布上，完成后再标注这里。",
               )}
-            </Alert>
+            >
+              {text("Drawing on another camera", "正在其他相机上标注")}
+            </Typography>
           )}
-          {error && (
+          {error && active && (
             <Alert
               severity="error"
               onClose={() => {
@@ -2018,11 +2057,13 @@ export function SegmentationCanvas({
               {error}
             </Alert>
           )}
-          {drawingId && showHelp && !draftElsewhere && (
+          {drawingId && active && showHelp && !draftElsewhere && (
             <Alert
               severity="info"
+              icon={false}
+              className={classes.hint}
               onClose={() => {
-                setShowHelp(false);
+                setShowHelp("hidden");
               }}
             >
               {quickEnabled
@@ -2036,11 +2077,11 @@ export function SegmentationCanvas({
                   )}
             </Alert>
           )}
-          {drawingId && !showHelp && !draftElsewhere && (
+          {drawingId && active && !showHelp && !draftElsewhere && (
             <Button
               size="small"
               onClick={() => {
-                setShowHelp(true);
+                setShowHelp("shown");
               }}
             >
               {text("Drawing help", "绘制帮助")}

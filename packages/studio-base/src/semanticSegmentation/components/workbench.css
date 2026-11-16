@@ -502,3 +502,13 @@
 
 /* The native Image panel owns the pixels; embedded annotation is only an overlay. */
 .seg-embedded, .seg-embedded .seg-body, .seg-embedded .seg-canvas { background: transparent; }
+
+/* A quiet marker instead of a banner: the frame or its annotations are still loading. */
+.seg-notifications > .seg-loading {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #000a;
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+}

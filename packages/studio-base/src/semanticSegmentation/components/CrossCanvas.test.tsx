@@ -126,7 +126,7 @@ it("does not leave the canvas after the first vertex is placed", async () => {
       />
     </>,
   );
-  expect(screen.getByText(/other canvas/)).toBeDefined();
+  expect(screen.getByTitle(/other canvas/)).toBeDefined();
   fireEvent.pointerDown(screen.getByRole("img", { name: "Frame polygons" }), {
     clientX: 20,
     clientY: 20,

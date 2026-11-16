@@ -198,7 +198,8 @@ describe("workbench workflow integration", () => {
     render(<SemanticSegmentationWorkbench runtime={runtime} sourceReady={false} />);
     expect(screen.queryByRole("slider", { name: "视频帧时间轴" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "空间理解标注工作台" })).toBeNull();
-    expect(screen.getByText(/正在等待当前视频帧和标注数据/)).toBeTruthy();
+    // A lasting wait shows a small marker, not a banner.
+    expect(await screen.findByTitle(/正在等待当前视频帧和标注数据/, undefined, { timeout: 2000 })).toBeTruthy();
     act(() => {
       openWorkflowPanel();
     });

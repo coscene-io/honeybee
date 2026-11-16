@@ -45,7 +45,7 @@ it("SEG-ENT-004/005/006 bounds 60s-video windows at start/30s/last actual frame 
   expect(reads.mock.calls.at(-1)!.slice(0, 3)).toEqual(["video-1", 30, 40]);
   expect(runtime.store.getState().document!.record.id).toBe("record-1");
   expect(runtime.store.getState().loading).toBe(true);
-  expect(screen.getByText(/正在等待当前视频帧和标注数据/)).toBeDefined();
+  expect(await screen.findByTitle(/正在等待当前视频帧和标注数据/, undefined, { timeout: 2000 })).toBeDefined();
   // A real drawer control reacts while the geometry promise remains unresolved.
   act(() => {
     openWorkflowPanel();
