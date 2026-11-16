@@ -10,6 +10,7 @@ import { useStore } from "zustand";
 
 import {
   isAnnotationRecordName,
+  localPropagationUrl,
   resolveAnnotationBackend,
 } from "@foxglove/studio-base/util/coscene/annotation";
 
@@ -69,9 +70,14 @@ export function SegmentationAppBarControls(): React.JSX.Element | undefined {
           className="seg-muted"
           data-testid="segmentation-backend"
           data-backend="live"
-          title="标注读写正式标注服务（AnnotationService）。保存覆盖服务器上这些帧的当前状态，没有历史版本。"
+          data-propagation={localPropagationUrl() != undefined ? "local" : "live"}
+          title={`标注读写正式标注服务（AnnotationService）。保存覆盖服务器上这些帧的当前状态，没有历史版本。${
+            localPropagationUrl() != undefined
+              ? `传播改由本机 SAM2 服务 ${localPropagationUrl()} 计算，结果只是草稿。`
+              : ""
+          }`}
         >
-          正式服务
+          {localPropagationUrl() != undefined ? "正式服务 · 本机传播" : "正式服务"}
         </span>
       ) : (
         <span

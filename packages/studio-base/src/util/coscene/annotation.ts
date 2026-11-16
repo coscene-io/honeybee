@@ -5,6 +5,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { createClient } from "@connectrpc/connect";
+import { createGrpcWebTransport } from "@connectrpc/connect-web";
+
 import {
   annotationBackend,
   type ActiveAnnotationBackend,
@@ -45,6 +48,24 @@ export function resolveAnnotationBackend(recordName: string | undefined): Active
 }
 
 /**
+ * Local propagation sidecar (tools/seg-local-propagation). Opt in per browser:
+ * `localStorage.setItem("coStudio.semanticSegmentation.propagationUrl", "http://127.0.0.1:18876")`.
+ * No credentials are sent to it.
+ */
+export const PROPAGATION_URL_KEY = "coStudio.semanticSegmentation.propagationUrl";
+
+export function localPropagationUrl(): string | undefined {
+  try {
+    const url = globalThis.localStorage.getItem(PROPAGATION_URL_KEY)?.trim();
+    return url != undefined && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url)
+      ? url.replace(/\/$/, "")
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The live service for a cloud record, or undefined when the session should stay in this
  * browser (a local file, or the user switched to 本机标注).
  */
@@ -57,8 +78,17 @@ export function createLiveSemanticSegmentationService(args: {
   if (backend.kind !== "live") {
     return undefined;
   }
+  const propagationUrl = localPropagationUrl();
   return createLiveAnnotationService({
     client: getPromiseClient(AnnotationService),
+    ...(propagationUrl
+      ? {
+          propagationClient: createClient(
+            AnnotationService,
+            createGrpcWebTransport({ baseUrl: propagationUrl }),
+          ),
+        }
+      : {}),
     recordName: backend.recordName,
     startNs: args.startNs,
     document: args.document,

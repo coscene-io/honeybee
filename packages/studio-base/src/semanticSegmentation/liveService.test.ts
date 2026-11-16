@@ -559,6 +559,49 @@ describe("live annotation service", () => {
     ]);
   });
 
+  it("sends PropagateAnnotation to the propagation client and nothing else", async () => {
+    const { server, document } = setup();
+    seedServer(server);
+    const calls: string[] = [];
+    const local = createRouterTransport(({ service }) => {
+      service(AnnotationService, {
+        async *propagateAnnotation() {
+          calls.push("local:propagate");
+          yield { event: { case: "ready", value: { totalFrames: 0n } } };
+          yield { event: { case: "done", value: {} } };
+        },
+      });
+    });
+    const remote = createRouterTransport(({ service }) => {
+      service(AnnotationService, {
+        listClasses: () => ({ classes: [...server.classes.values()] }),
+        listInstances: () => ({ instances: [...server.instances.values()] }),
+        listTimelineRanges: () => ({ timelineRanges: [] }),
+        listFrames: () => ({ frames: server.frames }),
+        async *propagateAnnotation() {
+          calls.push("remote:propagate");
+          yield { event: { case: "done", value: {} } };
+        },
+      });
+    });
+    const service = createLiveAnnotationService({
+      client: createClient(AnnotationService, remote),
+      propagationClient: createClient(AnnotationService, local),
+      recordName: R,
+      startNs: START_NS,
+      document,
+    });
+    await service.loadDocument();
+    await service.loadFrameWindow("video", 0, 5);
+    for await (const _ of service.propagate(
+      { instanceId: OTHER_ID, fromFrameId: document.frames[1]!.id, endTimeNs: LOG_TIMES[3]!.toString() },
+      new AbortController().signal,
+    )) {
+      // drain
+    }
+    expect(calls).toEqual(["local:propagate"]);
+  });
+
   it("fails a stream that ends without done or reports an error event", async () => {
     const { server, service, document } = setup();
     seedServer(server);

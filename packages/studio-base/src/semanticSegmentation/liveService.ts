@@ -141,6 +141,11 @@ function throwIfAborted(signal?: AbortSignal): void {
  */
 export function createLiveAnnotationService(options: {
   client: AnnotationClient;
+  /**
+   * Answers PropagateAnnotation instead of `client`, e.g. a local SAM2 sidecar while the backend
+   * has no propagation. Every other RPC still goes to `client`.
+   */
+  propagationClient?: AnnotationClient;
   /** `warehouses/{w}/projects/{p}/records/{r}` */
   recordName: string;
   /** Recording start; frame windows are offsets from it. */
@@ -848,7 +853,7 @@ export function createLiveAnnotationService(options: {
         return wire;
       });
       const instanceIds = seeds.map((seed) => seed.instanceId);
-      const stream = client.propagateAnnotation(
+      const stream = (options.propagationClient ?? client).propagateAnnotation(
         {
           record: recordName,
           propagation: {
