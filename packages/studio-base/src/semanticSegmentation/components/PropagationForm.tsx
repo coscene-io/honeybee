@@ -29,10 +29,13 @@ export function PropagationForm({
   store,
   scope,
   sourceReady = true,
+  onStarted,
 }: {
   store: StoreApi<SemanticSegmentationStore>;
   scope: CanvasPropagationScope | undefined;
   sourceReady?: boolean;
+  /** Called once the run starts: progress and STOP then live in the global lock bar. */
+  onStarted?: () => void;
 }): React.JSX.Element {
   const state = useStore(store);
   const [rangeSec, setRangeSec] = useState<number>(DEFAULT_RANGE_SEC);
@@ -111,7 +114,9 @@ export function PropagationForm({
         seeds,
       };
       setBusy("starting");
-      await store.getState().startPropagation(request);
+      const running = store.getState().startPropagation(request);
+      onStarted?.();
+      await running;
     })()
       .catch((error: unknown) => {
         setLocalError(error instanceof Error ? error.message : String(error));

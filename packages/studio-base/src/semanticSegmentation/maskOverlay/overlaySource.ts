@@ -207,7 +207,7 @@ export function createMaskOverlaySource(): SegmentationMaskOverlaySource & {
         (id) =>
           editing && (matches(store.focus, id) || store.selection.some((ref) => matches(ref, id))),
       ),
-      opacity: editing ? controls.opacity : 0.28,
+      opacity: editing ? controls.opacity : 0.45,
     };
   }
 

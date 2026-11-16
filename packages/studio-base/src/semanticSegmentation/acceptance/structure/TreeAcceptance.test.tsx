@@ -293,19 +293,19 @@ describe("structure tree original GWT acceptance", () => {
       const { store } = await setup();
       const before = store.getState().document!;
       if (method === "cross") {
+        // The × deletes one polygon at once; it is undoable, so there is no dialog.
         fireEvent.click(within(row("I-P-0")).getByRole("button", { name: "Delete Polygon 1" }));
       } else {
         fireEvent.contextMenu(row("I-P-0"));
         expect(screen.getByRole("menuitem", { name: "Merge into instance…" })).toBeDefined();
         fireEvent.click(screen.getByRole("menuitem", { name: "Delete polygon…" }));
+        await confirm("Delete");
       }
-      await confirm("Delete");
       expect(polygons(store.getState().document!, 0, "I")).toEqual(
         polygons(before, 0, "I").filter((item) => item.id === "I-Q-0"),
       );
       expect(polygons(store.getState().document!, 1, "I")).toEqual(polygons(before, 1, "I"));
       fireEvent.click(within(row("I-Q-0")).getByRole("button", { name: "Delete Polygon 1" }));
-      await confirm("Delete");
       expect(polygons(store.getState().document!, 0, "I")).toEqual([]);
       expect(store.getState().document!.instances.find((item) => item.id === "I")).toEqual(
         before.instances.find((item) => item.id === "I"),

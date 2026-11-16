@@ -106,7 +106,14 @@ function CanvasPropagate({
         slotProps={{ paper: { sx: { width: 300, maxWidth: "calc(100vw - 24px)", p: 1 } } }}
       >
         <div role="dialog" aria-label="传播">
-          <PropagationForm store={runtime.store} scope={scope} sourceReady={surface.sourceReady} />
+          <PropagationForm
+            store={runtime.store}
+            scope={scope}
+            sourceReady={surface.sourceReady}
+            onStarted={() => {
+              setAnchor(undefined);
+            }}
+          />
         </div>
       </Popover>
     </>

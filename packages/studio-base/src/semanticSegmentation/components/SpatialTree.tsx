@@ -890,8 +890,13 @@ export function SpatialTree({
                 size="small"
                 disabled={locked}
                 aria-label={`Delete ${label}`}
+                title={text("Delete (Ctrl+Z undoes)", "删除（Ctrl+Z 可撤销）")}
                 onClick={() => {
-                  open({ type: "delete", nodes: [node] });
+                  // One polygon on this frame: undoable, so no confirmation dialog.
+                  run(() => {
+                    state.deletePolygon(node.id);
+                    state.setSelection([]);
+                  });
                 }}
               >
                 ×
