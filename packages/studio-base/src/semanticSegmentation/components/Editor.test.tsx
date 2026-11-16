@@ -6,7 +6,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
 import { createMockSemanticSegmentationService, createSeedDocument } from "../mockService";
@@ -596,6 +596,21 @@ describe("segmentation editor", () => {
     fireEvent.drop(container.querySelector('[data-node-id="class-1"]')!, { dataTransfer });
     expect(store.getState().stagedOperations).toHaveLength(0);
     expect(screen.getByText("Select this object to focus it before dragging.")).toBeDefined();
+  });
+
+  it("deletes after a background refresh replaces the document object", async () => {
+    const { store } = await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Actions for ● Person 1" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete instance in current frame…" }));
+    act(() => {
+      // Frame registration and timeline reads replace the document without changing what is shown.
+      store.setState({ document: { ...store.getState().document! } });
+    });
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
+    expect(store.getState().stagedOperations).toHaveLength(1);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 
   it("rejects a frame-scoped delete confirmation after an external timeline frame switch", async () => {

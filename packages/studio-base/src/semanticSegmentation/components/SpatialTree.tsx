@@ -38,7 +38,11 @@ import { segmentationSession } from "../runtime";
 import { segmentationCanvasLabel } from "../segmentationChrome";
 import { frameInstanceKey } from "../service";
 import { filterSegmentationSelection } from "../store";
-import type { SemanticSegmentationStore, SegmentationNodeRef } from "../types";
+import type {
+  SegmentationDocument,
+  SemanticSegmentationStore,
+  SegmentationNodeRef,
+} from "../types";
 import { CameraFrameStrip, cameraStripVisible, preloadCameraStrip } from "./CameraFrameStrip";
 import { useEditorText } from "./editorMessages";
 import {
@@ -249,6 +253,18 @@ type TreeDialog =
  * Whether a keyboard/mouse event belongs to this tree row itself (not a nested row) and was
  * raised by the row or its main button rather than by another control such as a checkbox.
  */
+function nodeExists(document: SegmentationDocument, node: SegmentationNodeRef): boolean {
+  if (node.type === "class") {
+    return document.classes.some((item) => item.id === node.id);
+  }
+  if (node.type === "instance") {
+    return document.instances.some((item) => item.id === node.id);
+  }
+  return Object.values(document.annotations).some((annotation) =>
+    annotation.polygons.some((polygon) => polygon.id === node.id),
+  );
+}
+
 function ownsRowEvent(target: EventTarget, row: Element): boolean {
   if (!(target instanceof Element) || target.closest('[role="treeitem"]') !== row) {
     return false;
@@ -569,9 +585,14 @@ export function SpatialTree({
       return;
     }
     try {
+      // The document object is replaced by background reads and frame registration even when
+      // nothing the user sees changes; only the frame, view and focus, and the targets, matter.
       if (
         dialogContext.current?.key !== contextKey ||
-        dialogContext.current.document !== document
+        !document ||
+        !dialogNodes.every((node) => nodeExists(document, node)) ||
+        (dialog.type === "merge" && !nodeExists(document, { type: "instance", id: target })) ||
+        (dialog.type === "move" && !nodeExists(document, { type: "class", id: target }))
       ) {
         throw new Error(
           text(
@@ -580,11 +601,7 @@ export function SpatialTree({
           ),
         );
       }
-      if (
-        dialogDragSource.current &&
-        document &&
-        (dialog.type === "merge" || dialog.type === "move")
-      ) {
+      if (dialogDragSource.current && (dialog.type === "merge" || dialog.type === "move")) {
         const destination: SegmentationNodeRef = {
           type: dialog.type === "merge" ? "instance" : "class",
           id: target,
@@ -612,7 +629,7 @@ export function SpatialTree({
           merge(dialog.nodes, target);
         }
         if (dialog.type === "move") {
-          for (const id of document ? nodeInstances(document, dialog.node) : []) {
+          for (const id of nodeInstances(document, dialog.node)) {
             state.moveInstance(id, target);
           }
           state.setEditing(false);
@@ -1643,8 +1660,28 @@ export function SpatialTree({
         </DialogTitle>
         <DialogContent>
           {error && <Alert severity="error">{error}</Alert>}
+          {dialog && dialog.type !== "rename" && document && (
+            <Typography variant="body2" data-testid="affected-summary">
+              {[
+                affected.classes.length > 0 &&
+                  `${text("Classes", "类别")}：${affected.classes
+                    .map((id) => document.classes.find((item) => item.id === id)?.name ?? id)
+                    .join("、")}`,
+                affectedInstances.length > 0 &&
+                  `${text("Instances", "实例")}：${affectedInstances
+                    .map((id) => document.instances.find((item) => item.id === id)?.name ?? id)
+                    .join("、")}`,
+                affected.polygons.length > 0 &&
+                  `${text("Polygons on this frame", "本帧多边形")}：${affected.polygons.length}`,
+              ]
+                .filter(Boolean)
+                .join("；")}
+            </Typography>
+          )}
           {dialog && dialog.type !== "rename" && (
-            <Box component="dl" className={classes.affectedIds}>
+            <Box component="details" className={classes.affectedIds}>
+              <summary>{text("IDs", "ID 详情")}</summary>
+              <Box component="dl">
               <Typography component="dt" variant="caption">
                 {text("Class scope IDs", "类别范围 ID")}
               </Typography>
@@ -1663,6 +1700,7 @@ export function SpatialTree({
               <Typography component="dd" variant="caption" aria-label="Affected polygon IDs">
                 {affected.polygons.join(", ") || "—"}
               </Typography>
+              </Box>
             </Box>
           )}
 
