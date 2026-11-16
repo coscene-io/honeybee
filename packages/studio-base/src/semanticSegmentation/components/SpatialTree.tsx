@@ -39,7 +39,7 @@ import { segmentationCanvasLabel } from "../segmentationChrome";
 import { frameInstanceKey } from "../service";
 import { filterSegmentationSelection } from "../store";
 import type { SemanticSegmentationStore, SegmentationNodeRef } from "../types";
-import { CameraFrameStrip } from "./CameraFrameStrip";
+import { CameraFrameStrip, cameraStripVisible, preloadCameraStrip } from "./CameraFrameStrip";
 import { useEditorText } from "./editorMessages";
 import {
   canDropNode,
@@ -51,6 +51,8 @@ import {
   toggleNodeSelection,
 } from "./editorTree";
 import { beginPolygonEdit } from "./polygonEdit";
+import { frameIndexOf, instancesByClass } from "./spatialTreeIndex";
+import { useVirtualRows } from "./useVirtualRows";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -126,33 +128,27 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: 4,
     transition: "background-color 120ms, opacity 120ms",
   },
-  children: {
-    marginLeft: theme.spacing(1.5),
-    paddingLeft: theme.spacing(1.5),
-    borderLeft: `1px solid ${theme.palette.divider}`,
-  },
   disclosure: {
     width: 28,
     flexShrink: 0,
     display: "flex",
     justifyContent: "center",
   },
-  // Class and instance rows pin to the top of the scrolling tree while their children are in
-  // view (the sticky element is bounded by its own treeitem). Instance rows pin just below the
-  // class row, whose measured height is published as --seg-class-row-h. Backgrounds must be
-  // opaque so scrolled content does not show through, so they live on a wrapper around the row,
-  // letting the row keep its own translucent selection/drop tint.
-  stickyClass: {
+  // The rows are windowed, so nesting cannot carry the sticky headers. The class and instance
+  // rows that own the first visible row are drawn again in this zero-height sticky layer, with
+  // opaque backgrounds so scrolled rows do not show through; their list slots stay empty.
+  pinned: {
     position: "sticky",
     top: 0,
-    zIndex: 2,
-    backgroundColor: theme.palette.background.paper,
+    height: 0,
+    zIndex: 3,
   },
-  stickyInstance: {
-    position: "sticky",
-    top: "var(--seg-class-row-h, 44px)",
-    zIndex: 1,
+  pinnedRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
     backgroundColor: theme.palette.background.paper,
+    boxShadow: `0 1px 0 ${theme.palette.divider}`,
   },
   selected: { backgroundColor: theme.palette.action.selected },
   drop: { backgroundColor: theme.palette.action.hover },
@@ -218,6 +214,25 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
+type FlatTreeRow = {
+  key: string;
+  kind: "class" | "instance" | "polygon" | "strip" | "note";
+  level: number;
+  /** Rows of the owning class and instance, which stay pinned while this row is at the top. */
+  classRow: number;
+  instanceRow?: number;
+  render: () => ReactNode;
+};
+
+/** Heights used until a row has been measured once. */
+const ROW_ESTIMATE: Record<FlatTreeRow["kind"], number> = {
+  class: 46,
+  instance: 46,
+  polygon: 46,
+  strip: 16,
+  note: 20,
+};
+
 export type SpatialTreeProps = {
   store: StoreApi<SemanticSegmentationStore>;
   disabled?: boolean;
@@ -255,6 +270,7 @@ export function SpatialTree({
   const strokeFrameId = useStore(segmentationSession, (session) => session.strokeFrameId);
   const text = useEditorText();
   const document = state.document;
+  const index = document ? frameIndexOf(document) : undefined;
   const listedFrameIds = [
     ...new Set(
       (sessionOpen
@@ -262,7 +278,7 @@ export function SpatialTree({
         : Object.values(previewFrames)
       ).filter((id): id is string => id != undefined),
     ),
-  ].filter((id) => document?.frames.some((frame) => frame.id === id) === true);
+  ].filter((id) => index?.frameById.has(id) === true);
   const treeFrameIds =
     listedFrameIds.length > 0
       ? listedFrameIds
@@ -272,7 +288,7 @@ export function SpatialTree({
           ? [state.currentFrameId]
           : [];
   /** The global multi-camera tree, as opposed to the standalone single-video workbench. */
-  const embeddedOverview = sessionOpen || Object.keys(previewFrames).length > 0;
+  const overview = sessionOpen || Object.keys(previewFrames).length > 0;
   const selection = document
     ? filterSegmentationSelection(document, state.selection, state.currentFrameId)
     : [];
@@ -301,22 +317,16 @@ export function SpatialTree({
   const dragContext = useRef<{ key: string; document: typeof document }>();
   const dialogDragSource = useRef<SegmentationNodeRef>();
   const dialogContext = useRef<{ key: string; document: typeof document }>();
-  const videoId = document?.frames.find((frame) => frame.id === state.currentFrameId)?.videoId;
+  const videoId =
+    state.currentFrameId == undefined
+      ? undefined
+      : index?.frameById.get(state.currentFrameId)?.videoId;
   const contextKey = `${document?.record.id}:${videoId}:${state.currentFrameId}:${state.viewMode}:${state.focus?.type}:${state.focus?.id}`;
   const previousReset = useRef({
     store,
     version: state.interactionResetVersion,
   });
   const treeRef = useRef<HTMLDivElement>(ReactNull);
-
-  // Publish the class row height so pinned instance rows sit directly beneath the pinned class.
-  useEffect(() => {
-    const tree = treeRef.current;
-    const classRow = tree?.querySelector<HTMLElement>('[data-tree-level="1"]');
-    if (tree && classRow && classRow.offsetHeight > 0) {
-      tree.style.setProperty("--seg-class-row-h", `${classRow.offsetHeight}px`);
-    }
-  });
 
   useEffect(() => {
     const previous = previousReset.current;
@@ -754,13 +764,7 @@ export function SpatialTree({
           }
         }}
       >
-        <Box
-          className={cx(
-            node.type === "class" && classes.stickyClass,
-            node.type === "instance" && classes.stickyInstance,
-          )}
-          data-tree-level={level}
-        >
+        <Box data-tree-level={level}>
           <Box
             className={cx(classes.row, selected && classes.selected, isDrop && classes.drop)}
             data-tree-row=""
@@ -942,13 +946,303 @@ export function SpatialTree({
   };
   const instanceCount = document?.instances.length ?? 0;
   // Set when the focused node is a polygon in the current frame that has no vertices yet.
+  const currentFrameId = state.currentFrameId;
   const emptyFocusedPolygonId =
-    document && state.focus?.type === "polygon"
-      ? Object.values(document.annotations)
-          .filter((item) => item.frameId === state.currentFrameId)
-          .flatMap((item) => item.polygons)
+    document && currentFrameId != undefined && state.focus?.type === "polygon"
+      ? document.instances
+          .flatMap(
+            (instance) =>
+              document.annotations[frameInstanceKey(currentFrameId, instance.id)]?.polygons ?? [],
+          )
           .find((polygon) => polygon.id === state.focus?.id && polygon.points.length === 0)?.id
       : undefined;
+  /**
+   * The tree as a flat list. Only the rows in or near the viewport call `render`, so building the
+   * list stays cheap: per-row work is lookups in the frame index and cached strip cells.
+   */
+  const flatRows: FlatTreeRow[] = [];
+  if (document && index && document.classes.length > 0) {
+    const grouped = instancesByClass(document.instances);
+    const currentFrame =
+      state.currentFrameId == undefined ? undefined : index.frameById.get(state.currentFrameId);
+    const videoFrames = currentFrame ? (index.framesOfVideo.get(currentFrame.videoId) ?? []) : [];
+    const hasGeometry = (frameId: string, instanceId: string) =>
+      summaryHasGeometry(document.annotationSummaries[frameInstanceKey(frameId, instanceId)]);
+    for (const category of document.classes) {
+      const instances = grouped.get(category.id) ?? [];
+      const classRow = flatRows.length;
+      const classKey = `class:${category.id}`;
+      const present = instances.filter((instance) =>
+        treeFrameIds.some((id) => hasGeometry(id, instance.id)),
+      ).length;
+      flatRows.push({
+        key: classKey,
+        kind: "class",
+        level: 1,
+        classRow,
+        render: () =>
+          row(
+            { type: "class", id: category.id },
+            category.name,
+            category.color,
+            text(
+              `${present} present / ${instances.length} total`,
+              `当前画面 ${present} / 共 ${instances.length} 个实例`,
+            ),
+            1,
+            () => {
+              run(() => {
+                state.addInstance(category.id);
+              });
+            },
+          ),
+      });
+      if (collapsed.includes(classKey)) {
+        continue;
+      }
+      if (instances.length === 0) {
+        flatRows.push({
+          key: `empty:${category.id}`,
+          kind: "note",
+          level: 2,
+          classRow,
+          render: () => (
+            <Typography variant="caption" color="text.secondary" className={classes.emptyClass}>
+              {text("No instances. Use + to add one.", "暂无实例，点击 + 添加。")}
+            </Typography>
+          ),
+        });
+      }
+      for (const instance of instances) {
+        const instanceRow = flatRows.length;
+        const instanceKey = `instance:${instance.id}`;
+        const visibleAnnotations = treeFrameIds.flatMap((id) => {
+          const item = document.annotations[frameInstanceKey(id, instance.id)];
+          return item ? [item] : [];
+        });
+        const polygonCount = visibleAnnotations.reduce(
+          (sum, item) => sum + item.polygons.length,
+          0,
+        );
+        const camerasPresent = visibleAnnotations.filter(
+          (item) => item.polygons.length > 0 || item.mask != undefined,
+        ).length;
+        const isPresent = treeFrameIds.some((id) => hasGeometry(id, instance.id));
+        flatRows.push({
+          key: instanceKey,
+          kind: "instance",
+          level: 2,
+          classRow,
+          instanceRow,
+          render: () => {
+            if (overview) {
+              return row(
+                { type: "instance", id: instance.id },
+                `${isPresent ? "●" : "○"} ${instance.name || instance.id}`,
+                category.color,
+                text(
+                  `${camerasPresent} visible cameras · ${polygonCount} polygons`,
+                  `当前 ${camerasPresent} 路相机 · ${polygonCount} 块`,
+                ),
+                2,
+                () => {
+                  addPolygon(instance.id);
+                },
+                undefined,
+                isPresent ? "present" : "absent",
+              );
+            }
+            // The standalone workbench: one video, with a presence row around the current frame.
+            const annotation =
+              state.currentFrameId == undefined
+                ? undefined
+                : document.annotations[frameInstanceKey(state.currentFrameId, instance.id)];
+            const framesPresent = videoFrames.filter((item) =>
+              hasGeometry(item.id, instance.id),
+            ).length;
+            const byIndex = currentFrame
+              ? index.frameByVideoIndex.get(currentFrame.videoId)
+              : undefined;
+            const presence = (
+              <Stack
+                direction="row"
+                spacing="1px"
+                aria-label={`Presence around current frame for ${instance.name}`}
+                className={classes.presence}
+              >
+                {Array.from({ length: 41 }, (_, cell) => {
+                  const offset = cell - 20;
+                  const adjacent = byIndex?.get((currentFrame?.index ?? 0) + offset);
+                  const presentAt = hasGeometry(adjacent?.id ?? "", instance.id);
+                  return (
+                    <Box
+                      key={offset}
+                      component="span"
+                      title={`${offset === 0 ? "Current frame" : `Frame ${offset > 0 ? "+" : ""}${offset}`}: ${!adjacent ? "outside video" : presentAt ? "present" : "absent"}`}
+                      className={classes.presenceCell}
+                      style={{
+                        height: offset === 0 ? 9 : 6,
+                        backgroundColor: presentAt
+                          ? category.color
+                          : theme.palette.action.disabledBackground,
+                        opacity: adjacent ? 1 : 0.25,
+                        outline: offset === 0 ? `1px solid ${category.color}` : undefined,
+                      }}
+                    />
+                  );
+                })}
+              </Stack>
+            );
+            return row(
+              { type: "instance", id: instance.id },
+              `${isPresent ? "●" : "○"} ${instance.name || instance.id}`,
+              category.color,
+              text(
+                `${framesPresent}/${videoFrames.length} frames · ${annotation?.polygons.length ?? 0} polygons`,
+                `${framesPresent}/${videoFrames.length} 帧 · ${annotation?.polygons.length ?? 0} 块`,
+              ),
+              2,
+              () => {
+                addPolygon(instance.id);
+              },
+              presence,
+              isPresent ? "present" : "absent",
+            );
+          },
+        });
+        if (collapsed.includes(instanceKey)) {
+          continue;
+        }
+        for (const id of treeFrameIds) {
+          const frame = index.frameById.get(id);
+          const video = frame ? index.videoById.get(frame.videoId) : undefined;
+          const camera = segmentationCanvasLabel(video?.topic ?? video?.name);
+          const polygons = document.annotations[frameInstanceKey(id, instance.id)]?.polygons ?? [];
+          polygons.forEach((polygon, position) => {
+            flatRows.push({
+              key: `polygon:${instance.id}:${id}:${polygon.id}`,
+              kind: "polygon",
+              level: 3,
+              classRow,
+              instanceRow,
+              render: () =>
+                row(
+                  { type: "polygon", id: polygon.id },
+                  treeFrameIds.length > 1 && (polygon.points.length > 0 || strokeFrameId === id)
+                    ? text(
+                        `${camera} · Polygon ${position + 1}`,
+                        `${camera} · 多边形 ${position + 1}`,
+                      )
+                    : text(`Polygon ${position + 1}`, `多边形 ${position + 1}`),
+                  category.color,
+                  polygon.points.length === 0
+                    ? text("Empty polygon · add vertices", "空多边形 · 待绘制")
+                    : text(`${polygon.points.length} vertices`, `${polygon.points.length} 个顶点`),
+                  3,
+                ),
+            });
+          });
+          if (overview && cameraStripVisible(document, instance.id, id)) {
+            flatRows.push({
+              key: `strip:${instance.id}:${id}`,
+              kind: "strip",
+              level: 3,
+              classRow,
+              instanceRow,
+              render: () => (
+                <CameraFrameStrip
+                  document={document}
+                  instanceId={instance.id}
+                  frameId={id}
+                  camera={camera}
+                  color={category.color}
+                  disabled={disabled || state.drawingPolygonId != undefined}
+                />
+              ),
+            });
+          }
+        }
+        // A mask is presence too; only an instance with neither on any shown frame is absent.
+        if (camerasPresent === 0) {
+          flatRows.push({
+            key: `absent:${instance.id}`,
+            kind: "note",
+            level: 3,
+            classRow,
+            instanceRow,
+            render: () => (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                className={classes.emptyInstance}
+              >
+                {text("Absent in current frame", "当前帧缺席")}
+              </Typography>
+            ),
+          });
+        }
+      }
+    }
+  }
+  const rowKeys = flatRows.map((item) => item.key);
+  const virtual = useVirtualRows({
+    container: treeRef,
+    keys: rowKeys,
+    estimate: (position) => ROW_ESTIMATE[flatRows[position]!.kind],
+  });
+  // Strips decide whether to show from the frames read around the shown frame, so every camera
+  // the tree lists is read, including strips that are scrolled out of view.
+  const stripFramesKey =
+    overview && document && document.instances.length > 0 ? treeFrameIds.join("\u0000") : "";
+  const latestDocument = useRef(document);
+  latestDocument.current = document;
+  useEffect(() => {
+    const current = latestDocument.current;
+    if (!current || stripFramesKey === "") {
+      return;
+    }
+    for (const id of stripFramesKey.split("\u0000")) {
+      preloadCameraStrip(current, id);
+    }
+  }, [stripFramesKey]);
+  // The class and instance owning the first visible row stay pinned, as the sticky rows did.
+  const pinnedRows: number[] = [];
+  if (virtual.viewportHeight > 0 && virtual.scrollTop > 0 && flatRows.length > 0) {
+    let firstVisible = Math.min(virtual.start, flatRows.length - 1);
+    while (
+      firstVisible < flatRows.length - 1 &&
+      virtual.offsets[firstVisible + 1]! <= virtual.scrollTop
+    ) {
+      firstVisible++;
+    }
+    const owner = flatRows[firstVisible]!;
+    if (virtual.offsets[owner.classRow]! < virtual.scrollTop) {
+      pinnedRows.push(owner.classRow);
+    }
+    const classHeight = virtual.offsets[owner.classRow + 1]! - virtual.offsets[owner.classRow]!;
+    if (
+      owner.instanceRow != undefined &&
+      virtual.offsets[owner.instanceRow]! < virtual.scrollTop + classHeight
+    ) {
+      pinnedRows.push(owner.instanceRow);
+    }
+  }
+  const indentStyle = (level: number): React.CSSProperties | undefined =>
+    level <= 1
+      ? undefined
+      : {
+          paddingLeft: 25 * (level - 1),
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "1px 100%",
+          backgroundPosition: Array.from(
+            { length: level - 1 },
+            (_, depth) => `${12 + 25 * depth}px 0`,
+          ).join(", "),
+          backgroundImage: Array.from(
+            { length: level - 1 },
+            () => `linear-gradient(${theme.palette.divider}, ${theme.palette.divider})`,
+          ).join(", "),
+        };
   return (
     <Stack spacing={1} className={classes.root}>
       <Box className={classes.header}>
@@ -1111,195 +1405,49 @@ export function SpatialTree({
             )}
           </Typography>
         ) : (
-          document.classes.map((category) => {
-            const instances = document.instances.filter(
-              (instance) => instance.classId === category.id,
-            );
-            const present = instances.filter((instance) =>
-              treeFrameIds.some((id) =>
-                summaryHasGeometry(document.annotationSummaries[frameInstanceKey(id, instance.id)]),
-              ),
-            ).length;
-            return row(
-              { type: "class", id: category.id },
-              category.name,
-              category.color,
-              text(
-                `${present} present / ${instances.length} total`,
-                `当前画面 ${present} / 共 ${instances.length} 个实例`,
-              ),
-              1,
-              () => {
-                run(() => {
-                  state.addInstance(category.id);
-                });
-              },
-              undefined,
-              undefined,
-              !collapsed.includes(`class:${category.id}`) && (
-                <Box role="group" className={classes.children}>
-                  {instances.length === 0 && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      className={classes.emptyClass}
-                    >
-                      {text("No instances. Use + to add one.", "暂无实例，点击 + 添加。")}
-                    </Typography>
-                  )}
-                  {instances.map((instance) => {
-                    const annotation = state.currentFrameId
-                      ? document.annotations[frameInstanceKey(state.currentFrameId, instance.id)]
-                      : undefined;
-
-                    const currentFrame = document.frames.find(
-                      (item) => item.id === state.currentFrameId,
-                    );
-                    const videoFrames = document.frames.filter(
-                      (item) => item.videoId === currentFrame?.videoId,
-                    );
-                    const framesPresent = videoFrames.filter((item) =>
-                      summaryHasGeometry(
-                        document.annotationSummaries[frameInstanceKey(item.id, instance.id)],
-                      ),
-                    ).length;
-                    const presence = (
-                      <Stack
-                        direction="row"
-                        spacing="1px"
-                        aria-label={`Presence around current frame for ${instance.name}`}
-                        className={classes.presence}
-                      >
-                        {Array.from({ length: 41 }, (_, index) => {
-                          const offset = index - 20;
-                          const adjacent = videoFrames.find(
-                            (item) => item.index === (currentFrame?.index ?? 0) + offset,
-                          );
-                          const presentAt = summaryHasGeometry(
-                            document.annotationSummaries[
-                              frameInstanceKey(adjacent?.id ?? "", instance.id)
-                            ],
-                          );
-                          return (
-                            <Box
-                              key={offset}
-                              component="span"
-                              title={`${offset === 0 ? "Current frame" : `Frame ${offset > 0 ? "+" : ""}${offset}`}: ${!adjacent ? "outside video" : presentAt ? "present" : "absent"}`}
-                              className={classes.presenceCell}
-                              style={{
-                                height: offset === 0 ? 9 : 6,
-                                backgroundColor: presentAt
-                                  ? category.color
-                                  : theme.palette.action.disabledBackground,
-                                opacity: adjacent ? 1 : 0.25,
-                                outline: offset === 0 ? `1px solid ${category.color}` : undefined,
-                              }}
-                            />
-                          );
-                        })}
-                      </Stack>
-                    );
-                    const visibleAnnotations = treeFrameIds.flatMap((id) => {
-                      const item = document.annotations[frameInstanceKey(id, instance.id)];
-                      return item ? [item] : [];
-                    });
-                    const polygonCount = visibleAnnotations.reduce(
-                      (sum, item) => sum + item.polygons.length,
-                      0,
-                    );
-                    const camerasPresent = visibleAnnotations.filter(
-                      (item) => item.polygons.length > 0 || item.mask != undefined,
-                    ).length;
-                    const isPresent = treeFrameIds.some((id) =>
-                      summaryHasGeometry(
-                        document.annotationSummaries[frameInstanceKey(id, instance.id)],
-                      ),
-                    );
-                    return row(
-                      { type: "instance", id: instance.id },
-                      `${isPresent ? "●" : "○"} ${instance.name || instance.id}`,
-                      category.color,
-                      text(
-                        sessionOpen || Object.keys(previewFrames).length > 0
-                          ? `${camerasPresent} visible cameras · ${polygonCount} polygons`
-                          : `${framesPresent}/${videoFrames.length} frames · ${annotation?.polygons.length ?? 0} polygons`,
-                        sessionOpen || Object.keys(previewFrames).length > 0
-                          ? `当前 ${camerasPresent} 路相机 · ${polygonCount} 块`
-                          : `${framesPresent}/${videoFrames.length} 帧 · ${annotation?.polygons.length ?? 0} 块`,
-                      ),
-                      2,
-                      () => {
-                        addPolygon(instance.id);
-                      },
-                      sessionOpen || Object.keys(previewFrames).length > 0 ? undefined : presence,
-                      isPresent ? "present" : "absent",
-                      !collapsed.includes(`instance:${instance.id}`) && (
-                        <Box role="group" className={classes.children}>
-                          {treeFrameIds.flatMap((id) => {
-                            const frame = document.frames.find((item) => item.id === id);
-                            const video = document.videos.find(
-                              (item) => item.id === frame?.videoId,
-                            );
-                            const camera = segmentationCanvasLabel(video?.topic ?? video?.name);
-                            const polygons =
-                              document.annotations[frameInstanceKey(id, instance.id)]?.polygons ??
-                              [];
-                            const rows = polygons.map((polygon, index) =>
-                              row(
-                                { type: "polygon", id: polygon.id },
-                                treeFrameIds.length > 1 &&
-                                  (polygon.points.length > 0 || strokeFrameId === id)
-                                  ? text(
-                                      `${camera} · Polygon ${index + 1}`,
-                                      `${camera} · 多边形 ${index + 1}`,
-                                    )
-                                  : text(`Polygon ${index + 1}`, `多边形 ${index + 1}`),
-                                category.color,
-                                polygon.points.length === 0
-                                  ? text("Empty polygon · add vertices", "空多边形 · 待绘制")
-                                  : text(
-                                      `${polygon.points.length} vertices`,
-                                      `${polygon.points.length} 个顶点`,
-                                    ),
-                                3,
-                              ),
-                            );
-                            return embeddedOverview
-                              ? [
-                                  ...rows,
-                                  <CameraFrameStrip
-                                    key={`strip:${id}`}
-                                    document={document}
-                                    instanceId={instance.id}
-                                    frameId={id}
-                                    camera={camera}
-                                    color={category.color}
-                                    disabled={disabled || state.drawingPolygonId != undefined}
-                                  />,
-                                ]
-                              : rows;
-                          })}
-                          {treeFrameIds.every(
-                            (id) =>
-                              (document.annotations[frameInstanceKey(id, instance.id)]?.polygons
-                                .length ?? 0) === 0,
-                          ) && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              className={classes.emptyInstance}
-                            >
-                              {text("Absent in current frame", "当前帧缺席")}
-                            </Typography>
-                          )}
-                        </Box>
-                      ),
-                    );
-                  })}
-                </Box>
-              ),
-            );
-          })
+          <>
+            {pinnedRows.length > 0 && (
+              <div className={classes.pinned}>
+                {pinnedRows.map((position, layer) => (
+                  <div
+                    key={flatRows[position]!.key}
+                    className={classes.pinnedRow}
+                    style={{
+                      top:
+                        layer === 0
+                          ? 0
+                          : virtual.offsets[pinnedRows[0]! + 1]! - virtual.offsets[pinnedRows[0]!]!,
+                      ...indentStyle(flatRows[position]!.level),
+                    }}
+                  >
+                    {flatRows[position]!.render()}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ height: virtual.offsets[virtual.start] }} />
+            {flatRows.slice(virtual.start, virtual.end).map((item, offset) => {
+              const position = virtual.start + offset;
+              return pinnedRows.includes(position) ? (
+                // Shown in the pinned layer; the slot keeps the list's geometry.
+                <div
+                  key={item.key}
+                  style={{
+                    height: virtual.offsets[position + 1]! - virtual.offsets[position]!,
+                  }}
+                />
+              ) : (
+                <div key={item.key} ref={virtual.measure(item.key)} style={indentStyle(item.level)}>
+                  {item.render()}
+                </div>
+              );
+            })}
+            <div
+              style={{
+                height: virtual.offsets[flatRows.length]! - virtual.offsets[virtual.end]!,
+              }}
+            />
+          </>
         )}
         {creating && (
           <Stack

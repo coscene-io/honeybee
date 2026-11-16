@@ -37,6 +37,7 @@ function headFrames(count: number): SegmentationFrame[] {
 function documentWith(frames: SegmentationFrame[], annotated: string[]): SegmentationDocument {
   return {
     frames,
+    videos: [],
     annotationSummaries: Object.fromEntries(
       annotated.map((id) => [
         frameInstanceKey(id, "instance-1"),

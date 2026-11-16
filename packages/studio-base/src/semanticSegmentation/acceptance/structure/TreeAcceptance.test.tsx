@@ -39,6 +39,21 @@ function invariant(store: Awaited<ReturnType<typeof setup>>["store"]) {
   };
 }
 
+/** Node ids of the tree rows owned by `id`: the following rows until one at its level or above. */
+function ownedRows(id: string): string[] {
+  const items = screen.getAllByRole("treeitem");
+  const start = items.findIndex((item) => item.dataset.nodeId === id);
+  const level = Number(items[start]!.getAttribute("aria-level"));
+  const owned: string[] = [];
+  for (const item of items.slice(start + 1)) {
+    if (Number(item.getAttribute("aria-level")) <= level) {
+      break;
+    }
+    owned.push(item.dataset.nodeId!);
+  }
+  return owned;
+}
+
 describe("structure tree original GWT acceptance", () => {
   it("SEG-ID-003 retains polygon IDs through backend row reordering and deletes only the selected ID", async () => {
     const document = structureDocument();
@@ -224,17 +239,11 @@ describe("structure tree original GWT acceptance", () => {
       fireEvent.click(within(row("C")).getByRole("button", { name: "Collapse C" }));
       expect(container.querySelector('[data-node-id="I"]')).toBeNull();
       fireEvent.click(within(row("C")).getByRole("button", { name: "Expand C" }));
-      const classGroup = row("C");
-      expect(classGroup.querySelector('[data-node-id="I"]')).toBe(row("I"));
-      expect(classGroup.querySelector('[data-node-id="K"]')).toBeNull();
-      const instanceGroup = row("I");
-      expect(instanceGroup.querySelector(`[data-node-id="I-P-${frame}"]`)).toBe(
-        row(`I-P-${frame}`),
-      );
-      expect(instanceGroup.querySelector(`[data-node-id="I-Q-${frame}"]`)).toBe(
-        row(`I-Q-${frame}`),
-      );
-      expect(instanceGroup.querySelector(`[data-node-id="J-P-${frame}"]`)).toBeNull();
+      // The tree is flat (windowed); ownership is the run of deeper rows after a row.
+      expect(ownedRows("C")).toContain("I");
+      expect(ownedRows("C")).not.toContain("K");
+      expect(ownedRows("I")).toEqual(expect.arrayContaining([`I-P-${frame}`, `I-Q-${frame}`]));
+      expect(ownedRows("I")).not.toContain(`J-P-${frame}`);
       for (const id of ["C", "I", "J", `I-P-${frame}`, `I-Q-${frame}`, `J-P-${frame}`]) {
         expect(
           row(id).querySelector<HTMLElement>('[style*="background-color"]')!.style.backgroundColor,

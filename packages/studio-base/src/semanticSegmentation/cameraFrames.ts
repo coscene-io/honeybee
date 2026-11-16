@@ -28,10 +28,18 @@ export function sortCameraFrames<T extends TimedFrame>(frames: readonly T[]): T[
       byTime.set(frame.logTimeNs, frame);
     }
   }
-  return [...byTime.values()].sort((a, b) => {
-    const delta = BigInt(a.logTimeNs) - BigInt(b.logTimeNs);
-    return delta < 0n ? -1 : delta > 0n ? 1 : 0;
-  });
+  return [...byTime.values()].sort((a, b) => compareLogTimeNs(a.logTimeNs, b.logTimeNs));
+}
+
+/**
+ * Orders two log times written as canonical non-negative decimal nanoseconds without allocating
+ * BigInts: a shorter string is a smaller number, and equal lengths compare as text.
+ */
+export function compareLogTimeNs(a: string, b: string): number {
+  if (a.length !== b.length) {
+    return a.length - b.length;
+  }
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 export type CameraStripCell = {
@@ -56,17 +64,24 @@ export function cameraFrameStrip({
   isAnnotated,
   isLoaded,
   radius = CAMERA_STRIP_RADIUS,
+  presorted,
 }: {
-  /** Every known frame of this camera, in any order. */
+  /** Every known frame of this camera, in any order unless `presorted` is set. */
   frames: readonly TimedFrame[];
   currentFrameId: string;
   isAnnotated: (frameId: string) => boolean;
   /** Whether all frames with log times in `[fromNs, toNs]` are known. Undefined: unknown everywhere. */
   isLoaded?: (fromNs: bigint, toNs: bigint) => boolean;
   radius?: number;
+  /** `frames` is already the output of `sortCameraFrames`, and `center` is the current frame's position in it. */
+  presorted?: { center: number };
 }): CameraStripCell[] {
-  const sorted = sortCameraFrames(frames);
-  const center = sorted.findIndex((frame) => frame.id === currentFrameId);
+  const sorted = presorted ? frames : sortCameraFrames(frames);
+  const center = presorted
+    ? sorted[presorted.center]?.id === currentFrameId
+      ? presorted.center
+      : -1
+    : sorted.findIndex((frame) => frame.id === currentFrameId);
   const cells: CameraStripCell[] = [];
   if (center < 0) {
     return cells;
