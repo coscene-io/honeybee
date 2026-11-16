@@ -316,3 +316,34 @@ it("fences native identity after the user changes", async () => {
   expect(f.container.querySelector('[data-testid="segmentation-native-overlay"]')).toBeNull();
   expect(pipeline.seekPlayback).not.toHaveBeenCalled();
 });
+
+it("keeps handles a fixed screen size when the Image panel zooms the native view", async () => {
+  Object.defineProperty(SVGElement.prototype, "getScreenCTM", {
+    configurable: true,
+    value(this: SVGElement) {
+      const scale = Number(this.getAttribute("transform")?.match(/matrix\(([-\d.e]+)/)?.[1] ?? 1);
+      return { a: scale, b: 0, c: 0, d: scale, e: 0, f: 0 };
+    },
+  });
+  const f = await fixture();
+  act(() => {
+    const store = f.runtime.store.getState();
+    store.setFocus({ type: "instance", id: Object.values(store.document!.instances)[0]!.id });
+    store.setEditing(true);
+  });
+  await flush();
+  const radius = () =>
+    Number(document.querySelector('[data-testid="vertex-handle-visible"]')?.getAttribute("r"));
+  expect(radius()).toBe(4.5);
+  f.decode(4, {
+    nativeView: {
+      width: 960,
+      height: 540,
+      imageWidth: 960,
+      imageHeight: 540,
+      matrix: [4, 0, 0, 4, 0, 0],
+    },
+  });
+  await flush();
+  expect(radius()).toBe(4.5 / 4);
+});

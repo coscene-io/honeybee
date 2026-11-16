@@ -499,7 +499,8 @@ export function SegmentationCanvas({
     return () => {
       observer.disconnect();
     };
-  }, [zoom, size.width, size.height, viewport]);
+    // Over the Image panel its own zoom/pan arrives as a new nativeView matrix, not `zoom`.
+  }, [zoom, nativeView, size.width, size.height, viewport]);
 
   const cancelGesture = useCallback((): void => {
     drag.current = undefined;
