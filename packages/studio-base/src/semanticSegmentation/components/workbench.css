@@ -512,3 +512,10 @@
   font-size: 12px;
   pointer-events: none;
 }
+
+/* Propagation range: the chosen one must read as selected. */
+[role="radiogroup"][aria-label="传播范围"] > [role="radio"][aria-checked="true"] {
+  background: #2f6fed;
+  border-color: #2f6fed;
+  color: #fff;
+}

@@ -203,7 +203,7 @@ describe("workbench workflow integration", () => {
     act(() => {
       openWorkflowPanel();
     });
-    expect(screen.queryByRole("button", { name: "在线传播" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "开始传播" })).toBeNull();
     runtime.store.getState().dispose();
   });
 

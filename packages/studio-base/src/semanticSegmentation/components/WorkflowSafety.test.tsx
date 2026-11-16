@@ -25,19 +25,14 @@ async function setup() {
   return runtime;
 }
 
-it("identifies negative, fractional, empty and both-zero forward ranges without clamping them", async () => {
+it("offers bounded one-click ranges and starts without a frame count", async () => {
   const runtime = await setup();
   render(<CurrentFramePropagationForm store={runtime.store} />);
-  const after = screen.getByRole("spinbutton", { name: "后帧数" });
-  for (const value of ["-1", "1.5", "Infinity", ""]) {
-    fireEvent.change(after, { target: { value } });
-    expect(screen.getByText("后帧数必须是 0–10000 的有限整数。")).toBeTruthy();
-    expect(after).toHaveProperty("value", value === "Infinity" ? "" : value);
-    expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
-  }
-  fireEvent.change(after, { target: { value: "0" } });
-  expect(screen.getByText("后帧数必须大于 0。")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
+  expect(screen.getByRole("radio", { name: "10 秒" })).toHaveProperty("ariaChecked", "true");
+  fireEvent.click(screen.getByRole("radio", { name: "3 秒" }));
+  expect(screen.getByRole("radio", { name: "3 秒" })).toHaveProperty("ariaChecked", "true");
+  expect(screen.queryByRole("spinbutton")).toBeNull();
+  expect(screen.getByText(/最多向后传播 3 秒/)).toBeTruthy();
   runtime.dispose();
 });
 

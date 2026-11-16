@@ -82,7 +82,11 @@ function ActiveLock({
               {stopping ? "正在停止传播，等待服务确认" : "在线传播中"} · 已接收{" "}
               {propagation.processedFrames} 帧
             </strong>
-            <span>其他操作已锁定，确认停止后可继续编辑。</span>
+            <span>
+              {!stopping && propagation.processedFrames === 0
+                ? "正在准备视频和模型，第一帧通常要等 10–20 秒…"
+                : "画面跟随最新结果；其他操作已锁定，停止后可继续编辑。"}
+            </span>
             {stopping && propagation.error && <span role="alert">{propagation.error}</span>}
             <button
               type="button"

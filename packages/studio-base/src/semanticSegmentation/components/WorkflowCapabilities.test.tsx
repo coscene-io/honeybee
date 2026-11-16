@@ -27,12 +27,12 @@ it("uses the injected model choices and sends the supported model", async () => 
   const online = jest.spyOn(service, "propagate");
   render(<CurrentFramePropagationForm store={store} />);
   expect(screen.getByRole("combobox", { name: "传播模型" })).toHaveProperty("value", "small");
-  fireEvent.change(screen.getByRole("spinbutton", { name: "后帧数" }), { target: { value: "1" } });
+  fireEvent.click(screen.getByRole("radio", { name: "1 秒" }));
   const expected = { model: "small" };
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", false);
+    expect(screen.getByRole("button", { name: "开始传播" })).toHaveProperty("disabled", false);
   });
-  fireEvent.click(screen.getByRole("button", { name: "在线传播" }));
+  fireEvent.click(screen.getByRole("button", { name: "开始传播" }));
   await waitFor(() => {
     expect(online).toHaveBeenCalledTimes(1);
   });
@@ -63,7 +63,7 @@ it("keeps manual annotation available during capability loading/failure and retr
   );
   expect(screen.getByRole("button", { name: "New" })).toHaveProperty("disabled", false);
   expect(screen.getByText("正在读取模型传播能力…")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "在线传播" })).toHaveProperty("disabled", true);
+  expect(screen.getByRole("button", { name: "开始传播" })).toHaveProperty("disabled", true);
   act(() => {
     reject?.(new Error("Declaration unavailable"));
   });

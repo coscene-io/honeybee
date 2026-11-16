@@ -191,7 +191,7 @@ describe("segmentation editor", () => {
     expect(canvas.querySelectorAll('[data-testid="instance-union-fill"]')).toHaveLength(4);
     expect(
       canvas.querySelector('[data-testid="instance-union-fill"]')?.getAttribute("opacity"),
-    ).toBe("0.35");
+    ).toBe("0.5");
   });
 
   it("SEG-RFX-024 inserts on an edge, Alt-deletes a vertex, undoes each gesture and persists submission", async () => {

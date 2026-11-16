@@ -9,7 +9,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
-import { fromNanoSec, toNanoSec } from "@foxglove/rostime";
+import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
 
 import { segmentationImageSources, type SegmentationImage } from "../imageSource";
 import { segmentationSession } from "../runtime";
@@ -290,7 +290,14 @@ it("STOP rejects late results and waits for iterator termination without a nativ
   });
   expect(f.runtime.store.getState().propagation.status).toBe("cancelled");
   expect(f.runtime.store.getState().stagedOperations).toBe(accepted);
-  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
+  // The player follows propagation, but only to the frame accepted before STOP, never a late one.
+  const acceptedFrameId = Object.values(accepted.at(-1)!.patch.annotations ?? {})[0]!.frameId;
+  const acceptedFrame = f.runtime.store
+    .getState()
+    .document!.frames.find((frame) => frame.id === acceptedFrameId)!;
+  for (const [time] of jest.mocked(pipeline.seekPlayback).mock.calls as [Time][]) {
+    expect(toNanoSec(time).toString()).toBe(acceptedFrame.logTimeNs);
+  }
 });
 
 it("accepts a fresh decode before React observes the native seek and hides stale geometry", async () => {

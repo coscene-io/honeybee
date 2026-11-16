@@ -51,7 +51,7 @@ it("keeps actual editor/picker/native surfaces locked until delayed cancel ack a
       <GlobalPropagationLock />
     </>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "在线传播" }));
+  fireEvent.click(screen.getByRole("button", { name: "开始传播" }));
   const lock = await screen.findByRole("dialog", { name: "在线传播锁定" });
   fireEvent.click(within(lock).getByRole("button", { name: "STOP · 停止传播" }));
   expect(runtime.store.getState().propagation.status).toBe("stopping");

@@ -118,6 +118,35 @@ export function createSegmentationRuntime(
       }
     },
   );
+  // While propagating, the store moves its current frame to each result; move the player too,
+  // so every camera shows the frame being filled in. At most one seek per second: results arrive
+  // in bursts, and an H.264 seek needs time to find a keyframe and decode before it shows a mask.
+  let followTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastFollowAt = 0;
+  const followPropagation = () => {
+    followTimer = undefined;
+    lastFollowAt = performance.now();
+    const state = store.getState();
+    const frame = state.document?.frames.find((item) => item.id === state.currentFrameId);
+    if (frame) {
+      segmentationSession.getState().seek?.(BigInt(frame.logTimeNs));
+    }
+  };
+  const detachFollow = store.subscribe((state, previous) => {
+    const running = state.propagation.status === "running";
+    const justEnded = previous.propagation.status === "running" && !running;
+    if ((!running && !justEnded) || state.currentFrameId === previous.currentFrameId) {
+      if (justEnded && followTimer == undefined) {
+        followPropagation();
+      }
+      return;
+    }
+    if (followTimer != undefined) {
+      return;
+    }
+    const wait = Math.max(0, 1000 - (performance.now() - lastFollowAt));
+    followTimer = setTimeout(followPropagation, wait);
+  });
   let initialized: Promise<void> | undefined;
   return {
     store,
@@ -155,6 +184,10 @@ export function createSegmentationRuntime(
     },
     dispose: () => {
       detach();
+      detachFollow();
+      if (followTimer != undefined) {
+        clearTimeout(followTimer);
+      }
       detachTimeline?.();
       store.getState().dispose();
     },

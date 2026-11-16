@@ -20,7 +20,7 @@ import { MAX_MASK_SLOTS } from "./maskPlanes";
 
 /** Canvas-local display controls mirrored for the GPU layer (the SVG owns the same values). */
 export const maskOverlayControls = createStore<{ opacity: number; peekOriginal: boolean }>(() => ({
-  opacity: 0.35,
+  opacity: 0.5,
   peekOriginal: false,
 }));
 

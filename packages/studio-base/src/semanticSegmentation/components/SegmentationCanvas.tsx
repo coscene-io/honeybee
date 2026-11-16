@@ -374,7 +374,7 @@ export function SegmentationCanvas({
       return "mouse";
     }
   });
-  const [opacity, setOpacity] = useState(0.35);
+  const [opacity, setOpacity] = useState(0.5);
   const view = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
   view.current = { zoom, pan };
   const previewRef = useRef<Preview>();
@@ -2087,7 +2087,8 @@ export function SegmentationCanvas({
               {text("Drawing help", "绘制帮助")}
             </Button>
           )}
-          {!source || imageError ? (
+          {/* Embedded over the Image panel the native view supplies pixels and size; no probe image. */}
+          {compact ? undefined : imageError || !source ? (
             <Alert severity={imageError ? "error" : "info"}>
               {imageError
                 ? text(

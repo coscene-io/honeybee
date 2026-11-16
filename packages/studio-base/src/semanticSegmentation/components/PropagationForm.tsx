@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import type { StoreApi } from "zustand";
 
@@ -14,8 +14,16 @@ import type { PropagationRequest, SemanticSegmentationStore } from "../types";
 import type { CanvasPropagationScope } from "./propagationSeeds";
 
 /**
- * Propagation parameters for one canvas. The scope names the video, frame and every seeded
- * instance, so the request always covers that canvas as a whole and never mixes canvases.
+ * How far one click propagates. The API needs an end time (there is no open-ended stream), and
+ * both inference backends load the whole range into memory, so the range is bounded; STOP ends it
+ * early and keeps every frame received so far.
+ */
+export const PROPAGATION_RANGES_SEC = [1, 3, 10] as const;
+const DEFAULT_RANGE_SEC = 10;
+
+/**
+ * One-click propagation for one canvas: every seeded instance on the canvas's current frame
+ * goes forward from that frame for the chosen range, starting at once.
  */
 export function PropagationForm({
   store,
@@ -27,12 +35,10 @@ export function PropagationForm({
   sourceReady?: boolean;
 }): React.JSX.Element {
   const state = useStore(store);
-  const [afterInput, setAfterInput] = useState("30");
-  const afterFrames = Number(afterInput);
-  const rangeId = useId();
+  const [rangeSec, setRangeSec] = useState<number>(DEFAULT_RANGE_SEC);
   const [model, setModel] = useState("sam2.1-motion");
   const [localError, setLocalError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"idle" | "preparing" | "starting">("idle");
   useEffect(() => {
     setLocalError(undefined);
   }, [store, state.document?.record.id, state.interactionResetVersion]);
@@ -54,76 +60,64 @@ export function PropagationForm({
   }, [capabilities, model]);
   const seeds = scope?.seeds ?? [];
   const firstSeed = seeds[0];
-  const instanceId = firstSeed?.instanceId;
   const hasSeed = seeds.length > 0;
-  const validAfter =
-    afterInput.trim() !== "" &&
-    Number.isInteger(afterFrames) &&
-    afterFrames >= 0 &&
-    afterFrames <= 10000;
-  const validRange = validAfter && afterFrames > 0;
-  const videoFrames =
-    document?.frames
-      .filter((item) => item.videoId === frame?.videoId)
-      .sort((a, b) => a.index - b.index) ?? [];
-  const seedIndex = videoFrames.findIndex((item) => item.id === frame?.id);
-  const effectiveAfter = validRange
-    ? Math.min(afterFrames, Math.max(0, videoFrames.length - seedIndex - 1))
-    : 0;
-  const clippedRange = validRange && effectiveAfter !== afterFrames;
-  // The document lists only the frames read so far. Read later windows before clipping the range.
-  const loader = frame ? sourceFrameLoaders.get(frame.videoId) : undefined;
-  const seedLogTime = frame?.logTimeNs;
-  const [framesLoading, setFramesLoading] = useState(false);
-  const [framesError, setFramesError] = useState<string>();
-  useEffect(() => {
-    if (!loader || seedLogTime == undefined || !clippedRange) {
+  const running = ["running", "stopping"].includes(state.propagation.status);
+
+  /** Frames of the seed's video after the seed and within the range, in time order. */
+  const framesAfter = () => {
+    if (!frame) {
+      return [];
+    }
+    const seedNs = BigInt(frame.logTimeNs);
+    const endNs = seedNs + BigInt(rangeSec) * 1_000_000_000n;
+    return (store.getState().document?.frames ?? [])
+      .filter(
+        (item) =>
+          item.videoId === frame.videoId &&
+          BigInt(item.logTimeNs) > seedNs &&
+          BigInt(item.logTimeNs) <= endNs,
+      )
+      .sort((a, b) => (BigInt(a.logTimeNs) < BigInt(b.logTimeNs) ? -1 : 1));
+  };
+
+  const start = () => {
+    if (!frame || !firstSeed) {
       return;
     }
-    let current = true;
-    setFramesLoading(true);
-    setFramesError(undefined);
-    loader
-      .ensureFollowing(BigInt(seedLogTime), afterFrames)
-      .catch((error: unknown) => {
-        if (current) {
-          setFramesError(error instanceof Error ? error.message : String(error));
-        }
-      })
-      .finally(() => {
-        if (current) {
-          setFramesLoading(false);
-        }
-      });
-    return () => {
-      current = false;
-    };
-  }, [loader, seedLogTime, clippedRange, afterFrames]);
-  const request: PropagationRequest | undefined =
-    frame && instanceId
-      ? {
-          instanceId,
-          fromFrameId: frame.id,
-          endTimeNs: videoFrames[seedIndex + effectiveAfter]?.logTimeNs ?? "0",
-          model,
-          ...(firstSeed.mask
-            ? { seedMask: firstSeed.mask }
-            : {
-                polygonIds: firstSeed.polygons.map((polygon) => polygon.id),
-                seedPolygons: firstSeed.polygons,
-              }),
-          seeds,
-        }
-      : undefined;
-  const invoke = (action: () => Promise<void>) => {
     setLocalError(undefined);
-    setBusy(true);
-    void action()
+    setBusy("preparing");
+    void (async () => {
+      // The document lists only the frames read so far: read the whole range first, so every
+      // propagated frame has a local frame to land on.
+      const loader = sourceFrameLoaders.get(frame.videoId);
+      const seedNs = BigInt(frame.logTimeNs);
+      await loader?.ensureRange(seedNs, seedNs + BigInt(rangeSec) * 1_000_000_000n);
+      const targets = framesAfter();
+      const last = targets.at(-1);
+      if (!last) {
+        throw new Error("种子帧之后没有可传播的帧（已到录像结尾）。");
+      }
+      const request: PropagationRequest = {
+        instanceId: firstSeed.instanceId,
+        fromFrameId: frame.id,
+        endTimeNs: last.logTimeNs,
+        model,
+        ...(firstSeed.mask
+          ? { seedMask: firstSeed.mask }
+          : {
+              polygonIds: firstSeed.polygons.map((polygon) => polygon.id),
+              seedPolygons: firstSeed.polygons,
+            }),
+        seeds,
+      };
+      setBusy("starting");
+      await store.getState().startPropagation(request);
+    })()
       .catch((error: unknown) => {
         setLocalError(error instanceof Error ? error.message : String(error));
       })
       .finally(() => {
-        setBusy(false);
+        setBusy("idle");
       });
   };
 
@@ -140,11 +134,6 @@ export function PropagationForm({
           ? `${seeds.length} 个实例 · ${seeds.reduce((count, seed) => count + seed.polygons.length, 0)} 个多边形${seeds.some((seed) => seed.mask) ? ` · ${seeds.filter((seed) => seed.mask).length} 个 mask` : ""}`
           : "当前帧没有可传播的实例"}
       </p>
-      {!capabilities &&
-        !state.propagationCapabilitiesError &&
-        state.propagationCapabilitiesLoading !== true && (
-          <p className="seg-muted">服务未声明传播能力；使用兼容选项，具体可用性由服务验证。</p>
-        )}
       {state.propagationCapabilitiesLoading === true && <p role="status">正在读取模型传播能力…</p>}
       {state.propagationCapabilitiesError && (
         <>
@@ -153,44 +142,34 @@ export function PropagationForm({
             type="button"
             disabled={state.propagationCapabilitiesLoading}
             onClick={() => {
-              invoke(state.refreshPropagationCapabilities);
+              void state.refreshPropagationCapabilities();
             }}
           >
             重试模型能力
           </button>
         </>
       )}
-      <label>
-        后帧数
-        <input
-          aria-label="后帧数"
-          type="number"
-          min={0}
-          max={10000}
-          value={afterInput}
-          aria-invalid={!validAfter}
-          aria-describedby={!validAfter ? `${rangeId}-after-error` : undefined}
-          onChange={(event) => {
-            setAfterInput(event.target.value);
-          }}
-        />
-        {!validAfter && (
-          <small id={`${rangeId}-after-error`} role="alert">
-            后帧数必须是 0–10000 的有限整数。
-          </small>
-        )}
-      </label>
-      {validAfter && afterFrames === 0 && <p role="alert">后帧数必须大于 0。</p>}
-      {validRange && frame && (
+      {frame && (
         <p aria-label="有效传播范围" className="seg-muted">
-          源帧 {frame.index + 1} · 有效范围：后 {effectiveAfter} 帧
-          {framesLoading ? " · 正在读取后续帧…" : clippedRange ? " · 已按录制结尾裁剪。" : ""}
+          从源帧 {frame.index + 1} 向后
         </p>
       )}
-      {framesError && <p role="alert">后续帧读取失败：{framesError}</p>}
-      {validRange && effectiveAfter === 0 && !framesLoading && (
-        <p role="alert">当前范围内没有可传播的其他帧。</p>
-      )}
+      <div className="seg-row" role="radiogroup" aria-label="传播范围">
+        {PROPAGATION_RANGES_SEC.map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={rangeSec === value}
+            className={rangeSec === value ? "seg-primary" : undefined}
+            onClick={() => {
+              setRangeSec(value);
+            }}
+          >
+            {value} 秒
+          </button>
+        ))}
+      </div>
       <label>
         模型
         <select
@@ -212,32 +191,32 @@ export function PropagationForm({
           type="button"
           className="seg-primary"
           disabled={
-            !sourceReady ||
-            !hasSeed ||
-            !request ||
-            !validRange ||
-            !supportedParameters ||
-            effectiveAfter < 1 ||
-            framesLoading ||
-            busy
+            !sourceReady || !hasSeed || !supportedParameters || busy !== "idle" || running
           }
-          onClick={() => {
-            if (request) {
-              invoke(async () => {
-                await state.startPropagation(request);
-              });
-            }
-          }}
+          onClick={start}
         >
-          在线传播
+          {busy === "preparing" ? "正在读取后续帧…" : "开始传播"}
         </button>
       </div>
       <p className="seg-muted">
-        在线传播只走向后续帧。传播期间界面锁定，只能用顶部 STOP 停止；停止后可修改种子并重新传播。
+        点击后立即开始，最多向后传播 {rangeSec} 秒。结果逐帧出现，画面跟着走；想提前结束就点顶部
+        STOP，已收到的帧保留为草稿，提交后才保存。
       </p>
-      <p aria-live="polite">
-        传播状态：{state.propagation.status} · 已接收 {state.propagation.processedFrames} 帧
-      </p>
+      {state.propagation.status !== "idle" && (
+        <p aria-live="polite">
+          {
+            {
+              running: "传播中",
+              stopping: "正在停止",
+              completed: "已完成",
+              cancelled: "已停止",
+              failed: "失败",
+              idle: "",
+            }[state.propagation.status]
+          }{" "}
+          · 已接收 {state.propagation.processedFrames} 帧
+        </p>
+      )}
     </section>
   );
 }
