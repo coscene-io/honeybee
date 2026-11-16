@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import { createStore, StoreApi } from "zustand";
 
 import { ANNOTATION_WINDOW_SEC, annotationWindow } from "./annotationFrames";
-import { maskToEditorPolygons, summarizeObservation } from "./maskGeometry";
+import { maskToEditorPolygons, mergeObservations, summarizeObservation } from "./maskGeometry";
 import { createMockSemanticSegmentationService } from "./mockService";
 import {
   applySegmentationPatch,
@@ -1016,6 +1016,29 @@ export function createSemanticSegmentationStore(
         stage("Edit polygon", {
           annotations: { [frameInstanceKey(current.frameId, current.instanceId)]: current },
         });
+      },
+      commitDrawingMask(mask) {
+        const drawingId = get().drawingPolygonId;
+        if (drawingId == undefined) {
+          throw new Error("No polygon is being drawn");
+        }
+        const current = findPolygon(drawingId);
+        const rest = {
+          ...current,
+          polygons: current.polygons.filter((polygon) => polygon.id !== drawingId),
+        };
+        // The clicked mask joins whatever this instance already has on the frame (one geometry).
+        const merged = mergeObservations(
+          rest.mask || rest.polygons.length > 0 ? rest : undefined,
+          { frameId: current.frameId, instanceId: current.instanceId, polygons: [], mask },
+          current.instanceId,
+        );
+        stage("Quick annotate", {
+          annotations: {
+            [frameInstanceKey(current.frameId, current.instanceId)]: merged,
+          },
+        });
+        set({ drawingPolygonId: undefined });
       },
       deletePolygon(id) {
         const current = findPolygon(id);

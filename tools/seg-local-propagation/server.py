@@ -88,6 +88,17 @@ class Media:
                 log.warning("%s has log times that collide after truncation; it will be refused", topic)
         log.info("indexed %d image topics in %.1fs", len(self.topics), time.time() - t)
 
+    def frame(self, topic, micros):
+        """JPEG bytes of the one source frame whose log time truncates to `micros`."""
+        times = self.topics[topic]
+        hits = [t for t in times if t // 1000 == micros]
+        if len(hits) != 1:
+            raise RpcError(INVALID_ARGUMENT, "frame_time does not match exactly one source frame")
+        with open(self.path, "rb") as f:
+            for _, _, message in make_reader(f).iter_messages(topics=[topic], start_time=hits[0], end_time=hits[0] + 1):
+                return ros1_compressed_image_data(message.data)
+        raise RpcError(INVALID_ARGUMENT, "Source frame not found")
+
     def source_topic(self, topic):
         if topic in self.topics:
             return topic
@@ -136,13 +147,35 @@ def ros1_compressed_image_data(buf):
 class Tracker:
     def __init__(self, checkpoint, config):
         import torch
-        from sam2.build_sam import build_sam2_video_predictor
+        from sam2.build_sam import build_sam2, build_sam2_video_predictor
+        from sam2.sam2_image_predictor import SAM2ImagePredictor
 
         self.torch = torch
         device = "mps" if torch.backends.mps.is_available() else "cpu"
         t = time.time()
         self.predictor = build_sam2_video_predictor(config, str(checkpoint), device=device)
+        self.image = SAM2ImagePredictor(build_sam2(config, str(checkpoint), device=device))
+        self.image_key = None
+        # One model call at a time on the shared device.
+        self.lock = threading.Lock()
         log.info("SAM2 %s on %s loaded in %.1fs", Path(checkpoint).name, device, time.time() - t)
+
+    def segment(self, key, jpeg, points, labels, box):
+        """Best mask for clicks (pixel coords, 1 positive / 0 negative) and an optional box."""
+        with self.lock, self.torch.inference_mode():
+            if self.image_key != key:
+                rgb = cv2.cvtColor(cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+                self.image.set_image(rgb)
+                self.image_key = key
+            masks, scores, low_res = self.image.predict(
+                point_coords=np.array(points, np.float32) if points else None,
+                point_labels=np.array(labels, np.int32) if points else None,
+                box=np.array(box, np.float32) if box else None,
+                # One click is ambiguous: take the best of three. More clicks pin it down.
+                multimask_output=len(points) <= 1 and not box,
+            )
+            best = int(np.argmax(scores))
+            return masks[best] > 0, float(scores[best])
 
     def run(self, directory, seeds, emit, cancelled):
         """seeds: [(obj_id, bool mask)] on frame 0. emit(frame_idx, {obj_id: bool mask})."""
@@ -279,7 +312,8 @@ async def propagate(request):
                             observation.mask.counts = rle_counts(mask)
                     loop.call_soon_threadsafe(queue.put_nowait, ("frame", event))
 
-                app["tracker"].run(directory, seeds, emit, cancelled)
+                with app["tracker"].lock:
+                    app["tracker"].run(directory, seeds, emit, cancelled)
             except RpcError as error:
                 loop.call_soon_threadsafe(queue.put_nowait, ("error", error))
             except Exception as error:  # noqa: BLE001
@@ -325,6 +359,45 @@ async def propagate(request):
     return response
 
 
+async def segment(request):
+    """Quick annotation (not in the contract): {topic, frameTimeMicros, points:[{x,y,positive}], box?}
+    in source pixels → {counts, width, height, score}. COCO RLE at the source frame size."""
+    headers = cors(request)
+    try:
+        body = await request.json()
+        media = request.app["media"]
+        topic = media.source_topic(body["topic"])
+        micros = int(body["frameTimeMicros"])
+        points = [[float(p["x"]), float(p["y"])] for p in body.get("points", [])]
+        labels = [1 if p.get("positive", True) else 0 for p in body.get("points", [])]
+        box = body.get("box")
+        if not points and not box:
+            raise RpcError(INVALID_ARGUMENT, "Add at least one point or a box")
+        if labels and not any(labels) and not box:
+            raise RpcError(INVALID_ARGUMENT, "Add at least one positive point")
+        started = time.time()
+        loop = asyncio.get_running_loop()
+
+        def work():
+            tracker = request.app["tracker"]
+            # The embedding of the last clicked frame is cached; skip the MCAP read too.
+            jpeg = None if tracker.image_key == (topic, micros) else media.frame(topic, micros)
+            mask, score = request.app["tracker"].segment((topic, micros), jpeg, points, labels, box)
+            return mask, score
+
+        mask, score = await loop.run_in_executor(None, work)
+        height, width = mask.shape
+        log.info("segment %s @%d: %d points, %.0f ms, area %d", topic, micros, len(points), (time.time() - started) * 1000, int(mask.sum()))
+        return web.json_response(
+            {"counts": rle_counts(mask), "width": width, "height": height, "score": score, "area": int(mask.sum())},
+            headers=headers,
+        )
+    except RpcError as error:
+        return web.json_response({"error": str(error)}, status=400, headers=headers)
+    except (KeyError, ValueError, TypeError) as error:
+        return web.json_response({"error": f"bad request: {error}"}, status=400, headers=headers)
+
+
 async def unimplemented(request):
     return web.Response(
         headers={**cors(request), "Content-Type": "application/grpc-web+proto",
@@ -347,6 +420,7 @@ def main():
     app["lock"] = asyncio.Lock()
     app.router.add_route("OPTIONS", "/{tail:.*}", options)
     app.router.add_post(PATH, propagate)
+    app.router.add_post("/segment", segment)
     app.router.add_post("/{tail:.*}", unimplemented)
     web.run_app(app, host=args.host, port=args.port, access_log=None)
 

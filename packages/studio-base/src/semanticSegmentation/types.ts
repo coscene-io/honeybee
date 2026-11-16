@@ -262,6 +262,8 @@ export type SemanticSegmentationStore = {
   /** Moves an empty in-progress polygon onto the frame that receives its first vertex. */
   retargetEmptyDrawing: (frameId: string) => void;
   setPolygonPoints: (polygonId: string, points: NormalizedPoint[]) => void;
+  /** Replace the polygon being drawn with a mask (quick annotation), merged into the frame. */
+  commitDrawingMask: (mask: SegmentationMask) => void;
   deletePolygon: (polygonId: string) => void;
   mergeInstances: (sourceIds: string[], targetInstanceId: string) => void;
   mergePolygons: (polygonIds: string[], targetInstanceId: string) => void;

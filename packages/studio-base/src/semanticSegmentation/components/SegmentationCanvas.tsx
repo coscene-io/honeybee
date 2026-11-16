@@ -42,9 +42,15 @@ import {
 import { openKeyboardShortcuts } from "@foxglove/studio-base/components/PlaybackControls/keyboardShortcutsDialogStore";
 
 import { isAnnotationCanvasTarget } from "../annotationInput";
-import { maskContains } from "../maskCodec";
+import { bitmapOfRuns, maskContains } from "../maskCodec";
 import { runsOfMask } from "../maskGeometry";
 import { maskOverlayControls } from "../maskOverlay/overlaySource";
+import {
+  quickSegment,
+  quickSegmentAvailable,
+  type QuickPoint,
+  type QuickSegmentResult,
+} from "../quickSegment";
 import { segmentationSession, type DecodedSegmentationFrame } from "../runtime";
 import { frameInstanceKey } from "../service";
 import type { SemanticSegmentationStore } from "../types";
@@ -354,6 +360,14 @@ export function SegmentationCanvas({
   view.current = { zoom, pan };
   const previewRef = useRef<Preview>();
   const [draft, setDraft] = useState<EditorPoint[]>([]);
+  // Quick annotation (SAM2 clicks on the local sidecar) replaces vertex-by-vertex drawing.
+  const quickEnabled = quickSegmentAvailable();
+  const [quickPoints, setQuickPoints] = useState<QuickPoint[]>([]);
+  const [quickResult, setQuickResult] = useState<
+    (QuickSegmentResult & { url: string; x0: number; y0: number; w: number; h: number }) | undefined
+  >();
+  const [quickBusy, setQuickBusy] = useState(false);
+  const quickRequest = useRef<AbortController>();
   const [preview, setPreview] = useState<Preview>();
   const [showHelp, setShowHelp] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -390,6 +404,82 @@ export function SegmentationCanvas({
     (compact && !nativeView);
   const drawingId = state.drawingPolygonId;
   const document = state.document;
+  useEffect(() => {
+    quickRequest.current?.abort();
+    setQuickPoints([]);
+    setQuickResult(undefined);
+    setQuickBusy(false);
+  }, [drawingId, frameId]);
+  function requestQuickMask(points: QuickPoint[]): void {
+    setQuickPoints(points);
+    quickRequest.current?.abort();
+    if (points.length === 0 || !points.some((item) => item.positive)) {
+      setQuickResult(undefined);
+      setQuickBusy(false);
+      return;
+    }
+    const video = document?.videos.find((item) => item.id === frame?.videoId);
+    const width = video?.width ?? size.width;
+    const height = video?.height ?? size.height;
+    if (!frame || video?.topic == undefined || !width || !height) {
+      setError("当前帧还没有可用的 topic 或源图尺寸，稍后再试。");
+      return;
+    }
+    const controller = new AbortController();
+    quickRequest.current = controller;
+    setQuickBusy(true);
+    void quickSegment(
+      { topic: video.topic, logTimeNs: frame.logTimeNs, width, height, points },
+      controller.signal,
+    )
+      .then((result) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const bitmap = bitmapOfRuns(runsOfMask(result.mask));
+        const canvas = window.document.createElement("canvas");
+        canvas.width = Math.max(bitmap.w, 1);
+        canvas.height = Math.max(bitmap.h, 1);
+        const context = canvas.getContext("2d");
+        if (context && bitmap.w > 0) {
+          const pixels = context.createImageData(bitmap.w, bitmap.h);
+          for (let i = 0; i < bitmap.bits.length; i++) {
+            if (bitmap.bits[i] === 1) {
+              pixels.data.set([76, 141, 255, 130], i * 4);
+            }
+          }
+          context.putImageData(pixels, 0, 0);
+        }
+        setQuickResult({ ...result, url: canvas.toDataURL(), ...bitmap });
+        setError(undefined);
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(String(err instanceof Error ? err.message : err));
+        }
+      })
+      .finally(() => {
+        if (quickRequest.current === controller) {
+          setQuickBusy(false);
+        }
+      });
+  }
+  function addQuickPoint(
+    event: { clientX: number; clientY: number },
+    kind: "positive" | "negative",
+  ): void {
+    const next = point(event);
+    if (!next) {
+      return;
+    }
+    if (segmentationSession.getState().strokeFrameId == undefined) {
+      segmentationSession.setState({ strokeFrameId: shownFrameId ?? frameId });
+    }
+    requestQuickMask([
+      ...quickPoints,
+      { x: clampUnit(next.x), y: clampUnit(next.y), positive: kind === "positive" },
+    ]);
+  }
 
   useLayoutEffect(() => {
     const updateScale = () => {
@@ -1048,6 +1138,22 @@ export function SegmentationCanvas({
     if (!drawingId || locked || !frameId) {
       return;
     }
+    if (quickEnabled) {
+      if (quickBusy) {
+        setError("正在计算 mask，请稍候再按 Enter。");
+        return;
+      }
+      if (!quickResult) {
+        setError("先在目标上点一下（左键正点，右键或 Shift+左键负点）。");
+        return;
+      }
+      const mask = quickResult.mask;
+      run(() => {
+        state.commitDrawingMask(mask);
+      });
+      segmentationSession.setState({ strokeFrameId: undefined });
+      return;
+    }
     if (draft.length < 3) {
       setError(
         text(
@@ -1420,6 +1526,10 @@ export function SegmentationCanvas({
         if ((event.key === "Delete" || event.key === "Backspace") && !locked) {
           event.preventDefault();
           event.stopPropagation();
+          if (drawingId && quickEnabled) {
+            requestQuickMask(quickPoints.slice(0, -1));
+            return;
+          }
           if (drawingId || !state.editing || panTool || peekOriginal) {
             return;
           }
@@ -1914,10 +2024,15 @@ export function SegmentationCanvas({
                 setShowHelp(false);
               }}
             >
-              {text(
-                "Click to add vertices. Enter finishes with at least 3 points. Esc cancels the drawing and keeps the original polygon.",
-                "依次点击添加顶点，至少 3 点后按 Enter 完成；按 Esc 取消本次绘制，保留原多边形。",
-              )}
+              {quickEnabled
+                ? text(
+                    "Quick annotation: click the object (positive point); right-click or Shift+click to exclude (negative point). Backspace removes the last point, Enter saves the mask, Esc cancels.",
+                    "快速标注：左键点目标（正点），右键或 Shift+左键排除（负点）；Backspace 撤销上一个点，Enter 保存 mask，Esc 取消。",
+                  )
+                : text(
+                    "Click to add vertices. Enter finishes with at least 3 points. Esc cancels the drawing and keeps the original polygon.",
+                    "依次点击添加顶点，至少 3 点后按 Enter 完成；按 Esc 取消本次绘制，保留原多边形。",
+                  )}
             </Alert>
           )}
           {drawingId && !showHelp && !draftElsewhere && (
@@ -2056,6 +2171,17 @@ export function SegmentationCanvas({
                 };
                 return;
               }
+            }
+            if (
+              drawingId &&
+              quickEnabled &&
+              !peekOriginal &&
+              !locked &&
+              state.viewMode !== "original" &&
+              event.button === 0
+            ) {
+              addQuickPoint(event, event.shiftKey || event.altKey ? "negative" : "positive");
+              return;
             }
             if (
               drawingId &&
@@ -2199,7 +2325,11 @@ export function SegmentationCanvas({
               !active.moved &&
               !navigationLocked
             ) {
-              setContextMenu({ x: event.clientX, y: event.clientY, target: contextTarget(event) });
+              if (drawingId && quickEnabled && !locked && !peekOriginal) {
+                addQuickPoint(event, "negative");
+              } else {
+                setContextMenu({ x: event.clientX, y: event.clientY, target: contextTarget(event) });
+              }
             }
             if (active?.type === "marquee") {
               const end = point(event);
@@ -2429,7 +2559,44 @@ export function SegmentationCanvas({
                 vectorEffect="non-scaling-stroke"
               />
             )}
-            {drawingId && state.viewMode !== "original" && !peekOriginal && (
+            {drawingId && quickEnabled && state.viewMode !== "original" && !peekOriginal && (
+              <g pointerEvents="none" data-testid="quick-annotation">
+                {quickResult && quickResult.w > 0 && (
+                  <image
+                    // eslint-disable-next-line @coscene-io/link-target -- SVG image of the mask preview, not a link.
+                    href={quickResult.url}
+                    x={(quickResult.x0 * size.width) / quickResult.mask.width}
+                    y={(quickResult.y0 * size.height) / quickResult.mask.height}
+                    width={(quickResult.w * size.width) / quickResult.mask.width}
+                    height={(quickResult.h * size.height) / quickResult.mask.height}
+                    preserveAspectRatio="none"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                )}
+                {quickPoints.map((p, index) => (
+                  <g key={index} data-quick-point={p.positive ? "positive" : "negative"}>
+                    <circle
+                      cx={p.x * size.width}
+                      cy={p.y * size.height}
+                      r={6 / screenScale}
+                      fill={p.positive ? "#00c853" : "#ff1744"}
+                      stroke="white"
+                      strokeWidth={1.5 / screenScale}
+                    />
+                    <path
+                      d={
+                        p.positive
+                          ? `M ${p.x * size.width - 3 / screenScale} ${p.y * size.height} h ${6 / screenScale} M ${p.x * size.width} ${p.y * size.height - 3 / screenScale} v ${6 / screenScale}`
+                          : `M ${p.x * size.width - 3 / screenScale} ${p.y * size.height} h ${6 / screenScale}`
+                      }
+                      stroke="white"
+                      strokeWidth={1.5 / screenScale}
+                    />
+                  </g>
+                ))}
+              </g>
+            )}
+            {drawingId && !quickEnabled && state.viewMode !== "original" && !peekOriginal && (
               <g pointerEvents="none">
                 <polyline
                   points={draft.map((p) => `${p.x * size.width},${p.y * size.height}`).join(" ")}
@@ -2495,13 +2662,13 @@ export function SegmentationCanvas({
         )}
         {drawingId && (
           <MenuItem
-            disabled={locked || draft.length < 3}
+            disabled={locked || (quickEnabled ? !quickResult || quickBusy : draft.length < 3)}
             onClick={() => {
               finishDrawing();
               setContextMenu(undefined);
             }}
           >
-            {text("Finish polygon", "完成多边形")}
+            {quickEnabled ? text("Finish mask", "完成 mask") : text("Finish polygon", "完成多边形")}
           </MenuItem>
         )}
         <MenuItem
@@ -2542,7 +2709,9 @@ export function SegmentationCanvas({
                   `Point ${activePoint.vertex + 1} (${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}): arrows move 1 image pixel; Shift = 10; Shift+click adds points.`,
                   `顶点 ${activePoint.vertex + 1}（${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}）：方向键移动 1 图像像素；Shift 为 10；Shift+点击可多选。`,
                 )
-              : drawingId
+              : drawingId && quickEnabled
+                ? `快速标注：左键加正点，右键或 Shift+左键加负点；Backspace 撤销上一个点，Enter 完成，Esc 取消 · ${quickPoints.filter((p) => p.positive).length} 正 / ${quickPoints.filter((p) => !p.positive).length} 负${quickBusy ? " · 计算中…" : quickResult ? ` · 置信度 ${quickResult.score.toFixed(2)}` : ""}`
+                : drawingId
                 ? `Drawing: ${draft.length} vertices · Space/middle/right drag to pan`
                 : state.editing
                   ? text(

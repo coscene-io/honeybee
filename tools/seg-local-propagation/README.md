@@ -13,6 +13,19 @@ method over gRPC-Web on `127.0.0.1:18876`; every other annotation RPC still goes
   Results stream as one `frame` event per later source frame with a `mask` per instance.
 - One run at a time. Closing the connection (STOP) cancels it. Nothing is saved.
 
+## Quick annotation (`POST /segment`)
+
+Not part of the AnnotationService contract. Body
+`{topic, frameTimeMicros, points: [{x, y, positive}]}` in source pixels; answer
+`{counts, width, height, score}` (COCO RLE at the source size). The image embedding of the last
+clicked frame is cached, so after the first click (about 1 s, frame read + encode) each further
+point takes 20–70 ms on an M4 Max.
+
+With the sidecar configured, the editor's "+ polygon" becomes click-to-mask: left click adds a
+positive point, right click or Shift+click a negative one, Backspace removes the last point, Enter
+saves the mask (merged with the instance's existing geometry on that frame), Esc cancels. Without
+the sidecar the editor keeps vertex-by-vertex polygon drawing.
+
 ## Run
 
 ```bash
