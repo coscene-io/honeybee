@@ -2,6 +2,27 @@
 
 分支 `seg-api-integration`（从本地 `seg/editor` @ `49aca876e` 分出），日期 2026-11-14。录像：质检测试 CJ260330-3-R154，`warehouses/b2fa5bcd-…/projects/b554c1c9-…/records/a59e1369-1809-4900-a6a1-5b3e2ff7d067`。环境：ego Chromium，`http://localhost:8084`，后端 `https://api.dev.coscene.cn`（gRPC-Web）。契约：cosceneapis PR #866 `feat/spatial-annotation-api` @ `96015385a`。
 
+## 2026-11-16 复测（后端 data-platform-server #2403 @ `a82be170`）
+
+后端这次的改法是**去掉媒体索引依赖**（commit「Remove annotation source media index dependency」），而不是接上源媒体适配器。结果：
+
+- **读、写、读回在真实页面跑通**（`/tmp/verify-seg/api-integration/retest-20261116/`，截图都已用 Read 看过）：
+  - 进入标注后没有任何报错，五路相机都可编辑；树和 ±20 帧条用 ListTimelineRanges 标出有标注的帧，帧条上标注帧的 `data-log-time-ns` 正好是服务端 `frame_time` 对应的源帧（`03-readback-fA.png`）。
+  - 在界面上画 4 点多边形 → 提交：发出一次 `SaveAnnotation`，随后每路刷新时间轴。用 API 读回：`frame_time` = 显示帧 log_time 截断到微秒；同帧另一个实例的多边形原样保留（整帧快照没有丢别人的数据）；坐标是原图像素（`06-ui-save-readback.json`）。
+  - 刷新页面后两个多边形都正确读回（`08-reload-readback.png`）。
+  - API 写入的 Mask（只有 counts）按 topic 解码尺寸 1280×720 在 GPU 叠加层正确显示（`10-mask-readback.png`）。
+  - 清除本帧某实例（快照里省略）、清空整帧（空 annotations）都按契约生效；`occluded` 往返正确；按实例过滤的 ListFrames 正常。
+- **服务端不再校验 frame_time 和几何尺寸**（`raw.json`）：
+  - `frame_time` 落在不存在的源帧上也被接受（例如把 `…086623934ns` 四舍五入成 `.086624Z`，真实截断值是 `.086623Z`）。
+  - counts 按 640×360 编码的 Mask 写到 1280×720 的 topic 上也被接受。
+  - 仍然校验：微秒对齐（nanos 返回 INVALID_ARGUMENT）、多边形至少 3 个顶点、Mask 至少一个前景像素。
+  - 所以正确性完全依赖前端：前端的截断和尺寸校验（`frameTime.ts`、`liveService.ts`）是唯一的防线，不能放松。
+- **ListTimelineRanges 不再合并区间**：每条观测返回一个 `start_time == end_time` 的单点区间。前端按区间匹配帧，所以功能正常；但页数会按观测数增长（每页 1000 条）。这和 #866 里"合并为最大连续区间"的描述不一致。
+- **传播仍不可用**：后端文档写明"本次不实现在线传播"，也没有新增 `PropagateAnnotation` 权限。浏览器端看到 HTTP 403；从 Node 直接调用返回 `PERMISSION_DENIED: … has no permission to access …/PropagateAnnotation`。
+- 界面上的小问题（前端）：传播失败的错误提示会同时出现在全部五个相机面板上；提交对话框里还保留了"提交说明"输入框，正式服务不会用到。
+
+以下是 2026-11-14 的原始结论，B1 已不再成立。
+
 ## 结论
 
 **前端已接上正式服务，但 dev 后端目前只能跑通类别和实例。读帧、带几何的保存和传播都被后端挡住，所以"画 → 保存 → 刷新读回几何 → 传播"这条链路没能在真实环境里跑通。**

@@ -24,10 +24,10 @@ For a cloud record, the editor reads and saves through the published `Annotation
 
 ## Gotchas
 
-- Status on dev as of 2026-11-14 (details and repro requests in `docs/segmentation-api-integration.md`, "后端问题清单"):
-  - B1: `ListFrames`, `ListTimelineRanges` and `SaveAnnotation` with frames return `FAILED_PRECONDITION: Source media metadata is not configured for annotation` for every topic. The backend has no source-media adapter yet, so the editor cannot load frame geometry and stays non-editable in `正式服务` mode. Class and instance CRUD work.
-  - B2: `PropagateAnnotation` over gRPC-Web returns HTTP 403 with no grpc-status; the server method is also unimplemented.
-  - B3: no published `@coscene-io/cosceneapis-es-v2` includes the annotation service; the generated code is a local copy under `services/api/spatial-annotation/generated`.
-  - B4: open contract questions (log-time truncation, mask size source, save size limit, multi-topic timeline, reusing deleted IDs).
-- Until B1 is fixed, verify drawing, saving and propagation in `本机标注` mode and report the live path as blocked, not as passed.
+- Status on dev as of 2026-11-16 (backend data-platform-server #2403 @ `a82be170`; details in `docs/segmentation-api-integration.md`, "2026-11-16 复测"):
+  - `ListFrames`, `ListTimelineRanges` and `SaveAnnotation` work; draw → submit → reload → read back passes in the real page.
+  - The backend no longer validates `frame_time` against source frames or mask counts against the frame size. Assert stored values through `ListFrames`; a successful save does not prove the frame time or size is right.
+  - `ListTimelineRanges` returns one point range per observation, not coalesced ranges.
+  - `PropagateAnnotation` is not implemented and has no role permission: the browser sees HTTP 403. Verify propagation in `本机标注` mode and report the live path as blocked.
+  - No published `@coscene-io/cosceneapis-es-v2` includes the annotation service; the generated code is a local copy under `services/api/spatial-annotation/generated`.
 - Unsaved drafts in `正式服务` mode live in memory only; a reload drops them.
