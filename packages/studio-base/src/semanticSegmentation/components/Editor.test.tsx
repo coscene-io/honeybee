@@ -383,8 +383,9 @@ describe("segmentation editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     const expectOutlineWidths = () => {
+      // instance-1's only polygon is the active one (3); instance-2 is outside the scope (1).
       for (const [instanceId, width] of [
-        ["instance-1", 2],
+        ["instance-1", 3],
         ["instance-2", 1],
       ] as const) {
         const outlines = canvas.querySelectorAll(

@@ -179,8 +179,21 @@ it("SEG-FOC-017 class focus edits I/J but not K", async () => {
   });
   const k = polygon(store, "instance-empty");
   const canvas = screen.getByRole("img", { name: "Frame polygons" });
+  const outline = (id: string) => canvas.querySelector(`[data-polygon-id="${id}"]`)!;
+  // The class scope highlights I and J; K stays outside it.
+  expect(outline(polygon(store, "instance-1").id).getAttribute("data-polygon-emphasis")).toBe(
+    "scope",
+  );
+  expect(outline(polygon(store, "instance-2").id).getAttribute("data-polygon-emphasis")).toBe(
+    "scope",
+  );
+  expect(outline(k.id).getAttribute("data-polygon-emphasis")).toBe("none");
   for (const instance of ["instance-1", "instance-2"]) {
     const original = polygon(store, instance);
+    // Pressing a polygon in scope activates it without narrowing the class focus.
+    pointer(outline(original.id), "pointerdown", 170, 160);
+    pointer(canvas, "pointerup", 170, 160);
+    expect(store.getState().focus).toEqual({ type: "class", id: "class-1" });
     pointer(
       screen.getByRole("button", { name: `Vertex 1 of polygon ${original.id}` }),
       "pointerdown",

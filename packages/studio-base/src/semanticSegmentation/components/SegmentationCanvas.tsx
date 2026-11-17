@@ -1091,6 +1091,38 @@ export function SegmentationCanvas({
   function inFocus(instanceId: string, polygonId: string): boolean {
     return focusContains(document, state.focus, frameId, instanceId, polygonId);
   }
+  /** Polygons on this frame inside the edit scope (the focused instance or class). */
+  const scopePolygons =
+    frameId == undefined
+      ? []
+      : Object.values(document?.annotations ?? {})
+          .filter((annotation) => annotation.frameId === frameId)
+          .flatMap((annotation) =>
+            polygonsOf(annotation)
+              .filter((polygon) => inFocus(annotation.instanceId, polygon.id))
+              .map((polygon) => polygon.id),
+          );
+  /**
+   * The one polygon whose vertices are edited: the focused polygon, else the single selected one,
+   * else the only polygon in scope. Other polygons in scope are only highlighted; pressing one
+   * makes it the active polygon.
+   */
+  const activePolygonId = ((): string | undefined => {
+    if (state.focus?.type === "polygon" && scopePolygons.includes(state.focus.id)) {
+      return state.focus.id;
+    }
+    const selected = state.selection.filter(
+      (node) => node.type === "polygon" && scopePolygons.includes(node.id),
+    );
+    if (selected.length === 1) {
+      return selected[0]!.id;
+    }
+    return scopePolygons.length === 1 ? scopePolygons[0] : undefined;
+  })();
+  /** Vertex handles, edge insertion and dragging belong to the active polygon only. */
+  function editsVertices(instanceId: string, polygonId: string): boolean {
+    return polygonId === activePolygonId && inFocus(instanceId, polygonId);
+  }
   function claimShownFrame(): boolean {
     if (draftElsewhere || shownFrameId == undefined || shownFrameId === activeFrameId) {
       return !draftElsewhere;
@@ -1136,14 +1168,19 @@ export function SegmentationCanvas({
     event.preventDefault();
     setHover(undefined);
     viewport.current?.focus({ preventScroll: true });
-    const canEdit = !locked && state.editing && inFocus(instanceId, polygonId);
+    // Pressing another polygon in scope first makes it the active one; only that one drags.
+    const canEdit = !locked && state.editing && editsVertices(instanceId, polygonId);
     const pressed: VertexRef | undefined = vertex == undefined ? undefined : { polygonId, vertex };
     state.setSelection([{ type: "polygon", id: polygonId }]);
     if (!canEdit) {
       if (pressed) {
         setSelectedVertices([pressed]);
       }
-      state.setFocus({ type: "instance", id: instanceId });
+      // Inside the edit scope the press only activates this polygon (the selection above); the
+      // scope, e.g. a focused class, stays. Outside it, focus moves to the pressed instance.
+      if (!(state.editing && inFocus(instanceId, polygonId))) {
+        state.setFocus({ type: "instance", id: instanceId });
+      }
       return;
     }
     if (pressed && event.shiftKey && !event.altKey) {
@@ -1208,7 +1245,7 @@ export function SegmentationCanvas({
       .filter((annotation) => annotation.frameId === frameId)
       .flatMap((annotation) =>
         polygonsOf(annotation)
-          .filter((polygon) => inFocus(annotation.instanceId, polygon.id))
+          .filter((polygon) => editsVertices(annotation.instanceId, polygon.id))
           .map((polygon) => ({
             instanceId: annotation.instanceId,
             polygonId: polygon.id,
@@ -1338,7 +1375,7 @@ export function SegmentationCanvas({
     if (
       locked ||
       !state.editing ||
-      !inFocus(instanceId, polygonId) ||
+      !editsVertices(instanceId, polygonId) ||
       drawing ||
       panTool ||
       event.button !== 0
@@ -1437,7 +1474,7 @@ export function SegmentationCanvas({
           .filter((a) => a.frameId === frameId)
           .flatMap((a) =>
             polygonsOf(a)
-              .filter((p) => inFocus(a.instanceId, p.id))
+              .filter((p) => editsVertices(a.instanceId, p.id))
               .flatMap((p) =>
                 p.points.map((pnt, vertex) => ({
                   instanceId: a.instanceId,
@@ -2444,6 +2481,25 @@ export function SegmentationCanvas({
                 )}
               </Stack>
             )}
+          {state.editing &&
+            !drawing &&
+            active &&
+            !locked &&
+            activePolygonId == undefined &&
+            scopePolygons.length > 1 &&
+            state.viewMode !== "original" && (
+              <Typography
+                variant="caption"
+                role="status"
+                className={classes.chip}
+                data-testid="choose-polygon-hint"
+              >
+                {text(
+                  `${scopePolygons.length} polygons in scope: click one to edit its vertices`,
+                  `范围内有 ${scopePolygons.length} 个多边形：点击其中一个以编辑顶点`,
+                )}
+              </Typography>
+            )}
           {drawing && active && showHelp && !draftElsewhere && (
             <Alert
               severity="info"
@@ -2747,7 +2803,7 @@ export function SegmentationCanvas({
               !next ||
               locked ||
               !state.editing ||
-              !targets.every((target) => inFocus(target.instanceId, target.polygonId))
+              !targets.every((target) => editsVertices(target.instanceId, target.polygonId))
             ) {
               cancelGesture();
               return;
@@ -2902,14 +2958,27 @@ export function SegmentationCanvas({
                     {visible.map((polygon) => {
                       const points = preview?.[polygon.id] ?? polygon.points;
                       const editable =
-                        state.editing && inFocus(instance.id, polygon.id) && !locked && !drawing;
+                        state.editing &&
+                        editsVertices(instance.id, polygon.id) &&
+                        !locked &&
+                        !drawing;
+                      // Active polygon: thickest outline and vertices; the rest of the edit scope
+                      // is highlighted; everything else is a thin outline.
+                      const emphasis =
+                        state.editing && !drawing && polygon.id === activePolygonId
+                          ? "active"
+                          : inFocus(instance.id, polygon.id)
+                            ? "scope"
+                            : "none";
                       return (
                         <g key={polygon.id}>
                           <path
                             d={polygonPath(points, size.width, size.height)}
                             fill="none"
                             stroke={color}
-                            strokeWidth={inFocus(instance.id, polygon.id) ? 2 : 1}
+                            strokeWidth={emphasis === "active" ? 3 : emphasis === "scope" ? 2 : 1}
+                            data-polygon-emphasis={emphasis}
+                            data-polygon-id={polygon.id}
                             vectorEffect="non-scaling-stroke"
                             pointerEvents="stroke"
                             onPointerDown={(event) => {
@@ -2997,7 +3066,7 @@ export function SegmentationCanvas({
               !locked &&
               state.editing &&
               state.viewMode !== "original" &&
-              inFocus(hover.instanceId, hover.polygonId) &&
+              editsVertices(hover.instanceId, hover.polygonId) &&
               !drawing &&
               !panTool &&
               !spaceHeld &&
@@ -3309,15 +3378,20 @@ export function SegmentationCanvas({
                         `${brush.mode === "paint" ? "Brush" : "Eraser"} ${brush.radius}px: drag to ${brush.mode === "paint" ? "paint" : "erase"} the mask · B brush, E eraser, [ ] size · each stroke is one undo step · Enter finishes editing.`,
                         `${brush.mode === "paint" ? "画笔" : "橡皮"} ${brush.radius}px：拖动以${brush.mode === "paint" ? "涂抹" : "擦除"} mask · B 画笔，E 橡皮，[ ] 调整大小 · 每一笔可单独撤销 · Enter 完成编辑。`,
                       )
-                    : state.editing
+                    : state.editing && activePolygonId == undefined && scopePolygons.length > 1
                       ? text(
-                          "Drag points/fill; drag empty canvas to box-select points; Shift+click multi-selects; click edge to add; Delete removes selected points. Arrows move selected points; Enter finishes editing. Space/right drag pans; wheel zooms; ? help.",
-                          "拖动顶点/填充；拖动空白处框选顶点；Shift+点击多选；单击边加点；Delete 删除选中顶点。方向键移动选中顶点，Enter 完成编辑。空格/右键拖动平移；滚轮缩放；? 查看帮助。",
+                          `${scopePolygons.length} polygons in scope: click one to edit its vertices.`,
+                          `范围内有 ${scopePolygons.length} 个多边形：点击其中一个以编辑它的顶点。`,
                         )
-                      : text(
-                          "Select an instance, then enable Edit to adjust polygons.",
-                          "先选择实例，再点击“编辑”调整多边形。",
-                        )}
+                      : state.editing
+                        ? text(
+                            "Drag points/fill; drag empty canvas to box-select points; Shift+click multi-selects; click edge to add; Delete removes selected points. Arrows move selected points; Enter finishes editing. Space/right drag pans; wheel zooms; ? help.",
+                            "拖动顶点/填充；拖动空白处框选顶点；Shift+点击多选；单击边加点；Delete 删除选中顶点。方向键移动选中顶点，Enter 完成编辑。空格/右键拖动平移；滚轮缩放；? 查看帮助。",
+                          )
+                        : text(
+                            "Select an instance, then enable Edit to adjust polygons.",
+                            "先选择实例，再点击“编辑”调整多边形。",
+                          )}
         </Typography>
       )}
     </Stack>

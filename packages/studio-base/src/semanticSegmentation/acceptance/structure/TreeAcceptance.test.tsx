@@ -395,13 +395,30 @@ describe("structure tree original GWT acceptance", () => {
       menu(id, `Focus this ${id === "C" ? "class" : "instance"}`);
       expect(store.getState().focus).toEqual({ type: id === "C" ? "class" : "instance", id });
       fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+      // Several polygons are in scope: they are highlighted, and none shows vertices until one
+      // is chosen.
+      expect(screen.queryAllByRole("button", { name: /^Vertex / })).toHaveLength(0);
+      const inScope = [...document.querySelectorAll("[data-polygon-emphasis='scope']")].map(
+        (el) => el.getAttribute("data-polygon-id") ?? "",
+      );
+      expect(inScope.length).toBe(id === "C" ? 3 : 2);
+      expect(inScope.every((key) => /^(I|J)-/.test(key))).toBe(true);
+      expect(inScope.some((key) => key.startsWith("J-"))).toBe(id === "C");
+      // Choosing one in scope shows exactly its vertices.
+      const chosen = inScope[0]!;
+      const canvas = screen.getByRole("img", { name: "Frame polygons" });
+      for (const type of ["pointerdown", "pointerup"]) {
+        fireEvent(
+          type === "pointerdown"
+            ? document.querySelector(`[data-polygon-id="${chosen}"]`)!
+            : canvas,
+          new MouseEvent(type, { clientX: 10, clientY: 10, button: 0, bubbles: true }),
+        );
+      }
       const handles = screen.getAllByRole("button", { name: /^Vertex / });
-      expect(handles.length).toBe(id === "C" ? 9 : 6);
-      expect(
-        handles.every((handle) => /polygon (I|J)-/.test(handle.getAttribute("aria-label")!)),
-      ).toBe(true);
-      expect(handles.some((handle) => handle.getAttribute("aria-label")!.includes("J-"))).toBe(
-        id === "C",
+      expect(handles).toHaveLength(3);
+      expect(handles.every((handle) => handle.getAttribute("aria-label")!.endsWith(chosen))).toBe(
+        true,
       );
     },
   );
