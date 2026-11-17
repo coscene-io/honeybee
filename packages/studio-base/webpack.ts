@@ -55,7 +55,10 @@ export function makeConfig(
         path: require.resolve("path-browserify"),
         stream: require.resolve("readable-stream"),
         zlib: require.resolve("browserify-zlib"),
-        crypto: require.resolve("crypto-browserify"),
+        // Browser code uses Web Crypto. The one bundled `require("crypto")` left, in @foxglove/sql.js,
+        // runs only under Node and is guarded by try/catch; mapping it to crypto-browserify pulled in
+        // asn1.js, whose `require("vm")` made every build warn.
+        crypto: false,
 
         // TypeScript tries to use this when running in node
         perf_hooks: false,
