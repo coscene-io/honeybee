@@ -55,7 +55,12 @@ function findContours(mask: MaskRuns): Contour[] {
   ];
   const out: Contour[] = [];
 
-  const follow = (x0: number, y0: number, kind: "outer" | "hole", nbd: number): [number, number][] => {
+  const follow = (
+    x0: number,
+    y0: number,
+    kind: "outer" | "hole",
+    nbd: number,
+  ): [number, number][] => {
     const pts: [number, number][] = [];
     const i0 = y0 * stride + x0;
     const sEnd = kind === "hole" ? 0 : 4;
@@ -330,12 +335,7 @@ function bridgeHole(ring: [number, number][], hole: [number, number][]): [number
       }
     }
   }
-  return [
-    ...ring.slice(0, oi + 1),
-    ...hole.slice(hj),
-    ...hole.slice(0, hj + 1),
-    ...ring.slice(oi),
-  ];
+  return [...ring.slice(0, oi + 1), ...hole.slice(hj), ...hole.slice(0, hj + 1), ...ring.slice(oi)];
 }
 
 /** One ring per 8-connected component, Douglas-Peucker simplified with eps, holes bridged in. */
@@ -365,6 +365,211 @@ export function maskToPolygons(mask: MaskRuns, eps = 1): PixelPolygon[] {
     }
     out.push(ring.map(([x, y]) => [x, y]));
   });
+  return out;
+}
+
+/**
+ * Columns that cut every hole of a row-major bitmap: holes are the 4-connected background regions
+ * not reachable from outside (8-connected foreground, as findContours sees it). Each hole spans a
+ * contiguous column range; the fewest columns stabbing all ranges are picked greedily.
+ */
+function holeCutColumns(bits: Uint8Array, w: number, h: number): number[] {
+  const seen = new Uint8Array(w * h);
+  const stack: number[] = [];
+  const visit = (start: number, onPixel?: (x: number) => void): boolean => {
+    let open = false;
+    stack.push(start);
+    seen[start] = 1;
+    while (stack.length > 0) {
+      const p = stack.pop()!;
+      const x = p % w;
+      const y = (p - x) / w;
+      onPixel?.(x);
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) {
+        open = true;
+      }
+      const next = [
+        x > 0 ? p - 1 : -1,
+        x < w - 1 ? p + 1 : -1,
+        y > 0 ? p - w : -1,
+        y < h - 1 ? p + w : -1,
+      ];
+      for (const q of next) {
+        if (q >= 0 && seen[q] === 0 && bits[q] === 0) {
+          seen[q] = 1;
+          stack.push(q);
+        }
+      }
+    }
+    return open;
+  };
+  const ranges: [number, number][] = [];
+  for (let p = 0; p < w * h; p++) {
+    if (bits[p] !== 0 || seen[p] !== 0) {
+      continue;
+    }
+    let lo = w;
+    let hi = -1;
+    const open = visit(p, (x) => {
+      lo = Math.min(lo, x);
+      hi = Math.max(hi, x);
+    });
+    if (!open) {
+      ranges.push([lo, hi]);
+    }
+  }
+  ranges.sort((a, b) => a[1] - b[1]);
+  const cuts: number[] = [];
+  for (const [lo, hi] of ranges) {
+    if (cuts.length === 0 || cuts[cuts.length - 1]! < lo) {
+      cuts.push(hi);
+    }
+  }
+  return cuts;
+}
+
+function pointKey(p: [number, number]): string {
+  return `${p[0]}:${p[1]}`;
+}
+
+function ringArea2(ring: [number, number][]): number {
+  let area = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i]!;
+    const q = ring[(i + 1) % ring.length]!;
+    area += p[0] * q[1] - q[0] * p[1];
+  }
+  return area;
+}
+
+/**
+ * Split a traced ring into rings with distinct vertices and no backtracking edge. An 8-connected
+ * contour revisits pinch pixels (two lobes touching diagonally, a one-pixel neck) and walks out and
+ * back along one-pixel filaments; the contract rejects both. Pinches split into separate rings,
+ * which union to the same area; filaments have no area and drop out.
+ */
+function splitRing(ring: [number, number][]): [number, number][][] {
+  const out: [number, number][][] = [];
+  const work = [ring];
+  while (work.length > 0) {
+    let r = work.pop()!;
+    r = r.filter((p, i) => pointKey(p) !== pointKey(r[(i + 1) % r.length]!));
+    const seen = new Map<string, number>();
+    let split = false;
+    for (let i = 0; i < r.length; i++) {
+      const key = pointKey(r[i]!);
+      const j = seen.get(key);
+      if (j != undefined) {
+        work.push(r.slice(j, i), [...r.slice(i), ...r.slice(0, j)]);
+        split = true;
+        break;
+      }
+      seen.set(key, i);
+    }
+    if (split) {
+      continue;
+    }
+    const n = r.length;
+    const spike = r.findIndex((a, i) => {
+      const prev = r[(i + n - 1) % n]!;
+      const b = r[(i + 1) % n]!;
+      const cross = (a[0] - prev[0]) * (b[1] - prev[1]) - (a[1] - prev[1]) * (b[0] - prev[0]);
+      const dot = (prev[0] - a[0]) * (b[0] - a[0]) + (prev[1] - a[1]) * (b[1] - a[1]);
+      return cross === 0 && dot >= 0;
+    });
+    if (spike >= 0 && n > 2) {
+      work.push(r.filter((_, i) => i !== spike));
+      continue;
+    }
+    if (n >= 3 && ringArea2(r) !== 0) {
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+function ringsAreSimple(rings: [number, number][][]): boolean {
+  return rings.every((ring) => {
+    const n = ring.length;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) {
+          continue;
+        }
+        if (segmentsTouch(ring[i]!, ring[(i + 1) % n]!, ring[j]!, ring[(j + 1) % n]!)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  });
+}
+
+function segmentsTouch(
+  a: [number, number],
+  b: [number, number],
+  c: [number, number],
+  d: [number, number],
+): boolean {
+  const cross = (p: [number, number], q: [number, number], r: [number, number]) =>
+    (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const within = (p: [number, number], q: [number, number], r: [number, number]) =>
+    r[0] >= Math.min(p[0], q[0]) &&
+    r[0] <= Math.max(p[0], q[0]) &&
+    r[1] >= Math.min(p[1], q[1]) &&
+    r[1] <= Math.max(p[1], q[1]);
+  const abC = cross(a, b, c);
+  const abD = cross(a, b, d);
+  const cdA = cross(c, d, a);
+  const cdB = cross(c, d, b);
+  return (
+    (abC === 0 && within(a, b, c)) ||
+    (abD === 0 && within(a, b, d)) ||
+    (cdA === 0 && within(c, d, a)) ||
+    (cdB === 0 && within(c, d, b)) ||
+    (Math.sign(abC) !== Math.sign(abD) && Math.sign(cdA) !== Math.sign(cdB))
+  );
+}
+
+/**
+ * Mask to simple polygons whose union is the mask, as the annotation contract requires: every
+ * polygon has distinct vertices, no backtracking edge and no self-intersection, and there are no
+ * holes (polygons union, they do not XOR). A component with holes is cut into vertical strips that
+ * overlap by one column at a column through each hole, which opens every hole into a notch; strips
+ * then trace like hole-free masks. Rings are Douglas-Peucker simplified with eps like
+ * maskToPolygons; a ring that simplification makes self-intersecting falls back to its exact trace.
+ */
+export function maskToSimplePolygons(mask: MaskRuns, eps = 1): PixelPolygon[] {
+  const box = bitmapOfRuns(mask);
+  if (box.w === 0) {
+    return [];
+  }
+  const cuts = holeCutColumns(box.bits, box.w, box.h);
+  const bounds = [0, ...cuts, box.w - 1];
+  const out: PixelPolygon[] = [];
+  for (let s = 0; s + 1 < bounds.length; s++) {
+    const lo = bounds[s]!;
+    const hi = bounds[s + 1]!;
+    const w = hi - lo + 1;
+    const bits = new Uint8Array(w * box.h);
+    for (let y = 0; y < box.h; y++) {
+      bits.set(box.bits.subarray(y * box.w + lo, y * box.w + hi + 1), y * w);
+    }
+    const strip = runsOfBitmap(
+      bits,
+      { x0: box.x0 + lo, y0: box.y0, w, h: box.h },
+      mask.width,
+      mask.height,
+    );
+    for (const contour of findContours(strip)) {
+      if (contour.isHole) {
+        continue;
+      }
+      const simplified = splitRing(simplifyClosed(contour.pts, eps));
+      const rings = ringsAreSimple(simplified) ? simplified : splitRing(contour.pts);
+      out.push(...rings.map((ring) => ring.map(([x, y]): [number, number] => [x, y])));
+    }
+  }
   return out;
 }
 

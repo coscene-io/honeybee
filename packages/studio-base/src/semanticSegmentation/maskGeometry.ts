@@ -14,7 +14,7 @@ import {
   unionRuns,
   type MaskRuns,
 } from "./maskCodec";
-import { maskToPolygons, polygonsToRuns, type PixelPolygon } from "./maskPolygon";
+import { maskToSimplePolygons, polygonsToRuns, type PixelPolygon } from "./maskPolygon";
 import type {
   AnnotationSummary,
   FrameInstance,
@@ -131,16 +131,18 @@ export function runsOfPolygons(
 }
 
 /**
- * det_seg MaskToPolygons(eps=1) for one observation, in editor coordinates. Components of one or
- * two pixels have fewer than three contour vertices, which the contract cannot save as a polygon,
- * so they are not editable and drop out.
+ * One observation's mask as editor polygons the annotation contract accepts (maskToSimplePolygons,
+ * eps=1). det_seg's MaskToPolygons is not used here: it bridges holes into the outer ring as a
+ * keyhole, repeating two vertices, and its traces revisit pinch pixels, so the server rejected
+ * them with "Duplicate polygon vertex". Components of one or two pixels and one-pixel filaments
+ * have no polygon the contract can save, so they are not editable and drop out.
  */
 export function maskToEditorPolygons(
   mask: SegmentationMask,
   topic: string | undefined,
   createId: () => string = uuidv4,
 ): SegmentationPolygon[] {
-  const rings = maskToPolygons(runsOfMask(mask), 1).filter((ring) => ring.length >= 3);
+  const rings = maskToSimplePolygons(runsOfMask(mask), 1).filter((ring) => ring.length >= 3);
   return rings.map(
     (ring): SegmentationPolygon => ({
       id: createId(),
