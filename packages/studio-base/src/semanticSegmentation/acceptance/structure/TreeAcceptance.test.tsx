@@ -266,7 +266,7 @@ describe("structure tree original GWT acceptance", () => {
       row(instance.id).querySelector<HTMLElement>('[style*="background-color"]')!.style
         .backgroundColor,
     ).toBe(color);
-    fireEvent.click(within(row(instance.id)).getByRole("button", { name: /^Add polygon/ }));
+    fireEvent.click(within(row(instance.id)).getByRole("button", { name: /^Annotate / }));
     expect(store.getState().drawing?.instanceId).toBe(instance.id);
     let polygonId = "";
     act(() => {
@@ -285,7 +285,7 @@ describe("structure tree original GWT acceptance", () => {
   it("SEG-TREE-005 starts drawing without a placeholder, and finishing keeps both existing pieces", async () => {
     const { store } = await setup();
     const before = polygons(store.getState().document!, 0, "I");
-    fireEvent.click(within(row("I")).getByRole("button", { name: /^Add polygon/ }));
+    fireEvent.click(within(row("I")).getByRole("button", { name: /^Annotate / }));
     expect(store.getState().drawing).toEqual({ instanceId: "I", frameId: "frame-0" });
     expect(store.getState().editing).toBe(true);
     expect(polygons(store.getState().document!, 0, "I")).toEqual(before);

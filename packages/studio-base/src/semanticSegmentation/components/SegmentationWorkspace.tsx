@@ -57,9 +57,6 @@ function ActiveWorkbench({
         frameId={frameId}
         focused={focused}
         onClaimFocus={onClaimFocus}
-        onClose={() => {
-          segmentationSession.setState({ open: false, imageUrl: undefined, sourceReady: false });
-        }}
       />
     </div>
   );

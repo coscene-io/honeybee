@@ -66,7 +66,7 @@ describe("segmentation editor", () => {
     const instance = store
       .getState()
       .document!.instances.find((item) => item.classId === category.id)!;
-    fireEvent.click(screen.getByRole("button", { name: /Add polygon to.*#1$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Annotate.*#1$/ }));
     expect(store.getState().drawing?.instanceId).toBe(instance.id);
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     pointer(canvas, "pointerdown", 96, 54);
@@ -447,7 +447,7 @@ describe("segmentation editor", () => {
 
   it("keeps drawing guidance and validation inside the viewport overlay", async () => {
     await setup();
-    fireEvent.click(screen.getByRole("button", { name: /Add polygon to.*Empty instance/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Annotate.*Empty instance/ }));
     const viewport = screen.getByTestId("segmentation-viewport");
     pointer(screen.getByRole("img", { name: "Frame polygons" }), "pointerdown", 100, 100);
     fireEvent.keyDown(screen.getByLabelText("Segmentation canvas"), { key: "Enter" });
@@ -728,7 +728,7 @@ describe("segmentation editor", () => {
 
   it("places an outside drawing click on the nearest image point without staging it", async () => {
     const { store } = await setup();
-    fireEvent.click(screen.getByRole("button", { name: /Add polygon to.*Empty instance/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Annotate.*Empty instance/ }));
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
     const before = store.getState().stagedOperations.length;
     pointer(canvas, "pointermove", -20, 50);

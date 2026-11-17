@@ -249,10 +249,15 @@ type TreeDialog =
   | { type: "delete"; nodes: SegmentationNodeRef[] }
   | { type: "delete-class"; id: string };
 
-/**
- * Whether a keyboard/mouse event belongs to this tree row itself (not a nested row) and was
- * raised by the row or its main button rather than by another control such as a checkbox.
- */
+/** Operation labels shown in the submission queue for each tree dialog. */
+const dialogOperationLabels: Record<TreeDialog["type"], string> = {
+  rename: "Rename",
+  merge: "Merge instances",
+  move: "Move instances",
+  delete: "Delete",
+  "delete-class": "Delete class",
+};
+
 function nodeExists(document: SegmentationDocument, node: SegmentationNodeRef): boolean {
   if (node.type === "class") {
     return document.classes.some((item) => item.id === node.id);
@@ -324,6 +329,10 @@ function forwardCanvasShortcut(event: ReactKeyboardEvent<HTMLElement>): void {
   }
 }
 
+/**
+ * Whether a keyboard/mouse event belongs to this tree row itself (not a nested row) and was
+ * raised by the row or its main button rather than by another control such as a checkbox.
+ */
 function ownsRowEvent(target: EventTarget, row: Element): boolean {
   if (!(target instanceof Element) || target.closest('[role="treeitem"]') !== row) {
     return false;
@@ -342,7 +351,6 @@ export function SpatialTree({
   const surfaces = useStore(segmentationSession, (session) => session.surfaces);
   const sessionOpen = useStore(segmentationSession, (session) => session.open);
   const previewFrames = useStore(segmentationSession, (session) => session.previewFrames);
-  const strokeFrameId = useStore(segmentationSession, (session) => session.strokeFrameId);
   const text = useEditorText();
   const document = state.document;
   const index = document ? frameIndexOf(document) : undefined;
@@ -532,7 +540,7 @@ export function SpatialTree({
       state.setFocus(node);
     }
   }
-  function addPolygon(instanceId: string): void {
+  function annotateInstance(instanceId: string): void {
     run(() => {
       state.setFocus({ type: "instance", id: instanceId });
       state.setSelection([{ type: "instance", id: instanceId }]);
@@ -671,10 +679,12 @@ export function SpatialTree({
           );
         }
       }
-      state.runTransaction(dialog.type, () => {
+      state.runTransaction(dialogOperationLabels[dialog.type], () => {
         if (dialog.type === "rename") {
           if (!name.trim() || name.trim().length > 100) {
-            throw new Error("Enter a name of 1–100 characters.");
+            throw new Error(
+              text("Enter a name of 1–100 characters.", "请输入 1–100 个字符的名称。"),
+            );
           }
           (dialog.node.type === "instance" ? state.renameInstance : state.renameClass)(
             dialog.node.id,
@@ -929,12 +939,20 @@ export function SpatialTree({
               </Box>
             )}
             {add && (
-              <Tooltip title={node.type === "class" ? "Add instance" : "Add polygon"}>
+              <Tooltip
+                title={
+                  node.type === "class"
+                    ? "Add instance"
+                    : text("Annotate this instance", "标注此实例")
+                }
+              >
                 <IconButton
                   size="small"
                   disabled={locked}
                   className={classes.addButton}
-                  aria-label={`Add ${node.type === "class" ? "instance" : "polygon"} to ${label}`}
+                  aria-label={
+                    node.type === "class" ? `Add instance to ${label}` : `Annotate ${label}`
+                  }
                   onClick={add}
                 >
                   +
@@ -1092,6 +1110,13 @@ export function SpatialTree({
           0,
         );
         const camerasPresent = visibleAnnotations.length;
+        const hasMask = visibleAnnotations.some((item) => item.kind === "mask");
+        const geometryEn =
+          polygonCount === 0 && hasMask
+            ? "mask"
+            : `${polygonCount} polygons${hasMask ? " + mask" : ""}`;
+        const geometryZh =
+          polygonCount === 0 && hasMask ? "mask" : `${polygonCount} 块${hasMask ? " + mask" : ""}`;
         const isPresent = treeFrameIds.some((id) => hasGeometry(id, instance.id));
         flatRows.push({
           key: instanceKey,
@@ -1106,12 +1131,12 @@ export function SpatialTree({
                 `${isPresent ? "●" : "○"} ${instance.name || instance.id}`,
                 category.color,
                 text(
-                  `${camerasPresent} visible cameras · ${polygonCount} polygons`,
-                  `当前 ${camerasPresent} 路相机 · ${polygonCount} 块`,
+                  `${camerasPresent} visible cameras · ${geometryEn}`,
+                  `当前 ${camerasPresent} 路相机 · ${geometryZh}`,
                 ),
                 2,
                 () => {
-                  addPolygon(instance.id);
+                  annotateInstance(instance.id);
                 },
                 undefined,
                 isPresent ? "present" : "absent",
@@ -1168,7 +1193,7 @@ export function SpatialTree({
               ),
               2,
               () => {
-                addPolygon(instance.id);
+                annotateInstance(instance.id);
               },
               presence,
               isPresent ? "present" : "absent",
@@ -1193,16 +1218,14 @@ export function SpatialTree({
               render: () =>
                 row(
                   { type: "polygon", id: polygon.id },
-                  treeFrameIds.length > 1 && (polygon.points.length > 0 || strokeFrameId === id)
+                  treeFrameIds.length > 1
                     ? text(
                         `${camera} · Polygon ${position + 1}`,
                         `${camera} · 多边形 ${position + 1}`,
                       )
                     : text(`Polygon ${position + 1}`, `多边形 ${position + 1}`),
                   category.color,
-                  polygon.points.length === 0
-                    ? text("Empty polygon · add vertices", "空多边形 · 待绘制")
-                    : text(`${polygon.points.length} vertices`, `${polygon.points.length} 个顶点`),
+                  text(`${polygon.points.length} vertices`, `${polygon.points.length} 个顶点`),
                   3,
                 ),
             });

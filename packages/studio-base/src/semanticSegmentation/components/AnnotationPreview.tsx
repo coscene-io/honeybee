@@ -107,9 +107,9 @@ function PreviewPolygons({
       });
     };
   }, [topic, shown?.id]);
-  const polygons = Object.values(document?.annotations ?? {}).filter(
-    (annotation) => annotation.frameId === shown?.id,
-  );
+  const polygons = Object.values(document?.annotations ?? {})
+    .filter((annotation) => annotation.frameId === shown?.id)
+    .flatMap((annotation) => polygonsOf(annotation));
   const view = captured?.nativeView;
   if (!box || !view || polygons.length === 0) {
     return undefined;
@@ -123,17 +123,15 @@ function PreviewPolygons({
       style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
     >
       <g transform={`matrix(${view.matrix.join(" ")})`}>
-        {polygons.flatMap((annotation) =>
-          polygonsOf(annotation).map((polygon) => (
-            <path
-              key={polygon.id}
-              d={polygonPath(polygon.points, view.imageWidth, view.imageHeight)}
-              fill="rgba(85, 184, 222, 0.28)"
-              stroke="#55b8de"
-              strokeWidth={2}
-            />
-          )),
-        )}
+        {polygons.map((polygon) => (
+          <path
+            key={polygon.id}
+            d={polygonPath(polygon.points, view.imageWidth, view.imageHeight)}
+            fill="rgba(85, 184, 222, 0.28)"
+            stroke="#55b8de"
+            strokeWidth={2}
+          />
+        ))}
       </g>
     </svg>
   );

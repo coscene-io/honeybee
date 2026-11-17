@@ -247,7 +247,7 @@ it("SEG-ENT-002 actual Workspace sidebar actions select adjacent Space from Mome
   fireEvent.change(screen.getByLabelText("Class name"), { target: { value: "Bound camera" } });
   fireEvent.keyDown(screen.getByLabelText("Class name"), { key: "Enter" });
   fireEvent.click(screen.getByRole("button", { name: "Add instance to Bound camera" }));
-  fireEvent.click(screen.getByRole("button", { name: /Add polygon to.*#1$/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Annotate.*#1$/ }));
   const instanceId = runtime.store.getState().drawing!.instanceId;
   for (const [x, y] of [
     [96, 54],

@@ -191,10 +191,6 @@ function ActionButtons({
   const closeSubmit = () => {
     setSubmitAnchor(undefined);
   };
-  const goWorkflow = (target?: string) => {
-    openWorkflowPanel(target);
-    closeSubmit();
-  };
   return (
     <>
       <button
@@ -247,7 +243,8 @@ function ActionButtons({
             type="button"
             className={classes.item}
             onClick={() => {
-              goWorkflow("seg-submissions");
+              openWorkflowPanel("seg-submissions");
+              closeSubmit();
             }}
           >
             提交队列

@@ -19,8 +19,6 @@ export type VirtualRows = {
   viewportHeight: number;
   /** Attach to each rendered row; its measured height replaces the estimate. */
   measure: (key: string) => (element: HTMLElement | ReactNull) => void;
-  /** Scroll so the row's top is at the top of the viewport. */
-  scrollToRow: (index: number) => void;
 };
 
 /**
@@ -133,17 +131,7 @@ export function useVirtualRows({
     end = Math.min(count, firstRowEndingAfter(offsets, scrollTop + viewportHeight + overscan) + 1);
   }
 
-  const scrollToRow = useCallback(
-    (index: number) => {
-      const element = container.current;
-      if (element && index >= 0 && index < offsets.length) {
-        element.scrollTop = offsets[index]!;
-      }
-    },
-    [container, offsets],
-  );
-
-  return { start, end, offsets, scrollTop, viewportHeight, measure, scrollToRow };
+  return { start, end, offsets, scrollTop, viewportHeight, measure };
 }
 
 /** Index of the first row whose bottom is below `y` (binary search over prefix offsets). */

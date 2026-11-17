@@ -37,7 +37,7 @@ it("SEG-DRAW-001/002/003/005 draws at missing I from a document-free draft, and 
   delete document.annotationSummaries[frameInstanceKey("frame-0", "instance-1")];
   const { store, container } = await editor(document);
   const otherFrame = polygon(store, "instance-1", "frame-1");
-  fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Person 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Person 1" }));
   expect(store.getState().drawing).toEqual({ instanceId: "instance-1", frameId: "frame-0" });
   expect(store.getState().currentFrameId).toBe("frame-0");
   // The draft lives in the canvas: nothing is staged or stored until it is finished.
@@ -66,7 +66,7 @@ it("SEG-DRAW-001/002/003/005 draws at missing I from a document-free draft, and 
   expect(store.getState().drawing).toBeUndefined();
   const saved = polygon(store);
   const staged = store.getState().stagedOperations;
-  fireEvent.click(screen.getByRole("button", { name: "Add polygon to ● Person 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Annotate ● Person 1" }));
   expect(store.getState().drawing?.instanceId).toBe("instance-1");
   pointer(canvas(), "pointerdown", 50, 50);
   pointer(canvas(), "pointerdown", 60, 60);
@@ -97,7 +97,7 @@ it.each(
   ].map((points) => ({ points })),
 )("SEG-DRAW-006/009 invalid draft $points remains open without staged area", async ({ points }) => {
   const { store } = await editor();
-  fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Empty instance" }));
+  fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
   const drawing = store.getState().drawing;
   expect(drawing?.instanceId).toBe("instance-empty");
   const staged = store.getState().stagedOperations;
@@ -125,7 +125,7 @@ it.each(
 
 it("SEG-DRAW-010 text-field Enter does not finish a simultaneous valid polygon draft", async () => {
   const { store } = await editor();
-  fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Empty instance" }));
+  fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
   const drawing = store.getState().drawing;
   for (const [x, y] of [
     [96, 54],
@@ -251,7 +251,7 @@ it.each([
       store.getState().setCurrentFrame("frame-1");
     });
     loadSize(container, width, height);
-    fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Empty instance" }));
+    fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
     pointer(canvas(), "pointerdown", width / 2, height / 2);
     pointer(canvas(), "pointerdown", width * 0.75, height / 2);
     pointer(canvas(), "pointerdown", width / 2, height * 0.75);
@@ -276,7 +276,7 @@ it("SEG-DRAW-017 exact2x SVG layout maps an actual drawing pointer to fractional
     configurable: true,
     value: () => ({ a: 2, b: 0, c: 0, d: 2, e: 110, f: 95 }),
   });
-  fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ Empty instance" }));
+  fireEvent.click(screen.getByRole("button", { name: "Annotate ○ Empty instance" }));
   for (const [x, y] of [
     [131, 135.5],
     [171, 135.5],

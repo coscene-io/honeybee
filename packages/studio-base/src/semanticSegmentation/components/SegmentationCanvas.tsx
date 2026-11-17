@@ -316,6 +316,10 @@ type VertexGroup = {
 type Preview = Record<string, EditorPoint[]>;
 
 /** Moves the given vertices by (dx, dy), shrinking the delta so none leaves the image. */
+const NAVIGATION_STORAGE_KEY = "coStudio.semanticSegmentation.navigation";
+/** Read as a fallback so an earlier saved choice survives the rename. */
+const LEGACY_NAVIGATION_STORAGE_KEY = "bombus.segmentation.navigation.v1";
+
 function moveVertices(
   points: EditorPoint[],
   indices: readonly number[],
@@ -404,9 +408,10 @@ export function SegmentationCanvas({
   }>();
   const [profile, setProfile] = useState<"mouse" | "trackpad">(() => {
     try {
-      return localStorage.getItem("bombus.segmentation.navigation.v1") === "trackpad"
-        ? "trackpad"
-        : "mouse";
+      const saved =
+        localStorage.getItem(NAVIGATION_STORAGE_KEY) ??
+        localStorage.getItem(LEGACY_NAVIGATION_STORAGE_KEY);
+      return saved === "trackpad" ? "trackpad" : "mouse";
     } catch {
       return "mouse";
     }
@@ -520,6 +525,9 @@ export function SegmentationCanvas({
     setQuickPoints([]);
     setQuickResult(undefined);
     setQuickBusy(false);
+    return () => {
+      quickRequest.current?.abort();
+    };
   }, [drawing, frameId, tool]);
   useEffect(() => {
     setStroke(undefined);
@@ -542,7 +550,9 @@ export function SegmentationCanvas({
         return;
       }
       if (focusedObservation?.kind === "polygons") {
-        throw new Error("Convert the polygons to a mask before painting");
+        throw new Error(
+          text("Convert the polygons to a mask before painting.", "请先将多边形转为 mask 再涂抹。"),
+        );
       }
       const mask = applyStroke(focusedObservation, runs, brush.mode);
       state.replaceMask(focusedInstanceId, mask, brush.mode === "paint" ? "Brush" : "Erase");
@@ -579,7 +589,12 @@ export function SegmentationCanvas({
     const width = video?.width ?? size.width;
     const height = video?.height ?? size.height;
     if (!frame || video?.topic == undefined || !(width > 0) || !(height > 0) || !source) {
-      setError("当前帧还没有可用的 topic、源图尺寸或画面，稍后再试。");
+      setError(
+        text(
+          "This frame has no topic, source size or image yet. Try again shortly.",
+          "当前帧还没有可用的 topic、源图尺寸或画面，稍后再试。",
+        ),
+      );
       return;
     }
     const controller = new AbortController();
@@ -1416,11 +1431,21 @@ export function SegmentationCanvas({
     const before = document?.annotations[frameInstanceKey(frameId, drawing.instanceId)]?.kind;
     if (quickMode) {
       if (quickBusy) {
-        setError("正在计算 mask，请稍候再按 Enter。");
+        setError(
+          text(
+            "Still computing the mask. Press Enter again in a moment.",
+            "正在计算 mask，请稍候再按 Enter。",
+          ),
+        );
         return;
       }
       if (!quickResult) {
-        setError("先在目标上点一下（左键正点，右键或 Shift+左键负点）。");
+        setError(
+          text(
+            "Click the target first (left click adds a positive point, right click or Shift+left click a negative one).",
+            "先在目标上点一下（左键正点，右键或 Shift+左键负点）。",
+          ),
+        );
         return;
       }
       const mask = { ...quickResult.mask, source: "quick" as const };
@@ -1645,7 +1670,7 @@ export function SegmentationCanvas({
     const next = event.target.value === "trackpad" ? "trackpad" : "mouse";
     setProfile(next);
     try {
-      localStorage.setItem("bombus.segmentation.navigation.v1", next);
+      localStorage.setItem(NAVIGATION_STORAGE_KEY, next);
     } catch {
       /* Navigation remains usable without local persistence. */
     }
@@ -1943,7 +1968,7 @@ export function SegmentationCanvas({
             </Button>
           </Tooltip>
           <Typography variant="caption" aria-live="polite" data-tool="zoom-label">
-            {zoom === 1 && pan.x === 0 && pan.y === 0 ? "Fit · " : ""}
+            {zoom === 1 && pan.x === 0 && pan.y === 0 ? text("Fit · ", "适应 · ") : ""}
             {Math.round(screenScale * 100)}%
           </Typography>
           <Tooltip
@@ -2139,7 +2164,7 @@ export function SegmentationCanvas({
               <RemoveIcon fontSize="small" />
             </IconButton>
             <Typography variant="body2" aria-live="polite" data-tool="zoom-label">
-              {zoom === 1 && pan.x === 0 && pan.y === 0 ? "Fit · " : ""}
+              {zoom === 1 && pan.x === 0 && pan.y === 0 ? text("Fit · ", "适应 · ") : ""}
               {Math.round(screenScale * 100)}%
             </Typography>
             <IconButton
@@ -2187,7 +2212,6 @@ export function SegmentationCanvas({
             className={classes.menuButton}
             startIcon={<AspectRatioIcon />}
             disabled={navigationLocked}
-            aria-label="100%"
             data-tool="actual"
             onClick={() => {
               zoomAt(zoom / screenScale);
@@ -2318,7 +2342,12 @@ export function SegmentationCanvas({
       >
         <Stack className={classes.notices} spacing={1} data-testid="canvas-notices">
           {compact && !nativeView && (
-            <Alert severity="info">当前画面变换尚未就绪或包含非线性校正，暂时无法精确标注。</Alert>
+            <Alert severity="info">
+              {text(
+                "The view transform is not ready or includes a non-linear correction, so precise annotation is not available yet.",
+                "当前画面变换尚未就绪或包含非线性校正，暂时无法精确标注。",
+              )}
+            </Alert>
           )}
           {draftElsewhere && (
             <Typography
@@ -3367,7 +3396,10 @@ export function SegmentationCanvas({
                   `顶点 ${activePoint.vertex + 1}（${Math.round(activePoint.point.x * size.width)}, ${Math.round(activePoint.point.y * size.height)}）：方向键移动 1 图像像素；Shift 为 10；Shift+点击可多选。`,
                 )
               : drawing && quickMode
-                ? `快速标注：左键加正点，右键或 Shift+左键加负点；Backspace 撤销上一个点，Enter 完成，Esc 取消 · ${quickPoints.filter((p) => p.positive).length} 正 / ${quickPoints.filter((p) => !p.positive).length} 负${quickBusy ? " · 计算中…" : quickResult ? ` · 置信度 ${quickResult.score.toFixed(2)}` : ""}`
+                ? text(
+                    `Quick annotation: left click adds a positive point, right click or Shift+left click a negative one; Backspace undoes the last point, Enter finishes, Esc cancels · ${quickPoints.filter((p) => p.positive).length} positive / ${quickPoints.filter((p) => !p.positive).length} negative${quickBusy ? " · computing…" : quickResult ? ` · score ${quickResult.score.toFixed(2)}` : ""}`,
+                    `快速标注：左键加正点，右键或 Shift+左键加负点；Backspace 撤销上一个点，Enter 完成，Esc 取消 · ${quickPoints.filter((p) => p.positive).length} 正 / ${quickPoints.filter((p) => !p.positive).length} 负${quickBusy ? " · 计算中…" : quickResult ? ` · 置信度 ${quickResult.score.toFixed(2)}` : ""}`,
+                  )
                 : drawing
                   ? text(
                       `Drawing a polygon: ${draft.length} vertices · Enter finishes, Esc cancels · Q quick annotation · Space/middle/right drag to pan`,

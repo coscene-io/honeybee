@@ -48,7 +48,7 @@ export function PropagationForm({
   const document = state.document;
   const frame = document?.frames.find((item) => item.id === scope?.frameId);
   const capabilities = state.propagationCapabilities;
-  const allowedModels = capabilities?.models ?? ["large", "small"];
+  const allowedModels = capabilities?.models ?? [model];
   const supportedParameters =
     allowedModels.includes(model) &&
     !state.propagationCapabilitiesError &&
@@ -122,7 +122,7 @@ export function PropagationForm({
 
   return (
     <section className="seg-section" aria-label="传播参数">
-      <h2 id="seg-propagation">⇢ 实例传播</h2>
+      <h2>⇢ 实例传播</h2>
       {localError && (
         <div role="alert" className="seg-status seg-error">
           {localError}

@@ -12,7 +12,7 @@ import { createRef } from "react";
 import { fromNanoSec, toNanoSec, type Time } from "@foxglove/rostime";
 
 import { segmentationImageSources, type SegmentationImage } from "../imageSource";
-import { segmentationSession } from "../runtime";
+import { segmentationSession, type SegmentationRuntime } from "../runtime";
 import { frameInstanceKey } from "../service";
 import { SegmentationImageEntry } from "./SegmentationImageEntry";
 import { SegmentationWorkspace } from "./SegmentationWorkspace";
@@ -209,16 +209,39 @@ afterEach(() => {
   runtime?.dispose();
 });
 
-it("streams propagation results without changing native time or replacing native pixels", async () => {
+/** Log times of the frames whose propagation results were staged. */
+function resultLogTimes(runtime: SegmentationRuntime): Set<string> {
+  const document = runtime.store.getState().document!;
+  return new Set(
+    runtime.store
+      .getState()
+      .stagedOperations.flatMap((operation) =>
+        Object.values(operation.patch.annotations ?? {}).flatMap((annotation) =>
+          annotation ? [annotation.frameId] : [],
+        ),
+      )
+      .map((frameId) => document.frames.find((frame) => frame.id === frameId)!.logTimeNs),
+  );
+}
+
+function seekedLogTimes(): string[] {
+  return (jest.mocked(pipeline.seekPlayback).mock.calls as [Time][]).map(([time]) =>
+    toNanoSec(time).toString(),
+  );
+}
+
+it("streams propagation results, lets the player follow them and never replaces native pixels", async () => {
   const f = await fixture();
   const shown = segmentationSession.getState().decodedFrame?.frameId;
   await act(async () => {
     await f.start();
   });
   expect(f.runtime.store.getState().propagation.status).toBe("completed");
-  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
+  // The player follows the results (throttled seeks), never pauses, and only to result frames.
+  const results = resultLogTimes(f.runtime);
+  expect(seekedLogTimes().length).toBeGreaterThan(0);
+  expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
   expect(pipeline.pausePlayback).not.toHaveBeenCalled();
-  expect(toNanoSec(pipeline.playerState.activeData.currentTime)).toBe(400_000_000n);
   expect(segmentationSession.getState().decodedFrame?.frameId).toBe(shown);
   expect(f.container.querySelector("svg image")).toBeNull();
   expect(
@@ -255,8 +278,10 @@ it("keeps the seed immutable while native playback advances during propagation",
     release();
     await running;
   });
-  expect(pipeline.seekPlayback).not.toHaveBeenCalled();
-  expect(toNanoSec(pipeline.playerState.activeData.currentTime)).toBe(650_000_000n);
+  // Following the results seeks only to result frames; the seed stays the frame it started on.
+  const results = resultLogTimes(f.runtime);
+  expect(seekedLogTimes().every((time) => results.has(time))).toBe(true);
+  expect(capturedSeed).toBe(f.frames[4]!.id);
 });
 
 it("STOP rejects late results and waits for iterator termination without a native presentation", async () => {
@@ -295,14 +320,11 @@ it("STOP rejects late results and waits for iterator termination without a nativ
   });
   expect(f.runtime.store.getState().propagation.status).toBe("cancelled");
   expect(f.runtime.store.getState().stagedOperations).toBe(accepted);
-  // The player follows propagation, but only to the frame accepted before STOP, never a late one.
-  const acceptedFrameId = Object.values(accepted.at(-1)!.patch.annotations ?? {})[0]!.frameId;
-  const acceptedFrame = f.runtime.store
-    .getState()
-    .document!.frames.find((frame) => frame.id === acceptedFrameId)!;
-  for (const [time] of jest.mocked(pipeline.seekPlayback).mock.calls as [Time][]) {
-    expect(toNanoSec(time).toString()).toBe(acceptedFrame.logTimeNs);
-  }
+  // The player follows propagation only to frames accepted before STOP (or stays on the seed),
+  // never to a late result.
+  const allowed = resultLogTimes(f.runtime);
+  allowed.add(f.frames[4]!.logTimeNs);
+  expect(seekedLogTimes().every((time) => allowed.has(time))).toBe(true);
 });
 
 it("accepts a fresh decode before React observes the native seek and hides stale geometry", async () => {

@@ -26,7 +26,6 @@ export type SemanticSegmentationWorkbenchProps = {
   /** Tree inside the canvas. The app shows it in the Space sidebar instead. */
   showTree?: boolean;
   sourceReady?: boolean;
-  onClose?: () => void;
   decodedFrame?: DecodedSegmentationFrame;
   onFrameRendered?: (frame: DecodedSegmentationFrame) => void;
   onFrameRenderError?: (frame: DecodedSegmentationFrame) => void;
@@ -188,7 +187,15 @@ export function SemanticSegmentationWorkbench({
               />
             </div>
           </main>
-          <WorkflowControls store={store} hidden={!workflow.open} />
+          <WorkflowControls
+            store={store}
+            hidden={!workflow.open}
+            onClose={() => {
+              segmentationSession.setState((session) => ({
+                workflow: { ...session.workflow, open: false },
+              }));
+            }}
+          />
         </div>
       </fieldset>
     </div>

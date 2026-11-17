@@ -76,19 +76,13 @@ export function OperationList({
     >
       <summary>查看批次修改范围</summary>
       {open && (
-        <>
-          <ol>
-            {operations.map((operation) => (
-              <li key={operation.id}>
-                <OperationScope operation={operation} document={document} />
-              </li>
-            ))}
-          </ol>
-          <details>
-            <summary>查看冻结操作快照</summary>
-            <pre>{JSON.stringify(operations, undefined, 2)}</pre>
-          </details>
-        </>
+        <ol>
+          {operations.map((operation) => (
+            <li key={operation.id}>
+              <OperationScope operation={operation} document={document} />
+            </li>
+          ))}
+        </ol>
       )}
     </details>
   );

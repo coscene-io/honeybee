@@ -41,10 +41,6 @@ const STATE_TEXT: Record<CameraStripCell["state"], string> = {
   outside: "超出录制",
 };
 
-/**
- * One camera's ±20-frame mini timeline for one instance. Cells are that camera's own source
- * frames in log-time order. Clicking a cell moves the clock to that frame's exact log time.
- */
 type CameraFrameStripProps = {
   document: SegmentationDocument;
   instanceId: string;
@@ -94,6 +90,10 @@ function sameStrip(previous: CameraFrameStripProps, next: CameraFrameStripProps)
   );
 }
 
+/**
+ * One camera's ±20-frame mini timeline for one instance. Cells are that camera's own source
+ * frames in log-time order. Clicking a cell moves the clock to that frame's exact log time.
+ */
 export const CameraFrameStrip = memo(function CameraFrameStrip({
   document,
   instanceId,

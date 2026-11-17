@@ -181,8 +181,8 @@ export function SegmentationImageEntry({
   onActionsChange?: (actions: SegmentationImageEntryActions | undefined) => void;
   onAvailabilityChange?: (state: "available" | "hidden") => void;
   /**
-   * Published annotation client. Until that client exists, omit this. The panel then
-   * keeps annotations for the open recording in the browser. That store is not the live API.
+   * Annotation client override, for tests and fixtures. Omitted, the panel creates the live
+   * AnnotationService client for the open cloud record.
    */
   service?: SemanticSegmentationService;
 }): React.JSX.Element | undefined {
@@ -231,14 +231,7 @@ export function SegmentationImageEntry({
   );
   // The open record is Core Data. A second file in that record is a different playback URL,
   // not a second name on the record, so the title must not hide the URL.
-  const file = record
-    ? {
-        dataAssetName: record.name,
-        filename: undefined as string | undefined,
-        name: undefined as string | undefined,
-        sizeBytes: undefined as bigint | undefined,
-      }
-    : undefined;
+  const dataAssetName = record?.name;
   const active = useRef<Binding | undefined>(undefined);
   useEffect(() => {
     // Masks render on the GPU in every Image panel, in preview, editing and playback alike.
@@ -250,7 +243,6 @@ export function SegmentationImageEntry({
   );
   const generation = useRef(0);
   const previewGeneration = useRef(0);
-  const pending = useRef<{ runtime: SegmentationRuntime; epoch: number } | undefined>(undefined);
   const blockedImage = useRef<object | undefined>(undefined);
   const lastSyncedImage = useRef<object | undefined>(undefined);
   // What the last source registration read; see `sync`.
@@ -267,18 +259,23 @@ export function SegmentationImageEntry({
     | undefined
   >(undefined);
   const [error, setError] = useState<string>();
+  // Errors raised while a session was open (frame sync runs every frame) are hidden until it
+  // closes; drop them then so ending the session does not surface a stale alert.
+  useEffect(() => {
+    if (sessionRuntime == undefined) {
+      setError(undefined);
+    }
+  }, [sessionRuntime]);
   // Bumped when the first decoded frame arrives after the preview effect found none.
   const [previewRetry, setPreviewRetry] = useState(0);
   const toolbarHosted = onActionsChange != undefined;
   const recordId = segmentationSourceKey({
-    dataAssetName: file?.dataAssetName,
-    filename: file?.filename ?? player.name,
-    sizeBytes: file?.sizeBytes?.toString(),
+    dataAssetName,
+    filename: player.name,
     urlState: player.urlState,
     playerId: player.playerId,
   });
-  const mediaIdentity =
-    file?.name ?? file?.filename ?? player.urlState?.parameters?.url ?? player.name;
+  const mediaIdentity = player.urlState?.parameters?.url ?? player.name;
   const bindingKey = JSON.stringify([userKey, player.playerId, recordId, mediaIdentity, topic])!;
   const previousKey = useRef(bindingKey);
   const previousSeek = useRef(player.activeData?.lastSeekTime);
@@ -354,9 +351,8 @@ export function SegmentationImageEntry({
     void (async () => {
       try {
         const stableRecordId = segmentationSourceKey({
-          dataAssetName: file?.dataAssetName,
-          filename: file?.filename ?? pipeline.playerState.name,
-          sizeBytes: file?.sizeBytes?.toString(),
+          dataAssetName,
+          filename: pipeline.playerState.name,
           urlState: pipeline.playerState.urlState,
           playerId: pipeline.playerState.playerId,
         });
@@ -423,12 +419,12 @@ export function SegmentationImageEntry({
         }
         const document = sourceDocument({
           recordId: stableRecordId,
-          recordName: file?.filename ?? pipeline.playerState.name ?? "当前媒体",
+          recordName: pipeline.playerState.name ?? "当前媒体",
           videoId,
           topic,
           image,
           durationSec,
-          sizeBytes: Number(file?.sizeBytes ?? 0n),
+          sizeBytes: 0,
           frames: framesFromStamps(videoId, startNs, stamps.values()),
         });
         let runtime = sessions.get(sessionKey);
@@ -484,9 +480,7 @@ export function SegmentationImageEntry({
     previewCanStart,
     capture,
     containerRef,
-    file?.dataAssetName,
-    file?.filename,
-    file?.sizeBytes,
+    dataAssetName,
     getPipeline,
     mediaIdentity,
     panelId,
@@ -504,7 +498,6 @@ export function SegmentationImageEntry({
     ++generation.current;
     const binding = active.current;
     active.current = undefined;
-    pending.current = undefined;
     if (binding?.frames) {
       binding.frames.dispose();
       if (sourceFrameLoaders.get(binding.videoId) === binding.frames) {
@@ -882,9 +875,8 @@ export function SegmentationImageEntry({
       const epoch = ++generation.current;
       const keyAtStart = latestKey.current;
       const stableRecordId = segmentationSourceKey({
-        dataAssetName: file?.dataAssetName,
-        filename: file?.filename ?? pipeline.playerState.name,
-        sizeBytes: file?.sizeBytes?.toString(),
+        dataAssetName,
+        filename: pipeline.playerState.name,
         urlState: pipeline.playerState.urlState,
         playerId: pipeline.playerState.playerId,
       });
@@ -919,12 +911,12 @@ export function SegmentationImageEntry({
         }
         const document = sourceDocument({
           recordId: stableRecordId,
-          recordName: file?.filename ?? pipeline.playerState.name ?? "当前媒体",
+          recordName: pipeline.playerState.name ?? "当前媒体",
           videoId,
           topic: imageTopic,
           image,
           durationSec,
-          sizeBytes: Number(file?.sizeBytes ?? 0n),
+          sizeBytes: 0,
           frames: framesFromStamps(videoId, startNs, stamps.values()),
         });
         if (!runtime) {
@@ -946,15 +938,6 @@ export function SegmentationImageEntry({
         setError("请等待传播停止确认后再进入标注。");
         return;
       }
-      const activation = { runtime, epoch };
-      pending.current = activation;
-      if (epoch !== generation.current || keyAtStart !== latestKey.current) {
-        if (pending.current === activation) {
-          pending.current = undefined;
-        }
-        return;
-      }
-      pending.current = undefined;
       const subscribeMessageRange = getPipeline().subscribeMessageRange;
       const boundRuntime = runtime;
       const frames =
@@ -1014,9 +997,7 @@ export function SegmentationImageEntry({
     [
       annotatable,
       capture,
-      file?.dataAssetName,
-      file?.filename,
-      file?.sizeBytes,
+      dataAssetName,
       getPipeline,
       containerRef,
       mediaIdentity,

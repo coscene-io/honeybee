@@ -144,9 +144,11 @@ export function SubmissionControls({
 export function WorkflowControls({
   store,
   hidden = false,
+  onClose,
 }: {
   store: StoreApi<SemanticSegmentationStore>;
   hidden?: boolean;
+  onClose?: () => void;
 }): React.JSX.Element {
   const state = useStore(store);
   return (
@@ -154,6 +156,16 @@ export function WorkflowControls({
       <section className="seg-section">
         <h2 id="seg-submissions">
           ⇧ 提交队列 <span className="seg-muted">{state.submissionQueue.length}</span>
+          {onClose && (
+            <button
+              type="button"
+              className="seg-controls-close"
+              aria-label="关闭提交队列"
+              onClick={onClose}
+            >
+              关闭
+            </button>
+          )}
         </h2>
         {state.submissionQueue.length === 0 && (
           <p className="seg-muted">提交后进入队列，编辑可以继续。</p>

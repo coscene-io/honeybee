@@ -167,6 +167,9 @@
   align-items: center;
   gap: 8px;
 }
+.seg-controls-close {
+  margin-left: auto;
+}
 .seg-section label {
   display: flex;
   justify-content: space-between;

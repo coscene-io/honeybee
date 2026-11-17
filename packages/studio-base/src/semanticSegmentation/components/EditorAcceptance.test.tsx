@@ -90,7 +90,7 @@ function pointer(target: Element, x: number, y: number) {
 describe("editor original GWT acceptance", () => {
   it("SEG-DRAW-004 dismissing help preserves two draft vertices and drawing can continue", async () => {
     const { store } = await setup(fixture(2, (_frame, instance) => instance < 2));
-    fireEvent.click(screen.getByRole("button", { name: "Add polygon to ○ I2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Annotate ○ I2" }));
     const drawing = store.getState().drawing;
     expect(drawing?.instanceId).toBe("instance-2");
     const canvas = screen.getByRole("img", { name: "Frame polygons" });
