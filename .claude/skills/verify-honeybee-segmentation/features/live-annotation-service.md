@@ -22,10 +22,9 @@ For a cloud record, the editor reads and saves through the published `Annotation
 
 ## Gotchas
 
-- Status on dev as of 2026-11-16 (backend data-platform-server #2403 @ `a82be170`; details in `docs/segmentation-api-integration.md`, "2026-11-16 复测"):
-  - `ListFrames`, `ListTimelineRanges` and `SaveAnnotation` work; draw → submit → reload → read back passes in the real page.
-  - The backend no longer validates `frame_time` against source frames or mask counts against the frame size. Assert stored values through `ListFrames`; a successful save does not prove the frame time or size is right.
-  - `ListTimelineRanges` returns one point range per observation, not coalesced ranges.
-  - `PropagateAnnotation` is not implemented and has no role permission: the browser sees HTTP 403. (Since fixed: propagation runs on dev with `sam2.1-motion`.)
-  - No published `@coscene-io/cosceneapis-es-v2` includes the annotation service; the generated code is a local copy under `services/api/spatial-annotation/generated`.
-- Unsaved drafts live in memory only; a reload drops them.
+- The backend does not validate `frame_time` against source frames or mask counts against the frame size. A successful save does not prove either is right; prove it by reading back (reload the page, enter annotation, jump to the frame with the tree's camera strip).
+- `ListTimelineRanges` returns one point range per observation, not coalesced ranges.
+- Propagation on dev accepts only `sam2.1-motion`.
+- Unsaved drafts live in memory only; a reload drops them. Leaving and re-entering annotation can reuse the in-memory session, so it is not a read-back.
+- `page.mouse` drags on the annotation canvas can lose pointer capture mid-gesture (the page briefly reports itself hidden and the canvas resets the gesture). Drive brush strokes and vertex drags with `page.cdp("Input.dispatchMouseEvent", …)` (`mousePressed`, several `mouseMoved` with `buttons: 1`, `mouseReleased`).
+- Renaming an instance opens a dialog. Wait for its input and use `page.fill`; raw `keyboard.type` into the page fires global shortcuts (sidebars, playback, speed).

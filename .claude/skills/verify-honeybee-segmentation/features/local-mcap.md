@@ -16,7 +16,7 @@ A user drops a `.mcap` file onto the web app, and Studio plays it with an Image 
 Preconditions:
 
 - `packages/studio-web/src/WebRoot.tsx` registers `McapLocalDataSourceFactory`. That is a local test aid. Without it the drop is ignored silently.
-- Test file: `/Volumes/Users/kylefang/orca/workspaces/bombus/语义分割/temp/astribot-s1/astribot-480p10.mcap`. Read it only. Never edit that tree.
+- Test file: a local Astribot S1 recording with an H.264 head camera, e.g. the team's `astribot-480p10.mcap`. Read it only.
 
 - **Attach file.** Go to `http://localhost:8081/`, wait for `input[data-puppeteer-file-upload]`, then `await page.setInputFiles("input[data-puppeteer-file-upload]", [path])`.
 - **Fire the handler.** ego-browser does not trigger React's change handler. Run in the page: find the input, take the key starting with `__reactProps` and call its `onChange({ target: input, currentTarget: input })`. This is the one allowed internal call, because a real drop has no other scripted path.

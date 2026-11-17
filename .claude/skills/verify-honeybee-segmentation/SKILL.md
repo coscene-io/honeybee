@@ -32,7 +32,7 @@ Auth. The cloud record needs a signed-in coScene dev session in the ego-browser 
 .claude/skills/verify-honeybee-segmentation/scripts/doctor.sh
 ```
 
-It is read-only. It checks that something listens on 8081, that the listener's working directory is this worktree, that `/` returns HTTP 200, and prints the branch and HEAD. A mismatch exits non-zero with the reason. Do not drive a server that fails the worktree check, because your edits are not in it.
+It is read-only (`PORT=<port>` checks another port; `open-record.sh` honours `PORT` and `TASK_SPACE` too). It checks that something listens on 8081, that the listener's working directory is this worktree, that `/` returns HTTP 200, and prints the branch and HEAD. A mismatch exits non-zero with the reason. Do not drive a server that fails the worktree check, because your edits are not in it.
 
 ## Drive
 
@@ -81,5 +81,5 @@ Write every artifact under `/tmp/verify-seg/` with a name that says the feature 
 ## Side effects to report
 
 - Creating a layout from the empty-layout dialog writes a personal layout to the signed-in dev account. Prefer the recommended layout URL so you do not create one.
-- Quick annotation uploads the displayed frame to `https://sam.reily.app` (a SAM2 process behind a Cloudflare Tunnel on the author's Mac). Report that frames leave the browser.
+- Quick annotation uploads the displayed frame to `https://sam.reily.app` (a SAM2 server behind a Cloudflare Tunnel, see `tools/seg-local-propagation/`). Report that frames leave the browser.
 - Edits saved in `正式服务` mode write to the shared dev backend. Follow the test-data rules in `features/live-annotation-service.md`.
