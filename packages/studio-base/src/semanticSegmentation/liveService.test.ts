@@ -389,6 +389,68 @@ describe("live annotation service", () => {
     ).toMatchObject({ x: 320, y: 240 });
   });
 
+  it("names a polygon the server would reject and writes nothing", async () => {
+    const { server, service, document } = setup();
+    seedServer(server);
+    await service.loadDocument();
+    const newClass = uuidv4();
+    const newInstance = uuidv4();
+    const frameId = document.frames[1]!.id;
+    const polygon = (points: { x: number; y: number }[]): StagedOperation => ({
+      id: uuidv4(),
+      label: "draw",
+      patch: {
+        classes: { [newClass]: { id: newClass, name: "[it] mug", color: "#00ff00" } },
+        instances: { [newInstance]: { id: newInstance, classId: newClass, name: "mug 1" } },
+        polygonChanges: {
+          [frameInstanceKey(frameId, newInstance)]: {
+            frameId,
+            instanceId: newInstance,
+            polygons: { p1: { id: "p1", points } },
+          },
+        },
+      },
+    });
+    // A keyhole ring (det_seg's way of carving a hole) repeats its bridge vertices.
+    await expect(
+      service.submit({
+        id: uuidv4(),
+        message: "",
+        operations: [
+          polygon([
+            { x: 0.1, y: 0.1 },
+            { x: 0.5, y: 0.1 },
+            { x: 0.3, y: 0.3 },
+            { x: 0.35, y: 0.4 },
+            { x: 0.3, y: 0.3 },
+            { x: 0.5, y: 0.5 },
+            { x: 0.1, y: 0.5 },
+          ]),
+        ],
+      }),
+    ).rejects.toThrow(/第 1 个多边形.*有重复的顶点.*Duplicate polygon vertex/);
+    expect(server.calls).toEqual([]);
+    // A vertex clicked twice in a row is the same outline; it is sent once.
+    await service.submit({
+      id: uuidv4(),
+      message: "",
+      operations: [
+        polygon([
+          { x: 0.5, y: 0.5 },
+          { x: 0.75, y: 0.5 },
+          { x: 0.75, y: 0.5 },
+          { x: 0.75, y: 0.75 },
+        ]),
+      ],
+    });
+    const mine = server.saves[0]!.frames[0]!.annotations.find((item) =>
+      item.instance.endsWith(newInstance),
+    )!;
+    expect(
+      mine.geometry.case === "polygons" && mine.geometry.value.polygons[0]!.points,
+    ).toHaveLength(3);
+  });
+
   it("writes nothing when a changed frame cannot be read first", async () => {
     const { server, service, document } = setup();
     seedServer(server);
@@ -594,7 +656,11 @@ describe("live annotation service", () => {
     await service.loadDocument();
     await service.loadFrameWindow("video", 0, 5);
     for await (const _ of service.propagate(
-      { instanceId: OTHER_ID, fromFrameId: document.frames[1]!.id, endTimeNs: LOG_TIMES[3]!.toString() },
+      {
+        instanceId: OTHER_ID,
+        fromFrameId: document.frames[1]!.id,
+        endTimeNs: LOG_TIMES[3]!.toString(),
+      },
       new AbortController().signal,
     )) {
       // drain

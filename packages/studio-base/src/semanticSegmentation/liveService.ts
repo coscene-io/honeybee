@@ -29,6 +29,7 @@ import {
 } from "./frameTime";
 import { maskRunsFromCounts } from "./maskCodec";
 import { observationHasGeometry } from "./maskGeometry";
+import { describeViolation, polygonViolation } from "./polygonContract";
 import {
   applySegmentationPatches,
   cloneSegmentation,
@@ -445,18 +446,34 @@ export function createLiveAnnotationService(options: {
         // An in-progress polygon stays a local draft (the contract rejects < 3 vertices).
         return polygon.points.length >= 3;
       })
-      .map((polygon) => ({
-        id: polygonWireId(recordName, instanceName, polygon.id),
-        points: polygon.points.map((point) => {
-          if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-            throw new Error("Annotation coordinate must be finite");
-          }
-          return {
-            x: clamp(point.x * size.width, size.width),
-            y: clamp(point.y * size.height, size.height),
-          };
-        }),
-      }));
+      .map((polygon, index) => {
+        const points = polygon.points
+          .map((point) => {
+            if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+              throw new Error("Annotation coordinate must be finite");
+            }
+            return {
+              x: clamp(point.x * size.width, size.width),
+              y: clamp(point.y * size.height, size.height),
+            };
+          })
+          // A vertex clicked twice, or two vertices clamped onto the same frame edge point, is
+          // the same outline with one vertex fewer; the contract rejects the repeat.
+          .filter((point, i, all) => {
+            const next = all[(i + 1) % all.length]!;
+            return all.length === 1 || point.x !== next.x || point.y !== next.y;
+          });
+        // Check what AnnotationGeometry checks before any request, so a bad polygon is named
+        // here instead of failing the whole save or propagation with INVALID_ARGUMENT.
+        const violation = polygonViolation(points);
+        if (violation) {
+          throw new Error(
+            `${topic} 上第 ${index + 1} 个多边形不符合标注契约（${describeViolation(violation)}），` +
+              `请修改该多边形的顶点后重试。服务端规则：${violation}`,
+          );
+        }
+        return { id: polygonWireId(recordName, instanceName, polygon.id), points };
+      });
   }
 
   /** One observation on the wire; undefined when nothing savable is left (it is then cleared). */
