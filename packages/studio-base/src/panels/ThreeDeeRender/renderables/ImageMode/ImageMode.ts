@@ -93,7 +93,7 @@ import type {
   SegmentationImage,
   SegmentationImageMetadata,
 } from "@foxglove/studio-base/semanticSegmentation/imageSource";
-import { nativeImageView } from "@foxglove/studio-base/semanticSegmentation/nativeImageTransform";
+import { cachedNativeImageView } from "@foxglove/studio-base/semanticSegmentation/nativeImageTransform";
 import { AppEvent } from "@foxglove/studio-base/services/IAnalytics";
 import { downloadFiles } from "@foxglove/studio-base/util/download";
 
@@ -1422,7 +1422,7 @@ export class ImageMode
     const { width, height } = getDecodedImageDimensions(image);
     const mesh = renderable.userData.mesh;
     const view = mesh
-      ? nativeImageView(
+      ? cachedNativeImageView(
           mesh,
           this.#camera,
           this.renderer.input.canvasSize.width,

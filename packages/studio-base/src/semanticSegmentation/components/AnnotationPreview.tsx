@@ -50,21 +50,34 @@ function PreviewPolygons({
         segmentationImageMetadataSources.get(canvas) ?? segmentationImageSources.get(canvas)
       )?.();
       const data = getPipeline().playerState.activeData;
-      setCaptured(
+      const next =
         image?.topic === topic &&
-          data &&
-          toNanoSec(image.receiveTime) <= toNanoSec(data.currentTime)
+        data &&
+        toNanoSec(image.receiveTime) <= toNanoSec(data.currentTime)
           ? image
-          : undefined,
+          : undefined;
+      // This runs on every rendered frame. Keep the state when nothing moved, so an unchanged
+      // frame does not re-render the polygons.
+      setCaptured((previous) =>
+        next != undefined &&
+        previous?.decodedIdentity === next.decodedIdentity &&
+        previous.nativeView === next.nativeView &&
+        toNanoSec(previous.receiveTime) === toNanoSec(next.receiveTime)
+          ? previous
+          : next,
       );
       const parent = container.getBoundingClientRect();
       const rect = canvas.getBoundingClientRect();
-      setBox({
-        left: rect.left - parent.left,
-        top: rect.top - parent.top,
-        width: rect.width,
-        height: rect.height,
-      });
+      const left = rect.left - parent.left;
+      const top = rect.top - parent.top;
+      setBox((previous) =>
+        previous?.left === left &&
+        previous.top === top &&
+        previous.width === rect.width &&
+        previous.height === rect.height
+          ? previous
+          : { left, top, width: rect.width, height: rect.height },
+      );
     };
     sync();
     canvas.addEventListener("segmentation-frame", sync);

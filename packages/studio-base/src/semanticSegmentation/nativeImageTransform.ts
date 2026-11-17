@@ -16,6 +16,61 @@ export type NativeImageView = {
   matrix: [number, number, number, number, number, number];
 };
 
+type CachedView = {
+  geometry: THREE.BufferGeometry;
+  versions: [number, number];
+  inputs: number[];
+  view: NativeImageView | undefined;
+};
+const cachedViews = new WeakMap<THREE.Mesh, CachedView>();
+
+/**
+ * `nativeImageView`, recomputed only when the mesh, its geometry, the camera or a size changed.
+ * Image panels ask on every rendered frame; an unchanged view keeps its object identity, so
+ * consumers can compare views by reference.
+ */
+export function cachedNativeImageView(
+  mesh: THREE.Mesh,
+  camera: THREE.Camera,
+  width: number,
+  height: number,
+  imageWidth: number,
+  imageHeight: number,
+): NativeImageView | undefined {
+  const geometry = mesh.geometry;
+  const version = (name: string) => {
+    if (!geometry.hasAttribute(name)) {
+      return -1;
+    }
+    const attribute = geometry.getAttribute(name);
+    return attribute instanceof THREE.InterleavedBufferAttribute
+      ? attribute.data.version
+      : attribute.version;
+  };
+  const versions: [number, number] = [version("position"), version("uv")];
+  const inputs = [
+    ...mesh.matrixWorld.elements,
+    ...camera.projectionMatrix.elements,
+    ...camera.matrixWorldInverse.elements,
+    width,
+    height,
+    imageWidth,
+    imageHeight,
+  ];
+  const cached = cachedViews.get(mesh);
+  if (
+    cached?.geometry === geometry &&
+    cached.versions[0] === versions[0] &&
+    cached.versions[1] === versions[1] &&
+    cached.inputs.every((value, index) => value === inputs[index])
+  ) {
+    return cached.view;
+  }
+  const view = nativeImageView(mesh, camera, width, height, imageWidth, imageHeight);
+  cachedViews.set(mesh, { geometry, versions, inputs, view });
+  return view;
+}
+
 /** Read the actual rendered plane; never duplicate ImageMode's fit/rotation/pan/zoom rules. */
 export function nativeImageView(
   mesh: THREE.Mesh,
