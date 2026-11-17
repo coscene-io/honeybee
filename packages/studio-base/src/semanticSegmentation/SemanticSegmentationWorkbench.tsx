@@ -189,7 +189,8 @@ export function SemanticSegmentationWorkbench({
           </main>
           <WorkflowControls
             store={store}
-            hidden={!workflow.open}
+            // One queue for the session: only the canvas holding the edit shows it.
+            hidden={!workflow.open || !active}
             onClose={() => {
               segmentationSession.setState((session) => ({
                 workflow: { ...session.workflow, open: false },
